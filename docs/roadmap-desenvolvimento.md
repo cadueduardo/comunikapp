@@ -26,7 +26,7 @@ O objetivo desta fase é construir a espinha dorsal do sistema, focando na arqui
   - Criação do repositório de código.
   - Setup do ambiente local.
 
-- **[ ] Tarefa 1.2: Desenho do Schema do Banco de Dados (Multi-Tenant)**
+- **[x] Tarefa 1.2: Desenho do Schema do Banco de Dados (Multi-Tenant)**
   - Implementar a estratégia de banco de dados compartilhado com a coluna `loja_id` em todas as tabelas relevantes.
   - Criar as tabelas iniciais para lojas e usuários.
 
