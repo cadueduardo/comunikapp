@@ -1,0 +1,65 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMINISTRADOR
+  FINANCEIRO
+  PRODUCAO
+  VENDAS
+  ESTOQUE
+}
+
+model Loja {
+  id                      String    @id @default(cuid())
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  name                    String
+  cnpj                    String?   @unique
+  email                   String    @unique
+  phone                   String?
+  address                 String?
+  responsavel             String?
+  logoUrl                 String?
+
+  // Billing / Subscription fields
+  gateway_customer_id     String?   @unique
+  gateway_subscription_id String?   @unique
+  subscription_status     String?
+  trial_ends_at           DateTime?
+  current_period_ends_at  DateTime?
+
+  // Relations
+  usuarios                Usuario[]
+}
+
+model Usuario {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name     String
+  email    String   @unique
+  password String
+  phone    String?
+  role     UserRole @default(VENDAS)
+  ativo    Boolean  @default(true)
+
+  // Relation to Loja
+  lojaId String
+  loja   Loja   @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+
+  @@index([lojaId])
+}

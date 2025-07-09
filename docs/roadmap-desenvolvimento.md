@@ -21,7 +21,7 @@ Esta fase foca na criação da porta de entrada para o sistema, permitindo que n
 
 O objetivo desta fase é construir a espinha dorsal do sistema, focando na arquitetura multi-tenant, segurança e nos cadastros essenciais.
 
-- **[ ] Tarefa 1.1: Configuração do Ambiente de Desenvolvimento**
+- **[x] Tarefa 1.1: Configuração do Ambiente de Desenvolvimento**
   - Definição das tecnologias (linguagem, framework, banco de dados).
   - Criação do repositório de código.
   - Setup do ambiente local.
