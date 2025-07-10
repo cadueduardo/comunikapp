@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,7 +25,6 @@ export default function LoginPage() {
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const router = useRouter();
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value } = e.target;
@@ -50,13 +48,14 @@ export default function LoginPage() {
                 throw new Error(errorData.message || 'Erro ao fazer login.');
             }
 
-            const { user } = await response.json();
+            const responseData = await response.json();
+            const { user } = responseData;
             
             // Armazena dados do usuário (temporário - em produção seria JWT)
             localStorage.setItem('user', JSON.stringify(user));
             
             // Redireciona para o dashboard
-            router.push('/dashboard');
+            window.location.href = '/dashboard';
             
         } catch (err: unknown) {
             if (err instanceof Error) {

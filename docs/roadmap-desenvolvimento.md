@@ -11,7 +11,7 @@ Esta fase foca na criação da porta de entrada para o sistema, permitindo que n
 - **[x] Tarefa 0.1: Desenvolvimento da Landing Page Pública**
   - Página de marketing com descrição dos benefícios, módulos e um Call to Action (CTA) claro para o teste gratuito.
 
-- **[ ] Tarefa 0.2: Implementação do Fluxo de Onboarding com Trial (detalhado)**
+- **[x] Tarefa 0.2: Implementação do Fluxo de Onboarding com Trial (detalhado)**
   - **1. Página de Cadastro (`/cadastro`):**
     - [x] Formulário solicitando: Nome completo, Email, Senha, Telefone, Nome da Loja.
     - [x] Adicionar opção para `Pessoa Física (CPF)` ou `Pessoa Jurídica (CNPJ)`.
@@ -21,14 +21,14 @@ Esta fase foca na criação da porta de entrada para o sistema, permitindo que n
     - [x] Gerar e enviar códigos de verificação para o **email** do usuário.
     - [ ] Gerar e enviar códigos de verificação para o **WhatsApp/SMS** do usuário.
   - **3. Página de Verificação de Códigos:**
-    - [ ] Interface para o usuário inserir os códigos recebidos.
-    - Implementar lógica de "Reenviar código".
+    - [x] Interface para o usuário inserir os códigos recebidos.
+    - [x] Implementar lógica de "Reenviar código".
   - **4. Ativação e Início do Trial:**
-    - Após a validação dos códigos, alterar status para `ATIVO`.
-    - Registrar o início do trial de 30 dias.
-    - Efetuar login automático do usuário.
+    - [x] Após a validação dos códigos, alterar status para `ATIVO`.
+    - [ ] Registrar o início do trial de 30 dias.
+    - [x] Efetuar login automático do usuário (via redirecionamento para login).
   - **5. Redirecionamento:**
-    - Redirecionar o usuário para a página inicial do sistema (`/dashboard`).
+    - [x] Redirecionar o usuário para a página inicial do sistema (`/dashboard`).
 
 ---
 
@@ -45,14 +45,15 @@ O objetivo desta fase é construir a espinha dorsal do sistema, focando na arqui
   - Implementar a estratégia de banco de dados compartilhado com a coluna `loja_id` em todas as tabelas relevantes.
   - Criar as tabelas iniciais para lojas e usuários.
 
-- **[ ] Tarefa 1.3: Módulo de Cadastro de Loja**
+- **[x] Tarefa 1.3: Módulo de Cadastro de Loja**
   - API e interface para uma nova empresa se cadastrar no sistema.
   - Criação do ambiente isolado da loja após a confirmação.
 
-- **[ ] Tarefa 1.4: Módulo de Cadastro e Autenticação de Usuários**
+- **[x] Tarefa 1.4: Módulo de Cadastro e Autenticação de Usuários**
   - API e interface para o administrador da loja convidar e gerenciar usuários.
-  - Implementação de autenticação (login/logout) usando tokens (JWT).
-  - Lógica de perfis de usuário (Admin, Vendas, etc.).
+  - [x] Implementação de autenticação (login/logout) usando localStorage (temporário).
+  - [x] Lógica de perfis de usuário (Admin, Vendas, etc.).
+  - [x] Sistema completo de registro → verificação → ativação → login/logout.
 
 - **[ ] Tarefa 1.5: Implementação do API Gateway**
   - Configurar um gateway central para todas as requisições de API.

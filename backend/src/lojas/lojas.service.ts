@@ -1,10 +1,11 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { MailService } from 'src/mail/mail.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateLojaDto } from './dto/update-loja.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class LojasService {
@@ -12,6 +13,68 @@ export class LojasService {
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
   ) {}
+
+  async login({ email, password }: LoginDto) {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { email },
+      include: {
+        loja: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!usuario) {
+      throw new UnauthorizedException('Credenciais inválidas.');
+    }
+
+    if (!usuario.email_verificado) {
+      throw new UnauthorizedException('Email não verificado. Verifique sua caixa de entrada.');
+    }
+
+    if (usuario.status !== 'ATIVO') {
+      throw new UnauthorizedException('Conta não está ativa.');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, usuario.senha);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Credenciais inválidas.');
+    }
+
+    // Remove senha do retorno
+    const { senha, codigo_verificacao_email, codigo_verificacao_email_expiracao, ...result } = usuario;
+    
+    return {
+      user: result,
+      message: 'Login realizado com sucesso!',
+    };
+  }
+
+  async findUserByEmail(email: string) {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        nome_completo: true,
+        email: true,
+        telefone: true,
+        funcao: true,
+        loja_id: true,
+        email_verificado: true,
+        status: true,
+      },
+    });
+
+    if (!usuario) {
+      throw new NotFoundException('Usuário não encontrado.');
+    }
+
+    return usuario;
+  }
 
   async create(createOnboardingDto: CreateOnboardingDto) {
     const {
@@ -66,6 +129,9 @@ export class LojasService {
   async verifyEmail({ email, codigo }: VerifyEmailDto) {
     const usuario = await this.prisma.usuario.findUnique({
       where: { email },
+      include: {
+        loja: true,
+      },
     });
 
     if (!usuario) {
@@ -94,13 +160,26 @@ export class LojasService {
       throw new BadRequestException('O código de verificação expirou.');
     }
 
-    await this.prisma.usuario.update({
-      where: { id: usuario.id },
-      data: {
-        email_verificado: true,
-        codigo_verificacao_email: null,
-        codigo_verificacao_email_expiracao: null,
-      },
+    // Usar transação para ativar tanto o usuário quanto a loja
+    await this.prisma.$transaction(async (tx) => {
+      // Ativar usuário
+      await tx.usuario.update({
+        where: { id: usuario.id },
+        data: {
+          email_verificado: true,
+          status: 'ATIVO', // ← AQUI estava faltando!
+          codigo_verificacao_email: null,
+          codigo_verificacao_email_expiracao: null,
+        },
+      });
+
+      // Ativar loja também
+      await tx.loja.update({
+        where: { id: usuario.loja_id },
+        data: {
+          status: 'ATIVO', // ← E AQUI também!
+        },
+      });
     });
 
     return { message: 'E-mail verificado com sucesso!' };
