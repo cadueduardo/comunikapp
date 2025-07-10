@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { CreateOnboardingDto } from './dto/create-onboarding.dto';
-import { UpdateLojaDto } from './dto/update-loja.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { MailService } from 'src/mail/mail.service';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { CreateOnboardingDto } from './dto/create-onboarding.dto';
+import { UpdateLojaDto } from './dto/update-loja.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
 @Injectable()
 export class LojasService {
@@ -60,6 +61,49 @@ export class LojasService {
       const { senha, ...result } = usuario;
       return result;
     });
+  }
+
+  async verifyEmail({ email, codigo }: VerifyEmailDto) {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { email },
+    });
+
+    if (!usuario) {
+      throw new NotFoundException('Usuário não encontrado.');
+    }
+
+    if (usuario.email_verificado) {
+      throw new BadRequestException('Este e-mail já foi verificado.');
+    }
+
+    if (
+      !usuario.codigo_verificacao_email ||
+      !usuario.codigo_verificacao_email_expiracao
+    ) {
+      throw new BadRequestException(
+        'Não há código de verificação pendente para este usuário.',
+      );
+    }
+
+    if (usuario.codigo_verificacao_email !== codigo) {
+      throw new BadRequestException('Código de verificação inválido.');
+    }
+
+    if (new Date() > usuario.codigo_verificacao_email_expiracao) {
+      // TODO: Implementar lógica de reenviar código
+      throw new BadRequestException('O código de verificação expirou.');
+    }
+
+    await this.prisma.usuario.update({
+      where: { id: usuario.id },
+      data: {
+        email_verificado: true,
+        codigo_verificacao_email: null,
+        codigo_verificacao_email_expiracao: null,
+      },
+    });
+
+    return { message: 'E-mail verificado com sucesso!' };
   }
 
   findAll() {

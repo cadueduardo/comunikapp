@@ -18,7 +18,8 @@ Esta fase foca na criação da porta de entrada para o sistema, permitindo que n
     - [ ] Incluir botão "Cadastrar com Google" (a ser implementado futuramente).
   - **2. Submissão e Verificação (Backend):**
     - [x] Salvar `Loja` e `Usuario` com status `PENDENTE_VERIFICACAO`.
-    - [ ] Gerar e enviar códigos de verificação para o **email** e **WhatsApp/SMS** do usuário.
+    - [x] Gerar e enviar códigos de verificação para o **email** do usuário.
+    - [ ] Gerar e enviar códigos de verificação para o **WhatsApp/SMS** do usuário.
   - **3. Página de Verificação de Códigos:**
     - [ ] Interface para o usuário inserir os códigos recebidos.
     - Implementar lógica de "Reenviar código".

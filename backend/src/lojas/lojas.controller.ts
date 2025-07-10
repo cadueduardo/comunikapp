@@ -10,6 +10,7 @@ import {
 import { LojasService } from './lojas.service';
 import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateLojaDto } from './dto/update-loja.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
 @Controller('lojas')
 export class LojasController {
@@ -18,6 +19,11 @@ export class LojasController {
   @Post()
   create(@Body() createOnboardingDto: CreateOnboardingDto) {
     return this.lojasService.create(createOnboardingDto);
+  }
+
+  @Post('verificar-email')
+  verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
+    return this.lojasService.verifyEmail(verifyEmailDto);
   }
 
   @Get()
