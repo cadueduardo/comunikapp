@@ -1,6 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { LojasService } from './lojas.service';
-import { CreateLojaDto } from './dto/create-loja.dto';
+import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateLojaDto } from './dto/update-loja.dto';
 
 @Controller('lojas')
@@ -8,8 +16,8 @@ export class LojasController {
   constructor(private readonly lojasService: LojasService) {}
 
   @Post()
-  create(@Body() createLojaDto: CreateLojaDto) {
-    return this.lojasService.create(createLojaDto);
+  create(@Body() createOnboardingDto: CreateOnboardingDto) {
+    return this.lojasService.create(createOnboardingDto);
   }
 
   @Get()

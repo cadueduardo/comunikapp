@@ -21,18 +21,32 @@ enum UserRole {
   ESTOQUE
 }
 
+enum TipoPessoa {
+  PESSOA_FISICA
+  PESSOA_JURIDICA
+}
+
+enum StatusConta {
+  PENDENTE_VERIFICACAO
+  ATIVO
+  INATIVO
+  BLOQUEADO
+}
+
 model Loja {
   id                      String    @id @default(cuid())
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
   name                    String
-  cnpj                    String?   @unique
+  tipo_pessoa             TipoPessoa
+  documento               String    @unique
   email                   String    @unique
   phone                   String?
   address                 String?
   responsavel             String?
   logoUrl                 String?
+  status                  StatusConta @default(PENDENTE_VERIFICACAO)
 
   // Billing / Subscription fields
   gateway_customer_id     String?   @unique
@@ -55,7 +69,7 @@ model Usuario {
   password String
   phone    String?
   role     UserRole @default(VENDAS)
-  ativo    Boolean  @default(true)
+  status   StatusConta @default(PENDENTE_VERIFICACAO)
 
   // Relation to Loja
   lojaId String

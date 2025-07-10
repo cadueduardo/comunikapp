@@ -8,12 +8,26 @@ Este documento descreve as fases e tarefas planejadas para o desenvolvimento do 
 
 Esta fase foca na criação da porta de entrada para o sistema, permitindo que novos clientes conheçam e se cadastrem no Comunikapp.
 
-- **[ ] Tarefa 0.1: Desenvolvimento da Landing Page Pública**
+- **[x] Tarefa 0.1: Desenvolvimento da Landing Page Pública**
   - Página de marketing com descrição dos benefícios, módulos e um Call to Action (CTA) claro para o teste gratuito.
 
-- **[ ] Tarefa 0.2: Implementação do Fluxo de Onboarding com Trial**
-  - Formulário de cadastro da loja e do usuário administrador.
-  - Lógica para criar a conta com um status de "trial" que expira em 30 dias, com todos os módulos ativados por padrão.
+- **[ ] Tarefa 0.2: Implementação do Fluxo de Onboarding com Trial (detalhado)**
+  - **1. Página de Cadastro (`/cadastro`):**
+    - [x] Formulário solicitando: Nome completo, Email, Senha, Telefone, Nome da Loja.
+    - [x] Adicionar opção para `Pessoa Física (CPF)` ou `Pessoa Jurídica (CNPJ)`.
+    - [ ] Incluir botão "Cadastrar com Google" (a ser implementado futuramente).
+  - **2. Submissão e Verificação (Backend):**
+    - [x] Salvar `Loja` e `Usuario` com status `PENDENTE_VERIFICACAO`.
+    - [ ] Gerar e enviar códigos de verificação para o **email** e **WhatsApp/SMS** do usuário.
+  - **3. Página de Verificação de Códigos:**
+    - [ ] Interface para o usuário inserir os códigos recebidos.
+    - Implementar lógica de "Reenviar código".
+  - **4. Ativação e Início do Trial:**
+    - Após a validação dos códigos, alterar status para `ATIVO`.
+    - Registrar o início do trial de 30 dias.
+    - Efetuar login automático do usuário.
+  - **5. Redirecionamento:**
+    - Redirecionar o usuário para a página inicial do sistema (`/dashboard`).
 
 ---
 
