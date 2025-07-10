@@ -25,7 +25,7 @@ Esta fase foca na criação da porta de entrada para o sistema, permitindo que n
     - [x] Implementar lógica de "Reenviar código".
   - **4. Ativação e Início do Trial:**
     - [x] Após a validação dos códigos, alterar status para `ATIVO`.
-    - [ ] Registrar o início do trial de 30 dias.
+    - [x] Registrar o início do trial de 30 dias.
     - [x] Efetuar login automático do usuário (via redirecionamento para login).
   - **5. Redirecionamento:**
     - [x] Redirecionar o usuário para a página inicial do sistema (`/dashboard`).

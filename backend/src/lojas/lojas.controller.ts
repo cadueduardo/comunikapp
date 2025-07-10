@@ -38,6 +38,16 @@ export class LojasController {
     return this.lojasService.findUserByEmail(email);
   }
 
+  @Get('loja-trial/:lojaId')
+  findLojaWithTrial(@Param('lojaId') lojaId: string) {
+    return this.lojasService.findLojaWithTrial(lojaId);
+  }
+
+  @Post('ativar-trial-temp')
+  async ativarTrialTemp(@Body() { lojaId }: { lojaId: string }) {
+    return this.lojasService.ativarTrialTemp(lojaId);
+  }
+
   @Get()
   findAll() {
     return this.lojasService.findAll();

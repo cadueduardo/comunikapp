@@ -76,6 +76,44 @@ export class LojasService {
     return usuario;
   }
 
+  async findLojaWithTrial(lojaId: string) {
+    const loja = await this.prisma.loja.findUnique({
+      where: { id: lojaId },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        trial_ends_at: true,
+        subscription_status: true,
+        createdAt: true,
+      },
+    });
+
+    if (!loja) {
+      throw new NotFoundException('Loja não encontrada.');
+    }
+
+    // Calcular dias restantes do trial
+    let trialDaysLeft = null;
+    let trialStatus = 'active';
+
+    if (loja.trial_ends_at) {
+      const now = new Date();
+      const trialEnd = new Date(loja.trial_ends_at);
+      const diffTime = trialEnd.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      trialDaysLeft = Math.max(0, diffDays);
+      trialStatus = diffDays > 0 ? 'active' : 'expired';
+    }
+
+    return {
+      ...loja,
+      trial_days_left: trialDaysLeft,
+      trial_status: trialStatus,
+    };
+  }
+
   async create(createOnboardingDto: CreateOnboardingDto) {
     const {
       storeName,
@@ -167,22 +205,51 @@ export class LojasService {
         where: { id: usuario.id },
         data: {
           email_verificado: true,
-          status: 'ATIVO', // ← AQUI estava faltando!
+          status: 'ATIVO',
           codigo_verificacao_email: null,
           codigo_verificacao_email_expiracao: null,
         },
       });
 
-      // Ativar loja também
+      // Ativar loja e definir trial de 30 dias
+      const trialEndDate = new Date();
+      trialEndDate.setDate(trialEndDate.getDate() + 30);
+
       await tx.loja.update({
         where: { id: usuario.loja_id },
         data: {
-          status: 'ATIVO', // ← E AQUI também!
+          status: 'ATIVO',
+          trial_ends_at: trialEndDate,
         },
       });
     });
 
     return { message: 'E-mail verificado com sucesso!' };
+  }
+
+  async ativarTrialTemp(lojaId: string) {
+    const loja = await this.prisma.loja.findUnique({
+      where: { id: lojaId },
+    });
+
+    if (!loja) {
+      throw new NotFoundException('Loja não encontrada.');
+    }
+
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 30);
+
+    await this.prisma.loja.update({
+      where: { id: lojaId },
+      data: {
+        trial_ends_at: trialEndDate,
+      },
+    });
+
+    return { 
+      message: 'Trial ativado com sucesso!',
+      trial_ends_at: trialEndDate,
+    };
   }
 
   findAll() {

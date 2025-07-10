@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { Skeleton } from "@/components/ui/skeleton"
+import { TrialBanner } from "@/components/ui/trial-banner"
 
 function DashboardContent() {
     return (
         <div>
+            <TrialBanner />
             <h1 className="text-3xl font-bold">Dashboard Principal</h1>
             <p className="text-muted-foreground mt-2">
                 Bem-vindo de volta! Aqui estão suas atualizações.
