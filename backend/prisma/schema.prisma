@@ -57,6 +57,7 @@ model Loja {
 
   // Relations
   usuarios                Usuario[]
+  clientes                Cliente[]
 }
 
 model Usuario {
@@ -86,4 +87,57 @@ enum FuncaoUsuario {
   PRODUCAO
   VENDAS
   ESTOQUE
+}
+
+model Cliente {
+  id               String    @id @default(cuid())
+  criado_em        DateTime  @default(now())
+  atualizado_em    DateTime  @updatedAt
+
+  // Dados básicos
+  nome             String
+  tipo_pessoa      TipoPessoa
+  documento        String    // CPF ou CNPJ
+  
+  // Contato
+  email            String?
+  telefone         String?
+  whatsapp         String?
+  
+  // Endereço
+  cep              String?
+  endereco         String?
+  numero           String?
+  complemento      String?
+  bairro           String?
+  cidade           String?
+  estado           String?
+  
+  // Informações comerciais
+  razao_social     String?   // Para PJ
+  nome_fantasia    String?   // Para PJ
+  inscricao_estadual String? // Para PJ
+  responsavel      String?   // Nome do contato principal
+  cargo_responsavel String?  // Cargo do contato
+  
+  // CRM
+  observacoes      String?   @db.Text
+  status_cliente   StatusCliente @default(ATIVO)
+  origem           String?   // Como conheceu a empresa
+  segmento         String?   // Setor de atuação
+  
+  // Multi-tenant
+  loja_id          String
+  loja             Loja      @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  
+  @@index([loja_id])
+  @@index([loja_id, nome])
+  @@index([loja_id, documento])
+}
+
+enum StatusCliente {
+  ATIVO
+  INATIVO
+  PROSPECT
+  BLOQUEADO
 }
