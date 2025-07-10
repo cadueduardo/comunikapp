@@ -60,20 +60,30 @@ model Loja {
 }
 
 model Usuario {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                                 String    @id @default(cuid())
+  nome_completo                      String
+  email                              String    @unique
+  senha                              String
+  telefone                           String
+  funcao                             FuncaoUsuario @default(VENDAS)
+  status                             StatusConta   @default(PENDENTE_VERIFICACAO)
+  email_verificado                   Boolean       @default(false)
+  codigo_verificacao_email           String?
+  codigo_verificacao_email_expiracao DateTime?
 
-  name     String
-  email    String   @unique
-  password String
-  phone    String?
-  role     UserRole @default(VENDAS)
-  status   StatusConta @default(PENDENTE_VERIFICACAO)
+  loja_id String
+  loja    Loja   @relation(fields: [loja_id], references: [id], onDelete: Cascade)
 
-  // Relation to Loja
-  lojaId String
-  loja   Loja   @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  criado_em  DateTime @default(now())
+  atualizado_em DateTime @updatedAt
 
-  @@index([lojaId])
+  @@index([loja_id])
+}
+
+enum FuncaoUsuario {
+  ADMINISTRADOR
+  FINANCEIRO
+  PRODUCAO
+  VENDAS
+  ESTOQUE
 }

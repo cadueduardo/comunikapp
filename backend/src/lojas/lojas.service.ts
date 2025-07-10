@@ -1,45 +1,63 @@
 import { Injectable } from '@nestjs/common';
-import { CreateOnboardingDto } from './dto/create-onboarding.dto'; // Alterado
+import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateLojaDto } from './dto/update-loja.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
-import { UserRole } from '@prisma/client';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class LojasService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+  ) {}
 
   async create(createOnboardingDto: CreateOnboardingDto) {
-    const { storeName, name, email, phone, tipoPessoa, documento, password } =
-      createOnboardingDto;
+    const {
+      storeName,
+      name,
+      email,
+      phone,
+      tipoPessoa,
+      documento,
+      password,
+    } = createOnboardingDto;
 
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(password, salt);
+
+    const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expirationDate = new Date();
+    expirationDate.setMinutes(expirationDate.getMinutes() + 15);
 
     return this.prisma.$transaction(async (tx) => {
       const loja = await tx.loja.create({
         data: {
           name: storeName,
-          email: email,
-          phone: phone,
+          email,
+          phone,
           tipo_pessoa: tipoPessoa,
-          documento: documento,
+          documento,
         },
       });
 
       const usuario = await tx.usuario.create({
         data: {
-          name: name,
-          email: email,
-          phone: phone,
-          password: hashedPassword,
-          role: UserRole.ADMINISTRADOR,
-          lojaId: loja.id,
+          nome_completo: name,
+          email,
+          telefone: phone,
+          senha: hashedPassword,
+          funcao: 'ADMINISTRADOR',
+          loja_id: loja.id,
+          codigo_verificacao_email: emailCode,
+          codigo_verificacao_email_expiracao: expirationDate,
         },
       });
 
-      // Não retornar a senha no resultado
-      const { password: _, ...result } = usuario;
+      await this.mailService.sendVerificationEmail(usuario.email, emailCode);
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { senha, ...result } = usuario;
       return result;
     });
   }
