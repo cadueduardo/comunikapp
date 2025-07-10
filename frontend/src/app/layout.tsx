@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { cn } from "@/lib/utils";
 import { UserProvider } from "@/contexts/UserContext";
+import { Toaster } from "@/components/ui/sonner"; // Importando o Toaster
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Comunikapp",
-  description: "A plataforma modular para sua empresa de comunicação visual.",
+  description: "Gestão para comunicação visual",
 };
 
 export default function RootLayout({
@@ -18,14 +18,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body
-        className={cn(
-          "min-h-screen bg-background font-sans antialiased",
-          inter.variable
-        )}
-      >
+      <body className={inter.className}>
         <UserProvider>
           {children}
+          <Toaster richColors /> {/* Adicionando o componente Toaster */}
         </UserProvider>
       </body>
     </html>

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar, SidebarBody } from '@/components/ui/sidebar';
 import {
@@ -81,34 +81,9 @@ const SidebarLink = ({
   );
 };
 
-export const Logo = () => {
-  return (
-    <Link
-      href="/dashboard"
-      className="font-normal flex space-x-2 items-center text-sm text-black py-1 relative z-20"
-    >
-      <div className="h-5 w-6 bg-black dark:bg-white rounded-br-lg rounded-tr-sm rounded-tl-lg rounded-bl-sm flex-shrink-0" />
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="font-medium text-black dark:text-white whitespace-pre"
-      >
-        Comunikapp
-      </motion.span>
-    </Link>
-  );
-};
-
-export const LogoIcon = () => {
-  return (
-    <Link
-      href="/dashboard"
-      className="font-normal flex space-x-2 items-center text-sm text-black py-1 relative z-20"
-    >
-      <div className="h-5 w-6 bg-black dark:bg-white rounded-br-lg rounded-tr-sm rounded-tl-lg rounded-bl-sm flex-shrink-0" />
-    </Link>
-  );
-};
+// Logo e LogoIcon foram movidos para sidebar.tsx
+// export const Logo = () => { ... };
+// export const LogoIcon = () => { ... };
 
 export default function DashboardLayout({
   children,
@@ -117,16 +92,15 @@ export default function DashboardLayout({
 }) {
   const { user, getFirstName, logout, loading } = useUser();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  // const [open, setOpen] = useState(false); // REMOVIDO
 
-  // Proteção de rota - redireciona para login se não estiver logado
+  // Proteção de rota
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
     }
   }, [user, loading, router]);
 
-  // Mostra loading ou redireciona se não há usuário
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -136,7 +110,7 @@ export default function DashboardLayout({
   }
 
   if (!user) {
-    return null; // Será redirecionado pelo useEffect
+    return null;
   }
   
   const links = [
@@ -171,11 +145,12 @@ export default function DashboardLayout({
   ];
 
   return (
-    <div className="flex flex-row bg-gray-100 dark:bg-neutral-800 w-full h-screen overflow-hidden">
-      <Sidebar open={open} setOpen={setOpen}>
+    <div className="flex flex-col lg:flex-row bg-gray-100 dark:bg-neutral-800 w-full h-screen overflow-hidden">
+      {/* O Sidebar agora gerencia seu próprio estado */}
+      <Sidebar> 
         <SidebarBody className="justify-between gap-10">
           <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-            {open ? <Logo /> : <LogoIcon />}
+            {/* O Logo é renderizado condicionalmente dentro do DesktopSidebar */}
             <div className="mt-8 flex flex-col gap-2">
               {links.map((link, idx) => (
                 <SidebarLink key={idx} link={link} />
@@ -209,11 +184,13 @@ export default function DashboardLayout({
           </div>
         </SidebarBody>
       </Sidebar>
-      <div className="flex flex-1">
-        <div className="p-6 md:p-10 bg-white dark:bg-neutral-900 flex flex-col gap-2 flex-1 w-full h-full overflow-auto">
+      
+      {/* Área de conteúdo principal */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="p-6 md:p-10">
           {children}
         </div>
-      </div>
+      </main>
     </div>
   );
 } 
