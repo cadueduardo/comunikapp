@@ -20,10 +20,23 @@ export const TrialBanner = () => {
       if (!user?.loja_id) return;
 
       try {
-        const response = await fetch(`http://localhost:3001/lojas/loja-trial/${user.loja_id}`);
+        const token = localStorage.getItem('access_token');
+        if (!token) return;
+
+        console.log('Buscando trial info com JWT...');
+        const response = await fetch(`http://localhost:3001/lojas/my-loja-trial`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        console.log('Response status:', response.status);
+        
         if (response.ok) {
           const data = await response.json();
+          console.log('Trial data:', data);
           setTrialInfo(data);
+        } else {
+          console.log('Erro na resposta:', await response.text());
         }
       } catch (error) {
         console.error('Erro ao buscar informações do trial:', error);
@@ -35,8 +48,35 @@ export const TrialBanner = () => {
     fetchTrialInfo();
   }, [user?.loja_id]);
 
-  if (loading || !trialInfo || trialInfo.trial_days_left === null) {
-    return null;
+  if (loading) {
+    return (
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+        <div className="flex items-center">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
+          <span className="text-sm text-gray-600">Carregando informações do trial...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Debug: Mostrar quando não há trial definido
+  if (!trialInfo || trialInfo.trial_days_left === null) {
+    return (
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+        <div className="flex items-center">
+          <AlertCircle className="h-5 w-5 text-gray-600 mr-3" />
+          <div>
+            <h3 className="text-sm font-medium text-gray-800">
+              Trial não configurado
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Esta conta foi criada antes da implementação do sistema de trial. 
+              {trialInfo ? `Status: ${JSON.stringify(trialInfo)}` : 'Dados não encontrados.'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const { trial_days_left, trial_status } = trialInfo;

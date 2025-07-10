@@ -49,9 +49,10 @@ export default function LoginPage() {
             }
 
             const responseData = await response.json();
-            const { user } = responseData;
+            const { access_token, user } = responseData;
             
-            // Armazena dados do usuário (temporário - em produção seria JWT)
+            // Armazena token JWT e dados do usuário
+            localStorage.setItem('access_token', access_token);
             localStorage.setItem('user', JSON.stringify(user));
             
             // Redireciona para o dashboard

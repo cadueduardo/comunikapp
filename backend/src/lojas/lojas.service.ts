@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException, UnauthorizedExcepti
 import * as bcrypt from 'bcrypt';
 import { MailService } from 'src/mail/mail.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { AuthService } from 'src/auth/auth.service';
 import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateLojaDto } from './dto/update-loja.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
@@ -12,6 +13,7 @@ export class LojasService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
+    private readonly authService: AuthService,
   ) {}
 
   async login({ email, password }: LoginDto) {
@@ -45,11 +47,24 @@ export class LojasService {
       throw new UnauthorizedException('Credenciais inválidas.');
     }
 
-    // Remove senha do retorno
-    const { senha, codigo_verificacao_email, codigo_verificacao_email_expiracao, ...result } = usuario;
-    
+    // Gerar token JWT
+    const token = await this.authService.generateToken({
+      id: usuario.id,
+      email: usuario.email,
+      loja_id: usuario.loja_id,
+      funcao: usuario.funcao,
+      nome_completo: usuario.nome_completo,
+    });
+
     return {
-      user: result,
+      access_token: token,
+      user: {
+        id: usuario.id,
+        nome_completo: usuario.nome_completo,
+        email: usuario.email,
+        funcao: usuario.funcao,
+        loja_id: usuario.loja_id,
+      },
       message: 'Login realizado com sucesso!',
     };
   }
@@ -94,7 +109,7 @@ export class LojasService {
     }
 
     // Calcular dias restantes do trial
-    let trialDaysLeft = null;
+    let trialDaysLeft: number | null = null;
     let trialStatus = 'active';
 
     if (loja.trial_ends_at) {

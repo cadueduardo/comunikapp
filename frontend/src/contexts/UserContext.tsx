@@ -36,14 +36,33 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   // Função para buscar dados do usuário logado
   const fetchUserData = async () => {
     try {
-      // Verifica se há dados do usuário no localStorage
+      const token = localStorage.getItem('access_token');
       const userData = localStorage.getItem('user');
-      if (userData) {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
+      
+      if (token && userData) {
+        // Validar token fazendo uma requisição autenticada
+        const response = await fetch('http://localhost:3001/lojas/me', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        
+        if (response.ok) {
+          const userFromServer = await response.json();
+          setUser(userFromServer);
+        } else {
+          // Token inválido, limpar dados
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('user');
+          setUser(null);
+        }
       }
     } catch (error) {
       console.error('Erro ao buscar dados do usuário:', error);
+      // Em caso de erro, limpar dados
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user');
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -51,6 +70,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Função de logout
   const logout = () => {
+    localStorage.removeItem('access_token');
     localStorage.removeItem('user');
     setUser(null);
     window.location.href = '/login';

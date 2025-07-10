@@ -55,10 +55,15 @@ O objetivo desta fase é construir a espinha dorsal do sistema, focando na arqui
   - [x] Lógica de perfis de usuário (Admin, Vendas, etc.).
   - [x] Sistema completo de registro → verificação → ativação → login/logout.
 
-- **[ ] Tarefa 1.5: Implementação do API Gateway**
-  - Configurar um gateway central para todas as requisições de API.
-  - Implementar a lógica de validação de token e encaminhamento para os serviços/módulos corretos.
-  - Garantir que o gateway force a validação de `loja_id` em todas as chamadas.
+- **[ ] Tarefa 1.5: Implementação do API Gateway Básico**
+  - [x] Implementar JWT para autenticação (substituir localStorage).
+  - [x] Criar middleware para validação de token em todas as rotas.
+  - [x] Garantir injeção automática de `loja_id` em requisições autenticadas.
+  - [x] Adicionar guards de proteção nas rotas sensíveis.
+
+- **[ ] Tarefa 1.6: Implementação de Proteção de Dados Multi-Tenant**
+  - Validar que usuários só acessem dados da própria loja.
+  - Implementar filtros automáticos de `loja_id` no Prisma.
 
 ---
 
@@ -134,6 +139,13 @@ Construir as funcionalidades que caracterizam o sistema como um SaaS modular e c
   - Integração com a API do Stripe para criar e gerenciar assinaturas.
   - Lógica para lidar com o fim do período de trial e gerenciar o status das assinaturas.
   - Configuração de webhooks para sincronizar o status dos pagamentos.
+
+- **[ ] Tarefa 4.4: API Gateway Robusto (Evolução da 1.5)**
+  - Implementar rate limiting por loja/usuário.
+  - Sistema completo de logs de auditoria e métricas.
+  - Health checks e monitoramento de performance.
+  - Implementar cache distribuído para otimização.
+  - Gateway com balanceamento de carga para múltiplos serviços.
 
 ---
 
