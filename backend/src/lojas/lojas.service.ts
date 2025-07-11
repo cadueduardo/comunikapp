@@ -115,11 +115,19 @@ export class LojasService {
     if (loja.trial_ends_at) {
       const now = new Date();
       const trialEnd = new Date(loja.trial_ends_at);
-      const diffTime = trialEnd.getTime() - now.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      // Compara apenas a data, ignorando a hora, para contar dias inteiros.
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfTrialEndDay = new Date(trialEnd.getFullYear(), trialEnd.getMonth(), trialEnd.getDate());
       
+      const diffTime = startOfTrialEndDay.getTime() - startOfToday.getTime();
+      // Arredonda para o dia mais próximo.
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
       trialDaysLeft = Math.max(0, diffDays);
-      trialStatus = diffDays > 0 ? 'active' : 'expired';
+      
+      // Se a diferença de dias for negativa, o trial expirou.
+      trialStatus = diffDays < 0 ? 'expired' : 'active';
     }
 
     return {
