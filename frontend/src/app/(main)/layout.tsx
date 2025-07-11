@@ -9,23 +9,12 @@ import {
   IconSettings,
   IconLogout,
   IconBuildingWarehouse,
-  IconSlidersHorizontal
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useUser } from '@/contexts/UserContext';
-import {
-  Home,
-  Package,
-  Users,
-  LineChart,
-  Settings,
-  Palette,
-  Truck,
-  FileText
-} from "lucide-react";
 
 // Componente customizado para SidebarLink com Next.js Link
 const SidebarLink = ({
@@ -156,7 +145,7 @@ export default function DashboardLayout({
     },
     {
       label: 'Configurações',
-      href: '/dashboard/configuracoes',
+      href: '/configuracoes',
       icon: (
         <IconSettings className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
       ),
