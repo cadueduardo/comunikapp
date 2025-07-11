@@ -78,13 +78,18 @@ export default function EditarInsumoPage() {
     }
   };
 
-  // Prepara os dados para o formulário, tratando os campos aninhados e de moeda
+  // Prepara os dados para o formulário, garantindo que nenhum valor seja null/undefined
   const formInitialData = insumo ? {
-      ...insumo,
-      custo_unitario: insumo.custo_unitario, // Passa o número diretamente
+      nome: insumo.nome,
+      unidade_medida: insumo.unidade_medida,
+      custo_unitario: insumo.custo_unitario, // Passa o número, o form trata
       categoriaId: insumo.categoria.id,
       fornecedorId: insumo.fornecedor.id,
-      estoque_minimo: insumo.estoque_minimo?.toString(),
+      // Coerce null/undefined para string vazia
+      estoque_minimo: insumo.estoque_minimo?.toString() ?? '',
+      codigo_interno: insumo.codigo_interno ?? '',
+      descricao_tecnica: insumo.descricao_tecnica ?? '',
+      observacoes: insumo.observacoes ?? '',
   } : undefined;
 
   if (loading) {

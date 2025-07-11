@@ -19,6 +19,9 @@ export type Insumo = {
   unidade_medida: string;
   custo_unitario: number;
   estoque_minimo?: number | null;
+  codigo_interno?: string | null;
+  descricao_tecnica?: string | null;
+  observacoes?: string | null;
   categoria: {
     id: string;
     nome: string;

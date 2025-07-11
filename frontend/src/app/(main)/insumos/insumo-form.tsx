@@ -73,7 +73,18 @@ interface Option {
 export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
   const form = useForm<InsumoFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData || {},
+    defaultValues: {
+      nome: '',
+      categoriaId: '',
+      fornecedorId: '',
+      unidade_medida: '',
+      custo_unitario: '',
+      codigo_interno: '',
+      estoque_minimo: '',
+      descricao_tecnica: '',
+      observacoes: '',
+      ...initialData,
+    },
   });
   
   const [categorias, setCategorias] = useState<Option[]>([]);
@@ -95,6 +106,41 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
     fetchData('/categorias', setCategorias);
     fetchData('/fornecedores', setFornecedores);
   }, []);
+  
+  const handleCreate = async (
+    name: string,
+    type: 'categoria' | 'fornecedor'
+  ) => {
+    const url = type === 'categoria' ? '/categorias' : '/fornecedores';
+    const setter = type === 'categoria' ? setCategorias : setFornecedores;
+    const fieldName = type === 'categoria' ? 'categoriaId' : 'fornecedorId';
+    const token = localStorage.getItem('access_token');
+    
+    try {
+      const response = await fetch(`http://localhost:3001${url}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ nome: name }),
+      });
+      
+      const newData = await response.json();
+      
+      if (response.ok) {
+        toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} "${name}" criada com sucesso!`);
+        const newOption = { value: newData.id, label: newData.nome };
+        setter(prev => [...prev, newOption]);
+        form.setValue(fieldName, newData.id);
+      } else {
+        toast.error(newData.message || `Falha ao criar ${type}.`);
+      }
+    } catch (error) {
+      toast.error(`Ocorreu um erro de conexão ao criar ${type}.`);
+      console.error(error);
+    }
+  };
 
   function onSubmit(data: InsumoFormValues) {
     const cleanedData = {
@@ -127,7 +173,12 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                 <FormField control={form.control} name="categoriaId" render={({ field }) => (
                     <FormItem>
                     <FormLabel>Categoria *</FormLabel>
-                     <Combobox options={categorias} {...field} placeholder="Selecione a categoria" />
+                     <Combobox 
+                        options={categorias} 
+                        {...field} 
+                        placeholder="Selecione a categoria"
+                        onCreate={(name) => handleCreate(name, 'categoria')}
+                     />
                     <FormMessage />
                     </FormItem>
                 )} />
@@ -162,7 +213,12 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                 <FormField control={form.control} name="fornecedorId" render={({ field }) => (
                     <FormItem>
                     <FormLabel>Fornecedor *</FormLabel>
-                    <Combobox options={fornecedores} {...field} placeholder="Selecione o fornecedor" />
+                    <Combobox 
+                        options={fornecedores} 
+                        {...field} 
+                        placeholder="Selecione o fornecedor"
+                        onCreate={(name) => handleCreate(name, 'fornecedor')}
+                    />
                     <FormMessage />
                     </FormItem>
                 )} />

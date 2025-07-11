@@ -147,6 +147,8 @@ enum StatusCliente {
 
 model Insumo {
   id                  String      @id @default(cuid())
+  criado_em           DateTime    @default(now())
+  atualizado_em       DateTime    @updatedAt
   loja_id             String
   nome                String
   descricao_tecnica   String?
