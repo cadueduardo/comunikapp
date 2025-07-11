@@ -71,7 +71,7 @@ O objetivo desta fase é construir a espinha dorsal do sistema, focando na arqui
 
 Com a base pronta, o foco agora é entregar o valor principal do sistema: a capacidade de orçar e gerenciar clientes.
 
-- **[ ] Tarefa 2.1: Módulo de CRM Básico (CRUD de Clientes)**
+- **[x] Tarefa 2.1: Módulo de CRM Básico (CRUD de Clientes)**
   - API e interface para cadastrar e gerenciar clientes (contato, endereço, histórico de interações).
   - Essencial para vincular orçamentos e pedidos.
 

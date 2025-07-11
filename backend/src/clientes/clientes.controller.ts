@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, Query } from '@nestjs/common';
 import { ClientesService } from './clientes.service';
 import { CreateClienteDto } from './dto/create-cliente.dto';
 import { UpdateClienteDto } from './dto/update-cliente.dto';
@@ -18,10 +9,7 @@ export class ClientesController {
   constructor(private readonly clientesService: ClientesService) {}
 
   @Post()
-  create(
-    @Body() createClienteDto: CreateClienteDto,
-    @CurrentLojaId() lojaId: string,
-  ) {
+  create(@Body() createClienteDto: CreateClienteDto, @CurrentLojaId() lojaId: string) {
     return this.clientesService.create(createClienteDto, lojaId);
   }
 
@@ -31,35 +19,22 @@ export class ClientesController {
   }
 
   @Get('search')
-  search(
-    @Query('q') query: string,
-    @CurrentLojaId() lojaId: string,
-  ) {
+  search(@Query('q') query: string, @CurrentLojaId() lojaId: string) {
     return this.clientesService.search(query, lojaId);
   }
 
   @Get(':id')
-  findOne(
-    @Param('id') id: string,
-    @CurrentLojaId() lojaId: string,
-  ) {
+  findOne(@Param('id') id: string, @CurrentLojaId() lojaId: string) {
     return this.clientesService.findOne(id, lojaId);
   }
 
-  @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateClienteDto: UpdateClienteDto,
-    @CurrentLojaId() lojaId: string,
-  ) {
+  @Put(':id')
+  update(@Param('id') id: string, @Body() updateClienteDto: UpdateClienteDto, @CurrentLojaId() lojaId: string) {
     return this.clientesService.update(id, updateClienteDto, lojaId);
   }
 
   @Delete(':id')
-  remove(
-    @Param('id') id: string,
-    @CurrentLojaId() lojaId: string,
-  ) {
+  remove(@Param('id') id: string, @CurrentLojaId() lojaId: string) {
     return this.clientesService.remove(id, lojaId);
   }
 }

@@ -9,6 +9,7 @@ import { MailModule } from './mail/mail.module';
 import { AuthModule } from './auth/auth.module';
 import { ClientesModule } from './clientes/clientes.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { InsumosModule } from './insumos.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     LojasModule,
     MailModule,
     ClientesModule,
+    InsumosModule,
   ],
   controllers: [AppController],
   providers: [
