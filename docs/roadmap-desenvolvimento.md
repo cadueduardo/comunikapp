@@ -55,13 +55,13 @@ O objetivo desta fase é construir a espinha dorsal do sistema, focando na arqui
   - [x] Lógica de perfis de usuário (Admin, Vendas, etc.).
   - [x] Sistema completo de registro → verificação → ativação → login/logout.
 
-- **[ ] Tarefa 1.5: Implementação do API Gateway Básico**
+- **[x] Tarefa 1.5: Implementação do API Gateway Básico**
   - [x] Implementar JWT para autenticação (substituir localStorage).
   - [x] Criar middleware para validação de token em todas as rotas.
   - [x] Garantir injeção automática de `loja_id` em requisições autenticadas.
   - [x] Adicionar guards de proteção nas rotas sensíveis.
 
-- **[ ] Tarefa 1.6: Implementação de Proteção de Dados Multi-Tenant**
+- **[x] Tarefa 1.6: Implementação de Proteção de Dados Multi-Tenant**
   - Validar que usuários só acessem dados da própria loja.
   - Implementar filtros automáticos de `loja_id` no Prisma.
 
@@ -82,6 +82,14 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
 
 - **[x] Tarefa 2.2: Módulo de Cadastro de Insumos (Backend - CRUD)**
   - API para gerenciar materiais, fornecedores e custos.
+
+- **[x] Tarefa 2.2.1: Módulo de Configurações - Cadastros Auxiliares (Categorias e Fornecedores)**
+  - API e interface para gerenciar as entidades de apoio do sistema.
+  - [x] Backend: Refatorar `CategoriaInsumo` para `Categoria` genérica.
+  - [x] Backend: Criar CRUD para `Fornecedores`.
+  - [x] Frontend: Criar página de `Configurações` para abrigar os cadastros.
+  - [x] Frontend: Implementar interface CRUD para `Categorias`.
+  - [x] Frontend: Implementar interface CRUD para `Fornecedores`.
 
 - **[ ] Tarefa 2.3: Módulo de Cadastro de Insumos (Frontend - CRUD)**
   - Interface para gerenciar materiais, fornecedores e custos, seguindo a documentação `insumos.md`.
