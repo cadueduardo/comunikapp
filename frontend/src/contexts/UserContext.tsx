@@ -1,6 +1,21 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+
+// Adicionando um tipo básico para Loja para evitar erros
+// O ideal seria compartilhar tipos com o backend
+interface Loja {
+  id: string;
+  nome: string;
+  logo_url?: string | null;
+  cabecalho_orcamento?: string | null;
+  custo_maodeobra_hora?: string | null; // Prisma Decimal é string no JSON
+  custo_maquinaria_hora?: string | null;
+  custos_indiretos_mensais?: string | null;
+  margem_lucro_padrao?: string | null;
+  impostos_padrao?: string | null;
+}
 
 interface User {
   id: string;
@@ -9,14 +24,15 @@ interface User {
   telefone: string;
   funcao: string;
   loja_id: string;
+  loja: Loja; // Adicionado campo loja
 }
 
 interface UserContextType {
   user: User | null;
-  setUser: (user: User | null) => void;
-  getFirstName: () => string;
   loading: boolean;
+  login: (token: string) => Promise<void>;
   logout: () => void;
+  getFirstName: () => string;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -32,53 +48,51 @@ export const useUser = () => {
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  // Função para buscar dados do usuário logado
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async (token: string) => {
+    setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
-      const userData = localStorage.getItem('user');
-      
-      if (token && userData) {
-        // Validar token fazendo uma requisição autenticada
-        const response = await fetch('http://localhost:3001/lojas/me', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-        
-        if (response.ok) {
-          const userFromServer = await response.json();
-          setUser(userFromServer);
-        } else {
-          // Token inválido, limpar dados
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('user');
-          setUser(null);
-        }
+      const response = await fetch('http://localhost:3001/lojas/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      } else {
+        setUser(null);
+        localStorage.removeItem('access_token');
       }
     } catch (error) {
-      console.error('Erro ao buscar dados do usuário:', error);
-      // Em caso de erro, limpar dados
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user');
+      console.error('Fetch user data failed', error);
       setUser(null);
-    } finally {
-      setLoading(false);
+      localStorage.removeItem('access_token');
     }
-  };
+    setLoading(false);
+  }, []);
 
-  // Função de logout
-  const logout = () => {
+  const login = useCallback(async (token: string) => {
+    localStorage.setItem('access_token', token);
+    await fetchUserData(token);
+    router.push('/dashboard');
+  }, [fetchUserData, router]);
+
+  const logout = useCallback(() => {
     localStorage.removeItem('access_token');
-    localStorage.removeItem('user');
     setUser(null);
-    window.location.href = '/login';
-  };
+    router.push('/login');
+  }, [router]);
 
   useEffect(() => {
-    fetchUserData();
-  }, []);
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      fetchUserData(token);
+    } else {
+      setLoading(false);
+    }
+  }, [fetchUserData]);
 
   const getFirstName = () => {
     if (!user) return 'Usuário';
@@ -86,7 +100,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <UserContext.Provider value={{ user, setUser, getFirstName, loading, logout }}>
+    <UserContext.Provider value={{ user, loading, login, logout, getFirstName }}>
       {children}
     </UserContext.Provider>
   );

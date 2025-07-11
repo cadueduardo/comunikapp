@@ -95,21 +95,26 @@ export default function DashboardLayout({
   const router = useRouter();
   // const [open, setOpen] = useState(false); // REMOVIDO
 
-  // Proteção de rota
   useEffect(() => {
+    // Se o carregamento terminou e não há usuário, redireciona para o login.
+    // Isso é mais seguro do que fazer a lógica inversa.
     if (!loading && !user) {
       router.push('/login');
     }
   }, [user, loading, router]);
 
+  // Enquanto estiver carregando, exibe uma tela de loading para evitar o "flicker"
+  // ou redirecionamentos incorretos.
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-lg">Carregando...</div>
+      <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-neutral-800">
+        <div className="text-lg font-medium text-gray-700 dark:text-gray-200">Carregando...</div>
       </div>
     );
   }
 
+  // Se, após o carregamento, ainda não houver usuário, não renderiza nada
+  // pois o useEffect acima já terá iniciado o redirecionamento.
   if (!user) {
     return null;
   }

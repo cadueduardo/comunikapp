@@ -1,37 +1,38 @@
-// @ts-nocheck
 import {
   IsString,
   IsEmail,
   IsNotEmpty,
   MinLength,
-  IsEnum,
+  IsOptional,
 } from 'class-validator';
-import { TipoPessoa } from '@prisma/client';
 
 export class CreateOnboardingDto {
   @IsString()
   @IsNotEmpty()
-  storeName: string;
+  nome_loja: string;
 
   @IsString()
   @IsNotEmpty()
-  name: string;
+  nome_responsavel: string;
 
   @IsEmail()
   email: string;
 
   @IsString()
   @IsNotEmpty()
-  phone: string;
-
-  @IsEnum(TipoPessoa)
-  tipoPessoa: TipoPessoa;
+  telefone: string;
 
   @IsString()
+  @IsOptional()
   @IsNotEmpty()
-  documento: string;
+  cpf?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsNotEmpty()
+  cnpj?: string;
 
   @IsString()
   @MinLength(6)
-  password: string;
+  senha: string;
 }

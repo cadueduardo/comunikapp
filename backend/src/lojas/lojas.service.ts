@@ -1,12 +1,19 @@
-import { Injectable, BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { MailService } from 'src/mail/mail.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AuthService } from 'src/auth/auth.service';
+import { FuncaoUsuario, StatusConta, StatusLoja } from '@prisma/client';
 import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateLojaDto } from './dto/update-loja.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { LoginDto } from './dto/login.dto';
+import { UpdateConfiguracoesLojaDto } from './dto/update-configuracoes-loja.dto';
 
 @Injectable()
 export class LojasService {
@@ -20,13 +27,7 @@ export class LojasService {
     const usuario = await this.prisma.usuario.findUnique({
       where: { email },
       include: {
-        loja: {
-          select: {
-            id: true,
-            name: true,
-            status: true,
-          },
-        },
+        loja: true,
       },
     });
 
@@ -35,10 +36,12 @@ export class LojasService {
     }
 
     if (!usuario.email_verificado) {
-      throw new UnauthorizedException('Email não verificado. Verifique sua caixa de entrada.');
+      throw new UnauthorizedException(
+        'Email não verificado. Verifique sua caixa de entrada.',
+      );
     }
 
-    if (usuario.status !== 'ATIVO') {
+    if (usuario.status !== StatusConta.ATIVO) {
       throw new UnauthorizedException('Conta não está ativa.');
     }
 
@@ -52,6 +55,7 @@ export class LojasService {
       id: usuario.id,
       email: usuario.email,
       loja_id: usuario.loja_id,
+      loja: usuario.loja,
       funcao: usuario.funcao,
       nome_completo: usuario.nome_completo,
     });
@@ -72,15 +76,8 @@ export class LojasService {
   async findUserByEmail(email: string) {
     const usuario = await this.prisma.usuario.findUnique({
       where: { email },
-      select: {
-        id: true,
-        nome_completo: true,
-        email: true,
-        telefone: true,
-        funcao: true,
-        loja_id: true,
-        email_verificado: true,
-        status: true,
+      include: {
+        loja: true,
       },
     });
 
@@ -94,14 +91,6 @@ export class LojasService {
   async findLojaWithTrial(lojaId: string) {
     const loja = await this.prisma.loja.findUnique({
       where: { id: lojaId },
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        trial_ends_at: true,
-        subscription_status: true,
-        createdAt: true,
-      },
     });
 
     if (!loja) {
@@ -112,44 +101,53 @@ export class LojasService {
     let trialDaysLeft: number | null = null;
     let trialStatus = 'active';
 
-    if (loja.trial_ends_at) {
-      const now = new Date();
-      const trialEnd = new Date(loja.trial_ends_at);
+    if (loja.data_inicio_trial) {
+      const trialEndDate = new Date(loja.data_inicio_trial);
+      trialEndDate.setDate(trialEndDate.getDate() + 30); // O trial dura 30 dias
 
-      // Compara apenas a data, ignorando a hora, para contar dias inteiros.
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const startOfTrialEndDay = new Date(trialEnd.getFullYear(), trialEnd.getMonth(), trialEnd.getDate());
-      
+      const now = new Date();
+
+      // Normaliza as datas para comparar apenas os dias, ignorando as horas
+      const startOfToday = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+      );
+      const startOfTrialEndDay = new Date(
+        trialEndDate.getFullYear(),
+        trialEndDate.getMonth(),
+        trialEndDate.getDate(),
+      );
+
       const diffTime = startOfTrialEndDay.getTime() - startOfToday.getTime();
-      // Arredonda para o dia mais próximo.
-      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
       trialDaysLeft = Math.max(0, diffDays);
-      
-      // Se a diferença de dias for negativa, o trial expirou.
+
       trialStatus = diffDays < 0 ? 'expired' : 'active';
+
+      // Atualiza o campo no banco de dados se for diferente
+      if (loja.trial_restante_dias !== trialDaysLeft) {
+        await this.prisma.loja.update({
+          where: { id: lojaId },
+          data: { trial_restante_dias: trialDaysLeft },
+        });
+      }
     }
 
     return {
       ...loja,
-      trial_days_left: trialDaysLeft,
+      trial_restante_dias: trialDaysLeft,
       trial_status: trialStatus,
     };
   }
 
   async create(createOnboardingDto: CreateOnboardingDto) {
-    const {
-      storeName,
-      name,
-      email,
-      phone,
-      tipoPessoa,
-      documento,
-      password,
-    } = createOnboardingDto;
+    const { nome_loja, nome_responsavel, email, telefone, cnpj, cpf, senha } =
+      createOnboardingDto;
 
     const salt = await bcrypt.genSalt();
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(senha, salt);
 
     const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
     const expirationDate = new Date();
@@ -158,21 +156,21 @@ export class LojasService {
     return this.prisma.$transaction(async (tx) => {
       const loja = await tx.loja.create({
         data: {
-          name: storeName,
+          nome: nome_loja,
           email,
-          phone,
-          tipo_pessoa: tipoPessoa,
-          documento,
+          telefone,
+          cpf: cpf || undefined,
+          cnpj: cnpj || undefined,
         },
       });
 
       const usuario = await tx.usuario.create({
         data: {
-          nome_completo: name,
+          nome_completo: nome_responsavel,
           email,
-          telefone: phone,
+          telefone: telefone,
           senha: hashedPassword,
-          funcao: 'ADMINISTRADOR',
+          funcao: FuncaoUsuario.ADMINISTRADOR,
           loja_id: loja.id,
           codigo_verificacao_email: emailCode,
           codigo_verificacao_email_expiracao: expirationDate,
@@ -182,7 +180,7 @@ export class LojasService {
       await this.mailService.sendVerificationEmail(usuario.email, emailCode);
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { senha, ...result } = usuario;
+      const { senha: _, ...result } = usuario;
       return result;
     });
   }
@@ -228,21 +226,19 @@ export class LojasService {
         where: { id: usuario.id },
         data: {
           email_verificado: true,
-          status: 'ATIVO',
+          status: StatusConta.ATIVO,
           codigo_verificacao_email: null,
           codigo_verificacao_email_expiracao: null,
         },
       });
 
-      // Ativar loja e definir trial de 30 dias
-      const trialEndDate = new Date();
-      trialEndDate.setDate(trialEndDate.getDate() + 30);
-
+      // Ativar loja e definir data de início do trial
       await tx.loja.update({
         where: { id: usuario.loja_id },
         data: {
-          status: 'ATIVO',
-          trial_ends_at: trialEndDate,
+          status: StatusLoja.ATIVO,
+          data_inicio_trial: new Date(),
+          trial_restante_dias: 30, // Inicia com 30 dias
         },
       });
     });
@@ -250,38 +246,21 @@ export class LojasService {
     return { message: 'E-mail verificado com sucesso!' };
   }
 
-  async ativarTrialTemp(lojaId: string) {
-    const loja = await this.prisma.loja.findUnique({
-      where: { id: lojaId },
-    });
-
-    if (!loja) {
-      throw new NotFoundException('Loja não encontrada.');
-    }
-
-    const trialEndDate = new Date();
-    trialEndDate.setDate(trialEndDate.getDate() + 30);
-
-    await this.prisma.loja.update({
-      where: { id: lojaId },
-      data: {
-        trial_ends_at: trialEndDate,
-      },
-    });
-
-    return { 
-      message: 'Trial ativado com sucesso!',
-      trial_ends_at: trialEndDate,
-    };
-  }
-
   findAll() {
     return this.prisma.loja.findMany();
   }
 
   findOne(id: string) {
-    return this.prisma.loja.findUnique({
+    return this.prisma.loja.findUnique({ where: { id } });
+  }
+
+  async updateConfiguracoes(
+    id: string,
+    updateConfiguracoesLojaDto: UpdateConfiguracoesLojaDto,
+  ) {
+    return this.prisma.loja.update({
       where: { id },
+      data: updateConfiguracoesLojaDto,
     });
   }
 

@@ -9,6 +9,7 @@ export interface JwtPayload {
   loja_id: string;
   funcao: string;
   nome_completo: string;
+  loja?: Loja;
 }
 
 // O tipo AuthenticatedUser agora reflete a estrutura retornada pelo Prisma
@@ -22,13 +23,14 @@ export class AuthService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async generateToken(user: { id: string, email: string, loja_id: string, funcao: string, nome_completo: string }): Promise<string> {
+  async generateToken(user: { id: string; email: string; loja_id: string; funcao: string; nome_completo: string; loja?: Loja }): Promise<string> {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
       loja_id: user.loja_id,
       funcao: user.funcao,
       nome_completo: user.nome_completo,
+      loja: user.loja,
     };
 
     return this.jwtService.sign(payload);

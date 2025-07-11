@@ -1,22 +1,33 @@
 'use client';
 
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import Link from "next/link";
-import { Settings, Boxes, Truck } from 'lucide-react';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
+import Link from 'next/link';
+import { Settings, Boxes, Truck, Store } from 'lucide-react';
 
 const settingsOptions = [
   {
-    title: "Categorias",
-    description: "Organize seus insumos e produtos em categorias.",
-    icon: Boxes,
-    href: "/configuracoes/categorias"
+    title: 'Dados da Empresa',
+    description: 'Gerencie o logo, custos e parâmetros do seu negócio.',
+    icon: Store,
+    href: '/configuracoes/loja',
   },
   {
-    title: "Fornecedores",
-    description: "Gerencie os fornecedores de insumos e serviços.",
+    title: 'Categorias',
+    description: 'Organize seus insumos e produtos em categorias.',
+    icon: Boxes,
+    href: '/configuracoes/categorias',
+  },
+  {
+    title: 'Fornecedores',
+    description: 'Gerencie os fornecedores de insumos e serviços.',
     icon: Truck,
-    href: "/configuracoes/fornecedores"
-  }
+    href: '/configuracoes/fornecedores',
+  },
 ];
 
 export default function SettingsPage() {

@@ -33,34 +33,44 @@ enum StatusConta {
   BLOQUEADO
 }
 
+enum StatusLoja {
+  PENDENTE_VERIFICACAO
+  ATIVO
+  INATIVO
+  BLOQUEADO
+}
+
 model Loja {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String    @id @default(cuid())
+  nome                String
+  cnpj                String?   @unique
+  cpf                 String?   @unique
+  telefone            String
+  email               String    @unique
+  status              StatusLoja @default(PENDENTE_VERIFICACAO)
+  data_inicio_trial   DateTime?
+  trial_restante_dias Int?
+  assinatura_ativa    Boolean   @default(false)
+  stripe_customer_id  String?   @unique
 
-  name        String
-  tipo_pessoa TipoPessoa
-  documento   String      @unique
-  email       String      @unique
-  phone       String?
-  address     String?
-  responsavel String?
-  logoUrl     String?
-  status      StatusConta @default(PENDENTE_VERIFICACAO)
+  // Campos de configuração da loja
+  logo_url                 String?
+  cabecalho_orcamento      String?   @db.Text
+  custo_maodeobra_hora     Decimal?  @db.Decimal(10, 2)
+  custo_maquinaria_hora    Decimal?  @db.Decimal(10, 2)
+  custos_indiretos_mensais Decimal?  @db.Decimal(10, 2)
+  margem_lucro_padrao      Decimal?  @db.Decimal(5, 2)
+  impostos_padrao          Decimal?  @db.Decimal(5, 2)
 
-  // Billing / Subscription fields
-  gateway_customer_id     String?   @unique
-  gateway_subscription_id String?   @unique
-  subscription_status     String?
-  trial_ends_at           DateTime?
-  current_period_ends_at  DateTime?
+  // Relacionamentos
+  usuarios     Usuario[]
+  clientes     Cliente[]
+  categorias   Categoria[]
+  fornecedores Fornecedor[]
+  insumos      Insumo[]
 
-  // Relations
-  usuarios              Usuario[]
-  clientes              Cliente[]
-  insumos               Insumo[]
-  categoriasDeInsumos   Categoria[]
-  fornecedores          Fornecedor[]
+  criado_em   DateTime @default(now())
+  atualizado_em DateTime @updatedAt
 }
 
 model Usuario {

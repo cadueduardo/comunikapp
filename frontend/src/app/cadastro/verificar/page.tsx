@@ -40,8 +40,8 @@ export default function VerifyPage() {
         throw new Error(errorData.message || 'Falha ao verificar o código.');
       }
 
-      // Se a verificação for bem-sucedida, redireciona para o dashboard
-      router.push('/dashboard/bem-vindo');
+      // Se a verificação for bem-sucedida, redireciona para a página de login com um parâmetro
+      router.push('/login?verified=true');
 
     } catch (err: unknown) {
         if (err instanceof Error) {

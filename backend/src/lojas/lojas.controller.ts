@@ -7,14 +7,21 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { LojasService } from './lojas.service';
 import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateLojaDto } from './dto/update-loja.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { LoginDto } from './dto/login.dto';
-import { Public, CurrentUser, CurrentLojaId } from '../auth/decorators';
-import { AuthenticatedUser } from '../auth/auth.service';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import {
+  Public,
+  CurrentUser,
+  CurrentLojaId,
+} from 'src/auth/decorators';
+import { AuthenticatedUser } from 'src/auth/auth.service';
+import { UpdateConfiguracoesLojaDto } from './dto/update-configuracoes-loja.dto';
 
 @Controller('lojas')
 export class LojasController {
@@ -34,8 +41,8 @@ export class LojasController {
 
   @Public()
   @Post('verificar-email')
-  verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
-    return this.lojasService.verifyEmail(verifyEmailDto);
+  verifyEmail(@Body() body: VerifyEmailDto) {
+    return this.lojasService.verifyEmail(body);
   }
 
   @Get('user-by-email')
@@ -48,11 +55,6 @@ export class LojasController {
     return this.lojasService.findLojaWithTrial(lojaId);
   }
 
-  @Post('ativar-trial-temp')
-  async ativarTrialTemp(@Body() { lojaId }: { lojaId: string }) {
-    return this.lojasService.ativarTrialTemp(lojaId);
-  }
-
   @Get('me')
   getCurrentUser(@CurrentUser() user: AuthenticatedUser) {
     return user;
@@ -61,6 +63,23 @@ export class LojasController {
   @Get('my-loja-trial')
   getMyLojaWithTrial(@CurrentLojaId() lojaId: string) {
     return this.lojasService.findLojaWithTrial(lojaId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('minha-loja')
+  findMyLoja(@CurrentUser() user) {
+    return this.lojasService.findLojaWithTrial(user.loja_id);
+  }
+
+  @Patch('configuracoes')
+  updateConfiguracoes(
+    @CurrentLojaId() lojaId: string,
+    @Body() updateConfiguracoesLojaDto: UpdateConfiguracoesLojaDto,
+  ) {
+    return this.lojasService.updateConfiguracoes(
+      lojaId,
+      updateConfiguracoesLojaDto,
+    );
   }
 
   @Get()
