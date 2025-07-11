@@ -123,14 +123,14 @@ export default function DashboardLayout({
     },
     {
       label: 'Orçamentos',
-      href: '/dashboard/orcamentos',
+      href: '/orcamentos',
       icon: (
         <IconFileText className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
       ),
     },
     {
       label: 'Clientes',
-      href: '/dashboard/clientes',
+      href: '/clientes',
       icon: (
         <IconUsers className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
       ),

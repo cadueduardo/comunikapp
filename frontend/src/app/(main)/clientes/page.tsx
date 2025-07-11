@@ -165,7 +165,7 @@ export default function ClientesPage() {
             {loading ? 'Carregando...' : `${clientes.length} cliente${clientes.length !== 1 ? 's' : ''} na sua base`}
           </p>
         </div>
-        <Link href="/dashboard/clientes/novo">
+        <Link href="/clientes/novo">
           <Button className="flex items-center gap-2 cursor-pointer hover:bg-primary/90 transition-colors w-full sm:w-auto">
             <Plus className="h-4 w-4" />
             Novo Cliente
@@ -189,7 +189,7 @@ export default function ClientesPage() {
       {clientes.length === 0 && !loading ? (
         <div className="text-center py-16 text-gray-500 border-2 border-dashed rounded-lg">
           <p className="mb-2">Nenhum cliente encontrado.</p>
-          <Link href="/dashboard/clientes/novo">
+          <Link href="/clientes/novo">
             <Button className="mt-4 cursor-pointer hover:bg-primary/90 transition-colors">
               <Plus className="h-4 w-4 mr-2" />
               Adicionar primeiro cliente
@@ -212,15 +212,14 @@ export default function ClientesPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem asChild className="cursor-pointer">
-                        {/* TODO: Criar a página /dashboard/orcamentos/novo */}
-                        <Link href={`/dashboard/orcamentos/novo?clienteId=${cliente.id}`}>
+                        {/* TODO: Criar a página /orcamentos/novo */}
+                        <Link href={`/orcamentos/novo?clienteId=${cliente.id}`}>
                           <FileText className="mr-2 h-4 w-4" />
                           <span>Novo Orçamento</span>
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild className="cursor-pointer">
-                        {/* TODO: Criar a página /dashboard/clientes/editar/[id] */}
-                        <Link href={`/dashboard/clientes/editar/${cliente.id}`}>
+                        <Link href={`/clientes/editar/${cliente.id}`}>
                           <Edit className="mr-2 h-4 w-4" />
                           <span>Editar</span>
                         </Link>
@@ -248,18 +247,21 @@ export default function ClientesPage() {
                       {cliente.status_cliente}
                     </Badge>
                     <Badge variant="outline">
-                      {cliente.tipo_pessoa === 'PESSOA_FISICA' ? 'PF' : 'PJ'}
+                      {cliente.tipo_pessoa === 'PESSOA_FISICA' ? 'P. Física' : 'P. Jurídica'}
                     </Badge>
                   </div>
 
-                  <div className="text-sm text-gray-600 space-y-1 border-t pt-3 mt-3">
-                    <p className="truncate"><strong>Doc:</strong> {cliente.documento}</p>
-                    {cliente.email && <p className="truncate"><strong>Email:</strong> {cliente.email}</p>}
-                    {cliente.telefone && <p className="truncate"><strong>Tel:</strong> {cliente.telefone}</p>}
-                    <p><strong>Desde:</strong> {formatDate(cliente.criado_em)}</p>
+                  <div className="text-sm text-gray-500 space-y-1">
+                    <p>
+                      <strong>Doc:</strong> {cliente.documento}
+                    </p>
+                    {cliente.email && <p><strong>Email:</strong> {cliente.email}</p>}
+                    {cliente.telefone && <p><strong>Fone:</strong> {cliente.telefone}</p>}
+                    {cliente.cidade && <p><strong>Cidade:</strong> {cliente.cidade}</p>}
+                    <p>
+                      <strong>Desde:</strong> {formatDate(cliente.criado_em)}
+                    </p>
                   </div>
-                  
-                  {/* Os botões foram removidos daqui */}
                 </div>
               </CardContent>
             </Card>

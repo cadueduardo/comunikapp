@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation'; // Adicionado useParams
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,73 +12,33 @@ import { ArrowLeft, Save } from "lucide-react";
 import Link from 'next/link';
 import { toast } from 'sonner'; // Adicionado toast
 
-// Reutilizando a interface para consistência
-interface ClienteFormData {
-  nome: string;
-  tipo_pessoa: 'PESSOA_FISICA' | 'PESSOA_JURIDICA';
-  documento: string;
-  email?: string;
-  telefone?: string;
-  whatsapp?: string;
-  cep?: string;
-  endereco?: string;
-  numero?: string;
-  complemento?: string;
-  bairro?: string;
-  cidade?: string;
-  estado?: string;
-  razao_social?: string;
-  nome_fantasia?: string;
-  inscricao_estadual?: string;
-  responsavel?: string;
-  cargo_responsavel?: string;
-  observacoes?: string;
-  status_cliente: 'ATIVO' | 'INATIVO' | 'PROSPECT' | 'BLOQUEADO';
-  origem?: string;
-  segmento?: string;
-}
-
-export default function EditarClientePage() { // Removido `params` dos props
+export default function NovoClientePage() {
   const router = useRouter();
-  const params = useParams(); // Usando o hook
-  const clienteId = params.id as string; // Pegando o ID do hook
-  
-  const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState<Partial<ClienteFormData>>({});
-
-  useEffect(() => {
-    if (!clienteId) return;
-
-    const fetchCliente = async () => {
-      setLoading(true);
-      try {
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-          router.push('/login');
-          return;
-        }
-
-        const response = await fetch(`http://localhost:3001/clientes/${clienteId}`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setFormData(data);
-        } else {
-          toast.error('Cliente não encontrado.');
-          router.push('/dashboard/clientes');
-        }
-      } catch (error) {
-        console.error('Erro ao buscar cliente:', error);
-        toast.error('Erro ao carregar dados do cliente.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCliente();
-  }, [clienteId, router]);
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    nome: '',
+    tipo_pessoa: 'PESSOA_FISICA',
+    documento: '',
+    email: '',
+    telefone: '',
+    whatsapp: '',
+    cep: '',
+    endereco: '',
+    numero: '',
+    complemento: '',
+    bairro: '',
+    cidade: '',
+    estado: '',
+    razao_social: '',
+    nome_fantasia: '',
+    inscricao_estadual: '',
+    responsavel: '',
+    cargo_responsavel: '',
+    observacoes: '',
+    status_cliente: 'ATIVO',
+    origem: '',
+    segmento: '',
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,13 +50,14 @@ export default function EditarClientePage() { // Removido `params` dos props
         toast.error('Sessão expirada. Faça login novamente.');
         return;
       }
-      
+
+      // Remove campos vazios para evitar problemas de validação
       const cleanData = Object.fromEntries(
-        Object.entries(formData).filter(([, v]) => v !== null && v !== '')
+        Object.entries(formData).filter(([, v]) => v !== '')
       );
 
-      const response = await fetch(`http://localhost:3001/clientes/${clienteId}`, {
-        method: 'PUT',
+      const response = await fetch('http://localhost:3001/clientes', {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -105,15 +66,15 @@ export default function EditarClientePage() { // Removido `params` dos props
       });
 
       if (response.ok) {
-        toast.success('Cliente atualizado com sucesso!');
-        router.push('/dashboard/clientes');
+        toast.success('Cliente cadastrado com sucesso!');
+        router.push('/clientes');
       } else {
         const error = await response.json();
-        toast.error(`Erro ao atualizar cliente: ${error.message || 'Erro desconhecido'}`);
+        toast.error(`Erro ao cadastrar cliente: ${error.message || 'Erro desconhecido'}`);
       }
     } catch (error) {
-      console.error('Erro ao atualizar cliente:', error);
-      toast.error('Erro ao atualizar cliente. Tente novamente.');
+      console.error('Erro ao cadastrar cliente:', error);
+      toast.error('Erro ao cadastrar cliente. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -123,28 +84,23 @@ export default function EditarClientePage() { // Removido `params` dos props
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  if (loading) {
-    return <div className="p-6">Carregando dados do cliente...</div>;
-  }
-
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/dashboard/clientes">
+        <Link href="/clientes">
           <Button variant="outline" size="sm" className="cursor-pointer hover:bg-gray-100 transition-colors">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Editar Cliente</h1>
-          <p className="text-gray-600">Altere os dados do cliente</p>
+          <h1 className="text-3xl font-bold">Novo Cliente</h1>
+          <p className="text-gray-600">Cadastre um novo cliente na sua base</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Formulário reutilizado da página de novo cliente */}
         {/* Dados Básicos */}
         <Card>
           <CardHeader>
@@ -156,7 +112,7 @@ export default function EditarClientePage() { // Removido `params` dos props
                 <Label htmlFor="nome">Nome / Razão Social *</Label>
                 <Input
                   id="nome"
-                  value={formData.nome || ''}
+                  value={formData.nome}
                   onChange={(e) => handleChange('nome', e.target.value)}
                   required
                 />
@@ -182,7 +138,7 @@ export default function EditarClientePage() { // Removido `params` dos props
                 </Label>
                 <Input
                   id="documento"
-                  value={formData.documento || ''}
+                  value={formData.documento}
                   onChange={(e) => handleChange('documento', e.target.value)}
                   required
                 />
@@ -209,7 +165,7 @@ export default function EditarClientePage() { // Removido `params` dos props
                   <Label htmlFor="nome_fantasia">Nome Fantasia</Label>
                   <Input
                     id="nome_fantasia"
-                    value={formData.nome_fantasia || ''}
+                    value={formData.nome_fantasia}
                     onChange={(e) => handleChange('nome_fantasia', e.target.value)}
                   />
                 </div>
@@ -217,7 +173,7 @@ export default function EditarClientePage() { // Removido `params` dos props
                   <Label htmlFor="inscricao_estadual">Inscrição Estadual</Label>
                   <Input
                     id="inscricao_estadual"
-                    value={formData.inscricao_estadual || ''}
+                    value={formData.inscricao_estadual}
                     onChange={(e) => handleChange('inscricao_estadual', e.target.value)}
                   />
                 </div>
@@ -238,7 +194,7 @@ export default function EditarClientePage() { // Removido `params` dos props
                 <Input
                   id="email"
                   type="email"
-                  value={formData.email || ''}
+                  value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
                 />
               </div>
@@ -246,7 +202,7 @@ export default function EditarClientePage() { // Removido `params` dos props
                 <Label htmlFor="telefone">Telefone</Label>
                 <Input
                   id="telefone"
-                  value={formData.telefone || ''}
+                  value={formData.telefone}
                   onChange={(e) => handleChange('telefone', e.target.value)}
                 />
               </div>
@@ -254,17 +210,18 @@ export default function EditarClientePage() { // Removido `params` dos props
                 <Label htmlFor="whatsapp">WhatsApp</Label>
                 <Input
                   id="whatsapp"
-                  value={formData.whatsapp || ''}
+                  value={formData.whatsapp}
                   onChange={(e) => handleChange('whatsapp', e.target.value)}
                 />
               </div>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="responsavel">Responsável</Label>
                 <Input
                   id="responsavel"
-                  value={formData.responsavel || ''}
+                  value={formData.responsavel}
                   onChange={(e) => handleChange('responsavel', e.target.value)}
                 />
               </div>
@@ -272,7 +229,7 @@ export default function EditarClientePage() { // Removido `params` dos props
                 <Label htmlFor="cargo_responsavel">Cargo do Responsável</Label>
                 <Input
                   id="cargo_responsavel"
-                  value={formData.cargo_responsavel || ''}
+                  value={formData.cargo_responsavel}
                   onChange={(e) => handleChange('cargo_responsavel', e.target.value)}
                 />
               </div>
@@ -286,80 +243,116 @@ export default function EditarClientePage() { // Removido `params` dos props
             <CardTitle>Endereço</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="cep">CEP</Label>
-                <Input id="cep" value={formData.cep || ''} onChange={(e) => handleChange('cep', e.target.value)} />
+                <Input
+                  id="cep"
+                  value={formData.cep}
+                  onChange={(e) => handleChange('cep', e.target.value)}
+                />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-               <div>
+              <div>
                 <Label htmlFor="endereco">Endereço</Label>
-                <Input id="endereco" value={formData.endereco || ''} onChange={(e) => handleChange('endereco', e.target.value)} />
+                <Input
+                  id="endereco"
+                  value={formData.endereco}
+                  onChange={(e) => handleChange('endereco', e.target.value)}
+                  className="md:col-span-2"
+                />
               </div>
-               <div>
+              <div>
                 <Label htmlFor="numero">Número</Label>
-                <Input id="numero" value={formData.numero || ''} onChange={(e) => handleChange('numero', e.target.value)} />
+                <Input
+                  id="numero"
+                  value={formData.numero}
+                  onChange={(e) => handleChange('numero', e.target.value)}
+                />
               </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                <div>
                 <Label htmlFor="complemento">Complemento</Label>
-                <Input id="complemento" value={formData.complemento || ''} onChange={(e) => handleChange('complemento', e.target.value)} />
+                <Input
+                  id="complemento"
+                  value={formData.complemento}
+                  onChange={(e) => handleChange('complemento', e.target.value)}
+                />
               </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="bairro">Bairro</Label>
-                <Input id="bairro" value={formData.bairro || ''} onChange={(e) => handleChange('bairro', e.target.value)} />
+                <Input
+                  id="bairro"
+                  value={formData.bairro}
+                  onChange={(e) => handleChange('bairro', e.target.value)}
+                />
               </div>
-              <div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div>
                 <Label htmlFor="cidade">Cidade</Label>
-                <Input id="cidade" value={formData.cidade || ''} onChange={(e) => handleChange('cidade', e.target.value)} />
+                <Input
+                  id="cidade"
+                  value={formData.cidade}
+                  onChange={(e) => handleChange('cidade', e.target.value)}
+                />
               </div>
               <div>
                 <Label htmlFor="estado">Estado</Label>
-                <Input id="estado" value={formData.estado || ''} onChange={(e) => handleChange('estado', e.target.value)} />
+                <Input
+                  id="estado"
+                  value={formData.estado}
+                  onChange={(e) => handleChange('estado', e.target.value)}
+                />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Informações Adicionais */}
+        {/* CRM */}
         <Card>
           <CardHeader>
-            <CardTitle>Informações Adicionais</CardTitle>
+            <CardTitle>Informações Adicionais (CRM)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <Label htmlFor="origem">Origem do Cliente</Label>
-                    <Input id="origem" value={formData.origem || ''} onChange={(e) => handleChange('origem', e.target.value)} />
-                </div>
-                <div>
-                    <Label htmlFor="segmento">Segmento</Label>
-                    <Input id="segmento" value={formData.segmento || ''} onChange={(e) => handleChange('segmento', e.target.value)} />
-                </div>
+              <div>
+                <Label htmlFor="origem">Origem do Cliente</Label>
+                <Input
+                  id="origem"
+                  placeholder="Ex: Indicação, Google, Instagram"
+                  value={formData.origem}
+                  onChange={(e) => handleChange('origem', e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="segmento">Segmento de Atuação</Label>
+                <Input
+                  id="segmento"
+                  placeholder="Ex: Varejo, Indústria, Serviços"
+                  value={formData.segmento}
+                  onChange={(e) => handleChange('segmento', e.target.value)}
+                />
+              </div>
             </div>
             <div>
               <Label htmlFor="observacoes">Observações</Label>
               <Textarea
                 id="observacoes"
-                value={formData.observacoes || ''}
+                value={formData.observacoes}
                 onChange={(e) => handleChange('observacoes', e.target.value)}
+                placeholder="Adicione informações relevantes sobre o cliente..."
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* Ações */}
-        <div className="flex justify-end gap-4">
-          <Link href="/dashboard/clientes">
-            <Button type="button" variant="outline" className="cursor-pointer">
-              Cancelar
-            </Button>
-          </Link>
-          <Button type="submit" disabled={loading} className="flex items-center gap-2 cursor-pointer">
-            <Save className="h-4 w-4" />
-            {loading ? 'Salvando...' : 'Salvar Alterações'}
+        {/* Botão de Salvar */}
+        <div className="flex justify-end">
+          <Button type="submit" disabled={loading} className="cursor-pointer hover:bg-primary/90 transition-colors">
+            {loading ? 'Salvando...' : <><Save className="h-4 w-4 mr-2" /> Salvar Cliente</>}
           </Button>
         </div>
       </form>

@@ -71,6 +71,11 @@ O objetivo desta fase é construir a espinha dorsal do sistema, focando na arqui
 
 Com a base pronta, o foco agora é entregar o valor principal do sistema: a capacidade de orçar e gerenciar clientes.
 
+- **[ ] Tarefa 2.0: Reestruturação das Rotas do Frontend**
+  - Mover módulos (Clientes, Insumos, etc.) para o nível raiz da URL (ex: `/clientes` em vez de `/dashboard/clientes`).
+  - Ajustar a estrutura de diretórios em `frontend/src/app` para refletir a nova arquitetura.
+  - Atualizar a navegação (Sidebar, links) para as novas rotas.
+
 - **[x] Tarefa 2.1: Módulo de CRM Básico (CRUD de Clientes)**
   - API e interface para cadastrar e gerenciar clientes (contato, endereço, histórico de interações).
   - Essencial para vincular orçamentos e pedidos.
