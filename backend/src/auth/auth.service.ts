@@ -1,21 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { Loja } from '@prisma/client';
 
 export interface JwtPayload {
   sub: string; // user id
   email: string;
   loja_id: string;
   funcao: string;
-}
-
-export interface AuthenticatedUser {
-  id: string;
-  email: string;
-  loja_id: string;
-  funcao: string;
   nome_completo: string;
 }
+
+// O tipo AuthenticatedUser agora reflete a estrutura retornada pelo Prisma
+// com o `include`. Ele inclui o objeto Loja completo.
+export type AuthenticatedUser = Awaited<ReturnType<AuthService['validateUser']>>;
 
 @Injectable()
 export class AuthService {
@@ -24,28 +22,23 @@ export class AuthService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async generateToken(user: AuthenticatedUser): Promise<string> {
+  async generateToken(user: { id: string, email: string, loja_id: string, funcao: string, nome_completo: string }): Promise<string> {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
       loja_id: user.loja_id,
       funcao: user.funcao,
+      nome_completo: user.nome_completo,
     };
 
     return this.jwtService.sign(payload);
   }
 
-  async validateUser(payload: JwtPayload): Promise<AuthenticatedUser | null> {
+  async validateUser(payload: JwtPayload) { // Removido o tipo de retorno para inferência
     const user = await this.prisma.usuario.findUnique({
-      where: { id: payload.sub },
-      select: {
-        id: true,
-        email: true,
-        nome_completo: true,
-        funcao: true,
-        loja_id: true,
-        status: true,
-        email_verificado: true,
+      where: { id: payload.sub, loja_id: payload.loja_id },
+      include: {
+        loja: true,
       },
     });
 

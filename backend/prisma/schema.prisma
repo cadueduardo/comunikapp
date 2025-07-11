@@ -56,9 +56,11 @@ model Loja {
   current_period_ends_at  DateTime?
 
   // Relations
-  usuarios Usuario[]
-  clientes Cliente[]
-  insumos  Insumo[]
+  usuarios              Usuario[]
+  clientes              Cliente[]
+  insumos               Insumo[]
+  categoriasDeInsumos   Categoria[]
+  fornecedores          Fornecedor[]
 }
 
 model Usuario {
@@ -144,20 +146,47 @@ enum StatusCliente {
 }
 
 model Insumo {
-  id            String   @id @default(cuid())
-  criado_em     DateTime @default(now())
-  atualizado_em DateTime @updatedAt
+  id                  String      @id @default(cuid())
+  loja_id             String
+  nome                String
+  descricao_tecnica   String?
+  unidade_medida      String
+  custo_unitario      Decimal     @db.Decimal(10, 2)
+  estoque_minimo      Int?
+  codigo_interno      String?
+  observacoes         String?
+  // Relacionamentos
+  loja                Loja        @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  categoriaId         String
+  categoria           Categoria   @relation(fields: [categoriaId], references: [id])
+  fornecedorId        String
+  fornecedor          Fornecedor  @relation(fields: [fornecedorId], references: [id])
 
-  nome              String
-  unidade_medida    String // Ex: 'm', 'kg', 'unidade', 'm²'
-  custo_por_unidade Decimal @db.Decimal(10, 2)
+  @@map("insumos")
+}
 
-  fornecedor  String?
-  observacoes String? @db.Text
+model Categoria {
+  id      String   @id @default(cuid())
+  loja_id String
+  nome    String
+  // Relacionamentos
+  loja    Loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  insumos Insumo[]
+
+  @@unique([loja_id, nome])
+  @@map("categorias")
+}
+
+model Fornecedor {
+  id    String @id @default(cuid())
+  nome  String
 
   // Multi-tenant
   loja_id String
   loja    Loja   @relation(fields: [loja_id], references: [id], onDelete: Cascade)
 
+  insumos Insumo[]
+
+  @@unique([loja_id, nome])
   @@index([loja_id])
 }

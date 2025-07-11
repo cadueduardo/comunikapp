@@ -9,7 +9,9 @@ import { MailModule } from './mail/mail.module';
 import { AuthModule } from './auth/auth.module';
 import { ClientesModule } from './clientes/clientes.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
-import { InsumosModule } from './insumos.module';
+import { InsumosModule } from './insumos/insumos.module';
+import { CategoriasModule } from './categorias/categorias.module';
+import { FornecedoresModule } from './fornecedores/fornecedores.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { InsumosModule } from './insumos.module';
     MailModule,
     ClientesModule,
     InsumosModule,
+    CategoriasModule,
+    FornecedoresModule,
   ],
   controllers: [AppController],
   providers: [

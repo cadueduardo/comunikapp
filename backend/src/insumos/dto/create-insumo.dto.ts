@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsNumber, IsOptional, Min } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsInt,
+  Min,
+} from 'class-validator';
 
 export class CreateInsumoDto {
   @IsString()
@@ -7,15 +14,32 @@ export class CreateInsumoDto {
 
   @IsString()
   @IsNotEmpty()
+  categoriaId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  fornecedorId: string;
+
+  @IsString()
+  @IsNotEmpty()
   unidade_medida: string;
 
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
-  custo_por_unidade: number;
+  custo_unitario: number;
 
   @IsOptional()
   @IsString()
-  fornecedor?: string;
+  codigo_interno?: string;
+  
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  estoque_minimo?: number;
+
+  @IsOptional()
+  @IsString()
+  descricao_tecnica?: string;
 
   @IsOptional()
   @IsString()

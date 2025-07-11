@@ -71,7 +71,7 @@ O objetivo desta fase é construir a espinha dorsal do sistema, focando na arqui
 
 Com a base pronta, o foco agora é entregar o valor principal do sistema: a capacidade de orçar e gerenciar clientes.
 
-- **[ ] Tarefa 2.0: Reestruturação das Rotas do Frontend**
+- **[x] Tarefa 2.0: Reestruturação das Rotas do Frontend**
   - Mover módulos (Clientes, Insumos, etc.) para o nível raiz da URL (ex: `/clientes` em vez de `/dashboard/clientes`).
   - Ajustar a estrutura de diretórios em `frontend/src/app` para refletir a nova arquitetura.
   - Atualizar a navegação (Sidebar, links) para as novas rotas.
@@ -80,10 +80,13 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
   - API e interface para cadastrar e gerenciar clientes (contato, endereço, histórico de interações).
   - Essencial para vincular orçamentos e pedidos.
 
-- **[ ] Tarefa 2.2: Módulo de Cadastro de Insumos (CRUD)**
-  - API e interface para gerenciar materiais, fornecedores e custos.
+- **[x] Tarefa 2.2: Módulo de Cadastro de Insumos (Backend - CRUD)**
+  - API para gerenciar materiais, fornecedores e custos.
 
-- **[ ] Tarefa 2.3: Módulo de Configurações da Loja**
+- **[ ] Tarefa 2.3: Módulo de Cadastro de Insumos (Frontend - CRUD)**
+  - Interface para gerenciar materiais, fornecedores e custos, seguindo a documentação `insumos.md`.
+
+- **[ ] Tarefa 2.4: Módulo de Configurações da Loja**
   - API e interface para o administrador cadastrar:
     - **Upload de logo e dados para timbrado do orçamento.**
     - Custos de mão de obra (custo/hora por função).
@@ -91,11 +94,11 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
     - Custos indiretos/fixos (aluguel, contas, etc.).
     - Parâmetros de negócio (margem de lucro, impostos).
 
-- **[ ] Tarefa 2.4: Implementação do Motor de Cálculo de Orçamento**
+- **[ ] Tarefa 2.5: Implementação do Motor de Cálculo de Orçamento**
   - Lógica de backend (conforme detalhado no documento `calculo-custos-orcamento.md`).
   - API que recebe os dados de um serviço e retorna o cálculo detalhado.
 
-- **[ ] Tarefa 2.5: Módulo de Orçamento Rápido**
+- **[ ] Tarefa 2.6: Módulo de Orçamento Rápido**
   - Interface para criar, salvar e gerenciar orçamentos, **vinculando-os a um cliente do CRM**.
   - Geração de um **link compartilhável, responsivo** e com data de validade para cada orçamento.
   - A página do orçamento deve ser profissional, com o **logo e timbrado da loja**.
