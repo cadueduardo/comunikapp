@@ -14,6 +14,7 @@ import { UpdateLojaDto } from './dto/update-loja.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdateConfiguracoesLojaDto } from './dto/update-configuracoes-loja.dto';
+import { Loja } from '@prisma/client';
 
 @Injectable()
 export class LojasService {
@@ -255,11 +256,12 @@ export class LojasService {
   }
 
   async updateConfiguracoes(
-    id: string,
+    lojaId: string,
     updateConfiguracoesLojaDto: UpdateConfiguracoesLojaDto,
-  ) {
+  ): Promise<Loja> {
+    // Os dados chegam aqui já validados e transformados pelo ValidationPipe
     return this.prisma.loja.update({
-      where: { id },
+      where: { id: lojaId },
       data: updateConfiguracoesLojaDto,
     });
   }
@@ -274,6 +276,17 @@ export class LojasService {
   remove(id: string) {
     return this.prisma.loja.delete({
       where: { id },
+    });
+  }
+
+  async updateLogoUrl(lojaId: string, filename: string): Promise<Loja> {
+    if (!filename) {
+      throw new Error('Nome do arquivo inválido para o logo.');
+    }
+    const logo_url = `/uploads/${filename}`;
+    return this.prisma.loja.update({
+      where: { id: lojaId },
+      data: { logo_url: logo_url },
     });
   }
 }

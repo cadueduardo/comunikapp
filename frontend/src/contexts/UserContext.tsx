@@ -30,9 +30,10 @@ interface User {
 interface UserContextType {
   user: User | null;
   loading: boolean;
-  login: (token: string) => Promise<void>;
+  refetchUser: () => Promise<void>; // Renomeado de login
   logout: () => void;
   getFirstName: () => string;
+  login: (token: string) => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -73,6 +74,13 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(false);
   }, []);
 
+  const refetchUser = useCallback(async () => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      await fetchUserData(token);
+    }
+  }, [fetchUserData]);
+
   const login = useCallback(async (token: string) => {
     localStorage.setItem('access_token', token);
     await fetchUserData(token);
@@ -100,7 +108,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <UserContext.Provider value={{ user, loading, login, logout, getFirstName }}>
+    <UserContext.Provider value={{ user, loading, refetchUser, logout, getFirstName, login }}>
       {children}
     </UserContext.Provider>
   );

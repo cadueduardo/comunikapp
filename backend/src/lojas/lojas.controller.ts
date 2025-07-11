@@ -8,7 +8,15 @@ import {
   Delete,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  UnauthorizedException,
+  Req,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { v4 as uuidv4 } from 'uuid';
+import { extname } from 'path';
 import { LojasService } from './lojas.service';
 import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateLojaDto } from './dto/update-loja.dto';
@@ -80,6 +88,29 @@ export class LojasController {
       lojaId,
       updateConfiguracoesLojaDto,
     );
+  }
+
+  @Post('logo')
+  @UseInterceptors(
+    FileInterceptor('logo', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, cb) => {
+          const uniqueSuffix = uuidv4();
+          const extension = extname(file.originalname);
+          cb(null, `${uniqueSuffix}${extension}`);
+        },
+      }),
+    }),
+  )
+  uploadLogo(
+    @CurrentLojaId() lojaId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new UnauthorizedException('Arquivo de logo não encontrado.');
+    }
+    return this.lojasService.updateLogoUrl(lojaId, file.filename);
   }
 
   @Get()

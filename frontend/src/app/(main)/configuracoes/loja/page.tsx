@@ -20,9 +20,11 @@ import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/contexts/UserContext';
+import { ImageUpload } from '@/components/ui/ImageUpload';
+import { formatCurrency, parseCurrency } from '@/lib/utils';
 
 const formSchema = z.object({
-  logo_url: z.string().url({ message: 'URL inválida.' }).optional().or(z.literal('')),
+  logo_url: z.string().optional(),
   cabecalho_orcamento: z.string().optional(),
   custo_maodeobra_hora: z.string().optional(),
   custo_maquinaria_hora: z.string().optional(),
@@ -34,8 +36,9 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export default function ConfiguracoesLojaPage() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user, loading } = useUser();
+  const { user, refetchUser, loading } = useUser();
+  const [isSaving, setIsSaving] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -53,34 +56,66 @@ export default function ConfiguracoesLojaPage() {
   useEffect(() => {
     if (user?.loja) {
       const { loja } = user;
-      form.reset({
+      const initialValues = {
         logo_url: loja.logo_url ?? '',
         cabecalho_orcamento: loja.cabecalho_orcamento ?? '',
-        custo_maodeobra_hora: loja.custo_maodeobra_hora ?? '',
-        custo_maquinaria_hora: loja.custo_maquinaria_hora ?? '',
-        custos_indiretos_mensais: loja.custos_indiretos_mensais ?? '',
-        margem_lucro_padrao: loja.margem_lucro_padrao ?? '',
-        impostos_padrao: loja.impostos_padrao ?? '',
-      });
+        custo_maodeobra_hora: formatCurrency(loja.custo_maodeobra_hora, true, true),
+        custo_maquinaria_hora: formatCurrency(loja.custo_maquinaria_hora, true, true),
+        custos_indiretos_mensais: formatCurrency(loja.custos_indiretos_mensais, true, true),
+        margem_lucro_padrao: formatCurrency(loja.margem_lucro_padrao, false, true),
+        impostos_padrao: formatCurrency(loja.impostos_padrao, false, true),
+      };
+      form.reset(initialValues);
     }
-  }, [user, form]);
+  }, [user?.loja, form.reset]);
 
-  async function onSubmit(data: FormValues) {
-    setIsSubmitting(true);
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsSaving(true);
+    let newLogoUrl: string | null = null;
+
     try {
       const token = localStorage.getItem('access_token');
-      
-      // Converte strings numéricas para números antes de enviar
-      const payload = {
-        ...data,
-        custo_maodeobra_hora: data.custo_maodeobra_hora ? parseFloat(data.custo_maodeobra_hora) : undefined,
-        custo_maquinaria_hora: data.custo_maquinaria_hora ? parseFloat(data.custo_maquinaria_hora) : undefined,
-        custos_indiretos_mensais: data.custos_indiretos_mensais ? parseFloat(data.custos_indiretos_mensais) : undefined,
-        margem_lucro_padrao: data.margem_lucro_padrao ? parseFloat(data.margem_lucro_padrao) : undefined,
-        impostos_padrao: data.impostos_padrao ? parseFloat(data.impostos_padrao) : undefined,
-      };
+      if (!token) {
+        throw new Error('Token de autenticação não encontrado.');
+      }
 
-      const response = await fetch('http://localhost:3001/lojas/configuracoes', {
+      // Etapa 1: Se um novo logo foi selecionado, faça o upload primeiro.
+      if (selectedFile) {
+        const logoFormData = new FormData();
+        logoFormData.append('logo', selectedFile);
+
+        const uploadResponse = await fetch('http://localhost:3001/lojas/logo', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: logoFormData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Falha ao fazer upload do logo.');
+        }
+
+        const uploadResult = await uploadResponse.json();
+        newLogoUrl = uploadResult.logo_url;
+      }
+
+      // Etapa 2: Prepare e salve todas as outras configurações.
+      const payload: Partial<FormValues> = {
+        cabecalho_orcamento: values.cabecalho_orcamento,
+        custo_maodeobra_hora: String(parseCurrency(values.custo_maodeobra_hora)),
+        custo_maquinaria_hora: String(parseCurrency(values.custo_maquinaria_hora)),
+        custos_indiretos_mensais: String(parseCurrency(values.custos_indiretos_mensais)),
+        margem_lucro_padrao: String(parseCurrency(values.margem_lucro_padrao)),
+        impostos_padrao: String(parseCurrency(values.impostos_padrao)),
+      };
+      
+      // Se tivermos uma nova URL do logo, adicione-a ao payload.
+      if (newLogoUrl) {
+        payload.logo_url = newLogoUrl;
+      }
+
+      const settingsResponse = await fetch('http://localhost:3001/lojas/configuracoes', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -89,36 +124,27 @@ export default function ConfiguracoesLojaPage() {
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) {
-        throw new Error('Falha ao salvar as configurações.');
+      if (!settingsResponse.ok) {
+        const errorData = await settingsResponse.json();
+        throw new Error(errorData.message || 'Falha ao salvar as configurações da loja.');
       }
+      
+      await refetchUser();
+      toast.success("Configurações da loja salvas com sucesso!");
 
-      toast.success('Configurações salvas com sucesso!');
     } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao salvar as configurações.");
       console.error(error);
-      toast.error('Ocorreu um erro ao salvar as configurações.');
     } finally {
-      setIsSubmitting(false);
+      setIsSaving(false);
     }
   }
-
+  
   if (loading) {
     return (
-      <div className="space-y-8">
-        <div>
-          <Skeleton className="h-8 w-1/3" />
-          <Skeleton className="h-4 w-2/3 mt-2" />
-        </div>
-        <Separator />
-        <div className="space-y-8">
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Separator />
-            <Skeleton className="h-20 w-full" />
-            <Separator />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-10 w-32" />
-        </div>
+      <div className="p-10">
+        <Skeleton className="h-10 w-1/3 mb-4" />
+        <Skeleton className="h-96 w-full" />
       </div>
     );
   }
@@ -144,13 +170,13 @@ export default function ConfiguracoesLojaPage() {
               name="logo_url"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>URL do Logo</FormLabel>
+                  <FormLabel>Logo da Empresa</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://exemplo.com/logo.png" {...field} />
+                    <ImageUpload 
+                      onFileSelect={setSelectedFile} 
+                      currentImageUrl={field.value}
+                    />
                   </FormControl>
-                  <FormDescription>
-                    O logo que aparecerá nos seus orçamentos.
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -189,7 +215,11 @@ export default function ConfiguracoesLojaPage() {
                   <FormItem>
                     <FormLabel>Custo Mão de Obra (por hora)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="50.00" {...field} />
+                      <Input 
+                        placeholder="R$ 50,00" 
+                        {...field}
+                        onChange={(e) => field.onChange(formatCurrency(e.target.value))}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -202,7 +232,11 @@ export default function ConfiguracoesLojaPage() {
                   <FormItem>
                     <FormLabel>Custo Maquinário (por hora)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="120.00" {...field} />
+                       <Input 
+                        placeholder="R$ 120,00" 
+                        {...field}
+                        onChange={(e) => field.onChange(formatCurrency(e.target.value))}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -215,7 +249,11 @@ export default function ConfiguracoesLojaPage() {
                   <FormItem>
                     <FormLabel>Custos Indiretos (mensal)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="5000.00" {...field} />
+                       <Input 
+                        placeholder="R$ 5.000,00" 
+                        {...field}
+                        onChange={(e) => field.onChange(formatCurrency(e.target.value))}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -236,7 +274,11 @@ export default function ConfiguracoesLojaPage() {
                 <FormItem>
                   <FormLabel>Margem de Lucro Padrão (%)</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="100" {...field} />
+                    <Input 
+                      placeholder="100,00 %" 
+                      {...field} 
+                      onChange={(e) => field.onChange(formatCurrency(e.target.value, false))}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -249,7 +291,11 @@ export default function ConfiguracoesLojaPage() {
                 <FormItem>
                   <FormLabel>Impostos Padrão (%)</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="10" {...field} />
+                    <Input 
+                      placeholder="10,00 %" 
+                      {...field} 
+                      onChange={(e) => field.onChange(formatCurrency(e.target.value, false))}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -258,8 +304,8 @@ export default function ConfiguracoesLojaPage() {
             </div>
           </div>
 
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
+          <Button type="submit" disabled={isSaving}>
+            {isSaving ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
         </form>
       </Form>

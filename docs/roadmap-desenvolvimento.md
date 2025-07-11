@@ -94,13 +94,17 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
 - **[x] Tarefa 2.3: Módulo de Cadastro de Insumos (Frontend - CRUD)**
   - Interface para gerenciar materiais, fornecedores e custos, seguindo a documentação `insumos.md`.
 
-- **[ ] Tarefa 2.4: Módulo de Configurações da Loja**
-  - API e interface para o administrador cadastrar:
-    - **Upload de logo e dados para timbrado do orçamento.**
-    - Custos de mão de obra (custo/hora por função).
-    - Custos de máquinas (custo/hora por máquina).
-    - Custos indiretos/fixos (aluguel, contas, etc.).
-    - Parâmetros de negócio (margem de lucro, impostos).
+- **[x] Tarefa 2.4: Módulo de Configurações da Loja**
+  - [x] API e interface para o administrador gerenciar os dados da loja (custos, margens, etc.).
+  - [x] **Sub-tarefa 2.4.1: Upload de Logo com Preview**
+    - [x] **Backend:** Criar endpoint para receber, salvar a imagem e atualizar a `logo_url` da loja.
+    - [x] **Frontend:** Substituir o input de texto por um componente de upload de arquivo.
+    - [x] **Frontend:** Implementar a funcionalidade de pré-visualização da imagem antes do envio.
+    - [x] **Frontend:** Exibir o logo atual da loja na página de configurações.
+  - [x] Cadastrar custos de mão de obra (custo/hora por função).
+  - [x] Cadastrar custos de máquinas (custo/hora por máquina).
+  - [x] Cadastrar custos indiretos/fixos (aluguel, contas, etc.).
+  - [x] Cadastrar parâmetros de negócio (margem de lucro, impostos).
 
 - **[ ] Tarefa 2.5: Implementação do Motor de Cálculo de Orçamento**
   - Lógica de backend (conforme detalhado no documento `calculo-custos-orcamento.md`).
