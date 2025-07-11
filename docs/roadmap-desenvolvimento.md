@@ -91,7 +91,7 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
   - [x] Frontend: Implementar interface CRUD para `Categorias`.
   - [x] Frontend: Implementar interface CRUD para `Fornecedores`.
 
-- **[ ] Tarefa 2.3: Módulo de Cadastro de Insumos (Frontend - CRUD)**
+- **[x] Tarefa 2.3: Módulo de Cadastro de Insumos (Frontend - CRUD)**
   - Interface para gerenciar materiais, fornecedores e custos, seguindo a documentação `insumos.md`.
 
 - **[ ] Tarefa 2.4: Módulo de Configurações da Loja**
