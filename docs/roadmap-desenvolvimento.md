@@ -106,9 +106,11 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
   - [x] Cadastrar custos indiretos/fixos (aluguel, contas, etc.).
   - [x] Cadastrar parâmetros de negócio (margem de lucro, impostos).
 
-- **[ ] Tarefa 2.5: Implementação do Motor de Cálculo de Orçamento**
-  - Lógica de backend (conforme detalhado no documento `calculo-custos-orcamento.md`).
-  - API que recebe os dados de um serviço e retorna o cálculo detalhado.
+- **[x] Tarefa 2.5: Implementação do Motor de Cálculo de Orçamento**
+  - [x] Lógica de backend (conforme detalhado no documento `calculo-custos-orcamento.md`).
+  - [x] API que recebe os dados de um serviço e retorna o cálculo detalhado.
+  - [x] Endpoint `POST /orcamentos/calcular` implementado.
+  - [x] Documentação de teste criada em `backend/TESTE_MOTOR_CALCULO.md`.
 
 - **[ ] Tarefa 2.6: Módulo de Orçamento Rápido**
   - Interface para criar, salvar e gerenciar orçamentos, **vinculando-os a um cliente do CRM**.

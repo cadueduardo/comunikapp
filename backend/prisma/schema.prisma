@@ -68,6 +68,7 @@ model Loja {
   categorias   Categoria[]
   fornecedores Fornecedor[]
   insumos      Insumo[]
+  orcamentos  Orcamento[]
 
   criado_em   DateTime @default(now())
   atualizado_em DateTime @updatedAt
@@ -143,6 +144,8 @@ model Cliente {
   loja_id String
   loja    Loja   @relation(fields: [loja_id], references: [id], onDelete: Cascade)
 
+  orcamentos Orcamento[]
+
   @@index([loja_id])
   @@index([loja_id, nome])
   @@index([loja_id, documento])
@@ -173,6 +176,7 @@ model Insumo {
   categoria           Categoria   @relation(fields: [categoriaId], references: [id])
   fornecedorId        String
   fornecedor          Fornecedor  @relation(fields: [fornecedorId], references: [id])
+  itens               ItemOrcamento[]
 
   @@map("insumos")
 }
@@ -201,4 +205,51 @@ model Fornecedor {
 
   @@unique([loja_id, nome])
   @@index([loja_id])
+}
+
+model Orcamento {
+  id              String    @id @default(cuid())
+  criado_em       DateTime  @default(now())
+  atualizado_em   DateTime  @updatedAt
+  numero          String
+  nome_servico    String
+  descricao       String?   @db.Text
+  horas_producao  Decimal   @db.Decimal(10, 2)
+  
+  // Custos calculados
+  custo_material      Decimal @db.Decimal(10, 2)
+  custo_mao_obra      Decimal @db.Decimal(10, 2)
+  custo_indireto      Decimal @db.Decimal(10, 2)
+  custo_total         Decimal @db.Decimal(10, 2)
+  margem_lucro        Decimal @db.Decimal(5, 2)
+  impostos            Decimal @db.Decimal(5, 2)
+  preco_final         Decimal @db.Decimal(10, 2)
+  
+  // Relacionamentos
+  loja_id     String
+  loja        Loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  cliente_id  String?
+  cliente     Cliente? @relation(fields: [cliente_id], references: [id], onDelete: SetNull)
+  
+  itens       ItemOrcamento[]
+  
+  @@unique([loja_id, numero])
+  @@index([loja_id])
+  @@index([loja_id, numero])
+}
+
+model ItemOrcamento {
+  id              String    @id @default(cuid())
+  orcamento_id    String
+  orcamento       Orcamento @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  
+  insumo_id       String
+  insumo          Insumo    @relation(fields: [insumo_id], references: [id], onDelete: Restrict)
+  
+  quantidade      Decimal   @db.Decimal(10, 3)
+  custo_unitario  Decimal   @db.Decimal(10, 2)
+  custo_total     Decimal   @db.Decimal(10, 2)
+  
+  @@index([orcamento_id])
+  @@index([insumo_id])
 }

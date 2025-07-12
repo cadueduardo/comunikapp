@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { MailModule } from './mail/mail.module';
 import { ClientesModule } from './clientes/clientes.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { OrcamentosModule } from './orcamentos/orcamentos.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     AuthModule,
     MailModule,
     ClientesModule,
+    OrcamentosModule,
   ],
   controllers: [AppController],
   providers: [
