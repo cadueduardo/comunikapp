@@ -34,4 +34,9 @@ export class UpdateConfiguracoesLojaDto {
   @IsOptional()
   @Type(() => Number)
   impostos_padrao?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  horas_produtivas_mensais?: number;
 } 

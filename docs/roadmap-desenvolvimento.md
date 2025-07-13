@@ -112,11 +112,73 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
   - [x] Endpoint `POST /orcamentos/calcular` implementado.
   - [x] Documentação de teste criada em `backend/TESTE_MOTOR_CALCULO.md`.
 
-- **[ ] Tarefa 2.6: Módulo de Orçamento Rápido**
+- **[x] Tarefa 2.6: Módulo de Orçamento Rápido**
   - Interface para criar, salvar e gerenciar orçamentos, **vinculando-os a um cliente do CRM**.
   - Geração de um **link compartilhável, responsivo** e com data de validade para cada orçamento.
   - A página do orçamento deve ser profissional, com o **logo e timbrado da loja**.
   - A página deve permitir ao cliente **gerar um PDF** do orçamento e ser facilmente compartilhada via WhatsApp/e-mail.
+  - **[x] Backend: CRUD completo de orçamentos implementado**
+  - **[x] Backend: Motor de cálculo integrado ao CRUD**
+  - **[x] Backend: Correção de validação de IDs (CUIDs em vez de UUIDs)**
+  - **[x] Frontend: Página de listagem de orçamentos**
+  - **[x] Frontend: Formulário de criação de orçamentos**
+  - **[x] Frontend: Correção de validação de IDs (CUIDs em vez de UUIDs)**
+  - **[ ] Frontend: Página de visualização/edição de orçamentos**
+  - **[ ] Frontend: Link público compartilhável**
+  - **[ ] Frontend: Geração de PDF**
+
+- **[ ] Tarefa 2.7: Refatoração Avançada dos Custos e Parâmetros da Loja**
+  - **Problema identificado:** A estrutura atual de custos é simplificada e não representa a complexidade real de uma gráfica/loja de produção.
+  - **Objetivo:** Desenvolver CRUDs específicos para máquinas, funções (mão de obra) e custos indiretos, com integração ao motor de cálculo, automação de rateio, simulação de cenários e relatórios analíticos, garantindo granularidade, flexibilidade e transparência.
+  - **[x] Sub-tarefa 2.7.1: CRUD de Máquinas**
+    - [x] **Backend:** Criar modelo `Maquina` com campos: nome, tipo, custo_hora, status, capacidade, observações, histórico de custos
+    - [x] **Backend:** Implementar API CRUD para máquinas, incluindo consulta de histórico de custos
+    - [x] **Frontend:** Criar página `/configuracoes/maquinas` com interface CRUD e visualização do histórico
+    - [x] **Frontend:** Formulário de criação/edição de máquinas com campos detalhados
+  - **[ ] Sub-tarefa 2.7.2: CRUD de Funções (Mão de Obra)**
+    - [ ] **Backend:** Criar modelo `Funcao` com campos: nome, custo_hora, descricao, maquina_id (opcional), histórico de custos
+    - [ ] **Backend:** Implementar API CRUD para funções, incluindo histórico
+    - [ ] **Frontend:** Página `/configuracoes/funcoes` com interface CRUD e histórico
+    - [ ] **Frontend:** Formulário de criação/edição de funções, permitindo vínculo com máquinas
+  - **[ ] Sub-tarefa 2.7.3: CRUD de Custos Indiretos**
+    - [ ] **Backend:** Criar modelo `CustoIndireto` com campos: nome, valor_mensal, categoria, ativo, regra_rateio (ex: proporcional ao tempo de máquina, valor do orçamento, etc.), histórico de alterações
+    - [ ] **Backend:** Implementar API CRUD para custos indiretos, com histórico e regras de rateio
+    - [ ] **Frontend:** Página `/configuracoes/custos-indiretos` com interface CRUD, visualização de histórico e configuração de regras de rateio
+    - [ ] **Frontend:** Formulário de criação/edição de custos indiretos e suas regras
+  - **[ ] Sub-tarefa 2.7.4: Atualização do Motor de Cálculo**
+    - [ ] **Backend:** Adaptar motor de cálculo para:
+      - Utilizar máquinas e funções específicas selecionadas em cada orçamento
+      - Aplicar custos indiretos automaticamente, conforme regras de rateio configuradas
+      - Permitir simulação de cenários (ex: troca de máquina/função, alteração de parâmetros)
+      - Registrar detalhamento dos custos por item e por orçamento
+    - [ ] **Backend:** Implementar API para simulação de cenários de orçamento
+    - [ ] **Frontend:** Atualizar formulário de orçamento para:
+      - Selecionar máquinas/funções por item
+      - Exibir custos detalhados por máquina/função/custo indireto em sidebar ou painel
+      - Permitir simulação de cenários e comparação de resultados
+    - [ ] **Frontend:** Visualização clara dos custos rateados e totais
+  - **[ ] Sub-tarefa 2.7.5: Relatórios Analíticos e Histórico**
+    - [ ] **Backend:** Implementar geração de relatórios analíticos:
+      - Composição de custos por orçamento
+      - Margem de contribuição por máquina/função
+      - Participação dos custos indiretos
+      - Histórico de alterações de custos
+    - [ ] **Frontend:** Página de relatórios com filtros, gráficos e exportação
+  - **[ ] Sub-tarefa 2.7.6: Integração com Compras e Estoque**
+    - [ ] **Backend:** Ao aprovar orçamento, verificar disponibilidade de insumos e capacidade de máquinas
+    - [ ] **Backend:** Gerar automaticamente requisições de compra ou alertas para insumos/capacidades em falta
+    - [ ] **Frontend:** Notificações e sugestões de ação para o usuário
+  - **[ ] Sub-tarefa 2.7.7: Migração de Dados e Compatibilidade**
+    - [ ] **Backend:** Criar migrations para novos modelos
+    - [ ] **Backend:** Implementar lógica de migração dos dados existentes, mantendo compatibilidade com orçamentos anteriores
+    - [ ] **Backend:** Garantir logs e rastreabilidade de alterações
+  - **Diferenciais e melhorias incorporadas:**
+    - Rateio automatizado e configurável de custos indiretos
+    - Simulação de cenários de orçamento
+    - Histórico detalhado de custos e alterações
+    - Relatórios analíticos avançados
+    - Integração proativa com compras e estoque
+    - Transparência total para o usuário final
 
 ---
 

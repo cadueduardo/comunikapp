@@ -8,8 +8,12 @@ import { LojasModule } from './lojas/lojas.module';
 import { AuthModule } from './auth/auth.module';
 import { MailModule } from './mail/mail.module';
 import { ClientesModule } from './clientes/clientes.module';
-import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { CategoriasModule } from './categorias/categorias.module';
+import { FornecedoresModule } from './fornecedores/fornecedores.module';
+import { InsumosModule } from './insumos/insumos.module';
 import { OrcamentosModule } from './orcamentos/orcamentos.module';
+import { MaquinasModule } from './maquinas/maquinas.module';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -21,7 +25,11 @@ import { OrcamentosModule } from './orcamentos/orcamentos.module';
     AuthModule,
     MailModule,
     ClientesModule,
+    CategoriasModule,
+    FornecedoresModule,
+    InsumosModule,
     OrcamentosModule,
+    MaquinasModule,
   ],
   controllers: [AppController],
   providers: [

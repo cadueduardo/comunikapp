@@ -61,6 +61,7 @@ model Loja {
   custos_indiretos_mensais Decimal?  @db.Decimal(10, 2)
   margem_lucro_padrao      Decimal?  @db.Decimal(5, 2)
   impostos_padrao          Decimal?  @db.Decimal(5, 2)
+  horas_produtivas_mensais Int?      @default(352) // 2 colaboradores * 176 horas/mês
 
   // Relacionamentos
   usuarios     Usuario[]
@@ -69,6 +70,9 @@ model Loja {
   fornecedores Fornecedor[]
   insumos      Insumo[]
   orcamentos  Orcamento[]
+  maquinas     Maquina[]
+  funcoes      Funcao[]
+  custos_indiretos CustoIndireto[]
 
   criado_em   DateTime @default(now())
   atualizado_em DateTime @updatedAt
@@ -207,6 +211,74 @@ model Fornecedor {
   @@index([loja_id])
 }
 
+model Maquina {
+  id                String   @id @default(cuid())
+  criado_em         DateTime @default(now())
+  atualizado_em     DateTime @updatedAt
+  
+  nome              String
+  tipo              String   // "PLOTTER", "ROUTER", "IMPRESSORA", "CORTE", "OUTROS"
+  custo_hora        Decimal  @db.Decimal(10, 2)
+  status            String   @default("ATIVA") // "ATIVA", "MANUTENCAO", "INATIVA"
+  capacidade        String?  // "1200x800mm", "2x1m", etc.
+  observacoes       String?  @db.Text
+  
+  // Multi-tenant
+  loja_id           String
+  loja              Loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  
+  // Relacionamentos
+  funcoes           Funcao[]
+  maquinas_orcamento MaquinaOrcamento[]
+  
+  @@index([loja_id])
+  @@index([loja_id, tipo])
+}
+
+model Funcao {
+  id                String   @id @default(cuid())
+  criado_em         DateTime @default(now())
+  atualizado_em     DateTime @updatedAt
+  
+  nome              String   // "Operador Plotter", "Designer", "Auxiliar"
+  custo_hora        Decimal  @db.Decimal(10, 2)
+  descricao         String?  @db.Text
+  
+  // Relacionamento opcional com máquina específica
+  maquina_id        String?
+  maquina           Maquina? @relation(fields: [maquina_id], references: [id], onDelete: SetNull)
+  
+  // Multi-tenant
+  loja_id           String
+  loja              Loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  
+  // Relacionamentos
+  funcoes_orcamento FuncaoOrcamento[]
+  
+  @@index([loja_id])
+  @@index([maquina_id])
+}
+
+model CustoIndireto {
+  id                String   @id @default(cuid())
+  criado_em         DateTime @default(now())
+  atualizado_em     DateTime @updatedAt
+  
+  nome              String   // "Aluguel", "Água", "Luz", "Internet"
+  valor_mensal      Decimal  @db.Decimal(10, 2)
+  categoria         String   // "LOCACAO", "SERVICOS", "MANUTENCAO", "OUTROS"
+  ativo             Boolean  @default(true)
+  regra_rateio      String   @default("PROPORCIONAL_TEMPO") // "PROPORCIONAL_TEMPO", "PROPORCIONAL_VALOR", "FIXO"
+  observacoes       String?  @db.Text
+  
+  // Multi-tenant
+  loja_id           String
+  loja              Loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  
+  @@index([loja_id])
+  @@index([loja_id, categoria])
+}
+
 model Orcamento {
   id              String    @id @default(cuid())
   criado_em       DateTime  @default(now())
@@ -232,10 +304,42 @@ model Orcamento {
   cliente     Cliente? @relation(fields: [cliente_id], references: [id], onDelete: SetNull)
   
   itens       ItemOrcamento[]
+  maquinas    MaquinaOrcamento[]
+  funcoes     FuncaoOrcamento[]
   
   @@unique([loja_id, numero])
   @@index([loja_id])
   @@index([loja_id, numero])
+}
+
+model MaquinaOrcamento {
+  id              String    @id @default(cuid())
+  orcamento_id    String
+  orcamento       Orcamento @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  
+  maquina_id      String
+  maquina         Maquina   @relation(fields: [maquina_id], references: [id], onDelete: Restrict)
+  
+  horas_utilizadas Decimal  @db.Decimal(10, 2)
+  custo_total     Decimal   @db.Decimal(10, 2)
+  
+  @@index([orcamento_id])
+  @@index([maquina_id])
+}
+
+model FuncaoOrcamento {
+  id              String    @id @default(cuid())
+  orcamento_id    String
+  orcamento       Orcamento @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  
+  funcao_id       String
+  funcao          Funcao    @relation(fields: [funcao_id], references: [id], onDelete: Restrict)
+  
+  horas_trabalhadas Decimal @db.Decimal(10, 2)
+  custo_total     Decimal   @db.Decimal(10, 2)
+  
+  @@index([orcamento_id])
+  @@index([funcao_id])
 }
 
 model ItemOrcamento {

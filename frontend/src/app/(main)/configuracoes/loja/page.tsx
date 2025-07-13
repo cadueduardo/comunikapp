@@ -31,6 +31,7 @@ const formSchema = z.object({
   custos_indiretos_mensais: z.string().optional(),
   margem_lucro_padrao: z.string().optional(),
   impostos_padrao: z.string().optional(),
+  horas_produtivas_mensais: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -50,6 +51,7 @@ export default function ConfiguracoesLojaPage() {
       custos_indiretos_mensais: '',
       margem_lucro_padrao: '',
       impostos_padrao: '',
+      horas_produtivas_mensais: '',
     },
   });
 
@@ -64,6 +66,7 @@ export default function ConfiguracoesLojaPage() {
         custos_indiretos_mensais: formatCurrency(loja.custos_indiretos_mensais, true, true),
         margem_lucro_padrao: formatCurrency(loja.margem_lucro_padrao, false, true),
         impostos_padrao: formatCurrency(loja.impostos_padrao, false, true),
+        horas_produtivas_mensais: String(loja.horas_produtivas_mensais ?? 352),
       };
       form.reset(initialValues);
     }
@@ -108,6 +111,7 @@ export default function ConfiguracoesLojaPage() {
         custos_indiretos_mensais: String(parseCurrency(values.custos_indiretos_mensais)),
         margem_lucro_padrao: String(parseCurrency(values.margem_lucro_padrao)),
         impostos_padrao: String(parseCurrency(values.impostos_padrao)),
+        horas_produtivas_mensais: String(parseInt(values.horas_produtivas_mensais || '352')),
       };
       
       // Se tivermos uma nova URL do logo, adicione-a ao payload.
@@ -255,6 +259,28 @@ export default function ConfiguracoesLojaPage() {
                         onChange={(e) => field.onChange(formatCurrency(e.target.value))}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+              <FormField
+                control={form.control}
+                name="horas_produtivas_mensais"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Horas Produtivas Mensais</FormLabel>
+                    <FormControl>
+                       <Input 
+                        placeholder="352" 
+                        {...field}
+                        type="number"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Total de horas produtivas por mês (ex: 2 colaboradores × 176 horas = 352)
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

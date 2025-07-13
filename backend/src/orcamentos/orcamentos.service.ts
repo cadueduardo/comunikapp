@@ -2,6 +2,8 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CalcularOrcamentoDto } from './dto/calcular-orcamento.dto';
 import { ResultadoCalculoDto, ItemOrcamentoCalculadoDto, DetalhamentoCustoDto } from './dto/resultado-calculo.dto';
+import { CreateOrcamentoDto } from './dto/create-orcamento.dto';
+import { UpdateOrcamentoDto } from './dto/update-orcamento.dto';
 
 @Injectable()
 export class OrcamentosService {
@@ -92,7 +94,7 @@ export class OrcamentosService {
         custos_indiretos_por_hora: custoIndiretoPorHora,
         margem_lucro_percentual: margemLucro,
         impostos_percentual: impostos,
-        total_horas_produtivas_mes: 352, // Assumindo 2 colaboradores * 176 horas/mês
+        total_horas_produtivas_mes: loja.horas_produtivas_mensais || 352,
       },
     };
 
@@ -108,9 +110,8 @@ export class OrcamentosService {
   private async calcularCustoIndiretoPorHora(loja: any): Promise<number> {
     const custosIndiretosMensais = Number(loja.custos_indiretos_mensais);
     
-    // TODO: Implementar configuração de horas produtivas por loja
-    // Por enquanto assumindo 2 colaboradores * 176 horas/mês = 352 horas
-    const horasProdutivasMes = 352;
+    // Usar horas produtivas configuradas na loja ou valor padrão
+    const horasProdutivasMes = loja.horas_produtivas_mensais || 352;
     
     return custosIndiretosMensais / horasProdutivasMes;
   }
@@ -164,5 +165,219 @@ export class OrcamentosService {
    */
   private calcularCustoIndiretolAlocado(horasProducao: number, custoIndiretoPorHora: number): number {
     return horasProducao * custoIndiretoPorHora;
+  }
+
+  /**
+   * CRUD Operations para Orçamentos
+   */
+
+  async create(createOrcamentoDto: CreateOrcamentoDto, lojaId: string) {
+    // 1. Calcular o orçamento usando o motor existente
+    const calculoDto: CalcularOrcamentoDto = {
+      nome_servico: createOrcamentoDto.nome_servico,
+      descricao: createOrcamentoDto.descricao,
+      horas_producao: createOrcamentoDto.horas_producao,
+      itens: createOrcamentoDto.itens,
+      cliente_id: createOrcamentoDto.cliente_id,
+      margem_lucro_customizada: createOrcamentoDto.margem_lucro_customizada,
+      impostos_customizados: createOrcamentoDto.impostos_customizados,
+    };
+
+    const resultado = await this.calcularOrcamento(calculoDto, lojaId);
+
+    // 2. Gerar número único do orçamento
+    const numero = await this.gerarNumeroOrcamento(lojaId);
+
+    // 3. Criar o orçamento no banco
+    const orcamento = await this.prisma.orcamento.create({
+      data: {
+        numero,
+        nome_servico: createOrcamentoDto.nome_servico,
+        descricao: createOrcamentoDto.descricao,
+        horas_producao: createOrcamentoDto.horas_producao,
+        custo_material: resultado.custos.custo_material,
+        custo_mao_obra: resultado.custos.custo_mao_obra,
+        custo_indireto: resultado.custos.custo_indireto,
+        custo_total: resultado.custos.custo_total_producao,
+        margem_lucro: resultado.custos.margem_lucro_percentual,
+        impostos: resultado.custos.impostos_percentual,
+        preco_final: resultado.custos.preco_final,
+        loja_id: lojaId,
+        cliente_id: createOrcamentoDto.cliente_id,
+      },
+    });
+
+    // 4. Criar os itens do orçamento
+    const itensData = resultado.itens.map(item => ({
+      orcamento_id: orcamento.id,
+      insumo_id: item.insumo_id,
+      quantidade: item.quantidade,
+      custo_unitario: item.custo_unitario,
+      custo_total: item.custo_total,
+    }));
+
+    await this.prisma.itemOrcamento.createMany({
+      data: itensData,
+    });
+
+    return this.findOne(orcamento.id, lojaId);
+  }
+
+  async findAll(lojaId: string) {
+    return this.prisma.orcamento.findMany({
+      where: { loja_id: lojaId },
+      include: {
+        cliente: true,
+        itens: {
+          include: {
+            insumo: {
+              include: {
+                categoria: true,
+                fornecedor: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { criado_em: 'desc' },
+    });
+  }
+
+  async findOne(id: string, lojaId: string) {
+    const orcamento = await this.prisma.orcamento.findFirst({
+      where: { 
+        id,
+        loja_id: lojaId,
+      },
+      include: {
+        cliente: true,
+        itens: {
+          include: {
+            insumo: {
+              include: {
+                categoria: true,
+                fornecedor: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!orcamento) {
+      throw new NotFoundException('Orçamento não encontrado');
+    }
+
+    return orcamento;
+  }
+
+  async update(id: string, updateOrcamentoDto: UpdateOrcamentoDto, lojaId: string) {
+    // Verificar se o orçamento existe
+    await this.findOne(id, lojaId);
+
+    // Se houver mudanças nos itens ou parâmetros, recalcular
+    if (updateOrcamentoDto.itens || updateOrcamentoDto.horas_producao || 
+        updateOrcamentoDto.margem_lucro_customizada || updateOrcamentoDto.impostos_customizados) {
+      
+      // Recalcular usando o motor
+      const calculoDto: CalcularOrcamentoDto = {
+        nome_servico: updateOrcamentoDto.nome_servico || '',
+        descricao: updateOrcamentoDto.descricao,
+        horas_producao: updateOrcamentoDto.horas_producao || 0,
+        itens: updateOrcamentoDto.itens || [],
+        cliente_id: updateOrcamentoDto.cliente_id,
+        margem_lucro_customizada: updateOrcamentoDto.margem_lucro_customizada,
+        impostos_customizados: updateOrcamentoDto.impostos_customizados,
+      };
+
+      const resultado = await this.calcularOrcamento(calculoDto, lojaId);
+
+      // Atualizar com os novos valores calculados
+      await this.prisma.orcamento.update({
+        where: { id },
+        data: {
+          nome_servico: updateOrcamentoDto.nome_servico,
+          descricao: updateOrcamentoDto.descricao,
+          horas_producao: updateOrcamentoDto.horas_producao,
+          custo_material: resultado.custos.custo_material,
+          custo_mao_obra: resultado.custos.custo_mao_obra,
+          custo_indireto: resultado.custos.custo_indireto,
+          custo_total: resultado.custos.custo_total_producao,
+          margem_lucro: resultado.custos.margem_lucro_percentual,
+          impostos: resultado.custos.impostos_percentual,
+          preco_final: resultado.custos.preco_final,
+          cliente_id: updateOrcamentoDto.cliente_id,
+        },
+      });
+
+      // Se houver novos itens, atualizar
+      if (updateOrcamentoDto.itens) {
+        // Remover itens antigos
+        await this.prisma.itemOrcamento.deleteMany({
+          where: { orcamento_id: id },
+        });
+
+        // Criar novos itens
+        const itensData = resultado.itens.map(item => ({
+          orcamento_id: id,
+          insumo_id: item.insumo_id,
+          quantidade: item.quantidade,
+          custo_unitario: item.custo_unitario,
+          custo_total: item.custo_total,
+        }));
+
+        await this.prisma.itemOrcamento.createMany({
+          data: itensData,
+        });
+      }
+    } else {
+      // Atualização simples sem recálculo
+      await this.prisma.orcamento.update({
+        where: { id },
+        data: {
+          nome_servico: updateOrcamentoDto.nome_servico,
+          descricao: updateOrcamentoDto.descricao,
+          cliente_id: updateOrcamentoDto.cliente_id,
+        },
+      });
+    }
+
+    return this.findOne(id, lojaId);
+  }
+
+  async remove(id: string, lojaId: string) {
+    await this.findOne(id, lojaId);
+    
+    return this.prisma.orcamento.delete({
+      where: { id },
+    });
+  }
+
+  /**
+   * Gera um número único para o orçamento
+   */
+  private async gerarNumeroOrcamento(lojaId: string): Promise<string> {
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    
+    // Buscar o último orçamento do mês
+    const ultimoOrcamento = await this.prisma.orcamento.findFirst({
+      where: {
+        loja_id: lojaId,
+        numero: {
+          startsWith: `${ano}${mes}`,
+        },
+      },
+      orderBy: { numero: 'desc' },
+    });
+
+    let sequencial = 1;
+    if (ultimoOrcamento) {
+      const ultimoSequencial = parseInt(ultimoOrcamento.numero.slice(-4));
+      sequencial = ultimoSequencial + 1;
+    }
+
+    return `${ano}${mes}${String(sequencial).padStart(4, '0')}`;
   }
 }

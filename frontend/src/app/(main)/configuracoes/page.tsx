@@ -7,7 +7,7 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import Link from 'next/link';
-import { Settings, Boxes, Truck, Store } from 'lucide-react';
+import { Settings, Boxes, Truck, Store, Cog } from 'lucide-react';
 
 const settingsOptions = [
   {
@@ -15,6 +15,12 @@ const settingsOptions = [
     description: 'Gerencie o logo, custos e parâmetros do seu negócio.',
     icon: Store,
     href: '/configuracoes/loja',
+  },
+  {
+    title: 'Máquinas',
+    description: 'Gerencie as máquinas e seus custos operacionais.',
+    icon: Cog,
+    href: '/configuracoes/maquinas',
   },
   {
     title: 'Categorias',
