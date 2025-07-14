@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Plus, Eye, Edit, Trash2, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
@@ -26,6 +27,15 @@ interface Orcamento {
 export default function OrcamentosPage() {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    orcamentoId: string | null;
+    orcamentoNome: string;
+  }>({
+    open: false,
+    orcamentoId: null,
+    orcamentoNome: '',
+  });
 
   useEffect(() => {
     fetchOrcamentos();
@@ -59,10 +69,6 @@ export default function OrcamentosPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este orçamento?')) {
-      return;
-    }
-
     try {
       const token = localStorage.getItem('access_token');
       if (!token) {
@@ -76,15 +82,41 @@ export default function OrcamentosPage() {
         },
       });
 
-      if (!response.ok) {
-        throw new Error('Falha ao excluir orçamento.');
+      if (response.ok) {
+        toast.success('Orçamento excluído com sucesso!');
+        fetchOrcamentos();
+      } else {
+        // Tenta ler a mensagem de erro do backend
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || 'Falha ao excluir orçamento.';
+        toast.error(errorMessage);
       }
-
-      toast.success('Orçamento excluído com sucesso!');
-      fetchOrcamentos();
     } catch (error) {
       toast.error('Erro ao excluir orçamento.');
       console.error(error);
+    }
+  };
+
+  const openDeleteDialog = (id: string, nome: string) => {
+    setDeleteDialog({
+      open: true,
+      orcamentoId: id,
+      orcamentoNome: nome,
+    });
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialog({
+      open: false,
+      orcamentoId: null,
+      orcamentoNome: '',
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (deleteDialog.orcamentoId) {
+      await handleDelete(deleteDialog.orcamentoId);
+      closeDeleteDialog();
     }
   };
 
@@ -195,7 +227,7 @@ export default function OrcamentosPage() {
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        onClick={() => handleDelete(orcamento.id)}
+                        onClick={() => openDeleteDialog(orcamento.id, orcamento.nome_servico)}
                         className="text-red-600 hover:text-red-700"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -208,6 +240,16 @@ export default function OrcamentosPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteDialog.open}
+        title="Excluir Orçamento"
+        description={`Tem certeza que deseja excluir o orçamento "${deleteDialog.orcamentoNome}"? Esta ação não pode ser desfeita.`}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        onConfirm={confirmDelete}
+        onCancel={closeDeleteDialog}
+      />
     </div>
   );
 } 

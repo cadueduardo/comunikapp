@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { CreateFornecedoreDto } from './dto/create-fornecedore.dto';
 import { UpdateFornecedoreDto } from './dto/update-fornecedore.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -44,9 +44,25 @@ export class FornecedoresService {
   }
 
   async remove(id: string, loja: Loja) {
-    await this.findOne(id, loja);
-    // TODO: Adicionar verificação se o fornecedor está em uso por algum insumo antes de deletar
+    const fornecedor = await this.findOne(id, loja);
+    
+    // Verifica se o fornecedor está sendo usado por insumos
+    const insumosUsando = await this.prisma.insumo.findMany({
+      where: { fornecedorId: id },
+      select: {
+        nome: true,
+      },
+    });
+
+    if (insumosUsando.length > 0) {
+      const nomesInsumos = insumosUsando.map(insumo => insumo.nome).join(', ');
+      throw new BadRequestException(
+        `Não é possível excluir este fornecedor pois ele está sendo usado pelos seguintes insumos: ${nomesInsumos}. ` +
+        'Remova ou altere os insumos antes de excluir o fornecedor.'
+      );
+    }
+
     await this.prisma.fornecedor.delete({ where: { id } });
-    return { message: `Fornecedor com ID "${id}" foi removido com sucesso.` };
+    return { message: `Fornecedor "${fornecedor.nome}" foi removido com sucesso.` };
   }
 } 

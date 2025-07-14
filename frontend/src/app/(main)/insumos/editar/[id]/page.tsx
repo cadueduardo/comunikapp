@@ -1,17 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import React from 'react';
 import { toast } from 'sonner';
 import { InsumoForm, InsumoFormValues } from '../../insumo-form';
 
 // A interface Insumo é importada de columns, mas representa a resposta da API
 import { Insumo as InsumoData } from '../../columns'; 
 
-export default function EditarInsumoPage() {
+export default function EditarInsumoPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  const params = useParams();
-  const { id } = params;
+  const { id } = React.use(params);
 
   const [insumo, setInsumo] = useState<InsumoData | null>(null);
   const [loading, setLoading] = useState(true);

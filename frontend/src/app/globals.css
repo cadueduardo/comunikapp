@@ -119,4 +119,20 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Garantir que elementos clicáveis tenham cursor pointer */
+  button,
+  [role="button"],
+  a,
+  [data-slot="button"],
+  .cursor-pointer {
+    cursor: pointer !important;
+  }
+  
+  /* Elementos que não devem ter cursor pointer */
+  button:disabled,
+  [role="button"]:disabled,
+  a:disabled {
+    cursor: not-allowed !important;
+  }
 }

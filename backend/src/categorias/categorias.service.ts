@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { CreateCategoriaDto } from './dto/create-categoria.dto';
 import { UpdateCategoriaDto } from './dto/update-categoria.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -44,9 +44,25 @@ export class CategoriasService {
   }
 
   async remove(id: string, loja: Loja) {
-    await this.findOne(id, loja);
-    // TODO: Adicionar verificação se a categoria está em uso por algum insumo antes de deletar
+    const categoria = await this.findOne(id, loja);
+    
+    // Verifica se a categoria está sendo usada por insumos
+    const insumosUsando = await this.prisma.insumo.findMany({
+      where: { categoriaId: id },
+      select: {
+        nome: true,
+      },
+    });
+
+    if (insumosUsando.length > 0) {
+      const nomesInsumos = insumosUsando.map(insumo => insumo.nome).join(', ');
+      throw new BadRequestException(
+        `Não é possível excluir esta categoria pois ela está sendo usada pelos seguintes insumos: ${nomesInsumos}. ` +
+        'Remova ou altere os insumos antes de excluir a categoria.'
+      );
+    }
+
     await this.prisma.categoria.delete({ where: { id } });
-    return { message: `Categoria com ID "${id}" foi removida com sucesso.` };
+    return { message: `Categoria "${categoria.nome}" foi removida com sucesso.` };
   }
 } 

@@ -20,7 +20,7 @@ export type Fornecedor = {
 
 export interface FornecedorColumnsProps {
   onEdit: (fornecedor: Fornecedor) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string, nome: string) => void;
 }
 
 export const getColumns = ({ onEdit, onDelete }: FornecedorColumnsProps): ColumnDef<Fornecedor>[] => [
@@ -61,7 +61,7 @@ export const getColumns = ({ onEdit, onDelete }: FornecedorColumnsProps): Column
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => onDelete(fornecedor.id)}
+                onClick={() => onDelete(fornecedor.id, fornecedor.nome)}
                 className="text-red-600 hover:bg-red-100"
               >
                 Excluir

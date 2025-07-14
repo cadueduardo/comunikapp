@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"; // Adicionado DropdownMenu
 import { toast } from 'sonner'; // Adicionado toast
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface Cliente {
   id: string;
@@ -31,6 +32,7 @@ export default function ClientesPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; clienteId?: string; loading?: boolean }>({ open: false });
 
   const fetchClientes = async () => {
     try {
@@ -98,49 +100,37 @@ export default function ClientesPage() {
   };
 
   const handleDelete = async (clienteId: string) => {
-    const promise = () => new Promise(async (resolve, reject) => {
-      try {
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-          return reject(new Error('Sessão expirada. Faça login novamente.'));
-        }
-
-        const response = await fetch(`http://localhost:3001/clientes/${clienteId}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-
-        if (response.ok) {
-          setClientes(prevClientes => prevClientes.filter(c => c.id !== clienteId));
-          resolve({ success: true });
-        } else {
-          const errorData = await response.json();
-          reject(new Error(errorData.message || 'Não foi possível excluir o cliente.'));
-        }
-      } catch (error) {
-        reject(error);
-      }
-    });
-
-    toast.promise(promise(), {
-      loading: 'Excluindo cliente...',
-      success: 'Cliente excluído com sucesso!',
-      error: (err) => err.message || 'Ocorreu um erro ao excluir o cliente.',
-    });
+    setConfirmDialog({ open: true, clienteId, loading: false });
   };
 
-  const confirmDelete = (clienteId: string) => {
-    toast("Tem certeza que deseja excluir?", {
-      action: {
-        label: "Excluir",
-        onClick: () => handleDelete(clienteId),
-      },
-      cancel: {
-        label: "Cancelar",
-        onClick: () => {}, // Adicionado onClick vazio para satisfazer a tipagem
-      },
-      duration: 5000,
-    });
+  const confirmDelete = async () => {
+    if (!confirmDialog.clienteId) return;
+    setConfirmDialog(prev => ({ ...prev, loading: true }));
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) throw new Error('Sessão expirada. Faça login novamente.');
+      const response = await fetch(`http://localhost:3001/clientes/${confirmDialog.clienteId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        setClientes(prevClientes => prevClientes.filter(c => c.id !== confirmDialog.clienteId));
+        toast.success('Cliente excluído com sucesso!');
+      } else {
+        // Tenta ler a mensagem de erro do backend
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || 'Não foi possível excluir o cliente.';
+        toast.error(errorMessage);
+      }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message || 'Ocorreu um erro ao excluir o cliente.');
+      } else {
+        toast.error('Ocorreu um erro ao excluir o cliente.');
+      }
+    } finally {
+      setConfirmDialog({ open: false });
+    }
   };
 
 
@@ -225,7 +215,7 @@ export default function ClientesPage() {
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem 
-                        onClick={() => confirmDelete(cliente.id)}
+                        onClick={() => handleDelete(cliente.id)}
                         className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
@@ -268,6 +258,16 @@ export default function ClientesPage() {
           ))}
         </div>
       )}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title="Excluir cliente?"
+        description="Tem certeza que deseja excluir este cliente? Esta ação não poderá ser desfeita."
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        loading={confirmDialog.loading}
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmDialog({ open: false })}
+      />
     </div>
   );
 } 

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -13,7 +13,9 @@ import { FornecedoresModule } from './fornecedores/fornecedores.module';
 import { InsumosModule } from './insumos/insumos.module';
 import { OrcamentosModule } from './orcamentos/orcamentos.module';
 import { MaquinasModule } from './maquinas/maquinas.module';
+import { FuncoesModule } from './funcoes/funcoes.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 @Module({
   imports: [
@@ -30,6 +32,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     InsumosModule,
     OrcamentosModule,
     MaquinasModule,
+    FuncoesModule,
   ],
   controllers: [AppController],
   providers: [
@@ -37,6 +40,10 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
     },
   ],
 })

@@ -11,6 +11,8 @@ export class MaquinasController {
 
   @Post()
   create(@Body() createMaquinaDto: CreateMaquinaDto, @GetLoja() loja: Loja) {
+    console.log('Dados recebidos no controller:', createMaquinaDto);
+    console.log('Tipo de custo_hora:', typeof createMaquinaDto.custo_hora);
     return this.maquinasService.create(createMaquinaDto, loja);
   }
 

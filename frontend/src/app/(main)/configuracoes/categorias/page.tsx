@@ -7,16 +7,7 @@ import { PlusCircle } from "lucide-react";
 import { toast } from 'sonner';
 import { Categoria, getColumns } from "./columns";
 import { DataTable } from "@/components/data-table/data-table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   Dialog,
   DialogContent,
@@ -30,7 +21,15 @@ export default function CategoriasConfigPage() {
   const [data, setData] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    categoriaId: string | null;
+    categoriaNome: string;
+  }>({
+    open: false,
+    categoriaId: null,
+    categoriaNome: '',
+  });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Categoria | null>(null);
 
@@ -50,25 +49,48 @@ export default function CategoriasConfigPage() {
   
   useEffect(() => { fetchCategorias(); }, []);
 
-  const handleDelete = async () => {
-    if (!deleteId) return;
+  const handleDelete = async (id: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/categorias/${deleteId}`, {
+      const response = await fetch(`http://localhost:3001/categorias/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (response.ok) {
         toast.success("Categoria excluída com sucesso!");
-        setData(prev => prev.filter(c => c.id !== deleteId));
+        setData(prev => prev.filter(c => c.id !== id));
       } else {
-        toast.error("Falha ao excluir categoria.");
+        // Tenta ler a mensagem de erro do backend
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || "Falha ao excluir categoria.";
+        toast.error(errorMessage);
       }
     } catch (err) {
       console.error(err);
       toast.error("Ocorreu um erro ao conectar ao servidor.");
-    } finally {
-      setDeleteId(null);
+    }
+  };
+
+  const openDeleteDialog = (id: string, nome: string) => {
+    setDeleteDialog({
+      open: true,
+      categoriaId: id,
+      categoriaNome: nome,
+    });
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialog({
+      open: false,
+      categoriaId: null,
+      categoriaNome: '',
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (deleteDialog.categoriaId) {
+      await handleDelete(deleteDialog.categoriaId);
+      closeDeleteDialog();
     }
   };
 
@@ -107,7 +129,7 @@ export default function CategoriasConfigPage() {
     setIsFormOpen(true);
   };
   
-  const columns = getColumns({ onEdit: handleEdit, onDelete: (id) => setDeleteId(id) });
+  const columns = getColumns({ onEdit: handleEdit, onDelete: (id, nome) => openDeleteDialog(id, nome) });
 
   return (
     <>
@@ -142,20 +164,15 @@ export default function CategoriasConfigPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Essa ação não pode ser desfeita. Isso excluirá permanentemente a categoria.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Continuar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={deleteDialog.open}
+        title="Excluir Categoria"
+        description={`Tem certeza que deseja excluir a categoria "${deleteDialog.categoriaNome}"? Esta ação não pode ser desfeita.`}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        onConfirm={confirmDelete}
+        onCancel={closeDeleteDialog}
+      />
     </>
   );
 } 

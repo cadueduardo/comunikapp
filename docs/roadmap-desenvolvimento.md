@@ -135,17 +135,40 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
     - [x] **Backend:** Implementar API CRUD para máquinas, incluindo consulta de histórico de custos
     - [x] **Frontend:** Criar página `/configuracoes/maquinas` com interface CRUD e visualização do histórico
     - [x] **Frontend:** Formulário de criação/edição de máquinas com campos detalhados
-  - **[ ] Sub-tarefa 2.7.2: CRUD de Funções (Mão de Obra)**
-    - [ ] **Backend:** Criar modelo `Funcao` com campos: nome, custo_hora, descricao, maquina_id (opcional), histórico de custos
-    - [ ] **Backend:** Implementar API CRUD para funções, incluindo histórico
-    - [ ] **Frontend:** Página `/configuracoes/funcoes` com interface CRUD e histórico
-    - [ ] **Frontend:** Formulário de criação/edição de funções, permitindo vínculo com máquinas
-  - **[ ] Sub-tarefa 2.7.3: CRUD de Custos Indiretos**
+    - [x] **Backend:** Implementar proteção contra exclusão de máquinas usadas em funções
+    - [x] **Frontend:** Tratamento de erros aprimorado com mensagens específicas
+  - **[x] Sub-tarefa 2.7.2: CRUD de Funções (Mão de Obra)**
+    - [x] **Backend:** Criar modelo `Funcao` com campos: nome, custo_hora, descricao, maquina_id (opcional), histórico de custos
+    - [x] **Backend:** Implementar API CRUD para funções, incluindo histórico
+    - [x] **Frontend:** Página `/configuracoes/funcoes` com interface CRUD e histórico
+    - [x] **Frontend:** Formulário de criação/edição de funções, permitindo vínculo com máquinas
+    - [x] **Backend:** Implementar proteção contra exclusão de funções usadas em orçamentos
+    - [x] **Frontend:** Tratamento de erros aprimorado com mensagens específicas
+  - **[x] Sub-tarefa 2.7.3: Sistema de Proteção de Dados e Tratamento de Erros**
+    - [x] **Backend:** Implementar filtro de exceção global (`HttpExceptionFilter`) para tratamento padronizado de erros
+    - [x] **Backend:** Substituir `Error` por `BadRequestException` em todos os services para retornar códigos HTTP adequados
+    - [x] **Backend:** Implementar proteção contra exclusão de dados referenciados:
+      - [x] **Insumos:** Não podem ser excluídos se usados em orçamentos
+      - [x] **Funções:** Não podem ser excluídas se usadas em orçamentos
+      - [x] **Categorias:** Não podem ser excluídas se usadas em insumos
+      - [x] **Fornecedores:** Não podem ser excluídos se usados em insumos
+      - [x] **Máquinas:** Já tinha proteção implementada
+    - [x] **Frontend:** Implementar tratamento de erros aprimorado em todos os módulos:
+      - [x] **Insumos:** Captura e exibe mensagens específicas do backend
+      - [x] **Funções:** Captura e exibe mensagens específicas do backend
+      - [x] **Categorias:** Captura e exibe mensagens específicas do backend
+      - [x] **Fornecedores:** Captura e exibe mensagens específicas do backend
+      - [x] **Clientes:** Tratamento de erro melhorado
+      - [x] **Orçamentos:** Tratamento de erro melhorado
+    - [x] **UX:** Mensagens claras e orientativas explicando por que a exclusão não é possível e como resolver
+    - [x] **Integridade:** Prevenção de exclusões que quebrariam relacionamentos no banco de dados
+
+  - **[ ] Sub-tarefa 2.7.4: CRUD de Custos Indiretos**
     - [ ] **Backend:** Criar modelo `CustoIndireto` com campos: nome, valor_mensal, categoria, ativo, regra_rateio (ex: proporcional ao tempo de máquina, valor do orçamento, etc.), histórico de alterações
     - [ ] **Backend:** Implementar API CRUD para custos indiretos, com histórico e regras de rateio
     - [ ] **Frontend:** Página `/configuracoes/custos-indiretos` com interface CRUD, visualização de histórico e configuração de regras de rateio
     - [ ] **Frontend:** Formulário de criação/edição de custos indiretos e suas regras
-  - **[ ] Sub-tarefa 2.7.4: Atualização do Motor de Cálculo**
+  - **[ ] Sub-tarefa 2.7.5: Atualização do Motor de Cálculo**
     - [ ] **Backend:** Adaptar motor de cálculo para:
       - Utilizar máquinas e funções específicas selecionadas em cada orçamento
       - Aplicar custos indiretos automaticamente, conforme regras de rateio configuradas
@@ -157,18 +180,18 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
       - Exibir custos detalhados por máquina/função/custo indireto em sidebar ou painel
       - Permitir simulação de cenários e comparação de resultados
     - [ ] **Frontend:** Visualização clara dos custos rateados e totais
-  - **[ ] Sub-tarefa 2.7.5: Relatórios Analíticos e Histórico**
+  - **[ ] Sub-tarefa 2.7.6: Relatórios Analíticos e Histórico**
     - [ ] **Backend:** Implementar geração de relatórios analíticos:
       - Composição de custos por orçamento
       - Margem de contribuição por máquina/função
       - Participação dos custos indiretos
       - Histórico de alterações de custos
     - [ ] **Frontend:** Página de relatórios com filtros, gráficos e exportação
-  - **[ ] Sub-tarefa 2.7.6: Integração com Compras e Estoque**
+  - **[ ] Sub-tarefa 2.7.7: Integração com Compras e Estoque**
     - [ ] **Backend:** Ao aprovar orçamento, verificar disponibilidade de insumos e capacidade de máquinas
     - [ ] **Backend:** Gerar automaticamente requisições de compra ou alertas para insumos/capacidades em falta
     - [ ] **Frontend:** Notificações e sugestões de ação para o usuário
-  - **[ ] Sub-tarefa 2.7.7: Migração de Dados e Compatibilidade**
+  - **[ ] Sub-tarefa 2.7.8: Migração de Dados e Compatibilidade**
     - [ ] **Backend:** Criar migrations para novos modelos
     - [ ] **Backend:** Implementar lógica de migração dos dados existentes, mantendo compatibilidade com orçamentos anteriores
     - [ ] **Backend:** Garantir logs e rastreabilidade de alterações

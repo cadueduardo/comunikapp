@@ -2,12 +2,12 @@
 
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { MaquinaForm, MaquinaFormValues } from '../maquina-form';
+import { FuncaoForm, FuncaoFormValues } from '../funcao-form';
 
-export default function NovaMaquinaPage() {
+export default function NovaFuncaoPage() {
   const router = useRouter();
 
-  const handleSave = async (data: MaquinaFormValues) => {
+  const handleSave = async (data: FuncaoFormValues) => {
     try {
       const token = localStorage.getItem('access_token');
       
@@ -31,11 +31,12 @@ export default function NovaMaquinaPage() {
       const requestData = {
         ...data,
         custo_hora: custo,
+        maquina_id: data.maquina_id === 'null' ? null : data.maquina_id,
       };
 
       console.log('Dados sendo enviados:', requestData);
         
-      const response = await fetch('http://localhost:3001/maquinas', {
+      const response = await fetch('http://localhost:3001/funcoes', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -47,12 +48,12 @@ export default function NovaMaquinaPage() {
       console.log('Status da resposta:', response.status);
 
       if (response.ok) {
-        toast.success('Máquina criada com sucesso!');
-        router.push('/configuracoes/maquinas');
+        toast.success('Função criada com sucesso!');
+        router.push('/configuracoes/funcoes');
       } else {
         const errorData = await response.json();
         console.error('Erro detalhado:', errorData);
-        toast.error(`Falha ao criar máquina: ${errorData.message || 'Erro desconhecido'}`);
+        toast.error(`Falha ao criar função: ${errorData.message || 'Erro desconhecido'}`);
       }
     } catch (error) {
       console.error('Erro completo:', error);
@@ -63,12 +64,12 @@ export default function NovaMaquinaPage() {
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Adicionar Nova Máquina</h1>
+        <h1 className="text-3xl font-bold">Adicionar Nova Função</h1>
         <p className="text-gray-600 mt-1">
-          Cadastre uma nova máquina para calcular custos operacionais.
+          Cadastre uma nova função para calcular custos de mão de obra.
         </p>
       </div>
-      <MaquinaForm onSave={handleSave} />
+      <FuncaoForm onSave={handleSave} />
     </div>
   );
 } 

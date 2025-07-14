@@ -230,6 +230,7 @@ model Maquina {
   // Relacionamentos
   funcoes           Funcao[]
   maquinas_orcamento MaquinaOrcamento[]
+  historico_custos  HistoricoCustoMaquina[]
   
   @@index([loja_id])
   @@index([loja_id, tipo])
@@ -254,6 +255,7 @@ model Funcao {
   
   // Relacionamentos
   funcoes_orcamento FuncaoOrcamento[]
+  historico_custos  HistoricoCustoFuncao[]
   
   @@index([loja_id])
   @@index([maquina_id])
@@ -356,4 +358,34 @@ model ItemOrcamento {
   
   @@index([orcamento_id])
   @@index([insumo_id])
+}
+
+model HistoricoCustoMaquina {
+  id          String   @id @default(cuid())
+  maquina_id  String
+  custo_hora  Decimal  @db.Decimal(10, 2)
+  data_inicio DateTime @default(now())
+  data_fim    DateTime?
+  observacoes String?
+  criado_em   DateTime @default(now())
+
+  // Relacionamentos
+  maquina     Maquina  @relation(fields: [maquina_id], references: [id], onDelete: Cascade)
+
+  @@map("historico_custo_maquinas")
+}
+
+model HistoricoCustoFuncao {
+  id          String   @id @default(cuid())
+  funcao_id   String
+  custo_hora  Decimal  @db.Decimal(10, 2)
+  data_inicio DateTime @default(now())
+  data_fim    DateTime?
+  observacoes String?
+  criado_em   DateTime @default(now())
+
+  // Relacionamentos
+  funcao      Funcao   @relation(fields: [funcao_id], references: [id], onDelete: Cascade)
+
+  @@map("historico_custo_funcoes")
 }

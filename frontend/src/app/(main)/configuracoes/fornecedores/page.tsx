@@ -7,16 +7,7 @@ import { PlusCircle } from "lucide-react";
 import { toast } from 'sonner';
 import { Fornecedor, getColumns } from "./columns";
 import { DataTable } from "@/components/data-table/data-table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   Dialog,
   DialogContent,
@@ -30,7 +21,15 @@ export default function FornecedoresConfigPage() {
   const [data, setData] = useState<Fornecedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    fornecedorId: string | null;
+    fornecedorNome: string;
+  }>({
+    open: false,
+    fornecedorId: null,
+    fornecedorNome: '',
+  });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingFornecedor, setEditingFornecedor] = useState<Fornecedor | null>(null);
 
@@ -47,25 +46,48 @@ export default function FornecedoresConfigPage() {
   
   useEffect(() => { fetchFornecedores(); }, []);
 
-  const handleDelete = async () => {
-    if (!deleteId) return;
+  const handleDelete = async (id: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/fornecedores/${deleteId}`, {
+      const response = await fetch(`http://localhost:3001/fornecedores/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (response.ok) {
         toast.success("Fornecedor excluído com sucesso!");
-        setData(prev => prev.filter(f => f.id !== deleteId));
+        setData(prev => prev.filter(f => f.id !== id));
       } else {
-        toast.error("Falha ao excluir fornecedor.");
+        // Tenta ler a mensagem de erro do backend
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || "Falha ao excluir fornecedor.";
+        toast.error(errorMessage);
       }
     } catch (err) {
       console.error(err);
       toast.error("Ocorreu um erro ao excluir o fornecedor.");
-    } finally {
-      setDeleteId(null);
+    }
+  };
+
+  const openDeleteDialog = (id: string, nome: string) => {
+    setDeleteDialog({
+      open: true,
+      fornecedorId: id,
+      fornecedorNome: nome,
+    });
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialog({
+      open: false,
+      fornecedorId: null,
+      fornecedorNome: '',
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (deleteDialog.fornecedorId) {
+      await handleDelete(deleteDialog.fornecedorId);
+      closeDeleteDialog();
     }
   };
 
@@ -104,7 +126,7 @@ export default function FornecedoresConfigPage() {
     setIsFormOpen(true);
   };
   
-  const columns = getColumns({ onEdit: handleEdit, onDelete: (id) => setDeleteId(id) });
+  const columns = getColumns({ onEdit: handleEdit, onDelete: (id, nome) => openDeleteDialog(id, nome) });
 
   return (
     <>
@@ -139,20 +161,15 @@ export default function FornecedoresConfigPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Essa ação não pode ser desfeita. Isso excluirá permanentemente o fornecedor.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Continuar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={deleteDialog.open}
+        title="Excluir Fornecedor"
+        description={`Tem certeza que deseja excluir o fornecedor "${deleteDialog.fornecedorNome}"? Esta ação não pode ser desfeita.`}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        onConfirm={confirmDelete}
+        onCancel={closeDeleteDialog}
+      />
     </>
   );
 } 

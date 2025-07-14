@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
 
+
+
 export type Insumo = {
   id: string;
   nome: string;
@@ -39,7 +41,7 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export const columns: ColumnDef<Insumo>[] = [
+export const createColumns = (onDelete: (id: string, nome: string) => void): ColumnDef<Insumo>[] => [
   {
     accessorKey: 'nome',
     header: ({ column }) => {
@@ -90,7 +92,9 @@ export const columns: ColumnDef<Insumo>[] = [
                 <Link href={`/insumos/editar/${insumo.id}`}>Editar</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Excluir</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDelete(insumo.id, insumo.nome)}>
+                Excluir
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -21,7 +21,7 @@ export type Categoria = {
 // Adicionando uma interface para as props das colunas
 export interface CategoriaColumnsProps {
   onEdit: (categoria: Categoria) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string, nome: string) => void;
 }
 
 export const getColumns = ({ onEdit, onDelete }: CategoriaColumnsProps): ColumnDef<Categoria>[] => [
@@ -62,7 +62,7 @@ export const getColumns = ({ onEdit, onDelete }: CategoriaColumnsProps): ColumnD
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => onDelete(categoria.id)}
+                onClick={() => onDelete(categoria.id, categoria.nome)}
                 className="text-red-600 hover:bg-red-100"
               >
                 Excluir

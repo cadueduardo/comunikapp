@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation'; // Adicionado useParams
+import { useRouter } from 'next/navigation';
+import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Save } from "lucide-react";
 import Link from 'next/link';
-import { toast } from 'sonner'; // Adicionado toast
+import { toast } from 'sonner';
 
 // Reutilizando a interface para consistência
 interface ClienteFormData {
@@ -38,10 +39,9 @@ interface ClienteFormData {
   segmento?: string;
 }
 
-export default function EditarClientePage() { // Removido `params` dos props
+export default function EditarClientePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  const params = useParams(); // Usando o hook
-  const clienteId = params.id as string; // Pegando o ID do hook
+  const { id: clienteId } = React.use(params);
   
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState<Partial<ClienteFormData>>({});
