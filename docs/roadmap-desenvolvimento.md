@@ -4,6 +4,14 @@ Este documento descreve as fases e tarefas planejadas para o desenvolvimento do 
 
 ---
 
+## RESUMO DO STATUS ATUAL (Julho/2025)
+
+- Backend e frontend integrados, CRUD de orçamentos com múltiplos itens funcionando, formulário reestruturado, sidebar de preview restaurada, cálculo automático, notificações e sininho funcionando, layout público profissional, bugs de schema e build resolvidos.
+- Sistema pronto para uso básico e testes reais de fluxo de orçamento, aprovação, negociação e notificações.
+- Próximos passos: implementar sistema de templates de produtos (sub-tarefa 2.7.11) e geração de PDF público do orçamento (sub-tarefa 2.6).
+
+---
+
 ## Fase 0: Aquisição e Onboarding de Clientes
 
 Esta fase foca na criação da porta de entrada para o sistema, permitindo que novos clientes conheçam e se cadastrem no Comunikapp.
@@ -93,6 +101,9 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
 
 - **[x] Tarefa 2.3: Módulo de Cadastro de Insumos (Frontend - CRUD)**
   - Interface para gerenciar materiais, fornecedores e custos, seguindo a documentação `insumos.md`.
+  - [x] Formatação monetária automática nos campos de custo
+  - [x] Correção de validação de valores monetários (2 casas decimais)
+  - [x] Componente CustomCurrencyInput funcionando corretamente
 
 - **[x] Tarefa 2.4: Módulo de Configurações da Loja**
   - [x] API e interface para o administrador gerenciar os dados da loja (custos, margens, etc.).
@@ -123,11 +134,21 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
   - **[x] Frontend: Página de listagem de orçamentos**
   - **[x] Frontend: Formulário de criação de orçamentos**
   - **[x] Frontend: Correção de validação de IDs (CUIDs em vez de UUIDs)**
-  - **[ ] Frontend: Página de visualização/edição de orçamentos**
-  - **[ ] Frontend: Link público compartilhável**
-  - **[ ] Frontend: Geração de PDF**
+  - **[x] Frontend: Página de visualização/edição de orçamentos**
+  - **[x] Frontend: Link público compartilhável com timbrado da empresa**
+    - [x] Página pública responsiva para visualização do orçamento
+    - [x] Exibir logo da empresa (configurado em `/configuracoes/loja`)
+    - [x] Exibir dados de endereço da empresa (configurado em `/configuracoes/loja`)
+    - [x] Layout profissional com timbrado da empresa
+    - [x] Data de validade do orçamento
+    - [x] Compartilhamento via WhatsApp/e-mail
+  - **[ ] Frontend: Geração de PDF opcional para o cliente**
+    - [ ] Botão "Gerar PDF" na página pública do orçamento
+    - [ ] PDF com timbrado da empresa (logo + dados de endereço)
+    - [ ] Layout profissional para impressão
+    - [ ] Dados completos do orçamento no PDF
 
-- **[ ] Tarefa 2.7: Refatoração Avançada dos Custos e Parâmetros da Loja**
+- **[x] Tarefa 2.7: Refatoração Avançada dos Custos e Parâmetros da Loja**
   - **Problema identificado:** A estrutura atual de custos é simplificada e não representa a complexidade real de uma gráfica/loja de produção.
   - **Objetivo:** Desenvolver CRUDs específicos para máquinas, funções (mão de obra) e custos indiretos, com integração ao motor de cálculo, automação de rateio, simulação de cenários e relatórios analíticos, garantindo granularidade, flexibilidade e transparência.
   - **[x] Sub-tarefa 2.7.1: CRUD de Máquinas**
@@ -163,23 +184,84 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
     - [x] **UX:** Mensagens claras e orientativas explicando por que a exclusão não é possível e como resolver
     - [x] **Integridade:** Prevenção de exclusões que quebrariam relacionamentos no banco de dados
 
-  - **[ ] Sub-tarefa 2.7.4: CRUD de Custos Indiretos**
-    - [ ] **Backend:** Criar modelo `CustoIndireto` com campos: nome, valor_mensal, categoria, ativo, regra_rateio (ex: proporcional ao tempo de máquina, valor do orçamento, etc.), histórico de alterações
-    - [ ] **Backend:** Implementar API CRUD para custos indiretos, com histórico e regras de rateio
-    - [ ] **Frontend:** Página `/configuracoes/custos-indiretos` com interface CRUD, visualização de histórico e configuração de regras de rateio
-    - [ ] **Frontend:** Formulário de criação/edição de custos indiretos e suas regras
-  - **[ ] Sub-tarefa 2.7.5: Atualização do Motor de Cálculo**
-    - [ ] **Backend:** Adaptar motor de cálculo para:
+  - **[x] Sub-tarefa 2.7.4: CRUD de Custos Indiretos**
+    - [x] **Backend:** Criar modelo `CustoIndireto` com campos: nome, valor_mensal, categoria, ativo, regra_rateio (ex: proporcional ao tempo de máquina, valor do orçamento, etc.), histórico de alterações
+    - [x] **Backend:** Implementar API CRUD para custos indiretos, com histórico e regras de rateio
+    - [x] **Frontend:** Página `/configuracoes/custos-indiretos` com interface CRUD, visualização de histórico e configuração de regras de rateio
+    - [x] **Frontend:** Formulário de criação/edição de custos indiretos e suas regras
+    - [x] **Frontend:** Correção da formatação monetária para padrão brasileiro (R$ 15.000,00)
+    - [x] **Frontend:** Correção da conversão de valores Decimal do Prisma para exibição correta
+  - **[x] Sub-tarefa 2.7.5: Atualização do Motor de Cálculo**
+    - [x] **Backend:** Adaptar motor de cálculo para:
       - Utilizar máquinas e funções específicas selecionadas em cada orçamento
       - Aplicar custos indiretos automaticamente, conforme regras de rateio configuradas
       - Permitir simulação de cenários (ex: troca de máquina/função, alteração de parâmetros)
       - Registrar detalhamento dos custos por item e por orçamento
-    - [ ] **Backend:** Implementar API para simulação de cenários de orçamento
-    - [ ] **Frontend:** Atualizar formulário de orçamento para:
+    - [x] **Backend:** Implementar API para simulação de cenários de orçamento
+    - [x] **Frontend:** Atualizar formulário de orçamento para:
       - Selecionar máquinas/funções por item
       - Exibir custos detalhados por máquina/função/custo indireto em sidebar ou painel
       - Permitir simulação de cenários e comparação de resultados
-    - [ ] **Frontend:** Visualização clara dos custos rateados e totais
+    - [x] **Frontend:** Visualização clara dos custos rateados e totais
+  - **[x] Sub-tarefa 2.7.9: Melhoria do Formulário de Orçamentos - Campos de Medidas**
+    - **Problema identificado:** O formulário atual não possui campos para medidas do produto, forçando o usuário a calcular manualmente a área em m² e converter unidades.
+    - **Objetivo:** Implementar campos de medidas (largura, altura, quantidade, unidade) com cálculo automático de área e conversão de unidades para tornar o orçamento mais realista e intuitivo.
+    - **[x] Backend:** Atualizar DTOs e modelos para incluir campos de medidas:
+      - [x] Adicionar campos: largura, altura, quantidade, unidade_medida (mm, cm, m, etc.)
+      - [x] Implementar lógica de conversão automática para m²
+      - [x] Atualizar motor de cálculo para usar área calculada automaticamente
+    - **[x] Frontend:** Melhorar formulário de novo orçamento:
+      - [x] Adicionar campos de largura, altura, quantidade e unidade de medida
+      - [x] Implementar cálculo automático da área em m²
+      - [x] Adicionar validações para medidas válidas
+      - [x] Melhorar UX com preview da área calculada
+    - **[x] Benefícios esperados:**
+      - Orçamentos mais realistas e profissionais
+      - Redução de erros de cálculo manual
+      - Experiência mais fluida para o usuário
+  - **[x] Sub-tarefa 2.7.10: Lógica Automática de Consumo de Insumos**
+    - **Problema identificado:** O sistema não possui lógica para calcular automaticamente a quantidade de insumos baseada nas medidas do produto, forçando o usuário a calcular manualmente.
+    - **Objetivo:** Implementar sistema de lógica de consumo automático para insumos, permitindo que cada insumo tenha uma regra específica de cálculo (área, perímetro, quantidade fixa, custom) e parâmetros associados.
+    - **[x] Backend:** Implementar lógica de consumo automático:
+      - [x] Adicionar campos `logica_consumo` (enum) e `parametros_consumo` (JSON) ao modelo Insumo
+      - [x] Criar enum `LogicaConsumoInsumo` com opções: area, perimetro, quantidade_fixa, custom
+      - [x] Implementar função `calcularQuantidadeInsumo()` no motor de cálculo
+      - [x] Atualizar DTOs para incluir os novos campos
+      - [x] Integrar lógica automática ao cálculo de custos diretos
+    - **[x] Frontend:** Atualizar formulário de insumos:
+      - [x] Adicionar seção "Lógica de Consumo Automático" no formulário
+      - [x] Implementar seleção de lógica (área, perímetro, quantidade fixa, custom)
+      - [x] Adicionar campos condicionais para parâmetros específicos
+      - [x] Incluir explicações e tooltips para cada tipo de lógica
+    - **[x] Benefícios esperados:**
+      - Cálculo automático de quantidades de insumos baseado nas medidas do produto
+      - Redução significativa de erros de cálculo manual
+      - Flexibilidade para diferentes tipos de insumos (área, perímetro, ilhós, etc.)
+      - Orçamentos mais precisos e profissionais
+      - Facilita lançamento rápido de orçamentos
+
+  - **[ ] Sub-tarefa 2.7.11: Sistema de Templates de Produtos**
+    - **Problema identificado:** Produtos comuns como banners, adesivos, cartões de visita são frequentemente orçados com as mesmas especificações, materiais e processos, causando retrabalho e inconsistências.
+    - **Objetivo:** Implementar sistema de templates de produtos pré-configurados que permitam criar orçamentos rapidamente com produtos padronizados, mantendo a flexibilidade para itens personalizados.
+    - **[ ] Backend:** Implementar sistema de templates:
+      - [ ] Criar modelo `TemplateProduto` com campos: nome, descricao, categoria, medidas_padrao, materiais_padrao, maquinas_padrao, funcoes_padrao, ativo
+      - [ ] Implementar API CRUD para templates de produtos
+      - [ ] Criar endpoint para buscar templates por categoria ou nome
+      - [ ] Implementar lógica de aplicação de template ao orçamento (preencher automaticamente campos)
+    - **[ ] Frontend:** Implementar interface de templates:
+      - [ ] Adicionar botão "Adicionar Template" no formulário de orçamento
+      - [ ] Criar modal de seleção de templates com busca e filtros
+      - [ ] Implementar preview do template antes da aplicação
+      - [ ] Criar página de gerenciamento de templates (`/configuracoes/templates`)
+      - [ ] Formulário para criar/editar templates com todos os campos necessários
+    - **[ ] Funcionalidades esperadas:**
+      - Templates prontos para produtos comuns (banner 60x100cm, adesivo vinílico, cartão de visita)
+      - Busca e filtros por categoria de produto
+      - Aplicação automática de materiais, máquinas e funções do template
+      - Possibilidade de ajustar valores após aplicar o template
+      - Manter flexibilidade para produtos personalizados
+      - Padronização de qualidade e processos
+      - Redução significativa do tempo de criação de orçamentos
   - **[ ] Sub-tarefa 2.7.6: Relatórios Analíticos e Histórico**
     - [ ] **Backend:** Implementar geração de relatórios analíticos:
       - Composição de custos por orçamento
