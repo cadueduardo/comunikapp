@@ -20,6 +20,8 @@ export type Insumo = {
   nome: string;
   unidade_medida: string;
   custo_unitario: number;
+  custo_lote?: number | null;
+  quantidade_lote?: number | null;
   estoque_minimo?: number | null;
   codigo_interno?: string | null;
   descricao_tecnica?: string | null;
@@ -64,6 +66,22 @@ export const createColumns = (onDelete: (id: string, nome: string) => void): Col
     accessorKey: 'custo_unitario',
     header: 'Custo Unitário',
     cell: ({ row }) => formatCurrency(row.original.custo_unitario),
+  },
+  {
+    accessorKey: 'custo_lote',
+    header: 'Lote',
+    cell: ({ row }) => {
+      const insumo = row.original;
+      if (insumo.custo_lote && insumo.quantidade_lote) {
+        return (
+          <div className="text-sm">
+            <div className="font-medium">{formatCurrency(insumo.custo_lote)}</div>
+            <div className="text-muted-foreground">/ {insumo.quantidade_lote} un.</div>
+          </div>
+        );
+      }
+      return <span className="text-muted-foreground">-</span>;
+    },
   },
   {
     accessorKey: 'unidade_medida',

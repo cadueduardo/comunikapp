@@ -14,7 +14,9 @@ import { InsumosModule } from './insumos/insumos.module';
 import { OrcamentosModule } from './orcamentos/orcamentos.module';
 import { MaquinasModule } from './maquinas/maquinas.module';
 import { FuncoesModule } from './funcoes/funcoes.module';
-import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { CustosIndiretosModule } from './custos-indiretos/custos-indiretos.module';
+import { NotificacoesModule } from './notificacoes/notificacoes.module';
+import { PublicAuthGuard } from './auth/public-auth.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 @Module({
@@ -33,13 +35,15 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     OrcamentosModule,
     MaquinasModule,
     FuncoesModule,
+    CustosIndiretosModule,
+    NotificacoesModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
     {
       provide: APP_GUARD,
-      useClass: JwtAuthGuard,
+      useClass: PublicAuthGuard,
     },
     {
       provide: APP_FILTER,

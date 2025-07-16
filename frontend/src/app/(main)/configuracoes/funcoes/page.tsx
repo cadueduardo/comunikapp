@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { formatCurrency } from '@/lib/utils';
 
 interface Funcao {
   id: string;
@@ -193,7 +194,7 @@ export default function FuncoesPage() {
                   <div>
                     <span className="text-sm font-medium text-gray-500">Custo por Hora:</span>
                     <p className="text-lg font-semibold">
-                      R$ {typeof funcao.custo_hora === 'string' ? parseFloat(funcao.custo_hora).toFixed(2) : funcao.custo_hora.toFixed(2)}
+                      {formatCurrency(Number(funcao.custo_hora))}
                     </p>
                   </div>
                   

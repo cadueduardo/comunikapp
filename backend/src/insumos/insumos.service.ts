@@ -10,9 +10,27 @@ export class InsumosService {
 
   async create(createInsumoDto: CreateInsumoDto, loja: Loja) {
     // TODO: Adicionar verificação se a categoria e fornecedor pertencem à mesma loja
+    
+    // Calcular custo unitário se custo do lote for informado
+    let custoUnitario = createInsumoDto.custo_unitario;
+    
+    if (createInsumoDto.custo_lote && createInsumoDto.quantidade_lote) {
+      custoUnitario = createInsumoDto.custo_lote / createInsumoDto.quantidade_lote;
+    }
+    
+    // Preparar dados para criação
+    const createData: any = { ...createInsumoDto };
+    
+    // Se não há custo_lote ou quantidade_lote, limpar esses campos
+    if (!createInsumoDto.custo_lote || !createInsumoDto.quantidade_lote) {
+      createData.custo_lote = null;
+      createData.quantidade_lote = null;
+    }
+    
     return this.prisma.insumo.create({
       data: {
-        ...createInsumoDto,
+        ...createData,
+        custo_unitario: custoUnitario,
         loja_id: loja.id,
       },
     });
@@ -54,9 +72,28 @@ export class InsumosService {
   async update(id: string, updateInsumoDto: UpdateInsumoDto, loja: Loja) {
     await this.findOne(id, loja); // Garante que o insumo existe e pertence à loja
 
+    // Calcular custo unitário se custo do lote for informado
+    let custoUnitario = updateInsumoDto.custo_unitario;
+    
+    if (updateInsumoDto.custo_lote && updateInsumoDto.quantidade_lote) {
+      custoUnitario = updateInsumoDto.custo_lote / updateInsumoDto.quantidade_lote;
+    }
+    
+    // Preparar dados para atualização
+    const updateData: any = { ...updateInsumoDto };
+    
+    // Se não há custo_lote ou quantidade_lote, limpar esses campos
+    if (!updateInsumoDto.custo_lote || !updateInsumoDto.quantidade_lote) {
+      updateData.custo_lote = null;
+      updateData.quantidade_lote = null;
+    }
+    
     return this.prisma.insumo.update({
       where: { id },
-      data: updateInsumoDto,
+      data: {
+        ...updateData,
+        custo_unitario: custoUnitario,
+      },
     });
   }
 
@@ -70,7 +107,6 @@ export class InsumosService {
         orcamento: {
           select: {
             numero: true,
-            nome_servico: true,
           },
         },
       },
@@ -78,7 +114,7 @@ export class InsumosService {
 
     if (itensOrcamento.length > 0) {
       const orcamentosUsando = itensOrcamento.map(item => 
-        `Orçamento #${item.orcamento.numero} - ${item.orcamento.nome_servico}`
+        `Orçamento #${item.orcamento.numero}`
       ).join(', ');
       
       throw new BadRequestException(

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "@/contexts/UserContext";
 import { Toaster } from "@/components/ui/sonner"; // Importando o Toaster
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,10 +20,12 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={inter.className}>
-        <UserProvider>
-          {children}
-          <Toaster richColors /> {/* Adicionando o componente Toaster */}
-        </UserProvider>
+        <TooltipProvider>
+          <UserProvider>
+            {children}
+            <Toaster richColors /> {/* Adicionando o componente Toaster */}
+          </UserProvider>
+        </TooltipProvider>
       </body>
     </html>
   );

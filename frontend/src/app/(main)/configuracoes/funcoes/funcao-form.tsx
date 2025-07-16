@@ -92,7 +92,11 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
   };
 
   const onSubmit = async (values: FuncaoFormValues) => {
-    await onSave(values);
+    // Corrigir a conversão do valor monetário
+    const custoHora = typeof values.custo_hora === 'string'
+      ? parseFloat(values.custo_hora.replace(/\./g, '').replace(',', '.'))
+      : values.custo_hora;
+    await onSave({ ...values, custo_hora: custoHora });
   };
 
   return (

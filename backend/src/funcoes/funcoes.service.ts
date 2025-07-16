@@ -68,7 +68,6 @@ export class FuncoesService {
         orcamento: {
           select: {
             numero: true,
-            nome_servico: true,
           },
         },
       },
@@ -76,7 +75,7 @@ export class FuncoesService {
 
     if (funcaoEmUso) {
       throw new BadRequestException(
-        `Não é possível excluir esta função pois ela está sendo usada no orçamento #${funcaoEmUso.orcamento.numero} - ${funcaoEmUso.orcamento.nome_servico}. ` +
+        `Não é possível excluir esta função pois ela está sendo usada no orçamento #${funcaoEmUso.orcamento.numero}. ` +
         'Remova a função do orçamento antes de excluí-la.'
       );
     }

@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useUser } from '@/contexts/UserContext';
+import { NotificationBell } from '@/components/ui/notification-bell';
 
 // Componente customizado para SidebarLink com Next.js Link
 const SidebarLink = ({
@@ -82,10 +83,6 @@ const SidebarLink = ({
   );
 };
 
-// Logo e LogoIcon foram movidos para sidebar.tsx
-// export const Logo = () => { ... };
-// export const LogoIcon = () => { ... };
-
 export default function DashboardLayout({
   children,
 }: {
@@ -93,7 +90,6 @@ export default function DashboardLayout({
 }) {
   const { user, getFirstName, logout, loading } = useUser();
   const router = useRouter();
-  // const [open, setOpen] = useState(false); // REMOVIDO
 
   useEffect(() => {
     // Se o carregamento terminou e não há usuário, redireciona para o login.
@@ -170,36 +166,35 @@ export default function DashboardLayout({
               ))}
             </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <SidebarLink
-              link={{
-                label: getFirstName(),
-                href: "#",
-                icon: (
-                  <div className="h-7 w-7 flex-shrink-0 rounded-full bg-neutral-300 dark:bg-neutral-600 flex items-center justify-center">
-                    <span className="text-neutral-700 dark:text-neutral-200 text-sm font-medium">
-                      {getFirstName().charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                ),
-              }}
-            />
-            <SidebarLink
-              link={{
-                label: "Sair",
-                href: "#",
-                icon: (
-                  <IconLogout className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-                ),
-              }}
-              onClick={logout}
-            />
-          </div>
         </SidebarBody>
       </Sidebar>
       
       {/* Área de conteúdo principal */}
       <main className="flex-1 overflow-y-auto">
+        {/* Header com notificações */}
+        <div className="border-b bg-white px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+                <span className="text-sm font-medium text-gray-700">
+                  {getFirstName().charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <span className="text-sm font-medium text-gray-700">{getFirstName()}</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <NotificationBell />
+              <button
+                onClick={logout}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <IconLogout className="h-4 w-4" />
+                <span className="text-sm">Sair</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        
         <div className="p-6 md:p-10">
           {children}
         </div>

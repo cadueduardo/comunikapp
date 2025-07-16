@@ -37,6 +37,8 @@ export class AuthService {
   }
 
   async validateUser(payload: JwtPayload) { // Removido o tipo de retorno para inferência
+    console.log('🔍 AuthService: Validando usuário com payload:', { sub: payload.sub, loja_id: payload.loja_id });
+    
     const user = await this.prisma.usuario.findUnique({
       where: { id: payload.sub, loja_id: payload.loja_id },
       include: {
@@ -44,10 +46,18 @@ export class AuthService {
       },
     });
 
+    console.log('🔍 AuthService: Usuário encontrado no banco:', !!user);
+    if (user) {
+      console.log('🔍 AuthService: Status do usuário:', user.status);
+      console.log('🔍 AuthService: Email verificado:', user.email_verificado);
+    }
+
     if (!user || user.status !== 'ATIVO' || !user.email_verificado) {
+      console.log('❌ AuthService: Usuário inválido - não encontrado, inativo ou email não verificado');
       return null;
     }
 
+    console.log('✅ AuthService: Usuário válido');
     return user;
   }
 } 

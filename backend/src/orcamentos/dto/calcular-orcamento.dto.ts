@@ -12,6 +12,28 @@ export class ItemCalculoDto {
   quantidade: number;
 }
 
+export class MaquinaCalculoDto {
+  @IsString()
+  @IsNotEmpty()
+  maquina_id: string;
+
+  @IsNumber()
+  @IsPositive()
+  @Type(() => Number)
+  horas_utilizadas: number;
+}
+
+export class FuncaoCalculoDto {
+  @IsString()
+  @IsNotEmpty()
+  funcao_id: string;
+
+  @IsNumber()
+  @IsPositive()
+  @Type(() => Number)
+  horas_trabalhadas: number;
+}
+
 export class CalcularOrcamentoDto {
   @IsString()
   @IsNotEmpty()
@@ -21,15 +43,40 @@ export class CalcularOrcamentoDto {
   @IsOptional()
   descricao?: string;
 
+  // Medidas do produto
   @IsNumber()
-  @IsPositive()
+  @IsOptional()
   @Type(() => Number)
-  horas_producao: number;
+  largura_produto?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  altura_produto?: number;
+
+  @IsString()
+  @IsOptional()
+  unidade_medida_produto?: string; // "mm", "cm", "m", "m2", etc.
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  area_produto?: number; // Área em m² calculada automaticamente
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ItemCalculoDto)
   itens: ItemCalculoDto[];
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MaquinaCalculoDto)
+  maquinas: MaquinaCalculoDto[];
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FuncaoCalculoDto)
+  funcoes: FuncaoCalculoDto[];
 
   @IsString()
   @IsOptional()
@@ -45,4 +92,8 @@ export class CalcularOrcamentoDto {
   @IsOptional()
   @Type(() => Number)
   impostos_customizados?: number;
+
+  // Flag para simulação de cenários
+  @IsOptional()
+  modo_simulacao?: boolean;
 } 

@@ -47,10 +47,30 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
     try {
       const token = localStorage.getItem('access_token');
       
-      // Lógica de conversão corrigida
-      const custo = typeof data.custo_unitario === 'string' 
-        ? parseFloat(data.custo_unitario) 
-        : data.custo_unitario;
+      // Converter valores monetários para número e arredondar para 2 casas decimais
+      const custoUnitario = typeof data.custo_unitario === 'string' 
+        ? Math.round(parseFloat(data.custo_unitario) * 100) / 100
+        : Math.round((data.custo_unitario || 0) * 100) / 100;
+      
+      const custoLote = typeof data.custo_lote === 'string' 
+        ? data.custo_lote ? Math.round(parseFloat(data.custo_lote) * 100) / 100 : null
+        : data.custo_lote ? Math.round(data.custo_lote * 100) / 100 : null;
+
+      const requestData = {
+        nome: data.nome,
+        categoriaId: data.categoriaId,
+        fornecedorId: data.fornecedorId,
+        unidade_medida: data.unidade_medida,
+        custo_unitario: custoUnitario,
+        custo_lote: custoLote,
+        quantidade_lote: data.quantidade_lote ? Number(data.quantidade_lote) : null,
+        codigo_interno: data.codigo_interno || null,
+        estoque_minimo: data.estoque_minimo ? Number(data.estoque_minimo) : null,
+        descricao_tecnica: data.descricao_tecnica || null,
+        observacoes: data.observacoes || null,
+      };
+
+      console.log('Dados sendo enviados:', requestData);
 
       const response = await fetch(`http://localhost:3001/insumos/${id}`, {
         method: 'PATCH',
@@ -58,11 +78,7 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-            ...data,
-            custo_unitario: custo,
-            estoque_minimo: data.estoque_minimo ? Number(data.estoque_minimo) : null,
-        }),
+        body: JSON.stringify(requestData),
       });
 
       if (response.ok) {
@@ -70,7 +86,9 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
         router.push('/insumos');
       } else {
         const errorData = await response.json();
-        toast.error(`Falha ao atualizar insumo: ${errorData.message}`);
+        console.error('Erro da API:', errorData);
+        console.error('Detalhes do erro:', errorData.message);
+        toast.error(`Falha ao atualizar insumo: ${Array.isArray(errorData.message) ? errorData.message.join(', ') : errorData.message}`);
       }
     } catch (err) {
       toast.error('Ocorreu um erro ao conectar com o servidor.');
@@ -82,7 +100,9 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
   const formInitialData = insumo ? {
       nome: insumo.nome,
       unidade_medida: insumo.unidade_medida,
-      custo_unitario: insumo.custo_unitario, // Passa o número, o form trata
+      custo_unitario: insumo.custo_unitario?.toString() || '', // Converte para string
+      custo_lote: insumo.custo_lote?.toString() || '', // Converte para string
+      quantidade_lote: insumo.quantidade_lote || undefined,
       categoriaId: insumo.categoria.id,
       fornecedorId: insumo.fornecedor.id,
       // Coerce null/undefined para string vazia

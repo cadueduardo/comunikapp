@@ -1,51 +1,50 @@
 "use client";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, forwardRef } from "react";
 
-export const BackgroundBeamsWithCollision = ({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) => {
-  const parentRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+export const BackgroundBeamsWithCollision = forwardRef<HTMLDivElement, { children: React.ReactNode; className?: string }>(
+  ({ children, className }, ref) => {
+    const parentRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
-  const beams = [
-    { initialX: 10, translateX: 10, duration: 7, repeatDelay: 3, delay: 2, },
-    { initialX: 600, translateX: 600, duration: 3, repeatDelay: 3, delay: 4, },
-    { initialX: 100, translateX: 100, duration: 7, repeatDelay: 7, className: "h-6", },
-    { initialX: 400, translateX: 400, duration: 5, repeatDelay: 14, delay: 4, },
-    { initialX: 800, translateX: 800, duration: 11, repeatDelay: 2, className: "h-20", },
-    { initialX: 1000, translateX: 1000, duration: 4, repeatDelay: 2, className: "h-12", },
-    { initialX: 1200, translateX: 1200, duration: 6, repeatDelay: 4, delay: 2, className: "h-6", },
-  ];
+    const beams = [
+      { initialX: 10, translateX: 10, duration: 7, repeatDelay: 3, delay: 2, },
+      { initialX: 600, translateX: 600, duration: 3, repeatDelay: 3, delay: 4, },
+      { initialX: 100, translateX: 100, duration: 7, repeatDelay: 7, className: "h-6", },
+      { initialX: 400, translateX: 400, duration: 5, repeatDelay: 14, delay: 4, },
+      { initialX: 800, translateX: 800, duration: 11, repeatDelay: 2, className: "h-20", },
+      { initialX: 1000, translateX: 1000, duration: 4, repeatDelay: 2, className: "h-12", },
+      { initialX: 1200, translateX: 1200, duration: 6, repeatDelay: 4, delay: 2, className: "h-6", },
+    ];
 
-  return (
-    <div
-      ref={parentRef}
-      className={cn( "w-full h-full relative flex items-center justify-center overflow-hidden", className )}
-    >
-      {beams.map((beam, idx) => (
-        <CollisionMechanism
-          key={beam.initialX + "beam-idx" + idx}
-          beamOptions={beam}
-          containerRef={containerRef as React.RefObject<HTMLDivElement>}
-          parentRef={parentRef as React.RefObject<HTMLDivElement>}
-        />
-      ))}
-
-      {children}
+    return (
       <div
-        ref={containerRef}
-        className="absolute bottom-0 bg-transparent w-full inset-x-0 pointer-events-none"
-      ></div>
-    </div>
-  );
-};
+        ref={ref ?? parentRef}
+        className={cn( "w-full h-full relative flex items-center justify-center overflow-hidden", className )}
+      >
+        {beams.map((beam, idx) => (
+          <CollisionMechanism
+            key={beam.initialX + "beam-idx" + idx}
+            beamOptions={beam}
+            containerRef={containerRef as React.RefObject<HTMLDivElement>}
+            parentRef={parentRef as React.RefObject<HTMLDivElement>}
+          />
+        ))}
 
+        {children}
+        <div
+          ref={containerRef}
+          className="absolute bottom-0 bg-transparent w-full inset-x-0 pointer-events-none"
+        ></div>
+      </div>
+    );
+  }
+);
+
+BackgroundBeamsWithCollision.displayName = "BackgroundBeamsWithCollision";
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const CollisionMechanism = React.forwardRef<
   HTMLDivElement,
   {
@@ -63,7 +62,8 @@ const CollisionMechanism = React.forwardRef<
       repeatDelay?: number;
     };
   }
->(({ parentRef, containerRef, beamOptions = {} }, ref) => {
+>((props, ref) => {
+  const { parentRef, containerRef, beamOptions = {} } = props;
   const beamRef = useRef<HTMLDivElement>(null);
   const [collision, setCollision] = useState<{
     detected: boolean;

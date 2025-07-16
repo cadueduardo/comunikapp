@@ -18,6 +18,7 @@ interface Orcamento {
   descricao?: string;
   preco_final: number;
   criado_em: string;
+  status_aprovacao?: string;
   cliente?: {
     id: string;
     nome: string;
@@ -120,9 +121,26 @@ export default function OrcamentosPage() {
     }
   };
 
-  const handleShare = async () => {
-    // TODO: Implementar geração de link compartilhável
-    toast.info('Funcionalidade de compartilhamento em desenvolvimento.');
+  const handleShare = async (orcamento: Orcamento) => {
+    try {
+      const publicUrl = `${window.location.origin}/orcamento/${orcamento.id}`;
+      
+      // Tenta usar a Web Share API
+      if (navigator.share) {
+        await navigator.share({
+          title: `Orçamento ${orcamento.numero}`,
+          text: `Confira o orçamento ${orcamento.nome_servico}`,
+          url: publicUrl,
+        });
+      } else {
+        // Fallback: copia para clipboard
+        await navigator.clipboard.writeText(publicUrl);
+        toast.success('Link público copiado para a área de transferência!');
+      }
+    } catch (error) {
+      console.error('Erro ao compartilhar:', error);
+      toast.error('Erro ao compartilhar orçamento.');
+    }
   };
 
   if (loading) {
@@ -187,6 +205,21 @@ export default function OrcamentosPage() {
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-lg font-semibold">{orcamento.nome_servico}</h3>
                       <Badge variant="secondary">#{orcamento.numero}</Badge>
+                      {orcamento.status_aprovacao && orcamento.status_aprovacao !== 'PENDENTE' && (
+                        <Badge 
+                          variant={
+                            orcamento.status_aprovacao === 'APROVADO' ? 'default' :
+                            orcamento.status_aprovacao === 'REJEITADO' ? 'destructive' :
+                            'secondary'
+                          }
+                          className="text-xs"
+                        >
+                          {orcamento.status_aprovacao === 'APROVADO' ? '✓ Aprovado' :
+                           orcamento.status_aprovacao === 'REJEITADO' ? '✗ Rejeitado' :
+                           orcamento.status_aprovacao === 'NEGOCIANDO' ? '🔄 Negociando' :
+                           orcamento.status_aprovacao}
+                        </Badge>
+                      )}
                     </div>
                     
                     {orcamento.descricao && (
@@ -211,7 +244,7 @@ export default function OrcamentosPage() {
                     </div>
                     
                     <div className="flex gap-1">
-                      <Button variant="outline" size="sm" onClick={() => handleShare()}>
+                      <Button variant="outline" size="sm" onClick={() => handleShare(orcamento)}>
                         <Share2 className="h-4 w-4" />
                       </Button>
                       <Link href={`/orcamentos/${orcamento.id}`}>

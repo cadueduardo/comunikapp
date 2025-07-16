@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { formatCurrency } from '@/lib/utils';
 
 interface Maquina {
   id: string;
@@ -316,7 +317,7 @@ export default function MaquinasPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Custo/Hora:</span>
                     <span className="font-medium">
-                      R$ {Number(maquina.custo_hora).toFixed(2)}
+                      {formatCurrency(Number(maquina.custo_hora))}
                     </span>
                   </div>
                   

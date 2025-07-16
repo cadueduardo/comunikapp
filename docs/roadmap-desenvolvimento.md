@@ -8,7 +8,8 @@ Este documento descreve as fases e tarefas planejadas para o desenvolvimento do 
 
 - Backend e frontend integrados, CRUD de orçamentos com múltiplos itens funcionando, formulário reestruturado, sidebar de preview restaurada, cálculo automático, notificações e sininho funcionando, layout público profissional, bugs de schema e build resolvidos.
 - Sistema pronto para uso básico e testes reais de fluxo de orçamento, aprovação, negociação e notificações.
-- Próximos passos: implementar sistema de templates de produtos (sub-tarefa 2.7.11) e geração de PDF público do orçamento (sub-tarefa 2.6).
+- Campo cliente_id obrigatório implementado, redirecionamento para listagem de orçamentos após criação.
+- Próximos passos: implementar sistema de ações de orçamento e notificações (sub-tarefa 2.7.11), sistema de templates de produtos (sub-tarefa 2.7.12) e geração de PDF público do orçamento (sub-tarefa 2.6).
 
 ---
 
@@ -240,7 +241,68 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
       - Orçamentos mais precisos e profissionais
       - Facilita lançamento rápido de orçamentos
 
-  - **[ ] Sub-tarefa 2.7.11: Sistema de Templates de Produtos**
+  - **[ ] Sub-tarefa 2.7.11: Sistema de Ações de Orçamento e Notificações**
+    - **Problema identificado:** O sistema atual possui ações básicas de orçamento (aprovado, rejeitado, negociando) mas não possui uma dinâmica clara de fluxo de trabalho, notificações adequadas e próximos passos definidos.
+    - **Objetivo:** Implementar sistema completo de ações de orçamento com fluxo de trabalho definido, notificações inteligentes e integração com futuros módulos (OS, financeiro, etc.).
+    - **[ ] Backend:** Implementar sistema de ações de orçamento:
+      - [ ] **Ação "Negociando":**
+        - [ ] Implementar lógica para marcar orçamento como "NEGOCIANDO"
+        - [ ] Permitir adicionar observações do cliente e contra-proposta
+        - [ ] Criar histórico de negociações com timestamps
+        - [ ] Implementar notificação automática para o vendedor responsável
+        - [ ] Permitir reabrir orçamento para ajustes baseados na negociação
+      - [ ] **Ação "Aprovar":**
+        - [ ] Implementar lógica para marcar orçamento como "APROVADO"
+        - [ ] Criar notificação automática para produção/estoque
+        - [ ] Preparar integração futura com sistema de OS (Ordem de Serviço)
+        - [ ] Implementar bloqueio de edição após aprovação
+        - [ ] Gerar PDF do orçamento aprovado automaticamente
+        - [ ] Criar notificação para cliente com link do PDF
+      - [ ] **Ação "Rejeitar":**
+        - [ ] Implementar lógica para marcar orçamento como "REJEITADO"
+        - [ ] Permitir adicionar motivo da rejeição
+        - [ ] Implementar notificação automática para vendedor
+        - [ ] Criar opção de "Reavaliar" para ajustar orçamento baseado no feedback
+        - [ ] Manter histórico de versões do orçamento
+    - **[ ] Backend:** Sistema de notificações inteligente:
+      - [ ] **Tipos de notificação:**
+        - [ ] Notificação de orçamento aprovado (para produção)
+        - [ ] Notificação de orçamento rejeitado (para vendedor)
+        - [ ] Notificação de negociação iniciada (para vendedor)
+        - [ ] Notificação de contra-proposta recebida (para vendedor)
+        - [ ] Notificação de orçamento vencido (automática)
+        - [ ] Notificação de orçamento sem resposta (lembrete)
+      - [ ] **Configurações de notificação:**
+        - [ ] Permitir configurar quais notificações cada usuário recebe
+        - [ ] Implementar notificações por email (além das internas)
+        - [ ] Implementar notificações por WhatsApp (futuro)
+        - [ ] Criar sistema de templates de notificação personalizáveis
+    - **[ ] Frontend:** Melhorar interface de ações de orçamento:
+      - [ ] **Página de visualização de orçamento:**
+        - [ ] Redesenhar layout para melhor apresentação dos dados
+        - [ ] Adicionar seção de histórico de ações
+        - [ ] Implementar botões de ação claros e intuitivos
+        - [ ] Adicionar modal de confirmação para ações críticas
+        - [ ] Implementar preview de PDF antes do envio
+      - [ ] **Página de edição de orçamento:**
+        - [ ] Permitir edição apenas de orçamentos em status adequado
+        - [ ] Implementar sistema de versionamento (nova versão vs edição)
+        - [ ] Adicionar validações para evitar edição de orçamentos aprovados
+        - [ ] Implementar diff visual das alterações
+      - [ ] **Sistema de notificações:**
+        - [ ] Melhorar design do componente de notificações
+        - [ ] Implementar filtros por tipo de notificação
+        - [ ] Adicionar indicador de notificações não lidas
+        - [ ] Implementar notificações em tempo real (WebSocket futuro)
+    - **[ ] Benefícios esperados:**
+      - Fluxo de trabalho claro e profissional
+      - Rastreabilidade completa das ações
+      - Notificações inteligentes e configuráveis
+      - Preparação para integração com módulos futuros (OS, financeiro)
+      - Melhor experiência do usuário com interface intuitiva
+      - Redução de erros e perda de informações
+
+  - **[ ] Sub-tarefa 2.7.12: Sistema de Templates de Produtos**
     - **Problema identificado:** Produtos comuns como banners, adesivos, cartões de visita são frequentemente orçados com as mesmas especificações, materiais e processos, causando retrabalho e inconsistências.
     - **Objetivo:** Implementar sistema de templates de produtos pré-configurados que permitam criar orçamentos rapidamente com produtos padronizados, mantendo a flexibilidade para itens personalizados.
     - **[ ] Backend:** Implementar sistema de templates:

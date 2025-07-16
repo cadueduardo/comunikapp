@@ -5,7 +5,9 @@ import {
   IsOptional,
   IsInt,
   Min,
+  IsEnum,
 } from 'class-validator';
+import { LogicaConsumoInsumo } from '@prisma/client';
 
 export class CreateInsumoDto {
   @IsString()
@@ -29,11 +31,21 @@ export class CreateInsumoDto {
   custo_unitario: number;
 
   @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  custo_lote?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  quantidade_lote?: number;
+
+  @IsOptional()
   @IsString()
   codigo_interno?: string;
   
   @IsOptional()
-  @IsInt()
+  @IsNumber()
   @Min(0)
   estoque_minimo?: number;
 
@@ -44,4 +56,11 @@ export class CreateInsumoDto {
   @IsOptional()
   @IsString()
   observacoes?: string;
+
+  @IsOptional()
+  @IsEnum(LogicaConsumoInsumo)
+  logica_consumo?: LogicaConsumoInsumo;
+
+  @IsOptional()
+  parametros_consumo?: any;
 } 

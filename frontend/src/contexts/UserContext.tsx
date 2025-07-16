@@ -54,20 +54,32 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchUserData = useCallback(async (token: string) => {
     setLoading(true);
     try {
+      console.log('🔍 Tentando buscar dados do usuário com token:', token ? 'presente' : 'ausente');
+      console.log('🔍 Token completo:', token);
+      
       const response = await fetch('http://localhost:3001/lojas/me', {
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
+      
+      console.log('🔍 Resposta da API:', response.status, response.statusText);
+      console.log('🔍 Headers da resposta:', Object.fromEntries(response.headers.entries()));
+      
       if (response.ok) {
         const userData = await response.json();
+        console.log('✅ Dados do usuário recebidos:', userData);
         setUser(userData);
       } else {
+        console.error('❌ Erro na resposta da API:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('❌ Detalhes do erro:', errorText);
         setUser(null);
         localStorage.removeItem('access_token');
       }
     } catch (error) {
-      console.error('Fetch user data failed', error);
+      console.error('❌ Erro ao buscar dados do usuário:', error);
       setUser(null);
       localStorage.removeItem('access_token');
     }

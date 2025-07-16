@@ -63,6 +63,7 @@ export class LojasController {
     return this.lojasService.findLojaWithTrial(lojaId);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('me')
   getCurrentUser(@CurrentUser() user: AuthenticatedUser) {
     return user;

@@ -40,6 +40,13 @@ enum StatusLoja {
   BLOQUEADO
 }
 
+enum LogicaConsumoInsumo {
+  area
+  perimetro
+  quantidade_fixa
+  custom
+}
+
 model Loja {
   id                  String    @id @default(cuid())
   nome                String
@@ -73,6 +80,7 @@ model Loja {
   maquinas     Maquina[]
   funcoes      Funcao[]
   custos_indiretos CustoIndireto[]
+  notificacoes Notificacao[]
 
   criado_em   DateTime @default(now())
   atualizado_em DateTime @updatedAt
@@ -171,6 +179,9 @@ model Insumo {
   descricao_tecnica   String?
   unidade_medida      String
   custo_unitario      Decimal     @db.Decimal(10, 2)
+  // Campos para lote
+  custo_lote          Decimal?    @db.Decimal(10, 2)
+  quantidade_lote     Int?
   estoque_minimo      Int?
   codigo_interno      String?
   observacoes         String?
@@ -178,9 +189,12 @@ model Insumo {
   loja                Loja        @relation(fields: [loja_id], references: [id], onDelete: Cascade)
   categoriaId         String
   categoria           Categoria   @relation(fields: [categoriaId], references: [id])
-  fornecedorId        String
-  fornecedor          Fornecedor  @relation(fields: [fornecedorId], references: [id])
+  fornecedorId        String?
+  fornecedor          Fornecedor?  @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)
   itens               ItemOrcamento[]
+  // Novos campos para lógica de consumo
+  logica_consumo      LogicaConsumoInsumo @default(area)
+  parametros_consumo  Json? // Parâmetros extras para lógica de consumo (ex: espaçamento, quantidade fixa)
 
   @@map("insumos")
 }
@@ -286,11 +300,8 @@ model Orcamento {
   criado_em       DateTime  @default(now())
   atualizado_em   DateTime  @updatedAt
   numero          String
-  nome_servico    String
-  descricao       String?   @db.Text
-  horas_producao  Decimal   @db.Decimal(10, 2)
   
-  // Custos calculados
+  // Custos calculados globais
   custo_material      Decimal @db.Decimal(10, 2)
   custo_mao_obra      Decimal @db.Decimal(10, 2)
   custo_indireto      Decimal @db.Decimal(10, 2)
@@ -299,15 +310,22 @@ model Orcamento {
   impostos            Decimal @db.Decimal(5, 2)
   preco_final         Decimal @db.Decimal(10, 2)
   
+  // Condições comerciais
+  condicoes_comerciais String? @db.Text // Template editável das condições
+  status_aprovacao     String? @default("PENDENTE") // "PENDENTE", "APROVADO", "REJEITADO", "NEGOCIANDO"
+  observacoes_cliente  String? @db.Text // Observações do cliente na negociação
+  
   // Relacionamentos
   loja_id     String
   loja        Loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
   cliente_id  String?
   cliente     Cliente? @relation(fields: [cliente_id], references: [id], onDelete: SetNull)
   
-  itens       ItemOrcamento[]
+  itens_produto       ItemProdutoOrcamento[]
+  itens_insumo        ItemOrcamento[]
   maquinas    MaquinaOrcamento[]
   funcoes     FuncaoOrcamento[]
+  notificacoes Notificacao[]
   
   @@unique([loja_id, numero])
   @@index([loja_id])
@@ -344,10 +362,46 @@ model FuncaoOrcamento {
   @@index([funcao_id])
 }
 
+model ItemProdutoOrcamento {
+  id              String    @id @default(cuid())
+  orcamento_id    String
+  orcamento       Orcamento @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  
+  // Informações do produto
+  nome_servico    String
+  descricao       String?   @db.Text
+  
+  // Medidas do produto
+  largura_produto         Decimal?  @db.Decimal(10, 3)
+  altura_produto          Decimal?  @db.Decimal(10, 3)
+  unidade_medida_produto  String?   // "mm", "cm", "m", "m2", etc.
+  area_produto            Decimal?  @db.Decimal(10, 3) // Área em m² calculada automaticamente
+  
+  // Custos calculados para este item
+  custo_material      Decimal @db.Decimal(10, 2)
+  custo_mao_obra      Decimal @db.Decimal(10, 2)
+  custo_indireto      Decimal @db.Decimal(10, 2)
+  custo_total         Decimal @db.Decimal(10, 2)
+  preco_final         Decimal @db.Decimal(10, 2)
+  
+  // Ordem de exibição
+  ordem              Int      @default(0)
+  
+  // Relacionamentos
+  itens_insumo       ItemOrcamento[]
+  
+  @@index([orcamento_id])
+  @@index([orcamento_id, ordem])
+}
+
 model ItemOrcamento {
   id              String    @id @default(cuid())
   orcamento_id    String
   orcamento       Orcamento @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  
+  // Relacionamento com o item de produto
+  item_produto_id String?
+  item_produto    ItemProdutoOrcamento? @relation(fields: [item_produto_id], references: [id], onDelete: Cascade)
   
   insumo_id       String
   insumo          Insumo    @relation(fields: [insumo_id], references: [id], onDelete: Restrict)
@@ -358,6 +412,7 @@ model ItemOrcamento {
   
   @@index([orcamento_id])
   @@index([insumo_id])
+  @@index([item_produto_id])
 }
 
 model HistoricoCustoMaquina {
@@ -388,4 +443,25 @@ model HistoricoCustoFuncao {
   funcao      Funcao   @relation(fields: [funcao_id], references: [id], onDelete: Cascade)
 
   @@map("historico_custo_funcoes")
+}
+
+model Notificacao {
+  id          String   @id @default(cuid())
+  criado_em   DateTime @default(now())
+  
+  tipo        String   // "orcamento_aprovado", "orcamento_rejeitado", "orcamento_negociando"
+  titulo      String
+  mensagem    String   @db.Text
+  lida        Boolean  @default(false)
+  
+  // Relacionamentos
+  loja_id     String
+  loja        Loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  
+  orcamento_id String?
+  orcamento   Orcamento? @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  
+  @@index([loja_id])
+  @@index([orcamento_id])
+  @@index([loja_id, lida])
 }

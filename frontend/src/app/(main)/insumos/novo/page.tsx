@@ -11,9 +11,14 @@ export default function NovoInsumoPage() {
     try {
       const token = localStorage.getItem('access_token');
       
-      const custo = typeof data.custo_unitario === 'string' 
-        ? parseFloat(data.custo_unitario) 
+      // Converter valores monetários para número
+      const custoUnitario = typeof data.custo_unitario === 'string' 
+        ? parseFloat(data.custo_unitario.replace(/[^\d,]/g, '').replace(',', '.')) 
         : data.custo_unitario;
+      
+      const custoLote = typeof data.custo_lote === 'string' 
+        ? parseFloat(data.custo_lote.replace(/[^\d,]/g, '').replace(',', '.')) 
+        : data.custo_lote;
         
       const response = await fetch('http://localhost:3001/insumos', {
         method: 'POST',
@@ -23,7 +28,8 @@ export default function NovoInsumoPage() {
         },
         body: JSON.stringify({
           ...data,
-          custo_unitario: custo,
+          custo_unitario: custoUnitario,
+          custo_lote: custoLote,
           estoque_minimo: data.estoque_minimo ? Number(data.estoque_minimo) : undefined,
         }),
       });

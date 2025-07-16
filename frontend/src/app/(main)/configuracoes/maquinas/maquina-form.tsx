@@ -226,7 +226,11 @@ export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFor
   });
 
   const onSubmit = async (values: MaquinaFormValues) => {
-    await onSave(values);
+    // Corrigir a conversão do valor monetário
+    const custoHora = typeof values.custo_hora === 'string'
+      ? parseFloat(values.custo_hora.replace(/\./g, '').replace(',', '.'))
+      : values.custo_hora;
+    await onSave({ ...values, custo_hora: custoHora });
   };
 
   return (

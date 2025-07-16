@@ -37,6 +37,9 @@ const formSchema = z.object({
   custo_unitario: z.any().refine(val => Number(String(val).replace(/[^0-9,-]/g, '').replace(',', '.')) > 0, {
     message: 'O custo unitário deve ser maior que zero.',
   }),
+  // Campos para lote
+  custo_lote: z.any().optional(),
+  quantidade_lote: z.any().optional(),
   codigo_interno: z.string().optional().nullable(),
   estoque_minimo: z.any().optional().nullable(),
   descricao_tecnica: z.string().optional().nullable(),
@@ -79,6 +82,8 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
       fornecedorId: '',
       unidade_medida: '',
       custo_unitario: '',
+      custo_lote: '',
+      quantidade_lote: '',
       codigo_interno: '',
       estoque_minimo: '',
       descricao_tecnica: '',
@@ -143,9 +148,20 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
   };
 
   function onSubmit(data: InsumoFormValues) {
+    // Converter valores monetários para número e arredondar para 2 casas decimais
+    const custoUnitario = typeof data.custo_unitario === 'string' 
+      ? Math.round(parseFloat(data.custo_unitario) * 100) / 100
+      : Math.round((data.custo_unitario || 0) * 100) / 100;
+    
+    const custoLote = typeof data.custo_lote === 'string' 
+      ? data.custo_lote ? Math.round(parseFloat(data.custo_lote) * 100) / 100 : null
+      : data.custo_lote ? Math.round(data.custo_lote * 100) / 100 : null;
+
     const cleanedData = {
       ...data,
-      custo_unitario: data.custo_unitario || 0,
+      custo_unitario: custoUnitario,
+      custo_lote: custoLote,
+      quantidade_lote: data.quantidade_lote || undefined,
       estoque_minimo: data.estoque_minimo || undefined,
       codigo_interno: data.codigo_interno || undefined,
       descricao_tecnica: data.descricao_tecnica || undefined,
@@ -153,6 +169,26 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
     }
     onSave(cleanedData);
   }
+
+  const calcularCustoUnitario = () => {
+    const custoLote = form.watch('custo_lote');
+    const quantidadeLote = form.watch('quantidade_lote');
+
+    if (custoLote && quantidadeLote) {
+      const custoUnitario = Number(custoLote) / Number(quantidadeLote);
+      form.setValue('custo_unitario', custoUnitario.toString()); // Converte para string para o CustomCurrencyInput
+    } else {
+      form.setValue('custo_unitario', ''); // Limpa o campo se não houver dados
+    }
+  };
+
+  // Calcular custo unitário quando os dados iniciais são carregados
+  useEffect(() => {
+    if (initialData?.custo_lote && initialData?.quantidade_lote) {
+      const custoUnitario = Number(initialData.custo_lote) / Number(initialData.quantidade_lote);
+      form.setValue('custo_unitario', custoUnitario.toFixed(4));
+    }
+  }, [initialData, form]);
 
   return (
     <Form {...form}>
@@ -185,19 +221,6 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField control={form.control} name="custo_unitario" render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Custo Unitário (R$) *</FormLabel>
-                    <FormControl>
-                        <CustomCurrencyInput 
-                            onValueChange={field.onChange} 
-                            value={field.value} 
-                            placeholder="R$ 10,50"
-                        />
-                    </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )} />
                 <FormField control={form.control} name="unidade_medida" render={({ field }) => (
                     <FormItem>
                     <FormLabel>Unidade de Medida *</FormLabel>
@@ -219,6 +242,69 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                         placeholder="Selecione o fornecedor"
                         onCreate={(name) => handleCreate(name, 'fornecedor')}
                     />
+                    </FormItem>
+                )} />
+            </div>
+
+            {/* Campos para lote - VEM PRIMEIRO */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="custo_lote" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Custo do Lote (R$)</FormLabel>
+                    <FormControl>
+                        <CustomCurrencyInput 
+                            onValueChange={(value) => {
+                                field.onChange(value);
+                                calcularCustoUnitario();
+                            }} 
+                            value={field.value} 
+                            placeholder="R$ 175,00"
+                        />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="quantidade_lote" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Quantidade do Lote</FormLabel>
+                    <FormControl>
+                        <Input 
+                            type="number" 
+                            step="1" 
+                            min="1" 
+                            {...field} 
+                            onChange={(e) => {
+                                field.onChange(Number(e.target.value));
+                                calcularCustoUnitario();
+                            }}
+                            value={field.value || ''} 
+                            placeholder="1000"
+                        />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )} />
+            </div>
+
+            <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-md">
+                <p><strong>💡 Dica:</strong> Se você informar o custo do lote e a quantidade, o sistema calculará automaticamente o custo unitário.</p>
+                <p><strong>Exemplo:</strong> Caixa com 1000 ponteiras por R$ 175,00 = R$ 0,175 por unidade</p>
+            </div>
+
+            {/* Custo unitário - VEM DEPOIS */}
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                <FormField control={form.control} name="custo_unitario" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Custo Unitário (R$) *</FormLabel>
+                    <FormControl>
+                        <CustomCurrencyInput 
+                            onValueChange={(value) => {
+                                field.onChange(value);
+                            }} 
+                            value={field.value} 
+                            placeholder="R$ 0,50"
+                        />
+                    </FormControl>
                     <FormMessage />
                     </FormItem>
                 )} />

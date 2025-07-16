@@ -16,9 +16,16 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       context.getClass(),
     ]);
     
+    console.log('🔐 JWT Guard: Verificando rota pública:', isPublic);
+    
     if (isPublic) {
+      console.log('🔓 JWT Guard: Rota pública, permitindo acesso');
       return true;
     }
+    
+    const request = context.switchToHttp().getRequest();
+    const token = request.headers.authorization?.replace('Bearer ', '');
+    console.log('🔐 JWT Guard: Token presente:', !!token);
     
     return super.canActivate(context);
   }
