@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useUser } from '@/contexts/UserContext'; // Importar o useUser
 import { BackgroundBeamsWithCollision } from '@/components/ui/background-beams-with-collision';
+import { authAPI } from '@/lib/api';
 
 const GoogleIcon = () => (
     <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
@@ -48,18 +49,7 @@ export default function LoginPage() {
         setError(null);
 
         try {
-            const response = await fetch('http://localhost:3001/lojas/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Erro ao fazer login.');
-            }
-
-            const responseData = await response.json();
+            const responseData = await authAPI.login(formData.email, formData.password);
             const { access_token } = responseData;
             
             // Chama a função de login do contexto

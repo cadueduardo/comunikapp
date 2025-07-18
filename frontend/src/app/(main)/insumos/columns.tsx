@@ -18,12 +18,21 @@ import Link from 'next/link';
 export type Insumo = {
   id: string;
   nome: string;
-  unidade_medida: string;
-  custo_unitario: number;
-  estoque_minimo?: number | null;
+  unidade_compra: string;
+  custo_unitario: number | string;
+  quantidade_compra: number | string;
+  unidade_uso: string;
+  fator_conversao: number | string;
+  largura?: number | string | null;
+  altura?: number | string | null;
+  unidade_dimensao?: string | null;
+  tipo_calculo?: string | null;
+  gramatura?: number | string | null;
+  estoque_minimo?: number | string | null;
   codigo_interno?: string | null;
   descricao_tecnica?: string | null;
   observacoes?: string | null;
+  ativo: boolean | string | number;
   categoria: {
     id: string;
     nome: string;
@@ -62,16 +71,71 @@ export const createColumns = (onDelete: (id: string, nome: string) => void): Col
   },
   {
     accessorKey: 'custo_unitario',
-    header: 'Custo Unitário',
-    cell: ({ row }) => formatCurrency(row.original.custo_unitario),
+    header: 'Custo Total',
+    cell: ({ row }) => {
+      const custo = row.original.custo_unitario;
+      if (custo === null || custo === undefined) return '-';
+      return formatCurrency(Number(custo));
+    },
   },
   {
-    accessorKey: 'unidade_medida',
-    header: 'Unidade',
+    accessorKey: 'quantidade_compra',
+    header: 'Qtd. Compra',
+    cell: ({ row }) => {
+      const insumo = row.original;
+      const quantidade = insumo.quantidade_compra;
+      const largura = insumo.largura;
+      const altura = insumo.altura;
+      const gramatura = insumo.gramatura;
+      
+      let display = `${Number(quantidade).toFixed(3)} ${insumo.unidade_compra}`;
+      
+      // Adicionar dimensões se disponíveis
+      if (largura && altura) {
+        display += ` (${Number(largura).toFixed(2)}x${Number(altura).toFixed(2)}m)`;
+      }
+      
+      // Adicionar gramatura se disponível
+      if (gramatura) {
+        display += ` ${Number(gramatura).toFixed(1)}g`;
+      }
+      
+      return display;
+    },
+  },
+  {
+    accessorKey: 'unidade_uso',
+    header: 'Unidade Uso',
+  },
+  {
+    accessorKey: 'fator_conversao',
+    header: 'Fator Conv.',
+    cell: ({ row }) => {
+      const fator = row.original.fator_conversao;
+      if (fator === null || fator === undefined) return '-';
+      return Number(fator).toFixed(4);
+    },
   },
   {
     accessorKey: 'fornecedor.nome',
     header: 'Fornecedor',
+  },
+  {
+    accessorKey: 'ativo',
+    header: 'Status',
+    cell: ({ row }) => {
+      const ativo = row.original.ativo;
+      const isAtivo = Boolean(ativo);
+      return (
+        <span className={`px-2 py-1 rounded-full text-xs ${
+          isAtivo 
+            ? 'bg-green-100 text-green-800' 
+            : 'bg-red-100 text-red-800'
+        }`}>
+          {isAtivo ? 'Ativo' : 'Inativo'}
+        </span>
+      );
+    },
   },
   {
     id: 'actions',

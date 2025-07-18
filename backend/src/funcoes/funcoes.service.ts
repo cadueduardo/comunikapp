@@ -65,12 +65,7 @@ export class FuncoesService {
     const funcaoEmUso = await this.prisma.funcaoOrcamento.findFirst({
       where: { funcao_id: id },
       include: {
-        orcamento: {
-          select: {
-            numero: true,
-            nome_servico: true,
-          },
-        },
+        orcamento: true,
       },
     });
 

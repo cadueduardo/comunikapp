@@ -43,6 +43,7 @@ export class MailService implements OnModuleInit {
     console.log('--- E-mail Sent ---');
     console.log('Message sent: %s', info.messageId);
     console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+    console.log('Código de verificação para', to, ':', code);
     console.log('-------------------');
 
     return info;

@@ -53,21 +53,27 @@ export class LojasController {
     return this.lojasService.verifyEmail(body);
   }
 
+
+
+  @UseGuards(JwtAuthGuard)
   @Get('user-by-email')
   findUserByEmail(@Query('email') email: string) {
     return this.lojasService.findUserByEmail(email);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('loja-trial/:lojaId')
   findLojaWithTrial(@Param('lojaId') lojaId: string) {
     return this.lojasService.findLojaWithTrial(lojaId);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('me')
   getCurrentUser(@CurrentUser() user: AuthenticatedUser) {
     return user;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('my-loja-trial')
   getMyLojaWithTrial(@CurrentLojaId() lojaId: string) {
     return this.lojasService.findLojaWithTrial(lojaId);
@@ -79,6 +85,7 @@ export class LojasController {
     return this.lojasService.findLojaWithTrial(user.loja_id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch('configuracoes')
   updateConfiguracoes(
     @CurrentLojaId() lojaId: string,
@@ -90,6 +97,7 @@ export class LojasController {
     );
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('logo')
   @UseInterceptors(
     FileInterceptor('logo', {

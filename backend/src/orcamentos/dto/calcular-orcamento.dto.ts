@@ -12,6 +12,28 @@ export class ItemCalculoDto {
   quantidade: number;
 }
 
+export class MaquinaCalculoDto {
+  @IsString()
+  @IsNotEmpty()
+  maquina_id: string;
+
+  @IsNumber()
+  @IsPositive()
+  @Type(() => Number)
+  horas_utilizadas: number;
+}
+
+export class FuncaoCalculoDto {
+  @IsString()
+  @IsNotEmpty()
+  funcao_id: string;
+
+  @IsNumber()
+  @IsPositive()
+  @Type(() => Number)
+  horas_trabalhadas: number;
+}
+
 export class CalcularOrcamentoDto {
   @IsString()
   @IsNotEmpty()
@@ -45,4 +67,16 @@ export class CalcularOrcamentoDto {
   @IsOptional()
   @Type(() => Number)
   impostos_customizados?: number;
+
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => MaquinaCalculoDto)
+  maquinas?: MaquinaCalculoDto[];
+
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => FuncaoCalculoDto)
+  funcoes?: FuncaoCalculoDto[];
 } 

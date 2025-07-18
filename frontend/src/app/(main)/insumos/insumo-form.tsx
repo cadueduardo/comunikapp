@@ -14,33 +14,51 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { CustomCurrencyInput } from '@/components/ui/currency-input';
 import { Combobox } from '@/components/ui/combobox';
+import { UnitSelect } from '@/components/ui/unit-select';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
+import { InfoWithExamples } from '@/components/ui/info-with-examples';
+import { ConversionExamplesModal } from '@/components/ui/conversion-examples-modal';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React from 'react';
 
 const formSchema = z.object({
   nome: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
   categoriaId: z.string().min(1, 'Selecione uma categoria.'),
   fornecedorId: z.string().min(1, 'Selecione um fornecedor.'),
-  unidade_medida: z.string().min(1, 'Selecione uma unidade de medida.'),
   custo_unitario: z.any().refine(val => Number(String(val).replace(/[^0-9,-]/g, '').replace(',', '.')) > 0, {
     message: 'O custo unitário deve ser maior que zero.',
   }),
+  
+  // Campos de compra
+  unidade_compra: z.string().min(1, 'Selecione uma unidade de compra.'),
+  
+  // Campos de dimensões (opcional)
+  largura: z.any().optional(),
+  altura: z.any().optional(),
+  unidade_dimensao: z.string().optional(), // Unidade das dimensões (M, CM, MM)
+  tipo_calculo: z.string().optional(), // Tipo de cálculo (AREA, LINEAR, QUANTIDADE)
+  quantidade_compra: z.any().refine(val => Number(String(val).replace(/[^0-9,-]/g, '').replace(',', '.')) > 0, {
+    message: 'A quantidade deve ser maior que zero.',
+  }),
+  gramatura: z.any().optional(),
+  
+  // Campos de uso
+  unidade_uso: z.string().min(1, 'Selecione uma unidade de uso.'),
+  fator_conversao: z.any().refine(val => Number(String(val).replace(/[^0-9,-]/g, '').replace(',', '.')) > 0, {
+    message: 'O fator de conversão deve ser maior que zero.',
+  }),
+  
   codigo_interno: z.string().optional().nullable(),
   estoque_minimo: z.any().optional().nullable(),
   descricao_tecnica: z.string().optional().nullable(),
   observacoes: z.string().optional().nullable(),
+  ativo: z.boolean().optional(),
 });
 
 export type InsumoFormValues = z.infer<typeof formSchema>;
@@ -52,17 +70,83 @@ interface InsumoFormProps {
 }
 
 const unidadesDeMedida = [
-  { value: 'un', label: 'Unidade (un)' },
-  { value: 'm', label: 'Metro (m)' },
-  { value: 'm2', label: 'Metro Quadrado (m²)' },
-  { value: 'cm', label: 'Centímetro (cm)' },
-  { value: 'kg', label: 'Quilograma (kg)' },
-  { value: 'g', label: 'Grama (g)' },
-  { value: 'L', label: 'Litro (L)' },
-  { value: 'ml', label: 'Mililitro (ml)' },
-  { value: 'kit', label: 'Kit' },
-  { value: 'pct', label: 'Pacote (pct)' },
-  { value: 'folha', label: 'Folha' },
+  { value: 'UNID', label: 'UNIDADE' },
+  { value: 'M', label: 'METRO' },
+  { value: 'M2', label: 'METRO QUADRADO' },
+  { value: 'M3', label: 'METRO CÚBICO' },
+  { value: 'CM', label: 'CENTIMETRO' },
+  { value: 'CM2', label: 'CENTIMETRO QUADRADO' },
+  { value: 'KG', label: 'QUILOGRAMA' },
+  { value: 'GRAMAS', label: 'GRAMAS' },
+  { value: 'LITRO', label: 'LITRO' },
+  { value: 'ML', label: 'MILILITRO' },
+  { value: 'BOBINA', label: 'BOBINA' },
+  { value: 'ROLO', label: 'ROLO' },
+  { value: 'FOLHA', label: 'FOLHA' },
+  { value: 'CX', label: 'CAIXA' },
+  { value: 'CX2', label: 'CAIXA COM 2 UNIDADES' },
+  { value: 'CX3', label: 'CAIXA COM 3 UNIDADES' },
+  { value: 'CX5', label: 'CAIXA COM 5 UNIDADES' },
+  { value: 'CX10', label: 'CAIXA COM 10 UNIDADES' },
+  { value: 'CX15', label: 'CAIXA COM 15 UNIDADES' },
+  { value: 'CX20', label: 'CAIXA COM 20 UNIDADES' },
+  { value: 'CX25', label: 'CAIXA COM 25 UNIDADES' },
+  { value: 'CX50', label: 'CAIXA COM 50 UNIDADES' },
+  { value: 'CX100', label: 'CAIXA COM 100 UNIDADES' },
+  { value: 'PACOTE', label: 'PACOTE' },
+  { value: 'KIT', label: 'KIT' },
+  { value: 'JOGO', label: 'JOGO' },
+  { value: 'CONJUNTO', label: 'CONJUNTO' },
+  { value: 'DUZIA', label: 'DUZIA' },
+  { value: 'CENTO', label: 'CENTO' },
+  { value: 'MILHEI', label: 'MILHEIRO' },
+  { value: 'PARES', label: 'PARES' },
+  { value: 'PC', label: 'PEÇA' },
+  { value: 'BALDE', label: 'BALDE' },
+  { value: 'BANDEJ', label: 'BANDEJA' },
+  { value: 'BARRA', label: 'BARRA' },
+  { value: 'BISNAG', label: 'BISNAGA' },
+  { value: 'BLOCO', label: 'BLOCO' },
+  { value: 'BOMB', label: 'BOMBONA' },
+  { value: 'CAPS', label: 'CAPSULA' },
+  { value: 'CART', label: 'CARTELA' },
+  { value: 'CJ', label: 'CONJUNTO' },
+  { value: 'DISP', label: 'DISPLAY' },
+  { value: 'EMBAL', label: 'EMBALAGEM' },
+  { value: 'FARDO', label: 'FARDO' },
+  { value: 'FRASCO', label: 'FRASCO' },
+  { value: 'GALAO', label: 'GALÃO' },
+  { value: 'GF', label: 'GARRAFA' },
+  { value: 'LATA', label: 'LATA' },
+  { value: 'PALETE', label: 'PALETE' },
+  { value: 'POTE', label: 'POTE' },
+  { value: 'K', label: 'QUILATE' },
+  { value: 'RESMA', label: 'RESMA' },
+  { value: 'SACO', label: 'SACO' },
+  { value: 'SACOLA', label: 'SACOLA' },
+  { value: 'TAMBOR', label: 'TAMBOR' },
+  { value: 'TANQUE', label: 'TANQUE' },
+  { value: 'TON', label: 'TONELADA' },
+  { value: 'TUBO', label: 'TUBO' },
+  { value: 'VASIL', label: 'VASILHAME' },
+  { value: 'VIDRO', label: 'VIDRO' },
+  { value: 'AMPOLA', label: 'AMPOLA' },
+];
+
+const unidadesDimensao = [
+  { value: 'M', label: 'METROS' },
+  { value: 'CM', label: 'CENTÍMETROS' },
+  { value: 'MM', label: 'MILÍMETROS' },
+  { value: 'INCH', label: 'POLEGADAS' },
+  { value: 'FT', label: 'PÉS' },
+];
+
+const tiposCalculo = [
+  { value: 'AREA', label: 'ÁREA (Largura × Altura)' },
+  { value: 'LINEAR', label: 'COMPRIMENTO LINEAR' },
+  { value: 'QUANTIDADE', label: 'QUANTIDADE DE ITENS' },
+  { value: 'PESO', label: 'PESO' },
+  { value: 'VOLUME', label: 'VOLUME' },
 ];
 
 interface Option {
@@ -71,21 +155,103 @@ interface Option {
 }
 
 export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
+  const [showExamplesModal, setShowExamplesModal] = useState(false);
+  
   const form = useForm<InsumoFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       nome: '',
       categoriaId: '',
       fornecedorId: '',
-      unidade_medida: '',
       custo_unitario: '',
+      unidade_compra: '',
+      quantidade_compra: '',
+      largura: '',
+      altura: '',
+      unidade_dimensao: '',
+      tipo_calculo: '',
+      gramatura: '',
+      unidade_uso: '',
+      fator_conversao: '',
       codigo_interno: '',
       estoque_minimo: '',
       descricao_tecnica: '',
       observacoes: '',
+      ativo: true,
       ...initialData,
     },
   });
+
+  // Debug: log dos dados iniciais
+  console.log('InsumoForm initialData:', initialData);
+  console.log('Form values:', form.getValues());
+
+  // Aplicar dados iniciais quando disponíveis
+  useEffect(() => {
+    if (initialData) {
+      console.log('Aplicando dados iniciais:', initialData);
+      Object.entries(initialData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          form.setValue(key as keyof InsumoFormValues, value);
+        }
+      });
+    }
+  }, [initialData, form]);
+
+  // Cálculo automático da quantidade total
+  const largura = form.watch('largura');
+  const altura = form.watch('altura');
+  const unidadeDimensao = form.watch('unidade_dimensao');
+  const tipoCalculo = form.watch('tipo_calculo');
+  
+  // Cálculo do custo por unidade de uso
+  const custoUnitario = form.watch('custo_unitario');
+  const quantidadeCompra = form.watch('quantidade_compra');
+  const fatorConversao = form.watch('fator_conversao');
+  const unidadeUso = form.watch('unidade_uso');
+  
+  const custoPorUnidadeUso = React.useMemo(() => {
+    if (custoUnitario && quantidadeCompra && fatorConversao) {
+      // O CustomCurrencyInput retorna o valor em reais (já dividido por 100)
+      // Quando vem do banco (edição), já vem em reais
+      // Quando vem do formulário (criação), também vem em reais
+      const custo = Number(custoUnitario);
+      const quantidade = Number(quantidadeCompra);
+      const fator = Number(fatorConversao);
+      
+      if (!isNaN(custo) && !isNaN(quantidade) && !isNaN(fator) && quantidade > 0 && fator > 0) {
+        return custo / (quantidade * fator);
+      }
+    }
+    return null;
+  }, [custoUnitario, quantidadeCompra, fatorConversao]);
+  
+  useEffect(() => {
+    if (largura && altura && unidadeDimensao && tipoCalculo) {
+      const larguraNum = parseFloat(largura);
+      const alturaNum = parseFloat(altura);
+      
+      if (!isNaN(larguraNum) && !isNaN(alturaNum)) {
+        let quantidadeTotal = 0;
+        
+        switch (tipoCalculo) {
+          case 'AREA':
+            quantidadeTotal = larguraNum * alturaNum;
+            break;
+          case 'LINEAR':
+            quantidadeTotal = larguraNum; // Usa apenas a largura como comprimento
+            break;
+          case 'QUANTIDADE':
+            quantidadeTotal = larguraNum * alturaNum; // Para itens em grade
+            break;
+          default:
+            quantidadeTotal = larguraNum * alturaNum;
+        }
+        
+        form.setValue('quantidade_compra', quantidadeTotal.toFixed(3));
+      }
+    }
+  }, [largura, altura, unidadeDimensao, tipoCalculo, form]);
   
   const [categorias, setCategorias] = useState<Option[]>([]);
   const [fornecedores, setFornecedores] = useState<Option[]>([]);
@@ -146,10 +312,18 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
     const cleanedData = {
       ...data,
       custo_unitario: data.custo_unitario || 0,
+      quantidade_compra: data.quantidade_compra || 1,
+      fator_conversao: data.fator_conversao || 1,
+      largura: data.largura || undefined,
+      altura: data.altura || undefined,
+      unidade_dimensao: data.unidade_dimensao || undefined,
+      tipo_calculo: data.tipo_calculo || undefined,
+      gramatura: data.gramatura || undefined,
       estoque_minimo: data.estoque_minimo || undefined,
       codigo_interno: data.codigo_interno || undefined,
       descricao_tecnica: data.descricao_tecnica || undefined,
       observacoes: data.observacoes || undefined,
+      ativo: data.ativo ?? true,
     }
     onSave(cleanedData);
   }
@@ -184,10 +358,10 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                 )} />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="custo_unitario" render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Custo Unitário (R$) *</FormLabel>
+                    <FormLabel>Custo Total da Unidade (R$) *</FormLabel>
                     <FormControl>
                         <CustomCurrencyInput 
                             onValueChange={field.onChange} 
@@ -195,18 +369,6 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                             placeholder="R$ 10,50"
                         />
                     </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )} />
-                <FormField control={form.control} name="unidade_medida" render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Unidade de Medida *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
-                        <SelectContent>
-                        {unidadesDeMedida.map(un => <SelectItem key={un.value} value={un.value}>{un.label}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
                     <FormMessage />
                     </FormItem>
                 )} />
@@ -219,6 +381,212 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                         placeholder="Selecione o fornecedor"
                         onCreate={(name) => handleCreate(name, 'fornecedor')}
                     />
+                    <FormMessage />
+                    </FormItem>
+                )} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <FormField control={form.control} name="largura" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Largura (opcional)</FormLabel>
+                    <FormControl>
+                        <Input 
+                            type="number" 
+                            step="0.01"
+                            placeholder="Ex: 6.0" 
+                            {...field} 
+                        />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="altura" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Altura/Comprimento (opcional)</FormLabel>
+                    <FormControl>
+                        <Input 
+                            type="number" 
+                            step="0.01"
+                            placeholder="Ex: 2.2" 
+                            {...field} 
+                        />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="unidade_dimensao" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>
+                        <InfoTooltip content="Selecione a unidade de medida das dimensões (largura e altura). Ex: se você mediu em metros, selecione METROS.">
+                            Unidade das Dimensões
+                        </InfoTooltip>
+                    </FormLabel>
+                    <FormControl>
+                        <UnitSelect
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            placeholder="Selecione a unidade"
+                            units={unidadesDimensao}
+                        />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="tipo_calculo" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>
+                        <InfoTooltip content="Como calcular a quantidade total: ÁREA (largura × altura), LINEAR (apenas largura), QUANTIDADE (itens em grade), PESO ou VOLUME.">
+                            Tipo de Cálculo
+                        </InfoTooltip>
+                    </FormLabel>
+                    <FormControl>
+                        <UnitSelect
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            placeholder="Selecione o tipo"
+                            units={tiposCalculo}
+                        />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <FormField control={form.control} name="quantidade_compra" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>
+                        <InfoTooltip content="Quantidade total da unidade de compra. Ex: 13.2 m² em uma bobina, 100 metros em um rolo, 50 unidades em uma caixa. Será calculado automaticamente se você preencher largura, altura, unidade e tipo de cálculo.">
+                            Quantidade Total *
+                        </InfoTooltip>
+                    </FormLabel>
+                    <FormControl>
+                        <div className="relative">
+                            <Input 
+                                type="number" 
+                                step="0.001"
+                                placeholder="Ex: 13.2" 
+                                {...field} 
+                                className={largura && altura && unidadeDimensao && tipoCalculo ? "pr-10" : ""}
+                            />
+                            {largura && altura && unidadeDimensao && tipoCalculo && (
+                                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                                    <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                                        Auto
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="unidade_compra" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>
+                        <InfoTooltip content="Como você compra o insumo. Ex: BOBINA (lona), ROLO (cordão), CAIXA (parafusos), KG (tinta), LITRO (cola).">
+                            Unidade de Compra *
+                        </InfoTooltip>
+                    </FormLabel>
+                    <FormControl>
+                        <UnitSelect
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            placeholder="Selecione a unidade de compra"
+                            units={unidadesDeMedida}
+                        />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="unidade_uso" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>
+                        <InfoTooltip content="Como você consome o insumo no produto final. Ex: M² (lona), M (cordão), UNIDADE (parafusos), M² (tinta), M² (cola).">
+                            Unidade de Uso *
+                        </InfoTooltip>
+                    </FormLabel>
+                    <FormControl>
+                        <UnitSelect
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            placeholder="Selecione a unidade de uso"
+                            units={unidadesDeMedida}
+                        />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="fator_conversao" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>
+                        <InfoWithExamples 
+                            tooltipContent="Fator que converte unidade de compra para unidade de uso. Na maioria dos casos use 1.0."
+                            onShowExamples={() => setShowExamplesModal(true)}
+                        >
+                            Fator de Conversão *
+                        </InfoWithExamples>
+                    </FormLabel>
+                    <FormControl>
+                        <div className="relative">
+                            <Input 
+                                type="number" 
+                                step="0.0001"
+                                placeholder="Ex: 1.0" 
+                                {...field} 
+                            />
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                                <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded border">
+                                    Dica: Use 1.0
+                                </div>
+                            </div>
+                        </div>
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )} />
+            </div>
+
+            {/* Campo calculado - Custo por Unidade de Uso */}
+            {custoPorUnidadeUso && unidadeUso && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <div className="font-medium text-green-800">💰 Custo por {unidadeUso}</div>
+                            <div className="text-sm text-green-600">
+                                Calculado automaticamente baseado nos dados acima
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-2xl font-bold text-green-700">
+                                {new Intl.NumberFormat('pt-BR', { 
+                                  style: 'currency', 
+                                  currency: 'BRL',
+                                  minimumFractionDigits: 4,
+                                  maximumFractionDigits: 4
+                                }).format(custoPorUnidadeUso)}
+                            </div>
+                            <div className="text-xs text-green-600">
+                                por {unidadeUso.toLowerCase()}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                <FormField control={form.control} name="gramatura" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Gramatura (opcional)</FormLabel>
+                    <FormControl>
+                        <Input 
+                            type="number" 
+                            step="0.1"
+                            placeholder="Ex: 440" 
+                            {...field} 
+                        />
+                    </FormControl>
                     <FormMessage />
                     </FormItem>
                 )} />
@@ -240,6 +608,22 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                 <FormItem><FormLabel>Observações</FormLabel><FormControl><Textarea {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
             )} />
 
+            <div className="flex items-center space-x-2">
+                <FormField control={form.control} name="ativo" render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                        <FormControl>
+                            <input
+                                type="checkbox"
+                                checked={field.value}
+                                onChange={field.onChange}
+                                className="h-4 w-4 rounded border-gray-300"
+                            />
+                        </FormControl>
+                        <FormLabel className="text-sm font-normal">Insumo Ativo</FormLabel>
+                    </FormItem>
+                )} />
+            </div>
+
            </CardContent>
          </Card>
         
@@ -248,6 +632,11 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
             <Button type="submit" disabled={isSaving}><Save className="h-4 w-4 mr-2" />{isSaving ? 'Salvando...' : 'Salvar Insumo'}</Button>
         </div>
       </form>
+      
+      <ConversionExamplesModal 
+        isOpen={showExamplesModal}
+        onClose={() => setShowExamplesModal(false)}
+      />
     </Form>
   );
 } 

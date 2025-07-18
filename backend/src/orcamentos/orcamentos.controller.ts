@@ -21,6 +21,18 @@ export class OrcamentosController {
     @Body() dto: CalcularOrcamentoDto,
     @CurrentLojaId() lojaId: string
   ): Promise<ResultadoCalculoDto> {
+    console.log('Dados recebidos no controller:', JSON.stringify(dto, null, 2));
+    console.log('Loja ID:', lojaId);
+    console.log('Tipo de dados:', typeof dto);
+    console.log('Estrutura do DTO:', {
+      nome_servico: typeof dto.nome_servico,
+      descricao: typeof dto.descricao,
+      horas_producao: typeof dto.horas_producao,
+      itens: Array.isArray(dto.itens) ? dto.itens.length : 'não é array',
+      cliente_id: typeof dto.cliente_id,
+      margem_lucro_customizada: typeof dto.margem_lucro_customizada,
+      impostos_customizados: typeof dto.impostos_customizados,
+    });
     return this.orcamentosService.calcularOrcamento(dto, lojaId);
   }
 

@@ -14,6 +14,7 @@ import { InsumosModule } from './insumos/insumos.module';
 import { OrcamentosModule } from './orcamentos/orcamentos.module';
 import { MaquinasModule } from './maquinas/maquinas.module';
 import { FuncoesModule } from './funcoes/funcoes.module';
+import { CustosIndiretosModule } from './custos-indiretos/custos-indiretos.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
@@ -33,6 +34,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     OrcamentosModule,
     MaquinasModule,
     FuncoesModule,
+    CustosIndiretosModule,
   ],
   controllers: [AppController],
   providers: [

@@ -84,7 +84,7 @@ const CustomCurrencyInput = React.forwardRef<
       ref={ref}
       onKeyUp={handleKeyUp}
       onChange={handleChange}
-      defaultValue={formatInitialValue(value)}
+      value={formatInitialValue(value)}
       {...props}
     />
   );

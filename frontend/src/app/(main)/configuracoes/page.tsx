@@ -7,7 +7,7 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import Link from 'next/link';
-import { Settings, Boxes, Truck, Store, Cog, Users } from 'lucide-react';
+import { Settings, Boxes, Truck, Store, Cog, Users, Receipt } from 'lucide-react';
 
 const settingsOptions = [
   {
@@ -39,6 +39,12 @@ const settingsOptions = [
     description: 'Gerencie os fornecedores de insumos e serviços.',
     icon: Truck,
     href: '/configuracoes/fornecedores',
+  },
+  {
+    title: 'Custos Indiretos',
+    description: 'Gerencie os custos indiretos da sua empresa.',
+    icon: Receipt,
+    href: '/configuracoes/custos-indiretos',
   },
 ];
 

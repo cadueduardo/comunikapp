@@ -10,33 +10,25 @@ export class UpdateConfiguracoesLojaDto {
   @IsOptional()
   cabecalho_orcamento?: string;
 
-  @IsNumber()
-  @IsOptional()
-  @Type(() => Number)
-  custo_maodeobra_hora?: number;
 
-  @IsNumber()
-  @IsOptional()
-  @Type(() => Number)
-  custo_maquinaria_hora?: number;
 
-  @IsNumber()
+  @IsString()
   @IsOptional()
-  @Type(() => Number)
-  custos_indiretos_mensais?: number;
+  custo_maquinaria_hora?: string;
 
-  @IsNumber()
+  @IsString()
   @IsOptional()
-  @Type(() => Number)
-  margem_lucro_padrao?: number;
+  custos_indiretos_mensais?: string;
 
-  @IsNumber()
+  @IsString()
   @IsOptional()
-  @Type(() => Number)
-  impostos_padrao?: number;
+  margem_lucro_padrao?: string;
 
-  @IsNumber()
+  @IsString()
   @IsOptional()
-  @Type(() => Number)
-  horas_produtivas_mensais?: number;
+  impostos_padrao?: string;
+
+  @IsString()
+  @IsOptional()
+  horas_produtivas_mensais?: string;
 } 

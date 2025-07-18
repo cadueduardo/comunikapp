@@ -259,10 +259,30 @@ export class LojasService {
     lojaId: string,
     updateConfiguracoesLojaDto: UpdateConfiguracoesLojaDto,
   ): Promise<Loja> {
-    // Os dados chegam aqui já validados e transformados pelo ValidationPipe
+    // Converter strings vazias para null e strings numéricas para números
+    const data: any = { ...updateConfiguracoesLojaDto };
+    
+    // Converter campos numéricos
+    const numericFields = ['custo_maquinaria_hora', 'custos_indiretos_mensais', 'margem_lucro_padrao', 'impostos_padrao', 'horas_produtivas_mensais'];
+    
+    for (const field of numericFields) {
+      if (data[field] !== undefined) {
+        if (data[field] === '' || data[field] === null) {
+          data[field] = null;
+        } else {
+          const numValue = parseFloat(data[field]);
+          if (!isNaN(numValue)) {
+            data[field] = numValue;
+          } else {
+            data[field] = null;
+          }
+        }
+      }
+    }
+    
     return this.prisma.loja.update({
       where: { id: lojaId },
-      data: updateConfiguracoesLojaDto,
+      data,
     });
   }
 
@@ -289,4 +309,6 @@ export class LojasService {
       data: { logo_url: logo_url },
     });
   }
+
+
 }

@@ -24,10 +24,9 @@ export class OrcamentosService {
     }
 
     // 2. Validar se as configurações necessárias estão preenchidas
-    if (!loja.custo_maodeobra_hora || !loja.custos_indiretos_mensais) {
-      throw new BadRequestException(
-        'Configurações da loja incompletas. Configure os custos de mão de obra e custos indiretos nas configurações da loja.'
-      );
+    // Custos indiretos são opcionais, mas recomendados
+    if (!loja.custos_indiretos_mensais) {
+      console.log('Aviso: Custos indiretos não configurados na loja');
     }
 
     // 3. Buscar dados dos insumos
@@ -47,19 +46,24 @@ export class OrcamentosService {
       throw new BadRequestException('Um ou mais insumos não foram encontrados');
     }
 
-    // 4. Calcular custo indireto por hora
-    const custoIndiretoPorHora = await this.calcularCustoIndiretoPorHora(loja);
+    // 4. Buscar máquinas e funções se fornecidas
+    const maquinasCalculadas = await this.calcularCustosMaquinas(dto.maquinas || [], lojaId);
+    const funcoesCalculadas = await this.calcularCustosFuncoes(dto.funcoes || [], lojaId);
 
-    // 5. Calcular custos diretos
+    // 5. Calcular custo indireto por hora
+    const { custoPorHora: custoIndiretoPorHora, custosDetalhados } = await this.calcularCustoIndiretoPorHora(loja, lojaId);
+    
+    // Garantir que custosDetalhados seja sempre um array
+    const custosDetalhadosArray = custosDetalhados || [];
+
+    // 6. Calcular custos diretos
     const { custoMaterial, itensCalculados } = this.calcularCustosDirectos(dto.itens, insumos);
-    const custoMaoObra = this.calcularCustoMaoObra(dto.horas_producao, Number(loja.custo_maodeobra_hora));
-    const custoMaquinaria = this.calcularCustoMaquinaria(dto.horas_producao, Number(loja.custo_maquinaria_hora || 0));
 
-    // 6. Calcular custo indireto alocado
+    // 7. Calcular custo indireto alocado
     const custoIndiretolAlocado = this.calcularCustoIndiretolAlocado(dto.horas_producao, custoIndiretoPorHora);
 
-    // 7. Calcular custo total de produção
-    const custoTotalProducao = custoMaterial + custoMaoObra + custoMaquinaria + custoIndiretolAlocado;
+    // 8. Calcular custo total de produção
+    const custoTotalProducao = custoMaterial + maquinasCalculadas.custoTotal + funcoesCalculadas.custoTotal + custoIndiretolAlocado;
 
     // 8. Aplicar margem de lucro e impostos
     const margemLucro = dto.margem_lucro_customizada || Number(loja.margem_lucro_padrao || 0);
@@ -70,16 +74,37 @@ export class OrcamentosService {
     const impostosValor = subtotalComLucro * (impostos / 100);
     const precoFinal = subtotalComLucro + impostosValor;
 
-    // 9. Montar resultado
+    // 9. Calcular custos indiretos detalhados
+    const totalCustosIndiretosMensais = custosDetalhadosArray.reduce((total, custo) => {
+      return total + Number(custo.valor_mensal);
+    }, 0);
+
+    const custosIndiretosDetalhados = custosDetalhadosArray.map(custo => {
+      const valorRateado = (Number(custo.valor_mensal) / (loja.horas_produtivas_mensais || 352)) * dto.horas_producao;
+      const percentualRateio = (Number(custo.valor_mensal) / (totalCustosIndiretosMensais || 1)) * 100;
+      
+      return {
+        nome: custo.nome,
+        categoria: custo.categoria,
+        valor_rateado: valorRateado,
+        percentual_rateio: percentualRateio,
+      };
+    });
+
+    // 10. Montar resultado
     const resultado: ResultadoCalculoDto = {
       nome_servico: dto.nome_servico,
       descricao: dto.descricao,
       horas_producao: dto.horas_producao,
       itens: itensCalculados,
+      maquinas: maquinasCalculadas.maquinasCalculadas,
+      funcoes: funcoesCalculadas.funcoesCalculadas,
       custos: {
         custo_material: custoMaterial,
-        custo_mao_obra: custoMaoObra + custoMaquinaria,
+        custo_mao_obra: funcoesCalculadas.custoTotal,
+        custo_maquinaria: maquinasCalculadas.custoTotal,
         custo_indireto: custoIndiretolAlocado,
+        custos_indiretos_detalhados: custosIndiretosDetalhados,
         custo_total_producao: custoTotalProducao,
         margem_lucro_percentual: margemLucro,
         margem_lucro_valor: margemLucroValor,
@@ -89,7 +114,6 @@ export class OrcamentosService {
         preco_final: precoFinal,
       },
       parametros: {
-        custo_mao_obra_por_hora: Number(loja.custo_maodeobra_hora),
         custo_maquinaria_por_hora: Number(loja.custo_maquinaria_hora || 0),
         custos_indiretos_por_hora: custoIndiretoPorHora,
         margem_lucro_percentual: margemLucro,
@@ -98,22 +122,40 @@ export class OrcamentosService {
       },
     };
 
+    console.log('Resultado sendo retornado:', JSON.stringify(resultado, null, 2));
     return resultado;
   }
 
   /**
    * Calcula o custo indireto por hora conforme documento
-   * Passo 1: Somar todos os custos indiretos mensais
+   * Passo 1: Somar todos os custos indiretos mensais da tabela custos_indiretos
    * Passo 2: Calcular total de horas produtivas da empresa
    * Passo 3: Dividir custos indiretos pelas horas produtivas
    */
-  private async calcularCustoIndiretoPorHora(loja: any): Promise<number> {
-    const custosIndiretosMensais = Number(loja.custos_indiretos_mensais);
-    
+  private async calcularCustoIndiretoPorHora(loja: any, lojaId: string): Promise<{ custoPorHora: number, custosDetalhados: any[] }> {
+    // Buscar todos os custos indiretos ativos da loja
+    const custosIndiretos = await this.prisma.custoIndireto.findMany({
+      where: {
+        loja_id: lojaId,
+        ativo: true,
+      },
+    });
+
+    // Calcular total dos custos indiretos mensais
+    const totalCustosIndiretosMensais = custosIndiretos.reduce((total, custo) => {
+      return total + Number(custo.valor_mensal);
+    }, 0);
+
+    // Se não há custos indiretos configurados, retornar 0
+    if (totalCustosIndiretosMensais === 0) {
+      return { custoPorHora: 0, custosDetalhados: [] };
+    }
+
     // Usar horas produtivas configuradas na loja ou valor padrão
     const horasProdutivasMes = loja.horas_produtivas_mensais || 352;
-    
-    return custosIndiretosMensais / horasProdutivasMes;
+    const custoPorHora = totalCustosIndiretosMensais / horasProdutivasMes;
+
+    return { custoPorHora, custosDetalhados: custosIndiretos };
   }
 
   /**
@@ -127,7 +169,8 @@ export class OrcamentosService {
       const insumo = insumos.find(i => i.id === item.insumo_id);
       if (!insumo) continue;
 
-      const custoUnitario = Number(insumo.custo_unitario);
+      // Calcular custo por unidade de uso
+      const custoUnitario = this.calcularCustoPorUnidadeUso(insumo);
       const quantidade = Number(item.quantidade);
       const custoTotal = custoUnitario * quantidade;
 
@@ -139,11 +182,30 @@ export class OrcamentosService {
         quantidade,
         custo_unitario: custoUnitario,
         custo_total: custoTotal,
-        unidade_medida: insumo.unidade_medida,
+        unidade_medida: insumo.unidade_uso,
       });
     }
 
     return { custoMaterial, itensCalculados };
+  }
+
+  /**
+   * Calcula o custo por unidade de uso do insumo
+   */
+  private calcularCustoPorUnidadeUso(insumo: any): number {
+    if (!insumo || !insumo.custo_unitario || !insumo.quantidade_compra || !insumo.fator_conversao) {
+      return 0;
+    }
+    
+    const custo = Number(insumo.custo_unitario);
+    const quantidade = Number(insumo.quantidade_compra);
+    const fator = Number(insumo.fator_conversao);
+    
+    if (quantidade > 0 && fator > 0) {
+      return custo / (quantidade * fator);
+    }
+    
+    return 0;
   }
 
   /**
@@ -165,6 +227,93 @@ export class OrcamentosService {
    */
   private calcularCustoIndiretolAlocado(horasProducao: number, custoIndiretoPorHora: number): number {
     return horasProducao * custoIndiretoPorHora;
+  }
+
+  /**
+   * Calcula os custos de máquinas
+   */
+  private async calcularCustosMaquinas(maquinas: any[], lojaId: string): Promise<{ custoTotal: number, maquinasCalculadas: any[] }> {
+    if (!maquinas || maquinas.length === 0) {
+      return { custoTotal: 0, maquinasCalculadas: [] };
+    }
+
+    const maquinaIds = maquinas.map(m => m.maquina_id);
+    const maquinasData = await this.prisma.maquina.findMany({
+      where: {
+        id: { in: maquinaIds },
+        loja_id: lojaId,
+      },
+    });
+
+    let custoTotal = 0;
+    const maquinasCalculadas: any[] = [];
+
+    for (const maquina of maquinas) {
+      const maquinaData = maquinasData.find(m => m.id === maquina.maquina_id);
+      if (!maquinaData) continue;
+
+      const custoPorHora = Number(maquinaData.custo_hora);
+      const horasUtilizadas = Number(maquina.horas_utilizadas);
+      const custoTotalMaquina = custoPorHora * horasUtilizadas;
+
+      custoTotal += custoTotalMaquina;
+
+      maquinasCalculadas.push({
+        maquina_id: maquinaData.id,
+        nome_maquina: maquinaData.nome,
+        tipo_maquina: maquinaData.tipo,
+        horas_utilizadas: horasUtilizadas,
+        custo_por_hora: custoPorHora,
+        custo_total: custoTotalMaquina,
+      });
+    }
+
+    return { custoTotal, maquinasCalculadas };
+  }
+
+  /**
+   * Calcula os custos de funções (mão de obra)
+   */
+  private async calcularCustosFuncoes(funcoes: any[], lojaId: string): Promise<{ custoTotal: number, funcoesCalculadas: any[] }> {
+    if (!funcoes || funcoes.length === 0) {
+      return { custoTotal: 0, funcoesCalculadas: [] };
+    }
+
+    const funcaoIds = funcoes.map(f => f.funcao_id);
+    const funcoesData = await this.prisma.funcao.findMany({
+      where: {
+        id: { in: funcaoIds },
+        loja_id: lojaId,
+      },
+      include: {
+        maquina: true,
+      },
+    });
+
+    let custoTotal = 0;
+    const funcoesCalculadas: any[] = [];
+
+    for (const funcao of funcoes) {
+      const funcaoData = funcoesData.find(f => f.id === funcao.funcao_id);
+      if (!funcaoData) continue;
+
+      const custoPorHora = Number(funcaoData.custo_hora);
+      const horasTrabalhadas = Number(funcao.horas_trabalhadas);
+      const custoTotalFuncao = custoPorHora * horasTrabalhadas;
+
+      custoTotal += custoTotalFuncao;
+
+      funcoesCalculadas.push({
+        funcao_id: funcaoData.id,
+        nome_funcao: funcaoData.nome,
+        horas_trabalhadas: horasTrabalhadas,
+        custo_por_hora: custoPorHora,
+        custo_total: custoTotalFuncao,
+        maquina_vinculada: funcaoData.maquina?.nome,
+      });
+    }
+
+    return { custoTotal, funcoesCalculadas };
   }
 
   /**

@@ -1,11 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
 import { MaquinasService } from './maquinas.service';
 import { CreateMaquinaDto } from './dto/create-maquina.dto';
 import { UpdateMaquinaDto } from './dto/update-maquina.dto';
 import { GetLoja } from '../auth/decorators';
 import { Loja } from '@prisma/client';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('maquinas')
+@UseGuards(JwtAuthGuard)
 export class MaquinasController {
   constructor(private readonly maquinasService: MaquinasService) {}
 

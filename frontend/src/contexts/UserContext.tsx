@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { authAPI } from '@/lib/api';
 
 // Adicionando um tipo básico para Loja para evitar erros
 // O ideal seria compartilhar tipos com o backend
@@ -10,11 +11,11 @@ interface Loja {
   nome: string;
   logo_url?: string | null;
   cabecalho_orcamento?: string | null;
-  custo_maodeobra_hora?: string | null; // Prisma Decimal é string no JSON
   custo_maquinaria_hora?: string | null;
   custos_indiretos_mensais?: string | null;
   margem_lucro_padrao?: string | null;
   impostos_padrao?: string | null;
+  horas_produtivas_mensais?: number | null;
 }
 
 interface User {
@@ -51,21 +52,11 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  const fetchUserData = useCallback(async (token: string) => {
+  const fetchUserData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/lojas/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      } else {
-        setUser(null);
-        localStorage.removeItem('access_token');
-      }
+      const userData = await authAPI.getCurrentUser();
+      setUser(userData);
     } catch (error) {
       console.error('Fetch user data failed', error);
       setUser(null);
@@ -77,13 +68,13 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const refetchUser = useCallback(async () => {
     const token = localStorage.getItem('access_token');
     if (token) {
-      await fetchUserData(token);
+      await fetchUserData();
     }
   }, [fetchUserData]);
 
   const login = useCallback(async (token: string) => {
     localStorage.setItem('access_token', token);
-    await fetchUserData(token);
+    await fetchUserData();
     router.push('/dashboard');
   }, [fetchUserData, router]);
 
@@ -96,7 +87,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     if (token) {
-      fetchUserData(token);
+      fetchUserData();
     } else {
       setLoading(false);
     }

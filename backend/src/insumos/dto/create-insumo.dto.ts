@@ -5,6 +5,8 @@ import {
   IsOptional,
   IsInt,
   Min,
+  IsBoolean,
+  IsPositive,
 } from 'class-validator';
 
 export class CreateInsumoDto {
@@ -22,11 +24,48 @@ export class CreateInsumoDto {
 
   @IsString()
   @IsNotEmpty()
-  unidade_medida: string;
+  unidade_compra: string;
 
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
+  @IsPositive()
   custo_unitario: number;
+
+  // Novos campos conforme documentação
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @IsPositive()
+  quantidade_compra: number;
+
+  @IsString()
+  @IsNotEmpty()
+  unidade_uso: string;
+
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsPositive()
+  fator_conversao: number;
+
+  // Campos de dimensões (opcional)
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  largura?: number;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  altura?: number;
+
+  @IsOptional()
+  @IsString()
+  unidade_dimensao?: string;
+
+  @IsOptional()
+  @IsString()
+  tipo_calculo?: string;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 1 })
+  @IsPositive()
+  gramatura?: number;
 
   @IsOptional()
   @IsString()
@@ -44,4 +83,8 @@ export class CreateInsumoDto {
   @IsOptional()
   @IsString()
   observacoes?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  ativo?: boolean;
 } 

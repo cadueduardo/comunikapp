@@ -26,9 +26,6 @@ import { formatCurrency, parseCurrency } from '@/lib/utils';
 const formSchema = z.object({
   logo_url: z.string().optional(),
   cabecalho_orcamento: z.string().optional(),
-  custo_maodeobra_hora: z.string().optional(),
-  custo_maquinaria_hora: z.string().optional(),
-  custos_indiretos_mensais: z.string().optional(),
   margem_lucro_padrao: z.string().optional(),
   impostos_padrao: z.string().optional(),
   horas_produtivas_mensais: z.string().optional(),
@@ -46,9 +43,6 @@ export default function ConfiguracoesLojaPage() {
     defaultValues: {
       logo_url: '',
       cabecalho_orcamento: '',
-      custo_maodeobra_hora: '',
-      custo_maquinaria_hora: '',
-      custos_indiretos_mensais: '',
       margem_lucro_padrao: '',
       impostos_padrao: '',
       horas_produtivas_mensais: '',
@@ -61,9 +55,6 @@ export default function ConfiguracoesLojaPage() {
       const initialValues = {
         logo_url: loja.logo_url ?? '',
         cabecalho_orcamento: loja.cabecalho_orcamento ?? '',
-        custo_maodeobra_hora: formatCurrency(loja.custo_maodeobra_hora, true, true),
-        custo_maquinaria_hora: formatCurrency(loja.custo_maquinaria_hora, true, true),
-        custos_indiretos_mensais: formatCurrency(loja.custos_indiretos_mensais, true, true),
         margem_lucro_padrao: formatCurrency(loja.margem_lucro_padrao, false, true),
         impostos_padrao: formatCurrency(loja.impostos_padrao, false, true),
         horas_produtivas_mensais: String(loja.horas_produtivas_mensais ?? 352),
@@ -104,15 +95,15 @@ export default function ConfiguracoesLojaPage() {
       }
 
       // Etapa 2: Prepare e salve todas as outras configurações.
-      const payload: Partial<FormValues> = {
-        cabecalho_orcamento: values.cabecalho_orcamento,
-        custo_maodeobra_hora: String(parseCurrency(values.custo_maodeobra_hora)),
-        custo_maquinaria_hora: String(parseCurrency(values.custo_maquinaria_hora)),
-        custos_indiretos_mensais: String(parseCurrency(values.custos_indiretos_mensais)),
-        margem_lucro_padrao: String(parseCurrency(values.margem_lucro_padrao)),
-        impostos_padrao: String(parseCurrency(values.impostos_padrao)),
-        horas_produtivas_mensais: String(parseInt(values.horas_produtivas_mensais || '352')),
-      };
+      const payload: Partial<FormValues> = {};
+      
+      // Adicionar apenas campos que não estão vazios
+      if (values.cabecalho_orcamento) payload.cabecalho_orcamento = values.cabecalho_orcamento;
+      if (values.margem_lucro_padrao) payload.margem_lucro_padrao = String(parseCurrency(values.margem_lucro_padrao));
+      if (values.impostos_padrao) payload.impostos_padrao = String(parseCurrency(values.impostos_padrao));
+      if (values.horas_produtivas_mensais) payload.horas_produtivas_mensais = String(parseInt(values.horas_produtivas_mensais));
+      
+
       
       // Se tivermos uma nova URL do logo, adicione-a ao payload.
       if (newLogoUrl) {
@@ -210,19 +201,19 @@ export default function ConfiguracoesLojaPage() {
           <Separator />
 
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Custos Operacionais</h2>
+            <h2 className="text-xl font-semibold">Parâmetros de Negócio</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FormField
                 control={form.control}
-                name="custo_maodeobra_hora"
+                name="margem_lucro_padrao"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Custo Mão de Obra (por hora)</FormLabel>
+                    <FormLabel>Margem de Lucro Padrão (%)</FormLabel>
                     <FormControl>
                       <Input 
-                        placeholder="R$ 50,00" 
-                        {...field}
-                        onChange={(e) => field.onChange(formatCurrency(e.target.value))}
+                        placeholder="100,00 %" 
+                        {...field} 
+                        onChange={(e) => field.onChange(formatCurrency(e.target.value, false))}
                       />
                     </FormControl>
                     <FormMessage />
@@ -231,40 +222,21 @@ export default function ConfiguracoesLojaPage() {
               />
               <FormField
                 control={form.control}
-                name="custo_maquinaria_hora"
+                name="impostos_padrao"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Custo Maquinário (por hora)</FormLabel>
+                    <FormLabel>Impostos Padrão (%)</FormLabel>
                     <FormControl>
-                       <Input 
-                        placeholder="R$ 120,00" 
-                        {...field}
-                        onChange={(e) => field.onChange(formatCurrency(e.target.value))}
+                      <Input 
+                        placeholder="10,00 %" 
+                        {...field} 
+                        onChange={(e) => field.onChange(formatCurrency(e.target.value, false))}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="custos_indiretos_mensais"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Custos Indiretos (mensal)</FormLabel>
-                    <FormControl>
-                       <Input 
-                        placeholder="R$ 5.000,00" 
-                        {...field}
-                        onChange={(e) => field.onChange(formatCurrency(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
               <FormField
                 control={form.control}
                 name="horas_produtivas_mensais"
@@ -285,48 +257,6 @@ export default function ConfiguracoesLojaPage() {
                   </FormItem>
                 )}
               />
-            </div>
-          </div>
-          
-          <Separator />
-          
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Parâmetros de Negócio</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="margem_lucro_padrao"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Margem de Lucro Padrão (%)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="100,00 %" 
-                      {...field} 
-                      onChange={(e) => field.onChange(formatCurrency(e.target.value, false))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="impostos_padrao"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Impostos Padrão (%)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="10,00 %" 
-                      {...field} 
-                      onChange={(e) => field.onChange(formatCurrency(e.target.value, false))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
             </div>
           </div>
 

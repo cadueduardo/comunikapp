@@ -1,11 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { FornecedoresService } from './fornecedores.service';
 import { CreateFornecedoreDto } from './dto/create-fornecedore.dto';
 import { UpdateFornecedoreDto } from './dto/update-fornecedore.dto';
 import { GetLoja } from '../auth/decorators';
 import { Loja } from '@prisma/client';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('fornecedores')
+@UseGuards(JwtAuthGuard)
 export class FornecedoresController {
   constructor(private readonly fornecedoresService: FornecedoresService) {}
 

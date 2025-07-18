@@ -81,16 +81,36 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
   // Prepara os dados para o formulário, garantindo que nenhum valor seja null/undefined
   const formInitialData = insumo ? {
       nome: insumo.nome,
-      unidade_medida: insumo.unidade_medida,
-      custo_unitario: insumo.custo_unitario, // Passa o número, o form trata
+      custo_unitario: insumo.custo_unitario,
       categoriaId: insumo.categoria.id,
       fornecedorId: insumo.fornecedor.id,
-      // Coerce null/undefined para string vazia
+      
+      // Campos de compra
+      unidade_compra: insumo.unidade_compra,
+      quantidade_compra: insumo.quantidade_compra?.toString() ?? '',
+      
+      // Campos de dimensões
+      largura: insumo.largura?.toString() ?? '',
+      altura: insumo.altura?.toString() ?? '',
+      unidade_dimensao: insumo.unidade_dimensao ?? '',
+      tipo_calculo: insumo.tipo_calculo ?? '',
+      gramatura: insumo.gramatura?.toString() ?? '',
+      
+      // Campos de uso
+      unidade_uso: insumo.unidade_uso,
+      fator_conversao: insumo.fator_conversao?.toString() ?? '',
+      
+      // Outros campos
       estoque_minimo: insumo.estoque_minimo?.toString() ?? '',
       codigo_interno: insumo.codigo_interno ?? '',
       descricao_tecnica: insumo.descricao_tecnica ?? '',
       observacoes: insumo.observacoes ?? '',
+      ativo: Boolean(insumo.ativo),
   } : undefined;
+
+  // Debug: log dos dados
+  console.log('Insumo do backend:', insumo);
+  console.log('Form initial data:', formInitialData);
 
   if (loading) {
     return <div className="p-6">Carregando dados do insumo...</div>;

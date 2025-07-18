@@ -169,11 +169,25 @@ model Insumo {
   loja_id             String
   nome                String
   descricao_tecnica   String?
-  unidade_medida      String
+  unidade_compra      String      // Unidade de compra (ex: BOBINA, M, KG)
   custo_unitario      Decimal     @db.Decimal(10, 2)
   estoque_minimo      Int?
   codigo_interno      String?
   observacoes         String?
+  
+  // Novos campos conforme documentação
+  quantidade_compra   Decimal     @db.Decimal(10, 3) // Quantidade da unidade de compra
+  unidade_uso         String      // Unidade de uso no produto
+  fator_conversao     Decimal     @db.Decimal(10, 4) // Fator de conversão
+  ativo               Boolean     @default(true) // Status ativo/inativo
+  
+  // Campos de dimensões (opcional)
+  largura             Decimal?    @db.Decimal(10, 2) // Largura em metros
+  altura              Decimal?    @db.Decimal(10, 2) // Altura/comprimento em metros
+  unidade_dimensao    String?     // Unidade das dimensões (M, CM, MM)
+  tipo_calculo        String?     // Tipo de cálculo (AREA, LINEAR, QUANTIDADE)
+  gramatura           Decimal?    @db.Decimal(10, 1) // Gramatura em g/m²
+  
   // Relacionamentos
   loja                Loja        @relation(fields: [loja_id], references: [id], onDelete: Cascade)
   categoriaId         String
@@ -181,7 +195,9 @@ model Insumo {
   fornecedorId        String
   fornecedor          Fornecedor  @relation(fields: [fornecedorId], references: [id])
   itens               ItemOrcamento[]
+  historico_precos    HistoricoPrecoInsumo[]
 
+  @@unique([loja_id, nome, fornecedorId]) // Unicidade por fornecedor
   @@map("insumos")
 }
 
@@ -388,4 +404,19 @@ model HistoricoCustoFuncao {
   funcao      Funcao   @relation(fields: [funcao_id], references: [id], onDelete: Cascade)
 
   @@map("historico_custo_funcoes")
+}
+
+model HistoricoPrecoInsumo {
+  id              String   @id @default(cuid())
+  insumo_id       String
+  custo_anterior  Decimal  @db.Decimal(10, 2)
+  custo_novo      Decimal  @db.Decimal(10, 2)
+  data_alteracao  DateTime @default(now())
+  motivo          String?  @db.Text
+  alterado_por    String?  // ID do usuário que alterou
+  
+  // Relacionamentos
+  insumo          Insumo   @relation(fields: [insumo_id], references: [id], onDelete: Cascade)
+  
+  @@map("historico_preco_insumos")
 }
