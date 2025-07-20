@@ -34,6 +34,7 @@ const formSchema = z.object({
   // Itens de produto
   itens_produto: z.array(z.object({
     nome_servico: z.string().min(1, 'Nome do produto é obrigatório'),
+    quantidade_produto: z.string().optional(),
     descricao: z.string().optional(),
     // Medidas do produto
     largura_produto: z.string().optional(),
@@ -251,6 +252,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
       condicoes_comerciais: '',
       itens_produto: [{ 
         nome_servico: '', 
+        quantidade_produto: '1',
         descricao: '',
         largura_produto: '',
         altura_produto: '',
@@ -286,6 +288,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
     if (!hasEmpty) {
       appendItem({ 
         nome_servico: '', 
+        quantidade_produto: '1',
         descricao: '',
         largura_produto: '',
         altura_produto: '',
@@ -460,6 +463,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
         nome_servico: primeiroItem.nome_servico,
         descricao: primeiroItem.descricao,
         horas_producao: horasProducao,
+        quantidade_produto: Number(primeiroItem.quantidade_produto) || 1,
         itens: itens,
         maquinas: primeiroItem.maquinas.map(maquina => ({
           maquina_id: maquina.maquina_id,
@@ -513,7 +517,41 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
         ? 'http://localhost:3001/orcamentos'
         : `http://localhost:3001/orcamentos/${orcamentoId}`;
       
-      const method = mode === 'novo' ? 'POST' : 'PUT';
+      const method = mode === 'novo' ? 'POST' : 'PATCH';
+
+      // Transformar dados para o formato esperado pelo backend
+      const primeiroItem = values.itens_produto[0];
+      if (!primeiroItem) {
+        toast.error('Adicione pelo menos um produto');
+        return;
+      }
+
+      const dadosParaEnviar = {
+        nome_servico: primeiroItem.nome_servico,
+        descricao: primeiroItem.descricao,
+        horas_producao: 1, // Será calculado pelo backend
+        quantidade_produto: Number(primeiroItem.quantidade_produto) || 1,
+        largura_produto: primeiroItem.largura_produto ? Number(String(primeiroItem.largura_produto).replace(',', '.')) : undefined,
+        altura_produto: primeiroItem.altura_produto ? Number(String(primeiroItem.altura_produto).replace(',', '.')) : undefined,
+        area_produto: primeiroItem.area_produto ? Number(String(primeiroItem.area_produto).replace(',', '.')) : undefined,
+        unidade_medida_produto: primeiroItem.unidade_medida_produto,
+        itens: primeiroItem.materiais.map(material => ({
+          insumo_id: material.insumo_id,
+          quantidade: Number(String(material.quantidade).replace(',', '.'))
+        })),
+        maquinas: primeiroItem.maquinas.map(maquina => ({
+          maquina_id: maquina.maquina_id,
+          horas_utilizadas: Number(maquina.horas_utilizadas)
+        })),
+        funcoes: primeiroItem.funcoes.map(funcao => ({
+          funcao_id: funcao.funcao_id,
+          horas_trabalhadas: Number(funcao.horas_trabalhadas)
+        })),
+        cliente_id: values.cliente_id,
+        condicoes_comerciais: values.condicoes_comerciais,
+        margem_lucro_customizada: values.margem_lucro_customizada ? Number(values.margem_lucro_customizada) : undefined,
+        impostos_customizados: values.impostos_customizados ? Number(values.impostos_customizados) : undefined,
+      };
 
       const response = await fetch(url, {
         method,
@@ -521,7 +559,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify(dadosParaEnviar),
       });
 
       if (response.ok) {
@@ -561,7 +599,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-screen">
         {/* Formulário */}
         <div className="lg:col-span-2">
           <Form {...form}>
@@ -636,7 +674,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
                           <div className="space-y-4 pt-4">
                             
                             {/* Informações básicas do produto */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                               <FormField
                                 control={form.control}
                                 name={`itens_produto.${itemIndex}.nome_servico`}
@@ -645,6 +683,26 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
                                     <FormLabel>Nome do Produto</FormLabel>
                                     <FormControl>
                                       <Input placeholder="Ex: Banner 60x100cm" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              
+                              <FormField
+                                control={form.control}
+                                name={`itens_produto.${itemIndex}.quantidade_produto`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Quantidade</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        type="number" 
+                                        step="1"
+                                        min="1"
+                                        placeholder="1"
+                                        {...field}
+                                      />
                                     </FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -1212,36 +1270,42 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
 
         {/* Sidebar com Preview do Cálculo */}
         <div className="lg:col-span-1">
-          <div className="sticky top-6">
-            <Card>
+          <div className="sticky top-6 h-[calc(100vh-3rem)] flex flex-col">
+            <Card className="flex-1 flex flex-col h-full">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calculator className="w-5 h-5" />
                   Preview do Cálculo
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-1 overflow-y-auto">
                 {calculoResultado ? (
                   <div className="space-y-4">
                     {/* Resumo */}
                     <div className="p-4 bg-muted rounded-lg">
                       <h4 className="font-semibold mb-2">Resumo</h4>
                       <div className="space-y-1 text-sm">
+                        <div className="flex justify-between items-center">
+                          <span className="text-lg font-semibold">Valor Total:</span>
+                          <span className="text-xl font-bold text-green-600">{formatCurrency(calculoResultado.custos.preco_final)}</span>
+                        </div>
                         <div className="flex justify-between">
                           <span>Horas Totais:</span>
                           <span>{calculoResultado.horas_producao?.toFixed(2) || '0.00'}h</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Preço Final:</span>
-                          <span className="font-semibold">{formatCurrency(calculoResultado.custos.preco_final)}</span>
+                          <span>Preço Final (por unidade):</span>
+                          <span className="font-semibold">{formatCurrency(calculoResultado.custos.preco_final / (Number(form.watch('itens_produto.0.quantidade_produto')) || 1))}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span>Margem de Lucro:</span>
-                          <span>{calculoResultado.custos.margem_lucro_percentual?.toFixed(1) || '0.0'}%</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Impostos:</span>
-                          <span>{calculoResultado.custos.impostos_percentual?.toFixed(1) || '0.0'}%</span>
+                        <div className="border-t pt-2 mt-2">
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>Margem de Lucro:</span>
+                            <span>{calculoResultado.custos.margem_lucro_percentual?.toFixed(1) || '0.0'}%</span>
+                          </div>
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>Impostos:</span>
+                            <span>{calculoResultado.custos.impostos_percentual?.toFixed(1) || '0.0'}%</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1271,6 +1335,32 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
                         <div className="flex justify-between font-semibold">
                           <span>Custo Total:</span>
                           <span>{formatCurrency(calculoResultado.custos.custo_total_producao)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Informações de Quantidade */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold">Informações do Produto</h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Quantidade:</span>
+                          <span>{form.watch('itens_produto.0.quantidade_produto') || 1}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Valor Unitário (Custo):</span>
+                          <span>{formatCurrency(calculoResultado.custos.custo_total_producao / (Number(form.watch('itens_produto.0.quantidade_produto')) || 1))}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Preço Unitário (com margem/impostos):</span>
+                          <span>{formatCurrency(calculoResultado.custos.preco_final / (Number(form.watch('itens_produto.0.quantidade_produto')) || 1))}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Valor Total:</span>
+                          <span className="font-semibold">{formatCurrency(calculoResultado.custos.preco_final)}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Debug: Preço Final = {calculoResultado.custos.preco_final}, Qtd = {form.watch('itens_produto.0.quantidade_produto')}
                         </div>
                       </div>
                     </div>
@@ -1342,20 +1432,20 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
                     <p>Clique em "Calcular" para ver o resultado</p>
                   </div>
                 )}
-                
-                {/* Botão Calcular */}
-                <div className="mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => form.handleSubmit(calcularOrcamento)()}
-                    disabled={calculando}
-                    className="w-full"
-                  >
-                    <Calculator className="w-4 h-4 mr-2" />
-                    {calculando ? 'Calculando...' : 'Calcular'}
-                  </Button>
-                </div>
               </CardContent>
+              
+              {/* Footer fixo com botão calcular */}
+              <div className="p-4 border-t bg-background">
+                <Button
+                  variant="outline"
+                  onClick={() => form.handleSubmit(calcularOrcamento)()}
+                  disabled={calculando}
+                  className="w-full"
+                >
+                  <Calculator className="w-4 h-4 mr-2" />
+                  {calculando ? 'Calculando...' : 'Calcular'}
+                </Button>
+              </div>
             </Card>
           </div>
         </div>

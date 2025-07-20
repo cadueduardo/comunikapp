@@ -182,14 +182,9 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
     },
   });
 
-  // Debug: log dos dados iniciais
-  console.log('InsumoForm initialData:', initialData);
-  console.log('Form values:', form.getValues());
-
   // Aplicar dados iniciais quando disponíveis
   useEffect(() => {
     if (initialData) {
-      console.log('Aplicando dados iniciais:', initialData);
       Object.entries(initialData).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
           form.setValue(key as keyof InsumoFormValues, value);
@@ -220,11 +215,13 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
       const fator = Number(fatorConversao);
       
       if (!isNaN(custo) && !isNaN(quantidade) && !isNaN(fator) && quantidade > 0 && fator > 0) {
+        // Cálculo: Custo Total ÷ (Quantidade em m² × Fator de Conversão)
+        // Exemplo: R$ 690 ÷ (50 m² × 1) = R$ 13,80/m²
         return custo / (quantidade * fator);
       }
     }
     return null;
-  }, [custoUnitario, quantidadeCompra, fatorConversao]);
+  }, [custoUnitario, quantidadeCompra, fatorConversao, unidadeUso, largura, altura, unidadeDimensao, tipoCalculo]);
   
   useEffect(() => {
     if (largura && altura && unidadeDimensao && tipoCalculo) {
@@ -234,21 +231,44 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
       if (!isNaN(larguraNum) && !isNaN(alturaNum)) {
         let quantidadeTotal = 0;
         
-        switch (tipoCalculo) {
-          case 'AREA':
-            quantidadeTotal = larguraNum * alturaNum;
+        // Converter dimensões para metros se necessário
+        let larguraEmMetros = larguraNum;
+        let alturaEmMetros = alturaNum;
+        
+        switch (unidadeDimensao) {
+          case 'CENTÍMETROS':
+            larguraEmMetros = larguraNum / 100;
+            alturaEmMetros = alturaNum / 100;
             break;
-          case 'LINEAR':
-            quantidadeTotal = larguraNum; // Usa apenas a largura como comprimento
+          case 'MILÍMETROS':
+            larguraEmMetros = larguraNum / 1000;
+            alturaEmMetros = alturaNum / 1000;
             break;
-          case 'QUANTIDADE':
-            quantidadeTotal = larguraNum * alturaNum; // Para itens em grade
+          case 'METROS':
+            // Já está em metros
             break;
-          default:
-            quantidadeTotal = larguraNum * alturaNum;
         }
         
-        form.setValue('quantidade_compra', quantidadeTotal.toFixed(3));
+        switch (tipoCalculo) {
+          case 'AREA':
+            quantidadeTotal = larguraEmMetros * alturaEmMetros;
+            break;
+          case 'LINEAR':
+            quantidadeTotal = larguraEmMetros; // Usa apenas a largura como comprimento
+            break;
+          case 'QUANTIDADE':
+            quantidadeTotal = larguraEmMetros * alturaEmMetros; // Para itens em grade
+            break;
+          default:
+            quantidadeTotal = larguraEmMetros * alturaEmMetros;
+        }
+        
+        // Formatar quantidade removendo zeros desnecessários
+        const quantidadeFormatada = quantidadeTotal % 1 === 0 
+          ? quantidadeTotal.toString() 
+          : quantidadeTotal.toFixed(3).replace(/\.?0+$/, '');
+        
+        form.setValue('quantidade_compra', quantidadeFormatada);
       }
     }
   }, [largura, altura, unidadeDimensao, tipoCalculo, form]);

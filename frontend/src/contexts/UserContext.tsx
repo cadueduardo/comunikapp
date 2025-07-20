@@ -61,8 +61,15 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       console.error('Fetch user data failed', error);
       setUser(null);
       localStorage.removeItem('access_token');
+      
+      // Se for um erro de rede, não redirecionar automaticamente
+      // Deixar que o layout decida o que fazer
+      if (error instanceof Error && error.message.includes('Não foi possível conectar ao servidor')) {
+        console.warn('Servidor não está disponível');
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   const refetchUser = useCallback(async () => {
@@ -90,6 +97,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       fetchUserData();
     } else {
       setLoading(false);
+      setUser(null);
     }
   }, [fetchUserData]);
 

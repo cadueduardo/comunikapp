@@ -11,6 +11,7 @@ interface OrcamentoData {
   condicoes_comerciais?: string;
   itens_produto: Array<{
     nome_servico: string;
+    quantidade_produto?: string;
     descricao?: string;
     largura_produto?: string;
     altura_produto?: string;
@@ -40,15 +41,51 @@ export default function EditarOrcamentoPage() {
     const fetchOrcamento = async () => {
       try {
         const token = localStorage.getItem('access_token');
-        if (!token) return;
+        console.log('Token encontrado:', !!token);
+        console.log('Token (primeiros 20 chars):', token ? token.substring(0, 20) + '...' : 'null');
+        console.log('ID do orçamento:', params.id);
+        
+        if (!token) {
+          console.error('Token não encontrado');
+          return;
+        }
+
+        // Primeiro, vamos testar o token
+        const tokenTestResponse = await fetch(`http://localhost:3001/orcamentos/debug/token`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log('Token test status:', tokenTestResponse.status);
+        
+        if (tokenTestResponse.ok) {
+          const tokenData = await tokenTestResponse.json();
+          console.log('Token debug data:', tokenData);
+        } else {
+          console.error('Token inválido:', tokenTestResponse.status);
+        }
 
         const response = await fetch(`http://localhost:3001/orcamentos/${params.id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
+        console.log('Status da resposta:', response.status);
+        console.log('URL da requisição:', `http://localhost:3001/orcamentos/${params.id}`);
+
         if (response.ok) {
           const data = await response.json();
+          console.log('Dados recebidos:', data);
           setOrcamentoData(data);
+        } else {
+          console.error('Erro na resposta:', response.status, response.statusText);
+          
+          // Se der 404, vamos listar todos os orçamentos para debug
+          const listResponse = await fetch(`http://localhost:3001/orcamentos`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          
+          if (listResponse.ok) {
+            const orcamentos = await listResponse.json();
+            console.log('Orçamentos disponíveis:', orcamentos.map((o: any) => ({ id: o.id, numero: o.numero, nome_servico: o.nome_servico })));
+          }
         }
       } catch (error) {
         console.error('Erro ao buscar orçamento:', error);

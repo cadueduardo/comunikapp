@@ -88,7 +88,13 @@ export const createColumns = (onDelete: (id: string, nome: string) => void): Col
       const altura = insumo.altura;
       const gramatura = insumo.gramatura;
       
-      let display = `${Number(quantidade).toFixed(3)} ${insumo.unidade_compra}`;
+      // Formatar quantidade removendo zeros desnecessários
+      const quantidadeNum = Number(quantidade);
+      const quantidadeFormatada = quantidadeNum % 1 === 0 
+        ? quantidadeNum.toString() 
+        : quantidadeNum.toFixed(3).replace(/\.?0+$/, '');
+      
+      let display = `${quantidadeFormatada} ${insumo.unidade_compra}`;
       
       // Adicionar dimensões se disponíveis
       if (largura && altura) {

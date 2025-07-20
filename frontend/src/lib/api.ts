@@ -15,29 +15,54 @@ export const apiRequest = async (
 ): Promise<Response> => {
   const token = getAuthToken();
   
-  const headers: HeadersInit = {
+  console.log('API Request:', {
+    endpoint: `${API_BASE_URL}${endpoint}`,
+    hasToken: !!token,
+    method: options.method || 'GET'
+  });
+  
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   };
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  try {
+    console.log('Fazendo requisição para:', `${API_BASE_URL}${endpoint}`);
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
 
-  // Se receber 401, limpar o token e redirecionar para login
-  if (response.status === 401) {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('access_token');
-      window.location.href = '/login';
+    console.log('Resposta recebida:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    });
+
+    // Se receber 401, limpar o token e redirecionar para login
+    if (response.status === 401) {
+      console.log('Token inválido, redirecionando para login');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('access_token');
+        window.location.href = '/login';
+      }
     }
-  }
 
-  return response;
+    return response;
+  } catch (error) {
+    console.error('Erro na requisição API:', error);
+    
+    // Verificar se é um erro de rede
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      throw new Error('Não foi possível conectar ao servidor. Verifique se o backend está rodando em http://localhost:3001');
+    }
+    
+    throw error;
+  }
 };
 
 // Funções específicas para diferentes endpoints

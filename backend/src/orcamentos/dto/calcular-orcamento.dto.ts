@@ -48,6 +48,12 @@ export class CalcularOrcamentoDto {
   @Type(() => Number)
   horas_producao: number;
 
+  @IsNumber()
+  @IsPositive()
+  @IsOptional()
+  @Type(() => Number)
+  quantidade_produto?: number;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ItemCalculoDto)

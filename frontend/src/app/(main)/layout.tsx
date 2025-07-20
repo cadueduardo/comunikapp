@@ -93,7 +93,6 @@ export default function DashboardLayout({
 }) {
   const { user, getFirstName, logout, loading } = useUser();
   const router = useRouter();
-  // const [open, setOpen] = useState(false); // REMOVIDO
 
   useEffect(() => {
     // Se o carregamento terminou e não há usuário, redireciona para o login.
@@ -108,7 +107,14 @@ export default function DashboardLayout({
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-neutral-800">
-        <div className="text-lg font-medium text-gray-700 dark:text-gray-200">Carregando...</div>
+        <div className="text-center">
+          <div className="text-lg font-medium text-gray-700 dark:text-gray-200 mb-2">
+            Carregando...
+          </div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            Conectando ao servidor...
+          </div>
+        </div>
       </div>
     );
   }
@@ -116,7 +122,18 @@ export default function DashboardLayout({
   // Se, após o carregamento, ainda não houver usuário, não renderiza nada
   // pois o useEffect acima já terá iniciado o redirecionamento.
   if (!user) {
-    return null;
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-neutral-800">
+        <div className="text-center">
+          <div className="text-lg font-medium text-gray-700 dark:text-gray-200 mb-2">
+            Redirecionando para login...
+          </div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            Você não está autenticado
+          </div>
+        </div>
+      </div>
+    );
   }
   
   const links = [

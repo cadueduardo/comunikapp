@@ -108,10 +108,6 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
       ativo: Boolean(insumo.ativo),
   } : undefined;
 
-  // Debug: log dos dados
-  console.log('Insumo do backend:', insumo);
-  console.log('Form initial data:', formInitialData);
-
   if (loading) {
     return <div className="p-6">Carregando dados do insumo...</div>;
   }

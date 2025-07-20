@@ -306,6 +306,13 @@ model Orcamento {
   descricao       String?   @db.Text
   horas_producao  Decimal   @db.Decimal(10, 2)
   
+  // Dimensões do produto
+  largura_produto     Decimal?  @db.Decimal(10, 2)
+  altura_produto      Decimal?  @db.Decimal(10, 2)
+  area_produto        Decimal?  @db.Decimal(10, 2)
+  unidade_medida_produto String?
+  quantidade_produto  Decimal?  @db.Decimal(10, 2)
+  
   // Custos calculados
   custo_material      Decimal @db.Decimal(10, 2)
   custo_mao_obra      Decimal @db.Decimal(10, 2)

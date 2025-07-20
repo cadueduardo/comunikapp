@@ -51,7 +51,46 @@ export class OrcamentosController {
 
   @Get()
   async findAll(@CurrentLojaId() lojaId: string) {
-    return this.orcamentosService.findAll(lojaId);
+    console.log('Listando orçamentos para loja:', lojaId);
+    const orcamentos = await this.orcamentosService.findAll(lojaId);
+    console.log('Orçamentos encontrados:', orcamentos.length);
+    return orcamentos;
+  }
+
+  @Get('debug/token')
+  async debugToken(@CurrentLojaId() lojaId: string) {
+    console.log('Debug token - Loja ID:', lojaId);
+    return {
+      loja_id: lojaId,
+      token_valido: !!lojaId,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  @Get('test/:id')
+  async testFindOne(
+    @Param('id') id: string,
+    @CurrentLojaId() lojaId: string
+  ) {
+    console.log('Test endpoint - Buscando orçamento:', { id, lojaId });
+    console.log('Test endpoint - Token válido:', !!lojaId);
+    
+    // Usar o service para buscar
+    try {
+      const orcamento = await this.orcamentosService.findOne(id, lojaId);
+      return {
+        orcamento_encontrado: true,
+        loja_usuario: lojaId,
+        orcamento: orcamento
+      };
+    } catch (error) {
+      console.log('Test endpoint - Erro ao buscar:', error.message);
+      return {
+        orcamento_encontrado: false,
+        loja_usuario: lojaId,
+        erro: error.message
+      };
+    }
   }
 
   @Get(':id')
@@ -59,6 +98,8 @@ export class OrcamentosController {
     @Param('id') id: string,
     @CurrentLojaId() lojaId: string
   ) {
+    console.log('Controller - Buscando orçamento:', { id, lojaId });
+    console.log('Controller - Token válido:', !!lojaId);
     return this.orcamentosService.findOne(id, lojaId);
   }
 
@@ -68,6 +109,8 @@ export class OrcamentosController {
     @Body() updateOrcamentoDto: UpdateOrcamentoDto,
     @CurrentLojaId() lojaId: string
   ) {
+    console.log('Controller - Update recebido:', { id, lojaId });
+    console.log('Controller - Dados do update:', updateOrcamentoDto);
     return this.orcamentosService.update(id, updateOrcamentoDto, lojaId);
   }
 
