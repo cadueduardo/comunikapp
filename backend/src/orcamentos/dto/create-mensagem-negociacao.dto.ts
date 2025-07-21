@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsBoolean, IsArray } from 'class-validator';
 
 export enum TipoMensagem {
   CLIENTE = 'CLIENTE',
@@ -12,6 +12,22 @@ export class CreateMensagemNegociacaoDto {
 
   @IsEnum(TipoMensagem)
   tipo: TipoMensagem;
+
+  @IsOptional()
+  @IsString()
+  autor_nome?: string;
+
+  @IsOptional()
+  @IsString()
+  autor_email?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  visualizada?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  anexos?: string[]; // Array de URLs de arquivos
 
   @IsOptional()
   @IsString()

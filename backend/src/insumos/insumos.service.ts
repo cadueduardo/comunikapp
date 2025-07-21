@@ -41,15 +41,20 @@ export class InsumosService {
       throw new BadRequestException('Fornecedor não encontrado ou não pertence à sua loja.');
     }
 
+    // Remover campos que não existem no modelo Prisma
+    const { tipo_material_id, ...dataWithoutExtraFields } = createInsumoDto;
+
     const insumo = await this.prisma.insumo.create({
       data: {
-        ...createInsumoDto,
+        ...dataWithoutExtraFields,
         loja_id: loja.id,
+        tipoMaterialId: tipo_material_id,
         ativo: createInsumoDto.ativo ?? true,
       },
       include: {
         categoria: true,
         fornecedor: true,
+        tipoMaterial: true,
       },
     });
 
@@ -71,6 +76,7 @@ export class InsumosService {
       include: {
         categoria: true,
         fornecedor: true,
+        tipoMaterial: true,
       },
       orderBy: {
         nome: 'asc',
@@ -95,6 +101,7 @@ export class InsumosService {
       include: {
         categoria: true,
         fornecedor: true,
+        tipoMaterial: true,
       },
     });
 
@@ -152,12 +159,19 @@ export class InsumosService {
       }
     }
 
+    // Remover campos que não existem no modelo Prisma
+    const { tipo_material_id, ...dataWithoutExtraFields } = updateInsumoDto;
+
     const insumo = await this.prisma.insumo.update({
       where: { id },
-      data: updateInsumoDto,
+      data: {
+        ...dataWithoutExtraFields,
+        tipoMaterialId: tipo_material_id,
+      },
       include: {
         categoria: true,
         fornecedor: true,
+        tipoMaterial: true,
       },
     });
 

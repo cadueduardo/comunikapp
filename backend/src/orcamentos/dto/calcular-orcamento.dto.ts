@@ -10,6 +10,22 @@ export class ItemCalculoDto {
   @IsPositive()
   @Type(() => Number)
   quantidade: number;
+
+  // Campos opcionais para lógica personalizada
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  area_produto?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  largura_produto?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  altura_produto?: number;
 }
 
 export class MaquinaCalculoDto {

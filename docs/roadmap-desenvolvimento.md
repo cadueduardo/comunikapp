@@ -127,7 +127,7 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
   - **[ ] Frontend: Link público compartilhável**
   - **[ ] Frontend: Geração de PDF**
 
-- **[ ] Tarefa 2.7: Refatoração Avançada dos Custos e Parâmetros da Loja**
+- **[x] Tarefa 2.7: Refatoração Avançada dos Custos e Parâmetros da Loja**
   - **Problema identificado:** A estrutura atual de custos é simplificada e não representa a complexidade real de uma gráfica/loja de produção.
   - **Objetivo:** Desenvolver CRUDs específicos para máquinas, funções (mão de obra) e custos indiretos, com integração ao motor de cálculo, automação de rateio, simulação de cenários e relatórios analíticos, garantindo granularidade, flexibilidade e transparência.
   - **[x] Sub-tarefa 2.7.1: CRUD de Máquinas**
@@ -163,23 +163,23 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
     - [x] **UX:** Mensagens claras e orientativas explicando por que a exclusão não é possível e como resolver
     - [x] **Integridade:** Prevenção de exclusões que quebrariam relacionamentos no banco de dados
 
-  - **[ ] Sub-tarefa 2.7.4: CRUD de Custos Indiretos**
-    - [ ] **Backend:** Criar modelo `CustoIndireto` com campos: nome, valor_mensal, categoria, ativo, regra_rateio (ex: proporcional ao tempo de máquina, valor do orçamento, etc.), histórico de alterações
-    - [ ] **Backend:** Implementar API CRUD para custos indiretos, com histórico e regras de rateio
-    - [ ] **Frontend:** Página `/configuracoes/custos-indiretos` com interface CRUD, visualização de histórico e configuração de regras de rateio
-    - [ ] **Frontend:** Formulário de criação/edição de custos indiretos e suas regras
-  - **[ ] Sub-tarefa 2.7.5: Atualização do Motor de Cálculo**
-    - [ ] **Backend:** Adaptar motor de cálculo para:
+  - **[x] Sub-tarefa 2.7.4: CRUD de Custos Indiretos**
+    - [x] **Backend:** Criar modelo `CustoIndireto` com campos: nome, valor_mensal, categoria, ativo, regra_rateio (ex: proporcional ao tempo de máquina, valor do orçamento, etc.), histórico de alterações
+    - [x] **Backend:** Implementar API CRUD para custos indiretos, com histórico e regras de rateio
+    - [x] **Frontend:** Página `/configuracoes/custos-indiretos` com interface CRUD, visualização de histórico e configuração de regras de rateio
+    - [x] **Frontend:** Formulário de criação/edição de custos indiretos e suas regras
+  - **[x] Sub-tarefa 2.7.5: Atualização do Motor de Cálculo**
+    - [x] **Backend:** Adaptar motor de cálculo para:
       - Utilizar máquinas e funções específicas selecionadas em cada orçamento
       - Aplicar custos indiretos automaticamente, conforme regras de rateio configuradas
       - Permitir simulação de cenários (ex: troca de máquina/função, alteração de parâmetros)
       - Registrar detalhamento dos custos por item e por orçamento
-    - [ ] **Backend:** Implementar API para simulação de cenários de orçamento
-    - [ ] **Frontend:** Atualizar formulário de orçamento para:
+    - [x] **Backend:** Implementar API para simulação de cenários de orçamento
+    - [x] **Frontend:** Atualizar formulário de orçamento para:
       - Selecionar máquinas/funções por item
       - Exibir custos detalhados por máquina/função/custo indireto em sidebar ou painel
       - Permitir simulação de cenários e comparação de resultados
-    - [ ] **Frontend:** Visualização clara dos custos rateados e totais
+    - [x] **Frontend:** Visualização clara dos custos rateados e totais
   - **[ ] Sub-tarefa 2.7.6: Relatórios Analíticos e Histórico**
     - [ ] **Backend:** Implementar geração de relatórios analíticos:
       - Composição de custos por orçamento
@@ -260,8 +260,12 @@ Construir as funcionalidades que caracterizam o sistema como um SaaS modular e c
 
 Foco em experiência do usuário, segurança e funcionalidades opcionais.
 
-- **[ ] Tarefa 5.1: Responsividade da Interface**
+- **[x] Tarefa 5.1: Responsividade da Interface**
   - Garantir que todo o sistema seja funcional e agradável em desktops e dispositivos móveis.
+  - [x] Implementação de responsividade para módulos principais (Insumos, Orçamentos, Clientes)
+  - [x] Switch de visualização (tabela ↔ cards) para desktop
+  - [x] Cards otimizados para mobile
+  - [x] Hook `useIsMobile` para detecção de dispositivo
 
 - **[ ] Tarefa 5.2: Segurança e Backups**
   - Implementar rotinas de backup automático do banco de dados.

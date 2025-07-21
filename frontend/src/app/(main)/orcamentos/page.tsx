@@ -3,31 +3,21 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Plus, Eye, Edit, Trash2, Share2 } from 'lucide-react';
+import { DataTable } from '@/components/data-table/data-table';
+import { OrcamentoCard } from '@/components/ui/orcamento-card';
+import { useIsMobile } from '@/hooks/use-media-query';
+import { Plus, Table, LayoutGrid } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
-
-interface Orcamento {
-  id: string;
-  numero: string;
-  nome_servico: string;
-  descricao?: string;
-  preco_final: number;
-  criado_em: string;
-  status_aprovacao?: string;
-  cliente?: {
-    id: string;
-    nome: string;
-  };
-}
+import { createColumns, type Orcamento } from './columns';
 
 export default function OrcamentosPage() {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const isMobile = useIsMobile();
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
     orcamentoId: string | null;
@@ -125,7 +115,6 @@ export default function OrcamentosPage() {
     try {
       const publicUrl = `${window.location.origin}/orcamento/${orcamento.id}`;
       
-      // Tenta usar a Web Share API
       if (navigator.share) {
         await navigator.share({
           title: `Orçamento ${orcamento.numero}`,
@@ -142,6 +131,8 @@ export default function OrcamentosPage() {
       toast.error('Erro ao compartilhar orçamento.');
     }
   };
+
+  const columns = createColumns(openDeleteDialog, handleShare);
 
   if (loading) {
     return (
@@ -168,12 +159,37 @@ export default function OrcamentosPage() {
             Gerencie seus orçamentos e propostas comerciais.
           </p>
         </div>
-        <Link href="/orcamentos/novo">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Orçamento
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          {/* Switch de visualização - apenas para desktop */}
+          {!isMobile && (
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className="h-8 px-3"
+              >
+                <Table className="h-4 w-4 mr-1" />
+                Tabela
+              </Button>
+              <Button
+                variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('cards')}
+                className="h-8 px-3"
+              >
+                <LayoutGrid className="h-4 w-4 mr-1" />
+                Cards
+              </Button>
+            </div>
+          )}
+          <Link href="/orcamentos/novo">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Orçamento
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Separator className="mb-6" />
@@ -196,82 +212,25 @@ export default function OrcamentosPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {orcamentos.map((orcamento) => (
-            <Card key={orcamento.id}>
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold">{orcamento.nome_servico}</h3>
-                      <Badge variant="secondary">#{orcamento.numero}</Badge>
-                      {orcamento.status_aprovacao && orcamento.status_aprovacao !== 'PENDENTE' && (
-                        <Badge 
-                          variant={
-                            orcamento.status_aprovacao === 'APROVADO' ? 'default' :
-                            orcamento.status_aprovacao === 'REJEITADO' ? 'destructive' :
-                            'secondary'
-                          }
-                          className="text-xs"
-                        >
-                          {orcamento.status_aprovacao === 'APROVADO' ? '✓ Aprovado' :
-                           orcamento.status_aprovacao === 'REJEITADO' ? '✗ Rejeitado' :
-                           orcamento.status_aprovacao === 'NEGOCIANDO' ? '🔄 Negociando' :
-                           orcamento.status_aprovacao}
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    {orcamento.descricao && (
-                      <p className="text-muted-foreground mb-3">{orcamento.descricao}</p>
-                    )}
-
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      {orcamento.cliente && (
-                        <span>Cliente: {orcamento.cliente.nome}</span>
-                      )}
-                      <span>
-                        Criado em: {new Date(orcamento.criado_em).toLocaleDateString('pt-BR')}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-green-600">
-                        {formatCurrency(orcamento.preco_final)}
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-1">
-                      <Button variant="outline" size="sm" onClick={() => handleShare(orcamento)}>
-                        <Share2 className="h-4 w-4" />
-                      </Button>
-                      <Link href={`/orcamentos/${orcamento.id}`}>
-                        <Button variant="outline" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                      <Link href={`/orcamentos/${orcamento.id}/editar`}>
-                        <Button variant="outline" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => openDeleteDialog(orcamento.id, orcamento.nome_servico)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <>
+          {/* Renderização condicional baseada no dispositivo e modo de visualização */}
+          {(isMobile || viewMode === 'cards') ? (
+            // Cards para mobile ou quando viewMode é 'cards'
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {orcamentos.map((orcamento) => (
+                <OrcamentoCard
+                  key={orcamento.id}
+                  orcamento={orcamento}
+                  onDelete={openDeleteDialog}
+                  onShare={handleShare}
+                />
+              ))}
+            </div>
+          ) : (
+            // Tabela para desktop quando viewMode é 'table'
+            <DataTable columns={columns} data={orcamentos} />
+          )}
+        </>
       )}
 
       <ConfirmDialog

@@ -2,16 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Grid3X3, List } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Insumo, createColumns } from './columns';
 import { DataTable } from '@/components/data-table/data-table';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { InsumoCard } from '@/components/ui/insumo-card';
+import { useIsMobile } from '@/hooks/use-media-query';
 
 export default function InsumosPage() {
   const [data, setData] = useState<Insumo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const isMobile = useIsMobile();
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
     insumoId: string | null;
@@ -99,18 +103,58 @@ export default function InsumosPage() {
           <h1 className="text-2xl font-bold">Gerenciar Insumos</h1>
           <p className="text-gray-600">Adicione, edite ou remova os insumos do seu negócio.</p>
         </div>
-        <Link href="/insumos/novo">
-          <Button>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Adicionar Insumo
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          {/* Switch de visualização apenas no desktop */}
+          {!isMobile && (
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className="h-8 px-3"
+              >
+                <List className="h-4 w-4 mr-1" />
+                Tabela
+              </Button>
+              <Button
+                variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('cards')}
+                className="h-8 px-3"
+              >
+                <Grid3X3 className="h-4 w-4 mr-1" />
+                Cards
+              </Button>
+            </div>
+          )}
+          <Link href="/insumos/novo">
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Adicionar Insumo
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {loading ? (
         <p>Carregando insumos...</p>
       ) : (
-        <DataTable columns={createColumns(openDeleteDialog)} data={data} />
+        <>
+          {/* Mobile sempre cards, desktop baseado no viewMode */}
+          {(isMobile || viewMode === 'cards') ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {data.map((insumo) => (
+                <InsumoCard
+                  key={insumo.id}
+                  insumo={insumo}
+                  onDelete={openDeleteDialog}
+                />
+              ))}
+            </div>
+          ) : (
+            <DataTable columns={createColumns(openDeleteDialog)} data={data} />
+          )}
+        </>
       )}
 
       <ConfirmDialog

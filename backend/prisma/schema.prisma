@@ -40,6 +40,13 @@ enum StatusLoja {
   BLOQUEADO
 }
 
+enum LogicaConsumoInsumo {
+  area
+  perimetro
+  quantidade_fixa
+  custom
+}
+
 model Loja {
   id                  String    @id @default(cuid())
   nome                String
@@ -68,11 +75,13 @@ model Loja {
   clientes     Cliente[]
   categorias   Categoria[]
   fornecedores Fornecedor[]
+  tiposMaterial TipoMaterial[]
   insumos      Insumo[]
   orcamentos  Orcamento[]
   maquinas     Maquina[]
   funcoes      Funcao[]
   custos_indiretos CustoIndireto[]
+  notificacoes Notificacao[]
 
   criado_em   DateTime @default(now())
   atualizado_em DateTime @updatedAt
@@ -188,12 +197,19 @@ model Insumo {
   tipo_calculo        String?     // Tipo de cálculo (AREA, LINEAR, QUANTIDADE)
   gramatura           Decimal?    @db.Decimal(10, 1) // Gramatura em g/m²
   
+  // Campos de lógica de consumo
+  logica_consumo      LogicaConsumoInsumo @default(area)
+  parametros_consumo  Json? // Parâmetros extras para lógica de consumo
+  
   // Relacionamentos
   loja                Loja        @relation(fields: [loja_id], references: [id], onDelete: Cascade)
   categoriaId         String
   categoria           Categoria   @relation(fields: [categoriaId], references: [id])
   fornecedorId        String
   fornecedor          Fornecedor  @relation(fields: [fornecedorId], references: [id])
+  // Relacionamento com tipo de material
+  tipoMaterialId      String?
+  tipoMaterial        TipoMaterial? @relation(fields: [tipoMaterialId], references: [id], onDelete: SetNull)
   itens               ItemOrcamento[]
   historico_precos    HistoricoPrecoInsumo[]
 
@@ -223,6 +239,27 @@ model Fornecedor {
 
   insumos Insumo[]
 
+  @@unique([loja_id, nome])
+  @@index([loja_id])
+}
+
+model TipoMaterial {
+  id                String   @id @default(cuid())
+  criado_em         DateTime @default(now())
+  atualizado_em     DateTime @updatedAt
+  
+  nome              String   // "Ilhós", "Arrebites", "Fita Adesiva", etc.
+  descricao         String?  // Descrição do tipo
+  logica_consumo    LogicaConsumoInsumo @default(area)
+  parametros_padrao Json?    // Parâmetros padrão para este tipo
+  
+  // Multi-tenant
+  loja_id           String
+  loja              Loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  
+  // Relacionamentos
+  insumos           Insumo[]
+  
   @@unique([loja_id, nome])
   @@index([loja_id])
 }
@@ -322,6 +359,10 @@ model Orcamento {
   impostos            Decimal @db.Decimal(5, 2)
   preco_final         Decimal @db.Decimal(10, 2)
   
+  // Status de aprovação
+  status_aprovacao    String?  @default("PENDENTE")
+  observacoes_cliente String?  @db.Text
+  
   // Relacionamentos
   loja_id     String
   loja        Loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
@@ -329,8 +370,10 @@ model Orcamento {
   cliente     Cliente? @relation(fields: [cliente_id], references: [id], onDelete: SetNull)
   
   itens       ItemOrcamento[]
-  maquinas    MaquinaOrcamento[]
-  funcoes     FuncaoOrcamento[]
+           maquinas    MaquinaOrcamento[]
+         funcoes     FuncaoOrcamento[]
+         mensagens   MensagemNegociacao[]
+         notificacoes Notificacao[]
   
   @@unique([loja_id, numero])
   @@index([loja_id])
@@ -426,4 +469,54 @@ model HistoricoPrecoInsumo {
   insumo          Insumo   @relation(fields: [insumo_id], references: [id], onDelete: Cascade)
   
   @@map("historico_preco_insumos")
+}
+
+model MensagemNegociacao {
+  id              String   @id @default(cuid())
+  orcamento_id    String
+  mensagem        String   @db.Text
+  tipo            String   // CLIENTE, VENDEDOR, SISTEMA
+  autor_nome      String?
+  autor_email     String?
+  visualizada     Boolean  @default(false)
+  anexos          Json?    // Array de URLs de arquivos
+  criado_em       DateTime @default(now())
+  
+  orcamento       Orcamento @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  anexos_mensagem AnexoMensagem[]
+  
+  @@index([orcamento_id])
+}
+
+model AnexoMensagem {
+  id                    String   @id @default(cuid())
+  mensagem_id          String
+  nome_arquivo         String
+  url_arquivo          String
+  tipo_arquivo         String
+  tamanho              Int
+  criado_em            DateTime @default(now())
+  
+  mensagem             MensagemNegociacao @relation(fields: [mensagem_id], references: [id], onDelete: Cascade)
+  
+  @@index([mensagem_id])
+}
+
+model Notificacao {
+  id              String   @id @default(cuid())
+  tipo            String   // NOVA_MENSAGEM, ORCAMENTO_APROVADO, ORCAMENTO_REJEITADO, ORCAMENTO_NEGOCIANDO, SISTEMA
+  titulo          String
+  mensagem        String   @db.Text
+  orcamento_id    String?
+  loja_id         String
+  visualizada     Boolean  @default(false)
+  dados_extras    String?  @db.Text // JSON string
+  criado_em       DateTime @default(now())
+
+  orcamento       Orcamento? @relation(fields: [orcamento_id], references: [id], onDelete: SetNull)
+  loja            Loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+
+  @@index([loja_id])
+  @@index([orcamento_id])
+  @@index([visualizada])
 }

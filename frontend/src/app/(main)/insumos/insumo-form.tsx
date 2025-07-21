@@ -26,6 +26,7 @@ import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import React from 'react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const formSchema = z.object({
   nome: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
@@ -43,8 +44,11 @@ const formSchema = z.object({
   altura: z.any().optional(),
   unidade_dimensao: z.string().optional(), // Unidade das dimensões (M, CM, MM)
   tipo_calculo: z.string().optional(), // Tipo de cálculo (AREA, LINEAR, QUANTIDADE)
-  quantidade_compra: z.any().refine(val => Number(String(val).replace(/[^0-9,-]/g, '').replace(',', '.')) > 0, {
-    message: 'A quantidade deve ser maior que zero.',
+  quantidade_compra: z.any().refine(val => {
+    const num = Number(String(val).replace(/[^0-9,-]/g, '').replace(',', '.'));
+    return num > 0 && num <= 1000000;
+  }, {
+    message: 'A quantidade deve ser maior que zero e menor que 1.000.000.',
   }),
   gramatura: z.any().optional(),
   
@@ -53,6 +57,11 @@ const formSchema = z.object({
   fator_conversao: z.any().refine(val => Number(String(val).replace(/[^0-9,-]/g, '').replace(',', '.')) > 0, {
     message: 'O fator de conversão deve ser maior que zero.',
   }),
+  
+  // Campos de lógica de consumo
+  logica_consumo: z.string().optional(),
+  tipo_material_id: z.string().optional(),
+  parametros_consumo: z.any().optional(),
   
   codigo_interno: z.string().optional().nullable(),
   estoque_minimo: z.any().optional().nullable(),
@@ -147,6 +156,7 @@ const tiposCalculo = [
   { value: 'QUANTIDADE', label: 'QUANTIDADE DE ITENS' },
   { value: 'PESO', label: 'PESO' },
   { value: 'VOLUME', label: 'VOLUME' },
+  { value: 'PERSONALIZADO', label: 'PERSONALIZADO (Tipos de Material)' },
 ];
 
 interface Option {
@@ -156,6 +166,7 @@ interface Option {
 
 export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
   const [showExamplesModal, setShowExamplesModal] = useState(false);
+  const [tiposMaterial, setTiposMaterial] = useState<Option[]>([]);
   
   const form = useForm<InsumoFormValues>({
     resolver: zodResolver(formSchema),
@@ -173,6 +184,9 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
       gramatura: '',
       unidade_uso: '',
       fator_conversao: '',
+      logica_consumo: '',
+      tipo_material_id: '',
+      parametros_consumo: {},
       codigo_interno: '',
       estoque_minimo: '',
       descricao_tecnica: '',
@@ -193,11 +207,14 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
     }
   }, [initialData, form]);
 
+
+
   // Cálculo automático da quantidade total
   const largura = form.watch('largura');
   const altura = form.watch('altura');
   const unidadeDimensao = form.watch('unidade_dimensao');
   const tipoCalculo = form.watch('tipo_calculo');
+  const unidadeCompra = form.watch('unidade_compra');
   
   // Cálculo do custo por unidade de uso
   const custoUnitario = form.watch('custo_unitario');
@@ -205,23 +222,194 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
   const fatorConversao = form.watch('fator_conversao');
   const unidadeUso = form.watch('unidade_uso');
   
+  // Debug: monitorar mudanças no quantidadeCompra
+  useEffect(() => {
+    // console.log('🔍 quantidadeCompra mudou:', quantidadeCompra);
+  }, [quantidadeCompra]);
+  
   const custoPorUnidadeUso = React.useMemo(() => {
+    // console.log('🔄 useMemo sendo recalculado!');
+    // console.log('🔍 Valores observados:', {
+    //   custoUnitario,
+    //   quantidadeCompra,
+    //   fatorConversao,
+    //   unidadeUso
+    // });
+    
     if (custoUnitario && quantidadeCompra && fatorConversao) {
-      // O CustomCurrencyInput retorna o valor em reais (já dividido por 100)
-      // Quando vem do banco (edição), já vem em reais
-      // Quando vem do formulário (criação), também vem em reais
       const custo = Number(custoUnitario);
       const quantidade = Number(quantidadeCompra);
       const fator = Number(fatorConversao);
       
+      // console.log('Dados do formulário:', {
+      //   custoUnitario,
+      //   quantidadeCompra,
+      //   fatorConversao,
+      //   largura,
+      //   altura,
+      //   unidadeDimensao,
+      //   tipoCalculo
+      // });
+      
+      // console.log('Valores convertidos:', {
+      //   custo,
+      //   quantidade,
+      //   fator
+      // });
+      
       if (!isNaN(custo) && !isNaN(quantidade) && !isNaN(fator) && quantidade > 0 && fator > 0) {
-        // Cálculo: Custo Total ÷ (Quantidade em m² × Fator de Conversão)
-        // Exemplo: R$ 690 ÷ (50 m² × 1) = R$ 13,80/m²
-        return custo / (quantidade * fator);
+        const quantidadeCalculada = quantidade;
+        
+        // Se temos dimensões e tipo de cálculo, usar a lógica específica
+        if (altura && unidadeDimensao && tipoCalculo) {
+          // console.log('Aplicando lógica de dimensões...');
+          
+          // Para COMPRIMENTO LINEAR, não precisamos de largura
+          const alturaNum = parseFloat(altura);
+          
+          // console.log('Dimensões convertidas:', {
+          //   largura: largura || 'não informada',
+          //   alturaNum,
+          //   unidadeDimensao,
+          //   tipoCalculo
+          // });
+          
+          if (!isNaN(alturaNum)) {
+            // Converter dimensões para metros
+            let alturaEmMetros = alturaNum;
+            
+            switch (unidadeDimensao) {
+              case 'CENTÍMETROS':
+              case 'CM':
+                alturaEmMetros = alturaNum / 100;
+                break;
+              case 'MILÍMETROS':
+              case 'MM':
+                alturaEmMetros = alturaNum / 1000;
+                break;
+              case 'METROS':
+              case 'M':
+                // Já está em metros
+                break;
+            }
+            
+            // console.log('Dimensões em metros:', {
+            //   alturaEmMetros
+            // });
+            
+            // Calcular quantidade baseada no tipo de cálculo
+            switch (tipoCalculo) {
+              case 'COMPRIMENTO LINEAR':
+              case 'LINEAR':
+                // Para comprimento linear: calcular custo por unidade de uso
+                const custoPorUnidade = custo / quantidade;
+                
+                if (unidadeUso === 'CENTIMETRO' || unidadeUso === 'CM') {
+                  // Se a unidade de uso é centímetro, calcular custo por centímetro
+                  // Para cordão: custo por metro ÷ 100 = custo por centímetro
+                  const custoPorCentimetro = custoPorUnidade / 100;
+                  
+                  // console.log('COMPRIMENTO LINEAR - CENTIMETRO:', {
+                  //   custoPorUnidade,
+                  //   alturaEmMetros,
+                  //   custoPorCentimetro
+                  // });
+                  
+                  return custoPorCentimetro;
+                } else {
+                  // Para outras unidades de uso, usar o cálculo padrão
+                  return custoPorUnidade;
+                }
+                
+              case 'AREA':
+                // Para área: calcular custo por unidade de uso baseado na área da unidade
+                if (largura) {
+                  const larguraNum = parseFloat(largura);
+                  if (!isNaN(larguraNum)) {
+                    let larguraEmMetros = larguraNum;
+                    
+                    switch (unidadeDimensao) {
+                      case 'CENTÍMETROS':
+                      case 'CM':
+                        larguraEmMetros = larguraNum / 100;
+                        break;
+                      case 'MILÍMETROS':
+                      case 'MM':
+                        larguraEmMetros = larguraNum / 1000;
+                        break;
+                    }
+                    
+                    const areaPorUnidade = larguraEmMetros * alturaEmMetros;
+                    
+                    if (unidadeUso === 'METRO QUADRADO') {
+                      // Se a unidade de uso é metro quadrado, calcular custo por m²
+                      const custoPorMetroQuadrado = custo / areaPorUnidade;
+                      
+                      // console.log('AREA - METRO QUADRADO:', {
+                      //   larguraEmMetros,
+                      //   alturaEmMetros,
+                      //   areaPorUnidade,
+                      //   custoPorMetroQuadrado
+                      // });
+                      
+                      return custoPorMetroQuadrado;
+                    } else {
+                      // Para outras unidades de uso, usar o cálculo padrão
+                      return custo / quantidade;
+                    }
+                  }
+                } else {
+                  return custo / quantidade;
+                }
+                break;
+                
+              case 'QUANTIDADE':
+                // Para quantidade fixa: usar quantidade diretamente
+                return custo / quantidade;
+                
+              default:
+                // Padrão: usar quantidade diretamente
+                return custo / quantidade;
+            }
+          }
+        } else {
+          // console.log('Não aplicando lógica de dimensões - dados faltando:', {
+          //   temLargura: !!largura,
+          //   temAltura: !!altura,
+          //   temUnidadeDimensao: !!unidadeDimensao,
+          //   temTipoCalculo: !!tipoCalculo
+          // });
+        }
+        
+        // Cálculo final: Custo Total ÷ (Quantidade Calculada × Fator de Conversão)
+        const resultado = custo / (quantidadeCalculada * fator);
+        
+        // console.log('Cálculo useMemo:', {
+        //   custo,
+        //   quantidade,
+        //   fator,
+        //   quantidadeCalculada,
+        //   resultado,
+        //   largura,
+        //   altura,
+        //   unidadeDimensao,
+        //   tipoCalculo
+        // });
+        
+        // Verificar se o resultado faz sentido (entre R$ 0,01 e R$ 1.000 por unidade)
+        if (resultado < 0.01) {
+          // console.warn('Custo por unidade muito baixo. Verifique se a quantidade está na unidade correta.');
+        } else if (resultado > 1000) {
+          // console.warn('Custo por unidade muito alto. Verifique se a quantidade está na unidade correta.');
+        }
+        
+        return resultado;
       }
     }
     return null;
   }, [custoUnitario, quantidadeCompra, fatorConversao, unidadeUso, largura, altura, unidadeDimensao, tipoCalculo]);
+
+
   
   useEffect(() => {
     if (largura && altura && unidadeDimensao && tipoCalculo) {
@@ -237,41 +425,57 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
         
         switch (unidadeDimensao) {
           case 'CENTÍMETROS':
+          case 'CM':
             larguraEmMetros = larguraNum / 100;
             alturaEmMetros = alturaNum / 100;
             break;
           case 'MILÍMETROS':
+          case 'MM':
             larguraEmMetros = larguraNum / 1000;
             alturaEmMetros = alturaNum / 1000;
             break;
           case 'METROS':
+          case 'M':
             // Já está em metros
             break;
+          default:
+            // Unidade não reconhecida, mantém valores originais
+            break;
         }
         
-        switch (tipoCalculo) {
-          case 'AREA':
+        // Calcular quantidade baseada na unidade de compra
+        switch (unidadeCompra) {
+          case 'PACOTE':
+          case 'UNID':
+            // Para pacotes, usar quantidade de unidades (não calcular automaticamente)
+            quantidadeTotal = 1; // Deixar o usuário definir
+            break;
+          case 'ROLO':
+            // Para rolos, usar o comprimento em metros
+            quantidadeTotal = alturaEmMetros;
+            break;
+          case 'BOBINA':
+            // Para bobinas, usar a área em metros quadrados
             quantidadeTotal = larguraEmMetros * alturaEmMetros;
-            break;
-          case 'LINEAR':
-            quantidadeTotal = larguraEmMetros; // Usa apenas a largura como comprimento
-            break;
-          case 'QUANTIDADE':
-            quantidadeTotal = larguraEmMetros * alturaEmMetros; // Para itens em grade
             break;
           default:
+            // Caso padrão: usar área
             quantidadeTotal = larguraEmMetros * alturaEmMetros;
         }
         
-        // Formatar quantidade removendo zeros desnecessários
-        const quantidadeFormatada = quantidadeTotal % 1 === 0 
-          ? quantidadeTotal.toString() 
-          : quantidadeTotal.toFixed(3).replace(/\.?0+$/, '');
-        
-        form.setValue('quantidade_compra', quantidadeFormatada);
+        // Validar se a quantidade calculada faz sentido
+        if (quantidadeTotal > 0 && quantidadeTotal < 1000000) { // Evitar valores absurdos
+          // Formatar quantidade removendo zeros desnecessários
+          const quantidadeFormatada = quantidadeTotal % 1 === 0 
+            ? quantidadeTotal.toString() 
+            : quantidadeTotal.toFixed(3).replace(/\.?0+$/, '');
+          
+          // Forçar o cálculo automático sempre que as dimensões forem preenchidas
+          form.setValue('quantidade_compra', quantidadeFormatada);
+        }
       }
     }
-  }, [largura, altura, unidadeDimensao, tipoCalculo, form]);
+  }, [largura, altura, unidadeDimensao, tipoCalculo, unidadeCompra, form]);
   
   const [categorias, setCategorias] = useState<Option[]>([]);
   const [fornecedores, setFornecedores] = useState<Option[]>([]);
@@ -291,7 +495,27 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
     };
     fetchData('/categorias', setCategorias);
     fetchData('/fornecedores', setFornecedores);
+    fetchTiposMaterial();
   }, []);
+
+  const fetchTiposMaterial = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch('http://localhost:3001/tipos-material', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const options = data.map((tipo: { id: string; nome: string }) => ({
+          value: tipo.id,
+          label: tipo.nome,
+        }));
+        setTiposMaterial(options);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar tipos de material:', error);
+    }
+  };
   
   const handleCreate = async (
     name: string,
@@ -461,12 +685,18 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                         </InfoTooltip>
                     </FormLabel>
                     <FormControl>
-                        <UnitSelect
-                            value={field.value}
-                            onValueChange={field.onChange}
-                            placeholder="Selecione o tipo"
-                            units={tiposCalculo}
-                        />
+                        <Select value={field.value} onValueChange={field.onChange}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecione o tipo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {tiposCalculo.map((tipo) => (
+                                    <SelectItem key={tipo.value} value={tipo.value}>
+                                        {tipo.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -489,6 +719,94 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                                 placeholder="Ex: 13.2" 
                                 {...field} 
                                 className={largura && altura && unidadeDimensao && tipoCalculo ? "pr-10" : ""}
+                                onChange={(e) => {
+                                    const value = parseFloat(e.target.value);
+                                    // Validar se o valor não é absurdo (mais de 1 milhão)
+                                    if (value > 1000000) {
+                                        toast.error("Quantidade muito alta! Verifique se está na unidade correta.");
+                                        return;
+                                    }
+                                    // Validar se o valor não é muito alto para o tipo de cálculo
+                                    if (largura && altura && unidadeDimensao && tipoCalculo) {
+                                        const larguraNum = parseFloat(largura);
+                                        const alturaNum = parseFloat(altura);
+                                        let larguraEmMetros = larguraNum;
+                                        let alturaEmMetros = alturaNum;
+                                        
+                                        switch (unidadeDimensao) {
+                                            case 'CENTÍMETROS':
+                                                larguraEmMetros = larguraNum / 100;
+                                                alturaEmMetros = alturaNum / 100;
+                                                break;
+                                            case 'MILÍMETROS':
+                                                larguraEmMetros = larguraNum / 1000;
+                                                alturaEmMetros = alturaNum / 1000;
+                                                break;
+                                        }
+                                        
+                                        let areaEsperada = 0;
+                                        switch (tipoCalculo) {
+                                            case 'AREA':
+                                                areaEsperada = larguraEmMetros * alturaEmMetros;
+                                                break;
+                                            case 'LINEAR':
+                                                areaEsperada = larguraEmMetros;
+                                                break;
+                                            default:
+                                                areaEsperada = larguraEmMetros * alturaEmMetros;
+                                        }
+                                        
+                                        // Se o valor é muito maior que o esperado, pode estar em cm² ou mm²
+                                        if (value > areaEsperada * 100) {
+                                            // Tentar corrigir automaticamente
+                                            const valorCorrigido = value / 10000; // Converter de cm² para m²
+                                            if (Math.abs(valorCorrigido - areaEsperada) < areaEsperada * 0.1) {
+                                                toast.success("Quantidade corrigida automaticamente de cm² para m².");
+                                                e.target.value = valorCorrigido.toString();
+                                                field.onChange(e);
+                                                return;
+                                            }
+                                            toast.error("Quantidade muito alta! Pode estar em cm² ou mm² em vez de m².");
+                                            return;
+                                        }
+                                    }
+                                    // Validar se o valor faz sentido para o tipo de cálculo
+                                    if (largura && altura && unidadeDimensao && tipoCalculo) {
+                                        const larguraNum = parseFloat(largura);
+                                        const alturaNum = parseFloat(altura);
+                                        let larguraEmMetros = larguraNum;
+                                        let alturaEmMetros = alturaNum;
+                                        
+                                        switch (unidadeDimensao) {
+                                            case 'CENTÍMETROS':
+                                                larguraEmMetros = larguraNum / 100;
+                                                alturaEmMetros = alturaNum / 100;
+                                                break;
+                                            case 'MILÍMETROS':
+                                                larguraEmMetros = larguraNum / 1000;
+                                                alturaEmMetros = alturaNum / 1000;
+                                                break;
+                                        }
+                                        
+                                        let areaEsperada = 0;
+                                        switch (tipoCalculo) {
+                                            case 'AREA':
+                                                areaEsperada = larguraEmMetros * alturaEmMetros;
+                                                break;
+                                            case 'LINEAR':
+                                                areaEsperada = larguraEmMetros;
+                                                break;
+                                            default:
+                                                areaEsperada = larguraEmMetros * alturaEmMetros;
+                                        }
+                                        
+                                                                                        // Se o valor inserido é muito diferente do calculado, mostrar aviso
+                                        if (Math.abs(value - areaEsperada) > areaEsperada * 0.1) { // 10% de tolerância
+                                          toast.warning("Quantidade diferente do calculado automaticamente. Verifique se está correto.");
+                                        }
+                                    }
+                                    field.onChange(e);
+                                }}
                             />
                             {largura && altura && unidadeDimensao && tipoCalculo && (
                                 <div className="absolute inset-y-0 right-0 flex items-center pr-3">
@@ -497,6 +815,11 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                                     </div>
                                 </div>
                             )}
+                            {!largura || !altura || !unidadeDimensao || !tipoCalculo ? (
+                                <div className="text-xs text-gray-500 mt-1">
+                                    💡 Preencha largura, altura, unidade e tipo de cálculo para cálculo automático
+                                </div>
+                            ) : null}
                         </div>
                     </FormControl>
                     <FormMessage />
@@ -593,6 +916,61 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Seção de Lógica de Consumo - Apenas quando Personalizado for selecionado */}
+            {form.watch('tipo_calculo') === 'PERSONALIZADO' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>🔧 Lógica de Consumo Automático</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Configure como este insumo será calculado automaticamente nos orçamentos.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-4">
+                  <div className={`grid gap-4 ${form.watch('logica_consumo') === 'custom' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+                    <FormField control={form.control} name="logica_consumo" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tipo de Cálculo</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione a lógica de consumo" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="area">Área (m²)</SelectItem>
+                            <SelectItem value="perimetro">Perímetro (m)</SelectItem>
+                            <SelectItem value="quantidade_fixa">Quantidade Fixa</SelectItem>
+                            <SelectItem value="custom">Personalizado</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-sm text-muted-foreground">
+                          Para cálculos personalizados, use o campo &quot;Tipo de Material&quot; abaixo.
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    
+                    {form.watch('logica_consumo') === 'custom' && (
+                      <FormField control={form.control} name="tipo_material_id" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tipo de Material</FormLabel>
+                          <Combobox 
+                            options={tiposMaterial} 
+                            {...field} 
+                            placeholder="Selecione o tipo de material"
+                          />
+                          <p className="text-sm text-muted-foreground">
+                            Configure tipos de material em Configurações → Tipos de Material.
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-1 gap-4">

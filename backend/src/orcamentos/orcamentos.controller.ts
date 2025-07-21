@@ -1,16 +1,60 @@
-import { Controller, Post, Body, Get, Param, Patch, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Patch, Delete, UseGuards, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { OrcamentosService } from './orcamentos.service';
 import { CalcularOrcamentoDto } from './dto/calcular-orcamento.dto';
 import { ResultadoCalculoDto } from './dto/resultado-calculo.dto';
 import { CreateOrcamentoDto } from './dto/create-orcamento.dto';
 import { UpdateOrcamentoDto } from './dto/update-orcamento.dto';
+import { AcaoClienteDto } from './dto/acao-cliente.dto';
 import { CurrentLojaId } from '../auth/decorators';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Public } from '../auth/decorators';
 
 @Controller('orcamentos')
 @UseGuards(JwtAuthGuard)
 export class OrcamentosController {
   constructor(private readonly orcamentosService: OrcamentosService) {}
+
+  /**
+   * SSE endpoint para notificações em tempo real
+   */
+  @Get(':id/events')
+  @Public()
+  async streamEvents(@Param('id') id: string, @Res() res: Response) {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Cache-Control',
+    });
+
+    // Enviar heartbeat a cada 30 segundos
+    const heartbeat = setInterval(() => {
+      res.write(`data: ${JSON.stringify({ type: 'heartbeat', timestamp: new Date().toISOString() })}\n\n`);
+    }, 30000);
+
+    // Verificar novas mensagens a cada 5 segundos (reduzido para evitar sobrecarga)
+    const checkMessages = setInterval(async () => {
+      try {
+        const mensagens = await this.orcamentosService.getMensagensNaoVisualizadas(id);
+        if (mensagens.length > 0) {
+          res.write(`data: ${JSON.stringify({ 
+            type: 'new_messages', 
+            count: mensagens.length
+          })}\n\n`);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar mensagens:', error);
+      }
+    }, 5000);
+
+    // Limpar intervalos quando a conexão for fechada
+    res.on('close', () => {
+      clearInterval(heartbeat);
+      clearInterval(checkMessages);
+    });
+  }
 
   /**
    * Endpoint para calcular um orçamento
@@ -120,5 +164,33 @@ export class OrcamentosController {
     @CurrentLojaId() lojaId: string
   ) {
     return this.orcamentosService.remove(id, lojaId);
+  }
+
+  /**
+   * Endpoints Públicos para Ações do Cliente
+   */
+
+  @Get(':id/publico')
+  @Public()
+  async findOnePublico(@Param('id') id: string) {
+    return this.orcamentosService.findOnePublico(id);
+  }
+
+  @Post(':id/publico/acao')
+  @Public()
+  async acaoCliente(@Param('id') id: string, @Body() acaoDto: AcaoClienteDto) {
+    return this.orcamentosService.acaoCliente(id, acaoDto);
+  }
+
+  /**
+   * Marcar mensagem como visualizada
+   */
+  @Post(':orcamentoId/mensagens/:mensagemId/visualizar')
+  @UseGuards(JwtAuthGuard)
+  async marcarMensagemComoVisualizada(
+    @Param('orcamentoId') orcamentoId: string,
+    @Param('mensagemId') mensagemId: string
+  ) {
+    return this.orcamentosService.marcarMensagemComoVisualizada(orcamentoId, mensagemId);
   }
 }

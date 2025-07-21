@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import OrcamentoForm from '@/components/ui/orcamento-form';
+import { ChatFlutuante } from '@/components/ui/chat-flutuante';
 
 interface OrcamentoData {
   cliente_id: string;
@@ -36,6 +37,14 @@ export default function EditarOrcamentoPage() {
   const params = useParams();
   const [orcamentoData, setOrcamentoData] = useState<OrcamentoData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showChat, setShowChat] = useState(false);
+
+  useEffect(() => {
+    // Verificar se há parâmetro ?chat=true na URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const shouldShowChat = urlParams.get('chat') === 'true';
+    setShowChat(shouldShowChat);
+  }, []);
 
   useEffect(() => {
     const fetchOrcamento = async () => {
@@ -84,7 +93,7 @@ export default function EditarOrcamentoPage() {
           
           if (listResponse.ok) {
             const orcamentos = await listResponse.json();
-            console.log('Orçamentos disponíveis:', orcamentos.map((o: any) => ({ id: o.id, numero: o.numero, nome_servico: o.nome_servico })));
+            console.log('Orçamentos disponíveis:', orcamentos.map((o: { id: string; numero: string; nome_servico: string }) => ({ id: o.id, numero: o.numero, nome_servico: o.nome_servico })));
           }
         }
       } catch (error) {
@@ -126,14 +135,19 @@ export default function EditarOrcamentoPage() {
   }
 
   return (
-    <OrcamentoForm 
-      mode="editar" 
-      initialData={orcamentoData}
-      orcamentoId={params.id as string}
-      onSuccess={() => {
-        // Redirecionar para a listagem após salvar
-        window.location.href = '/orcamentos';
-      }}
-    />
+    <>
+      <OrcamentoForm 
+        mode="editar" 
+        initialData={orcamentoData}
+        orcamentoId={params.id as string}
+        onSuccess={() => {
+          // Redirecionar para a listagem após salvar
+          window.location.href = '/orcamentos';
+        }}
+      />
+      
+      {/* Chat Flutuante */}
+      <ChatFlutuante orcamentoId={params.id as string} isOpen={showChat} />
+    </>
   );
 } 

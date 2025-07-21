@@ -86,6 +86,13 @@ interface Insumo {
   unidade_dimensao?: string | null;
   tipo_calculo?: string | null;
   gramatura?: number | null;
+  logica_consumo?: string | null;
+  tipoMaterial?: {
+    id: string;
+    nome: string;
+    logica_consumo: string;
+    parametros_padrao: Record<string, any> | null;
+  } | null;
   categoria: {
     nome: string;
   };
@@ -193,17 +200,116 @@ function getCampoQuantidade(insumo: Insumo | undefined) {
       return { label: 'Área (m²)', placeholder: '0.00', step: '0.01' };
     case 'M3':
       return { label: 'Volume (m³)', placeholder: '0.00', step: '0.001' };
+    case 'CM':
+    case 'CENTIMETRO':
+      return { label: 'Comprimento (cm)', placeholder: '0.00', step: '0.01' };
+    case 'CM2':
+      return { label: 'Área (cm²)', placeholder: '0.00', step: '0.01' };
+    case 'MM':
+    case 'MILIMETRO':
+      return { label: 'Comprimento (mm)', placeholder: '0.00', step: '0.1' };
     case 'KG':
       return { label: 'Peso (kg)', placeholder: '0.00', step: '0.01' };
+    case 'GRAMAS':
+      return { label: 'Peso (gramas)', placeholder: '0.00', step: '0.01' };
     case 'LITRO':
       return { label: 'Volume (litros)', placeholder: '0.00', step: '0.01' };
+    case 'ML':
+      return { label: 'Volume (ml)', placeholder: '0.00', step: '0.01' };
     case 'UNID':
     case 'PC':
+      return { label: 'Quantidade (unidades)', placeholder: '0', step: '1' };
     case 'PARES':
+      return { label: 'Quantidade (pares)', placeholder: '0', step: '1' };
     case 'DUZIA':
+      return { label: 'Quantidade (dúzias)', placeholder: '0', step: '1' };
     case 'CENTO':
+      return { label: 'Quantidade (centos)', placeholder: '0', step: '1' };
     case 'MILHEI':
-      return { label: 'Quantidade', placeholder: '0', step: '1' };
+      return { label: 'Quantidade (milheiros)', placeholder: '0', step: '1' };
+    case 'BOBINA':
+      return { label: 'Quantidade (bobinas)', placeholder: '0', step: '1' };
+    case 'ROLO':
+      return { label: 'Quantidade (rolos)', placeholder: '0', step: '1' };
+    case 'FOLHA':
+      return { label: 'Quantidade (folhas)', placeholder: '0', step: '1' };
+    case 'CX':
+    case 'CX2':
+    case 'CX3':
+    case 'CX5':
+    case 'CX10':
+    case 'CX15':
+    case 'CX20':
+    case 'CX25':
+    case 'CX50':
+    case 'CX100':
+      return { label: 'Quantidade (caixas)', placeholder: '0', step: '1' };
+    case 'PACOTE':
+      return { label: 'Quantidade (pacotes)', placeholder: '0', step: '1' };
+    case 'KIT':
+      return { label: 'Quantidade (kits)', placeholder: '0', step: '1' };
+    case 'JOGO':
+      return { label: 'Quantidade (jogos)', placeholder: '0', step: '1' };
+    case 'CONJUNTO':
+      return { label: 'Quantidade (conjuntos)', placeholder: '0', step: '1' };
+    case 'BALDE':
+      return { label: 'Quantidade (baldes)', placeholder: '0', step: '1' };
+    case 'BANDEJ':
+      return { label: 'Quantidade (bandejas)', placeholder: '0', step: '1' };
+    case 'BARRA':
+      return { label: 'Quantidade (barras)', placeholder: '0', step: '1' };
+    case 'BISNAG':
+      return { label: 'Quantidade (bisnagas)', placeholder: '0', step: '1' };
+    case 'BLOCO':
+      return { label: 'Quantidade (blocos)', placeholder: '0', step: '1' };
+    case 'BOMB':
+      return { label: 'Quantidade (bombonas)', placeholder: '0', step: '1' };
+    case 'CAPS':
+      return { label: 'Quantidade (cápsulas)', placeholder: '0', step: '1' };
+    case 'CART':
+      return { label: 'Quantidade (cartelas)', placeholder: '0', step: '1' };
+    case 'CJ':
+      return { label: 'Quantidade (conjuntos)', placeholder: '0', step: '1' };
+    case 'DISP':
+      return { label: 'Quantidade (displays)', placeholder: '0', step: '1' };
+    case 'EMBAL':
+      return { label: 'Quantidade (embalagens)', placeholder: '0', step: '1' };
+    case 'FARDO':
+      return { label: 'Quantidade (fardos)', placeholder: '0', step: '1' };
+    case 'FRASCO':
+      return { label: 'Quantidade (frascos)', placeholder: '0', step: '1' };
+    case 'GALAO':
+      return { label: 'Quantidade (galões)', placeholder: '0', step: '1' };
+    case 'GF':
+      return { label: 'Quantidade (garrafas)', placeholder: '0', step: '1' };
+    case 'LATA':
+      return { label: 'Quantidade (latas)', placeholder: '0', step: '1' };
+    case 'PALETE':
+      return { label: 'Quantidade (pallets)', placeholder: '0', step: '1' };
+    case 'POTE':
+      return { label: 'Quantidade (potes)', placeholder: '0', step: '1' };
+    case 'K':
+      return { label: 'Quantidade (quilates)', placeholder: '0.00', step: '0.01' };
+    case 'RESMA':
+      return { label: 'Quantidade (resmas)', placeholder: '0', step: '1' };
+    case 'SACO':
+      return { label: 'Quantidade (sacos)', placeholder: '0', step: '1' };
+    case 'SACOLA':
+      return { label: 'Quantidade (sacolas)', placeholder: '0', step: '1' };
+    case 'TAMBOR':
+      return { label: 'Quantidade (tambores)', placeholder: '0', step: '1' };
+    case 'TANQUE':
+      return { label: 'Quantidade (tanques)', placeholder: '0', step: '1' };
+    case 'TON':
+      return { label: 'Quantidade (toneladas)', placeholder: '0.00', step: '0.01' };
+    case 'TUBO':
+      return { label: 'Quantidade (tubos)', placeholder: '0', step: '1' };
+    case 'VASIL':
+      return { label: 'Quantidade (vasilhames)', placeholder: '0', step: '1' };
+    case 'VIDRO':
+      return { label: 'Quantidade (vidros)', placeholder: '0', step: '1' };
+    case 'AMPOLA':
+      return { label: 'Quantidade (ampolas)', placeholder: '0', step: '1' };
     default:
       return { label: 'Quantidade', placeholder: '0.00', step: '0.01' };
   }
@@ -220,7 +326,96 @@ function calcularCustoPorUnidadeUso(insumo: Insumo): number {
   const fator = Number(insumo.fator_conversao);
   
   if (quantidade > 0 && fator > 0) {
-    return custo / (quantidade * fator);
+    let quantidadeCalculada = quantidade;
+    
+    // Se temos dimensões e tipo de cálculo, usar a lógica específica
+    if (insumo.altura && insumo.unidade_dimensao && insumo.tipo_calculo) {
+      const alturaNum = Number(insumo.altura);
+      
+      if (!isNaN(alturaNum)) {
+        // Converter altura para metros
+        let alturaEmMetros = alturaNum;
+        
+        switch (insumo.unidade_dimensao) {
+          case 'CENTÍMETROS':
+          case 'CM':
+            alturaEmMetros = alturaNum / 100;
+            break;
+          case 'MILÍMETROS':
+          case 'MM':
+            alturaEmMetros = alturaNum / 1000;
+            break;
+          case 'METROS':
+          case 'M':
+            // Já está em metros
+            break;
+        }
+        
+        // Calcular quantidade baseada no tipo de cálculo
+        switch (insumo.tipo_calculo) {
+          case 'COMPRIMENTO LINEAR':
+          case 'LINEAR':
+            // Para comprimento linear: calcular custo por unidade de uso
+            const custoPorUnidade = custo / quantidade;
+            
+            if (insumo.unidade_uso === 'CENTIMETRO' || insumo.unidade_uso === 'CM') {
+              // Se a unidade de uso é centímetro, calcular custo por centímetro
+              // Para cordão: custo por metro ÷ 100 = custo por centímetro
+              const custoPorCentimetro = custoPorUnidade / 100;
+              
+              return custoPorCentimetro;
+            } else {
+              // Para outras unidades de uso, usar o cálculo padrão
+              return custoPorUnidade;
+            }
+            
+          case 'AREA':
+            // Para área: calcular custo por unidade de uso baseado na área da unidade
+            if (insumo.largura) {
+              const larguraNum = Number(insumo.largura);
+              if (!isNaN(larguraNum)) {
+                let larguraEmMetros = larguraNum;
+                
+                switch (insumo.unidade_dimensao) {
+                  case 'CENTÍMETROS':
+                  case 'CM':
+                    larguraEmMetros = larguraNum / 100;
+                    break;
+                  case 'MILÍMETROS':
+                  case 'MM':
+                    larguraEmMetros = larguraNum / 1000;
+                    break;
+                }
+                
+                const areaPorUnidade = larguraEmMetros * alturaEmMetros;
+                
+                if (insumo.unidade_uso === 'METRO QUADRADO') {
+                  // Se a unidade de uso é metro quadrado, calcular custo por m²
+                  const custoPorMetroQuadrado = custo / areaPorUnidade;
+                  
+                  return custoPorMetroQuadrado;
+                } else {
+                  // Para outras unidades de uso, usar o cálculo padrão
+                  return custo / quantidade;
+                }
+              }
+            } else {
+              return custo / quantidade;
+            }
+            break;
+            
+          case 'QUANTIDADE':
+            // Para quantidade fixa: usar quantidade diretamente
+            return custo / quantidade;
+            
+          default:
+            // Padrão: usar quantidade diretamente
+            return custo / quantidade;
+        }
+      }
+    }
+    
+    return custo / (quantidadeCalculada * fator);
   }
   
   return 0;
@@ -443,10 +638,21 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
       }
 
       // Converter materiais para o formato esperado
-      const itens = primeiroItem.materiais.map(material => ({
-        insumo_id: material.insumo_id,
-        quantidade: Number(String(material.quantidade).replace(',', '.'))
-      }));
+      const itens = primeiroItem.materiais.map(material => {
+        const insumo = insumos.find(i => i.id === material.insumo_id);
+        const areaProduto = Number(primeiroItem.area_produto) || 0;
+        const larguraProduto = Number(primeiroItem.largura_produto) || 0;
+        const alturaProduto = Number(primeiroItem.altura_produto) || 0;
+
+        return {
+          insumo_id: material.insumo_id,
+          quantidade: Number(String(material.quantidade).replace(',', '.')),
+          // Incluir informações do produto para lógica personalizada
+          area_produto: areaProduto > 0 ? areaProduto : undefined,
+          largura_produto: larguraProduto > 0 ? larguraProduto : undefined,
+          altura_produto: alturaProduto > 0 ? alturaProduto : undefined,
+        };
+      });
 
       // Calcular horas de produção baseado em máquinas e funções
       const horasMaquinas = primeiroItem.maquinas.reduce((total, maquina) => {
@@ -457,7 +663,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
         return total + (Number(funcao.horas_trabalhadas) || 0);
       }, 0);
 
-      const horasProducao = Math.max(horasMaquinas, horasFuncoes, 1); // Mínimo 1 hora
+      const horasProducao = horasMaquinas + horasFuncoes; // Soma total das horas
 
       const dadosCalculo = {
         nome_servico: primeiroItem.nome_servico,
@@ -863,21 +1069,131 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
                                 const sugerirQuantidade = () => {
                                   if (!insumoSelecionado) return '';
                                   
-                                  switch (insumoSelecionado.unidade_uso) {
-                                    case 'M2':
-                                      return areaCalculada > 0 ? areaCalculada.toFixed(2) : '';
-                                    case 'M':
-                                      // Para cordão, usar o perímetro (2 × largura + 2 × altura)
-                                      if (larguraProduto && alturaProduto && unidadeMedidaProduto) {
-                                        const larguraEmMetros = converterParaMetros(larguraProduto, unidadeMedidaProduto);
-                                        const alturaEmMetros = converterParaMetros(alturaProduto, unidadeMedidaProduto);
-                                        const perimetro = 2 * (larguraEmMetros + alturaEmMetros);
-                                        return perimetro.toFixed(2);
+                                  let sugestao = '';
+                                                  
+                                  // Verificar se tem lógica personalizada
+                                  if (insumoSelecionado.logica_consumo === 'custom' && insumoSelecionado.tipoMaterial) {
+                                    const parametros = insumoSelecionado.tipoMaterial.parametros_padrao;
+                                    const areaProduto = Number(form.watch(`itens_produto.${itemIndex}.area_produto`)) || 0;
+                                    const larguraProduto = Number(form.watch(`itens_produto.${itemIndex}.largura_produto`)) || 0;
+                                    const alturaProduto = Number(form.watch(`itens_produto.${itemIndex}.altura_produto`)) || 0;
+                                    
+                                    if (parametros && parametros.tipo_calculo) {
+                                      switch (parametros.tipo_calculo) {
+                                        case 'espacamento':
+                                          if (parametros.espacamento && larguraProduto && alturaProduto) {
+                                            const perimetro = 2 * (larguraProduto + alturaProduto);
+                                            const espacamento = Number(parametros.espacamento);
+                                            sugestao = Math.ceil(perimetro / espacamento).toString();
+                                          }
+                                          break;
+                                        
+                                        case 'quantidade_por_m2':
+                                          if (parametros.quantidade_por_m2 && areaProduto > 0) {
+                                            sugestao = (areaProduto * Number(parametros.quantidade_por_m2)).toString();
+                                          }
+                                          break;
+                                        
+                                        case 'multiplicador':
+                                          if (parametros.multiplicador) {
+                                            sugestao = (1 * Number(parametros.multiplicador)).toString();
+                                          }
+                                          break;
+                                        
+                                        case 'quantidade_fixa':
+                                          if (parametros.quantidade_fixa) {
+                                            sugestao = parametros.quantidade_fixa.toString();
+                                          }
+                                          break;
                                       }
-                                      return '';
-                                    default:
-                                      return '';
+                                    }
+                                  } else {
+                                    // Lógica padrão baseada na unidade de uso
+                                    switch (insumoSelecionado.unidade_uso) {
+                                      case 'M2':
+                                        if (larguraProduto && alturaProduto && unidadeMedidaProduto) {
+                                          const area = calcularArea(Number(larguraProduto), Number(alturaProduto), unidadeMedidaProduto);
+                                          sugestao = area.toFixed(2);
+                                        }
+                                        break;
+                                      case 'M':
+                                        if (larguraProduto && alturaProduto && unidadeMedidaProduto) {
+                                          const larguraEmMetros = converterParaMetros(Number(larguraProduto), unidadeMedidaProduto);
+                                          const alturaEmMetros = converterParaMetros(Number(alturaProduto), unidadeMedidaProduto);
+                                          const perimetro = 2 * (larguraEmMetros + alturaEmMetros);
+                                          sugestao = perimetro.toFixed(2);
+                                        }
+                                        break;
+                                    }
                                   }
+                                  
+                                  return sugestao;
+                                };
+
+                                // Gerar explicação detalhada do cálculo
+                                const gerarExplicacaoCalculo = () => {
+                                  if (!insumoSelecionado) return '';
+                                  
+                                  const areaProduto = Number(form.watch(`itens_produto.${itemIndex}.area_produto`)) || 0;
+                                  const larguraProduto = Number(form.watch(`itens_produto.${itemIndex}.largura_produto`)) || 0;
+                                  const alturaProduto = Number(form.watch(`itens_produto.${itemIndex}.altura_produto`)) || 0;
+                                  
+                                  // Verificar se tem lógica personalizada
+                                  if (insumoSelecionado.logica_consumo === 'custom' && insumoSelecionado.tipoMaterial) {
+                                    const parametros = insumoSelecionado.tipoMaterial.parametros_padrao;
+                                    
+                                    if (parametros && parametros.tipo_calculo) {
+                                      switch (parametros.tipo_calculo) {
+                                        case 'espacamento':
+                                          if (parametros.espacamento && larguraProduto && alturaProduto) {
+                                            const perimetro = 2 * (larguraProduto + alturaProduto);
+                                            const espacamento = Number(parametros.espacamento);
+                                            const quantidade = Math.ceil(perimetro / espacamento);
+                                            return `A cada ${espacamento}cm 1 ${insumoSelecionado.nome.toLowerCase()} • Perímetro: ${perimetro}cm • Total: ${quantidade} unidades`;
+                                          }
+                                          break;
+                                        
+                                        case 'quantidade_por_m2':
+                                          if (parametros.quantidade_por_m2 && areaProduto > 0) {
+                                            const quantidade = areaProduto * Number(parametros.quantidade_por_m2);
+                                            return `${parametros.quantidade_por_m2} ${insumoSelecionado.nome.toLowerCase()} por m² • Área: ${areaProduto}m² • Total: ${quantidade} unidades`;
+                                          }
+                                          break;
+                                        
+                                        case 'multiplicador':
+                                          if (parametros.multiplicador) {
+                                            return `Multiplicador: ${parametros.multiplicador}x • Total: ${parametros.multiplicador} unidades`;
+                                          }
+                                          break;
+                                        
+                                        case 'quantidade_fixa':
+                                          if (parametros.quantidade_fixa) {
+                                            return `Quantidade fixa: ${parametros.quantidade_fixa} unidades`;
+                                          }
+                                          break;
+                                      }
+                                    }
+                                  } else {
+                                    // Lógica padrão
+                                    switch (insumoSelecionado.unidade_uso) {
+                                      case 'M2':
+                                        if (larguraProduto && alturaProduto && unidadeMedidaProduto) {
+                                          const area = calcularArea(Number(larguraProduto), Number(alturaProduto), unidadeMedidaProduto);
+                                          return `Área calculada: ${area.toFixed(2)}m²`;
+                                        }
+                                        break;
+                                      case 'M':
+                                        if (larguraProduto && alturaProduto && unidadeMedidaProduto) {
+                                          const larguraEmMetros = converterParaMetros(Number(larguraProduto), unidadeMedidaProduto);
+                                          const alturaEmMetros = converterParaMetros(Number(alturaProduto), unidadeMedidaProduto);
+                                          const perimetro = 2 * (larguraEmMetros + alturaEmMetros);
+                                          return `Perímetro calculado: ${perimetro.toFixed(2)}m`;
+                                        }
+                                        break;
+                                    }
+                                  }
+                                  
+                                  return '';
                                 };
                                 
                                 return (
@@ -901,21 +1217,61 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
                                                   const unidadeMedidaProduto = form.watch(`itens_produto.${itemIndex}.unidade_medida_produto`);
                                                   
                                                   let sugestao = '';
-                                                  switch (insumoSelecionado.unidade_uso) {
-                                                    case 'M2':
-                                                      if (larguraProduto && alturaProduto && unidadeMedidaProduto) {
-                                                        const area = calcularArea(larguraProduto, alturaProduto, unidadeMedidaProduto);
-                                                        sugestao = area.toFixed(2);
+                                                  
+                                                  // Verificar se tem lógica personalizada
+                                                  if (insumoSelecionado.logica_consumo === 'custom' && insumoSelecionado.tipoMaterial) {
+                                                    const parametros = insumoSelecionado.tipoMaterial.parametros_padrao;
+                                                    const areaProduto = Number(form.watch(`itens_produto.${itemIndex}.area_produto`)) || 0;
+                                                    const larguraProduto = Number(form.watch(`itens_produto.${itemIndex}.largura_produto`)) || 0;
+                                                    const alturaProduto = Number(form.watch(`itens_produto.${itemIndex}.altura_produto`)) || 0;
+                                                    
+                                                    if (parametros && parametros.tipo_calculo) {
+                                                      switch (parametros.tipo_calculo) {
+                                                        case 'espacamento':
+                                                          if (parametros.espacamento && larguraProduto && alturaProduto) {
+                                                            const perimetro = 2 * (larguraProduto + alturaProduto);
+                                                            const espacamento = Number(parametros.espacamento);
+                                                            sugestao = Math.ceil(perimetro / espacamento).toString();
+                                                          }
+                                                          break;
+                                                        
+                                                        case 'quantidade_por_m2':
+                                                          if (parametros.quantidade_por_m2 && areaProduto > 0) {
+                                                            sugestao = (areaProduto * Number(parametros.quantidade_por_m2)).toString();
+                                                          }
+                                                          break;
+                                                        
+                                                        case 'multiplicador':
+                                                          if (parametros.multiplicador) {
+                                                            sugestao = (1 * Number(parametros.multiplicador)).toString();
+                                                          }
+                                                          break;
+                                                        
+                                                        case 'quantidade_fixa':
+                                                          if (parametros.quantidade_fixa) {
+                                                            sugestao = parametros.quantidade_fixa.toString();
+                                                          }
+                                                          break;
                                                       }
-                                                      break;
-                                                    case 'M':
-                                                      if (larguraProduto && alturaProduto && unidadeMedidaProduto) {
-                                                        const larguraEmMetros = converterParaMetros(larguraProduto, unidadeMedidaProduto);
-                                                        const alturaEmMetros = converterParaMetros(alturaProduto, unidadeMedidaProduto);
-                                                        const perimetro = 2 * (larguraEmMetros + alturaEmMetros);
-                                                        sugestao = perimetro.toFixed(2);
-                                                      }
-                                                      break;
+                                                    }
+                                                  } else {
+                                                    // Lógica padrão baseada na unidade de uso
+                                                    switch (insumoSelecionado.unidade_uso) {
+                                                      case 'M2':
+                                                        if (larguraProduto && alturaProduto && unidadeMedidaProduto) {
+                                                          const area = calcularArea(Number(larguraProduto), Number(alturaProduto), unidadeMedidaProduto);
+                                                          sugestao = area.toFixed(2);
+                                                        }
+                                                        break;
+                                                      case 'M':
+                                                        if (larguraProduto && alturaProduto && unidadeMedidaProduto) {
+                                                          const larguraEmMetros = converterParaMetros(Number(larguraProduto), unidadeMedidaProduto);
+                                                          const alturaEmMetros = converterParaMetros(Number(alturaProduto), unidadeMedidaProduto);
+                                                          const perimetro = 2 * (larguraEmMetros + alturaEmMetros);
+                                                          sugestao = perimetro.toFixed(2);
+                                                        }
+                                                        break;
+                                                    }
                                                   }
                                                   
                                                   if (sugestao) {
@@ -1007,8 +1363,16 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
                                     {/* Custo calculado */}
                                     {insumoSelecionado && quantidade > 0 && custoCalculado > 0 && (
                                       <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
-                                        Custo: {formatCurrency(custoCalculado)} 
-                                        ({formatCurrency(custoPorUnidade)} por {insumoSelecionado.unidade_uso.toLowerCase()})
+                                        <div className="flex items-center justify-between">
+                                          <div>
+                                            <div>Custo: {formatCurrency(custoCalculado)} ({formatCurrency(custoPorUnidade)} por {insumoSelecionado.unidade_uso.toLowerCase()})</div>
+                                            {gerarExplicacaoCalculo() && (
+                                              <div className="text-green-700 mt-1 font-medium">
+                                                {gerarExplicacaoCalculo()}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
                                       </div>
                                     )}
                                   </div>
@@ -1291,7 +1655,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
                         </div>
                         <div className="flex justify-between">
                           <span>Horas Totais:</span>
-                          <span>{calculoResultado.horas_producao?.toFixed(2) || '0.00'}h</span>
+                          <span>{calculoResultado.horas_producao_total?.toFixed(2) || '0.00'}h</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Preço Final (por unidade):</span>

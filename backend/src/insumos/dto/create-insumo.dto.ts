@@ -7,7 +7,9 @@ import {
   Min,
   IsBoolean,
   IsPositive,
+  IsEnum,
 } from 'class-validator';
+import { LogicaConsumoInsumo } from '@prisma/client';
 
 export class CreateInsumoDto {
   @IsString()
@@ -66,6 +68,18 @@ export class CreateInsumoDto {
   @IsNumber({ maxDecimalPlaces: 1 })
   @IsPositive()
   gramatura?: number;
+
+  // Campos de lógica de consumo
+  @IsOptional()
+  @IsEnum(LogicaConsumoInsumo)
+  logica_consumo?: LogicaConsumoInsumo;
+
+  @IsOptional()
+  @IsString()
+  tipo_material_id?: string;
+
+  @IsOptional()
+  parametros_consumo?: any;
 
   @IsOptional()
   @IsString()

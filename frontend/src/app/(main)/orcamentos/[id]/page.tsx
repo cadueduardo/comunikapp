@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
 
+
 interface Orcamento {
   id: string;
   numero: string;
@@ -70,6 +71,11 @@ export default function VisualizarOrcamentoPage({ params }: { params: Promise<{ 
   const { id } = React.use(params);
   const [orcamento, setOrcamento] = useState<Orcamento | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+    fetchOrcamento();
+  }, [id]);
 
   useEffect(() => {
     if (!id) return;
@@ -391,6 +397,8 @@ export default function VisualizarOrcamentoPage({ params }: { params: Promise<{ 
           </Card>
         </div>
       </div>
+
+
     </div>
   );
 } 

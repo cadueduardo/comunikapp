@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useUser } from '@/contexts/UserContext';
+import { MainHeader } from '@/components/ui/main-header';
 
 // Componente customizado para SidebarLink com Next.js Link
 const SidebarLink = ({
@@ -218,6 +219,7 @@ export default function DashboardLayout({
       
       {/* Área de conteúdo principal */}
       <main className="flex-1 overflow-y-auto">
+        <MainHeader />
         <div className="p-6 md:p-10">
           {children}
         </div>

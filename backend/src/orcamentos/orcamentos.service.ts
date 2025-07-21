@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificacoesService } from '../notificacoes/notificacoes.service';
 import { CalcularOrcamentoDto } from './dto/calcular-orcamento.dto';
 import { ResultadoCalculoDto, ItemOrcamentoCalculadoDto, DetalhamentoCustoDto } from './dto/resultado-calculo.dto';
 import { CreateOrcamentoDto } from './dto/create-orcamento.dto';
@@ -7,7 +8,10 @@ import { UpdateOrcamentoDto } from './dto/update-orcamento.dto';
 
 @Injectable()
 export class OrcamentosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificacoesService: NotificacoesService
+  ) {}
 
   /**
    * Motor de cálculo principal - Tarefa 2.5
@@ -39,6 +43,7 @@ export class OrcamentosService {
       include: {
         categoria: true,
         fornecedor: true,
+        tipoMaterial: true,
       },
     });
 
@@ -178,7 +183,15 @@ export class OrcamentosService {
 
       // Calcular custo por unidade de uso
       const custoUnitario = this.calcularCustoPorUnidadeUso(insumo);
-      const quantidade = Number(item.quantidade);
+      
+      // Calcular quantidade baseada na lógica personalizada se aplicável
+      let quantidade = Number(item.quantidade);
+      
+      // Se o insumo tem tipo de material personalizado, aplicar lógica específica
+      if (insumo.tipoMaterial && insumo.logica_consumo === 'custom') {
+        quantidade = this.calcularQuantidadePersonalizada(insumo, item);
+      }
+      
       const custoTotal = custoUnitario * quantidade;
 
       custoMaterial += custoTotal;
@@ -197,6 +210,81 @@ export class OrcamentosService {
   }
 
   /**
+   * Calcula quantidade personalizada baseada na lógica do TipoMaterial
+   */
+  private calcularQuantidadePersonalizada(insumo: any, item: any): number {
+    if (!insumo.tipoMaterial || !insumo.tipoMaterial.parametros_padrao) {
+      return Number(item.quantidade);
+    }
+
+    const parametros = insumo.tipoMaterial.parametros_padrao;
+    const areaProduto = Number(item.area_produto) || 0;
+    const larguraProduto = Number(item.largura_produto) || 0;
+    const alturaProduto = Number(item.altura_produto) || 0;
+
+    switch (insumo.tipoMaterial.logica_consumo) {
+      case 'area':
+        // Quantidade baseada na área do produto
+        if (parametros.quantidade_por_m2 && areaProduto > 0) {
+          return areaProduto * Number(parametros.quantidade_por_m2);
+        }
+        break;
+
+      case 'perimetro':
+        // Quantidade baseada no perímetro do produto
+        if (parametros.espacamento && larguraProduto > 0 && alturaProduto > 0) {
+          const perimetro = 2 * (larguraProduto + alturaProduto);
+          const espacamento = Number(parametros.espacamento);
+          return Math.ceil(perimetro / espacamento);
+        }
+        break;
+
+      case 'quantidade_fixa':
+        // Quantidade fixa independente do produto
+        if (parametros.quantidade_fixa) {
+          return Number(parametros.quantidade_fixa);
+        }
+        break;
+
+      case 'custom':
+        // Lógica customizada baseada nos parâmetros
+        if (parametros.tipo_calculo) {
+          switch (parametros.tipo_calculo) {
+            case 'espacamento':
+              if (parametros.espacamento && larguraProduto > 0 && alturaProduto > 0) {
+                const perimetro = 2 * (larguraProduto + alturaProduto);
+                const espacamento = Number(parametros.espacamento);
+                return Math.ceil(perimetro / espacamento);
+              }
+              break;
+
+            case 'quantidade_por_m2':
+              if (parametros.quantidade_por_m2 && areaProduto > 0) {
+                return areaProduto * Number(parametros.quantidade_por_m2);
+              }
+              break;
+
+            case 'multiplicador':
+              if (parametros.multiplicador) {
+                return Number(item.quantidade) * Number(parametros.multiplicador);
+              }
+              break;
+
+            case 'quantidade_fixa':
+              if (parametros.quantidade_fixa) {
+                return Number(parametros.quantidade_fixa);
+              }
+              break;
+          }
+        }
+        break;
+    }
+
+    // Se não conseguiu calcular, retorna a quantidade original
+    return Number(item.quantidade);
+  }
+
+  /**
    * Calcula o custo por unidade de uso do insumo
    */
   private calcularCustoPorUnidadeUso(insumo: any): number {
@@ -209,7 +297,96 @@ export class OrcamentosService {
     const fator = Number(insumo.fator_conversao);
     
     if (quantidade > 0 && fator > 0) {
-      return custo / (quantidade * fator);
+      let quantidadeCalculada = quantidade;
+      
+      // Se temos dimensões e tipo de cálculo, usar a lógica específica
+      if (insumo.altura && insumo.unidade_dimensao && insumo.tipo_calculo) {
+        const alturaNum = Number(insumo.altura);
+        
+        if (!isNaN(alturaNum)) {
+          // Converter altura para metros
+          let alturaEmMetros = alturaNum;
+          
+          switch (insumo.unidade_dimensao) {
+            case 'CENTÍMETROS':
+            case 'CM':
+              alturaEmMetros = alturaNum / 100;
+              break;
+            case 'MILÍMETROS':
+            case 'MM':
+              alturaEmMetros = alturaNum / 1000;
+              break;
+            case 'METROS':
+            case 'M':
+              // Já está em metros
+              break;
+          }
+          
+          // Calcular quantidade baseada no tipo de cálculo
+          switch (insumo.tipo_calculo) {
+            case 'COMPRIMENTO LINEAR':
+            case 'LINEAR':
+              // Para comprimento linear: calcular custo por unidade de uso
+              const custoPorUnidade = custo / quantidade;
+              
+              if (insumo.unidade_uso === 'CENTIMETRO' || insumo.unidade_uso === 'CM') {
+                // Se a unidade de uso é centímetro, calcular custo por centímetro
+                // Para cordão: custo por metro ÷ 100 = custo por centímetro
+                const custoPorCentimetro = custoPorUnidade / 100;
+                
+                return custoPorCentimetro;
+              } else {
+                // Para outras unidades de uso, usar o cálculo padrão
+                return custoPorUnidade;
+              }
+              
+            case 'AREA':
+              // Para área: calcular custo por unidade de uso baseado na área da unidade
+              if (insumo.largura) {
+                const larguraNum = Number(insumo.largura);
+                if (!isNaN(larguraNum)) {
+                  let larguraEmMetros = larguraNum;
+                  
+                  switch (insumo.unidade_dimensao) {
+                    case 'CENTÍMETROS':
+                    case 'CM':
+                      larguraEmMetros = larguraNum / 100;
+                      break;
+                    case 'MILÍMETROS':
+                    case 'MM':
+                      larguraEmMetros = larguraNum / 1000;
+                      break;
+                  }
+                  
+                  const areaPorUnidade = larguraEmMetros * alturaEmMetros;
+                  
+                  if (insumo.unidade_uso === 'METRO QUADRADO') {
+                    // Se a unidade de uso é metro quadrado, calcular custo por m²
+                    const custoPorMetroQuadrado = custo / areaPorUnidade;
+                    
+                    return custoPorMetroQuadrado;
+                  } else {
+                    // Para outras unidades de uso, usar o cálculo padrão
+                    return custo / quantidade;
+                  }
+                }
+              } else {
+                return custo / quantidade;
+              }
+              break;
+              
+            case 'QUANTIDADE':
+              // Para quantidade fixa: usar quantidade diretamente
+              return custo / quantidade;
+              
+            default:
+              // Padrão: usar quantidade diretamente
+              return custo / quantidade;
+          }
+        }
+      }
+      
+      return custo / (quantidadeCalculada * fator);
     }
     
     return 0;
@@ -636,5 +813,141 @@ export class OrcamentosService {
     }
 
     return `${ano}${mes}${String(sequencial).padStart(4, '0')}`;
+  }
+
+  /**
+   * Buscar orçamento público (sem autenticação)
+   */
+  async findOnePublico(id: string) {
+    const orcamento = await this.prisma.orcamento.findUnique({
+      where: { id },
+      include: {
+        cliente: true,
+        itens: {
+          include: {
+            insumo: {
+              include: {
+                categoria: true,
+                fornecedor: true,
+              },
+            },
+          },
+        },
+        maquinas: {
+          include: {
+            maquina: true,
+          },
+        },
+        funcoes: {
+          include: {
+            funcao: true,
+          },
+        },
+        loja: {
+          select: {
+            nome: true,
+            logo_url: true,
+            telefone: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!orcamento) {
+      throw new NotFoundException('Orçamento não encontrado');
+    }
+
+    return orcamento;
+  }
+
+  /**
+   * Processa ação do cliente (aprovar, rejeitar, negociar)
+   */
+  async acaoCliente(id: string, acaoDto: any) {
+    const orcamento = await this.findOnePublico(id);
+    
+    let statusAprovacao: string;
+    let tipoNotificacao: string;
+    let tituloNotificacao: string;
+    let mensagemNotificacao: string;
+    
+    switch (acaoDto.acao) {
+      case 'APROVAR':
+        statusAprovacao = 'APROVADO';
+        tipoNotificacao = 'orcamento_aprovado';
+        tituloNotificacao = 'Orçamento Aprovado';
+        mensagemNotificacao = `O orçamento ${orcamento.numero} foi aprovado pelo cliente.`;
+        break;
+      case 'REJEITAR':
+        statusAprovacao = 'REJEITADO';
+        tipoNotificacao = 'orcamento_rejeitado';
+        tituloNotificacao = 'Orçamento Rejeitado';
+        mensagemNotificacao = `O orçamento ${orcamento.numero} foi rejeitado pelo cliente.`;
+        break;
+      case 'NEGOCIAR':
+        statusAprovacao = 'NEGOCIANDO';
+        tipoNotificacao = 'orcamento_negociando';
+        tituloNotificacao = 'Orçamento em Negociação';
+        mensagemNotificacao = `O orçamento ${orcamento.numero} está sendo negociado pelo cliente.`;
+        break;
+      default:
+        throw new BadRequestException('Ação inválida');
+    }
+
+    await this.prisma.orcamento.update({
+      where: { id },
+      data: {
+        status_aprovacao: statusAprovacao,
+        observacoes_cliente: acaoDto.observacoes,
+      },
+    });
+
+    // Criar notificação para ação do cliente
+    await this.notificacoesService.notificarAcaoCliente(
+      id,
+      orcamento.loja_id,
+      acaoDto.acao,
+      acaoDto.observacoes
+    );
+
+    return {
+      message: `Orçamento ${statusAprovacao.toLowerCase()}`,
+      status: statusAprovacao,
+    };
+  }
+
+  /**
+   * Buscar mensagens não visualizadas para SSE
+   */
+  async getMensagensNaoVisualizadas(orcamentoId: string) {
+    return this.prisma.mensagemNegociacao.findMany({
+      where: {
+        orcamento_id: orcamentoId,
+        visualizada: false,
+        tipo: {
+          not: 'SISTEMA'
+        }
+      },
+      orderBy: {
+        criado_em: 'desc'
+      },
+      take: 10
+    });
+  }
+
+  /**
+   * Marcar mensagem como visualizada
+   */
+  async marcarMensagemComoVisualizada(orcamentoId: string, mensagemId: string) {
+    return this.prisma.mensagemNegociacao.update({
+      where: {
+        id: mensagemId,
+        orcamento_id: orcamentoId
+      },
+      data: {
+        visualizada: true
+      }
+    });
   }
 }

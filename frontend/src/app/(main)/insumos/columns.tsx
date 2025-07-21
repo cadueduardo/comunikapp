@@ -79,31 +79,92 @@ export const createColumns = (onDelete: (id: string, nome: string) => void): Col
     },
   },
   {
-    accessorKey: 'quantidade_compra',
-    header: 'Qtd. Compra',
+    accessorKey: 'unidade_compra',
+    header: 'Unidade de Compra',
     cell: ({ row }) => {
       const insumo = row.original;
-      const quantidade = insumo.quantidade_compra;
+      return `1 ${insumo.unidade_compra}`;
+    },
+  },
+  {
+    accessorKey: 'quantidade_por_unidade',
+    header: 'Qtd. por Unidade',
+    cell: ({ row }) => {
+      const insumo = row.original;
       const largura = insumo.largura;
       const altura = insumo.altura;
-      const gramatura = insumo.gramatura;
+      const quantidadeCompra = Number(insumo.quantidade_compra);
+      const unidadeDimensao = insumo.unidade_dimensao;
+      const tipoCalculo = insumo.tipo_calculo;
+      const unidadeCompra = insumo.unidade_compra;
       
-      // Formatar quantidade removendo zeros desnecessários
-      const quantidadeNum = Number(quantidade);
-      const quantidadeFormatada = quantidadeNum % 1 === 0 
-        ? quantidadeNum.toString() 
-        : quantidadeNum.toFixed(3).replace(/\.?0+$/, '');
+      let display = '-';
       
-      let display = `${quantidadeFormatada} ${insumo.unidade_compra}`;
-      
-      // Adicionar dimensões se disponíveis
-      if (largura && altura) {
-        display += ` (${Number(largura).toFixed(2)}x${Number(altura).toFixed(2)}m)`;
+      // Regra 1: Se unidade de compra é PACOTE, mostrar quantidade de unidades
+      if (unidadeCompra === 'PACOTE' || unidadeCompra === 'UNID') {
+        display = `${quantidadeCompra} unidades`;
       }
-      
-      // Adicionar gramatura se disponível
-      if (gramatura) {
-        display += ` ${Number(gramatura).toFixed(1)}g`;
+      // Regra 2: Se unidade de compra é ROLO, mostrar comprimento em metros
+      else if (unidadeCompra === 'ROLO') {
+        if (altura && unidadeDimensao) {
+          const alturaNum = Number(altura);
+          let alturaEmMetros = alturaNum;
+          
+          switch (unidadeDimensao) {
+            case 'CENTÍMETROS':
+            case 'CM':
+              alturaEmMetros = alturaNum / 100;
+              break;
+            case 'MILÍMETROS':
+            case 'MM':
+              alturaEmMetros = alturaNum / 1000;
+              break;
+            case 'METROS':
+            case 'M':
+              // Já está em metros
+              break;
+          }
+          
+          display = `${alturaEmMetros.toFixed(1)} M`;
+        } else {
+          display = `${quantidadeCompra} M`;
+        }
+      }
+      // Regra 3: Se unidade de compra é BOBINA, mostrar área em metros quadrados
+      else if (unidadeCompra === 'BOBINA') {
+        if (largura && altura && unidadeDimensao) {
+          const larguraNum = Number(largura);
+          const alturaNum = Number(altura);
+          
+          let larguraEmMetros = larguraNum;
+          let alturaEmMetros = alturaNum;
+          
+          switch (unidadeDimensao) {
+            case 'CENTÍMETROS':
+            case 'CM':
+              larguraEmMetros = larguraNum / 100;
+              alturaEmMetros = alturaNum / 100;
+              break;
+            case 'MILÍMETROS':
+            case 'MM':
+              larguraEmMetros = larguraNum / 1000;
+              alturaEmMetros = alturaNum / 1000;
+              break;
+            case 'METROS':
+            case 'M':
+              // Já está em metros
+              break;
+          }
+          
+          const area = larguraEmMetros * alturaEmMetros;
+          display = `${area.toFixed(1)} M2`;
+        } else {
+          display = `${quantidadeCompra} M2`;
+        }
+      }
+      // Caso padrão: usar quantidade com unidade de uso
+      else if (quantidadeCompra > 0) {
+        display = `${quantidadeCompra} ${insumo.unidade_uso}`;
       }
       
       return display;

@@ -1,0 +1,284 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Bell, 
+  MessageCircle, 
+  CheckCircle, 
+  XCircle, 
+  AlertCircle,
+  Trash2,
+  Eye
+} from 'lucide-react';
+import { toast } from 'sonner';
+
+interface Notificacao {
+  id: string;
+  tipo: string;
+  titulo: string;
+  mensagem: string;
+  orcamento_id?: string;
+  visualizada: boolean;
+  criado_em: string;
+  dados_extras?: Record<string, unknown>;
+}
+
+export function NotificacoesDropdown() {
+  const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
+  const [naoVisualizadas, setNaoVisualizadas] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    carregarNotificacoes();
+    carregarContador();
+  }, []);
+
+  const carregarNotificacoes = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('access_token');
+      const response = await fetch('http://localhost:3001/notificacoes?limit=10', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setNotificacoes(data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar notificações:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const carregarContador = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch('http://localhost:3001/notificacoes/nao-visualizadas/count', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setNaoVisualizadas(data.count);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar contador:', error);
+    }
+  };
+
+  const marcarComoVisualizada = async (notificacaoId: string) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`http://localhost:3001/notificacoes/${notificacaoId}/visualizar`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        await carregarNotificacoes();
+        await carregarContador();
+      }
+    } catch (error) {
+      console.error('Erro ao marcar como visualizada:', error);
+    }
+  };
+
+  const deletarNotificacao = async (notificacaoId: string) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`http://localhost:3001/notificacoes/${notificacaoId}/deletar`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        await carregarNotificacoes();
+        await carregarContador();
+        toast.success('Notificação removida');
+      }
+    } catch (error) {
+      console.error('Erro ao deletar notificação:', error);
+      toast.error('Erro ao remover notificação');
+    }
+  };
+
+  const getIconeTipo = (tipo: string) => {
+    switch (tipo) {
+      case 'NOVA_MENSAGEM':
+        return <MessageCircle className="w-4 h-4" />;
+      case 'ORCAMENTO_APROVADO':
+        return <CheckCircle className="w-4 h-4" />;
+      case 'ORCAMENTO_REJEITADO':
+        return <XCircle className="w-4 h-4" />;
+      case 'ORCAMENTO_NEGOCIANDO':
+        return <AlertCircle className="w-4 h-4" />;
+      default:
+        return <Bell className="w-4 h-4" />;
+    }
+  };
+
+  const getCorTipo = (tipo: string) => {
+    switch (tipo) {
+      case 'NOVA_MENSAGEM':
+        return 'bg-blue-100 text-blue-800';
+      case 'ORCAMENTO_APROVADO':
+        return 'bg-green-100 text-green-800';
+      case 'ORCAMENTO_REJEITADO':
+        return 'bg-red-100 text-red-800';
+      case 'ORCAMENTO_NEGOCIANDO':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const formatarData = (data: string) => {
+    return new Date(data).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  return (
+    <div className="relative">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative"
+      >
+        <Bell className="w-5 h-5" />
+        {naoVisualizadas > 0 && (
+          <Badge 
+            variant="destructive" 
+            className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+          >
+            {naoVisualizadas > 9 ? '9+' : naoVisualizadas}
+          </Badge>
+        )}
+      </Button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border z-50">
+          <div className="p-4 border-b">
+            <h3 className="text-lg font-semibold">Notificações</h3>
+            {naoVisualizadas > 0 && (
+              <p className="text-sm text-gray-600">{naoVisualizadas} não lidas</p>
+            )}
+          </div>
+
+          <div className="max-h-96 overflow-y-auto">
+            {loading ? (
+              <div className="p-4 text-center text-gray-500">
+                Carregando notificações...
+              </div>
+            ) : notificacoes.length === 0 ? (
+              <div className="p-4 text-center text-gray-500">
+                Nenhuma notificação
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {notificacoes.map((notificacao) => (
+                  <div
+                    key={notificacao.id}
+                    className={`p-3 border-b last:border-b-0 hover:bg-gray-50 ${
+                      !notificacao.visualizada ? 'bg-blue-50' : ''
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 mt-1">
+                        {getIconeTipo(notificacao.tipo)}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="text-sm font-medium truncate">
+                            {notificacao.titulo}
+                          </h4>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${getCorTipo(notificacao.tipo)}`}
+                          >
+                            {notificacao.tipo.replace('_', ' ')}
+                          </Badge>
+                          {!notificacao.visualizada && (
+                            <Badge variant="secondary" className="text-xs">
+                              Nova
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <p className="text-sm text-gray-600 mb-2">
+                          {notificacao.mensagem}
+                        </p>
+                        
+                        {notificacao.orcamento_id && (
+                          <div className="mb-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                window.location.href = `/orcamentos/${notificacao.orcamento_id}/editar?chat=true`;
+                                setIsOpen(false);
+                              }}
+                              className="text-xs"
+                            >
+                              Editar Orçamento
+                            </Button>
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500">
+                            {formatarData(notificacao.criado_em)}
+                          </span>
+                          
+                          <div className="flex items-center gap-1">
+                            {!notificacao.visualizada && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => marcarComoVisualizada(notificacao.id)}
+                                className="h-6 w-6 p-0"
+                              >
+                                <Eye className="w-3 h-3" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deletarNotificacao(notificacao.id)}
+                              className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+} 
