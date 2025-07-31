@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, Patch, Delete, UseGuards, Res } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Patch, Delete, UseGuards, Res, Request, NotFoundException } from '@nestjs/common';
 import { Response } from 'express';
 import { OrcamentosService } from './orcamentos.service';
 import { CalcularOrcamentoDto } from './dto/calcular-orcamento.dto';
@@ -65,18 +65,6 @@ export class OrcamentosController {
     @Body() dto: CalcularOrcamentoDto,
     @CurrentLojaId() lojaId: string
   ): Promise<ResultadoCalculoDto> {
-    console.log('Dados recebidos no controller:', JSON.stringify(dto, null, 2));
-    console.log('Loja ID:', lojaId);
-    console.log('Tipo de dados:', typeof dto);
-    console.log('Estrutura do DTO:', {
-      nome_servico: typeof dto.nome_servico,
-      descricao: typeof dto.descricao,
-      horas_producao: typeof dto.horas_producao,
-      itens: Array.isArray(dto.itens) ? dto.itens.length : 'não é array',
-      cliente_id: typeof dto.cliente_id,
-      margem_lucro_customizada: typeof dto.margem_lucro_customizada,
-      impostos_customizados: typeof dto.impostos_customizados,
-    });
     return this.orcamentosService.calcularOrcamento(dto, lojaId);
   }
 
@@ -86,24 +74,86 @@ export class OrcamentosController {
    */
 
   @Post()
-  async create(
-    @Body() createOrcamentoDto: CreateOrcamentoDto,
-    @CurrentLojaId() lojaId: string
+  @UseGuards(JwtAuthGuard)
+  async create(@Body() createOrcamentoDto: CreateOrcamentoDto, @Request() req) {
+    console.log('💼 Criando novo orçamento...');
+    // Processando dados do orçamento...
+    
+    const result = await this.orcamentosService.create(createOrcamentoDto, req.user.loja_id);
+    
+    console.log('✅ Orçamento criado com sucesso!');
+    
+    return result;
+  }
+
+  @Post('rascunho')
+  @UseGuards(JwtAuthGuard)
+  async salvarRascunho(@Body() createOrcamentoDto: CreateOrcamentoDto, @Request() req) {
+    return this.orcamentosService.salvarRascunho(createOrcamentoDto, req.user.loja_id);
+  }
+
+  @Post(':id/enviar')
+  @UseGuards(JwtAuthGuard)
+  async enviarOrcamento(
+    @Param('id') id: string,
+    @Request() req
   ) {
-    return this.orcamentosService.create(createOrcamentoDto, lojaId);
+    return this.orcamentosService.enviarOrcamento(id, req.user.loja_id);
+  }
+
+  @Post('aprovar/:codigo')
+  @Public()
+  async aprovarOrcamento(@Param('codigo') codigo: string) {
+    console.log('🔍 Controller - Código recebido:', JSON.stringify(codigo));
+    console.log('🔍 Controller - Enviando para service...');
+    return this.orcamentosService.aprovarOrcamento(codigo);
   }
 
   @Get()
   async findAll(@CurrentLojaId() lojaId: string) {
-    console.log('Listando orçamentos para loja:', lojaId);
     const orcamentos = await this.orcamentosService.findAll(lojaId);
-    console.log('Orçamentos encontrados:', orcamentos.length);
-    return orcamentos;
+    
+    console.log(`📋 ${orcamentos.length} orçamentos encontrados`);
+    
+    // Converter valores Decimal para number de forma mais robusta
+    const orcamentosConvertidos = orcamentos.map(orcamento => {
+      // Função auxiliar para converter Decimal de forma segura
+      const convertDecimal = (value: any): number => {
+        if (value === null || value === undefined) return 0;
+        if (typeof value === 'number') return value;
+        if (typeof value === 'string') return parseFloat(value) || 0;
+        // Se for um objeto Decimal do Prisma
+        if (value && typeof value === 'object' && 'toNumber' in value) {
+          return value.toNumber();
+        }
+        // Tentar conversão direta
+        const converted = Number(value);
+        return isNaN(converted) ? 0 : converted;
+      };
+      
+      const precoFinalConvertido = convertDecimal(orcamento.preco_final);
+      const custoTotalConvertido = convertDecimal(orcamento.custo_total);
+      
+      return {
+        ...orcamento,
+        preco_final: precoFinalConvertido,
+        custo_material: convertDecimal(orcamento.custo_material),
+        custo_mao_obra: convertDecimal(orcamento.custo_mao_obra),
+        custo_indireto: convertDecimal(orcamento.custo_indireto),
+        custo_total: custoTotalConvertido,
+        margem_lucro: convertDecimal(orcamento.margem_lucro),
+        impostos: convertDecimal(orcamento.impostos),
+        quantidade_produto: orcamento.quantidade_produto ? convertDecimal(orcamento.quantidade_produto) : null,
+      };
+    });
+    
+    // Debug removido - logs limpos para melhor visualização
+    
+    return orcamentosConvertidos;
   }
 
   @Get('debug/token')
   async debugToken(@CurrentLojaId() lojaId: string) {
-    console.log('Debug token - Loja ID:', lojaId);
     return {
       loja_id: lojaId,
       token_valido: !!lojaId,
@@ -116,9 +166,6 @@ export class OrcamentosController {
     @Param('id') id: string,
     @CurrentLojaId() lojaId: string
   ) {
-    console.log('Test endpoint - Buscando orçamento:', { id, lojaId });
-    console.log('Test endpoint - Token válido:', !!lojaId);
-    
     // Usar o service para buscar
     try {
       const orcamento = await this.orcamentosService.findOne(id, lojaId);
@@ -128,7 +175,6 @@ export class OrcamentosController {
         orcamento: orcamento
       };
     } catch (error) {
-      console.log('Test endpoint - Erro ao buscar:', error.message);
       return {
         orcamento_encontrado: false,
         loja_usuario: lojaId,
@@ -142,8 +188,6 @@ export class OrcamentosController {
     @Param('id') id: string,
     @CurrentLojaId() lojaId: string
   ) {
-    console.log('Controller - Buscando orçamento:', { id, lojaId });
-    console.log('Controller - Token válido:', !!lojaId);
     return this.orcamentosService.findOne(id, lojaId);
   }
 
@@ -153,8 +197,6 @@ export class OrcamentosController {
     @Body() updateOrcamentoDto: UpdateOrcamentoDto,
     @CurrentLojaId() lojaId: string
   ) {
-    console.log('Controller - Update recebido:', { id, lojaId });
-    console.log('Controller - Dados do update:', updateOrcamentoDto);
     return this.orcamentosService.update(id, updateOrcamentoDto, lojaId);
   }
 
@@ -178,9 +220,23 @@ export class OrcamentosController {
 
   @Post(':id/publico/acao')
   @Public()
-  async acaoCliente(@Param('id') id: string, @Body() acaoDto: AcaoClienteDto) {
-    return this.orcamentosService.acaoCliente(id, acaoDto);
+  async acaoClientePublico(
+    @Param('id') id: string,
+    @Body() body: {
+      acao: 'APROVAR' | 'REJEITAR' | 'NEGOCIAR';
+      observacoes?: string;
+      cliente_nome?: string;
+      cliente_email?: string;
+    }
+  ) {
+    return this.orcamentosService.processarAcaoCliente(id, body.acao, {
+      observacoes: body.observacoes,
+      cliente_nome: body.cliente_nome,
+      cliente_email: body.cliente_email,
+    });
   }
+
+  // Endpoint removido - substituído pelo acaoClientePublico acima
 
   /**
    * Marcar mensagem como visualizada
@@ -192,5 +248,14 @@ export class OrcamentosController {
     @Param('mensagemId') mensagemId: string
   ) {
     return this.orcamentosService.marcarMensagemComoVisualizada(orcamentoId, mensagemId);
+  }
+
+
+
+  @Post('recalcular-existentes')
+  @UseGuards(JwtAuthGuard)
+  async recalcularOrcamentosExistentes(@Request() req) {
+    const lojaId = req.user.loja_id;
+    return this.orcamentosService.recalcularOrcamentosExistentes(lojaId);
   }
 }

@@ -102,4 +102,50 @@ export class CreateOrcamentoDto {
   @IsOptional()
   @Type(() => Number)
   quantidade_produto?: number;
+
+  // Custos calculados
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  custo_material?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  custo_mao_obra?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  custo_maquinaria?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  custo_indireto?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  custo_total_producao?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  margem_lucro_valor?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  subtotal_com_lucro?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  impostos_valor?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  preco_final?: number;
 } 

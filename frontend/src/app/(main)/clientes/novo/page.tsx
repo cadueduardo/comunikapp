@@ -8,13 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Loader2, MapPin } from "lucide-react";
 import Link from 'next/link';
-import { toast } from 'sonner'; // Adicionado toast
+import { toast } from 'sonner';
 
 export default function NovoClientePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [buscandoCep, setBuscandoCep] = useState(false);
+  const [enderecoPreenchido, setEnderecoPreenchido] = useState(false);
   const [formData, setFormData] = useState({
     nome: '',
     tipo_pessoa: 'PESSOA_FISICA',
@@ -39,6 +41,78 @@ export default function NovoClientePage() {
     origem: '',
     segmento: '',
   });
+
+  // Formatar CEP
+  const formatarCep = (cep: string) => {
+    const apenasNumeros = cep.replace(/\D/g, '');
+    if (apenasNumeros.length <= 5) {
+      return apenasNumeros;
+    }
+    return apenasNumeros.slice(0, 5) + '-' + apenasNumeros.slice(5, 8);
+  };
+
+  // Buscar endereço por CEP
+  const buscarCep = async (cep: string) => {
+    const cepLimpo = cep.replace(/\D/g, '');
+    
+    if (cepLimpo.length !== 8) {
+      toast.error('CEP deve ter 8 dígitos');
+      return;
+    }
+
+    setBuscandoCep(true);
+    
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await response.json();
+      
+      if (data.erro) {
+        toast.error('CEP não encontrado');
+        return;
+      }
+
+      // Preencher os campos automaticamente
+      setFormData(prev => ({
+        ...prev,
+        endereco: data.logradouro || '',
+        bairro: data.bairro || '',
+        cidade: data.localidade || '',
+        estado: data.uf || '',
+      }));
+
+      setEnderecoPreenchido(true);
+      toast.success('📍 Endereço encontrado! Agora preencha o número e complemento.');
+      
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+      toast.error('Erro ao buscar CEP. Tente novamente.');
+    } finally {
+      setBuscandoCep(false);
+    }
+  };
+
+  // Detectar quando CEP está completo e buscar automaticamente
+  const handleCepChange = (cep: string) => {
+    const cepFormatado = formatarCep(cep);
+    handleChange('cep', cepFormatado);
+    
+    const cepLimpo = cep.replace(/\D/g, '');
+    if (cepLimpo.length === 8) {
+      buscarCep(cepLimpo);
+    } else {
+      // Reset se CEP incompleto
+      if (enderecoPreenchido) {
+        setEnderecoPreenchido(false);
+        setFormData(prev => ({
+          ...prev,
+          endereco: '',
+          bairro: '',
+          cidade: '',
+          estado: '',
+        }));
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -240,45 +314,75 @@ export default function NovoClientePage() {
         {/* Endereço */}
         <Card>
           <CardHeader>
-            <CardTitle>Endereço</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Endereço
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="cep">CEP</Label>
-                <Input
-                  id="cep"
-                  value={formData.cep}
-                  onChange={(e) => handleChange('cep', e.target.value)}
-                />
+            {/* CEP com busca automática */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cep">CEP *</Label>
+                <div className="relative">
+                  <Input
+                    id="cep"
+                    placeholder="00000-000"
+                    value={formData.cep}
+                    onChange={(e) => handleCepChange(e.target.value)}
+                    maxLength={9}
+                    className={`${buscandoCep ? 'pr-10' : ''} ${enderecoPreenchido ? 'border-green-300 bg-green-50' : ''}`}
+                  />
+                  {buscandoCep && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                    </div>
+                  )}
+                </div>
+                {enderecoPreenchido && (
+                  <p className="text-xs text-green-600 flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    Endereço encontrado automaticamente!
+                  </p>
+                )}
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="endereco">Endereço</Label>
+
+            {/* Endereço (readonly se preenchido automaticamente) */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-3">
+                <Label htmlFor="endereco">Logradouro</Label>
                 <Input
                   id="endereco"
                   value={formData.endereco}
                   onChange={(e) => handleChange('endereco', e.target.value)}
-                  className="md:col-span-2"
+                  readOnly={enderecoPreenchido}
+                  className={enderecoPreenchido ? 'bg-gray-50 text-gray-600' : ''}
+                  placeholder={enderecoPreenchido ? '' : 'Rua, Avenida, etc.'}
                 />
               </div>
               <div>
-                <Label htmlFor="numero">Número</Label>
+                <Label htmlFor="numero">Número *</Label>
                 <Input
                   id="numero"
                   value={formData.numero}
                   onChange={(e) => handleChange('numero', e.target.value)}
+                  placeholder="123"
+                  className={enderecoPreenchido ? 'border-blue-300 focus:border-blue-500' : ''}
                 />
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-               <div>
+
+            {/* Complemento e Bairro */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
                 <Label htmlFor="complemento">Complemento</Label>
                 <Input
                   id="complemento"
                   value={formData.complemento}
                   onChange={(e) => handleChange('complemento', e.target.value)}
+                  placeholder="Apto, Sala, etc."
+                  className={enderecoPreenchido ? 'border-blue-300 focus:border-blue-500' : ''}
                 />
               </div>
               <div>
@@ -287,24 +391,36 @@ export default function NovoClientePage() {
                   id="bairro"
                   value={formData.bairro}
                   onChange={(e) => handleChange('bairro', e.target.value)}
+                  readOnly={enderecoPreenchido}
+                  className={enderecoPreenchido ? 'bg-gray-50 text-gray-600' : ''}
+                  placeholder={enderecoPreenchido ? '' : 'Nome do bairro'}
                 />
               </div>
             </div>
+
+            {/* Cidade e Estado */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div>
+              <div>
                 <Label htmlFor="cidade">Cidade</Label>
                 <Input
                   id="cidade"
                   value={formData.cidade}
                   onChange={(e) => handleChange('cidade', e.target.value)}
+                  readOnly={enderecoPreenchido}
+                  className={enderecoPreenchido ? 'bg-gray-50 text-gray-600' : ''}
+                  placeholder={enderecoPreenchido ? '' : 'Nome da cidade'}
                 />
               </div>
               <div>
-                <Label htmlFor="estado">Estado</Label>
+                <Label htmlFor="estado">Estado (UF)</Label>
                 <Input
                   id="estado"
                   value={formData.estado}
                   onChange={(e) => handleChange('estado', e.target.value)}
+                  readOnly={enderecoPreenchido}
+                  className={enderecoPreenchido ? 'bg-gray-50 text-gray-600' : ''}
+                  placeholder={enderecoPreenchido ? '' : 'Ex: SP'}
+                  maxLength={2}
                 />
               </div>
             </div>

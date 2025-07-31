@@ -3,245 +3,195 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DataTable } from '@/components/data-table/data-table';
 import { OrcamentoCard } from '@/components/ui/orcamento-card';
-import { useIsMobile } from '@/hooks/use-media-query';
 import { Plus, Table, LayoutGrid } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { createColumns, type Orcamento } from './columns';
+import { apiRequest } from '@/lib/api';
 
 export default function OrcamentosPage() {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
-  const isMobile = useIsMobile();
-  const [deleteDialog, setDeleteDialog] = useState<{
-    open: boolean;
-    orcamentoId: string | null;
-    orcamentoNome: string;
-  }>({
-    open: false,
-    orcamentoId: null,
-    orcamentoNome: '',
-  });
 
-  useEffect(() => {
-    fetchOrcamentos();
-  }, []);
 
-  const fetchOrcamentos = async () => {
+  const carregarOrcamentos = async () => {
     try {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        throw new Error('Token de autenticação não encontrado.');
-      }
-
-      const response = await fetch('http://localhost:3001/orcamentos', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
+      setLoading(true);
+      const response = await apiRequest('/orcamentos');
       if (!response.ok) {
-        throw new Error('Falha ao buscar orçamentos.');
+        throw new Error('Erro ao carregar orçamentos');
       }
-
       const data = await response.json();
       setOrcamentos(data);
     } catch (error) {
-      toast.error('Erro ao carregar orçamentos.');
-      console.error(error);
+      console.error('Erro ao carregar orçamentos:', error);
+      toast.error('Erro ao carregar orçamentos');
     } finally {
       setLoading(false);
     }
   };
 
+
+
+  useEffect(() => {
+    carregarOrcamentos();
+  }, []);
+
   const handleDelete = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        throw new Error('Token de autenticação não encontrado.');
-      }
-
-      const response = await fetch(`http://localhost:3001/orcamentos/${id}`, {
+      const response = await apiRequest(`/orcamentos/${id}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
-
-      if (response.ok) {
-        toast.success('Orçamento excluído com sucesso!');
-        fetchOrcamentos();
-      } else {
-        // Tenta ler a mensagem de erro do backend
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || 'Falha ao excluir orçamento.';
-        toast.error(errorMessage);
+      if (!response.ok) {
+        throw new Error('Erro ao excluir orçamento');
       }
+      toast.success('Orçamento excluído com sucesso');
+      carregarOrcamentos();
     } catch (error) {
-      toast.error('Erro ao excluir orçamento.');
-      console.error(error);
-    }
-  };
-
-  const openDeleteDialog = (id: string, nome: string) => {
-    setDeleteDialog({
-      open: true,
-      orcamentoId: id,
-      orcamentoNome: nome,
-    });
-  };
-
-  const closeDeleteDialog = () => {
-    setDeleteDialog({
-      open: false,
-      orcamentoId: null,
-      orcamentoNome: '',
-    });
-  };
-
-  const confirmDelete = async () => {
-    if (deleteDialog.orcamentoId) {
-      await handleDelete(deleteDialog.orcamentoId);
-      closeDeleteDialog();
+      console.error('Erro ao excluir orçamento:', error);
+      toast.error('Erro ao excluir orçamento');
     }
   };
 
   const handleShare = async (orcamento: Orcamento) => {
     try {
-      const publicUrl = `${window.location.origin}/orcamento/${orcamento.id}`;
+      // Gerar URL pública diretamente
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+      const url = `${baseUrl}/orcamento/${orcamento.id}`;
       
-      if (navigator.share) {
-        await navigator.share({
-          title: `Orçamento ${orcamento.numero}`,
-          text: `Confira o orçamento ${orcamento.nome_servico}`,
-          url: publicUrl,
-        });
+      // Dados para compartilhamento
+      const shareData = {
+        title: `Orçamento #${orcamento.numero} - ${orcamento.nome_servico}`,
+        text: `Confira este orçamento de ${orcamento.nome_servico} no valor de ${orcamento.preco_final.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`,
+        url: url
+      };
+      
+      // Detecção melhorada de dispositivos que suportam compartilhamento nativo
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+      const isSmallScreen = window.screen.width <= 768;
+      
+      const shouldUseNativeShare = navigator.share && (isMobileDevice || isTouchDevice || isPWA || isSmallScreen);
+      
+      if (shouldUseNativeShare) {
+        await navigator.share(shareData);
+        toast.success('📱 Orçamento compartilhado com sucesso!');
       } else {
-        // Fallback: copia para clipboard
-        await navigator.clipboard.writeText(publicUrl);
-        toast.success('Link público copiado para a área de transferência!');
+        // Fallback: copiar para clipboard
+        await navigator.clipboard.writeText(url);
+        toast.success('📋 Link copiado para a área de transferência');
       }
     } catch (error) {
       console.error('Erro ao compartilhar:', error);
-      toast.error('Erro ao compartilhar orçamento.');
+      
+      // Se o compartilhamento nativo falhou, tentar copiar para clipboard como fallback
+      if (error.name === 'AbortError') {
+        // Usuário cancelou o compartilhamento
+        toast.info('Compartilhamento cancelado');
+        return;
+      }
+      
+      try {
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+        const url = `${baseUrl}/orcamento/${orcamento.id}`;
+        await navigator.clipboard.writeText(url);
+        toast.success('📋 Link copiado para a área de transferência');
+      } catch (clipboardError) {
+        console.error('Erro no clipboard:', clipboardError);
+        toast.error('Erro ao compartilhar orçamento');
+      }
     }
   };
 
-  const columns = createColumns(openDeleteDialog, handleShare);
+  const columns = createColumns(handleDelete, handleShare);
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="h-8 w-48 bg-gray-200 rounded animate-pulse"></div>
-          <div className="h-10 w-32 bg-gray-200 rounded animate-pulse"></div>
-        </div>
-        <div className="space-y-4">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-24 bg-gray-200 rounded animate-pulse"></div>
-          ))}
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Carregando orçamentos...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Orçamentos</h1>
-          <p className="text-muted-foreground">
-            Gerencie seus orçamentos e propostas comerciais.
-          </p>
+          <h1 className="text-3xl font-bold">Orçamentos</h1>
+          <p className="text-gray-600">Gerencie seus orçamentos e propostas comerciais.</p>
         </div>
+        
         <div className="flex items-center gap-2">
-          {/* Switch de visualização - apenas para desktop */}
-          {!isMobile && (
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-              <Button
-                variant={viewMode === 'table' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('table')}
-                className="h-8 px-3"
-              >
-                <Table className="h-4 w-4 mr-1" />
-                Tabela
-              </Button>
-              <Button
-                variant={viewMode === 'cards' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('cards')}
-                className="h-8 px-3"
-              >
-                <LayoutGrid className="h-4 w-4 mr-1" />
-                Cards
-              </Button>
-            </div>
-          )}
+          {/* Botões de visualização */}
+          <div className="flex items-center gap-1 border rounded-lg p-1">
+            <Button
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className="h-8 px-3"
+            >
+              <Table className="h-4 w-4 mr-1" />
+              Tabela
+            </Button>
+            <Button
+              variant={viewMode === 'cards' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('cards')}
+              className="h-8 px-3"
+            >
+              <LayoutGrid className="h-4 w-4 mr-1" />
+              Cards
+            </Button>
+          </div>
+          
+          {/* Botão novo orçamento */}
           <Link href="/orcamentos/novo">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
               Novo Orçamento
             </Button>
           </Link>
         </div>
       </div>
 
-      <Separator className="mb-6" />
-
+      {/* Conteúdo */}
       {orcamentos.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <div className="text-center">
               <h3 className="text-lg font-semibold mb-2">Nenhum orçamento encontrado</h3>
-              <p className="text-muted-foreground mb-4">
-                Comece criando seu primeiro orçamento para testar o motor de cálculo.
-              </p>
+              <p className="text-gray-600 mb-4">Comece criando seu primeiro orçamento.</p>
               <Link href="/orcamentos/novo">
                 <Button>
-                  <Plus className="mr-2 h-4 w-4" />
+                  <Plus className="h-4 w-4 mr-2" />
                   Criar Primeiro Orçamento
                 </Button>
               </Link>
             </div>
           </CardContent>
         </Card>
+      ) : viewMode === 'table' ? (
+        <DataTable columns={columns} data={orcamentos} />
       ) : (
-        <>
-          {/* Renderização condicional baseada no dispositivo e modo de visualização */}
-          {(isMobile || viewMode === 'cards') ? (
-            // Cards para mobile ou quando viewMode é 'cards'
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {orcamentos.map((orcamento) => (
-                <OrcamentoCard
-                  key={orcamento.id}
-                  orcamento={orcamento}
-                  onDelete={openDeleteDialog}
-                  onShare={handleShare}
-                />
-              ))}
-            </div>
-          ) : (
-            // Tabela para desktop quando viewMode é 'table'
-            <DataTable columns={columns} data={orcamentos} />
-          )}
-        </>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {orcamentos.map((orcamento) => (
+            <OrcamentoCard
+              key={orcamento.id}
+              orcamento={orcamento}
+              onDelete={handleDelete}
+              onShare={handleShare}
+            />
+          ))}
+        </div>
       )}
-
-      <ConfirmDialog
-        open={deleteDialog.open}
-        title="Excluir Orçamento"
-        description={`Tem certeza que deseja excluir o orçamento "${deleteDialog.orcamentoNome}"? Esta ação não pode ser desfeita.`}
-        confirmText="Excluir"
-        cancelText="Cancelar"
-        onConfirm={confirmDelete}
-        onCancel={closeDeleteDialog}
-      />
     </div>
   );
 } 

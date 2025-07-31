@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-07-31T23:13:29.527Z",
+  "custoTotalProducao": 49.70597379157428,
+  "margemLucro": 50,
+  "margemLucroValor": 24.85298689578714,
+  "subtotalComLucro": 74.55896068736142,
+  "impostos": 25,
+  "impostosValor": 18.639740171840355,
+  "precoFinal": 93.19870085920178,
+  "quantidadeProduto": 1,
+  "custoMaterialComQuantidade": 10.399155609756097,
+  "custoMaquinasComQuantidade": 9,
+  "custoFuncoesComQuantidade": 9,
+  "custoIndiretolAlocadoComQuantidade": 21.30681818181818
+}

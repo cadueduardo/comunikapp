@@ -15,12 +15,6 @@ export const apiRequest = async (
 ): Promise<Response> => {
   const token = getAuthToken();
   
-  console.log('API Request:', {
-    endpoint: `${API_BASE_URL}${endpoint}`,
-    hasToken: !!token,
-    method: options.method || 'GET'
-  });
-  
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
@@ -31,21 +25,13 @@ export const apiRequest = async (
   }
 
   try {
-    console.log('Fazendo requisição para:', `${API_BASE_URL}${endpoint}`);
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
     });
 
-    console.log('Resposta recebida:', {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok
-    });
-
     // Se receber 401, limpar o token e redirecionar para login
     if (response.status === 401) {
-      console.log('Token inválido, redirecionando para login');
       if (typeof window !== 'undefined') {
         localStorage.removeItem('access_token');
         window.location.href = '/login';
@@ -54,13 +40,24 @@ export const apiRequest = async (
 
     return response;
   } catch (error) {
-    console.error('Erro na requisição API:', error);
+    console.error('❌ Erro na requisição API:', error);
     
     // Verificar se é um erro de rede
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
       throw new Error('Não foi possível conectar ao servidor. Verifique se o backend está rodando em http://localhost:3001');
     }
     
+    // Verificar se é um erro de CORS
+    if (error instanceof TypeError && error.message.includes('CORS')) {
+      throw new Error('Erro de CORS. Verifique se o backend está configurado corretamente.');
+    }
+    
+    // Verificar se é um erro de timeout
+    if (error instanceof TypeError && error.message.includes('timeout')) {
+      throw new Error('Timeout na requisição. O servidor pode estar sobrecarregado.');
+    }
+    
+    // Outros erros
     throw error;
   }
 };

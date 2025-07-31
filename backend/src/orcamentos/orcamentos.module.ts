@@ -3,10 +3,12 @@ import { OrcamentosService } from './orcamentos.service';
 import { OrcamentosController } from './orcamentos.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificacoesModule } from '../notificacoes/notificacoes.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
-  imports: [PrismaModule, NotificacoesModule],
+  imports: [PrismaModule, NotificacoesModule, MailModule],
   controllers: [OrcamentosController],
   providers: [OrcamentosService],
+  exports: [OrcamentosService],
 })
 export class OrcamentosModule {}

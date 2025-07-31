@@ -1,168 +1,201 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  CheckCircle, 
-  XCircle, 
-  MessageCircle, 
-  Printer,
-  Share2
-} from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
+import { CheckCircle, XCircle, MessageCircle, FileText, Phone, Mail, Share2 } from 'lucide-react';
 import { ChatFlutuante } from '@/components/ui/chat-flutuante';
+import { ShareButton } from '@/components/ui/share-button';
 
-interface OrcamentoPublico {
+interface Orcamento {
   id: string;
   numero: string;
   nome_servico: string;
   descricao?: string;
-  horas_producao: number;
-  largura_produto?: number;
-  altura_produto?: number;
-  unidade_medida_produto?: string;
-  area_produto?: number;
-  custo_material: number;
-  custo_mao_obra: number;
-  custo_indireto: number;
-  custo_total: number;
-  margem_lucro: number;
-  impostos: number;
   preco_final: number;
-  status_aprovacao?: string;
-  observacoes_cliente?: string;
+  quantidade_produto?: number;
+  unidade_medida_produto?: string;
   criado_em: string;
+  status_aprovacao: string;
+  observacoes_cliente?: string;
+  
+  // Dados do cliente
   cliente?: {
     id: string;
     nome: string;
-    email?: string;
+    email: string;
     telefone?: string;
   };
-  itens?: Array<{
-    id: string;
-    insumo: {
-      nome: string;
-      unidade_medida: string;
-    };
-    quantidade: number;
-    custo_unitario: number;
-    custo_total: number;
-  }>;
-  maquinas?: Array<{
-    id: string;
-    maquina: {
-      nome: string;
-      tipo: string;
-    };
-    horas_utilizadas: number;
-    custo_total: number;
-  }>;
-  funcoes?: Array<{
-    id: string;
-    funcao: {
-      nome: string;
-    };
-    horas_trabalhadas: number;
-    custo_total: number;
-  }>;
+  
+  // Dados da loja
   loja?: {
     nome: string;
-    logo_url?: string;
-    telefone?: string;
     email?: string;
+    telefone?: string;
+    logo_url?: string;
+    cnpj?: string;
   };
+  
+  // Condições comerciais
+  prazo_entrega?: string;
+  forma_pagamento?: string;
+  validade_proposta?: string;
+  atendente?: string;
+  observacoes?: string;
 }
 
-export default function OrcamentoPublicoPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = React.use(params);
-  const [orcamento, setOrcamento] = useState<OrcamentoPublico | null>(null);
+export default function OrcamentoPublicoPage() {
+  const params = useParams();
+  const [orcamento, setOrcamento] = useState<Orcamento | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showNegociacao, setShowNegociacao] = useState(false);
-  const [observacoes, setObservacoes] = useState('');
+  const [aprovando, setAprovando] = useState(false);
+  const [rejeitando, setRejeitando] = useState(false);
+  const [mostrarChat, setMostrarChat] = useState(false);
+  const [motivoRejeicao, setMotivoRejeicao] = useState('');
+  const [codigoAprovacao, setCodigoAprovacao] = useState('');
 
   useEffect(() => {
-    if (!id) return;
-    fetchOrcamento();
-  }, [id]);
-
-  const fetchOrcamento = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`http://localhost:3001/orcamentos/${id}/publico`);
-      
-      if (response.ok) {
+    const fetchOrcamento = async () => {
+      try {
+        const response = await fetch(`/api/orcamentos/${params.id}/publico`);
+        if (!response.ok) {
+          throw new Error('Orçamento não encontrado');
+        }
         const data = await response.json();
         setOrcamento(data);
-      } else {
-        toast.error('Orçamento não encontrado ou não está disponível.');
+      } catch (error) {
+        console.error('Erro ao buscar orçamento:', error);
+        toast.error('Erro ao carregar orçamento');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      toast.error('Erro ao carregar o orçamento.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  const handleAcaoCliente = async (acao: 'APROVAR' | 'REJEITAR' | 'NEGOCIAR') => {
+    if (params.id) {
+      fetchOrcamento();
+    }
+  }, [params.id]);
+
+  // Não abrir chat automaticamente - usuário controla quando abrir
+
+  const handleAprovar = async () => {
+    const codigoLimpo = codigoAprovacao.trim().toUpperCase();
+    if (!codigoLimpo) {
+      toast.error('Digite o código de aprovação recebido por email');
+      return;
+    }
+
+    console.log('🔍 Frontend - Código original:', codigoAprovacao);
+    console.log('🔍 Frontend - Código limpo:', codigoLimpo);
+
+    setAprovando(true);
     try {
-      const response = await fetch(`http://localhost:3001/orcamentos/${id}/publico/acao`, {
+      const response = await fetch(`/api/orcamentos/aprovar/${encodeURIComponent(codigoLimpo)}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          acao,
-          observacoes: acao === 'NEGOCIAR' ? observacoes : undefined,
+          orcamento_id: orcamento?.id,
         }),
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        toast.success(result.message);
-        await fetchOrcamento();
-        setShowNegociacao(false);
-        setObservacoes('');
-      } else {
-        toast.error('Erro ao processar ação');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Código de aprovação inválido');
       }
-    } catch (err) {
-      toast.error('Erro ao processar ação');
-      console.error(err);
+
+      toast.success('Orçamento aprovado com sucesso!');
+      setOrcamento(prev => prev ? { ...prev, status_aprovacao: 'APROVADO' } : null);
+      setCodigoAprovacao('');
+    } catch (error) {
+      console.error('Erro ao aprovar orçamento:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao aprovar orçamento');
+    } finally {
+      setAprovando(false);
     }
   };
 
-  const handleShare = async () => {
+  const handleRejeitar = async () => {
+    if (!motivoRejeicao.trim()) {
+      toast.error('Por favor, informe o motivo da rejeição');
+      return;
+    }
+
+    setRejeitando(true);
     try {
-      await navigator.share({
-        title: `Orçamento ${orcamento?.numero}`,
-        text: `Orçamento ${orcamento?.numero} - ${orcamento?.nome_servico}`,
-        url: window.location.href,
+      const response = await fetch(`/api/orcamentos/${orcamento?.id}/publico/acao`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          acao: 'REJEITAR',
+          observacoes: motivoRejeicao,
+        }),
       });
-    } catch {
-      // Fallback para copiar link
-      await navigator.clipboard.writeText(window.location.href);
-      toast.success('Link copiado para a área de transferência');
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Erro ao rejeitar orçamento');
+      }
+
+      toast.success('Orçamento rejeitado com sucesso!');
+      setOrcamento(prev => prev ? { ...prev, status_aprovacao: 'REJEITADO' } : null);
+      setMotivoRejeicao('');
+    } catch (error) {
+      console.error('Erro ao rejeitar orçamento:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao rejeitar orçamento');
+    } finally {
+      setRejeitando(false);
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleIniciarNegociacao = async () => {
+    try {
+      // Atualizar status do orçamento para NEGOCIANDO
+      const response = await fetch(`/api/orcamentos/${orcamento?.id}/publico/acao`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          acao: 'NEGOCIAR',
+          observacoes: 'Negociação iniciada pelo cliente',
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erro ao iniciar negociação');
+      }
+
+      // Atualizar estado local e abrir chat IMEDIATAMENTE após sucesso da API
+      setOrcamento(prev => prev ? { ...prev, status_aprovacao: 'NEGOCIANDO' } : null);
+      setMostrarChat(true); // Abertura imediata do chat
+      
+      toast.success('Chat de negociação aberto! Digite sua primeira mensagem.');
+    } catch (error) {
+      console.error('Erro ao iniciar negociação:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao iniciar negociação');
+    }
   };
+
+
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto p-6">
-          <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-6"></div>
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded animate-pulse"></div>
-            ))}
-          </div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Carregando orçamento...</p>
         </div>
       </div>
     );
@@ -170,380 +203,441 @@ export default function OrcamentoPublicoPage({ params }: { params: Promise<{ id:
 
   if (!orcamento) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Orçamento não encontrado</h2>
-          <p className="text-muted-foreground">
-            O orçamento que você está procurando não existe ou não está disponível.
-          </p>
+          <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Orçamento não encontrado</h1>
+          <p className="text-gray-600">O orçamento solicitado não existe ou foi removido.</p>
         </div>
       </div>
     );
   }
 
+  const jaAprovado = orcamento.status_aprovacao === 'APROVADO';
+  const jaRejeitado = orcamento.status_aprovacao === 'REJEITADO';
+  const emNegociacao = orcamento.status_aprovacao === 'NEGOCIANDO';
+  const podeInteragir = !jaAprovado && !jaRejeitado;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-6">
-        {/* Header com Logo e Timbrado */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6 print:shadow-none">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
-              {orcamento.loja?.logo_url && (
-                <img 
-                  src={orcamento.loja.logo_url} 
-                  alt={orcamento.loja.nome}
-                  className="h-12 w-auto"
-                />
-              )}
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{orcamento.loja?.nome}</h1>
-                <p className="text-sm text-gray-600">Orçamento #{orcamento.numero}</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-600">Data: {new Date(orcamento.criado_em).toLocaleDateString('pt-BR')}</p>
-              {orcamento.loja?.telefone && (
-                <p className="text-sm text-gray-600">{orcamento.loja.telefone}</p>
-              )}
-              {orcamento.loja?.email && (
-                <p className="text-sm text-gray-600">{orcamento.loja.email}</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Ações - Logo após o header */}
-        <div className="flex gap-2 mb-6 print:hidden">
-          <Button onClick={handleShare} variant="outline" size="sm">
-            <Share2 className="w-4 h-4 mr-2" />
-            Compartilhar
-          </Button>
-          <Button onClick={handlePrint} variant="outline" size="sm">
-            <Printer className="w-4 h-4 mr-2" />
-            Imprimir
-          </Button>
-        </div>
-
-        {/* Status do Orçamento */}
-        <div className="mb-6">
-          <Card className="print:shadow-none">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
+    <>
+      {/* Estilos específicos para impressão */}
+      <style jsx global>{`
+        @media print {
+          body { margin: 0; padding: 0; }
+          .print\\:shadow-none { box-shadow: none !important; }
+          .print\\:max-w-none { max-width: none !important; }
+          .print\\:p-0 { padding: 0 !important; }
+          .print\\:p-4 { padding: 1rem !important; }
+          .print\\:bg-white { background-color: white !important; }
+          .print\\:hidden { display: none !important; }
+          
+          /* Configuração de página A4 */
+          @page {
+            size: A4;
+            margin: 0.5cm;
+          }
+          
+          /* Quebra de página */
+          .page-break {
+            page-break-before: always;
+          }
+          
+          /* Forçar cores de fundo em impressão */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+        }
+      `}</style>
+      
+      {/* Página A4 para Impressão */}
+      <div className="min-h-screen bg-gray-100 p-4 print:p-0 print:bg-white">
+        <div className="max-w-[210mm] mx-auto bg-white shadow-lg print:shadow-none print:max-w-none" style={{ minHeight: '297mm' }}>
+          {/* Header da Empresa */}
+          <div className="border-b-2 border-gray-300 p-6 print:p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                {orcamento.loja?.logo_url ? (
+                  <div className="flex items-center justify-center">
+                    <img 
+                      src={orcamento.loja.logo_url.startsWith('http') 
+                        ? orcamento.loja.logo_url 
+                        : `http://localhost:3001${orcamento.loja.logo_url}`
+                      } 
+                      alt={orcamento.loja.nome}
+                      className="object-contain"
+                      style={{
+                        maxHeight: '70px',
+                        maxWidth: '200px',
+                        width: 'auto',
+                        height: 'auto',
+                        imageRendering: 'auto'
+                      } as React.CSSProperties}
+                      onLoad={(e) => {
+                        console.log('Logo carregado com sucesso:', orcamento.loja?.logo_url);
+                        const img = e.currentTarget as HTMLImageElement;
+                        const isHorizontal = img.naturalWidth > img.naturalHeight;
+                        
+                        if (isHorizontal) {
+                          // Logo horizontal: limitar largura e manter proporção
+                          img.style.maxWidth = '200px';
+                          img.style.maxHeight = 'none';
+                          img.style.width = 'auto';
+                          img.style.height = 'auto';
+                          console.log('📐 Logo horizontal detectado, aplicando max-width: 200px');
+                        } else {
+                          // Logo vertical/quadrado: limitar altura e manter proporção  
+                          img.style.maxHeight = '70px';
+                          img.style.maxWidth = 'none';
+                          img.style.width = 'auto';
+                          img.style.height = 'auto';
+                          console.log('📐 Logo vertical/quadrado detectado, aplicando max-height: 70px');
+                        }
+                      }}
+                      onError={(e) => {
+                        console.log('Erro ao carregar logo:', orcamento.loja?.logo_url);
+                        const target = e.currentTarget;
+                        const parent = target.parentElement;
+                        if (parent) {
+                          parent.innerHTML = '<div class="h-[70px] w-16 bg-gray-200 rounded flex items-center justify-center"><span class="text-xs text-gray-500">LOGO</span></div>';
+                        }
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="h-[70px] w-16 bg-gray-200 rounded flex items-center justify-center">
+                    <span className="text-xs text-gray-500">LOGO</span>
+                  </div>
+                )}
                 <div>
-                  <h3 className="text-lg font-semibold">Status do Orçamento</h3>
-                  <p className="text-sm text-gray-600">
-                    {orcamento.status_aprovacao === 'PENDENTE' && 'Aguardando sua decisão'}
-                    {orcamento.status_aprovacao === 'NEGOCIANDO' && 'Em negociação - Use o chat para conversar'}
-                    {orcamento.status_aprovacao === 'APROVADO' && 'Orçamento aprovado'}
-                    {orcamento.status_aprovacao === 'REJEITADO' && 'Orçamento rejeitado'}
-                  </p>
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    {orcamento.loja?.nome || 'Comunikapp'}
+                  </h1>
+                  <div className="text-sm text-gray-600 space-y-1">
+                    {orcamento.loja?.email && (
+                      <div className="flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        {orcamento.loja.email}
+                      </div>
+                    )}
+                    {orcamento.loja?.telefone && (
+                      <div className="flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {orcamento.loja.telefone}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <Badge 
-                  variant={
-                    orcamento.status_aprovacao === 'APROVADO' ? 'default' :
-                    orcamento.status_aprovacao === 'REJEITADO' ? 'destructive' :
-                    orcamento.status_aprovacao === 'NEGOCIANDO' ? 'secondary' : 'outline'
-                  }
-                  className={
-                    orcamento.status_aprovacao === 'NEGOCIANDO' ? 'bg-blue-100 text-blue-800' :
-                    orcamento.status_aprovacao === 'APROVADO' ? 'bg-green-100 text-green-800 border-green-200' :
-                    orcamento.status_aprovacao === 'REJEITADO' ? 'bg-red-100 text-red-800' : ''
-                  }
-                >
-                  {orcamento.status_aprovacao === 'PENDENTE' && '⏳ Pendente'}
-                  {orcamento.status_aprovacao === 'NEGOCIANDO' && '🔄 Negociando'}
-                  {orcamento.status_aprovacao === 'APROVADO' && '✅ Aprovado'}
-                  {orcamento.status_aprovacao === 'REJEITADO' && '❌ Rejeitado'}
-                </Badge>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Cliente - Sidebar Direito */}
-        {orcamento.cliente && (
-          <div className="mb-6">
-            <Card className="print:shadow-none">
-              <CardHeader>
-                <CardTitle>Cliente</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="font-medium">{orcamento.cliente.nome}</p>
-                {orcamento.cliente.email && (
-                  <p className="text-sm text-muted-foreground">{orcamento.cliente.email}</p>
-                )}
-                {orcamento.cliente.telefone && (
-                  <p className="text-sm text-muted-foreground">{orcamento.cliente.telefone}</p>
-                )}
-              </CardContent>
-            </Card>
+              <div className="text-right text-sm text-gray-600">
+                <div>{new Date().toLocaleDateString('pt-BR', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}</div>
+              </div>
+            </div>
           </div>
-        )}
 
-        {/* Tabela de Produtos/Serviços - Largura Completa */}
-        <Card className="print:shadow-none mb-6">
-          <CardHeader>
-            <CardTitle>Produtos e Serviços</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+          {/* Dados do Cliente */}
+          <div className="p-6 print:p-4">
+            <div className="mb-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-2">
+                ORÇAMENTO: {orcamento.cliente?.nome || 'Cliente'}
+              </h2>
+            </div>
+
+            {/* Tabela de Produtos */}
+            <div className="mb-6">
+              <table className="w-full border-collapse border border-gray-400">
                 <thead>
-                  <tr className="border-b-2 border-gray-300">
-                    <th className="text-left py-3 px-4 font-semibold text-sm">QUANT.</th>
-                    <th className="text-left py-3 px-4 font-semibold text-sm">PRODUTOS</th>
-                    <th className="text-right py-3 px-4 font-semibold text-sm">UNID.</th>
-                    <th className="text-right py-3 px-4 font-semibold text-sm">SUB-TOTAL</th>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-400 px-3 py-2 text-left font-semibold">QUANT.</th>
+                    <th className="border border-gray-400 px-3 py-2 text-left font-semibold">PRODUTOS</th>
+                    <th className="border border-gray-400 px-3 py-2 text-left font-semibold">VALOR UNID.</th>
+                    <th className="border border-gray-400 px-3 py-2 text-right font-semibold">SUB-TOTAL</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {/* Item Principal do Serviço */}
-                  <tr className="border-b border-gray-200">
-                    <td className="py-3 px-4 text-sm">01</td>
-                    <td className="py-3 px-4">
-                      <div>
-                        <p className="font-medium">{orcamento.nome_servico}</p>
-                        {orcamento.descricao && (
-                          <p className="text-sm text-gray-600">{orcamento.descricao}</p>
-                        )}
-                        {orcamento.area_produto && (
-                          <p className="text-sm text-gray-600">Área: {orcamento.area_produto}m²</p>
-                        )}
-                      </div>
+                  <tr>
+                    <td className="border border-gray-400 px-3 py-2 text-center">
+                      {String(orcamento.quantidade_produto || '01').padStart(2, '0')}
                     </td>
-                    <td className="py-3 px-4 text-right text-sm">{formatCurrency(orcamento.preco_final)}</td>
-                    <td className="py-3 px-4 text-right font-medium">{formatCurrency(orcamento.preco_final)}</td>
+                    <td className="border border-gray-400 px-3 py-2">
+                      <div className="font-bold text-gray-900">{orcamento.nome_servico}</div>
+                      {orcamento.descricao && (
+                        <div className="text-sm text-gray-600 mt-1">{orcamento.descricao}</div>
+                      )}
+                    </td>
+                    <td className="border border-gray-400 px-3 py-2 text-center">
+                      {formatCurrency(Number(orcamento.preco_final) / (orcamento.quantidade_produto || 1))}
+                    </td>
+                    <td className="border border-gray-400 px-3 py-2 text-right font-medium">
+                      {formatCurrency(orcamento.preco_final)}
+                    </td>
                   </tr>
-                  
-                  {/* Instalação (se aplicável) */}
-                  {orcamento.horas_producao > 0 && (
-                    <tr className="border-b border-gray-200">
-                      <td className="py-3 px-4 text-sm">01</td>
-                      <td className="py-3 px-4">
-                        <div>
-                          <p className="font-medium">Serviço de Produção</p>
-                          <p className="text-sm text-gray-600">{orcamento.horas_producao}h de produção</p>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-right text-sm">Incluído</td>
-                      <td className="py-3 px-4 text-right font-medium">Incluído</td>
-                    </tr>
-                  )}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-gray-300">
-                    <td colSpan={3} className="py-3 px-4 text-right font-bold text-lg">
+                  <tr className="bg-gray-50">
+                    <td colSpan={3} className="border border-gray-400 px-3 py-2 text-right font-bold">
                       Total R$
                     </td>
-                    <td className="py-3 px-4 text-right font-bold text-lg">
+                    <td className="border border-gray-400 px-3 py-2 text-right font-bold text-lg">
                       {formatCurrency(orcamento.preco_final)}
                     </td>
                   </tr>
                 </tfoot>
               </table>
             </div>
-          </CardContent>
-        </Card>
 
-
-
-        {/* Termos e Condições */}
-        <div className="space-y-6">
-          {/* Termos de Entrega e Pagamento */}
-          <Card className="print:shadow-none">
-            <CardHeader>
-              <CardTitle>Termos e Condições</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-                <div>
-                  <h4 className="font-semibold mb-2">PRAZO DE ENTREGA</h4>
-                  <p>10 a 15 dias úteis</p>
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2">FORMA DE PAGAMENTO</h4>
-                  <p>40% de entrada, restante 3x cartão</p>
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2">VALIDADE DA PROPOSTA</h4>
-                  <p>30 dias</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Área de Aprovação do Cliente */}
-          <Card className="print:shadow-none">
-            <CardHeader>
-              <CardTitle>Aprovação do Cliente</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="border-2 border-gray-300 p-4 rounded-lg">
-                <p className="text-sm mb-4">
-                  Concordo e Autorizo a produção do(s) item(s) acima discriminado(s)
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Data:</label>
-                    <div className="h-8 border-b border-gray-400"></div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Ass. Cliente:</label>
-                    <div className="h-8 border-b border-gray-400"></div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Informações Adicionais */}
-          <div className="text-sm text-gray-600 space-y-2">
-            <p>
-              <strong>Agradecemos seu contato e estamos a disposição para maiores informações.</strong>
-            </p>
-            {orcamento.loja?.telefone && (
-              <p>Telefone: {orcamento.loja.telefone}</p>
-            )}
-            {orcamento.loja?.email && (
-              <p>Email: {orcamento.loja.email}</p>
-            )}
-            <p className="text-xs mt-4">
-              <strong>Garantias e Condições:</strong> Garantia de 3 meses para componentes elétricos, 
-              1 ano para ACM, PVC/ACM, INOX, 6 meses para impressão em lona. Cliente responsável por 
-              pontos de energia para itens iluminados.
-            </p>
-          </div>
-        </div>
-
-        {/* Área de Aprovação do Cliente */}
-        {orcamento.status_aprovacao !== 'APROVADO' && orcamento.status_aprovacao !== 'REJEITADO' && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-6 print:hidden">
-            <div className="max-w-4xl mx-auto">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold">
-                      {orcamento.status_aprovacao === 'NEGOCIANDO' ? 'Negociação em Andamento' : 'Decisão do Cliente'}
-                    </h3>
-                    <Badge 
-                      variant={orcamento.status_aprovacao === 'NEGOCIANDO' ? 'secondary' : 'outline'}
-                      className={
-                        orcamento.status_aprovacao === 'NEGOCIANDO' ? 'bg-blue-100 text-blue-800 border-blue-200' : 
-                        'bg-gray-100 text-gray-800 border-gray-200'
-                      }
-                    >
-                      {orcamento.status_aprovacao === 'NEGOCIANDO' ? '🔄 Negociando' : '⏳ Pendente'}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    {orcamento.status_aprovacao === 'NEGOCIANDO' 
-                      ? 'Você pode continuar negociando ou aprovar o orçamento atual'
-                      : 'Escolha uma das opções abaixo para prosseguir com o orçamento'
-                    }
-                  </p>
-                  {orcamento.status_aprovacao === 'NEGOCIANDO' && (
-                    <p className="text-xs text-blue-600 mt-1">
-                      💬 Use o chat flutuante para conversar com o vendedor
-                    </p>
-                  )}
-                </div>
-                
-                <div className="flex gap-3">
-                  <Button 
-                    onClick={() => handleAcaoCliente('APROVAR')}
-                    className="bg-green-600 hover:bg-green-700 px-6"
-                  >
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Aprovar
-                  </Button>
-                  {orcamento.status_aprovacao !== 'NEGOCIANDO' && (
-                    <Button 
-                      onClick={() => setShowNegociacao(true)}
-                      variant="outline"
-                      className="px-6"
-                    >
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      Negociar
-                    </Button>
-                  )}
-                  <Button 
-                    onClick={() => handleAcaoCliente('REJEITAR')}
-                    variant="destructive"
-                    className="px-6"
-                  >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Rejeitar
-                  </Button>
-                </div>
-              </div>
-
-              {/* Modal de Negociação */}
-              {showNegociacao && (
-                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium">Observações para negociação:</label>
-                      <textarea
-                        value={observacoes}
-                        onChange={(e) => setObservacoes(e.target.value)}
-                        className="w-full mt-2 p-3 border rounded-md"
-                        rows={4}
-                        placeholder="Descreva as alterações que gostaria de fazer no orçamento..."
-                      />
-                    </div>
-                    <div className="flex gap-3">
-                      <Button 
-                        onClick={() => handleAcaoCliente('NEGOCIAR')}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        Enviar Negociação
-                      </Button>
-                      <Button 
-                        onClick={() => setShowNegociacao(false)}
-                        variant="outline"
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
+            {/* Condições Comerciais */}
+            <div className="mb-6">
+              <table className="w-full border-collapse border border-gray-400">
+                <tbody>
+                  <tr>
+                    <td className="border border-gray-400 px-3 py-2 font-semibold bg-gray-100 w-1/4">
+                      PRAZO DE ENTREGA
+                    </td>
+                    <td className="border border-gray-400 px-3 py-2">
+                      {orcamento.prazo_entrega || '10 a 15 dias úteis'}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-400 px-3 py-2 font-semibold bg-gray-100">
+                      FORMA DE PAGAMENTO
+                    </td>
+                    <td className="border border-gray-400 px-3 py-2">
+                      {orcamento.forma_pagamento || '50% entrada, restante na entrega'}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-400 px-3 py-2 font-semibold bg-gray-100">
+                      VALIDADE DA PROPOSTA
+                    </td>
+                    <td className="border border-gray-400 px-3 py-2">
+                      {orcamento.validade_proposta || '30 dias'}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-400 px-3 py-2 font-semibold bg-gray-100">
+                      ATENDENTE
+                    </td>
+                    <td className="border border-gray-400 px-3 py-2">
+                      {orcamento.atendente || 'Equipe Comercial'}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-          </div>
-        )}
 
-        {/* Histórico de Mensagens */}
-        {orcamento.status_aprovacao === 'NEGOCIANDO' && (
-          <Card className="print:shadow-none mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageCircle className="w-4 h-4" />
-                Histórico de Conversa
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600 mb-4">
-                  Este orçamento está em negociação. Use o chat flutuante para continuar a conversa.
-                </p>
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={() => setShowNegociacao(true)}
+            {/* Status Badge */}
+            <div className="mb-6 text-center print:hidden">
+              <div className="flex flex-col items-center gap-4">
+                {jaAprovado && (
+                  <Badge className="bg-green-100 text-green-800 text-lg px-4 py-2">
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    ORÇAMENTO APROVADO
+                  </Badge>
+                )}
+                {jaRejeitado && (
+                  <Badge className="bg-red-100 text-red-800 text-lg px-4 py-2">
+                    <XCircle className="w-5 h-5 mr-2" />
+                    ORÇAMENTO REJEITADO
+                  </Badge>
+                )}
+                {emNegociacao && (
+                  <Badge className="bg-blue-100 text-blue-800 text-lg px-4 py-2">
+                    <MessageCircle className="w-5 h-5 mr-2" />
+                    EM NEGOCIAÇÃO
+                  </Badge>
+                )}
+                
+                {/* Botão de compartilhar sempre disponível para orçamentos finalizados */}
+                {(jaAprovado || jaRejeitado) && (
+                  <ShareButton
+                    url={typeof window !== 'undefined' ? window.location.href : ''}
+                    title={`Orçamento #${orcamento.numero} - ${orcamento.nome_servico}`}
+                    text={`Confira este orçamento de ${orcamento.nome_servico} no valor de ${formatCurrency(orcamento.preco_final)}`}
                     variant="outline"
                     size="sm"
+                    className="border-purple-300 text-purple-700 hover:bg-purple-50"
                   >
-                    <MessageCircle className="w-4 h-4 mr-2" />
-                    Continuar Negociação
-                  </Button>
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Compartilhar Orçamento
+                  </ShareButton>
+                )}
+              </div>
+            </div>
+
+            {/* Ações do Cliente */}
+            {podeInteragir && (
+              <div className="mb-6 print:hidden">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-blue-900 mb-4 text-center">
+                    O que você gostaria de fazer com este orçamento?
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    {/* Aprovar */}
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button className="bg-green-600 hover:bg-green-700 text-white h-16 flex flex-col items-center justify-center gap-2">
+                          <CheckCircle className="h-6 w-6" />
+                          <span className="font-semibold">APROVAR</span>
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Aprovar Orçamento</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <p>Para aprovar este orçamento, digite o código de aprovação que você recebeu por email:</p>
+                          <div>
+                            <Label htmlFor="codigo">Código de Aprovação</Label>
+                            <Input
+                              id="codigo"
+                              type="text"
+                              value={codigoAprovacao}
+                              onChange={(e) => setCodigoAprovacao(e.target.value.toUpperCase())}
+                              placeholder="Digite o código recebido"
+                              className="mt-1"
+                            />
+                          </div>
+                          <p className="text-sm text-gray-600">
+                            Não recebeu o código? Verifique sua caixa de spam ou entre em contato conosco.
+                          </p>
+                          <Button 
+                            onClick={handleAprovar}
+                            disabled={aprovando || !codigoAprovacao.trim()}
+                            className="w-full bg-green-600 hover:bg-green-700"
+                          >
+                            {aprovando ? 'Verificando código...' : 'Confirmar Aprovação'}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+
+                    {/* Negociar */}
+                    <Button 
+                      onClick={handleIniciarNegociacao}
+                      variant="outline" 
+                      className="border-blue-300 text-blue-700 hover:bg-blue-50 h-16 flex flex-col items-center justify-center gap-2"
+                    >
+                      <MessageCircle className="h-6 w-6" />
+                      <span className="font-semibold">NEGOCIAR</span>
+                    </Button>
+
+                    {/* Rejeitar */}
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" className="border-red-300 text-red-700 hover:bg-red-50 h-16 flex flex-col items-center justify-center gap-2">
+                          <XCircle className="h-6 w-6" />
+                          <span className="font-semibold">REJEITAR</span>
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Rejeitar Orçamento</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <p>Por favor, nos informe o motivo da rejeição para que possamos melhorar:</p>
+                          <div>
+                            <Label htmlFor="motivo">Motivo da rejeição</Label>
+                            <Textarea
+                              id="motivo"
+                              value={motivoRejeicao}
+                              onChange={(e) => setMotivoRejeicao(e.target.value)}
+                              placeholder="Explique brevemente o motivo..."
+                              className="mt-1"
+                              rows={3}
+                            />
+                          </div>
+                          <Button 
+                            onClick={handleRejeitar}
+                            disabled={rejeitando || !motivoRejeicao.trim()}
+                            className="w-full bg-red-600 hover:bg-red-700"
+                          >
+                            {rejeitando ? 'Rejeitando...' : 'Confirmar Rejeição'}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+
+                    {/* Gerar PDF */}
+                    <Button 
+                      onClick={() => window.print()}
+                      variant="outline" 
+                      className="border-gray-300 text-gray-700 hover:bg-gray-50 h-16 flex flex-col items-center justify-center gap-2"
+                    >
+                      <FileText className="h-6 w-6" />
+                      <span className="font-semibold">GERAR PDF</span>
+                    </Button>
+
+                    {/* Compartilhar */}
+                    <ShareButton
+                      url={typeof window !== 'undefined' ? window.location.href : ''}
+                      title={`Orçamento #${orcamento.numero} - ${orcamento.nome_servico}`}
+                      text={`Confira este orçamento de ${orcamento.nome_servico} no valor de ${formatCurrency(orcamento.preco_final)}`}
+                      variant="outline"
+                      className="border-purple-300 text-purple-700 hover:bg-purple-50 h-16 flex flex-col items-center justify-center gap-2"
+                    >
+                      <Share2 className="h-6 w-6" />
+                      <span className="font-semibold">COMPARTILHAR</span>
+                    </ShareButton>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
 
-        {/* Chat Flutuante para Cliente */}
-        <ChatFlutuante orcamentoId={id} isPublic={true} />
+            {/* Observações Finais */}
+            <div className="text-xs text-gray-600 space-y-2">
+              <p className="font-semibold">
+                A empresa reserva-se o direito de faturar boleto / cheque somente após análise do crédito do cliente
+              </p>
+              
+              {orcamento.loja?.email && (
+                <p className="text-center">
+                  <a href={`mailto:${orcamento.loja.email}`} className="text-blue-600 underline">
+                    {orcamento.loja.email}
+                  </a>
+                </p>
+              )}
+
+              {/* Área de Assinatura */}
+              <div className="mt-8 border border-gray-400 rounded p-4">
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="text-center">
+                    <p className="mb-2 font-semibold">Concordo e Autorizo a produção do(s) item(s) acima discriminado(s)</p>
+                    <div className="border-b border-gray-400 mt-8 mb-2"></div>
+                    <p className="text-xs">Data: ___/___/_______</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="mb-2 font-semibold">Ass. Cliente:</p>
+                    <div className="border-b border-gray-400 mt-8 mb-2"></div>
+                    <p className="text-xs">_________________________________</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center mt-6">
+                <p>Agradecemos seu contato e estamos à disposição para maiores informações.</p>
+                {orcamento.loja?.telefone && (
+                  <p className="mt-1">{orcamento.loja.telefone}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+
+      {/* Chat Flutuante */}
+      {(emNegociacao || mostrarChat) && (
+        <ChatFlutuante 
+          orcamentoId={orcamento.id}
+          isPublic={true}
+          shouldOpen={mostrarChat}
+        />
+      )}
+    </>
   );
-} 
+}

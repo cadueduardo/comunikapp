@@ -17,9 +17,11 @@ import { FuncoesModule } from './funcoes/funcoes.module';
 import { CustosIndiretosModule } from './custos-indiretos/custos-indiretos.module';
 import { MensagensNegociacaoModule } from './mensagens-negociacao/mensagens-negociacao.module';
 import { NotificacoesModule } from './notificacoes/notificacoes.module';
+import { WebsocketsModule } from './websockets/websockets.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TiposMaterialModule } from './tipos-material/tipos-material.module';
+import { ProdutosModule } from './produtos/produtos.module';
 
 @Module({
   imports: [
@@ -40,7 +42,9 @@ import { TiposMaterialModule } from './tipos-material/tipos-material.module';
     CustosIndiretosModule,
     MensagensNegociacaoModule,
     NotificacoesModule,
+    WebsocketsModule,
     TiposMaterialModule,
+    ProdutosModule,
   ],
   controllers: [AppController],
   providers: [

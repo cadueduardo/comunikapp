@@ -1,0 +1,130 @@
+{
+  "success": {
+    "timestamp": "2025-07-23T21:54:36.806Z",
+    "action": "salvar_rascunho",
+    "mode": "novo",
+    "dadosEnviados": {
+      "nome_servico": "Banner",
+      "descricao": "",
+      "horas_producao": 0.6,
+      "cliente_id": "cmdd74brn000gw438t08e02tk",
+      "condicoes_comerciais": "",
+      "largura_produto": 60,
+      "altura_produto": 100,
+      "area_produto": 0.6,
+      "unidade_medida_produto": "cm",
+      "quantidade_produto": 1,
+      "itens": [
+        {
+          "insumo_id": "cmdd6wer90008w438aqbkx01e",
+          "quantidade": 0.6
+        }
+      ],
+      "maquinas": [
+        {
+          "maquina_id": "cmdd78jk7000iw4381d0sdnrm",
+          "horas_utilizadas": 0.3
+        }
+      ],
+      "funcoes": [
+        {
+          "funcao_id": "cmdd79avr000kw43845zlb94r",
+          "horas_trabalhadas": 0.3
+        }
+      ],
+      "custo_material": 6.559971428571429,
+      "custo_mao_obra": 13.5,
+      "custo_maquinaria": 18,
+      "custo_indireto": 24.204545454545457,
+      "custo_total_producao": 62.26451688311688,
+      "margem_lucro_valor": 18.679355064935063,
+      "subtotal_com_lucro": 80.94387194805195,
+      "impostos_valor": 20.235967987012987,
+      "preco_final": 101.17983993506493
+    },
+    "resultado": {
+      "cliente_id": "cmdd74brn000gw438t08e02tk",
+      "margem_lucro_customizada": "30",
+      "impostos_customizados": "25",
+      "condicoes_comerciais": "",
+      "itens_produto": [
+        {
+          "nome_servico": "Banner",
+          "quantidade_produto": "1",
+          "descricao": "",
+          "largura_produto": "60",
+          "altura_produto": "100",
+          "unidade_medida_produto": "cm",
+          "area_produto": "0.6",
+          "materiais": [
+            {
+              "insumo_id": "cmdd6wer90008w438aqbkx01e",
+              "quantidade": "0.6"
+            }
+          ],
+          "maquinas": [
+            {
+              "maquina_id": "cmdd78jk7000iw4381d0sdnrm",
+              "horas_utilizadas": "0.3"
+            }
+          ],
+          "funcoes": [
+            {
+              "funcao_id": "cmdd79avr000kw43845zlb94r",
+              "horas_trabalhadas": "0.3"
+            }
+          ]
+        }
+      ]
+    },
+    "status": 200,
+    "ok": true
+  },
+  "error": {
+    "timestamp": "2025-07-23T21:47:59.655Z",
+    "action": "salvar_rascunho_error",
+    "mode": "novo",
+    "dadosEnviados": {
+      "nome_servico": "Banner",
+      "descricao": "",
+      "cliente_id": "cmdd74brn000gw438t08e02tk",
+      "condicoes_comerciais": "",
+      "largura_produto": 60,
+      "altura_produto": 100,
+      "area_produto": 0.6,
+      "unidade_medida_produto": "cm",
+      "quantidade_produto": 1,
+      "itens": [
+        {
+          "insumo_id": "cmdd6wer90008w438aqbkx01e",
+          "quantidade": 0.6
+        }
+      ],
+      "maquinas": [
+        {
+          "maquina_id": "cmdd78jk7000iw4381d0sdnrm",
+          "horas_utilizadas": 0.3
+        }
+      ],
+      "funcoes": [
+        {
+          "funcao_id": "cmdd79avr000kw43845zlb94r",
+          "horas_trabalhadas": 0.3
+        }
+      ],
+      "custo_material": 6.559971428571429,
+      "custo_mao_obra": 13.5,
+      "custo_maquinaria": 18,
+      "custo_indireto": 24.204545454545457,
+      "custo_total_producao": 62.26451688311688,
+      "margem_lucro_valor": 18.679355064935063,
+      "subtotal_com_lucro": 80.94387194805195,
+      "impostos_valor": 20.235967987012987,
+      "preco_final": 101.17983993506493
+    },
+    "error": "{\"error\":[\"horas_producao must be a number conforming to the specified constraints\"]}",
+    "status": 400,
+    "ok": false
+  },
+  "exportTimestamp": "2025-07-23T21:55:02.551Z"
+}

@@ -123,9 +123,9 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
   - **[x] Frontend: Página de listagem de orçamentos**
   - **[x] Frontend: Formulário de criação de orçamentos**
   - **[x] Frontend: Correção de validação de IDs (CUIDs em vez de UUIDs)**
-  - **[ ] Frontend: Página de visualização/edição de orçamentos**
-  - **[ ] Frontend: Link público compartilhável**
-  - **[ ] Frontend: Geração de PDF**
+  - **[x] Frontend: Página de visualização/edição de orçamentos**
+  - **[x] Frontend: Link público compartilhável**
+  - **[x] Frontend: Geração de PDF (via window.print otimizado para A4)**
 
 - **[x] Tarefa 2.7: Refatoração Avançada dos Custos e Parâmetros da Loja**
   - **Problema identificado:** A estrutura atual de custos é simplificada e não representa a complexidade real de uma gráfica/loja de produção.
@@ -203,6 +203,108 @@ Com a base pronta, o foco agora é entregar o valor principal do sistema: a capa
     - Integração proativa com compras e estoque
     - Transparência total para o usuário final
 
+- **[x] Tarefa 2.8: Sistema de Tipos de Material e Lógica de Consumo**
+  - **Objetivo:** Implementar sistema avançado para tipos de materiais com lógicas de consumo personalizadas, permitindo cálculos automáticos baseados em parâmetros específicos de cada tipo de material.
+  - **[x] Sub-tarefa 2.8.1: Backend - Modelo de Tipos de Material**
+    - [x] **Backend:** Criar modelo `TipoMaterial` com campos: nome, logica_consumo, parametros_padrao (JSON), descricao
+    - [x] **Backend:** Implementar API CRUD para tipos de material
+    - [x] **Backend:** Relacionar `Insumo` com `TipoMaterial` (opcional)
+    - [x] **Backend:** Implementar proteção contra exclusão de tipos usados em insumos
+  - **[x] Sub-tarefa 2.8.2: Frontend - Interface de Tipos de Material**
+    - [x] **Frontend:** Criar página `/configuracoes/tipos-material` com interface CRUD
+    - [x] **Frontend:** Formulário de criação/edição de tipos de material com configuração de parâmetros
+    - [x] **Frontend:** Interface para configurar lógicas de consumo (espacamento, quantidade por m², multiplicador, quantidade fixa)
+    - [x] **Frontend:** Tratamento de erros aprimorado
+  - **[x] Sub-tarefa 2.8.3: Integração com Formulário de Orçamento**
+    - [x] **Frontend:** Atualizar formulário de orçamento para aplicar lógicas de consumo automáticas
+    - [x] **Frontend:** Implementar sugestões automáticas de quantidade baseadas no tipo de material
+    - [x] **Frontend:** Exibir explicações detalhadas dos cálculos realizados
+    - [x] **Frontend:** Permitir aplicação manual das sugestões
+  - **[x] Sub-tarefa 2.8.4: Melhorias no Cadastro de Insumos**
+    - [x] **Frontend:** Adicionar campo de seleção de tipo de material no formulário de insumos
+    - [x] **Frontend:** Exibir informações do tipo de material na listagem de insumos
+    - [x] **Frontend:** Melhorar UX com informações contextuais sobre tipos de material
+
+- **[x] Tarefa 2.9: Sistema de Mensagens de Negociação**
+  - **Objetivo:** Implementar sistema de comunicação entre loja e cliente durante o processo de negociação de orçamentos.
+  - **[x] Sub-tarefa 2.9.1: Backend - Modelo de Mensagens**
+    - [x] **Backend:** Criar modelo `MensagemNegociacao` com campos: orcamento_id, remetente_tipo (loja/cliente), conteudo, data_envio, lida
+    - [x] **Backend:** Implementar API CRUD para mensagens de negociação
+    - [x] **Backend:** Implementar sistema de notificações para novas mensagens
+  - **[x] Sub-tarefa 2.9.2: Frontend - Interface de Negociação**
+    - [x] **Frontend:** Criar interface de chat para negociação de orçamentos
+    - [x] **Frontend:** Implementar sistema de notificações em tempo real
+    - [x] **Frontend:** Integrar com página de visualização de orçamentos
+
+- **[x] Tarefa 2.10: Sistema de Notificações**
+  - **Objetivo:** Implementar sistema de notificações para manter usuários informados sobre eventos importantes.
+  - **[x] Sub-tarefa 2.10.1: Backend - Modelo de Notificações**
+    - [x] **Backend:** Criar modelo `Notificacao` com campos: usuario_id, tipo, titulo, mensagem, lida, data_criacao, dados_extras (JSON)
+    - [x] **Backend:** Implementar API CRUD para notificações
+    - [x] **Backend:** Implementar sistema de criação automática de notificações
+  - **[x] Sub-tarefa 2.10.2: Frontend - Interface de Notificações**
+    - [x] **Frontend:** Criar componente de notificações no header
+    - [x] **Frontend:** Implementar página de listagem de notificações
+    - [x] **Frontend:** Implementar marcação de notificações como lidas
+
+- **[x] Tarefa 2.11: WebSockets e Tempo Real**
+  - **Objetivo:** Implementar comunicação em tempo real para chat e notificações.
+  - **[x] Sub-tarefa 2.11.1: Backend - WebSocket Gateway**
+    - [x] **Backend:** Instalar e configurar Socket.IO com NestJS
+    - [x] **Backend:** Criar WebsocketsGateway com autenticação JWT
+    - [x] **Backend:** Implementar salas por orçamento e loja
+    - [x] **Backend:** Integrar com serviço de mensagens para eventos em tempo real
+  - **[x] Sub-tarefa 2.11.2: Frontend - WebSocket Client**
+    - [x] **Frontend:** Instalar socket.io-client
+    - [x] **Frontend:** Criar hook useWebSocket para gerenciar conexões
+    - [x] **Frontend:** Integrar WebSocket com ChatFlutuante
+    - [x] **Frontend:** Implementar indicadores de status de conexão
+    - [x] **Frontend:** Adicionar indicador de digitação em tempo real
+
+- **[x] Tarefa 2.12: Sistema Completo de Aprovação de Orçamentos**
+  - **Objetivo:** Implementar fluxo completo desde rascunho até aprovação, com páginas públicas profissionais e sistema de códigos de segurança.
+  - **[x] Sub-tarefa 2.12.1: Backend - Fluxo de Aprovação**
+    - [x] **Backend:** Implementar estados de orçamento (rascunho, enviado, aprovado, rejeitado, negociando)
+    - [x] **Backend:** Sistema de códigos de aprovação por email via Ethereal
+    - [x] **Backend:** API de envio de orçamento para cliente com link público
+    - [x] **Backend:** Endpoint de aprovação por código de segurança
+    - [x] **Backend:** Sistema de logs e histórico de ações do cliente
+  - **[x] Sub-tarefa 2.12.2: Frontend - Página Pública Profissional**
+    - [x] **Frontend:** Página pública responsive otimizada para impressão A4
+    - [x] **Frontend:** Layout profissional com logo dinâmico da loja
+    - [x] **Frontend:** Exibição apenas de dados comerciais (sem custos internos)
+    - [x] **Frontend:** Botões de ação (Aprovar, Rejeitar, Negociar, PDF)
+    - [x] **Frontend:** Sistema de códigos de aprovação por email
+    - [x] **Frontend:** Integração com chat de negociação
+  - **[x] Sub-tarefa 2.12.3: Melhorias no Fluxo de Orçamentos**
+    - [x] **Frontend:** Botões contextuais baseados no status do orçamento
+    - [x] **Frontend:** Navegação inteligente via badges clicáveis
+    - [x] **Frontend:** Interface de edição para orçamentos em rascunho
+    - [x] **Frontend:** Sistema de envio de orçamento após edição
+
+- **[x] Tarefa 2.13: Sistema de Compartilhamento Nativo**
+  - **Objetivo:** Implementar compartilhamento nativo de orçamentos para dispositivos móveis e PWA.
+  - **[x] Sub-tarefa 2.13.1: Backend - URLs Públicas**
+    - [x] **Backend:** Endpoints públicos para visualização de orçamentos
+    - [x] **Backend:** Dados otimizados para visualização do cliente
+  - **[x] Sub-tarefa 2.13.2: Frontend - Web Share API**
+    - [x] **Frontend:** Integração com Web Share API nativa
+    - [x] **Frontend:** Detecção inteligente de dispositivos (mobile, PWA, touch)
+    - [x] **Frontend:** Fallback para clipboard em desktop
+    - [x] **Frontend:** Componente ShareButton reutilizável
+    - [x] **Frontend:** Hook useShareCapabilities para detecção de recursos
+
+- **[x] Tarefa 2.14: Integração com API dos Correios**
+  - **Objetivo:** Automatizar preenchimento de endereços no cadastro de clientes.
+  - **[x] Sub-tarefa 2.14.1: Frontend - Busca Automática de CEP**
+    - [x] **Frontend:** Integração com API ViaCEP dos Correios
+    - [x] **Frontend:** Formatação automática de CEP (00000-000)
+    - [x] **Frontend:** Busca automática quando CEP completo é digitado
+    - [x] **Frontend:** Preenchimento automático de logradouro, bairro, cidade, estado
+    - [x] **Frontend:** Campos bloqueados após busca (apenas número e complemento editáveis)
+    - [x] **Frontend:** Feedback visual durante busca e tratamento de erros
+    - [x] **Frontend:** Página de teste criada (/test-cep) para validação
+
 ---
 
 ## Fase 3: Módulos Complementares e Gestão
@@ -277,4 +379,159 @@ Foco em experiência do usuário, segurança e funcionalidades opcionais.
   - Interface para a loja configurar suas próprias credenciais de API.
 
 - **[ ] Tarefa 5.4: Módulos Opcionais Adicionais (Exemplos)**
-  - Desenvolvimento de módulos avançados como `Emissão de NF-e` ou `PCP/Produção Setorizada` para serem disponibilizados no marketplace. 
+  - Desenvolvimento de módulos avançados como `Emissão de NF-e` ou `PCP/Produção Setorizada` para serem disponibilizados no marketplace.
+
+---
+
+## Fase 6: Melhorias e Otimizações Recentes
+
+Foco em melhorias específicas identificadas durante o desenvolvimento e uso do sistema.
+
+- **[x] Tarefa 6.1: Melhorias no Formulário de Orçamento**
+  - [x] **Sub-tarefa 6.1.1: Cálculo Automático de Área**
+    - [x] Implementar cálculo automático de área baseado em largura e altura
+    - [x] Suporte a diferentes unidades de medida (mm, cm, m)
+    - [x] Campo de área somente leitura com cálculo automático
+  - [x] **Sub-tarefa 6.1.2: Sugestões Inteligentes de Quantidade**
+    - [x] Implementar sugestões automáticas baseadas no tipo de material
+    - [x] Aplicar lógicas de consumo personalizadas (espacamento, quantidade por m², etc.)
+    - [x] Exibir explicações detalhadas dos cálculos realizados
+    - [x] Permitir aplicação manual das sugestões
+  - [x] **Sub-tarefa 6.1.3: Preview de Cálculo em Tempo Real**
+    - [x] Implementar sidebar com preview do cálculo
+    - [x] Exibir custos detalhados por categoria (materiais, máquinas, funções, custos indiretos)
+    - [x] Mostrar valores unitários e totais
+    - [x] Botão para calcular orçamento sem salvar
+  - [x] **Sub-tarefa 6.1.4: Melhorias na UX**
+    - [x] Interface mais intuitiva com accordions para organizar seções
+    - [x] Validação em tempo real dos campos
+    - [x] Mensagens de erro mais claras e específicas
+    - [x] Tratamento de erros aprimorado
+
+- **[x] Tarefa 6.2: Sistema de Aprovação e Página Pública Profissional**
+  - [x] **Sub-tarefa 6.2.1: Fluxo de Aprovação Seguro**
+    - [x] Sistema de códigos de aprovação por email via Ethereal
+    - [x] Endpoint de aprovação com validação de código
+    - [x] Estados de orçamento (rascunho, enviado, aprovado, rejeitado, negociando)
+    - [x] Logs e histórico de ações do cliente
+  - [x] **Sub-tarefa 6.2.2: Página Pública Otimizada**
+    - [x] Layout A4 profissional otimizado para impressão
+    - [x] Logo dinâmico com ajuste automático de proporções
+    - [x] Exibição apenas de dados comerciais (sem custos internos)
+    - [x] Botões de ação contextuais (Aprovar, Rejeitar, Negociar, PDF)
+    - [x] Integração com sistema de chat para negociação
+  - [x] **Sub-tarefa 6.2.3: Melhorias na Navegação**
+    - [x] Badges clicáveis na lista de orçamentos
+    - [x] Navegação inteligente baseada no status
+    - [x] Interface de edição para orçamentos em rascunho
+    - [x] Sistema de envio após edição
+
+- **[x] Tarefa 6.3: Sistema de Compartilhamento Nativo e Web Share API**
+  - [x] **Sub-tarefa 6.3.1: Detecção Inteligente de Dispositivos**
+    - [x] Detecção de dispositivos móveis, PWA e touch
+    - [x] Componente ShareButton reutilizável
+    - [x] Hook useShareCapabilities para detecção de recursos
+  - [x] **Sub-tarefa 6.3.2: Implementação Web Share API**
+    - [x] Integração com Web Share API nativa
+    - [x] Fallback inteligente para clipboard em desktop
+    - [x] Feedback visual diferenciado por método de compartilhamento
+    - [x] Tratamento robusto de erros e cancelamentos
+
+- **[x] Tarefa 6.4: Integração com API dos Correios (ViaCEP)**
+  - [x] **Sub-tarefa 6.4.1: Busca Automática de Endereços**
+    - [x] Integração com API ViaCEP dos Correios
+    - [x] Formatação automática de CEP (00000-000)
+    - [x] Busca automática quando CEP de 8 dígitos é digitado
+    - [x] Preenchimento automático de logradouro, bairro, cidade, estado
+  - [x] **Sub-tarefa 6.4.2: Interface Otimizada**
+    - [x] Campos bloqueados após busca (apenas número e complemento editáveis)
+    - [x] Feedback visual durante busca com loading spinner
+    - [x] Tratamento de erros (CEP inválido, não encontrado, erro de conexão)
+    - [x] Interface limpa focada na experiência automática
+    - [x] Página de teste (/test-cep) para validação da integração
+
+- **[ ] Tarefa 6.5: Correções de Linter e Qualidade de Código**
+  - [ ] **Sub-tarefa 6.5.1: Correções de TypeScript**
+    - [ ] Corrigir uso de `any` em tipos de dados
+    - [ ] Substituir variáveis `let` por `const` quando apropriado
+    - [ ] Remover variáveis não utilizadas
+    - [ ] Corrigir escape de caracteres em strings JSX
+  - [ ] **Sub-tarefa 6.5.2: Melhorias de Performance**
+    - [ ] Otimizar re-renders desnecessários
+    - [ ] Implementar memoização onde apropriado
+    - [ ] Reduzir complexidade de componentes grandes
+
+- **[ ] Tarefa 6.6: Melhorias na Documentação**
+  - [ ] **Sub-tarefa 6.6.1: Documentação de API**
+    - [ ] Criar documentação Swagger/OpenAPI para todas as rotas
+    - [ ] Documentar exemplos de uso para endpoints complexos
+    - [ ] Incluir códigos de erro e suas causas
+  - [ ] **Sub-tarefa 6.6.2: Documentação de Componentes**
+    - [ ] Documentar props e interfaces de componentes complexos
+    - [ ] Criar guias de uso para funcionalidades avançadas
+    - [ ] Manter documentação atualizada com mudanças
+
+- **[ ] Tarefa 6.7: Testes e Qualidade**
+  - [ ] **Sub-tarefa 6.7.1: Testes Unitários**
+    - [ ] Implementar testes para funções de cálculo
+    - [ ] Testar validações de formulário
+    - [ ] Cobrir casos de erro e edge cases
+  - [ ] **Sub-tarefa 6.7.2: Testes de Integração**
+    - [ ] Testar fluxos completos de criação de orçamentos
+    - [ ] Validar integração entre frontend e backend
+    - [ ] Testar cenários de erro e recuperação
+
+---
+
+## Status Atual do Projeto
+
+### ✅ Módulos Concluídos
+- **Onboarding e Autenticação:** Sistema completo de cadastro, verificação e login
+- **CRM Básico:** Cadastro e gestão de clientes com integração API dos Correios
+- **Cadastros Auxiliares:** Categorias, fornecedores, tipos de material
+- **Insumos:** Sistema completo de cadastro com lógicas de consumo
+- **Configurações:** Máquinas, funções, custos indiretos com histórico
+- **Orçamentos Completo:** 
+  - Formulário avançado com cálculo automático e preview
+  - Sistema de rascunho, envio e aprovação
+  - Página pública profissional para clientes
+  - Códigos de aprovação por email
+  - Geração de PDF otimizada para A4
+- **Sistema de Aprovação:** Fluxo completo cliente com códigos de segurança
+- **Responsividade:** Interface adaptada para desktop e mobile
+- **Sistema de Notificações:** Notificações em tempo real
+- **Mensagens de Negociação:** Chat em tempo real com anexos
+- **WebSockets:** Comunicação tempo real para chat e notificações
+- **Sistema de Compartilhamento:** Web Share API nativa com fallback
+- **Integração Correios:** Busca automática de endereços por CEP
+
+### 🔄 Em Desenvolvimento
+- **Relatórios Analíticos:** Composição de custos e margens por orçamento
+- **Integração com Compras:** Verificação de disponibilidade de insumos
+
+### 📋 Próximas Prioridades
+1. **Módulos de Gestão:** Ordens de Serviço (OS) e controle financeiro básico
+2. **Relatórios Analíticos:** Composição de custos, margens e histórico
+3. **Correções de Qualidade:** Resolver erros de linter e melhorar código
+4. **Testes:** Implementar testes unitários e de integração
+5. **Documentação:** Melhorar documentação técnica e de usuário
+
+### 🎯 Objetivos de Curto Prazo
+- **Sistema Pronto para Produção:** Módulo de orçamentos está completo e funcional
+- **Expandir para Gestão:** Implementar OS e controle financeiro básico
+- **Qualidade e Estabilidade:** Implementar testes e resolver warnings
+- **Preparar para Usuários:** Sistema estável para demonstração e testes reais
+
+### 🚀 Marcos Importantes Recentes
+- ✅ **Sistema de Orçamentos Completo:** Fluxo completo rascunho → envio → aprovação/negociação
+- ✅ **Experiência do Cliente:** Página pública A4 com códigos de aprovação por email
+- ✅ **Comunicação Tempo Real:** Chat com anexos, WebSockets e notificações em tempo real
+- ✅ **Automação Inteligente:** CEP automático via ViaCEP e compartilhamento nativo Web Share API
+- ✅ **UX Profissional:** Interface responsiva, navegação intuitiva e feedback visual otimizado
+
+### 📊 Estatísticas do Desenvolvimento
+- **Total de Tarefas Principais:** 14 tarefas concluídas na Fase 2
+- **Funcionalidades Implementadas:** Sistema completo de orçamentos end-to-end
+- **Integrações Externas:** ViaCEP (Correios), Ethereal (Email), Web Share API
+- **Tecnologias em Uso:** Next.js, NestJS, Prisma, Socket.IO, TypeScript
+- **Status do Sistema:** Pronto para testes com usuários reais 

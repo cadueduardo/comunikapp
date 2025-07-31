@@ -1,7 +1,7 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal, ArrowUpDown, Eye, Edit, Trash2, Share2 } from 'lucide-react';
+import { MoreHorizontal, ArrowUpDown, Edit, Trash2, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -22,6 +22,7 @@ export type Orcamento = {
   descricao?: string;
   preco_final: number;
   criado_em: string;
+  status?: string;
   status_aprovacao?: string;
   cliente?: {
     id: string;
@@ -73,33 +74,86 @@ export const createColumns = (
     },
   },
   {
-    accessorKey: 'status_aprovacao',
-    header: 'Status',
+    accessorKey: 'status',
+    header: 'Tipo',
     cell: ({ row }) => {
-      const status = row.original.status_aprovacao;
-      if (!status || status === 'PENDENTE') {
-        return <Badge variant="secondary">Pendente</Badge>;
+      const status = row.original.status;
+      const orcamento = row.original;
+      
+      if (!status || status === 'rascunho') {
+        return (
+          <Link href={`/orcamentos/${orcamento.id}/editar`} className="hover:opacity-80">
+            <Badge variant="outline" className="text-xs bg-gray-100 text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors">
+              📝 Rascunho
+            </Badge>
+          </Link>
+        );
       }
       
       return (
-        <Badge 
-          variant={
-            status === 'APROVADO' ? 'default' :
-            status === 'REJEITADO' ? 'destructive' :
-            'secondary'
-          }
-          className={
-            status === 'APROVADO' ? 'text-xs bg-green-100 text-green-800 border-green-200' :
-            status === 'REJEITADO' ? 'text-xs' :
-            status === 'NEGOCIANDO' ? 'text-xs bg-blue-100 text-blue-800 border-blue-200' :
-            'text-xs'
-          }
-        >
-          {status === 'APROVADO' ? '✅ Aprovado' :
-           status === 'REJEITADO' ? '❌ Rejeitado' :
-           status === 'NEGOCIANDO' ? '🔄 Negociando' :
-           status}
-        </Badge>
+        <Link href={`/orcamentos/${orcamento.id}`} className="hover:opacity-80">
+          <Badge variant="default" className="text-xs bg-blue-100 text-blue-800 border-blue-200 cursor-pointer hover:bg-blue-200 transition-colors">
+            📤 Enviado
+          </Badge>
+        </Link>
+      );
+    },
+  },
+  {
+    accessorKey: 'status_aprovacao',
+    header: 'Aprovação',
+    cell: ({ row }) => {
+      const status = row.original.status_aprovacao;
+      const orcamentoStatus = row.original.status;
+      const orcamento = row.original;
+      
+      // Se é rascunho, não mostrar status de aprovação
+      if (orcamentoStatus === 'rascunho') {
+        return <Badge variant="secondary" className="text-xs">-</Badge>;
+      }
+      
+      if (!status || status === 'PENDENTE') {
+        return (
+          <Link href={`/orcamentos/${orcamento.id}`} className="hover:opacity-80">
+            <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-gray-200 transition-colors">
+              ⏳ Pendente
+            </Badge>
+          </Link>
+        );
+      }
+      
+      // Determinar link baseado no status
+      const linkHref = (() => {
+        if (status === 'NEGOCIANDO') {
+          return `/orcamentos/${orcamento.id}/editar`; // Negociando vai para edição
+        }
+        if (status === 'APROVADO') {
+          return `/orcamento/${orcamento.id}`; // Aprovado vai para link público
+        }
+        return `/orcamentos/${orcamento.id}`; // Outros vão para visualização admin
+      })();
+      
+      return (
+        <Link href={linkHref} className="hover:opacity-80">
+          <Badge 
+            variant={
+              status === 'APROVADO' ? 'default' :
+              status === 'REJEITADO' ? 'destructive' :
+              'secondary'
+            }
+            className={`cursor-pointer transition-colors ${
+              status === 'APROVADO' ? 'text-xs bg-green-100 text-green-800 border-green-200 hover:bg-green-200' :
+              status === 'REJEITADO' ? 'text-xs hover:bg-red-200' :
+              status === 'NEGOCIANDO' ? 'text-xs bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200' :
+              'text-xs hover:bg-gray-200'
+            }`}
+          >
+            {status === 'APROVADO' ? '✅ Aprovado' :
+             status === 'REJEITADO' ? '❌ Rejeitado' :
+             status === 'NEGOCIANDO' ? '💬 Negociando' :
+             status}
+          </Badge>
+        </Link>
       );
     },
   },
@@ -129,12 +183,7 @@ export const createColumns = (
                 <Share2 className="mr-2 h-4 w-4" />
                 Compartilhar
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/orcamentos/${orcamento.id}`}>
-                  <Eye className="mr-2 h-4 w-4" />
-                  Visualizar
-                </Link>
-              </DropdownMenuItem>
+
               <DropdownMenuItem asChild>
                 <Link href={`/orcamentos/${orcamento.id}/editar`}>
                   <Edit className="mr-2 h-4 w-4" />
@@ -155,4 +204,4 @@ export const createColumns = (
       );
     },
   },
-]; 
+];

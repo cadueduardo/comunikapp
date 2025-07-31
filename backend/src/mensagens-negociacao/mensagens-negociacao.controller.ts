@@ -17,13 +17,86 @@ import { MensagensNegociacaoService } from './mensagens-negociacao.service';
 import { CreateMensagemNegociacaoDto } from '../orcamentos/dto/create-mensagem-negociacao.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentLojaId } from '../auth/decorators';
+import { Public } from '../auth/decorators';
 
 @Controller('orcamentos/:orcamentoId/mensagens')
 export class MensagensNegociacaoController {
   constructor(private readonly mensagensNegociacaoService: MensagensNegociacaoService) {}
 
   /**
-   * Enviar uma nova mensagem
+   * Listar todas as mensagens de um orçamento (público)
+   */
+  @Get('publico')
+  @Public()
+  async findAllPublico(@Param('orcamentoId') orcamentoId: string) {
+    return this.mensagensNegociacaoService.findAllPublico(orcamentoId);
+  }
+
+  /**
+   * Buscar mensagens não visualizadas
+   */
+  @Get('nao-visualizadas')
+  @UseGuards(JwtAuthGuard)
+  async findNaoVisualizadas(
+    @Param('orcamentoId') orcamentoId: string, 
+    @CurrentLojaId() lojaId: string
+  ) {
+    return this.mensagensNegociacaoService.findNaoVisualizadas(orcamentoId, lojaId);
+  }
+
+  /**
+   * Contar mensagens não visualizadas
+   */
+  @Get('nao-visualizadas/count')
+  @UseGuards(JwtAuthGuard)
+  async countNaoVisualizadas(
+    @Param('orcamentoId') orcamentoId: string, 
+    @CurrentLojaId() lojaId: string
+  ) {
+    return this.mensagensNegociacaoService.countNaoVisualizadas(orcamentoId, lojaId);
+  }
+
+  /**
+   * Listar todas as mensagens de um orçamento (autenticado)
+   */
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  async findAll(
+    @Param('orcamentoId') orcamentoId: string, 
+    @CurrentLojaId() lojaId: string
+  ) {
+    return this.mensagensNegociacaoService.findAll(orcamentoId, lojaId);
+  }
+
+  /**
+   * Enviar uma nova mensagem (público)
+   */
+  @Post('publico')
+  @Public()
+  @UseInterceptors(FileInterceptor('arquivo'))
+  async createPublico(
+    @Param('orcamentoId') orcamentoId: string, 
+    @Body() body: any, // Usar any para aceitar tanto JSON quanto FormData
+    @UploadedFile() file?: Express.Multer.File
+  ) {
+    console.log('🔍 Controller publico - Body recebido:', body);
+    console.log('🔍 Controller publico - File recebido:', file ? `${file.originalname} (${file.size} bytes)` : 'nenhum');
+    
+    // Criar DTO manualmente a partir do body
+    const dto: CreateMensagemNegociacaoDto = {
+      mensagem: body.mensagem || '',
+      tipo: body.tipo || 'CLIENTE',
+      autor_nome: body.autor_nome || 'Cliente',
+      autor_email: body.autor_email,
+    };
+    
+    console.log('🔍 Controller publico - DTO criado:', dto);
+    
+    return this.mensagensNegociacaoService.createPublicoComAnexo(orcamentoId, dto, file);
+  }
+
+  /**
+   * Enviar uma nova mensagem (autenticado)
    */
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -36,19 +109,19 @@ export class MensagensNegociacaoController {
   }
 
   /**
-   * Listar todas as mensagens de um orçamento
+   * Marcar mensagem como visualizada (público)
    */
-  @Get()
-  @UseGuards(JwtAuthGuard)
-  async findAll(
-    @Param('orcamentoId') orcamentoId: string, 
-    @CurrentLojaId() lojaId: string
+  @Post('publico/:mensagemId/visualizar')
+  @Public()
+  async marcarComoVisualizadaPublico(
+    @Param('orcamentoId') orcamentoId: string,
+    @Param('mensagemId') mensagemId: string
   ) {
-    return this.mensagensNegociacaoService.findAll(orcamentoId, lojaId);
+    return this.mensagensNegociacaoService.marcarComoVisualizadaPublico(orcamentoId, mensagemId);
   }
 
   /**
-   * Marcar mensagem como visualizada
+   * Marcar mensagem como visualizada (autenticado)
    */
   @Post(':mensagemId/visualizar')
   @UseGuards(JwtAuthGuard)
@@ -79,29 +152,5 @@ export class MensagensNegociacaoController {
     @CurrentLojaId() lojaId: string
   ) {
     return this.mensagensNegociacaoService.uploadAnexo(mensagemId, file, lojaId);
-  }
-
-  /**
-   * Buscar mensagens não visualizadas
-   */
-  @Get('nao-visualizadas')
-  @UseGuards(JwtAuthGuard)
-  async findNaoVisualizadas(
-    @Param('orcamentoId') orcamentoId: string, 
-    @CurrentLojaId() lojaId: string
-  ) {
-    return this.mensagensNegociacaoService.findNaoVisualizadas(orcamentoId, lojaId);
-  }
-
-  /**
-   * Contar mensagens não visualizadas
-   */
-  @Get('nao-visualizadas/count')
-  @UseGuards(JwtAuthGuard)
-  async countNaoVisualizadas(
-    @Param('orcamentoId') orcamentoId: string, 
-    @CurrentLojaId() lojaId: string
-  ) {
-    return this.mensagensNegociacaoService.countNaoVisualizadas(orcamentoId, lojaId);
   }
 } 

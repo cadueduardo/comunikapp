@@ -6,6 +6,9 @@ import OrcamentoForm from '@/components/ui/orcamento-form';
 import { ChatFlutuante } from '@/components/ui/chat-flutuante';
 
 interface OrcamentoData {
+  id: string;
+  status?: string;
+  status_aprovacao?: string;
   cliente_id: string;
   margem_lucro_customizada?: string;
   impostos_customizados?: string;
@@ -37,14 +40,7 @@ export default function EditarOrcamentoPage() {
   const params = useParams();
   const [orcamentoData, setOrcamentoData] = useState<OrcamentoData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showChat, setShowChat] = useState(false);
-
-  useEffect(() => {
-    // Verificar se há parâmetro ?chat=true na URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const shouldShowChat = urlParams.get('chat') === 'true';
-    setShowChat(shouldShowChat);
-  }, []);
+  const [mostrarChat, setMostrarChat] = useState(false);
 
   useEffect(() => {
     const fetchOrcamento = async () => {
@@ -140,14 +136,25 @@ export default function EditarOrcamentoPage() {
         mode="editar" 
         initialData={orcamentoData}
         orcamentoId={params.id as string}
+        orcamentoStatus={orcamentoData.status}
         onSuccess={() => {
           // Redirecionar para a listagem após salvar
           window.location.href = '/orcamentos';
         }}
       />
       
-      {/* Chat Flutuante */}
-      <ChatFlutuante orcamentoId={params.id as string} isOpen={showChat} />
+      {/* Chat Flutuante - Só aparece se não for rascunho */}
+      {(() => {
+        console.log('🔍 Debug - Status do orçamento:', orcamentoData.status);
+        console.log('🔍 Debug - Deve mostrar chat:', orcamentoData.status && orcamentoData.status !== 'rascunho');
+        return orcamentoData.status && orcamentoData.status !== 'rascunho' ? (
+          <ChatFlutuante 
+            orcamentoId={params.id as string} 
+            isPublic={false} 
+            shouldOpen={mostrarChat}
+          />
+        ) : null;
+      })()}
     </>
   );
 } 

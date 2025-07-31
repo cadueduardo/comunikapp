@@ -20,6 +20,15 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useWebSocket } from '@/hooks/use-websocket';
+
+interface Anexo {
+  nome_arquivo: string;
+  url_arquivo: string;
+  tipo_arquivo?: string;
+  tamanho?: number;
+  _isTemporary?: boolean; // Flag para anexos temporários (antes de serem salvos no servidor)
+}
 
 interface Mensagem {
   id: string;
@@ -28,31 +37,127 @@ interface Mensagem {
   autor_nome?: string;
   autor_email?: string;
   visualizada: boolean;
-  anexos?: string[];
+  anexos?: (string | Anexo)[]; // Suporta tanto strings (legado) quanto objetos Anexo
   criado_em: string;
 }
 
 interface ChatFlutuanteProps {
   orcamentoId: string;
   isPublic?: boolean; // Se true, é para cliente público
+  shouldOpen?: boolean; // Se true, deve abrir o chat
 }
 
-export function ChatFlutuante({ orcamentoId, isPublic = false }: ChatFlutuanteProps) {
+export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = false }: ChatFlutuanteProps) {
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [novaMensagem, setNovaMensagem] = useState('');
   const [loading, setLoading] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [isOpen, setIsOpen] = useState(false); // Sempre inicia fechado para evitar problemas
+  const [isOpen, setIsOpen] = useState(false); // Sempre inicia fechado
   const [isMinimized, setIsMinimized] = useState(false);
   const [anexo, setAnexo] = useState<File | null>(null);
   const [novasMensagens, setNovasMensagens] = useState(0);
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevMensagensLengthRef = useRef(0);
 
+  // Abrir chat quando shouldOpen for true (apenas uma vez por mudança)
   useEffect(() => {
-    if (isOpen && !isMinimized) {
+    if (shouldOpen && !isOpen) {
+      console.log('🔍 ChatFlutuante - Abrindo chat por comando externo');
+      setIsOpen(true);
+    }
+    // Não fechar automaticamente se shouldOpen for false
+  }, [shouldOpen]); // Removido isOpen da dependência para evitar loop
+
+  // WebSocket hook
+  const { isConnected, emitTyping, emitMessageRead } = useWebSocket({
+    orcamentoId,
+    isPublic,
+    onNewMessage: (data) => {
+      console.log('🔍 Polling recebeu nova mensagem:', data.message);
+      console.log('🔍 IDs existentes atuais:', mensagens.map(m => m.id));
+      
+      // Verificar se a mensagem já existe para evitar duplicação
+      const mensagemJaExiste = mensagens.some(msg => msg.id === data.message.id);
+      
+      console.log('🔍 Mensagem já existe?', mensagemJaExiste, 'ID:', data.message.id);
+      
+      if (!mensagemJaExiste) {
+        // Adicionar nova mensagem à lista
+        const novaMensagem: Mensagem = {
+          ...data.message,
+          tipo: data.message.tipo as 'CLIENTE' | 'VENDEDOR' | 'SISTEMA',
+        };
+        
+        console.log('🔍 Adicionando nova mensagem do polling:', novaMensagem);
+        
+        // Usar função de atualização para garantir que não há duplicação
+        setMensagens(prev => {
+          // Verificar novamente se a mensagem já existe
+          const jaExiste = prev.some(msg => msg.id === data.message.id);
+          if (jaExiste) {
+            console.log('🔍 Mensagem já existe no estado, ignorando:', data.message.id);
+            return prev;
+          }
+          
+          const novasMensagens = [...prev, novaMensagem];
+          console.log('🔍 Mensagens após adição:', novasMensagens.map(m => ({ id: m.id, mensagem: m.mensagem })));
+          return novasMensagens;
+        });
+        
+        setNovasMensagens(prev => prev + 1);
+        
+        // Se o chat estiver aberto, marcar como lida
+        if (isOpen && !isMinimized) {
+          emitMessageRead(data.message.id);
+        }
+      } else {
+        console.log('🔍 Mensagem duplicada ignorada:', data.message.id);
+      }
+    },
+    onMessageRead: (messageId) => {
+      console.log('🔍 Marcando mensagem como lida:', messageId);
+      // Atualizar status de leitura
+      setMensagens(prev => 
+        prev.map(msg => 
+          msg.id === messageId ? { ...msg, visualizada: true } : msg
+        )
+      );
+    },
+    onUserTyping: (data) => {
+      setIsTyping(data.isTyping);
+    },
+    onError: (error) => {
+      console.error('❌ Erro WebSocket:', error);
+      toast.error('Erro de conexão em tempo real');
+    },
+  });
+
+  // Carregar mensagens iniciais
+  useEffect(() => {
+    if (orcamentoId) {
       carregarMensagens();
     }
-  }, [orcamentoId, isOpen, isMinimized]);
+  }, [orcamentoId]);
+
+  // Verificar duplicação de mensagens
+  useEffect(() => {
+    const ids = mensagens.map(m => m.id);
+    const idsUnicos = new Set(ids);
+    
+    if (ids.length !== idsUnicos.size) {
+      console.error('❌ DUPLICAÇÃO DETECTADA!');
+      console.log('IDs duplicados:', ids.filter((id, index) => ids.indexOf(id) !== index));
+      
+      // Remover duplicatas
+      const mensagensUnicas = mensagens.filter((msg, index) => 
+        mensagens.findIndex(m => m.id === msg.id) === index
+      );
+      
+      console.log('🔧 Removendo duplicatas, mantendo apenas:', mensagensUnicas.length, 'mensagens');
+      setMensagens(mensagensUnicas);
+    }
+  }, [mensagens]);
 
   // Marcar como lidas quando o chat está aberto
   useEffect(() => {
@@ -61,16 +166,16 @@ export function ChatFlutuante({ orcamentoId, isPublic = false }: ChatFlutuantePr
     }
   }, [isOpen, isMinimized, mensagens.length]);
 
-  // Polling manual simples para atualização
+  // Indicador de digitação
   useEffect(() => {
-    if (!isOpen || isMinimized) return;
-
-    const interval = setInterval(() => {
-      carregarMensagens();
-    }, 10000); // Verificar a cada 10 segundos
-
-    return () => clearInterval(interval);
-  }, [isOpen, isMinimized]);
+    if (novaMensagem.length > 0) {
+      emitTyping(true);
+      const timeout = setTimeout(() => emitTyping(false), 1000);
+      return () => clearTimeout(timeout);
+    } else {
+      emitTyping(false);
+    }
+  }, [novaMensagem, emitTyping]);
 
   // SSE para atualização em tempo real - DESABILITADO TEMPORARIAMENTE
   // useEffect(() => {
@@ -91,7 +196,7 @@ export function ChatFlutuante({ orcamentoId, isPublic = false }: ChatFlutuantePr
   //       }
   //     } catch (error) {
   //       console.error('Erro ao processar SSE:', error);
-      //     }
+  //     }
   //   };
 
   //   eventSource.onerror = (error) => {
@@ -105,23 +210,57 @@ export function ChatFlutuante({ orcamentoId, isPublic = false }: ChatFlutuantePr
   // }, [orcamentoId]); // Apenas orcamentoId como dependência
 
   useEffect(() => {
-    scrollToBottom();
-  }, [mensagens]);
+    // Só fazer scroll automático se:
+    // 1. Chat estiver aberto e não minimizado
+    // 2. Houver novas mensagens (length aumentou)
+    // 3. Ou se for a primeira vez carregando mensagens
+    if (isOpen && !isMinimized) {
+      const currentLength = mensagens.length;
+      const prevLength = prevMensagensLengthRef.current;
+      
+      // Se há novas mensagens ou é a primeira vez
+      if (currentLength > prevLength || (prevLength === 0 && currentLength > 0)) {
+        // Pequeno delay para garantir que o DOM foi atualizado
+        setTimeout(() => {
+          scrollToBottom();
+        }, 50);
+      }
+      
+      prevMensagensLengthRef.current = currentLength;
+    }
+  }, [mensagens, isOpen, isMinimized]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'end'
+      });
+    }
   };
 
   const carregarMensagens = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/orcamentos/${orcamentoId}/mensagens`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      
+      // Usar endpoint correto baseado no modo
+      const endpoint = isPublic 
+        ? `http://localhost:3001/orcamentos/${orcamentoId}/mensagens/publico`
+        : `http://localhost:3001/orcamentos/${orcamentoId}/mensagens`;
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+
+      // Adicionar token apenas se não for público
+      if (!isPublic) {
+        const token = localStorage.getItem('access_token');
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
         }
-      });
+      }
+
+      const response = await fetch(endpoint, { headers });
 
       if (response.ok) {
         const data = await response.json();
@@ -136,6 +275,9 @@ export function ChatFlutuante({ orcamentoId, isPublic = false }: ChatFlutuantePr
         }
         
         setMensagens(data);
+      } else {
+        console.error('Erro ao carregar mensagens:', response.status, response.statusText);
+        toast.error('Erro ao carregar mensagens');
       }
     } catch (error) {
       console.error('Erro ao carregar mensagens:', error);
@@ -165,34 +307,156 @@ export function ChatFlutuante({ orcamentoId, isPublic = false }: ChatFlutuantePr
   };
 
   const enviarMensagem = async () => {
-    if (!novaMensagem.trim()) return;
+    if (!novaMensagem.trim() && !anexo) return;
+
+    const mensagemOriginal = novaMensagem; // Guardar mensagem original para restaurar se falhar
+    const anexoOriginal = anexo; // Guardar anexo original para restaurar se falhar
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${Math.random().toString(36).substr(2, 9)}`; // Criar ID temporário mais único
 
     try {
       setEnviando(true);
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/orcamentos/${orcamentoId}/mensagens`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          mensagem: novaMensagem,
+      
+      console.log('🔍 Enviando mensagem com ID temporário:', tempId);
+      console.log('🔍 Anexo presente:', !!anexo, anexo?.name);
+      
+      // Adicionar mensagem temporária localmente (com estrutura correta para anexos)
+      const mensagemTemporaria: Mensagem = {
+        id: tempId,
+        mensagem: novaMensagem || (anexo ? `📎 ${anexo.name}` : ''),
+        tipo: isPublic ? 'CLIENTE' : 'VENDEDOR',
+        autor_nome: isPublic ? 'Cliente' : undefined,
+        autor_email: undefined,
+        visualizada: false,
+        anexos: anexo ? [{
+          nome_arquivo: anexo.name,
+          url_arquivo: URL.createObjectURL(anexo), // URL temporária para preview
+          tipo_arquivo: anexo.type,
+          tamanho: anexo.size,
+          _isTemporary: true // Flag para identificar anexo temporário
+        }] : [],
+        criado_em: new Date().toISOString(),
+      };
+      
+      console.log('🔍 Adicionando mensagem temporária:', mensagemTemporaria);
+      setMensagens(prev => [...prev, mensagemTemporaria]);
+      setNovaMensagem('');
+      setAnexo(null);
+      
+      // Fazer scroll suave para a nova mensagem
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+      
+      // Usar endpoint correto baseado no modo
+      const endpoint = isPublic 
+        ? `http://localhost:3001/orcamentos/${orcamentoId}/mensagens/publico`
+        : `http://localhost:3001/orcamentos/${orcamentoId}/mensagens`;
+      
+      // Preparar dados para envio
+      let body: string | FormData;
+      let headers: Record<string, string> = {};
+
+      if (anexoOriginal) {
+        // Se há anexo, usar FormData
+        const formData = new FormData();
+        formData.append('mensagem', mensagemOriginal || '');
+        formData.append('tipo', isPublic ? 'CLIENTE' : 'VENDEDOR');
+        if (isPublic) {
+          formData.append('autor_nome', 'Cliente');
+        }
+        formData.append('arquivo', anexoOriginal);
+        
+        body = formData;
+        // Não definir Content-Type para FormData - o browser define automaticamente
+      } else {
+        // Se não há anexo, usar JSON
+        headers['Content-Type'] = 'application/json';
+        body = JSON.stringify({
+          mensagem: mensagemOriginal,
           tipo: isPublic ? 'CLIENTE' : 'VENDEDOR',
           autor_nome: isPublic ? 'Cliente' : undefined,
-        })
+        });
+      }
+
+      // Adicionar token apenas se não for público
+      if (!isPublic) {
+        const token = localStorage.getItem('access_token');
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+      }
+
+      console.log('🔍 Enviando para endpoint:', endpoint);
+      console.log('🔍 Tipo de body:', anexoOriginal ? 'FormData com anexo' : 'JSON');
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body
       });
 
       if (response.ok) {
-        setNovaMensagem('');
-        setAnexo(null);
-        await carregarMensagens();
-        // Removido toast de sucesso
+        const mensagemEnviada = await response.json();
+        console.log('✅ Mensagem enviada com sucesso:', mensagemEnviada);
+        
+        // Substituir mensagem temporária pela real (incluindo anexos corretos)
+        setMensagens(prev => {
+          const novasMensagens = prev.map(msg => {
+            if (msg.id === tempId) {
+              // Limpar URL temporária se existir
+              if (msg.anexos) {
+                msg.anexos.forEach(anexo => {
+                  if (anexo._isTemporary && anexo.url_arquivo?.startsWith('blob:')) {
+                    URL.revokeObjectURL(anexo.url_arquivo);
+                  }
+                });
+              }
+              
+              // Substituir pela mensagem real do servidor
+              return {
+                ...mensagemEnviada,
+                anexos: mensagemEnviada.anexos || []
+              };
+            }
+            return msg;
+          });
+          console.log('🔍 Mensagens após substituição:', novasMensagens.map(m => ({ id: m.id, mensagem: m.mensagem, anexos: m.anexos?.length || 0 })));
+          return novasMensagens;
+        });
       } else {
+        // Se falhou, limpar URLs temporárias e remover mensagem
+        console.error('❌ Erro ao enviar mensagem:', response.status, response.statusText);
+        setMensagens(prev => {
+          const mensagemTemp = prev.find(msg => msg.id === tempId);
+          if (mensagemTemp?.anexos) {
+            mensagemTemp.anexos.forEach(anexo => {
+              if (anexo._isTemporary && anexo.url_arquivo?.startsWith('blob:')) {
+                URL.revokeObjectURL(anexo.url_arquivo);
+              }
+            });
+          }
+          return prev.filter(msg => msg.id !== tempId);
+        });
+        setNovaMensagem(mensagemOriginal); // Restaurar mensagem no input
+        setAnexo(anexoOriginal); // Restaurar anexo no input
         toast.error('Erro ao enviar mensagem');
       }
     } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
+      // Se falhou, limpar URLs temporárias e remover mensagem
+      console.error('❌ Erro ao enviar mensagem:', error);
+      setMensagens(prev => {
+        const mensagemTemp = prev.find(msg => msg.id === tempId);
+        if (mensagemTemp?.anexos) {
+          mensagemTemp.anexos.forEach(anexo => {
+            if (anexo._isTemporary && anexo.url_arquivo?.startsWith('blob:')) {
+              URL.revokeObjectURL(anexo.url_arquivo);
+            }
+          });
+        }
+        return prev.filter(msg => msg.id !== tempId);
+      });
+      setNovaMensagem(mensagemOriginal); // Restaurar mensagem no input
+      setAnexo(anexoOriginal); // Restaurar anexo no input
       toast.error('Erro ao enviar mensagem');
     } finally {
       setEnviando(false);
@@ -284,6 +548,10 @@ export function ChatFlutuante({ orcamentoId, isPublic = false }: ChatFlutuantePr
               {novasMensagens > 9 ? '9+' : novasMensagens}
             </Badge>
           )}
+          {/* Indicador de conexão WebSocket */}
+          <div className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full ${
+            isConnected ? 'bg-green-500' : 'bg-red-500'
+          }`} />
         </Button>
       )}
 
@@ -291,11 +559,16 @@ export function ChatFlutuante({ orcamentoId, isPublic = false }: ChatFlutuantePr
       {isOpen && (
         <Card className="w-80 shadow-xl" style={{ maxHeight: 'calc(100vh - 2rem)', height: '400px' }}>
           <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <MessageCircle className="w-4 h-4" />
-                Chat de Negociação
-              </CardTitle>
+                          <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4" />
+                  Chat de Negociação
+                  {isTyping && (
+                    <span className="text-xs text-gray-500 animate-pulse">
+                      Digitando...
+                    </span>
+                  )}
+                </CardTitle>
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
@@ -317,8 +590,13 @@ export function ChatFlutuante({ orcamentoId, isPublic = false }: ChatFlutuantePr
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => {
+                    console.log('🔍 ChatFlutuante - Fechando chat');
+                    setIsOpen(false);
+                    setIsMinimized(false);
+                  }}
                   className="h-6 w-6 p-0"
+                  title="Fechar chat"
                 >
                   <X className="w-3 h-3" />
                 </Button>
@@ -365,16 +643,98 @@ export function ChatFlutuante({ orcamentoId, isPublic = false }: ChatFlutuantePr
                       </div>
                       <div className="bg-gray-50 p-2 rounded-lg">
                         <p className="text-sm whitespace-pre-line">{mensagem.mensagem}</p>
-                        {mensagem.anexos && mensagem.anexos.length > 0 && (
-                          <div className="mt-2 space-y-1">
-                            {mensagem.anexos.map((anexo, index) => (
-                              <div key={index} className="flex items-center gap-2 text-xs text-blue-600">
-                                <Download className="w-3 h-3" />
-                                <span>{anexo.split('/').pop()}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        {(() => {
+                          // Garantir que anexos seja um array
+                          let anexosArray = [];
+                          if (mensagem.anexos) {
+                            if (Array.isArray(mensagem.anexos)) {
+                              anexosArray = mensagem.anexos;
+                            } else if (typeof mensagem.anexos === 'string') {
+                              try {
+                                anexosArray = JSON.parse(mensagem.anexos);
+                              } catch (e) {
+                                console.error('Erro ao parsear anexos JSON:', e);
+                                anexosArray = [];
+                              }
+                            }
+                          }
+                          
+                          return anexosArray && anexosArray.length > 0 ? (
+                            <div className="mt-2 space-y-1">
+                              {anexosArray.map((anexo, index) => {
+                              // Debug: console.log('📎 Debug anexo:', anexo);
+                              
+                              // Processar anexo de forma mais robusta
+                              let nomeArquivoOriginal, urlArquivo, isTemporary = false;
+                              
+                              if (typeof anexo === 'string') {
+                                // Anexo antigo como string - usar o nome da URL
+                                urlArquivo = anexo;
+                                nomeArquivoOriginal = anexo.includes('/') ? anexo.split('/').pop() : anexo;
+                              } else {
+                                // Anexo como objeto - usar nome original e URL separadamente
+                                nomeArquivoOriginal = anexo?.nome_arquivo || 'arquivo';
+                                urlArquivo = anexo?.url_arquivo || anexo?.nome_arquivo || 'arquivo';
+                                isTemporary = anexo?._isTemporary || false;
+                              }
+                              
+                              // Construir URL completa para download
+                              let downloadUrl;
+                              if (isTemporary) {
+                                // Anexo temporário - usar URL blob diretamente
+                                downloadUrl = urlArquivo;
+                              } else if (urlArquivo.startsWith('http')) {
+                                // URL absoluta
+                                downloadUrl = urlArquivo;
+                              } else {
+                                // URL relativa - construir URL completa
+                                downloadUrl = `http://localhost:3001${urlArquivo}`;
+                              }
+                              
+                              // Debug: console.log('📎 Nome original:', nomeArquivoOriginal, 'URL:', downloadUrl);
+                              
+                              return (
+                                <a
+                                  key={index}
+                                  href={downloadUrl}
+                                  download={nomeArquivoOriginal}
+                                  className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                  title={`📎 Clique para baixar: ${nomeArquivoOriginal}`}
+                                  onClick={(e) => {
+                                    console.log('📎 Clique no anexo:', nomeArquivoOriginal);
+                                    console.log('📎 É temporário:', isTemporary);
+                                    
+                                    e.preventDefault();
+                                    
+                                    if (isTemporary) {
+                                      // Anexo temporário - mostrar mensagem informativa
+                                      alert('⏳ Arquivo ainda sendo enviado... Aguarde alguns segundos e tente novamente.');
+                                      return;
+                                    }
+                                    
+                                    // Anexo persistido - criar link para download
+                                    const link = document.createElement('a');
+                                    link.href = downloadUrl;
+                                    link.download = nomeArquivoOriginal;
+                                    link.target = '_blank';
+                                    link.rel = 'noopener noreferrer';
+                                    
+                                    // Adicionar ao DOM temporariamente, clicar e remover
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    
+                                    console.log('📎 Download iniciado para:', nomeArquivoOriginal);
+                                  }}
+                                >
+                                  <Download className="w-3 h-3" />
+                                  <span>{nomeArquivoOriginal}</span>
+                                </a>
+                              );
+                              })}
+                            </div>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
                   ))

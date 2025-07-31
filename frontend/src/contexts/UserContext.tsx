@@ -55,17 +55,28 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchUserData = useCallback(async () => {
     setLoading(true);
     try {
+      // Verificar se há token antes de fazer a requisição
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      
       const userData = await authAPI.getCurrentUser();
       setUser(userData);
     } catch (error) {
-      console.error('Fetch user data failed', error);
-      setUser(null);
-      localStorage.removeItem('access_token');
+      console.error('❌ UserContext: Erro ao buscar dados do usuário:', error);
       
-      // Se for um erro de rede, não redirecionar automaticamente
-      // Deixar que o layout decida o que fazer
-      if (error instanceof Error && error.message.includes('Não foi possível conectar ao servidor')) {
-        console.warn('Servidor não está disponível');
+      // Verificar o tipo específico de erro
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        // Não limpar o token em caso de erro de conectividade
+        // Deixar que o usuário tente novamente quando o servidor estiver disponível
+      } else if (error instanceof Error && error.message.includes('401')) {
+        localStorage.removeItem('access_token');
+        setUser(null);
+      } else {
+        setUser(null);
       }
     } finally {
       setLoading(false);

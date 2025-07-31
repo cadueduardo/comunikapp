@@ -18,7 +18,10 @@ async function bootstrap() {
     }),
   );
 
-  app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
+  // Configurar serve de arquivos estáticos
+  const uploadsPath = join(process.cwd(), 'uploads');
+  console.log('📁 Servindo arquivos estáticos de:', uploadsPath);
+  app.use('/uploads', express.static(uploadsPath));
 
   app.enableCors({
     origin: '*', // Allow all origins for development

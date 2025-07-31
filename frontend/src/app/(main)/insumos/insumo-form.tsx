@@ -184,7 +184,7 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
       gramatura: '',
       unidade_uso: '',
       fator_conversao: '',
-      logica_consumo: '',
+      logica_consumo: 'area', // Valor padrão
       tipo_material_id: '',
       parametros_consumo: {},
       codigo_interno: '',
@@ -553,6 +553,8 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
   };
 
   function onSubmit(data: InsumoFormValues) {
+    console.log('🔍 Dados do formulário antes da limpeza:', data);
+    
     const cleanedData = {
       ...data,
       custo_unitario: data.custo_unitario || 0,
@@ -567,8 +569,12 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
       codigo_interno: data.codigo_interno || undefined,
       descricao_tecnica: data.descricao_tecnica || undefined,
       observacoes: data.observacoes || undefined,
+      logica_consumo: data.logica_consumo || 'area', // Valor padrão se não selecionado
+      tipo_material_id: data.tipo_material_id || undefined,
       ativo: data.ativo ?? true,
     }
+    
+    console.log('🔍 Dados limpos para envio:', cleanedData);
     onSave(cleanedData);
   }
 
@@ -929,28 +935,31 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
                   <div className={`grid gap-4 ${form.watch('logica_consumo') === 'custom' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
-                    <FormField control={form.control} name="logica_consumo" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo de Cálculo</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione a lógica de consumo" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="area">Área (m²)</SelectItem>
-                            <SelectItem value="perimetro">Perímetro (m)</SelectItem>
-                            <SelectItem value="quantidade_fixa">Quantidade Fixa</SelectItem>
-                            <SelectItem value="custom">Personalizado</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="text-sm text-muted-foreground">
-                          Para cálculos personalizados, use o campo &quot;Tipo de Material&quot; abaixo.
-                        </p>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
+                    <FormField control={form.control} name="logica_consumo" render={({ field }) => {
+                      console.log('🔍 Campo logica_consumo:', field.value);
+                      return (
+                        <FormItem>
+                          <FormLabel>Tipo de Cálculo</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione a lógica de consumo" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="area">Área (m²)</SelectItem>
+                              <SelectItem value="perimetro">Perímetro (m)</SelectItem>
+                              <SelectItem value="quantidade_fixa">Quantidade Fixa</SelectItem>
+                              <SelectItem value="custom">Personalizado</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-sm text-muted-foreground">
+                            Para cálculos personalizados, use o campo &quot;Tipo de Material&quot; abaixo.
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }} />
                     
                     {form.watch('logica_consumo') === 'custom' && (
                       <FormField control={form.control} name="tipo_material_id" render={({ field }) => (

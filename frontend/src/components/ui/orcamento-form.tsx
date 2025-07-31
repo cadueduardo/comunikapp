@@ -23,10 +23,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
-import { Plus, Trash2, Calculator, Settings, Package, Users } from 'lucide-react';
+import { Plus, Trash2, Calculator, Settings, Package, Users, Download } from 'lucide-react';
+import { ProdutoSelectionModal } from '@/app/(main)/produtos/components/produto-selection-modal';
 
-const formSchema = z.object({
-  cliente_id: z.string().min(1, 'Selecione um cliente'),
+const createFormSchema = (mode: 'novo' | 'editar' | 'template') => z.object({
+  cliente_id: mode === 'template' ? z.string().optional() : z.string().min(1, 'Selecione um cliente'),
   // Configurações globais
   margem_lucro_customizada: z.string().optional(),
   impostos_customizados: z.string().optional(),
@@ -66,8 +67,6 @@ const formSchema = z.object({
   })).min(1, 'Adicione pelo menos um produto'),
 });
 
-type FormValues = z.infer<typeof formSchema>;
-
 interface Cliente {
   id: string;
   nome: string;
@@ -91,7 +90,7 @@ interface Insumo {
     id: string;
     nome: string;
     logica_consumo: string;
-    parametros_padrao: Record<string, any> | null;
+    parametros_padrao: Record<string, unknown> | null;
   } | null;
   categoria: {
     nome: string;
@@ -117,7 +116,7 @@ interface Funcao {
 }
 
 interface CalculoResultado {
-  horas_producao_total: number;
+  horas_producao: number;
   custos: {
     custo_material: number;
     custo_mao_obra: number;
@@ -421,14 +420,18 @@ function calcularCustoPorUnidadeUso(insumo: Insumo): number {
   return 0;
 }
 
+// Definir FormValues antes da interface
+type FormValues = z.infer<ReturnType<typeof createFormSchema>>;
+
 interface OrcamentoFormProps {
-  mode: 'novo' | 'editar';
-  initialData?: FormValues;
+  mode: 'novo' | 'editar' | 'template';
+  initialData?: Record<string, unknown>;
   orcamentoId?: string;
   onSuccess?: () => void;
+  orcamentoStatus?: string;
 }
 
-export default function OrcamentoForm({ mode, initialData, orcamentoId, onSuccess }: OrcamentoFormProps) {
+export default function OrcamentoForm({ mode, initialData, orcamentoId, onSuccess, orcamentoStatus }: OrcamentoFormProps) {
   const router = useRouter();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [insumos, setInsumos] = useState<Insumo[]>([]);
@@ -437,6 +440,10 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
   const [loading, setLoading] = useState(false);
   const [calculando, setCalculando] = useState(false);
   const [calculoResultado, setCalculoResultado] = useState<CalculoResultado | null>(null);
+  const [showProdutoModal, setShowProdutoModal] = useState(false);
+  const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
+
+  const formSchema = createFormSchema(mode);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -471,7 +478,9 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
     const unidade = form.watch(`itens_produto.${index}.unidade_medida_produto`);
     
     if (largura && altura && unidade) {
-      const area = calcularArea(Number(largura), Number(altura), unidade);
+      const larguraNum = Number(largura);
+      const alturaNum = Number(altura);
+      const area = calcularArea(larguraNum, alturaNum, unidade);
       form.setValue(`itens_produto.${index}.area_produto`, area.toFixed(2));
     }
   };
@@ -624,6 +633,52 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
     }
   };
 
+  // Função para carregar produto selecionado
+  const handleCarregarProduto = (produto: any, itemIndex: number) => {
+    try {
+      // Carregar dados básicos do produto
+      form.setValue(`itens_produto.${itemIndex}.nome_servico`, produto.nome_servico);
+      form.setValue(`itens_produto.${itemIndex}.descricao`, produto.descricao_produto || '');
+      form.setValue(`itens_produto.${itemIndex}.largura_produto`, produto.largura_produto?.toString() || '');
+      form.setValue(`itens_produto.${itemIndex}.altura_produto`, produto.altura_produto?.toString() || '');
+      form.setValue(`itens_produto.${itemIndex}.unidade_medida_produto`, produto.unidade_medida_produto || '');
+      form.setValue(`itens_produto.${itemIndex}.area_produto`, produto.area_produto?.toString() || '');
+      form.setValue(`itens_produto.${itemIndex}.quantidade_produto`, produto.quantidade_padrao?.toString() || '1');
+
+      // Carregar materiais
+      const materiais = produto.itens.map((item: any) => ({
+        insumo_id: item.insumo_id,
+        quantidade: item.quantidade.toString(),
+      }));
+      form.setValue(`itens_produto.${itemIndex}.materiais`, materiais);
+
+      // Carregar máquinas
+      const maquinas = produto.maquinas.map((maquina: any) => ({
+        maquina_id: maquina.maquina_id,
+        horas_utilizadas: maquina.horas_utilizadas.toString(),
+      }));
+      form.setValue(`itens_produto.${itemIndex}.maquinas`, maquinas);
+
+      // Carregar funções
+      const funcoes = produto.funcoes.map((funcao: any) => ({
+        funcao_id: funcao.funcao_id,
+        horas_trabalhadas: funcao.horas_trabalhadas.toString(),
+      }));
+      form.setValue(`itens_produto.${itemIndex}.funcoes`, funcoes);
+
+      toast.success(`Produto "${produto.nome}" carregado com sucesso!`);
+    } catch (error) {
+      console.error('Erro ao carregar produto:', error);
+      toast.error('Erro ao carregar dados do produto');
+    }
+  };
+
+  // Função para abrir modal de seleção de produtos
+  const handleOpenProdutoModal = (itemIndex: number) => {
+    setSelectedItemIndex(itemIndex);
+    setShowProdutoModal(true);
+  };
+
   const calcularOrcamento = async (values: FormValues) => {
     setCalculando(true);
     try {
@@ -637,24 +692,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
         return;
       }
 
-      // Converter materiais para o formato esperado
-      const itens = primeiroItem.materiais.map(material => {
-        const insumo = insumos.find(i => i.id === material.insumo_id);
-        const areaProduto = Number(primeiroItem.area_produto) || 0;
-        const larguraProduto = Number(primeiroItem.largura_produto) || 0;
-        const alturaProduto = Number(primeiroItem.altura_produto) || 0;
-
-        return {
-          insumo_id: material.insumo_id,
-          quantidade: Number(String(material.quantidade).replace(',', '.')),
-          // Incluir informações do produto para lógica personalizada
-          area_produto: areaProduto > 0 ? areaProduto : undefined,
-          largura_produto: larguraProduto > 0 ? larguraProduto : undefined,
-          altura_produto: alturaProduto > 0 ? alturaProduto : undefined,
-        };
-      });
-
-      // Calcular horas de produção baseado em máquinas e funções
+      // Calcular horas de produção baseado em máquinas e funções (igual ao preview)
       const horasMaquinas = primeiroItem.maquinas.reduce((total, maquina) => {
         return total + (Number(maquina.horas_utilizadas) || 0);
       }, 0);
@@ -663,14 +701,27 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
         return total + (Number(funcao.horas_trabalhadas) || 0);
       }, 0);
 
-      const horasProducao = horasMaquinas + horasFuncoes; // Soma total das horas
+      const horasProducao = horasMaquinas + horasFuncoes;
+
+      console.log('🔍 Debug - Quantidade do produto:', {
+        quantidadeOriginal: primeiroItem.quantidade_produto,
+        quantidadeConvertida: primeiroItem.quantidade_produto ? Number(primeiroItem.quantidade_produto) : 1,
+        tipo: typeof primeiroItem.quantidade_produto
+      });
 
       const dadosCalculo = {
         nome_servico: primeiroItem.nome_servico,
         descricao: primeiroItem.descricao,
         horas_producao: horasProducao,
-        quantidade_produto: Number(primeiroItem.quantidade_produto) || 1,
-        itens: itens,
+        quantidade_produto: primeiroItem.quantidade_produto ? Number(primeiroItem.quantidade_produto) : 1,
+        itens: primeiroItem.materiais.map(material => ({
+          insumo_id: material.insumo_id,
+          quantidade: Number(String(material.quantidade).replace(',', '.')),
+          // Incluir informações do produto para lógica personalizada
+          area_produto: primeiroItem.area_produto ? Number(String(primeiroItem.area_produto).replace(',', '.')) : undefined,
+          largura_produto: primeiroItem.largura_produto ? Number(String(primeiroItem.largura_produto).replace(',', '.')) : undefined,
+          altura_produto: primeiroItem.altura_produto ? Number(String(primeiroItem.altura_produto).replace(',', '.')) : undefined,
+        })),
         maquinas: primeiroItem.maquinas.map(maquina => ({
           maquina_id: maquina.maquina_id,
           horas_utilizadas: Number(maquina.horas_utilizadas)
@@ -684,9 +735,6 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
         impostos_customizados: values.impostos_customizados ? Number(values.impostos_customizados) : undefined,
       };
 
-      // Debug: log dos dados sendo enviados
-      console.log('Dados sendo enviados para cálculo:', dadosCalculo);
-
       const response = await fetch('http://localhost:3001/orcamentos/calcular', {
         method: 'POST',
         headers: {
@@ -698,7 +746,13 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
 
       if (response.ok) {
         const resultado = await response.json();
-        console.log('Resultado do cálculo:', resultado);
+        console.log('🔍 Debug - Resultado do cálculo recebido:', {
+          horas_producao: resultado.horas_producao,
+          tipo_horas_producao: typeof resultado.horas_producao,
+          tem_custos: !!resultado.custos,
+          preco_final: resultado.custos?.preco_final,
+          resultado_completo: resultado
+        });
         setCalculoResultado(resultado);
         toast.success('Cálculo realizado com sucesso!');
       } else {
@@ -714,79 +768,481 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
   };
 
   const onSubmit = async (values: FormValues) => {
+    if (!calculoResultado) {
+      toast.error('Calcule o orçamento antes de salvar');
+      return;
+    }
+
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
-      if (!token) return;
-
-      const url = mode === 'novo' 
-        ? 'http://localhost:3001/orcamentos'
-        : `http://localhost:3001/orcamentos/${orcamentoId}`;
-      
-      const method = mode === 'novo' ? 'POST' : 'PATCH';
-
-      // Transformar dados para o formato esperado pelo backend
+      // Pegar o primeiro item do produto para os dados básicos
       const primeiroItem = values.itens_produto[0];
-      if (!primeiroItem) {
-        toast.error('Adicione pelo menos um produto');
-        return;
-      }
-
+      
       const dadosParaEnviar = {
         nome_servico: primeiroItem.nome_servico,
-        descricao: primeiroItem.descricao,
-        horas_producao: 1, // Será calculado pelo backend
-        quantidade_produto: Number(primeiroItem.quantidade_produto) || 1,
-        largura_produto: primeiroItem.largura_produto ? Number(String(primeiroItem.largura_produto).replace(',', '.')) : undefined,
-        altura_produto: primeiroItem.altura_produto ? Number(String(primeiroItem.altura_produto).replace(',', '.')) : undefined,
-        area_produto: primeiroItem.area_produto ? Number(String(primeiroItem.area_produto).replace(',', '.')) : undefined,
-        unidade_medida_produto: primeiroItem.unidade_medida_produto,
-        itens: primeiroItem.materiais.map(material => ({
-          insumo_id: material.insumo_id,
-          quantidade: Number(String(material.quantidade).replace(',', '.'))
-        })),
-        maquinas: primeiroItem.maquinas.map(maquina => ({
-          maquina_id: maquina.maquina_id,
-          horas_utilizadas: Number(maquina.horas_utilizadas)
-        })),
-        funcoes: primeiroItem.funcoes.map(funcao => ({
-          funcao_id: funcao.funcao_id,
-          horas_trabalhadas: Number(funcao.horas_trabalhadas)
-        })),
+        descricao: primeiroItem.descricao || '',
+        horas_producao: calculoResultado.horas_producao,
         cliente_id: values.cliente_id,
-        condicoes_comerciais: values.condicoes_comerciais,
-        margem_lucro_customizada: values.margem_lucro_customizada ? Number(values.margem_lucro_customizada) : undefined,
-        impostos_customizados: values.impostos_customizados ? Number(values.impostos_customizados) : undefined,
+        condicoes_comerciais: values.condicoes_comerciais || '',
+        margem_lucro_customizada: values.margem_lucro_customizada ? parseFloat(values.margem_lucro_customizada) : undefined,
+        impostos_customizados: values.impostos_customizados ? parseFloat(values.impostos_customizados) : undefined,
+        // Dimensões do produto (do primeiro item)
+        largura_produto: primeiroItem.largura_produto ? parseFloat(primeiroItem.largura_produto) : undefined,
+        altura_produto: primeiroItem.altura_produto ? parseFloat(primeiroItem.altura_produto) : undefined,
+        area_produto: primeiroItem.area_produto ? parseFloat(primeiroItem.area_produto) : undefined,
+        unidade_medida_produto: primeiroItem.unidade_medida_produto || '',
+        quantidade_produto: primeiroItem.quantidade_produto ? Number(primeiroItem.quantidade_produto) : 1,
+        // Itens mapeados do cálculo
+        itens: calculoResultado.itens.map(item => ({
+          insumo_id: item.insumo_id,
+          quantidade: item.quantidade,
+        })),
+        maquinas: calculoResultado.maquinas.map(maquina => ({
+          maquina_id: maquina.maquina_id,
+          horas_utilizadas: maquina.horas_utilizadas,
+        })),
+        funcoes: calculoResultado.funcoes.map(funcao => ({
+          funcao_id: funcao.funcao_id,
+          horas_trabalhadas: funcao.horas_trabalhadas,
+        })),
       };
 
+      console.log('🔍 Debug - Frontend - Dados sendo enviados:', JSON.stringify(dadosParaEnviar, null, 2));
+      console.log('🔍 Debug - Frontend - Cálculo resultado:', JSON.stringify(calculoResultado, null, 2));
+      console.log('🔍 Debug - Frontend - Valores do formulário:', JSON.stringify(values, null, 2));
+
+      if (mode === 'template') {
+        // No modo template, apenas chamar o callback onSuccess com os dados
+        // O ProdutoForm irá lidar com o salvamento
+        if (onSuccess) {
+          onSuccess();
+        }
+        return;
+      } else if (mode === 'novo') {
+        const token = localStorage.getItem('access_token');
+        console.log('🔍 Debug - Frontend - Enviando para endpoint:', '/api/orcamentos');
+        console.log('🔍 Debug - Frontend - Método:', 'POST');
+        console.log('🔍 Debug - Frontend - Token:', token ? 'Presente' : 'Ausente');
+        
+        const response = await fetch('/api/orcamentos', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : '',
+          },
+          body: JSON.stringify(dadosParaEnviar),
+        });
+
+        console.log('🔍 Debug - Frontend - Status da resposta:', response.status);
+        console.log('🔍 Debug - Frontend - OK:', response.ok);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.log('🔍 Debug - Frontend - Erro da resposta:', errorText);
+          
+          // Salvar logs de erro em localStorage
+          const errorLogs = {
+            timestamp: new Date().toISOString(),
+            action: 'create_orcamento_error',
+            dadosEnviados: dadosParaEnviar,
+            error: errorText,
+            status: response.status,
+            ok: response.ok
+          };
+          localStorage.setItem('debug_orcamento_error_logs', JSON.stringify(errorLogs));
+          console.log('🔍 Debug - Logs de erro salvos em localStorage: debug_orcamento_error_logs');
+          
+          throw new Error('Erro ao criar orçamento');
+        }
+
+        const result = await response.json();
+        console.log('🔍 Debug - Frontend - Resultado da criação:', JSON.stringify(result, null, 2));
+        
+        // Salvar logs em localStorage antes do redirecionamento
+        const debugLogs = {
+          timestamp: new Date().toISOString(),
+          action: 'create_orcamento',
+          dadosEnviados: dadosParaEnviar,
+          resultado: result,
+          status: response.status,
+          ok: response.ok
+        };
+        localStorage.setItem('debug_orcamento_logs', JSON.stringify(debugLogs));
+        console.log('🔍 Debug - Logs salvos em localStorage: debug_orcamento_logs');
+        
+        toast.success('Orçamento criado com sucesso!');
+        
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          router.push('/orcamentos');
+        }
+      } else {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`/api/orcamentos/${orcamentoId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : '',
+          },
+          body: JSON.stringify(dadosParaEnviar),
+        });
+
+        if (!response.ok) {
+          throw new Error('Erro ao atualizar orçamento');
+        }
+
+        toast.success('Orçamento atualizado com sucesso!');
+        
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          router.push('/orcamentos');
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao salvar orçamento:', error);
+      toast.error('Erro ao salvar orçamento');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onSalvarRascunho = async (values: FormValues) => {
+    setLoading(true);
+    try {
+      // Pegar o primeiro item do produto para os dados básicos
+      const primeiroItem = values.itens_produto[0];
+      
+      // Calcular horas de produção se não houver cálculo prévio
+      let horasProducao = 0;
+      let itensParaEnviar = [];
+      let maquinasParaEnviar = [];
+      let funcoesParaEnviar = [];
+      
+      if (calculoResultado) {
+        // Usar dados do cálculo se disponível
+        horasProducao = calculoResultado.horas_producao;
+        itensParaEnviar = calculoResultado.itens.map(item => ({
+          insumo_id: item.insumo_id,
+          quantidade: item.quantidade,
+        }));
+        maquinasParaEnviar = calculoResultado.maquinas.map(maquina => ({
+          maquina_id: maquina.maquina_id,
+          horas_utilizadas: maquina.horas_utilizadas,
+        }));
+        funcoesParaEnviar = calculoResultado.funcoes.map(funcao => ({
+          funcao_id: funcao.funcao_id,
+          horas_trabalhadas: funcao.horas_trabalhadas,
+        }));
+      } else {
+        // Se não há cálculo prévio, forçar um valor mínimo
+        horasProducao = 0.1;
+        
+        // Mapear itens do formulário
+        itensParaEnviar = primeiroItem.materiais.map(material => ({
+          insumo_id: material.insumo_id,
+          quantidade: Number(String(material.quantidade).replace(',', '.')),
+        }));
+        maquinasParaEnviar = primeiroItem.maquinas.map(maquina => ({
+          maquina_id: maquina.maquina_id,
+          horas_utilizadas: Number(maquina.horas_utilizadas),
+        }));
+        funcoesParaEnviar = primeiroItem.funcoes.map(funcao => ({
+          funcao_id: funcao.funcao_id,
+          horas_trabalhadas: Number(funcao.horas_trabalhadas),
+        }));
+      }
+      
+      const dadosParaEnviar = {
+        nome_servico: primeiroItem.nome_servico,
+        descricao: primeiroItem.descricao || '',
+        horas_producao: horasProducao,
+        cliente_id: values.cliente_id,
+        condicoes_comerciais: values.condicoes_comerciais || '',
+        margem_lucro_customizada: values.margem_lucro_customizada ? parseFloat(values.margem_lucro_customizada) : undefined,
+        impostos_customizados: values.impostos_customizados ? parseFloat(values.impostos_customizados) : undefined,
+        // Dimensões do produto (do primeiro item)
+        largura_produto: primeiroItem.largura_produto ? parseFloat(primeiroItem.largura_produto) : undefined,
+        altura_produto: primeiroItem.altura_produto ? parseFloat(primeiroItem.altura_produto) : undefined,
+        area_produto: primeiroItem.area_produto ? parseFloat(primeiroItem.area_produto) : undefined,
+        unidade_medida_produto: primeiroItem.unidade_medida_produto || '',
+        quantidade_produto: primeiroItem.quantidade_produto ? Number(primeiroItem.quantidade_produto) : 1,
+        // Itens mapeados
+        itens: itensParaEnviar,
+        maquinas: maquinasParaEnviar,
+        funcoes: funcoesParaEnviar,
+        // Custos calculados (se disponível)
+        ...(calculoResultado && {
+          custo_material: calculoResultado.custos.custo_material,
+          custo_mao_obra: calculoResultado.custos.custo_mao_obra,
+          custo_maquinaria: calculoResultado.custos.custo_maquinaria,
+          custo_indireto: calculoResultado.custos.custo_indireto,
+          custo_total_producao: calculoResultado.custos.custo_total_producao,
+          margem_lucro_valor: calculoResultado.custos.margem_lucro_valor,
+          subtotal_com_lucro: calculoResultado.custos.subtotal_com_lucro,
+          impostos_valor: calculoResultado.custos.impostos_valor,
+          preco_final: calculoResultado.custos.preco_final,
+        }),
+      };
+
+      console.log('🔍 Debug - Dados sendo enviados:', {
+        horasProducao: horasProducao,
+        tipoHorasProducao: typeof horasProducao,
+        calculoResultado: !!calculoResultado,
+        calculoResultadoDetalhes: calculoResultado ? {
+          horas_producao: calculoResultado.horas_producao,
+          tipo_horas_producao: typeof calculoResultado.horas_producao,
+          tem_custos: !!calculoResultado.custos,
+          preco_final: calculoResultado.custos?.preco_final
+        } : null,
+        dadosParaEnviar: dadosParaEnviar
+      });
+
+      // Usar o valor real do cálculo, não forçar mínimo
+      if (calculoResultado && calculoResultado.horas_producao) {
+        dadosParaEnviar.horas_producao = calculoResultado.horas_producao;
+        console.log('🔍 Debug - Usando horas do cálculo:', calculoResultado.horas_producao);
+      } else {
+        // Fallback: usar valor do formulário ou mínimo
+        dadosParaEnviar.horas_producao = horasProducao || 0.1;
+        console.log('🔍 Debug - Usando fallback para horas:', dadosParaEnviar.horas_producao);
+      }
+
+      const token = localStorage.getItem('access_token');
+      
+      // Se for edição, usar PATCH, senão POST
+      const url = mode === 'editar' 
+        ? `/api/orcamentos/${orcamentoId}` 
+        : '/api/orcamentos/rascunho';
+      
+      const method = mode === 'editar' ? 'PATCH' : 'POST';
+      
+      console.log('🔍 Debug - Frontend - Enviando para endpoint:', url);
+      console.log('🔍 Debug - Frontend - Método:', method);
+      console.log('🔍 Debug - Frontend - Token:', token ? 'Presente' : 'Ausente');
+      
       const response = await fetch(url, {
-        method,
+        method: method,
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          'Authorization': token ? `Bearer ${token}` : '',
         },
         body: JSON.stringify(dadosParaEnviar),
       });
 
-      if (response.ok) {
-        await response.json(); // Consumir a resposta
-        toast.success(mode === 'novo' ? 'Orçamento criado com sucesso!' : 'Orçamento atualizado com sucesso!');
+      console.log('🔍 Debug - Frontend - Status da resposta:', response.status);
+      console.log('🔍 Debug - Frontend - OK:', response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log('🔍 Debug - Frontend - Erro da resposta:', errorText);
         
-        if (mode === 'novo') {
-          router.push('/orcamentos');
-        } else {
-          onSuccess?.();
-        }
+        // Salvar logs de erro em localStorage
+        const errorLogs = {
+          timestamp: new Date().toISOString(),
+          action: 'salvar_rascunho_error',
+          mode: mode,
+          dadosEnviados: dadosParaEnviar,
+          error: errorText,
+          status: response.status,
+          ok: response.ok
+        };
+        localStorage.setItem('debug_orcamento_error_logs', JSON.stringify(errorLogs));
+        console.log('🔍 Debug - Logs de erro salvos em localStorage: debug_orcamento_error_logs');
+        
+        throw new Error('Erro ao salvar rascunho');
+      }
+
+      const result = await response.json();
+      console.log('🔍 Debug - Frontend - Resultado do rascunho:', JSON.stringify(result, null, 2));
+      
+      // Salvar logs em localStorage antes do redirecionamento
+      const debugLogs = {
+        timestamp: new Date().toISOString(),
+        action: 'salvar_rascunho',
+        mode: mode,
+        dadosEnviados: dadosParaEnviar,
+        resultado: result,
+        status: response.status,
+        ok: response.ok
+      };
+      localStorage.setItem('debug_orcamento_logs', JSON.stringify(debugLogs));
+      console.log('🔍 Debug - Logs salvos em localStorage: debug_orcamento_logs');
+      
+      toast.success('Rascunho salvo com sucesso!');
+      
+      if (onSuccess) {
+        onSuccess();
       } else {
-        const error = await response.json();
-        toast.error(error.message || `Erro ao ${mode === 'novo' ? 'criar' : 'atualizar'} orçamento`);
+        router.push('/orcamentos');
       }
     } catch (error) {
-      console.error(`Erro ao ${mode === 'novo' ? 'criar' : 'atualizar'} orçamento:`, error);
-      toast.error(`Erro ao ${mode === 'novo' ? 'criar' : 'atualizar'} orçamento`);
+      console.error('Erro ao salvar rascunho:', error);
+      toast.error('Erro ao salvar rascunho');
     } finally {
       setLoading(false);
     }
+  };
+
+  const onEnviarOrcamento = async (values: FormValues) => {
+    if (mode !== 'template' && !values.cliente_id) {
+      toast.error('Selecione um cliente antes de enviar o orçamento');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Pegar o primeiro item do produto para os dados básicos
+      const primeiroItem = values.itens_produto[0];
+      
+      // Calcular horas de produção se não houver cálculo prévio
+      let horasProducao = 0;
+      let itensParaEnviar = [];
+      let maquinasParaEnviar = [];
+      let funcoesParaEnviar = [];
+      
+      if (calculoResultado) {
+        // Usar dados do cálculo se disponível
+        horasProducao = calculoResultado.horas_producao;
+        itensParaEnviar = calculoResultado.itens.map(item => ({
+          insumo_id: item.insumo_id,
+          quantidade: item.quantidade,
+        }));
+        maquinasParaEnviar = calculoResultado.maquinas.map(maquina => ({
+          maquina_id: maquina.maquina_id,
+          horas_utilizadas: maquina.horas_utilizadas,
+        }));
+        funcoesParaEnviar = calculoResultado.funcoes.map(funcao => ({
+          funcao_id: funcao.funcao_id,
+          horas_trabalhadas: funcao.horas_trabalhadas,
+        }));
+      } else {
+        // Calcular horas baseado nos dados do formulário
+        // Se não há cálculo prévio, forçar um valor mínimo
+        horasProducao = 0.1;
+        
+        // Mapear itens do formulário
+        itensParaEnviar = primeiroItem.materiais.map(material => ({
+          insumo_id: material.insumo_id,
+          quantidade: Number(String(material.quantidade).replace(',', '.')),
+        }));
+        maquinasParaEnviar = primeiroItem.maquinas.map(maquina => ({
+          maquina_id: maquina.maquina_id,
+          horas_utilizadas: Number(maquina.horas_utilizadas),
+        }));
+        funcoesParaEnviar = primeiroItem.funcoes.map(funcao => ({
+          funcao_id: funcao.funcao_id,
+          horas_trabalhadas: Number(funcao.horas_trabalhadas),
+        }));
+      }
+      
+      // Primeiro salvar como rascunho
+      const dadosParaEnviar = {
+        nome_servico: primeiroItem.nome_servico,
+        descricao: primeiroItem.descricao || '',
+        horas_producao: horasProducao,
+        cliente_id: values.cliente_id,
+        condicoes_comerciais: values.condicoes_comerciais || '',
+        margem_lucro_customizada: values.margem_lucro_customizada ? parseFloat(values.margem_lucro_customizada) : undefined,
+        impostos_customizados: values.impostos_customizados ? parseFloat(values.impostos_customizados) : undefined,
+        // Dimensões do produto (do primeiro item)
+        largura_produto: primeiroItem.largura_produto ? parseFloat(primeiroItem.largura_produto) : undefined,
+        altura_produto: primeiroItem.altura_produto ? parseFloat(primeiroItem.altura_produto) : undefined,
+        area_produto: primeiroItem.area_produto ? parseFloat(primeiroItem.area_produto) : undefined,
+        unidade_medida_produto: primeiroItem.unidade_medida_produto || '',
+        quantidade_produto: primeiroItem.quantidade_produto ? Number(primeiroItem.quantidade_produto) : 1,
+        // Itens mapeados
+        itens: itensParaEnviar,
+        maquinas: maquinasParaEnviar,
+        funcoes: funcoesParaEnviar,
+      };
+
+      // Forçar valor mínimo para horas_producao
+      dadosParaEnviar.horas_producao = Math.max(Number(horasProducao) || 0, 0.1);
+
+      const token = localStorage.getItem('access_token');
+      
+      let orcamentoIdParaEnviar = orcamentoId;
+      
+      if (mode === 'novo') {
+        // Salvar rascunho primeiro
+        const rascunhoResponse = await fetch('/api/orcamentos/rascunho', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : '',
+          },
+          body: JSON.stringify(dadosParaEnviar),
+        });
+
+        if (!rascunhoResponse.ok) {
+          throw new Error('Erro ao salvar rascunho');
+        }
+
+        const rascunhoResult = await rascunhoResponse.json();
+        orcamentoIdParaEnviar = rascunhoResult.id;
+      } else {
+        // Se for edição, atualizar o orçamento existente
+        const updateResponse = await fetch(`/api/orcamentos/${orcamentoId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : '',
+          },
+          body: JSON.stringify(dadosParaEnviar),
+        });
+
+        if (!updateResponse.ok) {
+          throw new Error('Erro ao atualizar orçamento');
+        }
+      }
+
+      // Agora enviar o orçamento
+      const enviarResponse = await fetch(`/api/orcamentos/${orcamentoIdParaEnviar}/enviar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
+
+      if (!enviarResponse.ok) {
+        throw new Error('Erro ao enviar orçamento');
+      }
+
+      toast.success('Orçamento enviado com sucesso! O cliente receberá um email com o link de aprovação.');
+      
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push('/orcamentos');
+      }
+    } catch (error) {
+      console.error('Erro ao enviar orçamento:', error);
+      toast.error('Erro ao enviar orçamento');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calcularQuantidade = (largura: string, altura: string, area: string): number => {
+    const larguraNum = parseFloat(largura.replace(',', '.')) || 0;
+    const alturaNum = parseFloat(altura.replace(',', '.')) || 0;
+    const areaNum = parseFloat(area.replace(',', '.')) || 0;
+
+    if (areaNum > 0) {
+      return areaNum;
+    } else if (larguraNum > 0 && alturaNum > 0) {
+      return larguraNum * alturaNum;
+    }
+    return 0;
+  };
+
+  const calcularAreaLocal = (largura: string | number, altura: string | number): number => {
+    const larguraNum = typeof largura === 'string' ? parseFloat(largura.replace(',', '.')) : largura;
+    const alturaNum = typeof altura === 'string' ? parseFloat(altura.replace(',', '.')) : altura;
+    return (larguraNum || 0) * (alturaNum || 0);
   };
 
   return (
@@ -811,40 +1267,42 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               {/* 1. DADOS DO CLIENTE */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    Dados do Cliente
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <FormField
-                    control={form.control}
-                    name="cliente_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cliente</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione um cliente" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {clientes.map((cliente) => (
-                              <SelectItem key={cliente.id} value={cliente.id}>
-                                {cliente.nome}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
+              {mode !== 'template' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="w-5 h-5" />
+                      Dados do Cliente
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <FormField
+                      control={form.control}
+                      name="cliente_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cliente</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione um cliente" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {clientes.map((cliente) => (
+                                <SelectItem key={cliente.id} value={cliente.id}>
+                                  {cliente.nome}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+              )}
 
               {/* 2. PRODUTOS DO ORÇAMENTO */}
               <Card>
@@ -878,6 +1336,20 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
                         </AccordionTrigger>
                         <AccordionContent>
                           <div className="space-y-4 pt-4">
+                            
+                            {/* Botão Carregar Produto */}
+                            <div className="flex justify-end mb-4">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenProdutoModal(itemIndex)}
+                                className="text-blue-600 hover:text-blue-700"
+                              >
+                                <Download className="w-4 h-4 mr-1" />
+                                Carregar Produto
+                              </Button>
+                            </div>
                             
                             {/* Informações básicas do produto */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1610,22 +2082,24 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
                     />
                   </div>
                   
-                  <FormField
-                    control={form.control}
-                    name="condicoes_comerciais"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Condições Comerciais</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Descreva as condições comerciais, prazos de entrega, formas de pagamento, etc."
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {mode !== 'template' && (
+                    <FormField
+                      control={form.control}
+                      name="condicoes_comerciais"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Condições Comerciais</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Descreva as condições comerciais, prazos de entrega, formas de pagamento, etc."
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                 </CardContent>
               </Card>
             </form>
@@ -1655,7 +2129,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
                         </div>
                         <div className="flex justify-between">
                           <span>Horas Totais:</span>
-                          <span>{calculoResultado.horas_producao_total?.toFixed(2) || '0.00'}h</span>
+                          <span>{calculoResultado.horas_producao?.toFixed(2) || '0.00'}h</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Preço Final (por unidade):</span>
@@ -1815,16 +2289,105 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
         </div>
       </div>
       
-      {/* Botão Salvar Orçamento no final */}
-      <div className="flex justify-end">
-        <Button
-          onClick={() => form.handleSubmit(onSubmit)()}
-          disabled={loading}
-          size="lg"
-        >
-          {loading ? 'Salvando...' : mode === 'novo' ? 'Salvar Orçamento' : 'Atualizar Orçamento'}
-        </Button>
+      {/* Botões de ação no final */}
+      <div className="flex justify-end gap-3">
+        {mode === 'template' && (
+          <Button
+            onClick={() => form.handleSubmit(onSubmit)()}
+            disabled={loading}
+            size="lg"
+            className="bg-green-600 hover:bg-green-700"
+          >
+            {loading ? 'Salvando...' : 'Salvar como Produto Template'}
+          </Button>
+        )}
+        {mode === 'novo' && (
+          <>
+            <Button
+              variant="outline"
+              onClick={() => form.handleSubmit(onSalvarRascunho)()}
+              disabled={loading}
+              size="lg"
+            >
+              {loading ? 'Salvando...' : 'Salvar Rascunho'}
+            </Button>
+            <Button
+              onClick={() => form.handleSubmit(onEnviarOrcamento)()}
+              disabled={loading}
+              size="lg"
+            >
+              {loading ? 'Enviando...' : 'Enviar Orçamento'}
+            </Button>
+          </>
+        )}
+        {mode === 'editar' && (
+          <>
+            {(() => {
+              console.log('🔍 Debug - Modo:', mode);
+              console.log('🔍 Debug - Status do orçamento:', orcamentoStatus);
+              console.log('🔍 Debug - É rascunho?', orcamentoStatus === 'rascunho');
+              
+              // Se for rascunho, mostrar opções de salvar como rascunho ou enviar
+              if (orcamentoStatus === 'rascunho') {
+                return (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => form.handleSubmit(onSalvarRascunho)()}
+                      disabled={loading}
+                      size="lg"
+                    >
+                      {loading ? 'Salvando...' : 'Salvar como Rascunho'}
+                    </Button>
+                    <Button
+                      onClick={() => form.handleSubmit(onEnviarOrcamento)()}
+                      disabled={loading}
+                      size="lg"
+                    >
+                      {loading ? 'Enviando...' : 'Enviar para Cliente'}
+                    </Button>
+                  </>
+                );
+              }
+              
+              // Se não for rascunho, mostrar apenas atualizar
+              if (orcamentoStatus && orcamentoStatus !== 'rascunho') {
+                return (
+                  <Button
+                    onClick={() => form.handleSubmit(onSubmit)()}
+                    disabled={loading}
+                    size="lg"
+                  >
+                    {loading ? 'Atualizando...' : 'Atualizar Orçamento'}
+                  </Button>
+                );
+              }
+              
+              // Fallback se o status não estiver definido
+              return (
+                <Button
+                  onClick={() => form.handleSubmit(onSubmit)()}
+                  disabled={loading}
+                  size="lg"
+                >
+                  {loading ? 'Atualizando...' : 'Atualizar Orçamento'}
+                </Button>
+              );
+            })()}
+          </>
+        )}
       </div>
+
+      {/* Modal de Seleção de Produtos */}
+      <ProdutoSelectionModal
+        open={showProdutoModal}
+        onClose={() => setShowProdutoModal(false)}
+        onSelect={(produto) => {
+          if (selectedItemIndex !== null) {
+            handleCarregarProduto(produto, selectedItemIndex);
+          }
+        }}
+      />
     </div>
   );
 } 

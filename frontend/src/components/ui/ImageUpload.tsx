@@ -54,13 +54,57 @@ export function ImageUpload({ onFileSelect, currentImageUrl }: ImageUploadProps)
     <div className="w-full">
       {imageUrl ? (
         <div className="relative w-full h-48 border-2 border-dashed rounded-lg flex items-center justify-center">
-          <Image 
-            src={imageUrl} 
-            alt="Pré-visualização do logo" 
-            fill 
-            style={{ objectFit: 'contain' }}
-            className="rounded-lg" 
-          />
+          {imageUrl.startsWith('blob:') ? (
+            <Image 
+              src={imageUrl} 
+              alt="Pré-visualização do logo" 
+              fill 
+              style={{ objectFit: 'contain' }}
+              className="rounded-lg" 
+              onError={(e) => {
+                console.error('Erro ao carregar imagem blob:', imageUrl);
+              }}
+            />
+          ) : (
+            <img 
+              src={imageUrl} 
+              alt="Pré-visualização do logo" 
+              style={{ 
+                maxWidth: '100%', 
+                maxHeight: '100%', 
+                objectFit: 'contain',
+                borderRadius: '8px'
+              }}
+              onError={(e) => {
+                console.error('Erro ao carregar imagem do servidor:', imageUrl);
+              }}
+              onLoad={(e) => {
+                console.log('✅ Imagem carregada com sucesso:', imageUrl);
+                const img = e.currentTarget as HTMLImageElement;
+                const container = img.parentElement;
+                
+                if (container && img.naturalWidth && img.naturalHeight) {
+                  const isHorizontal = img.naturalWidth > img.naturalHeight;
+                  
+                  if (isHorizontal) {
+                    // Logo horizontal: aplicar max-width para manter proporção
+                    container.style.maxWidth = '200px';
+                    container.style.maxHeight = 'none';
+                    img.style.width = '100%';
+                    img.style.height = 'auto';
+                    console.log('📐 Logo horizontal detectado no preview, aplicando max-width: 200px');
+                  } else {
+                    // Logo vertical/quadrado: aplicar max-height para manter proporção
+                    container.style.maxHeight = '120px';
+                    container.style.maxWidth = 'none';
+                    img.style.height = '100%';
+                    img.style.width = 'auto';
+                    console.log('📐 Logo vertical/quadrado detectado no preview, aplicando max-height: 120px');
+                  }
+                }
+              }}
+            />
+          )}
           <Button
             variant="ghost"
             size="icon"

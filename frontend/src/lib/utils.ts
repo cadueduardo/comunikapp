@@ -19,11 +19,20 @@ export function formatCurrency(
   if (typeof value === 'number') {
     numberValue = value; 
   } else {
-    const rawValue = String(value).replace(/\D/g, '');
-    if (rawValue === '') {
+    // Se for string, tentar converter diretamente para número
+    const stringValue = String(value).trim();
+    if (stringValue === '') {
       return '';
     }
-    numberValue = parseFloat(rawValue) / 100;
+    
+    // Se for um valor em centavos (string numérica), converter para reais
+    if (/^\d+$/.test(stringValue)) {
+      numberValue = parseFloat(stringValue) / 100;
+    } else {
+      // Se já for um valor em reais (com vírgula ou ponto), converter diretamente
+      const cleanedValue = stringValue.replace(/[^\d,.-]/g, '').replace(',', '.');
+      numberValue = parseFloat(cleanedValue);
+    }
   }
   
   if (isInitialValue && typeof value === 'string') {
@@ -34,20 +43,15 @@ export function formatCurrency(
     return '';
   }
 
-  // Formata o número para o padrão de moeda ou decimal brasileiro
+  // Formata o número para o padrão de moeda brasileiro
   const formatter = new Intl.NumberFormat('pt-BR', {
-    style: 'decimal', // Usar decimal para ter mais controle
+    style: 'currency',
+    currency: 'BRL',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
   
-  const formattedValue = formatter.format(numberValue);
-
-  if (withSymbol) {
-    return `R$ ${formattedValue}`;
-  }
-  
-  return `${formattedValue} %`;
+  return formatter.format(numberValue);
 }
 
 export function parseCurrency(value: string | number | null | undefined): number {

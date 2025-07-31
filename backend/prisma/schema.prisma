@@ -82,6 +82,7 @@ model Loja {
   funcoes      Funcao[]
   custos_indiretos CustoIndireto[]
   notificacoes Notificacao[]
+  template_produtos TemplateProduto[]
 
   criado_em   DateTime @default(now())
   atualizado_em DateTime @updatedAt
@@ -212,6 +213,9 @@ model Insumo {
   tipoMaterial        TipoMaterial? @relation(fields: [tipoMaterialId], references: [id], onDelete: SetNull)
   itens               ItemOrcamento[]
   historico_precos    HistoricoPrecoInsumo[]
+  
+  // Relacionamentos com templates de produtos
+  itens_template      ItemTemplateProduto[]
 
   @@unique([loja_id, nome, fornecedorId]) // Unicidade por fornecedor
   @@map("insumos")
@@ -285,6 +289,9 @@ model Maquina {
   maquinas_orcamento MaquinaOrcamento[]
   historico_custos  HistoricoCustoMaquina[]
   
+  // Relacionamentos com templates de produtos
+  maquinas_template MaquinaTemplateProduto[]
+  
   @@index([loja_id])
   @@index([loja_id, tipo])
 }
@@ -309,6 +316,9 @@ model Funcao {
   // Relacionamentos
   funcoes_orcamento FuncaoOrcamento[]
   historico_custos  HistoricoCustoFuncao[]
+  
+  // Relacionamentos com templates de produtos
+  funcoes_template   FuncaoTemplateProduto[]
   
   @@index([loja_id])
   @@index([maquina_id])
@@ -363,6 +373,12 @@ model Orcamento {
   status_aprovacao    String?  @default("PENDENTE")
   observacoes_cliente String?  @db.Text
   
+  // Status do orçamento (rascunho/enviado)
+  status              String?  @default("rascunho")
+  
+  // Código de aprovação
+  codigo_aprovacao    String?  @unique
+  
   // Relacionamentos
   loja_id     String
   loja        Loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
@@ -370,10 +386,12 @@ model Orcamento {
   cliente     Cliente? @relation(fields: [cliente_id], references: [id], onDelete: SetNull)
   
   itens       ItemOrcamento[]
-           maquinas    MaquinaOrcamento[]
-         funcoes     FuncaoOrcamento[]
-         mensagens   MensagemNegociacao[]
-         notificacoes Notificacao[]
+  maquinas    MaquinaOrcamento[]
+  funcoes     FuncaoOrcamento[]
+  mensagens   MensagemNegociacao[]
+  notificacoes Notificacao[]
+  historico   OrcamentoHistorico[]
+  logs        OrcamentoLog[]
   
   @@unique([loja_id, numero])
   @@index([loja_id])
@@ -519,4 +537,131 @@ model Notificacao {
   @@index([loja_id])
   @@index([orcamento_id])
   @@index([visualizada])
+}
+
+model OrcamentoHistorico {
+  id              String   @id @default(cuid())
+  orcamento_id    String
+  versao          Int      // Número da versão
+  dados_anteriores Json    // Dados completos da versão anterior
+  dados_novos     Json     // Dados da nova versão
+  alteracoes      Json?    // Resumo das alterações
+  motivo          String?  @db.Text
+  alterado_por    String?  // ID do usuário que alterou
+  criado_em       DateTime @default(now())
+  
+  orcamento       Orcamento @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  
+  @@index([orcamento_id])
+  @@index([versao])
+  @@map("orcamento_historico")
+}
+
+model OrcamentoLog {
+  id              String   @id @default(cuid())
+  orcamento_id    String
+  tipo_acao       String   // CRIADO, ENVIADO, APROVADO, REJEITADO, EDITADO, VISUALIZADO
+  descricao       String   @db.Text
+  dados_extras    Json?    // Dados adicionais da ação
+  ip_origem       String?
+  user_agent      String?
+  criado_em       DateTime @default(now())
+  
+  orcamento       Orcamento @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  
+  @@index([orcamento_id])
+  @@index([tipo_acao])
+  @@index([criado_em])
+  @@map("orcamento_logs")
+}
+
+// ===== MÓDULO DE PRODUTOS/TEMPLATES =====
+
+model TemplateProduto {
+  id              String    @id @default(cuid())
+  criado_em       DateTime  @default(now())
+  atualizado_em   DateTime  @updatedAt
+  
+  // Dados básicos
+  nome            String    // "Banner 60x120cm - Cordão"
+  categoria       String    // "Banners", "Lonas", "Adesivos"
+  descricao       String?   @db.Text
+  
+  // Configurações do produto (igual ao orçamento)
+  nome_servico    String
+  descricao_produto String? @db.Text
+  horas_producao  Decimal   @db.Decimal(10, 2)
+  
+  // Dimensões padrão
+  largura_produto     Decimal?  @db.Decimal(10, 2)
+  altura_produto      Decimal?  @db.Decimal(10, 2)
+  area_produto        Decimal?  @db.Decimal(10, 2)
+  unidade_medida_produto String?
+  quantidade_padrao   Decimal?  @db.Decimal(10, 2)
+  
+  // Status
+  ativo             Boolean  @default(true)
+  
+  // Relacionamentos
+  loja_id           String
+  loja              Loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  
+  // Itens do template (igual ao orçamento)
+  itens             ItemTemplateProduto[]
+  maquinas          MaquinaTemplateProduto[]
+  funcoes           FuncaoTemplateProduto[]
+  
+  @@unique([loja_id, nome])
+  @@index([loja_id])
+  @@index([loja_id, categoria])
+  @@map("template_produtos")
+}
+
+model ItemTemplateProduto {
+  id              String    @id @default(cuid())
+  template_id     String
+  template        TemplateProduto @relation(fields: [template_id], references: [id], onDelete: Cascade)
+  
+  insumo_id       String
+  insumo          Insumo    @relation(fields: [insumo_id], references: [id], onDelete: Restrict)
+  
+  quantidade      Decimal   @db.Decimal(10, 3)
+  custo_unitario  Decimal   @db.Decimal(10, 2)
+  custo_total     Decimal   @db.Decimal(10, 2)
+  
+  @@index([template_id])
+  @@index([insumo_id])
+  @@map("item_template_produtos")
+}
+
+model MaquinaTemplateProduto {
+  id              String    @id @default(cuid())
+  template_id     String
+  template        TemplateProduto @relation(fields: [template_id], references: [id], onDelete: Cascade)
+  
+  maquina_id      String
+  maquina         Maquina   @relation(fields: [maquina_id], references: [id], onDelete: Restrict)
+  
+  horas_utilizadas Decimal  @db.Decimal(10, 2)
+  custo_total     Decimal   @db.Decimal(10, 2)
+  
+  @@index([template_id])
+  @@index([maquina_id])
+  @@map("maquina_template_produtos")
+}
+
+model FuncaoTemplateProduto {
+  id              String    @id @default(cuid())
+  template_id     String
+  template        TemplateProduto @relation(fields: [template_id], references: [id], onDelete: Cascade)
+  
+  funcao_id       String
+  funcao          Funcao    @relation(fields: [funcao_id], references: [id], onDelete: Restrict)
+  
+  horas_trabalhadas Decimal @db.Decimal(10, 2)
+  custo_total     Decimal   @db.Decimal(10, 2)
+  
+  @@index([template_id])
+  @@index([funcao_id])
+  @@map("funcao_template_produtos")
 }
