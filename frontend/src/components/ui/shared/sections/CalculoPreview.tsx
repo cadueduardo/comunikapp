@@ -29,6 +29,22 @@ export function CalculoPreview({
   customActions
 }: CalculoPreviewProps) {
   const form = useFormContext();
+  
+  // Verificar se o form está disponível
+  if (!form) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Preview do Cálculo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">Carregando...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Calcular custos dos materiais
   const calcularCustosMateriais = () => {

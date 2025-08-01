@@ -164,121 +164,119 @@ export function OrcamentoForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-screen">
-        {/* Formulário */}
-        <div className="lg:col-span-2">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              
-              {/* Seção de Cliente */}
-              <ClienteSection 
-                clientes={clientes} 
-                mode={mode} 
-              />
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-screen">
+          {/* Formulário */}
+          <div className="lg:col-span-2 space-y-6">
+            
+            {/* Seção de Cliente */}
+            <ClienteSection 
+              clientes={clientes} 
+              mode={mode} 
+            />
 
-              <Separator />
+            <Separator />
 
-              {/* Seção de Produtos */}
-              <ProdutoSection 
-                mode={mode}
-                onCarregarProduto={handleCarregarProduto}
-              />
+            {/* Seção de Produtos */}
+            <ProdutoSection 
+              mode={mode}
+              onCarregarProduto={handleCarregarProduto}
+            />
 
-              <Separator />
+            <Separator />
 
-              {/* Seções Compartilhadas para cada produto */}
-              {form.watch('itens_produto')?.map((_, index) => (
-                <div key={index} className="space-y-6">
-                  <MaterialSection
-                    variant="orcamento"
-                    itemIndex={index}
-                    insumos={insumos}
-                  />
-
-                  <Separator />
-
-                  <MaquinaSection
-                    variant="orcamento"
-                    itemIndex={index}
-                    maquinas={maquinas}
-                  />
-
-                  <Separator />
-
-                  <FuncaoSection
-                    variant="orcamento"
-                    itemIndex={index}
-                    funcoes={funcoes}
-                  />
-
-                  {index < form.watch('itens_produto')?.length - 1 && (
-                    <Separator className="my-8" />
-                  )}
-                </div>
-              ))}
-
-              <Separator />
-
-              {/* Configurações Comerciais */}
-              <ConfiguracoesSection mode={mode} />
-
-              {/* Botões de Ação */}
-              <div className="flex justify-end space-x-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="flex items-center space-x-2"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>
-                    {loading 
-                      ? 'Salvando...' 
-                      : (mode === 'novo' 
-                          ? 'Criar Orçamento' 
-                          : mode === 'editar' 
-                            ? 'Atualizar Orçamento'
-                            : 'Criar Produto Template'
-                        )
-                    }
-                  </span>
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </div>
-
-        {/* Sidebar com Preview do Cálculo */}
-        <div className="lg:col-span-1">
-          <div className="sticky top-6 h-[calc(100vh-3rem)] flex flex-col">
-            <Card className="flex-1 flex flex-col h-full">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calculator className="w-5 h-5" />
-                  Preview do Cálculo
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1 overflow-y-auto">
-                <CalculoPreview
+            {/* Seções Compartilhadas para cada produto */}
+            {form.watch('itens_produto')?.map((_, index) => (
+              <div key={index} className="space-y-6">
+                <MaterialSection
                   variant="orcamento"
-                  itemIndex={0}
+                  itemIndex={index}
                   insumos={insumos}
-                  maquinas={maquinas}
-                  funcoes={funcoes}
-                  margemLucroCustomizada={form.watch('margem_lucro_customizada')}
-                  impostosCustomizados={form.watch('impostos_customizados')}
                 />
-              </CardContent>
-            </Card>
+
+                <Separator />
+
+                <MaquinaSection
+                  variant="orcamento"
+                  itemIndex={index}
+                  maquinas={maquinas}
+                />
+
+                <Separator />
+
+                <FuncaoSection
+                  variant="orcamento"
+                  itemIndex={index}
+                  funcoes={funcoes}
+                />
+
+                {index < form.watch('itens_produto')?.length - 1 && (
+                  <Separator className="my-8" />
+                )}
+              </div>
+            ))}
+
+            <Separator />
+
+            {/* Configurações Comerciais */}
+            <ConfiguracoesSection mode={mode} />
+
+            {/* Botões de Ação */}
+            <div className="flex justify-end space-x-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="flex items-center space-x-2"
+              >
+                <Save className="w-4 h-4" />
+                <span>
+                  {loading 
+                    ? 'Salvando...' 
+                    : (mode === 'novo' 
+                        ? 'Criar Orçamento' 
+                        : mode === 'editar' 
+                          ? 'Atualizar Orçamento'
+                          : 'Criar Produto Template'
+                      )
+                  }
+                </span>
+              </Button>
+            </div>
           </div>
-        </div>
-      </div>
+
+          {/* Sidebar com Preview do Cálculo */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-6 h-[calc(100vh-3rem)] flex flex-col">
+              <Card className="flex-1 flex flex-col h-full">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calculator className="w-5 h-5" />
+                    Preview do Cálculo
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-y-auto">
+                  <CalculoPreview
+                    variant="orcamento"
+                    itemIndex={0}
+                    insumos={insumos}
+                    maquinas={maquinas}
+                    funcoes={funcoes}
+                    margemLucroCustomizada={form.watch('margem_lucro_customizada')}
+                    impostosCustomizados={form.watch('impostos_customizados')}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </form>
+      </Form>
     </div>
   );
 } 
