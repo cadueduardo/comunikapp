@@ -1,16 +1,7 @@
 'use client';
 
-import ProdutoForm from '../components/produto-form';
+import { ProdutoTemplateForm } from '@/components/ui/produto';
 
 export default function NovoProdutoPage() {
-  return (
-    <div className="p-6">
-      <ProdutoForm 
-        mode="novo"
-        onSuccess={() => {
-          // Redirecionamento será feito pelo próprio componente
-        }}
-      />
-    </div>
-  );
+  return <ProdutoTemplateForm mode="novo" />;
 } 
