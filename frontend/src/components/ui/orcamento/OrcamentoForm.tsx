@@ -118,6 +118,137 @@ export function OrcamentoForm({
     toast.info(`Funcionalidade de carregar produto será implementada para o item ${itemIndex + 1}`);
   };
 
+  const onSalvarRascunho = async (data: FormValues) => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        toast.error('Token de acesso não encontrado');
+        return;
+      }
+
+      const url = mode === 'editar' 
+        ? `http://localhost:3001/orcamentos/${orcamentoId}`
+        : 'http://localhost:3001/orcamentos/rascunho';
+      
+      const method = mode === 'editar' ? 'PATCH' : 'POST';
+      
+      const orcamentoData = {
+        ...data,
+        status: 'rascunho',
+      };
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(orcamentoData),
+      });
+
+      if (response.ok) {
+        toast.success('Rascunho salvo com sucesso!');
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          router.push('/orcamentos');
+        }
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Erro ao salvar rascunho');
+      }
+    } catch (error) {
+      console.error('Erro ao salvar rascunho:', error);
+      toast.error('Erro ao salvar rascunho');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onEnviarOrcamento = async (data: FormValues) => {
+    if (mode !== 'template' && !data.cliente_id) {
+      toast.error('Selecione um cliente antes de enviar o orçamento');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        toast.error('Token de acesso não encontrado');
+        return;
+      }
+
+      let orcamentoIdParaEnviar = orcamentoId;
+      
+      if (mode === 'novo') {
+        // Salvar rascunho primeiro
+        const rascunhoResponse = await fetch('http://localhost:3001/orcamentos/rascunho', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            ...data,
+            status: 'rascunho',
+          }),
+        });
+
+        if (!rascunhoResponse.ok) {
+          throw new Error('Erro ao salvar rascunho');
+        }
+
+        const rascunhoResult = await rascunhoResponse.json();
+        orcamentoIdParaEnviar = rascunhoResult.id;
+      } else {
+        // Se for edição, atualizar o orçamento existente
+        const updateResponse = await fetch(`http://localhost:3001/orcamentos/${orcamentoId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            ...data,
+            status: 'rascunho',
+          }),
+        });
+
+        if (!updateResponse.ok) {
+          throw new Error('Erro ao atualizar orçamento');
+        }
+      }
+
+      // Agora enviar o orçamento
+      const enviarResponse = await fetch(`http://localhost:3001/orcamentos/${orcamentoIdParaEnviar}/enviar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!enviarResponse.ok) {
+        throw new Error('Erro ao enviar orçamento');
+      }
+
+      toast.success('Orçamento enviado com sucesso! O cliente receberá um email com o link de aprovação.');
+      
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push('/orcamentos');
+      }
+    } catch (error) {
+      console.error('Erro ao enviar orçamento:', error);
+      toast.error('Erro ao enviar orçamento');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getTitle = () => {
     switch (mode) {
       case 'novo':
@@ -191,34 +322,90 @@ export function OrcamentoForm({
             {/* Configurações Comerciais */}
             <ConfiguracoesSection mode={mode} />
 
-            {/* Botões de Ação */}
-            <div className="flex justify-end space-x-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.back()}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                disabled={loading}
-                className="flex items-center space-x-2"
-              >
-                <Save className="w-4 h-4" />
-                <span>
-                  {loading 
-                    ? 'Salvando...' 
-                    : (mode === 'novo' 
-                        ? 'Criar Orçamento' 
-                        : mode === 'editar' 
-                          ? 'Atualizar Orçamento'
-                          : 'Criar Produto Template'
-                      )
-                  }
-                </span>
-              </Button>
-            </div>
+                         {/* Botões de Ação */}
+             <div className="flex justify-end space-x-4">
+               <Button
+                 type="button"
+                 variant="outline"
+                 onClick={() => router.back()}
+               >
+                 Cancelar
+               </Button>
+               
+               {mode === 'template' && (
+                 <Button
+                   type="submit"
+                   disabled={loading}
+                   className="flex items-center space-x-2"
+                 >
+                   <Save className="w-4 h-4" />
+                   <span>
+                     {loading ? 'Salvando...' : 'Criar Produto Template'}
+                   </span>
+                 </Button>
+               )}
+               
+               {mode === 'novo' && (
+                 <>
+                   <Button
+                     type="button"
+                     variant="outline"
+                     onClick={() => form.handleSubmit(onSalvarRascunho)()}
+                     disabled={loading}
+                     className="flex items-center space-x-2"
+                   >
+                     <Save className="w-4 h-4" />
+                     <span>{loading ? 'Salvando...' : 'Salvar Rascunho'}</span>
+                   </Button>
+                   <Button
+                     type="button"
+                     onClick={() => form.handleSubmit(onEnviarOrcamento)()}
+                     disabled={loading}
+                     className="flex items-center space-x-2"
+                   >
+                     <Save className="w-4 h-4" />
+                     <span>{loading ? 'Enviando...' : 'Enviar Orçamento'}</span>
+                   </Button>
+                 </>
+               )}
+               
+               {mode === 'editar' && (
+                 <>
+                   {orcamentoStatus === 'rascunho' ? (
+                     <>
+                       <Button
+                         type="button"
+                         variant="outline"
+                         onClick={() => form.handleSubmit(onSalvarRascunho)()}
+                         disabled={loading}
+                         className="flex items-center space-x-2"
+                       >
+                         <Save className="w-4 h-4" />
+                         <span>{loading ? 'Salvando...' : 'Salvar como Rascunho'}</span>
+                       </Button>
+                       <Button
+                         type="button"
+                         onClick={() => form.handleSubmit(onEnviarOrcamento)()}
+                         disabled={loading}
+                         className="flex items-center space-x-2"
+                       >
+                         <Save className="w-4 h-4" />
+                         <span>{loading ? 'Enviando...' : 'Enviar para Cliente'}</span>
+                       </Button>
+                     </>
+                   ) : (
+                     <Button
+                       type="submit"
+                       disabled={loading}
+                       className="flex items-center space-x-2"
+                     >
+                       <Save className="w-4 h-4" />
+                       <span>{loading ? 'Atualizando...' : 'Atualizar Orçamento'}</span>
+                     </Button>
+                   )}
+                 </>
+               )}
+             </div>
           </div>
 
           {/* Sidebar com Preview do Cálculo */}

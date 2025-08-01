@@ -81,7 +81,8 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
     }
   };
 
-  const handleCalcularArea = (itemIndex: number) => {
+  // Função para calcular área automaticamente
+  const calcularAreaAutomatica = (itemIndex: number) => {
     const largura = Number(form.watch(`itens_produto.${itemIndex}.largura_produto`));
     const altura = Number(form.watch(`itens_produto.${itemIndex}.altura_produto`));
     const unidade = form.watch(`itens_produto.${itemIndex}.unidade_medida_produto`);
@@ -89,9 +90,8 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
     if (largura && altura && unidade) {
       const area = calcularArea(largura, altura, unidade);
       form.setValue(`itens_produto.${itemIndex}.area_produto`, area.toFixed(2));
-      toast.success(`Área calculada: ${area.toFixed(2)} m²`);
     } else {
-      toast.error('Preencha largura, altura e unidade de medida para calcular a área');
+      form.setValue(`itens_produto.${itemIndex}.area_produto`, '');
     }
   };
 
@@ -199,95 +199,95 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
                   <div className="space-y-4">
                     <h4 className="text-sm font-medium">Medidas do Produto</h4>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <FormField
-                        control={form.control}
-                        name={`itens_produto.${index}.largura_produto`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Largura</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="text" 
-                                placeholder="0.00"
-                                {...field}
-                                onChange={(e) => {
-                                  const value = e.target.value.replace(/[^0-9,.-]/g, '');
-                                  field.onChange(value);
-                                }}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                                             <FormField
+                         control={form.control}
+                         name={`itens_produto.${index}.largura_produto`}
+                         render={({ field }) => (
+                           <FormItem>
+                             <FormLabel>Largura</FormLabel>
+                             <FormControl>
+                               <Input 
+                                 type="text" 
+                                 placeholder="0.00"
+                                 {...field}
+                                 onChange={(e) => {
+                                   const value = e.target.value.replace(/[^0-9,.-]/g, '');
+                                   field.onChange(value);
+                                   // Calcular área automaticamente
+                                   setTimeout(() => calcularAreaAutomatica(index), 0);
+                                 }}
+                               />
+                             </FormControl>
+                             <FormMessage />
+                           </FormItem>
+                         )}
+                       />
                       
-                      <FormField
-                        control={form.control}
-                        name={`itens_produto.${index}.altura_produto`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Altura</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="text" 
-                                placeholder="0.00"
-                                {...field}
-                                onChange={(e) => {
-                                  const value = e.target.value.replace(/[^0-9,.-]/g, '');
-                                  field.onChange(value);
-                                }}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                                             <FormField
+                         control={form.control}
+                         name={`itens_produto.${index}.altura_produto`}
+                         render={({ field }) => (
+                           <FormItem>
+                             <FormLabel>Altura</FormLabel>
+                             <FormControl>
+                               <Input 
+                                 type="text" 
+                                 placeholder="0.00"
+                                 {...field}
+                                 onChange={(e) => {
+                                   const value = e.target.value.replace(/[^0-9,.-]/g, '');
+                                   field.onChange(value);
+                                   // Calcular área automaticamente
+                                   setTimeout(() => calcularAreaAutomatica(index), 0);
+                                 }}
+                               />
+                             </FormControl>
+                             <FormMessage />
+                           </FormItem>
+                         )}
+                       />
                       
-                      <FormField
-                        control={form.control}
-                        name={`itens_produto.${index}.unidade_medida_produto`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Unidade de Medida</FormLabel>
-                            <FormControl>
-                              <Input placeholder="cm, m, mm" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                                             <FormField
+                         control={form.control}
+                         name={`itens_produto.${index}.unidade_medida_produto`}
+                         render={({ field }) => (
+                           <FormItem>
+                             <FormLabel>Unidade de Medida</FormLabel>
+                             <FormControl>
+                               <Input 
+                                 placeholder="cm, m, mm" 
+                                 {...field}
+                                 onChange={(e) => {
+                                   field.onChange(e.target.value);
+                                   // Calcular área automaticamente
+                                   setTimeout(() => calcularAreaAutomatica(index), 0);
+                                 }}
+                               />
+                             </FormControl>
+                             <FormMessage />
+                           </FormItem>
+                         )}
+                       />
                       
-                      <div className="flex items-end space-x-2">
-                        <FormField
-                          control={form.control}
-                          name={`itens_produto.${index}.area_produto`}
-                          render={({ field }) => (
-                            <FormItem className="flex-1">
-                              <FormLabel>Área (m²)</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="text" 
-                                  placeholder="0.00"
-                                  {...field}
-                                  onChange={(e) => {
-                                    const value = e.target.value.replace(/[^0-9,.-]/g, '');
-                                    field.onChange(value);
-                                  }}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => handleCalcularArea(index)}
-                          className="mb-2"
-                        >
-                          Calcular
-                        </Button>
-                      </div>
+                                             <FormField
+                         control={form.control}
+                         name={`itens_produto.${index}.area_produto`}
+                         render={({ field }) => (
+                           <FormItem>
+                             <FormLabel>Área (m²)</FormLabel>
+                             <FormControl>
+                               <Input 
+                                 type="text" 
+                                 placeholder="0.00"
+                                 {...field}
+                                 readOnly
+                                 className="bg-muted"
+                               />
+                             </FormControl>
+                             <FormMessage />
+                           </FormItem>
+                         )}
+                       />
                     </div>
                   </div>
 

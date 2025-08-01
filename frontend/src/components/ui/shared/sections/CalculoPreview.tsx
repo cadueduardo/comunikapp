@@ -199,11 +199,6 @@ export function CalculoPreview({
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Preview do Cálculo</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
           
           {/* Custos de Materiais */}
           {custoMaterial > 0 && (
@@ -295,8 +290,6 @@ export function CalculoPreview({
 
           {/* Ações customizadas específicas do módulo */}
           {customActions}
-        </CardContent>
-      </Card>
     </div>
   );
 } 

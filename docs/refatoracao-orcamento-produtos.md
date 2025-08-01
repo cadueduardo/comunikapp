@@ -100,6 +100,12 @@ frontend/src/components/ui/
 - [x] **Verificação de segurança:** Adicionada no CalculoPreview
 - [x] **Layout preservado:** Sidebar funcionando corretamente
 
+### ✅ FASE 10 - Reestruturação das Seções dentro do Accordion
+- [x] **Seções movidas:** Materiais, Máquinas e Funções agora estão dentro do accordion de cada produto
+- [x] **Configurações específicas:** Cada produto tem suas próprias configurações
+- [x] **Layout otimizado:** Interface mais intuitiva e organizada
+- [x] **Tipos corrigidos:** TypeScript atualizado com tipos específicos
+
 ## 🔧 CORREÇÕES APLICADAS
 
 ### 1. Erro de Hidratação HTML
@@ -155,6 +161,12 @@ frontend/src/components/ui/
 - [x] **Verificação de segurança:** Adicionada no CalculoPreview
 - [x] **Layout preservado:** Sidebar funcionando corretamente
 
+### 5. Reestruturação das Seções dentro do Accordion
+- [x] **Seções movidas:** Materiais, Máquinas e Funções agora estão dentro do accordion de cada produto
+- [x] **Configurações específicas:** Cada produto tem suas próprias configurações
+- [x] **Layout otimizado:** Interface mais intuitiva e organizada
+- [x] **Tipos corrigidos:** TypeScript atualizado com tipos específicos
+
 ## 🎯 OBJETIVOS ATINGIDOS
 
 ✅ **Arquivo original reduzido de 2.394 para ~300 linhas**  
@@ -167,6 +179,7 @@ frontend/src/components/ui/
 ✅ **Erros de hidratação corrigidos**  
 ✅ **Cálculo automático mantido**  
 ✅ **Contexto do formulário corrigido**  
+✅ **Seções organizadas dentro do accordion**  
 
 ## 🚀 BENEFÍCIOS ALCANÇADOS
 
@@ -190,7 +203,7 @@ frontend/src/components/ui/
 - Imports específicos
 - Menos re-renders desnecessários
 
-## 📝 NOTAS IMPORTANTES
+## �� NOTAS IMPORTANTES
 
 ### 🔒 **Constraints Respeitadas**
 - ✅ Nenhuma alteração visual (layout preservado)
@@ -204,6 +217,7 @@ frontend/src/components/ui/
 - ✅ Erros de linting corrigidos
 - ✅ Build funcionando corretamente
 - ✅ Contexto do formulário corrigido (CalculoPreview)
+- ✅ Seções organizadas dentro do accordion (Materiais, Máquinas, Funções)
 
 ### 🎉 **Funcionalidades Preservadas**
 - ✅ Cálculo automático do preview
