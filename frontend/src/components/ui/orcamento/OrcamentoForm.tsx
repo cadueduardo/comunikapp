@@ -13,7 +13,7 @@ import { ArrowLeft, Save, Calculator } from 'lucide-react';
 import { createFormSchema, FormValues } from './schemas/orcamento.schema';
 import { useOrcamentoData } from './hooks/useOrcamentoData';
 import { ClienteSection, ProdutoSection, ConfiguracoesSection } from './components';
-import { MaterialSection, MaquinaSection, FuncaoSection, CalculoPreview } from '../shared/sections';
+import { CalculoPreview } from '../shared/sections';
 
 interface OrcamentoFormProps {
   mode: 'novo' | 'editar' | 'template';
@@ -177,46 +177,16 @@ export function OrcamentoForm({
 
             <Separator />
 
-            {/* Seção de Produtos */}
-            <ProdutoSection 
-              mode={mode}
-              onCarregarProduto={handleCarregarProduto}
-            />
+                          {/* Seção de Produtos */}
+              <ProdutoSection 
+                mode={mode}
+                onCarregarProduto={handleCarregarProduto}
+                insumos={insumos}
+                maquinas={maquinas}
+                funcoes={funcoes}
+              />
 
-            <Separator />
-
-            {/* Seções Compartilhadas para cada produto */}
-            {form.watch('itens_produto')?.map((_, index) => (
-              <div key={index} className="space-y-6">
-                <MaterialSection
-                  variant="orcamento"
-                  itemIndex={index}
-                  insumos={insumos}
-                />
-
-                <Separator />
-
-                <MaquinaSection
-                  variant="orcamento"
-                  itemIndex={index}
-                  maquinas={maquinas}
-                />
-
-                <Separator />
-
-                <FuncaoSection
-                  variant="orcamento"
-                  itemIndex={index}
-                  funcoes={funcoes}
-                />
-
-                {index < form.watch('itens_produto')?.length - 1 && (
-                  <Separator className="my-8" />
-                )}
-              </div>
-            ))}
-
-            <Separator />
+              <Separator />
 
             {/* Configurações Comerciais */}
             <ConfiguracoesSection mode={mode} />

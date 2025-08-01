@@ -94,6 +94,12 @@ frontend/src/components/ui/
 - [x] **Manutenção da funcionalidade:** Cálculo automático preservado
 - [x] **Correção de linting:** Remoção de variáveis não utilizadas
 
+### ✅ FASE 9 - Correção Final do Contexto do Formulário
+- [x] **Erro de contexto resolvido:** `TypeError: Cannot read properties of null (reading 'watch')`
+- [x] **CalculoPreview movido:** Para dentro do contexto do FormProvider
+- [x] **Verificação de segurança:** Adicionada no CalculoPreview
+- [x] **Layout preservado:** Sidebar funcionando corretamente
+
 ## 🔧 CORREÇÕES APLICADAS
 
 ### 1. Erro de Hidratação HTML
@@ -143,6 +149,12 @@ frontend/src/components/ui/
 - [x] Correção de parâmetros não utilizados (`_itemIndex` → `itemIndex`)
 - [x] Adição de imports necessários (`Trash2`, `Calculator`, `Card` components)
 
+### 4. Correção do Contexto do Formulário
+- [x] **Erro resolvido:** `TypeError: Cannot read properties of null (reading 'watch')`
+- [x] **CalculoPreview movido:** Para dentro do contexto do FormProvider
+- [x] **Verificação de segurança:** Adicionada no CalculoPreview
+- [x] **Layout preservado:** Sidebar funcionando corretamente
+
 ## 🎯 OBJETIVOS ATINGIDOS
 
 ✅ **Arquivo original reduzido de 2.394 para ~300 linhas**  
@@ -154,6 +166,7 @@ frontend/src/components/ui/
 ✅ **Layout visual preservado (sidebar)**  
 ✅ **Erros de hidratação corrigidos**  
 ✅ **Cálculo automático mantido**  
+✅ **Contexto do formulário corrigido**  
 
 ## 🚀 BENEFÍCIOS ALCANÇADOS
 
@@ -190,6 +203,7 @@ frontend/src/components/ui/
 - ✅ Layout de sidebar restaurado
 - ✅ Erros de linting corrigidos
 - ✅ Build funcionando corretamente
+- ✅ Contexto do formulário corrigido (CalculoPreview)
 
 ### 🎉 **Funcionalidades Preservadas**
 - ✅ Cálculo automático do preview

@@ -21,13 +21,36 @@ import {
 import { Plus, Package, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { calcularArea } from '../../shared/utils/calculo.utils';
+import { MaterialSection, MaquinaSection, FuncaoSection } from '../../shared/sections';
 
 interface ProdutoSectionProps {
   mode: 'novo' | 'editar' | 'template';
   onCarregarProduto?: (itemIndex: number) => void;
+  insumos?: Array<{
+    id: string;
+    nome: string;
+    unidade_compra: string;
+    custo_unitario: number;
+    quantidade_compra: number;
+    unidade_uso: string;
+    fator_conversao: number;
+    categoria: { nome: string };
+  }>;
+  maquinas?: Array<{
+    id: string;
+    nome: string;
+    tipo: string;
+    custo_hora: number;
+  }>;
+  funcoes?: Array<{
+    id: string;
+    nome: string;
+    custo_hora: number;
+    maquina?: { nome: string };
+  }>;
 }
 
-export function ProdutoSection({ onCarregarProduto }: ProdutoSectionProps) {
+export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [], funcoes = [] }: ProdutoSectionProps) {
   const form = useFormContext();
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -282,6 +305,30 @@ export function ProdutoSection({ onCarregarProduto }: ProdutoSectionProps) {
                       </Button>
                     </div>
                   )}
+
+                  {/* Seções de Materiais, Máquinas e Funções */}
+                  <div className="space-y-6">
+                    {/* Materiais Utilizados */}
+                    <MaterialSection
+                      variant="orcamento"
+                      itemIndex={index}
+                      insumos={insumos}
+                    />
+
+                    {/* Máquinas Utilizadas */}
+                    <MaquinaSection
+                      variant="orcamento"
+                      itemIndex={index}
+                      maquinas={maquinas}
+                    />
+
+                    {/* Funções Utilizadas */}
+                    <FuncaoSection
+                      variant="orcamento"
+                      itemIndex={index}
+                      funcoes={funcoes}
+                    />
+                  </div>
                 </CardContent>
               </AccordionContent>
             </Card>
