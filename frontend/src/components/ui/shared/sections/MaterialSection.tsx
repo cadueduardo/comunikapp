@@ -84,8 +84,7 @@ export function MaterialSection({
         const quantidade = Number(String(material.quantidade).replace(',', '.')) || 0;
         const custoCalculado = custoPorUnidade * quantidade;
         
-        // Obter área do produto para materiais calculados por m²
-        const areaProduto = Number(form.watch(`itens_produto.${itemIndex}.area_produto`)) || 0;
+        // Obter dimensões do produto para materiais calculados por m²
         const larguraProduto = Number(form.watch(`itens_produto.${itemIndex}.largura_produto`)) || 0;
         const alturaProduto = Number(form.watch(`itens_produto.${itemIndex}.altura_produto`)) || 0;
         const unidadeMedidaProduto = form.watch(`itens_produto.${itemIndex}.unidade_medida_produto`);

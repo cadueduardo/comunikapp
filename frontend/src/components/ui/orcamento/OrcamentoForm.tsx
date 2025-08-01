@@ -7,8 +7,9 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Calculator } from 'lucide-react';
 import { createFormSchema, FormValues } from './schemas/orcamento.schema';
 import { useOrcamentoData } from './hooks/useOrcamentoData';
 import { ClienteSection, ProdutoSection, ConfiguracoesSection } from './components';
@@ -112,9 +113,9 @@ export function OrcamentoForm({
     }
   };
 
-  const handleCarregarProduto = (_itemIndex: number) => {
+  const handleCarregarProduto = (itemIndex: number) => {
     // Implementar lógica para carregar produto template
-    toast.info('Funcionalidade de carregar produto será implementada');
+    toast.info(`Funcionalidade de carregar produto será implementada para o item ${itemIndex + 1}`);
   };
 
   const getTitle = () => {
@@ -163,104 +164,121 @@ export function OrcamentoForm({
         </div>
       </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          
-          {/* Seção de Cliente */}
-          <ClienteSection 
-            clientes={clientes} 
-            mode={mode} 
-          />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-screen">
+        {/* Formulário */}
+        <div className="lg:col-span-2">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              
+              {/* Seção de Cliente */}
+              <ClienteSection 
+                clientes={clientes} 
+                mode={mode} 
+              />
 
-          <Separator />
+              <Separator />
 
-          {/* Seção de Produtos */}
-          <ProdutoSection 
-            mode={mode}
-            onCarregarProduto={handleCarregarProduto}
-          />
+              {/* Seção de Produtos */}
+              <ProdutoSection 
+                mode={mode}
+                onCarregarProduto={handleCarregarProduto}
+              />
 
-          <Separator />
+              <Separator />
 
-                     {/* Seções Compartilhadas para cada produto */}
-           {form.watch('itens_produto')?.map((_, index) => (
-                         <div key={index} className="space-y-6">
-               <MaterialSection
-                 variant="orcamento"
-                 itemIndex={index}
-                 insumos={insumos}
-               />
+              {/* Seções Compartilhadas para cada produto */}
+              {form.watch('itens_produto')?.map((_, index) => (
+                <div key={index} className="space-y-6">
+                  <MaterialSection
+                    variant="orcamento"
+                    itemIndex={index}
+                    insumos={insumos}
+                  />
 
-               <Separator />
+                  <Separator />
 
-               <MaquinaSection
-                 variant="orcamento"
-                 itemIndex={index}
-                 maquinas={maquinas}
-               />
+                  <MaquinaSection
+                    variant="orcamento"
+                    itemIndex={index}
+                    maquinas={maquinas}
+                  />
 
-               <Separator />
+                  <Separator />
 
-               <FuncaoSection
-                 variant="orcamento"
-                 itemIndex={index}
-                 funcoes={funcoes}
-               />
+                  <FuncaoSection
+                    variant="orcamento"
+                    itemIndex={index}
+                    funcoes={funcoes}
+                  />
 
-               <Separator />
+                  {index < form.watch('itens_produto')?.length - 1 && (
+                    <Separator className="my-8" />
+                  )}
+                </div>
+              ))}
 
-               {/* Preview do Cálculo para cada produto */}
-               <CalculoPreview
-                 variant="orcamento"
-                 itemIndex={index}
-                 insumos={insumos}
-                 maquinas={maquinas}
-                 funcoes={funcoes}
-                 margemLucroCustomizada={form.watch('margem_lucro_customizada')}
-                 impostosCustomizados={form.watch('impostos_customizados')}
-               />
+              <Separator />
 
-               {index < form.watch('itens_produto')?.length - 1 && (
-                 <Separator className="my-8" />
-               )}
-             </div>
-          ))}
+              {/* Configurações Comerciais */}
+              <ConfiguracoesSection mode={mode} />
 
-          <Separator />
+              {/* Botões de Ação */}
+              <div className="flex justify-end space-x-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.back()}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="flex items-center space-x-2"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>
+                    {loading 
+                      ? 'Salvando...' 
+                      : (mode === 'novo' 
+                          ? 'Criar Orçamento' 
+                          : mode === 'editar' 
+                            ? 'Atualizar Orçamento'
+                            : 'Criar Produto Template'
+                        )
+                    }
+                  </span>
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </div>
 
-          {/* Configurações Comerciais */}
-          <ConfiguracoesSection mode={mode} />
-
-          {/* Botões de Ação */}
-          <div className="flex justify-end space-x-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.back()}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading}
-              className="flex items-center space-x-2"
-            >
-              <Save className="w-4 h-4" />
-              <span>
-                {loading 
-                  ? 'Salvando...' 
-                  : (mode === 'novo' 
-                      ? 'Criar Orçamento' 
-                      : mode === 'editar' 
-                        ? 'Atualizar Orçamento'
-                        : 'Criar Produto Template'
-                    )
-                }
-              </span>
-            </Button>
+        {/* Sidebar com Preview do Cálculo */}
+        <div className="lg:col-span-1">
+          <div className="sticky top-6 h-[calc(100vh-3rem)] flex flex-col">
+            <Card className="flex-1 flex flex-col h-full">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calculator className="w-5 h-5" />
+                  Preview do Cálculo
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-y-auto">
+                <CalculoPreview
+                  variant="orcamento"
+                  itemIndex={0}
+                  insumos={insumos}
+                  maquinas={maquinas}
+                  funcoes={funcoes}
+                  margemLucroCustomizada={form.watch('margem_lucro_customizada')}
+                  impostosCustomizados={form.watch('impostos_customizados')}
+                />
+              </CardContent>
+            </Card>
           </div>
-        </form>
-      </Form>
+        </div>
+      </div>
     </div>
   );
 } 

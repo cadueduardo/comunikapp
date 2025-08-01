@@ -18,7 +18,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Plus, Package, Loader2 } from 'lucide-react';
+import { Plus, Package, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { calcularArea } from '../../shared/utils/calculo.utils';
 
@@ -103,19 +103,15 @@ export function ProdutoSection({ onCarregarProduto }: ProdutoSectionProps) {
                       {form.watch(`itens_produto.${index}.nome_servico`) || 'Sem nome'}
                     </span>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
+                  <span
                     onClick={(e) => {
                       e.stopPropagation();
                       handleRemoveProduto(index);
                     }}
-                    className="text-red-500 hover:text-red-700"
-                    disabled={fields.length === 1}
+                    className="text-red-500 hover:text-red-700 cursor-pointer p-1 rounded hover:bg-red-50"
                   >
-                    Remover
-                  </Button>
+                    <Trash2 className="w-4 h-4" />
+                  </span>
                 </div>
               </AccordionTrigger>
               <AccordionContent>
