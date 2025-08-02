@@ -391,8 +391,6 @@ export class OrcamentosService {
     const fator = Number(insumo.fator_conversao);
     
     if (quantidade > 0 && fator > 0) {
-      let quantidadeCalculada = quantidade;
-      
       // Se temos dimensões e tipo de cálculo, usar a lógica específica
       if (insumo.altura && insumo.unidade_dimensao && insumo.tipo_calculo) {
         const alturaNum = Number(insumo.altura);
@@ -480,7 +478,8 @@ export class OrcamentosService {
         }
       }
       
-      return custo / (quantidadeCalculada * fator);
+      // Cálculo padrão: custo / (quantidade * fator)
+      return custo / (quantidade * fator);
     }
     
     return 0;
@@ -660,6 +659,11 @@ export class OrcamentosService {
       margem_lucro: resultado.custos.margem_lucro_percentual,
       impostos: resultado.custos.impostos_percentual,
       preco_final: resultado.custos.preco_final,
+      // Configurações comerciais
+      prazo_entrega: createOrcamentoDto.prazo_entrega,
+      forma_pagamento: createOrcamentoDto.forma_pagamento,
+      validade_proposta: createOrcamentoDto.validade_proposta,
+      atendente: createOrcamentoDto.atendente,
       loja_id: lojaId,
       cliente_id: createOrcamentoDto.cliente_id,
     };
@@ -956,10 +960,22 @@ export class OrcamentosService {
     console.log('🔍 Código recebido (raw):', JSON.stringify(codigo));
     console.log('🔍 Código length:', codigo?.length);
     console.log('🔍 Código trimmed:', codigo?.trim());
+    console.log('🔍 Código char codes:', Array.from(codigo || '').map(c => c.charCodeAt(0)));
+    
+    // Validar se o código foi fornecido
+    if (!codigo || typeof codigo !== 'string') {
+      throw new BadRequestException('Código de aprovação é obrigatório');
+    }
     
     // Limpar o código de espaços em branco e converter para maiúsculo
-    const codigoLimpo = codigo?.trim()?.toUpperCase();
+    const codigoLimpo = codigo.trim().toUpperCase();
     console.log('🔍 Código limpo:', codigoLimpo);
+    console.log('🔍 Código limpo char codes:', Array.from(codigoLimpo).map(c => c.charCodeAt(0)));
+    
+    // Validar se o código tem o formato esperado (8 caracteres)
+    if (codigoLimpo.length !== 8) {
+      throw new BadRequestException('Código de aprovação deve ter 8 caracteres');
+    }
     
     // 1. Buscar orçamento pelo código
     const orcamento = await this.prisma.orcamento.findUnique({
@@ -975,6 +991,8 @@ export class OrcamentosService {
       console.log('🔍 Código no banco:', orcamento.codigo_aprovacao);
       console.log('🔍 Status:', orcamento.status);
       console.log('🔍 Status aprovação:', orcamento.status_aprovacao);
+      console.log('🔍 ID do orçamento:', orcamento.id);
+      console.log('🔍 Número do orçamento:', orcamento.numero);
     }
 
     if (!orcamento) {
@@ -997,6 +1015,7 @@ export class OrcamentosService {
       console.log('🔍 Todos os códigos no banco:', todosOrcamentos.map(o => ({
         numero: o.numero,
         codigo: o.codigo_aprovacao,
+        codigo_char_codes: Array.from(o.codigo_aprovacao || '').map(c => c.charCodeAt(0)),
         status: o.status,
         aprovacao: o.status_aprovacao
       })));
@@ -1004,44 +1023,94 @@ export class OrcamentosService {
       throw new NotFoundException('Código de aprovação inválido');
     }
 
-    if (orcamento.status !== 'enviado') {
-      throw new BadRequestException('Orçamento não está no status enviado');
+    // Validar se o orçamento está no status correto
+    if (orcamento.status !== 'enviado' && orcamento.status !== 'negociando' && orcamento.status !== 'rascunho') {
+      console.log('🔍 ERRO: Orçamento não está no status correto. Status atual:', orcamento.status);
+      throw new BadRequestException('Orçamento não está no status correto para aprovação');
     }
 
+    // Se o orçamento estiver como rascunho, enviar automaticamente
+    if (orcamento.status === 'rascunho') {
+      console.log('🔍 Orçamento está como rascunho. Enviando automaticamente...');
+      
+      // Atualizar status para enviado
+      await this.prisma.orcamento.update({
+        where: { id: orcamento.id },
+        data: {
+          status: 'enviado',
+        },
+      });
+      
+      console.log('🔍 ✅ Orçamento enviado automaticamente');
+    }
+
+    // Validar se o orçamento já foi aprovado
     if (orcamento.status_aprovacao === 'APROVADO') {
+      console.log('🔍 ERRO: Orçamento já foi aprovado');
       throw new BadRequestException('Orçamento já foi aprovado');
     }
 
+    // Validar se o orçamento foi rejeitado
+    if (orcamento.status_aprovacao === 'REJEITADO') {
+      console.log('🔍 ERRO: Orçamento foi rejeitado');
+      throw new BadRequestException('Orçamento foi rejeitado e não pode ser aprovado');
+    }
+
+    console.log('🔍 ✅ Validações passaram. Aprovando orçamento...');
+    console.log('🔍 ID do orçamento a ser aprovado:', orcamento.id);
+    console.log('🔍 Status atual:', orcamento.status);
+    console.log('🔍 Status aprovação atual:', orcamento.status_aprovacao);
+
     // 2. Atualizar status de aprovação
-    await this.prisma.orcamento.update({
+    const orcamentoAtualizado = await this.prisma.orcamento.update({
       where: { id: orcamento.id },
       data: {
         status_aprovacao: 'APROVADO',
       },
     });
 
+    console.log('🔍 ✅ Orçamento atualizado com sucesso. Novo status:', orcamentoAtualizado.status_aprovacao);
+    console.log('🔍 ✅ ID do orçamento atualizado:', orcamentoAtualizado.id);
+
     // 3. Registrar log de aprovação
-    await this.registrarLog(orcamento.id, 'APROVADO', 'Orçamento aprovado pelo cliente');
+    try {
+      await this.registrarLog(orcamento.id, 'APROVADO', 'Orçamento aprovado pelo cliente');
+      console.log('🔍 ✅ Log registrado com sucesso');
+    } catch (error) {
+      console.log('🔍 ⚠️ Erro ao registrar log:', error);
+    }
 
     // 4. Criar notificação para a loja
-    await this.notificacoesService.criarNotificacao(
-      orcamento.loja_id,
-      TipoNotificacao.ORCAMENTO_APROVADO,
-      'Orçamento Aprovado',
-      `O orçamento #${orcamento.numero} foi aprovado pelo cliente ${orcamento.cliente?.nome}`,
-      orcamento.id
-    );
+    try {
+      await this.notificacoesService.criarNotificacao(
+        orcamento.loja_id,
+        TipoNotificacao.ORCAMENTO_APROVADO,
+        'Orçamento Aprovado',
+        `O orçamento #${orcamento.numero} foi aprovado pelo cliente ${orcamento.cliente?.nome}`,
+        orcamento.id
+      );
+      console.log('🔍 ✅ Notificação criada com sucesso');
+    } catch (error) {
+      console.log('🔍 ⚠️ Erro ao criar notificação:', error);
+    }
 
     // 5. Enviar email de notificação para a loja
     if (orcamento.loja?.email) {
-      await this.mailService.enviarNotificacaoAprovacao(
-        orcamento.loja.email,
-        orcamento.numero,
-        orcamento.cliente?.nome || 'Cliente',
-        Number(orcamento.preco_final)
-      );
+      try {
+        await this.mailService.enviarNotificacaoAprovacao(
+          orcamento.loja.email,
+          orcamento.numero,
+          orcamento.cliente?.nome || 'Cliente',
+          Number(orcamento.preco_final)
+        );
+        console.log('🔍 ✅ Email enviado com sucesso');
+      } catch (error) {
+        console.log('🔍 ⚠️ Erro ao enviar email:', error);
+      }
     }
 
+    console.log('🔍 ✅ Aprovação concluída com sucesso!');
+    console.log('🔍 ✅ Retornando resposta...');
     return { message: 'Orçamento aprovado com sucesso!' };
   }
 
@@ -1257,6 +1326,11 @@ export class OrcamentosService {
           margem_lucro: resultado.custos.margem_lucro_percentual,
           impostos: resultado.custos.impostos_percentual,
           preco_final: resultado.custos.preco_final,
+          // Configurações comerciais
+          prazo_entrega: updateOrcamentoDto.prazo_entrega,
+          forma_pagamento: updateOrcamentoDto.forma_pagamento,
+          validade_proposta: updateOrcamentoDto.validade_proposta,
+          atendente: updateOrcamentoDto.atendente,
           cliente_id: updateOrcamentoDto.cliente_id,
         },
       });
@@ -1411,6 +1485,7 @@ export class OrcamentosService {
       quantidade_produto: orcamento.quantidade_produto,
       unidade_medida_produto: orcamento.unidade_medida_produto,
       preco_final: orcamento.preco_final, // APENAS o preço final, sem detalhes de custos
+      status: orcamento.status,
       status_aprovacao: orcamento.status_aprovacao,
       observacoes_cliente: orcamento.observacoes_cliente,
       criado_em: orcamento.criado_em,
@@ -1698,6 +1773,70 @@ export class OrcamentosService {
         visualizada: true
       }
     });
+  }
+
+  /**
+   * Reenviar código de aprovação para o cliente
+   */
+  async reenviarCodigoAprovacao(id: string) {
+    console.log('📧 ============================================');
+    console.log('📧 REENVIANDO CÓDIGO DE APROVAÇÃO');
+    console.log('📧 ============================================');
+    console.log('📧 Orçamento ID:', id);
+
+    // 1. Buscar o orçamento
+    const orcamento = await this.prisma.orcamento.findUnique({
+      where: { id },
+      include: {
+        cliente: true,
+        loja: true,
+      },
+    });
+
+    if (!orcamento) {
+      throw new NotFoundException('Orçamento não encontrado');
+    }
+
+    if (!orcamento.cliente?.email) {
+      throw new Error('Cliente não possui email cadastrado');
+    }
+
+    // 2. Gerar novo código de aprovação
+    const novoCodigo = await this.gerarCodigoAprovacao();
+
+    // 3. Atualizar o código no orçamento
+    await this.prisma.orcamento.update({
+      where: { id },
+      data: {
+        codigo_aprovacao: novoCodigo,
+      },
+    });
+
+    // 4. Enviar email com o novo código
+    const linkPublico = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orcamento/${orcamento.id}`;
+    
+    await this.mailService.enviarOrcamentoCliente(
+      orcamento.cliente.email,
+      orcamento.cliente.nome,
+      orcamento.numero,
+      orcamento.nome_servico,
+      Number(orcamento.preco_final),
+      novoCodigo,
+      linkPublico
+    );
+
+    // 5. Registrar log
+    await this.registrarLog(id, 'CODIGO_REENVIADO', 'Código de aprovação reenviado para o cliente');
+
+    console.log('📧 ✅ Código reenviado com sucesso!');
+    console.log('📧 ✅ Novo código:', novoCodigo);
+    console.log('📧 ✅ Email enviado para:', orcamento.cliente.email);
+    console.log('📧 ============================================');
+
+    return {
+      message: 'Código de aprovação reenviado com sucesso!',
+      email: orcamento.cliente.email,
+    };
   }
 
   /**

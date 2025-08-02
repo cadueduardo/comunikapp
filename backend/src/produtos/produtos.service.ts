@@ -133,7 +133,7 @@ export class ProdutosService {
   }
 
   async findAll(lojaId: string) {
-    return this.prisma.templateProduto.findMany({
+    const produtos = await this.prisma.templateProduto.findMany({
       where: {
         loja_id: lojaId,
       },
@@ -167,6 +167,218 @@ export class ProdutosService {
         criado_em: 'desc',
       },
     });
+
+    // Calcular o valor de cada produto e atualizar custos
+    const produtosComValor = await Promise.all(
+      produtos.map(async (produto) => {
+        try {
+          // Recalcular custos dos itens baseado nos preços atuais dos insumos
+          const itensComCustosRecalculados = await Promise.all(
+            produto.itens.map(async (item) => {
+              const insumo = await this.prisma.insumo.findUnique({
+                where: { id: item.insumo_id },
+              });
+              
+              const quantidade = Number(item.quantidade) || 0;
+              // Calcular custo por unidade de uso usando a lógica completa
+              let custoPorUnidadeUso = 0;
+              if (insumo && insumo.custo_unitario && insumo.quantidade_compra && insumo.fator_conversao) {
+                const custo = Number(insumo.custo_unitario);
+                const quantidadeCompra = Number(insumo.quantidade_compra);
+                const fator = Number(insumo.fator_conversao);
+                
+                if (quantidadeCompra > 0 && fator > 0) {
+                  // Se temos dimensões e tipo de cálculo, usar a lógica específica
+                  if (insumo.altura && insumo.unidade_dimensao && insumo.tipo_calculo) {
+                    const alturaNum = Number(insumo.altura);
+                    
+                    if (!isNaN(alturaNum)) {
+                      // Converter altura para metros
+                      let alturaEmMetros = alturaNum;
+                      
+                      switch (insumo.unidade_dimensao) {
+                        case 'CENTÍMETROS':
+                        case 'CM':
+                          alturaEmMetros = alturaNum / 100;
+                          break;
+                        case 'MILÍMETROS':
+                        case 'MM':
+                          alturaEmMetros = alturaNum / 1000;
+                          break;
+                        case 'METROS':
+                        case 'M':
+                          // Já está em metros
+                          break;
+                      }
+                      
+                      // Calcular quantidade baseada no tipo de cálculo
+                      switch (insumo.tipo_calculo) {
+                        case 'COMPRIMENTO LINEAR':
+                        case 'LINEAR':
+                          // Para comprimento linear: calcular custo por unidade de uso
+                          const custoPorUnidade = custo / quantidadeCompra;
+                          
+                          if (insumo.unidade_uso === 'CENTIMETRO' || insumo.unidade_uso === 'CM') {
+                            // Se a unidade de uso é centímetro, calcular custo por centímetro
+                            // Para cordão: custo por metro ÷ 100 = custo por centímetro
+                            custoPorUnidadeUso = custoPorUnidade / 100;
+                          } else {
+                            // Para outras unidades de uso, usar o cálculo padrão
+                            custoPorUnidadeUso = custoPorUnidade;
+                          }
+                          break;
+                          
+                        case 'AREA':
+                          // Para área: calcular custo por unidade de uso baseado na área da unidade
+                          if (insumo.largura) {
+                            const larguraNum = Number(insumo.largura);
+                            if (!isNaN(larguraNum)) {
+                              let larguraEmMetros = larguraNum;
+                              
+                              switch (insumo.unidade_dimensao) {
+                                case 'CENTÍMETROS':
+                                case 'CM':
+                                  larguraEmMetros = larguraNum / 100;
+                                  break;
+                                case 'MILÍMETROS':
+                                case 'MM':
+                                  larguraEmMetros = larguraNum / 1000;
+                                  break;
+                              }
+                              
+                              const areaPorUnidade = larguraEmMetros * alturaEmMetros;
+                              
+                              if (insumo.unidade_uso === 'METRO QUADRADO') {
+                                // Se a unidade de uso é metro quadrado, calcular custo por m²
+                                custoPorUnidadeUso = custo / areaPorUnidade;
+                              } else {
+                                // Para outras unidades de uso, usar o cálculo padrão
+                                custoPorUnidadeUso = custo / quantidadeCompra;
+                              }
+                            }
+                          } else {
+                            custoPorUnidadeUso = custo / quantidadeCompra;
+                          }
+                          break;
+                          
+                        case 'QUANTIDADE':
+                          // Para quantidade fixa: usar quantidade diretamente
+                          custoPorUnidadeUso = custo / quantidadeCompra;
+                          break;
+                          
+                        default:
+                          // Padrão: usar quantidade diretamente
+                          custoPorUnidadeUso = custo / quantidadeCompra;
+                      }
+                    }
+                  } else {
+                    // Cálculo padrão: custo / (quantidade * fator)
+                    custoPorUnidadeUso = custo / (quantidadeCompra * fator);
+                  }
+                }
+              }
+              const custoTotal = quantidade * custoPorUnidadeUso;
+              
+              return {
+                ...item,
+                custo_unitario: custoPorUnidadeUso,
+                custo_total: custoTotal,
+              };
+            })
+          );
+
+          // Recalcular custos das máquinas
+          const maquinasComCustosRecalculados = await Promise.all(
+            produto.maquinas.map(async (maquina) => {
+              const maquinaEncontrada = await this.prisma.maquina.findUnique({
+                where: { id: maquina.maquina_id },
+              });
+              
+              const horasUtilizadas = Number(maquina.horas_utilizadas) || 0;
+              const custoHora = maquinaEncontrada ? Number(maquinaEncontrada.custo_hora) : 0;
+              const custoTotal = horasUtilizadas * custoHora;
+              
+              return {
+                ...maquina,
+                custo_total: custoTotal,
+              };
+            })
+          );
+
+          // Recalcular custos das funções
+          const funcoesComCustosRecalculados = await Promise.all(
+            produto.funcoes.map(async (funcao) => {
+              const funcaoEncontrada = await this.prisma.funcao.findUnique({
+                where: { id: funcao.funcao_id },
+              });
+              
+              const horasTrabalhadas = Number(funcao.horas_trabalhadas) || 0;
+              const custoHora = funcaoEncontrada ? Number(funcaoEncontrada.custo_hora) : 0;
+              const custoTotal = horasTrabalhadas * custoHora;
+              
+              return {
+                ...funcao,
+                custo_total: custoTotal,
+              };
+            })
+          );
+
+          // Converter para o formato esperado pelo motor de cálculo
+          const dtoParaOrcamento = {
+            nome_servico: produto.nome_servico,
+            descricao: produto.descricao_produto || undefined,
+            horas_producao: Number(produto.horas_producao) || 0,
+            quantidade_produto: Number(produto.quantidade_padrao) || 1,
+            itens: itensComCustosRecalculados.map(item => ({
+              insumo_id: item.insumo_id,
+              quantidade: Number(item.quantidade) || 0,
+            })),
+            maquinas: maquinasComCustosRecalculados.map(maquina => ({
+              maquina_id: maquina.maquina_id,
+              horas_utilizadas: Number(maquina.horas_utilizadas) || 0,
+            })),
+            funcoes: funcoesComCustosRecalculados.map(funcao => ({
+              funcao_id: funcao.funcao_id,
+              horas_trabalhadas: Number(funcao.horas_trabalhadas) || 0,
+            })),
+            margem_lucro_customizada: undefined,
+            impostos_customizados: undefined,
+          };
+
+          // Calcular o valor usando o motor de cálculo
+          console.log(`🔍 Debug - Calculando produto ${produto.nome}:`, {
+            dtoParaOrcamento,
+            lojaId
+          });
+          
+          const calculo = await this.orcamentosService.calcularOrcamento(dtoParaOrcamento, lojaId);
+          
+          console.log(`🔍 Debug - Resultado do cálculo para ${produto.nome}:`, {
+            preco_final: calculo.custos.preco_final,
+            custo_material: calculo.custos.custo_material,
+            custo_mao_obra: calculo.custos.custo_mao_obra,
+            custo_maquinaria: calculo.custos.custo_maquinaria,
+            custo_indireto: calculo.custos.custo_indireto,
+          });
+          
+          return {
+            ...produto,
+            itens: itensComCustosRecalculados,
+            maquinas: maquinasComCustosRecalculados,
+            funcoes: funcoesComCustosRecalculados,
+            valor_calculado: calculo.custos.preco_final,
+          };
+        } catch (error) {
+          console.error(`Erro ao calcular valor do produto ${produto.id}:`, error);
+          return {
+            ...produto,
+            valor_calculado: 0,
+          };
+        }
+      })
+    );
+
+    return produtosComValor;
   }
 
   async findOne(id: string, lojaId: string) {

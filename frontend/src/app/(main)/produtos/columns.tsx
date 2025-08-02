@@ -14,6 +14,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 
+
 export type Produto = {
   id: string;
   nome: string;
@@ -21,7 +22,7 @@ export type Produto = {
   descricao?: string;
   nome_servico: string;
   descricao_produto?: string;
-  horas_producao: number;
+  horas_producao: number | null;
   largura_produto?: number;
   altura_produto?: number;
   area_produto?: number;
@@ -30,6 +31,7 @@ export type Produto = {
   ativo: boolean;
   criado_em: string;
   atualizado_em: string;
+  valor_calculado?: number;
   itens: Array<{
     id: string;
     quantidade: number;
@@ -70,8 +72,51 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-const formatHours = (hours: number) => {
-  return `${hours.toFixed(2)}h`;
+const formatHours = (hours: number | null | undefined | string | { toString(): string }) => {
+  console.log('formatHours called with:', hours, 'type:', typeof hours);
+  
+  // Se for null, undefined ou NaN
+  if (hours === null || hours === undefined || (typeof hours === 'number' && isNaN(hours))) {
+    console.log('Returning default value for invalid hours');
+    return '0.00h';
+  }
+  
+  // Se for string, tentar converter para número
+  if (typeof hours === 'string') {
+    const numHours = parseFloat(hours);
+    if (isNaN(numHours)) {
+      console.log('Invalid string value for hours');
+      return '0.00h';
+    }
+    console.log('Formatting hours from string:', numHours);
+    return `${numHours.toFixed(2)}h`;
+  }
+  
+  // Se for número
+  if (typeof hours === 'number') {
+    console.log('Formatting hours:', hours);
+    return `${hours.toFixed(2)}h`;
+  }
+  
+  // Se for objeto Decimal do Prisma (tem propriedade toString)
+  if (hours && typeof hours.toString === 'function') {
+    try {
+      const numHours = parseFloat(hours.toString());
+      if (isNaN(numHours)) {
+        console.log('Invalid Decimal value for hours');
+        return '0.00h';
+      }
+      console.log('Formatting hours from Decimal:', numHours);
+      return `${numHours.toFixed(2)}h`;
+    } catch (error) {
+      console.log('Error parsing Decimal:', error);
+      return '0.00h';
+    }
+  }
+  
+  // Fallback
+  console.log('Unknown type for hours, returning default');
+  return '0.00h';
 };
 
 export const createColumns = (onDelete: (id: string, nome: string) => void): ColumnDef<Produto>[] => [
@@ -137,12 +182,36 @@ export const createColumns = (onDelete: (id: string, nome: string) => void): Col
     header: 'Insumos',
     cell: ({ row }) => {
       const itensCount = row.original.itens.length;
-      const custoTotal = row.original.itens.reduce((sum, item) => sum + item.custo_total, 0);
+      
+      // Calcular custo total usando os valores armazenados
+      const custoTotal = row.original.itens.reduce((sum, item) => {
+        let custo = 0;
+        try {
+          custo = parseFloat(String(item.custo_total)) || 0;
+        } catch {
+          custo = 0;
+        }
+        return sum + custo;
+      }, 0);
       
       return (
         <div className="text-sm">
           <div className="font-medium">{itensCount} insumo{itensCount !== 1 ? 's' : ''}</div>
           <div className="text-gray-500">{formatCurrency(custoTotal)}</div>
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: 'valor_calculado',
+    header: 'Valor do Produto',
+    cell: ({ row }) => {
+      const valorCalculado = row.original.valor_calculado || 0;
+      
+      return (
+        <div className="text-sm">
+          <div className="font-semibold text-green-600">{formatCurrency(valorCalculado)}</div>
+          <div className="text-xs text-gray-500">Valor configurado</div>
         </div>
       );
     },

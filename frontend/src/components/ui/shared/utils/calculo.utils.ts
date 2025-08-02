@@ -163,8 +163,6 @@ export function calcularCustoPorUnidadeUso(insumo: Insumo): number {
   const fator = Number(insumo.fator_conversao);
   
   if (quantidade > 0 && fator > 0) {
-    const quantidadeCalculada = quantidade;
-    
     // Se temos dimensões e tipo de cálculo, usar a lógica específica
     if (insumo.altura && insumo.unidade_dimensao && insumo.tipo_calculo) {
       const alturaNum = Number(insumo.altura);
@@ -252,7 +250,8 @@ export function calcularCustoPorUnidadeUso(insumo: Insumo): number {
       }
     }
     
-    return custo / (quantidadeCalculada * fator);
+    // Cálculo padrão: custo / (quantidade * fator)
+    return custo / (quantidade * fator);
   }
   
   return 0;
