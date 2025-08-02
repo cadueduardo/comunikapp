@@ -85,12 +85,18 @@ export function ShareButton({
     >
       {isSharing ? (
         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
-      ) : willUseNativeShare ? (
-        <Smartphone className="h-4 w-4 mr-2" />
+      ) : children ? (
+        children
       ) : (
-        <Copy className="h-4 w-4 mr-2" />
+        <>
+          {willUseNativeShare ? (
+            <Smartphone className="h-4 w-4 mr-2" />
+          ) : (
+            <Copy className="h-4 w-4 mr-2" />
+          )}
+          {willUseNativeShare ? 'Compartilhar' : 'Copiar Link'}
+        </>
       )}
-      {children || (willUseNativeShare ? 'Compartilhar' : 'Copiar Link')}
     </Button>
   );
 }

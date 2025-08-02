@@ -36,7 +36,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 interface TipoMaterialFormProps {
-  defaultValues?: any;
+  defaultValues?: TipoMaterial;
 }
 
 export function TipoMaterialForm({ defaultValues }: TipoMaterialFormProps) {

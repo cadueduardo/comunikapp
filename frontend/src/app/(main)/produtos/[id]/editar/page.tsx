@@ -12,9 +12,6 @@ export default function EditarProdutoPage() {
       <ProdutoForm 
         mode="editar"
         produtoId={produtoId}
-        onSuccess={() => {
-          // Redirecionamento será feito pelo próprio componente
-        }}
       />
     </div>
   );

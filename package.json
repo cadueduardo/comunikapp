@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.7",
-    "@radix-ui/react-select": "^2.2.5"
+    "@radix-ui/react-select": "^2.2.5",
+    "node-fetch": "^3.3.2"
   }
 }

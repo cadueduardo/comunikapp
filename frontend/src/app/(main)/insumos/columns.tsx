@@ -95,7 +95,6 @@ export const createColumns = (onDelete: (id: string, nome: string) => void): Col
       const altura = insumo.altura;
       const quantidadeCompra = Number(insumo.quantidade_compra);
       const unidadeDimensao = insumo.unidade_dimensao;
-      const tipoCalculo = insumo.tipo_calculo;
       const unidadeCompra = insumo.unidade_compra;
       
       let display = '-';

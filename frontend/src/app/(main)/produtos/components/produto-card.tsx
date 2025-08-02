@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { MoreHorizontal, Package, Tag, Clock, DollarSign, Settings } from 'lucide-react';
+import { MoreHorizontal, Package, Tag, Clock } from 'lucide-react';
 import Link from 'next/link';
 
 interface ProdutoCardProps {
@@ -26,14 +26,71 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-const formatHours = (hours: number) => {
-  return `${hours.toFixed(2)}h`;
+const formatHours = (hours: number | null | undefined | string | { toString(): string }) => {
+  // Se for null, undefined ou NaN
+  if (hours === null || hours === undefined || (typeof hours === 'number' && isNaN(hours))) {
+    return '0.00h';
+  }
+  
+  // Se for string, tentar converter para número
+  if (typeof hours === 'string') {
+    const numHours = parseFloat(hours);
+    if (isNaN(numHours)) {
+      return '0.00h';
+    }
+    return `${numHours.toFixed(2)}h`;
+  }
+  
+  // Se for número
+  if (typeof hours === 'number') {
+    return `${hours.toFixed(2)}h`;
+  }
+  
+  // Se for objeto Decimal do Prisma (tem propriedade toString)
+  if (hours && typeof hours.toString === 'function') {
+    try {
+      const numHours = parseFloat(hours.toString());
+      if (isNaN(numHours)) {
+        return '0.00h';
+      }
+      return `${numHours.toFixed(2)}h`;
+    } catch {
+      return '0.00h';
+    }
+  }
+  
+  // Fallback
+  return '0.00h';
 };
 
 export function ProdutoCard({ produto, onDelete }: ProdutoCardProps) {
-  const custoTotalInsumos = produto.itens.reduce((sum, item) => sum + item.custo_total, 0);
-  const custoTotalMaquinas = produto.maquinas.reduce((sum, maquina) => sum + maquina.custo_total, 0);
-  const custoTotalFuncoes = produto.funcoes.reduce((sum, funcao) => sum + funcao.custo_total, 0);
+  const custoTotalInsumos = produto.itens.reduce((sum, item) => {
+    let custo = 0;
+    try {
+      custo = parseFloat(String(item.custo_total)) || 0;
+    } catch {
+      custo = 0;
+    }
+    return sum + custo;
+  }, 0);
+  const custoTotalMaquinas = produto.maquinas.reduce((sum, maquina) => {
+    let custo = 0;
+    try {
+      custo = parseFloat(String(maquina.custo_total)) || 0;
+    } catch {
+      custo = 0;
+    }
+    return sum + custo;
+  }, 0);
+  const custoTotalFuncoes = produto.funcoes.reduce((sum, funcao) => {
+    let custo = 0;
+    try {
+      custo = parseFloat(String(funcao.custo_total)) || 0;
+    } catch {
+      custo = 0;
+    }
+    return sum + custo;
+  }, 0);
   const custoTotal = custoTotalInsumos + custoTotalMaquinas + custoTotalFuncoes;
 
   return (
@@ -147,12 +204,19 @@ export function ProdutoCard({ produto, onDelete }: ProdutoCardProps) {
         </div>
       </div>
 
-      {/* Custos */}
+      {/* Custos e Valor */}
       <div className="pt-2 border-t border-gray-100">
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center justify-between text-sm mb-2">
           <span className="font-medium text-gray-900">Custo Total:</span>
           <span className="font-semibold text-green-600">{formatCurrency(custoTotal)}</span>
         </div>
+        
+        {produto.valor_calculado && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium text-gray-900">Valor Configurado:</span>
+            <span className="font-semibold text-blue-600">{formatCurrency(produto.valor_calculado)}</span>
+          </div>
+        )}
         
         <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
           <div className="text-center">

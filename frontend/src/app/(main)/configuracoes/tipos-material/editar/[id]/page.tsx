@@ -27,7 +27,7 @@ export default function EditarTipoMaterialPage() {
           toast.error('Tipo de material não encontrado');
           router.push('/configuracoes/tipos-material');
         }
-      } catch (error) {
+      } catch {
         toast.error('Erro ao carregar tipo de material');
         router.push('/configuracoes/tipos-material');
       } finally {

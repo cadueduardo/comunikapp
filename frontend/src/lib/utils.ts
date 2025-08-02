@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(
   value: string | number | null | undefined, 
-  withSymbol = true,
+  _withSymbol = true,
   isInitialValue = false
 ): string {
   if (value === null || value === undefined) {
