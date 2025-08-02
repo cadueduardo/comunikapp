@@ -12,13 +12,41 @@ import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 
 // Função para formatar horas
-const formatHours = (hours: number): string => {
-  if (hours === 0) return '0h';
-  if (hours < 1) return `${Math.round(hours * 60)}min`;
-  if (hours === Math.floor(hours)) return `${hours}h`;
-  const wholeHours = Math.floor(hours);
-  const minutes = Math.round((hours - wholeHours) * 60);
-  return `${wholeHours}h ${minutes}min`;
+const formatHours = (hours: number | null | undefined | string | { toString(): string }): string => {
+  // Se for null, undefined ou NaN
+  if (hours === null || hours === undefined || (typeof hours === 'number' && isNaN(hours))) {
+    return '0.00h';
+  }
+  
+  // Se for string, tentar converter para número
+  if (typeof hours === 'string') {
+    const numHours = parseFloat(hours);
+    if (isNaN(numHours)) {
+      return '0.00h';
+    }
+    return `${numHours.toFixed(2)}h`;
+  }
+  
+  // Se for número
+  if (typeof hours === 'number') {
+    return `${hours.toFixed(2)}h`;
+  }
+  
+  // Se for objeto Decimal do Prisma (tem propriedade toString)
+  if (hours && typeof hours.toString === 'function') {
+    try {
+      const numHours = parseFloat(hours.toString());
+      if (isNaN(numHours)) {
+        return '0.00h';
+      }
+      return `${numHours.toFixed(2)}h`;
+    } catch {
+      return '0.00h';
+    }
+  }
+  
+  // Fallback
+  return '0.00h';
 };
 
 interface Produto {

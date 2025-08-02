@@ -109,6 +109,15 @@ export class OrcamentosController {
     return this.orcamentosService.aprovarOrcamento(codigo);
   }
 
+  @Post('reenviar-codigo/:id')
+  @Public()
+  async reenviarCodigoAprovacao(@Param('id') id: string) {
+    console.log('📧 Controller - Reenviando código de aprovação para orçamento:', id);
+    return this.orcamentosService.reenviarCodigoAprovacao(id);
+  }
+
+
+
   @Get()
   async findAll(@CurrentLojaId() lojaId: string) {
     const orcamentos = await this.orcamentosService.findAll(lojaId);

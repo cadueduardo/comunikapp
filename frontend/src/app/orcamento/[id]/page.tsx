@@ -23,6 +23,7 @@ interface Orcamento {
   quantidade_produto?: number;
   unidade_medida_produto?: string;
   criado_em: string;
+  status: string;
   status_aprovacao: string;
   observacoes_cliente?: string;
   
@@ -57,6 +58,7 @@ export default function OrcamentoPublicoPage() {
   const [loading, setLoading] = useState(true);
   const [aprovando, setAprovando] = useState(false);
   const [rejeitando, setRejeitando] = useState(false);
+  const [reenviando, setReenviando] = useState(false);
   const [mostrarChat, setMostrarChat] = useState(false);
   const [motivoRejeicao, setMotivoRejeicao] = useState('');
   const [codigoAprovacao, setCodigoAprovacao] = useState('');
@@ -92,8 +94,15 @@ export default function OrcamentoPublicoPage() {
       return;
     }
 
+    // Validar formato do código (8 caracteres)
+    if (codigoLimpo.length !== 8) {
+      toast.error('Código de aprovação deve ter 8 caracteres');
+      return;
+    }
+
     console.log('🔍 Frontend - Código original:', codigoAprovacao);
     console.log('🔍 Frontend - Código limpo:', codigoLimpo);
+    console.log('🔍 Frontend - Status atual do orçamento:', orcamento?.status_aprovacao);
 
     setAprovando(true);
     try {
@@ -102,15 +111,15 @@ export default function OrcamentoPublicoPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          orcamento_id: orcamento?.id,
-        }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Código de aprovação inválido');
+        throw new Error(errorData.message || 'Erro ao aprovar orçamento');
       }
+
+      const result = await response.json();
+      console.log('🔍 Frontend - Resposta da API:', result);
 
       toast.success('Orçamento aprovado com sucesso!');
       setOrcamento(prev => prev ? { ...prev, status_aprovacao: 'APROVADO' } : null);
@@ -188,6 +197,31 @@ export default function OrcamentoPublicoPage() {
     }
   };
 
+  const handleReenviarCodigo = async () => {
+    setReenviando(true);
+    try {
+      const response = await fetch(`/api/orcamentos/reenviar-codigo/${orcamento?.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro ao reenviar código');
+      }
+
+      await response.json();
+      toast.success('Código de aprovação reenviado com sucesso! Verifique seu email.');
+    } catch (error) {
+      console.error('Erro ao reenviar código:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao reenviar código');
+    } finally {
+      setReenviando(false);
+    }
+  };
+
 
 
   if (loading) {
@@ -213,10 +247,15 @@ export default function OrcamentoPublicoPage() {
     );
   }
 
+  console.log('🔍 Debug - Orçamento completo:', orcamento);
+  console.log('🔍 Debug - Status do orçamento:', orcamento.status);
+  console.log('🔍 Debug - Status aprovação:', orcamento.status_aprovacao);
+  
   const jaAprovado = orcamento.status_aprovacao === 'APROVADO';
   const jaRejeitado = orcamento.status_aprovacao === 'REJEITADO';
   const emNegociacao = orcamento.status_aprovacao === 'NEGOCIANDO';
-  const podeInteragir = !jaAprovado && !jaRejeitado;
+  const emRascunho = orcamento.status === 'rascunho';
+  const podeInteragir = !jaAprovado && !jaRejeitado && !emRascunho;
 
   return (
     <>
@@ -469,8 +508,31 @@ export default function OrcamentoPublicoPage() {
               </div>
             </div>
 
-            {/* Ações do Cliente */}
-            {podeInteragir && (
+            {/* Ações do Cliente ou Mensagem de Rascunho */}
+            {emRascunho ? (
+              <div className="mb-6 print:hidden">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                  <div className="text-center">
+                    <div className="flex items-center justify-center mb-4">
+                      <div className="bg-yellow-100 p-3 rounded-full">
+                        <FileText className="h-8 w-8 text-yellow-600" />
+                      </div>
+                    </div>
+                    <h3 className="text-lg font-semibold text-yellow-900 mb-2">
+                      Orçamento em Rascunho
+                    </h3>
+                    <p className="text-yellow-800 mb-6">
+                      Este orçamento ainda não foi enviado para o cliente. 
+                      As opções de aprovação, negociação e rejeição só estarão 
+                      disponíveis após o orçamento ser enviado.
+                    </p>
+                    <p className="text-sm text-yellow-700">
+                      Entre em contato com a empresa para solicitar o envio do orçamento.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : podeInteragir ? (
               <div className="mb-6 print:hidden">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
                   <h3 className="text-lg font-semibold text-blue-900 mb-4 text-center">
@@ -503,16 +565,26 @@ export default function OrcamentoPublicoPage() {
                               className="mt-1"
                             />
                           </div>
-                          <p className="text-sm text-gray-600">
-                            Não recebeu o código? Verifique sua caixa de spam ou entre em contato conosco.
-                          </p>
-                          <Button 
-                            onClick={handleAprovar}
-                            disabled={aprovando || !codigoAprovacao.trim()}
-                            className="w-full bg-green-600 hover:bg-green-700"
-                          >
-                            {aprovando ? 'Verificando código...' : 'Confirmar Aprovação'}
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button 
+                              onClick={handleAprovar}
+                              disabled={aprovando || !codigoAprovacao.trim()}
+                              className="flex-1 bg-green-600 hover:bg-green-700"
+                            >
+                              {aprovando ? 'Verificando código...' : 'Confirmar Aprovação'}
+                            </Button>
+                            <Button 
+                              onClick={handleReenviarCodigo}
+                              disabled={reenviando}
+                              variant="outline"
+                              className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                            >
+                              {reenviando ? 'Enviando...' : 'Reenviar Código'}
+                            </Button>
+                          </div>
+                                                      <p className="text-sm text-gray-600">
+                              Não recebeu o código? Clique em &quot;Reenviar Código&quot; ou verifique sua caixa de spam.
+                            </p>
                         </div>
                       </DialogContent>
                     </Dialog>
@@ -587,7 +659,7 @@ export default function OrcamentoPublicoPage() {
                   </div>
                 </div>
               </div>
-            )}
+            ) : null}
 
             {/* Observações Finais */}
             <div className="text-xs text-gray-600 space-y-2">

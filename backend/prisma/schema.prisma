@@ -379,6 +379,12 @@ model Orcamento {
   // Código de aprovação
   codigo_aprovacao    String?  @unique
   
+  // Configurações comerciais
+  prazo_entrega       String?  @default("10 a 15 dias úteis")
+  forma_pagamento     String?  @default("50% entrada, restante na entrega")
+  validade_proposta   String?  @default("30 dias")
+  atendente           String?  @default("Equipe Comercial")
+  
   // Relacionamentos
   loja_id     String
   loja        Loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)

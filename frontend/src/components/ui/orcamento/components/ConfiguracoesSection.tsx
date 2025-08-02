@@ -9,7 +9,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Settings } from 'lucide-react';
 
@@ -81,23 +80,88 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
           />
         </div>
 
-        {/* Condições Comerciais */}
-        <FormField
-          control={form.control}
-          name="condicoes_comerciais"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Condições Comerciais</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Digite as condições comerciais (prazo de pagamento, forma de pagamento, etc.)" 
-                  {...field} 
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* Configurações Comerciais */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium text-gray-700">Condições Comerciais</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="prazo_entrega"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Prazo de Entrega</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="text" 
+                      placeholder="10 a 15 dias úteis"
+                      defaultValue="10 a 15 dias úteis"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="forma_pagamento"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Forma de Pagamento</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="text" 
+                      placeholder="50% entrada, restante na entrega"
+                      defaultValue="50% entrada, restante na entrega"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="validade_proposta"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Validade da Proposta</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="text" 
+                      placeholder="30 dias"
+                      defaultValue="30 dias"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="atendente"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Atendente</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="text" 
+                      placeholder="Equipe Comercial"
+                      defaultValue="Equipe Comercial"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

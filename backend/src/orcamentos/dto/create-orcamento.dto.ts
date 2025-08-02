@@ -68,6 +68,23 @@ export class CreateOrcamentoDto {
   @IsOptional()
   condicoes_comerciais?: string;
 
+  // Configurações comerciais
+  @IsString()
+  @IsOptional()
+  prazo_entrega?: string;
+
+  @IsString()
+  @IsOptional()
+  forma_pagamento?: string;
+
+  @IsString()
+  @IsOptional()
+  validade_proposta?: string;
+
+  @IsString()
+  @IsOptional()
+  atendente?: string;
+
   @IsNumber()
   @IsOptional()
   @Type(() => Number)

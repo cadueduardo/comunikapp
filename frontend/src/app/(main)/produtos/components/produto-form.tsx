@@ -8,10 +8,9 @@ import { ProdutoTemplateForm } from '@/components/ui/produto';
 interface ProdutoFormProps {
   mode: 'novo' | 'editar';
   initialData?: Record<string, unknown>;
-  onSuccess?: () => void;
 }
 
-export default function ProdutoForm({ mode, initialData, onSuccess }: ProdutoFormProps) {
+export default function ProdutoForm({ mode, initialData }: ProdutoFormProps) {
   const params = useParams();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -71,7 +70,6 @@ export default function ProdutoForm({ mode, initialData, onSuccess }: ProdutoFor
       mode={mode}
       initialData={initialData || produtoData || undefined}
       produtoId={produtoId}
-      onSuccess={onSuccess}
     />
   );
 } 

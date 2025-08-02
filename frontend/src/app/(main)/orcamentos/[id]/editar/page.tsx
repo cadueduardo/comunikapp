@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { OrcamentoForm } from '@/components/ui/orcamento';
+import { ChatFlutuante } from '@/components/ui/chat-flutuante';
 
 export default function EditarOrcamentoPage() {
   const params = useParams();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [orcamentoData, setOrcamentoData] = useState<Record<string, unknown> | null>(null);
+  const [orcamentoStatus, setOrcamentoStatus] = useState<string>('');
 
   const orcamentoId = params?.id as string;
 
@@ -35,7 +37,10 @@ export default function EditarOrcamentoPage() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('🔍 Debug - Dados do orçamento carregados:', data);
+        console.log('🔍 Debug - Status do orçamento:', data.status);
         setOrcamentoData(data);
+        setOrcamentoStatus(data.status || '');
       } else {
         toast.error('Erro ao carregar dados do orçamento');
         router.push('/orcamentos');
@@ -61,10 +66,17 @@ export default function EditarOrcamentoPage() {
   }
 
   return (
-    <OrcamentoForm
-      mode="editar"
-      initialData={orcamentoData}
-      orcamentoId={orcamentoId}
-    />
+    <>
+      <OrcamentoForm
+        mode="editar"
+        initialData={orcamentoData || undefined}
+        orcamentoId={orcamentoId}
+        orcamentoStatus={orcamentoStatus}
+      />
+      {/* Exibir chat de negociação se o status for 'enviado' ou 'negociando' */}
+      {(orcamentoStatus === 'enviado' || orcamentoStatus === 'negociando') && orcamentoId && (
+        <ChatFlutuante orcamentoId={orcamentoId} />
+      )}
+    </>
   );
 } 

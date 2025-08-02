@@ -11,6 +11,13 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Accordion,
@@ -20,7 +27,7 @@ import {
 } from '@/components/ui/accordion';
 import { Plus, Package, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { calcularArea } from '../../shared/utils/calculo.utils';
+
 import { MaterialSection, MaquinaSection, FuncaoSection } from '../../shared/sections';
 
 interface ProdutoSectionProps {
@@ -81,6 +88,32 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
     }
   };
 
+  // Função para converter medidas para metros
+  const converterParaMetros = (valor: number, unidade: string): number => {
+    switch (unidade.toLowerCase()) {
+      case 'mm':
+        return valor / 1000;
+      case 'cm':
+        return valor / 100;
+      case 'm':
+        return valor;
+      case 'm2':
+        return valor;
+      default:
+        return valor;
+    }
+  };
+
+  // Função para calcular área em m²
+  const calcularArea = (largura: number, altura: number, unidade: string): number => {
+    if (!largura || !altura) return 0;
+    
+    const larguraEmMetros = converterParaMetros(largura, unidade);
+    const alturaEmMetros = converterParaMetros(altura, unidade);
+    
+    return larguraEmMetros * alturaEmMetros;
+  };
+
   // Função para calcular área automaticamente
   const calcularAreaAutomatica = (itemIndex: number) => {
     const largura = Number(form.watch(`itens_produto.${itemIndex}.largura_produto`));
@@ -139,44 +172,63 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
               </AccordionTrigger>
               <AccordionContent>
                 <CardContent className="space-y-6">
-                  {/* Informações do Produto */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name={`itens_produto.${index}.nome_servico`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome do Produto</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Digite o nome do produto" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name={`itens_produto.${index}.quantidade_produto`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Quantidade</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="text" 
-                              placeholder="1"
-                              {...field}
-                              onChange={(e) => {
-                                const value = e.target.value.replace(/[^0-9,.-]/g, '');
-                                field.onChange(value);
-                              }}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                                     {/* Informações do Produto */}
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <FormField
+                       control={form.control}
+                       name={`itens_produto.${index}.nome_servico`}
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>Nome do Produto</FormLabel>
+                           <FormControl>
+                             <Input placeholder="Digite o nome do produto" {...field} />
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
+                     
+                     <FormField
+                       control={form.control}
+                       name={`itens_produto.${index}.quantidade_produto`}
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>Quantidade</FormLabel>
+                           <FormControl>
+                             <Input 
+                               type="text" 
+                               placeholder="1"
+                               {...field}
+                               onChange={(e) => {
+                                 const value = e.target.value.replace(/[^0-9,.-]/g, '');
+                                 field.onChange(value);
+                               }}
+                             />
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
+
+                     {/* Botão Carregar Produto */}
+                     {onCarregarProduto && (
+                       <FormItem>
+                         <FormLabel>&nbsp;</FormLabel>
+                         <FormControl>
+                           <Button
+                             type="button"
+                             variant="outline"
+                             size="sm"
+                             onClick={() => onCarregarProduto(index)}
+                             className="w-full flex items-center space-x-2"
+                           >
+                             <Loader2 className="w-4 h-4" />
+                             <span>Carregar Produto</span>
+                           </Button>
+                         </FormControl>
+                       </FormItem>
+                     )}
+                   </div>
 
                   <FormField
                     control={form.control}
@@ -247,27 +299,33 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
                          )}
                        />
                       
-                                             <FormField
-                         control={form.control}
-                         name={`itens_produto.${index}.unidade_medida_produto`}
-                         render={({ field }) => (
-                           <FormItem>
-                             <FormLabel>Unidade de Medida</FormLabel>
-                             <FormControl>
-                               <Input 
-                                 placeholder="cm, m, mm" 
-                                 {...field}
-                                 onChange={(e) => {
-                                   field.onChange(e.target.value);
-                                   // Calcular área automaticamente
-                                   setTimeout(() => calcularAreaAutomatica(index), 0);
-                                 }}
-                               />
-                             </FormControl>
-                             <FormMessage />
-                           </FormItem>
-                         )}
-                       />
+                                                                     <FormField
+                          control={form.control}
+                          name={`itens_produto.${index}.unidade_medida_produto`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Unidade de Medida</FormLabel>
+                              <Select onValueChange={(value) => {
+                                field.onChange(value);
+                                setTimeout(() => calcularAreaAutomatica(index), 0);
+                              }} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecione a unidade" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="mm">Milímetros (mm)</SelectItem>
+                                  <SelectItem value="cm">Centímetros (cm)</SelectItem>
+                                  <SelectItem value="m">Metros (m)</SelectItem>
+                                  <SelectItem value="un">Unidade (un)</SelectItem>
+                                  <SelectItem value="kg">Quilogramas (kg)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       
                                              <FormField
                          control={form.control}
@@ -291,20 +349,7 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
                     </div>
                   </div>
 
-                  {/* Botão Carregar Produto */}
-                  {onCarregarProduto && (
-                    <div className="flex justify-end">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => onCarregarProduto(index)}
-                        className="flex items-center space-x-2"
-                      >
-                        <Loader2 className="w-4 h-4" />
-                        <span>Carregar Produto</span>
-                      </Button>
-                    </div>
-                  )}
+                  
 
                   {/* Seções de Materiais, Máquinas e Funções */}
                   <div className="space-y-6">

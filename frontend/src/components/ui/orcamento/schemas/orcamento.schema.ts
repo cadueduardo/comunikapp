@@ -6,6 +6,11 @@ export const createFormSchema = (mode: 'novo' | 'editar' | 'template') => z.obje
   margem_lucro_customizada: z.string().optional(),
   impostos_customizados: z.string().optional(),
   condicoes_comerciais: z.string().optional(),
+  // Configurações comerciais
+  prazo_entrega: z.string().optional(),
+  forma_pagamento: z.string().optional(),
+  validade_proposta: z.string().optional(),
+  atendente: z.string().optional(),
   // Itens de produto
   itens_produto: z.array(z.object({
     nome_servico: z.string().min(1, 'Nome do produto é obrigatório'),

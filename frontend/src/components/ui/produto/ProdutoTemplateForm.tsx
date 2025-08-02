@@ -5,8 +5,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Form } from '@/components/ui/form';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
+import { ArrowLeft, Save, Calculator } from 'lucide-react';
+import { createProdutoSchema, ProdutoFormValues } from './schemas/produto.schema';
+import { useProdutoData } from './hooks/useProdutoData';
+import { MaterialSection, MaquinaSection, FuncaoSection, CalculoPreview } from '../shared/sections';
 import {
-  Form,
   FormControl,
   FormField,
   FormItem,
@@ -14,28 +20,17 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { toast } from 'sonner';
-import { ArrowLeft, Save } from 'lucide-react';
-import { createProdutoSchema, ProdutoFormValues } from './schemas/produto.schema';
-import { useProdutoData } from './hooks/useProdutoData';
-import { MaterialSection, MaquinaSection, FuncaoSection, CalculoPreview } from '../shared/sections';
-import { calcularArea } from '../shared/utils/calculo.utils';
 
 interface ProdutoTemplateFormProps {
   mode: 'novo' | 'editar';
   initialData?: Record<string, unknown>;
   produtoId?: string;
-  onSuccess?: () => void;
 }
 
 export function ProdutoTemplateForm({ 
   mode, 
   initialData, 
-  produtoId, 
-  onSuccess 
+  produtoId
 }: ProdutoTemplateFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -63,21 +58,34 @@ export function ProdutoTemplateForm({
   // Carregar dados iniciais se for edição
   useEffect(() => {
     if (mode === 'editar' && initialData) {
-      // Adaptar dados do orçamento para o formato do produto
+      // Adaptar dados do produto para o formato do formulário
       const dadosAdaptados = {
-        itens_produto: Array.isArray(initialData.itens_produto) 
-          ? initialData.itens_produto.slice(0, 1) // Pegar apenas o primeiro item
-          : [{
-              nome_servico: initialData.nome_servico || '',
-              descricao: initialData.descricao || '',
-              largura_produto: initialData.largura_produto || '',
-              altura_produto: initialData.altura_produto || '',
-              unidade_medida_produto: initialData.unidade_medida_produto || '',
-              area_produto: initialData.area_produto || '',
-              materiais: Array.isArray(initialData.materiais) ? initialData.materiais : [{ insumo_id: '', quantidade: '1' }],
-              maquinas: Array.isArray(initialData.maquinas) ? initialData.maquinas : [{ maquina_id: '', horas_utilizadas: '1' }],
-              funcoes: Array.isArray(initialData.funcoes) ? initialData.funcoes : [{ funcao_id: '', horas_trabalhadas: '1' }],
-            }]
+        itens_produto: [{
+          nome_servico: String(initialData.nome_servico || ''),
+          descricao: String(initialData.descricao_produto || ''),
+          largura_produto: initialData.largura_produto ? String(initialData.largura_produto) : '',
+          altura_produto: initialData.altura_produto ? String(initialData.altura_produto) : '',
+          unidade_medida_produto: String(initialData.unidade_medida_produto || ''),
+          area_produto: initialData.area_produto ? String(initialData.area_produto) : '',
+          materiais: Array.isArray(initialData.itens) 
+            ? initialData.itens.map(item => ({
+                insumo_id: String(item.insumo_id),
+                quantidade: String(item.quantidade),
+              }))
+            : [{ insumo_id: '', quantidade: '1' }],
+          maquinas: Array.isArray(initialData.maquinas) 
+            ? initialData.maquinas.map(maquina => ({
+                maquina_id: String(maquina.maquina_id),
+                horas_utilizadas: String(maquina.horas_utilizadas),
+              }))
+            : [{ maquina_id: '', horas_utilizadas: '1' }],
+          funcoes: Array.isArray(initialData.funcoes) 
+            ? initialData.funcoes.map(funcao => ({
+                funcao_id: String(funcao.funcao_id),
+                horas_trabalhadas: String(funcao.horas_trabalhadas),
+              }))
+            : [{ funcao_id: '', horas_trabalhadas: '1' }],
+        }]
       };
       
       form.reset(dadosAdaptados);
@@ -93,26 +101,81 @@ export function ProdutoTemplateForm({
         return;
       }
 
+      // Pegar o primeiro item do produto para os dados básicos
+      const primeiroItem = data.itens_produto[0];
+      
+      // Mapear itens do formulário com custos calculados
+      const itensParaEnviar = primeiroItem.materiais.map(material => {
+        const insumo = insumos.find(i => i.id === material.insumo_id);
+        const quantidade = Number(String(material.quantidade).replace(',', '.'));
+        const custoUnitario = insumo ? insumo.custo_unitario : 0;
+        const custoTotal = quantidade * custoUnitario;
+        
+        return {
+          insumo_id: material.insumo_id,
+          quantidade: quantidade,
+          custo_unitario: custoUnitario,
+          custo_total: custoTotal,
+        };
+      });
+      
+      const maquinasParaEnviar = primeiroItem.maquinas.map(maquina => {
+        const maquinaEncontrada = maquinas.find(m => m.id === maquina.maquina_id);
+        const horasUtilizadas = Number(maquina.horas_utilizadas);
+        const custoTotal = maquinaEncontrada ? horasUtilizadas * maquinaEncontrada.custo_hora : 0;
+        
+        return {
+          maquina_id: maquina.maquina_id,
+          horas_utilizadas: horasUtilizadas,
+          custo_total: custoTotal,
+        };
+      });
+      
+      const funcoesParaEnviar = primeiroItem.funcoes.map(funcao => {
+        const funcaoEncontrada = funcoes.find(f => f.id === funcao.funcao_id);
+        const horasTrabalhadas = Number(funcao.horas_trabalhadas);
+        const custoTotal = funcaoEncontrada ? horasTrabalhadas * funcaoEncontrada.custo_hora : 0;
+        
+        return {
+          funcao_id: funcao.funcao_id,
+          horas_trabalhadas: horasTrabalhadas,
+          custo_total: custoTotal,
+        };
+      });
+
+      // Calcular horas de produção
+      const horasMaquinas = primeiroItem.maquinas.reduce((total, maquina) => {
+        return total + (Number(maquina.horas_utilizadas) || 0);
+      }, 0);
+      
+      const horasFuncoes = primeiroItem.funcoes.reduce((total, funcao) => {
+        return total + (Number(funcao.horas_trabalhadas) || 0);
+      }, 0);
+      
+      const horasProducao = horasMaquinas + horasFuncoes;
+
+      const dadosParaEnviar = {
+        nome: primeiroItem.nome_servico, // Campo obrigatório
+        categoria: 'Produto', // Campo obrigatório
+        nome_servico: primeiroItem.nome_servico,
+        descricao_produto: primeiroItem.descricao || '',
+        horas_producao: Math.max(horasProducao || 0, 0.1), // Mínimo 0.1h, garantir que seja número
+        // Dimensões do produto
+        largura_produto: primeiroItem.largura_produto ? parseFloat(primeiroItem.largura_produto) : undefined,
+        altura_produto: primeiroItem.altura_produto ? parseFloat(primeiroItem.altura_produto) : undefined,
+        area_produto: primeiroItem.area_produto ? parseFloat(primeiroItem.area_produto) : undefined,
+        unidade_medida_produto: primeiroItem.unidade_medida_produto || '',
+        // Itens mapeados
+        itens: itensParaEnviar,
+        maquinas: maquinasParaEnviar,
+        funcoes: funcoesParaEnviar,
+      };
+
       const url = mode === 'novo' 
         ? 'http://localhost:3001/produtos'
         : `http://localhost:3001/produtos/${produtoId}`;
       
       const method = mode === 'novo' ? 'POST' : 'PATCH';
-      
-      // Extrair dados do primeiro item (produto é individual)
-      const primeiroItem = data.itens_produto[0];
-      
-      const produtoData = {
-        nome_servico: primeiroItem.nome_servico,
-        descricao: primeiroItem.descricao,
-        largura_produto: primeiroItem.largura_produto,
-        altura_produto: primeiroItem.altura_produto,
-        unidade_medida_produto: primeiroItem.unidade_medida_produto,
-        area_produto: primeiroItem.area_produto,
-        materiais: primeiroItem.materiais,
-        maquinas: primeiroItem.maquinas,
-        funcoes: primeiroItem.funcoes,
-      };
 
       const response = await fetch(url, {
         method,
@@ -120,16 +183,13 @@ export function ProdutoTemplateForm({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(produtoData),
+        body: JSON.stringify(dadosParaEnviar),
       });
 
       if (response.ok) {
         toast.success(mode === 'novo' ? 'Produto criado com sucesso!' : 'Produto atualizado com sucesso!');
-        if (onSuccess) {
-          onSuccess();
-        } else {
-          router.push('/produtos');
-        }
+        // Sempre redirecionar para a lista de produtos
+        router.push('/produtos');
       } else {
         const errorData = await response.json();
         toast.error(errorData.message || 'Erro ao salvar produto');
@@ -142,17 +202,25 @@ export function ProdutoTemplateForm({
     }
   };
 
-  const handleCalcularArea = () => {
-    const largura = Number(form.watch('itens_produto.0.largura_produto'));
-    const altura = Number(form.watch('itens_produto.0.altura_produto'));
-    const unidade = form.watch('itens_produto.0.unidade_medida_produto');
+  const getTitle = () => {
+    switch (mode) {
+      case 'novo':
+        return 'Novo Produto Template';
+      case 'editar':
+        return 'Editar Produto Template';
+      default:
+        return 'Produto Template';
+    }
+  };
 
-    if (largura && altura && unidade) {
-      const area = calcularArea(largura, altura, unidade);
-      form.setValue('itens_produto.0.area_produto', area.toFixed(2));
-      toast.success(`Área calculada: ${area.toFixed(2)} m²`);
-    } else {
-      toast.error('Preencha largura, altura e unidade de medida para calcular a área');
+  const getDescription = () => {
+    switch (mode) {
+      case 'novo':
+        return 'Crie um novo template de produto para uso rápido em orçamentos';
+      case 'editar':
+        return 'Edite as informações do produto template';
+      default:
+        return '';
     }
   };
 
@@ -170,127 +238,67 @@ export function ProdutoTemplateForm({
             <span>Voltar</span>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">
-              {mode === 'novo' ? 'Novo Produto Template' : 'Editar Produto Template'}
-            </h1>
-            <p className="text-muted-foreground">
-              {mode === 'novo' ? 'Crie um novo template de produto' : 'Edite o template de produto'}
-            </p>
+            <h1 className="text-2xl font-bold">{getTitle()}</h1>
+            <p className="text-muted-foreground">{getDescription()}</p>
           </div>
         </div>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          
-          {/* Informações do Produto */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações do Produto</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="itens_produto.0.nome_servico"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome do Produto</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Digite o nome do produto" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="itens_produto.0.descricao"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Descrição</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Digite a descrição do produto" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-screen">
+          {/* Formulário */}
+          <div className="lg:col-span-2 space-y-6">
+            
+            {/* Seção de Produto */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Informações do Produto</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Nome e Descrição */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="itens_produto.0.nome_servico"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome do Produto</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Digite o nome do produto" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="itens_produto.0.descricao"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Descrição</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Digite a descrição do produto" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-              {/* Medidas do Produto */}
-              <div className="space-y-4">
-                <h4 className="text-sm font-medium">Medidas do Produto</h4>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="itens_produto.0.largura_produto"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Largura</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="text" 
-                            placeholder="0.00"
-                            {...field}
-                            onChange={(e) => {
-                              const value = e.target.value.replace(/[^0-9,.-]/g, '');
-                              field.onChange(value);
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="itens_produto.0.altura_produto"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Altura</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="text" 
-                            placeholder="0.00"
-                            {...field}
-                            onChange={(e) => {
-                              const value = e.target.value.replace(/[^0-9,.-]/g, '');
-                              field.onChange(value);
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="itens_produto.0.unidade_medida_produto"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Unidade de Medida</FormLabel>
-                        <FormControl>
-                          <Input placeholder="cm, m, mm" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="flex items-end space-x-2">
+                {/* Medidas do Produto */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium">Medidas do Produto</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <FormField
                       control={form.control}
-                      name="itens_produto.0.area_produto"
+                      name="itens_produto.0.largura_produto"
                       render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormLabel>Área (m²)</FormLabel>
+                        <FormItem>
+                          <FormLabel>Largura</FormLabel>
                           <FormControl>
                             <Input 
                               type="text" 
@@ -299,6 +307,27 @@ export function ProdutoTemplateForm({
                               onChange={(e) => {
                                 const value = e.target.value.replace(/[^0-9,.-]/g, '');
                                 field.onChange(value);
+                                
+                                // Calcular área automaticamente
+                                const largura = parseFloat(value.replace(',', '.'));
+                                const altura = parseFloat((form.getValues('itens_produto.0.altura_produto') || '').replace(',', '.'));
+                                const unidade = form.getValues('itens_produto.0.unidade_medida_produto') || '';
+                                
+                                if (!isNaN(largura) && !isNaN(altura) && largura > 0 && altura > 0) {
+                                  let area = largura * altura;
+                                  
+                                  // Converter para m² baseado na unidade
+                                  if (unidade === 'cm') {
+                                    area = area / 10000; // cm² para m²
+                                  } else if (unidade === 'mm') {
+                                    area = area / 1000000; // mm² para m²
+                                  } else if (unidade === 'pol') {
+                                    area = area * 0.00064516; // polegadas² para m²
+                                  }
+                                  // Se for metros, já está em m²
+                                  
+                                  form.setValue('itens_produto.0.area_produto', area.toFixed(2));
+                                }
                               }}
                             />
                           </FormControl>
@@ -306,73 +335,183 @@ export function ProdutoTemplateForm({
                         </FormItem>
                       )}
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleCalcularArea}
-                      className="mb-2"
-                    >
-                      Calcular
-                    </Button>
+                    
+                    <FormField
+                      control={form.control}
+                      name="itens_produto.0.altura_produto"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Altura</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="text" 
+                              placeholder="0.00"
+                              {...field}
+                              onChange={(e) => {
+                                const value = e.target.value.replace(/[^0-9,.-]/g, '');
+                                field.onChange(value);
+                                
+                                // Calcular área automaticamente
+                                const altura = parseFloat(value.replace(',', '.'));
+                                const largura = parseFloat((form.getValues('itens_produto.0.largura_produto') || '').replace(',', '.'));
+                                const unidade = form.getValues('itens_produto.0.unidade_medida_produto') || '';
+                                
+                                if (!isNaN(largura) && !isNaN(altura) && largura > 0 && altura > 0) {
+                                  let area = largura * altura;
+                                  
+                                  // Converter para m² baseado na unidade
+                                  if (unidade === 'cm') {
+                                    area = area / 10000; // cm² para m²
+                                  } else if (unidade === 'mm') {
+                                    area = area / 1000000; // mm² para m²
+                                  } else if (unidade === 'pol') {
+                                    area = area * 0.00064516; // polegadas² para m²
+                                  }
+                                  // Se for metros, já está em m²
+                                  
+                                  form.setValue('itens_produto.0.area_produto', area.toFixed(2));
+                                }
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="itens_produto.0.unidade_medida_produto"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Unidade de Medida</FormLabel>
+                          <FormControl>
+                            <select 
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                
+                                // Recalcular área quando a unidade mudar
+                                const largura = parseFloat((form.getValues('itens_produto.0.largura_produto') || '').replace(',', '.'));
+                                const altura = parseFloat((form.getValues('itens_produto.0.altura_produto') || '').replace(',', '.'));
+                                const unidade = e.target.value;
+                                
+                                if (!isNaN(largura) && !isNaN(altura) && largura > 0 && altura > 0) {
+                                  let area = largura * altura;
+                                  
+                                  // Converter para m² baseado na unidade
+                                  if (unidade === 'cm') {
+                                    area = area / 10000; // cm² para m²
+                                  } else if (unidade === 'mm') {
+                                    area = area / 1000000; // mm² para m²
+                                  } else if (unidade === 'pol') {
+                                    area = area * 0.00064516; // polegadas² para m²
+                                  }
+                                  // Se for metros, já está em m²
+                                  
+                                  form.setValue('itens_produto.0.area_produto', area.toFixed(2));
+                                }
+                              }}
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <option value="">Selecione</option>
+                              <option value="cm">Centímetros (cm)</option>
+                              <option value="m">Metros (m)</option>
+                              <option value="mm">Milímetros (mm)</option>
+                              <option value="pol">Polegadas (pol)</option>
+                            </select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="itens_produto.0.area_produto"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Área (m²)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="text" 
+                              placeholder="0.00"
+                              {...field}
+                              readOnly
+                              className="bg-gray-50"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
 
-          <Separator />
+                {/* Seções Compartilhadas dentro do card */}
+                <MaterialSection
+                  variant="produto"
+                  itemIndex={0}
+                  insumos={insumos}
+                />
 
-          {/* Seções Compartilhadas */}
-          <MaterialSection
-            variant="produto"
-            itemIndex={0}
-            insumos={insumos}
-          />
+                <MaquinaSection
+                  variant="produto"
+                  itemIndex={0}
+                  maquinas={maquinas}
+                />
 
-          <Separator />
+                <FuncaoSection
+                  variant="produto"
+                  itemIndex={0}
+                  funcoes={funcoes}
+                />
+              </CardContent>
+            </Card>
 
-          <MaquinaSection
-            variant="produto"
-            itemIndex={0}
-            maquinas={maquinas}
-          />
+            {/* Botões de Ação */}
+            <div className="flex justify-end space-x-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="flex items-center space-x-2"
+              >
+                <Save className="w-4 h-4" />
+                <span>
+                  {loading ? 'Salvando...' : (mode === 'novo' ? 'Criar Produto' : 'Atualizar Produto')}
+                </span>
+              </Button>
+            </div>
+          </div>
 
-          <Separator />
-
-          <FuncaoSection
-            variant="produto"
-            itemIndex={0}
-            funcoes={funcoes}
-          />
-
-          <Separator />
-
-          {/* Preview do Cálculo */}
-          <CalculoPreview
-            variant="produto"
-            itemIndex={0}
-            insumos={insumos}
-            maquinas={maquinas}
-            funcoes={funcoes}
-          />
-
-          {/* Botões de Ação */}
-          <div className="flex justify-end space-x-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.back()}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading}
-              className="flex items-center space-x-2"
-            >
-              <Save className="w-4 h-4" />
-              <span>{loading ? 'Salvando...' : (mode === 'novo' ? 'Criar Produto' : 'Atualizar Produto')}</span>
-            </Button>
+          {/* Sidebar com Preview do Cálculo */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-6 h-[calc(100vh-3rem)] flex flex-col">
+              <Card className="flex-1 flex flex-col h-full">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calculator className="w-5 h-5" />
+                    Preview do Cálculo
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-y-auto">
+                  <CalculoPreview
+                    variant="produto"
+                    itemIndex={0}
+                    insumos={insumos}
+                    maquinas={maquinas}
+                    funcoes={funcoes}
+                  />
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </form>
       </Form>
