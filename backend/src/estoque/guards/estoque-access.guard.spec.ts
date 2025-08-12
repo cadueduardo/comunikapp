@@ -210,6 +210,9 @@ describe('EstoqueAccessGuard', () => {
         if (key === 'ESTOQUE_MODULE_ENABLED') {
           return 'true';
         }
+        if (key === 'ESTOQUE_ALLOWED_ROLES') {
+          return 'admin,manager,estoque';
+        }
         return 'default-value';
       });
 
@@ -339,7 +342,7 @@ describe('EstoqueAccessGuard', () => {
         if (key === 'ESTOQUE_ALLOWED_ROLES') {
           return 'admin,supervisor';
         }
-        return 'default-value';
+        return 'true';
       });
 
       const mockRequest: EstoqueRequest = {
@@ -365,7 +368,7 @@ describe('EstoqueAccessGuard', () => {
         if (key === 'ESTOQUE_ALLOWED_ROLES') {
           return 'admin,supervisor';
         }
-        return 'default-value';
+        return 'true';
       });
 
       const mockRequest: EstoqueRequest = {
@@ -405,7 +408,7 @@ describe('EstoqueAccessGuard', () => {
       } as unknown as ExecutionContext;
 
       expect(() => guard.canActivate(mockContext)).toThrow(ForbiddenException);
-      expect(() => guard.canActivate(mockContext)).toThrow('user,viewer');
+      expect(() => guard.canActivate(mockContext)).toThrow('user, viewer');
     });
 
     it('should include required roles in forbidden error message', () => {

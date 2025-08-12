@@ -33,7 +33,7 @@ describe('HealthController', () => {
     expect(controller).toBeDefined();
   });
 
-  describe('check', () => {
+  describe('dbCheck', () => {
     it('should return health status successfully', async () => {
       const expectedResult = {
         status: 'ok',
@@ -45,7 +45,7 @@ describe('HealthController', () => {
 
       mockEstoqueService.healthCheck.mockResolvedValue(expectedResult);
 
-      const result = await controller.check();
+      const result = await controller.dbCheck();
 
       expect(result).toHaveProperty('status');
       expect(result).toHaveProperty('timestamp');
@@ -59,7 +59,7 @@ describe('HealthController', () => {
         new Error('Service error'),
       );
 
-      const result = await controller.check();
+      const result = await controller.dbCheck();
 
       expect(result).toHaveProperty('status');
       expect(result).toHaveProperty('timestamp');
@@ -70,21 +70,5 @@ describe('HealthController', () => {
     });
   });
 
-  describe('info', () => {
-    it('should return module information', async () => {
-      const result = await controller.info();
-
-      expect(result).toHaveProperty('name');
-      expect(result).toHaveProperty('version');
-      expect(result).toHaveProperty('description');
-      expect(result).toHaveProperty('features');
-      expect(result).toHaveProperty('isolation');
-      expect(result).toHaveProperty('multiTenant');
-      expect(result.name).toBe('estoque');
-      expect(result.version).toBe('1.0.0');
-      expect(result.isolation).toBe(true);
-      expect(result.multiTenant).toBe(true);
-      expect(Array.isArray(result.features)).toBe(true);
-    });
-  });
+  // info endpoint não existe mais neste controller; coberto por swagger
 });

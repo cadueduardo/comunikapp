@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ItensController } from './itens.controller';
 import { EstoqueSimpleService } from '../services/estoque-simple.service';
 import { CreateItemEstoqueDto } from '../dto/create-item-estoque.dto';
-import { QueryItensDto } from '../dto/query-estoque.dto';
+import { QueryItensEstoqueDto } from '../dto/query-estoque.dto';
 import { EstoqueRequest } from '../middleware/tenant-isolation.middleware';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
@@ -15,7 +15,7 @@ describe('ItensController', () => {
     listarItensEstoque: jest.fn(),
     buscarItemEstoquePorId: jest.fn(),
     atualizarItemEstoque: jest.fn(),
-    deletarItemEstoque: jest.fn(),
+    excluirItemEstoque: jest.fn(),
   };
 
   const mockRequest: EstoqueRequest = {
@@ -50,13 +50,16 @@ describe('ItensController', () => {
 
   describe('criar', () => {
     it('should create a stock item successfully', async () => {
-      const createDto: CreateItemEstoqueDto = {
+      const createDto: any = {
         insumoId: 'insumo-123',
         localizacaoId: 'loc-123',
+        nome: 'Item X',
         quantidadeAtual: 100,
+        quantidadeReservada: 0,
+        unidadeMedida: 'un',
+        precoUnitario: 25.5,
         estoqueMinimo: 10,
         estoqueMaximo: 200,
-        valorUnitario: 25.5,
       };
 
       const expectedResult = {
@@ -70,20 +73,20 @@ describe('ItensController', () => {
 
       mockEstoqueService.criarItemEstoque.mockResolvedValue(expectedResult);
 
-      const result = await controller.criar(createDto, mockRequest);
+      const result = await controller.criar(createDto as any, { id: 'loja-123' } as any);
 
       expect(result).toEqual(expectedResult);
       expect(mockEstoqueService.criarItemEstoque).toHaveBeenCalledWith(
         {
-          lojaId: mockRequest.estoque.lojaId,
-          usuarioId: mockRequest.estoque.usuarioId,
+          lojaId: 'loja-123',
+          usuarioId: 'loja-123',
         },
         createDto,
       );
     });
 
     it('should throw BadRequestException when service throws error', async () => {
-      const createDto: CreateItemEstoqueDto = {
+      const createDto: any = {
         insumoId: 'insumo-123',
         localizacaoId: 'loc-123',
       };
@@ -92,7 +95,7 @@ describe('ItensController', () => {
         new BadRequestException('Dados inválidos'),
       );
 
-      await expect(controller.criar(createDto, mockRequest)).rejects.toThrow(
+      await expect(controller.criar(createDto as any, { id: 'loja-123' } as any)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -100,10 +103,9 @@ describe('ItensController', () => {
 
   describe('listar', () => {
     it('should return paginated stock items list', async () => {
-      const query: QueryItensDto = {
+      const query: QueryItensEstoqueDto = {
         page: 1,
         limit: 10,
-        search: 'material',
         insumoId: 'insumo-123',
         localizacaoId: 'loc-123',
       };
@@ -136,20 +138,19 @@ describe('ItensController', () => {
 
       mockEstoqueService.listarItensEstoque.mockResolvedValue(expectedResult);
 
-      const result = await controller.listar(query, mockRequest);
+      const result = await controller.listar(query as any, { id: 'loja-123' } as any);
 
       expect(result).toEqual(expectedResult);
       expect(mockEstoqueService.listarItensEstoque).toHaveBeenCalledWith(
         {
-          lojaId: mockRequest.estoque.lojaId,
-          usuarioId: mockRequest.estoque.usuarioId,
+          lojaId: 'loja-123',
         },
         query,
       );
     });
 
     it('should handle empty results', async () => {
-      const query: QueryItensDto = {};
+      const query: QueryItensEstoqueDto = {} as any;
 
       const expectedResult = {
         data: [],
@@ -163,7 +164,7 @@ describe('ItensController', () => {
 
       mockEstoqueService.listarItensEstoque.mockResolvedValue(expectedResult);
 
-      const result = await controller.listar(query, mockRequest);
+      const result = await controller.listar(query as any, { id: 'loja-123' } as any);
 
       expect(result).toEqual(expectedResult);
       expect(result.data).toHaveLength(0);
@@ -194,13 +195,12 @@ describe('ItensController', () => {
         expectedResult,
       );
 
-      const result = await controller.buscarPorId(itemId, mockRequest);
+      const result = await controller.buscarPorId(itemId, { id: 'loja-123' } as any);
 
       expect(result).toEqual(expectedResult);
       expect(mockEstoqueService.buscarItemEstoquePorId).toHaveBeenCalledWith(
         {
-          lojaId: mockRequest.estoque.lojaId,
-          usuarioId: mockRequest.estoque.usuarioId,
+          lojaId: 'loja-123',
         },
         itemId,
       );
@@ -213,7 +213,7 @@ describe('ItensController', () => {
         new NotFoundException('Item não encontrado'),
       );
 
-      await expect(controller.buscarPorId(itemId, mockRequest)).rejects.toThrow(
+      await expect(controller.buscarPorId(itemId, { id: 'loja-123' } as any)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -246,13 +246,13 @@ describe('ItensController', () => {
 
       mockEstoqueService.atualizarItemEstoque.mockResolvedValue(expectedResult);
 
-      const result = await controller.atualizar(itemId, updateDto, mockRequest);
+      const result = await controller.atualizar(itemId, updateDto as any, { id: 'loja-123' } as any);
 
       expect(result).toEqual(expectedResult);
       expect(mockEstoqueService.atualizarItemEstoque).toHaveBeenCalledWith(
         {
-          lojaId: mockRequest.estoque.lojaId,
-          usuarioId: mockRequest.estoque.usuarioId,
+          lojaId: 'loja-123',
+          usuarioId: 'loja-123',
         },
         itemId,
         updateDto,
@@ -268,12 +268,12 @@ describe('ItensController', () => {
       );
 
       await expect(
-        controller.atualizar(itemId, updateDto, mockRequest),
+        controller.atualizar(itemId, updateDto as any, { id: 'loja-123' } as any),
       ).rejects.toThrow(NotFoundException);
     });
   });
 
-  describe('deletar', () => {
+  describe('excluir', () => {
     it('should delete stock item successfully', async () => {
       const itemId = 'item-123';
 
@@ -291,15 +291,15 @@ describe('ItensController', () => {
         updatedAt: new Date(),
       };
 
-      mockEstoqueService.deletarItemEstoque.mockResolvedValue(expectedResult);
+      mockEstoqueService.excluirItemEstoque.mockResolvedValue(expectedResult);
 
-      const result = await controller.deletar(itemId, mockRequest);
+      const result = await controller.excluir(itemId, { id: 'loja-123' } as any);
 
       expect(result).toEqual(expectedResult);
-      expect(mockEstoqueService.deletarItemEstoque).toHaveBeenCalledWith(
+      expect(mockEstoqueService.excluirItemEstoque).toHaveBeenCalledWith(
         {
-          lojaId: mockRequest.estoque.lojaId,
-          usuarioId: mockRequest.estoque.usuarioId,
+          lojaId: 'loja-123',
+          usuarioId: 'loja-123',
         },
         itemId,
       );
@@ -308,11 +308,11 @@ describe('ItensController', () => {
     it('should throw NotFoundException when item not found', async () => {
       const itemId = 'item-not-found';
 
-      mockEstoqueService.deletarItemEstoque.mockRejectedValue(
+      mockEstoqueService.excluirItemEstoque.mockRejectedValue(
         new NotFoundException('Item não encontrado'),
       );
 
-      await expect(controller.deletar(itemId, mockRequest)).rejects.toThrow(
+      await expect(controller.excluir(itemId, mockRequest as any)).rejects.toThrow(
         NotFoundException,
       );
     });

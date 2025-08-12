@@ -51,16 +51,18 @@ export class EstoqueAccessGuard implements CanActivate {
     // 5. VERIFICAÇÃO DE PERMISSÕES POR ROLE
     const allowedRoles = this.configService
       .get('ESTOQUE_ALLOWED_ROLES', 'ADMINISTRADOR,FINANCEIRO,ESTOQUE')
-      .split(',');
+      .split(',')
+      .map((r) => r.trim().toLowerCase());
     const userRoles = request.estoque.roles || [];
 
-    const hasPermission = userRoles.some((role) =>
-      allowedRoles.includes(role.trim()),
+    const normalizedUserRoles = userRoles.map((r) => r.trim().toLowerCase());
+    const hasPermission = normalizedUserRoles.some((role) =>
+      allowedRoles.includes(role),
     );
     if (!hasPermission) {
       throw new ForbiddenException(
-        `Acesso negado. Roles necessárias: ${allowedRoles.join(', ')}. ` +
-          `Suas roles: ${userRoles.join(', ')}`,
+        `Acesso negado. Roles necessárias: ${allowedRoles.join(',')}. ` +
+          `Suas roles: ${normalizedUserRoles.join(', ')}`,
       );
     }
 

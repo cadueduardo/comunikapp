@@ -16,6 +16,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PrismaModule } from '../prisma/prisma.module';
 import { EstoqueSimpleService } from './services/estoque-simple.service';
 import { SobrasService } from './services/sobras.service';
+import { MovimentacoesService } from './services/movimentacoes.service';
 import { LocalizacoesController } from './controllers/localizacoes.controller';
 import { ItensController } from './controllers/itens.controller';
 import { MovimentacoesController } from './controllers/movimentacoes.controller';
@@ -50,6 +51,7 @@ import { TenantIsolationMiddleware } from './middleware/tenant-isolation.middlew
   providers: [
     EstoqueSimpleService,
     SobrasService,
+    MovimentacoesService,
     EstoqueAccessGuard,
     {
       provide: 'ESTOQUE_MODULE_CONFIG',

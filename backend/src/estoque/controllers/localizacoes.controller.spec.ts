@@ -72,13 +72,14 @@ describe('LocalizacoesController', () => {
 
       mockEstoqueService.criarLocalizacao.mockResolvedValue(expectedResult);
 
-      const result = await controller.criar(createDto, mockRequest);
+      const loja = { id: 'loja-123' } as any;
+      const result = await controller.criar(createDto, loja);
 
       expect(result).toEqual(expectedResult);
       expect(mockEstoqueService.criarLocalizacao).toHaveBeenCalledWith(
         {
-          lojaId: mockRequest.estoque.lojaId,
-          usuarioId: mockRequest.estoque.usuarioId,
+          lojaId: 'loja-123',
+          usuarioId: 'loja-123',
         },
         createDto,
       );
@@ -94,7 +95,8 @@ describe('LocalizacoesController', () => {
         new BadRequestException('Dados inválidos'),
       );
 
-      await expect(controller.criar(createDto, mockRequest)).rejects.toThrow(
+      const loja = { id: 'loja-123' } as any;
+      await expect(controller.criar(createDto, loja)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -128,13 +130,13 @@ describe('LocalizacoesController', () => {
 
       mockEstoqueService.listarLocalizacoes.mockResolvedValue(expectedResult);
 
-      const result = await controller.listar(query, mockRequest);
+      const loja = { id: 'loja-123' } as any;
+      const result = await controller.listar(query, loja);
 
       expect(result).toEqual(expectedResult);
       expect(mockEstoqueService.listarLocalizacoes).toHaveBeenCalledWith(
         {
-          lojaId: mockRequest.estoque.lojaId,
-          usuarioId: mockRequest.estoque.usuarioId,
+          lojaId: 'loja-123',
         },
         query,
       );
@@ -155,7 +157,8 @@ describe('LocalizacoesController', () => {
 
       mockEstoqueService.listarLocalizacoes.mockResolvedValue(expectedResult);
 
-      const result = await controller.listar(query, mockRequest);
+      const loja = { id: 'loja-123' } as any;
+      const result = await controller.listar(query, loja);
 
       expect(result).toEqual(expectedResult);
       expect(result.data).toHaveLength(0);
@@ -180,13 +183,13 @@ describe('LocalizacoesController', () => {
         expectedResult,
       );
 
-      const result = await controller.buscarPorId(locationId, mockRequest);
+      const loja = { id: 'loja-123' } as any;
+      const result = await controller.buscarPorId(locationId, loja);
 
       expect(result).toEqual(expectedResult);
       expect(mockEstoqueService.buscarLocalizacaoPorId).toHaveBeenCalledWith(
         {
-          lojaId: mockRequest.estoque.lojaId,
-          usuarioId: mockRequest.estoque.usuarioId,
+          lojaId: 'loja-123',
         },
         locationId,
       );
@@ -200,7 +203,7 @@ describe('LocalizacoesController', () => {
       );
 
       await expect(
-        controller.buscarPorId(locationId, mockRequest),
+        controller.buscarPorId(locationId, { id: 'loja-123' } as any),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -230,14 +233,14 @@ describe('LocalizacoesController', () => {
       const result = await controller.atualizar(
         locationId,
         updateDto,
-        mockRequest,
+        { id: 'loja-123' } as any,
       );
 
       expect(result).toEqual(expectedResult);
       expect(mockEstoqueService.atualizarLocalizacao).toHaveBeenCalledWith(
         {
-          lojaId: mockRequest.estoque.lojaId,
-          usuarioId: mockRequest.estoque.usuarioId,
+          lojaId: 'loja-123',
+          usuarioId: 'loja-123',
         },
         locationId,
         updateDto,
@@ -253,7 +256,7 @@ describe('LocalizacoesController', () => {
       );
 
       await expect(
-        controller.atualizar(locationId, updateDto, mockRequest),
+        controller.atualizar(locationId, updateDto, { id: 'loja-123' } as any),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -272,30 +275,31 @@ describe('LocalizacoesController', () => {
         updatedAt: new Date(),
       };
 
-      mockEstoqueService.desativarLocalizacao.mockResolvedValue(expectedResult);
+      mockEstoqueService.atualizarLocalizacao.mockResolvedValue(expectedResult);
 
-      const result = await controller.desativar(locationId, mockRequest);
+      const result = await controller.desativar(locationId, { id: 'loja-123' } as any);
 
       expect(result).toEqual(expectedResult);
       expect(result).toHaveProperty('ativo', false);
-      expect(mockEstoqueService.desativarLocalizacao).toHaveBeenCalledWith(
+      expect(mockEstoqueService.atualizarLocalizacao).toHaveBeenCalledWith(
         {
-          lojaId: mockRequest.estoque.lojaId,
-          usuarioId: mockRequest.estoque.usuarioId,
+          lojaId: 'loja-123',
+          usuarioId: 'loja-123',
         },
         locationId,
+        { ativo: false },
       );
     });
 
     it('should throw NotFoundException when location not found', async () => {
       const locationId = 'loc-not-found';
 
-      mockEstoqueService.desativarLocalizacao.mockRejectedValue(
+      mockEstoqueService.atualizarLocalizacao.mockRejectedValue(
         new NotFoundException('Localização não encontrada'),
       );
 
       await expect(
-        controller.desativar(locationId, mockRequest),
+        controller.desativar(locationId, { id: 'loja-123' } as any),
       ).rejects.toThrow(NotFoundException);
     });
   });

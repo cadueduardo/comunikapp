@@ -71,7 +71,7 @@ export class EstoqueSimpleService {
 
       return {
         id: localizacao.id,
-        loja_id: localizacao.loja_id,
+        lojaId: localizacao.loja_id,
         codigo: localizacao.codigo,
         deposito: localizacao.deposito,
         corredor: localizacao.corredor,
@@ -80,9 +80,9 @@ export class EstoqueSimpleService {
         posicao: localizacao.posicao,
         descricao: localizacao.descricao,
         capacidade: localizacao.capacidade,
-        ativo: localizacao.ativo,
-        criado_em: localizacao.criado_em,
-        atualizado_em: localizacao.atualizado_em,
+        ativo: Boolean(localizacao.ativo),
+        createdAt: localizacao.criado_em,
+        updatedAt: localizacao.atualizado_em,
       };
     } catch (error) {
       this.logger.error(`❌ Erro ao criar localização: ${error.message}`);
@@ -113,9 +113,24 @@ export class EstoqueSimpleService {
         `✅ Encontradas ${localizacoesArray.length} localizações`,
       );
 
+      const mapped = localizacoesArray.map((l: any) => ({
+        id: l.id,
+        lojaId: l.loja_id,
+        codigo: l.codigo,
+        deposito: l.deposito,
+        corredor: l.corredor,
+        prateleira: l.prateleira,
+        nivel: l.nivel,
+        posicao: l.posicao,
+        descricao: l.descricao,
+        capacidade: l.capacidade,
+        ativo: Boolean(l.ativo),
+        createdAt: l.criado_em,
+        updatedAt: l.atualizado_em,
+      }));
       return {
-        data: localizacoesArray,
-        total: localizacoesArray.length,
+        data: mapped,
+        total: mapped.length,
         page: query.page || 1,
         limit: query.limit || 20,
       };
@@ -156,7 +171,7 @@ export class EstoqueSimpleService {
 
       return {
         id: localizacao.id,
-        loja_id: localizacao.loja_id,
+        lojaId: localizacao.loja_id,
         codigo: localizacao.codigo,
         deposito: localizacao.deposito,
         corredor: localizacao.corredor,
@@ -165,9 +180,9 @@ export class EstoqueSimpleService {
         posicao: localizacao.posicao,
         descricao: localizacao.descricao,
         capacidade: localizacao.capacidade,
-        ativo: localizacao.ativo,
-        criado_em: localizacao.criado_em,
-        atualizado_em: localizacao.atualizado_em,
+        ativo: Boolean(localizacao.ativo),
+        createdAt: localizacao.criado_em,
+        updatedAt: localizacao.atualizado_em,
       };
     } catch (error) {
       this.logger.error(`❌ Erro ao buscar localização: ${error.message}`);

@@ -1,5 +1,34 @@
 # 📋 PLANO DE AÇÃO - MÓDULO DE ESTOQUE V2
 
+## 🧭 Handover rápido (12/08/2025)
+
+- Backend Estoque Fase 1 em andamento: extração de movimentações concluída (novo `MovimentacoesService`) e controller ajustado. Middleware de tenant e guard de acesso revisados e com testes verdes.
+- Frontend: implementado modal padrão de reautenticação em 401 (evento `session-expired`), mantendo a sessão/página atual.
+- Dashboard de estoque: prioriza dados reais do banco; fallback apenas quando tabela não existir.
+
+### Estado atual de testes (escopo estoque)
+- Verdes: controllers (`itens`, `localizacoes`, `movimentacoes`), guard (`estoque-access`), middleware (`tenant-isolation`), health controller.
+- Pendentes (unit do service): `EstoqueSimpleService`
+  - criarItemEstoque: mocks de Prisma devem retornar `localizacaoId` e `lojaId` no SELECT final e suportar `$executeRawUnsafe`.
+  - listarItensEstoque: mocks devem retornar detecção de tabela (`itens_estoque`), colunas e 1+ linhas na listagem; ajustar contagem.
+  - healthCheck: o service retorna `healthy/unhealthy`; alinhar teste para aceitar `healthy` (ou alterar o service para retornar `ok`).
+
+### Como rodar (PowerShell)
+```pwsh
+cd backend; npm run build; npm run test --silent -- estoque
+```
+
+### Restrições e headers obrigatórios
+- `x-loja-id` é obrigatório para isolar tenant (middleware recusa se ausente).
+- `x-user-roles` controla permissão; sem roles válidas retorna 401/403 conforme caso.
+- JWT válido requerido para rotas protegidas; em 401 o frontend abre modal de reautenticação.
+
+### Branch e commits
+- Branch: `feature/modulo-estoque`
+- Últimas mudanças incluem: extração de movimentações, ajuste do dashboard, middleware/guard, modal de reauth no frontend, e regras de lint `max-lines` para services/controllers.
+
+---
+
 ## 🎯 **STATUS ATUAL: 100% CONCLUÍDO** ✅
 
 ### ✅ **IMPLEMENTAÇÕES REALIZADAS**
@@ -245,10 +274,10 @@ Objetivo: reduzir o tamanho do `EstoqueSimpleService` e dividir responsabilidade
 - [x] Configurar regra de lint `max-lines` para services/controllers (aplicada como warning e escopo de services/controllers; diretórios generated ignorados).
 
 ### Fase 1 – Movimentações (delegação sem quebra)
-- [ ] Criar `movimentacoes.service.ts` e mover lógica de criar/listar/buscar/excluir movimentações.
-- [ ] `EstoqueSimpleService` passa a delegar chamadas de movimentações para o novo serviço (facade temporário).
-- [ ] Ajustar controller de `movimentações` para injetar o novo serviço (sem mudar contrato).
-- [ ] Testes e2e: criação, listagem com filtros/paginação e consistência no dashboard.
+- [x] Criar `movimentacoes.service.ts` e mover lógica de criar/listar/buscar/excluir movimentações.
+- [ ] `EstoqueSimpleService` passa a delegar internamente chamadas de movimentações (facade temporário). Observação: controller já usa o novo serviço; chamadas internas (ex.: transferências) ainda usam métodos do service antigo.
+- [x] Ajustar controller de `movimentações` para injetar o novo serviço (sem mudar contrato).
+- [~] Testes: controllers/guard/middleware verdes. Unit de service pendente (mocks de Prisma a ajustar conforme seção “Estado atual de testes”).
 
 ### Fase 2 – Lotes e Transferências
 - [ ] Extrair `lotes.service.ts` (criar/listar/buscar/atualizar/excluir/consumir lotes).

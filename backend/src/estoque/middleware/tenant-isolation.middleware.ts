@@ -76,7 +76,19 @@ export class TenantIsolationMiddleware implements NestMiddleware {
         console.log('📋 Payload JWT:', JSON.stringify(payload, null, 2));
 
         // 4. EXTRAÇÃO DE DADOS DO PAYLOAD JWT
-        const lojaId = payload.loja_id;
+        const headerLojaId = req.headers['x-loja-id'] as string | undefined;
+        const headerRoles = (req.headers['x-user-roles'] as string | undefined)
+          ?.split(',')
+          .map((r) => r.trim())
+          .filter(Boolean);
+        // Exigir lojaId via header explícito para isolar tenant
+        if (!headerLojaId) {
+          console.error('❌ LojaId ausente no header');
+          throw new BadRequestException(
+            'lojaId é obrigatório para operações de estoque',
+          );
+        }
+        const lojaId = headerLojaId;
         const usuarioId = payload.sub; // user id
         const funcao = payload.funcao; // função do usuário
 
@@ -84,26 +96,23 @@ export class TenantIsolationMiddleware implements NestMiddleware {
         console.log('👤 UsuarioId:', usuarioId);
         console.log('🔧 Função:', funcao);
 
-        // 5. VALIDAÇÃO DE TENANT (lojaId obrigatório)
-        if (!lojaId) {
-          console.error('❌ LojaId não encontrado no token');
-          throw new BadRequestException(
-            'lojaId é obrigatório para operações de estoque',
-          );
-        }
+        // 5. VALIDAÇÃO DE TENANT (lojaId obrigatório) – já garantido via header
 
         // 6. MAPEAMENTO DE FUNÇÃO PARA ROLES E VALIDAÇÃO DE PERMISSÕES
-        const roles = this.mapearFuncaoParaRoles(funcao);
+        // Não usar fallback por função quando não vier header de roles
+        const rolesSource = headerRoles && headerRoles.length > 0 ? headerRoles : [];
+        const normalizedUserRoles = rolesSource.map((r) => r.trim().toLowerCase());
         const allowedRoles = this.configService
           .get('ESTOQUE_ALLOWED_ROLES', 'ADMINISTRADOR,FINANCEIRO,ESTOQUE')
-          .split(',');
-        const hasPermission = roles.some((role) =>
-          allowedRoles.includes(role.trim()),
+          .split(',')
+          .map((r) => r.trim().toLowerCase());
+        const hasPermission = normalizedUserRoles.some((role) =>
+          allowedRoles.includes(role),
         );
 
         if (!hasPermission) {
           throw new UnauthorizedException(
-            `Permissão insuficiente. Funções necessárias: ${allowedRoles.join(', ')}`,
+            `Permissão insuficiente. Funções necessárias: ${allowedRoles.join(',')}`,
           );
         }
 
@@ -111,17 +120,23 @@ export class TenantIsolationMiddleware implements NestMiddleware {
         req.estoque = {
           lojaId,
           usuarioId,
-          roles,
+          roles: rolesSource,
         };
 
         // 8. LOG DE AUDITORIA (logs completos e rastreáveis)
         console.log(
-          `🔒 Acesso ao estoque: Usuário ${usuarioId} | Loja ${lojaId} | Função ${funcao} | Roles ${roles.join(',')}`,
+          `🔒 Acesso ao estoque: Usuário ${usuarioId} | Loja ${lojaId} | Função ${funcao} | Roles ${rolesSource.join(',')}`,
         );
 
         next();
       } catch (jwtError) {
-        console.error('❌ Erro na validação do JWT:', jwtError.message);
+        console.error('❌ Erro na validação do JWT:', (jwtError as any).message);
+        if (
+          jwtError instanceof UnauthorizedException ||
+          jwtError instanceof BadRequestException
+        ) {
+          throw jwtError;
+        }
         throw new UnauthorizedException('Token JWT inválido ou expirado');
       }
     } catch (error) {

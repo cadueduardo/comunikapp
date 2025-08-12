@@ -4,6 +4,7 @@ import {
   EstoqueRequest,
 } from './tenant-isolation.middleware';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 
@@ -25,6 +26,16 @@ describe('TenantIsolationMiddleware', () => {
         {
           provide: ConfigService,
           useValue: mockConfigService,
+        },
+        {
+          provide: JwtService,
+          useValue: {
+            verify: jest.fn().mockReturnValue({
+              loja_id: 'loja-123',
+              sub: 'user-456',
+              funcao: 'ADMINISTRADOR',
+            }),
+          },
         },
       ],
     }).compile();

@@ -47,13 +47,17 @@ export class HealthController {
       const result = await this.estoqueService.healthCheck();
       return {
         status: 'ok',
+        module: 'estoque',
+        version: '1.0.0',
         database: 'connected',
         timestamp: new Date().toISOString(),
         ...result,
       };
     } catch (error) {
       return {
-        status: 'error',
+        status: 'unhealthy',
+        module: 'estoque',
+        version: '1.0.0',
         database: 'disconnected',
         error: error.message,
         timestamp: new Date().toISOString(),
