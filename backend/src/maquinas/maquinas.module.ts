@@ -10,4 +10,4 @@ import { AuthModule } from '../auth/auth.module';
   providers: [MaquinasService],
   exports: [MaquinasService],
 })
-export class MaquinasModule {} 
+export class MaquinasModule {}

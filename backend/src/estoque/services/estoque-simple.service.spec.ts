@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { EstoqueSimpleService, IEstoqueContext } from './estoque-simple.service';
+import {
+  EstoqueSimpleService,
+  IEstoqueContext,
+} from './estoque-simple.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
 describe('EstoqueSimpleService', () => {
@@ -9,7 +12,7 @@ describe('EstoqueSimpleService', () => {
 
   const mockContext: IEstoqueContext = {
     lojaId: 'loja-123',
-    usuarioId: 'user-456'
+    usuarioId: 'user-456',
   };
 
   const mockPrismaService = {
@@ -38,7 +41,7 @@ describe('EstoqueSimpleService', () => {
   describe('validateContext', () => {
     it('should throw BadRequestException when lojaId is missing', () => {
       const invalidContext = { usuarioId: 'user-123' };
-      
+
       expect(() => {
         service['validateContext'](invalidContext as IEstoqueContext);
       }).toThrow(BadRequestException);
@@ -96,7 +99,10 @@ describe('EstoqueSimpleService', () => {
       const locationData = { codigo: 'TEST', deposito: 'Test' };
 
       await expect(
-        service.criarLocalizacao(invalidContext as IEstoqueContext, locationData)
+        service.criarLocalizacao(
+          invalidContext as IEstoqueContext,
+          locationData,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -121,7 +127,7 @@ describe('EstoqueSimpleService', () => {
             lojaId: mockContext.lojaId,
             createdAt: new Date(),
             updatedAt: new Date(),
-          }
+          },
         ],
         total: 1,
         page: query.page || 1,
@@ -151,7 +157,7 @@ describe('EstoqueSimpleService', () => {
       const invalidContext = { usuarioId: 'user-123' };
 
       await expect(
-        service.listarLocalizacoes(invalidContext as IEstoqueContext)
+        service.listarLocalizacoes(invalidContext as IEstoqueContext),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -163,7 +169,7 @@ describe('EstoqueSimpleService', () => {
         localizacaoId: 'loc-123',
         quantidadeAtual: 100,
         estoqueMinimo: 10,
-        estoqueMaximo: 200
+        estoqueMaximo: 200,
       };
 
       const expectedResult = {
@@ -193,7 +199,7 @@ describe('EstoqueSimpleService', () => {
     it('should use default values when optional fields are not provided', async () => {
       const itemData = {
         insumoId: 'insumo-123',
-        localizacaoId: 'loc-123'
+        localizacaoId: 'loc-123',
       };
 
       const result = await service.criarItemEstoque(mockContext, itemData);
@@ -209,7 +215,7 @@ describe('EstoqueSimpleService', () => {
       const itemData = { insumoId: 'insumo-123', localizacaoId: 'loc-123' };
 
       await expect(
-        service.criarItemEstoque(invalidContext as IEstoqueContext, itemData)
+        service.criarItemEstoque(invalidContext as IEstoqueContext, itemData),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -231,7 +237,7 @@ describe('EstoqueSimpleService', () => {
             lojaId: mockContext.lojaId,
             createdAt: new Date(),
             updatedAt: new Date(),
-          }
+          },
         ],
         total: 1,
         page: query.page || 1,
@@ -255,7 +261,7 @@ describe('EstoqueSimpleService', () => {
       const invalidContext = { usuarioId: 'user-123' };
 
       await expect(
-        service.listarItensEstoque(invalidContext as IEstoqueContext)
+        service.listarItensEstoque(invalidContext as IEstoqueContext),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -267,7 +273,7 @@ describe('EstoqueSimpleService', () => {
         tipo: 'ENTRADA',
         quantidade: 50,
         documentoRef: 'DOC-001',
-        observacoes: 'Entrada de material'
+        observacoes: 'Entrada de material',
       };
 
       const expectedResult = {
@@ -297,11 +303,14 @@ describe('EstoqueSimpleService', () => {
       const movementData = {
         estoqueId: 'estoque-123',
         tipo: 'ENTRADA',
-        quantidade: 50
+        quantidade: 50,
       };
 
       await expect(
-        service.criarMovimentacao(invalidContext as IEstoqueContext, movementData)
+        service.criarMovimentacao(
+          invalidContext as IEstoqueContext,
+          movementData,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -313,7 +322,7 @@ describe('EstoqueSimpleService', () => {
         totalItens: 150,
         totalMovimentacoes: 500,
         itensAbaixoMinimo: 5,
-        valorTotalEstoque: 125000.50,
+        valorTotalEstoque: 125000.5,
         ultimasMovimentacoes: [
           {
             id: 'mov-123',
@@ -347,7 +356,7 @@ describe('EstoqueSimpleService', () => {
       const invalidContext = { usuarioId: 'user-123' };
 
       await expect(
-        service.obterDashboard(invalidContext as IEstoqueContext)
+        service.obterDashboard(invalidContext as IEstoqueContext),
       ).rejects.toThrow(BadRequestException);
     });
   });

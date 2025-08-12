@@ -53,8 +53,13 @@ export class SobrasService {
     } catch (error: any) {
       this.logger.error(`Erro ao criar sobra: ${error.message}`);
       // Tabela inexistente: informar erro amigável
-      if (error?.code === '1146' || /doesn\'t exist/i.test(error?.message || '')) {
-        throw new BadRequestException('Tabela de sobras não encontrada. Execute as migrações do estoque.');
+      if (
+        error?.code === '1146' ||
+        /doesn\'t exist/i.test(error?.message || '')
+      ) {
+        throw new BadRequestException(
+          'Tabela de sobras não encontrada. Execute as migrações do estoque.',
+        );
       }
       throw error;
     }
@@ -68,9 +73,14 @@ export class SobrasService {
       this.logger.log(`Listando sobras para loja ${context.lojaId}`);
 
       const conditions: any[] = [Prisma.sql` s.loja_id = ${context.lojaId} `];
-      if (query.status) conditions.push(Prisma.sql` s.status = ${query.status} `);
-      if (query.material) conditions.push(Prisma.sql` s.material LIKE ${'%' + query.material + '%'} `);
-      if (query.cor) conditions.push(Prisma.sql` s.cor LIKE ${'%' + query.cor + '%'} `);
+      if (query.status)
+        conditions.push(Prisma.sql` s.status = ${query.status} `);
+      if (query.material)
+        conditions.push(
+          Prisma.sql` s.material LIKE ${'%' + query.material + '%'} `,
+        );
+      if (query.cor)
+        conditions.push(Prisma.sql` s.cor LIKE ${'%' + query.cor + '%'} `);
 
       const where = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
 
@@ -91,7 +101,10 @@ export class SobrasService {
     } catch (error: any) {
       this.logger.error(`Erro ao listar sobras: ${error.message}`);
       // Tabela inexistente: retornar vazio ao invés de quebrar
-      if (error?.code === '1146' || /doesn\'t exist/i.test(error?.message || '')) {
+      if (
+        error?.code === '1146' ||
+        /doesn\'t exist/i.test(error?.message || '')
+      ) {
         return [];
       }
       throw error;
@@ -140,7 +153,7 @@ export class SobrasService {
       // Construir query de atualização dinamicamente
       const updates = [];
       const values = [];
-      
+
       if (data.descricao !== undefined) {
         updates.push('descricao = ?');
         values.push(data.descricao);
@@ -228,7 +241,11 @@ export class SobrasService {
   /**
    * Registrar aproveitamento de sobra
    */
-  async registrarAproveitamento(context: ISobraContext, sobraId: string, data: any) {
+  async registrarAproveitamento(
+    context: ISobraContext,
+    sobraId: string,
+    data: any,
+  ) {
     try {
       this.logger.log(`Registrando aproveitamento da sobra ${sobraId}`);
 
@@ -240,7 +257,9 @@ export class SobrasService {
       }
 
       if (data.quantidadeAproveitada > sobra.quantidade) {
-        throw new Error('Quantidade aproveitada maior que quantidade disponível');
+        throw new Error(
+          'Quantidade aproveitada maior que quantidade disponível',
+        );
       }
 
       // Criar registro de aproveitamento
@@ -256,9 +275,11 @@ export class SobrasService {
       `;
 
       // Atualizar sobra
-      const novaQuantidadeAproveitada = sobra.quantidade_aproveitada + data.quantidadeAproveitada;
+      const novaQuantidadeAproveitada =
+        sobra.quantidade_aproveitada + data.quantidadeAproveitada;
       const novaQuantidade = sobra.quantidade - data.quantidadeAproveitada;
-      const statusAtualizado = novaQuantidade <= 0 ? 'APROVEITADA' : 'DISPONIVEL';
+      const statusAtualizado =
+        novaQuantidade <= 0 ? 'APROVEITADA' : 'DISPONIVEL';
 
       await this.prisma.$executeRaw`
         UPDATE estoque_sobras 
@@ -284,7 +305,9 @@ export class SobrasService {
    */
   async buscarSugestoesSobras(context: ISobraContext, filtros: any) {
     try {
-      this.logger.log(`Buscando sugestões de sobras para loja ${context.lojaId}`);
+      this.logger.log(
+        `Buscando sugestões de sobras para loja ${context.lojaId}`,
+      );
 
       let whereClause = `WHERE s.loja_id = '${context.lojaId}' AND s.status = 'DISPONIVEL' AND s.quantidade > 0`;
 
@@ -332,13 +355,19 @@ export class SobrasService {
    */
   async calcularMetricasEconomia(context: ISobraContext) {
     try {
-      this.logger.log(`Calculando métricas de economia para loja ${context.lojaId}`);
+      this.logger.log(
+        `Calculando métricas de economia para loja ${context.lojaId}`,
+      );
 
-      const [totalSobras, sobrasAproveitadas, economiaTotal] = await Promise.all([
-        this.prisma.$queryRaw`SELECT COUNT(*) as count FROM estoque_sobras WHERE loja_id = ${context.lojaId}`,
-        this.prisma.$queryRaw`SELECT COUNT(*) as count FROM estoque_sobras WHERE loja_id = ${context.lojaId} AND status = 'APROVEITADA'`,
-        this.prisma.$queryRaw`SELECT SUM(economia_gerada) as total FROM estoque_sobras WHERE loja_id = ${context.lojaId}`,
-      ]);
+      const [totalSobras, sobrasAproveitadas, economiaTotal] =
+        await Promise.all([
+          this.prisma
+            .$queryRaw`SELECT COUNT(*) as count FROM estoque_sobras WHERE loja_id = ${context.lojaId}`,
+          this.prisma
+            .$queryRaw`SELECT COUNT(*) as count FROM estoque_sobras WHERE loja_id = ${context.lojaId} AND status = 'APROVEITADA'`,
+          this.prisma
+            .$queryRaw`SELECT SUM(economia_gerada) as total FROM estoque_sobras WHERE loja_id = ${context.lojaId}`,
+        ]);
 
       const total = Number((totalSobras as any[])[0]?.count ?? 0);
       const aproveitadas = Number((sobrasAproveitadas as any[])[0]?.count ?? 0);
@@ -354,7 +383,10 @@ export class SobrasService {
     } catch (error: any) {
       this.logger.error(`Erro ao calcular métricas: ${error.message}`);
       // Se a tabela ainda não existir, retornar métricas zeradas
-      if (error?.code === '1146' || /doesn\'t exist/i.test(error?.message || '')) {
+      if (
+        error?.code === '1146' ||
+        /doesn\'t exist/i.test(error?.message || '')
+      ) {
         return {
           totalSobras: 0,
           sobrasAproveitadas: 0,
@@ -371,7 +403,7 @@ export class SobrasService {
    */
   private async gerarCodigoSobra(lojaId: string): Promise<string> {
     const ano = new Date().getFullYear();
-    
+
     // Contar sobras do ano atual
     const likePattern = `SOB-${ano}-%`;
     const result = await this.prisma.$queryRaw<any[]>`

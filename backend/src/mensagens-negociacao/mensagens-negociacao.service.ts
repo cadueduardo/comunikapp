@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMensagemNegociacaoDto } from '../orcamentos/dto/create-mensagem-negociacao.dto';
 import { NotificacoesService } from '../notificacoes/notificacoes.service';
@@ -12,7 +16,7 @@ export class MensagensNegociacaoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificacoesService: NotificacoesService,
-    private readonly websocketsService: WebsocketsService
+    private readonly websocketsService: WebsocketsService,
   ) {}
 
   /**
@@ -25,7 +29,11 @@ export class MensagensNegociacaoService {
   /**
    * Criar uma nova mensagem (público) com suporte a anexo
    */
-  async createPublicoComAnexo(orcamentoId: string, dto: CreateMensagemNegociacaoDto, file?: Express.Multer.File) {
+  async createPublicoComAnexo(
+    orcamentoId: string,
+    dto: CreateMensagemNegociacaoDto,
+    file?: Express.Multer.File,
+  ) {
     // Verificar se o orçamento existe
     const orcamento = await this.prisma.orcamento.findUnique({
       where: { id: orcamentoId },
@@ -40,15 +48,26 @@ export class MensagensNegociacaoService {
     // Processar arquivo se existir
     if (file) {
       // Validar tipo de arquivo
-      const tiposPermitidos = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf', 'application/zip', 'application/x-zip-compressed'];
+      const tiposPermitidos = [
+        'image/jpeg',
+        'image/png',
+        'image/jpg',
+        'application/pdf',
+        'application/zip',
+        'application/x-zip-compressed',
+      ];
       if (!tiposPermitidos.includes(file.mimetype)) {
-        throw new BadRequestException('Tipo de arquivo não permitido. Use apenas JPG, PNG, PDF ou ZIP.');
+        throw new BadRequestException(
+          'Tipo de arquivo não permitido. Use apenas JPG, PNG, PDF ou ZIP.',
+        );
       }
 
       // Validar tamanho (5MB)
       const maxSize = 5 * 1024 * 1024; // 5MB
       if (file.size > maxSize) {
-        throw new BadRequestException('Arquivo muito grande. Tamanho máximo: 5MB.');
+        throw new BadRequestException(
+          'Arquivo muito grande. Tamanho máximo: 5MB.',
+        );
       }
 
       // Salvar arquivo (em produção seria para um serviço de storage)
@@ -60,7 +79,7 @@ export class MensagensNegociacaoService {
       const extensao = path.extname(file.originalname);
       const nomeArquivo = `${uuidv4()}${extensao}`;
       const caminhoArquivo = path.join(uploadDir, nomeArquivo);
-      
+
       console.log('📎 Tentando salvar arquivo em:', caminhoArquivo);
       fs.writeFileSync(caminhoArquivo, file.buffer);
       console.log('📎 Arquivo salvo com sucesso!');
@@ -79,12 +98,17 @@ export class MensagensNegociacaoService {
     const mensagem = await this.prisma.mensagemNegociacao.create({
       data: {
         orcamento_id: orcamentoId,
-        mensagem: dto.mensagem || (file ? `Arquivo enviado: ${file.originalname}` : ''),
+        mensagem:
+          dto.mensagem || (file ? `Arquivo enviado: ${file.originalname}` : ''),
         tipo: dto.tipo,
         autor_nome: dto.autor_nome,
         autor_email: dto.autor_email,
         visualizada: false,
-        anexos: anexoInfo ? JSON.stringify([anexoInfo]) : (dto.anexos ? JSON.stringify(dto.anexos) : undefined),
+        anexos: anexoInfo
+          ? JSON.stringify([anexoInfo])
+          : dto.anexos
+            ? JSON.stringify(dto.anexos)
+            : undefined,
       },
     });
 
@@ -108,7 +132,11 @@ export class MensagensNegociacaoService {
   /**
    * Criar uma nova mensagem (autenticado)
    */
-  async create(orcamentoId: string, dto: CreateMensagemNegociacaoDto, lojaId: string) {
+  async create(
+    orcamentoId: string,
+    dto: CreateMensagemNegociacaoDto,
+    lojaId: string,
+  ) {
     // Verificar se o orçamento existe e pertence à loja
     const orcamento = await this.prisma.orcamento.findFirst({
       where: {
@@ -142,7 +170,7 @@ export class MensagensNegociacaoService {
       await this.notificacoesService.notificarNovaMensagem(
         orcamentoId,
         lojaId,
-        dto.autor_nome || 'Cliente'
+        dto.autor_nome || 'Cliente',
       );
     }
 
@@ -187,7 +215,7 @@ export class MensagensNegociacaoService {
       },
     });
 
-    return mensagens.map(mensagem => ({
+    return mensagens.map((mensagem) => ({
       ...mensagem,
       anexos: mensagem.anexos ? JSON.parse(mensagem.anexos as string) : [],
     }));
@@ -226,7 +254,7 @@ export class MensagensNegociacaoService {
       },
     });
 
-    return mensagens.map(mensagem => ({
+    return mensagens.map((mensagem) => ({
       ...mensagem,
       anexos: mensagem.anexos ? JSON.parse(mensagem.anexos as string) : [],
     }));
@@ -295,10 +323,14 @@ export class MensagensNegociacaoService {
     });
 
     // Emitir evento WebSocket para mensagem lida
-    await this.websocketsService.emitToOrcamento(mensagem.orcamento_id, 'message_read', {
-      messageId: mensagemId,
-      timestamp: new Date().toISOString(),
-    });
+    await this.websocketsService.emitToOrcamento(
+      mensagem.orcamento_id,
+      'message_read',
+      {
+        messageId: mensagemId,
+        timestamp: new Date().toISOString(),
+      },
+    );
 
     return mensagemAtualizada;
   }
@@ -306,7 +338,11 @@ export class MensagensNegociacaoService {
   /**
    * Upload de anexo para uma mensagem
    */
-  async uploadAnexo(mensagemId: string, file: Express.Multer.File, lojaId: string) {
+  async uploadAnexo(
+    mensagemId: string,
+    file: Express.Multer.File,
+    lojaId: string,
+  ) {
     // Verificar se a mensagem existe e pertence a um orçamento da loja
     const mensagem = await this.prisma.mensagemNegociacao.findFirst({
       where: {
@@ -322,22 +358,31 @@ export class MensagensNegociacaoService {
     }
 
     // Validar tipo de arquivo
-    const tiposPermitidos = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    const tiposPermitidos = [
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+      'application/pdf',
+    ];
     if (!tiposPermitidos.includes(file.mimetype)) {
-      throw new BadRequestException('Tipo de arquivo não permitido. Use apenas JPG, PNG ou PDF.');
+      throw new BadRequestException(
+        'Tipo de arquivo não permitido. Use apenas JPG, PNG ou PDF.',
+      );
     }
 
     // Validar tamanho (5MB)
     const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) {
-      throw new BadRequestException('Arquivo muito grande. Tamanho máximo: 5MB.');
+      throw new BadRequestException(
+        'Arquivo muito grande. Tamanho máximo: 5MB.',
+      );
     }
 
     // Gerar nome único para o arquivo
     const timestamp = Date.now();
     const extensao = file.originalname.split('.').pop();
     const nomeArquivo = `${timestamp}_${file.originalname}`;
-    
+
     // Em produção, aqui seria feito upload para um serviço de storage
     // Por enquanto, vamos simular salvando apenas o nome
     const urlArquivo = `/uploads/anexos/${nomeArquivo}`;
@@ -390,4 +435,4 @@ export class MensagensNegociacaoService {
       },
     });
   }
-} 
+}

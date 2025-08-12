@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Request, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { FuncoesService } from './funcoes.service';
 import { CreateFuncaoDto } from './dto/create-funcao.dto';
 import { UpdateFuncaoDto } from './dto/update-funcao.dto';
@@ -25,7 +35,11 @@ export class FuncoesController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateFuncaoDto: UpdateFuncaoDto, @Request() req) {
+  update(
+    @Param('id') id: string,
+    @Body() updateFuncaoDto: UpdateFuncaoDto,
+    @Request() req,
+  ) {
     return this.funcoesService.update(id, updateFuncaoDto, req.user.loja_id);
   }
 
@@ -33,4 +47,4 @@ export class FuncoesController {
   remove(@Param('id') id: string, @Request() req) {
     return this.funcoesService.remove(id, req.user.loja_id);
   }
-} 
+}

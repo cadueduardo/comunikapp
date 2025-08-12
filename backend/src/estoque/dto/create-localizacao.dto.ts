@@ -4,7 +4,16 @@
  */
 
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsPositive, Length, Matches, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsNumber,
+  IsPositive,
+  Length,
+  Matches,
+  IsBoolean,
+} from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
 export class CreateLocalizacaoDto {
@@ -17,7 +26,8 @@ export class CreateLocalizacaoDto {
   @IsNotEmpty({ message: 'Código é obrigatório' })
   @Length(2, 50, { message: 'Código deve ter entre 2 e 50 caracteres' })
   @Matches(/^[A-Z0-9\-_\/\.]+$/, {
-    message: 'Código deve conter apenas letras maiúsculas, números, hífens, underscores, barras e ponto',
+    message:
+      'Código deve conter apenas letras maiúsculas, números, hífens, underscores, barras e ponto',
   })
   codigo: string;
 
@@ -83,7 +93,7 @@ export class CreateLocalizacaoDto {
 
   @ApiProperty({
     description: 'Capacidade da localização (opcional)',
-    example: 1000.50,
+    example: 1000.5,
     required: false,
   })
   @IsOptional()

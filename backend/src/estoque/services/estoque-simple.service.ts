@@ -4,7 +4,12 @@
  * Mantém isolamento por lojaId
  */
 
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export interface IEstoqueContext {
@@ -31,9 +36,9 @@ export class EstoqueSimpleService {
   // ===== LOCALIZAÇÕES =====
   async criarLocalizacao(context: IEstoqueContext, data: any) {
     this.validateContext(context);
-    
+
     this.logger.debug(`📦 Criando localização para loja: ${context.lojaId}`);
-    
+
     try {
       // Query SQL direta para inserir na tabela localizacoes
       const result = await this.prisma.$executeRaw`
@@ -48,7 +53,7 @@ export class EstoqueSimpleService {
           ${data.ativo !== undefined ? data.ativo : true}, NOW(), NOW()
         )
       `;
-      
+
       // Buscar a localização criada
       const localizacoes = await this.prisma.$queryRaw`
         SELECT 
@@ -59,11 +64,11 @@ export class EstoqueSimpleService {
         AND codigo = ${data.codigo}
         ORDER BY criado_em DESC LIMIT 1
       `;
-      
+
       const localizacao = (localizacoes as any[])[0];
-      
+
       this.logger.debug(`✅ Localização criada: ${localizacao.id}`);
-      
+
       return {
         id: localizacao.id,
         loja_id: localizacao.loja_id,
@@ -87,9 +92,9 @@ export class EstoqueSimpleService {
 
   async listarLocalizacoes(context: IEstoqueContext, query: any = {}) {
     this.validateContext(context);
-    
+
     this.logger.debug(`📦 Listando localizações para loja: ${context.lojaId}`);
-    
+
     try {
       // Query SQL direta para buscar localizações
       const localizacoes = await this.prisma.$queryRaw`
@@ -101,11 +106,13 @@ export class EstoqueSimpleService {
         AND ativo = 1
         ORDER BY criado_em DESC
       `;
-      
+
       const localizacoesArray = localizacoes as any[];
-      
-      this.logger.debug(`✅ Encontradas ${localizacoesArray.length} localizações`);
-      
+
+      this.logger.debug(
+        `✅ Encontradas ${localizacoesArray.length} localizações`,
+      );
+
       return {
         data: localizacoesArray,
         total: localizacoesArray.length,
@@ -120,9 +127,11 @@ export class EstoqueSimpleService {
 
   async buscarLocalizacaoPorId(context: IEstoqueContext, id: string) {
     this.validateContext(context);
-    
-    this.logger.debug(`📦 Buscando localização ${id} para loja: ${context.lojaId}`);
-    
+
+    this.logger.debug(
+      `📦 Buscando localização ${id} para loja: ${context.lojaId}`,
+    );
+
     try {
       // Query SQL direta para buscar localização específica
       const localizacoes = await this.prisma.$queryRaw`
@@ -134,17 +143,17 @@ export class EstoqueSimpleService {
         AND loja_id = ${context.lojaId}
         LIMIT 1
       `;
-      
+
       const localizacoesArray = localizacoes as any[];
-      
+
       if (localizacoesArray.length === 0) {
         throw new Error('Localização não encontrada');
       }
-      
+
       const localizacao = localizacoesArray[0];
-      
+
       this.logger.debug(`✅ Localização encontrada: ${localizacao.id}`);
-      
+
       return {
         id: localizacao.id,
         loja_id: localizacao.loja_id,
@@ -168,9 +177,11 @@ export class EstoqueSimpleService {
 
   async atualizarLocalizacao(context: IEstoqueContext, id: string, data: any) {
     this.validateContext(context);
-    
-    this.logger.debug(`📦 Atualizando localização ${id} para loja: ${context.lojaId}`);
-    
+
+    this.logger.debug(
+      `📦 Atualizando localização ${id} para loja: ${context.lojaId}`,
+    );
+
     try {
       // Primeiro verificar se a localização existe
       const localizacoes = await this.prisma.$queryRaw`
@@ -178,11 +189,11 @@ export class EstoqueSimpleService {
         WHERE id = ${id} AND loja_id = ${context.lojaId}
         LIMIT 1
       `;
-      
+
       if ((localizacoes as any[]).length === 0) {
         throw new Error('Localização não encontrada');
       }
-      
+
       // Query SQL direta para atualizar a localização
       const result = await this.prisma.$executeRaw`
         UPDATE localizacoes SET
@@ -198,7 +209,7 @@ export class EstoqueSimpleService {
           atualizado_em = NOW()
         WHERE id = ${id} AND loja_id = ${context.lojaId}
       `;
-      
+
       // Buscar a localização atualizada
       const localizacoesAtualizadas = await this.prisma.$queryRaw`
         SELECT 
@@ -208,11 +219,11 @@ export class EstoqueSimpleService {
         WHERE id = ${id} AND loja_id = ${context.lojaId}
         LIMIT 1
       `;
-      
+
       const localizacao = (localizacoesAtualizadas as any[])[0];
-      
+
       this.logger.debug(`✅ Localização atualizada: ${localizacao.id}`);
-      
+
       return {
         id: localizacao.id,
         loja_id: localizacao.loja_id,
@@ -236,9 +247,11 @@ export class EstoqueSimpleService {
 
   async excluirLocalizacao(context: IEstoqueContext, id: string) {
     this.validateContext(context);
-    
-    this.logger.debug(`🗑️ Excluindo localização: ${id} para loja: ${context.lojaId}`);
-    
+
+    this.logger.debug(
+      `🗑️ Excluindo localização: ${id} para loja: ${context.lojaId}`,
+    );
+
     try {
       // Primeiro verificar se a localização existe
       const localizacaoExists = await this.prisma.$queryRaw`
@@ -246,19 +259,19 @@ export class EstoqueSimpleService {
         WHERE id = ${id} AND loja_id = ${context.lojaId}
         LIMIT 1
       `;
-      
+
       if ((localizacaoExists as any[]).length === 0) {
         throw new Error('Localização não encontrada');
       }
-      
+
       // Verificar se a coluna 'ativo' existe
       const columns = await this.prisma.$queryRaw`
         SHOW COLUMNS FROM localizacoes LIKE 'ativo'
       `;
-      
+
       let sql: string;
       let params: any[];
-      
+
       if ((columns as any[]).length > 0) {
         // Se a coluna 'ativo' existe, fazer soft delete
         sql = `
@@ -275,11 +288,13 @@ export class EstoqueSimpleService {
         `;
         params = [id, context.lojaId];
       }
-      
+
       const result: any = await this.prisma.$executeRawUnsafe(sql, ...params);
-      
-      this.logger.debug(`✅ Localização excluída com sucesso. Linhas afetadas: ${result.affectedRows}`);
-      
+
+      this.logger.debug(
+        `✅ Localização excluída com sucesso. Linhas afetadas: ${result.affectedRows}`,
+      );
+
       return {
         message: 'Localização excluída com sucesso',
         id: id,
@@ -294,9 +309,11 @@ export class EstoqueSimpleService {
 
   async verificarLocalizacaoExclusao(context: IEstoqueContext, id: string) {
     this.validateContext(context);
-    
-    this.logger.debug(`🔍 Verificando se localização pode ser excluída: ${id} para loja: ${context.lojaId}`);
-    
+
+    this.logger.debug(
+      `🔍 Verificando se localização pode ser excluída: ${id} para loja: ${context.lojaId}`,
+    );
+
     try {
       // Verificar se a localização existe
       const localizacaoExists = await this.prisma.$queryRaw`
@@ -304,19 +321,19 @@ export class EstoqueSimpleService {
         WHERE id = ${id} AND loja_id = ${context.lojaId}
         LIMIT 1
       `;
-      
+
       if ((localizacaoExists as any[]).length === 0) {
         throw new Error('Localização não encontrada');
       }
-      
+
       const localizacao = (localizacaoExists as any[])[0];
-      
+
       // Verificar se há itens estocados nesta localização
       // Primeiro verificar se a coluna 'ativo' existe
       const columns = await this.prisma.$queryRaw`
         SHOW COLUMNS FROM itens_estoque LIKE 'ativo'
       `;
-      
+
       let itensNaLocalizacao;
       if ((columns as any[]).length > 0) {
         // Se a coluna 'ativo' existe, usar na query
@@ -331,9 +348,9 @@ export class EstoqueSimpleService {
           WHERE localizacao_id = ${id} AND loja_id = ${context.lojaId}
         `;
       }
-      
+
       const totalItens = Number((itensNaLocalizacao as any[])[0]?.total || 0);
-      
+
       // Buscar detalhes dos itens se houver
       let itensDetalhes = [];
       if (totalItens > 0) {
@@ -353,7 +370,7 @@ export class EstoqueSimpleService {
         }
         itensDetalhes = itens as any[];
       }
-      
+
       return {
         podeExcluir: totalItens === 0,
         totalItens: totalItens,
@@ -363,27 +380,40 @@ export class EstoqueSimpleService {
           deposito: localizacao.deposito,
         },
         itens: itensDetalhes,
-        mensagem: totalItens === 0 
-          ? 'Localização pode ser excluída com segurança'
-          : `Não é possível excluir esta localização. Existem ${totalItens} item(s) estocado(s).`,
+        mensagem:
+          totalItens === 0
+            ? 'Localização pode ser excluída com segurança'
+            : `Não é possível excluir esta localização. Existem ${totalItens} item(s) estocado(s).`,
       };
-      
     } catch (error) {
-      this.logger.error(`❌ Erro ao verificar exclusão de localização: ${error.message}`);
-      throw new Error(`Erro ao verificar exclusão de localização: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao verificar exclusão de localização: ${error.message}`,
+      );
+      throw new Error(
+        `Erro ao verificar exclusão de localização: ${error.message}`,
+      );
     }
   }
 
   // ===== ITENS DE ESTOQUE =====
   async criarItemEstoque(context: IEstoqueContext, data: any) {
     this.validateContext(context);
-    
+
     this.logger.debug(`📦 Criando item estoque para loja: ${context.lojaId}`);
 
     // Validar campos obrigatórios conforme DTO em pt-br
-    const requiredFields = ['insumoId', 'localizacaoId', 'nome', 'unidadeMedida'];
+    const requiredFields = [
+      'insumoId',
+      'localizacaoId',
+      'nome',
+      'unidadeMedida',
+    ];
     for (const field of requiredFields) {
-      if (!data[field] || (typeof data[field] === 'string' && String(data[field]).trim().length === 0)) {
+      if (
+        !data[field] ||
+        (typeof data[field] === 'string' &&
+          String(data[field]).trim().length === 0)
+      ) {
         throw new BadRequestException(`Campo obrigatório ausente: ${field}`);
       }
     }
@@ -395,11 +425,14 @@ export class EstoqueSimpleService {
       context.lojaId,
     );
     if (!locRows?.length) {
-      throw new BadRequestException('Localização não encontrada para esta loja');
+      throw new BadRequestException(
+        'Localização não encontrada para esta loja',
+      );
     }
 
     // Determinar a tabela correta (prioriza 'estoque_itens', aceita legado 'itens_estoque')
-    const tableResult: Array<{ table_name: string }> = await this.prisma.$queryRaw`
+    const tableResult: Array<{ table_name: string }> = await this.prisma
+      .$queryRaw`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = DATABASE() AND table_name IN ('estoque_itens','itens_estoque')
       ORDER BY CASE table_name WHEN 'estoque_itens' THEN 0 ELSE 1 END
@@ -407,14 +440,17 @@ export class EstoqueSimpleService {
     `;
     const tableName = tableResult?.[0]?.table_name;
     if (!tableName) {
-      throw new BadRequestException('Estrutura de estoque não encontrada (esperado: estoque_itens).');
+      throw new BadRequestException(
+        'Estrutura de estoque não encontrada (esperado: estoque_itens).',
+      );
     }
 
     // Colunas existentes da tabela escolhida
-    const colsResult: Array<{ COLUMN_NAME: string }> = await this.prisma.$queryRawUnsafe(
-      'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
-      tableName,
-    );
+    const colsResult: Array<{ COLUMN_NAME: string }> =
+      await this.prisma.$queryRawUnsafe(
+        'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
+        tableName,
+      );
     const existing = new Set(colsResult.map((r: any) => r.COLUMN_NAME));
 
     const columns: string[] = [];
@@ -449,19 +485,23 @@ export class EstoqueSimpleService {
     add('fornecedorId', data.fornecedorId || null);
     add('fornecedor', data.fornecedorId || null); // compat legado
     // Garantir que 'codigo' nunca seja nulo em tabelas que exigem NOT NULL
-    const providedCodigo = typeof data.codigo === 'string' ? data.codigo.trim() : '';
+    const providedCodigo =
+      typeof data.codigo === 'string' ? data.codigo.trim() : '';
     let safeCodigo = providedCodigo;
     if (!safeCodigo) {
       const baseNome = typeof data.nome === 'string' ? data.nome : 'ITEM';
-      const base = baseNome
-        .toString()
-        .toUpperCase()
-        .replace(/[^A-Z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 12) || 'ITEM';
+      const base =
+        baseNome
+          .toString()
+          .toUpperCase()
+          .replace(/[^A-Z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .slice(0, 12) || 'ITEM';
       const suffix = Math.random().toString(36).slice(2, 7).toUpperCase();
       safeCodigo = `${base}-${suffix}`;
-      this.logger.debug(`🆔 Código não informado. Gerado automaticamente: ${safeCodigo}`);
+      this.logger.debug(
+        `🆔 Código não informado. Gerado automaticamente: ${safeCodigo}`,
+      );
     }
     add('codigo', safeCodigo);
     add('nome', String(data.nome).trim());
@@ -486,7 +526,9 @@ export class EstoqueSimpleService {
     add('observacoes', data.observacoes || null);
 
     if (columns.length === 0) {
-      throw new BadRequestException(`Estrutura da tabela ${tableName} não possui colunas compatíveis.`);
+      throw new BadRequestException(
+        `Estrutura da tabela ${tableName} não possui colunas compatíveis.`,
+      );
     }
 
     const placeholders = columns.map(() => '?').join(', ');
@@ -495,13 +537,20 @@ export class EstoqueSimpleService {
     try {
       await this.prisma.$executeRawUnsafe(query, ...values);
 
-      const inserted: any[] = await this.prisma.$queryRawUnsafe(`SELECT * FROM ${tableName} WHERE id = ? LIMIT 1`, generatedId);
-      return inserted?.[0] || { id: generatedId, ...data, lojaId: context.lojaId };
+      const inserted: any[] = await this.prisma.$queryRawUnsafe(
+        `SELECT * FROM ${tableName} WHERE id = ? LIMIT 1`,
+        generatedId,
+      );
+      return (
+        inserted?.[0] || { id: generatedId, ...data, lojaId: context.lojaId }
+      );
     } catch (error: any) {
       // Traduzir violação de FK para mensagem amigável
       const metaCode = error?.meta?.code || error?.code;
       if (metaCode === '1452') {
-        throw new BadRequestException('Falha ao criar item: Localização inválida ou não pertence à loja');
+        throw new BadRequestException(
+          'Falha ao criar item: Localização inválida ou não pertence à loja',
+        );
       }
       throw error;
     }
@@ -509,11 +558,12 @@ export class EstoqueSimpleService {
 
   async listarItensEstoque(context: IEstoqueContext, query: any = {}) {
     this.validateContext(context);
-    
+
     this.logger.debug(`📋 Listando itens estoque para loja: ${context.lojaId}`);
-    
+
     // Detectar tabela e colunas disponíveis (pt-br preferencial)
-    const tableResult: Array<{ table_name: string }> = await this.prisma.$queryRaw`
+    const tableResult: Array<{ table_name: string }> = await this.prisma
+      .$queryRaw`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = DATABASE() AND table_name IN ('estoque_itens','itens_estoque')
       ORDER BY CASE table_name WHEN 'estoque_itens' THEN 0 ELSE 1 END
@@ -525,35 +575,86 @@ export class EstoqueSimpleService {
     }
     this.logger.debug(`📦 Tabela de itens detectada: ${tableName}`);
 
-    const colsResult: Array<{ COLUMN_NAME: string }> = await this.prisma.$queryRawUnsafe(
-      'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ',
-      tableName,
-    );
+    const colsResult: Array<{ COLUMN_NAME: string }> =
+      await this.prisma.$queryRawUnsafe(
+        'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ',
+        tableName,
+      );
     const existing = new Set(colsResult.map((r: any) => r.COLUMN_NAME));
-    
-    this.logger.debug(`🔍 Colunas disponíveis na tabela ${tableName}:`, Array.from(existing));
 
-    const lojaCol = existing.has('lojaId') ? 'lojaId' : (existing.has('loja_id') ? 'loja_id' : null);
-    const insumoCol = existing.has('insumoId') ? 'insumoId' : (existing.has('insumo_id') ? 'insumo_id' : null);
-    const localizacaoCol = existing.has('localizacaoId') ? 'localizacaoId' : (existing.has('localizacao_id') ? 'localizacao_id' : null);
-    const qtdCol = existing.has('quantidadeAtual') ? 'quantidadeAtual' : (existing.has('quantidade') ? 'quantidade' : null);
-    const qtdResCol = existing.has('quantidadeReservada') ? 'quantidadeReservada' : null;
-    const estMinCol = existing.has('estoqueMinimo') ? 'estoqueMinimo' : (existing.has('estoque_minimo') ? 'estoque_minimo' : null);
-    const estMaxCol = existing.has('estoqueMaximo') ? 'estoqueMaximo' : (existing.has('estoque_maximo') ? 'estoque_maximo' : null);
-    const unMedCol = existing.has('unidadeMedida') ? 'unidadeMedida' : (existing.has('unidade_medida') ? 'unidade_medida' : null);
-    const precoCol = existing.has('precoUnitario') ? 'precoUnitario' : 
-                     (existing.has('preco_unitario') ? 'preco_unitario' : 
-                     (existing.has('valorUnitario') ? 'valorUnitario' : 
-                     (existing.has('valor_unitario') ? 'valor_unitario' : null)));
-    
+    this.logger.debug(
+      `🔍 Colunas disponíveis na tabela ${tableName}:`,
+      Array.from(existing),
+    );
+
+    const lojaCol = existing.has('lojaId')
+      ? 'lojaId'
+      : existing.has('loja_id')
+        ? 'loja_id'
+        : null;
+    const insumoCol = existing.has('insumoId')
+      ? 'insumoId'
+      : existing.has('insumo_id')
+        ? 'insumo_id'
+        : null;
+    const localizacaoCol = existing.has('localizacaoId')
+      ? 'localizacaoId'
+      : existing.has('localizacao_id')
+        ? 'localizacao_id'
+        : null;
+    const qtdCol = existing.has('quantidadeAtual')
+      ? 'quantidadeAtual'
+      : existing.has('quantidade')
+        ? 'quantidade'
+        : null;
+    const qtdResCol = existing.has('quantidadeReservada')
+      ? 'quantidadeReservada'
+      : null;
+    const estMinCol = existing.has('estoqueMinimo')
+      ? 'estoqueMinimo'
+      : existing.has('estoque_minimo')
+        ? 'estoque_minimo'
+        : null;
+    const estMaxCol = existing.has('estoqueMaximo')
+      ? 'estoqueMaximo'
+      : existing.has('estoque_maximo')
+        ? 'estoque_maximo'
+        : null;
+    const unMedCol = existing.has('unidadeMedida')
+      ? 'unidadeMedida'
+      : existing.has('unidade_medida')
+        ? 'unidade_medida'
+        : null;
+    const precoCol = existing.has('precoUnitario')
+      ? 'precoUnitario'
+      : existing.has('preco_unitario')
+        ? 'preco_unitario'
+        : existing.has('valorUnitario')
+          ? 'valorUnitario'
+          : existing.has('valor_unitario')
+            ? 'valor_unitario'
+            : null;
+
     this.logger.debug(`💰 Coluna de preço detectada: ${precoCol}`);
     const nomeCol = existing.has('nome') ? 'nome' : null;
-    const dataUltMovCol = existing.has('dataUltimaMov') ? 'dataUltimaMov' : null;
-    const createdCol = existing.has('createdAt') ? 'createdAt' : (existing.has('criado_em') ? 'criado_em' : null);
-    const updatedCol = existing.has('updatedAt') ? 'updatedAt' : (existing.has('atualizado_em') ? 'atualizado_em' : null);
+    const dataUltMovCol = existing.has('dataUltimaMov')
+      ? 'dataUltimaMov'
+      : null;
+    const createdCol = existing.has('createdAt')
+      ? 'createdAt'
+      : existing.has('criado_em')
+        ? 'criado_em'
+        : null;
+    const updatedCol = existing.has('updatedAt')
+      ? 'updatedAt'
+      : existing.has('atualizado_em')
+        ? 'atualizado_em'
+        : null;
 
     if (!lojaCol || !localizacaoCol || !qtdCol) {
-      this.logger.warn(`⚠️ Colunas mínimas ausentes. lojaCol=${lojaCol}, localizacaoCol=${localizacaoCol}, qtdCol=${qtdCol}`);
+      this.logger.warn(
+        `⚠️ Colunas mínimas ausentes. lojaCol=${lojaCol}, localizacaoCol=${localizacaoCol}, qtdCol=${qtdCol}`,
+      );
       return { data: [], total: 0, page: 1, limit: 20 };
     }
 
@@ -562,45 +663,56 @@ export class EstoqueSimpleService {
       `t.id AS id`,
       insumoCol ? `t.${insumoCol} AS insumoId` : `NULL AS insumoId`,
       `t.${localizacaoCol} AS localizacaoId`,
-      nomeCol ? `COALESCE(t.${nomeCol}, '') AS insumoNome` : `COALESCE(t.codigo, 'Item') AS insumoNome`,
+      nomeCol
+        ? `COALESCE(t.${nomeCol}, '') AS insumoNome`
+        : `COALESCE(t.codigo, 'Item') AS insumoNome`,
       // Campos explícitos para preencher o resumo do item selecionado no frontend
       `t.codigo AS codigo`,
       nomeCol ? `t.${nomeCol} AS nome` : `COALESCE(t.codigo, '') AS nome`,
       qtdCol ? `t.${qtdCol} AS quantidadeAtual` : `0 AS quantidadeAtual`,
-      qtdResCol ? `t.${qtdResCol} AS quantidadeReservada` : `0 AS quantidadeReservada`,
+      qtdResCol
+        ? `t.${qtdResCol} AS quantidadeReservada`
+        : `0 AS quantidadeReservada`,
       estMinCol ? `t.${estMinCol} AS estoqueMinimo` : `0 AS estoqueMinimo`,
       estMaxCol ? `t.${estMaxCol} AS estoqueMaximo` : `NULL AS estoqueMaximo`,
-      unMedCol ? `COALESCE(t.${unMedCol}, '') AS unidadeCompra` : `'' AS unidadeCompra`,
+      unMedCol
+        ? `COALESCE(t.${unMedCol}, '') AS unidadeCompra`
+        : `'' AS unidadeCompra`,
       precoCol ? `t.${precoCol} AS valorUnitario` : `0 AS valorUnitario`,
-      dataUltMovCol ? `t.${dataUltMovCol} AS dataUltimaMov` : `NULL AS dataUltimaMov`,
+      dataUltMovCol
+        ? `t.${dataUltMovCol} AS dataUltimaMov`
+        : `NULL AS dataUltimaMov`,
       createdCol ? `t.${createdCol} AS createdAt` : `NULL AS createdAt`,
       `COALESCE(l.codigo, '') AS localizacaoCodigo`,
       `COALESCE(l.deposito, '') AS localizacaoDeposito`,
       `COALESCE(l.corredor, '') AS localizacaoCorredor`,
       `COALESCE(l.prateleira, '') AS localizacaoPrateleira`,
       `COALESCE(l.nivel, '') AS localizacaoNivel`,
-      `COALESCE(l.posicao, '') AS localizacaoPosicao`
+      `COALESCE(l.posicao, '') AS localizacaoPosicao`,
     ];
 
     // Verificar se existe coluna 'ativo' para filtrar itens inativos
     const ativoCol = existing.has('ativo') ? 'ativo' : null;
-    
-    let whereConditions = [lojaCol ? `t.${lojaCol} = ?` : `l.loja_id = ?`];
-    let whereParams = [context.lojaId];
-    
+
+    const whereConditions = [lojaCol ? `t.${lojaCol} = ?` : `l.loja_id = ?`];
+    const whereParams = [context.lojaId];
+
     // Adicionar filtro para itens ativos se a coluna existir
     if (ativoCol) {
       whereConditions.push(`t.${ativoCol} = 1`);
     }
-    
+
     const whereClause = whereConditions.join(' AND ');
-    const sql = `SELECT ${selectParts.join(', ')}\n` +
+    const sql =
+      `SELECT ${selectParts.join(', ')}\n` +
       `FROM ${tableName} t\n` +
       `LEFT JOIN localizacoes l ON l.id = t.${localizacaoCol}\n` +
       `WHERE ${whereClause}` +
       ` ORDER BY t.id DESC`;
 
-    this.logger.debug(`🧭 Consulta itens: WHERE por ${(lojaCol ? `t.${lojaCol}` : 'l.loja_id')} = ${context.lojaId}${ativoCol ? ' AND ativo = 1' : ''}`);
+    this.logger.debug(
+      `🧭 Consulta itens: WHERE por ${lojaCol ? `t.${lojaCol}` : 'l.loja_id'} = ${context.lojaId}${ativoCol ? ' AND ativo = 1' : ''}`,
+    );
     const items: any[] = await this.prisma.$queryRawUnsafe(sql, ...whereParams);
     this.logger.debug(`✅ Itens encontrados: ${items.length}`);
 
@@ -619,7 +731,7 @@ export class EstoqueSimpleService {
           estoqueMinimo: 10,
           estoqueMaximo: 100,
           unidadeCompra: 'CX',
-          valorUnitario: 25.50,
+          valorUnitario: 25.5,
           dataUltimaMov: new Date(),
           createdAt: new Date(),
         },
@@ -634,7 +746,7 @@ export class EstoqueSimpleService {
           estoqueMinimo: 5,
           estoqueMaximo: 50,
           unidadeCompra: 'BOBINA',
-          valorUnitario: 870.00,
+          valorUnitario: 870.0,
           dataUltimaMov: new Date(),
           createdAt: new Date(),
         },
@@ -652,7 +764,7 @@ export class EstoqueSimpleService {
           valorUnitario: 45.75,
           dataUltimaMov: new Date(),
           createdAt: new Date(),
-        }
+        },
       ];
 
       return {
@@ -676,27 +788,46 @@ export class EstoqueSimpleService {
 
   async buscarItemEstoquePorId(context: IEstoqueContext, id: string) {
     this.validateContext(context);
-    this.logger.debug(`🔍 Buscando item estoque por ID: ${id} para loja: ${context.lojaId}`);
+    this.logger.debug(
+      `🔍 Buscando item estoque por ID: ${id} para loja: ${context.lojaId}`,
+    );
 
     const tableName = 'itens_estoque';
 
     // Detectar colunas disponíveis na tabela para mapear dinamicamente
-    const colsResult: Array<{ COLUMN_NAME: string }> = await this.prisma.$queryRawUnsafe(
-      'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ',
-      tableName,
-    );
+    const colsResult: Array<{ COLUMN_NAME: string }> =
+      await this.prisma.$queryRawUnsafe(
+        'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ',
+        tableName,
+      );
     const existing = new Set(colsResult.map((r: any) => r.COLUMN_NAME));
 
-    const insumoCol = existing.has('insumoId') ? 'insumoId' : (existing.has('insumo_id') ? 'insumo_id' : null);
-    const fornecedorIdCol = existing.has('fornecedorId') ? 'fornecedorId' : (
-      existing.has('fornecedor_id') ? 'fornecedor_id' : (existing.has('fornecedor') ? 'fornecedor' : null)
-    );
-    const unMedCol = existing.has('unidadeMedida') ? 'unidadeMedida' : (existing.has('unidade_medida') ? 'unidade_medida' : null);
-    const precoCol = existing.has('precoUnitario') ? 'precoUnitario' : (
-      existing.has('preco_unitario') ? 'preco_unitario' : (
-        existing.has('valorUnitario') ? 'valorUnitario' : (existing.has('valor_unitario') ? 'valor_unitario' : null)
-      )
-    );
+    const insumoCol = existing.has('insumoId')
+      ? 'insumoId'
+      : existing.has('insumo_id')
+        ? 'insumo_id'
+        : null;
+    const fornecedorIdCol = existing.has('fornecedorId')
+      ? 'fornecedorId'
+      : existing.has('fornecedor_id')
+        ? 'fornecedor_id'
+        : existing.has('fornecedor')
+          ? 'fornecedor'
+          : null;
+    const unMedCol = existing.has('unidadeMedida')
+      ? 'unidadeMedida'
+      : existing.has('unidade_medida')
+        ? 'unidade_medida'
+        : null;
+    const precoCol = existing.has('precoUnitario')
+      ? 'precoUnitario'
+      : existing.has('preco_unitario')
+        ? 'preco_unitario'
+        : existing.has('valorUnitario')
+          ? 'valorUnitario'
+          : existing.has('valor_unitario')
+            ? 'valor_unitario'
+            : null;
 
     const selectParts: string[] = [
       't.id AS id',
@@ -707,7 +838,9 @@ export class EstoqueSimpleService {
       't.quantidadeReservada AS quantidadeReservada',
       't.estoque_minimo AS estoqueMinimo',
       't.estoque_maximo AS estoqueMaximo',
-      unMedCol ? `COALESCE(t.${unMedCol}, '') AS unidadeCompra` : "'' AS unidadeCompra",
+      unMedCol
+        ? `COALESCE(t.${unMedCol}, '') AS unidadeCompra`
+        : "'' AS unidadeCompra",
       precoCol ? `t.${precoCol} AS valorUnitario` : '0 AS valorUnitario',
       't.dataUltimaMov AS dataUltimaMov',
       't.criado_em AS createdAt',
@@ -716,7 +849,9 @@ export class EstoqueSimpleService {
       't.codigoBarras AS codigoBarras',
       't.lote AS lote',
       't.dataValidade AS dataValidade',
-      fornecedorIdCol ? `t.${fornecedorIdCol} AS fornecedorId` : 'NULL AS fornecedorId',
+      fornecedorIdCol
+        ? `t.${fornecedorIdCol} AS fornecedorId`
+        : 'NULL AS fornecedorId',
       't.observacoes AS observacoes',
       't.ativo AS ativo',
       "COALESCE(l.codigo, '') AS localizacaoCodigo",
@@ -727,13 +862,18 @@ export class EstoqueSimpleService {
       "COALESCE(l.posicao, '') AS localizacaoPosicao",
     ];
 
-    const sql = `SELECT ${selectParts.join(', ')}\n` +
+    const sql =
+      `SELECT ${selectParts.join(', ')}\n` +
       `FROM ${tableName} t\n` +
       `LEFT JOIN localizacoes l ON l.id = t.localizacao_id\n` +
       `WHERE t.id = ? AND t.loja_id = ?\n` +
       `LIMIT 1`;
 
-    const items: any[] = await this.prisma.$queryRawUnsafe(sql, id, context.lojaId);
+    const items: any[] = await this.prisma.$queryRawUnsafe(
+      sql,
+      id,
+      context.lojaId,
+    );
     if (items.length === 0) {
       throw new Error('Item de estoque não encontrado');
     }
@@ -752,12 +892,13 @@ export class EstoqueSimpleService {
         resolvedInsumoId = byNome?.[0]?.id || null;
       }
       if (!resolvedInsumoId && item.codigo) {
-        const byCodigo: Array<{ id: string }> = await this.prisma.$queryRawUnsafe(
-          "SELECT id FROM insumos WHERE loja_id = ? AND (codigo_interno = ? OR codigo = ?) LIMIT 1",
-          context.lojaId,
-          item.codigo,
-          item.codigo,
-        );
+        const byCodigo: Array<{ id: string }> =
+          await this.prisma.$queryRawUnsafe(
+            'SELECT id FROM insumos WHERE loja_id = ? AND (codigo_interno = ? OR codigo = ?) LIMIT 1',
+            context.lojaId,
+            item.codigo,
+            item.codigo,
+          );
         resolvedInsumoId = byCodigo?.[0]?.id || null;
       }
     } catch (e) {
@@ -778,91 +919,137 @@ export class EstoqueSimpleService {
 
   async atualizarItemEstoque(context: IEstoqueContext, id: string, data: any) {
     this.validateContext(context);
-    
-    this.logger.debug(`📝 Atualizando item estoque ID: ${id} para loja: ${context.lojaId}`);
-    
+
+    this.logger.debug(
+      `📝 Atualizando item estoque ID: ${id} para loja: ${context.lojaId}`,
+    );
+
     const tableName = 'itens_estoque';
-    
+
     // Construir query de atualização dinamicamente
     const updateFields: string[] = [];
     const updateValues: any[] = [];
-    
+
     // Detectar colunas para mapear dinamicamente
-    const colsResult: Array<{ COLUMN_NAME: string }> = await this.prisma.$queryRawUnsafe(
-      'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ',
-      tableName,
-    );
+    const colsResult: Array<{ COLUMN_NAME: string }> =
+      await this.prisma.$queryRawUnsafe(
+        'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ',
+        tableName,
+      );
     const existing = new Set(colsResult.map((r: any) => r.COLUMN_NAME));
 
-    const unidadeCol = existing.has('unidadeMedida') ? 'unidadeMedida' : (existing.has('unidade_medida') ? 'unidade_medida' : null);
-    const precoCol = existing.has('precoUnitario') ? 'precoUnitario' : (existing.has('preco_unitario') ? 'preco_unitario' : null);
-    const fornecedorCol = existing.has('fornecedorId') ? 'fornecedorId' : (
-      existing.has('fornecedor_id') ? 'fornecedor_id' : (existing.has('fornecedor') ? 'fornecedor' : null)
-    );
+    const unidadeCol = existing.has('unidadeMedida')
+      ? 'unidadeMedida'
+      : existing.has('unidade_medida')
+        ? 'unidade_medida'
+        : null;
+    const precoCol = existing.has('precoUnitario')
+      ? 'precoUnitario'
+      : existing.has('preco_unitario')
+        ? 'preco_unitario'
+        : null;
+    const fornecedorCol = existing.has('fornecedorId')
+      ? 'fornecedorId'
+      : existing.has('fornecedor_id')
+        ? 'fornecedor_id'
+        : existing.has('fornecedor')
+          ? 'fornecedor'
+          : null;
 
     // Mapear campos do frontend para colunas reais
     const fieldMappings: { [key: string]: string } = {
       nome: 'nome',
       codigo: 'codigo',
       descricao: 'descricao',
-      quantidade: existing.has('quantidade') ? 'quantidade' : (existing.has('quantidadeAtual') ? 'quantidadeAtual' : 'quantidade'),
-      quantidadeReservada: existing.has('quantidadeReservada') ? 'quantidadeReservada' : 'quantidadeReservada',
-      estoqueMinimo: existing.has('estoque_minimo') ? 'estoque_minimo' : (existing.has('estoqueMinimo') ? 'estoqueMinimo' : 'estoque_minimo'),
-      estoqueMaximo: existing.has('estoque_maximo') ? 'estoque_maximo' : (existing.has('estoqueMaximo') ? 'estoqueMaximo' : 'estoque_maximo'),
+      quantidade: existing.has('quantidade')
+        ? 'quantidade'
+        : existing.has('quantidadeAtual')
+          ? 'quantidadeAtual'
+          : 'quantidade',
+      quantidadeReservada: existing.has('quantidadeReservada')
+        ? 'quantidadeReservada'
+        : 'quantidadeReservada',
+      estoqueMinimo: existing.has('estoque_minimo')
+        ? 'estoque_minimo'
+        : existing.has('estoqueMinimo')
+          ? 'estoqueMinimo'
+          : 'estoque_minimo',
+      estoqueMaximo: existing.has('estoque_maximo')
+        ? 'estoque_maximo'
+        : existing.has('estoqueMaximo')
+          ? 'estoqueMaximo'
+          : 'estoque_maximo',
       unidadeMedida: unidadeCol || 'unidadeMedida',
       unidadeCompra: unidadeCol || 'unidadeMedida',
       precoUnitario: precoCol || 'precoUnitario',
       valorUnitario: precoCol || 'precoUnitario',
       localizacaoId: 'localizacao_id',
-      codigoBarras: existing.has('codigoBarras') ? 'codigoBarras' : (existing.has('codigo_barras') ? 'codigo_barras' : 'codigoBarras'),
+      codigoBarras: existing.has('codigoBarras')
+        ? 'codigoBarras'
+        : existing.has('codigo_barras')
+          ? 'codigo_barras'
+          : 'codigoBarras',
       lote: 'lote',
-      dataValidade: existing.has('dataValidade') ? 'dataValidade' : (existing.has('data_validade') ? 'data_validade' : 'dataValidade'),
+      dataValidade: existing.has('dataValidade')
+        ? 'dataValidade'
+        : existing.has('data_validade')
+          ? 'data_validade'
+          : 'dataValidade',
       fornecedorId: fornecedorCol || 'fornecedor',
       fornecedor: fornecedorCol || 'fornecedor',
       observacoes: 'observacoes',
       ativo: 'ativo',
     };
-    
+
     // Construir campos de atualização
-    Object.keys(data).forEach(key => {
+    Object.keys(data).forEach((key) => {
       if (fieldMappings[key] && data[key] !== undefined) {
         updateFields.push(`${fieldMappings[key]} = ?`);
         updateValues.push(data[key]);
       }
     });
-    
+
     if (updateFields.length === 0) {
       throw new Error('Nenhum campo válido para atualização');
     }
-    
+
     // Adicionar timestamp de atualização
     updateFields.push('atualizado_em = NOW()');
-    
+
     const sql = `
       UPDATE ${tableName} 
       SET ${updateFields.join(', ')}
       WHERE id = ? AND loja_id = ?
     `;
-    
+
     updateValues.push(id, context.lojaId);
-    
-    const result: any = await this.prisma.$executeRawUnsafe(sql, ...updateValues);
-    
+
+    const result: any = await this.prisma.$executeRawUnsafe(
+      sql,
+      ...updateValues,
+    );
+
     if (result.affectedRows === 0) {
-      throw new Error('Item de estoque não encontrado ou não pode ser atualizado');
+      throw new Error(
+        'Item de estoque não encontrado ou não pode ser atualizado',
+      );
     }
-    
-    this.logger.debug(`✅ Item atualizado com sucesso. Linhas afetadas: ${result.affectedRows}`);
-    
+
+    this.logger.debug(
+      `✅ Item atualizado com sucesso. Linhas afetadas: ${result.affectedRows}`,
+    );
+
     // Retornar o item atualizado
     return this.buscarItemEstoquePorId(context, id);
   }
 
   async excluirItemEstoque(context: IEstoqueContext, id: string) {
     this.validateContext(context);
-    
-    this.logger.debug(`🗑️ Excluindo item estoque: ${id} para loja: ${context.lojaId}`);
-    
+
+    this.logger.debug(
+      `🗑️ Excluindo item estoque: ${id} para loja: ${context.lojaId}`,
+    );
+
     try {
       // Primeiro verificar se o item existe
       const itemExists = await this.prisma.$queryRaw`
@@ -870,19 +1057,19 @@ export class EstoqueSimpleService {
         WHERE id = ${id} AND loja_id = ${context.lojaId}
         LIMIT 1
       `;
-      
+
       if ((itemExists as any[]).length === 0) {
         throw new Error('Item de estoque não encontrado');
       }
-      
+
       // Verificar se a coluna 'ativo' existe
       const columns = await this.prisma.$queryRaw`
         SHOW COLUMNS FROM itens_estoque LIKE 'ativo'
       `;
-      
+
       let sql: string;
       let params: any[];
-      
+
       if ((columns as any[]).length > 0) {
         // Se a coluna 'ativo' existe, fazer soft delete
         sql = `
@@ -899,11 +1086,13 @@ export class EstoqueSimpleService {
         `;
         params = [id, context.lojaId];
       }
-      
+
       const result: any = await this.prisma.$executeRawUnsafe(sql, ...params);
-      
-      this.logger.debug(`✅ Item excluído com sucesso. Linhas afetadas: ${result.affectedRows}`);
-      
+
+      this.logger.debug(
+        `✅ Item excluído com sucesso. Linhas afetadas: ${result.affectedRows}`,
+      );
+
       return {
         message: 'Item de estoque excluído com sucesso',
         id: id,
@@ -919,24 +1108,32 @@ export class EstoqueSimpleService {
   // ===== MOVIMENTAÇÕES =====
   async criarMovimentacao(context: IEstoqueContext, data: any) {
     this.validateContext(context);
-    
+
     this.logger.debug(`📦 Criando movimentação para loja: ${context.lojaId}`);
-    
+
     // Buscar informações do item de estoque
-    const itemEstoque = await this.buscarItemEstoquePorId(context, data.estoqueId);
-    
+    const itemEstoque = await this.buscarItemEstoquePorId(
+      context,
+      data.estoqueId,
+    );
+
     // Construir localização completa
     const localizacaoCompleta = [
       itemEstoque?.localizacaoDeposito,
       itemEstoque?.localizacaoCorredor,
       itemEstoque?.localizacaoPrateleira,
       itemEstoque?.localizacaoNivel,
-      itemEstoque?.localizacaoPosicao
-    ].filter(Boolean).join(' - ');
+      itemEstoque?.localizacaoPosicao,
+    ]
+      .filter(Boolean)
+      .join(' - ');
 
     const id = 'mov-' + Date.now();
     const quantidadeAnterior = Number(itemEstoque?.quantidadeAtual || 0);
-    const delta = data.tipo === 'SAIDA' ? -Math.abs(Number(data.quantidade)) : Math.abs(Number(data.quantidade));
+    const delta =
+      data.tipo === 'SAIDA'
+        ? -Math.abs(Number(data.quantidade))
+        : Math.abs(Number(data.quantidade));
     const quantidadePosterior = quantidadeAnterior + delta;
 
     // Persistir no banco quando a tabela existir
@@ -961,7 +1158,9 @@ export class EstoqueSimpleService {
         `;
       }
     } catch (e) {
-      this.logger.warn(`⚠️ Falha ao persistir movimentação no banco: ${e?.message}`);
+      this.logger.warn(
+        `⚠️ Falha ao persistir movimentação no banco: ${e?.message}`,
+      );
     }
 
     const movimentacao = {
@@ -969,7 +1168,8 @@ export class EstoqueSimpleService {
       estoqueId: data.estoqueId,
       insumoNome: itemEstoque?.insumoNome || 'Item não encontrado',
       localizacaoCodigo: itemEstoque?.localizacaoCodigo || '',
-      localizacaoCompleta: localizacaoCompleta || itemEstoque?.localizacaoCodigo || '',
+      localizacaoCompleta:
+        localizacaoCompleta || itemEstoque?.localizacaoCodigo || '',
       tipo: data.tipo,
       quantidade: Number(data.quantidade),
       quantidadeAnterior,
@@ -994,9 +1194,9 @@ export class EstoqueSimpleService {
 
   async listarMovimentacoes(context: IEstoqueContext, query: any = {}) {
     this.validateContext(context);
-    
+
     this.logger.debug(`📋 Listando movimentações para loja: ${context.lojaId}`);
-    
+
     try {
       // Verifica se a tabela existe
       const tableCheck: Array<{ total: any }> = await this.prisma.$queryRaw`
@@ -1007,20 +1207,27 @@ export class EstoqueSimpleService {
 
       if (!hasTable) {
         // Fallback: lista do array em memória (session)
-        let movimentacoes = this.movimentacoesCriadas.filter(m => m.lojaId === context.lojaId);
+        let movimentacoes = this.movimentacoesCriadas.filter(
+          (m) => m.lojaId === context.lojaId,
+        );
 
         if (query.tipo) {
-          movimentacoes = movimentacoes.filter(m => m.tipo === query.tipo);
+          movimentacoes = movimentacoes.filter((m) => m.tipo === query.tipo);
         }
         if (query.search) {
           const searchTerm = String(query.search).toLowerCase();
-          movimentacoes = movimentacoes.filter(m =>
-            m.insumoNome?.toLowerCase().includes(searchTerm) ||
-            m.documentoRef?.toLowerCase().includes(searchTerm) ||
-            m.observacoes?.toLowerCase().includes(searchTerm)
+          movimentacoes = movimentacoes.filter(
+            (m) =>
+              m.insumoNome?.toLowerCase().includes(searchTerm) ||
+              m.documentoRef?.toLowerCase().includes(searchTerm) ||
+              m.observacoes?.toLowerCase().includes(searchTerm),
           );
         }
-        movimentacoes.sort((a, b) => new Date(b.dataMovimentacao).getTime() - new Date(a.dataMovimentacao).getTime());
+        movimentacoes.sort(
+          (a, b) =>
+            new Date(b.dataMovimentacao).getTime() -
+            new Date(a.dataMovimentacao).getTime(),
+        );
         return {
           data: movimentacoes,
           total: movimentacoes.length,
@@ -1030,8 +1237,8 @@ export class EstoqueSimpleService {
       }
 
       // Monta filtros
-      const filters: string[] = [ 'm.loja_id = ?' ];
-      const params: any[] = [ context.lojaId ];
+      const filters: string[] = ['m.loja_id = ?'];
+      const params: any[] = [context.lojaId];
 
       if (query?.tipo) {
         filters.push('m.tipo = ?');
@@ -1040,24 +1247,29 @@ export class EstoqueSimpleService {
 
       if (query?.search) {
         const like = `%${String(query.search)}%`;
-        filters.push('(i.nome LIKE ? OR m.documento_referencia LIKE ? OR m.observacoes LIKE ? OR l.codigo LIKE ?)');
+        filters.push(
+          '(i.nome LIKE ? OR m.documento_referencia LIKE ? OR m.observacoes LIKE ? OR l.codigo LIKE ?)',
+        );
         params.push(like, like, like, like);
       }
 
-      const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+      const whereClause = filters.length
+        ? `WHERE ${filters.join(' AND ')}`
+        : '';
       const page = Number(query.page) > 0 ? Number(query.page) : 1;
       const limit = Number(query.limit) > 0 ? Number(query.limit) : 20;
       const offset = (page - 1) * limit;
 
       // Total
-      const totalRows: Array<{ total: any }> = await this.prisma.$queryRawUnsafe(
-        `SELECT COUNT(*) as total
+      const totalRows: Array<{ total: any }> =
+        await this.prisma.$queryRawUnsafe(
+          `SELECT COUNT(*) as total
          FROM movimentacoes_estoque m
          LEFT JOIN itens_estoque i ON i.id = m.item_id
          LEFT JOIN localizacoes l ON l.id = i.localizacao_id
          ${whereClause}`,
-        ...params,
-      );
+          ...params,
+        );
       const total = Number(totalRows?.[0]?.total || 0);
 
       // Dados
@@ -1087,7 +1299,12 @@ export class EstoqueSimpleService {
         ORDER BY m.criado_em DESC
         LIMIT ? OFFSET ?
       `;
-      const rows: any[] = await this.prisma.$queryRawUnsafe(selectSql, ...params, limit, offset);
+      const rows: any[] = await this.prisma.$queryRawUnsafe(
+        selectSql,
+        ...params,
+        limit,
+        offset,
+      );
 
       const dataMapped = rows.map((r: any) => ({
         ...r,
@@ -1096,7 +1313,9 @@ export class EstoqueSimpleService {
         quantidadePosterior: Number(r.quantidadePosterior || 0),
       }));
 
-      this.logger.debug(`✅ Encontradas ${dataMapped.length} movimentações (total=${total})`);
+      this.logger.debug(
+        `✅ Encontradas ${dataMapped.length} movimentações (total=${total})`,
+      );
 
       return {
         data: dataMapped,
@@ -1112,13 +1331,17 @@ export class EstoqueSimpleService {
 
   async buscarMovimentacaoPorId(context: IEstoqueContext, id: string) {
     this.validateContext(context);
-    
-    this.logger.debug(`🔍 Buscando movimentação por ID: ${id} para loja: ${context.lojaId}`);
-    
+
+    this.logger.debug(
+      `🔍 Buscando movimentação por ID: ${id} para loja: ${context.lojaId}`,
+    );
+
     try {
       // Buscar na lista de movimentações criadas em memória
-      const movimentacao = this.movimentacoesCriadas.find(m => m.id === id && m.lojaId === context.lojaId);
-      
+      const movimentacao = this.movimentacoesCriadas.find(
+        (m) => m.id === id && m.lojaId === context.lojaId,
+      );
+
       if (!movimentacao) {
         // Se não encontrou na lista de movimentações criadas, verificar se é uma movimentação mockada
         if (id.startsWith('mov-175460318006')) {
@@ -1144,10 +1367,10 @@ export class EstoqueSimpleService {
             },
           };
         }
-        
+
         throw new Error('Movimentação não encontrada');
       }
-      
+
       this.logger.debug(`✅ Movimentação encontrada: ${id}`);
       return movimentacao;
     } catch (error) {
@@ -1158,18 +1381,24 @@ export class EstoqueSimpleService {
 
   async excluirMovimentacao(context: IEstoqueContext, id: string) {
     this.validateContext(context);
-    
-    this.logger.debug(`🗑️ Excluindo movimentação: ${id} para loja: ${context.lojaId}`);
-    
+
+    this.logger.debug(
+      `🗑️ Excluindo movimentação: ${id} para loja: ${context.lojaId}`,
+    );
+
     try {
       // Remover da lista de movimentações criadas em memória
-      const index = this.movimentacoesCriadas.findIndex(m => m.id === id && m.lojaId === context.lojaId);
-      
+      const index = this.movimentacoesCriadas.findIndex(
+        (m) => m.id === id && m.lojaId === context.lojaId,
+      );
+
       if (index === -1) {
         // Se não encontrou na lista de movimentações criadas, verificar se é uma movimentação mockada
         // Para movimentações mockadas, apenas retornar sucesso sem excluir
         if (id.startsWith('mov-175460318006')) {
-          this.logger.debug(`📝 Movimentação mockada não pode ser excluída: ${id}`);
+          this.logger.debug(
+            `📝 Movimentação mockada não pode ser excluída: ${id}`,
+          );
           return {
             message: 'Movimentação mockada não pode ser excluída',
             id: id,
@@ -1177,14 +1406,17 @@ export class EstoqueSimpleService {
             note: 'Esta é uma movimentação de demonstração e não pode ser excluída',
           };
         }
-        
+
         throw new Error('Movimentação não encontrada');
       }
-      
-      const movimentacaoExcluida = this.movimentacoesCriadas.splice(index, 1)[0];
-      
+
+      const movimentacaoExcluida = this.movimentacoesCriadas.splice(
+        index,
+        1,
+      )[0];
+
       this.logger.debug(`✅ Movimentação excluída com sucesso: ${id}`);
-      
+
       return {
         message: 'Movimentação excluída com sucesso',
         id: id,
@@ -1200,12 +1432,12 @@ export class EstoqueSimpleService {
   // ===== DASHBOARD =====
   async obterDashboard(context: IEstoqueContext) {
     this.validateContext(context);
-    
+
     this.logger.debug(`📊 Obtendo dashboard para loja: ${context.lojaId}`);
-    
+
     try {
       this.logger.debug('🔍 Iniciando coleta de dados do dashboard...');
-      
+
       // 1. Total de localizações
       let totalLocalizacoes = 0;
       try {
@@ -1214,18 +1446,20 @@ export class EstoqueSimpleService {
           SELECT COUNT(*) as total FROM information_schema.tables 
           WHERE table_schema = DATABASE() AND table_name = 'localizacoes'
         `;
-        
+
         if (Number((tableCheck as any[])[0]?.total) > 0) {
           const localizacoesResult = await this.prisma.$queryRaw`
             SELECT COUNT(*) as total FROM localizacoes 
             WHERE loja_id = ${context.lojaId} AND ativo = 1
           `;
-          totalLocalizacoes = Number((localizacoesResult as any[])[0]?.total || 0);
+          totalLocalizacoes = Number(
+            (localizacoesResult as any[])[0]?.total || 0,
+          );
         }
       } catch (error) {
         this.logger.warn('⚠️ Erro ao contar localizações:', error.message);
       }
-      
+
       // 2. Total de itens de estoque
       let totalItens = 0;
       try {
@@ -1234,7 +1468,7 @@ export class EstoqueSimpleService {
           SELECT COUNT(*) as total FROM information_schema.tables 
           WHERE table_schema = DATABASE() AND table_name = 'itens_estoque'
         `;
-        
+
         if (Number((tableCheck as any[])[0]?.total) > 0) {
           const itensResult = await this.prisma.$queryRaw`
             SELECT COUNT(*) as total FROM itens_estoque 
@@ -1245,7 +1479,7 @@ export class EstoqueSimpleService {
       } catch (error) {
         this.logger.warn('⚠️ Erro ao contar itens:', error.message);
       }
-      
+
       // 3. Total de movimentações (preferir banco)
       let totalMovimentacoes = 0;
       try {
@@ -1260,13 +1494,17 @@ export class EstoqueSimpleService {
           `;
           totalMovimentacoes = Number((movsResult as any[])[0]?.total || 0);
         } else {
-          totalMovimentacoes = this.movimentacoesCriadas.filter(m => m.lojaId === context.lojaId).length;
+          totalMovimentacoes = this.movimentacoesCriadas.filter(
+            (m) => m.lojaId === context.lojaId,
+          ).length;
         }
       } catch (error) {
-        this.logger.warn('⚠️ Erro ao contar movimentações:', (error as any).message);
-        totalMovimentacoes = this.movimentacoesCriadas.filter(m => m.lojaId === context.lojaId).length;
+        this.logger.warn('⚠️ Erro ao contar movimentações:', error.message);
+        totalMovimentacoes = this.movimentacoesCriadas.filter(
+          (m) => m.lojaId === context.lojaId,
+        ).length;
       }
-      
+
       // 4. Itens abaixo do mínimo
       let itensAbaixoMinimo = 0;
       try {
@@ -1274,7 +1512,7 @@ export class EstoqueSimpleService {
           SELECT COUNT(*) as total FROM information_schema.tables 
           WHERE table_schema = DATABASE() AND table_name = 'itens_estoque'
         `;
-        
+
         if (Number((tableCheck as any[])[0]?.total) > 0) {
           const itensAbaixoMinimoResult = await this.prisma.$queryRaw`
             SELECT COUNT(*) as total FROM itens_estoque 
@@ -1283,12 +1521,17 @@ export class EstoqueSimpleService {
             AND quantidade <= estoque_minimo 
             AND estoque_minimo > 0
           `;
-          itensAbaixoMinimo = Number((itensAbaixoMinimoResult as any[])[0]?.total || 0);
+          itensAbaixoMinimo = Number(
+            (itensAbaixoMinimoResult as any[])[0]?.total || 0,
+          );
         }
       } catch (error) {
-        this.logger.warn('⚠️ Erro ao contar itens abaixo do mínimo:', error.message);
+        this.logger.warn(
+          '⚠️ Erro ao contar itens abaixo do mínimo:',
+          error.message,
+        );
       }
-      
+
       // 5. Valor total do estoque
       let valorTotalEstoque = 0;
       try {
@@ -1296,18 +1539,20 @@ export class EstoqueSimpleService {
           SELECT COUNT(*) as total FROM information_schema.tables 
           WHERE table_schema = DATABASE() AND table_name = 'itens_estoque'
         `;
-        
+
         if (Number((tableCheck as any[])[0]?.total) > 0) {
           const valorTotalResult = await this.prisma.$queryRaw`
             SELECT SUM(quantidade * precoUnitario) as valorTotal FROM itens_estoque 
             WHERE loja_id = ${context.lojaId} AND ativo = 1
           `;
-          valorTotalEstoque = Number((valorTotalResult as any[])[0]?.valorTotal || 0);
+          valorTotalEstoque = Number(
+            (valorTotalResult as any[])[0]?.valorTotal || 0,
+          );
         }
       } catch (error) {
         this.logger.warn('⚠️ Erro ao calcular valor total:', error.message);
       }
-      
+
       // 6. Últimas movimentações (limitado a 5) - preferir banco
       let ultimasMovimentacoes: Array<any> = [];
       try {
@@ -1330,7 +1575,7 @@ export class EstoqueSimpleService {
             ORDER BY m.criado_em DESC
             LIMIT 5
           `;
-          ultimasMovimentacoes = rows.map(r => ({
+          ultimasMovimentacoes = rows.map((r) => ({
             id: r.id,
             tipo: r.tipo,
             insumoNome: r.insumoNome,
@@ -1339,11 +1584,17 @@ export class EstoqueSimpleService {
             usuarioNome: r.usuarioNome,
           }));
         } else {
-          const movimentacoesReais = this.movimentacoesCriadas.filter(m => m.lojaId === context.lojaId);
+          const movimentacoesReais = this.movimentacoesCriadas.filter(
+            (m) => m.lojaId === context.lojaId,
+          );
           ultimasMovimentacoes = movimentacoesReais
-            .sort((a, b) => new Date(b.dataMovimentacao).getTime() - new Date(a.dataMovimentacao).getTime())
+            .sort(
+              (a, b) =>
+                new Date(b.dataMovimentacao).getTime() -
+                new Date(a.dataMovimentacao).getTime(),
+            )
             .slice(0, 5)
-            .map(mov => ({
+            .map((mov) => ({
               id: mov.id,
               tipo: mov.tipo,
               insumoNome: mov.insumoNome,
@@ -1353,12 +1604,21 @@ export class EstoqueSimpleService {
             }));
         }
       } catch (error) {
-        this.logger.warn('⚠️ Erro ao carregar últimas movimentações:', (error as any).message);
-        const movimentacoesReais = this.movimentacoesCriadas.filter(m => m.lojaId === context.lojaId);
+        this.logger.warn(
+          '⚠️ Erro ao carregar últimas movimentações:',
+          error.message,
+        );
+        const movimentacoesReais = this.movimentacoesCriadas.filter(
+          (m) => m.lojaId === context.lojaId,
+        );
         ultimasMovimentacoes = movimentacoesReais
-          .sort((a, b) => new Date(b.dataMovimentacao).getTime() - new Date(a.dataMovimentacao).getTime())
+          .sort(
+            (a, b) =>
+              new Date(b.dataMovimentacao).getTime() -
+              new Date(a.dataMovimentacao).getTime(),
+          )
           .slice(0, 5)
-          .map(mov => ({
+          .map((mov) => ({
             id: mov.id,
             tipo: mov.tipo,
             insumoNome: mov.insumoNome,
@@ -1367,9 +1627,14 @@ export class EstoqueSimpleService {
             usuarioNome: mov.usuarioNome,
           }));
       }
-      
+
       // 7. Estatísticas por tipo de movimentação (preferir banco)
-      let estatisticas = { entradas: 0, saidas: 0, ajustes: 0, transferencias: 0 };
+      let estatisticas = {
+        entradas: 0,
+        saidas: 0,
+        ajustes: 0,
+        transferencias: 0,
+      };
       try {
         const tableCheck = await this.prisma.$queryRaw`
           SELECT COUNT(*) as total FROM information_schema.tables 
@@ -1382,7 +1647,12 @@ export class EstoqueSimpleService {
             WHERE loja_id = ${context.lojaId}
             GROUP BY tipo
           `;
-          const map: any = { ENTRADA: 0, SAIDA: 0, AJUSTE: 0, TRANSFERENCIA: 0 };
+          const map: any = {
+            ENTRADA: 0,
+            SAIDA: 0,
+            AJUSTE: 0,
+            TRANSFERENCIA: 0,
+          };
           for (const r of statsRows) {
             map[r.tipo] = Number(r.total || 0);
           }
@@ -1393,25 +1663,36 @@ export class EstoqueSimpleService {
             transferencias: map.TRANSFERENCIA || 0,
           };
         } else {
-          const movimentacoesReais = this.movimentacoesCriadas.filter(m => m.lojaId === context.lojaId);
+          const movimentacoesReais = this.movimentacoesCriadas.filter(
+            (m) => m.lojaId === context.lojaId,
+          );
           estatisticas = {
-            entradas: movimentacoesReais.filter(m => m.tipo === 'ENTRADA').length,
-            saidas: movimentacoesReais.filter(m => m.tipo === 'SAIDA').length,
-            ajustes: movimentacoesReais.filter(m => m.tipo === 'AJUSTE').length,
-            transferencias: movimentacoesReais.filter(m => m.tipo === 'TRANSFERENCIA').length,
+            entradas: movimentacoesReais.filter((m) => m.tipo === 'ENTRADA')
+              .length,
+            saidas: movimentacoesReais.filter((m) => m.tipo === 'SAIDA').length,
+            ajustes: movimentacoesReais.filter((m) => m.tipo === 'AJUSTE')
+              .length,
+            transferencias: movimentacoesReais.filter(
+              (m) => m.tipo === 'TRANSFERENCIA',
+            ).length,
           };
         }
       } catch (error) {
-        this.logger.warn('⚠️ Erro ao calcular estatísticas:', (error as any).message);
-        const movimentacoesReais = this.movimentacoesCriadas.filter(m => m.lojaId === context.lojaId);
+        this.logger.warn('⚠️ Erro ao calcular estatísticas:', error.message);
+        const movimentacoesReais = this.movimentacoesCriadas.filter(
+          (m) => m.lojaId === context.lojaId,
+        );
         estatisticas = {
-          entradas: movimentacoesReais.filter(m => m.tipo === 'ENTRADA').length,
-          saidas: movimentacoesReais.filter(m => m.tipo === 'SAIDA').length,
-          ajustes: movimentacoesReais.filter(m => m.tipo === 'AJUSTE').length,
-          transferencias: movimentacoesReais.filter(m => m.tipo === 'TRANSFERENCIA').length,
+          entradas: movimentacoesReais.filter((m) => m.tipo === 'ENTRADA')
+            .length,
+          saidas: movimentacoesReais.filter((m) => m.tipo === 'SAIDA').length,
+          ajustes: movimentacoesReais.filter((m) => m.tipo === 'AJUSTE').length,
+          transferencias: movimentacoesReais.filter(
+            (m) => m.tipo === 'TRANSFERENCIA',
+          ).length,
         };
       }
-      
+
       const dashboardData = {
         totalLocalizacoes,
         totalItens,
@@ -1421,7 +1702,7 @@ export class EstoqueSimpleService {
         ultimasMovimentacoes,
         estatisticas,
       };
-      
+
       this.logger.debug('✅ Dashboard gerado com sucesso:', {
         totalLocalizacoes,
         totalItens,
@@ -1447,7 +1728,8 @@ export class EstoqueSimpleService {
     const placeholders = candidates.map(() => '?').join(', ');
     const sql = `SELECT table_name FROM information_schema.tables
       WHERE table_schema = DATABASE() AND table_name IN (${placeholders})`;
-    const rows: Array<{ table_name: string }> = await this.prisma.$queryRawUnsafe(sql, ...candidates);
+    const rows: Array<{ table_name: string }> =
+      await this.prisma.$queryRawUnsafe(sql, ...candidates);
     if (!rows?.length) return null;
     // prioriza a ordem informada em candidates
     const byName = new Map(rows.map((r) => [r.table_name, true] as const));
@@ -1461,28 +1743,40 @@ export class EstoqueSimpleService {
    * Retorna o conjunto de colunas existentes de uma tabela
    */
   private async getExistingColumns(tableName: string): Promise<Set<string>> {
-    const result: Array<{ COLUMN_NAME: string }> = await this.prisma.$queryRawUnsafe(
-      'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ',
-      tableName,
-    );
+    const result: Array<{ COLUMN_NAME: string }> =
+      await this.prisma.$queryRawUnsafe(
+        'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ',
+        tableName,
+      );
     return new Set(result.map((r) => r.COLUMN_NAME));
   }
 
   async criarLote(context: IEstoqueContext, data: any) {
     this.validateContext(context);
-    
+
     this.logger.debug(`📦 Criando lote para loja: ${context.lojaId}`);
-    
+
     try {
       // Detectar tabela de itens (prioriza 'estoque_itens', aceita legado 'itens_estoque')
-      const itensTable = await this.detectTableName(['estoque_itens', 'itens_estoque']);
+      const itensTable = await this.detectTableName([
+        'estoque_itens',
+        'itens_estoque',
+      ]);
       if (!itensTable) {
         throw new Error('Estrutura de itens de estoque não encontrada');
       }
       const itensCols = await this.getExistingColumns(itensTable);
       const itemIdCol = 'id';
-      const lojaItemCol = itensCols.has('lojaId') ? 'lojaId' : (itensCols.has('loja_id') ? 'loja_id' : 'loja_id');
-      const qtdAtualCol = itensCols.has('quantidadeAtual') ? 'quantidadeAtual' : (itensCols.has('quantidade') ? 'quantidade' : 'quantidadeAtual');
+      const lojaItemCol = itensCols.has('lojaId')
+        ? 'lojaId'
+        : itensCols.has('loja_id')
+          ? 'loja_id'
+          : 'loja_id';
+      const qtdAtualCol = itensCols.has('quantidadeAtual')
+        ? 'quantidadeAtual'
+        : itensCols.has('quantidade')
+          ? 'quantidade'
+          : 'quantidadeAtual';
 
       // Verificar se o item de estoque existe
       const itemEstoque = await this.prisma.$queryRawUnsafe(
@@ -1490,28 +1784,74 @@ export class EstoqueSimpleService {
         data.estoqueId,
         context.lojaId,
       );
-      
+
       if (!(itemEstoque as any[])[0]) {
         throw new Error('Item de estoque não encontrado');
       }
-      
+
       // Detectar tabela de lotes (prioriza pt-br, aceita inglês legado)
-      const lotesTable = await this.detectTableName(['estoque_lotes', 'inventory_lots']);
+      const lotesTable = await this.detectTableName([
+        'estoque_lotes',
+        'inventory_lots',
+      ]);
       if (!lotesTable) {
         throw new Error('Estrutura de lotes não encontrada');
       }
       const lotesCols = await this.getExistingColumns(lotesTable);
-      const estoqueIdCol = lotesCols.has('estoque_id') ? 'estoque_id' : (lotesCols.has('estoqueId') ? 'estoqueId' : 'estoque_id');
-      const lojaIdCol = lotesCols.has('loja_id') ? 'loja_id' : (lotesCols.has('lojaId') ? 'lojaId' : 'loja_id');
-      const numeroLoteCol = lotesCols.has('numero_lote') ? 'numero_lote' : (lotesCols.has('numeroLote') ? 'numeroLote' : 'numero_lote');
-      const dataFabCol = lotesCols.has('data_fabricacao') ? 'data_fabricacao' : (lotesCols.has('dataFabricacao') ? 'dataFabricacao' : 'data_fabricacao');
-      const dataValCol = lotesCols.has('data_validade') ? 'data_validade' : (lotesCols.has('dataValidade') ? 'dataValidade' : 'data_validade');
-      const qtdLoteCol = lotesCols.has('quantidade_lote') ? 'quantidade_lote' : (lotesCols.has('quantidadeLote') ? 'quantidadeLote' : 'quantidade_lote');
+      const estoqueIdCol = lotesCols.has('estoque_id')
+        ? 'estoque_id'
+        : lotesCols.has('estoqueId')
+          ? 'estoqueId'
+          : 'estoque_id';
+      const lojaIdCol = lotesCols.has('loja_id')
+        ? 'loja_id'
+        : lotesCols.has('lojaId')
+          ? 'lojaId'
+          : 'loja_id';
+      const numeroLoteCol = lotesCols.has('numero_lote')
+        ? 'numero_lote'
+        : lotesCols.has('numeroLote')
+          ? 'numeroLote'
+          : 'numero_lote';
+      const dataFabCol = lotesCols.has('data_fabricacao')
+        ? 'data_fabricacao'
+        : lotesCols.has('dataFabricacao')
+          ? 'dataFabricacao'
+          : 'data_fabricacao';
+      const dataValCol = lotesCols.has('data_validade')
+        ? 'data_validade'
+        : lotesCols.has('dataValidade')
+          ? 'dataValidade'
+          : 'data_validade';
+      const qtdLoteCol = lotesCols.has('quantidade_lote')
+        ? 'quantidade_lote'
+        : lotesCols.has('quantidadeLote')
+          ? 'quantidadeLote'
+          : 'quantidade_lote';
       const statusCol = 'status';
-      const createdAtCol = lotesCols.has('criado_em') ? 'criado_em' : (lotesCols.has('createdAt') ? 'createdAt' : 'createdAt');
-      const updatedAtCol = lotesCols.has('atualizado_em') ? 'atualizado_em' : (lotesCols.has('updatedAt') ? 'updatedAt' : 'updatedAt');
+      const createdAtCol = lotesCols.has('criado_em')
+        ? 'criado_em'
+        : lotesCols.has('createdAt')
+          ? 'createdAt'
+          : 'createdAt';
+      const updatedAtCol = lotesCols.has('atualizado_em')
+        ? 'atualizado_em'
+        : lotesCols.has('updatedAt')
+          ? 'updatedAt'
+          : 'updatedAt';
 
-      const columns = ['id', estoqueIdCol, lojaIdCol, numeroLoteCol, dataFabCol, dataValCol, qtdLoteCol, statusCol, createdAtCol, updatedAtCol];
+      const columns = [
+        'id',
+        estoqueIdCol,
+        lojaIdCol,
+        numeroLoteCol,
+        dataFabCol,
+        dataValCol,
+        qtdLoteCol,
+        statusCol,
+        createdAtCol,
+        updatedAtCol,
+      ];
       const placeholders = columns.map(() => '?').join(', ');
       const values = [
         `lote-${Date.now()}`,
@@ -1530,18 +1870,28 @@ export class EstoqueSimpleService {
         `INSERT INTO ${lotesTable} (${columns.join(', ')}) VALUES (${placeholders})`,
         ...values,
       );
-      
+
       // Buscar o lote criado
-      const joinInsumoCol = itensCols.has('insumo_id') ? 'insumo_id' : (itensCols.has('insumoId') ? 'insumoId' : null);
-      const joinLocalizacaoCol = itensCols.has('localizacao_id') ? 'localizacao_id' : (itensCols.has('localizacaoId') ? 'localizacaoId' : 'localizacao_id');
+      const joinInsumoCol = itensCols.has('insumo_id')
+        ? 'insumo_id'
+        : itensCols.has('insumoId')
+          ? 'insumoId'
+          : null;
+      const joinLocalizacaoCol = itensCols.has('localizacao_id')
+        ? 'localizacao_id'
+        : itensCols.has('localizacaoId')
+          ? 'localizacaoId'
+          : 'localizacao_id';
 
       // Detectar coluna de unidade no insumo
       const insumoCols = await this.getExistingColumns('insumos');
       const insumoUnCol = insumoCols.has('unidadeCompra')
         ? 'unidadeCompra'
-        : (insumoCols.has('unidade_compra')
+        : insumoCols.has('unidade_compra')
           ? 'unidade_compra'
-          : (insumoCols.has('unidade_uso') ? 'unidade_uso' : null));
+          : insumoCols.has('unidade_uso')
+            ? 'unidade_uso'
+            : null;
 
       const insumoNameExprCreate = joinInsumoCol
         ? `COALESCE(i.nome, (SELECT ii.nome FROM insumos ii WHERE ii.loja_id = el.${lojaIdCol} AND (ii.codigo_interno = ie.codigo OR ii.nome = ie.nome OR ii.nome LIKE CONCAT('%', ie.nome, '%') OR ie.nome LIKE CONCAT('%', ii.nome, '%')) LIMIT 1))`
@@ -1571,11 +1921,11 @@ export class EstoqueSimpleService {
         context.lojaId,
         data.numeroLote,
       );
-      
+
       const lote = (lotes as any[])[0];
-      
+
       this.logger.debug(`✅ Lote criado: ${lote.id}`);
-      
+
       return lote;
     } catch (error) {
       this.logger.error(`❌ Erro ao criar lote: ${error.message}`);
@@ -1585,39 +1935,93 @@ export class EstoqueSimpleService {
 
   async listarLotes(context: IEstoqueContext, query: any = {}) {
     this.validateContext(context);
-    
+
     this.logger.debug(`📦 Listando lotes para loja: ${context.lojaId}`);
-    
+
     try {
-      const lotesTable = await this.detectTableName(['estoque_lotes', 'inventory_lots']);
+      const lotesTable = await this.detectTableName([
+        'estoque_lotes',
+        'inventory_lots',
+      ]);
       if (!lotesTable) return [];
       const lotesCols = await this.getExistingColumns(lotesTable);
-      const estoqueIdCol = lotesCols.has('estoque_id') ? 'estoque_id' : (lotesCols.has('estoqueId') ? 'estoqueId' : 'estoque_id');
-      const lojaIdCol = lotesCols.has('loja_id') ? 'loja_id' : (lotesCols.has('lojaId') ? 'lojaId' : 'loja_id');
-      const numeroLoteCol = lotesCols.has('numero_lote') ? 'numero_lote' : (lotesCols.has('numeroLote') ? 'numeroLote' : 'numero_lote');
-      const dataFabCol = lotesCols.has('data_fabricacao') ? 'data_fabricacao' : (lotesCols.has('dataFabricacao') ? 'dataFabricacao' : 'data_fabricacao');
-      const dataValCol = lotesCols.has('data_validade') ? 'data_validade' : (lotesCols.has('dataValidade') ? 'dataValidade' : 'data_validade');
-      const qtdLoteCol = lotesCols.has('quantidade_lote') ? 'quantidade_lote' : (lotesCols.has('quantidadeLote') ? 'quantidadeLote' : 'quantidade_lote');
+      const estoqueIdCol = lotesCols.has('estoque_id')
+        ? 'estoque_id'
+        : lotesCols.has('estoqueId')
+          ? 'estoqueId'
+          : 'estoque_id';
+      const lojaIdCol = lotesCols.has('loja_id')
+        ? 'loja_id'
+        : lotesCols.has('lojaId')
+          ? 'lojaId'
+          : 'loja_id';
+      const numeroLoteCol = lotesCols.has('numero_lote')
+        ? 'numero_lote'
+        : lotesCols.has('numeroLote')
+          ? 'numeroLote'
+          : 'numero_lote';
+      const dataFabCol = lotesCols.has('data_fabricacao')
+        ? 'data_fabricacao'
+        : lotesCols.has('dataFabricacao')
+          ? 'dataFabricacao'
+          : 'data_fabricacao';
+      const dataValCol = lotesCols.has('data_validade')
+        ? 'data_validade'
+        : lotesCols.has('dataValidade')
+          ? 'dataValidade'
+          : 'data_validade';
+      const qtdLoteCol = lotesCols.has('quantidade_lote')
+        ? 'quantidade_lote'
+        : lotesCols.has('quantidadeLote')
+          ? 'quantidadeLote'
+          : 'quantidade_lote';
       const statusCol = 'status';
-      const createdAtCol = lotesCols.has('criado_em') ? 'criado_em' : (lotesCols.has('createdAt') ? 'createdAt' : 'createdAt');
+      const createdAtCol = lotesCols.has('criado_em')
+        ? 'criado_em'
+        : lotesCols.has('createdAt')
+          ? 'createdAt'
+          : 'createdAt';
 
-      const itensTable = await this.detectTableName(['estoque_itens', 'itens_estoque']);
-      const itensCols = itensTable ? await this.getExistingColumns(itensTable) : new Set<string>();
+      const itensTable = await this.detectTableName([
+        'estoque_itens',
+        'itens_estoque',
+      ]);
+      const itensCols = itensTable
+        ? await this.getExistingColumns(itensTable)
+        : new Set<string>();
       const itemIdCol = 'id';
-      const joinInsumoCol = itensCols.has('insumo_id') ? 'insumo_id' : (itensCols.has('insumoId') ? 'insumoId' : null);
-      const joinLocalizacaoCol = itensCols.has('localizacao_id') ? 'localizacao_id' : (itensCols.has('localizacaoId') ? 'localizacaoId' : 'localizacao_id');
+      const joinInsumoCol = itensCols.has('insumo_id')
+        ? 'insumo_id'
+        : itensCols.has('insumoId')
+          ? 'insumoId'
+          : null;
+      const joinLocalizacaoCol = itensCols.has('localizacao_id')
+        ? 'localizacao_id'
+        : itensCols.has('localizacaoId')
+          ? 'localizacaoId'
+          : 'localizacao_id';
       // Detectar coluna de unidade no insumo
       const insumoCols = await this.getExistingColumns('insumos');
       const insumoUnCol = insumoCols.has('unidadeCompra')
         ? 'unidadeCompra'
-        : (insumoCols.has('unidade_compra')
+        : insumoCols.has('unidade_compra')
           ? 'unidade_compra'
-          : (insumoCols.has('unidade_uso') ? 'unidade_uso' : null));
+          : insumoCols.has('unidade_uso')
+            ? 'unidade_uso'
+            : null;
 
-      const whereParts: string[] = [`CONVERT(el.${lojaIdCol} USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci`];
+      const whereParts: string[] = [
+        `CONVERT(el.${lojaIdCol} USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci`,
+      ];
       const whereParams: any[] = [context.lojaId];
-      if (query.status) { whereParts.push(`el.${statusCol} = ?`); whereParams.push(String(query.status)); }
-      if (query.estoqueId) { whereParts.push(`el.${estoqueIdCol} = ?`); whereParams.push(String(query.estoqueId)); }
+      if (query.status) {
+        whereParts.push(`el.${statusCol} = ?`);
+        whereParams.push(String(query.status));
+      }
+      if (query.estoqueId) {
+        whereParts.push(`el.${estoqueIdCol} = ?`);
+        whereParams.push(String(query.estoqueId));
+      }
 
       const insumoNameExprList = joinInsumoCol
         ? `COALESCE(i.nome, (SELECT ii.nome FROM insumos ii WHERE ii.loja_id = el.${lojaIdCol} AND (ii.codigo_interno = ie.codigo OR ii.nome = ie.nome OR ii.nome LIKE CONCAT('%', ie.nome, '%') OR ie.nome LIKE CONCAT('%', ii.nome, '%')) LIMIT 1))`
@@ -1645,16 +2049,21 @@ export class EstoqueSimpleService {
         WHERE ${whereParts.join(' AND ')}
         ORDER BY el.${dataValCol} ASC, el.${createdAtCol} DESC`;
 
-      const lotes: any[] = await this.prisma.$queryRawUnsafe(sql, ...whereParams);
-      
-      this.logger.debug(`✅ Lotes listados: ${(lotes as any[]).length}`);
-      
+      const lotes: any[] = await this.prisma.$queryRawUnsafe(
+        sql,
+        ...whereParams,
+      );
+
+      this.logger.debug(`✅ Lotes listados: ${lotes.length}`);
+
       return lotes;
     } catch (error) {
       this.logger.error(`❌ Erro ao listar lotes: ${error.message}`);
       // Se a tabela não existir, retornar array vazio
-      if (error.message.includes('doesn\'t exist')) {
-        this.logger.warn('⚠️ Tabela estoque_lotes não existe, retornando array vazio');
+      if (error.message.includes("doesn't exist")) {
+        this.logger.warn(
+          '⚠️ Tabela estoque_lotes não existe, retornando array vazio',
+        );
         return [];
       }
       throw new Error(`Erro ao listar lotes: ${error.message}`);
@@ -1663,35 +2072,81 @@ export class EstoqueSimpleService {
 
   async buscarLotePorId(context: IEstoqueContext, id: string) {
     this.validateContext(context);
-    
+
     this.logger.debug(`📦 Buscando lote ${id} para loja: ${context.lojaId}`);
-    
+
     try {
-      const lotesTable = await this.detectTableName(['estoque_lotes', 'inventory_lots']);
+      const lotesTable = await this.detectTableName([
+        'estoque_lotes',
+        'inventory_lots',
+      ]);
       if (!lotesTable) return null;
       const lotesCols = await this.getExistingColumns(lotesTable);
-      const estoqueIdCol = lotesCols.has('estoque_id') ? 'estoque_id' : (lotesCols.has('estoqueId') ? 'estoqueId' : 'estoque_id');
-      const lojaIdCol = lotesCols.has('loja_id') ? 'loja_id' : (lotesCols.has('lojaId') ? 'lojaId' : 'loja_id');
-      const numeroLoteCol = lotesCols.has('numero_lote') ? 'numero_lote' : (lotesCols.has('numeroLote') ? 'numeroLote' : 'numero_lote');
-      const dataFabCol = lotesCols.has('data_fabricacao') ? 'data_fabricacao' : (lotesCols.has('dataFabricacao') ? 'dataFabricacao' : 'data_fabricacao');
-      const dataValCol = lotesCols.has('data_validade') ? 'data_validade' : (lotesCols.has('dataValidade') ? 'dataValidade' : 'data_validade');
-      const qtdLoteCol = lotesCols.has('quantidade_lote') ? 'quantidade_lote' : (lotesCols.has('quantidadeLote') ? 'quantidadeLote' : 'quantidade_lote');
+      const estoqueIdCol = lotesCols.has('estoque_id')
+        ? 'estoque_id'
+        : lotesCols.has('estoqueId')
+          ? 'estoqueId'
+          : 'estoque_id';
+      const lojaIdCol = lotesCols.has('loja_id')
+        ? 'loja_id'
+        : lotesCols.has('lojaId')
+          ? 'lojaId'
+          : 'loja_id';
+      const numeroLoteCol = lotesCols.has('numero_lote')
+        ? 'numero_lote'
+        : lotesCols.has('numeroLote')
+          ? 'numeroLote'
+          : 'numero_lote';
+      const dataFabCol = lotesCols.has('data_fabricacao')
+        ? 'data_fabricacao'
+        : lotesCols.has('dataFabricacao')
+          ? 'dataFabricacao'
+          : 'data_fabricacao';
+      const dataValCol = lotesCols.has('data_validade')
+        ? 'data_validade'
+        : lotesCols.has('dataValidade')
+          ? 'dataValidade'
+          : 'data_validade';
+      const qtdLoteCol = lotesCols.has('quantidade_lote')
+        ? 'quantidade_lote'
+        : lotesCols.has('quantidadeLote')
+          ? 'quantidadeLote'
+          : 'quantidade_lote';
       const statusCol = 'status';
-      const createdAtCol = lotesCols.has('criado_em') ? 'criado_em' : (lotesCols.has('createdAt') ? 'createdAt' : 'createdAt');
+      const createdAtCol = lotesCols.has('criado_em')
+        ? 'criado_em'
+        : lotesCols.has('createdAt')
+          ? 'createdAt'
+          : 'createdAt';
 
-      const itensTable = await this.detectTableName(['estoque_itens', 'itens_estoque']);
-      const itensCols = itensTable ? await this.getExistingColumns(itensTable) : new Set<string>();
+      const itensTable = await this.detectTableName([
+        'estoque_itens',
+        'itens_estoque',
+      ]);
+      const itensCols = itensTable
+        ? await this.getExistingColumns(itensTable)
+        : new Set<string>();
       const itemIdCol = 'id';
-      const joinInsumoCol = itensCols.has('insumo_id') ? 'insumo_id' : (itensCols.has('insumoId') ? 'insumoId' : null);
-      const joinLocalizacaoCol = itensCols.has('localizacao_id') ? 'localizacao_id' : (itensCols.has('localizacaoId') ? 'localizacaoId' : 'localizacao_id');
+      const joinInsumoCol = itensCols.has('insumo_id')
+        ? 'insumo_id'
+        : itensCols.has('insumoId')
+          ? 'insumoId'
+          : null;
+      const joinLocalizacaoCol = itensCols.has('localizacao_id')
+        ? 'localizacao_id'
+        : itensCols.has('localizacaoId')
+          ? 'localizacaoId'
+          : 'localizacao_id';
 
       // Detectar coluna de unidade no insumo
       const insumoCols2 = await this.getExistingColumns('insumos');
       const insumoUnCol2 = insumoCols2.has('unidadeCompra')
         ? 'unidadeCompra'
-        : (insumoCols2.has('unidade_compra')
+        : insumoCols2.has('unidade_compra')
           ? 'unidade_compra'
-          : (insumoCols2.has('unidade_uso') ? 'unidade_uso' : null));
+          : insumoCols2.has('unidade_uso')
+            ? 'unidade_uso'
+            : null;
 
       const insumoNameExprById = joinInsumoCol
         ? `COALESCE(i.nome, (SELECT ii.nome FROM insumos ii WHERE ii.loja_id = el.${lojaIdCol} AND (ii.codigo_interno = ie.codigo OR ii.nome = ie.nome OR ii.nome LIKE CONCAT('%', ie.nome, '%') OR ie.nome LIKE CONCAT('%', ii.nome, '%')) LIMIT 1))`
@@ -1722,15 +2177,15 @@ export class EstoqueSimpleService {
         id,
         context.lojaId,
       );
-      
+
       const lote = (lotes as any[])[0];
-      
+
       if (!lote) {
         return null;
       }
-      
+
       this.logger.debug(`✅ Lote encontrado: ${lote.id}`);
-      
+
       return lote;
     } catch (error) {
       this.logger.error(`❌ Erro ao buscar lote: ${error.message}`);
@@ -1740,41 +2195,49 @@ export class EstoqueSimpleService {
 
   async atualizarLote(context: IEstoqueContext, id: string, data: any) {
     this.validateContext(context);
-    
+
     this.logger.debug(`📦 Atualizando lote ${id} para loja: ${context.lojaId}`);
-    
+
     try {
       // Verificar se o lote existe
       const loteExistente = await this.buscarLotePorId(context, id);
       if (!loteExistente) {
         throw new Error('Lote não encontrado');
       }
-      
+
       // Construir query de atualização
       const updates = [];
-      if (data.numeroLote !== undefined) updates.push(`numero_lote = '${data.numeroLote}'`);
-      if (data.dataFabricacao !== undefined) updates.push(`data_fabricacao = ${data.dataFabricacao ? `'${data.dataFabricacao}'` : 'NULL'}`);
-      if (data.dataValidade !== undefined) updates.push(`data_validade = ${data.dataValidade ? `'${data.dataValidade}'` : 'NULL'}`);
-      if (data.quantidadeLote !== undefined) updates.push(`quantidade_lote = ${data.quantidadeLote}`);
+      if (data.numeroLote !== undefined)
+        updates.push(`numero_lote = '${data.numeroLote}'`);
+      if (data.dataFabricacao !== undefined)
+        updates.push(
+          `data_fabricacao = ${data.dataFabricacao ? `'${data.dataFabricacao}'` : 'NULL'}`,
+        );
+      if (data.dataValidade !== undefined)
+        updates.push(
+          `data_validade = ${data.dataValidade ? `'${data.dataValidade}'` : 'NULL'}`,
+        );
+      if (data.quantidadeLote !== undefined)
+        updates.push(`quantidade_lote = ${data.quantidadeLote}`);
       if (data.status !== undefined) updates.push(`status = '${data.status}'`);
-      
+
       if (updates.length === 0) {
         throw new Error('Nenhum campo para atualizar');
       }
-      
+
       const updateQuery = `
         UPDATE estoque_lotes 
         SET ${updates.join(', ')}, atualizado_em = NOW()
         WHERE id = '${id}' AND loja_id = '${context.lojaId}'
       `;
-      
+
       await this.prisma.$executeRawUnsafe(updateQuery);
-      
+
       // Buscar lote atualizado
       const loteAtualizado = await this.buscarLotePorId(context, id);
-      
+
       this.logger.debug(`✅ Lote atualizado: ${id}`);
-      
+
       return loteAtualizado;
     } catch (error) {
       this.logger.error(`❌ Erro ao atualizar lote: ${error.message}`);
@@ -1784,24 +2247,24 @@ export class EstoqueSimpleService {
 
   async excluirLote(context: IEstoqueContext, id: string) {
     this.validateContext(context);
-    
+
     this.logger.debug(`📦 Excluindo lote ${id} para loja: ${context.lojaId}`);
-    
+
     try {
       // Verificar se o lote existe
       const loteExistente = await this.buscarLotePorId(context, id);
       if (!loteExistente) {
         throw new Error('Lote não encontrado');
       }
-      
+
       // Excluir lote
       await this.prisma.$executeRaw`
         DELETE FROM estoque_lotes 
         WHERE id = ${id} AND loja_id = ${context.lojaId}
       `;
-      
+
       this.logger.debug(`✅ Lote excluído: ${id}`);
-      
+
       return { success: true };
     } catch (error) {
       this.logger.error(`❌ Erro ao excluir lote: ${error.message}`);
@@ -1811,9 +2274,11 @@ export class EstoqueSimpleService {
 
   async lotesProximosVencimento(context: IEstoqueContext, dias: number = 30) {
     this.validateContext(context);
-    
-    this.logger.debug(`📦 Buscando lotes próximos do vencimento (${dias} dias) para loja: ${context.lojaId}`);
-    
+
+    this.logger.debug(
+      `📦 Buscando lotes próximos do vencimento (${dias} dias) para loja: ${context.lojaId}`,
+    );
+
     try {
       const lotes = await this.prisma.$queryRaw`
         SELECT 
@@ -1834,30 +2299,44 @@ export class EstoqueSimpleService {
         AND el.data_validade <= DATE_ADD(NOW(), INTERVAL ${dias} DAY)
         ORDER BY el.data_validade ASC
       `;
-      
-      this.logger.debug(`✅ Lotes próximos do vencimento encontrados: ${(lotes as any[]).length}`);
-      
+
+      this.logger.debug(
+        `✅ Lotes próximos do vencimento encontrados: ${(lotes as any[]).length}`,
+      );
+
       return lotes;
     } catch (error) {
-      this.logger.error(`❌ Erro ao buscar lotes próximos do vencimento: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao buscar lotes próximos do vencimento: ${error.message}`,
+      );
       // Se a tabela não existir, retornar array vazio
-      if (error.message.includes('doesn\'t exist')) {
-        this.logger.warn('⚠️ Tabela estoque_lotes não existe, retornando array vazio');
+      if (error.message.includes("doesn't exist")) {
+        this.logger.warn(
+          '⚠️ Tabela estoque_lotes não existe, retornando array vazio',
+        );
         return [];
       }
-      throw new Error(`Erro ao buscar lotes próximos do vencimento: ${error.message}`);
+      throw new Error(
+        `Erro ao buscar lotes próximos do vencimento: ${error.message}`,
+      );
     }
   }
 
   // ===== TRANSFERÊNCIAS =====
   async criarTransferencia(context: IEstoqueContext, data: any) {
     this.validateContext(context);
-    
+
     this.logger.debug(`🔄 Criando transferência para loja: ${context.lojaId}`);
-    
+
     try {
-      const { itemId, localizacaoOrigemId, localizacaoDestinoId, quantidade, observacoes } = data;
-      
+      const {
+        itemId,
+        localizacaoOrigemId,
+        localizacaoDestinoId,
+        quantidade,
+        observacoes,
+      } = data;
+
       // Verificar se o item existe na localização de origem
       const itemOrigem = await this.prisma.$queryRaw`
         SELECT 
@@ -1879,34 +2358,40 @@ export class EstoqueSimpleService {
         FROM itens_estoque 
         WHERE id = ${itemId} AND loja_id = ${context.lojaId}
       `;
-      
+
       if (!(itemOrigem as any[])[0]) {
         throw new BadRequestException('Item de estoque não encontrado');
       }
-      
+
       const item = (itemOrigem as any[])[0];
-      
+
       if (item.localizacao_id !== localizacaoOrigemId) {
-        throw new BadRequestException('Item não está na localização de origem especificada');
+        throw new BadRequestException(
+          'Item não está na localização de origem especificada',
+        );
       }
-      
+
       if (item.quantidade < quantidade) {
-        throw new BadRequestException('Quantidade insuficiente para transferência');
+        throw new BadRequestException(
+          'Quantidade insuficiente para transferência',
+        );
       }
-      
+
       // Verificar se a localização de destino existe
       const localizacaoDestino = await this.prisma.$queryRaw`
         SELECT id, codigo FROM localizacoes 
         WHERE id = ${localizacaoDestinoId} AND loja_id = ${context.lojaId}
       `;
-      
+
       if (!(localizacaoDestino as any[])[0]) {
         throw new BadRequestException('Localização de destino não encontrada');
       }
-      
+
       // Modelo atual: não suportamos transferência parcial no itens_estoque (restrição de unicidade por loja+codigo)
       if (Number(item.quantidade) !== Number(quantidade)) {
-        throw new BadRequestException('No modelo atual de itens, só é possível transferir a quantidade total do item.');
+        throw new BadRequestException(
+          'No modelo atual de itens, só é possível transferir a quantidade total do item.',
+        );
       }
 
       // Registrar movimentação de saída na origem (apenas log)
@@ -1915,7 +2400,9 @@ export class EstoqueSimpleService {
         tipo: 'SAIDA',
         quantidade: quantidade,
         motivo: `Transferência para ${(localizacaoDestino as any[])[0].codigo}`,
-        observacoes: observacoes || `Transferência para ${(localizacaoDestino as any[])[0].codigo}`
+        observacoes:
+          observacoes ||
+          `Transferência para ${(localizacaoDestino as any[])[0].codigo}`,
       });
 
       // Atualizar a localização do item para a de destino (quantidade permanece igual)
@@ -1924,16 +2411,16 @@ export class EstoqueSimpleService {
         SET localizacao_id = ${localizacaoDestinoId}, dataUltimaMov = NOW()
         WHERE id = ${itemId} AND loja_id = ${context.lojaId}
       `;
-      
+
       // Registrar movimentação de entrada no destino
       await this.criarMovimentacao(context, {
         estoqueId: itemId,
         tipo: 'ENTRADA',
         quantidade: quantidade,
         motivo: `Transferência de ${item.codigo}`,
-        observacoes: observacoes || `Transferência de ${item.codigo}`
+        observacoes: observacoes || `Transferência de ${item.codigo}`,
       });
-      
+
       // Buscar dados da transferência (alinhar com o contrato do frontend)
       const transferenciaDb = await this.prisma.$queryRaw`
         SELECT 
@@ -1960,7 +2447,7 @@ export class EstoqueSimpleService {
           AND m1.loja_id = ${context.lojaId}
           AND m1.tipo = 'SAIDA'
       `;
-      
+
       const transferenciaMem = {
         id: `transf-${Date.now()}`,
         itemId: itemId,
@@ -1969,17 +2456,24 @@ export class EstoqueSimpleService {
         itemCodigo: item.codigo,
         itemNome: item.nome,
         localizacaoOrigemId: localizacaoOrigemId,
-        localizacaoOrigemCodigo: (await this.prisma.$queryRaw`SELECT codigo FROM localizacoes WHERE id = ${localizacaoOrigemId} AND loja_id = ${context.lojaId} LIMIT 1` as any[])[0]?.codigo || '',
+        localizacaoOrigemCodigo:
+          (
+            await this.prisma
+              .$queryRaw`SELECT codigo FROM localizacoes WHERE id = ${localizacaoOrigemId} AND loja_id = ${context.lojaId} LIMIT 1`
+          )[0]?.codigo || '',
         localizacaoDestinoId: localizacaoDestinoId,
-        localizacaoDestinoCodigo: (localizacaoDestino as any[])[0]?.codigo || '',
+        localizacaoDestinoCodigo:
+          (localizacaoDestino as any[])[0]?.codigo || '',
         observacoes: observacoes || null,
         status: 'CONCLUIDA',
       };
 
       this.transferenciasCriadas.unshift(transferenciaMem);
-      
-      this.logger.debug(`✅ Transferência criada: ${item.codigo} de ${(localizacaoDestino as any[])[0].codigo}`);
-      
+
+      this.logger.debug(
+        `✅ Transferência criada: ${item.codigo} de ${(localizacaoDestino as any[])[0].codigo}`,
+      );
+
       return (transferenciaDb as any[])?.[0] || transferenciaMem;
     } catch (error) {
       this.logger.error(`❌ Erro ao criar transferência: ${error.message}`);
@@ -1989,14 +2483,16 @@ export class EstoqueSimpleService {
 
   async listarTransferencias(context: IEstoqueContext, query: any = {}) {
     this.validateContext(context);
-    
-    this.logger.debug(`🔄 Listando transferências para loja: ${context.lojaId}`);
-    
+
+    this.logger.debug(
+      `🔄 Listando transferências para loja: ${context.lojaId}`,
+    );
+
     try {
       const lojaIdSafe = String(context.lojaId).replace(/'/g, "''");
       const filters: string[] = [
         `m1.loja_id = '${lojaIdSafe}'`,
-        `m1.tipo = 'SAIDA'`
+        `m1.tipo = 'SAIDA'`,
       ];
 
       if (query.itemId) {
@@ -2043,19 +2539,26 @@ export class EstoqueSimpleService {
       `;
 
       const transferencias: any = await this.prisma.$queryRawUnsafe(sql);
-      
+
       if (!Array.isArray(transferencias) || transferencias.length === 0) {
-        this.logger.debug('📝 Sem transferências reais; retornando transferências em memória.');
+        this.logger.debug(
+          '📝 Sem transferências reais; retornando transferências em memória.',
+        );
         return this.transferenciasCriadas;
       }
-      
-      this.logger.debug(`✅ Transferências listadas: ${(transferencias as any[]).length}`);
-      
+
+      this.logger.debug(`✅ Transferências listadas: ${transferencias.length}`);
+
       return transferencias;
     } catch (error) {
       this.logger.error(`❌ Erro ao listar transferências: ${error.message}`);
-      if (typeof error.message === 'string' && error.message.includes("doesn't exist")) {
-        this.logger.warn('⚠️ Tabela de transferências/movimentações não existe. Retornando transferências em memória.');
+      if (
+        typeof error.message === 'string' &&
+        error.message.includes("doesn't exist")
+      ) {
+        this.logger.warn(
+          '⚠️ Tabela de transferências/movimentações não existe. Retornando transferências em memória.',
+        );
         return this.transferenciasCriadas;
       }
       throw new Error(`Erro ao listar transferências: ${error.message}`);
@@ -2064,9 +2567,11 @@ export class EstoqueSimpleService {
 
   async buscarTransferenciaPorId(context: IEstoqueContext, id: string) {
     this.validateContext(context);
-    
-    this.logger.debug(`🔄 Buscando transferência ${id} para loja: ${context.lojaId}`);
-    
+
+    this.logger.debug(
+      `🔄 Buscando transferência ${id} para loja: ${context.lojaId}`,
+    );
+
     try {
       const transferencias = await this.prisma.$queryRaw`
         SELECT 
@@ -2094,20 +2599,25 @@ export class EstoqueSimpleService {
         )
         WHERE m1.id = ${id} AND m1.loja_id = ${context.lojaId} AND m1.tipo = 'SAIDA'
       `;
-      
-      const transferencia = (transferencias as any[])[0] || this.transferenciasCriadas.find(t => t.id === id) || null;
-      
+
+      const transferencia =
+        (transferencias as any[])[0] ||
+        this.transferenciasCriadas.find((t) => t.id === id) ||
+        null;
+
       if (!transferencia) {
         return null;
       }
-      
-      this.logger.debug(`✅ Transferência encontrada: ${transferencia.movimentacaoSaidaId}`);
-      
+
+      this.logger.debug(
+        `✅ Transferência encontrada: ${transferencia.movimentacaoSaidaId}`,
+      );
+
       return transferencia;
     } catch (error) {
       this.logger.error(`❌ Erro ao buscar transferência: ${error.message}`);
       // Fallback memória
-      const t = this.transferenciasCriadas.find(tr => tr.id === id);
+      const t = this.transferenciasCriadas.find((tr) => tr.id === id);
       if (t) return t;
       throw new Error(`Erro ao buscar transferência: ${error.message}`);
     }
@@ -2115,9 +2625,11 @@ export class EstoqueSimpleService {
 
   async historicoTransferenciasItem(context: IEstoqueContext, itemId: string) {
     this.validateContext(context);
-    
-    this.logger.debug(`🔄 Buscando histórico de transferências do item ${itemId} para loja: ${context.lojaId}`);
-    
+
+    this.logger.debug(
+      `🔄 Buscando histórico de transferências do item ${itemId} para loja: ${context.lojaId}`,
+    );
+
     try {
       const historico = await this.prisma.$queryRaw`
         SELECT 
@@ -2140,69 +2652,79 @@ export class EstoqueSimpleService {
         WHERE m1.item_id = ${itemId} AND m1.loja_id = ${context.lojaId} AND m1.tipo = 'SAIDA'
         ORDER BY m1.dataMovimentacao DESC
       `;
-      
-      this.logger.debug(`✅ Histórico de transferências encontrado: ${(historico as any[]).length} registros`);
-      
+
+      this.logger.debug(
+        `✅ Histórico de transferências encontrado: ${(historico as any[]).length} registros`,
+      );
+
       return historico;
     } catch (error) {
-      this.logger.error(`❌ Erro ao buscar histórico de transferências: ${error.message}`);
-      throw new Error(`Erro ao buscar histórico de transferências: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao buscar histórico de transferências: ${error.message}`,
+      );
+      throw new Error(
+        `Erro ao buscar histórico de transferências: ${error.message}`,
+      );
     }
   }
 
   async consumirLote(context: IEstoqueContext, id: string, quantidade: number) {
     this.validateContext(context);
-    
-    this.logger.debug(`📦 Consumindo lote ${id} (quantidade: ${quantidade}) para loja: ${context.lojaId}`);
-    
+
+    this.logger.debug(
+      `📦 Consumindo lote ${id} (quantidade: ${quantidade}) para loja: ${context.lojaId}`,
+    );
+
     try {
       // Buscar lote
       const lote = await this.buscarLotePorId(context, id);
       if (!lote) {
         throw new Error('Lote não encontrado');
       }
-      
+
       if (lote.status !== 'ATIVO') {
         throw new Error('Lote não está ativo');
       }
-      
+
       if (lote.quantidadeLote < quantidade) {
         throw new Error('Quantidade insuficiente no lote');
       }
-      
+
       // Atualizar quantidade do lote
       const novaQuantidade = lote.quantidadeLote - quantidade;
       const novoStatus = novaQuantidade <= 0 ? 'CONSUMIDO' : 'ATIVO';
-      
+
       await this.prisma.$executeRaw`
         UPDATE estoque_lotes 
         SET quantidade_lote = ${novaQuantidade}, status = ${novoStatus}, atualizado_em = NOW()
         WHERE id = ${id} AND loja_id = ${context.lojaId}
       `;
-      
+
       // Atualizar quantidade do item de estoque
       await this.prisma.$executeRaw`
         UPDATE itens_estoque 
         SET quantidadeAtual = quantidadeAtual - ${quantidade}, dataUltimaMov = NOW()
         WHERE id = ${lote.estoque_id} AND loja_id = ${context.lojaId}
       `;
-      
+
       // Registrar movimentação
       await this.criarMovimentacao(context, {
         itemId: lote.estoque_id,
         tipo: 'SAIDA',
         quantidade: quantidade,
         motivo: `Consumo do lote ${lote.numeroLote}`,
-        observacoes: `Lote: ${lote.numeroLote}`
+        observacoes: `Lote: ${lote.numeroLote}`,
       });
-      
-      this.logger.debug(`✅ Lote consumido: ${id}, nova quantidade: ${novaQuantidade}`);
-      
+
+      this.logger.debug(
+        `✅ Lote consumido: ${id}, nova quantidade: ${novaQuantidade}`,
+      );
+
       return {
         loteId: id,
         quantidadeConsumida: quantidade,
         quantidadeRestante: novaQuantidade,
-        status: novoStatus
+        status: novoStatus,
       };
     } catch (error) {
       this.logger.error(`❌ Erro ao consumir lote: ${error.message}`);
@@ -2213,9 +2735,11 @@ export class EstoqueSimpleService {
   // ===== RELATÓRIOS =====
   async relatorioEstoqueBaixo(context: IEstoqueContext) {
     this.validateContext(context);
-    
-    this.logger.debug(`📊 Gerando relatório de estoque baixo para loja: ${context.lojaId}`);
-    
+
+    this.logger.debug(
+      `📊 Gerando relatório de estoque baixo para loja: ${context.lojaId}`,
+    );
+
     try {
       // Query para buscar itens com estoque abaixo do mínimo
       const itensBaixoEstoque = await this.prisma.$queryRaw`
@@ -2235,21 +2759,29 @@ export class EstoqueSimpleService {
         AND ie.quantidade <= ie.estoque_minimo
         ORDER BY ie.quantidade ASC, diasSemMovimentacao DESC
       `;
-      
-      this.logger.debug(`✅ Relatório de estoque baixo gerado: ${(itensBaixoEstoque as any[]).length} itens`);
-      
+
+      this.logger.debug(
+        `✅ Relatório de estoque baixo gerado: ${(itensBaixoEstoque as any[]).length} itens`,
+      );
+
       return itensBaixoEstoque;
     } catch (error) {
-      this.logger.error(`❌ Erro ao gerar relatório de estoque baixo: ${error.message}`);
-      throw new Error(`Erro ao gerar relatório de estoque baixo: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao gerar relatório de estoque baixo: ${error.message}`,
+      );
+      throw new Error(
+        `Erro ao gerar relatório de estoque baixo: ${error.message}`,
+      );
     }
   }
 
   async relatorioVencimento(context: IEstoqueContext) {
     this.validateContext(context);
-    
-    this.logger.debug(`📊 Gerando relatório de vencimentos para loja: ${context.lojaId}`);
-    
+
+    this.logger.debug(
+      `📊 Gerando relatório de vencimentos para loja: ${context.lojaId}`,
+    );
+
     try {
       // Query para buscar lotes próximos do vencimento (próximos 30 dias)
       const lotesVencimento = await this.prisma.$queryRaw`
@@ -2271,26 +2803,36 @@ export class EstoqueSimpleService {
         AND el.data_validade <= DATE_ADD(NOW(), INTERVAL 30 DAY)
         ORDER BY el.data_validade ASC
       `;
-      
-      this.logger.debug(`✅ Relatório de vencimentos gerado: ${(lotesVencimento as any[]).length} lotes`);
-      
+
+      this.logger.debug(
+        `✅ Relatório de vencimentos gerado: ${(lotesVencimento as any[]).length} lotes`,
+      );
+
       return lotesVencimento;
     } catch (error) {
-      this.logger.error(`❌ Erro ao gerar relatório de vencimentos: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao gerar relatório de vencimentos: ${error.message}`,
+      );
       // Se a tabela de lotes não existir, retornar array vazio
-      if (error.message.includes('doesn\'t exist')) {
-        this.logger.warn('⚠️ Tabela estoque_lotes não existe, retornando array vazio');
+      if (error.message.includes("doesn't exist")) {
+        this.logger.warn(
+          '⚠️ Tabela estoque_lotes não existe, retornando array vazio',
+        );
         return [];
       }
-      throw new Error(`Erro ao gerar relatório de vencimentos: ${error.message}`);
+      throw new Error(
+        `Erro ao gerar relatório de vencimentos: ${error.message}`,
+      );
     }
   }
 
   async relatorioOcupacao(context: IEstoqueContext) {
     this.validateContext(context);
-    
-    this.logger.debug(`📊 Gerando relatório de ocupação para loja: ${context.lojaId}`);
-    
+
+    this.logger.debug(
+      `📊 Gerando relatório de ocupação para loja: ${context.lojaId}`,
+    );
+
     try {
       // Query para calcular ocupação por depósito
       const ocupacaoDepositos = await this.prisma.$queryRaw<any[]>`
@@ -2324,7 +2866,7 @@ export class EstoqueSimpleService {
         GROUP BY l.deposito
         ORDER BY l.deposito
       `;
-      
+
       // Calcular taxa de ocupação para cada depósito
       const relatorioComTaxa = ocupacaoDepositos.map((deposito) => ({
         ...deposito,
@@ -2333,16 +2875,25 @@ export class EstoqueSimpleService {
         localizacoesVazias: Number(deposito.localizacoesVazias ?? 0),
         capacidadeTotal: Number(deposito.capacidadeTotal ?? 0),
         capacidadeUtilizada: Number(deposito.capacidadeUtilizada ?? 0),
-        taxaOcupacao: Number(deposito.totalLocalizacoes ?? 0) > 0 
-          ? Math.round((Number(deposito.localizacoesOcupadas ?? 0) / Number(deposito.totalLocalizacoes ?? 0)) * 100)
-          : 0
+        taxaOcupacao:
+          Number(deposito.totalLocalizacoes ?? 0) > 0
+            ? Math.round(
+                (Number(deposito.localizacoesOcupadas ?? 0) /
+                  Number(deposito.totalLocalizacoes ?? 0)) *
+                  100,
+              )
+            : 0,
       }));
-      
-      this.logger.debug(`✅ Relatório de ocupação gerado: ${relatorioComTaxa.length} depósitos`);
-      
+
+      this.logger.debug(
+        `✅ Relatório de ocupação gerado: ${relatorioComTaxa.length} depósitos`,
+      );
+
       return relatorioComTaxa;
     } catch (error) {
-      this.logger.error(`❌ Erro ao gerar relatório de ocupação: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao gerar relatório de ocupação: ${error.message}`,
+      );
       throw new Error(`Erro ao gerar relatório de ocupação: ${error.message}`);
     }
   }
@@ -2352,7 +2903,7 @@ export class EstoqueSimpleService {
     try {
       // Teste simples de conexão
       await this.prisma.$queryRaw`SELECT 1`;
-      
+
       return {
         status: 'healthy',
         timestamp: new Date().toISOString(),

@@ -1,4 +1,13 @@
-import { IsString, IsNumber, IsOptional, IsBoolean, IsArray, ValidateNested, Min, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsBoolean,
+  IsArray,
+  ValidateNested,
+  Min,
+  MaxLength,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateItemProdutoDto {
@@ -116,4 +125,4 @@ export class CreateProdutoDto {
   @ValidateNested({ each: true })
   @Type(() => CreateFuncaoProdutoDto)
   funcoes?: CreateFuncaoProdutoDto[];
-} 
+}

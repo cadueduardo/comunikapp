@@ -1,5 +1,11 @@
 import { Controller, Get, Query, UseGuards, Logger } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiQuery,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { EstoqueSimpleService } from '../services/estoque-simple.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { GetLoja } from '../../auth/decorators';
@@ -16,63 +22,83 @@ export class RelatoriosController {
 
   @Get('baixo')
   @ApiOperation({ summary: 'Relatório de estoque baixo' })
-  @ApiResponse({ status: 200, description: 'Relatório de estoque baixo retornado com sucesso' })
+  @ApiResponse({
+    status: 200,
+    description: 'Relatório de estoque baixo retornado com sucesso',
+  })
   async relatorioEstoqueBaixo(@GetLoja() loja: Loja) {
-    this.logger.log(`📊 Gerando relatório de estoque baixo para loja: ${loja.id}`);
-    
+    this.logger.log(
+      `📊 Gerando relatório de estoque baixo para loja: ${loja.id}`,
+    );
+
     try {
       const context = { lojaId: loja.id };
-      const relatorio = await this.estoqueService.relatorioEstoqueBaixo(context);
-      
+      const relatorio =
+        await this.estoqueService.relatorioEstoqueBaixo(context);
+
       return {
         success: true,
         data: relatorio,
-        message: 'Relatório de estoque baixo gerado com sucesso'
+        message: 'Relatório de estoque baixo gerado com sucesso',
       };
     } catch (error) {
-      this.logger.error(`❌ Erro ao gerar relatório de estoque baixo: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao gerar relatório de estoque baixo: ${error.message}`,
+      );
       throw error;
     }
   }
 
   @Get('vencimento')
   @ApiOperation({ summary: 'Relatório de próximos vencimentos' })
-  @ApiResponse({ status: 200, description: 'Relatório de vencimentos retornado com sucesso' })
+  @ApiResponse({
+    status: 200,
+    description: 'Relatório de vencimentos retornado com sucesso',
+  })
   async relatorioVencimento(@GetLoja() loja: Loja) {
-    this.logger.log(`📊 Gerando relatório de vencimentos para loja: ${loja.id}`);
-    
+    this.logger.log(
+      `📊 Gerando relatório de vencimentos para loja: ${loja.id}`,
+    );
+
     try {
       const context = { lojaId: loja.id };
       const relatorio = await this.estoqueService.relatorioVencimento(context);
-      
+
       return {
         success: true,
         data: relatorio,
-        message: 'Relatório de vencimentos gerado com sucesso'
+        message: 'Relatório de vencimentos gerado com sucesso',
       };
     } catch (error) {
-      this.logger.error(`❌ Erro ao gerar relatório de vencimentos: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao gerar relatório de vencimentos: ${error.message}`,
+      );
       throw error;
     }
   }
 
   @Get('ocupacao')
   @ApiOperation({ summary: 'Relatório de ocupação por depósito' })
-  @ApiResponse({ status: 200, description: 'Relatório de ocupação retornado com sucesso' })
+  @ApiResponse({
+    status: 200,
+    description: 'Relatório de ocupação retornado com sucesso',
+  })
   async relatorioOcupacao(@GetLoja() loja: Loja) {
     this.logger.log(`📊 Gerando relatório de ocupação para loja: ${loja.id}`);
-    
+
     try {
       const context = { lojaId: loja.id };
       const relatorio = await this.estoqueService.relatorioOcupacao(context);
-      
+
       return {
         success: true,
         data: relatorio,
-        message: 'Relatório de ocupação gerado com sucesso'
+        message: 'Relatório de ocupação gerado com sucesso',
       };
     } catch (error) {
-      this.logger.error(`❌ Erro ao gerar relatório de ocupação: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao gerar relatório de ocupação: ${error.message}`,
+      );
       throw error;
     }
   }

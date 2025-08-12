@@ -38,17 +38,23 @@ export const estoqueSchemas = {
       id: { type: 'string', description: 'ID único da localização' },
       nome: { type: 'string', description: 'Nome da localização' },
       descricao: { type: 'string', description: 'Descrição da localização' },
-      tipo: { 
-        type: 'string', 
+      tipo: {
+        type: 'string',
         enum: ['PRATELEIRA', 'GAVETA', 'AREA', 'SETOR'],
-        description: 'Tipo da localização'
+        description: 'Tipo da localização',
       },
-      endereco: { type: 'string', description: 'Endereço físico da localização' },
-      capacidade: { type: 'number', description: 'Capacidade máxima da localização' },
+      endereco: {
+        type: 'string',
+        description: 'Endereço físico da localização',
+      },
+      capacidade: {
+        type: 'number',
+        description: 'Capacidade máxima da localização',
+      },
       lojaId: { type: 'string', description: 'ID da loja (multi-tenant)' },
       createdAt: { type: 'string', format: 'date-time' },
-      updatedAt: { type: 'string', format: 'date-time' }
-    }
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
   },
 
   ItemEstoque: {
@@ -58,25 +64,34 @@ export const estoqueSchemas = {
       nome: { type: 'string', description: 'Nome do item' },
       descricao: { type: 'string', description: 'Descrição do item' },
       codigo: { type: 'string', description: 'Código do item' },
-      categoria: { 
-        type: 'string', 
+      categoria: {
+        type: 'string',
         enum: ['MATERIAL', 'PRODUTO', 'EQUIPAMENTO', 'SUPRIMENTO'],
-        description: 'Categoria do item'
+        description: 'Categoria do item',
       },
-      unidadeMedida: { 
-        type: 'string', 
+      unidadeMedida: {
+        type: 'string',
         enum: ['UNIDADE', 'KG', 'LITRO', 'METRO', 'METRO_QUADRADO'],
-        description: 'Unidade de medida'
+        description: 'Unidade de medida',
       },
       precoUnitario: { type: 'number', description: 'Preço unitário' },
-      quantidadeAtual: { type: 'number', description: 'Quantidade atual em estoque' },
-      quantidadeMinima: { type: 'number', description: 'Quantidade mínima para alerta' },
-      quantidadeMaxima: { type: 'number', description: 'Quantidade máxima permitida' },
+      quantidadeAtual: {
+        type: 'number',
+        description: 'Quantidade atual em estoque',
+      },
+      quantidadeMinima: {
+        type: 'number',
+        description: 'Quantidade mínima para alerta',
+      },
+      quantidadeMaxima: {
+        type: 'number',
+        description: 'Quantidade máxima permitida',
+      },
       localizacaoId: { type: 'string', description: 'ID da localização' },
       lojaId: { type: 'string', description: 'ID da loja (multi-tenant)' },
       createdAt: { type: 'string', format: 'date-time' },
-      updatedAt: { type: 'string', format: 'date-time' }
-    }
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
   },
 
   MovimentacaoEstoque: {
@@ -84,48 +99,68 @@ export const estoqueSchemas = {
     properties: {
       id: { type: 'string', description: 'ID único da movimentação' },
       itemId: { type: 'string', description: 'ID do item movimentado' },
-      tipo: { 
-        type: 'string', 
+      tipo: {
+        type: 'string',
         enum: ['ENTRADA', 'SAIDA', 'AJUSTE', 'TRANSFERENCIA'],
-        description: 'Tipo da movimentação'
+        description: 'Tipo da movimentação',
       },
       quantidade: { type: 'number', description: 'Quantidade movimentada' },
-      quantidadeAnterior: { type: 'number', description: 'Quantidade antes da movimentação' },
-      quantidadePosterior: { type: 'number', description: 'Quantidade após a movimentação' },
+      quantidadeAnterior: {
+        type: 'number',
+        description: 'Quantidade antes da movimentação',
+      },
+      quantidadePosterior: {
+        type: 'number',
+        description: 'Quantidade após a movimentação',
+      },
       motivo: { type: 'string', description: 'Motivo da movimentação' },
       observacoes: { type: 'string', description: 'Observações adicionais' },
       lojaId: { type: 'string', description: 'ID da loja (multi-tenant)' },
-      createdAt: { type: 'string', format: 'date-time' }
-    }
+      createdAt: { type: 'string', format: 'date-time' },
+    },
   },
 
   DashboardEstoque: {
     type: 'object',
     properties: {
       totalItens: { type: 'number', description: 'Total de itens em estoque' },
-      totalLocalizacoes: { type: 'number', description: 'Total de localizações' },
-      valorTotalEstoque: { type: 'number', description: 'Valor total do estoque' },
-      itensBaixoEstoque: { 
-        type: 'array', 
-        items: { $ref: '#/components/schemas/ItemEstoque' },
-        description: 'Itens com estoque baixo'
+      totalLocalizacoes: {
+        type: 'number',
+        description: 'Total de localizações',
       },
-      movimentacoesRecentes: { 
-        type: 'array', 
+      valorTotalEstoque: {
+        type: 'number',
+        description: 'Valor total do estoque',
+      },
+      itensBaixoEstoque: {
+        type: 'array',
+        items: { $ref: '#/components/schemas/ItemEstoque' },
+        description: 'Itens com estoque baixo',
+      },
+      movimentacoesRecentes: {
+        type: 'array',
         items: { $ref: '#/components/schemas/MovimentacaoEstoque' },
-        description: 'Movimentações recentes'
-      }
-    }
+        description: 'Movimentações recentes',
+      },
+    },
   },
 
   HealthStatus: {
     type: 'object',
     properties: {
-      status: { type: 'string', enum: ['ok', 'error'], description: 'Status do módulo' },
+      status: {
+        type: 'string',
+        enum: ['ok', 'error'],
+        description: 'Status do módulo',
+      },
       module: { type: 'string', description: 'Nome do módulo' },
-      timestamp: { type: 'string', format: 'date-time', description: 'Timestamp da verificação' },
-      uptime: { type: 'number', description: 'Tempo de atividade em segundos' }
-    }
+      timestamp: {
+        type: 'string',
+        format: 'date-time',
+        description: 'Timestamp da verificação',
+      },
+      uptime: { type: 'number', description: 'Tempo de atividade em segundos' },
+    },
   },
 
   ModuleInfo: {
@@ -134,13 +169,13 @@ export const estoqueSchemas = {
       name: { type: 'string', description: 'Nome do módulo' },
       version: { type: 'string', description: 'Versão do módulo' },
       description: { type: 'string', description: 'Descrição do módulo' },
-      features: { 
-        type: 'array', 
+      features: {
+        type: 'array',
         items: { type: 'string' },
-        description: 'Funcionalidades disponíveis'
-      }
-    }
-  }
+        description: 'Funcionalidades disponíveis',
+      },
+    },
+  },
 };
 
 // Exemplos de requisição
@@ -153,8 +188,8 @@ export const estoqueExamples = {
       tipo: 'PRATELEIRA',
       endereco: 'A1-01-01',
       capacidade: 100,
-      lojaId: 'loja-123'
-    }
+      lojaId: 'loja-123',
+    },
   },
 
   CreateItem: {
@@ -165,12 +200,12 @@ export const estoqueExamples = {
       codigo: 'PROD001',
       categoria: 'MATERIAL',
       unidadeMedida: 'UNIDADE',
-      precoUnitario: 10.50,
+      precoUnitario: 10.5,
       quantidadeMinima: 5,
       quantidadeMaxima: 100,
       localizacaoId: 'localizacao-123',
-      lojaId: 'loja-123'
-    }
+      lojaId: 'loja-123',
+    },
   },
 
   CreateMovimentacao: {
@@ -181,9 +216,9 @@ export const estoqueExamples = {
       quantidade: 10,
       motivo: 'Compra inicial',
       observacoes: 'Movimento de entrada de produtos',
-      lojaId: 'loja-123'
-    }
-  }
+      lojaId: 'loja-123',
+    },
+  },
 };
 
 // Respostas de erro
@@ -197,11 +232,11 @@ export const estoqueErrorResponses = {
           properties: {
             statusCode: { type: 'number', example: 400 },
             message: { type: 'string', example: 'Dados inválidos' },
-            error: { type: 'string', example: 'Bad Request' }
-          }
-        }
-      }
-    }
+            error: { type: 'string', example: 'Bad Request' },
+          },
+        },
+      },
+    },
   },
 
   401: {
@@ -213,11 +248,11 @@ export const estoqueErrorResponses = {
           properties: {
             statusCode: { type: 'number', example: 401 },
             message: { type: 'string', example: 'Token inválido' },
-            error: { type: 'string', example: 'Unauthorized' }
-          }
-        }
-      }
-    }
+            error: { type: 'string', example: 'Unauthorized' },
+          },
+        },
+      },
+    },
   },
 
   403: {
@@ -228,12 +263,15 @@ export const estoqueErrorResponses = {
           type: 'object',
           properties: {
             statusCode: { type: 'number', example: 403 },
-            message: { type: 'string', example: 'Acesso negado ao módulo de estoque' },
-            error: { type: 'string', example: 'Forbidden' }
-          }
-        }
-      }
-    }
+            message: {
+              type: 'string',
+              example: 'Acesso negado ao módulo de estoque',
+            },
+            error: { type: 'string', example: 'Forbidden' },
+          },
+        },
+      },
+    },
   },
 
   404: {
@@ -245,11 +283,11 @@ export const estoqueErrorResponses = {
           properties: {
             statusCode: { type: 'number', example: 404 },
             message: { type: 'string', example: 'Item não encontrado' },
-            error: { type: 'string', example: 'Not Found' }
-          }
-        }
-      }
-    }
+            error: { type: 'string', example: 'Not Found' },
+          },
+        },
+      },
+    },
   },
 
   500: {
@@ -261,10 +299,10 @@ export const estoqueErrorResponses = {
           properties: {
             statusCode: { type: 'number', example: 500 },
             message: { type: 'string', example: 'Erro interno do servidor' },
-            error: { type: 'string', example: 'Internal Server Error' }
-          }
-        }
-      }
-    }
-  }
+            error: { type: 'string', example: 'Internal Server Error' },
+          },
+        },
+      },
+    },
+  },
 };

@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename);
 
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs'],
+    ignores: ['eslint.config.mjs', 'src/generated/**', 'src/**/generated/**'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
@@ -33,7 +33,19 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'warn',
-      '@typescript-eslint/no-unsafe-argument': 'warn'
+      '@typescript-eslint/no-unsafe-argument': 'warn',
+    },
+  },
+  {
+    files: ['src/**/services/**/*.ts', 'src/**/services/*.ts'],
+    rules: {
+      'max-lines': ['warn', { max: 400, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    files: ['src/**/controllers/**/*.ts', 'src/**/controllers/*.ts'],
+    rules: {
+      'max-lines': ['warn', { max: 200, skipBlankLines: true, skipComments: true }],
     },
   },
 );

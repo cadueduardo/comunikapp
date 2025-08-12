@@ -4,7 +4,12 @@
  * Implementa segurança obrigatória conforme premissas
  */
 
-import { Injectable, NestMiddleware, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NestMiddleware,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -28,12 +33,14 @@ export class TenantIsolationMiddleware implements NestMiddleware {
     console.log('🔒 Middleware de isolamento de tenant executado');
     console.log('📍 URL:', req.url);
     console.log('🔑 Headers:', req.headers);
-    
+
     try {
       // 1. VALIDAÇÃO DE TOKEN INTERNO (comunicação entre módulos)
       const internalToken = req.headers['x-internal-token'];
-      const expectedToken = this.configService.get('ESTOQUE_INTERNAL_API_TOKEN');
-      
+      const expectedToken = this.configService.get(
+        'ESTOQUE_INTERNAL_API_TOKEN',
+      );
+
       if (internalToken && internalToken === expectedToken) {
         // Token interno válido - bypass para comunicação entre módulos
         req.estoque = {
@@ -46,19 +53,22 @@ export class TenantIsolationMiddleware implements NestMiddleware {
       // 2. VALIDAÇÃO DE AUTENTICAÇÃO JWT (usuários normais)
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        throw new UnauthorizedException('Token de autenticação requerido para acesso ao estoque');
+        throw new UnauthorizedException(
+          'Token de autenticação requerido para acesso ao estoque',
+        );
       }
 
       // 3. EXTRAÇÃO E VALIDAÇÃO DO TOKEN JWT
       const token = authHeader.substring(7); // Remove 'Bearer '
-      
+
       try {
         console.log('🔍 Validando token JWT...');
         console.log('🔑 Token recebido:', token.substring(0, 50) + '...');
-        
-        const secret = this.configService.get('JWT_SECRET') || 'your-secret-key';
+
+        const secret =
+          this.configService.get('JWT_SECRET') || 'your-secret-key';
         console.log('🔐 Secret usado:', secret);
-        
+
         const payload = this.jwtService.verify(token, {
           secret: secret,
         });
@@ -77,16 +87,24 @@ export class TenantIsolationMiddleware implements NestMiddleware {
         // 5. VALIDAÇÃO DE TENANT (lojaId obrigatório)
         if (!lojaId) {
           console.error('❌ LojaId não encontrado no token');
-          throw new BadRequestException('lojaId é obrigatório para operações de estoque');
+          throw new BadRequestException(
+            'lojaId é obrigatório para operações de estoque',
+          );
         }
 
         // 6. MAPEAMENTO DE FUNÇÃO PARA ROLES E VALIDAÇÃO DE PERMISSÕES
         const roles = this.mapearFuncaoParaRoles(funcao);
-        const allowedRoles = this.configService.get('ESTOQUE_ALLOWED_ROLES', 'ADMINISTRADOR,FINANCEIRO,ESTOQUE').split(',');
-        const hasPermission = roles.some(role => allowedRoles.includes(role.trim()));
-        
+        const allowedRoles = this.configService
+          .get('ESTOQUE_ALLOWED_ROLES', 'ADMINISTRADOR,FINANCEIRO,ESTOQUE')
+          .split(',');
+        const hasPermission = roles.some((role) =>
+          allowedRoles.includes(role.trim()),
+        );
+
         if (!hasPermission) {
-          throw new UnauthorizedException(`Permissão insuficiente. Funções necessárias: ${allowedRoles.join(', ')}`);
+          throw new UnauthorizedException(
+            `Permissão insuficiente. Funções necessárias: ${allowedRoles.join(', ')}`,
+          );
         }
 
         // 7. CONFIGURAÇÃO DO CONTEXTO DE ESTOQUE
@@ -97,7 +115,9 @@ export class TenantIsolationMiddleware implements NestMiddleware {
         };
 
         // 8. LOG DE AUDITORIA (logs completos e rastreáveis)
-        console.log(`🔒 Acesso ao estoque: Usuário ${usuarioId} | Loja ${lojaId} | Função ${funcao} | Roles ${roles.join(',')}`);
+        console.log(
+          `🔒 Acesso ao estoque: Usuário ${usuarioId} | Loja ${lojaId} | Função ${funcao} | Roles ${roles.join(',')}`,
+        );
 
         next();
       } catch (jwtError) {
@@ -124,11 +144,17 @@ export class TenantIsolationMiddleware implements NestMiddleware {
    */
   private mapearFuncaoParaRoles(funcao: string): string[] {
     const mapeamento: Record<string, string[]> = {
-      'ADMINISTRADOR': ['ADMINISTRADOR', 'FINANCEIRO', 'ESTOQUE', 'PRODUCAO', 'VENDAS'],
-      'FINANCEIRO': ['FINANCEIRO', 'ESTOQUE'],
-      'ESTOQUE': ['ESTOQUE'],
-      'PRODUCAO': ['PRODUCAO', 'ESTOQUE'], // Produção pode acessar estoque para verificar materiais
-      'VENDAS': ['VENDAS'], // Vendas tem acesso limitado
+      ADMINISTRADOR: [
+        'ADMINISTRADOR',
+        'FINANCEIRO',
+        'ESTOQUE',
+        'PRODUCAO',
+        'VENDAS',
+      ],
+      FINANCEIRO: ['FINANCEIRO', 'ESTOQUE'],
+      ESTOQUE: ['ESTOQUE'],
+      PRODUCAO: ['PRODUCAO', 'ESTOQUE'], // Produção pode acessar estoque para verificar materiais
+      VENDAS: ['VENDAS'], // Vendas tem acesso limitado
     };
 
     return mapeamento[funcao] || [funcao];

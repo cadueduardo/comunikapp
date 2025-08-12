@@ -24,13 +24,13 @@ describe('EstoqueModule (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
-    .overrideProvider('MailService')
-    .useValue({
-      sendEmail: jest.fn().mockResolvedValue(true),
-      sendWelcomeEmail: jest.fn().mockResolvedValue(true),
-      sendVerificationEmail: jest.fn().mockResolvedValue(true),
-    })
-    .compile();
+      .overrideProvider('MailService')
+      .useValue({
+        sendEmail: jest.fn().mockResolvedValue(true),
+        sendWelcomeEmail: jest.fn().mockResolvedValue(true),
+        sendVerificationEmail: jest.fn().mockResolvedValue(true),
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     prismaService = moduleFixture.get<PrismaService>(PrismaService);
@@ -90,7 +90,7 @@ describe('EstoqueModule (e2e)', () => {
         tipo: 'PRATELEIRA',
         endereco: 'A1-01-01',
         capacidade: 100,
-        lojaId: mockLojaId
+        lojaId: mockLojaId,
       };
 
       return request(app.getHttpServer())
@@ -106,7 +106,7 @@ describe('EstoqueModule (e2e)', () => {
 
     it('should validate required fields', () => {
       const invalidDto = {
-        descricao: 'Prateleira sem nome'
+        descricao: 'Prateleira sem nome',
       };
 
       return request(app.getHttpServer())
@@ -140,7 +140,7 @@ describe('EstoqueModule (e2e)', () => {
           tipo: 'PRATELEIRA',
           endereco: 'B1-01-01',
           capacidade: 50,
-          lojaId: mockLojaId
+          lojaId: mockLojaId,
         })
         .expect(201);
 
@@ -150,11 +150,11 @@ describe('EstoqueModule (e2e)', () => {
         codigo: 'PROD001',
         categoria: 'MATERIAL',
         unidadeMedida: 'UNIDADE',
-        precoUnitario: 10.50,
+        precoUnitario: 10.5,
         quantidadeMinima: 5,
         quantidadeMaxima: 100,
         localizacaoId: location.body.id,
-        lojaId: mockLojaId
+        lojaId: mockLojaId,
       };
 
       return request(app.getHttpServer())
@@ -192,10 +192,10 @@ describe('EstoqueModule (e2e)', () => {
           codigo: 'PROD002',
           categoria: 'MATERIAL',
           unidadeMedida: 'UNIDADE',
-          precoUnitario: 15.00,
+          precoUnitario: 15.0,
           quantidadeMinima: 2,
           quantidadeMaxima: 50,
-          lojaId: mockLojaId
+          lojaId: mockLojaId,
         })
         .expect(201);
 
@@ -205,7 +205,7 @@ describe('EstoqueModule (e2e)', () => {
         quantidade: 10,
         motivo: 'Compra inicial',
         observacoes: 'Movimento de teste',
-        lojaId: mockLojaId
+        lojaId: mockLojaId,
       };
 
       return request(app.getHttpServer())
@@ -261,10 +261,10 @@ describe('EstoqueModule (e2e)', () => {
           codigo: 'PROD003',
           categoria: 'MATERIAL',
           unidadeMedida: 'UNIDADE',
-          precoUnitario: 20.00,
+          precoUnitario: 20.0,
           quantidadeMinima: 1,
           quantidadeMaxima: 20,
-          lojaId: mockLojaId
+          lojaId: mockLojaId,
         })
         .expect(201);
 
@@ -277,10 +277,10 @@ describe('EstoqueModule (e2e)', () => {
           codigo: 'PROD004',
           categoria: 'MATERIAL',
           unidadeMedida: 'UNIDADE',
-          precoUnitario: 25.00,
+          precoUnitario: 25.0,
           quantidadeMinima: 1,
           quantidadeMaxima: 30,
-          lojaId: otherLojaId
+          lojaId: otherLojaId,
         })
         .expect(201);
 
@@ -292,14 +292,14 @@ describe('EstoqueModule (e2e)', () => {
 
       expect(itemsLojaPrincipal.body).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ id: item1.body.id })
-        ])
+          expect.objectContaining({ id: item1.body.id }),
+        ]),
       );
 
       expect(itemsLojaPrincipal.body).not.toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ id: item2.body.id })
-        ])
+          expect.objectContaining({ id: item2.body.id }),
+        ]),
       );
     });
   });

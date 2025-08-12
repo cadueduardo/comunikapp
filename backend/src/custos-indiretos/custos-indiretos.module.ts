@@ -10,4 +10,4 @@ import { AuthModule } from '../auth/auth.module';
   providers: [CustosIndiretosService],
   exports: [CustosIndiretosService],
 })
-export class CustosIndiretosModule {} 
+export class CustosIndiretosModule {}

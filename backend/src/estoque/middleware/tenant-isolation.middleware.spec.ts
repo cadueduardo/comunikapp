@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TenantIsolationMiddleware, EstoqueRequest } from './tenant-isolation.middleware';
+import {
+  TenantIsolationMiddleware,
+  EstoqueRequest,
+} from './tenant-isolation.middleware';
 import { ConfigService } from '@nestjs/config';
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
@@ -26,7 +29,9 @@ describe('TenantIsolationMiddleware', () => {
       ],
     }).compile();
 
-    middleware = module.get<TenantIsolationMiddleware>(TenantIsolationMiddleware);
+    middleware = module.get<TenantIsolationMiddleware>(
+      TenantIsolationMiddleware,
+    );
     configService = module.get<ConfigService>(ConfigService);
 
     // Setup default mocks
@@ -42,16 +47,18 @@ describe('TenantIsolationMiddleware', () => {
     mockNext = jest.fn();
 
     // Default config values
-    mockConfigService.get.mockImplementation((key: string, defaultValue?: string) => {
-      switch (key) {
-        case 'ESTOQUE_INTERNAL_API_TOKEN':
-          return 'internal-token-123';
-        case 'ESTOQUE_ALLOWED_ROLES':
-          return 'admin,manager,estoque';
-        default:
-          return defaultValue;
-      }
-    });
+    mockConfigService.get.mockImplementation(
+      (key: string, defaultValue?: string) => {
+        switch (key) {
+          case 'ESTOQUE_INTERNAL_API_TOKEN':
+            return 'internal-token-123';
+          case 'ESTOQUE_ALLOWED_ROLES':
+            return 'admin,manager,estoque';
+          default:
+            return defaultValue;
+        }
+      },
+    );
   });
 
   afterEach(() => {
@@ -94,7 +101,7 @@ describe('TenantIsolationMiddleware', () => {
         expect.objectContaining({
           message: expect.stringContaining('Token de autenticação requerido'),
           module: 'estoque',
-        })
+        }),
       );
     });
   });
@@ -114,7 +121,7 @@ describe('TenantIsolationMiddleware', () => {
         expect.objectContaining({
           message: expect.stringContaining('Token de autenticação requerido'),
           module: 'estoque',
-        })
+        }),
       );
     });
 
@@ -133,7 +140,7 @@ describe('TenantIsolationMiddleware', () => {
         expect.objectContaining({
           message: expect.stringContaining('Token de autenticação requerido'),
           module: 'estoque',
-        })
+        }),
       );
     });
   });
@@ -154,7 +161,7 @@ describe('TenantIsolationMiddleware', () => {
         expect.objectContaining({
           message: expect.stringContaining('lojaId é obrigatório'),
           module: 'estoque',
-        })
+        }),
       );
     });
 
@@ -230,7 +237,7 @@ describe('TenantIsolationMiddleware', () => {
         expect.objectContaining({
           message: expect.stringContaining('Permissão insuficiente'),
           module: 'estoque',
-        })
+        }),
       );
     });
 
@@ -249,7 +256,7 @@ describe('TenantIsolationMiddleware', () => {
         expect.objectContaining({
           message: expect.stringContaining('Permissão insuficiente'),
           module: 'estoque',
-        })
+        }),
       );
     });
   });
@@ -277,7 +284,7 @@ describe('TenantIsolationMiddleware', () => {
           message: expect.any(String),
           module: 'estoque',
           timestamp: expect.any(String),
-        })
+        }),
       );
     });
 
@@ -295,7 +302,7 @@ describe('TenantIsolationMiddleware', () => {
         expect.objectContaining({
           message: expect.stringContaining('lojaId é obrigatório'),
           module: 'estoque',
-        })
+        }),
       );
     });
 
@@ -314,7 +321,7 @@ describe('TenantIsolationMiddleware', () => {
         expect.objectContaining({
           message: expect.stringContaining('Token de autenticação requerido'),
           module: 'estoque',
-        })
+        }),
       );
     });
   });
@@ -343,7 +350,7 @@ describe('TenantIsolationMiddleware', () => {
         expect.objectContaining({
           message: expect.stringContaining('admin,supervisor'),
           module: 'estoque',
-        })
+        }),
       );
     });
 

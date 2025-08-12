@@ -17,7 +17,9 @@ import { CurrentLojaId } from '../auth/decorators';
 @Controller('custos-indiretos')
 @UseGuards(JwtAuthGuard)
 export class CustosIndiretosController {
-  constructor(private readonly custosIndiretosService: CustosIndiretosService) {}
+  constructor(
+    private readonly custosIndiretosService: CustosIndiretosService,
+  ) {}
 
   @Post()
   create(
@@ -43,11 +45,15 @@ export class CustosIndiretosController {
     @Body() updateCustoIndiretoDto: UpdateCustoIndiretoDto,
     @CurrentLojaId() lojaId: string,
   ) {
-    return this.custosIndiretosService.update(id, updateCustoIndiretoDto, lojaId);
+    return this.custosIndiretosService.update(
+      id,
+      updateCustoIndiretoDto,
+      lojaId,
+    );
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @CurrentLojaId() lojaId: string) {
     return this.custosIndiretosService.remove(id, lojaId);
   }
-} 
+}

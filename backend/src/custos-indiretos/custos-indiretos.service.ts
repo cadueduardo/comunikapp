@@ -45,14 +45,22 @@ export class CustosIndiretosService {
     return custoIndireto;
   }
 
-  async update(id: string, updateCustoIndiretoDto: UpdateCustoIndiretoDto, lojaId: string) {
+  async update(
+    id: string,
+    updateCustoIndiretoDto: UpdateCustoIndiretoDto,
+    lojaId: string,
+  ) {
     await this.findOne(id, lojaId);
 
     const updateData: any = {};
-    if (updateCustoIndiretoDto.nome) updateData.nome = updateCustoIndiretoDto.nome;
-    if (updateCustoIndiretoDto.categoria) updateData.categoria = updateCustoIndiretoDto.categoria;
-    if (updateCustoIndiretoDto.valor_mensal) updateData.valor_mensal = updateCustoIndiretoDto.valor_mensal;
-    if (updateCustoIndiretoDto.descricao) updateData.observacoes = updateCustoIndiretoDto.descricao;
+    if (updateCustoIndiretoDto.nome)
+      updateData.nome = updateCustoIndiretoDto.nome;
+    if (updateCustoIndiretoDto.categoria)
+      updateData.categoria = updateCustoIndiretoDto.categoria;
+    if (updateCustoIndiretoDto.valor_mensal)
+      updateData.valor_mensal = updateCustoIndiretoDto.valor_mensal;
+    if (updateCustoIndiretoDto.descricao)
+      updateData.observacoes = updateCustoIndiretoDto.descricao;
 
     return this.prisma.custoIndireto.update({
       where: { id },
@@ -67,4 +75,4 @@ export class CustosIndiretosService {
       where: { id },
     });
   }
-} 
+}

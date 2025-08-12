@@ -1,8 +1,25 @@
-import { 
-  Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Req, Logger,
-  BadRequestException, NotFoundException 
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Req,
+  Logger,
+  BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { SobrasService } from '../services/sobras.service';
 import { EstoqueAccessGuard } from '../guards/estoque-access.guard';
 import { EstoqueRequest } from '../middleware/tenant-isolation.middleware';
@@ -36,9 +53,20 @@ export class SobrasController {
 
   @Get()
   @ApiOperation({ summary: 'Listar sobras' })
-  @ApiResponse({ status: 200, description: 'Lista de sobras retornada com sucesso' })
-  @ApiQuery({ name: 'status', required: false, description: 'Filtrar por status' })
-  @ApiQuery({ name: 'material', required: false, description: 'Filtrar por material' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de sobras retornada com sucesso',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Filtrar por status',
+  })
+  @ApiQuery({
+    name: 'material',
+    required: false,
+    description: 'Filtrar por material',
+  })
   @ApiQuery({ name: 'cor', required: false, description: 'Filtrar por cor' })
   async listarSobras(@Req() req: EstoqueRequest, @Query() query: any) {
     try {
@@ -83,7 +111,11 @@ export class SobrasController {
   @ApiResponse({ status: 200, description: 'Sobra atualizada com sucesso' })
   @ApiResponse({ status: 404, description: 'Sobra não encontrada' })
   @ApiParam({ name: 'id', description: 'ID da sobra' })
-  async atualizarSobra(@Req() req: EstoqueRequest, @Param('id') id: string, @Body() data: any) {
+  async atualizarSobra(
+    @Req() req: EstoqueRequest,
+    @Param('id') id: string,
+    @Body() data: any,
+  ) {
     try {
       const context = {
         lojaId: req.estoque.lojaId,
@@ -126,17 +158,28 @@ export class SobrasController {
 
   @Post(':id/aproveitamento')
   @ApiOperation({ summary: 'Registrar aproveitamento de sobra' })
-  @ApiResponse({ status: 201, description: 'Aproveitamento registrado com sucesso' })
+  @ApiResponse({
+    status: 201,
+    description: 'Aproveitamento registrado com sucesso',
+  })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
   @ApiParam({ name: 'id', description: 'ID da sobra' })
-  async registrarAproveitamento(@Req() req: EstoqueRequest, @Param('id') id: string, @Body() data: any) {
+  async registrarAproveitamento(
+    @Req() req: EstoqueRequest,
+    @Param('id') id: string,
+    @Body() data: any,
+  ) {
     try {
       const context = {
         lojaId: req.estoque.lojaId,
         usuarioId: req.estoque.usuarioId,
       };
 
-      const aproveitamento = await this.sobrasService.registrarAproveitamento(context, id, data);
+      const aproveitamento = await this.sobrasService.registrarAproveitamento(
+        context,
+        id,
+        data,
+      );
       return aproveitamento;
     } catch (error) {
       this.logger.error(`Erro ao registrar aproveitamento: ${error.message}`);
@@ -147,10 +190,22 @@ export class SobrasController {
   @Get('sugestoes/buscar')
   @ApiOperation({ summary: 'Buscar sugestões de sobras' })
   @ApiResponse({ status: 200, description: 'Sugestões retornadas com sucesso' })
-  @ApiQuery({ name: 'material', required: false, description: 'Filtrar por material' })
+  @ApiQuery({
+    name: 'material',
+    required: false,
+    description: 'Filtrar por material',
+  })
   @ApiQuery({ name: 'cor', required: false, description: 'Filtrar por cor' })
-  @ApiQuery({ name: 'areaMinima', required: false, description: 'Área mínima em m²' })
-  @ApiQuery({ name: 'areaMaxima', required: false, description: 'Área máxima em m²' })
+  @ApiQuery({
+    name: 'areaMinima',
+    required: false,
+    description: 'Área mínima em m²',
+  })
+  @ApiQuery({
+    name: 'areaMaxima',
+    required: false,
+    description: 'Área máxima em m²',
+  })
   async buscarSugestoes(@Req() req: EstoqueRequest, @Query() query: any) {
     try {
       const context = {
@@ -158,7 +213,10 @@ export class SobrasController {
         usuarioId: req.estoque.usuarioId,
       };
 
-      const sugestoes = await this.sobrasService.buscarSugestoesSobras(context, query);
+      const sugestoes = await this.sobrasService.buscarSugestoesSobras(
+        context,
+        query,
+      );
       return sugestoes;
     } catch (error) {
       this.logger.error(`Erro ao buscar sugestões: ${error.message}`);
@@ -176,7 +234,8 @@ export class SobrasController {
         usuarioId: req.estoque.usuarioId,
       };
 
-      const metricas = await this.sobrasService.calcularMetricasEconomia(context);
+      const metricas =
+        await this.sobrasService.calcularMetricasEconomia(context);
       return metricas;
     } catch (error) {
       this.logger.error(`Erro ao calcular métricas: ${error.message}`);

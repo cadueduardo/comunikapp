@@ -1,4 +1,8 @@
-import { SetMetadata, createParamDecorator, ExecutionContext } from '@nestjs/common';
+import {
+  SetMetadata,
+  createParamDecorator,
+  ExecutionContext,
+} from '@nestjs/common';
 import { IS_PUBLIC_KEY } from './jwt-auth.guard';
 import { AuthenticatedUser } from './auth.service';
 import { Loja } from '@prisma/client';
@@ -24,4 +28,4 @@ export const CurrentLojaId = createParamDecorator(
     const request = ctx.switchToHttp().getRequest();
     return request.user?.loja_id;
   },
-); 
+);

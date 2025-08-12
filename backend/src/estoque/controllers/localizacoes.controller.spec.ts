@@ -80,7 +80,7 @@ describe('LocalizacoesController', () => {
           lojaId: mockRequest.estoque.lojaId,
           usuarioId: mockRequest.estoque.usuarioId,
         },
-        createDto
+        createDto,
       );
     });
 
@@ -91,12 +91,12 @@ describe('LocalizacoesController', () => {
       };
 
       mockEstoqueService.criarLocalizacao.mockRejectedValue(
-        new BadRequestException('Dados inválidos')
+        new BadRequestException('Dados inválidos'),
       );
 
-      await expect(
-        controller.criar(createDto, mockRequest)
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.criar(createDto, mockRequest)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -136,7 +136,7 @@ describe('LocalizacoesController', () => {
           lojaId: mockRequest.estoque.lojaId,
           usuarioId: mockRequest.estoque.usuarioId,
         },
-        query
+        query,
       );
     });
 
@@ -176,7 +176,9 @@ describe('LocalizacoesController', () => {
         updatedAt: new Date(),
       };
 
-      mockEstoqueService.buscarLocalizacaoPorId.mockResolvedValue(expectedResult);
+      mockEstoqueService.buscarLocalizacaoPorId.mockResolvedValue(
+        expectedResult,
+      );
 
       const result = await controller.buscarPorId(locationId, mockRequest);
 
@@ -186,7 +188,7 @@ describe('LocalizacoesController', () => {
           lojaId: mockRequest.estoque.lojaId,
           usuarioId: mockRequest.estoque.usuarioId,
         },
-        locationId
+        locationId,
       );
     });
 
@@ -194,11 +196,11 @@ describe('LocalizacoesController', () => {
       const locationId = 'loc-not-found';
 
       mockEstoqueService.buscarLocalizacaoPorId.mockRejectedValue(
-        new NotFoundException('Localização não encontrada')
+        new NotFoundException('Localização não encontrada'),
       );
 
       await expect(
-        controller.buscarPorId(locationId, mockRequest)
+        controller.buscarPorId(locationId, mockRequest),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -225,7 +227,11 @@ describe('LocalizacoesController', () => {
 
       mockEstoqueService.atualizarLocalizacao.mockResolvedValue(expectedResult);
 
-      const result = await controller.atualizar(locationId, updateDto, mockRequest);
+      const result = await controller.atualizar(
+        locationId,
+        updateDto,
+        mockRequest,
+      );
 
       expect(result).toEqual(expectedResult);
       expect(mockEstoqueService.atualizarLocalizacao).toHaveBeenCalledWith(
@@ -234,7 +240,7 @@ describe('LocalizacoesController', () => {
           usuarioId: mockRequest.estoque.usuarioId,
         },
         locationId,
-        updateDto
+        updateDto,
       );
     });
 
@@ -243,11 +249,11 @@ describe('LocalizacoesController', () => {
       const updateDto = { descricao: 'Nova descrição' };
 
       mockEstoqueService.atualizarLocalizacao.mockRejectedValue(
-        new NotFoundException('Localização não encontrada')
+        new NotFoundException('Localização não encontrada'),
       );
 
       await expect(
-        controller.atualizar(locationId, updateDto, mockRequest)
+        controller.atualizar(locationId, updateDto, mockRequest),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -277,7 +283,7 @@ describe('LocalizacoesController', () => {
           lojaId: mockRequest.estoque.lojaId,
           usuarioId: mockRequest.estoque.usuarioId,
         },
-        locationId
+        locationId,
       );
     });
 
@@ -285,11 +291,11 @@ describe('LocalizacoesController', () => {
       const locationId = 'loc-not-found';
 
       mockEstoqueService.desativarLocalizacao.mockRejectedValue(
-        new NotFoundException('Localização não encontrada')
+        new NotFoundException('Localização não encontrada'),
       );
 
       await expect(
-        controller.desativar(locationId, mockRequest)
+        controller.desativar(locationId, mockRequest),
       ).rejects.toThrow(NotFoundException);
     });
   });

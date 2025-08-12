@@ -14,22 +14,10 @@ describe('EstoqueModule Isolated (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [EstoqueModule],
     })
-    .overrideProvider(PrismaService)
-    .useValue({
-      localizacaoEstoque: {
-        create: jest.fn().mockResolvedValue({
-          id: 'localizacao-123',
-          nome: 'Prateleira A1',
-          descricao: 'Prateleira principal',
-          tipo: 'PRATELEIRA',
-          endereco: 'A1-01-01',
-          capacidade: 100,
-          lojaId: mockLojaId,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }),
-        findMany: jest.fn().mockResolvedValue([
-          {
+      .overrideProvider(PrismaService)
+      .useValue({
+        localizacaoEstoque: {
+          create: jest.fn().mockResolvedValue({
             id: 'localizacao-123',
             nome: 'Prateleira A1',
             descricao: 'Prateleira principal',
@@ -38,142 +26,141 @@ describe('EstoqueModule Isolated (e2e)', () => {
             capacidade: 100,
             lojaId: mockLojaId,
             createdAt: new Date(),
-            updatedAt: new Date()
-          }
-        ]),
-        findUnique: jest.fn().mockResolvedValue({
-          id: 'localizacao-123',
-          nome: 'Prateleira A1',
-          descricao: 'Prateleira principal',
-          tipo: 'PRATELEIRA',
-          endereco: 'A1-01-01',
-          capacidade: 100,
-          lojaId: mockLojaId,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }),
-        update: jest.fn().mockResolvedValue({
-          id: 'localizacao-123',
-          nome: 'Prateleira A1 Atualizada',
-          descricao: 'Prateleira principal atualizada',
-          tipo: 'PRATELEIRA',
-          endereco: 'A1-01-01',
-          capacidade: 150,
-          lojaId: mockLojaId,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }),
-        delete: jest.fn().mockResolvedValue({
-          id: 'localizacao-123',
-          nome: 'Prateleira A1',
-          descricao: 'Prateleira principal',
-          tipo: 'PRATELEIRA',
-          endereco: 'A1-01-01',
-          capacidade: 100,
-          lojaId: mockLojaId,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-      },
-      itemEstoque: {
-        create: jest.fn().mockResolvedValue({
-          id: 'item-123',
-          nome: 'Produto Teste',
-          descricao: 'Produto para teste',
-          codigo: 'PROD001',
-          categoria: 'MATERIAL',
-          unidadeMedida: 'UNIDADE',
-          precoUnitario: 10.50,
-          quantidadeAtual: 0,
-          quantidadeMinima: 5,
-          quantidadeMaxima: 100,
-          localizacaoId: 'localizacao-123',
-          lojaId: mockLojaId,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }),
-        findMany: jest.fn().mockResolvedValue([
-          {
+            updatedAt: new Date(),
+          }),
+          findMany: jest.fn().mockResolvedValue([
+            {
+              id: 'localizacao-123',
+              nome: 'Prateleira A1',
+              descricao: 'Prateleira principal',
+              tipo: 'PRATELEIRA',
+              endereco: 'A1-01-01',
+              capacidade: 100,
+              lojaId: mockLojaId,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          ]),
+          findUnique: jest.fn().mockResolvedValue({
+            id: 'localizacao-123',
+            nome: 'Prateleira A1',
+            descricao: 'Prateleira principal',
+            tipo: 'PRATELEIRA',
+            endereco: 'A1-01-01',
+            capacidade: 100,
+            lojaId: mockLojaId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }),
+          update: jest.fn().mockResolvedValue({
+            id: 'localizacao-123',
+            nome: 'Prateleira A1 Atualizada',
+            descricao: 'Prateleira principal atualizada',
+            tipo: 'PRATELEIRA',
+            endereco: 'A1-01-01',
+            capacidade: 150,
+            lojaId: mockLojaId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }),
+          delete: jest.fn().mockResolvedValue({
+            id: 'localizacao-123',
+            nome: 'Prateleira A1',
+            descricao: 'Prateleira principal',
+            tipo: 'PRATELEIRA',
+            endereco: 'A1-01-01',
+            capacidade: 100,
+            lojaId: mockLojaId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }),
+        },
+        itemEstoque: {
+          create: jest.fn().mockResolvedValue({
             id: 'item-123',
             nome: 'Produto Teste',
             descricao: 'Produto para teste',
             codigo: 'PROD001',
             categoria: 'MATERIAL',
             unidadeMedida: 'UNIDADE',
-            precoUnitario: 10.50,
+            precoUnitario: 10.5,
             quantidadeAtual: 0,
             quantidadeMinima: 5,
             quantidadeMaxima: 100,
             localizacaoId: 'localizacao-123',
             lojaId: mockLojaId,
             createdAt: new Date(),
-            updatedAt: new Date()
-          }
-        ]),
-        findUnique: jest.fn().mockResolvedValue({
-          id: 'item-123',
-          nome: 'Produto Teste',
-          descricao: 'Produto para teste',
-          codigo: 'PROD001',
-          categoria: 'MATERIAL',
-          unidadeMedida: 'UNIDADE',
-          precoUnitario: 10.50,
-          quantidadeAtual: 0,
-          quantidadeMinima: 5,
-          quantidadeMaxima: 100,
-          localizacaoId: 'localizacao-123',
-          lojaId: mockLojaId,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }),
-        update: jest.fn().mockResolvedValue({
-          id: 'item-123',
-          nome: 'Produto Teste Atualizado',
-          descricao: 'Produto para teste atualizado',
-          codigo: 'PROD001',
-          categoria: 'MATERIAL',
-          unidadeMedida: 'UNIDADE',
-          precoUnitario: 15.00,
-          quantidadeAtual: 10,
-          quantidadeMinima: 5,
-          quantidadeMaxima: 100,
-          localizacaoId: 'localizacao-123',
-          lojaId: mockLojaId,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }),
-        delete: jest.fn().mockResolvedValue({
-          id: 'item-123',
-          nome: 'Produto Teste',
-          descricao: 'Produto para teste',
-          codigo: 'PROD001',
-          categoria: 'MATERIAL',
-          unidadeMedida: 'UNIDADE',
-          precoUnitario: 10.50,
-          quantidadeAtual: 0,
-          quantidadeMinima: 5,
-          quantidadeMaxima: 100,
-          localizacaoId: 'localizacao-123',
-          lojaId: mockLojaId,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-      },
-      movimentacaoEstoque: {
-        create: jest.fn().mockResolvedValue({
-          id: 'movimentacao-123',
-          itemId: 'item-123',
-          tipo: 'ENTRADA',
-          quantidade: 10,
-          quantidadeAnterior: 0,
-          quantidadePosterior: 10,
-          motivo: 'Compra inicial',
-          observacoes: 'Movimento de teste',
-          lojaId: mockLojaId,
-          createdAt: new Date()
-        }),
-        findMany: jest.fn().mockResolvedValue([
-          {
+            updatedAt: new Date(),
+          }),
+          findMany: jest.fn().mockResolvedValue([
+            {
+              id: 'item-123',
+              nome: 'Produto Teste',
+              descricao: 'Produto para teste',
+              codigo: 'PROD001',
+              categoria: 'MATERIAL',
+              unidadeMedida: 'UNIDADE',
+              precoUnitario: 10.5,
+              quantidadeAtual: 0,
+              quantidadeMinima: 5,
+              quantidadeMaxima: 100,
+              localizacaoId: 'localizacao-123',
+              lojaId: mockLojaId,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          ]),
+          findUnique: jest.fn().mockResolvedValue({
+            id: 'item-123',
+            nome: 'Produto Teste',
+            descricao: 'Produto para teste',
+            codigo: 'PROD001',
+            categoria: 'MATERIAL',
+            unidadeMedida: 'UNIDADE',
+            precoUnitario: 10.5,
+            quantidadeAtual: 0,
+            quantidadeMinima: 5,
+            quantidadeMaxima: 100,
+            localizacaoId: 'localizacao-123',
+            lojaId: mockLojaId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }),
+          update: jest.fn().mockResolvedValue({
+            id: 'item-123',
+            nome: 'Produto Teste Atualizado',
+            descricao: 'Produto para teste atualizado',
+            codigo: 'PROD001',
+            categoria: 'MATERIAL',
+            unidadeMedida: 'UNIDADE',
+            precoUnitario: 15.0,
+            quantidadeAtual: 10,
+            quantidadeMinima: 5,
+            quantidadeMaxima: 100,
+            localizacaoId: 'localizacao-123',
+            lojaId: mockLojaId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }),
+          delete: jest.fn().mockResolvedValue({
+            id: 'item-123',
+            nome: 'Produto Teste',
+            descricao: 'Produto para teste',
+            codigo: 'PROD001',
+            categoria: 'MATERIAL',
+            unidadeMedida: 'UNIDADE',
+            precoUnitario: 10.5,
+            quantidadeAtual: 0,
+            quantidadeMinima: 5,
+            quantidadeMaxima: 100,
+            localizacaoId: 'localizacao-123',
+            lojaId: mockLojaId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }),
+        },
+        movimentacaoEstoque: {
+          create: jest.fn().mockResolvedValue({
             id: 'movimentacao-123',
             itemId: 'item-123',
             tipo: 'ENTRADA',
@@ -183,13 +170,26 @@ describe('EstoqueModule Isolated (e2e)', () => {
             motivo: 'Compra inicial',
             observacoes: 'Movimento de teste',
             lojaId: mockLojaId,
-            createdAt: new Date()
-          }
-        ])
-      },
-      $executeRaw: jest.fn().mockResolvedValue(1)
-    })
-    .compile();
+            createdAt: new Date(),
+          }),
+          findMany: jest.fn().mockResolvedValue([
+            {
+              id: 'movimentacao-123',
+              itemId: 'item-123',
+              tipo: 'ENTRADA',
+              quantidade: 10,
+              quantidadeAnterior: 0,
+              quantidadePosterior: 10,
+              motivo: 'Compra inicial',
+              observacoes: 'Movimento de teste',
+              lojaId: mockLojaId,
+              createdAt: new Date(),
+            },
+          ]),
+        },
+        $executeRaw: jest.fn().mockResolvedValue(1),
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     prismaService = moduleFixture.get<PrismaService>(PrismaService);
@@ -232,7 +232,7 @@ describe('EstoqueModule Isolated (e2e)', () => {
         tipo: 'PRATELEIRA',
         endereco: 'A1-01-01',
         capacidade: 100,
-        lojaId: mockLojaId
+        lojaId: mockLojaId,
       };
 
       return request(app.getHttpServer())
@@ -248,7 +248,7 @@ describe('EstoqueModule Isolated (e2e)', () => {
 
     it('should validate required fields', () => {
       const invalidDto = {
-        descricao: 'Prateleira sem nome'
+        descricao: 'Prateleira sem nome',
       };
 
       return request(app.getHttpServer())
@@ -279,11 +279,11 @@ describe('EstoqueModule Isolated (e2e)', () => {
         codigo: 'PROD001',
         categoria: 'MATERIAL',
         unidadeMedida: 'UNIDADE',
-        precoUnitario: 10.50,
+        precoUnitario: 10.5,
         quantidadeMinima: 5,
         quantidadeMaxima: 100,
         localizacaoId: 'localizacao-123',
-        lojaId: mockLojaId
+        lojaId: mockLojaId,
       };
 
       return request(app.getHttpServer())
@@ -318,7 +318,7 @@ describe('EstoqueModule Isolated (e2e)', () => {
         quantidade: 10,
         motivo: 'Compra inicial',
         observacoes: 'Movimento de teste',
-        lojaId: mockLojaId
+        lojaId: mockLojaId,
       };
 
       return request(app.getHttpServer())

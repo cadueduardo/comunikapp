@@ -28,16 +28,18 @@ describe('EstoqueAccessGuard', () => {
     configService = module.get<ConfigService>(ConfigService);
 
     // Default config values
-    mockConfigService.get.mockImplementation((key: string, defaultValue?: string) => {
-      switch (key) {
-        case 'ESTOQUE_MODULE_ENABLED':
-          return 'true';
-        case 'ESTOQUE_ALLOWED_ROLES':
-          return 'admin,manager,estoque';
-        default:
-          return defaultValue;
-      }
-    });
+    mockConfigService.get.mockImplementation(
+      (key: string, defaultValue?: string) => {
+        switch (key) {
+          case 'ESTOQUE_MODULE_ENABLED':
+            return 'true';
+          case 'ESTOQUE_ALLOWED_ROLES':
+            return 'admin,manager,estoque';
+          default:
+            return defaultValue;
+        }
+      },
+    );
   });
 
   afterEach(() => {
@@ -57,8 +59,12 @@ describe('EstoqueAccessGuard', () => {
         }),
       } as unknown as ExecutionContext;
 
-      expect(() => guard.canActivate(mockContext)).toThrow(UnauthorizedException);
-      expect(() => guard.canActivate(mockContext)).toThrow('Contexto de estoque não encontrado');
+      expect(() => guard.canActivate(mockContext)).toThrow(
+        UnauthorizedException,
+      );
+      expect(() => guard.canActivate(mockContext)).toThrow(
+        'Contexto de estoque não encontrado',
+      );
     });
 
     it('should accept request with valid estoque context', () => {
@@ -97,8 +103,12 @@ describe('EstoqueAccessGuard', () => {
         }),
       } as unknown as ExecutionContext;
 
-      expect(() => guard.canActivate(mockContext)).toThrow(UnauthorizedException);
-      expect(() => guard.canActivate(mockContext)).toThrow('lojaId é obrigatório');
+      expect(() => guard.canActivate(mockContext)).toThrow(
+        UnauthorizedException,
+      );
+      expect(() => guard.canActivate(mockContext)).toThrow(
+        'lojaId é obrigatório',
+      );
     });
 
     it('should accept request with valid lojaId', () => {
@@ -137,8 +147,12 @@ describe('EstoqueAccessGuard', () => {
         }),
       } as unknown as ExecutionContext;
 
-      expect(() => guard.canActivate(mockContext)).toThrow(UnauthorizedException);
-      expect(() => guard.canActivate(mockContext)).toThrow('usuarioId é obrigatório');
+      expect(() => guard.canActivate(mockContext)).toThrow(
+        UnauthorizedException,
+      );
+      expect(() => guard.canActivate(mockContext)).toThrow(
+        'usuarioId é obrigatório',
+      );
     });
 
     it('should accept request with valid usuarioId', () => {
@@ -186,7 +200,9 @@ describe('EstoqueAccessGuard', () => {
       } as unknown as ExecutionContext;
 
       expect(() => guard.canActivate(mockContext)).toThrow(ForbiddenException);
-      expect(() => guard.canActivate(mockContext)).toThrow('Módulo de estoque está desabilitado');
+      expect(() => guard.canActivate(mockContext)).toThrow(
+        'Módulo de estoque está desabilitado',
+      );
     });
 
     it('should accept request when module is enabled', () => {
@@ -408,7 +424,9 @@ describe('EstoqueAccessGuard', () => {
       } as unknown as ExecutionContext;
 
       expect(() => guard.canActivate(mockContext)).toThrow(ForbiddenException);
-      expect(() => guard.canActivate(mockContext)).toThrow('admin,manager,estoque');
+      expect(() => guard.canActivate(mockContext)).toThrow(
+        'admin,manager,estoque',
+      );
     });
   });
 
@@ -448,8 +466,12 @@ describe('EstoqueAccessGuard', () => {
         }),
       } as unknown as ExecutionContext;
 
-      expect(() => guard.canActivate(mockContext)).toThrow(UnauthorizedException);
-      expect(() => guard.canActivate(mockContext)).toThrow('usuarioId é obrigatório');
+      expect(() => guard.canActivate(mockContext)).toThrow(
+        UnauthorizedException,
+      );
+      expect(() => guard.canActivate(mockContext)).toThrow(
+        'usuarioId é obrigatório',
+      );
     });
   });
 });

@@ -9,16 +9,25 @@ import { Injectable, OnModuleDestroy, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class EstoquePrismaClientUtil extends PrismaClient implements OnModuleDestroy {
+export class EstoquePrismaClientUtil
+  extends PrismaClient
+  implements OnModuleDestroy
+{
   private readonly logger = new Logger(EstoquePrismaClientUtil.name);
   private static instance: EstoquePrismaClientUtil;
 
   constructor(configService: ConfigService) {
     // Pool de conexões limitado conforme premissas
-    const connectionLimit = parseInt(configService.get('ESTOQUE_DB_CONNECTION_LIMIT', '10'));
-    const poolTimeout = parseInt(configService.get('ESTOQUE_DB_POOL_TIMEOUT', '20000'));
-    const poolIdleTimeout = parseInt(configService.get('ESTOQUE_DB_POOL_IDLE_TIMEOUT', '10000'));
-    
+    const connectionLimit = parseInt(
+      configService.get('ESTOQUE_DB_CONNECTION_LIMIT', '10'),
+    );
+    const poolTimeout = parseInt(
+      configService.get('ESTOQUE_DB_POOL_TIMEOUT', '20000'),
+    );
+    const poolIdleTimeout = parseInt(
+      configService.get('ESTOQUE_DB_POOL_IDLE_TIMEOUT', '10000'),
+    );
+
     super({
       log: [
         { level: 'query', emit: 'event' },
@@ -28,8 +37,10 @@ export class EstoquePrismaClientUtil extends PrismaClient implements OnModuleDes
     });
 
     // Monitoramento de queries lentas (premissa)
-    const slowQueryThreshold = parseInt(configService.get('ESTOQUE_SLOW_QUERY_THRESHOLD', '1000'));
-    
+    const slowQueryThreshold = parseInt(
+      configService.get('ESTOQUE_SLOW_QUERY_THRESHOLD', '1000'),
+    );
+
     // Monitoramento removido temporariamente por incompatibilidade TypeScript
     // Será reimplementado quando log events estiverem configurados corretamente
 
@@ -41,7 +52,9 @@ export class EstoquePrismaClientUtil extends PrismaClient implements OnModuleDes
    */
   static getInstance(configService: ConfigService): EstoquePrismaClientUtil {
     if (!EstoquePrismaClientUtil.instance) {
-      EstoquePrismaClientUtil.instance = new EstoquePrismaClientUtil(configService);
+      EstoquePrismaClientUtil.instance = new EstoquePrismaClientUtil(
+        configService,
+      );
     }
     return EstoquePrismaClientUtil.instance;
   }
@@ -49,12 +62,16 @@ export class EstoquePrismaClientUtil extends PrismaClient implements OnModuleDes
   /**
    * Health check do banco de dados estoque
    */
-  async healthCheck(): Promise<{ status: string; timestamp: Date; connectionTime: number }> {
+  async healthCheck(): Promise<{
+    status: string;
+    timestamp: Date;
+    connectionTime: number;
+  }> {
     try {
       const start = Date.now();
       await this.$queryRaw`SELECT 1`;
       const connectionTime = Date.now() - start;
-      
+
       return {
         status: 'healthy',
         timestamp: new Date(),
@@ -62,7 +79,9 @@ export class EstoquePrismaClientUtil extends PrismaClient implements OnModuleDes
       };
     } catch (error) {
       this.logger.error(`❌ Health check falhou: ${error.message}`);
-      throw new Error(`Banco de dados do estoque indisponível: ${error.message}`);
+      throw new Error(
+        `Banco de dados do estoque indisponível: ${error.message}`,
+      );
     }
   }
 

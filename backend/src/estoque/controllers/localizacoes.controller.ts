@@ -15,7 +15,13 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+} from '@nestjs/swagger';
 import { EstoqueSimpleService } from '../services/estoque-simple.service';
 import { CreateLocalizacaoDto } from '../dto/create-localizacao.dto';
 import { QueryLocalizacoesDto } from '../dto/query-estoque.dto';
@@ -32,7 +38,8 @@ export class LocalizacoesController {
 
   @ApiOperation({
     summary: 'Criar nova localização',
-    description: 'Cria uma nova localização de estoque com endereçamento hierárquico',
+    description:
+      'Cria uma nova localização de estoque com endereçamento hierárquico',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -60,10 +67,7 @@ export class LocalizacoesController {
     description: 'Dados inválidos ou código já existe',
   })
   @Post()
-  async criar(
-    @Body() createDto: CreateLocalizacaoDto,
-    @GetLoja() loja: Loja,
-  ) {
+  async criar(@Body() createDto: CreateLocalizacaoDto, @GetLoja() loja: Loja) {
     const context = { lojaId: loja.id, usuarioId: loja.id };
     return this.estoqueService.criarLocalizacao(context, createDto);
   }
@@ -96,10 +100,7 @@ export class LocalizacoesController {
     },
   })
   @Get()
-  async listar(
-    @Query() query: QueryLocalizacoesDto,
-    @GetLoja() loja: Loja,
-  ) {
+  async listar(@Query() query: QueryLocalizacoesDto, @GetLoja() loja: Loja) {
     const context = { lojaId: loja.id };
     return this.estoqueService.listarLocalizacoes(context, query);
   }
@@ -118,10 +119,7 @@ export class LocalizacoesController {
   })
   @ApiParam({ name: 'id', description: 'ID da localização' })
   @Get(':id')
-  async buscarPorId(
-    @Param('id') id: string,
-    @GetLoja() loja: Loja,
-  ) {
+  async buscarPorId(@Param('id') id: string, @GetLoja() loja: Loja) {
     const context = { lojaId: loja.id };
     return this.estoqueService.buscarLocalizacaoPorId(context, id);
   }
@@ -157,10 +155,7 @@ export class LocalizacoesController {
     description: 'Verificação realizada com sucesso',
   })
   @Get(':id/verificar-exclusao')
-  async verificarExclusao(
-    @Param('id') id: string,
-    @GetLoja() loja: Loja,
-  ) {
+  async verificarExclusao(@Param('id') id: string, @GetLoja() loja: Loja) {
     const context = { lojaId: loja.id };
     return this.estoqueService.verificarLocalizacaoExclusao(context, id);
   }
@@ -178,10 +173,7 @@ export class LocalizacoesController {
     description: 'Localização não pode ser excluída',
   })
   @Delete(':id')
-  async excluir(
-    @Param('id') id: string,
-    @GetLoja() loja: Loja,
-  ) {
+  async excluir(@Param('id') id: string, @GetLoja() loja: Loja) {
     const context = { lojaId: loja.id, usuarioId: loja.id };
     return this.estoqueService.excluirLocalizacao(context, id);
   }
@@ -195,11 +187,10 @@ export class LocalizacoesController {
     description: 'Localização desativada com sucesso',
   })
   @Put(':id/desativar')
-  async desativar(
-    @Param('id') id: string,
-    @GetLoja() loja: Loja,
-  ) {
+  async desativar(@Param('id') id: string, @GetLoja() loja: Loja) {
     const context = { lojaId: loja.id, usuarioId: loja.id };
-    return this.estoqueService.atualizarLocalizacao(context, id, { ativo: false });
+    return this.estoqueService.atualizarLocalizacao(context, id, {
+      ativo: false,
+    });
   }
 }

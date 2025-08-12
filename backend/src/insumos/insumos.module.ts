@@ -9,4 +9,4 @@ import { AuthModule } from '../auth/auth.module';
   controllers: [InsumosController],
   providers: [InsumosService],
 })
-export class InsumosModule {} 
+export class InsumosModule {}

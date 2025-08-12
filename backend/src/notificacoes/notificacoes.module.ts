@@ -10,4 +10,4 @@ import { AuthModule } from '../auth/auth.module';
   providers: [NotificacoesService],
   exports: [NotificacoesService],
 })
-export class NotificacoesModule {} 
+export class NotificacoesModule {}

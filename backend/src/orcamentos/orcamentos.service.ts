@@ -1,9 +1,20 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotificacoesService, TipoNotificacao } from '../notificacoes/notificacoes.service';
+import {
+  NotificacoesService,
+  TipoNotificacao,
+} from '../notificacoes/notificacoes.service';
 import { MailService } from '../mail/mail.service';
 import { CalcularOrcamentoDto } from './dto/calcular-orcamento.dto';
-import { ResultadoCalculoDto, ItemOrcamentoCalculadoDto, DetalhamentoCustoDto } from './dto/resultado-calculo.dto';
+import {
+  ResultadoCalculoDto,
+  ItemOrcamentoCalculadoDto,
+  DetalhamentoCustoDto,
+} from './dto/resultado-calculo.dto';
 import { CreateOrcamentoDto } from './dto/create-orcamento.dto';
 import { UpdateOrcamentoDto } from './dto/update-orcamento.dto';
 
@@ -12,16 +23,19 @@ export class OrcamentosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificacoesService: NotificacoesService,
-    private readonly mailService: MailService
+    private readonly mailService: MailService,
   ) {}
 
   /**
    * Motor de cálculo principal - Tarefa 2.5
    * Implementa a lógica conforme calculo-custos-orcamento.md
    */
-  async calcularOrcamento(dto: CalcularOrcamentoDto, lojaId: string): Promise<ResultadoCalculoDto> {
+  async calcularOrcamento(
+    dto: CalcularOrcamentoDto,
+    lojaId: string,
+  ): Promise<ResultadoCalculoDto> {
     console.log('💰 Calculando orçamento...');
-    
+
     // 1. Buscar configurações da loja
     const loja = await this.prisma.loja.findUnique({
       where: { id: lojaId },
@@ -34,7 +48,7 @@ export class OrcamentosService {
     console.log('🔍 Debug - calcularOrcamento - Configurações da loja:', {
       margem_lucro_padrao: loja.margem_lucro_padrao,
       impostos_padrao: loja.impostos_padrao,
-      horas_produtivas_mensais: loja.horas_produtivas_mensais
+      horas_produtivas_mensais: loja.horas_produtivas_mensais,
     });
 
     // 2. Validar se as configurações necessárias estão preenchidas
@@ -44,7 +58,7 @@ export class OrcamentosService {
     }
 
     // 3. Buscar dados dos insumos
-    const insumoIds = dto.itens.map(item => item.insumo_id);
+    const insumoIds = dto.itens.map((item) => item.insumo_id);
     const insumos = await this.prisma.insumo.findMany({
       where: {
         id: { in: insumoIds },
@@ -61,84 +75,127 @@ export class OrcamentosService {
       throw new BadRequestException('Um ou mais insumos não foram encontrados');
     }
 
-    console.log('🔍 Debug - calcularOrcamento - Insumos encontrados:', insumos.length);
+    console.log(
+      '🔍 Debug - calcularOrcamento - Insumos encontrados:',
+      insumos.length,
+    );
 
     // 4. Buscar máquinas e funções se fornecidas
-    const maquinasCalculadas = await this.calcularCustosMaquinas(dto.maquinas || [], lojaId);
-    const funcoesCalculadas = await this.calcularCustosFuncoes(dto.funcoes || [], lojaId);
+    const maquinasCalculadas = await this.calcularCustosMaquinas(
+      dto.maquinas || [],
+      lojaId,
+    );
+    const funcoesCalculadas = await this.calcularCustosFuncoes(
+      dto.funcoes || [],
+      lojaId,
+    );
 
-    console.log('🔍 Debug - calcularOrcamento - Custos de máquinas:', maquinasCalculadas);
-    console.log('🔍 Debug - calcularOrcamento - Custos de funções:', funcoesCalculadas);
+    console.log(
+      '🔍 Debug - calcularOrcamento - Custos de máquinas:',
+      maquinasCalculadas,
+    );
+    console.log(
+      '🔍 Debug - calcularOrcamento - Custos de funções:',
+      funcoesCalculadas,
+    );
 
     // 5. Calcular custo indireto por hora
-    const { custoPorHora: custoIndiretoPorHora, custosDetalhados } = await this.calcularCustoIndiretoPorHora(loja, lojaId);
-    
-    console.log('🔍 Debug - calcularOrcamento - Custo indireto por hora:', custoIndiretoPorHora);
-    
+    const { custoPorHora: custoIndiretoPorHora, custosDetalhados } =
+      await this.calcularCustoIndiretoPorHora(loja, lojaId);
+
+    console.log(
+      '🔍 Debug - calcularOrcamento - Custo indireto por hora:',
+      custoIndiretoPorHora,
+    );
+
     // Garantir que custosDetalhados seja sempre um array
     const custosDetalhadosArray = custosDetalhados || [];
 
     // 6. Calcular custos diretos
-    const { custoMaterial, itensCalculados } = this.calcularCustosDirectos(dto.itens, insumos);
+    const { custoMaterial, itensCalculados } = this.calcularCustosDirectos(
+      dto.itens,
+      insumos,
+    );
 
-    console.log('🔍 Debug - calcularOrcamento - Custo material:', custoMaterial);
+    console.log(
+      '🔍 Debug - calcularOrcamento - Custo material:',
+      custoMaterial,
+    );
 
     // 7. Calcular custo indireto alocado
-    const custoIndiretolAlocado = this.calcularCustoIndiretolAlocado(dto.horas_producao, custoIndiretoPorHora);
+    const custoIndiretolAlocado = this.calcularCustoIndiretolAlocado(
+      dto.horas_producao,
+      custoIndiretoPorHora,
+    );
 
-    console.log('🔍 Debug - calcularOrcamento - Custo indireto alocado:', custoIndiretolAlocado);
+    console.log(
+      '🔍 Debug - calcularOrcamento - Custo indireto alocado:',
+      custoIndiretolAlocado,
+    );
 
     // 8. Aplicar quantidade do produto aos custos
     const quantidadeProduto = dto.quantidade_produto || 1;
-    
+
     console.log('🔍 Debug - Backend - Quantidade do produto:', {
       quantidadeRecebida: dto.quantidade_produto,
       quantidadeFinal: quantidadeProduto,
-      tipo: typeof dto.quantidade_produto
+      tipo: typeof dto.quantidade_produto,
     });
-    
+
     console.log('🔍 Debug - Backend - Dados recebidos:', {
       itens: dto.itens?.length || 0,
       maquinas: dto.maquinas?.length || 0,
       funcoes: dto.funcoes?.length || 0,
       horas_producao: dto.horas_producao,
       margem_lucro: dto.margem_lucro_customizada,
-      impostos: dto.impostos_customizados
+      impostos: dto.impostos_customizados,
     });
-    
+
     console.log('🔍 Debug - Backend - Custos antes da quantidade:', {
       custoMaterial,
       custoMaquinas: maquinasCalculadas.custoTotal,
       custoFuncoes: funcoesCalculadas.custoTotal,
-      custoIndiretolAlocado
+      custoIndiretolAlocado,
     });
-    
+
     const custoMaterialComQuantidade = custoMaterial * quantidadeProduto;
-    const custoMaquinasComQuantidade = maquinasCalculadas.custoTotal * quantidadeProduto;
-    const custoFuncoesComQuantidade = funcoesCalculadas.custoTotal * quantidadeProduto;
-    const custoIndiretolAlocadoComQuantidade = custoIndiretolAlocado * quantidadeProduto;
+    const custoMaquinasComQuantidade =
+      maquinasCalculadas.custoTotal * quantidadeProduto;
+    const custoFuncoesComQuantidade =
+      funcoesCalculadas.custoTotal * quantidadeProduto;
+    const custoIndiretolAlocadoComQuantidade =
+      custoIndiretolAlocado * quantidadeProduto;
 
     console.log('🔍 Debug - calcularOrcamento - Custos com quantidade:', {
       custoMaterialComQuantidade,
       custoMaquinasComQuantidade,
       custoFuncoesComQuantidade,
-      custoIndiretolAlocadoComQuantidade
+      custoIndiretolAlocadoComQuantidade,
     });
 
     // 9. Calcular custo total de produção
-    const custoTotalProducao = custoMaterialComQuantidade + custoMaquinasComQuantidade + custoFuncoesComQuantidade + custoIndiretolAlocadoComQuantidade;
+    const custoTotalProducao =
+      custoMaterialComQuantidade +
+      custoMaquinasComQuantidade +
+      custoFuncoesComQuantidade +
+      custoIndiretolAlocadoComQuantidade;
 
-    console.log('🔍 Debug - calcularOrcamento - Custo total de produção:', custoTotalProducao);
+    console.log(
+      '🔍 Debug - calcularOrcamento - Custo total de produção:',
+      custoTotalProducao,
+    );
 
     // 10. Aplicar margem de lucro e impostos
-    const margemLucro = dto.margem_lucro_customizada || Number(loja.margem_lucro_padrao || 0);
-    const impostos = dto.impostos_customizados || Number(loja.impostos_padrao || 0);
+    const margemLucro =
+      dto.margem_lucro_customizada || Number(loja.margem_lucro_padrao || 0);
+    const impostos =
+      dto.impostos_customizados || Number(loja.impostos_padrao || 0);
 
     const margemLucroValor = custoTotalProducao * (margemLucro / 100);
     const subtotalComLucro = custoTotalProducao + margemLucroValor;
     const impostosValor = subtotalComLucro * (impostos / 100);
     const precoFinal = subtotalComLucro + impostosValor;
-    
+
     console.log('🔍 Debug - Backend - Cálculo do preço final:', {
       custoTotalProducao,
       margemLucro,
@@ -147,7 +204,7 @@ export class OrcamentosService {
       impostos,
       impostosValor,
       precoFinal,
-      quantidadeProduto
+      quantidadeProduto,
     });
 
     // Salvar cálculo detalhado em arquivo
@@ -165,20 +222,31 @@ export class OrcamentosService {
       custoMaterialComQuantidade,
       custoMaquinasComQuantidade,
       custoFuncoesComQuantidade,
-      custoIndiretolAlocadoComQuantidade
+      custoIndiretolAlocadoComQuantidade,
     };
-    fs.writeFileSync('debug_calculo_detalhado.json', JSON.stringify(calculoDebug, null, 2));
-    console.log('🔍 Debug - Cálculo detalhado salvo em debug_calculo_detalhado.json');
+    fs.writeFileSync(
+      'debug_calculo_detalhado.json',
+      JSON.stringify(calculoDebug, null, 2),
+    );
+    console.log(
+      '🔍 Debug - Cálculo detalhado salvo em debug_calculo_detalhado.json',
+    );
 
     // 9. Calcular custos indiretos detalhados
-    const totalCustosIndiretosMensais = custosDetalhadosArray.reduce((total, custo) => {
-      return total + Number(custo.valor_mensal);
-    }, 0);
+    const totalCustosIndiretosMensais = custosDetalhadosArray.reduce(
+      (total, custo) => {
+        return total + Number(custo.valor_mensal);
+      },
+      0,
+    );
 
-    const custosIndiretosDetalhados = custosDetalhadosArray.map(custo => {
-      const valorRateado = (Number(custo.valor_mensal) / (loja.horas_produtivas_mensais || 352)) * dto.horas_producao;
-      const percentualRateio = (Number(custo.valor_mensal) / (totalCustosIndiretosMensais || 1)) * 100;
-      
+    const custosIndiretosDetalhados = custosDetalhadosArray.map((custo) => {
+      const valorRateado =
+        (Number(custo.valor_mensal) / (loja.horas_produtivas_mensais || 352)) *
+        dto.horas_producao;
+      const percentualRateio =
+        (Number(custo.valor_mensal) / (totalCustosIndiretosMensais || 1)) * 100;
+
       return {
         nome: custo.nome,
         categoria: custo.categoria,
@@ -227,9 +295,15 @@ export class OrcamentosService {
    * Passo 2: Calcular total de horas produtivas da empresa
    * Passo 3: Dividir custos indiretos pelas horas produtivas
    */
-  private async calcularCustoIndiretoPorHora(loja: any, lojaId: string): Promise<{ custoPorHora: number, custosDetalhados: any[] }> {
-    console.log('🔍 Debug - calcularCustoIndiretoPorHora - Iniciando cálculo para loja:', lojaId);
-    
+  private async calcularCustoIndiretoPorHora(
+    loja: any,
+    lojaId: string,
+  ): Promise<{ custoPorHora: number; custosDetalhados: any[] }> {
+    console.log(
+      '🔍 Debug - calcularCustoIndiretoPorHora - Iniciando cálculo para loja:',
+      lojaId,
+    );
+
     // Buscar todos os custos indiretos ativos da loja
     const custosIndiretos = await this.prisma.custoIndireto.findMany({
       where: {
@@ -238,19 +312,33 @@ export class OrcamentosService {
       },
     });
 
-    console.log('🔍 Debug - calcularCustoIndiretoPorHora - Custos indiretos encontrados:', custosIndiretos.length);
-    console.log('🔍 Debug - calcularCustoIndiretoPorHora - Detalhes dos custos:', JSON.stringify(custosIndiretos, null, 2));
+    console.log(
+      '🔍 Debug - calcularCustoIndiretoPorHora - Custos indiretos encontrados:',
+      custosIndiretos.length,
+    );
+    console.log(
+      '🔍 Debug - calcularCustoIndiretoPorHora - Detalhes dos custos:',
+      JSON.stringify(custosIndiretos, null, 2),
+    );
 
     // Calcular total dos custos indiretos mensais
-    const totalCustosIndiretosMensais = custosIndiretos.reduce((total, custo) => {
-      return total + Number(custo.valor_mensal);
-    }, 0);
+    const totalCustosIndiretosMensais = custosIndiretos.reduce(
+      (total, custo) => {
+        return total + Number(custo.valor_mensal);
+      },
+      0,
+    );
 
-    console.log('🔍 Debug - calcularCustoIndiretoPorHora - Total custos indiretos mensais:', totalCustosIndiretosMensais);
+    console.log(
+      '🔍 Debug - calcularCustoIndiretoPorHora - Total custos indiretos mensais:',
+      totalCustosIndiretosMensais,
+    );
 
     // Se não há custos indiretos configurados, retornar 0
     if (totalCustosIndiretosMensais === 0) {
-      console.log('🔍 Debug - calcularCustoIndiretoPorHora - Nenhum custo indireto encontrado, retornando 0');
+      console.log(
+        '🔍 Debug - calcularCustoIndiretoPorHora - Nenhum custo indireto encontrado, retornando 0',
+      );
       return { custoPorHora: 0, custosDetalhados: [] };
     }
 
@@ -258,8 +346,14 @@ export class OrcamentosService {
     const horasProdutivasMes = loja.horas_produtivas_mensais || 352;
     const custoPorHora = totalCustosIndiretosMensais / horasProdutivasMes;
 
-    console.log('🔍 Debug - calcularCustoIndiretoPorHora - Horas produtivas por mês:', horasProdutivasMes);
-    console.log('🔍 Debug - calcularCustoIndiretoPorHora - Custo por hora calculado:', custoPorHora);
+    console.log(
+      '🔍 Debug - calcularCustoIndiretoPorHora - Horas produtivas por mês:',
+      horasProdutivasMes,
+    );
+    console.log(
+      '🔍 Debug - calcularCustoIndiretoPorHora - Custo por hora calculado:',
+      custoPorHora,
+    );
 
     return { custoPorHora, custosDetalhados: custosIndiretos };
   }
@@ -267,25 +361,28 @@ export class OrcamentosService {
   /**
    * Calcula os custos diretos de materiais
    */
-  private calcularCustosDirectos(itens: any[], insumos: any[]): { custoMaterial: number, itensCalculados: ItemOrcamentoCalculadoDto[] } {
+  private calcularCustosDirectos(
+    itens: any[],
+    insumos: any[],
+  ): { custoMaterial: number; itensCalculados: ItemOrcamentoCalculadoDto[] } {
     let custoMaterial = 0;
     const itensCalculados: ItemOrcamentoCalculadoDto[] = [];
 
     for (const item of itens) {
-      const insumo = insumos.find(i => i.id === item.insumo_id);
+      const insumo = insumos.find((i) => i.id === item.insumo_id);
       if (!insumo) continue;
 
       // Calcular custo por unidade de uso
       const custoUnitario = this.calcularCustoPorUnidadeUso(insumo);
-      
+
       // Calcular quantidade baseada na lógica personalizada se aplicável
       let quantidade = Number(item.quantidade);
-      
+
       // Se o insumo tem tipo de material personalizado, aplicar lógica específica
       if (insumo.tipoMaterial && insumo.logica_consumo === 'custom') {
         quantidade = this.calcularQuantidadePersonalizada(insumo, item);
       }
-      
+
       const custoTotal = custoUnitario * quantidade;
 
       custoMaterial += custoTotal;
@@ -345,7 +442,11 @@ export class OrcamentosService {
         if (parametros.tipo_calculo) {
           switch (parametros.tipo_calculo) {
             case 'espacamento':
-              if (parametros.espacamento && larguraProduto > 0 && alturaProduto > 0) {
+              if (
+                parametros.espacamento &&
+                larguraProduto > 0 &&
+                alturaProduto > 0
+              ) {
                 const perimetro = 2 * (larguraProduto + alturaProduto);
                 const espacamento = Number(parametros.espacamento);
                 return Math.ceil(perimetro / espacamento);
@@ -360,7 +461,9 @@ export class OrcamentosService {
 
             case 'multiplicador':
               if (parametros.multiplicador) {
-                return Number(item.quantidade) * Number(parametros.multiplicador);
+                return (
+                  Number(item.quantidade) * Number(parametros.multiplicador)
+                );
               }
               break;
 
@@ -382,23 +485,28 @@ export class OrcamentosService {
    * Calcula o custo por unidade de uso do insumo
    */
   private calcularCustoPorUnidadeUso(insumo: any): number {
-    if (!insumo || !insumo.custo_unitario || !insumo.quantidade_compra || !insumo.fator_conversao) {
+    if (
+      !insumo ||
+      !insumo.custo_unitario ||
+      !insumo.quantidade_compra ||
+      !insumo.fator_conversao
+    ) {
       return 0;
     }
-    
+
     const custo = Number(insumo.custo_unitario);
     const quantidade = Number(insumo.quantidade_compra);
     const fator = Number(insumo.fator_conversao);
-    
+
     if (quantidade > 0 && fator > 0) {
       // Se temos dimensões e tipo de cálculo, usar a lógica específica
       if (insumo.altura && insumo.unidade_dimensao && insumo.tipo_calculo) {
         const alturaNum = Number(insumo.altura);
-        
+
         if (!isNaN(alturaNum)) {
           // Converter altura para metros
           let alturaEmMetros = alturaNum;
-          
+
           switch (insumo.unidade_dimensao) {
             case 'CENTÍMETROS':
             case 'CM':
@@ -413,32 +521,35 @@ export class OrcamentosService {
               // Já está em metros
               break;
           }
-          
+
           // Calcular quantidade baseada no tipo de cálculo
           switch (insumo.tipo_calculo) {
             case 'COMPRIMENTO LINEAR':
             case 'LINEAR':
               // Para comprimento linear: calcular custo por unidade de uso
               const custoPorUnidade = custo / quantidade;
-              
-              if (insumo.unidade_uso === 'CENTIMETRO' || insumo.unidade_uso === 'CM') {
+
+              if (
+                insumo.unidade_uso === 'CENTIMETRO' ||
+                insumo.unidade_uso === 'CM'
+              ) {
                 // Se a unidade de uso é centímetro, calcular custo por centímetro
                 // Para cordão: custo por metro ÷ 100 = custo por centímetro
                 const custoPorCentimetro = custoPorUnidade / 100;
-                
+
                 return custoPorCentimetro;
               } else {
                 // Para outras unidades de uso, usar o cálculo padrão
                 return custoPorUnidade;
               }
-              
+
             case 'AREA':
               // Para área: calcular custo por unidade de uso baseado na área da unidade
               if (insumo.largura) {
                 const larguraNum = Number(insumo.largura);
                 if (!isNaN(larguraNum)) {
                   let larguraEmMetros = larguraNum;
-                  
+
                   switch (insumo.unidade_dimensao) {
                     case 'CENTÍMETROS':
                     case 'CM':
@@ -449,13 +560,13 @@ export class OrcamentosService {
                       larguraEmMetros = larguraNum / 1000;
                       break;
                   }
-                  
+
                   const areaPorUnidade = larguraEmMetros * alturaEmMetros;
-                  
+
                   if (insumo.unidade_uso === 'METRO QUADRADO') {
                     // Se a unidade de uso é metro quadrado, calcular custo por m²
                     const custoPorMetroQuadrado = custo / areaPorUnidade;
-                    
+
                     return custoPorMetroQuadrado;
                   } else {
                     // Para outras unidades de uso, usar o cálculo padrão
@@ -466,55 +577,67 @@ export class OrcamentosService {
                 return custo / quantidade;
               }
               break;
-              
+
             case 'QUANTIDADE':
               // Para quantidade fixa: usar quantidade diretamente
               return custo / quantidade;
-              
+
             default:
               // Padrão: usar quantidade diretamente
               return custo / quantidade;
           }
         }
       }
-      
+
       // Cálculo padrão: custo / (quantidade * fator)
       return custo / (quantidade * fator);
     }
-    
+
     return 0;
   }
 
   /**
    * Calcula o custo de mão de obra direta
    */
-  private calcularCustoMaoObra(horasProducao: number, custoMaoObraPorHora: number): number {
+  private calcularCustoMaoObra(
+    horasProducao: number,
+    custoMaoObraPorHora: number,
+  ): number {
     return horasProducao * custoMaoObraPorHora;
   }
 
   /**
    * Calcula o custo de maquinaria
    */
-  private calcularCustoMaquinaria(horasProducao: number, custoMaquinariaPorHora: number): number {
+  private calcularCustoMaquinaria(
+    horasProducao: number,
+    custoMaquinariaPorHora: number,
+  ): number {
     return horasProducao * custoMaquinariaPorHora;
   }
 
   /**
    * Calcula o custo indireto alocado para este trabalho
    */
-  private calcularCustoIndiretolAlocado(horasProducao: number, custoIndiretoPorHora: number): number {
+  private calcularCustoIndiretolAlocado(
+    horasProducao: number,
+    custoIndiretoPorHora: number,
+  ): number {
     return horasProducao * custoIndiretoPorHora;
   }
 
   /**
    * Calcula os custos de máquinas
    */
-  private async calcularCustosMaquinas(maquinas: any[], lojaId: string): Promise<{ custoTotal: number, maquinasCalculadas: any[] }> {
+  private async calcularCustosMaquinas(
+    maquinas: any[],
+    lojaId: string,
+  ): Promise<{ custoTotal: number; maquinasCalculadas: any[] }> {
     if (!maquinas || maquinas.length === 0) {
       return { custoTotal: 0, maquinasCalculadas: [] };
     }
 
-    const maquinaIds = maquinas.map(m => m.maquina_id);
+    const maquinaIds = maquinas.map((m) => m.maquina_id);
     const maquinasData = await this.prisma.maquina.findMany({
       where: {
         id: { in: maquinaIds },
@@ -526,7 +649,7 @@ export class OrcamentosService {
     const maquinasCalculadas: any[] = [];
 
     for (const maquina of maquinas) {
-      const maquinaData = maquinasData.find(m => m.id === maquina.maquina_id);
+      const maquinaData = maquinasData.find((m) => m.id === maquina.maquina_id);
       if (!maquinaData) continue;
 
       const custoPorHora = Number(maquinaData.custo_hora);
@@ -551,12 +674,15 @@ export class OrcamentosService {
   /**
    * Calcula os custos de funções (mão de obra)
    */
-  private async calcularCustosFuncoes(funcoes: any[], lojaId: string): Promise<{ custoTotal: number, funcoesCalculadas: any[] }> {
+  private async calcularCustosFuncoes(
+    funcoes: any[],
+    lojaId: string,
+  ): Promise<{ custoTotal: number; funcoesCalculadas: any[] }> {
     if (!funcoes || funcoes.length === 0) {
       return { custoTotal: 0, funcoesCalculadas: [] };
     }
 
-    const funcaoIds = funcoes.map(f => f.funcao_id);
+    const funcaoIds = funcoes.map((f) => f.funcao_id);
     const funcoesData = await this.prisma.funcao.findMany({
       where: {
         id: { in: funcaoIds },
@@ -571,7 +697,7 @@ export class OrcamentosService {
     const funcoesCalculadas: any[] = [];
 
     for (const funcao of funcoes) {
-      const funcaoData = funcoesData.find(f => f.id === funcao.funcao_id);
+      const funcaoData = funcoesData.find((f) => f.id === funcao.funcao_id);
       if (!funcaoData) continue;
 
       const custoPorHora = Number(funcaoData.custo_hora);
@@ -599,17 +725,20 @@ export class OrcamentosService {
 
   async create(createOrcamentoDto: CreateOrcamentoDto, lojaId: string) {
     // DTO recebido para criação
-    
+
     // Salvar DTO em arquivo para debug
     const fs = require('fs');
     const debugData = {
       timestamp: new Date().toISOString(),
       dto: createOrcamentoDto,
-      lojaId
+      lojaId,
     };
-    fs.writeFileSync('debug_orcamento_dto.json', JSON.stringify(debugData, null, 2));
+    fs.writeFileSync(
+      'debug_orcamento_dto.json',
+      JSON.stringify(debugData, null, 2),
+    );
     console.log('🔍 Debug - DTO salvo em debug_orcamento_dto.json');
-    
+
     // 1. Calcular o orçamento usando o motor existente
     const calculoDto: CalcularOrcamentoDto = {
       nome_servico: createOrcamentoDto.nome_servico,
@@ -633,9 +762,12 @@ export class OrcamentosService {
     // Salvar resultado em arquivo para debug
     const resultadoDebug = {
       timestamp: new Date().toISOString(),
-      resultado: resultado
+      resultado: resultado,
     };
-    fs.writeFileSync('debug_orcamento_resultado.json', JSON.stringify(resultadoDebug, null, 2));
+    fs.writeFileSync(
+      'debug_orcamento_resultado.json',
+      JSON.stringify(resultadoDebug, null, 2),
+    );
     console.log('🔍 Debug - Resultado salvo em debug_orcamento_resultado.json');
 
     // 2. Gerar número único do orçamento
@@ -679,17 +811,22 @@ export class OrcamentosService {
       margem_lucro: dadosParaSalvar.margem_lucro,
       impostos: dadosParaSalvar.impostos,
       maquinas_count: resultado.maquinas?.length || 0,
-      funcoes_count: resultado.funcoes?.length || 0
+      funcoes_count: resultado.funcoes?.length || 0,
     });
-    
+
     // Salvar dados para salvar em arquivo
     const dadosDebug = {
       timestamp: new Date().toISOString(),
-      dadosParaSalvar: dadosParaSalvar
+      dadosParaSalvar: dadosParaSalvar,
     };
-    fs.writeFileSync('debug_orcamento_dados_salvar.json', JSON.stringify(dadosDebug, null, 2));
-    console.log('🔍 Debug - Dados para salvar em debug_orcamento_dados_salvar.json');
-    
+    fs.writeFileSync(
+      'debug_orcamento_dados_salvar.json',
+      JSON.stringify(dadosDebug, null, 2),
+    );
+    console.log(
+      '🔍 Debug - Dados para salvar em debug_orcamento_dados_salvar.json',
+    );
+
     const orcamento = await this.prisma.orcamento.create({
       data: dadosParaSalvar,
     });
@@ -699,19 +836,22 @@ export class OrcamentosService {
       preco_final: orcamento.preco_final,
       custo_total: orcamento.custo_total,
       margem_lucro: orcamento.margem_lucro,
-      impostos: orcamento.impostos
+      impostos: orcamento.impostos,
     });
 
     // Salvar orçamento salvo em arquivo
     const orcamentoDebug = {
       timestamp: new Date().toISOString(),
-      orcamento: orcamento
+      orcamento: orcamento,
     };
-    fs.writeFileSync('debug_orcamento_salvo.json', JSON.stringify(orcamentoDebug, null, 2));
+    fs.writeFileSync(
+      'debug_orcamento_salvo.json',
+      JSON.stringify(orcamentoDebug, null, 2),
+    );
     console.log('🔍 Debug - Orçamento salvo em debug_orcamento_salvo.json');
 
     // 4. Criar os itens do orçamento
-    const itensData = resultado.itens.map(item => ({
+    const itensData = resultado.itens.map((item) => ({
       orcamento_id: orcamento.id,
       insumo_id: item.insumo_id,
       quantidade: item.quantidade,
@@ -725,7 +865,7 @@ export class OrcamentosService {
 
     // 5. Criar as máquinas do orçamento
     if (resultado.maquinas && resultado.maquinas.length > 0) {
-      const maquinasData = resultado.maquinas.map(maquina => ({
+      const maquinasData = resultado.maquinas.map((maquina) => ({
         orcamento_id: orcamento.id,
         maquina_id: maquina.maquina_id,
         horas_utilizadas: maquina.horas_utilizadas,
@@ -741,7 +881,7 @@ export class OrcamentosService {
 
     // 6. Criar as funções do orçamento
     if (resultado.funcoes && resultado.funcoes.length > 0) {
-      const funcoesData = resultado.funcoes.map(funcao => ({
+      const funcoesData = resultado.funcoes.map((funcao) => ({
         orcamento_id: orcamento.id,
         funcao_id: funcao.funcao_id,
         horas_trabalhadas: funcao.horas_trabalhadas,
@@ -805,15 +945,15 @@ export class OrcamentosService {
     console.log('🔍 Debug - Backend - SalvarRascunho - Dados sendo salvos:', {
       preco_final: dadosParaSalvar.preco_final,
       quantidade_produto: dadosParaSalvar.quantidade_produto,
-      custo_total: dadosParaSalvar.custo_total
+      custo_total: dadosParaSalvar.custo_total,
     });
-    
+
     const orcamento = await this.prisma.orcamento.create({
       data: dadosParaSalvar,
     });
 
     // 4. Criar os itens do orçamento
-    const itensData = resultado.itens.map(item => ({
+    const itensData = resultado.itens.map((item) => ({
       orcamento_id: orcamento.id,
       insumo_id: item.insumo_id,
       quantidade: item.quantidade,
@@ -827,7 +967,7 @@ export class OrcamentosService {
 
     // 5. Criar as máquinas do orçamento
     if (resultado.maquinas && resultado.maquinas.length > 0) {
-      const maquinasData = resultado.maquinas.map(maquina => ({
+      const maquinasData = resultado.maquinas.map((maquina) => ({
         orcamento_id: orcamento.id,
         maquina_id: maquina.maquina_id,
         horas_utilizadas: maquina.horas_utilizadas,
@@ -841,7 +981,7 @@ export class OrcamentosService {
 
     // 6. Criar as funções do orçamento
     if (resultado.funcoes && resultado.funcoes.length > 0) {
-      const funcoesData = resultado.funcoes.map(funcao => ({
+      const funcoesData = resultado.funcoes.map((funcao) => ({
         orcamento_id: orcamento.id,
         funcao_id: funcao.funcao_id,
         horas_trabalhadas: funcao.horas_trabalhadas,
@@ -854,7 +994,11 @@ export class OrcamentosService {
     }
 
     // 7. Registrar log de criação do rascunho
-    await this.registrarLog(orcamento.id, 'CRIADO', 'Rascunho de orçamento criado');
+    await this.registrarLog(
+      orcamento.id,
+      'CRIADO',
+      'Rascunho de orçamento criado',
+    );
 
     return this.findOne(orcamento.id, lojaId);
   }
@@ -874,11 +1018,15 @@ export class OrcamentosService {
     });
 
     if (!orcamento) {
-      throw new NotFoundException('Orçamento não encontrado ou não é um rascunho');
+      throw new NotFoundException(
+        'Orçamento não encontrado ou não é um rascunho',
+      );
     }
 
     if (!orcamento.cliente) {
-      throw new BadRequestException('Orçamento deve ter um cliente associado para ser enviado');
+      throw new BadRequestException(
+        'Orçamento deve ter um cliente associado para ser enviado',
+      );
     }
 
     // 2. Gerar código de aprovação único
@@ -906,11 +1054,11 @@ export class OrcamentosService {
       console.log('📧 Email:', orcamento.cliente.email);
       console.log('📧 Orçamento:', orcamento.numero);
       console.log('📧 Código de Aprovação:', codigoAprovacao);
-      
+
       const linkPublico = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orcamento/${orcamento.id}`;
       console.log('📧 Link Público:', linkPublico);
       console.log('📧 ============================================');
-      
+
       await this.mailService.enviarOrcamentoCliente(
         orcamento.cliente.email,
         orcamento.cliente.nome,
@@ -918,9 +1066,9 @@ export class OrcamentosService {
         orcamento.nome_servico,
         Number(orcamento.preco_final),
         codigoAprovacao,
-        linkPublico
+        linkPublico,
       );
-      
+
       console.log('📧 EMAIL ENVIADO COM SUCESSO! ✅');
       console.log('📧 ============================================');
     } else {
@@ -940,7 +1088,9 @@ export class OrcamentosService {
     do {
       codigo = '';
       for (let i = 0; i < 8; i++) {
-        codigo += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+        codigo += caracteres.charAt(
+          Math.floor(Math.random() * caracteres.length),
+        );
       }
       tentativas++;
 
@@ -954,7 +1104,9 @@ export class OrcamentosService {
       }
     } while (tentativas < maxTentativas);
 
-    throw new Error('Não foi possível gerar um código único após várias tentativas');
+    throw new Error(
+      'Não foi possível gerar um código único após várias tentativas',
+    );
   }
 
   async aprovarOrcamento(codigo: string) {
@@ -962,23 +1114,31 @@ export class OrcamentosService {
     console.log('🔍 Código recebido (raw):', JSON.stringify(codigo));
     console.log('🔍 Código length:', codigo?.length);
     console.log('🔍 Código trimmed:', codigo?.trim());
-    console.log('🔍 Código char codes:', Array.from(codigo || '').map(c => c.charCodeAt(0)));
-    
+    console.log(
+      '🔍 Código char codes:',
+      Array.from(codigo || '').map((c) => c.charCodeAt(0)),
+    );
+
     // Validar se o código foi fornecido
     if (!codigo || typeof codigo !== 'string') {
       throw new BadRequestException('Código de aprovação é obrigatório');
     }
-    
+
     // Limpar o código de espaços em branco e converter para maiúsculo
     const codigoLimpo = codigo.trim().toUpperCase();
     console.log('🔍 Código limpo:', codigoLimpo);
-    console.log('🔍 Código limpo char codes:', Array.from(codigoLimpo).map(c => c.charCodeAt(0)));
-    
+    console.log(
+      '🔍 Código limpo char codes:',
+      Array.from(codigoLimpo).map((c) => c.charCodeAt(0)),
+    );
+
     // Validar se o código tem o formato esperado (8 caracteres)
     if (codigoLimpo.length !== 8) {
-      throw new BadRequestException('Código de aprovação deve ter 8 caracteres');
+      throw new BadRequestException(
+        'Código de aprovação deve ter 8 caracteres',
+      );
     }
-    
+
     // 1. Buscar orçamento pelo código
     const orcamento = await this.prisma.orcamento.findUnique({
       where: { codigo_aprovacao: codigoLimpo },
@@ -1002,39 +1162,55 @@ export class OrcamentosService {
       const todosOrcamentos = await this.prisma.orcamento.findMany({
         where: {
           codigo_aprovacao: {
-            not: null
-          }
+            not: null,
+          },
         },
         select: {
           id: true,
           numero: true,
           codigo_aprovacao: true,
           status: true,
-          status_aprovacao: true
-        }
+          status_aprovacao: true,
+        },
       });
-      
-      console.log('🔍 Todos os códigos no banco:', todosOrcamentos.map(o => ({
-        numero: o.numero,
-        codigo: o.codigo_aprovacao,
-        codigo_char_codes: Array.from(o.codigo_aprovacao || '').map(c => c.charCodeAt(0)),
-        status: o.status,
-        aprovacao: o.status_aprovacao
-      })));
-      
+
+      console.log(
+        '🔍 Todos os códigos no banco:',
+        todosOrcamentos.map((o) => ({
+          numero: o.numero,
+          codigo: o.codigo_aprovacao,
+          codigo_char_codes: Array.from(o.codigo_aprovacao || '').map((c) =>
+            c.charCodeAt(0),
+          ),
+          status: o.status,
+          aprovacao: o.status_aprovacao,
+        })),
+      );
+
       throw new NotFoundException('Código de aprovação inválido');
     }
 
     // Validar se o orçamento está no status correto
-    if (orcamento.status !== 'enviado' && orcamento.status !== 'negociando' && orcamento.status !== 'rascunho') {
-      console.log('🔍 ERRO: Orçamento não está no status correto. Status atual:', orcamento.status);
-      throw new BadRequestException('Orçamento não está no status correto para aprovação');
+    if (
+      orcamento.status !== 'enviado' &&
+      orcamento.status !== 'negociando' &&
+      orcamento.status !== 'rascunho'
+    ) {
+      console.log(
+        '🔍 ERRO: Orçamento não está no status correto. Status atual:',
+        orcamento.status,
+      );
+      throw new BadRequestException(
+        'Orçamento não está no status correto para aprovação',
+      );
     }
 
     // Se o orçamento estiver como rascunho, enviar automaticamente
     if (orcamento.status === 'rascunho') {
-      console.log('🔍 Orçamento está como rascunho. Enviando automaticamente...');
-      
+      console.log(
+        '🔍 Orçamento está como rascunho. Enviando automaticamente...',
+      );
+
       // Atualizar status para enviado
       await this.prisma.orcamento.update({
         where: { id: orcamento.id },
@@ -1042,7 +1218,7 @@ export class OrcamentosService {
           status: 'enviado',
         },
       });
-      
+
       console.log('🔍 ✅ Orçamento enviado automaticamente');
     }
 
@@ -1055,7 +1231,9 @@ export class OrcamentosService {
     // Validar se o orçamento foi rejeitado
     if (orcamento.status_aprovacao === 'REJEITADO') {
       console.log('🔍 ERRO: Orçamento foi rejeitado');
-      throw new BadRequestException('Orçamento foi rejeitado e não pode ser aprovado');
+      throw new BadRequestException(
+        'Orçamento foi rejeitado e não pode ser aprovado',
+      );
     }
 
     console.log('🔍 ✅ Validações passaram. Aprovando orçamento...');
@@ -1071,12 +1249,19 @@ export class OrcamentosService {
       },
     });
 
-    console.log('🔍 ✅ Orçamento atualizado com sucesso. Novo status:', orcamentoAtualizado.status_aprovacao);
+    console.log(
+      '🔍 ✅ Orçamento atualizado com sucesso. Novo status:',
+      orcamentoAtualizado.status_aprovacao,
+    );
     console.log('🔍 ✅ ID do orçamento atualizado:', orcamentoAtualizado.id);
 
     // 3. Registrar log de aprovação
     try {
-      await this.registrarLog(orcamento.id, 'APROVADO', 'Orçamento aprovado pelo cliente');
+      await this.registrarLog(
+        orcamento.id,
+        'APROVADO',
+        'Orçamento aprovado pelo cliente',
+      );
       console.log('🔍 ✅ Log registrado com sucesso');
     } catch (error) {
       console.log('🔍 ⚠️ Erro ao registrar log:', error);
@@ -1089,7 +1274,7 @@ export class OrcamentosService {
         TipoNotificacao.ORCAMENTO_APROVADO,
         'Orçamento Aprovado',
         `O orçamento #${orcamento.numero} foi aprovado pelo cliente ${orcamento.cliente?.nome}`,
-        orcamento.id
+        orcamento.id,
       );
       console.log('🔍 ✅ Notificação criada com sucesso');
     } catch (error) {
@@ -1103,7 +1288,7 @@ export class OrcamentosService {
           orcamento.loja.email,
           orcamento.numero,
           orcamento.cliente?.nome || 'Cliente',
-          Number(orcamento.preco_final)
+          Number(orcamento.preco_final),
         );
         console.log('🔍 ✅ Email enviado com sucesso');
       } catch (error) {
@@ -1116,7 +1301,13 @@ export class OrcamentosService {
     return { message: 'Orçamento aprovado com sucesso!' };
   }
 
-  async criarHistoricoVersao(orcamentoId: string, dadosAnteriores: any, dadosNovos: any, motivo?: string, alteradoPor?: string) {
+  async criarHistoricoVersao(
+    orcamentoId: string,
+    dadosAnteriores: any,
+    dadosNovos: any,
+    motivo?: string,
+    alteradoPor?: string,
+  ) {
     // 1. Buscar versão atual
     const ultimaVersao = await this.prisma.orcamentoHistorico.findFirst({
       where: { orcamento_id: orcamentoId },
@@ -1142,7 +1333,12 @@ export class OrcamentosService {
     });
   }
 
-  async registrarLog(orcamentoId: string, tipoAcao: string, descricao: string, dadosExtras?: any) {
+  async registrarLog(
+    orcamentoId: string,
+    tipoAcao: string,
+    descricao: string,
+    dadosExtras?: any,
+  ) {
     return this.prisma.orcamentoLog.create({
       data: {
         orcamento_id: orcamentoId,
@@ -1157,9 +1353,16 @@ export class OrcamentosService {
     const alteracoes: any = {};
 
     // Comparar campos principais
-    const campos = ['nome_servico', 'descricao', 'quantidade_produto', 'preco_final', 'margem_lucro', 'impostos'];
-    
-    campos.forEach(campo => {
+    const campos = [
+      'nome_servico',
+      'descricao',
+      'quantidade_produto',
+      'preco_final',
+      'margem_lucro',
+      'impostos',
+    ];
+
+    campos.forEach((campo) => {
       if (dadosAnteriores[campo] !== dadosNovos[campo]) {
         alteracoes[campo] = {
           anterior: dadosAnteriores[campo],
@@ -1206,9 +1409,8 @@ export class OrcamentosService {
   }
 
   async findOne(id: string, lojaId: string) {
-    
     const orcamento = await this.prisma.orcamento.findFirst({
-      where: { 
+      where: {
         id,
         loja_id: lojaId,
       },
@@ -1247,46 +1449,68 @@ export class OrcamentosService {
       status: orcamento.status,
       status_aprovacao: orcamento.status_aprovacao,
       cliente_id: orcamento.cliente_id,
-      margem_lucro_customizada: orcamento.margem_lucro ? String(orcamento.margem_lucro) : undefined,
-      impostos_customizados: orcamento.impostos ? String(orcamento.impostos) : undefined,
+      margem_lucro_customizada: orcamento.margem_lucro
+        ? String(orcamento.margem_lucro)
+        : undefined,
+      impostos_customizados: orcamento.impostos
+        ? String(orcamento.impostos)
+        : undefined,
       condicoes_comerciais: '',
-      itens_produto: [{
-        nome_servico: orcamento.nome_servico,
-        quantidade_produto: orcamento.quantidade_produto ? String(orcamento.quantidade_produto) : '1',
-        descricao: orcamento.descricao,
-        largura_produto: orcamento.largura_produto ? String(orcamento.largura_produto) : '',
-        altura_produto: orcamento.altura_produto ? String(orcamento.altura_produto) : '',
-        unidade_medida_produto: orcamento.unidade_medida_produto || '',
-        area_produto: orcamento.area_produto ? String(orcamento.area_produto) : '',
-        materiais: orcamento.itens.map(item => ({
-          insumo_id: item.insumo_id,
-          quantidade: String(item.quantidade)
-        })),
-        maquinas: orcamento.maquinas.map(maquina => ({
-          maquina_id: maquina.maquina_id,
-          horas_utilizadas: String(maquina.horas_utilizadas)
-        })),
-        funcoes: orcamento.funcoes.map(funcao => ({
-          funcao_id: funcao.funcao_id,
-          horas_trabalhadas: String(funcao.horas_trabalhadas)
-        })),
-      }]
+      itens_produto: [
+        {
+          nome_servico: orcamento.nome_servico,
+          quantidade_produto: orcamento.quantidade_produto
+            ? String(orcamento.quantidade_produto)
+            : '1',
+          descricao: orcamento.descricao,
+          largura_produto: orcamento.largura_produto
+            ? String(orcamento.largura_produto)
+            : '',
+          altura_produto: orcamento.altura_produto
+            ? String(orcamento.altura_produto)
+            : '',
+          unidade_medida_produto: orcamento.unidade_medida_produto || '',
+          area_produto: orcamento.area_produto
+            ? String(orcamento.area_produto)
+            : '',
+          materiais: orcamento.itens.map((item) => ({
+            insumo_id: item.insumo_id,
+            quantidade: String(item.quantidade),
+          })),
+          maquinas: orcamento.maquinas.map((maquina) => ({
+            maquina_id: maquina.maquina_id,
+            horas_utilizadas: String(maquina.horas_utilizadas),
+          })),
+          funcoes: orcamento.funcoes.map((funcao) => ({
+            funcao_id: funcao.funcao_id,
+            horas_trabalhadas: String(funcao.horas_trabalhadas),
+          })),
+        },
+      ],
     };
 
     return dadosFormatados;
   }
 
-  async update(id: string, updateOrcamentoDto: UpdateOrcamentoDto, lojaId: string) {
+  async update(
+    id: string,
+    updateOrcamentoDto: UpdateOrcamentoDto,
+    lojaId: string,
+  ) {
     // Verificar se o orçamento existe
     await this.findOne(id, lojaId);
 
     // Se houver mudanças nos itens, máquinas, funções, quantidade ou parâmetros, recalcular
-    const deveRecalcular = updateOrcamentoDto.itens || updateOrcamentoDto.maquinas || updateOrcamentoDto.funcoes || 
-        updateOrcamentoDto.horas_producao || updateOrcamentoDto.quantidade_produto || 
-        updateOrcamentoDto.margem_lucro_customizada || updateOrcamentoDto.impostos_customizados;
-    
+    const deveRecalcular =
+      updateOrcamentoDto.itens ||
+      updateOrcamentoDto.maquinas ||
+      updateOrcamentoDto.funcoes ||
+      updateOrcamentoDto.horas_producao ||
+      updateOrcamentoDto.quantidade_produto ||
+      updateOrcamentoDto.margem_lucro_customizada ||
+      updateOrcamentoDto.impostos_customizados;
+
     if (deveRecalcular) {
-      
       // Recalcular usando o motor
       const calculoDto: CalcularOrcamentoDto = {
         nome_servico: updateOrcamentoDto.nome_servico || '',
@@ -1306,7 +1530,7 @@ export class OrcamentosService {
       console.log('🔍 Debug - Backend - Update - Dados sendo salvos:', {
         preco_final: resultado.custos.preco_final,
         quantidade_produto: updateOrcamentoDto.quantidade_produto,
-        custo_total: resultado.custos.custo_total_producao
+        custo_total: resultado.custos.custo_total_producao,
       });
 
       // Atualizar com os novos valores calculados
@@ -1345,7 +1569,7 @@ export class OrcamentosService {
         });
 
         // Criar novos itens
-        const itensData = resultado.itens.map(item => ({
+        const itensData = resultado.itens.map((item) => ({
           orcamento_id: id,
           insumo_id: item.insumo_id,
           quantidade: item.quantidade,
@@ -1366,7 +1590,7 @@ export class OrcamentosService {
         });
 
         // Criar novas máquinas usando os dados calculados
-        const maquinasData = resultado.maquinas.map(maquina => ({
+        const maquinasData = resultado.maquinas.map((maquina) => ({
           orcamento_id: id,
           maquina_id: maquina.maquina_id,
           horas_utilizadas: maquina.horas_utilizadas,
@@ -1386,7 +1610,7 @@ export class OrcamentosService {
         });
 
         // Criar novas funções usando os dados calculados
-        const funcoesData = resultado.funcoes.map(funcao => ({
+        const funcoesData = resultado.funcoes.map((funcao) => ({
           orcamento_id: id,
           funcao_id: funcao.funcao_id,
           horas_trabalhadas: funcao.horas_trabalhadas,
@@ -1414,7 +1638,7 @@ export class OrcamentosService {
 
   async remove(id: string, lojaId: string) {
     await this.findOne(id, lojaId);
-    
+
     return this.prisma.orcamento.delete({
       where: { id },
     });
@@ -1427,7 +1651,7 @@ export class OrcamentosService {
     const hoje = new Date();
     const ano = hoje.getFullYear();
     const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-    
+
     // Buscar o último orçamento do mês
     const ultimoOrcamento = await this.prisma.orcamento.findFirst({
       where: {
@@ -1491,29 +1715,33 @@ export class OrcamentosService {
       status_aprovacao: orcamento.status_aprovacao,
       observacoes_cliente: orcamento.observacoes_cliente,
       criado_em: orcamento.criado_em,
-      
+
       // Dados do cliente
-      cliente: orcamento.cliente ? {
-        id: orcamento.cliente.id,
-        nome: orcamento.cliente.nome,
-        email: orcamento.cliente.email,
-        telefone: orcamento.cliente.telefone,
-      } : null,
-      
+      cliente: orcamento.cliente
+        ? {
+            id: orcamento.cliente.id,
+            nome: orcamento.cliente.nome,
+            email: orcamento.cliente.email,
+            telefone: orcamento.cliente.telefone,
+          }
+        : null,
+
       // Dados da loja (públicos)
-      loja: orcamento.loja ? {
-        nome: orcamento.loja.nome,
-        email: orcamento.loja.email,
-        telefone: orcamento.loja.telefone,
-        logo_url: orcamento.loja.logo_url,
-      } : null,
-      
+      loja: orcamento.loja
+        ? {
+            nome: orcamento.loja.nome,
+            email: orcamento.loja.email,
+            telefone: orcamento.loja.telefone,
+            logo_url: orcamento.loja.logo_url,
+          }
+        : null,
+
       // Condições comerciais padrão (podem ser customizadas no futuro)
       prazo_entrega: '10 a 15 dias úteis',
       forma_pagamento: '50% entrada, restante na entrega',
       validade_proposta: '30 dias',
       atendente: 'Equipe Comercial',
-      
+
       // NÃO incluir: custos internos, margens, impostos, itens detalhados, máquinas, funções
     };
   }
@@ -1528,10 +1756,14 @@ export class OrcamentosService {
       observacoes?: string;
       cliente_nome?: string;
       cliente_email?: string;
-    }
+    },
   ) {
-    console.log('🔍 Debug - processarAcaoCliente - Iniciando', { orcamentoId, acao, dados });
-    
+    console.log('🔍 Debug - processarAcaoCliente - Iniciando', {
+      orcamentoId,
+      acao,
+      dados,
+    });
+
     // Buscar orçamento
     const orcamento = await this.prisma.orcamento.findUnique({
       where: { id: orcamentoId },
@@ -1541,7 +1773,10 @@ export class OrcamentosService {
       },
     });
 
-    console.log('🔍 Debug - processarAcaoCliente - Orçamento encontrado:', !!orcamento);
+    console.log(
+      '🔍 Debug - processarAcaoCliente - Orçamento encontrado:',
+      !!orcamento,
+    );
 
     if (!orcamento) {
       throw new NotFoundException('Orçamento não encontrado');
@@ -1611,14 +1846,14 @@ export class OrcamentosService {
           cliente_email: dados.cliente_email || orcamento.cliente?.email,
           acao: acao,
           observacoes: dados.observacoes,
-        }
+        },
       );
-      
+
       // Enviar email para a loja quando cliente interage pela primeira vez
       if (orcamento.loja?.email) {
         let assuntoEmail: string;
         let mensagemEmail: string;
-        
+
         switch (acao) {
           case 'APROVAR':
             assuntoEmail = `🎉 Orçamento #${orcamento.numero} APROVADO!`;
@@ -1633,12 +1868,12 @@ export class OrcamentosService {
             mensagemEmail = `O cliente ${orcamento.cliente?.nome} iniciou uma negociação para o orçamento #${orcamento.numero}. Observações: ${dados.observacoes}`;
             break;
         }
-        
+
         await this.mailService.enviarNotificacaoAprovacao(
           orcamento.loja.email,
           orcamento.numero,
           orcamento.cliente?.nome || 'Cliente',
-          Number(orcamento.preco_final)
+          Number(orcamento.preco_final),
         );
       }
     }
@@ -1652,12 +1887,14 @@ export class OrcamentosService {
             orcamento_id: orcamentoId,
             mensagem: dados.observacoes,
             tipo: 'CLIENTE',
-            autor_nome: orcamento.cliente?.nome || dados.cliente_nome || 'Cliente',
-            autor_email: orcamento.cliente?.email || dados.cliente_email || null,
+            autor_nome:
+              orcamento.cliente?.nome || dados.cliente_nome || 'Cliente',
+            autor_email:
+              orcamento.cliente?.email || dados.cliente_email || null,
             visualizada: false,
           },
         });
-        
+
         console.log('✅ Mensagem inicial de negociação criada no chat');
       } catch (error) {
         console.error('❌ Erro ao criar mensagem inicial no chat:', error);
@@ -1665,7 +1902,7 @@ export class OrcamentosService {
         await this.registrarLog(
           orcamentoId,
           'MENSAGEM_CLIENTE',
-          `Mensagem do cliente: ${dados.observacoes}`
+          `Mensagem do cliente: ${dados.observacoes}`,
         );
       }
     }
@@ -1692,12 +1929,12 @@ export class OrcamentosService {
     if (!orcamento) {
       throw new NotFoundException('Orçamento não encontrado');
     }
-    
+
     let statusAprovacao: string;
     let tipoNotificacao: string;
     let tituloNotificacao: string;
     let mensagemNotificacao: string;
-    
+
     switch (acaoDto.acao) {
       case 'APROVAR':
         statusAprovacao = 'APROVADO';
@@ -1734,7 +1971,7 @@ export class OrcamentosService {
       id,
       orcamento.loja_id,
       acaoDto.acao,
-      acaoDto.observacoes
+      acaoDto.observacoes,
     );
 
     return {
@@ -1752,13 +1989,13 @@ export class OrcamentosService {
         orcamento_id: orcamentoId,
         visualizada: false,
         tipo: {
-          not: 'SISTEMA'
-        }
+          not: 'SISTEMA',
+        },
       },
       orderBy: {
-        criado_em: 'desc'
+        criado_em: 'desc',
       },
-      take: 10
+      take: 10,
     });
   }
 
@@ -1769,11 +2006,11 @@ export class OrcamentosService {
     return this.prisma.mensagemNegociacao.update({
       where: {
         id: mensagemId,
-        orcamento_id: orcamentoId
+        orcamento_id: orcamentoId,
       },
       data: {
-        visualizada: true
-      }
+        visualizada: true,
+      },
     });
   }
 
@@ -1816,7 +2053,7 @@ export class OrcamentosService {
 
     // 4. Enviar email com o novo código
     const linkPublico = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orcamento/${orcamento.id}`;
-    
+
     await this.mailService.enviarOrcamentoCliente(
       orcamento.cliente.email,
       orcamento.cliente.nome,
@@ -1824,11 +2061,15 @@ export class OrcamentosService {
       orcamento.nome_servico,
       Number(orcamento.preco_final),
       novoCodigo,
-      linkPublico
+      linkPublico,
     );
 
     // 5. Registrar log
-    await this.registrarLog(id, 'CODIGO_REENVIADO', 'Código de aprovação reenviado para o cliente');
+    await this.registrarLog(
+      id,
+      'CODIGO_REENVIADO',
+      'Código de aprovação reenviado para o cliente',
+    );
 
     console.log('📧 ✅ Código reenviado com sucesso!');
     console.log('📧 ✅ Novo código:', novoCodigo);
@@ -1845,8 +2086,11 @@ export class OrcamentosService {
    * Recalcular valores de orçamentos existentes
    */
   async recalcularOrcamentosExistentes(lojaId: string) {
-    console.log('🔧 Iniciando recálculo de orçamentos existentes para loja:', lojaId);
-    
+    console.log(
+      '🔧 Iniciando recálculo de orçamentos existentes para loja:',
+      lojaId,
+    );
+
     // Buscar todos os orçamentos da loja
     const orcamentos = await this.prisma.orcamento.findMany({
       where: { loja_id: lojaId },
@@ -1869,7 +2113,9 @@ export class OrcamentosService {
       },
     });
 
-    console.log(`🔧 Encontrados ${orcamentos.length} orçamentos para recalcular`);
+    console.log(
+      `🔧 Encontrados ${orcamentos.length} orçamentos para recalcular`,
+    );
 
     let corrigidos = 0;
     let erros = 0;
@@ -1884,15 +2130,15 @@ export class OrcamentosService {
           descricao: orcamento.descricao || '',
           horas_producao: Number(orcamento.horas_producao),
           quantidade_produto: Number(orcamento.quantidade_produto) || 1,
-          itens: orcamento.itens.map(item => ({
+          itens: orcamento.itens.map((item) => ({
             insumo_id: item.insumo_id,
             quantidade: Number(item.quantidade),
           })),
-          maquinas: orcamento.maquinas.map(maquina => ({
+          maquinas: orcamento.maquinas.map((maquina) => ({
             maquina_id: maquina.maquina_id,
             horas_utilizadas: Number(maquina.horas_utilizadas),
           })),
-          funcoes: orcamento.funcoes.map(funcao => ({
+          funcoes: orcamento.funcoes.map((funcao) => ({
             funcao_id: funcao.funcao_id,
             horas_trabalhadas: Number(funcao.horas_trabalhadas),
           })),
@@ -1925,13 +2171,18 @@ export class OrcamentosService {
 
         corrigidos++;
       } catch (error) {
-        console.error(`❌ Erro ao recalcular orçamento ${orcamento.numero}:`, error);
+        console.error(
+          `❌ Erro ao recalcular orçamento ${orcamento.numero}:`,
+          error,
+        );
         erros++;
       }
     }
 
-    console.log(`🔧 Recálculo concluído: ${corrigidos} corrigidos, ${erros} erros`);
-    
+    console.log(
+      `🔧 Recálculo concluído: ${corrigidos} corrigidos, ${erros} erros`,
+    );
+
     return {
       total: orcamentos.length,
       corrigidos,

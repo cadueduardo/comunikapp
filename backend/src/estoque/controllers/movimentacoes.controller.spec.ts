@@ -85,7 +85,7 @@ describe('MovimentacoesController', () => {
           lojaId: mockRequest.estoque.lojaId,
           usuarioId: mockRequest.estoque.usuarioId,
         },
-        createDto
+        createDto,
       );
     });
 
@@ -97,12 +97,12 @@ describe('MovimentacoesController', () => {
       };
 
       mockEstoqueService.criarMovimentacao.mockRejectedValue(
-        new BadRequestException('Dados inválidos')
+        new BadRequestException('Dados inválidos'),
       );
 
-      await expect(
-        controller.executar(createDto, mockRequest)
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.executar(createDto, mockRequest)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -156,7 +156,7 @@ describe('MovimentacoesController', () => {
           lojaId: mockRequest.estoque.lojaId,
           usuarioId: mockRequest.estoque.usuarioId,
         },
-        query
+        query,
       );
     });
 
@@ -180,6 +180,4 @@ describe('MovimentacoesController', () => {
       expect(result).toEqual(expectedResult);
     });
   });
-
-
 });

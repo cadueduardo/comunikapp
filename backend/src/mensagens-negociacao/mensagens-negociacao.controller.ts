@@ -1,16 +1,16 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Param, 
-  UseGuards, 
-  UseInterceptors, 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  UseInterceptors,
   UploadedFile,
   BadRequestException,
   ParseFilePipe,
   MaxFileSizeValidator,
-  FileTypeValidator
+  FileTypeValidator,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MensagensNegociacaoService } from './mensagens-negociacao.service';
@@ -21,7 +21,9 @@ import { Public } from '../auth/decorators';
 
 @Controller('orcamentos/:orcamentoId/mensagens')
 export class MensagensNegociacaoController {
-  constructor(private readonly mensagensNegociacaoService: MensagensNegociacaoService) {}
+  constructor(
+    private readonly mensagensNegociacaoService: MensagensNegociacaoService,
+  ) {}
 
   /**
    * Listar todas as mensagens de um orçamento (público)
@@ -38,10 +40,13 @@ export class MensagensNegociacaoController {
   @Get('nao-visualizadas')
   @UseGuards(JwtAuthGuard)
   async findNaoVisualizadas(
-    @Param('orcamentoId') orcamentoId: string, 
-    @CurrentLojaId() lojaId: string
+    @Param('orcamentoId') orcamentoId: string,
+    @CurrentLojaId() lojaId: string,
   ) {
-    return this.mensagensNegociacaoService.findNaoVisualizadas(orcamentoId, lojaId);
+    return this.mensagensNegociacaoService.findNaoVisualizadas(
+      orcamentoId,
+      lojaId,
+    );
   }
 
   /**
@@ -50,10 +55,13 @@ export class MensagensNegociacaoController {
   @Get('nao-visualizadas/count')
   @UseGuards(JwtAuthGuard)
   async countNaoVisualizadas(
-    @Param('orcamentoId') orcamentoId: string, 
-    @CurrentLojaId() lojaId: string
+    @Param('orcamentoId') orcamentoId: string,
+    @CurrentLojaId() lojaId: string,
   ) {
-    return this.mensagensNegociacaoService.countNaoVisualizadas(orcamentoId, lojaId);
+    return this.mensagensNegociacaoService.countNaoVisualizadas(
+      orcamentoId,
+      lojaId,
+    );
   }
 
   /**
@@ -62,8 +70,8 @@ export class MensagensNegociacaoController {
   @Get()
   @UseGuards(JwtAuthGuard)
   async findAll(
-    @Param('orcamentoId') orcamentoId: string, 
-    @CurrentLojaId() lojaId: string
+    @Param('orcamentoId') orcamentoId: string,
+    @CurrentLojaId() lojaId: string,
   ) {
     return this.mensagensNegociacaoService.findAll(orcamentoId, lojaId);
   }
@@ -75,13 +83,16 @@ export class MensagensNegociacaoController {
   @Public()
   @UseInterceptors(FileInterceptor('arquivo'))
   async createPublico(
-    @Param('orcamentoId') orcamentoId: string, 
+    @Param('orcamentoId') orcamentoId: string,
     @Body() body: any, // Usar any para aceitar tanto JSON quanto FormData
-    @UploadedFile() file?: Express.Multer.File
+    @UploadedFile() file?: Express.Multer.File,
   ) {
     console.log('🔍 Controller publico - Body recebido:', body);
-    console.log('🔍 Controller publico - File recebido:', file ? `${file.originalname} (${file.size} bytes)` : 'nenhum');
-    
+    console.log(
+      '🔍 Controller publico - File recebido:',
+      file ? `${file.originalname} (${file.size} bytes)` : 'nenhum',
+    );
+
     // Criar DTO manualmente a partir do body
     const dto: CreateMensagemNegociacaoDto = {
       mensagem: body.mensagem || '',
@@ -89,10 +100,14 @@ export class MensagensNegociacaoController {
       autor_nome: body.autor_nome || 'Cliente',
       autor_email: body.autor_email,
     };
-    
+
     console.log('🔍 Controller publico - DTO criado:', dto);
-    
-    return this.mensagensNegociacaoService.createPublicoComAnexo(orcamentoId, dto, file);
+
+    return this.mensagensNegociacaoService.createPublicoComAnexo(
+      orcamentoId,
+      dto,
+      file,
+    );
   }
 
   /**
@@ -101,9 +116,9 @@ export class MensagensNegociacaoController {
   @Post()
   @UseGuards(JwtAuthGuard)
   async create(
-    @Param('orcamentoId') orcamentoId: string, 
-    @Body() dto: CreateMensagemNegociacaoDto, 
-    @CurrentLojaId() lojaId: string
+    @Param('orcamentoId') orcamentoId: string,
+    @Body() dto: CreateMensagemNegociacaoDto,
+    @CurrentLojaId() lojaId: string,
   ) {
     return this.mensagensNegociacaoService.create(orcamentoId, dto, lojaId);
   }
@@ -115,9 +130,12 @@ export class MensagensNegociacaoController {
   @Public()
   async marcarComoVisualizadaPublico(
     @Param('orcamentoId') orcamentoId: string,
-    @Param('mensagemId') mensagemId: string
+    @Param('mensagemId') mensagemId: string,
   ) {
-    return this.mensagensNegociacaoService.marcarComoVisualizadaPublico(orcamentoId, mensagemId);
+    return this.mensagensNegociacaoService.marcarComoVisualizadaPublico(
+      orcamentoId,
+      mensagemId,
+    );
   }
 
   /**
@@ -126,10 +144,13 @@ export class MensagensNegociacaoController {
   @Post(':mensagemId/visualizar')
   @UseGuards(JwtAuthGuard)
   async marcarComoVisualizada(
-    @Param('mensagemId') mensagemId: string, 
-    @CurrentLojaId() lojaId: string
+    @Param('mensagemId') mensagemId: string,
+    @CurrentLojaId() lojaId: string,
   ) {
-    return this.mensagensNegociacaoService.marcarComoVisualizada(mensagemId, lojaId);
+    return this.mensagensNegociacaoService.marcarComoVisualizada(
+      mensagemId,
+      lojaId,
+    );
   }
 
   /**
@@ -148,9 +169,14 @@ export class MensagensNegociacaoController {
           new FileTypeValidator({ fileType: '.(pdf|jpg|jpeg|png)' }),
         ],
       }),
-    ) file: Express.Multer.File,
-    @CurrentLojaId() lojaId: string
+    )
+    file: Express.Multer.File,
+    @CurrentLojaId() lojaId: string,
   ) {
-    return this.mensagensNegociacaoService.uploadAnexo(mensagemId, file, lojaId);
+    return this.mensagensNegociacaoService.uploadAnexo(
+      mensagemId,
+      file,
+      lojaId,
+    );
   }
-} 
+}

@@ -26,6 +26,13 @@ Escalabilidade: Módulos instaláveis sob demanda (add-on); são autônomos, sem
 
 Estratégia Anti-Conflitos: Se um módulo causar problemas de import/path, SEMPRE preferir abordagem simplificada: usar PrismaService existente, dados simulados para prototipagem, services simples sem dependências complexas. Evitar reinventar arquiteturas - adaptar à estrutura existente. Quando houver conflito entre "arquitetura ideal" vs "funcionamento real", escolher sempre o funcionamento.
 
+## 📏 Limites de Tamanho e Guardrails de Manutenção
+
+- Services devem ter ≤ 400 linhas; Controllers ≤ 200 linhas.
+- Funções utilitárias, mapeamentos e trechos SQL comuns devem ficar em `utils/` (evitar duplicação em services).
+- Preferir “facade” temporário ao refatorar serviços grandes, delegando para serviços menores sem quebrar contratos.
+- Adotar regra de lint `max-lines` e revisar em PRs.
+
 ## 🔐 NOVAS PREMISSAS SOBRE AUTENTICAÇÃO JWT
 
 ### **Princípio Fundamental: NÃO MODIFICAR MÓDULOS FUNCIONAIS**

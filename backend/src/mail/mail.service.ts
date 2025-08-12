@@ -59,7 +59,7 @@ export class MailService implements OnModuleInit {
     nomeServico: string,
     precoFinal: number,
     codigoAprovacao: string,
-    linkPublico: string
+    linkPublico: string,
   ) {
     const mailOptions = {
       from: '"Comunikapp" <noreply@comunikapp.com>',
@@ -117,7 +117,10 @@ export class MailService implements OnModuleInit {
     console.log('📧 ==========================================');
     console.log('📧 Message ID: %s', info.messageId);
     console.log('📧 Destinatário:', emailCliente);
-    console.log('📧 ETHEREAL PREVIEW (CLIQUE AQUI): %s', nodemailer.getTestMessageUrl(info));
+    console.log(
+      '📧 ETHEREAL PREVIEW (CLIQUE AQUI): %s',
+      nodemailer.getTestMessageUrl(info),
+    );
     console.log('📧 ==========================================');
 
     return info;
@@ -127,7 +130,7 @@ export class MailService implements OnModuleInit {
     emailLoja: string,
     numeroOrcamento: string,
     nomeCliente: string,
-    precoFinal: number
+    precoFinal: number,
   ) {
     const mailOptions = {
       from: '"Comunikapp" <noreply@comunikapp.com>',
@@ -183,4 +186,4 @@ export class MailService implements OnModuleInit {
 
     return info;
   }
-} 
+}

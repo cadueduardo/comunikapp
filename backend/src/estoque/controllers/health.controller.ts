@@ -3,13 +3,7 @@
  * Endpoints para monitoramento e testes
  */
 
-import {
-  Controller,
-  Get,
-  HttpStatus,
-  UseGuards,
-  Req,
-} from '@nestjs/common';
+import { Controller, Get, HttpStatus, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { EstoqueSimpleService } from '../services/estoque-simple.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
@@ -97,11 +91,14 @@ export class HealthController {
   @Get('context')
   async contextTest(@GetLoja() loja: Loja) {
     const context = { lojaId: loja.id };
-    
+
     try {
       // Testar se consegue acessar o banco com o contexto
-      const localizacoes = await this.estoqueService.listarLocalizacoes(context, { limit: 1 });
-      
+      const localizacoes = await this.estoqueService.listarLocalizacoes(
+        context,
+        { limit: 1 },
+      );
+
       return {
         status: 'ok',
         context: {
@@ -135,7 +132,7 @@ export class HealthController {
     try {
       // Testar se consegue acessar o banco diretamente
       const result = await this.estoqueService.healthCheck();
-      
+
       return {
         status: 'ok',
         message: 'APIs básicas funcionando',

@@ -1,4 +1,10 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { JwtService } from '@nestjs/jwt';
 
@@ -8,7 +14,7 @@ export class JwtAuthInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
-    
+
     // Lista de rotas que não precisam de autenticação
     const publicRoutes = [
       '/lojas/login',
@@ -18,7 +24,7 @@ export class JwtAuthInterceptor implements NestInterceptor {
     ];
 
     // Verificar se a rota é pública
-    if (publicRoutes.some(route => request.path.startsWith(route))) {
+    if (publicRoutes.some((route) => request.path.startsWith(route))) {
       return next.handle();
     }
 
@@ -33,7 +39,7 @@ export class JwtAuthInterceptor implements NestInterceptor {
     try {
       // Validar token JWT
       const payload = this.jwtService.verify(token);
-      
+
       // Adicionar informações do usuário ao request
       request.user = {
         sub: payload.sub,
@@ -43,7 +49,7 @@ export class JwtAuthInterceptor implements NestInterceptor {
         nome_completo: payload.nome_completo,
         loja: {
           id: payload.loja_id,
-        }
+        },
       };
 
       return next.handle();
@@ -52,4 +58,3 @@ export class JwtAuthInterceptor implements NestInterceptor {
     }
   }
 }
-

@@ -7,6 +7,8 @@ export class VerifyEmailDto {
 
   @IsString()
   @IsNotEmpty()
-  @Length(6, 6, { message: 'O código de verificação deve ter exatamente 6 caracteres.' })
+  @Length(6, 6, {
+    message: 'O código de verificação deve ter exatamente 6 caracteres.',
+  })
   codigo: string;
-} 
+}

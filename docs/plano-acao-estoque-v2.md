@@ -229,3 +229,50 @@ O módulo de estoque está **100% funcional** e pronto para uso em produção. T
 - Corrigido o carregamento de dados usando o token correto `access_token` e parse resiliente (`data.data || data`).
 - Corrigido a página "Nova Sobra" (`/estoque/sobras/novo`) para carregar itens do estoque pela rota `/api/estoque/itens` usando `access_token` e parse resiliente.
 - Mantidos filtros e cards de métricas existentes, com atualização simultânea ao clicar em "Atualizar".
+
+---
+
+## 🧭 Refatoração por Fases (para manutenção e escalabilidade)
+
+Objetivo: reduzir o tamanho do `EstoqueSimpleService` e dividir responsabilidades em serviços menores (≤ 400 linhas), mantendo compatibilidade e zero downtime.
+
+### Fase 0 – Preparação (sem alterações funcionais)
+- [x] Documentar limites de tamanho por arquivo (services ≤ 400, controllers ≤ 200) e publicar nas premissas.
+- [x] Definir utilitários compartilhados em `backend/src/estoque/utils/`:
+  - [x] `estoque-sql.util.ts` (detectar tabelas/colunas, montar SELECTs)
+  - [x] `estoque-mappers.ts` (mapear linhas → DTOs consistentes)
+  - [x] `estoque-queries.ts` (trechos SQL reutilizáveis)
+- [x] Configurar regra de lint `max-lines` para services/controllers (aplicada como warning e escopo de services/controllers; diretórios generated ignorados).
+
+### Fase 1 – Movimentações (delegação sem quebra)
+- [ ] Criar `movimentacoes.service.ts` e mover lógica de criar/listar/buscar/excluir movimentações.
+- [ ] `EstoqueSimpleService` passa a delegar chamadas de movimentações para o novo serviço (facade temporário).
+- [ ] Ajustar controller de `movimentações` para injetar o novo serviço (sem mudar contrato).
+- [ ] Testes e2e: criação, listagem com filtros/paginação e consistência no dashboard.
+
+### Fase 2 – Lotes e Transferências
+- [ ] Extrair `lotes.service.ts` (criar/listar/buscar/atualizar/excluir/consumir lotes).
+- [ ] Extrair `transferencias.service.ts` (criar/listar/buscar histórico).
+- [ ] Reutilizar utilitários e mappers; reduzir duplicações.
+- [ ] Atualizar controllers para injetar serviços específicos, mantendo contratos.
+
+### Fase 3 – Itens e Localizações
+- [ ] Extrair `itens-estoque.service.ts` (CRUD + listagens) e `localizacoes.service.ts`.
+- [ ] Unificar detecção dinâmica de colunas/tabelas via utilitário, removendo lógica duplicada.
+- [ ] Garantir filtros defensivos e joins consistentes.
+
+### Fase 4 – Relatórios e Dashboard
+- [ ] Extrair `relatorios-estoque.service.ts` e `dashboard-estoque.service.ts`.
+- [ ] Priorizar dados reais do banco e manter fallback somente se tabela não existir.
+- [ ] Validar tempos de resposta e reduzir mocks no frontend.
+
+### Fase 5 – Limpeza e Facade
+- [ ] Reduzir `EstoqueSimpleService` a um facade fino ou removê-lo se não houver mais uso direto.
+- [ ] Conferir limites de linhas por arquivo e ajuste fino do lint.
+
+### DoD (Definition of Done)
+- [ ] Todos os services ≤ 400 linhas e controllers ≤ 200 linhas.
+- [ ] Reuso de utilitários/mappers sem duplicação de SQL.
+- [ ] Endpoints e contratos inalterados (sem breaking changes).
+- [ ] Testes (unit/e2e) e build verdes.
+- [ ] Documentação atualizada nesta seção ao final de cada fase.

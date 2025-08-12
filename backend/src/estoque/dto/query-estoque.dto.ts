@@ -4,7 +4,15 @@
  */
 
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsBoolean, IsNumber, Min, Max, IsUUID } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsBoolean,
+  IsNumber,
+  Min,
+  Max,
+  IsUUID,
+} from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
 export class QueryLocalizacoesDto {

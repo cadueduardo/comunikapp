@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { CreateTipoMaterialDto } from './dto/create-tipo-material.dto';
 import { UpdateTipoMaterialDto } from './dto/update-tipo-material.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -46,7 +50,11 @@ export class TiposMaterialService {
     return tipoMaterial;
   }
 
-  async update(id: string, updateTipoMaterialDto: UpdateTipoMaterialDto, loja: Loja) {
+  async update(
+    id: string,
+    updateTipoMaterialDto: UpdateTipoMaterialDto,
+    loja: Loja,
+  ) {
     // Verificar se o tipo de material existe e pertence à loja
     await this.findOne(id, loja);
 
@@ -69,7 +77,7 @@ export class TiposMaterialService {
 
     if (insumosComTipo.length > 0) {
       throw new ForbiddenException(
-        'Não é possível excluir este tipo de material pois existem insumos associados a ele.'
+        'Não é possível excluir este tipo de material pois existem insumos associados a ele.',
       );
     }
 

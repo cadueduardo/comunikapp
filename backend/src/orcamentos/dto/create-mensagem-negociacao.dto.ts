@@ -1,9 +1,15 @@
-import { IsString, IsOptional, IsEnum, IsBoolean, IsArray } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsBoolean,
+  IsArray,
+} from 'class-validator';
 
 export enum TipoMensagem {
   CLIENTE = 'CLIENTE',
   VENDEDOR = 'VENDEDOR',
-  SISTEMA = 'SISTEMA'
+  SISTEMA = 'SISTEMA',
 }
 
 export class CreateMensagemNegociacaoDto {
@@ -32,4 +38,4 @@ export class CreateMensagemNegociacaoDto {
   @IsOptional()
   @IsString()
   observacoes?: string;
-} 
+}

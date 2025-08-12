@@ -12,4 +12,4 @@ import { AuthModule } from '../auth/auth.module';
   providers: [MensagensNegociacaoService],
   exports: [MensagensNegociacaoService],
 })
-export class MensagensNegociacaoModule {} 
+export class MensagensNegociacaoModule {}

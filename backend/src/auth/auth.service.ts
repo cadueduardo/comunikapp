@@ -14,7 +14,9 @@ export interface JwtPayload {
 
 // O tipo AuthenticatedUser agora reflete a estrutura retornada pelo Prisma
 // com o `include`. Ele inclui o objeto Loja completo.
-export type AuthenticatedUser = Awaited<ReturnType<AuthService['validateUser']>>;
+export type AuthenticatedUser = Awaited<
+  ReturnType<AuthService['validateUser']>
+>;
 
 @Injectable()
 export class AuthService {
@@ -23,7 +25,14 @@ export class AuthService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async generateToken(user: { id: string; email: string; loja_id: string; funcao: string; nome_completo: string; loja?: Loja }): Promise<string> {
+  async generateToken(user: {
+    id: string;
+    email: string;
+    loja_id: string;
+    funcao: string;
+    nome_completo: string;
+    loja?: Loja;
+  }): Promise<string> {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -36,7 +45,8 @@ export class AuthService {
     return this.jwtService.sign(payload);
   }
 
-  async validateUser(payload: JwtPayload) { // Removido o tipo de retorno para inferência
+  async validateUser(payload: JwtPayload) {
+    // Removido o tipo de retorno para inferência
     const user = await this.prisma.usuario.findUnique({
       where: { id: payload.sub, loja_id: payload.loja_id },
       include: {
@@ -50,4 +60,4 @@ export class AuthService {
 
     return user;
   }
-} 
+}

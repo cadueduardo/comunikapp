@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { FornecedoresService } from './fornecedores.service';
 import { CreateFornecedoreDto } from './dto/create-fornecedore.dto';
 import { UpdateFornecedoreDto } from './dto/update-fornecedore.dto';
@@ -12,7 +21,10 @@ export class FornecedoresController {
   constructor(private readonly fornecedoresService: FornecedoresService) {}
 
   @Post()
-  create(@Body() createFornecedoreDto: CreateFornecedoreDto, @GetLoja() loja: Loja) {
+  create(
+    @Body() createFornecedoreDto: CreateFornecedoreDto,
+    @GetLoja() loja: Loja,
+  ) {
     return this.fornecedoresService.create(createFornecedoreDto, loja);
   }
 
@@ -27,7 +39,11 @@ export class FornecedoresController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateFornecedoreDto: UpdateFornecedoreDto, @GetLoja() loja: Loja) {
+  update(
+    @Param('id') id: string,
+    @Body() updateFornecedoreDto: UpdateFornecedoreDto,
+    @GetLoja() loja: Loja,
+  ) {
     return this.fornecedoresService.update(id, updateFornecedoreDto, loja);
   }
 
@@ -35,4 +51,4 @@ export class FornecedoresController {
   remove(@Param('id') id: string, @GetLoja() loja: Loja) {
     return this.fornecedoresService.remove(id, loja);
   }
-} 
+}

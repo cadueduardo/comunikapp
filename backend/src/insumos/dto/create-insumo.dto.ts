@@ -84,7 +84,7 @@ export class CreateInsumoDto {
   @IsOptional()
   @IsString()
   codigo_interno?: string;
-  
+
   @IsOptional()
   @IsInt()
   @Min(0)
@@ -101,4 +101,4 @@ export class CreateInsumoDto {
   @IsOptional()
   @IsBoolean()
   ativo?: boolean;
-} 
+}

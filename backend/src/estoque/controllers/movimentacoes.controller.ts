@@ -15,7 +15,12 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { EstoqueSimpleService } from '../services/estoque-simple.service';
 import { CreateMovimentacaoDto } from '../dto/create-movimentacao.dto';
 import { QueryMovimentacoesDto } from '../dto/query-estoque.dto';
@@ -39,10 +44,7 @@ export class MovimentacoesController {
     description: 'Movimentação criada com sucesso',
   })
   @Post()
-  async criar(
-    @Body() createDto: CreateMovimentacaoDto,
-    @GetLoja() loja: Loja,
-  ) {
+  async criar(@Body() createDto: CreateMovimentacaoDto, @GetLoja() loja: Loja) {
     const context = { lojaId: loja.id, usuarioId: loja.id };
     return this.estoqueService.criarMovimentacao(context, createDto);
   }
@@ -56,10 +58,7 @@ export class MovimentacoesController {
     description: 'Lista de movimentações retornada com sucesso',
   })
   @Get()
-  async listar(
-    @Query() query: QueryMovimentacoesDto,
-    @GetLoja() loja: Loja,
-  ) {
+  async listar(@Query() query: QueryMovimentacoesDto, @GetLoja() loja: Loja) {
     const context = { lojaId: loja.id };
     return this.estoqueService.listarMovimentacoes(context, query);
   }
@@ -73,10 +72,7 @@ export class MovimentacoesController {
     description: 'Movimentação encontrada com sucesso',
   })
   @Get(':id')
-  async buscarPorId(
-    @Param('id') id: string,
-    @GetLoja() loja: Loja,
-  ) {
+  async buscarPorId(@Param('id') id: string, @GetLoja() loja: Loja) {
     const context = { lojaId: loja.id };
     return this.estoqueService.buscarMovimentacaoPorId(context, id);
   }
@@ -90,10 +86,7 @@ export class MovimentacoesController {
     description: 'Movimentação excluída com sucesso',
   })
   @Delete(':id')
-  async excluir(
-    @Param('id') id: string,
-    @GetLoja() loja: Loja,
-  ) {
+  async excluir(@Param('id') id: string, @GetLoja() loja: Loja) {
     const context = { lojaId: loja.id, usuarioId: loja.id };
     return this.estoqueService.excluirMovimentacao(context, id);
   }

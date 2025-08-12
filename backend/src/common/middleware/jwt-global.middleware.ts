@@ -1,4 +1,8 @@
-import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NestMiddleware,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { JwtService } from '@nestjs/jwt';
 
@@ -16,7 +20,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
     ];
 
     // Verificar se a rota é pública
-    if (publicRoutes.some(route => req.path.startsWith(route))) {
+    if (publicRoutes.some((route) => req.path.startsWith(route))) {
       return next();
     }
 
@@ -31,7 +35,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
     try {
       // Validar token JWT
       const payload = this.jwtService.verify(token);
-      
+
       // Adicionar informações do usuário ao request
       req['user'] = {
         sub: payload.sub,
@@ -42,7 +46,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
         loja: {
           id: payload.loja_id,
           // Outras propriedades da loja podem ser adicionadas aqui
-        }
+        },
       };
 
       next();
@@ -51,4 +55,3 @@ export class JwtGlobalMiddleware implements NestMiddleware {
     }
   }
 }
-

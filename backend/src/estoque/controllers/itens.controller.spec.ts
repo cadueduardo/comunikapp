@@ -56,7 +56,7 @@ describe('ItensController', () => {
         quantidadeAtual: 100,
         estoqueMinimo: 10,
         estoqueMaximo: 200,
-        valorUnitario: 25.50,
+        valorUnitario: 25.5,
       };
 
       const expectedResult = {
@@ -78,7 +78,7 @@ describe('ItensController', () => {
           lojaId: mockRequest.estoque.lojaId,
           usuarioId: mockRequest.estoque.usuarioId,
         },
-        createDto
+        createDto,
       );
     });
 
@@ -89,12 +89,12 @@ describe('ItensController', () => {
       };
 
       mockEstoqueService.criarItemEstoque.mockRejectedValue(
-        new BadRequestException('Dados inválidos')
+        new BadRequestException('Dados inválidos'),
       );
 
-      await expect(
-        controller.criar(createDto, mockRequest)
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.criar(createDto, mockRequest)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -120,7 +120,7 @@ describe('ItensController', () => {
             quantidadeReservada: 0,
             estoqueMinimo: 10,
             estoqueMaximo: 200,
-            valorUnitario: 25.50,
+            valorUnitario: 25.5,
             lojaId: mockRequest.estoque.lojaId,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -144,7 +144,7 @@ describe('ItensController', () => {
           lojaId: mockRequest.estoque.lojaId,
           usuarioId: mockRequest.estoque.usuarioId,
         },
-        query
+        query,
       );
     });
 
@@ -184,13 +184,15 @@ describe('ItensController', () => {
         quantidadeReservada: 0,
         estoqueMinimo: 10,
         estoqueMaximo: 200,
-        valorUnitario: 25.50,
+        valorUnitario: 25.5,
         lojaId: mockRequest.estoque.lojaId,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      mockEstoqueService.buscarItemEstoquePorId.mockResolvedValue(expectedResult);
+      mockEstoqueService.buscarItemEstoquePorId.mockResolvedValue(
+        expectedResult,
+      );
 
       const result = await controller.buscarPorId(itemId, mockRequest);
 
@@ -200,7 +202,7 @@ describe('ItensController', () => {
           lojaId: mockRequest.estoque.lojaId,
           usuarioId: mockRequest.estoque.usuarioId,
         },
-        itemId
+        itemId,
       );
     });
 
@@ -208,12 +210,12 @@ describe('ItensController', () => {
       const itemId = 'item-not-found';
 
       mockEstoqueService.buscarItemEstoquePorId.mockRejectedValue(
-        new NotFoundException('Item não encontrado')
+        new NotFoundException('Item não encontrado'),
       );
 
-      await expect(
-        controller.buscarPorId(itemId, mockRequest)
-      ).rejects.toThrow(NotFoundException);
+      await expect(controller.buscarPorId(itemId, mockRequest)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -223,7 +225,7 @@ describe('ItensController', () => {
       const updateDto = {
         quantidadeAtual: 150,
         estoqueMinimo: 15,
-        valorUnitario: 30.00,
+        valorUnitario: 30.0,
       };
 
       const expectedResult = {
@@ -236,7 +238,7 @@ describe('ItensController', () => {
         quantidadeReservada: 0,
         estoqueMinimo: 15,
         estoqueMaximo: 200,
-        valorUnitario: 30.00,
+        valorUnitario: 30.0,
         lojaId: mockRequest.estoque.lojaId,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -253,7 +255,7 @@ describe('ItensController', () => {
           usuarioId: mockRequest.estoque.usuarioId,
         },
         itemId,
-        updateDto
+        updateDto,
       );
     });
 
@@ -262,11 +264,11 @@ describe('ItensController', () => {
       const updateDto = { quantidadeAtual: 150 };
 
       mockEstoqueService.atualizarItemEstoque.mockRejectedValue(
-        new NotFoundException('Item não encontrado')
+        new NotFoundException('Item não encontrado'),
       );
 
       await expect(
-        controller.atualizar(itemId, updateDto, mockRequest)
+        controller.atualizar(itemId, updateDto, mockRequest),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -283,7 +285,7 @@ describe('ItensController', () => {
         quantidadeReservada: 0,
         estoqueMinimo: 10,
         estoqueMaximo: 200,
-        valorUnitario: 25.50,
+        valorUnitario: 25.5,
         lojaId: mockRequest.estoque.lojaId,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -299,7 +301,7 @@ describe('ItensController', () => {
           lojaId: mockRequest.estoque.lojaId,
           usuarioId: mockRequest.estoque.usuarioId,
         },
-        itemId
+        itemId,
       );
     });
 
@@ -307,12 +309,12 @@ describe('ItensController', () => {
       const itemId = 'item-not-found';
 
       mockEstoqueService.deletarItemEstoque.mockRejectedValue(
-        new NotFoundException('Item não encontrado')
+        new NotFoundException('Item não encontrado'),
       );
 
-      await expect(
-        controller.deletar(itemId, mockRequest)
-      ).rejects.toThrow(NotFoundException);
+      await expect(controller.deletar(itemId, mockRequest)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

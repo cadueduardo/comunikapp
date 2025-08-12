@@ -4,7 +4,16 @@
  */
 
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsNumber, IsPositive, IsOptional, Min, IsBoolean, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsPositive,
+  IsOptional,
+  Min,
+  IsBoolean,
+  IsDateString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateItemEstoqueDto {
@@ -82,7 +91,7 @@ export class CreateItemEstoqueDto {
 
   @ApiProperty({
     description: 'Preço unitário do item',
-    example: 25.50,
+    example: 25.5,
     minimum: 0,
   })
   @IsNumber({}, { message: 'Preço unitário deve ser um número' })

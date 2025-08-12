@@ -4,7 +4,13 @@
  * Isolamento total com outros módulos, multi-tenant
  */
 
-import { Module, Global, MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
+import {
+  Module,
+  Global,
+  MiddlewareConsumer,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -52,31 +58,32 @@ import { TenantIsolationMiddleware } from './middleware/tenant-isolation.middlew
         version: '1.0.0',
         isolated: true,
         multiTenant: true,
-        description: 'Módulo de controle de estoque com endereçamento hierárquico',
-        features: ['localizacao-hierarquica', 'controle-lotes', 'auditoria-completa'],
+        description:
+          'Módulo de controle de estoque com endereçamento hierárquico',
+        features: [
+          'localizacao-hierarquica',
+          'controle-lotes',
+          'auditoria-completa',
+        ],
       }),
     },
   ],
-  exports: [
-    EstoqueSimpleService,
-    EstoqueAccessGuard,
-    'ESTOQUE_MODULE_CONFIG',
-  ],
+  exports: [EstoqueSimpleService, EstoqueAccessGuard, 'ESTOQUE_MODULE_CONFIG'],
 })
 export class EstoqueModule implements NestModule {
   constructor() {
-    console.log('✅ EstoqueModule carregado - APIs REST ativas com JwtAuthGuard padrão');
+    console.log(
+      '✅ EstoqueModule carregado - APIs REST ativas com JwtAuthGuard padrão',
+    );
   }
 
   configure(consumer: MiddlewareConsumer) {
     // Aplica o middleware de isolamento de tenant para todas as rotas do módulo de estoque
-    consumer
-      .apply(TenantIsolationMiddleware)
-      .forRoutes(
-        // Rotas com prefixo explícito 'api/estoque/*'
-        { path: 'api/estoque/(.*)', method: RequestMethod.ALL },
-        // Rotas sem prefixo global (ex.: 'estoque/sobras')
-        { path: 'estoque/(.*)', method: RequestMethod.ALL },
-      );
+    consumer.apply(TenantIsolationMiddleware).forRoutes(
+      // Rotas com prefixo explícito 'api/estoque/*'
+      { path: 'api/estoque/(.*)', method: RequestMethod.ALL },
+      // Rotas sem prefixo global (ex.: 'estoque/sobras')
+      { path: 'estoque/(.*)', method: RequestMethod.ALL },
+    );
   }
 }

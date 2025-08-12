@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { TiposMaterialService } from './tipos-material.service';
 import { CreateTipoMaterialDto } from './dto/create-tipo-material.dto';
 import { UpdateTipoMaterialDto } from './dto/update-tipo-material.dto';
@@ -12,7 +21,10 @@ export class TiposMaterialController {
   constructor(private readonly tiposMaterialService: TiposMaterialService) {}
 
   @Post()
-  create(@Body() createTipoMaterialDto: CreateTipoMaterialDto, @GetLoja() loja: Loja) {
+  create(
+    @Body() createTipoMaterialDto: CreateTipoMaterialDto,
+    @GetLoja() loja: Loja,
+  ) {
     return this.tiposMaterialService.create(createTipoMaterialDto, loja);
   }
 
@@ -27,7 +39,11 @@ export class TiposMaterialController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateTipoMaterialDto: UpdateTipoMaterialDto, @GetLoja() loja: Loja) {
+  update(
+    @Param('id') id: string,
+    @Body() updateTipoMaterialDto: UpdateTipoMaterialDto,
+    @GetLoja() loja: Loja,
+  ) {
     return this.tiposMaterialService.update(id, updateTipoMaterialDto, loja);
   }
 

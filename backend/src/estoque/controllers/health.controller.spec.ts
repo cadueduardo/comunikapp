@@ -55,7 +55,9 @@ describe('HealthController', () => {
     });
 
     it('should handle service errors gracefully', async () => {
-      mockEstoqueService.healthCheck.mockRejectedValue(new Error('Service error'));
+      mockEstoqueService.healthCheck.mockRejectedValue(
+        new Error('Service error'),
+      );
 
       const result = await controller.check();
 

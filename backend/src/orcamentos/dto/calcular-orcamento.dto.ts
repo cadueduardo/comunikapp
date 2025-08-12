@@ -1,4 +1,12 @@
-import { IsString, IsNotEmpty, IsArray, IsNumber, IsPositive, IsOptional, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsArray,
+  IsNumber,
+  IsPositive,
+  IsOptional,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ItemCalculoDto {
@@ -101,4 +109,4 @@ export class CalcularOrcamentoDto {
   @ValidateNested({ each: true })
   @Type(() => FuncaoCalculoDto)
   funcoes?: FuncaoCalculoDto[];
-} 
+}

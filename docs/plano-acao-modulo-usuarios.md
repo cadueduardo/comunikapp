@@ -4,16 +4,15 @@
 
 **Objetivo:** Implementar módulo de usuários com autenticação segura e controle de permissões granulares.
 
-**Duração:** 4 semanas (20 dias úteis)
+**Duração:** 2-3 semanas (ajustada para sequenciar antes da OS e PCP)
 
-**Arquitetura:** Modular com arquivos organizados (máximo 1000 linhas)
+**Arquitetura:** Modular com arquivos organizados (máximo 1000 linhas; services ≤ 400, controllers ≤ 200)
 
 ---
 
 ## 🗓️ Cronograma Detalhado
 
-### **Fase 1: Estrutura Base** 
-**Duração:** Semana 1 (Dias 1-5)
+### **Fase 1: Estrutura Base (Semana 1)**
 
 #### **Dia 1: Setup Inicial**
 - [x] **Criar estrutura de diretórios**
@@ -63,8 +62,7 @@
 
 ---
 
-### **Fase 2: Autenticação**
-**Duração:** Semana 2 (Dias 6-10)
+### **Fase 2: Autenticação (Semana 2)**
 
 #### **Dia 6: Middleware de Autenticação**
 - [x] **Implementar guards**
@@ -102,8 +100,7 @@
 
 ---
 
-### **Fase 3: Permissões**
-**Duração:** Semana 3 (Dias 11-15)
+### **Fase 3: Permissões (Semana 2, dias 11-12)**
 
 #### **Dia 11: Sistema de Perfis**
 - [x] **Implementar perfis**
@@ -142,8 +139,7 @@
 
 ---
 
-### **Fase 4: Auditoria e Integração**
-**Duração:** Semana 4 (Dias 16-20)
+### **Fase 4: Auditoria e Integração (Semana 3)**
 
 #### **Dia 16: Sistema de Logs**
 - [x] **Implementar auditoria**
@@ -254,7 +250,7 @@
 ## 🎯 Critérios de Sucesso
 
 ### **Técnicos:**
-- ✅ Todos os arquivos com menos de 1000 linhas
+- ✅ Services ≤ 400 linhas e Controllers ≤ 200 linhas
 - ✅ Cobertura de testes > 80%
 - ✅ Zero vulnerabilidades de segurança
 - ✅ Performance adequada
@@ -277,7 +273,7 @@
 
 **Data:** 03/08/2025
 **Responsável:** Sistema
-**Status:** ✅ **CONCLUÍDO** - Módulo de Usuários totalmente implementado
+**Status:** 🟨 **EM ANDAMENTO** - Priorizar MVP para habilitar OS/PCP
 
 **Atualizações:**
 - 03/08/2025 - Verificação completa: todas as funcionalidades já implementadas

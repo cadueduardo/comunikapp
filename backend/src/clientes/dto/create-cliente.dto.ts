@@ -1,4 +1,10 @@
-import { IsString, IsEmail, IsEnum, IsOptional, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsNotEmpty,
+} from 'class-validator';
 import { TipoPessoa, StatusCliente } from '@prisma/client';
 
 export class CreateClienteDto {
@@ -88,4 +94,4 @@ export class CreateClienteDto {
   @IsOptional()
   @IsString()
   segmento?: string;
-} 
+}

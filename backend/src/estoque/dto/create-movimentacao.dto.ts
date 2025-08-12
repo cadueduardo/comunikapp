@@ -4,7 +4,16 @@
  */
 
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsNumber, IsPositive, IsOptional, IsUUID, IsIn, Length } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsPositive,
+  IsOptional,
+  IsUUID,
+  IsIn,
+  Length,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateMovimentacaoDto {
@@ -24,7 +33,8 @@ export class CreateMovimentacaoDto {
   @IsString()
   @IsNotEmpty({ message: 'Tipo de movimentação é obrigatório' })
   @IsIn(['ENTRADA', 'SAIDA', 'AJUSTE', 'INVENTARIO', 'TRANSFERENCIA'], {
-    message: 'Tipo deve ser: ENTRADA, SAIDA, AJUSTE, INVENTARIO ou TRANSFERENCIA',
+    message:
+      'Tipo deve ser: ENTRADA, SAIDA, AJUSTE, INVENTARIO ou TRANSFERENCIA',
   })
   tipo: 'ENTRADA' | 'SAIDA' | 'AJUSTE' | 'INVENTARIO' | 'TRANSFERENCIA';
 
@@ -46,7 +56,9 @@ export class CreateMovimentacaoDto {
   })
   @IsOptional()
   @IsString()
-  @Length(1, 100, { message: 'Referência do documento deve ter até 100 caracteres' })
+  @Length(1, 100, {
+    message: 'Referência do documento deve ter até 100 caracteres',
+  })
   documentoRef?: string;
 
   @ApiProperty({

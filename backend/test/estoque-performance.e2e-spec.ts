@@ -23,13 +23,13 @@ describe('EstoqueModule Performance (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
-    .overrideProvider('MailService')
-    .useValue({
-      sendEmail: jest.fn().mockResolvedValue(true),
-      sendWelcomeEmail: jest.fn().mockResolvedValue(true),
-      sendVerificationEmail: jest.fn().mockResolvedValue(true),
-    })
-    .compile();
+      .overrideProvider('MailService')
+      .useValue({
+        sendEmail: jest.fn().mockResolvedValue(true),
+        sendWelcomeEmail: jest.fn().mockResolvedValue(true),
+        sendVerificationEmail: jest.fn().mockResolvedValue(true),
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     prismaService = moduleFixture.get<PrismaService>(PrismaService);
@@ -60,7 +60,7 @@ describe('EstoqueModule Performance (e2e)', () => {
   describe('Performance Tests', () => {
     it('should load dashboard within 3 seconds', async () => {
       const startTime = Date.now();
-      
+
       await request(app.getHttpServer())
         .get('/api/estoque/dashboard')
         .query({ lojaId: mockLojaId })
@@ -68,7 +68,7 @@ describe('EstoqueModule Performance (e2e)', () => {
 
       const endTime = Date.now();
       const responseTime = endTime - startTime;
-      
+
       expect(responseTime).toBeLessThan(3000); // 3 segundos
     });
 
@@ -84,10 +84,10 @@ describe('EstoqueModule Performance (e2e)', () => {
           codigo: `PERF${i.toString().padStart(3, '0')}`,
           categoria: 'MATERIAL',
           unidadeMedida: 'UNIDADE',
-          precoUnitario: 10.00 + i,
+          precoUnitario: 10.0 + i,
           quantidadeMinima: 1,
           quantidadeMaxima: 100,
-          lojaId: mockLojaId
+          lojaId: mockLojaId,
         };
 
         const response = await request(app.getHttpServer())
@@ -111,10 +111,10 @@ describe('EstoqueModule Performance (e2e)', () => {
 
       const response = await request(app.getHttpServer())
         .get('/api/estoque/itens')
-        .query({ 
+        .query({
           lojaId: mockLojaId,
           page: 1,
-          limit: 20
+          limit: 20,
         })
         .expect(200);
 
@@ -136,7 +136,7 @@ describe('EstoqueModule Performance (e2e)', () => {
         const promise = request(app.getHttpServer())
           .get('/api/estoque/health')
           .expect(200);
-        
+
         promises.push(promise);
       }
 
@@ -162,10 +162,10 @@ describe('EstoqueModule Performance (e2e)', () => {
             tipo: 'PRATELEIRA',
             endereco: `A${i}-01-01`,
             capacidade: 100,
-            lojaId: mockLojaId
+            lojaId: mockLojaId,
           })
           .expect(201);
-        
+
         locations.push(location.body);
       }
 
@@ -187,8 +187,9 @@ describe('EstoqueModule Performance (e2e)', () => {
     it('should maintain performance under load', async () => {
       const loadTestDuration = 5000; // 5 segundos
       const requestsPerSecond = 5;
-      const totalRequests = Math.floor(loadTestDuration / 1000) * requestsPerSecond;
-      
+      const totalRequests =
+        Math.floor(loadTestDuration / 1000) * requestsPerSecond;
+
       const startTime = Date.now();
       const promises = [];
       const responseTimes = [];
@@ -196,7 +197,7 @@ describe('EstoqueModule Performance (e2e)', () => {
       // Simular carga por 5 segundos
       for (let i = 0; i < totalRequests; i++) {
         const requestStart = Date.now();
-        
+
         const promise = request(app.getHttpServer())
           .get('/api/estoque/health')
           .expect(200)
@@ -204,12 +205,12 @@ describe('EstoqueModule Performance (e2e)', () => {
             const requestEnd = Date.now();
             responseTimes.push(requestEnd - requestStart);
           });
-        
+
         promises.push(promise);
-        
+
         // Aguardar 200ms entre requisições (5 req/s)
         if (i < totalRequests - 1) {
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise((resolve) => setTimeout(resolve, 200));
         }
       }
 
@@ -217,7 +218,8 @@ describe('EstoqueModule Performance (e2e)', () => {
 
       const endTime = Date.now();
       const totalTime = endTime - startTime;
-      const avgResponseTime = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
+      const avgResponseTime =
+        responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
       const maxResponseTime = Math.max(...responseTimes);
 
       expect(totalTime).toBeLessThan(loadTestDuration + 2000); // +2s de tolerância

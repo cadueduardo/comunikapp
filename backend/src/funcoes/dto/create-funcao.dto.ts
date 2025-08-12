@@ -14,4 +14,4 @@ export class CreateFuncaoDto {
   @IsOptional()
   @IsString()
   maquina_id?: string;
-} 
+}
