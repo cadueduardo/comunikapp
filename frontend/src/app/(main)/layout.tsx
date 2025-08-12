@@ -168,6 +168,13 @@ export default function DashboardLayout({
       ),
     },
     {
+      label: 'Estoque',
+      href: '/estoque',
+      icon: (
+        <IconBuildingWarehouse className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      ),
+    },
+    {
       label: 'Produtos',
       href: '/produtos',
       icon: (

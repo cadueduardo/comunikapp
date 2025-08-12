@@ -79,10 +79,10 @@ async function main() {
         id: 'tipo-1',
         nome: 'Cordão',
         logica_consumo: 'custom',
-        parametros_padrao: {
+        parametros_padrao: JSON.stringify({
           tipo_calculo: 'espacamento',
           espacamento: 10, // 10cm entre cada cordão
-        },
+        }),
         descricao: 'Cordão para acabamento',
         loja_id: loja.id,
       },
@@ -94,10 +94,10 @@ async function main() {
         id: 'tipo-2',
         nome: 'Adesivo',
         logica_consumo: 'custom',
-        parametros_padrao: {
+        parametros_padrao: JSON.stringify({
           tipo_calculo: 'quantidade_por_m2',
           quantidade_por_m2: 2, // 2 adesivos por m²
-        },
+        }),
         descricao: 'Adesivo para fixação',
         loja_id: loja.id,
       },
@@ -134,6 +134,8 @@ async function main() {
         quantidade_compra: 500,
         unidade_uso: 'FOLHA',
         fator_conversao: 1,
+        estoque_minimo: 10,
+        logica_consumo: 'quantidade_fixa',
         categoriaId: categorias[0].id,
         fornecedorId: fornecedores[0].id,
         loja_id: loja.id,
@@ -154,6 +156,8 @@ async function main() {
         altura: 0.5,
         unidade_dimensao: 'CENTÍMETROS',
         tipo_calculo: 'COMPRIMENTO LINEAR',
+        estoque_minimo: 5,
+        logica_consumo: 'perimetro',
         tipoMaterialId: tiposMaterial[0].id,
         categoriaId: categorias[0].id,
         fornecedorId: fornecedores[0].id,
@@ -174,7 +178,7 @@ async function main() {
       email: 'cliente@teste.com',
       telefone: '(11) 88888-8888',
       documento: '123.456.789-00',
-      tipo_pessoa: 'PESSOA_FISICA',
+      tipo_pessoa: 'PESSOA_FISICA' as any,
       status_cliente: 'ATIVO',
       loja_id: loja.id,
     },

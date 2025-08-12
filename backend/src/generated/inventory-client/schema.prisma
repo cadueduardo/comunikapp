@@ -1,0 +1,112 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../src/generated/inventory-client"
+  binaryTargets = ["native", "linux-musl"]
+}
+
+datasource inventoryDb {
+  provider     = "mysql"
+  url          = env("INVENTORY_DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model InventoryLocation {
+  id         String           @id @default(uuid())
+  codigo     String           @unique
+  deposito   String
+  corredor   String?
+  prateleira String?
+  nivel      String?
+  posicao    String?
+  descricao  String?
+  capacidade Decimal?
+  ativo      Boolean          @default(true)
+  lojaId     String
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  estoques   InventoryStock[]
+
+  @@index([lojaId])
+  @@index([codigo, lojaId])
+  @@map("inventory_locations")
+}
+
+model InventoryStock {
+  id                  String              @id @default(uuid())
+  insumoId            String
+  localizacaoId       String
+  quantidadeAtual     Decimal             @default(0.000000000000000000000000000000)
+  quantidadeReservada Decimal             @default(0.000000000000000000000000000000)
+  estoqueMinimo       Decimal             @default(0.000000000000000000000000000000)
+  estoqueMaximo       Decimal?
+  lojaId              String
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  dataUltimaMov       DateTime?
+  localizacao         InventoryLocation   @relation(fields: [localizacaoId], references: [id])
+  movimentacoes       InventoryMovement[]
+  lotes               InventoryLot[]
+
+  @@unique([insumoId, localizacaoId, lojaId])
+  @@index([lojaId])
+  @@index([insumoId, lojaId])
+  @@index([localizacaoId])
+  @@map("inventory_stock")
+}
+
+model InventoryMovement {
+  id                  String                @id @default(uuid())
+  estoqueId           String
+  tipo                InventoryMovementType
+  quantidade          Decimal
+  quantidadeAnterior  Decimal
+  quantidadePosterior Decimal
+  documentoRef        String?
+  orcamentoId         String?
+  usuarioId           String
+  lojaId              String
+  dataMovimentacao    DateTime              @default(now())
+  observacoes         String?
+  estoque             InventoryStock        @relation(fields: [estoqueId], references: [id])
+
+  @@index([lojaId])
+  @@index([estoqueId])
+  @@index([dataMovimentacao])
+  @@index([tipo, lojaId])
+  @@map("inventory_movements")
+}
+
+model InventoryLot {
+  id             String             @id @default(uuid())
+  estoqueId      String
+  numeroLote     String
+  dataFabricacao DateTime?
+  dataValidade   DateTime?
+  quantidadeLote Decimal
+  status         InventoryLotStatus @default(ATIVO)
+  lojaId         String
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  estoque        InventoryStock     @relation(fields: [estoqueId], references: [id])
+
+  @@index([lojaId])
+  @@index([estoqueId])
+  @@index([dataValidade])
+  @@index([status, lojaId])
+  @@map("inventory_lots")
+}
+
+enum InventoryMovementType {
+  ENTRADA
+  SAIDA
+  AJUSTE
+  INVENTARIO
+  TRANSFERENCIA
+}
+
+enum InventoryLotStatus {
+  ATIVO
+  VENCIDO
+  CONSUMIDO
+  BLOQUEADO
+}

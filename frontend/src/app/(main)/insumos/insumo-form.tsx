@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { CustomCurrencyInput } from '@/components/ui/currency-input';
 import { Combobox } from '@/components/ui/combobox';
 import { UnitSelect } from '@/components/ui/unit-select';
+import { UNIDADES_COMPRA } from '@/lib/unidades-compra';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { InfoWithExamples } from '@/components/ui/info-with-examples';
 import { ConversionExamplesModal } from '@/components/ui/conversion-examples-modal';
@@ -78,69 +79,7 @@ interface InsumoFormProps {
   isSaving?: boolean;
 }
 
-const unidadesDeMedida = [
-  { value: 'UNID', label: 'UNIDADE' },
-  { value: 'M', label: 'METRO' },
-  { value: 'M2', label: 'METRO QUADRADO' },
-  { value: 'M3', label: 'METRO CÚBICO' },
-  { value: 'CM', label: 'CENTIMETRO' },
-  { value: 'CM2', label: 'CENTIMETRO QUADRADO' },
-  { value: 'KG', label: 'QUILOGRAMA' },
-  { value: 'GRAMAS', label: 'GRAMAS' },
-  { value: 'LITRO', label: 'LITRO' },
-  { value: 'ML', label: 'MILILITRO' },
-  { value: 'BOBINA', label: 'BOBINA' },
-  { value: 'ROLO', label: 'ROLO' },
-  { value: 'FOLHA', label: 'FOLHA' },
-  { value: 'CX', label: 'CAIXA' },
-  { value: 'CX2', label: 'CAIXA COM 2 UNIDADES' },
-  { value: 'CX3', label: 'CAIXA COM 3 UNIDADES' },
-  { value: 'CX5', label: 'CAIXA COM 5 UNIDADES' },
-  { value: 'CX10', label: 'CAIXA COM 10 UNIDADES' },
-  { value: 'CX15', label: 'CAIXA COM 15 UNIDADES' },
-  { value: 'CX20', label: 'CAIXA COM 20 UNIDADES' },
-  { value: 'CX25', label: 'CAIXA COM 25 UNIDADES' },
-  { value: 'CX50', label: 'CAIXA COM 50 UNIDADES' },
-  { value: 'CX100', label: 'CAIXA COM 100 UNIDADES' },
-  { value: 'PACOTE', label: 'PACOTE' },
-  { value: 'KIT', label: 'KIT' },
-  { value: 'JOGO', label: 'JOGO' },
-  { value: 'CONJUNTO', label: 'CONJUNTO' },
-  { value: 'DUZIA', label: 'DUZIA' },
-  { value: 'CENTO', label: 'CENTO' },
-  { value: 'MILHEI', label: 'MILHEIRO' },
-  { value: 'PARES', label: 'PARES' },
-  { value: 'PC', label: 'PEÇA' },
-  { value: 'BALDE', label: 'BALDE' },
-  { value: 'BANDEJ', label: 'BANDEJA' },
-  { value: 'BARRA', label: 'BARRA' },
-  { value: 'BISNAG', label: 'BISNAGA' },
-  { value: 'BLOCO', label: 'BLOCO' },
-  { value: 'BOMB', label: 'BOMBONA' },
-  { value: 'CAPS', label: 'CAPSULA' },
-  { value: 'CART', label: 'CARTELA' },
-  { value: 'CJ', label: 'CONJUNTO' },
-  { value: 'DISP', label: 'DISPLAY' },
-  { value: 'EMBAL', label: 'EMBALAGEM' },
-  { value: 'FARDO', label: 'FARDO' },
-  { value: 'FRASCO', label: 'FRASCO' },
-  { value: 'GALAO', label: 'GALÃO' },
-  { value: 'GF', label: 'GARRAFA' },
-  { value: 'LATA', label: 'LATA' },
-  { value: 'PALETE', label: 'PALETE' },
-  { value: 'POTE', label: 'POTE' },
-  { value: 'K', label: 'QUILATE' },
-  { value: 'RESMA', label: 'RESMA' },
-  { value: 'SACO', label: 'SACO' },
-  { value: 'SACOLA', label: 'SACOLA' },
-  { value: 'TAMBOR', label: 'TAMBOR' },
-  { value: 'TANQUE', label: 'TANQUE' },
-  { value: 'TON', label: 'TONELADA' },
-  { value: 'TUBO', label: 'TUBO' },
-  { value: 'VASIL', label: 'VASILHAME' },
-  { value: 'VIDRO', label: 'VIDRO' },
-  { value: 'AMPOLA', label: 'AMPOLA' },
-];
+const unidadesDeMedida = UNIDADES_COMPRA;
 
 const unidadesDimensao = [
   { value: 'M', label: 'METROS' },

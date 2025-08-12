@@ -1,0 +1,5 @@
+[33m4a93b7a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m feat: adiciona funcionalidades complementares e atualizações
+[33m63573d4[m feat: refatoração completa do sistema de orçamentos e produtos
+[33mdaa7f3b[m fix: corrige cálculo de custos de insumos e valores exibidos no grid de produtos
+[33mf4b25b0[m 🔧 CORREÇÕES FINAIS: Botões de Ação e Preview do Cálculo
+[33m84ab90b[m 🎯 REESTRUTURAÇÃO: Materiais, Máquinas e Funções dentro do Accordion

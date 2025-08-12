@@ -1,0 +1,247 @@
+// Schema isolado do módulo de estoque
+// Seguindo premissas: módulos plugáveis, totalmente isolados, multi-tenant
+
+generator estoqueClient {
+  provider      = "prisma-client-js"
+  output        = "../src/generated/estoque-client"
+  binaryTargets = ["native", "linux-musl"]
+}
+
+datasource estoqueDb {
+  provider     = "mysql"
+  url          = env("ESTOQUE_DATABASE_URL")
+  relationMode = "prisma" // Importante para MySQL
+}
+
+// ===== TABELAS DO MÓDULO DE ESTOQUE =====
+
+model EstoqueLocalizacao {
+  id         String   @id @default(uuid())
+  codigo     String   @unique // A1-01-B-02-03 (endereçamento hierárquico)
+  deposito   String // Depósito principal
+  corredor   String? // Corredor específico
+  prateleira String? // Prateleira
+  nivel      String? // Nível da prateleira
+  posicao    String? // Posição específica
+  descricao  String? // Descrição adicional
+  capacidade Decimal? // Capacidade em unidades
+  ativo      Boolean  @default(true)
+
+  // Multi-tenant obrigatório (isolamento por loja)
+  lojaId String
+
+  // Relacionamentos
+  estoques EstoqueItem[]
+
+  // Timestamps para auditoria
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Índices obrigatórios para performance
+  @@index([lojaId])
+  @@index([codigo, lojaId])
+  @@index([deposito, lojaId])
+  @@map("estoque_localizacoes")
+}
+
+model EstoqueItem {
+  id String @id @default(uuid())
+
+  // FK para módulo de insumos (integração nativa com cadastro existente)
+  insumoId String // Referência externa para evitar duplicação
+
+  // FK para localização (interna)
+  localizacaoId String
+  localizacao   EstoqueLocalizacao @relation(fields: [localizacaoId], references: [id])
+
+  // Quantidades (controle visível conforme premissas)
+  quantidadeAtual     Decimal  @default(0) // Quantidade atual em estoque
+  quantidadeReservada Decimal  @default(0) // Quantidade reservada para orçamentos
+  estoqueMinimo       Decimal  @default(0) // Estoque mínimo para alertas
+  estoqueMaximo       Decimal? // Estoque máximo (opcional)
+
+  // Multi-tenant obrigatório (isolamento por loja)
+  lojaId String
+
+  // Relacionamentos
+  movimentacoes EstoqueMovimentacao[]
+  lotes         EstoqueLote[]
+  sobras        EstoqueSobra[]
+
+  // Timestamps para auditoria completa
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  dataUltimaMov DateTime? // Data da última movimentação
+
+  @@unique([insumoId, localizacaoId, lojaId]) // Evitar duplicatas
+  // Índices críticos para performance otimizada
+  @@index([lojaId])
+  @@index([insumoId, lojaId])
+  @@index([localizacaoId])
+  @@index([quantidadeAtual]) // Para consultas de estoque baixo
+  @@map("estoque_itens")
+}
+
+model EstoqueMovimentacao {
+  id String @id @default(uuid())
+
+  // FK para estoque
+  estoqueId String
+  estoque   EstoqueItem @relation(fields: [estoqueId], references: [id])
+
+  // Dados da movimentação (logs completos e rastreáveis)
+  tipo                TipoMovimentacao
+  quantidade          Decimal
+  quantidadeAnterior  Decimal // Para auditoria
+  quantidadePosterior Decimal // Para auditoria
+
+  // Referências externas (opcionais para rastreabilidade)
+  documentoRef String? // NF, OS, etc
+  orcamentoId  String? // FK externa para orçamentos
+  usuarioId    String // FK externa para usuários (auditoria)
+
+  // Multi-tenant obrigatório (isolamento por loja)
+  lojaId String
+
+  // Timestamps e observações para logs completos
+  dataMovimentacao DateTime @default(now())
+  observacoes      String? // Observações da movimentação
+
+  // Índices para performance e consultas otimizadas
+  @@index([lojaId])
+  @@index([estoqueId])
+  @@index([dataMovimentacao])
+  @@index([tipo, lojaId])
+  @@index([usuarioId]) // Para auditoria por usuário
+  @@map("estoque_movimentacoes")
+}
+
+model EstoqueLote {
+  id String @id @default(uuid())
+
+  // FK para estoque
+  estoqueId String
+  estoque   EstoqueItem @relation(fields: [estoqueId], references: [id])
+
+  // Dados do lote (controle de validade conforme premissas)
+  numeroLote     String
+  dataFabricacao DateTime?
+  dataValidade   DateTime? // Controle de validade
+  quantidadeLote Decimal
+  status         StatusLote @default(ATIVO)
+
+  // Multi-tenant obrigatório (isolamento por loja)
+  lojaId String
+
+  // Timestamps para auditoria
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Índices para performance
+  @@index([lojaId])
+  @@index([estoqueId])
+  @@index([dataValidade]) // Para relatórios de vencimento
+  @@index([status, lojaId])
+  @@index([numeroLote, lojaId])
+  @@map("estoque_lotes")
+}
+
+model EstoqueSobra {
+  id String @id @default(uuid())
+
+  // FK para estoque (origem da sobra)
+  estoqueId String
+  estoque   EstoqueItem @relation(fields: [estoqueId], references: [id])
+
+  // Dados da sobra (específico do setor de comunicação visual)
+  codigoSobra   String      @unique // Código único da sobra (ex: SOB-2024-001)
+  descricao     String      @estoqueDb.Text // Descrição detalhada da sobra
+  dimensoes     String? // Dimensões (ex: "100x50cm", "2mx1m")
+  area          Decimal? // Área em m² (para cálculos de aproveitamento)
+  quantidade    Decimal // Quantidade disponível
+  unidadeMedida String // Unidade de medida (m², m, un, etc)
+  material      String // Tipo de material (PVC, adesivo, tecido, etc)
+  cor           String? // Cor do material
+  acabamento    String? // Acabamento (laminado, fosco, etc)
+  status        StatusSobra @default(DISPONIVEL)
+
+  // Dados de origem (rastreabilidade)
+  origem          String? // Origem da sobra (projeto, cliente, etc)
+  dataGeracao     DateTime @default(now()) // Data de geração da sobra
+  orcamentoOrigem String? // Referência ao orçamento que gerou a sobra
+
+  // Dados de aproveitamento
+  dataAproveitamento    DateTime? // Data do último aproveitamento
+  quantidadeAproveitada Decimal   @default(0) // Quantidade já aproveitada
+  economiaGerada        Decimal   @default(0) // Economia gerada em R$
+
+  // Multi-tenant obrigatório (isolamento por loja)
+  lojaId String
+
+  // Relacionamentos
+  aproveitamentos EstoqueAproveitamento[]
+
+  // Timestamps para auditoria
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Índices para performance e consultas
+  @@index([lojaId])
+  @@index([estoqueId])
+  @@index([status, lojaId])
+  @@index([material, lojaId])
+  @@index([dataGeracao])
+  @@index([codigoSobra, lojaId])
+  @@map("estoque_sobras")
+}
+
+model EstoqueAproveitamento {
+  id String @id @default(uuid())
+
+  // FK para sobra
+  sobraId String
+  sobra   EstoqueSobra @relation(fields: [sobraId], references: [id])
+
+  // Dados do aproveitamento
+  quantidadeAproveitada Decimal
+  projetoDestino        String? // Projeto onde foi aproveitado
+  orcamentoDestino      String? // Orçamento de destino
+  observacoes           String? @estoqueDb.Text
+
+  // Multi-tenant obrigatório (isolamento por loja)
+  lojaId String
+
+  // Timestamps para auditoria
+  createdAt DateTime @default(now())
+
+  // Índices para performance
+  @@index([lojaId])
+  @@index([sobraId])
+  @@index([projetoDestino])
+  @@map("estoque_aproveitamentos")
+}
+
+// ===== ENUMS =====
+
+enum TipoMovimentacao {
+  ENTRADA // Entrada de mercadoria
+  SAIDA // Saída de mercadoria
+  AJUSTE // Ajuste de estoque
+  INVENTARIO // Inventário físico
+  TRANSFERENCIA // Transferência entre localizações
+}
+
+enum StatusLote {
+  ATIVO // Lote ativo
+  VENCIDO // Lote vencido
+  CONSUMIDO // Lote totalmente consumido
+  BLOQUEADO // Lote bloqueado para uso
+}
+
+enum StatusSobra {
+  DISPONIVEL // Sobra disponível para uso
+  APROVEITADA // Sobra totalmente aproveitada
+  VENCIDA // Sobra vencida (material deteriorado)
+  DESCARTADA // Sobra descartada
+  RESERVADA // Sobra reservada para projeto específico
+}

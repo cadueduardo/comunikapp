@@ -30,11 +30,20 @@ export const apiRequest = async (
       headers,
     });
 
-    // Se receber 401, limpar o token e redirecionar para login
+    // Em 401, acionar modal de reautenticação (sem redirecionar)
     if (response.status === 401) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('access_token');
-        window.location.href = '/login';
+        try {
+          const event = new CustomEvent('session-expired', {
+            detail: {
+              endpoint,
+              status: response.status,
+            },
+          });
+          window.dispatchEvent(event);
+        } catch (e) {
+          console.warn('Falha ao disparar evento de sessão expirada:', e);
+        }
       }
     }
 

@@ -643,6 +643,7 @@ export class OrcamentosService {
 
     // 3. Criar o orçamento no banco
     const dadosParaSalvar = {
+      codigo: `ORC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       numero,
       nome_servico: createOrcamentoDto.nome_servico,
       descricao: createOrcamentoDto.descricao,
@@ -779,6 +780,7 @@ export class OrcamentosService {
 
     // 3. Criar o orçamento como rascunho
     const dadosParaSalvar = {
+      codigo: `ORC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       numero,
       nome_servico: createOrcamentoDto.nome_servico,
       descricao: createOrcamentoDto.descricao,
