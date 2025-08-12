@@ -305,3 +305,55 @@ Objetivo: reduzir o tamanho do `EstoqueSimpleService` e dividir responsabilidade
 - [ ] Endpoints e contratos inalterados (sem breaking changes).
 - [ ] Testes (unit/e2e) e build verdes.
 - [ ] Documentação atualizada nesta seção ao final de cada fase.
+
+---
+
+## 📥 Sugestão de Pull Request (PR)
+
+- Abrir PR a partir da branch `feature/modulo-estoque`:
+  - Link: [Abrir PR da branch `feature/modulo-estoque`](https://github.com/cadueduardo/comunikapp/pull/new/feature/modulo-estoque)
+
+### Título sugerido
+Estoque Fase 1: Movimentações extraídas, dashboard consistente, middleware/guard revisados e modal de reautenticação
+
+### Descrição sugerida
+- Resumo
+  - Backend:
+    - Extraído `MovimentacoesService` (criar/listar/buscar/excluir) com SQL defensivo e isolamento por `lojaId`.
+    - `MovimentacoesController` agora injeta o novo serviço (contratos preservados).
+    - Dashboard de estoque prioriza dados reais do banco; fallback apenas se tabela não existir.
+    - Middleware `tenant-isolation`: exige `x-loja-id`, normaliza roles; logs e tratamento de erro.
+    - Guard `estoque-access`: normaliza roles e mensagens.
+    - Lint: `max-lines` para services/controllers; diretórios `generated` ignorados.
+  - Frontend:
+    - Modal padrão de reautenticação em 401 (evento `session-expired`), mantendo a página atual.
+  - Docs:
+    - Este plano atualizado com handover, status de testes, headers obrigatórios e próximos passos.
+
+- Testes
+  - Verdes: controllers (`itens`, `localizacoes`, `movimentacoes`), middleware (`tenant-isolation`), guard (`estoque-access`), health controller.
+  - Pendentes (unit do `EstoqueSimpleService`):
+    - criarItemEstoque: mocks de Prisma devem retornar `localizacaoId` e `lojaId` no SELECT final e suportar `$executeRawUnsafe`.
+    - listarItensEstoque: mocks devem retornar detecção de tabela (`itens_estoque`), colunas e linhas na listagem; ajustar contagem.
+    - healthCheck: alinhar status do service (`healthy`) com o teste (aceitar `healthy` ou mudar para `ok`).
+
+- Como validar
+  - PowerShell:
+    - `cd backend; npm run build`
+    - `npm run test --silent -- estoque`
+  - Headers obrigatórios nas rotas protegidas:
+    - `Authorization: Bearer <JWT>`
+    - `x-loja-id: <id da loja>` (obrigatório)
+    - `x-user-roles: admin,manager,...` (permite/nega acesso)
+  - Frontend: 401 dispara modal de reautenticação e mantém a tela atual.
+
+- Risco e mitigação
+  - Mudanças backward-compatible nos endpoints, fallbacks SQL mantidos e detecção dinâmica de colunas/tabelas.
+  - Controllers-chave já usam serviços extraídos; `EstoqueSimpleService` permanecerá como facade temporário até Fase 5.
+
+- Próximos passos
+  - Delegação interna do `EstoqueSimpleService` → serviços específicos.
+  - Extrair `lotes.service.ts` e `transferencias.service.ts`.
+  - Extrair `itens-estoque.service.ts` e `localizacoes.service.ts`.
+  - Extrair `relatorios-estoque.service.ts` e `dashboard-estoque.service.ts`.
+  - Zerar pendências dos testes unit de service.
