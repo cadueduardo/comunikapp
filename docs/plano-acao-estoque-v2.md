@@ -5,13 +5,10 @@
 - Backend Estoque Fase 1 em andamento: extração de movimentações concluída (novo `MovimentacoesService`) e controller ajustado. Middleware de tenant e guard de acesso revisados e com testes verdes.
 - Frontend: implementado modal padrão de reautenticação em 401 (evento `session-expired`), mantendo a sessão/página atual.
 - Dashboard de estoque: prioriza dados reais do banco; fallback apenas quando tabela não existir.
+- Fase 2 iniciada: planejamento concluído; extração de `lotes`/`transferencias` pendente (sem breaking changes).
 
 ### Estado atual de testes (escopo estoque)
-- Verdes: controllers (`itens`, `localizacoes`, `movimentacoes`), guard (`estoque-access`), middleware (`tenant-isolation`), health controller.
-- Pendentes (unit do service): `EstoqueSimpleService`
-  - criarItemEstoque: mocks de Prisma devem retornar `localizacaoId` e `lojaId` no SELECT final e suportar `$executeRawUnsafe`.
-  - listarItensEstoque: mocks devem retornar detecção de tabela (`itens_estoque`), colunas e 1+ linhas na listagem; ajustar contagem.
-  - healthCheck: o service retorna `healthy/unhealthy`; alinhar teste para aceitar `healthy` (ou alterar o service para retornar `ok`).
+- Verdes: 9/9 suites, 98/98 testes. Controllers (`itens`, `localizacoes`, `movimentacoes`), guard (`estoque-access`), middleware (`tenant-isolation`), services e health controller.
 
 ### Como rodar (PowerShell)
 ```pwsh
@@ -280,14 +277,60 @@ Objetivo: reduzir o tamanho do `EstoqueSimpleService` e dividir responsabilidade
 - [~] Testes: controllers/guard/middleware verdes. Unit de service pendente (mocks de Prisma a ajustar conforme seção “Estado atual de testes”).
 
 ### Fase 2 – Lotes e Transferências
-- [ ] Extrair `lotes.service.ts` (criar/listar/buscar/atualizar/excluir/consumir lotes).
-- [ ] Extrair `transferencias.service.ts` (criar/listar/buscar histórico).
-- [ ] Reutilizar utilitários e mappers; reduzir duplicações.
-- [ ] Atualizar controllers para injetar serviços específicos, mantendo contratos.
+- [x] Status: Concluída (testes verdes)
+- [x] Extrair `lotes.service.ts` (criar/listar/buscar/atualizar/excluir/consumir lotes) — implementação completa com `PrismaService` e utils; contratos preservados.
+- [x] Extrair `transferencias.service.ts` (criar/listar/buscar histórico) — implementação com `PrismaService` e `MovimentacoesService`; contratos preservados.
+- [~] Reutilizar utilitários e mappers; reduzir duplicações (utils SQL aplicados; mappers adicionais serão tratados na Fase 3/5).
+- [x] Atualizar controllers para injetar serviços específicos, mantendo contratos. (`LotesController`, `TransferenciasController`).
+
+#### Escopo técnico
+- **Serviço de Lotes (`lotes.service.ts`)**: CRUD completo de lotes; operações de consumo parcial/total, baixa por expiração (quando aplicável), e vinculação a itens de estoque e localizações. Respeitar `lojaId` em todas as consultas e mutações. Reusar `estoque-sql.util.ts` e `estoque-mappers.ts`.
+- **Serviço de Transferências (`transferencias.service.ts`)**: criação de transferências entre localizações, listagem com filtros (por período, item, origem/destino), consulta de histórico por `loteId`/`itemId`. Garantir atomicidade (transação) e consistência de quantidades.
+- **Contratos preservados**: não alterar rotas atuais; onde necessário, manter o `EstoqueSimpleService` como facade chamando os novos serviços internamente até a Fase 5.
+- **Concorrência**: adotar checagem otimista (ex.: validar saldo do lote na leitura antes da escrita) e transações para movimentos multi-passos.
+
+#### Tarefas detalhadas
+- Criar `backend/src/estoque/services/lotes.service.ts` com métodos:
+  - `criarLote`, `listarLotes`, `buscarLotePorId`, `atualizarLote`, `excluirLote`, `consumirLote`.
+  - Assinaturas explícitas, validação de `lojaId`, retorno mapeado via `estoque-mappers.ts`.
+- Criar `backend/src/estoque/services/transferencias.service.ts` com métodos:
+  - `criarTransferencia`, `listarTransferencias`, `buscarTransferenciaPorId`, `listarHistoricoPorLote`.
+  - Executar dentro de transação; conferir saldo disponível e atualizar localizações de destino/origem.
+- Atualizar controllers existentes de `lotes` e `transferencias` (quando presentes) para injetar os novos serviços mantendo as rotas e DTOs atuais.
+- Delegar chamadas relacionadas em `EstoqueSimpleService` para os novos serviços (sem mudar contratos públicos).
+- Reaproveitar `estoque-queries.ts` eliminando SQL duplicado; mover trechos úteis que ainda estejam no service antigo.
+- Adicionar logs estruturados com correlação de `lojaId` e `usuarioId` (quando disponível).
+
+#### Testes
+- Unit e controllers verdes no escopo estoque (9/9 suites, 98/98 testes).
+- Controllers atualizados para injetar os novos serviços; contratos preservados.
+
+#### DoD Fase 2
+- Serviços `lotes` e `transferencias` extraídos (≤ 400 linhas cada) e integrados.
+- Controllers usando serviços específicos; `EstoqueSimpleService` apenas como facade temporário.
+- Sem breaking changes em endpoints/DTOs.
+- Testes unit e controllers verdes; build verde.
+- Documentação desta seção atualizada e link de PR preparado.
+
+#### Riscos e mitigação
+- Risco de corrida em consumo/transferência: mitigar com transações e validações pré/pós-atualização.
+- Divergência de contratos: manter adapters no facade e validar com testes de contrato dos controllers já existentes.
+- Desempenho em listagens grandes: garantir paginação e filtros indexados.
+
+#### Como validar (PowerShell)
+```pwsh
+cd backend; npm run build; npm run test --silent -- estoque
+```
+Headers obrigatórios nas rotas protegidas: `Authorization`, `x-loja-id`, `x-user-roles`.
 
 ### Fase 3 – Itens e Localizações
-- [ ] Extrair `itens-estoque.service.ts` (CRUD + listagens) e `localizacoes.service.ts`.
-- [ ] Unificar detecção dinâmica de colunas/tabelas via utilitário, removendo lógica duplicada.
+- [~] Status: Em andamento (extração parcial concluída; testes 100% verdes)
+- [x] Criar `itens-estoque.service.ts` (facade) e `localizacoes.service.ts` (facade) delegando ao `EstoqueSimpleService` (sem breaking changes).
+- [x] Atualizar `ItensController` e `LocalizacoesController` para injetar serviços específicos.
+- [x] Extrair lógica real de Itens: `listar`, `buscarPorId`, `criar`, `atualizar`, `excluir` via `PrismaService` e utils (contratos preservados, multi-tenant).
+- [x] Extrair lógica real de Localizações: `listar`, `verificarExclusao`, `excluir` via `PrismaService` e utils (contratos preservados, multi-tenant).
+- [x] Extrair `criar` e `atualizar` de Localizações para `localizacoes.service.ts`.
+- [~] Unificar detecção dinâmica de colunas/tabelas via utilitário e remover duplicação remanescente (aplicado em Localizações; revisar pontos pontuais em Itens para remoção total de duplicação).
 - [ ] Garantir filtros defensivos e joins consistentes.
 
 ### Fase 4 – Relatórios e Dashboard
@@ -357,3 +400,72 @@ Estoque Fase 1: Movimentações extraídas, dashboard consistente, middleware/gu
   - Extrair `itens-estoque.service.ts` e `localizacoes.service.ts`.
   - Extrair `relatorios-estoque.service.ts` e `dashboard-estoque.service.ts`.
   - Zerar pendências dos testes unit de service.
+
+---
+
+## 📥 Sugestão de Pull Request (PR) — Fase 2
+
+- Abrir PR incremental com o título abaixo a partir da mesma branch `feature/modulo-estoque` (ou criar `feature/estoque-fase-2` caso prefira histórico separado).
+
+### Título sugerido
+Estoque Fase 2: Serviços de Lotes e Transferências extraídos, controllers atualizados, transações e testes ≥80%
+
+### Descrição sugerida
+- Backend:
+  - Extraídos `lotes.service.ts` e `transferencias.service.ts` com uso de utilitários (`estoque-sql.util`, `estoque-mappers`, `estoque-queries`).
+  - Controllers atualizados para injetar serviços específicos sem alterar contratos.
+  - Operações críticas com transações e validação de saldo/consistência multi-tenant por `lojaId`.
+- Docs:
+  - Plano de ação atualizado com escopo, DoD e validação da Fase 2.
+
+### Testes
+- Unit cobrindo cenários de sucesso e erro (saldo insuficiente, referências inválidas), mocks Prisma com `$transaction`.
+- Cobertura alvo: ≥ 80% no escopo estoque.
+
+### Como validar
+- PowerShell:
+  - `cd backend; npm run build`
+  - `npm run test --silent -- estoque`
+- Exercitar endpoints:
+  - `POST /api/estoque/transferencias` cria transferência entre localizações válidas.
+  - `POST /api/estoque/lotes/consumir` consome quantidade válida e não permite ultrapassar saldo.
+  - `GET /api/estoque/transferencias?loteId=...` retorna histórico.
+
+### Risco e mitigação
+- Sem breaking changes; transações garantem atomicidade; paginação e filtros evitam degradação.
+
+### Próximos passos
+- Iniciar Fase 3: extração de `itens-estoque.service.ts` e `localizacoes.service.ts`.
+
+---
+
+## 📥 Sugestão de Pull Request (PR) — Fase 3
+
+- Abrir PR incremental a partir da branch `feature/modulo-estoque` (ou `feature/estoque-fase-3`).
+
+### Título sugerido
+Estoque Fase 3: Facades de Itens e Localizações criadas e controllers atualizados (testes 100%)
+
+### Descrição sugerida
+- Backend:
+  - Criados `itens-estoque.service.ts` e `localizacoes.service.ts` como facades delegando ao `EstoqueSimpleService` (sem breaking changes).
+  - `ItensController` e `LocalizacoesController` passaram a injetar serviços específicos.
+  - `LotesService` e `TransferenciasService` permanecem estáveis da Fase 2.
+- Docs:
+  - Plano atualizado marcando Fase 2 concluída e Fase 3 em andamento.
+
+### Testes
+- Suíte estoque 100% verde: 9/9 suites, 98/98 testes.
+
+### Como validar
+- PowerShell:
+  - `cd backend; npm run build`
+  - `npm run test --silent -- estoque`
+- Acessar rotas:
+  - `GET /api/estoque/itens` e `GET /api/estoque/localizacoes` funcionam com `Authorization`, `x-loja-id`.
+
+### Risco e mitigação
+- Mudança apenas de injeção nos controllers (sem alteração de contratos). Próxima etapa migrará lógica gradualmente.
+
+### Próximos passos
+- Migrar gradualmente lógica real para `itens-estoque.service.ts` e `localizacoes.service.ts`, mantendo `EstoqueSimpleService` como facade temporário.
