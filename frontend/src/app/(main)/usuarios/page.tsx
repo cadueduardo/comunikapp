@@ -3,6 +3,8 @@
 import { Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { CrudPage } from '@/components/crud/CrudPage';
+import { DataTable } from '@/components/crud/DataTable';
+import { usuarioColumns, UsuarioRow } from './columns';
 
 export default function UsuariosPage() {
   return (
@@ -15,11 +17,7 @@ export default function UsuariosPage() {
           subtitle="Gestão de usuários (em construção)"
         />
       }
-      table={
-        <div className="rounded-lg border bg-white p-6 text-gray-700">
-          Estrutura inicial criada. Em breve: listagem, criação, perfis e convites.
-        </div>
-      }
+      table={<DataTable<UsuarioRow, any> columns={usuarioColumns} data={[]} />}
     />
   );
 }

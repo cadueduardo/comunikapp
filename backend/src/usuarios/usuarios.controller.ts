@@ -29,6 +29,17 @@ export class UsuariosController {
   async atualizar(@Param('id') id: string, @Body() dto: UpdateUsuarioDto) {
     return this.usuariosService.atualizar(id, dto);
   }
+
+  // Fluxo de convite/primeiro acesso (entradas public serão adicionadas na fase 2 com validação dedicada)
+  @Post('reenviar-codigo')
+  async reenviarCodigo(@Body('email') email: string) {
+    return this.usuariosService.reenviarCodigo(email);
+  }
+
+  @Post('definir-senha')
+  async definirSenha(@Body() body: { email: string; codigo: string; senha: string }) {
+    return this.usuariosService.definirSenhaInicial(body.email, body.codigo, body.senha);
+  }
 }
 
 
