@@ -101,9 +101,9 @@ export class EstoqueModule implements NestModule {
     // Aplica um middleware de contexto (correlationId) antes do isolamento de tenant
     consumer.apply(RequestContextMiddleware, TenantIsolationMiddleware).forRoutes(
       // Rotas com prefixo explícito 'api/estoque/*'
-      { path: 'api/estoque/(.*)', method: RequestMethod.ALL },
+      { path: 'api/estoque/*rest', method: RequestMethod.ALL },
       // Rotas sem prefixo global (ex.: 'estoque/sobras')
-      { path: 'estoque/(.*)', method: RequestMethod.ALL },
+      { path: 'estoque/*rest', method: RequestMethod.ALL },
     );
   }
 }

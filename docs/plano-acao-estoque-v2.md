@@ -356,6 +356,27 @@ Headers obrigatórios nas rotas protegidas: `Authorization`, `x-loja-id`, `x-use
 
 ---
 
+### 🔧 Ajustes técnicos – 14/08/2025
+
+- Corrigido aviso do Nest sobre rotas wildcard legadas no `EstoqueModule`.
+  - Troca de `api/estoque/(.*)` e `estoque/(.*)` para a sintaxe com parâmetro nomeado: `api/estoque/*rest` e `estoque/*rest`.
+  - Garante compatibilidade com a versão atual do `path-to-regexp` (sem auto-convert warnings).
+- Melhoria de CORS e preflight:
+  - Ativado CORS antes dos middlewares de segurança em `backend/src/main.ts`.
+  - Configurado o rate limiter para ignorar requisições `OPTIONS` (preflight), evitando falhas de `fetch` no frontend.
+
+- Frontend – Relatórios (`/estoque/relatorios`):
+  - Adicionado botão "Voltar" no header seguindo o padrão das demais telas.
+  - Otimizados os carregamentos dos 3 relatórios para ocorrerem em paralelo (reduz a latência percebida).
+
+- Manutenção de dependências (Code Review do PR da Fase 5):
+  - Removidos `@types/socket.io-client` e `@types/uuid` (as libs `socket.io-client@^4` e `uuid@^11` já incluem tipos). Build validado com sucesso. Referência: [comentário no PR](https://github.com/cadueduardo/comunikapp/pull/1#issuecomment-3181751223).
+
+### 🔁 Ping CI – 14/08/2025
+
+- Commit técnico para acionar verificadores automáticos (CodeRabbit) e validar que não há novas regressões.
+
+
 ### Fase 5 – Status atual e pendências
 
 Status: Em andamento. O sistema já delega toda a regra de negócio para serviços específicos (Itens, Localizações, Lotes, Transferências, Dashboard, Relatórios), porém ainda existem referências residuais a `EstoqueSimpleService` que o mantêm no módulo.

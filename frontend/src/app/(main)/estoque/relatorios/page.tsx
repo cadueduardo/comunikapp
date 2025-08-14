@@ -12,11 +12,13 @@ import {
   TrendingDown, 
   TrendingUp,
   Download,
-  RefreshCw
+  RefreshCw,
+  ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
 import { useUser } from '@/contexts/UserContext';
+import Link from 'next/link';
 
 interface RelatorioBaixo {
   id: string;
@@ -61,9 +63,11 @@ export default function RelatoriosPage() {
   const fetchRelatorios = async () => {
     setLoading(true);
     try {
-      const responseBaixo = await apiRequest('/api/estoque/relatorios/baixo');
-      const responseVencimento = await apiRequest('/api/estoque/relatorios/vencimento');
-      const responseOcupacao = await apiRequest('/api/estoque/relatorios/ocupacao');
+      const [responseBaixo, responseVencimento, responseOcupacao] = await Promise.all([
+        apiRequest('/api/estoque/relatorios/baixo'),
+        apiRequest('/api/estoque/relatorios/vencimento'),
+        apiRequest('/api/estoque/relatorios/ocupacao'),
+      ]);
 
       if (responseBaixo.ok) {
         const dataBaixo = await responseBaixo.json();
@@ -135,14 +139,22 @@ export default function RelatoriosPage() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <BarChart3 className="h-8 w-8" />
-            Relatórios de Estoque
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Visualize relatórios detalhados do seu estoque
-          </p>
+        <div className="flex items-center gap-4">
+          <Link href="/estoque">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+              <BarChart3 className="h-8 w-8" />
+              Relatórios de Estoque
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Visualize relatórios detalhados do seu estoque
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button onClick={handleRefresh} variant="outline">
