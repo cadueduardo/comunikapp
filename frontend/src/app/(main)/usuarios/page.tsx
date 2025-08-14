@@ -10,11 +10,13 @@ import { apiRequest } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RefreshCw, Plus } from 'lucide-react';
+import { UsuarioFormDialog } from './UsuarioFormDialog';
 
 export default function UsuariosPage() {
   const [data, setData] = useState<UsuarioRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [openDialog, setOpenDialog] = useState(false);
 
   const fetchUsuarios = async () => {
     setLoading(true);
@@ -64,7 +66,7 @@ export default function UsuariosPage() {
               <Button variant="outline" onClick={fetchUsuarios} disabled={loading}>
                 <RefreshCw className="h-4 w-4 mr-2" /> Atualizar
               </Button>
-              <Button>
+              <Button onClick={() => setOpenDialog(true)}>
                 <Plus className="h-4 w-4 mr-2" /> Novo Usuário
               </Button>
             </>
@@ -82,7 +84,9 @@ export default function UsuariosPage() {
         </div>
       }
       table={<DataTable<UsuarioRow, any> columns={usuarioColumns} data={filtered} />}
+      
     />
+    <UsuarioFormDialog open={openDialog} onOpenChange={setOpenDialog} onCreated={fetchUsuarios} />
   );
 }
 
