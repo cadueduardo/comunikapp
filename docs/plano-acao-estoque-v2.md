@@ -476,7 +476,7 @@ These steps are ordered to facilitar retomada por outro agente, mantendo compati
 - [x] Criar dashboard de health no Swagger com links rápidos (health, auth, db, contexto). (adicionado endpoint `GET /api/estoque/health/links` com links e `correlationId`)
 
 5) Operacional/PR
-- [ ] Abrir PR “Fase 5 – Limpeza final do módulo de estoque (sem breaking changes)” com checklist acima validado.
+- [x] Abrir PR “Fase 5 – Limpeza final do módulo de estoque (sem breaking changes)” com checklist acima validado. (Atualizado PR #1 com título e descrição desta fase)
 - [ ] Após merge, criar PR focado em “Melhorias de Segurança (Coderabbit)” endereçando itens do tópico 3.
   - [x] Rascunho preparado: `docs/pr-fase5-estoque.md` com resumo, mudanças, testes, validação, riscos e próximos passos.
 
