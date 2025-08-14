@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFuncaoDto } from './dto/create-funcao.dto';
 import { UpdateFuncaoDto } from './dto/update-funcao.dto';
@@ -56,7 +60,7 @@ export class FuncoesService {
 
   async remove(id: string, lojaId: string) {
     const funcao = await this.findOne(id, lojaId);
-    
+
     if (!funcao) {
       throw new NotFoundException('Função não encontrada.');
     }
@@ -72,7 +76,7 @@ export class FuncoesService {
     if (funcaoEmUso) {
       throw new BadRequestException(
         `Não é possível excluir esta função pois ela está sendo usada no orçamento #${funcaoEmUso.orcamento.numero} - ${funcaoEmUso.orcamento.nome_servico}. ` +
-        'Remova a função do orçamento antes de excluí-la.'
+          'Remova a função do orçamento antes de excluí-la.',
       );
     }
 
@@ -82,4 +86,4 @@ export class FuncoesService {
 
     return { message: `Função "${funcao.nome}" foi removida com sucesso.` };
   }
-} 
+}

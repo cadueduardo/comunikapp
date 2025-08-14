@@ -71,3 +71,56 @@ export function parseCurrency(value: string | number | null | undefined): number
     
   return parseFloat(cleanedValue);
 }
+
+export function formatLocalizacaoCompleta(localizacao: any): string {
+  if (!localizacao) return '';
+  
+  // Se já temos a localização completa formatada
+  if (localizacao.localizacaoCompleta) {
+    return localizacao.localizacaoCompleta;
+  }
+  
+  // Se temos os campos individuais
+  const parts = [
+    localizacao.localizacaoDeposito,
+    localizacao.localizacaoCorredor,
+    localizacao.localizacaoPrateleira,
+    localizacao.localizacaoNivel,
+    localizacao.localizacaoPosicao
+  ].filter(Boolean);
+  
+  if (parts.length > 0) {
+    return parts.join(' - ');
+  }
+  
+  // Fallback para o código
+  return localizacao.localizacaoCodigo || '';
+}
+
+export function formatLocalizacaoDisplay(localizacao: any): { deposito: string; detalhes: string } {
+  if (!localizacao) return { deposito: '', detalhes: '' };
+  
+  // Se temos a localização completa formatada
+  if (localizacao.localizacaoCompleta) {
+    const parts = localizacao.localizacaoCompleta.split(' - ');
+    const deposito = parts[0] || '';
+    const detalhes = parts.slice(1).join(' - ') || '';
+    return { deposito, detalhes };
+  }
+  
+  // Se temos os campos individuais
+  const deposito = localizacao.localizacaoDeposito || '';
+  const detalhes = [
+    localizacao.localizacaoCorredor,
+    localizacao.localizacaoPrateleira,
+    localizacao.localizacaoNivel,
+    localizacao.localizacaoPosicao
+  ].filter(Boolean).join(' - ');
+  
+  if (deposito && detalhes) {
+    return { deposito, detalhes };
+  }
+  
+  // Fallback para o código
+  return { deposito: localizacao.localizacaoCodigo || '', detalhes: '' };
+}

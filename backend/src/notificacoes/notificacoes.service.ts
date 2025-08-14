@@ -6,7 +6,7 @@ export enum TipoNotificacao {
   ORCAMENTO_APROVADO = 'ORCAMENTO_APROVADO',
   ORCAMENTO_REJEITADO = 'ORCAMENTO_REJEITADO',
   ORCAMENTO_NEGOCIANDO = 'ORCAMENTO_NEGOCIANDO',
-  SISTEMA = 'SISTEMA'
+  SISTEMA = 'SISTEMA',
 }
 
 export interface Notificacao {
@@ -31,7 +31,7 @@ export class NotificacoesService {
     titulo: string,
     mensagem: string,
     orcamentoId?: string,
-    dadosExtras?: any
+    dadosExtras?: any,
   ) {
     return this.prisma.notificacao.create({
       data: {
@@ -46,10 +46,14 @@ export class NotificacoesService {
     });
   }
 
-  async notificarNovaMensagem(orcamentoId: string, lojaId: string, autorNome: string) {
+  async notificarNovaMensagem(
+    orcamentoId: string,
+    lojaId: string,
+    autorNome: string,
+  ) {
     const orcamento = await this.prisma.orcamento.findUnique({
       where: { id: orcamentoId },
-      select: { numero: true, nome_servico: true }
+      select: { numero: true, nome_servico: true },
     });
 
     if (!orcamento) return;
@@ -60,7 +64,7 @@ export class NotificacoesService {
       'Nova mensagem no orçamento',
       `${autorNome} enviou uma mensagem no orçamento #${orcamento.numero}`,
       orcamentoId,
-      { autor_nome: autorNome, numero_orcamento: orcamento.numero }
+      { autor_nome: autorNome, numero_orcamento: orcamento.numero },
     );
   }
 
@@ -68,11 +72,11 @@ export class NotificacoesService {
     orcamentoId: string,
     lojaId: string,
     acao: 'APROVAR' | 'REJEITAR' | 'NEGOCIAR',
-    observacoes?: string
+    observacoes?: string,
   ) {
     const orcamento = await this.prisma.orcamento.findUnique({
       where: { id: orcamentoId },
-      select: { numero: true, nome_servico: true }
+      select: { numero: true, nome_servico: true },
     });
 
     if (!orcamento) return;
@@ -99,18 +103,11 @@ export class NotificacoesService {
         break;
     }
 
-    return this.criarNotificacao(
-      lojaId,
-      tipo,
-      titulo,
-      mensagem,
-      orcamentoId,
-      { 
-        acao, 
-        observacoes, 
-        numero_orcamento: orcamento.numero 
-      }
-    );
+    return this.criarNotificacao(lojaId, tipo, titulo, mensagem, orcamentoId, {
+      acao,
+      observacoes,
+      numero_orcamento: orcamento.numero,
+    });
   }
 
   async buscarNotificacoes(lojaId: string, limit = 50) {
@@ -123,9 +120,9 @@ export class NotificacoesService {
 
   async buscarNaoVisualizadas(lojaId: string) {
     return this.prisma.notificacao.findMany({
-      where: { 
+      where: {
         loja_id: lojaId,
-        visualizada: false 
+        visualizada: false,
       },
       orderBy: { criado_em: 'desc' },
     });
@@ -133,18 +130,18 @@ export class NotificacoesService {
 
   async contarNaoVisualizadas(lojaId: string) {
     return this.prisma.notificacao.count({
-      where: { 
+      where: {
         loja_id: lojaId,
-        visualizada: false 
+        visualizada: false,
       },
     });
   }
 
   async marcarComoVisualizada(notificacaoId: string, lojaId: string) {
     return this.prisma.notificacao.updateMany({
-      where: { 
+      where: {
         id: notificacaoId,
-        loja_id: lojaId 
+        loja_id: lojaId,
       },
       data: { visualizada: true },
     });
@@ -152,9 +149,9 @@ export class NotificacoesService {
 
   async marcarTodasComoVisualizadas(lojaId: string) {
     return this.prisma.notificacao.updateMany({
-      where: { 
+      where: {
         loja_id: lojaId,
-        visualizada: false 
+        visualizada: false,
       },
       data: { visualizada: true },
     });
@@ -162,10 +159,10 @@ export class NotificacoesService {
 
   async deletarNotificacao(notificacaoId: string, lojaId: string) {
     return this.prisma.notificacao.deleteMany({
-      where: { 
+      where: {
         id: notificacaoId,
-        loja_id: lojaId 
+        loja_id: lojaId,
       },
     });
   }
-} 
+}

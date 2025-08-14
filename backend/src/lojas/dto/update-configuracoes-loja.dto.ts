@@ -10,8 +10,6 @@ export class UpdateConfiguracoesLojaDto {
   @IsOptional()
   cabecalho_orcamento?: string;
 
-
-
   @IsString()
   @IsOptional()
   custo_maquinaria_hora?: string;
@@ -31,4 +29,4 @@ export class UpdateConfiguracoesLojaDto {
   @IsString()
   @IsOptional()
   horas_produtivas_mensais?: string;
-} 
+}

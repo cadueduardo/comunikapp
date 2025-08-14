@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { CreateFornecedoreDto } from './dto/create-fornecedore.dto';
 import { UpdateFornecedoreDto } from './dto/update-fornecedore.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -35,7 +39,11 @@ export class FornecedoresService {
     return fornecedor;
   }
 
-  async update(id: string, updateFornecedoreDto: UpdateFornecedoreDto, loja: Loja) {
+  async update(
+    id: string,
+    updateFornecedoreDto: UpdateFornecedoreDto,
+    loja: Loja,
+  ) {
     await this.findOne(id, loja);
     return this.prisma.fornecedor.update({
       where: { id },
@@ -45,7 +53,7 @@ export class FornecedoresService {
 
   async remove(id: string, loja: Loja) {
     const fornecedor = await this.findOne(id, loja);
-    
+
     // Verifica se o fornecedor está sendo usado por insumos
     const insumosUsando = await this.prisma.insumo.findMany({
       where: { fornecedorId: id },
@@ -55,14 +63,18 @@ export class FornecedoresService {
     });
 
     if (insumosUsando.length > 0) {
-      const nomesInsumos = insumosUsando.map(insumo => insumo.nome).join(', ');
+      const nomesInsumos = insumosUsando
+        .map((insumo) => insumo.nome)
+        .join(', ');
       throw new BadRequestException(
         `Não é possível excluir este fornecedor pois ele está sendo usado pelos seguintes insumos: ${nomesInsumos}. ` +
-        'Remova ou altere os insumos antes de excluir o fornecedor.'
+          'Remova ou altere os insumos antes de excluir o fornecedor.',
       );
     }
 
     await this.prisma.fornecedor.delete({ where: { id } });
-    return { message: `Fornecedor "${fornecedor.nome}" foi removido com sucesso.` };
+    return {
+      message: `Fornecedor "${fornecedor.nome}" foi removido com sucesso.`,
+    };
   }
-} 
+}

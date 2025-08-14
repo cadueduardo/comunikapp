@@ -4,4 +4,4 @@ export class CreateFornecedoreDto {
   @IsString()
   @IsNotEmpty()
   nome: string;
-} 
+}

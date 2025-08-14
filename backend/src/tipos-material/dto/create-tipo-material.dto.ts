@@ -1,9 +1,4 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsEnum,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsEnum } from 'class-validator';
 import { LogicaConsumoInsumo } from '@prisma/client';
 
 export class CreateTipoMaterialDto {
@@ -20,4 +15,4 @@ export class CreateTipoMaterialDto {
 
   @IsOptional()
   parametros_padrao?: any;
-} 
+}

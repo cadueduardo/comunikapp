@@ -1,4 +1,10 @@
-import { IsString, IsOptional, IsNumber, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateVersaoOrcamentoDto {
@@ -13,4 +19,4 @@ export class CreateVersaoOrcamentoDto {
   @IsNumber()
   @Type(() => Number)
   numero_versao?: number;
-} 
+}

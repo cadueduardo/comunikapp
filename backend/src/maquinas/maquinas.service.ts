@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMaquinaDto } from './dto/create-maquina.dto';
 import { UpdateMaquinaDto } from './dto/update-maquina.dto';
@@ -38,7 +42,9 @@ export class MaquinasService {
     }
 
     if (maquina.loja_id !== loja.id) {
-      throw new ForbiddenException('Você não tem permissão para acessar este recurso.');
+      throw new ForbiddenException(
+        'Você não tem permissão para acessar este recurso.',
+      );
     }
 
     return maquina;
@@ -55,14 +61,16 @@ export class MaquinasService {
 
   async remove(id: string, loja: Loja) {
     await this.findOne(id, loja); // Garante que a máquina existe e pertence à loja
-    
+
     // Verificar se a máquina está sendo usada em algum orçamento
     const maquinaEmUso = await this.prisma.maquinaOrcamento.findFirst({
       where: { maquina_id: id },
     });
 
     if (maquinaEmUso) {
-      throw new ForbiddenException('Não é possível excluir uma máquina que está sendo usada em orçamentos.');
+      throw new ForbiddenException(
+        'Não é possível excluir uma máquina que está sendo usada em orçamentos.',
+      );
     }
 
     await this.prisma.maquina.delete({
@@ -74,7 +82,7 @@ export class MaquinasService {
 
   async findByTipo(tipo: string, loja: Loja) {
     return this.prisma.maquina.findMany({
-      where: { 
+      where: {
         loja_id: loja.id,
         tipo: tipo,
         status: 'ATIVA',
@@ -82,4 +90,4 @@ export class MaquinasService {
       orderBy: { nome: 'asc' },
     });
   }
-} 
+}

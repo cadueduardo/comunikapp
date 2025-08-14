@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrcamentosService } from '../orcamentos/orcamentos.service';
 import { CreateProdutoDto } from './dto/create-produto.dto';
@@ -22,11 +26,13 @@ export class ProdutosService {
     });
 
     if (produtoExistente) {
-      throw new BadRequestException(`Já existe um produto com o nome "${createProdutoDto.nome}" nesta loja.`);
+      throw new BadRequestException(
+        `Já existe um produto com o nome "${createProdutoDto.nome}" nesta loja.`,
+      );
     }
 
     // Validar se os insumos existem
-    const insumoIds = createProdutoDto.itens.map(item => item.insumo_id);
+    const insumoIds = createProdutoDto.itens.map((item) => item.insumo_id);
     const insumos = await this.prisma.insumo.findMany({
       where: {
         id: { in: insumoIds },
@@ -35,12 +41,16 @@ export class ProdutosService {
     });
 
     if (insumos.length !== insumoIds.length) {
-      throw new BadRequestException('Um ou mais insumos não foram encontrados.');
+      throw new BadRequestException(
+        'Um ou mais insumos não foram encontrados.',
+      );
     }
 
     // Validar se as máquinas existem (se fornecidas)
     if (createProdutoDto.maquinas && createProdutoDto.maquinas.length > 0) {
-      const maquinaIds = createProdutoDto.maquinas.map(maquina => maquina.maquina_id);
+      const maquinaIds = createProdutoDto.maquinas.map(
+        (maquina) => maquina.maquina_id,
+      );
       const maquinas = await this.prisma.maquina.findMany({
         where: {
           id: { in: maquinaIds },
@@ -49,13 +59,17 @@ export class ProdutosService {
       });
 
       if (maquinas.length !== maquinaIds.length) {
-        throw new BadRequestException('Uma ou mais máquinas não foram encontradas.');
+        throw new BadRequestException(
+          'Uma ou mais máquinas não foram encontradas.',
+        );
       }
     }
 
     // Validar se as funções existem (se fornecidas)
     if (createProdutoDto.funcoes && createProdutoDto.funcoes.length > 0) {
-      const funcaoIds = createProdutoDto.funcoes.map(funcao => funcao.funcao_id);
+      const funcaoIds = createProdutoDto.funcoes.map(
+        (funcao) => funcao.funcao_id,
+      );
       const funcoes = await this.prisma.funcao.findMany({
         where: {
           id: { in: funcaoIds },
@@ -64,7 +78,9 @@ export class ProdutosService {
       });
 
       if (funcoes.length !== funcaoIds.length) {
-        throw new BadRequestException('Uma ou mais funções não foram encontradas.');
+        throw new BadRequestException(
+          'Uma ou mais funções não foram encontradas.',
+        );
       }
     }
 
@@ -92,7 +108,7 @@ export class ProdutosService {
       // Criar os itens do produto
       if (createProdutoDto.itens.length > 0) {
         await prisma.itemTemplateProduto.createMany({
-          data: createProdutoDto.itens.map(item => ({
+          data: createProdutoDto.itens.map((item) => ({
             template_id: produtoCriado.id,
             insumo_id: item.insumo_id,
             quantidade: item.quantidade,
@@ -105,7 +121,7 @@ export class ProdutosService {
       // Criar as máquinas do produto (se fornecidas)
       if (createProdutoDto.maquinas && createProdutoDto.maquinas.length > 0) {
         await prisma.maquinaTemplateProduto.createMany({
-          data: createProdutoDto.maquinas.map(maquina => ({
+          data: createProdutoDto.maquinas.map((maquina) => ({
             template_id: produtoCriado.id,
             maquina_id: maquina.maquina_id,
             horas_utilizadas: maquina.horas_utilizadas,
@@ -117,7 +133,7 @@ export class ProdutosService {
       // Criar as funções do produto (se fornecidas)
       if (createProdutoDto.funcoes && createProdutoDto.funcoes.length > 0) {
         await prisma.funcaoTemplateProduto.createMany({
-          data: createProdutoDto.funcoes.map(funcao => ({
+          data: createProdutoDto.funcoes.map((funcao) => ({
             template_id: produtoCriado.id,
             funcao_id: funcao.funcao_id,
             horas_trabalhadas: funcao.horas_trabalhadas,
@@ -178,24 +194,33 @@ export class ProdutosService {
               const insumo = await this.prisma.insumo.findUnique({
                 where: { id: item.insumo_id },
               });
-              
+
               const quantidade = Number(item.quantidade) || 0;
               // Calcular custo por unidade de uso usando a lógica completa
               let custoPorUnidadeUso = 0;
-              if (insumo && insumo.custo_unitario && insumo.quantidade_compra && insumo.fator_conversao) {
+              if (
+                insumo &&
+                insumo.custo_unitario &&
+                insumo.quantidade_compra &&
+                insumo.fator_conversao
+              ) {
                 const custo = Number(insumo.custo_unitario);
                 const quantidadeCompra = Number(insumo.quantidade_compra);
                 const fator = Number(insumo.fator_conversao);
-                
+
                 if (quantidadeCompra > 0 && fator > 0) {
                   // Se temos dimensões e tipo de cálculo, usar a lógica específica
-                  if (insumo.altura && insumo.unidade_dimensao && insumo.tipo_calculo) {
+                  if (
+                    insumo.altura &&
+                    insumo.unidade_dimensao &&
+                    insumo.tipo_calculo
+                  ) {
                     const alturaNum = Number(insumo.altura);
-                    
+
                     if (!isNaN(alturaNum)) {
                       // Converter altura para metros
                       let alturaEmMetros = alturaNum;
-                      
+
                       switch (insumo.unidade_dimensao) {
                         case 'CENTÍMETROS':
                         case 'CM':
@@ -210,15 +235,18 @@ export class ProdutosService {
                           // Já está em metros
                           break;
                       }
-                      
+
                       // Calcular quantidade baseada no tipo de cálculo
                       switch (insumo.tipo_calculo) {
                         case 'COMPRIMENTO LINEAR':
                         case 'LINEAR':
                           // Para comprimento linear: calcular custo por unidade de uso
                           const custoPorUnidade = custo / quantidadeCompra;
-                          
-                          if (insumo.unidade_uso === 'CENTIMETRO' || insumo.unidade_uso === 'CM') {
+
+                          if (
+                            insumo.unidade_uso === 'CENTIMETRO' ||
+                            insumo.unidade_uso === 'CM'
+                          ) {
                             // Se a unidade de uso é centímetro, calcular custo por centímetro
                             // Para cordão: custo por metro ÷ 100 = custo por centímetro
                             custoPorUnidadeUso = custoPorUnidade / 100;
@@ -227,14 +255,14 @@ export class ProdutosService {
                             custoPorUnidadeUso = custoPorUnidade;
                           }
                           break;
-                          
+
                         case 'AREA':
                           // Para área: calcular custo por unidade de uso baseado na área da unidade
                           if (insumo.largura) {
                             const larguraNum = Number(insumo.largura);
                             if (!isNaN(larguraNum)) {
                               let larguraEmMetros = larguraNum;
-                              
+
                               switch (insumo.unidade_dimensao) {
                                 case 'CENTÍMETROS':
                                 case 'CM':
@@ -245,9 +273,10 @@ export class ProdutosService {
                                   larguraEmMetros = larguraNum / 1000;
                                   break;
                               }
-                              
-                              const areaPorUnidade = larguraEmMetros * alturaEmMetros;
-                              
+
+                              const areaPorUnidade =
+                                larguraEmMetros * alturaEmMetros;
+
                               if (insumo.unidade_uso === 'METRO QUADRADO') {
                                 // Se a unidade de uso é metro quadrado, calcular custo por m²
                                 custoPorUnidadeUso = custo / areaPorUnidade;
@@ -260,12 +289,12 @@ export class ProdutosService {
                             custoPorUnidadeUso = custo / quantidadeCompra;
                           }
                           break;
-                          
+
                         case 'QUANTIDADE':
                           // Para quantidade fixa: usar quantidade diretamente
                           custoPorUnidadeUso = custo / quantidadeCompra;
                           break;
-                          
+
                         default:
                           // Padrão: usar quantidade diretamente
                           custoPorUnidadeUso = custo / quantidadeCompra;
@@ -278,13 +307,13 @@ export class ProdutosService {
                 }
               }
               const custoTotal = quantidade * custoPorUnidadeUso;
-              
+
               return {
                 ...item,
                 custo_unitario: custoPorUnidadeUso,
                 custo_total: custoTotal,
               };
-            })
+            }),
           );
 
           // Recalcular custos das máquinas
@@ -293,16 +322,18 @@ export class ProdutosService {
               const maquinaEncontrada = await this.prisma.maquina.findUnique({
                 where: { id: maquina.maquina_id },
               });
-              
+
               const horasUtilizadas = Number(maquina.horas_utilizadas) || 0;
-              const custoHora = maquinaEncontrada ? Number(maquinaEncontrada.custo_hora) : 0;
+              const custoHora = maquinaEncontrada
+                ? Number(maquinaEncontrada.custo_hora)
+                : 0;
               const custoTotal = horasUtilizadas * custoHora;
-              
+
               return {
                 ...maquina,
                 custo_total: custoTotal,
               };
-            })
+            }),
           );
 
           // Recalcular custos das funções
@@ -311,16 +342,18 @@ export class ProdutosService {
               const funcaoEncontrada = await this.prisma.funcao.findUnique({
                 where: { id: funcao.funcao_id },
               });
-              
+
               const horasTrabalhadas = Number(funcao.horas_trabalhadas) || 0;
-              const custoHora = funcaoEncontrada ? Number(funcaoEncontrada.custo_hora) : 0;
+              const custoHora = funcaoEncontrada
+                ? Number(funcaoEncontrada.custo_hora)
+                : 0;
               const custoTotal = horasTrabalhadas * custoHora;
-              
+
               return {
                 ...funcao,
                 custo_total: custoTotal,
               };
-            })
+            }),
           );
 
           // Converter para o formato esperado pelo motor de cálculo
@@ -329,15 +362,15 @@ export class ProdutosService {
             descricao: produto.descricao_produto || undefined,
             horas_producao: Number(produto.horas_producao) || 0,
             quantidade_produto: Number(produto.quantidade_padrao) || 1,
-            itens: itensComCustosRecalculados.map(item => ({
+            itens: itensComCustosRecalculados.map((item) => ({
               insumo_id: item.insumo_id,
               quantidade: Number(item.quantidade) || 0,
             })),
-            maquinas: maquinasComCustosRecalculados.map(maquina => ({
+            maquinas: maquinasComCustosRecalculados.map((maquina) => ({
               maquina_id: maquina.maquina_id,
               horas_utilizadas: Number(maquina.horas_utilizadas) || 0,
             })),
-            funcoes: funcoesComCustosRecalculados.map(funcao => ({
+            funcoes: funcoesComCustosRecalculados.map((funcao) => ({
               funcao_id: funcao.funcao_id,
               horas_trabalhadas: Number(funcao.horas_trabalhadas) || 0,
             })),
@@ -348,11 +381,14 @@ export class ProdutosService {
           // Calcular o valor usando o motor de cálculo
           console.log(`🔍 Debug - Calculando produto ${produto.nome}:`, {
             dtoParaOrcamento,
-            lojaId
+            lojaId,
           });
-          
-          const calculo = await this.orcamentosService.calcularOrcamento(dtoParaOrcamento, lojaId);
-          
+
+          const calculo = await this.orcamentosService.calcularOrcamento(
+            dtoParaOrcamento,
+            lojaId,
+          );
+
           console.log(`🔍 Debug - Resultado do cálculo para ${produto.nome}:`, {
             preco_final: calculo.custos.preco_final,
             custo_material: calculo.custos.custo_material,
@@ -360,7 +396,7 @@ export class ProdutosService {
             custo_maquinaria: calculo.custos.custo_maquinaria,
             custo_indireto: calculo.custos.custo_indireto,
           });
-          
+
           return {
             ...produto,
             itens: itensComCustosRecalculados,
@@ -369,13 +405,16 @@ export class ProdutosService {
             valor_calculado: calculo.custos.preco_final,
           };
         } catch (error) {
-          console.error(`Erro ao calcular valor do produto ${produto.id}:`, error);
+          console.error(
+            `Erro ao calcular valor do produto ${produto.id}:`,
+            error,
+          );
           return {
             ...produto,
             valor_calculado: 0,
           };
         }
-      })
+      }),
     );
 
     return produtosComValor;
@@ -436,7 +475,10 @@ export class ProdutosService {
     }
 
     // Se o nome foi alterado, verificar se já existe outro produto com o mesmo nome
-    if (updateProdutoDto.nome && updateProdutoDto.nome !== produtoExistente.nome) {
+    if (
+      updateProdutoDto.nome &&
+      updateProdutoDto.nome !== produtoExistente.nome
+    ) {
       const produtoComMesmoNome = await this.prisma.templateProduto.findFirst({
         where: {
           nome: updateProdutoDto.nome,
@@ -446,7 +488,9 @@ export class ProdutosService {
       });
 
       if (produtoComMesmoNome) {
-        throw new BadRequestException(`Já existe um produto com o nome "${updateProdutoDto.nome}" nesta loja.`);
+        throw new BadRequestException(
+          `Já existe um produto com o nome "${updateProdutoDto.nome}" nesta loja.`,
+        );
       }
     }
 
@@ -481,7 +525,7 @@ export class ProdutosService {
         // Criar novos itens
         if (updateProdutoDto.itens.length > 0) {
           await prisma.itemTemplateProduto.createMany({
-            data: updateProdutoDto.itens.map(item => ({
+            data: updateProdutoDto.itens.map((item) => ({
               template_id: id,
               insumo_id: item.insumo_id,
               quantidade: item.quantidade,
@@ -502,7 +546,7 @@ export class ProdutosService {
         // Criar novas máquinas
         if (updateProdutoDto.maquinas.length > 0) {
           await prisma.maquinaTemplateProduto.createMany({
-            data: updateProdutoDto.maquinas.map(maquina => ({
+            data: updateProdutoDto.maquinas.map((maquina) => ({
               template_id: id,
               maquina_id: maquina.maquina_id,
               horas_utilizadas: maquina.horas_utilizadas,
@@ -522,7 +566,7 @@ export class ProdutosService {
         // Criar novas funções
         if (updateProdutoDto.funcoes.length > 0) {
           await prisma.funcaoTemplateProduto.createMany({
-            data: updateProdutoDto.funcoes.map(funcao => ({
+            data: updateProdutoDto.funcoes.map((funcao) => ({
               template_id: id,
               funcao_id: funcao.funcao_id,
               horas_trabalhadas: funcao.horas_trabalhadas,
@@ -563,7 +607,10 @@ export class ProdutosService {
   }
 
   // REUTILIZA o motor de cálculo existente
-  async calcularProduto(calcularProdutoDto: CalcularProdutoDto, lojaId: string) {
+  async calcularProduto(
+    calcularProdutoDto: CalcularProdutoDto,
+    lojaId: string,
+  ) {
     // Converter para o formato esperado pelo motor de cálculo
     const dtoParaOrcamento = {
       nome_servico: calcularProdutoDto.nome_servico,
@@ -595,18 +642,18 @@ export class ProdutosService {
       area_produto: produto.area_produto,
       unidade_medida_produto: produto.unidade_medida_produto,
       quantidade_produto: produto.quantidade_padrao,
-      itens: produto.itens.map(item => ({
+      itens: produto.itens.map((item) => ({
         insumo_id: item.insumo_id,
         quantidade: item.quantidade,
       })),
-      maquinas: produto.maquinas.map(maquina => ({
+      maquinas: produto.maquinas.map((maquina) => ({
         maquina_id: maquina.maquina_id,
         horas_utilizadas: maquina.horas_utilizadas,
       })),
-      funcoes: produto.funcoes.map(funcao => ({
+      funcoes: produto.funcoes.map((funcao) => ({
         funcao_id: funcao.funcao_id,
         horas_trabalhadas: funcao.horas_trabalhadas,
       })),
     };
   }
-} 
+}

@@ -25,9 +25,9 @@ export class ClientesService {
 
   async findOne(id: string, lojaId: string) {
     const cliente = await this.prisma.cliente.findFirst({
-      where: { 
+      where: {
         id,
-        loja_id: lojaId 
+        loja_id: lojaId,
       },
     });
 

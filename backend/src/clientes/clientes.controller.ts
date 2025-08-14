@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Put,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ClientesService } from './clientes.service';
 import { CreateClienteDto } from './dto/create-cliente.dto';
 import { UpdateClienteDto } from './dto/update-cliente.dto';
@@ -11,7 +21,10 @@ export class ClientesController {
   constructor(private readonly clientesService: ClientesService) {}
 
   @Post()
-  create(@Body() createClienteDto: CreateClienteDto, @CurrentLojaId() lojaId: string) {
+  create(
+    @Body() createClienteDto: CreateClienteDto,
+    @CurrentLojaId() lojaId: string,
+  ) {
     return this.clientesService.create(createClienteDto, lojaId);
   }
 
@@ -31,7 +44,11 @@ export class ClientesController {
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateClienteDto: UpdateClienteDto, @CurrentLojaId() lojaId: string) {
+  update(
+    @Param('id') id: string,
+    @Body() updateClienteDto: UpdateClienteDto,
+    @CurrentLojaId() lojaId: string,
+  ) {
     return this.clientesService.update(id, updateClienteDto, lojaId);
   }
 

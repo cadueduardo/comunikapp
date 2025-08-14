@@ -3,6 +3,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI } from '@/lib/api';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 
 // Adicionando um tipo básico para Loja para evitar erros
 // O ideal seria compartilhar tipos com o backend
@@ -51,6 +55,11 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const [reauthOpen, setReauthOpen] = useState(false);
+  const [reauthLoading, setReauthLoading] = useState(false);
+  const [reauthError, setReauthError] = useState<string | null>(null);
+  const [reauthEmail, setReauthEmail] = useState('');
+  const [reauthPassword, setReauthPassword] = useState('');
 
   const fetchUserData = useCallback(async () => {
     setLoading(true);
@@ -65,6 +74,20 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       
       const userData = await authAPI.getCurrentUser();
       setUser(userData);
+
+      // Persistir dados necessários para headers de tenant/roles no frontend
+      if (typeof window !== 'undefined') {
+        try {
+          if (userData?.loja?.id || userData?.loja_id) {
+            localStorage.setItem('loja_id', String(userData.loja?.id || userData.loja_id));
+          }
+          if (userData?.funcao) {
+            // mapear função para role primária, mantendo consistência com middleware
+            // aqui persistimos apenas a função como role única por enquanto
+            localStorage.setItem('user_roles', userData.funcao);
+          }
+        } catch {}
+      }
     } catch (error) {
       console.error('❌ UserContext: Erro ao buscar dados do usuário:', error);
       
@@ -102,6 +125,24 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     router.push('/login');
   }, [router]);
 
+  const handleReauthenticate = useCallback(async () => {
+    setReauthLoading(true);
+    setReauthError(null);
+    try {
+      const responseData = await authAPI.login(reauthEmail, reauthPassword);
+      const { access_token } = responseData;
+      localStorage.setItem('access_token', access_token);
+      setReauthOpen(false);
+      setReauthEmail('');
+      setReauthPassword('');
+      await fetchUserData();
+    } catch (err: any) {
+      setReauthError(err?.message || 'Falha ao reautenticar');
+    } finally {
+      setReauthLoading(false);
+    }
+  }, [reauthEmail, reauthPassword, fetchUserData]);
+
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     if (token) {
@@ -112,6 +153,20 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [fetchUserData]);
 
+  useEffect(() => {
+    function onSessionExpired() {
+      setReauthOpen(true);
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('session-expired', onSessionExpired as unknown as EventListener);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('session-expired', onSessionExpired as unknown as EventListener);
+      }
+    };
+  }, []);
+
   const getFirstName = () => {
     if (!user) return 'Usuário';
     return user.nome_completo.split(' ')[0];
@@ -120,6 +175,37 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <UserContext.Provider value={{ user, loading, refetchUser, logout, getFirstName, login }}>
       {children}
+      <Dialog open={reauthOpen} onOpenChange={setReauthOpen}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Sessão expirada</DialogTitle>
+            <DialogDescription>
+              Sua sessão ficou inativa. Faça login novamente para continuar de onde parou.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="reauth-email">Email</Label>
+              <Input id="reauth-email" type="email" value={reauthEmail} onChange={(e) => setReauthEmail(e.target.value)} disabled={reauthLoading} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="reauth-password">Senha</Label>
+              <Input id="reauth-password" type="password" value={reauthPassword} onChange={(e) => setReauthPassword(e.target.value)} disabled={reauthLoading} />
+            </div>
+            {reauthError && (
+              <p className="text-sm text-red-600">{reauthError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReauthOpen(false)} disabled={reauthLoading}>
+              Cancelar
+            </Button>
+            <Button onClick={handleReauthenticate} disabled={reauthLoading || !reauthEmail || !reauthPassword}>
+              {reauthLoading ? 'Entrando…' : 'Entrar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </UserContext.Provider>
   );
 }; 

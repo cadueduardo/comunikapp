@@ -20,4 +20,4 @@ import { PrismaModule } from '../prisma/prisma.module';
   providers: [WebsocketsGateway, WebsocketsService],
   exports: [WebsocketsService],
 })
-export class WebsocketsModule {} 
+export class WebsocketsModule {}

@@ -42,6 +42,19 @@ lerna-debug.log*
 .env.production.local
 .env.local
 
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Temporary exclude inventory module
+src/inventory/
+
 # temp directory
 .temp
 .tmp

@@ -13,4 +13,4 @@ export class CreateCustoIndiretoDto {
   @IsOptional()
   @IsString()
   descricao?: string; // Será mapeado para observacoes no serviço
-} 
+}

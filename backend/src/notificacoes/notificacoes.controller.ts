@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Param,
-  UseGuards,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Post, Param, UseGuards, Query } from '@nestjs/common';
 import { NotificacoesService } from './notificacoes.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentLojaId } from '../auth/decorators';
@@ -18,7 +11,7 @@ export class NotificacoesController {
   @Get()
   async buscarNotificacoes(
     @CurrentLojaId() lojaId: string,
-    @Query('limit') limit?: string
+    @Query('limit') limit?: string,
   ) {
     const limitNumber = limit ? parseInt(limit) : 50;
     return this.notificacoesService.buscarNotificacoes(lojaId, limitNumber);
@@ -38,7 +31,7 @@ export class NotificacoesController {
   @Post(':id/visualizar')
   async marcarComoVisualizada(
     @Param('id') id: string,
-    @CurrentLojaId() lojaId: string
+    @CurrentLojaId() lojaId: string,
   ) {
     await this.notificacoesService.marcarComoVisualizada(id, lojaId);
     return { message: 'Notificação marcada como visualizada' };
@@ -47,15 +40,17 @@ export class NotificacoesController {
   @Post('visualizar-todas')
   async marcarTodasComoVisualizadas(@CurrentLojaId() lojaId: string) {
     await this.notificacoesService.marcarTodasComoVisualizadas(lojaId);
-    return { message: 'Todas as notificações foram marcadas como visualizadas' };
+    return {
+      message: 'Todas as notificações foram marcadas como visualizadas',
+    };
   }
 
   @Post(':id/deletar')
   async deletarNotificacao(
     @Param('id') id: string,
-    @CurrentLojaId() lojaId: string
+    @CurrentLojaId() lojaId: string,
   ) {
     await this.notificacoesService.deletarNotificacao(id, lojaId);
     return { message: 'Notificação deletada com sucesso' };
   }
-} 
+}

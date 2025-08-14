@@ -8,17 +8,33 @@ const getAuthToken = () => {
   return null;
 };
 
+// Headers de tenant/roles a partir do localStorage (preenchidos pelo UserContext)
+const getTenantHeaders = () => {
+  if (typeof window === 'undefined') return {} as Record<string, string>;
+  const lojaId = localStorage.getItem('loja_id');
+  const roles = localStorage.getItem('user_roles');
+  const headers: Record<string, string> = {};
+  if (lojaId) headers['x-loja-id'] = lojaId;
+  if (roles) headers['x-user-roles'] = roles;
+  return headers;
+};
+
 // Função para fazer requisições com autenticação automática
 export const apiRequest = async (
   endpoint: string,
   options: RequestInit = {}
 ): Promise<Response> => {
   const token = getAuthToken();
+  const isEstoqueEndpoint = endpoint.startsWith('/api/estoque/');
   
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
+
+  if (isEstoqueEndpoint) {
+    Object.assign(headers, getTenantHeaders());
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -30,11 +46,20 @@ export const apiRequest = async (
       headers,
     });
 
-    // Se receber 401, limpar o token e redirecionar para login
+    // Em 401, acionar modal de reautenticação (sem redirecionar)
     if (response.status === 401) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('access_token');
-        window.location.href = '/login';
+        try {
+          const event = new CustomEvent('session-expired', {
+            detail: {
+              endpoint,
+              status: response.status,
+            },
+          });
+          window.dispatchEvent(event);
+        } catch (e) {
+          console.warn('Falha ao disparar evento de sessão expirada:', e);
+        }
       }
     }
 

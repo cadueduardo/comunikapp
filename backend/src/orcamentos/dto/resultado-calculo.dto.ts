@@ -12,7 +12,7 @@ export class DetalhamentoCustoDto {
   custo_material: number;
   custo_mao_obra: number;
   custo_maquinaria: number;
-  
+
   // Custos Indiretos
   custo_indireto: number;
   custos_indiretos_detalhados: Array<{
@@ -21,7 +21,7 @@ export class DetalhamentoCustoDto {
     valor_rateado: number;
     percentual_rateio: number;
   }>;
-  
+
   // Totais
   custo_total_producao: number;
   margem_lucro_percentual: number;
@@ -36,10 +36,10 @@ export class ResultadoCalculoDto {
   nome_servico: string;
   descricao?: string;
   horas_producao: number;
-  
+
   // Detalhamento dos materiais
   itens: ItemOrcamentoCalculadoDto[];
-  
+
   // Detalhamento das máquinas
   maquinas: Array<{
     maquina_id: string;
@@ -49,7 +49,7 @@ export class ResultadoCalculoDto {
     custo_por_hora: number;
     custo_total: number;
   }>;
-  
+
   // Detalhamento das funções
   funcoes: Array<{
     funcao_id: string;
@@ -59,10 +59,10 @@ export class ResultadoCalculoDto {
     custo_total: number;
     maquina_vinculada?: string;
   }>;
-  
+
   // Detalhamento dos custos
   custos: DetalhamentoCustoDto;
-  
+
   // Parâmetros utilizados no cálculo
   parametros: {
     custo_maquinaria_por_hora: number;
@@ -71,4 +71,4 @@ export class ResultadoCalculoDto {
     impostos_percentual: number;
     total_horas_produtivas_mes: number;
   };
-} 
+}

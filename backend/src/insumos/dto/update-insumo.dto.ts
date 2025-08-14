@@ -6,4 +6,4 @@ export class UpdateInsumoDto extends PartialType(CreateInsumoDto) {
   @IsOptional()
   @IsString()
   motivo_alteracao_preco?: string;
-} 
+}

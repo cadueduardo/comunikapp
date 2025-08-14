@@ -42,7 +42,9 @@ export class WebsocketsGateway
     this.logger.log(`Cliente conectado: ${client.id}`);
 
     // Extrair token do handshake
-    const token = client.handshake.auth.token || client.handshake.headers.authorization?.replace('Bearer ', '');
+    const token =
+      client.handshake.auth.token ||
+      client.handshake.headers.authorization?.replace('Bearer ', '');
 
     if (token) {
       try {
@@ -61,7 +63,9 @@ export class WebsocketsGateway
           await client.join(`loja_${user.loja_id}`);
           await client.join(`user_${user.id}`);
 
-          this.logger.log(`Usuário autenticado conectado: ${user.email} (Loja: ${user.loja_id})`);
+          this.logger.log(
+            `Usuário autenticado conectado: ${user.email} (Loja: ${user.loja_id})`,
+          );
         }
       } catch (error) {
         this.logger.warn(`Token inválido para cliente ${client.id}`);
@@ -99,7 +103,9 @@ export class WebsocketsGateway
       await client.join(`orcamento_${orcamentoId}`);
       client.data.orcamentoId = orcamentoId;
 
-      this.logger.log(`Cliente ${client.id} entrou na sala do orçamento ${orcamentoId}`);
+      this.logger.log(
+        `Cliente ${client.id} entrou na sala do orçamento ${orcamentoId}`,
+      );
 
       // Notificar outros clientes
       client.to(`orcamento_${orcamentoId}`).emit('user_joined', {
@@ -117,7 +123,9 @@ export class WebsocketsGateway
     await client.leave(`orcamento_${orcamentoId}`);
     delete client.data.orcamentoId;
 
-    this.logger.log(`Cliente ${client.id} saiu da sala do orçamento ${orcamentoId}`);
+    this.logger.log(
+      `Cliente ${client.id} saiu da sala do orçamento ${orcamentoId}`,
+    );
 
     // Notificar outros clientes
     client.to(`orcamento_${orcamentoId}`).emit('user_left', {
@@ -127,7 +135,10 @@ export class WebsocketsGateway
   }
 
   @SubscribeMessage('typing')
-  async handleTyping(client: Socket, data: { orcamentoId: string; isTyping: boolean }) {
+  async handleTyping(
+    client: Socket,
+    data: { orcamentoId: string; isTyping: boolean },
+  ) {
     client.to(`orcamento_${data.orcamentoId}`).emit('user_typing', {
       clientId: client.id,
       isTyping: data.isTyping,
@@ -136,7 +147,10 @@ export class WebsocketsGateway
   }
 
   @SubscribeMessage('message_read')
-  async handleMessageRead(client: Socket, data: { orcamentoId: string; messageId: string }) {
+  async handleMessageRead(
+    client: Socket,
+    data: { orcamentoId: string; messageId: string },
+  ) {
     client.to(`orcamento_${data.orcamentoId}`).emit('message_read', {
       messageId: data.messageId,
       readBy: client.id,
@@ -148,4 +162,4 @@ export class WebsocketsGateway
   handlePing(client: Socket) {
     client.emit('pong', { timestamp: new Date().toISOString() });
   }
-} 
+}

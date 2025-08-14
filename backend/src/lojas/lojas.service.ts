@@ -261,10 +261,16 @@ export class LojasService {
   ): Promise<Loja> {
     // Converter strings vazias para null e strings numéricas para números
     const data: any = { ...updateConfiguracoesLojaDto };
-    
+
     // Converter campos numéricos
-    const numericFields = ['custo_maquinaria_hora', 'custos_indiretos_mensais', 'margem_lucro_padrao', 'impostos_padrao', 'horas_produtivas_mensais'];
-    
+    const numericFields = [
+      'custo_maquinaria_hora',
+      'custos_indiretos_mensais',
+      'margem_lucro_padrao',
+      'impostos_padrao',
+      'horas_produtivas_mensais',
+    ];
+
     for (const field of numericFields) {
       if (data[field] !== undefined) {
         if (data[field] === '' || data[field] === null) {
@@ -279,7 +285,7 @@ export class LojasService {
         }
       }
     }
-    
+
     return this.prisma.loja.update({
       where: { id: lojaId },
       data,
@@ -309,6 +315,4 @@ export class LojasService {
       data: { logo_url: logo_url },
     });
   }
-
-
 }

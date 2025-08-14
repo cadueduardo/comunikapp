@@ -41,7 +41,9 @@ export class WebsocketsService {
    */
   async getOrcamentoClientsCount(orcamentoId: string): Promise<number> {
     if (this.server) {
-      const room = this.server.sockets.adapter.rooms.get(`orcamento_${orcamentoId}`);
+      const room = this.server.sockets.adapter.rooms.get(
+        `orcamento_${orcamentoId}`,
+      );
       return room ? room.size : 0;
     }
     return 0;
@@ -57,4 +59,4 @@ export class WebsocketsService {
     }
     return 0;
   }
-} 
+}

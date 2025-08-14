@@ -1,4 +1,16 @@
-import { Controller, Post, Body, Get, Param, Patch, Delete, UseGuards, Res, Request, NotFoundException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  Patch,
+  Delete,
+  UseGuards,
+  Res,
+  Request,
+  NotFoundException,
+} from '@nestjs/common';
 import { Response } from 'express';
 import { OrcamentosService } from './orcamentos.service';
 import { CalcularOrcamentoDto } from './dto/calcular-orcamento.dto';
@@ -24,25 +36,30 @@ export class OrcamentosController {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Headers': 'Cache-Control',
     });
 
     // Enviar heartbeat a cada 30 segundos
     const heartbeat = setInterval(() => {
-      res.write(`data: ${JSON.stringify({ type: 'heartbeat', timestamp: new Date().toISOString() })}\n\n`);
+      res.write(
+        `data: ${JSON.stringify({ type: 'heartbeat', timestamp: new Date().toISOString() })}\n\n`,
+      );
     }, 30000);
 
     // Verificar novas mensagens a cada 5 segundos (reduzido para evitar sobrecarga)
     const checkMessages = setInterval(async () => {
       try {
-        const mensagens = await this.orcamentosService.getMensagensNaoVisualizadas(id);
+        const mensagens =
+          await this.orcamentosService.getMensagensNaoVisualizadas(id);
         if (mensagens.length > 0) {
-          res.write(`data: ${JSON.stringify({ 
-            type: 'new_messages', 
-            count: mensagens.length
-          })}\n\n`);
+          res.write(
+            `data: ${JSON.stringify({
+              type: 'new_messages',
+              count: mensagens.length,
+            })}\n\n`,
+          );
         }
       } catch (error) {
         console.error('Erro ao verificar mensagens:', error);
@@ -63,7 +80,7 @@ export class OrcamentosController {
   @Post('calcular')
   async calcularOrcamento(
     @Body() dto: CalcularOrcamentoDto,
-    @CurrentLojaId() lojaId: string
+    @CurrentLojaId() lojaId: string,
   ): Promise<ResultadoCalculoDto> {
     return this.orcamentosService.calcularOrcamento(dto, lojaId);
   }
@@ -78,26 +95,32 @@ export class OrcamentosController {
   async create(@Body() createOrcamentoDto: CreateOrcamentoDto, @Request() req) {
     console.log('💼 Criando novo orçamento...');
     // Processando dados do orçamento...
-    
-    const result = await this.orcamentosService.create(createOrcamentoDto, req.user.loja_id);
-    
+
+    const result = await this.orcamentosService.create(
+      createOrcamentoDto,
+      req.user.loja_id,
+    );
+
     console.log('✅ Orçamento criado com sucesso!');
-    
+
     return result;
   }
 
   @Post('rascunho')
   @UseGuards(JwtAuthGuard)
-  async salvarRascunho(@Body() createOrcamentoDto: CreateOrcamentoDto, @Request() req) {
-    return this.orcamentosService.salvarRascunho(createOrcamentoDto, req.user.loja_id);
+  async salvarRascunho(
+    @Body() createOrcamentoDto: CreateOrcamentoDto,
+    @Request() req,
+  ) {
+    return this.orcamentosService.salvarRascunho(
+      createOrcamentoDto,
+      req.user.loja_id,
+    );
   }
 
   @Post(':id/enviar')
   @UseGuards(JwtAuthGuard)
-  async enviarOrcamento(
-    @Param('id') id: string,
-    @Request() req
-  ) {
+  async enviarOrcamento(@Param('id') id: string, @Request() req) {
     return this.orcamentosService.enviarOrcamento(id, req.user.loja_id);
   }
 
@@ -112,20 +135,21 @@ export class OrcamentosController {
   @Post('reenviar-codigo/:id')
   @Public()
   async reenviarCodigoAprovacao(@Param('id') id: string) {
-    console.log('📧 Controller - Reenviando código de aprovação para orçamento:', id);
+    console.log(
+      '📧 Controller - Reenviando código de aprovação para orçamento:',
+      id,
+    );
     return this.orcamentosService.reenviarCodigoAprovacao(id);
   }
-
-
 
   @Get()
   async findAll(@CurrentLojaId() lojaId: string) {
     const orcamentos = await this.orcamentosService.findAll(lojaId);
-    
+
     console.log(`📋 ${orcamentos.length} orçamentos encontrados`);
-    
+
     // Converter valores Decimal para number de forma mais robusta
-    const orcamentosConvertidos = orcamentos.map(orcamento => {
+    const orcamentosConvertidos = orcamentos.map((orcamento) => {
       // Função auxiliar para converter Decimal de forma segura
       const convertDecimal = (value: any): number => {
         if (value === null || value === undefined) return 0;
@@ -139,10 +163,10 @@ export class OrcamentosController {
         const converted = Number(value);
         return isNaN(converted) ? 0 : converted;
       };
-      
+
       const precoFinalConvertido = convertDecimal(orcamento.preco_final);
       const custoTotalConvertido = convertDecimal(orcamento.custo_total);
-      
+
       return {
         ...orcamento,
         preco_final: precoFinalConvertido,
@@ -152,12 +176,14 @@ export class OrcamentosController {
         custo_total: custoTotalConvertido,
         margem_lucro: convertDecimal(orcamento.margem_lucro),
         impostos: convertDecimal(orcamento.impostos),
-        quantidade_produto: orcamento.quantidade_produto ? convertDecimal(orcamento.quantidade_produto) : null,
+        quantidade_produto: orcamento.quantidade_produto
+          ? convertDecimal(orcamento.quantidade_produto)
+          : null,
       };
     });
-    
+
     // Debug removido - logs limpos para melhor visualização
-    
+
     return orcamentosConvertidos;
   }
 
@@ -166,37 +192,31 @@ export class OrcamentosController {
     return {
       loja_id: lojaId,
       token_valido: !!lojaId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
   @Get('test/:id')
-  async testFindOne(
-    @Param('id') id: string,
-    @CurrentLojaId() lojaId: string
-  ) {
+  async testFindOne(@Param('id') id: string, @CurrentLojaId() lojaId: string) {
     // Usar o service para buscar
     try {
       const orcamento = await this.orcamentosService.findOne(id, lojaId);
       return {
         orcamento_encontrado: true,
         loja_usuario: lojaId,
-        orcamento: orcamento
+        orcamento: orcamento,
       };
     } catch (error) {
       return {
         orcamento_encontrado: false,
         loja_usuario: lojaId,
-        erro: error.message
+        erro: error.message,
       };
     }
   }
 
   @Get(':id')
-  async findOne(
-    @Param('id') id: string,
-    @CurrentLojaId() lojaId: string
-  ) {
+  async findOne(@Param('id') id: string, @CurrentLojaId() lojaId: string) {
     return this.orcamentosService.findOne(id, lojaId);
   }
 
@@ -204,16 +224,13 @@ export class OrcamentosController {
   async update(
     @Param('id') id: string,
     @Body() updateOrcamentoDto: UpdateOrcamentoDto,
-    @CurrentLojaId() lojaId: string
+    @CurrentLojaId() lojaId: string,
   ) {
     return this.orcamentosService.update(id, updateOrcamentoDto, lojaId);
   }
 
   @Delete(':id')
-  async remove(
-    @Param('id') id: string,
-    @CurrentLojaId() lojaId: string
-  ) {
+  async remove(@Param('id') id: string, @CurrentLojaId() lojaId: string) {
     return this.orcamentosService.remove(id, lojaId);
   }
 
@@ -231,12 +248,13 @@ export class OrcamentosController {
   @Public()
   async acaoClientePublico(
     @Param('id') id: string,
-    @Body() body: {
+    @Body()
+    body: {
       acao: 'APROVAR' | 'REJEITAR' | 'NEGOCIAR';
       observacoes?: string;
       cliente_nome?: string;
       cliente_email?: string;
-    }
+    },
   ) {
     return this.orcamentosService.processarAcaoCliente(id, body.acao, {
       observacoes: body.observacoes,
@@ -254,12 +272,13 @@ export class OrcamentosController {
   @UseGuards(JwtAuthGuard)
   async marcarMensagemComoVisualizada(
     @Param('orcamentoId') orcamentoId: string,
-    @Param('mensagemId') mensagemId: string
+    @Param('mensagemId') mensagemId: string,
   ) {
-    return this.orcamentosService.marcarMensagemComoVisualizada(orcamentoId, mensagemId);
+    return this.orcamentosService.marcarMensagemComoVisualizada(
+      orcamentoId,
+      mensagemId,
+    );
   }
-
-
 
   @Post('recalcular-existentes')
   @UseGuards(JwtAuthGuard)

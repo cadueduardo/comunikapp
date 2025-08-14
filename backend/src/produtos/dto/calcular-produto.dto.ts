@@ -1,4 +1,12 @@
-import { IsString, IsNumber, IsOptional, IsArray, ValidateNested, Min, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  Min,
+  MaxLength,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CalcularItemProdutoDto {
@@ -73,4 +81,4 @@ export class CalcularProdutoDto {
   @IsNumber()
   @Min(0)
   impostos_customizados?: number;
-} 
+}

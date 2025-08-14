@@ -23,11 +23,7 @@ import { UpdateLojaDto } from './dto/update-loja.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import {
-  Public,
-  CurrentUser,
-  CurrentLojaId,
-} from 'src/auth/decorators';
+import { Public, CurrentUser, CurrentLojaId } from 'src/auth/decorators';
 import { AuthenticatedUser } from 'src/auth/auth.service';
 import { UpdateConfiguracoesLojaDto } from './dto/update-configuracoes-loja.dto';
 
@@ -52,8 +48,6 @@ export class LojasController {
   verifyEmail(@Body() body: VerifyEmailDto) {
     return this.lojasService.verifyEmail(body);
   }
-
-
 
   @UseGuards(JwtAuthGuard)
   @Get('user-by-email')

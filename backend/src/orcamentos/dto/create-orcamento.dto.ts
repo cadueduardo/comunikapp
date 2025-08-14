@@ -1,4 +1,11 @@
-import { IsString, IsOptional, IsNumber, IsArray, ValidateNested, IsPositive } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsArray,
+  ValidateNested,
+  IsPositive,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateItemOrcamentoDto {
@@ -165,4 +172,4 @@ export class CreateOrcamentoDto {
   @IsOptional()
   @Type(() => Number)
   preco_final?: number;
-} 
+}
