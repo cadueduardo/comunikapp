@@ -34,6 +34,10 @@ export class UsuariosService {
       data.status = StatusConta.ATIVO;
       data.email_verificado = true;
     } else {
+      // Gerar senha temporária para satisfazer constraint NOT NULL do Prisma
+      const temp = Math.random().toString(36).slice(-12);
+      const salt = await bcrypt.genSalt();
+      data.senha = await bcrypt.hash(temp, salt);
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       const expiration = new Date();
       expiration.setMinutes(expiration.getMinutes() + 15);

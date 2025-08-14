@@ -1,99 +1,57 @@
 'use client';
 
-import { Users } from 'lucide-react';
+import { Shield, Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { CrudPage } from '@/components/crud/CrudPage';
-import { DataTable } from '@/components/crud/DataTable';
-import { usuarioColumns, UsuarioRow } from './columns';
-import { useEffect, useMemo, useState } from 'react';
-import { apiRequest } from '@/lib/api';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { RefreshCw, Plus } from 'lucide-react';
-import { UsuarioFormDialog } from './UsuarioFormDialog';
-import { PerfilAccessList } from './PerfilAccessList';
+import Link from 'next/link';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 export default function UsuariosPage() {
-  const [data, setData] = useState<UsuarioRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
-  const [openDialog, setOpenDialog] = useState(false);
-
-  const fetchUsuarios = async () => {
-    setLoading(true);
-    try {
-      const res = await apiRequest('/usuarios');
-      if (res.ok) {
-        const json = await res.json();
-        const rows: UsuarioRow[] = (json || []).map((u: any) => ({
-          id: u.id,
-          nome_completo: u.nome_completo,
-          email: u.email,
-          funcao: u.funcao,
-          status: u.status,
-        }));
-        setData(rows);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsuarios();
-  }, []);
-
-  const filtered = useMemo(() => {
-    const s = search.toLowerCase();
-    return data.filter(
-      (u) =>
-        u.nome_completo.toLowerCase().includes(s) ||
-        u.email.toLowerCase().includes(s) ||
-        (u.funcao || '').toLowerCase().includes(s) ||
-        (u.status || '').toLowerCase().includes(s),
-    );
-  }, [data, search]);
-
   return (
-    <>
     <CrudPage
       header={
         <PageHeader
           title="Usuários"
           backHref="/dashboard"
           icon={<Users className="h-8 w-8" />}
-          subtitle="Gestão de usuários"
-          actions={
-            <>
-              <Button variant="outline" onClick={fetchUsuarios} disabled={loading}>
-                <RefreshCw className="h-4 w-4 mr-2" /> Atualizar
-              </Button>
-              <Button onClick={() => setOpenDialog(true)}>
-                <Plus className="h-4 w-4 mr-2" /> Novo Usuário
-              </Button>
-            </>
-          }
+          subtitle="Escolha o recurso"
         />
       }
-      toolbar={
-        <div className="flex items-center gap-2">
-          <Input
-            placeholder="Buscar por nome, e-mail, função..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="max-w-sm"
-          />
-        </div>
-      }
       table={
-        <div className="space-y-4">
-          <PerfilAccessList />
-          <DataTable<UsuarioRow, any> columns={usuarioColumns} data={filtered} />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Link href="/usuarios/gestao">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Users className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Gestão de Usuários</CardTitle>
+                    <CardDescription className="text-sm">Gerencie usuários da sua loja.</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
+          </Link>
+          <Link href="/usuarios/perfis">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Shield className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Gestão de Perfis</CardTitle>
+                    <CardDescription className="text-sm">Configure perfis e permissões.</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
+          </Link>
         </div>
       }
     />
-    <UsuarioFormDialog open={openDialog} onOpenChange={setOpenDialog} onCreated={fetchUsuarios} />
-    </>
   );
 }
 
