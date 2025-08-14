@@ -55,6 +55,7 @@ export default function UsuariosPage() {
   }, [data, search]);
 
   return (
+    <>
     <CrudPage
       header={
         <PageHeader
@@ -90,9 +91,9 @@ export default function UsuariosPage() {
           <DataTable<UsuarioRow, any> columns={usuarioColumns} data={filtered} />
         </div>
       }
-      
     />
     <UsuarioFormDialog open={openDialog} onOpenChange={setOpenDialog} onCreated={fetchUsuarios} />
+    </>
   );
 }
 
