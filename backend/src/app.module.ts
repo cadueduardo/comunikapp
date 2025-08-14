@@ -18,6 +18,7 @@ import { WebsocketsModule } from './websockets/websockets.module';
 import { MensagensNegociacaoModule } from './mensagens-negociacao/mensagens-negociacao.module';
 import { MailModule } from './mail/mail.module';
 import { EstoqueModule } from './estoque/estoque.module';
+import { UsuariosModule } from './usuarios/usuarios.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { EstoqueModule } from './estoque/estoque.module';
     MensagensNegociacaoModule,
     MailModule,
     EstoqueModule,
+    UsuariosModule,
   ],
 })
 export class AppModule {}

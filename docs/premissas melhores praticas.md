@@ -26,6 +26,29 @@ Escalabilidade: Módulos instaláveis sob demanda (add-on); são autônomos, sem
 
 Estratégia Anti-Conflitos: Se um módulo causar problemas de import/path, SEMPRE preferir abordagem simplificada: usar PrismaService existente, dados simulados para prototipagem, services simples sem dependências complexas. Evitar reinventar arquiteturas - adaptar à estrutura existente. Quando houver conflito entre "arquitetura ideal" vs "funcionamento real", escolher sempre o funcionamento.
 
+## 🎨 UI/UX e Componentização Compartilhada
+
+- Design System interno com componentes reutilizáveis para garantir consistência visual entre módulos.
+- Diretórios sugeridos (frontend):
+  - `src/components/ui/` (base: Button, Input, Select, Badge, Dialog/ConfirmDialog, Toast, Tabs, DatePicker)
+  - `src/components/layout/` (PageHeader, ActionsBar, Sidebar abstrações)
+  - `src/components/crud/` (CrudPage, DataTable, Pagination, SearchBar, ViewSwitch, EmptyState, SkeletonList)
+- Padrão de página CRUD (usar como referência o CRUD de Transferências em Estoque):
+  - Header padronizado: botão Voltar, título com ícone, ações à direita (Atualizar/Exportar)
+  - Barra de ações: busca/filtros; alternância Tabela/Cards (desktop); cards no mobile
+  - Confirmações padrão via modal do sistema; toasts apenas para sucesso
+  - Paginação consistente, estados vazios e loading com Skeleton
+- Adoção progressiva: novos módulos devem usar os componentes padrão; módulos existentes serão migrados em PBI dedicado de “consistência visual”.
+- Acessibilidade: labels/aria, foco navegável, contraste adequado.
+
+## 🧪 Testes por Fase (DoD)
+
+- Cada fase de implementação deve incluir testes unitários com cobertura mínima de 80% no escopo alterado.
+- Requisitos de DoD por fase:
+  - OpenAPI atualizado, lints sem erros, build verde
+  - Testes unitários ≥ 80% (controllers/services/guards) e, quando aplicável, testes e2e mínimos
+  - Logs/mensagens padronizados, multi-tenant validado, sem regressões em módulos existentes
+
 ## 📏 Limites de Tamanho e Guardrails de Manutenção
 
 - Services devem ter ≤ 400 linhas; Controllers ≤ 200 linhas.

@@ -1,3 +1,117 @@
+## Novo Plano de Ação – Módulo de Usuários (planejado)
+
+Status: Planejado (nenhuma implementação em código ainda)
+
+Objetivo: Disponibilizar gestão de usuários multi-tenant por loja, com RBAC, auditoria e ativação/desativação via marketplace interno, sem alterar módulos já funcionais.
+
+Premissas (alinhadas às nossas práticas e contexto)
+- Modular, plugável, isolado por loja (multi-tenant), sem outputs customizados do Prisma; sempre usar `@prisma/client` padrão.
+- JWT por módulo; não modificar módulos funcionais existentes (auth atual permanece). Novo módulo expõe CRUD/gestão, não substitui o login existente.
+- Comunicação interna segura (`x-internal-token`), timeout e fallback; CORS/Helmet/Rate-limit alinhados ao backend.
+- Arquivos: services ≤ 400 linhas; controllers ≤ 200. OpenAPI completa. Cobertura de testes ≥ 80% por fase (obrigatória em cada fase).
+- Marketplace interno: ativação/inativação de módulos por loja impacta o acesso às APIs (feature flag por tenant).
+
+Escopo funcional (MVP → Evoluções)
+- MVP
+  - CRUD de usuários por loja (criar, listar, obter, atualizar, desativar/reativar).
+  - Perfis/roles base (ADMINISTRADOR, FINANCEIRO, PRODUCAO, VENDAS, ESTOQUE) e permissões por módulo/ação (matriz simples, compatível com o existente).
+  - Auditoria mínima (criação, atualização, desativação/reativação, reset/bloqueio).
+  - Integração com marketplace: somente lojas com módulo “usuarios” ativo acessam as rotas.
+  - Fluxo de primeira autenticação: convite por e-mail → definir senha inicial (token de uso único) → verificação por código (6 dígitos) → primeiro acesso (forçar troca se flag ativa).
+- Evoluções
+  - Permissões customizadas por usuário (refinamento por ação).
+  - Relatórios (acessos, bloqueios, primeiro acesso, tentativas).
+  - Autoatendimento: convite, primeiro acesso com troca de senha.
+  - CRUD de Perfis de Acesso (perfis customizados por loja) com grade de permissões por módulo/ação; associação de usuários a perfis.
+
+Modelagem de dados (Prisma – sem implementar agora)
+- Reusar `usuario` já existente (Prisma) e acrescentar campos não disruptivos se faltarem (ex.: `tentativas_login`, `bloqueado_ate`). Avaliar schema atual antes de propor migração.
+- Tabelas de marketplace (se ainda não existirem):
+  - `modulo` { chave: 'usuarios', nome, status }
+  - `loja_modulo` { loja_id, modulo_chave, ativo, data_ativacao, data_desativacao }
+ - Perfis de acesso (novas tabelas, se necessário):
+   - `perfil_acesso` { id, loja_id, nome, descricao?, ativo, sistema:boolean }
+   - `perfil_permissao` { id, perfil_id, modulo, acao, permitido:boolean }
+   - `usuario_perfil` { usuario_id, perfil_id }
+
+APIs previstas (NestJS – rotas protegidas)
+- Prefixo: `/usuarios` (módulo próprio) – protegido por JWT + `ModuleActivationGuard('usuarios')` + RBAC.
+- Endpoints (MVP):
+  - POST `/usuarios` (ADMINISTRADOR)
+  - GET `/usuarios` (ADMINISTRADOR)
+  - GET `/usuarios/:id` (ADMINISTRADOR)
+  - PATCH `/usuarios/:id` (ADMINISTRADOR)
+  - POST `/usuarios/:id/reset-senha` (ADMINISTRADOR)
+  - POST `/usuarios/:id/bloquear` (ADMINISTRADOR)
+  - POST `/usuarios/:id/desbloquear` (ADMINISTRADOR)
+  - GET `/usuarios/perfis` (ADMINISTRADOR)
+  - POST `/usuarios/alterar-senha` (autenticado – o próprio usuário)
+  - Fluxo de convite/primeiro acesso:
+    - POST `/usuarios/convites` (ADMINISTRADOR) – envia convite com token
+    - POST `/usuarios/convites/:token/definir-senha` (PUBLIC) – cria senha inicial
+    - POST `/usuarios/confirmar-email` (PUBLIC) – valida código 6 dígitos
+    - POST `/usuarios/reenviar-codigo` (PUBLIC) – reenvia código de verificação
+- Observações
+  - Login/JWT permanecem no módulo `auth` existente (sem alterações). O módulo “Usuários” só gerencia cadastro e permissões.
+  - Guardas: `JwtAuthGuard` + `ModuleActivationGuard('usuarios')` + `RolesGuard` (baseado nas funções existentes).
+
+Endpoints (Perfis de Acesso – fase posterior)
+- Prefixo: `/usuarios/perfis` (ADMINISTRADOR)
+  - POST `/usuarios/perfis`
+  - GET `/usuarios/perfis`
+  - GET `/usuarios/perfis/:id`
+  - PATCH `/usuarios/perfis/:id`
+  - DELETE `/usuarios/perfis/:id`
+  - GET `/usuarios/perfis/:id/permissoes`
+  - PUT `/usuarios/perfis/:id/permissoes` (substituição da matriz de permissões)
+
+Ativação/Inativação por marketplace (requisito crítico)
+- Qualquer rota do módulo “Usuários” deve verificar: `loja_modulo.ativo` para `modulo='usuarios'`.
+- Estratégia: Guard dedicado de ativação por módulo; cache leve por loja (TTL curto) para evitar consultas repetidas.
+- Painel marketplace (outro módulo) acionará ativação/inativação – fora do escopo deste plano, mas já previsto como dependência.
+
+Cronograma por Fases (com testes unitários obrigatórios em cada fase)
+- Fase 0 – Planejamento e Fundações (1–2 dias)
+  - Definir contrato OpenAPI, modelo RBAC, erros-padrão.
+  - Especificar `ModuleActivationGuard` (uso cross-módulos).
+  - Plano de migração Prisma para marketplace (se necessário).
+  - Testes: contratos (DTOs) e guard skeleton com mocks (≥ 60%).
+- Fase 1 – CRUD + RBAC Básico (3–4 dias)
+  - Controllers/DTOs/Services de usuários com validação rigorosa.
+  - RBAC inicial (perfis base); integração com funções existentes.
+  - Guard de ativação por módulo (hook em todas as rotas).
+  - Testes unit: controllers/services/guards (≥ 80%).
+- Fase 2 – Auditoria e Fluxos Operacionais (2–3 dias)
+  - Auditoria (criação, atualização, bloquear/desbloquear, reset senha).
+  - Fluxos: primeiro acesso (convite → definir senha → código 6 dígitos), reset com token interno (apenas ADMIN), bloqueio por tentativas.
+  - Testes unit: casos de erro e auditoria (≥ 80%).
+- Fase 3 – Relatórios e Perfis Customizados (2–3 dias)
+  - Listagens por status, tentativas, bloqueios.
+  - CRUD de Perfis de Acesso (perfil_acesso, perfil_permissao, usuario_perfil) e UI de grade de permissões.
+  - Permissões customizadas por usuário (opcional, atrás de feature flag).
+  - Testes unit: relatórios e RBAC custom (≥ 80%).
+
+Critérios de aceite (por fase)
+- OpenAPI atualizado; testes unitários ≥ 80%; build verde; sem outputs customizados Prisma; lints sem erros; rotas protegidas por JWT + ativação de módulo + RBAC; logs e mensagens padronizados; multi-tenant validado.
+  - Fluxo de primeiro acesso com e-mail de convite, definição de senha e verificação por código validado em testes unitários (Fase 2).
+  - Perfis de Acesso com CRUD completo e aplicação de permissões efetivas por usuário/perfil (Fase 3).
+
+Integrações
+- Com `auth`: manter JWT/guards atuais; expor somente gestão de usuários.
+- Com `funcoes`/`perfis`: mapear roles existentes; não quebrar contratos.
+- Com marketplace: checagem obrigatória por loja antes de responder às rotas do módulo.
+
+UI (planejamento)
+- Adicionar “Usuários” no menu (visível apenas se loja tiver módulo ativo). Páginas: lista, criar/editar, segurança (reset/bloqueio), perfis.
+
+Riscos e mitigação
+- Conflito com `auth`: manter escopo separado e contratos atuais.
+- RBAC granular: iniciar simples; evoluir com feature flags.
+- Marketplace indisponível: fallback a cache/flag local por loja com TTL curto.
+
+DoD (Definition of Done)
+- Fases concluídas com testes ≥ 80%, OpenAPI publicada, endpoints protegidos por `JwtAuthGuard` + `ModuleActivationGuard` + RBAC, documentação de ativação via marketplace, sem regressões nos módulos existentes.
+
 # Plano de Ação - Módulo de Usuários
 
 ## 📋 Visão Geral
