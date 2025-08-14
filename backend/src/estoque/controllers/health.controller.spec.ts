@@ -1,28 +1,23 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HealthController } from './health.controller';
-import { EstoqueSimpleService } from '../services/estoque-simple.service';
+import { PrismaService } from '../../prisma/prisma.service';
 
 describe('HealthController', () => {
   let controller: HealthController;
-  let estoqueService: EstoqueSimpleService;
+  let prisma: PrismaService;
 
-  const mockEstoqueService = {
-    healthCheck: jest.fn(),
-  };
+  const prismaMock = { $queryRawUnsafe: jest.fn().mockResolvedValue([{ ok: 1 }]) } as any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [HealthController],
       providers: [
-        {
-          provide: EstoqueSimpleService,
-          useValue: mockEstoqueService,
-        },
+        { provide: PrismaService, useValue: prismaMock },
       ],
     }).compile();
 
     controller = module.get<HealthController>(HealthController);
-    estoqueService = module.get<EstoqueSimpleService>(EstoqueSimpleService);
+    prisma = module.get<PrismaService>(PrismaService);
   });
 
   afterEach(() => {
@@ -35,27 +30,18 @@ describe('HealthController', () => {
 
   describe('dbCheck', () => {
     it('should return health status successfully', async () => {
-      const expectedResult = {
-        status: 'ok',
-        timestamp: new Date(),
-        module: 'estoque',
-        version: '1.0.0',
-        uptime: 3600,
-      };
-
-      mockEstoqueService.healthCheck.mockResolvedValue(expectedResult);
-
       const result = await controller.dbCheck();
 
       expect(result).toHaveProperty('status');
       expect(result).toHaveProperty('timestamp');
       expect(result).toHaveProperty('module');
-      expect(result).toHaveProperty('uptime');
-      expect(mockEstoqueService.healthCheck).toHaveBeenCalled();
+      expect(result).toHaveProperty('version');
+      expect(result).toHaveProperty('database', 'connected');
+      expect(result).toHaveProperty('db');
     });
 
     it('should handle service errors gracefully', async () => {
-      mockEstoqueService.healthCheck.mockRejectedValue(
+      (prisma.$queryRawUnsafe as any as jest.Mock).mockRejectedValueOnce(
         new Error('Service error'),
       );
 

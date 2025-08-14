@@ -74,6 +74,20 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       
       const userData = await authAPI.getCurrentUser();
       setUser(userData);
+
+      // Persistir dados necessários para headers de tenant/roles no frontend
+      if (typeof window !== 'undefined') {
+        try {
+          if (userData?.loja?.id || userData?.loja_id) {
+            localStorage.setItem('loja_id', String(userData.loja?.id || userData.loja_id));
+          }
+          if (userData?.funcao) {
+            // mapear função para role primária, mantendo consistência com middleware
+            // aqui persistimos apenas a função como role única por enquanto
+            localStorage.setItem('user_roles', userData.funcao);
+          }
+        } catch {}
+      }
     } catch (error) {
       console.error('❌ UserContext: Erro ao buscar dados do usuário:', error);
       

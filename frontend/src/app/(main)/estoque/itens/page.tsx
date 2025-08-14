@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatLocalizacaoDisplay } from '@/lib/utils';
+import { apiRequest } from '@/lib/api';
+import { useUser } from '@/contexts/UserContext';
 
 interface ItemEstoque {
   id: string;
@@ -31,6 +33,7 @@ interface ItemEstoque {
 }
 
 export default function ItensEstoquePage() {
+  const { user, loading: userLoading } = useUser();
   const [data, setData] = useState<ItemEstoque[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
@@ -49,10 +52,7 @@ export default function ItensEstoquePage() {
   const fetchItens = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/api/estoque/itens', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiRequest('/api/estoque/itens');
       if (response.ok) {
         const result = await response.json();
         setData(result.data || result);
@@ -69,11 +69,7 @@ export default function ItensEstoquePage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/api/estoque/itens/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiRequest(`/api/estoque/itens/${id}`, { method: 'DELETE' });
 
       if (response.ok) {
         toast.success('Item de estoque excluído com sucesso!');
@@ -119,8 +115,10 @@ export default function ItensEstoquePage() {
   );
 
   useEffect(() => {
-    fetchItens();
-  }, []);
+    if (!userLoading && user) {
+      fetchItens();
+    }
+  }, [userLoading, user]);
 
   const getEstoqueStatus = (quantidade: number, minimo: number) => {
     if (quantidade <= 0) return { status: 'SEM ESTOQUE', variant: 'destructive' as const };
@@ -423,10 +421,10 @@ export default function ItensEstoquePage() {
       {/* Dialog de Confirmação */}
       <ConfirmDialog
         open={deleteDialog.open}
-        onOpenChange={closeDeleteDialog}
         title="Excluir Item de Estoque"
         description={`Tem certeza que deseja excluir "${deleteDialog.itemNome}"? Esta ação não pode ser desfeita.`}
         onConfirm={confirmDelete}
+        onCancel={closeDeleteDialog}
       />
     </div>
   );

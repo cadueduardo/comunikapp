@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { Grid3X3, List, ArrowLeft } from 'lucide-react';
@@ -12,8 +12,7 @@ import {
   Package, 
   Plus, 
   Search, 
-  Filter,
-  Calendar,
+  
   AlertTriangle,
   CheckCircle,
   XCircle,
@@ -22,6 +21,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { apiRequest } from '@/lib/api';
+import { useUser } from '@/contexts/UserContext';
 
 interface Lote {
   id: string;
@@ -39,6 +40,7 @@ interface Lote {
 }
 
 export default function LotesPage() {
+  const { user, loading: userLoading } = useUser();
   const [lotes, setLotes] = useState<Lote[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,36 +48,35 @@ export default function LotesPage() {
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const isMobile = useIsMobile();
 
-  const fetchLotes = async () => {
+  const fetchLotes = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
       const params = new URLSearchParams();
       
       if (statusFilter) {
         params.append('status', statusFilter);
       }
-      
-      const response = await fetch(`http://localhost:3001/api/estoque/lotes?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+
+      const qs = params.toString();
+      const endpoint = `/api/estoque/lotes${qs ? `?${qs}` : ''}`;
+      const response = await apiRequest(endpoint);
 
       if (response.ok) {
         const data = await response.json();
-        const rows = (data.data || []) as any[];
+        const rows = (data.data || []) as Array<Record<string, unknown>>;
         const normalized: Lote[] = rows.map((r) => ({
-          id: r.id,
-          numeroLote: r.numeroLote ?? r.numero_lote ?? '',
-          itemNome: r.itemNome ?? r.item_nome ?? r.itemCodigo ?? '',
-          insumoNome: r.insumoNome ?? r.insumo_nome ?? '',
-          localizacaoCodigo: r.localizacaoCodigo ?? r.localizacao_codigo ?? '',
+          id: String(r.id ?? ''),
+          numeroLote: String(r.numeroLote ?? r.numero_lote ?? ''),
+          itemNome: String(r.itemNome ?? r.item_nome ?? r.itemCodigo ?? ''),
+          insumoNome: String(r.insumoNome ?? r.insumo_nome ?? ''),
+          localizacaoCodigo: String(r.localizacaoCodigo ?? r.localizacao_codigo ?? ''),
           quantidadeLote: Number(r.quantidadeLote ?? r.quantidade_lote ?? 0),
-          dataFabricacao: r.dataFabricacao ?? r.data_fabricacao ?? undefined,
-          dataValidade: r.dataValidade ?? r.data_validade ?? undefined,
-          status: r.status ?? 'ATIVO',
-          diasRestantes: r.diasRestantes ?? r.dias_restantes ?? undefined,
-          unidadeCompra: r.unidadeCompra ?? r.unidade_compra ?? '',
-          criadoEm: r.criado_em ?? r.createdAt ?? '',
+          dataFabricacao: r.dataFabricacao ? String(r.dataFabricacao) : (r.data_fabricacao ? String(r.data_fabricacao) : undefined),
+          dataValidade: r.dataValidade ? String(r.dataValidade) : (r.data_validade ? String(r.data_validade) : undefined),
+          status: String(r.status ?? 'ATIVO'),
+          diasRestantes: (r.diasRestantes ?? r.dias_restantes ?? undefined) as number | undefined,
+          unidadeCompra: String(r.unidadeCompra ?? r.unidade_compra ?? ''),
+          criadoEm: String(r.criado_em ?? r.createdAt ?? ''),
         }));
         setLotes(normalized);
       } else {
@@ -87,11 +88,13 @@ export default function LotesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
-    fetchLotes();
-  }, [statusFilter]);
+    if (!userLoading && user) {
+      fetchLotes();
+    }
+  }, [fetchLotes, userLoading, user]);
 
   const handleRefresh = async () => {
     await fetchLotes();

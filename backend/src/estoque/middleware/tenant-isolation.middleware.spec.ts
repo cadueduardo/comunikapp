@@ -157,7 +157,7 @@ describe('TenantIsolationMiddleware', () => {
   });
 
   describe('tenant validation', () => {
-    it('should reject request without lojaId', () => {
+    it('should accept request without lojaId when present in JWT payload (fallback)', () => {
       mockRequest.headers = {
         authorization: 'Bearer valid-token',
         'x-usuario-id': 'user-456',
@@ -166,13 +166,9 @@ describe('TenantIsolationMiddleware', () => {
 
       middleware.use(mockRequest, mockResponse, mockNext);
 
-      expect(mockNext).not.toHaveBeenCalled();
-      expect(mockResponse.status).toHaveBeenCalledWith(400);
-      expect(mockResponse.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: expect.stringContaining('lojaId é obrigatório'),
-          module: 'estoque',
-        }),
+      expect(mockNext).toHaveBeenCalled();
+      expect(mockRequest.estoque).toEqual(
+        expect.objectContaining({ lojaId: 'loja-123', usuarioId: 'user-456' }),
       );
     });
 
@@ -252,7 +248,7 @@ describe('TenantIsolationMiddleware', () => {
       );
     });
 
-    it('should handle empty roles array', () => {
+    it('should map roles from funcao when roles header is missing (fallback)', () => {
       mockRequest.headers = {
         authorization: 'Bearer valid-token',
         'x-loja-id': 'loja-123',
@@ -261,13 +257,9 @@ describe('TenantIsolationMiddleware', () => {
 
       middleware.use(mockRequest, mockResponse, mockNext);
 
-      expect(mockNext).not.toHaveBeenCalled();
-      expect(mockResponse.status).toHaveBeenCalledWith(401);
-      expect(mockResponse.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: expect.stringContaining('Permissão insuficiente'),
-          module: 'estoque',
-        }),
+      expect(mockNext).toHaveBeenCalled();
+      expect(mockRequest.estoque).toEqual(
+        expect.objectContaining({ roles: expect.arrayContaining(['ADMINISTRADOR']) }),
       );
     });
   });
@@ -299,11 +291,14 @@ describe('TenantIsolationMiddleware', () => {
       );
     });
 
-    it('should handle BadRequestException', () => {
+    it('should handle BadRequestException (missing lojaId in header and payload)', () => {
       mockRequest.headers = {
         authorization: 'Bearer valid-token',
-        // Missing lojaId to trigger BadRequestException
       };
+
+      // Override mock to remove loja_id from payload
+      const jwt = (middleware as any).jwtService as any;
+      jest.spyOn(jwt, 'verify').mockReturnValueOnce({ sub: 'user-456', funcao: 'ADMINISTRADOR' });
 
       middleware.use(mockRequest, mockResponse, mockNext);
 

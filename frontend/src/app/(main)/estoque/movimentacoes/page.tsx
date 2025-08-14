@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatLocalizacaoDisplay } from '@/lib/utils';
+import { apiRequest } from '@/lib/api';
+import { useUser } from '@/contexts/UserContext';
 
 interface Movimentacao {
   id: string;
@@ -32,6 +34,7 @@ interface Movimentacao {
 }
 
 export default function MovimentacoesPage() {
+  const { user, loading: userLoading } = useUser();
   const [data, setData] = useState<Movimentacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
@@ -51,10 +54,7 @@ export default function MovimentacoesPage() {
   const fetchMovimentacoes = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/api/estoque/movimentacoes', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiRequest('/api/estoque/movimentacoes');
       if (response.ok) {
         const result = await response.json();
         setData(result.data || result);
@@ -71,11 +71,7 @@ export default function MovimentacoesPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/api/estoque/movimentacoes/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiRequest(`/api/estoque/movimentacoes/${id}`, { method: 'DELETE' });
 
       if (response.ok) {
         toast.success('Movimentação excluída com sucesso!');
@@ -127,8 +123,10 @@ export default function MovimentacoesPage() {
   });
 
   useEffect(() => {
-    fetchMovimentacoes();
-  }, []);
+    if (!userLoading && user) {
+      fetchMovimentacoes();
+    }
+  }, [userLoading, user]);
 
   const getTipoInfo = (tipo: string) => {
     const tipos = {

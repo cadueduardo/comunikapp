@@ -8,17 +8,33 @@ const getAuthToken = () => {
   return null;
 };
 
+// Headers de tenant/roles a partir do localStorage (preenchidos pelo UserContext)
+const getTenantHeaders = () => {
+  if (typeof window === 'undefined') return {} as Record<string, string>;
+  const lojaId = localStorage.getItem('loja_id');
+  const roles = localStorage.getItem('user_roles');
+  const headers: Record<string, string> = {};
+  if (lojaId) headers['x-loja-id'] = lojaId;
+  if (roles) headers['x-user-roles'] = roles;
+  return headers;
+};
+
 // Função para fazer requisições com autenticação automática
 export const apiRequest = async (
   endpoint: string,
   options: RequestInit = {}
 ): Promise<Response> => {
   const token = getAuthToken();
+  const isEstoqueEndpoint = endpoint.startsWith('/api/estoque/');
   
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
+
+  if (isEstoqueEndpoint) {
+    Object.assign(headers, getTenantHeaders());
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;

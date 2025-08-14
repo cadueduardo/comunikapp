@@ -13,10 +13,14 @@ import {
 } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module';
-import { EstoqueSimpleService } from './services/estoque-simple.service';
 import { SobrasService } from './services/sobras.service';
 import { MovimentacoesService } from './services/movimentacoes.service';
+import { LotesService } from './services/lotes.service';
+import { TransferenciasService } from './services/transferencias.service';
+import { ItensEstoqueService } from './services/itens-estoque.service';
+import { LocalizacoesService } from './services/localizacoes.service';
 import { LocalizacoesController } from './controllers/localizacoes.controller';
 import { ItensController } from './controllers/itens.controller';
 import { MovimentacoesController } from './controllers/movimentacoes.controller';
@@ -27,15 +31,24 @@ import { SobrasController } from './controllers/sobras.controller';
 import { HealthController } from './controllers/health.controller';
 import { EstoqueAccessGuard } from './guards/estoque-access.guard';
 import { TenantIsolationMiddleware } from './middleware/tenant-isolation.middleware';
+import { RequestContextMiddleware } from './middleware/request-context.middleware';
+import { DashboardEstoqueService } from './services/dashboard-estoque.service';
+import { RelatoriosEstoqueService } from './services/relatorios-estoque.service';
 
 @Global()
 @Module({
   imports: [
     ConfigModule, // Para acessar variáveis de ambiente
     PrismaModule, // Para acessar banco de dados
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'your-secret-key',
-      signOptions: { expiresIn: '24h' },
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret:
+          process.env.NODE_ENV === 'production'
+            ? (config.get<string>('JWT_SECRET') as string)
+            : config.get<string>('JWT_SECRET') || 'your-secret-key',
+        signOptions: { expiresIn: '24h' },
+      }),
     }),
   ],
   controllers: [
@@ -49,9 +62,14 @@ import { TenantIsolationMiddleware } from './middleware/tenant-isolation.middlew
     HealthController,
   ],
   providers: [
-    EstoqueSimpleService,
     SobrasService,
     MovimentacoesService,
+    LotesService,
+    TransferenciasService,
+    ItensEstoqueService,
+    LocalizacoesService,
+    DashboardEstoqueService,
+    RelatoriosEstoqueService,
     EstoqueAccessGuard,
     {
       provide: 'ESTOQUE_MODULE_CONFIG',
@@ -70,7 +88,7 @@ import { TenantIsolationMiddleware } from './middleware/tenant-isolation.middlew
       }),
     },
   ],
-  exports: [EstoqueSimpleService, EstoqueAccessGuard, 'ESTOQUE_MODULE_CONFIG'],
+  exports: [EstoqueAccessGuard, 'ESTOQUE_MODULE_CONFIG'],
 })
 export class EstoqueModule implements NestModule {
   constructor() {
@@ -80,8 +98,8 @@ export class EstoqueModule implements NestModule {
   }
 
   configure(consumer: MiddlewareConsumer) {
-    // Aplica o middleware de isolamento de tenant para todas as rotas do módulo de estoque
-    consumer.apply(TenantIsolationMiddleware).forRoutes(
+    // Aplica um middleware de contexto (correlationId) antes do isolamento de tenant
+    consumer.apply(RequestContextMiddleware, TenantIsolationMiddleware).forRoutes(
       // Rotas com prefixo explícito 'api/estoque/*'
       { path: 'api/estoque/(.*)', method: RequestMethod.ALL },
       // Rotas sem prefixo global (ex.: 'estoque/sobras')

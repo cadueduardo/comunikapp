@@ -15,6 +15,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiRequest } from '@/lib/api';
+import { useUser } from '@/contexts/UserContext';
 
 interface RelatorioBaixo {
   id: string;
@@ -49,6 +51,7 @@ interface RelatorioOcupacao {
 }
 
 export default function RelatoriosPage() {
+  const { user, loading: userLoading } = useUser();
   const [relatorioBaixo, setRelatorioBaixo] = useState<RelatorioBaixo[]>([]);
   const [relatorioVencimento, setRelatorioVencimento] = useState<RelatorioVencimento[]>([]);
   const [relatorioOcupacao, setRelatorioOcupacao] = useState<RelatorioOcupacao[]>([]);
@@ -58,22 +61,9 @@ export default function RelatoriosPage() {
   const fetchRelatorios = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
-      
-      // Buscar relatório de estoque baixo
-      const responseBaixo = await fetch('http://localhost:3001/api/estoque/relatorios/baixo', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      
-      // Buscar relatório de vencimento
-      const responseVencimento = await fetch('http://localhost:3001/api/estoque/relatorios/vencimento', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      
-      // Buscar relatório de ocupação
-      const responseOcupacao = await fetch('http://localhost:3001/api/estoque/relatorios/ocupacao', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const responseBaixo = await apiRequest('/api/estoque/relatorios/baixo');
+      const responseVencimento = await apiRequest('/api/estoque/relatorios/vencimento');
+      const responseOcupacao = await apiRequest('/api/estoque/relatorios/ocupacao');
 
       if (responseBaixo.ok) {
         const dataBaixo = await responseBaixo.json();
@@ -99,8 +89,10 @@ export default function RelatoriosPage() {
   };
 
   useEffect(() => {
-    fetchRelatorios();
-  }, []);
+    if (!userLoading && user) {
+      fetchRelatorios();
+    }
+  }, [userLoading, user]);
 
   const handleRefresh = async () => {
     await fetchRelatorios();

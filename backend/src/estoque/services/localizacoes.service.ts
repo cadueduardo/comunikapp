@@ -1,5 +1,5 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
-import { EstoqueSimpleService, IEstoqueContext } from './estoque-simple.service';
+import { IEstoqueContext } from '../types/estoque-context';
 import { PrismaService } from '../../prisma/prisma.service';
 import { detectTableName, getExistingColumns } from '../utils/estoque-sql.util';
 
@@ -8,7 +8,6 @@ export class LocalizacoesService {
   private readonly logger = new Logger(LocalizacoesService.name);
 
   constructor(
-    private readonly estoqueService: EstoqueSimpleService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -92,7 +91,43 @@ export class LocalizacoesService {
   async buscarLocalizacaoPorId(context: IEstoqueContext, id: string) {
     if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
     this.logger.debug(`📍 [LocalizacoesService] buscarLocalizacaoPorId id=${id} loja=${context.lojaId}`);
-    return this.estoqueService.buscarLocalizacaoPorId(context, id);
+    const tableName = (await detectTableName(this.prisma, ['localizacoes'])) || 'localizacoes';
+    const rows: any[] = await this.prisma.$queryRawUnsafe(
+      `SELECT 
+         id,
+         loja_id,
+         codigo,
+         deposito,
+         corredor,
+         prateleira,
+         nivel,
+         posicao,
+         descricao,
+         capacidade,
+         ativo,
+         COALESCE(createdAt, criado_em) AS createdAt,
+         COALESCE(updatedAt, atualizado_em) AS updatedAt
+       FROM ${tableName} WHERE id = ? AND loja_id = ? LIMIT 1`,
+      id,
+      context.lojaId,
+    );
+    if (!rows?.length) throw new BadRequestException('Localização não encontrada');
+    const r = rows[0];
+    return {
+      id: r.id,
+      lojaId: r.loja_id,
+      codigo: r.codigo,
+      deposito: r.deposito,
+      corredor: r.corredor,
+      prateleira: r.prateleira,
+      nivel: r.nivel,
+      posicao: r.posicao,
+      descricao: r.descricao,
+      capacidade: r.capacidade,
+      ativo: r.ativo === 1 || r.ativo === true,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    } as any;
   }
 
   async atualizarLocalizacao(context: IEstoqueContext, id: string, data: any) {

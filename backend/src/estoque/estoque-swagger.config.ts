@@ -1,5 +1,13 @@
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { INestApplication } from '@nestjs/common';
+import { LocalizacoesController } from './controllers/localizacoes.controller';
+import { ItensController } from './controllers/itens.controller';
+import { MovimentacoesController } from './controllers/movimentacoes.controller';
+import { RelatoriosController } from './controllers/relatorios.controller';
+import { LotesController } from './controllers/lotes.controller';
+import { TransferenciasController } from './controllers/transferencias.controller';
+import { SobrasController } from './controllers/sobras.controller';
+import { HealthController } from './controllers/health.controller';
 
 export const setupEstoqueSwagger = (app: INestApplication) => {
   const config = new DocumentBuilder()
@@ -11,12 +19,21 @@ export const setupEstoqueSwagger = (app: INestApplication) => {
     .addTag('localizacoes', 'Gerenciamento de localizações de estoque')
     .addTag('itens', 'Gerenciamento de itens de estoque')
     .addTag('movimentacoes', 'Controle de movimentações de estoque')
+    .addTag('Relatórios de Estoque', 'Relatórios e métricas do estoque')
     .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config, {
     include: [
       // Incluir apenas os controllers do módulo de estoque
+      LocalizacoesController,
+      ItensController,
+      MovimentacoesController,
+      RelatoriosController,
+      LotesController,
+      TransferenciasController,
+      SobrasController,
+      HealthController,
     ],
   });
 

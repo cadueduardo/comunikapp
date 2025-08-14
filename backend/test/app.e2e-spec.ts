@@ -4,7 +4,8 @@ import * as request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 
-describe('AppController (e2e)', () => {
+// O app principal não expõe a rota '/'. Validar uma rota existente do módulo estoque com bypass controlado.
+describe('App (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
@@ -16,10 +17,12 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+  it('/api/estoque/health (GET)', async () => {
+    await request(app.getHttpServer())
+      .get('/api/estoque/health')
+      .set('x-internal-token', process.env.ESTOQUE_INTERNAL_API_TOKEN || 'test-internal-token')
+      .set('x-loja-id', 'loja-root-e2e')
+      .set('x-usuario-id', 'user-root-e2e')
+      .expect(200);
   });
 });

@@ -6,7 +6,7 @@ import {
   ApiQuery,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { EstoqueSimpleService } from '../services/estoque-simple.service';
+import { RelatoriosEstoqueService } from '../services/relatorios-estoque.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { GetLoja } from '../../auth/decorators';
 import { Loja } from '@prisma/client';
@@ -18,7 +18,7 @@ import { Loja } from '@prisma/client';
 export class RelatoriosController {
   private readonly logger = new Logger(RelatoriosController.name);
 
-  constructor(private readonly estoqueService: EstoqueSimpleService) {}
+  constructor(private readonly relatoriosService: RelatoriosEstoqueService) {}
 
   @Get('baixo')
   @ApiOperation({ summary: 'Relatório de estoque baixo' })
@@ -33,8 +33,9 @@ export class RelatoriosController {
 
     try {
       const context = { lojaId: loja.id };
-      const relatorio =
-        await this.estoqueService.relatorioEstoqueBaixo(context);
+      const relatorio = await this.relatoriosService.relatorioEstoqueBaixo(
+        context,
+      );
 
       return {
         success: true,
@@ -62,7 +63,9 @@ export class RelatoriosController {
 
     try {
       const context = { lojaId: loja.id };
-      const relatorio = await this.estoqueService.relatorioVencimento(context);
+      const relatorio = await this.relatoriosService.relatorioVencimento(
+        context,
+      );
 
       return {
         success: true,
@@ -88,7 +91,7 @@ export class RelatoriosController {
 
     try {
       const context = { lojaId: loja.id };
-      const relatorio = await this.estoqueService.relatorioOcupacao(context);
+      const relatorio = await this.relatoriosService.relatorioOcupacao(context);
 
       return {
         success: true,

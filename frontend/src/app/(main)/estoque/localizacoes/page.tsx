@@ -20,8 +20,11 @@ import {
 import { LocalizacaoCard } from '@/components/ui/localizacao-card';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { Input } from '@/components/ui/input';
+import { apiRequest } from '@/lib/api';
+import { useUser } from '@/contexts/UserContext';
 
 export default function LocalizacoesPage() {
+  const { user, loading: userLoading } = useUser();
   const [data, setData] = useState<Localizacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
@@ -52,10 +55,7 @@ export default function LocalizacoesPage() {
   const fetchLocalizacoes = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/api/estoque/localizacoes', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiRequest('/api/estoque/localizacoes');
       if (response.ok) {
         const result = await response.json();
         setData(result.data || result);
@@ -72,12 +72,7 @@ export default function LocalizacoesPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
-      
-      const response = await fetch(`http://localhost:3001/api/estoque/localizacoes/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiRequest(`/api/estoque/localizacoes/${id}`, { method: 'DELETE' });
 
       if (response.ok) {
         toast.success('Localização excluída com sucesso!');
@@ -96,11 +91,7 @@ export default function LocalizacoesPage() {
 
   const openDeleteDialog = async (id: string, nome: string) => {
     try {
-      const token = localStorage.getItem('access_token');
-      
-      const response = await fetch(`http://localhost:3001/api/estoque/localizacoes/${id}/verificar-exclusao`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiRequest(`/api/estoque/localizacoes/${id}/verificar-exclusao`);
 
       if (response.ok) {
         const result = await response.json();
@@ -169,8 +160,10 @@ export default function LocalizacoesPage() {
   );
 
   useEffect(() => {
-    fetchLocalizacoes();
-  }, []);
+    if (!userLoading && user) {
+      fetchLocalizacoes();
+    }
+  }, [userLoading, user]);
 
   return (
     <div className="p-6 space-y-4">

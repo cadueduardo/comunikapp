@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ItensController } from './itens.controller';
-import { EstoqueSimpleService } from '../services/estoque-simple.service';
+import { ItensEstoqueService } from '../services/itens-estoque.service';
+import { DashboardEstoqueService } from '../services/dashboard-estoque.service';
 import { CreateItemEstoqueDto } from '../dto/create-item-estoque.dto';
 import { QueryItensEstoqueDto } from '../dto/query-estoque.dto';
 import { EstoqueRequest } from '../middleware/tenant-isolation.middleware';
@@ -8,7 +9,8 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('ItensController', () => {
   let controller: ItensController;
-  let estoqueService: EstoqueSimpleService;
+  let estoqueService: ItensEstoqueService;
+  let dashboardService: DashboardEstoqueService;
 
   const mockEstoqueService = {
     criarItemEstoque: jest.fn(),
@@ -16,6 +18,11 @@ describe('ItensController', () => {
     buscarItemEstoquePorId: jest.fn(),
     atualizarItemEstoque: jest.fn(),
     excluirItemEstoque: jest.fn(),
+    obterDashboard: jest.fn(),
+  };
+
+  const mockDashboardService = {
+    obterDashboard: jest.fn(),
   };
 
   const mockRequest: EstoqueRequest = {
@@ -30,14 +37,19 @@ describe('ItensController', () => {
       controllers: [ItensController],
       providers: [
         {
-          provide: EstoqueSimpleService,
+          provide: ItensEstoqueService,
           useValue: mockEstoqueService,
+        },
+        {
+          provide: DashboardEstoqueService,
+          useValue: mockDashboardService,
         },
       ],
     }).compile();
 
     controller = module.get<ItensController>(ItensController);
-    estoqueService = module.get<EstoqueSimpleService>(EstoqueSimpleService);
+    estoqueService = module.get<ItensEstoqueService>(ItensEstoqueService);
+    dashboardService = module.get<DashboardEstoqueService>(DashboardEstoqueService);
   });
 
   afterEach(() => {

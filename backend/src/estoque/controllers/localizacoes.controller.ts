@@ -22,7 +22,7 @@ import {
   ApiBearerAuth,
   ApiParam,
 } from '@nestjs/swagger';
-import { EstoqueSimpleService } from '../services/estoque-simple.service';
+import { LocalizacoesService } from '../services/localizacoes.service';
 import { CreateLocalizacaoDto } from '../dto/create-localizacao.dto';
 import { QueryLocalizacoesDto } from '../dto/query-estoque.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
@@ -34,7 +34,7 @@ import { Loja } from '@prisma/client';
 @Controller('api/estoque/localizacoes')
 @UseGuards(JwtAuthGuard)
 export class LocalizacoesController {
-  constructor(private readonly estoqueService: EstoqueSimpleService) {}
+  constructor(private readonly estoqueService: LocalizacoesService) {}
 
   @ApiOperation({
     summary: 'Criar nova localização',

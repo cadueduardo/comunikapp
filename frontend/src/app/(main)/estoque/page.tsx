@@ -23,6 +23,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiRequest } from '@/lib/api';
+import { useUser } from '@/contexts/UserContext';
 
 // Tipos para os dados do dashboard
 interface DashboardData {
@@ -31,7 +33,7 @@ interface DashboardData {
   totalMovimentacoes: number;
   itensAbaixoMinimo: number;
   valorTotalEstoque: number;
-  ultimasMovimentacoes: Array<any>;
+  ultimasMovimentacoes: Array<Record<string, unknown>>;
   estatisticas: {
     entradas: number;
     saidas: number;
@@ -86,14 +88,17 @@ const estoqueOptions = [
 ];
 
 export default function EstoquePage() {
+  const { user, loading: userLoading } = useUser();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (!userLoading && user) {
+      fetchDashboardData();
+    }
+  }, [userLoading, user]);
 
   const fetchDashboardData = async () => {
     try {
@@ -105,13 +110,8 @@ export default function EstoquePage() {
         throw new Error('Token de acesso não encontrado');
       }
 
-      // Chamada real para o backend
-      const response = await fetch('http://localhost:3001/api/estoque/itens/dashboard', {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-      });
+      // Chamada real para o backend com headers de tenant/roles centralizados
+      const response = await apiRequest('/api/estoque/itens/dashboard');
 
       if (!response.ok) {
         throw new Error(`Erro ${response.status}: ${response.statusText}`);
@@ -150,7 +150,9 @@ export default function EstoquePage() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchDashboardData();
+    if (!userLoading && user) {
+      await fetchDashboardData();
+    }
     setRefreshing(false);
     toast.success('Dashboard atualizado!');
   };

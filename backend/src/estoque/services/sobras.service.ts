@@ -309,24 +309,25 @@ export class SobrasService {
         `Buscando sugestões de sobras para loja ${context.lojaId}`,
       );
 
-      let whereClause = `WHERE s.loja_id = '${context.lojaId}' AND s.status = 'DISPONIVEL' AND s.quantidade > 0`;
-
-      // Filtros específicos
+      const conditions: Prisma.Sql[] = [
+        Prisma.sql` s.loja_id = ${context.lojaId} `,
+        Prisma.sql` s.status = 'DISPONIVEL' `,
+        Prisma.sql` s.quantidade > 0 `,
+      ];
       if (filtros.material) {
-        whereClause += ` AND s.material LIKE '%${filtros.material}%'`;
+        conditions.push(Prisma.sql` s.material LIKE ${'%' + filtros.material + '%'} `);
       }
-
       if (filtros.cor) {
-        whereClause += ` AND s.cor LIKE '%${filtros.cor}%'`;
+        conditions.push(Prisma.sql` s.cor LIKE ${'%' + filtros.cor + '%'} `);
       }
-
       if (filtros.areaMinima) {
-        whereClause += ` AND s.area >= ${filtros.areaMinima}`;
+        conditions.push(Prisma.sql` s.area >= ${Number(filtros.areaMinima)} `);
+      }
+      if (filtros.areaMaxima) {
+        conditions.push(Prisma.sql` s.area <= ${Number(filtros.areaMaxima)} `);
       }
 
-      if (filtros.areaMaxima) {
-        whereClause += ` AND s.area <= ${filtros.areaMaxima}`;
-      }
+      const whereClause = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
 
       const sobras = await this.prisma.$queryRaw`
         SELECT 

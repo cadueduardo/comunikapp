@@ -16,7 +16,7 @@ import {
   ApiQuery,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { EstoqueSimpleService } from '../services/estoque-simple.service';
+import { TransferenciasService } from '../services/transferencias.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { GetLoja } from '../../auth/decorators';
 import { Loja } from '@prisma/client';
@@ -28,7 +28,7 @@ import { Loja } from '@prisma/client';
 export class TransferenciasController {
   private readonly logger = new Logger(TransferenciasController.name);
 
-  constructor(private readonly estoqueService: EstoqueSimpleService) {}
+  constructor(private readonly transferenciasService: TransferenciasService) {}
 
   @Post()
   @ApiOperation({ summary: 'Criar nova transferência' })
@@ -55,7 +55,7 @@ export class TransferenciasController {
       }
 
       const context = { lojaId: loja.id };
-      const transferencia = await this.estoqueService.criarTransferencia(
+      const transferencia = await this.transferenciasService.criarTransferencia(
         context,
         data,
       );
@@ -97,7 +97,7 @@ export class TransferenciasController {
 
     try {
       const context = { lojaId: loja.id };
-      const transferencias = await this.estoqueService.listarTransferencias(
+      const transferencias = await this.transferenciasService.listarTransferencias(
         context,
         query,
       );
@@ -124,7 +124,7 @@ export class TransferenciasController {
 
     try {
       const context = { lojaId: loja.id };
-      const transferencia = await this.estoqueService.buscarTransferenciaPorId(
+      const transferencia = await this.transferenciasService.buscarTransferenciaPorId(
         context,
         id,
       );
@@ -156,7 +156,7 @@ export class TransferenciasController {
 
     try {
       const context = { lojaId: loja.id };
-      const historico = await this.estoqueService.historicoTransferenciasItem(
+      const historico = await this.transferenciasService.listarHistoricoPorItem(
         context,
         itemId,
       );

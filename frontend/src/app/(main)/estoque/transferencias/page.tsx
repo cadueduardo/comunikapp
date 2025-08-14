@@ -20,6 +20,8 @@ import {
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-media-query';
+import { apiRequest } from '@/lib/api';
+import { useUser } from '@/contexts/UserContext';
 
 interface Transferencia {
   id: string;
@@ -37,6 +39,7 @@ interface Transferencia {
 }
 
 export default function TransferenciasPage() {
+  const { user, loading: userLoading } = useUser();
   const [transferencias, setTransferencias] = useState<Transferencia[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,8 +48,10 @@ export default function TransferenciasPage() {
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    fetchTransferencias();
-  }, []);
+    if (!userLoading && user) {
+      fetchTransferencias();
+    }
+  }, [userLoading, user]);
 
   useEffect(() => {
     setViewMode(isMobile ? 'cards' : 'table');
@@ -55,10 +60,7 @@ export default function TransferenciasPage() {
   const fetchTransferencias = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/api/estoque/transferencias', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiRequest('/api/estoque/transferencias');
 
       if (response.ok) {
         const data = await response.json();

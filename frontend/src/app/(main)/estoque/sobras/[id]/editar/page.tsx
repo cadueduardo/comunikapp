@@ -11,11 +11,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ArrowLeft, Save } from 'lucide-react'
 import { toast } from 'sonner'
+import { apiRequest } from '@/lib/api'
+import { useUser } from '@/contexts/UserContext'
 
 export default function EditarSobraPage() {
   const params = useParams()
   const router = useRouter()
   const sobraId = String(params?.id || '')
+  const { user, loading: userLoading } = useUser()
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({
     descricao: '',
@@ -34,8 +37,7 @@ export default function EditarSobraPage() {
   const carregar = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('access_token')
-      const res = await fetch(`/api/estoque/sobras/${sobraId}`, { headers: { Authorization: `Bearer ${token}` } })
+      const res = await apiRequest(`/api/estoque/sobras/${sobraId}`)
       if (!res.ok) throw new Error('Falha ao carregar sobra')
       const data = await res.json()
       const s = data?.data || data
@@ -60,7 +62,7 @@ export default function EditarSobraPage() {
     }
   }
 
-  useEffect(() => { if (sobraId) carregar() }, [sobraId])
+  useEffect(() => { if (sobraId && !userLoading && user) carregar() }, [sobraId, userLoading, user])
 
   const onChange = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }))
 
@@ -68,10 +70,8 @@ export default function EditarSobraPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      const token = localStorage.getItem('access_token')
-      const res = await fetch(`/api/estoque/sobras/${sobraId}`, {
+      const res = await apiRequest(`/api/estoque/sobras/${sobraId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           ...form,
           quantidade: form.quantidade ? parseFloat(form.quantidade) : undefined,

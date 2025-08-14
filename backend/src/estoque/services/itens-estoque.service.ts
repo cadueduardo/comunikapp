@@ -1,15 +1,16 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
-import { EstoqueSimpleService, IEstoqueContext } from './estoque-simple.service';
+import { IEstoqueContext } from '../types/estoque-context';
 import { PrismaService } from '../../prisma/prisma.service';
-import { detectTableName } from '../utils/estoque-sql.util';
+import { detectTableName, getExistingColumns } from '../utils/estoque-sql.util';
+import { DashboardEstoqueService } from './dashboard-estoque.service';
 
 @Injectable()
 export class ItensEstoqueService {
   private readonly logger = new Logger(ItensEstoqueService.name);
 
   constructor(
-    private readonly estoqueService: EstoqueSimpleService,
     private readonly prisma: PrismaService,
+    private readonly dashboardService: DashboardEstoqueService,
   ) {}
 
   async criarItemEstoque(context: IEstoqueContext, data: any) {
@@ -35,11 +36,7 @@ export class ItensEstoqueService {
 
     const tableName = await detectTableName(this.prisma, ['estoque_itens', 'itens_estoque']);
     if (!tableName) throw new BadRequestException('Estrutura de estoque não encontrada (esperado: estoque_itens).');
-    const colsResult: Array<{ COLUMN_NAME: string }> = await this.prisma.$queryRawUnsafe(
-      'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ',
-      tableName,
-    );
-    const existing = new Set(colsResult.map((r: any) => r.COLUMN_NAME));
+    const existing = await getExistingColumns(this.prisma, tableName);
 
     const generatedId = `item-${Date.now()}`;
     const now = new Date();
@@ -88,11 +85,7 @@ export class ItensEstoqueService {
       return { data: [], total: 0, page: 1, limit: 20 } as any;
     }
 
-    const colsResult: Array<{ COLUMN_NAME: string }> = await this.prisma.$queryRawUnsafe(
-      'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ',
-      tableName,
-    );
-    const existing = new Set(colsResult.map((r: any) => r.COLUMN_NAME));
+    const existing = await getExistingColumns(this.prisma, tableName);
 
     const lojaCol = existing.has('lojaId') ? 'lojaId' : (existing.has('loja_id') ? 'loja_id' : null);
     const insumoCol = existing.has('insumoId') ? 'insumoId' : (existing.has('insumo_id') ? 'insumo_id' : null);
@@ -160,34 +153,38 @@ export class ItensEstoqueService {
     const tableName = await detectTableName(this.prisma, ['estoque_itens', 'itens_estoque']);
     if (!tableName) throw new BadRequestException('Estrutura de estoque não encontrada');
 
-    const colsResult: Array<{ COLUMN_NAME: string }> = await this.prisma.$queryRawUnsafe(
-      'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ',
-      tableName,
-    );
-    const existing = new Set(colsResult.map((r: any) => r.COLUMN_NAME));
-
+    const existing = await getExistingColumns(this.prisma, tableName);
     const insumoCol = existing.has('insumoId') ? 'insumoId' : (existing.has('insumo_id') ? 'insumo_id' : null);
+    const localizacaoCol = existing.has('localizacaoId') ? 'localizacaoId' : (existing.has('localizacao_id') ? 'localizacao_id' : null);
+    const qtdCol = existing.has('quantidadeAtual') ? 'quantidadeAtual' : (existing.has('quantidade') ? 'quantidade' : null);
+    const qtdResCol = existing.has('quantidadeReservada') ? 'quantidadeReservada' : null;
+    const estMinCol = existing.has('estoqueMinimo') ? 'estoqueMinimo' : (existing.has('estoque_minimo') ? 'estoque_minimo' : null);
+    const estMaxCol = existing.has('estoqueMaximo') ? 'estoqueMaximo' : (existing.has('estoque_maximo') ? 'estoque_maximo' : null);
     const unMedCol = existing.has('unidadeMedida') ? 'unidadeMedida' : (existing.has('unidade_medida') ? 'unidade_medida' : null);
     const precoCol = existing.has('precoUnitario') ? 'precoUnitario' : (existing.has('preco_unitario') ? 'preco_unitario' : (existing.has('valorUnitario') ? 'valorUnitario' : (existing.has('valor_unitario') ? 'valor_unitario' : null)));
+    const dataUltMovCol = existing.has('dataUltimaMov') ? 'dataUltimaMov' : null;
+    const createdCol = existing.has('createdAt') ? 'createdAt' : (existing.has('criado_em') ? 'criado_em' : null);
+    const codigoBarrasCol = existing.has('codigoBarras') ? 'codigoBarras' : (existing.has('codigo_barras') ? 'codigo_barras' : null);
+    const dataValidadeCol = existing.has('dataValidade') ? 'dataValidade' : (existing.has('data_validade') ? 'data_validade' : null);
 
     const selectParts: string[] = [
       't.id AS id',
       insumoCol ? `t.${insumoCol} AS insumoId` : 'NULL AS insumoId',
-      't.localizacao_id AS localizacaoId',
+      localizacaoCol ? `t.${localizacaoCol} AS localizacaoId` : 'NULL AS localizacaoId',
       "COALESCE(t.nome, '') AS insumoNome",
-      't.quantidade AS quantidadeAtual',
-      't.quantidadeReservada AS quantidadeReservada',
-      't.estoque_minimo AS estoqueMinimo',
-      't.estoque_maximo AS estoqueMaximo',
+      qtdCol ? `t.${qtdCol} AS quantidadeAtual` : '0 AS quantidadeAtual',
+      qtdResCol ? `t.${qtdResCol} AS quantidadeReservada` : '0 AS quantidadeReservada',
+      estMinCol ? `t.${estMinCol} AS estoqueMinimo` : '0 AS estoqueMinimo',
+      estMaxCol ? `t.${estMaxCol} AS estoqueMaximo` : 'NULL AS estoqueMaximo',
       unMedCol ? `COALESCE(t.${unMedCol}, '') AS unidadeCompra` : "'' AS unidadeCompra",
       precoCol ? `t.${precoCol} AS valorUnitario` : '0 AS valorUnitario',
-      't.dataUltimaMov AS dataUltimaMov',
-      't.criado_em AS createdAt',
+      dataUltMovCol ? `t.${dataUltMovCol} AS dataUltimaMov` : 'NULL AS dataUltimaMov',
+      createdCol ? `t.${createdCol} AS createdAt` : 'NULL AS createdAt',
       't.codigo AS codigo',
       't.descricao AS descricao',
-      't.codigoBarras AS codigoBarras',
+      codigoBarrasCol ? `t.${codigoBarrasCol} AS codigoBarras` : 'NULL AS codigoBarras',
       't.lote AS lote',
-      't.dataValidade AS dataValidade',
+      dataValidadeCol ? `t.${dataValidadeCol} AS dataValidade` : 'NULL AS dataValidade',
       't.observacoes AS observacoes',
       't.ativo AS ativo',
       "COALESCE(l.codigo, '') AS localizacaoCodigo",
@@ -251,14 +248,15 @@ export class ItensEstoqueService {
   async excluirItemEstoque(context: IEstoqueContext, id: string) {
     if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
     this.logger.debug(`🧩 [ItensEstoqueService] excluirItemEstoque id=${id} loja=${context.lojaId}`);
-    await this.prisma.$executeRawUnsafe(`DELETE FROM itens_estoque WHERE id = ? AND loja_id = ?`, id, context.lojaId);
+    const tableName = await detectTableName(this.prisma, ['itens_estoque', 'estoque_itens']) || 'itens_estoque';
+    await this.prisma.$executeRawUnsafe(`DELETE FROM ${tableName} WHERE id = ? AND loja_id = ?`, id, context.lojaId);
     return { id, deletedAt: new Date() } as any;
   }
 
   async obterDashboard(context: IEstoqueContext) {
     if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
     this.logger.debug(`🧩 [ItensEstoqueService] obterDashboard loja=${context.lojaId}`);
-    return this.estoqueService.obterDashboard(context);
+    return this.dashboardService.obterDashboard(context);
   }
 }
 

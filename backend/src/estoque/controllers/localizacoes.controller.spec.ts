@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { LocalizacoesController } from './localizacoes.controller';
-import { EstoqueSimpleService } from '../services/estoque-simple.service';
+import { LocalizacoesService } from '../services/localizacoes.service';
 import { CreateLocalizacaoDto } from '../dto/create-localizacao.dto';
 import { QueryLocalizacoesDto } from '../dto/query-estoque.dto';
 import { EstoqueRequest } from '../middleware/tenant-isolation.middleware';
@@ -8,7 +8,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('LocalizacoesController', () => {
   let controller: LocalizacoesController;
-  let estoqueService: EstoqueSimpleService;
+  let estoqueService: LocalizacoesService;
 
   const mockEstoqueService = {
     criarLocalizacao: jest.fn(),
@@ -16,6 +16,8 @@ describe('LocalizacoesController', () => {
     buscarLocalizacaoPorId: jest.fn(),
     atualizarLocalizacao: jest.fn(),
     desativarLocalizacao: jest.fn(),
+    verificarLocalizacaoExclusao: jest.fn(),
+    excluirLocalizacao: jest.fn(),
   };
 
   const mockRequest: EstoqueRequest = {
@@ -30,14 +32,14 @@ describe('LocalizacoesController', () => {
       controllers: [LocalizacoesController],
       providers: [
         {
-          provide: EstoqueSimpleService,
+          provide: LocalizacoesService,
           useValue: mockEstoqueService,
         },
       ],
     }).compile();
 
     controller = module.get<LocalizacoesController>(LocalizacoesController);
-    estoqueService = module.get<EstoqueSimpleService>(EstoqueSimpleService);
+    estoqueService = module.get<LocalizacoesService>(LocalizacoesService);
   });
 
   afterEach(() => {

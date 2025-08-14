@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Package } from 'lucide-react'
 import { toast } from 'sonner'
+import { apiRequest } from '@/lib/api'
+import { useUser } from '@/contexts/UserContext'
 
 interface SobraDetalhe {
   id: string
@@ -32,16 +34,14 @@ interface SobraDetalhe {
 export default function VerSobraPage() {
   const params = useParams()
   const sobraId = String(params?.id || '')
+  const { user, loading: userLoading } = useUser()
   const [loading, setLoading] = useState(true)
   const [sobra, setSobra] = useState<SobraDetalhe | null>(null)
 
   const carregar = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('access_token')
-      const res = await fetch(`/api/estoque/sobras/${sobraId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await apiRequest(`/api/estoque/sobras/${sobraId}`)
       if (!res.ok) throw new Error('Falha ao carregar sobra')
       const data = await res.json()
       const raw = data?.data || data
@@ -74,8 +74,8 @@ export default function VerSobraPage() {
   }
 
   useEffect(() => {
-    if (sobraId) carregar()
-  }, [sobraId])
+    if (sobraId && !userLoading && user) carregar()
+  }, [sobraId, userLoading, user])
 
   if (loading) {
     return (

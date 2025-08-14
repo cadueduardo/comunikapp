@@ -12,6 +12,8 @@ import { useRouter } from 'next/navigation';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { toast } from 'sonner';
+import { apiRequest } from '@/lib/api';
+import { useUser } from '@/contexts/UserContext';
 
 interface Sobra {
   id: string;
@@ -47,6 +49,7 @@ interface Metricas {
 }
 
 export default function SobrasPage() {
+  const { user, loading: userLoading } = useUser();
   const [sobras, setSobras] = useState<Sobra[]>([]);
   const [metricas, setMetricas] = useState<Metricas | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,9 +62,11 @@ export default function SobrasPage() {
   const router = useRouter();
 
   useEffect(() => {
-    carregarSobras();
-    carregarMetricas();
-  }, []);
+    if (!userLoading && user) {
+      carregarSobras();
+      carregarMetricas();
+    }
+  }, [userLoading, user]);
 
   useEffect(() => {
     setViewMode(isMobile ? 'cards' : 'table');
@@ -69,12 +74,7 @@ export default function SobrasPage() {
 
   const carregarSobras = async () => {
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('/api/estoque/sobras', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await apiRequest('/api/estoque/sobras');
 
       if (response.ok) {
         const data = await response.json();
@@ -117,12 +117,7 @@ export default function SobrasPage() {
 
   const carregarMetricas = async () => {
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('/api/estoque/sobras/metricas/economia', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await apiRequest('/api/estoque/sobras/metricas/economia');
 
       if (response.ok) {
         const data = await response.json();
