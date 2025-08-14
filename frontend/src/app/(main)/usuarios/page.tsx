@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RefreshCw, Plus } from 'lucide-react';
 import { UsuarioFormDialog } from './UsuarioFormDialog';
+import { PerfilAccessList } from './PerfilAccessList';
 
 export default function UsuariosPage() {
   const [data, setData] = useState<UsuarioRow[]>([]);
@@ -83,7 +84,12 @@ export default function UsuariosPage() {
           />
         </div>
       }
-      table={<DataTable<UsuarioRow, any> columns={usuarioColumns} data={filtered} />}
+      table={
+        <div className="space-y-4">
+          <PerfilAccessList />
+          <DataTable<UsuarioRow, any> columns={usuarioColumns} data={filtered} />
+        </div>
+      }
       
     />
     <UsuarioFormDialog open={openDialog} onOpenChange={setOpenDialog} onCreated={fetchUsuarios} />

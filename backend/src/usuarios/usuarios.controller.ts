@@ -40,6 +40,11 @@ export class UsuariosController {
   async definirSenha(@Body() body: { email: string; codigo: string; senha: string }) {
     return this.usuariosService.definirSenhaInicial(body.email, body.codigo, body.senha);
   }
+
+  @Get('perfis')
+  async listarPerfis() {
+    return this.usuariosService.listarPerfis();
+  }
 }
 
 

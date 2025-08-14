@@ -4,7 +4,7 @@ import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import * as bcrypt from 'bcrypt';
 import { MailService } from '../mail/mail.service';
-import { StatusConta } from '@prisma/client';
+import { StatusConta, FuncaoUsuario } from '@prisma/client';
 
 @Injectable()
 export class UsuariosService {
@@ -97,6 +97,26 @@ export class UsuariosService {
       },
     });
     return { message: 'Senha definida e e-mail verificado' };
+  }
+
+  // Perfis de acesso (placeholder sem schema dedicado)
+  async listarPerfis() {
+    // Retorna perfis base mapeados do enum FuncaoUsuario como perfis do sistema
+    const perfisBase = Object.values(FuncaoUsuario).map((f) => ({
+      id: f,
+      nome: f,
+      sistema: true,
+      ativo: true,
+    }));
+    try {
+      // Se existir tabela de perfis customizados, unir resultados
+      const custom: any[] = await this.prisma.$queryRawUnsafe(
+        'SELECT id, nome, 0 as sistema, ativo FROM perfil_acesso'
+      );
+      return [...perfisBase, ...custom];
+    } catch {
+      return perfisBase;
+    }
   }
 }
 
