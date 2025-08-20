@@ -61,12 +61,18 @@ Cliente → Busca no Catálogo → Encontra? → Integra direto
                     ↓
                 Não Encontra?
                     ↓
-            Contribui novo insumo → Aguarda validação
+            Contribui novo insumo → Salva na loja IMEDIATAMENTE
+                    ↓
+            Contribui para base global → Aguarda validação
                     ↓
             Super Admin valida → Aprova/Rejeita
                     ↓
             Se aprovado → Adiciona à base global
 ```
+
+#### **📋 DIFERENÇA CRUCIAL:**
+- **✅ IMEDIATO**: Cliente salva insumo na sua loja (sem restrições)
+- **⏳ AGUARDA**: Contribuição para base global (apenas para compartilhamento)
 
 ### **Estratégia de Fornecedores**
 ```
@@ -93,6 +99,13 @@ Resultado: Insumo com especificações técnicas + fornecedor escolhido
 4. **Sistema combina** dados técnicos (catálogo) + dados comerciais (loja)
 5. **Resultado**: Insumo completo na loja com especificações técnicas validadas
 
+#### **📋 FLUXO DE CONTRIBUIÇÃO:**
+1. **Cliente cadastra** insumo na sua loja (uso imediato)
+2. **Cliente opcionalmente** contribui para base global
+3. **Super admin valida** contribuição (sem afetar uso na loja)
+4. **Se aprovado** → Adiciona à base global para outras lojas
+5. **Se rejeitado** → Insumo continua funcionando normalmente na loja
+
 ## 📊 **REQUISITOS FUNCIONAIS**
 
 ### **RF001 - Gestão de Catálogo**
@@ -103,11 +116,12 @@ Resultado: Insumo com especificações técnicas + fornecedor escolhido
 - **RF001.5**: Categorizar insumos por tipo de material
 
 ### **RF002 - Sistema de Contribuição**
-- **RF002.1**: Cliente pode contribuir com novos insumos
-- **RF002.2**: Sistema de validação para contribuições
-- **RF002.3**: Aprovação/rejeição por super admin
-- **RF002.4**: Histórico de contribuições e validações
-- **RF002.5**: Notificações de status das contribuições
+- **RF002.1**: Cliente pode contribuir com novos insumos (uso imediato na loja)
+- **RF002.2**: Contribuição para base global é opcional e independente
+- **RF002.3**: Sistema de validação para contribuições globais
+- **RF002.4**: Aprovação/rejeição por super admin (não afeta uso na loja)
+- **RF002.5**: Histórico de contribuições e validações
+- **RF002.6**: Notificações de status das contribuições globais
 
 ### **RF003 - Sistema de Busca**
 - **RF003.1**: Buscar insumos por nome ou código
@@ -171,11 +185,13 @@ Resultado: Insumo com especificações técnicas + fornecedor escolhido
 - ✅ Log de auditoria é gerado para a operação
 
 ### **CA002 - Sistema de Contribuição**
-- ✅ Cliente consegue contribuir com novos insumos
+- ✅ Cliente consegue salvar insumo na loja imediatamente
+- ✅ Contribuição para base global é opcional e independente
 - ✅ Sistema de validação funciona corretamente
-- ✅ Super admin consegue aprovar/rejeitar contribuições
+- ✅ Super admin consegue aprovar/rejeitar contribuições globais
 - ✅ Histórico de contribuições é mantido
 - ✅ Notificações de status funcionam adequadamente
+- ✅ Rejeição de contribuição não afeta uso do insumo na loja
 
 ### **CA003 - Busca e Filtros**
 - ✅ Busca por texto retorna resultados relevantes

@@ -131,21 +131,24 @@ src/
 #### **3.1 Sistema de Contribuição Base**
 - [ ] Implementar `ContribuicaoInsumoService` (≤400 linhas)
 - [ ] Implementar `ContribuicaoFornecedorService` (≤400 linhas)
-- [ ] Criar sistema de submissão de contribuições
+- [ ] Criar sistema de submissão de contribuições (opcional para base global)
 - [ ] Implementar validação automática de dados
 - [ ] Adicionar logs estruturados
+- [ ] Garantir que insumo seja salvo na loja independentemente da contribuição
 
 #### **3.2 Validação e Aprovação**
-- [ ] Implementar workflow de validação
+- [ ] Implementar workflow de validação para base global
 - [ ] Criar sistema de aprovação por super admin
 - [ ] Implementar notificações de status
 - [ ] Adicionar histórico de contribuições
+- [ ] Garantir que validação não afete uso do insumo na loja
 
 #### **3.3 Gestão de Contribuições**
-- [ ] Interface para super admin aprovar/rejeitar
+- [ ] Interface para super admin aprovar/rejeitar contribuições globais
 - [ ] Sistema de comentários e observações
-- [ ] Adicionar contribuições aprovadas ao catálogo
+- [ ] Adicionar contribuições aprovadas ao catálogo global
 - [ ] Implementar sistema de busca em contribuições
+- [ ] Manter insumos funcionando na loja independentemente da validação
 
 **Entregáveis:**
 - ✅ Sistema de contribuição de insumos funcionando
