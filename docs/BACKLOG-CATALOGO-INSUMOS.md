@@ -38,20 +38,22 @@ O catálogo é uma **"enciclopédia técnica"** que fornece especificações té
 - **Fator de conversão**: Relação matemática entre unidades
 - **Especificações físicas**: Dimensões, gramatura, características
 - **Lógica de consumo**: Como calcular (área, perímetro, quantidade fixa)
+- **Base de fornecedores**: Lista de fornecedores da indústria (sem vínculo automático)
 
 #### **❌ O que o catálogo NÃO fornece:**
 - **Preços**: Cliente define seus próprios valores
-- **Fornecedores**: Cliente escolhe seus fornecedores
+- **Vínculo automático fornecedor-insumo**: Cliente escolhe qual fornecedor usar
 - **Quantidades de compra**: Cliente define suas quantidades
 - **Estoque**: Gerido pelo módulo de estoque
 - **Compras**: Gerido pelo sistema de compras (futuro)
 
 ### **Componentes Principais**
 1. **Catálogo de Insumos**: Base técnica centralizada
-2. **Sistema de Contribuição**: Clientes podem adicionar novos insumos
-3. **API de Integração**: Interface para módulo de insumos
-4. **Sistema de Busca**: Pesquisa inteligente e filtros
-5. **Gestão de Categorias**: Organização hierárquica de materiais
+2. **Base de Fornecedores**: Catálogo de fornecedores da indústria
+3. **Sistema de Contribuição**: Clientes podem adicionar novos insumos
+4. **API de Integração**: Interface para módulo de insumos
+5. **Sistema de Busca**: Pesquisa inteligente e filtros
+6. **Gestão de Categorias**: Organização hierárquica de materiais
 
 ### **Fluxo de Integração Simplificado**
 ```
@@ -66,11 +68,30 @@ Cliente → Busca no Catálogo → Encontra? → Integra direto
             Se aprovado → Adiciona à base global
 ```
 
+### **Estratégia de Fornecedores**
+```
+Crawler → Identifica Fornecedores → Popula Base Global
+                ↓
+Cliente → Busca Insumo → Sistema sugere fornecedores relevantes
+                ↓
+Cliente → Escolhe fornecedor → Vincula ao insumo da sua loja
+                ↓
+Resultado: Insumo com especificações técnicas + fornecedor escolhido
+```
+
+#### **Vantagens da Abordagem:**
+- ✅ **Base de fornecedores da indústria** sempre atualizada
+- ✅ **Sugestões inteligentes** baseadas no tipo de insumo
+- ✅ **Cliente mantém controle** sobre qual fornecedor usar
+- ✅ **Sem vínculo automático** - escolha consciente
+- ✅ **Integração natural** com sistema de fornecedores existente
+
 #### **Integração com Módulo de Insumos:**
 1. **Cliente busca** insumo no catálogo
-2. **Cliente integra** à sua loja (define preço, fornecedor, quantidade)
-3. **Sistema combina** dados técnicos (catálogo) + dados comerciais (loja)
-4. **Resultado**: Insumo completo na loja com especificações técnicas validadas
+2. **Sistema sugere** fornecedores relevantes da base global
+3. **Cliente integra** à sua loja (define preço, escolhe fornecedor, quantidade)
+4. **Sistema combina** dados técnicos (catálogo) + dados comerciais (loja)
+5. **Resultado**: Insumo completo na loja com especificações técnicas validadas
 
 ## 📊 **REQUISITOS FUNCIONAIS**
 
@@ -106,6 +127,13 @@ Cliente → Busca no Catálogo → Encontra? → Integra direto
 - **RF005.2**: Associar insumos a categorias específicas
 - **RF005.3**: Gerenciar subcategorias e níveis hierárquicos
 - **RF005.4**: Aplicar regras de negócio por categoria
+
+### **RF006 - Base de Fornecedores**
+- **RF006.1**: Manter catálogo de fornecedores da indústria
+- **RF006.2**: Sugerir fornecedores relevantes para insumos
+- **RF006.3**: Permitir contribuição de novos fornecedores
+- **RF006.4**: Validar e aprovar fornecedores contribuídos
+- **RF006.5**: Manter histórico de fornecedores sugeridos
 
 ## 🔒 **REQUISITOS NÃO FUNCIONAIS**
 
@@ -168,6 +196,13 @@ Cliente → Busca no Catálogo → Encontra? → Integra direto
 - ✅ Performance não é afetada pelo número de lojas
 - ✅ Configurações são específicas por loja
 
+### **CA006 - Base de Fornecedores**
+- ✅ Sistema sugere fornecedores relevantes para insumos
+- ✅ Cliente pode contribuir com novos fornecedores
+- ✅ Super admin valida e aprova fornecedores
+- ✅ Histórico de sugestões é mantido
+- ✅ Fornecedores não são vinculados automaticamente
+
 ## 📈 **MÉTRICAS DE SUCESSO**
 
 ### **Métricas de Negócio**
@@ -190,8 +225,9 @@ Cliente → Busca no Catálogo → Encontra? → Integra direto
 - Sistema de categorias
 - API de busca simples
 
-### **Fase 2 - Sistema de Contribuição (2 semanas)**
+### **Fase 2 - Sistema de Contribuição e Fornecedores (2 semanas)**
 - Sistema de contribuição de clientes
+- Base de fornecedores da indústria
 - Validação e aprovação por super admin
 - Histórico de contribuições
 - Notificações de status

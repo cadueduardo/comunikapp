@@ -10,6 +10,7 @@ Este documento define o plano de implementação do **Módulo Catálogo de Insum
 Implementar um módulo de catálogo técnico de insumos que permita:
 - Acesso a especificações técnicas validadas de materiais
 - Foco na essência do material (o que é, como compra, como consome)
+- Base de fornecedores da indústria (sem vínculo automático)
 - Sistema de contribuição para novos insumos
 - Integração simples com o módulo de insumos existente
 - Base técnica centralizada para todas as lojas
@@ -18,6 +19,7 @@ Implementar um módulo de catálogo técnico de insumos que permita:
 - ✅ Backend completo do módulo
 - ✅ API REST documentada com Swagger
 - ✅ Sistema de crawler básico
+- ✅ Base de fornecedores da indústria
 - ✅ Integração com módulo de insumos existente
 - ✅ Testes automatizados (80% cobertura)
 
@@ -78,7 +80,7 @@ src/
 
 #### **1.2 Schema Prisma Separado**
 - [ ] Criar `prisma/catalogo-insumos/schema.prisma`
-- [ ] Definir entidades: `CatalogoInsumo`, `CategoriaCatalogo`, `CrawlerLog`
+- [ ] Definir entidades: `CatalogoInsumo`, `CategoriaGlobal`, `FornecedorGlobal`, `ContribuicaoInsumo`
 - [ ] Configurar migrações modulares
 - [ ] Implementar isolamento multi-tenant
 
@@ -94,7 +96,7 @@ src/
 - ✅ Estrutura de pastas organizada
 - ✅ Configuração de ambiente
 
-### **FASE 2: CRUD E CATEGORIAS (Semana 2)**
+### **FASE 2: CRUD, CATEGORIAS E FORNECEDORES (Semana 2)**
 **Objetivo:** Implementar funcionalidades básicas de gestão
 
 #### **2.1 CRUD de Insumos**
@@ -103,10 +105,11 @@ src/
 - [ ] Implementar operações CRUD completas
 - [ ] Adicionar validações e tratamento de erros
 
-#### **2.2 Sistema de Categorias**
-- [ ] Implementar `CategoriasService`
-- [ ] Criar hierarquia de categorias
-- [ ] Implementar relacionamentos entre insumos e categorias
+#### **2.2 Sistema de Categorias e Fornecedores**
+- [ ] Implementar `CategoriasGlobaisService`
+- [ ] Implementar `FornecedoresGlobaisService`
+- [ ] Criar hierarquia de categorias globais
+- [ ] Implementar base de fornecedores da indústria
 - [ ] Adicionar validações de negócio
 
 #### **2.3 Swagger e Documentação**
@@ -117,15 +120,17 @@ src/
 
 **Entregáveis:**
 - ✅ CRUD completo funcionando
-- ✅ Sistema de categorias implementado
+- ✅ Sistema de categorias globais implementado
+- ✅ Base de fornecedores funcionando
 - ✅ Documentação Swagger ativa
 - ✅ Testes unitários básicos
 
-### **FASE 3: SISTEMA DE CONTRIBUIÇÃO (Semana 3)**
-**Objetivo:** Implementar sistema de contribuição de clientes
+### **FASE 3: SISTEMA DE CONTRIBUIÇÃO E VALIDAÇÃO (Semana 3)**
+**Objetivo:** Implementar sistema de contribuição de clientes e fornecedores
 
 #### **3.1 Sistema de Contribuição Base**
-- [ ] Implementar `ContribuicaoService` (≤400 linhas)
+- [ ] Implementar `ContribuicaoInsumoService` (≤400 linhas)
+- [ ] Implementar `ContribuicaoFornecedorService` (≤400 linhas)
 - [ ] Criar sistema de submissão de contribuições
 - [ ] Implementar validação automática de dados
 - [ ] Adicionar logs estruturados
@@ -143,7 +148,8 @@ src/
 - [ ] Implementar sistema de busca em contribuições
 
 **Entregáveis:**
-- ✅ Sistema de contribuição funcionando
+- ✅ Sistema de contribuição de insumos funcionando
+- ✅ Sistema de contribuição de fornecedores funcionando
 - ✅ Workflow de validação ativo
 - ✅ Interface de super admin funcionando
 - ✅ Testes de integração
@@ -205,50 +211,75 @@ CREATE TABLE catalogo_insumos (
   codigo_catalogo VARCHAR(100) UNIQUE NOT NULL,
   nome VARCHAR(255) NOT NULL,
   descricao_tecnica TEXT,
-  categoria_id VARCHAR(255),
+  categoria_global_id VARCHAR(255),
   marca VARCHAR(100),
   especificacoes JSON,
-  preco_medio_mercado DECIMAL(10,2),
-  fornecedores JSON,
+  unidade_compra VARCHAR(100) NOT NULL,
+  unidade_uso VARCHAR(100) NOT NULL,
+  fator_conversao DECIMAL(10,4) NOT NULL,
+  largura DECIMAL(10,2),
+  altura DECIMAL(10,2),
+  gramatura DECIMAL(10,1),
+  unidade_dimensao VARCHAR(50),
+  tipo_calculo VARCHAR(100),
+  logica_consumo VARCHAR(50) NOT NULL,
   disponibilidade BOOLEAN DEFAULT true,
   fonte_coleta VARCHAR(500),
   data_coleta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   ativo BOOLEAN DEFAULT true,
-  loja_id VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   
-  INDEX idx_loja_id (loja_id),
-  INDEX idx_categoria_id (categoria_id),
+  INDEX idx_categoria_global_id (categoria_global_id),
   INDEX idx_codigo_catalogo (codigo_catalogo),
   INDEX idx_nome (nome)
 );
 
--- Tabela de categorias do catálogo
-CREATE TABLE categorias_catalogo (
+-- Tabela de categorias globais (sem loja_id)
+CREATE TABLE categorias_globais (
   id VARCHAR(255) PRIMARY KEY,
-  nome VARCHAR(255) NOT NULL,
+  nome VARCHAR(255) NOT NULL UNIQUE,
   descricao TEXT,
   categoria_pai_id VARCHAR(255),
   nivel_hierarquia INT DEFAULT 1,
   ativo BOOLEAN DEFAULT true,
-  loja_id VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   
-  INDEX idx_loja_id (loja_id),
   INDEX idx_categoria_pai_id (categoria_pai_id)
 );
 
--- Tabela de contribuições dos clientes
-CREATE TABLE contribuicoes_clientes (
+-- Tabela de fornecedores globais (sem loja_id)
+CREATE TABLE fornecedores_globais (
+  id VARCHAR(255) PRIMARY KEY,
+  nome VARCHAR(255) NOT NULL,
+  razao_social VARCHAR(255),
+  cnpj VARCHAR(18),
+  email VARCHAR(255),
+  telefone VARCHAR(20),
+  website VARCHAR(500),
+  endereco TEXT,
+  especialidades JSON, -- ["Papel", "Tinta", "Adesivo"]
+  ativo BOOLEAN DEFAULT true,
+  fonte_coleta VARCHAR(500),
+  data_coleta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  INDEX idx_nome (nome),
+  INDEX idx_cnpj (cnpj),
+  INDEX idx_especialidades (especialidades(50))
+);
+
+-- Tabela de contribuições de insumos dos clientes
+CREATE TABLE contribuicoes_insumos (
   id VARCHAR(255) PRIMARY KEY,
   loja_id VARCHAR(255) NOT NULL,
   insumo_id VARCHAR(255),
   nome VARCHAR(255) NOT NULL,
   descricao_tecnica TEXT,
-  categoria_id VARCHAR(255) NOT NULL,
+  categoria_global_id VARCHAR(255) NOT NULL,
   marca VARCHAR(100),
   especificacoes JSON,
   unidade_compra VARCHAR(100) NOT NULL,
@@ -270,7 +301,33 @@ CREATE TABLE contribuicoes_clientes (
   
   INDEX idx_loja_id (loja_id),
   INDEX idx_status (status),
-  INDEX idx_categoria_id (categoria_id),
+  INDEX idx_categoria_global_id (categoria_global_id),
+  INDEX idx_created_at (created_at)
+);
+
+-- Tabela de contribuições de fornecedores dos clientes
+CREATE TABLE contribuicoes_fornecedores (
+  id VARCHAR(255) PRIMARY KEY,
+  loja_id VARCHAR(255) NOT NULL,
+  fornecedor_id VARCHAR(255),
+  nome VARCHAR(255) NOT NULL,
+  razao_social VARCHAR(255),
+  cnpj VARCHAR(18),
+  email VARCHAR(255),
+  telefone VARCHAR(20),
+  website VARCHAR(500),
+  endereco TEXT,
+  especialidades JSON,
+  status VARCHAR(20) DEFAULT 'PENDENTE', -- PENDENTE, APROVADO, REJEITADO
+  observacoes_cliente TEXT,
+  observacoes_admin TEXT,
+  aprovado_por VARCHAR(255),
+  data_aprovacao TIMESTAMP NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  INDEX idx_loja_id (loja_id),
+  INDEX idx_status (status),
   INDEX idx_created_at (created_at)
 );
 ```
@@ -425,7 +482,7 @@ this.logger.log({
 |--------|------|------------|-------------|
 | **1** | Estrutura Base | Setup do módulo, schema Prisma, configurações | Módulo base funcionando |
 | **2** | CRUD e Categorias | Implementação de funcionalidades básicas | CRUD completo + Swagger |
-| **3** | Sistema de Contribuição | Sistema de contribuição de clientes | Contribuições funcionando |
+| **3** | Sistema de Contribuição e Validação | Sistema de contribuição de clientes e fornecedores | Contribuições funcionando |
 | **4** | Integração e Otimização | Integração com sistema existente | Módulo pronto para produção |
 
 ## 📝 **DOCUMENTAÇÃO E ENTREGÁVEIS**
