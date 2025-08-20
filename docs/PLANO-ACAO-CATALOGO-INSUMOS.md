@@ -7,11 +7,12 @@ Este documento define o plano de implementação do **Módulo Catálogo de Insum
 ## 🎯 **OBJETIVOS E ESCOPO**
 
 ### **Objetivo Principal**
-Implementar um módulo de catálogo de insumos pré-cadastrados que permita:
-- Cadastro e gestão de insumos de comunicação visual
-- Sistema de crawler para atualização automática de dados
-- Integração opcional com o módulo de insumos existente
-- Base para futuro marketplace de catálogos
+Implementar um módulo de catálogo técnico de insumos que permita:
+- Acesso a especificações técnicas validadas de materiais
+- Foco na essência do material (o que é, como compra, como consome)
+- Sistema de contribuição para novos insumos
+- Integração simples com o módulo de insumos existente
+- Base técnica centralizada para todas as lojas
 
 ### **Escopo Incluído**
 - ✅ Backend completo do módulo
@@ -120,31 +121,31 @@ src/
 - ✅ Documentação Swagger ativa
 - ✅ Testes unitários básicos
 
-### **FASE 3: SISTEMA DE CRAWLER (Semana 3)**
-**Objetivo:** Implementar sistema de coleta automática de dados
+### **FASE 3: SISTEMA DE CONTRIBUIÇÃO (Semana 3)**
+**Objetivo:** Implementar sistema de contribuição de clientes
 
-#### **3.1 Crawler Base**
-- [ ] Implementar `CrawlerService` (≤400 linhas)
-- [ ] Criar sistema de coleta de dados
-- [ ] Implementar tratamento de erros e retry
+#### **3.1 Sistema de Contribuição Base**
+- [ ] Implementar `ContribuicaoService` (≤400 linhas)
+- [ ] Criar sistema de submissão de contribuições
+- [ ] Implementar validação automática de dados
 - [ ] Adicionar logs estruturados
 
-#### **3.2 Agendamento e Monitoramento**
-- [ ] Implementar agendamento de tarefas
-- [ ] Criar sistema de health checks
-- [ ] Implementar monitoramento de execução
-- [ ] Adicionar métricas de performance
+#### **3.2 Validação e Aprovação**
+- [ ] Implementar workflow de validação
+- [ ] Criar sistema de aprovação por super admin
+- [ ] Implementar notificações de status
+- [ ] Adicionar histórico de contribuições
 
-#### **3.3 Integração com Fontes**
-- [ ] Configurar fontes de dados configuráveis
-- [ ] Implementar parsers para diferentes formatos
-- [ ] Adicionar validação de dados coletados
-- [ ] Implementar sistema de cache
+#### **3.3 Gestão de Contribuições**
+- [ ] Interface para super admin aprovar/rejeitar
+- [ ] Sistema de comentários e observações
+- [ ] Adicionar contribuições aprovadas ao catálogo
+- [ ] Implementar sistema de busca em contribuições
 
 **Entregáveis:**
-- ✅ Crawler funcionando
-- ✅ Agendamento automático
-- ✅ Monitoramento ativo
+- ✅ Sistema de contribuição funcionando
+- ✅ Workflow de validação ativo
+- ✅ Interface de super admin funcionando
 - ✅ Testes de integração
 
 ### **FASE 4: INTEGRAÇÃO E OTIMIZAÇÃO (Semana 4)**
@@ -190,10 +191,10 @@ CATALOGO_INSUMOS_CACHE_DURATION=900
 CATALOGO_INSUMOS_DEFAULT_LIMIT=20
 CATALOGO_INSUMOS_MAX_LIMIT=100
 
-# Crawler
-CATALOGO_INSUMOS_CRAWLER_ENABLED=true
-CATALOGO_INSUMOS_CRAWLER_INTERVAL=3600000
-CATALOGO_INSUMOS_CRAWLER_TIMEOUT=30000
+# Sistema de Contribuição
+CATALOGO_INSUMOS_CONTRIBUICAO_ENABLED=true
+CATALOGO_INSUMOS_CONTRIBUICAO_AUTO_APPROVE=false
+CATALOGO_INSUMOS_CONTRIBUICAO_NOTIFY_ADMIN=true
 ```
 
 ### **Estrutura de Banco de Dados**
@@ -240,21 +241,36 @@ CREATE TABLE categorias_catalogo (
   INDEX idx_categoria_pai_id (categoria_pai_id)
 );
 
--- Tabela de logs do crawler
-CREATE TABLE crawler_logs (
+-- Tabela de contribuições dos clientes
+CREATE TABLE contribuicoes_clientes (
   id VARCHAR(255) PRIMARY KEY,
-  tipo_execucao VARCHAR(50) NOT NULL,
-  status VARCHAR(20) NOT NULL,
-  fonte_dados VARCHAR(255),
-  insumos_processados INT DEFAULT 0,
-  insumos_atualizados INT DEFAULT 0,
-  erros JSON,
-  duracao_ms INT,
   loja_id VARCHAR(255) NOT NULL,
+  insumo_id VARCHAR(255),
+  nome VARCHAR(255) NOT NULL,
+  descricao_tecnica TEXT,
+  categoria_id VARCHAR(255) NOT NULL,
+  marca VARCHAR(100),
+  especificacoes JSON,
+  unidade_compra VARCHAR(100) NOT NULL,
+  unidade_uso VARCHAR(100) NOT NULL,
+  fator_conversao DECIMAL(10,4) NOT NULL,
+  largura DECIMAL(10,2),
+  altura DECIMAL(10,2),
+  gramatura DECIMAL(10,1),
+  unidade_dimensao VARCHAR(50),
+  tipo_calculo VARCHAR(100),
+  logica_consumo VARCHAR(50) NOT NULL,
+  status VARCHAR(20) DEFAULT 'PENDENTE', -- PENDENTE, APROVADO, REJEITADO
+  observacoes_cliente TEXT,
+  observacoes_admin TEXT,
+  aprovado_por VARCHAR(255),
+  data_aprovacao TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   
   INDEX idx_loja_id (loja_id),
   INDEX idx_status (status),
+  INDEX idx_categoria_id (categoria_id),
   INDEX idx_created_at (created_at)
 );
 ```
@@ -391,11 +407,11 @@ this.logger.log({
 - ✅ Swagger documenta todos os endpoints
 - ✅ Testes unitários passando (60% cobertura)
 
-### **Fase 3 - Crawler**
-- ✅ Crawler executa sem erros
-- ✅ Dados são atualizados no banco
-- ✅ Agendamento funciona conforme configurado
-- ✅ Logs e monitoramento ativos
+### **Fase 3 - Sistema de Contribuição**
+- ✅ Sistema de contribuição funciona sem erros
+- ✅ Workflow de validação ativo
+- ✅ Super admin consegue aprovar/rejeitar
+- ✅ Histórico e notificações funcionando
 
 ### **Fase 4 - Integração e Otimização**
 - ✅ Integração com módulo de insumos funcionando
@@ -409,7 +425,7 @@ this.logger.log({
 |--------|------|------------|-------------|
 | **1** | Estrutura Base | Setup do módulo, schema Prisma, configurações | Módulo base funcionando |
 | **2** | CRUD e Categorias | Implementação de funcionalidades básicas | CRUD completo + Swagger |
-| **3** | Crawler | Sistema de coleta automática de dados | Crawler funcionando |
+| **3** | Sistema de Contribuição | Sistema de contribuição de clientes | Contribuições funcionando |
 | **4** | Integração e Otimização | Integração com sistema existente | Módulo pronto para produção |
 
 ## 📝 **DOCUMENTAÇÃO E ENTREGÁVEIS**

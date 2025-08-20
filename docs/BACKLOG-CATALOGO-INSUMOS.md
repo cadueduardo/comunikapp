@@ -3,7 +3,7 @@
 ## 🎯 **VISÃO GERAL DO PROJETO**
 
 ### **Descrição da Feature**
-O **Módulo Catálogo de Insumos** é uma solução estratégica para automatizar e otimizar o cadastro de materiais de comunicação visual no sistema ComunikApp. Este módulo funcionará como um catálogo pré-cadastrado e inteligente, permitindo que clientes acessem uma base de dados rica e atualizada de insumos, eliminando a necessidade de cadastro manual item por item.
+O **Módulo Catálogo de Insumos** é uma solução estratégica para fornecer uma base técnica pré-cadastrada de materiais de comunicação visual no sistema ComunikApp. Este módulo funcionará como uma "enciclopédia técnica" de insumos, permitindo que clientes acessem especificações técnicas validadas e padronizadas, eliminando a necessidade de cadastro manual de detalhes técnicos complexos.
 
 ### **Problema a Ser Resolvido**
 - **Cadastro manual repetitivo** de insumos similares entre diferentes lojas
@@ -13,11 +13,12 @@ O **Módulo Catálogo de Insumos** é uma solução estratégica para automatiza
 - **Dificuldade** para manter catálogos atualizados com novos produtos
 
 ### **Solução Proposta**
-Implementar um sistema de catálogo inteligente com:
-- **Base de dados pré-cadastrada** com insumos de comunicação visual
-- **Sistema de crawler** para atualização automática de preços e disponibilidade
-- **Integração opcional** com o módulo de insumos existente
-- **Marketplace futuro** para venda de catálogos especializados
+Implementar um sistema de catálogo técnico com:
+- **Base de dados pré-cadastrada** com especificações técnicas de insumos
+- **Foco na essência** do material (o que é, como compra, como consome)
+- **Integração simples** com o módulo de insumos existente
+- **Sistema de contribuição** onde clientes podem adicionar novos insumos
+- **Validação centralizada** antes de incluir na base global
 
 ## 🏗️ **ARQUITETURA E DESIGN**
 
@@ -28,12 +29,48 @@ Implementar um sistema de catálogo inteligente com:
 - **Performance**: Consultas otimizadas e cache inteligente
 - **Segurança**: Isolamento de dados e autenticação robusta
 
+### **Foco Técnico do Módulo**
+O catálogo é uma **"enciclopédia técnica"** que fornece especificações técnicas validadas dos materiais, focando na essência do insumo:
+
+#### **✅ O que o catálogo fornece:**
+- **Identificação do material**: Nome, descrição técnica, marca
+- **Unidades de compra e uso**: Como compra vs como consome
+- **Fator de conversão**: Relação matemática entre unidades
+- **Especificações físicas**: Dimensões, gramatura, características
+- **Lógica de consumo**: Como calcular (área, perímetro, quantidade fixa)
+
+#### **❌ O que o catálogo NÃO fornece:**
+- **Preços**: Cliente define seus próprios valores
+- **Fornecedores**: Cliente escolhe seus fornecedores
+- **Quantidades de compra**: Cliente define suas quantidades
+- **Estoque**: Gerido pelo módulo de estoque
+- **Compras**: Gerido pelo sistema de compras (futuro)
+
 ### **Componentes Principais**
-1. **Catálogo de Insumos**: Base de dados centralizada
-2. **Sistema de Crawler**: Atualização automática de dados
+1. **Catálogo de Insumos**: Base técnica centralizada
+2. **Sistema de Contribuição**: Clientes podem adicionar novos insumos
 3. **API de Integração**: Interface para módulo de insumos
 4. **Sistema de Busca**: Pesquisa inteligente e filtros
 5. **Gestão de Categorias**: Organização hierárquica de materiais
+
+### **Fluxo de Integração Simplificado**
+```
+Cliente → Busca no Catálogo → Encontra? → Integra direto
+                    ↓
+                Não Encontra?
+                    ↓
+            Contribui novo insumo → Aguarda validação
+                    ↓
+            Super Admin valida → Aprova/Rejeita
+                    ↓
+            Se aprovado → Adiciona à base global
+```
+
+#### **Integração com Módulo de Insumos:**
+1. **Cliente busca** insumo no catálogo
+2. **Cliente integra** à sua loja (define preço, fornecedor, quantidade)
+3. **Sistema combina** dados técnicos (catálogo) + dados comerciais (loja)
+4. **Resultado**: Insumo completo na loja com especificações técnicas validadas
 
 ## 📊 **REQUISITOS FUNCIONAIS**
 
@@ -44,12 +81,12 @@ Implementar um sistema de catálogo inteligente com:
 - **RF001.4**: Ativar/desativar insumos individualmente
 - **RF001.5**: Categorizar insumos por tipo de material
 
-### **RF002 - Sistema de Crawler**
-- **RF002.1**: Executar crawler para atualizar preços automaticamente
-- **RF002.2**: Configurar fontes de dados para coleta
-- **RF002.3**: Agendar execuções automáticas do crawler
-- **RF002.4**: Monitorar status e logs de execução
-- **RF002.5**: Tratar erros e falhas de coleta
+### **RF002 - Sistema de Contribuição**
+- **RF002.1**: Cliente pode contribuir com novos insumos
+- **RF002.2**: Sistema de validação para contribuições
+- **RF002.3**: Aprovação/rejeição por super admin
+- **RF002.4**: Histórico de contribuições e validações
+- **RF002.5**: Notificações de status das contribuições
 
 ### **RF003 - Sistema de Busca**
 - **RF003.1**: Buscar insumos por nome ou código
@@ -61,8 +98,8 @@ Implementar um sistema de catálogo inteligente com:
 ### **RF004 - Integração com Sistema Existente**
 - **RF004.1**: Buscar insumos no catálogo a partir do módulo de insumos
 - **RF004.2**: Integrar insumo do catálogo ao sistema da loja
-- **RF004.3**: Sincronizar dados entre catálogo e sistema local
-- **RF004.4**: Manter histórico de integrações
+- **RF004.3**: Manter referência ao catálogo no insumo da loja
+- **RF004.4**: Histórico de integrações realizadas
 
 ### **RF005 - Gestão de Categorias**
 - **RF005.1**: Criar hierarquia de categorias de materiais
@@ -74,8 +111,8 @@ Implementar um sistema de catálogo inteligente com:
 
 ### **RNF001 - Performance**
 - **RNF001.1**: Tempo de resposta máximo de 2 segundos para consultas
-- **RNF001.2**: Suporte a até 100.000 insumos no catálogo
-- **RNF001.3**: Cache de consultas frequentes com TTL de 15 minutos
+- **RNF001.2**: Suporte a até 50.000 insumos no catálogo
+- **RNF001.3**: Cache de consultas frequentes com TTL de 30 minutos
 - **RNF001.4**: Paginação eficiente com máximo de 100 itens por página
 
 ### **RNF002 - Segurança**
@@ -105,12 +142,12 @@ Implementar um sistema de catálogo inteligente com:
 - ✅ Retorna erro apropriado para dados inválidos
 - ✅ Log de auditoria é gerado para a operação
 
-### **CA002 - Sistema de Crawler**
-- ✅ Crawler executa sem erros para fontes válidas
-- ✅ Dados são atualizados corretamente no catálogo
-- ✅ Logs de execução são registrados adequadamente
-- ✅ Tratamento de erros funciona para fontes inválidas
-- ✅ Agendamento automático executa conforme configurado
+### **CA002 - Sistema de Contribuição**
+- ✅ Cliente consegue contribuir com novos insumos
+- ✅ Sistema de validação funciona corretamente
+- ✅ Super admin consegue aprovar/rejeitar contribuições
+- ✅ Histórico de contribuições é mantido
+- ✅ Notificações de status funcionam adequadamente
 
 ### **CA003 - Busca e Filtros**
 - ✅ Busca por texto retorna resultados relevantes
@@ -153,11 +190,11 @@ Implementar um sistema de catálogo inteligente com:
 - Sistema de categorias
 - API de busca simples
 
-### **Fase 2 - Crawler (2 semanas)**
-- Sistema de crawler básico
-- Atualização automática de preços
-- Monitoramento e logs
-- Tratamento de erros
+### **Fase 2 - Sistema de Contribuição (2 semanas)**
+- Sistema de contribuição de clientes
+- Validação e aprovação por super admin
+- Histórico de contribuições
+- Notificações de status
 
 ### **Fase 3 - Integração (1 semana)**
 - Interface com módulo de insumos
@@ -179,11 +216,11 @@ Implementar um sistema de catálogo inteligente com:
 - **MySQL**: Banco de dados principal
 - **JWT**: Autenticação e autorização
 
-### **Crawler**
-- **Puppeteer/Cheerio**: Web scraping
-- **Node-cron**: Agendamento de tarefas
-- **Axios**: Requisições HTTP
-- **Winston**: Logging estruturado
+### **Sistema de Contribuição**
+- **Validação automática**: Verificação de dados obrigatórios
+- **Workflow de aprovação**: Processo de validação por super admin
+- **Notificações**: Sistema de alertas para status das contribuições
+- **Histórico**: Rastreamento completo de contribuições
 
 ### **Testes**
 - **Jest**: Framework de testes
