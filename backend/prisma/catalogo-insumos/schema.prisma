@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("CATALOGO_INSUMOS_DATABASE_URL")
+}
+
+// ===== ENUMS =====
+
+enum LogicaConsumoInsumo {
+  area
+  perimetro
+  quantidade_fixa
+  linear
+  volume
+}
+
+enum StatusContribuicao {
+  PENDENTE
+  APROVADO
+  REJEITADO
+}
+
+// ===== ENTIDADES PRINCIPAIS =====
+
+model CatalogoInsumo {
+  id                 String                 @id @default(cuid())
+  codigo_catalogo    String                 @unique
+  nome               String
+  descricao_tecnica String?
+  categoria_global_id String?
+  marca              String?
+  especificacoes    Json?
+  unidade_compra    String
+  unidade_uso       String
+  fator_conversao   Decimal                @db.Decimal(10, 4)
+  largura           Decimal?               @db.Decimal(10, 2)
+  altura            Decimal?               @db.Decimal(10, 2)
+  gramatura         Decimal?               @db.Decimal(10, 1)
+  unidade_dimensao  String?
+  tipo_calculo      String?
+  logica_consumo    LogicaConsumoInsumo
+  disponibilidade   Boolean                @default(true)
+  fonte_coleta      String?
+  data_coleta       DateTime               @default(now())
+  data_atualizacao  DateTime               @updatedAt
+  ativo             Boolean                @default(true)
+  created_at        DateTime               @default(now())
+  updated_at        DateTime               @updatedAt
+
+  // Relacionamentos
+  categoria_global  CategoriaGlobal?       @relation(fields: [categoria_global_id], references: [id])
+  contribuicoes    ContribuicaoInsumo[]
+
+  @@map("catalogo_insumos")
+  @@index([categoria_global_id])
+  @@index([codigo_catalogo])
+  @@index([nome])
+}
+
+model CategoriaGlobal {
+  id                String                 @id @default(cuid())
+  nome              String                 @unique
+  descricao         String?
+  categoria_pai_id  String?
+  nivel_hierarquia  Int                    @default(1)
+  ativo             Boolean                @default(true)
+  created_at        DateTime               @default(now())
+  updated_at        DateTime               @updatedAt
+
+  // Relacionamentos
+  categoria_pai     CategoriaGlobal?       @relation("CategoriaHierarquia", fields: [categoria_pai_id], references: [id])
+  subcategorias     CategoriaGlobal[]      @relation("CategoriaHierarquia")
+  insumos           CatalogoInsumo[]
+  contribuicoes     ContribuicaoInsumo[]
+
+  @@map("categorias_globais")
+  @@index([categoria_pai_id])
+}
+
+model FornecedorGlobal {
+  id                String                 @id @default(cuid())
+  nome              String
+  razao_social      String?
+  cnpj              String?
+  email             String?
+  telefone          String?
+  website           String?
+  endereco          String?
+  especialidades    Json?                  // ["Papel", "Tinta", "Adesivo"]
+  ativo             Boolean                @default(true)
+  fonte_coleta      String?
+  data_coleta       DateTime               @default(now())
+  created_at        DateTime               @default(now())
+  updated_at        DateTime               @updatedAt
+
+  // Relacionamentos
+  contribuicoes     ContribuicaoFornecedor[]
+
+  @@map("fornecedores_globais")
+  @@index([nome])
+  @@index([cnpj])
+}
+
+// ===== ENTIDADES DE CONTRIBUIÇÃO =====
+
+model ContribuicaoInsumo {
+  id                 String                @id @default(cuid())
+  loja_id            String
+  insumo_id          String?
+  nome               String
+  descricao_tecnica String?
+  categoria_global_id String
+  marca              String?
+  especificacoes    Json?
+  unidade_compra    String
+  unidade_uso       String
+  fator_conversao   Decimal                @db.Decimal(10, 4)
+  largura            Decimal?              @db.Decimal(10, 2)
+  altura             Decimal?              @db.Decimal(10, 2)
+  gramatura          Decimal?              @db.Decimal(10, 1)
+  unidade_dimensao  String?
+  tipo_calculo      String?
+  logica_consumo    LogicaConsumoInsumo
+  status             StatusContribuicao    @default(PENDENTE)
+  observacoes_cliente String?
+  observacoes_admin String?
+  aprovado_por      String?
+  data_aprovacao    DateTime?
+  created_at        DateTime               @default(now())
+  updated_at        DateTime               @updatedAt
+
+  // Relacionamentos
+  categoria_global  CategoriaGlobal        @relation(fields: [categoria_global_id], references: [id])
+
+  @@map("contribuicoes_insumos")
+  @@index([loja_id])
+  @@index([status])
+  @@index([categoria_global_id])
+  @@index([created_at])
+}
+
+model ContribuicaoFornecedor {
+  id                String                 @id @default(cuid())
+  loja_id           String
+  fornecedor_id     String?
+  nome              String
+  razao_social      String?
+  cnpj              String?
+  email             String?
+  telefone          String?
+  website           String?
+  endereco          String?
+  especialidades    Json?
+  status            StatusContribuicao     @default(PENDENTE)
+  observacoes_cliente String?
+  observacoes_admin String?
+  aprovado_por      String?
+  data_aprovacao    DateTime?
+  created_at        DateTime               @default(now())
+  updated_at        DateTime               @updatedAt
+
+  // Relacionamentos
+  fornecedor_global FornecedorGlobal?      @relation(fields: [fornecedor_id], references: [id])
+
+  @@map("contribuicoes_fornecedores")
+  @@index([loja_id])
+  @@index([status])
+  @@index([created_at])
+}
