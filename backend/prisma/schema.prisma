@@ -152,6 +152,7 @@ model TemplateProduto {
   quantidade_padrao      Decimal?                 @db.Decimal(10, 2)
   ativo                  Boolean                  @default(true)
   loja_id                String
+  valor_calculado        Decimal?                 @db.Decimal(10, 2)
   funcoes                FuncaoTemplateProduto[]
   itens                  ItemTemplateProduto[]
   maquinas               MaquinaTemplateProduto[]
@@ -283,19 +284,24 @@ model fornecedor {
 }
 
 model funcao {
-  id               String                  @id @default(cuid())
-  criado_em        DateTime                @default(now())
-  atualizado_em    DateTime
-  nome             String
-  custo_hora       Decimal                 @db.Decimal(10, 2)
-  descricao        String?                 @db.Text
-  maquina_id       String?
-  loja_id          String
-  loja             loja                    @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Funcao_loja_id_fkey")
-  maquina          maquina?                @relation(fields: [maquina_id], references: [id], map: "Funcao_maquina_id_fkey")
-  funcoes_template FuncaoTemplateProduto[]
-  funcaoorcamento  funcaoorcamento[]
-  historico_custos HistoricoCustoFuncao[]
+  id                   String                  @id @default(cuid())
+  criado_em            DateTime                @default(now())
+  atualizado_em        DateTime
+  nome                 String
+  custo_hora           Decimal                 @db.Decimal(10, 2)
+  descricao            String?                 @db.Text
+  maquina_id           String?
+  loja_id              String
+  tipo_calculo         funcao_tipo_calculo     @default(MANUAL)
+  fator_acompanhamento Decimal?                @db.Decimal(10, 3)
+  horas_por_m2         Decimal?                @db.Decimal(10, 3)
+  horas_por_unidade    Decimal?                @db.Decimal(10, 3)
+  eficiencia_percent   Decimal?                @db.Decimal(5, 2)
+  loja                 loja                    @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Funcao_loja_id_fkey")
+  maquina              maquina?                @relation(fields: [maquina_id], references: [id], map: "Funcao_maquina_id_fkey")
+  funcoes_template     FuncaoTemplateProduto[]
+  funcaoorcamento      funcaoorcamento[]
+  historico_custos     HistoricoCustoFuncao[]
 
   @@index([loja_id], map: "Funcao_loja_id_idx")
   @@index([maquina_id], map: "Funcao_maquina_id_idx")
@@ -359,30 +365,35 @@ model loja {
   maquina                  maquina[]
   notificacao              notificacao[]
   orcamento                orcamento[]
+  perfis_acesso            perfil_acesso[]
   template_produtos        TemplateProduto[]
   tipomaterial             tipomaterial[]
   usuario                  usuario[]
-  
-  // Relacionamentos de perfil
-  perfis_acesso           perfil_acesso[]
+  servico_manual           servico_manual[]
+  modo_impressao           modo_impressao[]
 }
 
 model maquina {
-  id                String                   @id @default(cuid())
-  criado_em         DateTime                 @default(now())
-  atualizado_em     DateTime
-  nome              String
-  tipo              String
-  custo_hora        Decimal                  @db.Decimal(10, 2)
-  status            String                   @default("ATIVA")
-  capacidade        String?
-  observacoes       String?                  @db.Text
-  loja_id           String
-  funcao            funcao[]
-  historico_custos  HistoricoCustoMaquina[]
-  loja              loja                     @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Maquina_loja_id_fkey")
-  maquinas_template MaquinaTemplateProduto[]
-  maquinaorcamento  maquinaorcamento[]
+  id                 String                   @id @default(cuid())
+  criado_em          DateTime                 @default(now())
+  atualizado_em      DateTime
+  nome               String
+  tipo               String
+  custo_hora         Decimal                  @db.Decimal(10, 2)
+  status             String                   @default("ATIVA")
+  capacidade         String?
+  observacoes        String?                  @db.Text
+  loja_id            String
+  funcao             funcao[]
+  historico_custos   HistoricoCustoMaquina[]
+  loja               loja                     @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Maquina_loja_id_fkey")
+  maquinas_template  MaquinaTemplateProduto[]
+  maquinaorcamento   maquinaorcamento[]
+  modo_producao      maquina_modo_producao    @default(M2_H)
+  setup_min          Decimal?                 @db.Decimal(10, 2)
+  velocidade_m2_h    Decimal?                 @db.Decimal(10, 2)
+  eficiencia_percent Decimal?                 @db.Decimal(5, 2)
+  modos              modo_impressao[]
 
   @@index([loja_id], map: "Maquina_loja_id_idx")
   @@index([loja_id, tipo], map: "Maquina_loja_id_tipo_idx")
@@ -433,6 +444,28 @@ model notificacao {
   @@index([loja_id], map: "Notificacao_loja_id_idx")
   @@index([orcamento_id], map: "Notificacao_orcamento_id_idx")
   @@index([visualizada], map: "Notificacao_visualizada_idx")
+}
+
+model modo_impressao {
+  id              String   @id @default(cuid())
+  criado_em       DateTime @default(now())
+  atualizado_em   DateTime
+  nome            String
+  maquina_id      String
+  loja_id         String
+  velocidade_m2_h Decimal? @db.Decimal(10, 2)
+  largura_mm      Decimal? @db.Decimal(10, 2)
+  resolucao_dpi   Int?
+  cores           String?
+  observacoes     String?  @db.Text
+
+  maquina maquina @relation(fields: [maquina_id], references: [id], onDelete: Cascade, map: "ModoImpressao_maquina_id_fkey")
+  loja    loja    @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "ModoImpressao_loja_id_fkey")
+
+  @@unique([loja_id, nome])
+  @@index([maquina_id], map: "ModoImpressao_maquina_id_idx")
+  @@index([loja_id], map: "ModoImpressao_loja_id_idx")
+  @@map("modo_impressao")
 }
 
 model orcamento {
@@ -497,178 +530,248 @@ model tipomaterial {
   @@index([loja_id], map: "TipoMaterial_loja_id_idx")
 }
 
+model servico_manual {
+  id                 String              @id @default(cuid())
+  criado_em          DateTime            @default(now())
+  atualizado_em      DateTime
+  nome               String
+  descricao          String?             @db.Text
+  custo_hora         Decimal             @db.Decimal(10, 2)
+  loja_id            String
+  tipo_calculo       funcao_tipo_calculo @default(MANUAL)
+  horas_por_m2       Decimal?            @db.Decimal(10, 3)
+  horas_por_unidade  Decimal?            @db.Decimal(10, 3)
+  eficiencia_percent Decimal?            @db.Decimal(5, 2)
+
+  loja loja @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "ServicoManual_loja_id_fkey")
+
+  @@unique([loja_id, nome])
+  @@index([loja_id], map: "ServicoManual_loja_id_idx")
+  @@map("servico_manual")
+}
+
 model usuario {
-  id                                 String         @id @default(cuid())
-  email                              String         @unique(map: "Usuario_email_key")
-  status                             usuario_status @default(PENDENTE_VERIFICACAO)
-  atualizado_em                      DateTime       @updatedAt
+  id                                 String           @id @default(cuid())
+  email                              String           @unique(map: "Usuario_email_key")
+  status                             usuario_status   @default(PENDENTE_VERIFICACAO)
+  atualizado_em                      DateTime         @updatedAt
   codigo_verificacao_email           String?
   codigo_verificacao_email_expiracao DateTime?
-  criado_em                          DateTime       @default(now())
-  email_verificado                   Boolean        @default(false)
-  funcao                             usuario_funcao @default(VENDAS)
+  criado_em                          DateTime         @default(now())
+  email_verificado                   Boolean          @default(false)
+  funcao                             usuario_funcao   @default(VENDAS)
   loja_id                            String
   nome_completo                      String
   senha                              String?
   telefone                           String?
-  loja                               loja           @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Usuario_loja_id_fkey")
-  
-  // Relacionamentos de perfil
+  loja                               loja             @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Usuario_loja_id_fkey")
   perfis                             usuario_perfil[]
 
   @@index([loja_id], map: "Usuario_loja_id_idx")
 }
 
-// ===== MÓDULO DE ESTOQUE =====
 model estoque_localizacoes {
-  id         String           @id @default(uuid())
-  codigo     String           @unique
+  id         String   @id @default(uuid())
+  codigo     String   @unique(map: "inventory_locations_codigo_key")
   deposito   String
   corredor   String?
   prateleira String?
   nivel      String?
   posicao    String?
   descricao  String?
-  capacidade Decimal?         @db.Decimal(10, 2)
-  ativo      Boolean          @default(true)
+  capacidade Decimal?
+  ativo      Boolean  @default(true)
   lojaId     String
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
-  
-  // Relacionamentos
-  itens      estoque_itens[]
-  
-  @@index([lojaId])
-  @@index([codigo, lojaId])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([codigo, lojaId], map: "inventory_locations_codigo_lojaId_idx")
+  @@index([lojaId], map: "inventory_locations_lojaId_idx")
   @@map("estoque_localizacoes")
 }
 
 model estoque_itens {
-  id                  String              @id @default(uuid())
+  id                  String    @id @default(uuid())
   insumoId            String
   localizacaoId       String
-  quantidadeAtual     Decimal             @db.Decimal(10, 3) @default(0)
-  quantidadeReservada Decimal             @db.Decimal(10, 3) @default(0)
-  estoqueMinimo       Decimal             @db.Decimal(10, 3) @default(0)
-  estoqueMaximo       Decimal?            @db.Decimal(10, 3)
+  quantidadeAtual     Decimal   @default(0.000000000000000000000000000000)
+  quantidadeReservada Decimal   @default(0.000000000000000000000000000000)
+  estoqueMinimo       Decimal   @default(0.000000000000000000000000000000)
+  estoqueMaximo       Decimal?
   lojaId              String
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
   dataUltimaMov       DateTime?
-  
-  // Campos adicionais para o formulário
-  codigo              String?
-  nome                String?
-  descricao           String?             @db.Text
-  unidadeMedida       String?
-  precoUnitario       Decimal?            @db.Decimal(10, 2)
-  codigoBarras        String?
-  lote                String?
-  dataValidade        DateTime?
-  observacoes         String?             @db.Text
-  ativo               Boolean             @default(true)
-  
-  // Relacionamentos
-  localizacao         estoque_localizacoes @relation(fields: [localizacaoId], references: [id])
-  
-  @@unique([insumoId, localizacaoId, lojaId])
-  @@index([lojaId])
-  @@index([insumoId, lojaId])
-  @@index([localizacaoId])
+  codigo              String?   @db.VarChar(100)
+  nome                String?   @db.VarChar(255)
+  descricao           String?   @db.Text
+  unidadeMedida       String?   @db.VarChar(50)
+  precoUnitario       Decimal?  @db.Decimal(10, 2)
+  codigoBarras        String?   @db.VarChar(100)
+  lote                String?   @db.VarChar(100)
+  dataValidade        DateTime? @db.Date
+  observacoes         String?   @db.Text
+  ativo               Boolean   @default(true)
+
+  @@unique([insumoId, localizacaoId, lojaId], map: "inventory_stock_insumoId_localizacaoId_lojaId_key")
+  @@index([insumoId, lojaId], map: "inventory_stock_insumoId_lojaId_idx")
+  @@index([localizacaoId], map: "inventory_stock_localizacaoId_idx")
+  @@index([lojaId], map: "inventory_stock_lojaId_idx")
   @@map("estoque_itens")
 }
 
 model estoque_movimentacoes {
-  id                  String                @id @default(uuid())
-  itemId              String
-  tipo                String                // ENTRADA, SAIDA, AJUSTE, TRANSFERENCIA
-  quantidade          Decimal               @db.Decimal(10, 3)
-  quantidadeAnterior  Decimal              @db.Decimal(10, 3)
-  quantidadePosterior Decimal              @db.Decimal(10, 3)
+  id                  String                     @id @default(uuid())
+  estoqueId           String
+  tipo                estoque_movimentacoes_tipo
+  quantidade          Decimal
+  quantidadeAnterior  Decimal
+  quantidadePosterior Decimal
   documentoRef        String?
   orcamentoId         String?
   usuarioId           String
   lojaId              String
-  dataMovimentacao    DateTime              @default(now())
-  observacoes         String?               @db.Text
-  responsavel         String?
-  
-  @@index([lojaId])
-  @@index([itemId])
-  @@index([dataMovimentacao])
-  @@index([tipo, lojaId])
+  dataMovimentacao    DateTime                   @default(now())
+  observacoes         String?
+
+  @@index([dataMovimentacao], map: "inventory_movements_dataMovimentacao_idx")
+  @@index([estoqueId], map: "inventory_movements_estoqueId_idx")
+  @@index([lojaId], map: "inventory_movements_lojaId_idx")
+  @@index([tipo, lojaId], map: "inventory_movements_tipo_lojaId_idx")
   @@map("estoque_movimentacoes")
 }
 
 model estoque_lotes {
-  id             String             @id @default(uuid())
-  itemId         String
+  id             String               @id @default(uuid())
+  estoqueId      String
   numeroLote     String
   dataFabricacao DateTime?
   dataValidade   DateTime?
-  quantidadeLote Decimal            @db.Decimal(10, 3)
-  status         String             @default("ATIVO") // ATIVO, INATIVO, VENCIDO
+  quantidadeLote Decimal
+  status         estoque_lotes_status @default(ATIVO)
   lojaId         String
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  
-  @@index([lojaId])
-  @@index([itemId])
-  @@index([dataValidade])
-  @@index([status, lojaId])
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([dataValidade], map: "inventory_lots_dataValidade_idx")
+  @@index([estoqueId], map: "inventory_lots_estoqueId_idx")
+  @@index([lojaId], map: "inventory_lots_lojaId_idx")
+  @@index([status, lojaId], map: "inventory_lots_status_lojaId_idx")
   @@map("estoque_lotes")
 }
 
-// ===== PERFIS DE ACESSO =====
 model perfil_acesso {
-  id          String   @id @default(cuid())
-  loja_id     String
-  nome        String
-  descricao   String?  @db.Text
-  ativo       Boolean  @default(true)
-  sistema     Boolean  @default(false)
-  criado_em   DateTime @default(now())
-  atualizado_em DateTime @updatedAt
-  
-  // Relacionamentos
-  loja        loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
-  permissoes  perfil_permissao[]
-  usuarios    usuario_perfil[]
-  
+  id            String             @id @default(cuid())
+  loja_id       String
+  nome          String
+  descricao     String?            @db.Text
+  ativo         Boolean            @default(true)
+  sistema       Boolean            @default(false)
+  criado_em     DateTime           @default(now())
+  atualizado_em DateTime           @updatedAt
+  loja          loja               @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  permissoes    perfil_permissao[]
+  usuarios      usuario_perfil[]
+
   @@unique([loja_id, nome])
   @@index([loja_id])
   @@map("perfil_acesso")
 }
 
 model perfil_permissao {
-  id          String   @id @default(cuid())
-  perfil_id   String
-  modulo      String   // orcamentos, produtos, estoque, compras, pcp
-  acao        String   // visualizar, criar, editar, excluir, aprovar
-  permitido   Boolean  @default(true)
-  criado_em   DateTime @default(now())
-  
-  // Relacionamentos
-  perfil      perfil_acesso @relation(fields: [perfil_id], references: [id], onDelete: Cascade)
-  
+  id        String        @id @default(cuid())
+  perfil_id String
+  modulo    String
+  acao      String
+  permitido Boolean       @default(true)
+  criado_em DateTime      @default(now())
+  perfil    perfil_acesso @relation(fields: [perfil_id], references: [id], onDelete: Cascade)
+
   @@unique([perfil_id, modulo, acao])
   @@index([perfil_id])
   @@map("perfil_permissao")
 }
 
 model usuario_perfil {
-  usuario_id  String
-  perfil_id   String
-  criado_em   DateTime @default(now())
-  
-  // Relacionamentos
-  usuario     usuario  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
-  perfil      perfil_acesso @relation(fields: [perfil_id], references: [id], onDelete: Cascade)
-  
+  usuario_id String
+  perfil_id  String
+  criado_em  DateTime      @default(now())
+  perfil     perfil_acesso @relation(fields: [perfil_id], references: [id], onDelete: Cascade)
+  usuario    usuario       @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
   @@id([usuario_id, perfil_id])
   @@index([usuario_id])
   @@index([perfil_id])
   @@map("usuario_perfil")
+}
+
+model estoque_aproveitamentos {
+  id                     String    @id
+  sobra_id               String
+  quantidade_aproveitada Decimal   @db.Decimal(10, 2)
+  projeto_destino        String?   @db.VarChar(255)
+  orcamento_destino      String?
+  observacoes            String?   @db.Text
+  loja_id                String
+  usuario_id             String?
+  data_aproveitamento    DateTime? @default(now())
+  created_at             DateTime? @default(now())
+  updated_at             DateTime? @default(now())
+
+  @@index([data_aproveitamento], map: "idx_data_aproveitamento")
+  @@index([loja_id], map: "idx_loja_id")
+  @@index([sobra_id], map: "idx_sobra_id")
+  @@index([usuario_id], map: "idx_usuario_id")
+}
+
+model estoque_sobras {
+  id                     String                 @id
+  estoque_id             String
+  codigo_sobra           String                 @unique(map: "codigo_sobra")
+  descricao              String?                @db.Text
+  dimensoes              String?                @db.VarChar(255)
+  area                   Decimal?               @db.Decimal(10, 2)
+  quantidade             Decimal                @db.Decimal(10, 2)
+  unidade_medida         String?                @db.VarChar(50)
+  material               String?                @db.VarChar(255)
+  cor                    String?                @db.VarChar(100)
+  acabamento             String?                @db.VarChar(100)
+  status                 estoque_sobras_status? @default(DISPONIVEL)
+  origem                 String?                @db.VarChar(255)
+  data_geracao           DateTime?              @default(now())
+  orcamento_origem       String?
+  data_aproveitamento    DateTime?
+  quantidade_aproveitada Decimal?               @default(0.00) @db.Decimal(10, 2)
+  economia_gerada        Decimal?               @default(0.00) @db.Decimal(12, 2)
+  loja_id                String
+  created_at             DateTime?              @default(now())
+  updated_at             DateTime?              @default(now())
+
+  @@index([codigo_sobra], map: "idx_codigo_sobra")
+  @@index([data_geracao], map: "idx_data_geracao")
+  @@index([estoque_id], map: "idx_estoque_id")
+  @@index([loja_id], map: "idx_loja_id")
+  @@index([status], map: "idx_status")
+}
+
+model estoque_transferencias {
+  id                   String                         @id
+  estoqueId            String
+  localizacaoOrigemId  String
+  localizacaoDestinoId String
+  quantidade           Decimal                        @db.Decimal(10, 2)
+  observacoes          String?                        @db.Text
+  status               estoque_transferencias_status? @default(CONCLUIDA)
+  usuarioId            String?
+  lojaId               String
+  dataTransferencia    DateTime?                      @default(now())
+  createdAt            DateTime?                      @default(now())
+  updatedAt            DateTime?                      @default(now())
+
+  @@index([dataTransferencia], map: "idx_dataTransferencia")
+  @@index([estoqueId], map: "idx_estoqueId")
+  @@index([lojaId], map: "idx_lojaId")
+  @@index([status], map: "idx_status")
 }
 
 enum LogicaConsumoInsumo {
@@ -717,4 +820,45 @@ enum cliente_status_cliente {
   INATIVO
   PROSPECT
   BLOQUEADO
+}
+
+enum estoque_movimentacoes_tipo {
+  ENTRADA
+  SAIDA
+  AJUSTE
+  INVENTARIO
+  TRANSFERENCIA
+}
+
+enum estoque_lotes_status {
+  ATIVO
+  VENCIDO
+  CONSUMIDO
+  BLOQUEADO
+}
+
+enum estoque_transferencias_status {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDA
+  CANCELADA
+}
+
+enum estoque_sobras_status {
+  DISPONIVEL
+  APROVEITADA
+  DESCARTADA
+}
+
+enum maquina_modo_producao {
+  M2_H
+  ML_H
+  MANUAL
+}
+
+enum funcao_tipo_calculo {
+  ACOMPANHA_MAQUINA
+  POR_M2
+  POR_UNIDADE
+  MANUAL
 }
