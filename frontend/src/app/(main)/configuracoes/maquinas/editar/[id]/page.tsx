@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import React from 'react';
 import { MaquinaForm, MaquinaFormValues } from '../../maquina-form';
+import { maquinasApi } from '@/lib/api-client';
 
 interface Maquina {
   id: string;
@@ -20,6 +21,7 @@ export default function EditarMaquinaPage({ params }: { params: Promise<{ id: st
   const router = useRouter();
   const [maquina, setMaquina] = useState<Maquina | null>(null);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const { id } = React.use(params);
 
   useEffect(() => {
@@ -31,30 +33,25 @@ export default function EditarMaquinaPage({ params }: { params: Promise<{ id: st
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:3001/maquinas/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setMaquina(data);
-      } else {
-        toast.error('Máquina não encontrada.');
-        router.push('/configuracoes/maquinas');
-      }
+      const data = await maquinasApi.getById(id, token);
+      setMaquina(data);
     } catch (error) {
       console.error('Erro ao buscar máquina:', error);
-      toast.error('Erro ao carregar dados da máquina.');
-      router.push('/configuracoes/maquinas');
+      toast.error('Erro ao carregar dados da máquina');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSave = async (data: MaquinaFormValues) => {
+  const handleSubmit = async (data: MaquinaFormValues) => {
     try {
+      setSubmitting(true);
       const token = localStorage.getItem('access_token');
-      
+      if (!token) {
+        toast.error('Token de autenticação não encontrado');
+        return;
+      }
+
       // Converter o custo_hora corretamente
       let custo: number;
       if (typeof data.custo_hora === 'string') {
@@ -72,28 +69,14 @@ export default function EditarMaquinaPage({ params }: { params: Promise<{ id: st
         return;
       }
 
-      const response = await fetch(`http://localhost:3001/maquinas/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ...data,
-          custo_hora: custo,
-        }),
-      });
-
-      if (response.ok) {
-        toast.success('Máquina atualizada com sucesso!');
-        router.push('/configuracoes/maquinas');
-      } else {
-        const errorData = await response.json();
-        toast.error(`Falha ao atualizar máquina: ${errorData.message}`);
-      }
+      await maquinasApi.update(id, { ...data, custo_hora: custo }, token);
+      toast.success('Máquina atualizada com sucesso!');
+      router.push('/configuracoes/maquinas');
     } catch (error) {
-      toast.error('Ocorreu um erro ao conectar com o servidor.');
-      console.error(error);
+      console.error('Erro ao atualizar máquina:', error);
+      toast.error('Erro ao atualizar máquina');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -123,7 +106,7 @@ export default function EditarMaquinaPage({ params }: { params: Promise<{ id: st
           Atualize os dados da máquina.
         </p>
       </div>
-      <MaquinaForm onSave={handleSave} initialData={formInitialData} />
+      <MaquinaForm onSave={handleSubmit} initialData={formInitialData} />
     </div>
   );
 } 

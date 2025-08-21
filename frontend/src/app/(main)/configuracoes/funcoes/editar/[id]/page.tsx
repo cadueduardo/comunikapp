@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import React from 'react';
 import { FuncaoForm, FuncaoFormValues } from '../../funcao-form';
+import { funcoesApi } from '@/lib/api-client';
 
 interface Funcao {
   id: string;
@@ -29,20 +30,11 @@ export default function EditarFuncaoPage({ params }: { params: Promise<{ id: str
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:3001/funcoes/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setFuncao(data);
-      } else {
-        toast.error('Função não encontrada.');
-        router.push('/configuracoes/funcoes');
-      }
+      const data = await funcoesApi.getById(id, token);
+      setFuncao(data);
     } catch (error) {
       console.error('Erro ao buscar função:', error);
-      toast.error('Erro ao carregar dados da função.');
+      toast.error('Função não encontrada.');
       router.push('/configuracoes/funcoes');
     } finally {
       setLoading(false);
@@ -53,6 +45,11 @@ export default function EditarFuncaoPage({ params }: { params: Promise<{ id: str
     try {
       const token = localStorage.getItem('access_token');
       
+      if (!token) {
+        toast.error('Token de autenticação não encontrado.');
+        return;
+      }
+
       // Converter o custo_hora corretamente
       let custo: number;
       if (typeof data.custo_hora === 'string') {
@@ -70,26 +67,14 @@ export default function EditarFuncaoPage({ params }: { params: Promise<{ id: str
         return;
       }
 
-      const response = await fetch(`http://localhost:3001/funcoes/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ...data,
-          custo_hora: custo,
-          maquina_id: data.maquina_id === 'null' ? null : data.maquina_id,
-        }),
-      });
+      await funcoesApi.update(id, {
+        ...data,
+        custo_hora: custo,
+        maquina_id: data.maquina_id === 'null' ? null : data.maquina_id,
+      }, token);
 
-      if (response.ok) {
-        toast.success('Função atualizada com sucesso!');
-        router.push('/configuracoes/funcoes');
-      } else {
-        const errorData = await response.json();
-        toast.error(`Falha ao atualizar função: ${errorData.message}`);
-      }
+      toast.success('Função atualizada com sucesso!');
+      router.push('/configuracoes/funcoes');
     } catch (error) {
       toast.error('Ocorreu um erro ao conectar com o servidor.');
       console.error(error);

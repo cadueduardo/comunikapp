@@ -9,7 +9,7 @@ import { Plus, Table, LayoutGrid } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { createColumns, type Orcamento } from './columns';
-import { apiRequest } from '@/lib/api';
+import { orcamentosApi } from '@/lib/api-client';
 
 export default function OrcamentosPage() {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
@@ -20,11 +20,13 @@ export default function OrcamentosPage() {
   const carregarOrcamentos = async () => {
     try {
       setLoading(true);
-      const response = await apiRequest('/orcamentos');
-      if (!response.ok) {
-        throw new Error('Erro ao carregar orçamentos');
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        toast.error('Token de autenticação não encontrado');
+        return;
       }
-      const data = await response.json();
+
+      const data = await orcamentosApi.getAll(token);
       setOrcamentos(data);
     } catch (error) {
       console.error('Erro ao carregar orçamentos:', error);
@@ -42,12 +44,13 @@ export default function OrcamentosPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const response = await apiRequest(`/orcamentos/${id}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        throw new Error('Erro ao excluir orçamento');
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        toast.error('Token de autenticação não encontrado');
+        return;
       }
+
+      await orcamentosApi.delete(id, token);
       toast.success('Orçamento excluído com sucesso');
       carregarOrcamentos();
     } catch (error) {
@@ -59,7 +62,7 @@ export default function OrcamentosPage() {
   const handleShare = async (orcamento: Orcamento) => {
     try {
       // Gerar URL pública diretamente
-      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
       const url = `${baseUrl}/orcamento/${orcamento.id}`;
       
       // Dados para compartilhamento
@@ -96,7 +99,7 @@ export default function OrcamentosPage() {
       }
       
       try {
-        const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
         const url = `${baseUrl}/orcamento/${orcamento.id}`;
         await navigator.clipboard.writeText(url);
         toast.success('📋 Link copiado para a área de transferência');

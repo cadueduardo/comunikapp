@@ -38,7 +38,7 @@ export default function VerLotePage() {
     setLoading(true)
     try {
       const token = localStorage.getItem('access_token')
-      const res = await fetch(`http://localhost:3001/api/estoque/lotes/${loteId}`, {
+      const res = await fetch(`/api/estoque/lotes/${loteId}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error('Falha ao carregar lote')

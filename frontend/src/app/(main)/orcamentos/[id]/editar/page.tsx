@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { OrcamentoForm } from '@/components/ui/orcamento';
 import { ChatFlutuante } from '@/components/ui/chat-flutuante';
+import { orcamentosApi } from '@/lib/api-client';
 
 export default function EditarOrcamentoPage() {
   const params = useParams();
@@ -31,20 +32,11 @@ export default function EditarOrcamentoPage() {
         return;
       }
 
-      const response = await fetch(`http://localhost:3001/orcamentos/${orcamentoId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('🔍 Debug - Dados do orçamento carregados:', data);
-        console.log('🔍 Debug - Status do orçamento:', data.status);
-        setOrcamentoData(data);
-        setOrcamentoStatus(data.status || '');
-      } else {
-        toast.error('Erro ao carregar dados do orçamento');
-        router.push('/orcamentos');
-      }
+      const data = await orcamentosApi.getById(orcamentoId, token);
+      console.log('🔍 Debug - Dados do orçamento carregados:', data);
+      console.log('🔍 Debug - Status do orçamento:', data.status);
+      setOrcamentoData(data);
+      setOrcamentoStatus(data.status || '');
     } catch (error) {
       console.error('Erro ao buscar orçamento:', error);
       toast.error('Erro ao carregar dados do orçamento');

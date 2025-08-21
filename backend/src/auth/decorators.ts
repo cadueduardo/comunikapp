@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { IS_PUBLIC_KEY } from './jwt-auth.guard';
 import { AuthenticatedUser } from './auth.service';
-import { Loja } from '@prisma/client';
+import { loja } from '@prisma/client';
 
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
@@ -17,7 +17,7 @@ export const CurrentUser = createParamDecorator(
 );
 
 export const GetLoja = createParamDecorator(
-  (data: unknown, ctx: ExecutionContext): Loja => {
+  (data: unknown, ctx: ExecutionContext): loja => {
     const request = ctx.switchToHttp().getRequest();
     // Suporte a bypass de testes via middleware de estoque (req.estoque)
     if (request.estoque?.lojaId) {

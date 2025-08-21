@@ -73,11 +73,8 @@ const formatCurrency = (value: number) => {
 };
 
 const formatHours = (hours: number | null | undefined | string | { toString(): string }) => {
-  console.log('formatHours called with:', hours, 'type:', typeof hours);
-  
   // Se for null, undefined ou NaN
   if (hours === null || hours === undefined || (typeof hours === 'number' && isNaN(hours))) {
-    console.log('Returning default value for invalid hours');
     return '0.00h';
   }
   
@@ -85,16 +82,13 @@ const formatHours = (hours: number | null | undefined | string | { toString(): s
   if (typeof hours === 'string') {
     const numHours = parseFloat(hours);
     if (isNaN(numHours)) {
-      console.log('Invalid string value for hours');
       return '0.00h';
     }
-    console.log('Formatting hours from string:', numHours);
     return `${numHours.toFixed(2)}h`;
   }
   
   // Se for número
   if (typeof hours === 'number') {
-    console.log('Formatting hours:', hours);
     return `${hours.toFixed(2)}h`;
   }
   
@@ -103,19 +97,15 @@ const formatHours = (hours: number | null | undefined | string | { toString(): s
     try {
       const numHours = parseFloat(hours.toString());
       if (isNaN(numHours)) {
-        console.log('Invalid Decimal value for hours');
         return '0.00h';
       }
-      console.log('Formatting hours from Decimal:', numHours);
       return `${numHours.toFixed(2)}h`;
     } catch (error) {
-      console.log('Error parsing Decimal:', error);
       return '0.00h';
     }
   }
   
   // Fallback
-  console.log('Unknown type for hours, returning default');
   return '0.00h';
 };
 

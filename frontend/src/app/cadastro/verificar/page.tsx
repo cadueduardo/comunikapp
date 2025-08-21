@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { MailCheck, XCircle } from 'lucide-react';
+import { lojasApi } from '@/lib/api-client';
 
 export default function VerifyPage() {
   const [code, setCode] = useState('');
@@ -27,18 +28,7 @@ export default function VerifyPage() {
     }
 
     try {
-      const response = await fetch('http://localhost:3001/lojas/verificar-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, codigo: code }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Falha ao verificar o código.');
-      }
+      await lojasApi.verifyEmail({ email, codigo: code });
 
       // Se a verificação for bem-sucedida, redireciona para a página de login com um parâmetro
       router.push('/login?verified=true');

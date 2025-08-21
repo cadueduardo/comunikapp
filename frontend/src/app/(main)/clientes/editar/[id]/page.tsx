@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Save } from "lucide-react";
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { clientesApi } from '@/lib/api-client';
 
 // Reutilizando a interface para consistência
 interface ClienteFormData {
@@ -58,17 +59,8 @@ export default function EditarClientePage({ params }: { params: Promise<{ id: st
           return;
         }
 
-        const response = await fetch(`http://localhost:3001/clientes/${clienteId}`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setFormData(data);
-        } else {
-          toast.error('Cliente não encontrado.');
-          router.push('/clientes');
-        }
+        const data = await clientesApi.getById(clienteId, token);
+        setFormData(data);
       } catch (error) {
         console.error('Erro ao buscar cliente:', error);
         toast.error('Erro ao carregar dados do cliente.');
@@ -95,22 +87,9 @@ export default function EditarClientePage({ params }: { params: Promise<{ id: st
         Object.entries(formData).filter(([, v]) => v !== null && v !== '')
       );
 
-      const response = await fetch(`http://localhost:3001/clientes/${clienteId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(cleanData),
-      });
-
-      if (response.ok) {
-        toast.success('Cliente atualizado com sucesso!');
-        router.push('/clientes');
-      } else {
-        const error = await response.json();
-        toast.error(`Erro ao atualizar cliente: ${error.message || 'Erro desconhecido'}`);
-      }
+      await clientesApi.update(clienteId, cleanData, token);
+      toast.success('Cliente atualizado com sucesso!');
+      router.push('/clientes');
     } catch (error) {
       console.error('Erro ao atualizar cliente:', error);
       toast.error('Erro ao atualizar cliente. Tente novamente.');

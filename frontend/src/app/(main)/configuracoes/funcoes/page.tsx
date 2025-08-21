@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { funcoesApi } from '@/lib/api-client';
 
 interface Funcao {
   id: string;
@@ -43,16 +44,8 @@ export default function FuncoesPage() {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:3001/funcoes', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setFuncoes(data);
-      } else {
-        toast.error('Erro ao carregar funções');
-      }
+      const data = await funcoesApi.getAll(token);
+      setFuncoes(data);
     } catch (error) {
       console.error('Erro ao buscar funções:', error);
       toast.error('Erro ao carregar funções');
@@ -66,20 +59,9 @@ export default function FuncoesPage() {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:3001/funcoes/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        toast.success('Função excluída com sucesso!');
-        fetchFuncoes();
-      } else {
-        // Tenta ler a mensagem de erro do backend
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || 'Erro ao excluir função';
-        toast.error(errorMessage);
-      }
+      await funcoesApi.delete(id, token);
+      toast.success('Função excluída com sucesso!');
+      fetchFuncoes();
     } catch (error) {
       console.error('Erro ao excluir função:', error);
       toast.error('Erro ao excluir função');

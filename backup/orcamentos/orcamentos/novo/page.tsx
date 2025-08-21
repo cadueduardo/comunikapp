@@ -299,7 +299,7 @@ export default function NovoOrcamentoPage() {
   const fetchClientes = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/clientes', {
+      const response = await fetch('/api/clientes', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -314,7 +314,7 @@ export default function NovoOrcamentoPage() {
   const fetchInsumos = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/insumos', {
+      const response = await fetch('/api/insumos', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -329,7 +329,7 @@ export default function NovoOrcamentoPage() {
   const fetchMaquinas = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/maquinas', {
+      const response = await fetch('/api/maquinas', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -344,7 +344,7 @@ export default function NovoOrcamentoPage() {
   const fetchFuncoes = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/funcoes', {
+      const response = await fetch('/api/funcoes', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -398,7 +398,7 @@ export default function NovoOrcamentoPage() {
 
       console.log('Dados sendo enviados para cálculo:', dadosCalculo);
 
-      const response = await fetch('http://localhost:3001/orcamentos/calcular', {
+      const response = await fetch('/api/orcamentos/calcular', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -467,7 +467,7 @@ export default function NovoOrcamentoPage() {
 
       console.log('Dados sendo enviados para criar orçamento:', dadosOrcamento);
 
-      const response = await fetch('http://localhost:3001/orcamentos', {
+      const response = await fetch('/api/orcamentos', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

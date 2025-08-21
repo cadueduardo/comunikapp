@@ -1,5 +1,5 @@
 import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
-import { FuncaoUsuario, StatusConta } from '@prisma/client';
+import { usuario_funcao, usuario_status } from '@prisma/client';
 
 export class UpdateUsuarioDto {
   @IsOptional()
@@ -16,12 +16,12 @@ export class UpdateUsuarioDto {
   telefone?: string;
 
   @IsOptional()
-  @IsEnum(FuncaoUsuario)
-  funcao?: FuncaoUsuario;
+  @IsEnum(usuario_funcao)
+  funcao?: usuario_funcao;
 
   @IsOptional()
-  @IsEnum(StatusConta)
-  status?: StatusConta;
+  @IsEnum(usuario_status)
+  status?: usuario_status;
 }
 
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { buildApiUrl } from '@/lib/config';
 
 export async function POST(
   request: NextRequest,
@@ -36,7 +37,7 @@ export async function POST(
     
     console.log('🔍 API Route - Enviando para backend:', codigoLimpo);
     
-    const response = await fetch(`http://localhost:3001/orcamentos/aprovar/${codigoLimpo}`, {
+    const response = await fetch(buildApiUrl(`/orcamentos/aprovar/${codigoLimpo}`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

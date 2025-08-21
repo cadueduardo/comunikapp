@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function run() {
-  const tables = ['localizacoes', 'itens_estoque', 'estoque_lotes']
+  const tables = ['estoque_localizacoes', 'estoque_itens', 'estoque_lotes']
   for (const t of tables) {
     try {
       const cols = await prisma.$queryRawUnsafe<any[]>(`DESCRIBE ${t}`)

@@ -16,8 +16,8 @@ export class CreateMensagemNegociacaoDto {
   @IsString()
   mensagem: string;
 
-  @IsEnum(TipoMensagem)
-  tipo: TipoMensagem;
+  @IsString()
+  tipo: string; // Aceitar string para ser mais flexível
 
   @IsOptional()
   @IsString()

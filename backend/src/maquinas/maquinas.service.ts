@@ -6,34 +6,39 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMaquinaDto } from './dto/create-maquina.dto';
 import { UpdateMaquinaDto } from './dto/update-maquina.dto';
-import { Loja } from '@prisma/client';
+import { loja } from '@prisma/client';
 
 @Injectable()
 export class MaquinasService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createMaquinaDto: CreateMaquinaDto, loja: Loja) {
+  async create(createMaquinaDto: CreateMaquinaDto, loja: loja) {
     return this.prisma.maquina.create({
       data: {
         ...createMaquinaDto,
-        loja_id: loja.id,
+        loja: {
+          connect: { id: loja.id }
+        },
         status: createMaquinaDto.status || 'ATIVA',
+        atualizado_em: new Date(),
       },
     });
   }
 
-  async findAll(loja: Loja) {
+  async findAll(loja: loja) {
     return this.prisma.maquina.findMany({
-      where: { loja_id: loja.id },
+      where: { 
+        loja: { id: loja.id }
+      },
       orderBy: { nome: 'asc' },
     });
   }
 
-  async findOne(id: string, loja: Loja) {
+  async findOne(id: string, loja: loja) {
     const maquina = await this.prisma.maquina.findUnique({
       where: { id },
       include: {
-        funcoes: true,
+        funcao: true,
       },
     });
 
@@ -50,7 +55,7 @@ export class MaquinasService {
     return maquina;
   }
 
-  async update(id: string, updateMaquinaDto: UpdateMaquinaDto, loja: Loja) {
+  async update(id: string, updateMaquinaDto: UpdateMaquinaDto, loja: loja) {
     await this.findOne(id, loja); // Garante que a máquina existe e pertence à loja
 
     return this.prisma.maquina.update({
@@ -59,11 +64,11 @@ export class MaquinasService {
     });
   }
 
-  async remove(id: string, loja: Loja) {
+  async remove(id: string, loja: loja) {
     await this.findOne(id, loja); // Garante que a máquina existe e pertence à loja
 
     // Verificar se a máquina está sendo usada em algum orçamento
-    const maquinaEmUso = await this.prisma.maquinaOrcamento.findFirst({
+    const maquinaEmUso = await this.prisma.maquinaorcamento.findFirst({
       where: { maquina_id: id },
     });
 
@@ -80,10 +85,10 @@ export class MaquinasService {
     return { message: `Máquina com ID "${id}" foi removida com sucesso.` };
   }
 
-  async findByTipo(tipo: string, loja: Loja) {
+  async findByTipo(tipo: string, loja: loja) {
     return this.prisma.maquina.findMany({
       where: {
-        loja_id: loja.id,
+        loja: { id: loja.id },
         tipo: tipo,
         status: 'ATIVA',
       },

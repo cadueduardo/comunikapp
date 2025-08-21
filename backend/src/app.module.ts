@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -9,16 +9,17 @@ import { FornecedoresModule } from './fornecedores/fornecedores.module';
 import { InsumosModule } from './insumos/insumos.module';
 import { OrcamentosModule } from './orcamentos/orcamentos.module';
 import { NotificacoesModule } from './notificacoes/notificacoes.module';
-import { MaquinasModule } from './maquinas/maquinas.module';
 import { FuncoesModule } from './funcoes/funcoes.module';
 import { CustosIndiretosModule } from './custos-indiretos/custos-indiretos.module';
 import { TiposMaterialModule } from './tipos-material/tipos-material.module';
 import { ProdutosModule } from './produtos/produtos.module';
-import { WebsocketsModule } from './websockets/websockets.module';
-import { MensagensNegociacaoModule } from './mensagens-negociacao/mensagens-negociacao.module';
+import { MaquinasModule } from './maquinas/maquinas.module';
 import { MailModule } from './mail/mail.module';
 import { EstoqueModule } from './estoque/estoque.module';
+import { MensagensNegociacaoModule } from './mensagens-negociacao/mensagens-negociacao.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
+import { WebsocketsModule } from './websockets/websockets.module';
+import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
 
 @Module({
   imports: [
@@ -34,16 +35,23 @@ import { UsuariosModule } from './usuarios/usuarios.module';
     InsumosModule,
     OrcamentosModule,
     NotificacoesModule,
+    EstoqueModule,
+    TiposMaterialModule,
+    ProdutosModule,
     MaquinasModule,
     FuncoesModule,
     CustosIndiretosModule,
-    TiposMaterialModule,
-    ProdutosModule,
-    WebsocketsModule,
-    MensagensNegociacaoModule,
     MailModule,
-    EstoqueModule,
+    MensagensNegociacaoModule,
     UsuariosModule,
+    WebsocketsModule,
   ],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Aplica o middleware JWT globalmente para todas as rotas
+    consumer
+      .apply(JwtGlobalMiddleware)
+      .forRoutes({ path: '*', method: RequestMethod.ALL });
+  }
+}

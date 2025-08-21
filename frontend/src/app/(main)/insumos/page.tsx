@@ -10,6 +10,7 @@ import { DataTable } from '@/components/data-table/data-table';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { InsumoCard } from '@/components/ui/insumo-card';
 import { useIsMobile } from '@/hooks/use-media-query';
+import { insumosApi } from '@/lib/api-client';
 
 export default function InsumosPage() {
   const [data, setData] = useState<Insumo[]>([]);
@@ -30,13 +31,9 @@ export default function InsumosPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/insumos', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        setData(await response.json());
-      } else {
-        toast.error("Falha ao buscar insumos.");
+      if (token) {
+        const data = await insumosApi.getAll(token);
+        setData(data);
       }
     } catch (error) {
       toast.error("Ocorreu um erro ao buscar insumos.");
@@ -49,19 +46,10 @@ export default function InsumosPage() {
   const handleDelete = async (id: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/insumos/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
+      if (token) {
+        await insumosApi.delete(id, token);
         toast.success('Insumo excluído com sucesso!');
         fetchInsumos();
-      } else {
-        // Tenta ler a mensagem de erro do backend
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || 'Erro ao excluir insumo';
-        toast.error(errorMessage);
       }
     } catch (error) {
       console.error('Erro ao excluir insumo:', error);

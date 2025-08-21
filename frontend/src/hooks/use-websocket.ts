@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { buildApiUrl } from '@/lib/config';
 
 interface WebSocketMessage {
   message: {
@@ -51,15 +52,22 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
       // Usar endpoint público se estiver em modo público
       const endpoint = options.isPublic 
-        ? `http://localhost:3001/orcamentos/${options.orcamentoId}/mensagens/publico`
-        : `http://localhost:3001/orcamentos/${options.orcamentoId}/mensagens`;
+        ? `/orcamentos/${options.orcamentoId}/mensagens/publico`
+        : `/orcamentos/${options.orcamentoId}/mensagens`;
 
-      console.log('🔍 Polling: Usando endpoint:', endpoint);
+      const fullUrl = buildApiUrl(endpoint);
+      console.log('🔍 Polling: Usando endpoint:', fullUrl);
 
-      const response = await fetch(endpoint, {
+      // Adicionar timeout para evitar requisições muito longas
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos
+
+      const response = await fetch(fullUrl, {
         headers,
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
       console.log('🔍 Polling: Status da resposta:', response.status);
 
       if (response.ok) {
@@ -103,6 +111,12 @@ export function useWebSocket(options: UseWebSocketOptions) {
         console.error('❌ Polling: Detalhes do erro:', errorText);
       }
     } catch (error) {
+      // Verificar se é um erro de abort ou outro tipo
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('⏰ Polling: Requisição cancelada por timeout');
+        return;
+      }
+      
       console.error('❌ Polling: Erro ao verificar novas mensagens:', error);
       options.onError?.(error as Error);
     }
@@ -110,26 +124,29 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
   // Iniciar polling quando o componente montar
   useEffect(() => {
-    if (options.orcamentoId) {
+    if (options.orcamentoId && typeof window !== 'undefined') {
       console.log('🚀 Polling: Iniciando para orçamento:', options.orcamentoId);
       
-      // Verificar imediatamente
-      checkNewMessages();
+      // Pequeno delay para garantir que o componente está totalmente montado
+      const initialDelay = setTimeout(() => {
+        checkNewMessages();
+      }, 100);
       
       // Configurar polling a cada 3 segundos
       pollingIntervalRef.current = setInterval(checkNewMessages, 3000);
       console.log('⏰ Polling: Intervalo configurado (3s)');
+      
+      return () => {
+        clearTimeout(initialDelay);
+        console.log('🛑 Polling: Limpando intervalo');
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      };
     } else {
-      console.log('⚠️ Polling: OrcamentoId não fornecido, não iniciando');
+      console.log('⚠️ Polling: OrcamentoId não fornecido ou não está no browser, não iniciando');
     }
-
-    return () => {
-      console.log('🛑 Polling: Limpando intervalo');
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-    };
   }, [checkNewMessages]);
 
   const connect = useCallback(() => {
@@ -151,6 +168,12 @@ export function useWebSocket(options: UseWebSocketOptions) {
   const emitMessageRead = useCallback(async (messageId: string) => {
     if (!options.orcamentoId) return;
 
+    // Não tentar marcar mensagens temporárias como lidas
+    if (messageId.startsWith('temp_')) {
+      console.log('⚠️ Polling: Ignorando mensagem temporária:', messageId);
+      return;
+    }
+
     try {
       console.log('👁️ Polling: Marcando mensagem como lida:', messageId);
 
@@ -165,12 +188,13 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
       // Usar endpoint correto baseado no modo
       const endpoint = options.isPublic
-        ? `http://localhost:3001/orcamentos/${options.orcamentoId}/mensagens/publico/${messageId}/visualizar`
-        : `http://localhost:3001/orcamentos/${options.orcamentoId}/mensagens/${messageId}/visualizar`;
+        ? `/orcamentos/${options.orcamentoId}/mensagens/publico/${messageId}/visualizar`
+        : `/orcamentos/${options.orcamentoId}/mensagens/${messageId}/visualizar`;
 
-      console.log('👁️ Polling: Usando endpoint para marcar como lida:', endpoint);
+      const fullUrl = buildApiUrl(endpoint);
+      console.log('👁️ Polling: Usando endpoint para marcar como lida:', fullUrl);
 
-      const response = await fetch(endpoint, {
+      const response = await fetch(fullUrl, {
         method: 'POST',
         headers,
       });

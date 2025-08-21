@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { buildApiUrl } from '@/lib/config';
 
 export async function GET(
   request: NextRequest,
@@ -6,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const response = await fetch(`http://localhost:3001/orcamentos/${id}/publico`, {
+    const response = await fetch(buildApiUrl(`/orcamentos/${id}/publico`), {
       method: 'GET',
     });
 

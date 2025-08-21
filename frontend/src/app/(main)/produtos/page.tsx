@@ -10,6 +10,7 @@ import { DataTable } from '@/components/data-table/data-table';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ProdutoCard } from './components/produto-card';
 import { useIsMobile } from '@/hooks/use-media-query';
+import { produtosApi } from '@/lib/api-client';
 
 export default function ProdutosPage() {
   const [data, setData] = useState<Produto[]>([]);
@@ -30,14 +31,13 @@ export default function ProdutosPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/produtos', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        setData(await response.json());
-      } else {
-        toast.error("Falha ao buscar produtos.");
+      if (!token) {
+        toast.error("Token de autenticação não encontrado.");
+        return;
       }
+      
+      const data = await produtosApi.getAll(token);
+      setData(data);
     } catch (error) {
       toast.error("Ocorreu um erro ao buscar produtos.");
       console.error("Ocorreu um erro ao buscar produtos:", error);
@@ -49,20 +49,14 @@ export default function ProdutosPage() {
   const handleDelete = async (id: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/produtos/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        toast.success('Produto excluído com sucesso!');
-        fetchProdutos();
-      } else {
-        // Tenta ler a mensagem de erro do backend
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || 'Erro ao excluir produto';
-        toast.error(errorMessage);
+      if (!token) {
+        toast.error("Token de autenticação não encontrado.");
+        return;
       }
+      
+      await produtosApi.delete(id, token);
+      toast.success('Produto excluído com sucesso!');
+      fetchProdutos();
     } catch (error) {
       console.error('Erro ao excluir produto:', error);
       toast.error('Erro ao excluir produto');

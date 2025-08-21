@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { TipoMaterialForm } from '../../tipo-material-form';
 import { TipoMaterial } from '../../columns';
 import { toast } from 'sonner';
+import { tiposMaterialApi } from '@/lib/api-client';
 
 export default function EditarTipoMaterialPage() {
   const params = useParams();
@@ -16,17 +17,14 @@ export default function EditarTipoMaterialPage() {
     const fetchTipoMaterial = async () => {
       try {
         const token = localStorage.getItem('access_token');
-        const response = await fetch(`http://localhost:3001/tipos-material/${params.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setTipoMaterial(data);
-        } else {
-          toast.error('Tipo de material não encontrado');
+        if (!token) {
+          toast.error("Token de acesso não encontrado.");
           router.push('/configuracoes/tipos-material');
+          return;
         }
+
+        const data = await tiposMaterialApi.getById(params.id as string, token);
+        setTipoMaterial(data);
       } catch {
         toast.error('Erro ao carregar tipo de material');
         router.push('/configuracoes/tipos-material');

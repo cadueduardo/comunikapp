@@ -11,6 +11,7 @@ import { ArrowLeft, Edit, Share2, Download, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
+import { orcamentosApi } from '@/lib/api-client';
 
 
 interface Orcamento {
@@ -86,17 +87,14 @@ export default function VisualizarOrcamentoPage({ params }: { params: Promise<{ 
     try {
       setLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/orcamentos/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setOrcamento(data);
-      } else {
-        toast.error('Falha ao buscar dados do orçamento.');
+      if (!token) {
+        toast.error('Token de autenticação não encontrado.');
         router.push('/orcamentos');
+        return;
       }
+      
+      const data = await orcamentosApi.getById(id, token);
+      setOrcamento(data);
     } catch (err) {
       toast.error('Ocorreu um erro ao buscar o orçamento.');
       console.error(err);

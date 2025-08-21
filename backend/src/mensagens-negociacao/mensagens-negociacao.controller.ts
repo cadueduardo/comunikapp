@@ -11,6 +11,7 @@ import {
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
+  ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MensagensNegociacaoService } from './mensagens-negociacao.service';
@@ -84,13 +85,15 @@ export class MensagensNegociacaoController {
   @UseInterceptors(FileInterceptor('arquivo'))
   async createPublico(
     @Param('orcamentoId') orcamentoId: string,
-    @Body() body: any, // Usar any para aceitar tanto JSON quanto FormData
+    @Body(new ValidationPipe({ skipMissingProperties: true, whitelist: false, forbidNonWhitelisted: false })) body: any, // Desabilitar validação para este endpoint
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    console.log('🔍 Controller publico - Body recebido:', body);
+    console.log('🔍 Controller publico - OrcamentoId:', orcamentoId);
+    console.log('🔍 Controller publico - Body recebido:', JSON.stringify(body, null, 2));
+    console.log('🔍 Controller publico - Body keys:', Object.keys(body));
     console.log(
       '🔍 Controller publico - File recebido:',
-      file ? `${file.originalname} (${file.size} bytes)` : 'nenhum',
+      file ? `${file.originalname} (${file.size} bytes, ${file.mimetype})` : 'nenhum',
     );
 
     // Criar DTO manualmente a partir do body
@@ -98,16 +101,23 @@ export class MensagensNegociacaoController {
       mensagem: body.mensagem || '',
       tipo: body.tipo || 'CLIENTE',
       autor_nome: body.autor_nome || 'Cliente',
-      autor_email: body.autor_email,
+      autor_email: body.autor_email || '',
     };
 
-    console.log('🔍 Controller publico - DTO criado:', dto);
+    console.log('🔍 Controller publico - DTO criado:', JSON.stringify(dto, null, 2));
 
-    return this.mensagensNegociacaoService.createPublicoComAnexo(
-      orcamentoId,
-      dto,
-      file,
-    );
+    try {
+      const result = await this.mensagensNegociacaoService.createPublicoComAnexo(
+        orcamentoId,
+        dto,
+        file,
+      );
+      console.log('✅ Controller publico - Mensagem criada com sucesso:', result.id);
+      return result;
+    } catch (error) {
+      console.error('❌ Controller publico - Erro ao criar mensagem:', error);
+      throw error;
+    }
   }
 
   /**
@@ -117,7 +127,7 @@ export class MensagensNegociacaoController {
   @UseGuards(JwtAuthGuard)
   async create(
     @Param('orcamentoId') orcamentoId: string,
-    @Body() dto: CreateMensagemNegociacaoDto,
+    @Body(new ValidationPipe({ skipMissingProperties: true, whitelist: false, forbidNonWhitelisted: false })) dto: CreateMensagemNegociacaoDto,
     @CurrentLojaId() lojaId: string,
   ) {
     return this.mensagensNegociacaoService.create(orcamentoId, dto, lojaId);
@@ -144,21 +154,48 @@ export class MensagensNegociacaoController {
   @Post(':mensagemId/visualizar')
   @UseGuards(JwtAuthGuard)
   async marcarComoVisualizada(
+    @Param('orcamentoId') orcamentoId: string,
     @Param('mensagemId') mensagemId: string,
     @CurrentLojaId() lojaId: string,
   ) {
     return this.mensagensNegociacaoService.marcarComoVisualizada(
+      orcamentoId,
       mensagemId,
       lojaId,
     );
   }
 
   /**
-   * Upload de anexo para uma mensagem
+   * Upload de anexo para uma mensagem existente
    */
-  @Post(':mensagemId/upload')
+  @Post(':mensagemId/anexo')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('arquivo'))
+  @UseInterceptors(
+    FileInterceptor('arquivo', {
+      fileFilter: (req, file, callback) => {
+        // Validar tipo de arquivo
+        const tiposPermitidos = [
+          'image/jpeg',
+          'image/png',
+          'image/jpg',
+          'application/pdf',
+          'application/zip',
+          'application/x-zip-compressed',
+        ];
+
+        if (!tiposPermitidos.includes(file.mimetype)) {
+          return callback(
+            new BadRequestException(
+              'Tipo de arquivo não permitido. Use apenas JPG, PNG, PDF ou ZIP.',
+            ),
+            false,
+          );
+        }
+
+        callback(null, true);
+      },
+    }),
+  )
   async uploadAnexo(
     @Param('orcamentoId') orcamentoId: string,
     @Param('mensagemId') mensagemId: string,
@@ -166,7 +203,6 @@ export class MensagensNegociacaoController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
-          new FileTypeValidator({ fileType: '.(pdf|jpg|jpeg|png)' }),
         ],
       }),
     )
@@ -174,6 +210,7 @@ export class MensagensNegociacaoController {
     @CurrentLojaId() lojaId: string,
   ) {
     return this.mensagensNegociacaoService.uploadAnexo(
+      orcamentoId,
       mensagemId,
       file,
       lojaId,

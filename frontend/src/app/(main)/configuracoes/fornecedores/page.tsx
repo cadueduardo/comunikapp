@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { FornecedorForm, formSchema } from "./fornecedor-form";
+import { fornecedoresApi } from "@/lib/api-client";
 
 export default function FornecedoresConfigPage() {
   const [data, setData] = useState<Fornecedor[]>([]);
@@ -37,10 +38,14 @@ export default function FornecedoresConfigPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/fornecedores', { headers: { 'Authorization': `Bearer ${token}` }});
-      if (response.ok) setData(await response.json());
-      else toast.error("Falha ao buscar fornecedores.");
-    } catch (err) { toast.error("Ocorreu um erro ao buscar fornecedores."); console.error(err) } 
+      if (token) {
+        const fornecedores = await fornecedoresApi.getAll(token);
+        setData(fornecedores as Fornecedor[]);
+      }
+    } catch (err) { 
+      toast.error("Ocorreu um erro ao buscar fornecedores."); 
+      console.error(err) 
+    } 
     finally { setLoading(false); }
   };
   
@@ -49,18 +54,10 @@ export default function FornecedoresConfigPage() {
   const handleDelete = async (id: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/fornecedores/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (response.ok) {
+      if (token) {
+        await fornecedoresApi.delete(id, token);
         toast.success("Fornecedor excluído com sucesso!");
         setData(prev => prev.filter(f => f.id !== id));
-      } else {
-        // Tenta ler a mensagem de erro do backend
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || "Falha ao excluir fornecedor.";
-        toast.error(errorMessage);
       }
     } catch (err) {
       console.error(err);
@@ -93,29 +90,32 @@ export default function FornecedoresConfigPage() {
 
   const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-    const url = editingFornecedor ? `http://localhost:3001/fornecedores/${editingFornecedor.id}` : 'http://localhost:3001/fornecedores';
-    const method = editingFornecedor ? 'PATCH' : 'POST';
 
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(url, {
-        method,
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      });
-
-      if (response.ok) {
-        toast.success(`Fornecedor ${editingFornecedor ? 'atualizado' : 'criado'} com sucesso!`);
+      if (token) {
+        if (editingFornecedor) {
+          await fornecedoresApi.update(editingFornecedor.id, values, token);
+          toast.success("Fornecedor atualizado com sucesso!");
+        } else {
+          await fornecedoresApi.create(values, token);
+          toast.success("Fornecedor criado com sucesso!");
+        }
         fetchFornecedores();
         setIsFormOpen(false);
         setEditingFornecedor(null);
-      } else {
-        const errorData = await response.json();
-        toast.error(`Falha: ${errorData.message || 'Erro desconhecido'}`);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
-      toast.error("Ocorreu um erro ao salvar o fornecedor.");
+      
+      // Tratar erro de duplicidade
+      if (err instanceof Error && err.message.includes('Já existe um fornecedor')) {
+        toast.error(err.message);
+      } else if (err instanceof Error && err.message.includes('HTTP error! status: 500')) {
+        toast.error("Erro interno do servidor. Tente novamente.");
+      } else {
+        toast.error("Ocorreu um erro ao salvar o fornecedor.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -157,6 +157,7 @@ export default function FornecedoresConfigPage() {
             onSubmit={handleFormSubmit}
             isSubmitting={isSubmitting}
             defaultValues={editingFornecedor || undefined}
+            fornecedorId={editingFornecedor?.id}
           />
         </DialogContent>
       </Dialog>

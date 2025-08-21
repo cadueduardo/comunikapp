@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { estoqueApi } from '@/lib/api-client';
 
 interface ItemEstoque {
   id: string;
@@ -56,14 +57,10 @@ export default function NovaTransferenciaPage() {
   const fetchItensEstoque = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/api/estoque/itens', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      if (!token) return;
 
-      if (response.ok) {
-        const data = await response.json();
-        setItensEstoque(data.data || []);
-      }
+      const data = await estoqueApi.getItens(token);
+      setItensEstoque(data.data || []);
     } catch (error) {
       console.error('Erro ao carregar itens de estoque:', error);
     }
@@ -72,14 +69,10 @@ export default function NovaTransferenciaPage() {
   const fetchLocalizacoes = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/api/estoque/localizacoes', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      if (!token) return;
 
-      if (response.ok) {
-        const data = await response.json();
-        setLocalizacoes(data.data || []);
-      }
+      const data = await estoqueApi.getLocalizacoes(token);
+      setLocalizacoes(data.data || []);
     } catch (error) {
       console.error('Erro ao carregar localizações:', error);
     }
@@ -91,25 +84,18 @@ export default function NovaTransferenciaPage() {
 
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/api/estoque/transferencias', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ...formData,
-          quantidade: parseFloat(formData.quantidade),
-        }),
-      });
-
-      if (response.ok) {
-        toast.success('Transferência realizada com sucesso!');
-        router.push('/estoque/transferencias');
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Erro ao realizar transferência');
+      if (!token) {
+        toast.error('Token de autenticação não encontrado');
+        return;
       }
+
+      await estoqueApi.createTransferencia({
+        ...formData,
+        quantidade: parseFloat(formData.quantidade),
+      }, token);
+
+      toast.success('Transferência realizada com sucesso!');
+      router.push('/estoque/transferencias');
     } catch (error) {
       toast.error('Erro ao realizar transferência');
       console.error('Erro ao realizar transferência:', error);

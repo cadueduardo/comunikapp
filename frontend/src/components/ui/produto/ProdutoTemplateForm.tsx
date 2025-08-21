@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { ArrowLeft, Save, Calculator } from 'lucide-react';
+import { ArrowLeft, Save, Calculator, RefreshCw } from 'lucide-react';
 import { createProdutoSchema, ProdutoFormValues } from './schemas/produto.schema';
 import { useProdutoData } from './hooks/useProdutoData';
+import { buildApiUrl } from '@/lib/config';
 import { MaterialSection, MaquinaSection, FuncaoSection, CalculoPreview } from '../shared/sections';
 import {
   FormControl,
@@ -34,7 +35,11 @@ export function ProdutoTemplateForm({
 }: ProdutoTemplateFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const { insumos, maquinas, funcoes } = useProdutoData();
+  const { 
+    insumos, maquinas, funcoes,
+    loading: loadingData,
+    refetchAll, fetchMaquinas, fetchFuncoes
+  } = useProdutoData();
 
   const form = useForm<ProdutoFormValues>({
     resolver: zodResolver(createProdutoSchema()),
@@ -58,6 +63,7 @@ export function ProdutoTemplateForm({
   // Carregar dados iniciais se for edição
   useEffect(() => {
     if (mode === 'editar' && initialData) {
+      console.log('🔍 Debug - Dados iniciais recebidos:', initialData);
       // Adaptar dados do produto para o formato do formulário
       const dadosAdaptados = {
         itens_produto: [{
@@ -69,25 +75,26 @@ export function ProdutoTemplateForm({
           area_produto: initialData.area_produto ? String(initialData.area_produto) : '',
           materiais: Array.isArray(initialData.itens) 
             ? initialData.itens.map(item => ({
-                insumo_id: String(item.insumo_id),
-                quantidade: String(item.quantidade),
+                insumo_id: String(item.insumo?.id || item.insumo_id || ''),
+                quantidade: String(item.quantidade || '1'),
               }))
             : [{ insumo_id: '', quantidade: '1' }],
           maquinas: Array.isArray(initialData.maquinas) 
             ? initialData.maquinas.map(maquina => ({
-                maquina_id: String(maquina.maquina_id),
-                horas_utilizadas: String(maquina.horas_utilizadas),
+                maquina_id: String(maquina.maquina?.id || maquina.maquina_id || ''),
+                horas_utilizadas: String(maquina.horas_utilizadas || '1'),
               }))
             : [{ maquina_id: '', horas_utilizadas: '1' }],
           funcoes: Array.isArray(initialData.funcoes) 
             ? initialData.funcoes.map(funcao => ({
-                funcao_id: String(funcao.funcao_id),
-                horas_trabalhadas: String(funcao.horas_trabalhadas),
+                funcao_id: String(funcao.funcao?.id || funcao.funcao_id || ''),
+                horas_trabalhadas: String(funcao.horas_trabalhadas || '1'),
               }))
             : [{ funcao_id: '', horas_trabalhadas: '1' }],
         }]
       };
       
+      console.log('🔍 Debug - Dados adaptados:', dadosAdaptados);
       form.reset(dadosAdaptados);
     }
   }, [mode, initialData, form]);
@@ -172,8 +179,8 @@ export function ProdutoTemplateForm({
       };
 
       const url = mode === 'novo' 
-        ? 'http://localhost:3001/produtos'
-        : `http://localhost:3001/produtos/${produtoId}`;
+        ? buildApiUrl('/produtos')
+        : buildApiUrl(`/produtos/${produtoId}`);
       
       const method = mode === 'novo' ? 'POST' : 'PATCH';
 
@@ -446,6 +453,19 @@ export function ProdutoTemplateForm({
                       )}
                     />
                   </div>
+                </div>
+
+                {/* Toolbar de atualização das listas */}
+                <div className="flex items-center justify-end gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => fetchMaquinas()} disabled={loadingData?.maquinas}>
+                    <RefreshCw className="w-4 h-4 mr-2" /> Atualizar Máquinas
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => fetchFuncoes()} disabled={loadingData?.funcoes}>
+                    <RefreshCw className="w-4 h-4 mr-2" /> Atualizar Funções
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => refetchAll()} disabled={loadingData?.maquinas || loadingData?.funcoes || loadingData?.insumos}>
+                    <RefreshCw className="w-4 h-4 mr-2" /> Atualizar Todas
+                  </Button>
                 </div>
 
                 {/* Seções Compartilhadas dentro do card */}

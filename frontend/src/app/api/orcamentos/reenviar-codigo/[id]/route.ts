@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
-    const response = await fetch(`${backendUrl}/orcamentos/reenviar-codigo/${params.id}`, {
+    const { id } = await params;
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
+    const response = await fetch(`${backendUrl}/orcamentos/reenviar-codigo/${id}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

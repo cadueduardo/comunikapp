@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, User, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import { buildApiUrl } from '@/lib/config';
 
 interface Versao {
   id: string;
@@ -35,7 +36,7 @@ export function HistoricoVersoes({ orcamentoId, onVersaoSelecionada }: Historico
     try {
       setLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/orcamentos/${orcamentoId}/versoes`, {
+      const response = await fetch(buildApiUrl(`/orcamentos/${orcamentoId}/versoes`), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const token = _req.headers.get('authorization')?.replace('Bearer ', '');
     if (!token) return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
 
-    const resp = await fetch(`${process.env.BACKEND_URL}/estoque/sobras/${params.id}`, {
+    const resp = await fetch(`${process.env.BACKEND_URL}/api/estoque/sobras/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await resp.json().catch(() => ({}));
@@ -15,13 +16,14 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   }
 }
 
-export async function PUT(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const token = _req.headers.get('authorization')?.replace('Bearer ', '');
     if (!token) return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
     const body = await _req.json();
 
-    const resp = await fetch(`${process.env.BACKEND_URL}/estoque/sobras/${params.id}`, {
+    const resp = await fetch(`${process.env.BACKEND_URL}/api/estoque/sobras/${id}`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -33,12 +35,13 @@ export async function PUT(_req: NextRequest, { params }: { params: { id: string 
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const token = _req.headers.get('authorization')?.replace('Bearer ', '');
     if (!token) return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
 
-    const resp = await fetch(`${process.env.BACKEND_URL}/estoque/sobras/${params.id}`, {
+    const resp = await fetch(`${process.env.BACKEND_URL}/api/estoque/sobras/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });

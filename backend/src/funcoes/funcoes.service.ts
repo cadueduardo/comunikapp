@@ -6,23 +6,36 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFuncaoDto } from './dto/create-funcao.dto';
 import { UpdateFuncaoDto } from './dto/update-funcao.dto';
+import { loja } from '@prisma/client';
 
 @Injectable()
 export class FuncoesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: CreateFuncaoDto, lojaId: string) {
+  async create(data: CreateFuncaoDto, loja: loja) {
+    const { maquina_id, ...dataWithoutMaquinaId } = data;
+    
     return this.prisma.funcao.create({
       data: {
-        ...data,
-        loja_id: lojaId,
+        ...dataWithoutMaquinaId,
+        loja: {
+          connect: { id: loja.id }
+        },
+        ...(maquina_id && {
+          maquina: {
+            connect: { id: maquina_id }
+          }
+        }),
+        atualizado_em: new Date(),
       },
     });
   }
 
-  async findAll(lojaId: string) {
+  async findAll(loja: loja) {
     return this.prisma.funcao.findMany({
-      where: { loja_id: lojaId },
+      where: { 
+        loja: { id: loja.id }
+      },
       include: {
         maquina: {
           select: {
@@ -36,9 +49,9 @@ export class FuncoesService {
     });
   }
 
-  async findOne(id: string, lojaId: string) {
+  async findOne(id: string, loja: loja) {
     return this.prisma.funcao.findFirst({
-      where: { id, loja_id: lojaId },
+      where: { id, loja: { id: loja.id } },
       include: {
         maquina: {
           select: {
@@ -51,22 +64,22 @@ export class FuncoesService {
     });
   }
 
-  async update(id: string, data: UpdateFuncaoDto, lojaId: string) {
+  async update(id: string, data: UpdateFuncaoDto, loja: loja) {
     return this.prisma.funcao.update({
       where: { id },
       data,
     });
   }
 
-  async remove(id: string, lojaId: string) {
-    const funcao = await this.findOne(id, lojaId);
+  async remove(id: string, loja: loja) {
+    const funcao = await this.findOne(id, loja);
 
     if (!funcao) {
       throw new NotFoundException('Função não encontrada.');
     }
 
     // Verifica se a função está sendo usada em orçamentos
-    const funcaoEmUso = await this.prisma.funcaoOrcamento.findFirst({
+    const funcaoEmUso = await this.prisma.funcaoorcamento.findFirst({
       where: { funcao_id: id },
       include: {
         orcamento: true,

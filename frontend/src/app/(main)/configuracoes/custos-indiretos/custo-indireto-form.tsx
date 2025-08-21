@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { custosIndiretosApi } from '@/lib/api-client';
 
 const formSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório'),
@@ -67,32 +68,19 @@ export default function CustoIndiretoForm({ custoIndireto }: CustoIndiretoFormPr
         return;
       }
 
-      const url = isEditing 
-        ? `http://localhost:3001/custos-indiretos/${custoIndireto.id}`
-        : 'http://localhost:3001/custos-indiretos';
+      const requestData = {
+        ...values,
+        valor_mensal: parseFloat(String(values.valor_mensal).replace(/[^0-9,-]/g, '').replace(',', '.')),
+      };
 
-      const response = await fetch(url, {
-        method: isEditing ? 'PATCH' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ...values,
-          valor_mensal: parseFloat(String(values.valor_mensal).replace(/[^0-9,-]/g, '').replace(',', '.')),
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Erro ao salvar custo indireto');
+      if (isEditing) {
+        await custosIndiretosApi.update(custoIndireto.id, requestData, token);
+        toast.success('Custo indireto atualizado com sucesso!');
+      } else {
+        await custosIndiretosApi.create(requestData, token);
+        toast.success('Custo indireto criado com sucesso!');
       }
 
-      toast.success(
-        isEditing 
-          ? 'Custo indireto atualizado com sucesso!' 
-          : 'Custo indireto criado com sucesso!'
-      );
       router.push('/configuracoes/custos-indiretos');
     } catch (error) {
       console.error('Erro:', error);

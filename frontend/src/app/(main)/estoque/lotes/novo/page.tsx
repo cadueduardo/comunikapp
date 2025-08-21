@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { estoqueApi } from '@/lib/api-client';
 
 interface ItemEstoque {
   id: string;
@@ -47,14 +48,10 @@ export default function NovoLotePage() {
   const fetchItensEstoque = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/api/estoque/itens', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      if (!token) return;
 
-      if (response.ok) {
-        const data = await response.json();
-        setItensEstoque(data.data || []);
-      }
+      const data = await estoqueApi.getItens(token);
+      setItensEstoque(data.data || []);
     } catch (error) {
       console.error('Erro ao carregar itens de estoque:', error);
     }
@@ -66,27 +63,20 @@ export default function NovoLotePage() {
 
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/api/estoque/lotes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ...formData,
-          quantidadeLote: parseFloat(formData.quantidadeLote),
-          dataFabricacao: formData.dataFabricacao || null,
-          dataValidade: formData.dataValidade || null,
-        }),
-      });
-
-      if (response.ok) {
-        toast.success('Lote criado com sucesso!');
-        router.push('/estoque/lotes');
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Erro ao criar lote');
+      if (!token) {
+        toast.error('Token de autenticação não encontrado');
+        return;
       }
+
+      await estoqueApi.createLote({
+        ...formData,
+        quantidadeLote: parseFloat(formData.quantidadeLote),
+        dataFabricacao: formData.dataFabricacao || null,
+        dataValidade: formData.dataValidade || null,
+      }, token);
+
+      toast.success('Lote criado com sucesso!');
+      router.push('/estoque/lotes');
     } catch (error) {
       toast.error('Erro ao criar lote');
       console.error('Erro ao criar lote:', error);

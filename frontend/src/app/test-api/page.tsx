@@ -13,28 +13,42 @@ export default function TestAPIPage() {
     
     try {
       console.log('🔍 Testando conexão com backend...');
-      const response = await fetch('http://localhost:3001');
-      const data = await response.text();
-      console.log('✅ Conexão OK:', response.status, data);
-      setResult(`Conexão OK! Status: ${response.status}\nResposta: ${data}`);
+      const response = await fetch('/api', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setResult(`✅ API funcionando!\n\nDados recebidos:\n${JSON.stringify(data, null, 2)}`);
+      } else {
+        setResult(`❌ API retornou status: ${response.status}`);
+      }
     } catch (error) {
-      console.error('❌ Erro de conexão:', error);
-      setResult(`Erro de conexão: ${error}\n\nDetalhes:\n- Verifique se o backend está rodando\n- Verifique se a porta 3001 está livre\n- Verifique se não há firewall bloqueando`);
-    } finally {
-      setLoading(false);
+      setResult(`❌ Erro ao conectar com a API: ${error}`);
     }
   };
 
   const testAuth = async () => {
-    setLoading(true);
-    setResult('Testando autenticação...');
-    
     try {
-      console.log('🔍 Testando autenticação...');
-      const response = await apiRequest('/lojas/me');
-      const data = await response.text();
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        setResult('❌ Nenhum token encontrado no localStorage');
+        return;
+      }
+
+      setResult('🔑 Testando autenticação...\n');
+      
+      const response = await fetch('/api/lojas/me', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await response.json();
       console.log('✅ Auth OK:', response.status, data);
-      setResult(`Auth OK! Status: ${response.status}\nResposta: ${data}`);
+      setResult(`Auth OK! Status: ${response.status}\nResposta: ${JSON.stringify(data, null, 2)}`);
     } catch (error) {
       console.error('❌ Erro de autenticação:', error);
       setResult(`Erro de autenticação: ${error}`);
@@ -69,7 +83,7 @@ export default function TestAPIPage() {
       const response = await fetch('http://localhost:3001/lojas/me', {
         method: 'OPTIONS',
         headers: {
-          'Origin': 'http://localhost:3000',
+          'Origin': 'http://localhost:4000',
           'Access-Control-Request-Method': 'GET',
           'Access-Control-Request-Headers': 'Authorization, Content-Type',
         },

@@ -301,7 +301,7 @@ export default function OrcamentoPublicoPage() {
                     <img 
                       src={orcamento.loja.logo_url.startsWith('http') 
                         ? orcamento.loja.logo_url 
-                        : `http://localhost:3001${orcamento.loja.logo_url}`
+                        : `${window.location.origin}${orcamento.loja.logo_url}`
                       } 
                       alt={orcamento.loja.nome}
                       className="object-contain"

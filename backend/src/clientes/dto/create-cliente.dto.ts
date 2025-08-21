@@ -5,15 +5,15 @@ import {
   IsOptional,
   IsNotEmpty,
 } from 'class-validator';
-import { TipoPessoa, StatusCliente } from '@prisma/client';
+import { cliente_tipo_pessoa, cliente_status_cliente } from '@prisma/client';
 
 export class CreateClienteDto {
   @IsNotEmpty()
   @IsString()
   nome: string;
 
-  @IsEnum(TipoPessoa)
-  tipo_pessoa: TipoPessoa;
+  @IsEnum(cliente_tipo_pessoa)
+  tipo_pessoa: cliente_tipo_pessoa;
 
   @IsNotEmpty()
   @IsString()
@@ -84,8 +84,8 @@ export class CreateClienteDto {
   observacoes?: string;
 
   @IsOptional()
-  @IsEnum(StatusCliente)
-  status_cliente?: StatusCliente;
+  @IsEnum(cliente_status_cliente)
+  status_cliente?: cliente_status_cliente;
 
   @IsOptional()
   @IsString()

@@ -19,7 +19,7 @@ import {
 import { TransferenciasService } from '../services/transferencias.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { GetLoja } from '../../auth/decorators';
-import { Loja } from '@prisma/client';
+import { loja } from '@prisma/client';
 
 @ApiTags('Transferências de Estoque')
 @ApiBearerAuth()
@@ -33,7 +33,7 @@ export class TransferenciasController {
   @Post()
   @ApiOperation({ summary: 'Criar nova transferência' })
   @ApiResponse({ status: 201, description: 'Transferência criada com sucesso' })
-  async criarTransferencia(@GetLoja() loja: Loja, @Body() data: any) {
+  async criarTransferencia(@GetLoja() loja: loja, @Body() data: any) {
     this.logger.log(`🔄 Criando transferência para loja: ${loja.id}`);
 
     try {
@@ -92,7 +92,7 @@ export class TransferenciasController {
     required: false,
     description: 'Data de fim (YYYY-MM-DD)',
   })
-  async listarTransferencias(@GetLoja() loja: Loja, @Query() query: any) {
+  async listarTransferencias(@GetLoja() loja: loja, @Query() query: any) {
     this.logger.log(`🔄 Listando transferências para loja: ${loja.id}`);
 
     try {
@@ -119,7 +119,7 @@ export class TransferenciasController {
     status: 200,
     description: 'Transferência encontrada com sucesso',
   })
-  async buscarTransferencia(@GetLoja() loja: Loja, @Param('id') id: string) {
+  async buscarTransferencia(@GetLoja() loja: loja, @Param('id') id: string) {
     this.logger.log(`🔄 Buscando transferência ${id} para loja: ${loja.id}`);
 
     try {
@@ -147,7 +147,7 @@ export class TransferenciasController {
     description: 'Histórico de transferências retornado',
   })
   async historicoTransferenciasItem(
-    @GetLoja() loja: Loja,
+    @GetLoja() loja: loja,
     @Param('itemId') itemId: string,
   ) {
     this.logger.log(

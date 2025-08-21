@@ -25,18 +25,26 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { tiposMaterialApi } from '@/lib/api-client';
+import { TipoMaterial } from './columns';
 
 const formSchema = z.object({
   nome: z.string().min(2, "O nome deve ter pelo menos 2 caracteres."),
   descricao: z.string().optional(),
   logica_consumo: z.enum(["area", "perimetro", "quantidade_fixa", "custom"]),
-  parametros_padrao: z.record(z.any()).optional(),
+  parametros_padrao: z.object({
+    tipo_calculo: z.string().optional(),
+    espacamento: z.number().optional(),
+    quantidade_por_m2: z.number().optional(),
+    multiplicador: z.number().optional(),
+    quantidade_fixa: z.number().optional(),
+  }).optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
 interface TipoMaterialFormProps {
-  defaultValues?: TipoMaterial;
+  defaultValues?: Partial<TipoMaterial>;
 }
 
 export function TipoMaterialForm({ defaultValues }: TipoMaterialFormProps) {
@@ -46,34 +54,41 @@ export function TipoMaterialForm({ defaultValues }: TipoMaterialFormProps) {
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: defaultValues || {
-      nome: "",
-      descricao: "",
-      logica_consumo: "area",
-      parametros_padrao: {},
+    defaultValues: {
+      nome: defaultValues?.nome || "",
+      descricao: defaultValues?.descricao || "",
+      logica_consumo: (defaultValues?.logica_consumo as "area" | "perimetro" | "quantidade_fixa" | "custom") || "area",
+      parametros_padrao: {
+        tipo_calculo: defaultValues?.parametros_padrao?.tipo_calculo || "",
+        espacamento: defaultValues?.parametros_padrao?.espacamento || undefined,
+        quantidade_por_m2: defaultValues?.parametros_padrao?.quantidade_por_m2 || undefined,
+        multiplicador: defaultValues?.parametros_padrao?.multiplicador || undefined,
+        quantidade_fixa: defaultValues?.parametros_padrao?.quantidade_fixa || undefined,
+      },
     },
   });
 
   const onSubmit = async (values: FormData) => {
     setIsSubmitting(true);
-    const url = defaultValues ? `http://localhost:3001/tipos-material/${defaultValues.id}` : 'http://localhost:3001/tipos-material';
-    const method = defaultValues ? 'PATCH' : 'POST';
 
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(url, {
-        method,
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      });
-
-      if (response.ok) {
-        toast.success(`Tipo de material ${defaultValues ? 'atualizado' : 'criado'} com sucesso!`);
-        router.push('/configuracoes/tipos-material');
-      } else {
-        const error = await response.json();
-        toast.error(`Falha: ${error.message || 'Erro desconhecido'}`);
+      if (!token) {
+        toast.error("Token de acesso não encontrado.");
+        return;
       }
+
+      if (defaultValues?.id) {
+        // Atualizar
+        await tiposMaterialApi.update(defaultValues.id, values, token);
+        toast.success('Tipo de material atualizado com sucesso!');
+      } else {
+        // Criar
+        await tiposMaterialApi.create(values, token);
+        toast.success('Tipo de material criado com sucesso!');
+      }
+      
+      router.push('/configuracoes/tipos-material');
     } catch (err) {
       console.error(err);
       toast.error("Ocorreu um erro ao conectar ao servidor.");
@@ -102,7 +117,7 @@ export function TipoMaterialForm({ defaultValues }: TipoMaterialFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tipo de Cálculo Específico</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o tipo de cálculo" />
@@ -131,7 +146,7 @@ export function TipoMaterialForm({ defaultValues }: TipoMaterialFormProps) {
                         type="number"
                         step="0.1"
                         placeholder="30"
-                        value={field.value || ''}
+                        value={field.value ? String(field.value) : ''}
                         onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                       />
                     </FormControl>
@@ -156,12 +171,12 @@ export function TipoMaterialForm({ defaultValues }: TipoMaterialFormProps) {
                         type="number"
                         step="0.1"
                         placeholder="4"
-                        value={field.value || ''}
+                        value={field.value ? String(field.value) : ''}
                         onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                       />
                     </FormControl>
                     <p className="text-sm text-muted-foreground">
-                      💡 Exemplo: 4 = 4 itens por metro quadrado
+                      💡 Exemplo: 4 = 4 itens por cada m² de área
                     </p>
                     <FormMessage />
                   </FormItem>
@@ -181,12 +196,12 @@ export function TipoMaterialForm({ defaultValues }: TipoMaterialFormProps) {
                         type="number"
                         step="0.1"
                         placeholder="2"
-                        value={field.value || ''}
+                        value={field.value ? String(field.value) : ''}
                         onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                       />
                     </FormControl>
                     <p className="text-sm text-muted-foreground">
-                      💡 Exemplo: 2 = multiplica a área/perímetro por 2
+                      💡 Exemplo: 2 = 2x o valor base (perímetro, área, etc.)
                     </p>
                     <FormMessage />
                   </FormItem>
@@ -206,14 +221,14 @@ export function TipoMaterialForm({ defaultValues }: TipoMaterialFormProps) {
                 <FormControl>
                   <Input
                     type="number"
-                    step="1"
-                    placeholder="8"
-                    value={field.value || ''}
+                    step="0.1"
+                    placeholder="10"
+                    value={field.value ? String(field.value) : ''}
                     onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                   />
                 </FormControl>
                 <p className="text-sm text-muted-foreground">
-                  💡 Quantidade fixa que será sempre usada
+                  💡 Quantidade fixa independente da área/perímetro
                 </p>
                 <FormMessage />
               </FormItem>

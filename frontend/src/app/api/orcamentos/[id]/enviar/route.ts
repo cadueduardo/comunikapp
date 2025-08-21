@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { buildApiUrl } from '@/lib/config';
 
 export async function POST(
   request: NextRequest,
@@ -6,7 +7,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const response = await fetch(`http://localhost:3001/orcamentos/${id}/enviar`, {
+    const response = await fetch(buildApiUrl(`/orcamentos/${id}/enviar`), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${request.headers.get('authorization')?.replace('Bearer ', '') || ''}`,

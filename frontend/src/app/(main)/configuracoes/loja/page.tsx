@@ -22,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/contexts/UserContext';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { formatCurrency, parseCurrency } from '@/lib/utils';
+import { buildApiUrl } from '@/lib/config';
 
 const formSchema = z.object({
   logo_url: z.string().optional(),
@@ -78,7 +79,7 @@ export default function ConfiguracoesLojaPage() {
         const logoFormData = new FormData();
         logoFormData.append('logo', selectedFile);
 
-        const uploadResponse = await fetch('http://localhost:3001/lojas/logo', {
+        const uploadResponse = await fetch(buildApiUrl('/lojas/logo'), {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -110,7 +111,7 @@ export default function ConfiguracoesLojaPage() {
         payload.logo_url = newLogoUrl;
       }
 
-      const settingsResponse = await fetch('http://localhost:3001/lojas/configuracoes', {
+              const settingsResponse = await fetch(buildApiUrl('/lojas/configuracoes'), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

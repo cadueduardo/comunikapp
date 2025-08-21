@@ -13,7 +13,7 @@ export class MovimentacoesService {
   constructor(private readonly prisma: PrismaService) {}
 
   private async buscarItemEstoquePorId(context: IEstoqueContext, id: string) {
-    const tableName = 'itens_estoque';
+    const tableName = 'estoque_itens';
     const colsResult: Array<{ COLUMN_NAME: string }> = await this.prisma.$queryRawUnsafe(
       'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ',
       tableName,
@@ -30,16 +30,16 @@ export class MovimentacoesService {
     const selectParts: string[] = [
       't.id AS id',
       insumoCol ? `t.${insumoCol} AS insumoId` : 'NULL AS insumoId',
-      't.localizacao_id AS localizacaoId',
+      't.localizacaoId AS localizacaoId',
       "COALESCE(t.nome, '') AS insumoNome",
-      't.quantidade AS quantidadeAtual',
+      't.quantidadeAtual AS quantidadeAtual',
       't.quantidadeReservada AS quantidadeReservada',
-      't.estoque_minimo AS estoqueMinimo',
-      't.estoque_maximo AS estoqueMaximo',
+      't.estoqueMinimo AS estoqueMinimo',
+      't.estoqueMaximo AS estoqueMaximo',
       unMedCol ? `COALESCE(t.${unMedCol}, '') AS unidadeCompra` : "'' AS unidadeCompra",
       precoCol ? `t.${precoCol} AS valorUnitario` : '0 AS valorUnitario',
       't.dataUltimaMov AS dataUltimaMov',
-      't.criado_em AS createdAt',
+      't.createdAt AS createdAt',
       't.codigo AS codigo',
       't.descricao AS descricao',
       't.codigoBarras AS codigoBarras',
@@ -52,8 +52,8 @@ export class MovimentacoesService {
 
     const sql = `SELECT ${selectParts.join(', ')}\n` +
       `FROM ${tableName} t\n` +
-      `LEFT JOIN localizacoes l ON l.id = t.localizacao_id\n` +
-      `WHERE t.id = ? AND t.loja_id = ?\n` +
+      `LEFT JOIN estoque_localizacoes l ON l.id = t.localizacaoId\n` +
+      `WHERE t.id = ? AND t.lojaId = ?\n` +
       `LIMIT 1`;
 
     const items: any[] = await this.prisma.$queryRawUnsafe(sql, id, context.lojaId);
@@ -85,20 +85,27 @@ export class MovimentacoesService {
     try {
       const tableCheck: Array<{ total: any }> = await this.prisma.$queryRaw`
         SELECT COUNT(*) as total FROM information_schema.tables 
-        WHERE table_schema = DATABASE() AND table_name = 'movimentacoes_estoque'
+        WHERE table_schema = DATABASE() AND table_name = 'estoque_movimentacoes'
       `;
       const hasTable = Number((tableCheck?.[0] as any)?.total || 0) > 0;
       if (hasTable) {
         await this.prisma.$executeRaw`
-          INSERT INTO movimentacoes_estoque (
-            id, loja_id, item_id, tipo, quantidade, quantidade_anterior, quantidade_atual,
-            motivo, documento_referencia, observacoes, responsavel, criado_em
+          INSERT INTO estoque_movimentacoes (
+            id, lojaId, estoqueId, tipo, quantidade, quantidadeAnterior, quantidadePosterior,
+            documentoRef, orcamentoId, usuarioId, dataMovimentacao, observacoes
           ) VALUES (
             ${id}, ${context.lojaId}, ${data.estoqueId}, ${data.tipo}, ${Number(data.quantidade)},
             ${quantidadeAnterior}, ${quantidadePosterior},
-            ${'Registro de movimentação ' + data.tipo}, ${data.documentoRef || null}, ${data.observacoes || null},
-            ${context.usuarioId || 'sistema'}, NOW()
+            ${data.documentoRef || null}, ${data.orcamentoId || null}, ${context.usuarioId || 'sistema'}, NOW(),
+            ${data.observacoes || null}
           )
+        `;
+        
+        // Atualizar a quantidade atual do item no estoque
+        await this.prisma.$executeRaw`
+          UPDATE estoque_itens 
+          SET quantidadeAtual = ${quantidadePosterior}, dataUltimaMov = NOW()
+          WHERE id = ${data.estoqueId} AND lojaId = ${context.lojaId}
         `;
       }
     } catch (e) {
@@ -130,18 +137,18 @@ export class MovimentacoesService {
     if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
     const tableCheck: Array<{ total: any }> = await this.prisma.$queryRaw`
       SELECT COUNT(*) as total FROM information_schema.tables 
-      WHERE table_schema = DATABASE() AND table_name = 'movimentacoes_estoque'
+              WHERE table_schema = DATABASE() AND table_name = 'estoque_movimentacoes'
     `;
     const hasTable = Number((tableCheck?.[0] as any)?.total || 0) > 0;
     if (!hasTable) {
       return { data: [], total: 0, page: query.page || 1, limit: query.limit || 20 };
     }
-    const filters: string[] = ['m.loja_id = ?'];
+    const filters: string[] = ['m.lojaId = ?'];
     const params: any[] = [context.lojaId];
     if (query?.tipo) { filters.push('m.tipo = ?'); params.push(query.tipo); }
     if (query?.search) {
       const like = `%${String(query.search)}%`;
-      filters.push('(i.nome LIKE ? OR m.documento_referencia LIKE ? OR m.observacoes LIKE ? OR l.codigo LIKE ?)');
+      filters.push('(i.nome LIKE ? OR m.documentoRef LIKE ? OR m.observacoes LIKE ? OR l.codigo LIKE ?)');
       params.push(like, like, like, like);
     }
     const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
@@ -150,9 +157,9 @@ export class MovimentacoesService {
     const offset = (page - 1) * limit;
     const totalRows: Array<{ total: any }> = await this.prisma.$queryRawUnsafe(
       `SELECT COUNT(*) as total
-       FROM movimentacoes_estoque m
-       LEFT JOIN itens_estoque i ON i.id = m.item_id
-       LEFT JOIN localizacoes l ON l.id = i.localizacao_id
+       FROM estoque_movimentacoes m
+       LEFT JOIN estoque_itens i ON i.id = m.estoqueId
+       LEFT JOIN estoque_localizacoes l ON l.id = i.localizacaoId
        ${whereClause}`,
       ...params,
     );
@@ -160,44 +167,44 @@ export class MovimentacoesService {
     const selectSql = `
       SELECT 
         m.id,
-        m.item_id,
+        m.estoqueId,
         m.tipo,
         m.quantidade,
-        m.quantidade_anterior,
-        m.quantidade_atual,
-        m.documento_referencia,
-        m.responsavel,
-        m.loja_id,
-        m.criado_em,
+        m.quantidadeAnterior,
+        m.quantidadePosterior,
+        m.documentoRef,
+        m.usuarioId,
+        m.lojaId,
+        m.dataMovimentacao,
         m.observacoes,
         COALESCE(i.nome, '') as insumoNome,
         COALESCE(l.codigo, '') as localizacaoCodigo
-      FROM movimentacoes_estoque m
-      LEFT JOIN itens_estoque i ON i.id = m.item_id
-      LEFT JOIN localizacoes l ON l.id = i.localizacao_id
+      FROM estoque_movimentacoes m
+      LEFT JOIN estoque_itens i ON i.id = m.estoqueId
+      LEFT JOIN estoque_localizacoes l ON l.id = i.localizacaoId
       ${whereClause}
-      ORDER BY m.criado_em DESC
+      ORDER BY m.dataMovimentacao DESC
       LIMIT ? OFFSET ?
     `;
     const rows: any[] = await this.prisma.$queryRawUnsafe(selectSql, ...params, limit, offset);
     const dataMapped = rows.map((r: any) => ({
       id: r.id,
-      estoqueId: r.item_id,
+      estoqueId: r.estoqueId,
       insumoNome: r.insumoNome ?? '',
       localizacaoCodigo: r.localizacaoCodigo ?? '',
       localizacaoCompleta: r.localizacaoCodigo ?? '',
       tipo: r.tipo,
       quantidade: Number(r.quantidade || 0),
-      quantidadeAnterior: Number(r.quantidade_anterior || 0),
-      quantidadePosterior: Number(r.quantidade_atual || 0),
-      documentoRef: r.documento_referencia ?? null,
+      quantidadeAnterior: Number(r.quantidadeAnterior || 0),
+      quantidadePosterior: Number(r.quantidadePosterior || 0),
+      documentoRef: r.documentoRef ?? null,
       orcamentoId: null,
-      usuarioId: r.responsavel ?? 'sistema',
+      usuarioId: r.usuarioId ?? 'sistema',
       usuarioNome: 'Administrador',
-      lojaId: r.loja_id,
-      dataMovimentacao: r.criado_em,
+      lojaId: r.lojaId,
+      dataMovimentacao: r.dataMovimentacao,
       observacoes: r.observacoes ?? null,
-      createdAt: r.criado_em,
+      createdAt: r.dataMovimentacao,
     }));
     return { data: dataMapped, total, page, limit };
   }
@@ -207,43 +214,43 @@ export class MovimentacoesService {
     const rows: any[] = await this.prisma.$queryRaw`
       SELECT 
         m.id,
-        m.item_id,
+        m.estoqueId,
         m.tipo,
         m.quantidade,
-        m.quantidade_anterior,
-        m.quantidade_atual,
-        m.documento_referencia,
-        m.responsavel,
-        m.loja_id,
-        m.criado_em,
+        m.quantidadeAnterior,
+        m.quantidadePosterior,
+        m.documentoRef,
+        m.usuarioId,
+        m.lojaId,
+        m.dataMovimentacao,
         m.observacoes,
         COALESCE(i.nome, '') as insumoNome,
         COALESCE(l.codigo, '') as localizacaoCodigo
-      FROM movimentacoes_estoque m
-      LEFT JOIN itens_estoque i ON i.id = m.item_id
-      LEFT JOIN localizacoes l ON l.id = i.localizacao_id
-      WHERE m.id = ${id} AND m.loja_id = ${context.lojaId}
+              FROM estoque_movimentacoes m
+        LEFT JOIN estoque_itens i ON i.id = m.estoqueId
+        LEFT JOIN estoque_localizacoes l ON l.id = i.localizacaoId
+      WHERE m.id = ${id} AND m.lojaId = ${context.lojaId}
       LIMIT 1
     `;
     const r = rows?.[0];
     if (!r) throw new Error('Movimentação não encontrada');
     return {
       id: r.id,
-      estoqueId: r.item_id,
+      estoqueId: r.estoqueId,
       insumoNome: r.insumoNome ?? '',
       localizacaoCodigo: r.localizacaoCodigo ?? '',
       localizacaoCompleta: r.localizacaoCodigo ?? '',
       tipo: r.tipo,
       quantidade: Number(r.quantidade || 0),
-      quantidadeAnterior: Number(r.quantidade_anterior || 0),
-      quantidadePosterior: Number(r.quantidade_atual || 0),
-      documentoRef: r.documento_referencia ?? null,
-      usuarioId: r.responsavel ?? 'sistema',
+      quantidadeAnterior: Number(r.quantidadeAnterior || 0),
+      quantidadePosterior: Number(r.quantidadePosterior || 0),
+      documentoRef: r.documentoRef ?? null,
+      usuarioId: r.usuarioId ?? 'sistema',
       usuarioNome: 'Administrador',
-      lojaId: r.loja_id,
-      dataMovimentacao: r.criado_em,
+      lojaId: r.lojaId,
+      dataMovimentacao: r.dataMovimentacao,
       observacoes: r.observacoes ?? null,
-      createdAt: r.criado_em,
+      createdAt: r.dataMovimentacao,
     };
   }
 
@@ -251,7 +258,7 @@ export class MovimentacoesService {
     if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
     // Exclusão lógica não está prevista na tabela; executar delete se existir
     await this.prisma.$executeRaw`
-      DELETE FROM movimentacoes_estoque WHERE id = ${id} AND loja_id = ${context.lojaId}
+      DELETE FROM estoque_movimentacoes WHERE id = ${id} AND lojaId = ${context.lojaId}
     `;
     return { message: 'Movimentação excluída com sucesso', id, deletedAt: new Date() };
   }

@@ -9,7 +9,7 @@ import {
 import { RelatoriosEstoqueService } from '../services/relatorios-estoque.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { GetLoja } from '../../auth/decorators';
-import { Loja } from '@prisma/client';
+import { loja } from '@prisma/client';
 
 @ApiTags('Relatórios de Estoque')
 @ApiBearerAuth()
@@ -26,7 +26,7 @@ export class RelatoriosController {
     status: 200,
     description: 'Relatório de estoque baixo retornado com sucesso',
   })
-  async relatorioEstoqueBaixo(@GetLoja() loja: Loja) {
+  async relatorioEstoqueBaixo(@GetLoja() loja: loja) {
     this.logger.log(
       `📊 Gerando relatório de estoque baixo para loja: ${loja.id}`,
     );
@@ -56,7 +56,7 @@ export class RelatoriosController {
     status: 200,
     description: 'Relatório de vencimentos retornado com sucesso',
   })
-  async relatorioVencimento(@GetLoja() loja: Loja) {
+  async relatorioVencimento(@GetLoja() loja: loja) {
     this.logger.log(
       `📊 Gerando relatório de vencimentos para loja: ${loja.id}`,
     );
@@ -86,7 +86,7 @@ export class RelatoriosController {
     status: 200,
     description: 'Relatório de ocupação retornado com sucesso',
   })
-  async relatorioOcupacao(@GetLoja() loja: Loja) {
+  async relatorioOcupacao(@GetLoja() loja: loja) {
     this.logger.log(`📊 Gerando relatório de ocupação para loja: ${loja.id}`);
 
     try {

@@ -6,26 +6,30 @@ import {
 import { CreateTipoMaterialDto } from './dto/create-tipo-material.dto';
 import { UpdateTipoMaterialDto } from './dto/update-tipo-material.dto';
 import { PrismaService } from '../prisma/prisma.service';
-import { Loja } from '@prisma/client';
 
 @Injectable()
 export class TiposMaterialService {
   constructor(private prisma: PrismaService) {}
 
-  create(createTipoMaterialDto: CreateTipoMaterialDto, loja: Loja) {
-    return this.prisma.tipoMaterial.create({
+  create(createTipoMaterialDto: CreateTipoMaterialDto, loja: { id: string }) {
+    return this.prisma.tipomaterial.create({
       data: {
         nome: createTipoMaterialDto.nome,
         descricao: createTipoMaterialDto.descricao,
         logica_consumo: createTipoMaterialDto.logica_consumo,
-        parametros_padrao: createTipoMaterialDto.parametros_padrao,
-        loja_id: loja.id,
+        parametros_padrao: createTipoMaterialDto.parametros_padrao
+          ? JSON.stringify(createTipoMaterialDto.parametros_padrao)
+          : null,
+        atualizado_em: new Date(),
+        loja: {
+          connect: { id: loja.id },
+        },
       },
     });
   }
 
-  findAll(loja: Loja) {
-    return this.prisma.tipoMaterial.findMany({
+  findAll(loja: { id: string }) {
+    return this.prisma.tipomaterial.findMany({
       where: {
         loja_id: loja.id,
       },
@@ -35,8 +39,8 @@ export class TiposMaterialService {
     });
   }
 
-  async findOne(id: string, loja: Loja) {
-    const tipoMaterial = await this.prisma.tipoMaterial.findFirst({
+  async findOne(id: string, loja: { id: string }) {
+    const tipoMaterial = await this.prisma.tipomaterial.findFirst({
       where: {
         id,
         loja_id: loja.id,
@@ -53,18 +57,26 @@ export class TiposMaterialService {
   async update(
     id: string,
     updateTipoMaterialDto: UpdateTipoMaterialDto,
-    loja: Loja,
+    loja: { id: string },
   ) {
     // Verificar se o tipo de material existe e pertence à loja
     await this.findOne(id, loja);
 
-    return this.prisma.tipoMaterial.update({
+    // Preparar dados para atualização, convertendo parametros_padrao se necessário
+    const updateData = { ...updateTipoMaterialDto };
+    if (updateTipoMaterialDto.parametros_padrao !== undefined) {
+      updateData.parametros_padrao = updateTipoMaterialDto.parametros_padrao
+        ? JSON.stringify(updateTipoMaterialDto.parametros_padrao)
+        : null;
+    }
+
+    return this.prisma.tipomaterial.update({
       where: { id },
-      data: updateTipoMaterialDto,
+      data: updateData,
     });
   }
 
-  async remove(id: string, loja: Loja) {
+  async remove(id: string, loja: { id: string }) {
     // Verificar se o tipo de material existe e pertence à loja
     await this.findOne(id, loja);
 
@@ -81,7 +93,7 @@ export class TiposMaterialService {
       );
     }
 
-    return this.prisma.tipoMaterial.delete({
+    return this.prisma.tipomaterial.delete({
       where: { id },
     });
   }

@@ -8,13 +8,13 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInsumoDto } from './dto/create-insumo.dto';
 import { UpdateInsumoDto } from './dto/update-insumo.dto';
-import { Loja } from '@prisma/client';
+import { loja } from '@prisma/client';
 
 @Injectable()
 export class InsumosService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createInsumoDto: CreateInsumoDto, loja: Loja) {
+  async create(createInsumoDto: CreateInsumoDto, loja: loja) {
     // Verificar unicidade por fornecedor
     const existingInsumo = await this.prisma.insumo.findFirst({
       where: {
@@ -54,13 +54,19 @@ export class InsumosService {
     // Remover campos que não existem no modelo Prisma
     const { tipo_material_id, ...dataWithoutExtraFields } = createInsumoDto;
 
+    // Converter parametros_consumo para string JSON se for objeto
+    const dataForPrisma = {
+      ...dataWithoutExtraFields,
+      parametros_consumo: dataWithoutExtraFields.parametros_consumo 
+        ? JSON.stringify(dataWithoutExtraFields.parametros_consumo)
+        : null,
+      loja_id: loja.id,
+      tipoMaterialId: tipo_material_id,
+      ativo: createInsumoDto.ativo ?? true,
+    };
+
     const insumo = await this.prisma.insumo.create({
-      data: {
-        ...dataWithoutExtraFields,
-        loja_id: loja.id,
-        tipoMaterialId: tipo_material_id,
-        ativo: createInsumoDto.ativo ?? true,
-      },
+      data: dataForPrisma,
       include: {
         categoria: true,
         fornecedor: true,
@@ -80,7 +86,7 @@ export class InsumosService {
     };
   }
 
-  async findAll(loja: Loja) {
+  async findAll(loja: loja) {
     const insumos = await this.prisma.insumo.findMany({
       where: { loja_id: loja.id },
       include: {
@@ -105,7 +111,7 @@ export class InsumosService {
     }));
   }
 
-  async findOne(id: string, loja: Loja) {
+  async findOne(id: string, loja: loja) {
     const insumo = await this.prisma.insumo.findUnique({
       where: { id },
       include: {
@@ -137,7 +143,7 @@ export class InsumosService {
     };
   }
 
-  async update(id: string, updateInsumoDto: UpdateInsumoDto, loja: Loja) {
+  async update(id: string, updateInsumoDto: UpdateInsumoDto, loja: loja) {
     const existingInsumo = await this.findOne(id, loja);
 
     // TODO: Implementar histórico de preços após migração
@@ -174,12 +180,18 @@ export class InsumosService {
     // Remover campos que não existem no modelo Prisma
     const { tipo_material_id, ...dataWithoutExtraFields } = updateInsumoDto;
 
+    // Converter parametros_consumo para string JSON se for objeto
+    const dataForPrisma = {
+      ...dataWithoutExtraFields,
+      parametros_consumo: dataWithoutExtraFields.parametros_consumo 
+        ? JSON.stringify(dataWithoutExtraFields.parametros_consumo)
+        : null,
+      tipoMaterialId: tipo_material_id,
+    };
+
     const insumo = await this.prisma.insumo.update({
       where: { id },
-      data: {
-        ...dataWithoutExtraFields,
-        tipoMaterialId: tipo_material_id,
-      },
+      data: dataForPrisma,
       include: {
         categoria: true,
         fornecedor: true,
@@ -199,11 +211,11 @@ export class InsumosService {
     };
   }
 
-  async remove(id: string, loja: Loja) {
+  async remove(id: string, loja: loja) {
     const existingInsumo = await this.findOne(id, loja);
 
     // Verifica se o insumo está sendo usado em orçamentos
-    const itensOrcamento = await this.prisma.itemOrcamento.findMany({
+    const itensOrcamento = await this.prisma.itemorcamento.findMany({
       where: { insumo_id: id },
       include: {
         orcamento: true,
@@ -235,7 +247,7 @@ export class InsumosService {
 
   // TODO: Implementar após migração
   // Novo método para buscar insumos com filtros
-  // async search(query: string, loja: Loja) {
+  // async search(query: string, loja: loja) {
   //   return this.prisma.insumo.findMany({
   //     where: {
   //       loja_id: loja.id,
@@ -255,7 +267,7 @@ export class InsumosService {
 
   // TODO: Implementar após migração
   // Novo método para buscar insumos ativos
-  // async findActive(loja: Loja) {
+  // async findActive(loja: loja) {
   //   return this.prisma.insumo.findMany({
   //     where: {
   //       loja_id: loja.id,

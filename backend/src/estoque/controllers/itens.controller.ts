@@ -27,7 +27,7 @@ import { CreateItemEstoqueDto } from '../dto/create-item-estoque.dto';
 import { QueryItensEstoqueDto } from '../dto/query-estoque.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { GetLoja } from '../../auth/decorators';
-import { Loja } from '@prisma/client';
+import { loja } from '@prisma/client';
 import { Logger } from '@nestjs/common';
 import { itemCriadoExample, listarItensExample, itemDetalheExample } from '../swagger/itens.examples';
 
@@ -52,7 +52,7 @@ export class ItensController {
     description: 'Dados inválidos ou item já existe na localização',
   })
   @Post()
-  async criar(@Body() createDto: CreateItemEstoqueDto, @GetLoja() loja: Loja) {
+  async criar(@Body() createDto: CreateItemEstoqueDto, @GetLoja() loja: loja) {
     const context = { lojaId: loja.id, usuarioId: loja.id };
     return this.estoqueService.criarItemEstoque(context, createDto);
   }
@@ -63,7 +63,7 @@ export class ItensController {
   })
   @ApiResponse({ status: HttpStatus.OK, description: 'Lista de itens retornada com sucesso', schema: { example: listarItensExample } })
   @Get()
-  async listar(@Query() query: QueryItensEstoqueDto, @GetLoja() loja: Loja) {
+  async listar(@Query() query: QueryItensEstoqueDto, @GetLoja() loja: loja) {
     const context = { lojaId: loja.id };
     this.logger.debug(`Context criado: ${JSON.stringify(context)}`);
 
@@ -89,7 +89,7 @@ export class ItensController {
     description: 'Dashboard retornado com sucesso',
   })
   @Get('dashboard')
-  async dashboard(@GetLoja() loja: Loja) {
+  async dashboard(@GetLoja() loja: loja) {
     const context = { lojaId: loja.id };
     this.logger.debug(`Context criado: ${JSON.stringify(context)}`);
 
@@ -119,7 +119,7 @@ export class ItensController {
   async atualizar(
     @Param('id') id: string,
     @Body() updateDto: any,
-    @GetLoja() loja: Loja,
+    @GetLoja() loja: loja,
   ) {
     const context = { lojaId: loja.id, usuarioId: loja.id };
     return this.estoqueService.atualizarItemEstoque(context, id, updateDto);
@@ -135,7 +135,7 @@ export class ItensController {
     description: 'Item não encontrado',
   })
   @Get(':id')
-  async buscarPorId(@Param('id') id: string, @GetLoja() loja: Loja) {
+  async buscarPorId(@Param('id') id: string, @GetLoja() loja: loja) {
     const context = { lojaId: loja.id };
     return this.estoqueService.buscarItemEstoquePorId(context, id);
   }
@@ -153,7 +153,7 @@ export class ItensController {
     description: 'Item não encontrado',
   })
   @Delete(':id')
-  async excluir(@Param('id') id: string, @GetLoja() loja: Loja) {
+  async excluir(@Param('id') id: string, @GetLoja() loja: loja) {
     const context = { lojaId: loja.id, usuarioId: loja.id };
     return this.estoqueService.excluirItemEstoque(context, id);
   }

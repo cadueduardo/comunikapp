@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
-import { Loja } from '@prisma/client';
+import { loja } from '@prisma/client';
 
 export interface JwtPayload {
   sub: string; // user id
@@ -9,7 +9,7 @@ export interface JwtPayload {
   loja_id: string;
   funcao: string;
   nome_completo: string;
-  loja?: Loja;
+  loja?: loja;
 }
 
 // O tipo AuthenticatedUser agora reflete a estrutura retornada pelo Prisma
@@ -31,7 +31,7 @@ export class AuthService {
     loja_id: string;
     funcao: string;
     nome_completo: string;
-    loja?: Loja;
+    loja?: loja;
   }): Promise<string> {
     const payload: JwtPayload = {
       sub: user.id,

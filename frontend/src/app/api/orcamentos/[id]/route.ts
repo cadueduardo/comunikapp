@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { buildApiUrl } from '@/lib/config';
 
 export async function GET(
   request: NextRequest,
@@ -6,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const response = await fetch(`http://localhost:3001/orcamentos/${id}`, {
+    const response = await fetch(buildApiUrl(`/orcamentos/${id}`), {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${request.headers.get('authorization')?.replace('Bearer ', '') || ''}`,
@@ -40,7 +41,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
     
-    const response = await fetch(`http://localhost:3001/orcamentos/${id}`, {
+    const response = await fetch(buildApiUrl(`/orcamentos/${id}`), {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -74,7 +75,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const response = await fetch(`http://localhost:3001/orcamentos/${id}`, {
+    const response = await fetch(buildApiUrl(`/orcamentos/${id}`), {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${request.headers.get('authorization')?.replace('Bearer ', '') || ''}`,

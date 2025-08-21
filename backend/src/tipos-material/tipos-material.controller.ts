@@ -12,7 +12,7 @@ import { TiposMaterialService } from './tipos-material.service';
 import { CreateTipoMaterialDto } from './dto/create-tipo-material.dto';
 import { UpdateTipoMaterialDto } from './dto/update-tipo-material.dto';
 import { GetLoja } from '../auth/decorators';
-import { Loja } from '@prisma/client';
+import { loja } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('tipos-material')
@@ -23,18 +23,18 @@ export class TiposMaterialController {
   @Post()
   create(
     @Body() createTipoMaterialDto: CreateTipoMaterialDto,
-    @GetLoja() loja: Loja,
+    @GetLoja() loja: loja,
   ) {
     return this.tiposMaterialService.create(createTipoMaterialDto, loja);
   }
 
   @Get()
-  findAll(@GetLoja() loja: Loja) {
+  findAll(@GetLoja() loja: loja) {
     return this.tiposMaterialService.findAll(loja);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @GetLoja() loja: Loja) {
+  findOne(@Param('id') id: string, @GetLoja() loja: loja) {
     return this.tiposMaterialService.findOne(id, loja);
   }
 
@@ -42,13 +42,13 @@ export class TiposMaterialController {
   update(
     @Param('id') id: string,
     @Body() updateTipoMaterialDto: UpdateTipoMaterialDto,
-    @GetLoja() loja: Loja,
+    @GetLoja() loja: loja,
   ) {
     return this.tiposMaterialService.update(id, updateTipoMaterialDto, loja);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @GetLoja() loja: Loja) {
+  remove(@Param('id') id: string, @GetLoja() loja: loja) {
     return this.tiposMaterialService.remove(id, loja);
   }
 }

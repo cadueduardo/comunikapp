@@ -27,9 +27,10 @@ export default function EditarLotePage() {
     setLoading(true)
     try {
       const token = localStorage.getItem('access_token')
-      const res = await fetch(`http://localhost:3001/api/estoque/lotes/${loteId}`, {
+      const res = await fetch(`/api/estoque/lotes/${loteId}`, {
         headers: { Authorization: `Bearer ${token}` },
-      })
+        cache: 'no-store',
+      });
       if (!res.ok) throw new Error('Falha ao carregar lote')
       const data = await res.json()
       const r = data?.data || data
@@ -63,17 +64,21 @@ export default function EditarLotePage() {
     e.preventDefault()
     try {
       const token = localStorage.getItem('access_token')
-      const res = await fetch(`http://localhost:3001/api/estoque/lotes/${loteId}`, {
+      const formData = {
+        numeroLote: form.numeroLote || undefined,
+        dataFabricacao: form.dataFabricacao || null,
+        dataValidade: form.dataValidade || null,
+        quantidadeLote: form.quantidadeLote ? parseFloat(form.quantidadeLote) : undefined,
+        status: form.status,
+      };
+      const res = await fetch(`/api/estoque/lotes/${loteId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          numeroLote: form.numeroLote || undefined,
-          dataFabricacao: form.dataFabricacao || null,
-          dataValidade: form.dataValidade || null,
-          quantidadeLote: form.quantidadeLote ? parseFloat(form.quantidadeLote) : undefined,
-          status: form.status,
-        }),
-      })
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+      });
       if (!res.ok) throw new Error('Falha ao salvar')
       toast.success('Lote atualizado')
       router.push('/estoque/lotes')

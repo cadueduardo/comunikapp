@@ -1,18 +1,20 @@
--- Script para configurar banco de dados Comunikapp
--- Execute este arquivo no MySQL
+-- ===== CONFIGURAÇÃO DO BANCO COMUNIKAPP =====
 
--- Criar banco de dados
-CREATE DATABASE IF NOT EXISTS comunikapp;
+-- 1. Criar banco de dados
+CREATE DATABASE IF NOT EXISTS comunikapp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- Criar usuário
+-- 2. Criar usuário com privilégios
 CREATE USER IF NOT EXISTS 'comunikapp'@'localhost' IDENTIFIED BY 'password';
 
--- Conceder privilégios
+-- 3. Conceder privilégios ao usuário
 GRANT ALL PRIVILEGES ON comunikapp.* TO 'comunikapp'@'localhost';
 
--- Aplicar mudanças
+-- 4. Aplicar privilégios
 FLUSH PRIVILEGES;
 
--- Verificar se foi criado
+-- 5. Selecionar banco
+USE comunikapp;
+
+-- 6. Verificar se foi criado
 SHOW DATABASES;
-SELECT User, Host FROM mysql.user WHERE User = 'comunikapp';
+SHOW GRANTS FOR 'comunikapp'@'localhost';

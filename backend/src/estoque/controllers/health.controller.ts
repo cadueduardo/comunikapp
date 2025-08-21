@@ -8,7 +8,7 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { GetLoja } from '../../auth/decorators';
-import { Loja } from '@prisma/client';
+import { loja } from '@prisma/client';
 
 @ApiTags('Estoque - Health Check')
 @Controller('api/estoque/health')
@@ -76,7 +76,7 @@ export class HealthController {
   })
   @UseGuards(JwtAuthGuard)
   @Get('auth')
-  async authTest(@GetLoja() loja: Loja) {
+  async authTest(@GetLoja() loja: loja) {
     return {
       status: 'ok',
       authenticated: true,
@@ -94,13 +94,13 @@ export class HealthController {
   })
   @UseGuards(JwtAuthGuard)
   @Get('context')
-  async contextTest(@GetLoja() loja: Loja) {
+  async contextTest(@GetLoja() loja: loja) {
     const context = { lojaId: loja.id };
 
     try {
       // Verificar acesso ao banco com o contexto (consulta simples por loja)
       const rows: any[] = await this.prisma.$queryRawUnsafe(
-        'SELECT COUNT(*) as total FROM localizacoes WHERE loja_id = ? LIMIT 1',
+        'SELECT COUNT(*) as total FROM estoque_localizacoes WHERE lojaId = ? LIMIT 1',
         context.lojaId,
       );
 

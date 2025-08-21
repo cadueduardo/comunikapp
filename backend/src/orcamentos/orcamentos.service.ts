@@ -305,7 +305,7 @@ export class OrcamentosService {
     );
 
     // Buscar todos os custos indiretos ativos da loja
-    const custosIndiretos = await this.prisma.custoIndireto.findMany({
+    const custosIndiretos = await this.prisma.custoindireto.findMany({
       where: {
         loja_id: lojaId,
         ativo: true,
@@ -775,7 +775,6 @@ export class OrcamentosService {
 
     // 3. Criar o orçamento no banco
     const dadosParaSalvar = {
-      codigo: `ORC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       numero,
       nome_servico: createOrcamentoDto.nome_servico,
       descricao: createOrcamentoDto.descricao,
@@ -797,8 +796,9 @@ export class OrcamentosService {
       forma_pagamento: createOrcamentoDto.forma_pagamento,
       validade_proposta: createOrcamentoDto.validade_proposta,
       atendente: createOrcamentoDto.atendente,
-      loja_id: lojaId,
-      cliente_id: createOrcamentoDto.cliente_id,
+      atualizado_em: new Date(),
+      loja: { connect: { id: lojaId } },
+      cliente: createOrcamentoDto.cliente_id ? { connect: { id: createOrcamentoDto.cliente_id } } : undefined,
     };
 
     console.log('🔍 Debug - Backend - Dados sendo salvos no banco:', {
@@ -859,7 +859,7 @@ export class OrcamentosService {
       custo_total: item.custo_total,
     }));
 
-    await this.prisma.itemOrcamento.createMany({
+    await this.prisma.itemorcamento.createMany({
       data: itensData,
     });
 
@@ -872,7 +872,7 @@ export class OrcamentosService {
         custo_total: maquina.custo_total,
       }));
 
-      await this.prisma.maquinaOrcamento.createMany({
+      await this.prisma.maquinaorcamento.createMany({
         data: maquinasData,
       });
 
@@ -888,7 +888,7 @@ export class OrcamentosService {
         custo_total: funcao.custo_total,
       }));
 
-      await this.prisma.funcaoOrcamento.createMany({
+      await this.prisma.funcaoorcamento.createMany({
         data: funcoesData,
       });
 
@@ -920,7 +920,6 @@ export class OrcamentosService {
 
     // 3. Criar o orçamento como rascunho
     const dadosParaSalvar = {
-      codigo: `ORC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       numero,
       nome_servico: createOrcamentoDto.nome_servico,
       descricao: createOrcamentoDto.descricao,
@@ -938,8 +937,9 @@ export class OrcamentosService {
       impostos: resultado.custos.impostos_percentual,
       preco_final: resultado.custos.preco_final,
       status: 'rascunho', // Status como rascunho
-      loja_id: lojaId,
-      cliente_id: createOrcamentoDto.cliente_id,
+      atualizado_em: new Date(),
+      loja: { connect: { id: lojaId } },
+      cliente: createOrcamentoDto.cliente_id ? { connect: { id: createOrcamentoDto.cliente_id } } : undefined,
     };
 
     console.log('🔍 Debug - Backend - SalvarRascunho - Dados sendo salvos:', {
@@ -961,7 +961,7 @@ export class OrcamentosService {
       custo_total: item.custo_total,
     }));
 
-    await this.prisma.itemOrcamento.createMany({
+    await this.prisma.itemorcamento.createMany({
       data: itensData,
     });
 
@@ -974,7 +974,7 @@ export class OrcamentosService {
         custo_total: maquina.custo_total,
       }));
 
-      await this.prisma.maquinaOrcamento.createMany({
+      await this.prisma.maquinaorcamento.createMany({
         data: maquinasData,
       });
     }
@@ -988,7 +988,7 @@ export class OrcamentosService {
         custo_total: funcao.custo_total,
       }));
 
-      await this.prisma.funcaoOrcamento.createMany({
+      await this.prisma.funcaoorcamento.createMany({
         data: funcoesData,
       });
     }
@@ -1055,7 +1055,7 @@ export class OrcamentosService {
       console.log('📧 Orçamento:', orcamento.numero);
       console.log('📧 Código de Aprovação:', codigoAprovacao);
 
-      const linkPublico = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orcamento/${orcamento.id}`;
+      const linkPublico = `${process.env.FRONTEND_URL || 'http://localhost:4000'}/orcamento/${orcamento.id}`;
       console.log('📧 Link Público:', linkPublico);
       console.log('📧 ============================================');
 
@@ -1376,12 +1376,12 @@ export class OrcamentosService {
 
   async findAll(lojaId: string) {
     const orcamentos = await this.prisma.orcamento.findMany({
-      where: { loja_id: lojaId },
+      where: { loja: { id: lojaId } },
       include: {
         cliente: true,
-        itens: {
+        itemorcamento: {
           include: {
-            insumo: {
+            insumos: {
               include: {
                 categoria: true,
                 fornecedor: true,
@@ -1389,12 +1389,12 @@ export class OrcamentosService {
             },
           },
         },
-        maquinas: {
+        maquinaorcamento: {
           include: {
             maquina: true,
           },
         },
-        funcoes: {
+        funcaoorcamento: {
           include: {
             funcao: true,
           },
@@ -1412,13 +1412,13 @@ export class OrcamentosService {
     const orcamento = await this.prisma.orcamento.findFirst({
       where: {
         id,
-        loja_id: lojaId,
+        loja: { id: lojaId },
       },
       include: {
         cliente: true,
-        itens: {
+        itemorcamento: {
           include: {
-            insumo: {
+            insumos: {
               include: {
                 categoria: true,
                 fornecedor: true,
@@ -1426,12 +1426,12 @@ export class OrcamentosService {
             },
           },
         },
-        maquinas: {
+        maquinaorcamento: {
           include: {
             maquina: true,
           },
         },
-        funcoes: {
+        funcaoorcamento: {
           include: {
             funcao: true,
           },
@@ -1473,15 +1473,15 @@ export class OrcamentosService {
           area_produto: orcamento.area_produto
             ? String(orcamento.area_produto)
             : '',
-          materiais: orcamento.itens.map((item) => ({
+          materiais: orcamento.itemorcamento.map((item) => ({
             insumo_id: item.insumo_id,
             quantidade: String(item.quantidade),
           })),
-          maquinas: orcamento.maquinas.map((maquina) => ({
+          maquinas: orcamento.maquinaorcamento.map((maquina) => ({
             maquina_id: maquina.maquina_id,
             horas_utilizadas: String(maquina.horas_utilizadas),
           })),
-          funcoes: orcamento.funcoes.map((funcao) => ({
+          funcoes: orcamento.funcaoorcamento.map((funcao) => ({
             funcao_id: funcao.funcao_id,
             horas_trabalhadas: String(funcao.horas_trabalhadas),
           })),
@@ -1564,7 +1564,7 @@ export class OrcamentosService {
       // Se houver novos itens, atualizar
       if (updateOrcamentoDto.itens) {
         // Remover itens antigos
-        await this.prisma.itemOrcamento.deleteMany({
+        await this.prisma.itemorcamento.deleteMany({
           where: { orcamento_id: id },
         });
 
@@ -1577,7 +1577,7 @@ export class OrcamentosService {
           custo_total: item.custo_total,
         }));
 
-        await this.prisma.itemOrcamento.createMany({
+        await this.prisma.itemorcamento.createMany({
           data: itensData,
         });
       }
@@ -1585,7 +1585,7 @@ export class OrcamentosService {
       // Se houver novas máquinas, atualizar
       if (updateOrcamentoDto.maquinas) {
         // Remover máquinas antigas
-        await this.prisma.maquinaOrcamento.deleteMany({
+        await this.prisma.maquinaorcamento.deleteMany({
           where: { orcamento_id: id },
         });
 
@@ -1597,7 +1597,7 @@ export class OrcamentosService {
           custo_total: maquina.custo_total,
         }));
 
-        await this.prisma.maquinaOrcamento.createMany({
+        await this.prisma.maquinaorcamento.createMany({
           data: maquinasData,
         });
       }
@@ -1605,7 +1605,7 @@ export class OrcamentosService {
       // Se houver novas funções, atualizar
       if (updateOrcamentoDto.funcoes) {
         // Remover funções antigas
-        await this.prisma.funcaoOrcamento.deleteMany({
+        await this.prisma.funcaoorcamento.deleteMany({
           where: { orcamento_id: id },
         });
 
@@ -1617,7 +1617,7 @@ export class OrcamentosService {
           custo_total: funcao.custo_total,
         }));
 
-        await this.prisma.funcaoOrcamento.createMany({
+        await this.prisma.funcaoorcamento.createMany({
           data: funcoesData,
         });
       }
@@ -1882,7 +1882,7 @@ export class OrcamentosService {
     if (acao === 'NEGOCIAR' && dados.observacoes) {
       try {
         // Criar mensagem inicial de negociação diretamente no banco
-        await this.prisma.mensagemNegociacao.create({
+        await this.prisma.mensagemnegociacao.create({
           data: {
             orcamento_id: orcamentoId,
             mensagem: dados.observacoes,
@@ -1984,7 +1984,7 @@ export class OrcamentosService {
    * Buscar mensagens não visualizadas para SSE
    */
   async getMensagensNaoVisualizadas(orcamentoId: string) {
-    return this.prisma.mensagemNegociacao.findMany({
+    return this.prisma.mensagemnegociacao.findMany({
       where: {
         orcamento_id: orcamentoId,
         visualizada: false,
@@ -2003,7 +2003,20 @@ export class OrcamentosService {
    * Marcar mensagem como visualizada
    */
   async marcarMensagemComoVisualizada(orcamentoId: string, mensagemId: string) {
-    return this.prisma.mensagemNegociacao.update({
+    // Primeiro verificar se a mensagem existe
+    const mensagem = await this.prisma.mensagemnegociacao.findFirst({
+      where: {
+        id: mensagemId,
+        orcamento_id: orcamentoId,
+      },
+    });
+
+    if (!mensagem) {
+      console.warn(`⚠️ Mensagem não encontrada: ${mensagemId} para orçamento: ${orcamentoId}`);
+      return null; // Retornar null em vez de falhar
+    }
+
+    return this.prisma.mensagemnegociacao.update({
       where: {
         id: mensagemId,
         orcamento_id: orcamentoId,
@@ -2052,7 +2065,7 @@ export class OrcamentosService {
     });
 
     // 4. Enviar email com o novo código
-    const linkPublico = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orcamento/${orcamento.id}`;
+    const linkPublico = `${process.env.FRONTEND_URL || 'http://localhost:4000'}/orcamento/${orcamento.id}`;
 
     await this.mailService.enviarOrcamentoCliente(
       orcamento.cliente.email,
@@ -2093,19 +2106,19 @@ export class OrcamentosService {
 
     // Buscar todos os orçamentos da loja
     const orcamentos = await this.prisma.orcamento.findMany({
-      where: { loja_id: lojaId },
+      where: { loja: { id: lojaId } },
       include: {
-        itens: {
+        itemorcamento: {
           include: {
-            insumo: true,
+            insumos: true,
           },
         },
-        maquinas: {
+        maquinaorcamento: {
           include: {
             maquina: true,
           },
         },
-        funcoes: {
+        funcaoorcamento: {
           include: {
             funcao: true,
           },
@@ -2130,15 +2143,15 @@ export class OrcamentosService {
           descricao: orcamento.descricao || '',
           horas_producao: Number(orcamento.horas_producao),
           quantidade_produto: Number(orcamento.quantidade_produto) || 1,
-          itens: orcamento.itens.map((item) => ({
+          itens: orcamento.itemorcamento.map((item) => ({
             insumo_id: item.insumo_id,
             quantidade: Number(item.quantidade),
           })),
-          maquinas: orcamento.maquinas.map((maquina) => ({
+          maquinas: orcamento.maquinaorcamento.map((maquina) => ({
             maquina_id: maquina.maquina_id,
             horas_utilizadas: Number(maquina.horas_utilizadas),
           })),
-          funcoes: orcamento.funcoes.map((funcao) => ({
+          funcoes: orcamento.funcaoorcamento.map((funcao) => ({
             funcao_id: funcao.funcao_id,
             horas_trabalhadas: Number(funcao.horas_trabalhadas),
           })),

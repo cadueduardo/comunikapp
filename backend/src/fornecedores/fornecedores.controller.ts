@@ -12,7 +12,7 @@ import { FornecedoresService } from './fornecedores.service';
 import { CreateFornecedoreDto } from './dto/create-fornecedore.dto';
 import { UpdateFornecedoreDto } from './dto/update-fornecedore.dto';
 import { GetLoja } from '../auth/decorators';
-import { Loja } from '@prisma/client';
+import { loja } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('fornecedores')
@@ -23,18 +23,18 @@ export class FornecedoresController {
   @Post()
   create(
     @Body() createFornecedoreDto: CreateFornecedoreDto,
-    @GetLoja() loja: Loja,
+    @GetLoja() loja: loja,
   ) {
     return this.fornecedoresService.create(createFornecedoreDto, loja);
   }
 
   @Get()
-  findAll(@GetLoja() loja: Loja) {
+  findAll(@GetLoja() loja: loja) {
     return this.fornecedoresService.findAll(loja);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @GetLoja() loja: Loja) {
+  findOne(@Param('id') id: string, @GetLoja() loja: loja) {
     return this.fornecedoresService.findOne(id, loja);
   }
 
@@ -42,13 +42,13 @@ export class FornecedoresController {
   update(
     @Param('id') id: string,
     @Body() updateFornecedoreDto: UpdateFornecedoreDto,
-    @GetLoja() loja: Loja,
+    @GetLoja() loja: loja,
   ) {
     return this.fornecedoresService.update(id, updateFornecedoreDto, loja);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @GetLoja() loja: Loja) {
+  remove(@Param('id') id: string, @GetLoja() loja: loja) {
     return this.fornecedoresService.remove(id, loja);
   }
 }

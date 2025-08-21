@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Search, Package, Loader2, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
+import { produtosApi } from '@/lib/api-client';
 
 // Função para formatar horas
 const formatHours = (hours: number | null | undefined | string | { toString(): string }): string => {
@@ -121,21 +122,7 @@ export function ProdutoSelectionModal({ open, onClose, onSelect }: ProdutoSelect
         return;
       }
 
-      const response = await fetch(`http://localhost:3001/produtos`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      console.log('🔍 Status da resposta:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('🔍 Erro da API:', errorData);
-        throw new Error(`Erro ao buscar produtos: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = await produtosApi.getAll(token);
       console.log('🔍 Produtos carregados:', data.length);
       setProdutos(data);
       

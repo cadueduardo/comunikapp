@@ -28,6 +28,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { categoriasApi, fornecedoresApi, tiposMaterialApi } from '@/lib/api-client';
 
 const formSchema = z.object({
   nome: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
@@ -420,73 +421,66 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
   const [fornecedores, setFornecedores] = useState<Option[]>([]);
   
   useEffect(() => {
-    const fetchData = async (url: string, setter: React.Dispatch<React.SetStateAction<Option[]>>) => {
+    const fetchData = async () => {
       try {
         const token = localStorage.getItem('access_token');
-        const res = await fetch(`http://localhost:3001${url}`, { headers: { Authorization: `Bearer ${token}` } });
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        const data = await res.json();
-        setter(data.map((item: {id: string, nome: string}) => ({ value: item.id, label: item.nome })));
-      } catch (error) {
-        toast.error(`Falha ao carregar ${url.replace('/', '')}.`);
-        console.error(`Fetch error for ${url}:`, error);
-      }
-    };
-    fetchData('/categorias', setCategorias);
-    fetchData('/fornecedores', setFornecedores);
-    fetchTiposMaterial();
-  }, []);
+        if (!token) return;
 
-  const fetchTiposMaterial = async () => {
-    try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/tipos-material', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const options = data.map((tipo: { id: string; nome: string }) => ({
+        // Usar APIs centralizadas em vez de URLs hardcoded
+        const [categoriasData, fornecedoresData, tiposMaterialData] = await Promise.all([
+          categoriasApi.getAll(token),
+          fornecedoresApi.getAll(token),
+          tiposMaterialApi.getAll(token)
+        ]) as [{id: string, nome: string}[], {id: string, nome: string}[], {id: string, nome: string}[]];
+
+        setCategorias(categoriasData.map((item: {id: string, nome: string}) => ({ 
+          value: item.id, 
+          label: item.nome 
+        })));
+        
+        setFornecedores(fornecedoresData.map((item: {id: string, nome: string}) => ({ 
+          value: item.id, 
+          label: item.nome 
+        })));
+        
+        setTiposMaterial(tiposMaterialData.map((tipo: { id: string; nome: string }) => ({
           value: tipo.id,
           label: tipo.nome,
-        }));
-        setTiposMaterial(options);
+        })));
+      } catch (error) {
+        toast.error('Falha ao carregar dados de referência.');
+        console.error('Erro ao carregar dados:', error);
       }
-    } catch (error) {
-      console.error('Erro ao buscar tipos de material:', error);
-    }
-  };
-  
+    };
+    
+    fetchData();
+  }, []);
+
   const handleCreate = async (
     name: string,
     type: 'categoria' | 'fornecedor'
   ) => {
-    const url = type === 'categoria' ? '/categorias' : '/fornecedores';
-    const setter = type === 'categoria' ? setCategorias : setFornecedores;
-    const fieldName = type === 'categoria' ? 'categoriaId' : 'fornecedorId';
     const token = localStorage.getItem('access_token');
+    if (!token) return;
     
     try {
-      const response = await fetch(`http://localhost:3001${url}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ nome: name }),
-      });
+      let newData;
       
-      const newData = await response.json();
-      
-      if (response.ok) {
-        toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} "${name}" criada com sucesso!`);
+      if (type === 'categoria') {
+        newData = await categoriasApi.create({ nome: name }, token) as { id: string; nome: string };
         const newOption = { value: newData.id, label: newData.nome };
-        setter(prev => [...prev, newOption]);
-        form.setValue(fieldName, newData.id);
+        setCategorias(prev => [...prev, newOption]);
+        form.setValue('categoriaId', newData.id);
       } else {
-        toast.error(newData.message || `Falha ao criar ${type}.`);
+        newData = await fornecedoresApi.create({ nome: name }, token) as { id: string; nome: string };
+        const newOption = { value: newData.id, label: newData.nome };
+        setFornecedores(prev => [...prev, newOption]);
+        form.setValue('fornecedorId', newData.id);
       }
+      
+      toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} "${name}" criada com sucesso!`);
     } catch (error) {
-      toast.error(`Ocorreu um erro de conexão ao criar ${type}.`);
+      toast.error(`Falha ao criar ${type}.`);
       console.error(error);
     }
   };

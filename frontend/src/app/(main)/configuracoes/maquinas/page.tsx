@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { maquinasApi } from '@/lib/api-client';
 
 interface Maquina {
   id: string;
@@ -147,16 +148,8 @@ export default function MaquinasPage() {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:3001/maquinas', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setMaquinas(data);
-      } else {
-        toast.error('Erro ao carregar máquinas');
-      }
+      const data = await maquinasApi.getAll(token);
+      setMaquinas(data);
     } catch (error) {
       console.error('Erro ao buscar máquinas:', error);
       toast.error('Erro ao carregar máquinas');
@@ -170,17 +163,9 @@ export default function MaquinasPage() {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:3001/maquinas/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        toast.success('Máquina excluída com sucesso!');
-        fetchMaquinas();
-      } else {
-        toast.error('Erro ao excluir máquina');
-      }
+      await maquinasApi.delete(id, token);
+      toast.success('Máquina excluída com sucesso!');
+      fetchMaquinas();
     } catch (error) {
       console.error('Erro ao excluir máquina:', error);
       toast.error('Erro ao excluir máquina');

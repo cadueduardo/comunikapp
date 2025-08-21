@@ -12,7 +12,8 @@ import { CustosIndiretosService } from './custos-indiretos.service';
 import { CreateCustoIndiretoDto } from './dto/create-custo-indireto.dto';
 import { UpdateCustoIndiretoDto } from './dto/update-custo-indireto.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentLojaId } from '../auth/decorators';
+import { GetLoja } from '../auth/decorators';
+import { loja } from '@prisma/client';
 
 @Controller('custos-indiretos')
 @UseGuards(JwtAuthGuard)
@@ -24,36 +25,36 @@ export class CustosIndiretosController {
   @Post()
   create(
     @Body() createCustoIndiretoDto: CreateCustoIndiretoDto,
-    @CurrentLojaId() lojaId: string,
+    @GetLoja() loja: loja,
   ) {
-    return this.custosIndiretosService.create(createCustoIndiretoDto, lojaId);
+    return this.custosIndiretosService.create(createCustoIndiretoDto, loja);
   }
 
   @Get()
-  findAll(@CurrentLojaId() lojaId: string) {
-    return this.custosIndiretosService.findAll(lojaId);
+  findAll(@GetLoja() loja: loja) {
+    return this.custosIndiretosService.findAll(loja);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @CurrentLojaId() lojaId: string) {
-    return this.custosIndiretosService.findOne(id, lojaId);
+  findOne(@Param('id') id: string, @GetLoja() loja: loja) {
+    return this.custosIndiretosService.findOne(id, loja);
   }
 
   @Patch(':id')
   update(
     @Param('id') id: string,
     @Body() updateCustoIndiretoDto: UpdateCustoIndiretoDto,
-    @CurrentLojaId() lojaId: string,
+    @GetLoja() loja: loja,
   ) {
     return this.custosIndiretosService.update(
       id,
       updateCustoIndiretoDto,
-      lojaId,
+      loja,
     );
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @CurrentLojaId() lojaId: string) {
-    return this.custosIndiretosService.remove(id, lojaId);
+  remove(@Param('id') id: string, @GetLoja() loja: loja) {
+    return this.custosIndiretosService.remove(id, loja);
   }
 }

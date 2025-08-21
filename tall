@@ -1,0 +1,5 @@
+[33mecff457[m[33m ([m[1;36mHEAD[m[33m)[m feat(usuarios): dialog de criação (com senha ou via convite) e integração com listagem
+[33m47c685b[m feat(usuarios): listagem integrada ao backend + toolbar (buscar/atualizar)
+[33ma173501[m feat(usuarios): componentes base CRUD (DataTable, columns) e esqueleto de listagem
+[33ma57bacf[m feat(usuarios): esqueleto backend + guard de ativação; placeholder frontend e componentes base (PageHeader, CrudPage)
+[33me571aee[m docs(estoque): ping CI para acionar verificadores (CodeRabbit) e confirmar build verde

@@ -23,7 +23,7 @@ export default function TestProdutosPage() {
 
       setResult(prev => prev + `Token: ${token.substring(0, 20)}...\n`);
       
-      const response = await fetch(`http://localhost:3001/produtos`, {
+      const response = await fetch(`/api/produtos`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

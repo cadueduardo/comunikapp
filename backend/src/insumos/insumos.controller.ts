@@ -12,7 +12,7 @@ import { InsumosService } from './insumos.service';
 import { CreateInsumoDto } from './dto/create-insumo.dto';
 import { UpdateInsumoDto } from './dto/update-insumo.dto';
 import { GetLoja } from '../auth/decorators';
-import { Loja } from '@prisma/client';
+import { loja } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('insumos')
@@ -21,17 +21,17 @@ export class InsumosController {
   constructor(private readonly insumosService: InsumosService) {}
 
   @Post()
-  create(@Body() createInsumoDto: CreateInsumoDto, @GetLoja() loja: Loja) {
+  create(@Body() createInsumoDto: CreateInsumoDto, @GetLoja() loja: loja) {
     return this.insumosService.create(createInsumoDto, loja);
   }
 
   @Get()
-  findAll(@GetLoja() loja: Loja) {
+  findAll(@GetLoja() loja: loja) {
     return this.insumosService.findAll(loja);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @GetLoja() loja: Loja) {
+  findOne(@Param('id') id: string, @GetLoja() loja: loja) {
     return this.insumosService.findOne(id, loja);
   }
 
@@ -39,13 +39,13 @@ export class InsumosController {
   update(
     @Param('id') id: string,
     @Body() updateInsumoDto: UpdateInsumoDto,
-    @GetLoja() loja: Loja,
+    @GetLoja() loja: loja,
   ) {
     return this.insumosService.update(id, updateInsumoDto, loja);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @GetLoja() loja: Loja) {
+  remove(@Param('id') id: string, @GetLoja() loja: loja) {
     return this.insumosService.remove(id, loja);
   }
 }

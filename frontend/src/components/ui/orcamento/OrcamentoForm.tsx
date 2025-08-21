@@ -9,6 +9,7 @@ import { Form } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { ArrowLeft, Save } from 'lucide-react';
+import { orcamentosApi } from '@/lib/api-client';
 import { createFormSchema, FormValues } from './schemas/orcamento.schema';
 import { useOrcamentoData } from './hooks/useOrcamentoData';
 import { ClienteSection, ProdutoSection, ConfiguracoesSection } from './components';
@@ -131,9 +132,13 @@ export function OrcamentoForm({
     resolver: zodResolver(createFormSchema(mode)),
     defaultValues: {
       cliente_id: '',
-      margem_lucro_customizada: '',
-      impostos_customizados: '',
+      margem_lucro_customizada: '30',
+      impostos_customizados: '25',
       condicoes_comerciais: '',
+      prazo_entrega: '10 a 15 dias úteis',
+      forma_pagamento: '50% entrada, restante na entrega',
+      validade_proposta: '30 dias',
+      atendente: 'Equipe Comercial',
       itens_produto: [
         {
           nome_servico: '',
@@ -154,7 +159,38 @@ export function OrcamentoForm({
   // Carregar dados iniciais se for edição
   useEffect(() => {
     if (mode === 'editar' && initialData) {
-      form.reset(initialData);
+      console.log('🔍 Debug - OrcamentoForm - Dados recebidos para reset:', initialData);
+      console.log('🔍 Debug - OrcamentoForm - Cliente ID recebido:', initialData.cliente_id);
+      console.log('🔍 Debug - OrcamentoForm - Estrutura completa dos dados:', JSON.stringify(initialData, null, 2));
+      
+      // Verificar se os dados estão no formato esperado pelo formulário
+      const dadosFormatados = {
+        cliente_id: String(initialData.cliente_id || ''),
+        margem_lucro_customizada: String(initialData.margem_lucro_customizada || '30'),
+        impostos_customizados: String(initialData.impostos_customizados || '25'),
+        condicoes_comerciais: String(initialData.condicoes_comerciais || ''),
+        prazo_entrega: String(initialData.prazo_entrega || '10 a 15 dias úteis'),
+        forma_pagamento: String(initialData.forma_pagamento || '50% entrada, restante na entrega'),
+        validade_proposta: String(initialData.validade_proposta || '30 dias'),
+        atendente: String(initialData.atendente || 'Equipe Comercial'),
+        itens_produto: (initialData.itens_produto as any[]) || [
+          {
+            nome_servico: String(initialData.nome_servico || ''),
+            descricao: String(initialData.descricao || ''),
+            quantidade_produto: '1',
+            largura_produto: '',
+            altura_produto: '',
+            unidade_medida_produto: '',
+            area_produto: '',
+            materiais: [],
+            maquinas: [],
+            funcoes: [],
+          }
+        ],
+      };
+      
+      console.log('🔍 Debug - OrcamentoForm - Dados formatados para o form:', dadosFormatados);
+      form.reset(dadosFormatados);
     }
   }, [mode, initialData, form]);
 
@@ -167,96 +203,179 @@ export function OrcamentoForm({
     }
   }, [mode, orcamentoStatus, initialData]);
 
-  const onSubmit = async (data: FormValues) => {
-    setLoading(true);
+  // Função auxiliar para transformar dados do frontend para o formato do backend
+  const transformarDadosParaBackend = (data: FormValues) => {
+    // Validar se há dados válidos
+    if (!data.itens_produto || data.itens_produto.length === 0) {
+      throw new Error('Nenhum produto foi adicionado ao orçamento');
+    }
+
+    // Verificar se o primeiro produto tem materiais
+    const primeiroProduto = data.itens_produto[0];
+    if (!primeiroProduto.materiais || primeiroProduto.materiais.length === 0) {
+      throw new Error('O primeiro produto deve ter pelo menos um material');
+    }
+
+    const dadosTransformados = {
+      nome_servico: primeiroProduto.nome_servico || 'Orçamento',
+      descricao: primeiroProduto.descricao || '',
+      horas_producao: 1, // Valor padrão
+      itens: data.itens_produto.flatMap(produto => 
+        produto.materiais?.map(material => ({
+          insumo_id: material.insumo_id,
+          quantidade: Number(material.quantidade.replace(',', '.'))
+        })) || []
+      ),
+      maquinas: data.itens_produto.flatMap(produto => 
+        produto.maquinas?.map(maquina => ({
+          maquina_id: maquina.maquina_id,
+          horas_utilizadas: Number(maquina.horas_utilizadas.replace(',', '.'))
+        })) || []
+      ),
+      funcoes: data.itens_produto.flatMap(produto => 
+        produto.funcoes?.map(funcao => ({
+          funcao_id: funcao.funcao_id,
+          horas_trabalhadas: Number(funcao.horas_trabalhadas.replace(',', '.'))
+        })) || []
+      ),
+      cliente_id: data.cliente_id,
+      condicoes_comerciais: data.condicoes_comerciais,
+      prazo_entrega: data.prazo_entrega,
+      forma_pagamento: data.forma_pagamento,
+      validade_proposta: data.validade_proposta,
+      atendente: data.atendente,
+      margem_lucro_customizada: data.margem_lucro_customizada ? Number(data.margem_lucro_customizada.replace(',', '.')) : undefined,
+      impostos_customizados: data.impostos_customizados ? Number(data.impostos_customizados.replace(',', '.')) : undefined,
+      largura_produto: primeiroProduto.largura_produto ? Number(primeiroProduto.largura_produto.replace(',', '.')) : undefined,
+      altura_produto: primeiroProduto.altura_produto ? Number(primeiroProduto.altura_produto.replace(',', '.')) : undefined,
+      area_produto: primeiroProduto.area_produto ? Number(primeiroProduto.area_produto.replace(',', '.')) : undefined,
+      unidade_medida_produto: primeiroProduto.unidade_medida_produto,
+      quantidade_produto: primeiroProduto.quantidade_produto ? Number(primeiroProduto.quantidade_produto.replace(',', '.')) : 1
+    };
+
+    // Log detalhado para debug
+    console.log('🔍 Debug - Dados originais do form:', data.itens_produto);
+    console.log('🔍 Debug - Dados transformados:', dadosTransformados);
+    console.log('🔍 Debug - Itens transformados:', dadosTransformados.itens);
+    console.log('🔍 Debug - Quantidades:', dadosTransformados.itens.map(item => item.quantidade));
+
+    return dadosTransformados;
+  };
+
+  const handleSubmit = async (data: FormValues) => {
     try {
       const token = localStorage.getItem('access_token');
       if (!token) {
-        toast.error('Token de acesso não encontrado');
+        toast.error('Token de autenticação não encontrado');
         return;
       }
 
-      // Pegar o primeiro item do produto para os dados básicos
-      const primeiroItem = data.itens_produto[0];
-      
-      // Mapear itens do formulário
-      const itensParaEnviar = primeiroItem.materiais.map(material => ({
-        insumo_id: material.insumo_id,
-        quantidade: Number(String(material.quantidade).replace(',', '.')),
-      }));
-      
-      const maquinasParaEnviar = primeiroItem.maquinas.map(maquina => ({
-        maquina_id: maquina.maquina_id,
-        horas_utilizadas: Number(maquina.horas_utilizadas),
-      }));
-      
-      const funcoesParaEnviar = primeiroItem.funcoes.map(funcao => ({
-        funcao_id: funcao.funcao_id,
-        horas_trabalhadas: Number(funcao.horas_trabalhadas),
-      }));
-
-      // Calcular horas de produção
-      const horasMaquinas = primeiroItem.maquinas.reduce((total, maquina) => {
-        return total + (Number(maquina.horas_utilizadas) || 0);
-      }, 0);
-      
-      const horasFuncoes = primeiroItem.funcoes.reduce((total, funcao) => {
-        return total + (Number(funcao.horas_trabalhadas) || 0);
-      }, 0);
-      
-      const horasProducao = horasMaquinas + horasFuncoes;
-
-      const dadosParaEnviar = {
-        nome_servico: primeiroItem.nome_servico,
-        descricao: primeiroItem.descricao || '',
-        horas_producao: Math.max(horasProducao, 0.1), // Mínimo 0.1h
-        cliente_id: data.cliente_id,
-        condicoes_comerciais: data.condicoes_comerciais || '',
-        margem_lucro_customizada: data.margem_lucro_customizada ? parseFloat(data.margem_lucro_customizada) : undefined,
-        impostos_customizados: data.impostos_customizados ? parseFloat(data.impostos_customizados) : undefined,
-        // Dimensões do produto (do primeiro item)
-        largura_produto: primeiroItem.largura_produto ? parseFloat(primeiroItem.largura_produto) : undefined,
-        altura_produto: primeiroItem.altura_produto ? parseFloat(primeiroItem.altura_produto) : undefined,
-        area_produto: primeiroItem.area_produto ? parseFloat(primeiroItem.area_produto) : undefined,
-        unidade_medida_produto: primeiroItem.unidade_medida_produto || '',
-        quantidade_produto: primeiroItem.quantidade_produto ? Number(primeiroItem.quantidade_produto) : 1,
-        // Itens mapeados
-        itens: itensParaEnviar,
-        maquinas: maquinasParaEnviar,
-        funcoes: funcoesParaEnviar,
-      };
-
-      const url = mode === 'novo' 
-        ? 'http://localhost:3001/orcamentos'
-        : `http://localhost:3001/orcamentos/${orcamentoId}`;
-      
-      const method = mode === 'novo' ? 'POST' : 'PATCH';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(dadosParaEnviar),
-      });
-
-      if (response.ok) {
-        toast.success(mode === 'novo' ? 'Orçamento criado com sucesso!' : 'Orçamento atualizado com sucesso!');
-        if (onSuccess) {
-          onSuccess();
-        } else {
-          router.push('/orcamentos');
-        }
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Erro ao salvar orçamento');
+      // Validar dados antes de transformar
+      if (!data.itens_produto || data.itens_produto.length === 0) {
+        toast.error('Adicione pelo menos um produto ao orçamento');
+        return;
       }
+
+      const primeiroProduto = data.itens_produto[0];
+      if (!primeiroProduto.materiais || primeiroProduto.materiais.length === 0) {
+        toast.error('O primeiro produto deve ter pelo menos um material');
+        return;
+      }
+
+      const dadosTransformados = transformarDadosParaBackend(data);
+      console.log('🔍 Dados transformados para backend:', dadosTransformados);
+
+      if (mode === 'editar' && orcamentoId) {
+        await orcamentosApi.update(orcamentoId, dadosTransformados, token);
+        toast.success('Orçamento atualizado com sucesso!');
+      } else {
+        await orcamentosApi.create(dadosTransformados, token);
+        toast.success('Orçamento criado com sucesso!');
+      }
+
+      router.push('/orcamentos');
     } catch (error) {
       console.error('Erro ao salvar orçamento:', error);
-      toast.error('Erro ao salvar orçamento');
-    } finally {
-      setLoading(false);
+      
+      // Mostrar mensagem de erro mais específica
+      if (error instanceof Error) {
+        toast.error(`Erro ao salvar orçamento: ${error.message}`);
+      } else {
+        toast.error('Erro ao salvar orçamento');
+      }
+    }
+  };
+
+  const handleSalvarRascunho = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        toast.error('Token de autenticação não encontrado');
+        return;
+      }
+
+      const formData = form.getValues();
+      
+      // Validar dados antes de transformar
+      if (!formData.itens_produto || formData.itens_produto.length === 0) {
+        toast.error('Adicione pelo menos um produto ao orçamento');
+        return;
+      }
+
+      const primeiroProduto = formData.itens_produto[0];
+      if (!primeiroProduto.materiais || primeiroProduto.materiais.length === 0) {
+        toast.error('O primeiro produto deve ter pelo menos um material');
+        return;
+      }
+
+      const dadosTransformados = transformarDadosParaBackend(formData);
+      
+      console.log('🔍 Dados transformados para backend (rascunho):', dadosTransformados);
+      
+      // Se for edição, usar update; se for criação, usar salvarRascunho
+      if (mode === 'editar' && orcamentoId) {
+        console.log('🔍 Debug - Editando rascunho existente com ID:', orcamentoId);
+        await orcamentosApi.update(orcamentoId, dadosTransformados, token);
+        toast.success('Rascunho atualizado com sucesso!');
+      } else {
+        console.log('🔍 Debug - Criando novo rascunho');
+        await orcamentosApi.salvarRascunho(dadosTransformados, token);
+        toast.success('Rascunho salvo com sucesso!');
+      }
+      
+      // Redirecionar para o grid de orçamentos após salvar rascunho
+      router.push('/orcamentos');
+    } catch (error) {
+      console.error('Erro ao salvar rascunho:', error);
+      
+      // Mostrar mensagem de erro mais específica
+      if (error instanceof Error) {
+        toast.error(`Erro ao salvar rascunho: ${error.message}`);
+      } else {
+        toast.error('Erro ao salvar rascunho');
+      }
+    }
+  };
+
+  const handleEnviar = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        toast.error('Token de autenticação não encontrado');
+        return;
+      }
+
+      if (!orcamentoId) {
+        toast.error('ID do orçamento não encontrado');
+        return;
+      }
+
+      await orcamentosApi.enviar(orcamentoId, token);
+      toast.success('Orçamento enviado com sucesso!');
+      router.push('/orcamentos');
+    } catch (error) {
+      console.error('Erro ao enviar orçamento:', error);
+      toast.error('Erro ao enviar orçamento');
     }
   };
 
@@ -325,247 +444,6 @@ export function OrcamentoForm({
     }
   };
 
-  const onSalvarRascunho = async (data: FormValues) => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        toast.error('Token de acesso não encontrado');
-        return;
-      }
-
-      // Pegar o primeiro item do produto para os dados básicos
-      const primeiroItem = data.itens_produto[0];
-      
-      // Validar dados mínimos para salvar rascunho
-      if (!primeiroItem.nome_servico) {
-        toast.error('Nome do serviço é obrigatório');
-        return;
-      }
-
-      if (!primeiroItem.materiais || primeiroItem.materiais.length === 0) {
-        toast.error('Adicione pelo menos um material');
-        return;
-      }
-      
-      // Mapear itens do formulário
-      const itensParaEnviar = primeiroItem.materiais.map(material => ({
-        insumo_id: material.insumo_id,
-        quantidade: Number(String(material.quantidade).replace(',', '.')),
-      }));
-      
-      const maquinasParaEnviar = primeiroItem.maquinas.map(maquina => ({
-        maquina_id: maquina.maquina_id,
-        horas_utilizadas: Number(maquina.horas_utilizadas),
-      }));
-      
-      const funcoesParaEnviar = primeiroItem.funcoes.map(funcao => ({
-        funcao_id: funcao.funcao_id,
-        horas_trabalhadas: Number(funcao.horas_trabalhadas),
-      }));
-
-      // Calcular horas de produção
-      const horasMaquinas = primeiroItem.maquinas.reduce((total, maquina) => {
-        return total + (Number(maquina.horas_utilizadas) || 0);
-      }, 0);
-      
-      const horasFuncoes = primeiroItem.funcoes.reduce((total, funcao) => {
-        return total + (Number(funcao.horas_trabalhadas) || 0);
-      }, 0);
-      
-      const horasProducao = horasMaquinas + horasFuncoes;
-
-      const dadosParaEnviar = {
-        nome_servico: primeiroItem.nome_servico,
-        descricao: primeiroItem.descricao || '',
-        horas_producao: Math.max(horasProducao, 0.1), // Mínimo 0.1h
-        cliente_id: data.cliente_id || null, // Permitir null para rascunho
-        condicoes_comerciais: data.condicoes_comerciais || '',
-        // Configurações comerciais
-        prazo_entrega: data.prazo_entrega || '',
-        forma_pagamento: data.forma_pagamento || '',
-        validade_proposta: data.validade_proposta || '',
-        atendente: data.atendente || '',
-        margem_lucro_customizada: data.margem_lucro_customizada ? parseFloat(data.margem_lucro_customizada) : undefined,
-        impostos_customizados: data.impostos_customizados ? parseFloat(data.impostos_customizados) : undefined,
-        // Dimensões do produto (do primeiro item)
-        largura_produto: primeiroItem.largura_produto ? parseFloat(primeiroItem.largura_produto) : undefined,
-        altura_produto: primeiroItem.altura_produto ? parseFloat(primeiroItem.altura_produto) : undefined,
-        area_produto: primeiroItem.area_produto ? parseFloat(primeiroItem.area_produto) : undefined,
-        unidade_medida_produto: primeiroItem.unidade_medida_produto || '',
-        quantidade_produto: primeiroItem.quantidade_produto ? Number(primeiroItem.quantidade_produto) : 1,
-        // Itens mapeados
-        itens: itensParaEnviar,
-        maquinas: maquinasParaEnviar,
-        funcoes: funcoesParaEnviar,
-      };
-
-      const url = mode === 'editar' 
-        ? `http://localhost:3001/orcamentos/${orcamentoId}`
-        : 'http://localhost:3001/orcamentos/rascunho';
-      
-      const method = mode === 'editar' ? 'PATCH' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(dadosParaEnviar),
-      });
-
-      if (response.ok) {
-        toast.success('Rascunho salvo com sucesso!');
-        if (onSuccess) {
-          onSuccess();
-        } else {
-          router.push('/orcamentos');
-        }
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Erro ao salvar rascunho');
-      }
-    } catch (error) {
-      console.error('Erro ao salvar rascunho:', error);
-      toast.error('Erro ao salvar rascunho');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onEnviarOrcamento = async (data: FormValues) => {
-    if (mode !== 'template' && !data.cliente_id) {
-      toast.error('Selecione um cliente antes de enviar o orçamento');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        toast.error('Token de acesso não encontrado');
-        return;
-      }
-
-      // Pegar o primeiro item do produto para os dados básicos
-      const primeiroItem = data.itens_produto[0];
-      
-      // Mapear itens do formulário
-      const itensParaEnviar = primeiroItem.materiais.map(material => ({
-        insumo_id: material.insumo_id,
-        quantidade: Number(String(material.quantidade).replace(',', '.')),
-      }));
-      
-      const maquinasParaEnviar = primeiroItem.maquinas.map(maquina => ({
-        maquina_id: maquina.maquina_id,
-        horas_utilizadas: Number(maquina.horas_utilizadas),
-      }));
-      
-      const funcoesParaEnviar = primeiroItem.funcoes.map(funcao => ({
-        funcao_id: funcao.funcao_id,
-        horas_trabalhadas: Number(funcao.horas_trabalhadas),
-      }));
-
-      // Calcular horas de produção
-      const horasMaquinas = primeiroItem.maquinas.reduce((total, maquina) => {
-        return total + (Number(maquina.horas_utilizadas) || 0);
-      }, 0);
-      
-      const horasFuncoes = primeiroItem.funcoes.reduce((total, funcao) => {
-        return total + (Number(funcao.horas_trabalhadas) || 0);
-      }, 0);
-      
-      const horasProducao = horasMaquinas + horasFuncoes;
-
-      const dadosParaEnviar = {
-        nome_servico: primeiroItem.nome_servico,
-        descricao: primeiroItem.descricao || '',
-        horas_producao: Math.max(horasProducao, 0.1), // Mínimo 0.1h
-        cliente_id: data.cliente_id,
-        condicoes_comerciais: data.condicoes_comerciais || '',
-        // Configurações comerciais
-        prazo_entrega: data.prazo_entrega || '',
-        forma_pagamento: data.forma_pagamento || '',
-        validade_proposta: data.validade_proposta || '',
-        atendente: data.atendente || '',
-        margem_lucro_customizada: data.margem_lucro_customizada ? parseFloat(data.margem_lucro_customizada) : undefined,
-        impostos_customizados: data.impostos_customizados ? parseFloat(data.impostos_customizados) : undefined,
-        // Dimensões do produto (do primeiro item)
-        largura_produto: primeiroItem.largura_produto ? parseFloat(primeiroItem.largura_produto) : undefined,
-        altura_produto: primeiroItem.altura_produto ? parseFloat(primeiroItem.altura_produto) : undefined,
-        area_produto: primeiroItem.area_produto ? parseFloat(primeiroItem.area_produto) : undefined,
-        unidade_medida_produto: primeiroItem.unidade_medida_produto || '',
-        quantidade_produto: primeiroItem.quantidade_produto ? Number(primeiroItem.quantidade_produto) : 1,
-        // Itens mapeados
-        itens: itensParaEnviar,
-        maquinas: maquinasParaEnviar,
-        funcoes: funcoesParaEnviar,
-      };
-
-      let orcamentoIdParaEnviar = orcamentoId;
-      
-      if (mode === 'novo') {
-        // Salvar rascunho primeiro
-        const rascunhoResponse = await fetch('http://localhost:3001/orcamentos/rascunho', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(dadosParaEnviar),
-        });
-
-        if (!rascunhoResponse.ok) {
-          throw new Error('Erro ao salvar rascunho');
-        }
-
-        const rascunhoResult = await rascunhoResponse.json();
-        orcamentoIdParaEnviar = rascunhoResult.id;
-      } else {
-        // Se for edição, atualizar o orçamento existente
-        const updateResponse = await fetch(`http://localhost:3001/orcamentos/${orcamentoId}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(dadosParaEnviar),
-        });
-
-        if (!updateResponse.ok) {
-          throw new Error('Erro ao atualizar orçamento');
-        }
-      }
-
-      // Agora enviar o orçamento
-      const enviarResponse = await fetch(`http://localhost:3001/orcamentos/${orcamentoIdParaEnviar}/enviar`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!enviarResponse.ok) {
-        throw new Error('Erro ao enviar orçamento');
-      }
-
-      toast.success('Orçamento enviado com sucesso! O cliente receberá um email com o link de aprovação.');
-      
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        router.push('/orcamentos');
-      }
-    } catch (error) {
-      console.error('Erro ao enviar orçamento:', error);
-      toast.error('Erro ao enviar orçamento');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const getTitle = () => {
     switch (mode) {
       case 'novo':
@@ -614,7 +492,7 @@ export function OrcamentoForm({
 
       <div className="mt-6">
         <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col lg:flex-row gap-6">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col lg:flex-row gap-6">
           {/* Formulário */}
           <div className="flex-1 bg-white rounded-lg shadow-sm border p-6 space-y-6">
             
@@ -668,7 +546,7 @@ export function OrcamentoForm({
                    <Button
                      type="button"
                      variant="outline"
-                     onClick={() => form.handleSubmit(onSalvarRascunho)()}
+                     onClick={() => handleSalvarRascunho()}
                      disabled={loading}
                      className="flex items-center space-x-2"
                    >
@@ -677,7 +555,7 @@ export function OrcamentoForm({
                    </Button>
                    <Button
                      type="button"
-                     onClick={() => form.handleSubmit(onEnviarOrcamento)()}
+                     onClick={() => handleEnviar()}
                      disabled={loading}
                      className="flex items-center space-x-2"
                    >
@@ -696,7 +574,7 @@ export function OrcamentoForm({
                          <Button
                            type="button"
                            variant="outline"
-                           onClick={() => form.handleSubmit(onSalvarRascunho)()}
+                           onClick={() => handleSalvarRascunho()}
                            disabled={loading}
                            className="flex items-center space-x-2"
                          >
@@ -705,12 +583,12 @@ export function OrcamentoForm({
                          </Button>
                          <Button
                            type="button"
-                           onClick={() => form.handleSubmit(onEnviarOrcamento)()}
+                           onClick={() => handleEnviar()}
                            disabled={loading}
                            className="flex items-center space-x-2"
                          >
                            <Save className="w-4 h-4" />
-                           <span>{loading ? 'Enviando...' : 'Enviar para Cliente'}</span>
+                           <span>{loading ? 'Enviar para Cliente' : 'Enviar para Cliente'}</span>
                          </Button>
                        </>
                      ) : (

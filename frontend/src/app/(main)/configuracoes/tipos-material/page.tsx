@@ -10,6 +10,7 @@ import { DataTable } from '@/components/data-table/data-table';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TipoMaterialCard } from '@/components/ui/tipo-material-card';
 import { useIsMobile } from '@/hooks/use-media-query';
+import { tiposMaterialApi } from '@/lib/api-client';
 
 export default function TiposMaterialPage() {
   const [data, setData] = useState<TipoMaterial[]>([]);
@@ -30,14 +31,28 @@ export default function TiposMaterialPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/tipos-material', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        setData(await response.json());
-      } else {
-        toast.error("Falha ao buscar tipos de material.");
+      if (!token) {
+        toast.error("Token de acesso não encontrado.");
+        return;
       }
+
+      const tiposMaterial = await tiposMaterialApi.getAll(token);
+      
+      // Converter parametros_padrao de string JSON para objeto
+      const tiposMaterialProcessados = (tiposMaterial as any[]).map((tipo: any) => ({
+        ...tipo,
+        parametros_padrao: tipo.parametros_padrao 
+          ? JSON.parse(tipo.parametros_padrao) as {
+              tipo_calculo?: string;
+              espacamento?: number;
+              quantidade_por_m2?: number;
+              multiplicador?: number;
+              quantidade_fixa?: number;
+            }
+          : undefined
+      }));
+      
+      setData(tiposMaterialProcessados);
     } catch (error) {
       toast.error("Ocorreu um erro ao buscar tipos de material.");
       console.error("Ocorreu um erro ao buscar tipos de material:", error);
@@ -49,19 +64,14 @@ export default function TiposMaterialPage() {
   const handleDelete = async (id: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/tipos-material/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        toast.success('Tipo de material excluído com sucesso!');
-        fetchTiposMaterial();
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || 'Erro ao excluir tipo de material';
-        toast.error(errorMessage);
+      if (!token) {
+        toast.error("Token de acesso não encontrado.");
+        return;
       }
+
+      await tiposMaterialApi.delete(id, token);
+      toast.success('Tipo de material excluído com sucesso!');
+      fetchTiposMaterial();
     } catch (error) {
       console.error('Erro ao excluir tipo de material:', error);
       toast.error('Erro ao excluir tipo de material');
@@ -151,7 +161,13 @@ export default function TiposMaterialPage() {
               ))}
             </div>
           ) : (
-            <DataTable columns={createColumns(openDeleteDialog)} data={data} />
+            <DataTable columns={createColumns({ 
+              onEdit: (tipoMaterial) => {
+                // Redirecionar para edição
+                window.location.href = `/configuracoes/tipos-material/editar/${tipoMaterial.id}`;
+              },
+              onDelete: openDeleteDialog
+            })} data={data} />
           )}
         </>
       )}

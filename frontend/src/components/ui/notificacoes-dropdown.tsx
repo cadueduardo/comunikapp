@@ -13,6 +13,7 @@ import {
   Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { notificacoesApi } from '@/lib/api-client';
 
 interface Notificacao {
   id: string;
@@ -40,18 +41,35 @@ export function NotificacoesDropdown() {
     try {
       setLoading(true);
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/notificacoes?limit=10', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setNotificacoes(data);
+      
+      if (!token) {
+        console.log('Token não encontrado, pulando carregamento de notificações');
+        return;
       }
+
+      // Validar se o token não está vazio
+      if (token.trim() === '') {
+        console.log('Token vazio, pulando carregamento de notificações');
+        return;
+      }
+
+      console.log('Tentando carregar notificações com token:', token.substring(0, 20) + '...');
+      
+      const data = await notificacoesApi.getAll(token, 10);
+      setNotificacoes(data as Notificacao[]);
     } catch (error) {
       console.error('Erro ao carregar notificações:', error);
+      
+      // Se for erro de autenticação, limpar o token
+      if (error instanceof Error && error.message.includes('401')) {
+        localStorage.removeItem('access_token');
+        console.log('Token inválido removido do localStorage');
+      }
+      
+      // Se for erro de rede, mostrar mensagem específica
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        console.error('Erro de conectividade com a API. Verifique se o backend está rodando.');
+      }
     } finally {
       setLoading(false);
     }
@@ -60,32 +78,30 @@ export function NotificacoesDropdown() {
   const carregarContador = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/notificacoes/nao-visualizadas/count', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setNaoVisualizadas(data.count);
+      
+      if (!token || token.trim() === '') {
+        console.log('Token não encontrado ou vazio, pulando carregamento do contador');
+        return;
       }
+
+      const data = await notificacoesApi.getUnreadCount(token);
+      setNaoVisualizadas((data as { count: number }).count);
     } catch (error) {
       console.error('Erro ao carregar contador:', error);
+      
+      // Se for erro de autenticação, limpar o token
+      if (error instanceof Error && error.message.includes('401')) {
+        localStorage.removeItem('access_token');
+        console.log('Token inválido removido do localStorage');
+      }
     }
   };
 
   const marcarComoVisualizada = async (notificacaoId: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/notificacoes/${notificacaoId}/visualizar`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
+      if (token) {
+        await notificacoesApi.markAsRead(notificacaoId, token);
         await carregarNotificacoes();
         await carregarContador();
       }
@@ -97,14 +113,8 @@ export function NotificacoesDropdown() {
   const deletarNotificacao = async (notificacaoId: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/notificacoes/${notificacaoId}/deletar`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
+      if (token) {
+        await notificacoesApi.delete(notificacaoId, token);
         await carregarNotificacoes();
         await carregarContador();
         toast.success('Notificação removida');

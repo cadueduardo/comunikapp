@@ -26,7 +26,7 @@ import { CreateMovimentacaoDto } from '../dto/create-movimentacao.dto';
 import { QueryMovimentacoesDto } from '../dto/query-estoque.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { GetLoja } from '../../auth/decorators';
-import { Loja } from '@prisma/client';
+import { loja } from '@prisma/client';
 
 @ApiTags('Estoque - Movimentações')
 @ApiBearerAuth()
@@ -44,7 +44,7 @@ export class MovimentacoesController {
     description: 'Movimentação criada com sucesso',
   })
   @Post()
-  async criar(@Body() createDto: CreateMovimentacaoDto, @GetLoja() loja: Loja) {
+  async criar(@Body() createDto: CreateMovimentacaoDto, @GetLoja() loja: loja) {
     const context = { lojaId: loja.id, usuarioId: loja.id };
     return this.movimentacoesService.criarMovimentacao(context, createDto);
   }
@@ -58,7 +58,7 @@ export class MovimentacoesController {
     description: 'Lista de movimentações retornada com sucesso',
   })
   @Get()
-  async listar(@Query() query: QueryMovimentacoesDto, @GetLoja() loja: Loja) {
+  async listar(@Query() query: QueryMovimentacoesDto, @GetLoja() loja: loja) {
     const context = { lojaId: loja.id };
     return this.movimentacoesService.listarMovimentacoes(context, query);
   }
@@ -72,7 +72,7 @@ export class MovimentacoesController {
     description: 'Movimentação encontrada com sucesso',
   })
   @Get(':id')
-  async buscarPorId(@Param('id') id: string, @GetLoja() loja: Loja) {
+  async buscarPorId(@Param('id') id: string, @GetLoja() loja: loja) {
     const context = { lojaId: loja.id };
     return this.movimentacoesService.buscarMovimentacaoPorId(context, id);
   }
@@ -86,7 +86,7 @@ export class MovimentacoesController {
     description: 'Movimentação excluída com sucesso',
   })
   @Delete(':id')
-  async excluir(@Param('id') id: string, @GetLoja() loja: Loja) {
+  async excluir(@Param('id') id: string, @GetLoja() loja: loja) {
     const context = { lojaId: loja.id, usuarioId: loja.id };
     return this.movimentacoesService.excluirMovimentacao(context, id);
   }

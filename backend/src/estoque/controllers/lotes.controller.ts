@@ -17,7 +17,7 @@ import { QueryLotesDto } from '../dto/query-lotes.dto';
 import { LotesService } from '../services/lotes.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { GetLoja } from '../../auth/decorators';
-import { Loja } from '@prisma/client';
+import { loja } from '@prisma/client';
 import { withLog } from './controller-utils';
 
 @ApiTags('Gestão de Lotes')
@@ -32,7 +32,7 @@ export class LotesController {
   @Post()
   @ApiOperation({ summary: 'Criar novo lote' })
   @ApiResponse({ status: 201, description: 'Lote criado com sucesso' })
-  async criarLote(@GetLoja() loja: Loja, @Body() data: any) {
+  async criarLote(@GetLoja() loja: loja, @Body() data: any) {
     this.logger.log(`📦 Criando lote para loja: ${loja.id}`);
     const context = { lojaId: loja.id };
     return withLog(this.logger, 'Erro ao criar lote', 'Lote criado com sucesso', () =>
@@ -56,7 +56,7 @@ export class LotesController {
     required: false,
     description: 'Filtrar por item de estoque',
   })
-  async listarLotes(@GetLoja() loja: Loja, @Query() query: QueryLotesDto) {
+  async listarLotes(@GetLoja() loja: loja, @Query() query: QueryLotesDto) {
     this.logger.log(`📦 Listando lotes para loja: ${loja.id}`);
     const context = { lojaId: loja.id };
     return withLog(this.logger, 'Erro ao listar lotes', 'Lotes listados com sucesso', () =>
@@ -68,7 +68,7 @@ export class LotesController {
   @ApiOperation({ summary: 'Buscar lote por ID' })
   @ApiResponse({ status: 200, description: 'Lote encontrado com sucesso' })
   @ApiParam({ name: 'id', description: 'ID do lote' })
-  async buscarLote(@GetLoja() loja: Loja, @Param('id') id: string) {
+  async buscarLote(@GetLoja() loja: loja, @Param('id') id: string) {
     this.logger.log(`📦 Buscando lote ${id} para loja: ${loja.id}`);
     const context = { lojaId: loja.id };
     return withLog(this.logger, 'Erro ao buscar lote', 'Lote encontrado com sucesso', async () => {
@@ -83,7 +83,7 @@ export class LotesController {
   @ApiResponse({ status: 200, description: 'Lote atualizado com sucesso' })
   @ApiParam({ name: 'id', description: 'ID do lote' })
   async atualizarLote(
-    @GetLoja() loja: Loja,
+    @GetLoja() loja: loja,
     @Param('id') id: string,
     @Body() data: any,
   ) {
@@ -98,7 +98,7 @@ export class LotesController {
   @ApiOperation({ summary: 'Excluir lote' })
   @ApiResponse({ status: 200, description: 'Lote excluído com sucesso' })
   @ApiParam({ name: 'id', description: 'ID do lote' })
-  async excluirLote(@GetLoja() loja: Loja, @Param('id') id: string) {
+  async excluirLote(@GetLoja() loja: loja, @Param('id') id: string) {
     this.logger.log(`📦 Excluindo lote ${id} para loja: ${loja.id}`);
     const context = { lojaId: loja.id };
     return withLog(this.logger, 'Erro ao excluir lote', 'Lote excluído com sucesso', async () => {
@@ -119,7 +119,7 @@ export class LotesController {
     description: 'Dias para vencimento (padrão: 30)',
   })
   async lotesProximosVencimento(
-    @GetLoja() loja: Loja,
+    @GetLoja() loja: loja,
     @Query('dias') dias: string = '30',
   ) {
     this.logger.log(`📦 Buscando lotes próximos do vencimento para loja: ${loja.id}`);
@@ -135,7 +135,7 @@ export class LotesController {
   @ApiResponse({ status: 200, description: 'Quantidade consumida com sucesso' })
   @ApiParam({ name: 'id', description: 'ID do lote' })
   async consumirLote(
-    @GetLoja() loja: Loja,
+    @GetLoja() loja: loja,
     @Param('id') id: string,
     @Body() data: { quantidade: number },
   ) {

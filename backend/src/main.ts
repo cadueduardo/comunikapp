@@ -11,20 +11,35 @@ async function bootstrap() {
 
   // CORS deve ser habilitado o mais cedo possível
   app.enableCors({
-    origin:
-      process.env.NODE_ENV === 'production'
+    origin: [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      ...(process.env.NODE_ENV === 'production'
         ? (process.env.CORS_ORIGINS || '').split(',').filter(Boolean)
-        : '*',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders:
-      'Content-Type, Accept, Authorization, x-loja-id, x-user-roles, x-internal-token',
-    exposedHeaders: 'Content-Length',
-    credentials: false,
+        : []),
+    ],
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'x-loja-id',
+      'x-user-roles',
+      'x-internal-token',
+    ],
+    exposedHeaders: ['Content-Length'],
+    credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
   // Níveis de log por ambiente
   const isProd = process.env.NODE_ENV === 'production';
-  app.useLogger(isProd ? ['error', 'warn', 'log'] : ['error', 'warn', 'log', 'debug', 'verbose']);
+  app.useLogger(
+    isProd
+      ? ['error', 'warn', 'log']
+      : ['error', 'warn', 'log', 'debug', 'verbose'],
+  );
 
   // Segurança básica
   app.use(
@@ -59,6 +74,30 @@ async function bootstrap() {
   console.log('📁 Servindo arquivos estáticos de:', uploadsPath);
   app.use('/uploads', express.static(uploadsPath));
 
-  await app.listen(process.env.PORT ?? 3001); // Mudar porta padrão para 3001
+  // Log de debug para identificar problema
+  const port = process.env.PORT ?? 4000;
+  console.log('🚀 Tentando iniciar servidor na porta:', port);
+  console.log('🔧 Variáveis de ambiente:');
+  console.log(
+    '   - PORT:',
+    process.env.PORT,
+  );
+  console.log(
+    '   - NODE_ENV:',
+    process.env.NODE_ENV,
+  );
+  console.log(
+    '   - DATABASE_URL:',
+    process.env.DATABASE_URL ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+  );
+
+  try {
+    await app.listen(port);
+    console.log('✅ Servidor iniciado com sucesso na porta:', port);
+    console.log('🌐 Acesse: http://localhost:' + port);
+  } catch (error) {
+    console.error('❌ Erro ao iniciar servidor:', error);
+    process.exit(1);
+  }
 }
 bootstrap();

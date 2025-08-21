@@ -13,10 +13,7 @@ export class LotesService {
     if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
     this.logger.debug(`📦 [LotesService] criarLote loja=${context.lojaId}`);
 
-    const itensTable = await detectTableName(this.prisma, [
-      'estoque_itens',
-      'itens_estoque',
-    ]);
+    const itensTable = 'estoque_itens';
     if (!itensTable) throw new BadRequestException('Estrutura de itens de estoque não encontrada');
     const itensCols = await getExistingColumns(this.prisma, itensTable);
     const itemIdCol = 'id';
@@ -30,10 +27,7 @@ export class LotesService {
     );
     if (!(itemEstoque as any[])?.[0]) throw new BadRequestException('Item de estoque não encontrado');
 
-    const lotesTable = await detectTableName(this.prisma, [
-      'estoque_lotes',
-      'inventory_lots',
-    ]);
+    const lotesTable = 'estoque_lotes';
     if (!lotesTable) throw new BadRequestException('Estrutura de lotes não encontrada');
     const lotesCols = await getExistingColumns(this.prisma, lotesTable);
 
@@ -65,7 +59,7 @@ export class LotesService {
     await this.prisma.$executeRawUnsafe(`INSERT INTO ${lotesTable} (${columns.join(', ')}) VALUES (${placeholders})`, ...values);
 
     const joinInsumoCol = itensCols.has('insumo_id') ? 'insumo_id' : (itensCols.has('insumoId') ? 'insumoId' : null);
-    const joinLocalizacaoCol = itensCols.has('localizacao_id') ? 'localizacao_id' : (itensCols.has('localizacaoId') ? 'localizacaoId' : 'localizacao_id');
+    const joinLocalizacaoCol = itensCols.has('localizacaoId') ? 'localizacaoId' : 'localizacao_id';
     const insumoCols = await getExistingColumns(this.prisma, 'insumos');
     const insumoUnCol = insumoCols.has('unidadeCompra') ? 'unidadeCompra' : (insumoCols.has('unidade_compra') ? 'unidade_compra' : (insumoCols.has('unidade_uso') ? 'unidade_uso' : null));
     const insumoNameExprCreate = joinInsumoCol
@@ -103,7 +97,7 @@ export class LotesService {
   async listarLotes(context: IEstoqueContext, query: any = {}) {
     if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
     this.logger.debug(`📦 [LotesService] listarLotes loja=${context.lojaId}`);
-    const lotesTable = await detectTableName(this.prisma, ['estoque_lotes', 'inventory_lots']);
+    const lotesTable = 'estoque_lotes';
     if (!lotesTable) return [];
     const lotesCols = await getExistingColumns(this.prisma, lotesTable);
     const estoqueIdCol = lotesCols.has('estoque_id') ? 'estoque_id' : (lotesCols.has('estoqueId') ? 'estoqueId' : 'estoque_id');
@@ -115,11 +109,11 @@ export class LotesService {
     const statusCol = 'status';
     const createdAtCol = lotesCols.has('criado_em') ? 'criado_em' : (lotesCols.has('createdAt') ? 'createdAt' : 'createdAt');
 
-    const itensTable = await detectTableName(this.prisma, ['estoque_itens', 'itens_estoque']);
+    const itensTable = 'estoque_itens';
     const itensCols = itensTable ? await getExistingColumns(this.prisma, itensTable) : new Set<string>();
     const itemIdCol = 'id';
     const joinInsumoCol = itensCols.has('insumo_id') ? 'insumo_id' : (itensCols.has('insumoId') ? 'insumoId' : null);
-    const joinLocalizacaoCol = itensCols.has('localizacao_id') ? 'localizacao_id' : (itensCols.has('localizacaoId') ? 'localizacaoId' : 'localizacao_id');
+    const joinLocalizacaoCol = itensCols.has('localizacaoId') ? 'localizacaoId' : 'localizacao_id';
     const insumoCols = await getExistingColumns(this.prisma, 'insumos');
     const insumoUnCol = insumoCols.has('unidadeCompra') ? 'unidadeCompra' : (insumoCols.has('unidade_compra') ? 'unidade_compra' : (insumoCols.has('unidade_uso') ? 'unidade_uso' : null));
 
@@ -150,9 +144,9 @@ export class LotesService {
         l.codigo as localizacaoCodigo,
         DATEDIFF(el.${dataValCol}, NOW()) as diasRestantes
       FROM ${lotesTable} el
-      LEFT JOIN ${itensTable ?? 'itens_estoque'} ie ON el.${estoqueIdCol} = ie.${itemIdCol}
+             LEFT JOIN ${itensTable} ie ON el.${estoqueIdCol} = ie.${itemIdCol}
       ${joinInsumoCol ? `LEFT JOIN insumos i ON ie.${joinInsumoCol} = i.id` : ''}
-      LEFT JOIN localizacoes l ON ie.${joinLocalizacaoCol} = l.id
+             LEFT JOIN estoque_localizacoes l ON ie.${joinLocalizacaoCol} = l.id
       WHERE ${whereParts.join(' AND ')}
       ORDER BY el.${dataValCol} ASC, el.${createdAtCol} DESC`;
 
@@ -163,7 +157,7 @@ export class LotesService {
     if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
     this.logger.debug(`📦 [LotesService] buscarLotePorId id=${id} loja=${context.lojaId}`);
 
-    const lotesTable = await detectTableName(this.prisma, ['estoque_lotes', 'inventory_lots']);
+    const lotesTable = 'estoque_lotes';
     if (!lotesTable) return null;
     const lotesCols = await getExistingColumns(this.prisma, lotesTable);
     const estoqueIdCol = lotesCols.has('estoque_id') ? 'estoque_id' : (lotesCols.has('estoqueId') ? 'estoqueId' : 'estoque_id');
@@ -175,7 +169,7 @@ export class LotesService {
     const statusCol = 'status';
     const createdAtCol = lotesCols.has('criado_em') ? 'criado_em' : (lotesCols.has('createdAt') ? 'createdAt' : 'createdAt');
 
-    const itensTable = await detectTableName(this.prisma, ['estoque_itens', 'itens_estoque']);
+    const itensTable = 'estoque_itens';
     const itensCols = itensTable ? await getExistingColumns(this.prisma, itensTable) : new Set<string>();
     const itemIdCol = 'id';
     const joinInsumoCol = itensCols.has('insumo_id') ? 'insumo_id' : (itensCols.has('insumoId') ? 'insumoId' : null);
@@ -205,9 +199,9 @@ export class LotesService {
          l.codigo as localizacaoCodigo,
          DATEDIFF(el.${dataValCol}, NOW()) as diasRestantes
        FROM ${lotesTable} el
-       LEFT JOIN ${itensTable ?? 'itens_estoque'} ie ON el.${estoqueIdCol} = ie.${itemIdCol}
+       LEFT JOIN ${itensTable} ie ON el.${estoqueIdCol} = ie.${itemIdCol}
        ${joinInsumoCol ? `LEFT JOIN insumos i ON ie.${joinInsumoCol} = i.id` : ''}
-       LEFT JOIN localizacoes l ON ie.${joinLocalizacaoCol} = l.id
+       LEFT JOIN estoque_localizacoes l ON ie.${joinLocalizacaoCol} = l.id
        WHERE el.id = ?
          AND CONVERT(el.${lojaIdCol} USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci`,
       id,
@@ -257,9 +251,9 @@ export class LotesService {
         l.codigo as localizacaoCodigo,
         DATEDIFF(el.data_validade, NOW()) as diasRestantes
       FROM estoque_lotes el
-      LEFT JOIN itens_estoque ie ON el.estoque_id = ie.id
+             LEFT JOIN estoque_itens ie ON el.estoque_id = ie.id
       LEFT JOIN insumos i ON ie.insumo_id = i.id
-      LEFT JOIN localizacoes l ON ie.localizacao_id = l.id
+             LEFT JOIN estoque_localizacoes l ON ie.localizacao_id = l.id
       WHERE el.loja_id = ${context.lojaId}
       AND el.status = 'ATIVO'
       AND el.data_validade IS NOT NULL
@@ -285,7 +279,7 @@ export class LotesService {
       context.lojaId,
     );
     await this.prisma.$executeRawUnsafe(
-      `UPDATE itens_estoque SET quantidade = quantidade - ?, dataUltimaMov = NOW() WHERE id = (SELECT estoque_id FROM estoque_lotes WHERE id = ?) AND loja_id = ?`,
+      `UPDATE estoque_itens SET quantidade = quantidade - ?, dataUltimaMov = NOW() WHERE id = (SELECT estoque_id FROM estoque_lotes WHERE id = ?) AND loja_id = ?`,
       quantidade,
       id,
       context.lojaId,

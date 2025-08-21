@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 import { Insumo, Maquina, Funcao } from '../types/common.types';
 import { calcularCustoPorUnidadeUso } from '../utils/calculo.utils';
+import { custosIndiretosApi } from '@/lib/api-client';
 
 interface CalculoPreviewProps {
   variant?: 'orcamento' | 'produto';
@@ -39,6 +40,21 @@ export function CalculoPreview({
   customFields,
   customActions
 }: CalculoPreviewProps) {
+  // Função auxiliar para converter valores de forma robusta
+  const converterValor = (valor: any): number => {
+    if (valor === null || valor === undefined) return 0;
+    if (typeof valor === 'number') return valor;
+    if (typeof valor === 'string') return parseFloat(valor.replace(',', '.')) || 0;
+    // Se for um objeto Decimal do Prisma (tem propriedade toString)
+    if (valor && typeof valor.toString === 'function') {
+      try {
+        return parseFloat(valor.toString().replace(',', '.')) || 0;
+      } catch {
+        return 0;
+      }
+    }
+    return 0;
+  };
   const form = useFormContext();
   const [custosIndiretos, setCustosIndiretos] = useState<CustoIndireto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,16 +66,8 @@ export function CalculoPreview({
         const token = localStorage.getItem('access_token');
         if (!token) return;
 
-        const response = await fetch('http://localhost:3001/custos-indiretos', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setCustosIndiretos(data.filter((custo: CustoIndireto) => custo.ativo));
-        }
+        const data = await custosIndiretosApi.getAll(token);
+        setCustosIndiretos(data.filter((custo: CustoIndireto) => custo.ativo));
       } catch (error) {
         console.error('Erro ao buscar custos indiretos:', error);
       } finally {
@@ -213,21 +221,25 @@ export function CalculoPreview({
     return horasMaquinas + horasFuncoes;
   };
 
-  const calcularCustosIndiretosParaProduto = (horasProducao: number) => {
+  const calcularCustosIndiretosParaProduto = (produtoIndex: number) => {
     if (custosIndiretos.length === 0) {
       return { custoIndiretoTotal: 0, custosIndiretosDetalhados: [] };
     }
 
+    // Usar a mesma lógica do backend: custo indireto baseado em horas de produção
+    const horasProdutivasMes = 352; // Mesmo valor do backend
+    const horasProducao = calcularHorasProducaoParaProduto(produtoIndex);
+    
     const custosIndiretosDetalhados = custosIndiretos.map(custo => {
-      const percentualRateio = (horasProducao / 160) * 100; // 160 horas mensais
-      const valorRateado = (custo.valor_mensal * percentualRateio) / 100;
+      const custoPorHora = Number(custo.valor_mensal) / horasProdutivasMes;
+      const valorRateado = custoPorHora * horasProducao; // Usar horas, não quantidade
       
       return {
         id: custo.id,
         nome: custo.nome,
         categoria: custo.categoria,
         valor_mensal: custo.valor_mensal,
-        percentual_rateio: percentualRateio,
+        percentual_rateio: 100, // 100% para horas de produção
         valor_rateado: valorRateado,
       };
     });
@@ -292,9 +304,19 @@ export function CalculoPreview({
       if (maquina.maquina_id && maquina.horas_utilizadas) {
         const maquinaEncontrada = maquinas.find(m => m.id === maquina.maquina_id);
         if (maquinaEncontrada) {
-          const horas = Number(maquina.horas_utilizadas) || 0;
-          const custoPorHora = Number(maquinaEncontrada.custo_hora) || 0;
+          const horas = converterValor(maquina.horas_utilizadas);
+          const custoPorHora = converterValor(maquinaEncontrada.custo_hora);
           const custoTotalItem = horas * custoPorHora;
+          
+          // Debug: Log dos valores da máquina
+          console.log('🔍 Debug - Máquina:', {
+            nome: maquinaEncontrada.nome,
+            custo_hora_original: maquinaEncontrada.custo_hora,
+            tipo_custo_hora: typeof maquinaEncontrada.custo_hora,
+            custo_hora_convertido: custoPorHora,
+            horas: horas,
+            custo_total: custoTotalItem
+          });
           
           custoTotal += custoTotalItem;
           
@@ -330,9 +352,19 @@ export function CalculoPreview({
       if (funcao.funcao_id && funcao.horas_trabalhadas) {
         const funcaoEncontrada = funcoes.find(f => f.id === funcao.funcao_id);
         if (funcaoEncontrada) {
-          const horas = Number(funcao.horas_trabalhadas) || 0;
-          const custoPorHora = Number(funcaoEncontrada.custo_hora) || 0;
+          const horas = converterValor(funcao.horas_trabalhadas);
+          const custoPorHora = converterValor(funcaoEncontrada.custo_hora);
           const custoTotalItem = horas * custoPorHora;
+          
+          // Debug: Log dos valores da função
+          console.log('🔍 Debug - Função:', {
+            nome: funcaoEncontrada.nome,
+            custo_hora_original: funcaoEncontrada.custo_hora,
+            tipo_custo_hora: typeof funcaoEncontrada.custo_hora,
+            custo_hora_convertido: custoPorHora,
+            horas: horas,
+            custo_total: custoTotalItem
+          });
           
           custoTotal += custoTotalItem;
           
@@ -368,7 +400,7 @@ export function CalculoPreview({
   };
 
   // Calcular custos indiretos usando a mesma lógica do backend
-  const calcularCustosIndiretos = (horasProducao: number) => {
+  const calcularCustosIndiretos = () => {
     if (custosIndiretos.length === 0) {
       return { custoIndiretoTotal: 0, custosIndiretosDetalhados: [] };
     }
@@ -381,13 +413,15 @@ export function CalculoPreview({
       return total + Number(custo.valor_mensal);
     }, 0);
 
-    // Calcular custo indireto por hora
+    // Calcular custo indireto por hora (mesmo que o backend)
     const custoIndiretoPorHora = totalCustosIndiretosMensais / horasProdutivasMes;
     
     // Calcular custo indireto total para este orçamento
+    // IMPORTANTE: Usar horas de produção (mesmo que o backend)
+    const horasProducao = calcularHorasProducao();
     const custoIndiretoTotal = custoIndiretoPorHora * horasProducao;
 
-    // Calcular custos indiretos detalhados
+    // Calcular custos indiretos detalhados (mesmo que o backend)
     const custosIndiretosDetalhados = custosIndiretos.map(custo => {
       const valorRateado = (Number(custo.valor_mensal) / horasProdutivasMes) * horasProducao;
       const percentualRateio = (Number(custo.valor_mensal) / (totalCustosIndiretosMensais || 1)) * 100;
@@ -424,7 +458,7 @@ export function CalculoPreview({
     
     const custoTotalProducao = custoMaterial + custoMaquinaria + custoMaoObra;
     const horasProducao = calcularHorasProducao();
-    const { custoIndiretoTotal, custosIndiretosDetalhados } = calcularCustosIndiretos(horasProducao);
+    const { custoIndiretoTotal, custosIndiretosDetalhados } = calcularCustosIndiretos();
     const custoTotalComIndiretos = custoTotalProducao + custoIndiretoTotal;
     
     // Margem de lucro (padrão 30% ou customizada)
@@ -439,9 +473,10 @@ export function CalculoPreview({
     const impostosValor = subtotalComLucro * (impostosPercentual / 100);
     const precoFinal = subtotalComLucro + impostosValor;
     
-    // Multiplicar pela quantidade
+    // Multiplicar pela quantidade (mesmo que o backend)
     const precoFinalTotal = precoFinal * quantidadeProduto;
     const custoTotalProducaoTotal = custoTotalProducao * quantidadeProduto;
+    // IMPORTANTE: custos indiretos SÃO multiplicados pela quantidade (mesmo que o backend)
     const custoTotalComIndiretosTotal = custoTotalComIndiretos * quantidadeProduto;
     const margemLucroValorTotal = margemLucroValor * quantidadeProduto;
     const subtotalComLucroTotal = subtotalComLucro * quantidadeProduto;
@@ -495,7 +530,8 @@ export function CalculoPreview({
       
       const custoTotalProducao = custoMaterial + custoMaquinaria + custoMaoObra;
       const horasProducao = calcularHorasProducaoParaProduto(index);
-      const { custoIndiretoTotal } = calcularCustosIndiretosParaProduto(horasProducao);
+      const quantidadeProduto = Number(produto.quantidade_produto?.replace(',', '.')) || 1;
+      const { custoIndiretoTotal } = calcularCustosIndiretosParaProduto(index);
       const custoTotalComIndiretos = custoTotalProducao + custoIndiretoTotal;
       
       // Margem de lucro
@@ -510,8 +546,7 @@ export function CalculoPreview({
       const impostosValor = subtotalComLucro * (impostosPercentual / 100);
       const precoFinal = subtotalComLucro + impostosValor;
       
-      // Quantidade do produto
-      const quantidadeProduto = Number(produto.quantidade_produto?.replace(',', '.')) || 1;
+      // Usar quantidadeProduto já definida acima
       const precoFinalTotal = precoFinal * quantidadeProduto;
       
       // Acumular totais
@@ -545,12 +580,46 @@ export function CalculoPreview({
   const custosTotais = calcularCustosTotais();
   const { maquinasDetalhadas } = calcularCustosMaquinas();
   const { funcoesDetalhadas } = calcularCustosFuncoes();
+  
+  // Debug: Log dos arrays de máquinas e funções
+  console.log('🔍 Debug - CalculoPreview - maquinasDetalhadas:', maquinasDetalhadas);
+  console.log('🔍 Debug - CalculoPreview - funcoesDetalhadas:', funcoesDetalhadas);
 
   if (loading) {
     return (
       <div className="space-y-4">
         <div className="p-4 bg-muted rounded-lg">
           <p className="text-muted-foreground">Carregando custos indiretos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Verificar se há dados para calcular (materiais, máquinas ou funções)
+  const temDadosParaCalcular = () => {
+    const materiais = form.watch(`itens_produto.${itemIndex}.materiais`) || [];
+    const maquinas = form.watch(`itens_produto.${itemIndex}.maquinas`) || [];
+    const funcoes = form.watch(`itens_produto.${itemIndex}.funcoes`) || [];
+    
+    return materiais.some((m: any) => m.insumo_id) || 
+           maquinas.some((m: any) => m.maquina_id) || 
+           funcoes.some((f: any) => f.funcao_id);
+  };
+
+  // Se não há dados para calcular, mostrar mensagem informativa
+  if (!showAllProducts && !temDadosParaCalcular()) {
+    return (
+      <div className="space-y-4">
+        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <h4 className="font-semibold mb-2 text-blue-800">Preview do Orçamento</h4>
+          <p className="text-sm text-blue-700">
+            Adicione materiais, máquinas ou funções para ver o cálculo em tempo real do orçamento.
+          </p>
+          <div className="mt-3 text-xs text-blue-600">
+            <p>• <strong>Materiais:</strong> Insumos que serão utilizados</p>
+            <p>• <strong>Máquinas:</strong> Equipamentos e suas horas de uso</p>
+            <p>• <strong>Funções:</strong> Mão de obra e horas trabalhadas</p>
+          </div>
         </div>
       </div>
     );

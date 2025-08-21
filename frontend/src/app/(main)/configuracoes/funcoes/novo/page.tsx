@@ -3,6 +3,7 @@
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { FuncaoForm, FuncaoFormValues } from '../funcao-form';
+import { funcoesApi } from '@/lib/api-client';
 
 export default function NovaFuncaoPage() {
   const router = useRouter();
@@ -11,6 +12,11 @@ export default function NovaFuncaoPage() {
     try {
       const token = localStorage.getItem('access_token');
       
+      if (!token) {
+        toast.error('Token de autenticação não encontrado.');
+        return;
+      }
+
       // Converter o custo_hora corretamente
       let custo: number;
       if (typeof data.custo_hora === 'string') {
@@ -36,25 +42,10 @@ export default function NovaFuncaoPage() {
 
       console.log('Dados sendo enviados:', requestData);
         
-      const response = await fetch('http://localhost:3001/funcoes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(requestData),
-      });
+      await funcoesApi.create(requestData, token);
 
-      console.log('Status da resposta:', response.status);
-
-      if (response.ok) {
-        toast.success('Função criada com sucesso!');
-        router.push('/configuracoes/funcoes');
-      } else {
-        const errorData = await response.json();
-        console.error('Erro detalhado:', errorData);
-        toast.error(`Falha ao criar função: ${errorData.message || 'Erro desconhecido'}`);
-      }
+      toast.success('Função criada com sucesso!');
+      router.push('/configuracoes/funcoes');
     } catch (error) {
       console.error('Erro completo:', error);
       toast.error('Ocorreu um erro ao conectar com o servidor.');

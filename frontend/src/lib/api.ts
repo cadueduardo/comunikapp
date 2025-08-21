@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = 'http://localhost:4000';
 
 // Função para obter o token do localStorage
 const getAuthToken = () => {
@@ -69,7 +69,7 @@ export const apiRequest = async (
     
     // Verificar se é um erro de rede
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new Error('Não foi possível conectar ao servidor. Verifique se o backend está rodando em http://localhost:3001');
+      throw new Error('Não foi possível conectar ao servidor. Verifique se o backend está rodando em http://localhost:4000');
     }
     
     // Verificar se é um erro de CORS
@@ -90,7 +90,7 @@ export const apiRequest = async (
 // Funções específicas para diferentes endpoints
 export const authAPI = {
   login: async (email: string, password: string) => {
-    const response = await fetch(`${API_BASE_URL}/lojas/login`, {
+    const response = await fetch(`/api/lojas/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -17,12 +17,12 @@ export class DashboardEstoqueService {
 			try {
 				const tableCheck = await this.prisma.$queryRaw`
 				  SELECT COUNT(*) as total FROM information_schema.tables 
-				  WHERE table_schema = DATABASE() AND table_name = 'localizacoes'
+				  WHERE table_schema = DATABASE() AND table_name = 'estoque_localizacoes'
 				`;
 				if (Number((tableCheck as any[])[0]?.total) > 0) {
 					const localizacoesResult = await this.prisma.$queryRaw`
-					  SELECT COUNT(*) as total FROM localizacoes 
-					  WHERE loja_id = ${context.lojaId} AND ativo = 1
+					        SELECT COUNT(*) as total FROM estoque_localizacoes 
+					  WHERE lojaId = ${context.lojaId} AND ativo = 1
 					`;
 					totalLocalizacoes = Number((localizacoesResult as any[])[0]?.total || 0);
 				}
@@ -34,12 +34,12 @@ export class DashboardEstoqueService {
 			try {
 				const tableCheck = await this.prisma.$queryRaw`
 				  SELECT COUNT(*) as total FROM information_schema.tables 
-				  WHERE table_schema = DATABASE() AND table_name = 'itens_estoque'
+				  WHERE table_schema = DATABASE() AND table_name = 'estoque_itens'
 				`;
 				if (Number((tableCheck as any[])[0]?.total) > 0) {
 					const itensResult = await this.prisma.$queryRaw`
-					  SELECT COUNT(*) as total FROM itens_estoque 
-					  WHERE loja_id = ${context.lojaId} AND ativo = 1
+					  SELECT COUNT(*) as total FROM estoque_itens 
+					  WHERE lojaId = ${context.lojaId} AND ativo = 1
 					`;
 					totalItens = Number((itensResult as any[])[0]?.total || 0);
 				}
@@ -51,12 +51,12 @@ export class DashboardEstoqueService {
 			try {
 				const tableCheck = await this.prisma.$queryRaw`
 				  SELECT COUNT(*) as total FROM information_schema.tables 
-				  WHERE table_schema = DATABASE() AND table_name = 'movimentacoes_estoque'
+				  WHERE table_schema = DATABASE() AND table_name = 'estoque_movimentacoes'
 				`;
 				if (Number((tableCheck as any[])[0]?.total) > 0) {
 					const movsResult = await this.prisma.$queryRaw`
-					  SELECT COUNT(*) as total FROM movimentacoes_estoque 
-					  WHERE loja_id = ${context.lojaId}
+					  SELECT COUNT(*) as total FROM estoque_movimentacoes 
+					  WHERE lojaId = ${context.lojaId}
 					`;
 					totalMovimentacoes = Number((movsResult as any[])[0]?.total || 0);
 				}
@@ -68,15 +68,15 @@ export class DashboardEstoqueService {
 			try {
 				const tableCheck = await this.prisma.$queryRaw`
 				  SELECT COUNT(*) as total FROM information_schema.tables 
-				  WHERE table_schema = DATABASE() AND table_name = 'itens_estoque'
+				  WHERE table_schema = DATABASE() AND table_name = 'estoque_itens'
 				`;
 				if (Number((tableCheck as any[])[0]?.total) > 0) {
 					const itensAbaixoMinimoResult = await this.prisma.$queryRaw`
-					  SELECT COUNT(*) as total FROM itens_estoque 
-					  WHERE loja_id = ${context.lojaId} 
+					  SELECT COUNT(*) as total FROM estoque_itens 
+					  WHERE lojaId = ${context.lojaId} 
 					  AND ativo = 1 
-					  AND quantidade <= estoque_minimo 
-					  AND estoque_minimo > 0
+					  AND quantidadeAtual <= estoqueMinimo 
+					  AND estoqueMinimo > 0
 					`;
 					itensAbaixoMinimo = Number((itensAbaixoMinimoResult as any[])[0]?.total || 0);
 				}
@@ -88,12 +88,12 @@ export class DashboardEstoqueService {
 			try {
 				const tableCheck = await this.prisma.$queryRaw`
 				  SELECT COUNT(*) as total FROM information_schema.tables 
-				  WHERE table_schema = DATABASE() AND table_name = 'itens_estoque'
+				  WHERE table_schema = DATABASE() AND table_name = 'estoque_itens'
 				`;
 				if (Number((tableCheck as any[])[0]?.total) > 0) {
 					const valorTotalResult = await this.prisma.$queryRaw`
-					  SELECT SUM(quantidade * preco_unitario) as valorTotal FROM itens_estoque 
-					  WHERE loja_id = ${context.lojaId} AND ativo = 1
+					  SELECT SUM(quantidadeAtual * precoUnitario) as valorTotal FROM estoque_itens 
+					  WHERE lojaId = ${context.lojaId} AND ativo = 1
 					`;
 					valorTotalEstoque = Number((valorTotalResult as any[])[0]?.valorTotal || 0);
 				}
@@ -105,7 +105,7 @@ export class DashboardEstoqueService {
 			try {
 				const tableCheck = await this.prisma.$queryRaw`
 				  SELECT COUNT(*) as total FROM information_schema.tables 
-				  WHERE table_schema = DATABASE() AND table_name = 'movimentacoes_estoque'
+				  WHERE table_schema = DATABASE() AND table_name = 'estoque_movimentacoes'
 				`;
 				if (Number((tableCheck as any[])[0]?.total) > 0) {
 					const rows: any[] = await this.prisma.$queryRaw`
@@ -113,13 +113,13 @@ export class DashboardEstoqueService {
 					    m.id,
 					    m.tipo,
 					    m.quantidade,
-					    m.criado_em as dataMovimentacao,
+					    m.dataMovimentacao,
 					    COALESCE(i.nome, '') as insumoNome,
-					    COALESCE(m.responsavel, 'sistema') as usuarioNome
-					  FROM movimentacoes_estoque m
-					  LEFT JOIN itens_estoque i ON i.id = m.item_id
-					  WHERE m.loja_id = ${context.lojaId}
-					  ORDER BY m.criado_em DESC
+					    COALESCE(m.usuarioId, 'sistema') as usuarioNome
+					  FROM estoque_movimentacoes m
+					  LEFT JOIN estoque_itens i ON i.id = m.estoqueId
+					  WHERE m.lojaId = ${context.lojaId}
+					  ORDER BY m.dataMovimentacao DESC
 					  LIMIT 5
 					`;
 					ultimasMovimentacoes = rows.map((r) => ({
@@ -135,27 +135,26 @@ export class DashboardEstoqueService {
 				this.logger.warn('⚠️ Erro ao carregar últimas movimentações:', (error as any).message);
 			}
 
-			let estatisticas = { entradas: 0, saidas: 0, ajustes: 0, transferencias: 0 };
+			let estatisticas: any = { entradas: 0, saidas: 0, ajustes: 0, transferencias: 0 };
 			try {
 				const tableCheck = await this.prisma.$queryRaw`
 				  SELECT COUNT(*) as total FROM information_schema.tables 
-				  WHERE table_schema = DATABASE() AND table_name = 'movimentacoes_estoque'
+				  WHERE table_schema = DATABASE() AND table_name = 'estoque_movimentacoes'
 				`;
 				if (Number((tableCheck as any[])[0]?.total) > 0) {
 					const statsRows: any[] = await this.prisma.$queryRaw`
 					  SELECT tipo, COUNT(*) as total
-					  FROM movimentacoes_estoque
-					  WHERE loja_id = ${context.lojaId}
+					  FROM estoque_movimentacoes
+					  WHERE lojaId = ${context.lojaId}
 					  GROUP BY tipo
 					`;
 					const map: any = { ENTRADA: 0, SAIDA: 0, AJUSTE: 0, TRANSFERENCIA: 0 };
 					for (const r of statsRows) map[r.tipo] = Number(r.total || 0);
-					estatisticas = {
-						entradas: map.ENTRADA || 0,
-						saias: map.SAIDA || 0,
-						ajustes: map.AJUSTE || 0,
-						transferencias: map.TRANSFERENCIA || 0,
-					} as any;
+					estatisticas = {} as any;
+					estatisticas.entradas = map.ENTRADA || 0;
+					estatisticas.saidas = map.SAIDA || 0;
+					estatisticas.ajustes = map.AJUSTE || 0;
+					estatisticas.transferencias = map.TRANSFERENCIA || 0;
 				}
 			} catch (error) {
 				this.logger.warn('⚠️ Erro ao calcular estatísticas:', (error as any).message);

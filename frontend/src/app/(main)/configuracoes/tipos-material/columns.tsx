@@ -15,8 +15,14 @@ export interface TipoMaterial {
   id: string;
   nome: string;
   descricao?: string;
-  logica_consumo: string;
-  parametros_padrao?: Record<string, string | number>;
+  logica_consumo: "area" | "perimetro" | "quantidade_fixa" | "custom";
+  parametros_padrao?: {
+    tipo_calculo?: string;
+    espacamento?: number;
+    quantidade_por_m2?: number;
+    multiplicador?: number;
+    quantidade_fixa?: number;
+  };
   criado_em: string;
   atualizado_em: string;
 }

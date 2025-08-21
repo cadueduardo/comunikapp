@@ -39,7 +39,7 @@ export default function TestInsumoPage() {
 
       setResult(prev => prev + `Dados de teste: ${JSON.stringify(testData, null, 2)}\n`);
       
-      const response = await fetch('http://localhost:3001/insumos', {
+      const response = await fetch('/api/insumos', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

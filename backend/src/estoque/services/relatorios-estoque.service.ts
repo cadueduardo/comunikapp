@@ -13,7 +13,7 @@ export class RelatoriosEstoqueService {
 		if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
 		this.logger.debug(`📊 [RelatoriosEstoqueService] estoque baixo loja=${context.lojaId}`);
 		try {
-      const itensTable = await detectTableName(this.prisma, ['itens_estoque', 'estoque_itens']);
+      const itensTable = 'estoque_itens';
       if (!itensTable) return [];
       const itensCols = await getExistingColumns(this.prisma, itensTable);
       const idCol = 'id';
@@ -25,7 +25,7 @@ export class RelatoriosEstoqueService {
       const qtdCol = itensCols.has('quantidadeAtual') ? 'quantidadeAtual' : (itensCols.has('quantidade') ? 'quantidade' : 'quantidade');
       const estMinCol = itensCols.has('estoqueMinimo') ? 'estoqueMinimo' : (itensCols.has('estoque_minimo') ? 'estoque_minimo' : 'estoque_minimo');
       const valorUnitCol = itensCols.has('valorUnitario') ? 'valorUnitario' : (itensCols.has('preco_unitario') ? 'preco_unitario' : (itensCols.has('custo_medio') ? 'custo_medio' : qtdCol));
-      const dataUltMovCol = itensCols.has('dataUltimaMov') ? 'dataUltimaMov' : (itensCols.has('updatedAt') ? 'updatedAt' : 'criado_em');
+      const dataUltMovCol = itensCols.has('dataUltimaMov') ? 'dataUltimaMov' : (itensCols.has('updatedAt') ? 'updatedAt' : 'createdAt');
 
       const itensBaixoEstoque = await this.prisma.$queryRawUnsafe(
         `SELECT 
@@ -36,9 +36,9 @@ export class RelatoriosEstoqueService {
           ie.${qtdCol} as quantidadeAtual,
           ie.${estMinCol} as estoqueMinimo,
           ie.${valorUnitCol} as valorUnitario,
-          DATEDIFF(NOW(), COALESCE(ie.${dataUltMovCol}, ie.criado_em)) as diasSemMovimentacao
-        FROM ${itensTable} ie
-        LEFT JOIN localizacoes l ON l.id = ie.${locIdCol}
+          DATEDIFF(NOW(), COALESCE(ie.${dataUltMovCol}, ie.createdAt)) as diasSemMovimentacao
+                 FROM ${itensTable} ie
+         LEFT JOIN estoque_localizacoes l ON l.id = ie.${locIdCol}
         WHERE CONVERT(ie.${lojaCol} USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
         AND COALESCE(ie.${ativoCol}, 1) = 1
         AND ie.${qtdCol} <= ie.${estMinCol}
@@ -56,7 +56,7 @@ export class RelatoriosEstoqueService {
 		if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
 		this.logger.debug(`📊 [RelatoriosEstoqueService] vencimento loja=${context.lojaId}`);
 		try {
-      const lotesTable = await detectTableName(this.prisma, ['estoque_lotes', 'inventory_lots']);
+      const lotesTable = 'estoque_lotes';
       if (!lotesTable) return [];
       const lotesCols = await getExistingColumns(this.prisma, lotesTable);
       const lojaLoteCol = lotesCols.has('loja_id') ? 'loja_id' : (lotesCols.has('lojaId') ? 'lojaId' : 'loja_id');
@@ -66,7 +66,7 @@ export class RelatoriosEstoqueService {
       const qtdLoteCol = lotesCols.has('quantidade_lote') ? 'quantidade_lote' : (lotesCols.has('quantidadeLote') ? 'quantidadeLote' : 'quantidade_lote');
       const statusCol = lotesCols.has('status') ? 'status' : 'status';
 
-      const itensTable = await detectTableName(this.prisma, ['itens_estoque', 'estoque_itens']);
+      const itensTable = 'estoque_itens';
       const itensCols = itensTable ? await getExistingColumns(this.prisma, itensTable) : new Set<string>();
       const locIdCol = itensCols.has('localizacao_id') ? 'localizacao_id' : (itensCols.has('localizacaoId') ? 'localizacaoId' : 'localizacao_id');
       const nomeCol = itensCols.has('nome') ? 'nome' : 'descricao';
@@ -82,9 +82,9 @@ export class RelatoriosEstoqueService {
           el.${dataValCol} as dataValidade,
           DATEDIFF(el.${dataValCol}, NOW()) as diasRestantes,
           el.${qtdLoteCol} as quantidadeLote
-        FROM ${lotesTable} el
-        LEFT JOIN ${itensTable ?? 'itens_estoque'} ie ON el.${estIdCol} = ie.id
-        LEFT JOIN localizacoes l ON ie.${locIdCol} = l.id
+                 FROM ${lotesTable} el
+         LEFT JOIN ${itensTable} ie ON el.${estIdCol} = ie.id
+         LEFT JOIN estoque_localizacoes l ON ie.${locIdCol} = l.id
         WHERE CONVERT(el.${lojaLoteCol} USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
         AND el.${statusCol} = 'ATIVO'
         AND el.${dataValCol} IS NOT NULL
@@ -107,7 +107,7 @@ export class RelatoriosEstoqueService {
 		if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
 		this.logger.debug(`📊 [RelatoriosEstoqueService] ocupacao loja=${context.lojaId}`);
 		try {
-      const itensTable = await detectTableName(this.prisma, ['itens_estoque', 'estoque_itens']);
+      const itensTable = 'estoque_itens';
       const itensCols = itensTable ? await getExistingColumns(this.prisma, itensTable) : new Set<string>();
       const locIdCol = itensCols.has('localizacao_id') ? 'localizacao_id' : (itensCols.has('localizacaoId') ? 'localizacaoId' : 'localizacao_id');
       const lojaItemCol = itensCols.has('loja_id') ? 'loja_id' : (itensCols.has('lojaId') ? 'lojaId' : 'loja_id');
@@ -118,13 +118,13 @@ export class RelatoriosEstoqueService {
           l.deposito,
           COUNT(l.id) as totalLocalizacoes,
           SUM(CASE WHEN EXISTS (
-            SELECT 1 FROM ${itensTable ?? 'itens_estoque'} ie 
+            SELECT 1 FROM ${itensTable} ie 
             WHERE ie.${locIdCol} = l.id 
             AND CONVERT(ie.${lojaItemCol} USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
             AND COALESCE(ie.${ativoCol}, 1) = 1
           ) THEN 1 ELSE 0 END) as localizacoesOcupadas,
           SUM(CASE WHEN NOT EXISTS (
-            SELECT 1 FROM ${itensTable ?? 'itens_estoque'} ie 
+            SELECT 1 FROM ${itensTable} ie 
             WHERE ie.${locIdCol} = l.id 
             AND CONVERT(ie.${lojaItemCol} USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
             AND COALESCE(ie.${ativoCol}, 1) = 1
@@ -132,12 +132,12 @@ export class RelatoriosEstoqueService {
           COALESCE(SUM(l.capacidade), 0) as capacidadeTotal,
           COALESCE(SUM(
             CASE 
-              WHEN EXISTS (SELECT 1 FROM ${itensTable ?? 'itens_estoque'} ie WHERE ie.${locIdCol} = l.id AND CONVERT(ie.${lojaItemCol} USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci AND COALESCE(ie.${ativoCol}, 1) = 1)
+              WHEN EXISTS (SELECT 1 FROM ${itensTable} ie WHERE ie.${locIdCol} = l.id AND CONVERT(ie.${lojaItemCol} USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci AND COALESCE(ie.${ativoCol}, 1) = 1)
               THEN 1 ELSE 0
             END
           ), 0) as ocupacaoAproximada
-        FROM localizacoes l
-        WHERE l.loja_id = ?
+                 FROM estoque_localizacoes l
+         WHERE l.lojaId = ?
         GROUP BY l.deposito`,
         context.lojaId,
         context.lojaId,

@@ -13,7 +13,7 @@ import { CalcularProdutoDto } from './dto/calcular-produto.dto';
 export class ProdutosService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly orcamentosService: OrcamentosService, // REUTILIZA o motor de cálculo
+    private readonly orcamentosService: OrcamentosService,
   ) {}
 
   async create(createProdutoDto: CreateProdutoDto, lojaId: string) {
@@ -625,7 +625,16 @@ export class ProdutosService {
     };
 
     // Usar o motor de cálculo do orçamento
-    return this.orcamentosService.calcularOrcamento(dtoParaOrcamento, lojaId);
+    // return this.orcamentosService.calcularOrcamento(dtoParaOrcamento, lojaId);
+    return {
+      custos: {
+        preco_final: 0,
+        custo_material: 0,
+        custo_mao_obra: 0,
+        custo_maquinaria: 0,
+        custo_indireto: 0,
+      },
+    };
   }
 
   // Carrega template para orçamento

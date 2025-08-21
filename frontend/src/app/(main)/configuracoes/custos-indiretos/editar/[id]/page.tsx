@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import CustoIndiretoForm from '../../custo-indireto-form';
 import { toast } from 'sonner';
+import { custosIndiretosApi } from '@/lib/api-client';
 
 interface CustoIndireto {
   id: string;
@@ -28,17 +29,7 @@ export default function EditarCustoIndiretoPage() {
           return;
         }
 
-        const response = await fetch(`http://localhost:3001/custos-indiretos/${id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error('Erro ao carregar custo indireto');
-        }
-
-        const data = await response.json();
+        const data = await custosIndiretosApi.getById(id, token);
         setCustoIndireto(data);
       } catch (error) {
         console.error('Erro:', error);

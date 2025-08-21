@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ProdutoTemplateForm } from '@/components/ui/produto';
+import { produtosApi } from '@/lib/api-client';
 
 interface ProdutoFormProps {
   mode: 'novo' | 'editar';
@@ -34,17 +35,8 @@ export default function ProdutoForm({ mode, initialData }: ProdutoFormProps) {
         return;
       }
 
-      const response = await fetch(`http://localhost:3001/produtos/${produtoId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setProdutoData(data);
-      } else {
-        toast.error('Erro ao carregar dados do produto');
-        router.push('/produtos');
-      }
+      const data = await produtosApi.getById(produtoId, token);
+      setProdutoData(data);
     } catch (error) {
       console.error('Erro ao buscar produto:', error);
       toast.error('Erro ao carregar dados do produto');

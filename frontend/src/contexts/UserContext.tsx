@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { lojasApi } from '@/lib/api-client';
 
 // Adicionando um tipo básico para Loja para evitar erros
 // O ideal seria compartilhar tipos com o backend
@@ -72,7 +73,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
       
-      const userData = await authAPI.getCurrentUser();
+      const userData = await lojasApi.getCurrentUser(token);
       setUser(userData);
 
       // Persistir dados necessários para headers de tenant/roles no frontend
@@ -144,8 +145,13 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   }, [reauthEmail, reauthPassword, fetchUserData]);
 
   useEffect(() => {
+    // Verificar se estamos em uma página de autenticação
+    const isAuthPage = window.location.pathname.includes('/cadastro') || 
+                      window.location.pathname.includes('/login') || 
+                      window.location.pathname.includes('/verificar');
+    
     const token = localStorage.getItem('access_token');
-    if (token) {
+    if (token && !isAuthPage) {
       fetchUserData();
     } else {
       setLoading(false);

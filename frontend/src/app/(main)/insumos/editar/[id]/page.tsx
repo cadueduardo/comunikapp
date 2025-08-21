@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import React from 'react';
 import { toast } from 'sonner';
 import { InsumoForm, InsumoFormValues } from '../../insumo-form';
+import { insumosApi } from '@/lib/api-client';
 
 // A interface Insumo é importada de columns, mas representa a resposta da API
 import { Insumo as InsumoData } from '../../columns'; 
@@ -22,16 +23,8 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
       try {
         setLoading(true);
         const token = localStorage.getItem('access_token');
-        const response = await fetch(`http://localhost:3001/insumos/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setInsumo(data);
-        } else {
-          toast.error('Falha ao buscar dados do insumo.');
-          router.push('/insumos');
-        }
+        const data = await insumosApi.getById(id, token);
+        setInsumo(data);
       } catch (err) {
         toast.error('Ocorreu um erro ao buscar o insumo.');
         console.error(err);
@@ -52,26 +45,14 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
         ? parseFloat(data.custo_unitario) 
         : data.custo_unitario;
 
-      const response = await fetch(`http://localhost:3001/insumos/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-            ...data,
-            custo_unitario: custo,
-            estoque_minimo: data.estoque_minimo ? Number(data.estoque_minimo) : null,
-        }),
-      });
+      await insumosApi.update(id, {
+          ...data,
+          custo_unitario: custo,
+          estoque_minimo: data.estoque_minimo ? Number(data.estoque_minimo) : null,
+      }, token);
 
-      if (response.ok) {
-        toast.success('Insumo atualizado com sucesso!');
-        router.push('/insumos');
-      } else {
-        const errorData = await response.json();
-        toast.error(`Falha ao atualizar insumo: ${errorData.message}`);
-      }
+      toast.success('Insumo atualizado com sucesso!');
+      router.push('/insumos');
     } catch (err) {
       toast.error('Ocorreu um erro ao conectar com o servidor.');
       console.error(err);

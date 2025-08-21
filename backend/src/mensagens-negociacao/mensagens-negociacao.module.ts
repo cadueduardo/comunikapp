@@ -13,3 +13,7 @@ import { AuthModule } from '../auth/auth.module';
   exports: [MensagensNegociacaoService],
 })
 export class MensagensNegociacaoModule {}
+
+
+
+

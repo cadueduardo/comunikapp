@@ -2,27 +2,31 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCustoIndiretoDto } from './dto/create-custo-indireto.dto';
 import { UpdateCustoIndiretoDto } from './dto/update-custo-indireto.dto';
+import { loja } from '@prisma/client';
 
 @Injectable()
 export class CustosIndiretosService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createCustoIndiretoDto: CreateCustoIndiretoDto, lojaId: string) {
-    return this.prisma.custoIndireto.create({
+  async create(createCustoIndiretoDto: CreateCustoIndiretoDto, loja: loja) {
+    return this.prisma.custoindireto.create({
       data: {
         nome: createCustoIndiretoDto.nome,
         categoria: createCustoIndiretoDto.categoria,
         valor_mensal: createCustoIndiretoDto.valor_mensal,
         observacoes: createCustoIndiretoDto.descricao,
-        loja_id: lojaId,
+        loja: {
+          connect: { id: loja.id }
+        },
+        atualizado_em: new Date(),
       },
     });
   }
 
-  async findAll(lojaId: string) {
-    return this.prisma.custoIndireto.findMany({
+  async findAll(loja: loja) {
+    return this.prisma.custoindireto.findMany({
       where: {
-        loja_id: lojaId,
+        loja: { id: loja.id }
       },
       orderBy: {
         criado_em: 'desc',
@@ -30,11 +34,11 @@ export class CustosIndiretosService {
     });
   }
 
-  async findOne(id: string, lojaId: string) {
-    const custoIndireto = await this.prisma.custoIndireto.findFirst({
+  async findOne(id: string, loja: loja) {
+    const custoIndireto = await this.prisma.custoindireto.findFirst({
       where: {
         id,
-        loja_id: lojaId,
+        loja: { id: loja.id }
       },
     });
 
@@ -48,9 +52,9 @@ export class CustosIndiretosService {
   async update(
     id: string,
     updateCustoIndiretoDto: UpdateCustoIndiretoDto,
-    lojaId: string,
+    loja: loja,
   ) {
-    await this.findOne(id, lojaId);
+    await this.findOne(id, loja);
 
     const updateData: any = {};
     if (updateCustoIndiretoDto.nome)
@@ -62,16 +66,16 @@ export class CustosIndiretosService {
     if (updateCustoIndiretoDto.descricao)
       updateData.observacoes = updateCustoIndiretoDto.descricao;
 
-    return this.prisma.custoIndireto.update({
+    return this.prisma.custoindireto.update({
       where: { id },
       data: updateData,
     });
   }
 
-  async remove(id: string, lojaId: string) {
-    await this.findOne(id, lojaId);
+  async remove(id: string, loja: loja) {
+    await this.findOne(id, loja);
 
-    return this.prisma.custoIndireto.delete({
+    return this.prisma.custoindireto.delete({
       where: { id },
     });
   }

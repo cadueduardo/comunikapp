@@ -10,10 +10,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Save, Package, Barcode, Calendar, User, FileText } from 'lucide-react';
+import { ArrowLeft, Save, Package, Barcode, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { UnitSelect } from '@/components/ui/unit-select';
 import { UNIDADES_COMPRA } from '@/lib/unidades-compra';
+import { estoqueApi, insumosApi, fornecedoresApi } from '@/lib/api-client';
 
 interface Insumo {
   id: string;
@@ -75,14 +76,10 @@ export default function NovoItemEstoquePage() {
   const fetchInsumos = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('/api/insumos', {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setInsumos(data);
-      }
+      if (!token) return;
+
+      const data = await insumosApi.getAll(token);
+      setInsumos(data);
     } catch (error) {
       console.error('Erro ao buscar insumos:', error);
     }
@@ -91,13 +88,10 @@ export default function NovoItemEstoquePage() {
   const fetchLocalizacoes = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/api/estoque/localizacoes', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setLocalizacoes(data.data || data);
-      }
+      if (!token) return;
+
+      const data = await estoqueApi.getLocalizacoes(token);
+      setLocalizacoes(data.data || data);
     } catch (error) {
       console.error('Erro ao buscar localizações:', error);
     }
@@ -106,14 +100,10 @@ export default function NovoItemEstoquePage() {
   const fetchFornecedores = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('/api/fornecedores', {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setFornecedores(data);
-      }
+      if (!token) return;
+
+      const data = await fornecedoresApi.getAll(token);
+      setFornecedores(data);
     } catch (error) {
       console.error('Erro ao buscar fornecedores:', error);
     }
@@ -146,43 +136,34 @@ export default function NovoItemEstoquePage() {
       }
 
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/api/estoque/itens', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify((() => {
-          const payload: Record<string, any> = {
-            insumoId: formData.insumoId,
-            localizacaoId: formData.localizacaoId,
-            nome: formData.nome,
-            unidadeMedida: formData.unidadeMedida,
-            quantidadeAtual: Number.isFinite(parseInt(formData.quantidadeAtual)) ? parseInt(formData.quantidadeAtual) : 0,
-            quantidadeReservada: Number.isFinite(parseInt(formData.quantidadeReservada)) ? parseInt(formData.quantidadeReservada) : 0,
-            estoqueMinimo: Number.isFinite(parseInt(formData.estoqueMinimo)) ? parseInt(formData.estoqueMinimo) : 0,
-            precoUnitario: parseFloat(formData.precoUnitario) || 0,
-            ativo: formData.ativo,
-          };
-          if (formData.codigo) payload.codigo = formData.codigo;
-          if (formData.descricao) payload.descricao = formData.descricao;
-          if (formData.estoqueMaximo) payload.estoqueMaximo = parseInt(formData.estoqueMaximo);
-          if (formData.codigoBarras) payload.codigoBarras = formData.codigoBarras;
-          if (formData.lote) payload.lote = formData.lote;
-          if (formData.dataValidade) payload.dataValidade = formData.dataValidade;
-          if (formData.fornecedorId) payload.fornecedorId = formData.fornecedorId;
-          if (formData.observacoes) payload.observacoes = formData.observacoes;
-          return payload;
-        })()),
-      });
-
-      if (response.ok) {
-        toast.success('Item de estoque criado com sucesso!');
-        router.push('/estoque/itens');
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.message || 'Erro ao criar item de estoque');
+      if (!token) {
+        toast.error('Token de autenticação não encontrado');
+        return;
       }
+
+      const payload: Record<string, any> = {
+        insumoId: formData.insumoId,
+        localizacaoId: formData.localizacaoId,
+        nome: formData.nome,
+        unidadeMedida: formData.unidadeMedida,
+        quantidadeAtual: Number.isFinite(parseInt(formData.quantidadeAtual)) ? parseInt(formData.quantidadeAtual) : 0,
+        quantidadeReservada: Number.isFinite(parseInt(formData.quantidadeReservada)) ? parseInt(formData.quantidadeReservada) : 0,
+        estoqueMinimo: Number.isFinite(parseInt(formData.estoqueMinimo)) ? parseInt(formData.estoqueMinimo) : 0,
+        precoUnitario: parseFloat(formData.precoUnitario) || 0,
+        ativo: formData.ativo,
+      };
+      if (formData.codigo) payload.codigo = formData.codigo;
+      if (formData.descricao) payload.descricao = formData.descricao;
+      if (formData.estoqueMaximo) payload.estoqueMaximo = parseInt(formData.estoqueMaximo);
+      if (formData.codigoBarras) payload.codigoBarras = formData.codigoBarras;
+      if (formData.lote) payload.lote = formData.lote;
+      if (formData.dataValidade) payload.dataValidade = formData.dataValidade;
+      if (formData.fornecedorId) payload.fornecedorId = formData.fornecedorId;
+      if (formData.observacoes) payload.observacoes = formData.observacoes;
+
+      await estoqueApi.createItem(payload, token);
+      toast.success('Item de estoque criado com sucesso!');
+      router.push('/estoque/itens');
     } catch (error) {
       console.error('Erro ao criar item de estoque:', error);
       toast.error('Erro ao criar item de estoque');

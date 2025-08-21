@@ -8,6 +8,7 @@ import { columns } from './columns';
 import { toast } from 'sonner';
 import { Plus, DollarSign } from 'lucide-react';
 import Link from 'next/link';
+import { custosIndiretosApi } from '@/lib/api-client';
 
 interface CustoIndireto {
   id: string;
@@ -32,17 +33,7 @@ export default function CustosIndiretosPage() {
         return;
       }
 
-      const response = await fetch('http://localhost:3001/custos-indiretos', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Erro ao carregar custos indiretos');
-      }
-
-      const data = await response.json();
+      const data = await custosIndiretosApi.getAll(token);
       setCustosIndiretos(data);
     } catch (error) {
       console.error('Erro:', error);

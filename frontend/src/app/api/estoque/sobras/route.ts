@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
     }
 
-    const response = await fetch(`${process.env.BACKEND_URL}/estoque/sobras`, {
+    const response = await fetch(`${process.env.BACKEND_URL}/api/estoque/sobras`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    const response = await fetch(`${process.env.BACKEND_URL}/estoque/sobras`, {
+    const response = await fetch(`${process.env.BACKEND_URL}/api/estoque/sobras`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,

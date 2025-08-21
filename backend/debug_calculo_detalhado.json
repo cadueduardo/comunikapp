@@ -1,15 +1,15 @@
 {
-  "timestamp": "2025-07-31T23:13:29.527Z",
-  "custoTotalProducao": 49.70597379157428,
-  "margemLucro": 50,
-  "margemLucroValor": 24.85298689578714,
-  "subtotalComLucro": 74.55896068736142,
-  "impostos": 25,
-  "impostosValor": 18.639740171840355,
-  "precoFinal": 93.19870085920178,
+  "timestamp": "2025-08-18T22:09:12.438Z",
+  "custoTotalProducao": 41.29702280646183,
+  "margemLucro": 0,
+  "margemLucroValor": 0,
+  "subtotalComLucro": 41.29702280646183,
+  "impostos": 0,
+  "impostosValor": 0,
+  "precoFinal": 41.29702280646183,
   "quantidadeProduto": 1,
-  "custoMaterialComQuantidade": 10.399155609756097,
-  "custoMaquinasComQuantidade": 9,
-  "custoFuncoesComQuantidade": 9,
-  "custoIndiretolAlocadoComQuantidade": 21.30681818181818
+  "custoMaterialComQuantidade": 14.842477351916378,
+  "custoMaquinasComQuantidade": 12,
+  "custoFuncoesComQuantidade": 4,
+  "custoIndiretolAlocadoComQuantidade": 10.454545454545455
 }

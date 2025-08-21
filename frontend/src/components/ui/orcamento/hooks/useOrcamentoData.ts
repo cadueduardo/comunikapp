@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Cliente, Insumo, Maquina, Funcao } from '../../shared/types/common.types';
+import { clientesApi, insumosApi, maquinasApi, funcoesApi } from '@/lib/api-client';
 
 export function useOrcamentoData() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -12,14 +13,8 @@ export function useOrcamentoData() {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:3001/clientes', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setClientes(data);
-      }
+      const data = await clientesApi.getAll(token);
+      setClientes(data);
     } catch (error) {
       console.error('Erro ao buscar clientes:', error);
     }
@@ -30,14 +25,8 @@ export function useOrcamentoData() {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:3001/insumos', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setInsumos(data);
-      }
+      const data = await insumosApi.getAll(token);
+      setInsumos(data);
     } catch (error) {
       console.error('Erro ao buscar insumos:', error);
     }
@@ -48,14 +37,8 @@ export function useOrcamentoData() {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:3001/maquinas', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setMaquinas(data);
-      }
+      const data = await maquinasApi.getAll(token);
+      setMaquinas(data);
     } catch (error) {
       console.error('Erro ao buscar máquinas:', error);
     }
@@ -66,14 +49,8 @@ export function useOrcamentoData() {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:3001/funcoes', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setFuncoes(data);
-      }
+      const data = await funcoesApi.getAll(token);
+      setFuncoes(data);
     } catch (error) {
       console.error('Erro ao buscar funções:', error);
     }

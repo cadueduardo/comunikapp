@@ -26,8 +26,9 @@ export class LocalizacoesService {
 		const codigo = String(data.codigo).trim().toUpperCase();
 		const deposito = String(data.deposito).trim();
 
+		const tableName = 'estoque_localizacoes';
 		const existe: any[] = await this.prisma.$queryRawUnsafe(
-			'SELECT id FROM localizacoes WHERE loja_id = ? AND codigo = ? LIMIT 1',
+			`SELECT id FROM ${tableName} WHERE lojaId = ? AND codigo = ? LIMIT 1`,
 			context.lojaId,
 			codigo,
 		);
@@ -35,7 +36,6 @@ export class LocalizacoesService {
 			throw new BadRequestException('Código de localização já existe nesta loja');
 		}
 
-		const tableName = (await detectTableName(this.prisma, ['localizacoes'])) || 'localizacoes';
 		const existing = await getExistingColumns(this.prisma, tableName);
 
 		const id = `loc-${Date.now()}`;
@@ -45,7 +45,7 @@ export class LocalizacoesService {
 		const add = (col: string, val: any) => { if (existing.has(col) && val !== undefined) { columns.push(col); values.push(val); } };
 
 		add('id', id);
-		add('loja_id', context.lojaId);
+		add('lojaId', context.lojaId);
 		add('codigo', codigo);
 		add('deposito', deposito);
 		add('corredor', data.corredor || null);
@@ -55,17 +55,17 @@ export class LocalizacoesService {
 		add('descricao', data.descricao || null);
 		add('capacidade', data.capacidade ?? null);
 		add('ativo', data.ativo !== undefined ? !!data.ativo : true);
-		add('criado_em', now);
-		add('atualizado_em', now);
+		add('createdAt', now);
+		add('updatedAt', now);
 
-		if (!columns.length) throw new BadRequestException('Estrutura da tabela localizacoes não encontrada.');
+		if (!columns.length) throw new BadRequestException('Estrutura da tabela estoque_localizacoes não encontrada.');
 		const placeholders = columns.map(() => '?').join(', ');
 		await this.prisma.$executeRawUnsafe(
 			`INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders})`,
 			...values,
 		);
 		const selected: any[] = await this.prisma.$queryRawUnsafe(
-			`SELECT * FROM ${tableName} WHERE id = ? AND loja_id = ? LIMIT 1`,
+			`SELECT * FROM ${tableName} WHERE id = ? AND lojaId = ? LIMIT 1`,
 			id,
 			context.lojaId,
 		);
@@ -75,12 +75,13 @@ export class LocalizacoesService {
   async listarLocalizacoes(context: IEstoqueContext, query: any = {}) {
     if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
     this.logger.debug(`📍 [LocalizacoesService] listarLocalizacoes loja=${context.lojaId}`);
-    const whereParts: string[] = ['l.loja_id = ?'];
+    const whereParts: string[] = ['l.lojaId = ?'];
     const params: any[] = [context.lojaId];
     if (query?.deposito) { whereParts.push('l.deposito LIKE ?'); params.push(`%${String(query.deposito)}%`); }
     const whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+    const tableName = 'estoque_localizacoes';
     const rows: any[] = await this.prisma.$queryRawUnsafe(
-      `SELECT l.id, l.codigo, l.deposito, l.ativo, l.criado_em AS createdAt FROM localizacoes l ${whereClause} ORDER BY l.codigo ASC`,
+             `SELECT l.id, l.codigo, l.deposito, l.ativo, l.createdAt FROM ${tableName} l ${whereClause} ORDER BY l.codigo ASC`,
       ...params,
     );
     const page = Number(query.page) || 1; const limit = Number(query.limit) || 10;
@@ -91,31 +92,31 @@ export class LocalizacoesService {
   async buscarLocalizacaoPorId(context: IEstoqueContext, id: string) {
     if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
     this.logger.debug(`📍 [LocalizacoesService] buscarLocalizacaoPorId id=${id} loja=${context.lojaId}`);
-    const tableName = (await detectTableName(this.prisma, ['localizacoes'])) || 'localizacoes';
+    const tableName = 'estoque_localizacoes';
     const rows: any[] = await this.prisma.$queryRawUnsafe(
-      `SELECT 
-         id,
-         loja_id,
-         codigo,
-         deposito,
-         corredor,
-         prateleira,
-         nivel,
-         posicao,
-         descricao,
-         capacidade,
-         ativo,
-         COALESCE(createdAt, criado_em) AS createdAt,
-         COALESCE(updatedAt, atualizado_em) AS updatedAt
-       FROM ${tableName} WHERE id = ? AND loja_id = ? LIMIT 1`,
-      id,
-      context.lojaId,
-    );
-    if (!rows?.length) throw new BadRequestException('Localização não encontrada');
-    const r = rows[0];
-    return {
-      id: r.id,
-      lojaId: r.loja_id,
+             `SELECT 
+          id,
+          lojaId,
+          codigo,
+          deposito,
+          corredor,
+          prateleira,
+          nivel,
+          posicao,
+          descricao,
+          capacidade,
+          ativo,
+          createdAt,
+          updatedAt
+        FROM ${tableName} WHERE id = ? AND lojaId = ? LIMIT 1`,
+       id,
+       context.lojaId,
+     );
+     if (!rows?.length) throw new BadRequestException('Localização não encontrada');
+     const r = rows[0];
+     return {
+       id: r.id,
+       lojaId: r.lojaId,
       codigo: r.codigo,
       deposito: r.deposito,
       corredor: r.corredor,
@@ -134,7 +135,7 @@ export class LocalizacoesService {
 		if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
 		this.logger.debug(`📍 [LocalizacoesService] atualizarLocalizacao id=${id} loja=${context.lojaId}`);
 
-		const tableName = (await detectTableName(this.prisma, ['localizacoes'])) || 'localizacoes';
+		const tableName = 'estoque_localizacoes';
 		const existing = await getExistingColumns(this.prisma, tableName);
 		const updates: string[] = [];
 		const params: any[] = [];
@@ -160,16 +161,16 @@ export class LocalizacoesService {
 				params.push(value);
 			}
 		}
-		if (existing.has('atualizado_em')) updates.push('atualizado_em = NOW()');
+		if (existing.has('updatedAt')) updates.push('updatedAt = NOW()');
 		if (!updates.length) throw new BadRequestException('Nenhum campo válido para atualização');
 
 		params.push(id, context.lojaId);
 		await this.prisma.$executeRawUnsafe(
-			`UPDATE ${tableName} SET ${updates.join(', ')} WHERE id = ? AND loja_id = ?`,
+			`UPDATE ${tableName} SET ${updates.join(', ')} WHERE id = ? AND lojaId = ?`,
 			...params,
 		);
 		const row: any[] = await this.prisma.$queryRawUnsafe(
-			`SELECT * FROM ${tableName} WHERE id = ? AND loja_id = ? LIMIT 1`,
+			`SELECT * FROM ${tableName} WHERE id = ? AND lojaId = ? LIMIT 1`,
 			id,
 			context.lojaId,
 		);
@@ -185,8 +186,12 @@ export class LocalizacoesService {
   async verificarLocalizacaoExclusao(context: IEstoqueContext, id: string) {
     if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
     this.logger.debug(`📍 [LocalizacoesService] verificarLocalizacaoExclusao id=${id} loja=${context.lojaId}`);
+    
+    // Detectar nome da tabela de itens automaticamente
+    const itensTable = 'estoque_itens';
+    
     const countRows: any[] = await this.prisma.$queryRawUnsafe(
-      `SELECT COUNT(*) as total FROM itens_estoque WHERE localizacao_id = ? AND loja_id = ?`,
+      `SELECT COUNT(*) as total FROM ${itensTable} WHERE localizacaoId = ? AND lojaId = ?`,
       id,
       context.lojaId,
     );
@@ -205,8 +210,9 @@ export class LocalizacoesService {
     this.logger.debug(`📍 [LocalizacoesService] excluirLocalizacao id=${id} loja=${context.lojaId}`);
     const check = await this.verificarLocalizacaoExclusao(context, id);
     if (!check.podeExcluir) throw new BadRequestException(check.motivo);
+    const tableName = 'estoque_localizacoes';
     await this.prisma.$executeRawUnsafe(
-      `DELETE FROM localizacoes WHERE id = ? AND loja_id = ?`,
+      `DELETE FROM ${tableName} WHERE id = ? AND lojaId = ?`,
       id,
       context.lojaId,
     );

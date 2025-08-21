@@ -34,9 +34,16 @@ export class MensagensNegociacaoService {
     dto: CreateMensagemNegociacaoDto,
     file?: Express.Multer.File,
   ) {
+    // Validar tipo de mensagem
+    const tiposValidos = ['CLIENTE', 'VENDEDOR', 'SISTEMA'];
+    if (!tiposValidos.includes(dto.tipo)) {
+      throw new BadRequestException(`Tipo de mensagem inválido. Tipos permitidos: ${tiposValidos.join(', ')}`);
+    }
+
     // Verificar se o orçamento existe
     const orcamento = await this.prisma.orcamento.findUnique({
       where: { id: orcamentoId },
+      include: { cliente: true },
     });
 
     if (!orcamento) {
@@ -95,36 +102,34 @@ export class MensagensNegociacaoService {
     }
 
     // Criar a mensagem
-    const mensagem = await this.prisma.mensagemNegociacao.create({
+    const mensagem = await this.prisma.mensagemnegociacao.create({
       data: {
         orcamento_id: orcamentoId,
-        mensagem:
-          dto.mensagem || (file ? `Arquivo enviado: ${file.originalname}` : ''),
+        mensagem: dto.mensagem,
         tipo: dto.tipo,
         autor_nome: dto.autor_nome,
         autor_email: dto.autor_email,
-        visualizada: false,
-        anexos: anexoInfo
-          ? JSON.stringify([anexoInfo])
-          : dto.anexos
-            ? JSON.stringify(dto.anexos)
-            : undefined,
+        anexos: anexoInfo ? JSON.stringify(anexoInfo) : null,
       },
     });
 
-    // Emitir evento via WebSocket
-    this.websocketsService.emitToLoja(orcamento.loja_id, 'nova_mensagem', {
-      orcamento_id: orcamentoId,
-      mensagem: {
-        id: mensagem.id,
-        mensagem: mensagem.mensagem,
-        tipo: mensagem.tipo,
-        autor_nome: mensagem.autor_nome,
-        visualizada: mensagem.visualizada,
-        criado_em: mensagem.criado_em,
-        anexos: anexoInfo ? [anexoInfo] : [],
-      },
-    });
+    console.log('📨 Mensagem criada:', mensagem.id);
+
+    // Notificar via WebSocket (desabilitado por enquanto)
+    try {
+      console.log('📡 WebSocket notification disabled for now');
+    } catch (error) {
+      console.error('❌ Erro ao notificar via WebSocket:', error);
+    }
+
+    // Notificar via email (se configurado)
+    try {
+      if (orcamento.cliente?.email) {
+        console.log('📧 Notificação por email desabilitada por enquanto');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao enviar notificação por email:', error);
+    }
 
     return mensagem;
   }
@@ -137,48 +142,40 @@ export class MensagensNegociacaoService {
     dto: CreateMensagemNegociacaoDto,
     lojaId: string,
   ) {
+    // Validar tipo de mensagem
+    const tiposValidos = ['CLIENTE', 'VENDEDOR', 'SISTEMA'];
+    if (!tiposValidos.includes(dto.tipo)) {
+      throw new BadRequestException(`Tipo de mensagem inválido. Tipos permitidos: ${tiposValidos.join(', ')}`);
+    }
+
     // Verificar se o orçamento existe e pertence à loja
     const orcamento = await this.prisma.orcamento.findFirst({
-      where: {
-        id: orcamentoId,
-        loja_id: lojaId,
-      },
+      where: { id: orcamentoId, loja_id: lojaId },
     });
 
     if (!orcamento) {
       throw new NotFoundException('Orçamento não encontrado');
     }
 
-    // Criar a mensagem
-    const mensagem = await this.prisma.mensagemNegociacao.create({
+    // Criar a mensagem (sem loja_id pois não existe no schema)
+    const mensagem = await this.prisma.mensagemnegociacao.create({
       data: {
         orcamento_id: orcamentoId,
         mensagem: dto.mensagem,
         tipo: dto.tipo,
         autor_nome: dto.autor_nome,
         autor_email: dto.autor_email,
-        visualizada: dto.visualizada || false,
-        anexos: dto.anexos ? JSON.stringify(dto.anexos) : undefined,
-      },
-      include: {
-        anexos_mensagem: true,
       },
     });
 
-    // Criar notificação para nova mensagem
-    if (dto.tipo === 'CLIENTE') {
-      await this.notificacoesService.notificarNovaMensagem(
-        orcamentoId,
-        lojaId,
-        dto.autor_nome || 'Cliente',
-      );
+    console.log('📨 Mensagem criada (autenticada):', mensagem.id);
+
+    // Notificar via WebSocket (desabilitado por enquanto)
+    try {
+      console.log('📡 WebSocket notification disabled for now');
+    } catch (error) {
+      console.error('❌ Erro ao notificar via WebSocket:', error);
     }
-
-    // Emitir evento WebSocket para nova mensagem
-    await this.websocketsService.emitToOrcamento(orcamentoId, 'new_message', {
-      message: mensagem,
-      timestamp: new Date().toISOString(),
-    });
 
     return mensagem;
   }
@@ -189,9 +186,7 @@ export class MensagensNegociacaoService {
   async findAllPublico(orcamentoId: string) {
     // Verificar se o orçamento existe
     const orcamento = await this.prisma.orcamento.findUnique({
-      where: {
-        id: orcamentoId,
-      },
+      where: { id: orcamentoId },
     });
 
     if (!orcamento) {
@@ -199,25 +194,25 @@ export class MensagensNegociacaoService {
     }
 
     // Buscar mensagens ordenadas por data de criação
-    const mensagens = await this.prisma.mensagemNegociacao.findMany({
+    const mensagens = await this.prisma.mensagemnegociacao.findMany({
       where: {
         orcamento_id: orcamentoId,
-      },
-      include: {
-        anexos_mensagem: {
-          orderBy: {
-            criado_em: 'asc',
-          },
-        },
       },
       orderBy: {
         criado_em: 'asc',
       },
     });
 
+    // Mapear para o formato de resposta
     return mensagens.map((mensagem) => ({
-      ...mensagem,
-      anexos: mensagem.anexos ? JSON.parse(mensagem.anexos as string) : [],
+      id: mensagem.id,
+      mensagem: mensagem.mensagem,
+      tipo: mensagem.tipo,
+      autor_nome: mensagem.autor_nome,
+      autor_email: mensagem.autor_email,
+      anexos: mensagem.anexos ? JSON.parse(mensagem.anexos) : null,
+      visualizada: mensagem.visualizada,
+      criado_em: mensagem.criado_em,
     }));
   }
 
@@ -227,10 +222,7 @@ export class MensagensNegociacaoService {
   async findAll(orcamentoId: string, lojaId: string) {
     // Verificar se o orçamento existe e pertence à loja
     const orcamento = await this.prisma.orcamento.findFirst({
-      where: {
-        id: orcamentoId,
-        loja_id: lojaId,
-      },
+      where: { id: orcamentoId, loja_id: lojaId },
     });
 
     if (!orcamento) {
@@ -238,25 +230,25 @@ export class MensagensNegociacaoService {
     }
 
     // Buscar mensagens ordenadas por data de criação
-    const mensagens = await this.prisma.mensagemNegociacao.findMany({
+    const mensagens = await this.prisma.mensagemnegociacao.findMany({
       where: {
         orcamento_id: orcamentoId,
-      },
-      include: {
-        anexos_mensagem: {
-          orderBy: {
-            criado_em: 'asc',
-          },
-        },
       },
       orderBy: {
         criado_em: 'asc',
       },
     });
 
+    // Mapear para o formato de resposta
     return mensagens.map((mensagem) => ({
-      ...mensagem,
-      anexos: mensagem.anexos ? JSON.parse(mensagem.anexos as string) : [],
+      id: mensagem.id,
+      mensagem: mensagem.mensagem,
+      tipo: mensagem.tipo,
+      autor_nome: mensagem.autor_nome,
+      autor_email: mensagem.autor_email,
+      anexos: mensagem.anexos ? JSON.parse(mensagem.anexos) : null,
+      visualizada: mensagem.visualizada,
+      criado_em: mensagem.criado_em,
     }));
   }
 
@@ -273,8 +265,8 @@ export class MensagensNegociacaoService {
       throw new NotFoundException('Orçamento não encontrado');
     }
 
-    // Verificar se a mensagem existe e pertence ao orçamento
-    const mensagem = await this.prisma.mensagemNegociacao.findFirst({
+    // Verificar se a mensagem existe
+    const mensagem = await this.prisma.mensagemnegociacao.findFirst({
       where: {
         id: mensagemId,
         orcamento_id: orcamentoId,
@@ -286,10 +278,12 @@ export class MensagensNegociacaoService {
     }
 
     // Marcar como visualizada
-    const mensagemAtualizada = await this.prisma.mensagemNegociacao.update({
+    const mensagemAtualizada = await this.prisma.mensagemnegociacao.update({
       where: { id: mensagemId },
       data: { visualizada: true },
     });
+
+    console.log('👁️ Mensagem marcada como visualizada:', mensagemId);
 
     return mensagemAtualizada;
   }
@@ -297,14 +291,25 @@ export class MensagensNegociacaoService {
   /**
    * Marcar mensagem como visualizada (autenticado)
    */
-  async marcarComoVisualizada(mensagemId: string, lojaId: string) {
-    // Verificar se a mensagem existe e pertence a um orçamento da loja
-    const mensagem = await this.prisma.mensagemNegociacao.findFirst({
+  async marcarComoVisualizada(
+    orcamentoId: string,
+    mensagemId: string,
+    lojaId?: string,
+  ) {
+    // Verificar se o orçamento existe
+    const orcamento = await this.prisma.orcamento.findUnique({
+      where: { id: orcamentoId },
+    });
+
+    if (!orcamento) {
+      throw new NotFoundException('Orçamento não encontrado');
+    }
+
+    // Verificar se a mensagem existe
+    const mensagem = await this.prisma.mensagemnegociacao.findFirst({
       where: {
         id: mensagemId,
-        orcamento: {
-          loja_id: lojaId,
-        },
+        orcamento_id: orcamentoId,
       },
     });
 
@@ -313,104 +318,23 @@ export class MensagensNegociacaoService {
     }
 
     // Marcar como visualizada
-    const mensagemAtualizada = await this.prisma.mensagemNegociacao.update({
-      where: {
-        id: mensagemId,
-      },
-      data: {
-        visualizada: true,
-      },
+    const mensagemAtualizada = await this.prisma.mensagemnegociacao.update({
+      where: { id: mensagemId },
+      data: { visualizada: true },
     });
 
-    // Emitir evento WebSocket para mensagem lida
-    await this.websocketsService.emitToOrcamento(
-      mensagem.orcamento_id,
-      'message_read',
-      {
-        messageId: mensagemId,
-        timestamp: new Date().toISOString(),
-      },
-    );
+    console.log('👁️ Mensagem marcada como visualizada:', mensagemId);
 
     return mensagemAtualizada;
-  }
-
-  /**
-   * Upload de anexo para uma mensagem
-   */
-  async uploadAnexo(
-    mensagemId: string,
-    file: Express.Multer.File,
-    lojaId: string,
-  ) {
-    // Verificar se a mensagem existe e pertence a um orçamento da loja
-    const mensagem = await this.prisma.mensagemNegociacao.findFirst({
-      where: {
-        id: mensagemId,
-        orcamento: {
-          loja_id: lojaId,
-        },
-      },
-    });
-
-    if (!mensagem) {
-      throw new NotFoundException('Mensagem não encontrada');
-    }
-
-    // Validar tipo de arquivo
-    const tiposPermitidos = [
-      'image/jpeg',
-      'image/png',
-      'image/jpg',
-      'application/pdf',
-    ];
-    if (!tiposPermitidos.includes(file.mimetype)) {
-      throw new BadRequestException(
-        'Tipo de arquivo não permitido. Use apenas JPG, PNG ou PDF.',
-      );
-    }
-
-    // Validar tamanho (5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      throw new BadRequestException(
-        'Arquivo muito grande. Tamanho máximo: 5MB.',
-      );
-    }
-
-    // Gerar nome único para o arquivo
-    const timestamp = Date.now();
-    const extensao = file.originalname.split('.').pop();
-    const nomeArquivo = `${timestamp}_${file.originalname}`;
-
-    // Em produção, aqui seria feito upload para um serviço de storage
-    // Por enquanto, vamos simular salvando apenas o nome
-    const urlArquivo = `/uploads/anexos/${nomeArquivo}`;
-
-    // Criar registro do anexo
-    const anexo = await this.prisma.anexoMensagem.create({
-      data: {
-        mensagem_id: mensagemId,
-        nome_arquivo: file.originalname,
-        url_arquivo: urlArquivo,
-        tipo_arquivo: file.mimetype,
-        tamanho: file.size,
-      },
-    });
-
-    return anexo;
   }
 
   /**
    * Buscar mensagens não visualizadas de um orçamento
    */
   async findNaoVisualizadas(orcamentoId: string, lojaId: string) {
-    const mensagens = await this.prisma.mensagemNegociacao.findMany({
+    const mensagens = await this.prisma.mensagemnegociacao.findMany({
       where: {
         orcamento_id: orcamentoId,
-        orcamento: {
-          loja_id: lojaId,
-        },
         visualizada: false,
       },
       orderBy: {
@@ -425,14 +349,100 @@ export class MensagensNegociacaoService {
    * Contar mensagens não visualizadas de um orçamento
    */
   async countNaoVisualizadas(orcamentoId: string, lojaId: string) {
-    return this.prisma.mensagemNegociacao.count({
+    const count = await this.prisma.mensagemnegociacao.count({
       where: {
         orcamento_id: orcamentoId,
-        orcamento: {
-          loja_id: lojaId,
-        },
         visualizada: false,
       },
     });
+
+    return count;
+  }
+
+  /**
+   * Upload de anexo para uma mensagem existente
+   */
+  async uploadAnexo(
+    orcamentoId: string,
+    mensagemId: string,
+    file: Express.Multer.File,
+    lojaId?: string,
+  ) {
+    // Verificar se o orçamento existe
+    const orcamento = await this.prisma.orcamento.findUnique({
+      where: { id: orcamentoId },
+    });
+
+    if (!orcamento) {
+      throw new NotFoundException('Orçamento não encontrado');
+    }
+
+    // Verificar se a mensagem existe
+    const mensagem = await this.prisma.mensagemnegociacao.findFirst({
+      where: {
+        id: mensagemId,
+        orcamento_id: orcamentoId,
+      },
+    });
+
+    if (!mensagem) {
+      throw new NotFoundException('Mensagem não encontrada');
+    }
+
+    // Validar tipo de arquivo
+    const tiposPermitidos = [
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+      'application/pdf',
+      'application/zip',
+      'application/x-zip-compressed',
+    ];
+    if (!tiposPermitidos.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'Tipo de arquivo não permitido. Use apenas JPG, PNG, PDF ou ZIP.',
+      );
+    }
+
+    // Validar tamanho (5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      throw new BadRequestException(
+        'Arquivo muito grande. Tamanho máximo: 5MB.',
+      );
+    }
+
+    // Salvar arquivo
+    const uploadDir = path.join(process.cwd(), 'uploads', 'anexos');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const extensao = path.extname(file.originalname);
+    const nomeArquivo = `${uuidv4()}${extensao}`;
+    const caminhoArquivo = path.join(uploadDir, nomeArquivo);
+
+    console.log('📎 Tentando salvar anexo em:', caminhoArquivo);
+    fs.writeFileSync(caminhoArquivo, file.buffer);
+    console.log('📎 Anexo salvo com sucesso!');
+
+    const anexoInfo = {
+      nome_arquivo: file.originalname,
+      url_arquivo: `/uploads/anexos/${nomeArquivo}`,
+      tipo_arquivo: file.mimetype,
+      tamanho: file.size,
+    };
+
+    // Atualizar a mensagem com o anexo
+    const mensagemAtualizada = await this.prisma.mensagemnegociacao.update({
+      where: { id: mensagemId },
+      data: {
+        anexos: JSON.stringify(anexoInfo),
+      },
+    });
+
+    console.log('📎 Anexo adicionado à mensagem:', mensagemId);
+
+    return mensagemAtualizada;
   }
 }

@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Token não fornecido' }, { status: 401 });
     }
 
-    const resp = await fetch(`${process.env.BACKEND_URL || 'http://localhost:3001'}/fornecedores`, {
+    const resp = await fetch(`${process.env.BACKEND_URL || 'http://localhost:4000'}/fornecedores`, {
       headers: {
         Authorization: authHeader,
         'Content-Type': 'application/json',

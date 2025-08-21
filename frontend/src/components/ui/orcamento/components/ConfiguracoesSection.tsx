@@ -95,7 +95,6 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
                     <Input 
                       type="text" 
                       placeholder="10 a 15 dias úteis"
-                      defaultValue="10 a 15 dias úteis"
                       {...field} 
                     />
                   </FormControl>
@@ -114,7 +113,6 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
                     <Input 
                       type="text" 
                       placeholder="50% entrada, restante na entrega"
-                      defaultValue="50% entrada, restante na entrega"
                       {...field} 
                     />
                   </FormControl>
@@ -133,7 +131,6 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
                     <Input 
                       type="text" 
                       placeholder="30 dias"
-                      defaultValue="30 dias"
                       {...field} 
                     />
                   </FormControl>
@@ -152,7 +149,6 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
                     <Input 
                       type="text" 
                       placeholder="Equipe Comercial"
-                      defaultValue="Equipe Comercial"
                       {...field} 
                     />
                   </FormControl>

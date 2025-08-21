@@ -90,8 +90,9 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
   const fetchItem = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/api/estoque/itens/${id}`, {
+      const response = await fetch(`/api/estoque/itens/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
       });
       
       if (response.ok) {
@@ -165,8 +166,9 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
       const token = localStorage.getItem('access_token');
       console.log('🔑 Token para localizações:', token ? token.substring(0, 50) + '...' : 'Nenhum token');
       
-      const response = await fetch('http://localhost:3001/api/estoque/localizacoes', {
+      const response = await fetch('/api/estoque/localizacoes', {
         headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
       });
       
       console.log('📊 Resposta da API de localizações:', response.status, response.statusText);
@@ -232,32 +234,13 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
 
     try {
       const token = localStorage.getItem('access_token');
-      const payload = {
-        nome: formData.nome,
-        codigo: formData.codigo,
-        descricao: formData.descricao,
-        quantidade: Number.isFinite(parseInt(formData.quantidadeAtual)) ? parseInt(formData.quantidadeAtual) : 0,
-        quantidadeReservada: Number.isFinite(parseInt(formData.quantidadeReservada)) ? parseInt(formData.quantidadeReservada) : 0,
-        unidadeMedida: formData.unidadeMedida,
-        precoUnitario: parseFloat(formData.precoUnitario) || 0,
-        estoqueMinimo: Number.isFinite(parseInt(formData.estoqueMinimo)) ? parseInt(formData.estoqueMinimo) : 0,
-        estoqueMaximo: formData.estoqueMaximo ? parseInt(formData.estoqueMaximo) : null,
-        localizacaoId: formData.localizacaoId,
-        codigoBarras: formData.codigoBarras,
-        lote: formData.lote,
-        dataValidade: formData.dataValidade,
-        fornecedorId: formData.fornecedorId,
-        observacoes: formData.observacoes,
-        ativo: formData.ativo,
-      };
-
-      const response = await fetch(`http://localhost:3001/api/estoque/itens/${id}`, {
+      const response = await fetch(`/api/estoque/itens/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(formData),
       });
 
       if (response.ok) {

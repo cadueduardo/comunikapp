@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Save, Loader2, MapPin } from "lucide-react";
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { clientesApi } from '@/lib/api-client';
 
 export default function NovoClientePage() {
   const router = useRouter();
@@ -130,22 +131,9 @@ export default function NovoClientePage() {
         Object.entries(formData).filter(([, v]) => v !== '')
       );
 
-      const response = await fetch('http://localhost:3001/clientes', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(cleanData),
-      });
-
-      if (response.ok) {
-        toast.success('Cliente cadastrado com sucesso!');
-        router.push('/clientes');
-      } else {
-        const error = await response.json();
-        toast.error(`Erro ao cadastrar cliente: ${error.message || 'Erro desconhecido'}`);
-      }
+      await clientesApi.create(cleanData, token);
+      toast.success('Cliente cadastrado com sucesso!');
+      router.push('/clientes');
     } catch (error) {
       console.error('Erro ao cadastrar cliente:', error);
       toast.error('Erro ao cadastrar cliente. Tente novamente.');

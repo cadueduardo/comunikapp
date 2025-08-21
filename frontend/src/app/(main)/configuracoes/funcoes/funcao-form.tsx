@@ -27,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { maquinasApi } from '@/lib/api-client';
 
 const formSchema = z.object({
   nome: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
@@ -78,14 +79,8 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:3001/maquinas', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setMaquinas(data);
-      }
+      const data = await maquinasApi.getAll(token);
+      setMaquinas(data);
     } catch (error) {
       console.error('Erro ao buscar máquinas:', error);
     }

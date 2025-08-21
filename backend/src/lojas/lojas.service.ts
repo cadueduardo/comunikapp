@@ -8,13 +8,13 @@ import * as bcrypt from 'bcrypt';
 import { MailService } from 'src/mail/mail.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AuthService } from 'src/auth/auth.service';
-import { FuncaoUsuario, StatusConta, StatusLoja } from '@prisma/client';
+import { usuario_funcao, usuario_status, loja_status } from '@prisma/client';
 import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateLojaDto } from './dto/update-loja.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdateConfiguracoesLojaDto } from './dto/update-configuracoes-loja.dto';
-import { Loja } from '@prisma/client';
+import { loja } from '@prisma/client';
 
 @Injectable()
 export class LojasService {
@@ -42,7 +42,7 @@ export class LojasService {
       );
     }
 
-    if (usuario.status !== StatusConta.ATIVO) {
+    if (usuario.status !== usuario_status.ATIVO) {
       throw new UnauthorizedException('Conta não está ativa.');
     }
 
@@ -157,24 +157,28 @@ export class LojasService {
     return this.prisma.$transaction(async (tx) => {
       const loja = await tx.loja.create({
         data: {
+          id: Math.random().toString(36).substr(2, 9), // Gerar ID único
           nome: nome_loja,
           email,
           telefone,
           cpf: cpf || undefined,
           cnpj: cnpj || undefined,
+          atualizado_em: new Date(),
         },
       });
 
       const usuario = await tx.usuario.create({
         data: {
+          id: Math.random().toString(36).substr(2, 9), // Gerar ID único
           nome_completo: nome_responsavel,
           email,
           telefone: telefone,
           senha: hashedPassword,
-          funcao: FuncaoUsuario.ADMINISTRADOR,
+          funcao: usuario_funcao.ADMINISTRADOR,
           loja_id: loja.id,
           codigo_verificacao_email: emailCode,
           codigo_verificacao_email_expiracao: expirationDate,
+          atualizado_em: new Date(),
         },
       });
 
@@ -227,7 +231,7 @@ export class LojasService {
         where: { id: usuario.id },
         data: {
           email_verificado: true,
-          status: StatusConta.ATIVO,
+          status: usuario_status.ATIVO,
           codigo_verificacao_email: null,
           codigo_verificacao_email_expiracao: null,
         },
@@ -237,7 +241,7 @@ export class LojasService {
       await tx.loja.update({
         where: { id: usuario.loja_id },
         data: {
-          status: StatusLoja.ATIVO,
+          status: loja_status.ATIVO,
           data_inicio_trial: new Date(),
           trial_restante_dias: 30, // Inicia com 30 dias
         },
@@ -258,7 +262,7 @@ export class LojasService {
   async updateConfiguracoes(
     lojaId: string,
     updateConfiguracoesLojaDto: UpdateConfiguracoesLojaDto,
-  ): Promise<Loja> {
+  ): Promise<loja> {
     // Converter strings vazias para null e strings numéricas para números
     const data: any = { ...updateConfiguracoesLojaDto };
 
@@ -305,7 +309,7 @@ export class LojasService {
     });
   }
 
-  async updateLogoUrl(lojaId: string, filename: string): Promise<Loja> {
+  async updateLogoUrl(lojaId: string, filename: string): Promise<loja> {
     if (!filename) {
       throw new Error('Nome do arquivo inválido para o logo.');
     }

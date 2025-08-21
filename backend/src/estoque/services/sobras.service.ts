@@ -90,10 +90,10 @@ export class SobrasService {
           i.codigo as item_codigo,
           i.nome as item_nome,
           l.codigo as localizacao_codigo,
-          l.nome as localizacao_nome
+          l.descricao as localizacao_nome
         FROM estoque_sobras s
-        LEFT JOIN itens_estoque i ON s.estoque_id = i.id
-        LEFT JOIN localizacoes l ON i.localizacao_id = l.id
+        LEFT JOIN estoque_itens i ON s.estoque_id = i.id
+        LEFT JOIN estoque_localizacoes l ON i.localizacaoId = l.id
         ${where}
         ORDER BY s.created_at DESC
       `;
@@ -124,10 +124,10 @@ export class SobrasService {
           i.codigo as item_codigo,
           i.nome as item_nome,
           l.codigo as localizacao_codigo,
-          l.nome as localizacao_nome
+          l.descricao as localizacao_nome
         FROM estoque_sobras s
-        LEFT JOIN itens_estoque i ON s.estoque_id = i.id
-        LEFT JOIN localizacoes l ON i.localizacao_id = l.id
+        LEFT JOIN estoque_itens i ON s.estoque_id = i.id
+        LEFT JOIN estoque_localizacoes l ON i.localizacaoId = l.id
         WHERE s.id = ${id} AND s.loja_id = ${context.lojaId}
       `;
 
@@ -335,10 +335,10 @@ export class SobrasService {
           i.codigo as item_codigo,
           i.nome as item_nome,
           l.codigo as localizacao_codigo,
-          l.nome as localizacao_nome
+          l.descricao as localizacao_nome
         FROM estoque_sobras s
-        LEFT JOIN itens_estoque i ON s.estoque_id = i.id
-        LEFT JOIN localizacoes l ON i.localizacao_id = l.id
+        LEFT JOIN estoque_itens i ON s.estoque_id = i.id
+        LEFT JOIN estoque_localizacoes l ON i.localizacaoId = l.id
         ${whereClause}
         ORDER BY s.area DESC, s.quantidade DESC
         LIMIT 20

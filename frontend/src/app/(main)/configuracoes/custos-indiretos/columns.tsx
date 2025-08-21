@@ -13,6 +13,7 @@ import {
 import { formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { custosIndiretosApi } from '@/lib/api-client';
 
 interface CustoIndireto {
   id: string;
@@ -69,18 +70,10 @@ export const columns: ColumnDef<CustoIndireto>[] = [
           const token = localStorage.getItem('access_token');
           if (!token) return;
 
-          const response = await fetch(`http://localhost:3001/custos-indiretos/${custoIndireto.id}`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` },
-          });
-
-          if (response.ok) {
-            toast.success('Custo indireto excluído com sucesso!');
-            // Recarregar a página para atualizar a lista
-            window.location.reload();
-          } else {
-            toast.error('Erro ao excluir custo indireto');
-          }
+          await custosIndiretosApi.delete(custoIndireto.id, token);
+          toast.success('Custo indireto excluído com sucesso!');
+          // Recarregar a página para atualizar a lista
+          window.location.reload();
         } catch (error) {
           console.error('Erro ao excluir custo indireto:', error);
           toast.error('Erro ao excluir custo indireto');

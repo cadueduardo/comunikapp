@@ -3,6 +3,7 @@
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { InsumoForm, InsumoFormValues } from '../insumo-form';
+import { insumosApi } from '@/lib/api-client';
 
 export default function NovoInsumoPage() {
   const router = useRouter();
@@ -15,26 +16,14 @@ export default function NovoInsumoPage() {
         ? parseFloat(data.custo_unitario) 
         : data.custo_unitario;
         
-      const response = await fetch('http://localhost:3001/insumos', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ...data,
-          custo_unitario: custo,
-          estoque_minimo: data.estoque_minimo ? Number(data.estoque_minimo) : undefined,
-        }),
-      });
-
-      if (response.ok) {
-        toast.success('Insumo criado com sucesso!');
-        router.push('/insumos');
-      } else {
-        const errorData = await response.json();
-        toast.error(`Falha ao criar insumo: ${errorData.message}`);
-      }
+      await insumosApi.create({
+        ...data,
+        custo_unitario: custo,
+        estoque_minimo: data.estoque_minimo ? Number(data.estoque_minimo) : undefined,
+      }, token);
+      
+      toast.success('Insumo criado com sucesso!');
+      router.push('/insumos');
     } catch (error) {
       toast.error('Ocorreu um erro ao conectar com o servidor.');
       console.error(error);

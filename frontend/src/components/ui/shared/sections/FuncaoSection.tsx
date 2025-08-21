@@ -33,6 +33,22 @@ export function FuncaoSection({
   customFields,
   customActions
 }: FuncaoSectionProps) {
+  // Função auxiliar para converter valores de forma robusta
+  const converterValor = (valor: any): number => {
+    if (valor === null || valor === undefined) return 0;
+    if (typeof valor === 'number') return valor;
+    if (typeof valor === 'string') return parseFloat(valor.replace(',', '.')) || 0;
+    // Se for um objeto Decimal do Prisma (tem propriedade toString)
+    if (valor && typeof valor.toString === 'function') {
+      try {
+        return parseFloat(valor.toString().replace(',', '.')) || 0;
+      } catch {
+        return 0;
+      }
+    }
+    return 0;
+  };
+
   const form = useFormContext();
 
   const handleAddFuncao = () => {
@@ -150,7 +166,7 @@ export function FuncaoSection({
               <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div>Custo: {formatCurrency(custoCalculado)} ({formatCurrency(funcaoSelecionada.custo_hora)} por hora)</div>
+                    <div>Custo: {formatCurrency(custoCalculado)} ({formatCurrency(converterValor(funcaoSelecionada.custo_hora))} por hora)</div>
                     <div className="text-green-700 mt-1 font-medium">
                       {funcaoSelecionada.nome} • {horasTrabalhadas}h
                       {funcaoSelecionada.maquina && ` • ${funcaoSelecionada.maquina.nome}`}

@@ -54,11 +54,9 @@ export default function LocalizacaoForm({ localizacaoId }: LocalizacaoFormProps)
   const fetchLocalizacao = async (id: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/api/estoque/localizacoes/${id}`, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const response = await fetch(`/api/estoque/localizacoes/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
       });
       if (response.ok) {
         const data = await response.json();
@@ -105,8 +103,8 @@ export default function LocalizacaoForm({ localizacaoId }: LocalizacaoFormProps)
       };
 
       const url = localizacaoId 
-        ? `http://localhost:3001/api/estoque/localizacoes/${localizacaoId}`
-        : 'http://localhost:3001/api/estoque/localizacoes';
+        ? `/api/estoque/localizacoes/${localizacaoId}`
+        : '/api/estoque/localizacoes';
 
       const method = localizacaoId ? 'PUT' : 'POST';
 

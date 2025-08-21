@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWebSocket } from '@/hooks/use-websocket';
+import { buildApiUrl } from '@/lib/config';
 
 interface Anexo {
   nome_arquivo: string;
@@ -181,7 +182,7 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
   // useEffect(() => {
   //   if (!orcamentoId) return;
 
-  //   const eventSource = new EventSource(`http://localhost:3001/orcamentos/${orcamentoId}/events`);
+  //   const eventSource = new EventSource(buildApiUrl(`/orcamentos/${orcamentoId}/events`));
     
   //   eventSource.onmessage = (event) => {
   //     try {
@@ -245,8 +246,8 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
       
       // Usar endpoint correto baseado no modo
       const endpoint = isPublic 
-        ? `http://localhost:3001/orcamentos/${orcamentoId}/mensagens/publico`
-        : `http://localhost:3001/orcamentos/${orcamentoId}/mensagens`;
+        ? buildApiUrl(`/orcamentos/${orcamentoId}/mensagens/publico`)
+        : buildApiUrl(`/orcamentos/${orcamentoId}/mensagens`);
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json'
@@ -264,9 +265,28 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
 
       if (response.ok) {
         const data = await response.json();
+        console.log('🔍 Dados brutos recebidos do backend:', data);
+        
+        // Processar anexos das mensagens (parsear JSON strings para objetos)
+        const mensagensProcessadas = data.map((msg: Mensagem) => {
+          console.log('🔍 Processando mensagem:', msg.id, 'anexos:', msg.anexos, 'tipo:', typeof msg.anexos);
+          
+          if (msg.anexos && typeof msg.anexos === 'string') {
+            try {
+              msg.anexos = JSON.parse(msg.anexos);
+              console.log('🔍 Anexos parseados:', msg.anexos);
+            } catch (e) {
+              console.error('Erro ao parsear anexos JSON:', e);
+              msg.anexos = [];
+            }
+          }
+          return msg;
+        });
+        
+        console.log('🔍 Mensagens processadas:', mensagensProcessadas);
         
         // Verificar se há novas mensagens
-        const novasMensagensCount = data.filter((msg: Mensagem) => 
+        const novasMensagensCount = mensagensProcessadas.filter((msg: Mensagem) => 
           !mensagens.some(existing => existing.id === msg.id) && msg.tipo !== 'SISTEMA'
         ).length;
         
@@ -274,7 +294,7 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
           setNovasMensagens(novasMensagensCount);
         }
         
-        setMensagens(data);
+        setMensagens(mensagensProcessadas);
       } else {
         console.error('Erro ao carregar mensagens:', response.status, response.statusText);
         toast.error('Erro ao carregar mensagens');
@@ -290,19 +310,36 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
   const marcarComoLidas = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const mensagensNaoLidas = mensagens.filter(msg => !msg.visualizada && msg.tipo !== 'SISTEMA');
+      // Filtrar apenas mensagens que não são temporárias e não estão visualizadas
+      const mensagensNaoLidas = mensagens.filter(msg => 
+        !msg.visualizada && 
+        msg.tipo !== 'SISTEMA' && 
+        !msg.id.startsWith('temp_') // Não tentar marcar mensagens temporárias
+      );
+      
+      console.log('👁️ Marcando como lidas:', mensagensNaoLidas.length, 'mensagens');
       
       for (const mensagem of mensagensNaoLidas) {
-        await fetch(`http://localhost:3001/orcamentos/${orcamentoId}/mensagens/${mensagem.id}/visualizar`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+        try {
+          const response = await fetch(buildApiUrl(`/orcamentos/${orcamentoId}/mensagens/${mensagem.id}/visualizar`), {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            console.log('✅ Mensagem marcada como lida:', mensagem.id);
+          } else {
+            console.warn('⚠️ Erro ao marcar mensagem como lida:', mensagem.id, response.status);
           }
-        });
+        } catch (error) {
+          console.warn('⚠️ Erro individual ao marcar mensagem como lida:', mensagem.id, error);
+        }
       }
     } catch (error) {
-      console.error('Erro ao marcar como lidas:', error);
+      console.error('❌ Erro geral ao marcar como lidas:', error);
     }
   };
 
@@ -349,8 +386,8 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
       
       // Usar endpoint correto baseado no modo
       const endpoint = isPublic 
-        ? `http://localhost:3001/orcamentos/${orcamentoId}/mensagens/publico`
-        : `http://localhost:3001/orcamentos/${orcamentoId}/mensagens`;
+        ? buildApiUrl(`/orcamentos/${orcamentoId}/mensagens/publico`)
+        : buildApiUrl(`/orcamentos/${orcamentoId}/mensagens`);
       
       // Preparar dados para envio
       let body: string | FormData;
@@ -644,20 +681,33 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
                       <div className="bg-gray-50 p-2 rounded-lg">
                         <p className="text-sm whitespace-pre-line">{mensagem.mensagem}</p>
                         {(() => {
+                          // Debug: verificar anexos da mensagem
+                          console.log('🔍 Renderizando mensagem:', mensagem.id, 'anexos:', mensagem.anexos);
+                          
                           // Garantir que anexos seja um array
                           let anexosArray = [];
                           if (mensagem.anexos) {
                             if (Array.isArray(mensagem.anexos)) {
                               anexosArray = mensagem.anexos;
+                              console.log('🔍 Anexos já é array:', anexosArray);
                             } else if (typeof mensagem.anexos === 'string') {
                               try {
-                                anexosArray = JSON.parse(mensagem.anexos);
+                                const parsed = JSON.parse(mensagem.anexos);
+                                // Se o resultado for um objeto único, convertê-lo para array
+                                anexosArray = Array.isArray(parsed) ? parsed : [parsed];
+                                console.log('🔍 Anexos parseados de string:', anexosArray);
                               } catch (e) {
                                 console.error('Erro ao parsear anexos JSON:', e);
                                 anexosArray = [];
                               }
+                            } else if (typeof mensagem.anexos === 'object' && mensagem.anexos !== null) {
+                              // Se já é um objeto, convertê-lo para array
+                              anexosArray = [mensagem.anexos];
+                              console.log('🔍 Anexos convertido de objeto para array:', anexosArray);
                             }
                           }
+                          
+                          console.log('🔍 AnexosArray final:', anexosArray);
                           
                           return anexosArray && anexosArray.length > 0 ? (
                             <div className="mt-2 space-y-1">
@@ -688,7 +738,7 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
                                 downloadUrl = urlArquivo;
                               } else {
                                 // URL relativa - construir URL completa
-                                downloadUrl = `http://localhost:3001${urlArquivo}`;
+                                downloadUrl = buildApiUrl(urlArquivo);
                               }
                               
                               // Debug: console.log('📎 Nome original:', nomeArquivoOriginal, 'URL:', downloadUrl);

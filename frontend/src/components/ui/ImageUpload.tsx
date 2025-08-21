@@ -5,6 +5,7 @@ import { useDropzone } from 'react-dropzone';
 import { UploadCloud, X } from 'lucide-react';
 import { Button } from './button';
 import Image from 'next/image';
+import { buildApiUrl } from '@/lib/config';
 
 interface ImageUploadProps {
   onFileSelect: (file: File | null) => void;
@@ -47,7 +48,7 @@ export function ImageUpload({ onFileSelect, currentImageUrl }: ImageUploadProps)
 
   const imageUrl = (preview && preview.startsWith('blob:')) 
     ? preview 
-    : (preview ? `http://localhost:3001${preview}` : null);
+            : (preview ? buildApiUrl(preview) : null);
 
 
   return (

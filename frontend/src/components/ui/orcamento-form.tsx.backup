@@ -566,7 +566,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:3001/clientes', {
+      const response = await fetch('/api/clientes', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -584,7 +584,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:3001/insumos', {
+      const response = await fetch('/api/insumos', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -602,7 +602,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:3001/maquinas', {
+      const response = await fetch('/api/maquinas', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -620,7 +620,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:3001/funcoes', {
+      const response = await fetch('/api/funcoes', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -735,7 +735,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
         impostos_customizados: values.impostos_customizados ? Number(values.impostos_customizados) : undefined,
       };
 
-      const response = await fetch('http://localhost:3001/orcamentos/calcular', {
+      const response = await fetch('/api/orcamentos/calcular', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

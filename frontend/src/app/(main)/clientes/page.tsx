@@ -13,6 +13,7 @@ import { useIsMobile } from '@/hooks/use-media-query';
 import { Plus, Search, Table, LayoutGrid } from "lucide-react";
 import { toast } from 'sonner';
 import { createColumns, type Cliente } from './columns';
+import { clientesApi } from '@/lib/api-client';
 
 export default function ClientesPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -27,16 +28,8 @@ export default function ClientesPage() {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:3001/clientes', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setClientes(data);
-      }
+      const data = await clientesApi.getAll(token);
+      setClientes(data);
     } catch (error) {
       console.error('Erro ao buscar clientes:', error);
     } finally {
@@ -58,23 +51,21 @@ export default function ClientesPage() {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:3001/clientes/search?q=${encodeURIComponent(searchTerm)}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setClientes(data);
-      }
+      const data = await clientesApi.search(searchTerm, token);
+      setClientes(data);
     } catch (error) {
       console.error('Erro ao buscar clientes:', error);
     }
   };
 
-  const handleDelete = async (clienteId: string) => {
-    setConfirmDialog({ open: true, clienteId, loading: true });
+  const handleDelete = (clienteId: string) => {
+    setConfirmDialog({ open: true, clienteId, loading: false });
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmDialog.clienteId) return;
+    
+    setConfirmDialog(prev => ({ ...prev, loading: true }));
     
     try {
       const token = localStorage.getItem('access_token');
@@ -82,22 +73,9 @@ export default function ClientesPage() {
         throw new Error('Token de autenticação não encontrado.');
       }
 
-      const response = await fetch(`http://localhost:3001/clientes/${clienteId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        toast.success('Cliente excluído com sucesso!');
-        fetchClientes();
-      } else {
-        // Tenta ler a mensagem de erro do backend
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || 'Não foi possível excluir o cliente.';
-        toast.error(errorMessage);
-      }
+      await clientesApi.delete(confirmDialog.clienteId, token);
+      toast.success('Cliente excluído com sucesso!');
+      fetchClientes();
     } catch (error: unknown) {
       if (error instanceof Error) {
         toast.error(error.message || 'Ocorreu um erro ao excluir o cliente.');
@@ -105,13 +83,7 @@ export default function ClientesPage() {
         toast.error('Ocorreu um erro ao excluir o cliente.');
       }
     } finally {
-      setConfirmDialog({ open: false });
-    }
-  };
-
-  const confirmDelete = async () => {
-    if (confirmDialog.clienteId) {
-      await handleDelete(confirmDialog.clienteId);
+      setConfirmDialog({ open: false, loading: false });
     }
   };
 

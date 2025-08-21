@@ -3,6 +3,7 @@
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { MaquinaForm, MaquinaFormValues } from '../maquina-form';
+import { maquinasApi } from '@/lib/api-client';
 
 export default function NovaMaquinaPage() {
   const router = useRouter();
@@ -11,6 +12,11 @@ export default function NovaMaquinaPage() {
     try {
       const token = localStorage.getItem('access_token');
       
+      if (!token) {
+        toast.error('Token de autenticação não encontrado.');
+        return;
+      }
+
       // Converter o custo_hora corretamente
       let custo: number;
       if (typeof data.custo_hora === 'string') {
@@ -35,25 +41,10 @@ export default function NovaMaquinaPage() {
 
       console.log('Dados sendo enviados:', requestData);
         
-      const response = await fetch('http://localhost:3001/maquinas', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(requestData),
-      });
+      await maquinasApi.create(requestData, token);
 
-      console.log('Status da resposta:', response.status);
-
-      if (response.ok) {
-        toast.success('Máquina criada com sucesso!');
-        router.push('/configuracoes/maquinas');
-      } else {
-        const errorData = await response.json();
-        console.error('Erro detalhado:', errorData);
-        toast.error(`Falha ao criar máquina: ${errorData.message || 'Erro desconhecido'}`);
-      }
+      toast.success('Máquina criada com sucesso!');
+      router.push('/configuracoes/maquinas');
     } catch (error) {
       console.error('Erro completo:', error);
       toast.error('Ocorreu um erro ao conectar com o servidor.');

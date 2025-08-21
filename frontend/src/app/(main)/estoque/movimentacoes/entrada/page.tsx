@@ -45,8 +45,9 @@ export default function EntradaMovimentacaoPage() {
   const fetchItensEstoque = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/api/estoque/itens', {
+      const response = await fetch('/api/estoque/itens', {
         headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
       });
       if (response.ok) {
         const data = await response.json();
@@ -81,7 +82,7 @@ export default function EntradaMovimentacaoPage() {
 
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/api/estoque/movimentacoes', {
+      const response = await fetch('/api/estoque/movimentacoes', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

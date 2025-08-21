@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     env: {
-        BACKEND_URL: process.env.BACKEND_URL || 'http://localhost:3001',
+        BACKEND_URL: process.env.BACKEND_URL || 'http://localhost:4000',
     },
     images: {
         remotePatterns: [
@@ -14,7 +14,7 @@ const nextConfig = {
             {
                 protocol: 'http',
                 hostname: 'localhost',
-                port: '3001',
+                port: '4000',
                 pathname: '/uploads/**',
             },
         ],

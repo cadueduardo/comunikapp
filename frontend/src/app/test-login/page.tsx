@@ -12,19 +12,19 @@ export default function TestLoginPage() {
 
   const handleTest = async () => {
     try {
-      const response = await fetch('http://localhost:3001/lojas/login', {
+      const loginData = { email, password };
+      const response = await fetch('/api/lojas/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(loginData),
       });
 
-      const data = await response.json();
-      
       if (response.ok) {
-        setResult(`✅ Login bem-sucedido! Token: ${data.access_token.substring(0, 50)}...`);
+        const data = await response.json();
+        setResult(prev => prev + `✅ Login bem-sucedido!\nToken: ${data.access_token.substring(0, 50)}...\n\n`);
         
-        // Testar o endpoint /me
-        const meResponse = await fetch('http://localhost:3001/lojas/me', {
+        // Testar endpoint /me
+        const meResponse = await fetch('/api/lojas/me', {
           headers: {
             'Authorization': `Bearer ${data.access_token}`,
           },
@@ -32,11 +32,12 @@ export default function TestLoginPage() {
         
         if (meResponse.ok) {
           const meData = await meResponse.json();
-          setResult(prev => prev + `\n✅ Endpoint /me funcionando! Usuário: ${meData.nome_completo}`);
+          setResult(prev => prev + `✅ Endpoint /me funcionando! Usuário: ${meData.nome_completo}`);
         } else {
           setResult(prev => prev + `\n❌ Endpoint /me falhou: ${meResponse.status}`);
         }
       } else {
+        const data = await response.json();
         setResult(`❌ Login falhou: ${data.message}`);
       }
     } catch (error) {

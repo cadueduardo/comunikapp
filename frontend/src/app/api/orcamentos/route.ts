@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { buildApiUrl } from '@/lib/config';
 
 export async function POST(request: NextRequest) {
   try {
@@ -6,7 +7,7 @@ export async function POST(request: NextRequest) {
     
     console.log('🔍 Debug - Frontend API - Dados recebidos:', JSON.stringify(body, null, 2));
     
-    const response = await fetch('http://localhost:3001/orcamentos', {
+    const response = await fetch(buildApiUrl('/orcamentos'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const response = await fetch('http://localhost:3001/orcamentos', {
+    const response = await fetch(buildApiUrl('/orcamentos'), {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${request.headers.get('authorization')?.replace('Bearer ', '') || ''}`,

@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { CategoryForm, formSchema } from "./category-form";
+import { categoriasApi } from "@/lib/api-client";
 
 export default function CategoriasConfigPage() {
   const [data, setData] = useState<Categoria[]>([]);
@@ -37,12 +38,13 @@ export default function CategoriasConfigPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3001/categorias', { headers: { 'Authorization': `Bearer ${token}` }});
-      if (response.ok) setData(await response.json());
-      else toast.error("Falha ao buscar categorias.");
+      if (token) {
+        const categorias = await categoriasApi.getAll(token);
+        setData(categorias);
+      }
     } catch (err) {
       console.error(err);
-      toast.error("Ocorreu um erro.");
+      toast.error("Ocorreu um erro ao buscar categorias.");
     } 
     finally { setLoading(false); }
   };
@@ -52,22 +54,14 @@ export default function CategoriasConfigPage() {
   const handleDelete = async (id: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3001/categorias/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (response.ok) {
+      if (token) {
+        await categoriasApi.delete(id, token);
         toast.success("Categoria excluída com sucesso!");
         setData(prev => prev.filter(c => c.id !== id));
-      } else {
-        // Tenta ler a mensagem de erro do backend
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || "Falha ao excluir categoria.";
-        toast.error(errorMessage);
       }
     } catch (err) {
       console.error(err);
-      toast.error("Ocorreu um erro ao conectar ao servidor.");
+      toast.error("Ocorreu um erro ao excluir categoria.");
     }
   };
 
@@ -96,29 +90,32 @@ export default function CategoriasConfigPage() {
 
   const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-    const url = editingCategory ? `http://localhost:3001/categorias/${editingCategory.id}` : 'http://localhost:3001/categorias';
-    const method = editingCategory ? 'PATCH' : 'POST';
 
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(url, {
-        method,
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      });
-
-      if (response.ok) {
-        toast.success(`Categoria ${editingCategory ? 'atualizada' : 'criada'} com sucesso!`);
+      if (token) {
+        if (editingCategory) {
+          await categoriasApi.update(editingCategory.id, values, token);
+          toast.success("Categoria atualizada com sucesso!");
+        } else {
+          await categoriasApi.create(values, token);
+          toast.success("Categoria criada com sucesso!");
+        }
         fetchCategorias();
         setIsFormOpen(false);
         setEditingCategory(null);
-      } else {
-        const error = await response.json();
-        toast.error(`Falha: ${error.message || 'Erro desconhecido'}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error("Ocorreu um erro ao conectar ao servidor.");
+      
+      // Tratar erro de duplicidade
+      if (err instanceof Error && err.message.includes('Já existe uma categoria')) {
+        toast.error(err.message);
+      } else if (err instanceof Error && err.message.includes('HTTP error! status: 500')) {
+        toast.error("Erro interno do servidor. Tente novamente.");
+      } else {
+        toast.error("Ocorreu um erro ao salvar categoria.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -160,6 +157,7 @@ export default function CategoriasConfigPage() {
             onSubmit={handleFormSubmit}
             isSubmitting={isSubmitting}
             defaultValues={editingCategory || undefined}
+            categoriaId={editingCategory?.id}
           />
         </DialogContent>
       </Dialog>

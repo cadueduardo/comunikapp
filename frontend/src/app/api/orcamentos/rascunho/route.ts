@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { buildApiUrl } from '@/lib/config';
 
 export async function POST(request: NextRequest) {
   try {
@@ -7,7 +8,7 @@ export async function POST(request: NextRequest) {
     
     console.log('📤 Enviando rascunho para backend:', body);
     
-    const response = await fetch('http://localhost:3001/orcamentos/rascunho', {
+    const response = await fetch(buildApiUrl('/orcamentos/rascunho'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

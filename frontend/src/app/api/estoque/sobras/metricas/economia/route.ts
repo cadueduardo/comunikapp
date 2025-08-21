@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
     }
 
-    const response = await fetch(`${process.env.BACKEND_URL}/estoque/sobras/metricas/economia`, {
+    const response = await fetch(`${process.env.BACKEND_URL}/api/estoque/sobras/metricas/economia`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',

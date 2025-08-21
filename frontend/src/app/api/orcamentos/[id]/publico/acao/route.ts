@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { buildApiUrl } from '@/lib/config';
 
 export async function POST(
   request: NextRequest,
@@ -13,7 +14,7 @@ export async function POST(
       body: body 
     });
     
-    const response = await fetch(`http://localhost:3001/orcamentos/${id}/publico/acao`, {
+    const response = await fetch(buildApiUrl(`/orcamentos/${id}/publico/acao`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

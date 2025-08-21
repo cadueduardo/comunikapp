@@ -1,5 +1,5 @@
 import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
-import { FuncaoUsuario } from '@prisma/client';
+import { usuario_funcao } from '@prisma/client';
 
 export class CreateUsuarioDto {
   @IsString()
@@ -13,8 +13,8 @@ export class CreateUsuarioDto {
   @IsString()
   telefone?: string;
 
-  @IsEnum(FuncaoUsuario)
-  funcao!: FuncaoUsuario;
+  @IsEnum(usuario_funcao)
+  funcao!: usuario_funcao;
 
   @IsString()
   loja_id!: string;
