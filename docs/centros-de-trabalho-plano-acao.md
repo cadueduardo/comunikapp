@@ -126,3 +126,63 @@ Reaproveitar o padrão de "Estoque/Itens" (imagem de referência) como baseline 
 - Teste do usuário aprovado (validação manual).
 - Documentação atualizada (este arquivo + OpenAPI, quando aplicável).
 - Commit no branch `feature/centros-de-trabalho` com mensagem padronizada.
+
+## Handoff (continuidade para o próximo agente)
+
+Resumo rápido (estado atual):
+- Branch de trabalho: `feature/centros-de-trabalho`.
+- Prisma atualizado com novos campos/modelos/enums (multi-tenant `loja_id`):
+  - `maquina`: `modo_producao`, `setup_min`, `velocidade_m2_h`, `eficiencia_percent`.
+  - `funcao`: `tipo_calculo`, `fator_acompanhamento`, `horas_por_m2`, `horas_por_unidade`, `eficiencia_percent`.
+  - Novos modelos: `modo_impressao`, `servico_manual` com `@@unique([loja_id, nome])`.
+  - Enums: `maquina_modo_producao` (M2_H, ML_H, MANUAL) e `funcao_tipo_calculo` (ACOMPANHA_MAQUINA, POR_M2, POR_UNIDADE, MANUAL).
+- Migração gerada por diff (sem shadow DB): `backend/prisma/migrations/20250821184507_ct_fase1_modelagem/migration.sql`.
+- Observação Windows: `npx prisma generate` pode falhar com EPERM em `query_engine-windows.dll.node`. Evitar output customizado. Se necessário, fechar processos que travam a DLL e tentar novamente.
+
+Onde continuar (Fase 2 — Backend/motor):
+- Arquivo-alvo principal: `backend/src/orcamentos/orcamentos.service.ts`.
+  - Funções a evoluir: `calcularCustosMaquinas` e `calcularCustosFuncoes`.
+  - Manter preview no frontend 100% client-side e persistir o cálculo no backend.
+- DTOs relacionados: `backend/src/orcamentos/dto/calcular-orcamento.dto.ts` e `backend/src/orcamentos/dto/resultado-calculo.dto.ts`.
+
+Regras de cálculo a implementar (incremental, sem quebrar compatibilidade):
+- Máquinas (`maquina.modo_producao`):
+  - M2_H: horas = (area_total / velocidade_m2_h) × (100/eficiencia) + (setup_min/60).
+  - ML_H: horas = (comprimento_linear_total / velocidade_ml_h) × (100/eficiencia) + (setup_min/60). Obs.: `velocidade_ml_h` ainda não modelado — avaliar inserir quando necessário.
+  - MANUAL: usar `horas_utilizadas` informado (override manual).
+- Funções (`funcao.tipo_calculo`):
+  - ACOMPANHA_MAQUINA: horas = horas_da_máquina × (fator_acompanhamento || 1).
+  - POR_M2: horas = area_total × horas_por_m2.
+  - POR_UNIDADE: horas = quantidade_produto × horas_por_unidade.
+  - MANUAL: usar `horas_trabalhadas` informado.
+- Eficiência: aplicar como multiplicador de tempo (ex.: 80% → divide velocidade por 0,8 ou multiplica horas por 1/0,8).
+- Setup: somar `setup_min/60` às horas do item.
+- Quantidade: multiplicar totais por `quantidade_produto` quando fizer sentido. Manter coerência FE/BE.
+
+Entradas necessárias no cálculo:
+- `area_total`, `quantidade_produto` e listas de máquinas/funções do orçamento (DTO atual). Se faltar parâmetro, usar fallback MANUAL sem erro.
+
+Cuidados e premissas obrigatórias:
+- Multi-tenant: sempre filtrar por `loja_id`.
+- Preview: não alterar UX/format do `CalculoPreview.tsx`.
+- Persistência: backend deve refletir o preview ao salvar/atualizar (já ajustado em `findAll`/`update`).
+- Prisma Decimal: converter com helper seguro (ex.: `toNumberSafe`).
+- Fallback manual: não quebrar cenários incompletos.
+- `@prisma/client` padrão (sem output customizado).
+
+Testes/validação (ao finalizar Fase 2):
+- Unit: fórmulas (máquinas/funções) com cenários M2_H, POR_M2, POR_UNIDADE, ACOMPANHA_MAQUINA, MANUAL.
+- Smoke/E2E: orçamento preview × grid igual, com `quantidade_produto` > 1.
+- Build/lint: verdes; DTOs compatíveis; OpenAPI na próxima fase.
+
+Comandos úteis (PowerShell):
+- `cd backend; npx prisma format`
+- Migração por diff (sem shadow DB):
+  - Criar pasta: `cd backend; $ts = Get-Date -Format "yyyyMMddHHmmss"; $mig = "prisma/migrations/" + $ts + "_ct_fase2_calculo"; New-Item -ItemType Directory -Path $mig -Force | Out-Null`
+  - Gerar diff: `$env:DATABASE_URL=(Get-Content .env | Where-Object {$_ -match '^DATABASE_URL='} | ForEach-Object {$_ -replace '^DATABASE_URL=\"?','' -replace '\"$',''}); npx prisma migrate diff --from-url \"$env:DATABASE_URL\" --to-schema-datamodel prisma/schema.prisma --script | Set-Content -Path $mig\migration.sql`
+
+Critérios de aceite (Fase 2):
+- Preview e grid iguais após salvar/atualizar.
+- Automação aplicada quando parâmetros presentes; fallback manual quando faltarem.
+- Logs de cálculo claros (entrada → horas → custos → preço final).
+- Unit tests ≥ 80% nas fórmulas.
