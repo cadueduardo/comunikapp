@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
@@ -73,6 +74,18 @@ async function bootstrap() {
   const uploadsPath = join(process.cwd(), 'uploads');
   console.log('📁 Servindo arquivos estáticos de:', uploadsPath);
   app.use('/uploads', express.static(uploadsPath));
+
+  // Swagger OpenAPI
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Comunikapp API')
+    .setDescription('Documentação da API (Orçamentos, Estoque, etc.)')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, swaggerDocument, {
+    swaggerOptions: { persistAuthorization: true },
+  });
 
   // Log de debug para identificar problema
   const port = process.env.PORT ?? 4000;
