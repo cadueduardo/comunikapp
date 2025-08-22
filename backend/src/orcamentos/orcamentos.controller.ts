@@ -21,8 +21,10 @@ import { AcaoClienteDto } from './dto/acao-cliente.dto';
 import { CurrentLojaId } from '../auth/decorators';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public } from '../auth/decorators';
+import { ApiTags } from '@nestjs/swagger';
 
 @Controller('orcamentos')
+@ApiTags('Orçamentos')
 @UseGuards(JwtAuthGuard)
 export class OrcamentosController {
   constructor(private readonly orcamentosService: OrcamentosService) {}

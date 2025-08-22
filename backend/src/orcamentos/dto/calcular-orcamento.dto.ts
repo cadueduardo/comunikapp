@@ -42,9 +42,10 @@ export class MaquinaCalculoDto {
   maquina_id: string;
 
   @IsNumber()
+  @IsOptional()
   @IsPositive()
   @Type(() => Number)
-  horas_utilizadas: number;
+  horas_utilizadas?: number;
 }
 
 export class FuncaoCalculoDto {
@@ -53,9 +54,10 @@ export class FuncaoCalculoDto {
   funcao_id: string;
 
   @IsNumber()
+  @IsOptional()
   @IsPositive()
   @Type(() => Number)
-  horas_trabalhadas: number;
+  horas_trabalhadas?: number;
 }
 
 export class CalcularOrcamentoDto {
