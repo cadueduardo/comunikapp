@@ -10,6 +10,7 @@ import {
   IconLogout,
   IconBuildingWarehouse,
   IconPackage,
+  IconTools,
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -179,6 +180,13 @@ export default function DashboardLayout({
       href: '/produtos',
       icon: (
         <IconPackage className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      ),
+    },
+    {
+      label: 'Centros de Trabalho',
+      href: '/centros-de-trabalho',
+      icon: (
+        <IconTools className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
       ),
     },
     {
