@@ -22,6 +22,7 @@ import { CurrentLojaId } from '../auth/decorators';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public } from '../auth/decorators';
 import { ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 @Controller('orcamentos')
 @ApiTags('Orçamentos')
@@ -80,6 +81,45 @@ export class OrcamentosController {
    * Implementa a Tarefa 2.5 - Motor de Cálculo de Orçamento
    */
   @Post('calcular')
+  @ApiOperation({ summary: 'Calcular orçamento (preview)', description: 'Executa o motor de cálculo utilizando automação de horas quando horas não são informadas.' })
+  @ApiBody({
+    type: CalcularOrcamentoDto,
+    examples: {
+      banner12m2Qtd2: {
+        summary: 'Banner 1,2m² (quantidade 2), com uma máquina e uma função',
+        value: {
+          nome_servico: 'Banner',
+          descricao: 'Banner 90x120cm - 400g lona',
+          horas_producao: 1,
+          quantidade_produto: 2,
+          itens: [
+            { insumo_id: 'insumo_lona', quantidade: 1.08, area_produto: 1.2 },
+            { insumo_id: 'tinta', quantidade: 30 },
+          ],
+          maquinas: [
+            { maquina_id: 'maq_plotter_hp', horas_utilizadas: 0.2 },
+          ],
+          funcoes: [
+            { funcao_id: 'op_plotter', horas_trabalhadas: 0.2 },
+          ],
+          margem_lucro_customizada: 20,
+          impostos_customizados: 25,
+        },
+      },
+      somenteAutomacao: {
+        summary: 'Somente automação (sem horas informadas)',
+        value: {
+          nome_servico: 'Adesivo recorte',
+          horas_producao: 1,
+          quantidade_produto: 1,
+          itens: [ { insumo_id: 'vinil_adesivo', quantidade: 1 } ],
+          maquinas: [ { maquina_id: 'maq_recorte' } ],
+          funcoes: [ { funcao_id: 'operador_recorte' } ],
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Resultado do cálculo', type: ResultadoCalculoDto })
   async calcularOrcamento(
     @Body() dto: CalcularOrcamentoDto,
     @CurrentLojaId() lojaId: string,
