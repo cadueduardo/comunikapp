@@ -1,4 +1,4 @@
-export { default } from '../../../configuracoes/funcoes/page';
+export { default } from '../../configuracoes/funcoes/page';
 
 
 

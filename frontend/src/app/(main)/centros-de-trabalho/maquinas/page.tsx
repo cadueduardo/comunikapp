@@ -1,4 +1,4 @@
-export { default } from '../../../configuracoes/maquinas/page';
+export { default } from '../../configuracoes/maquinas/page';
 
 
 
