@@ -27,6 +27,8 @@ async function bootstrap() {
       'x-loja-id',
       'x-user-roles',
       'x-internal-token',
+      'Cache-Control',
+      'Pragma',
     ],
     exposedHeaders: ['Content-Length'],
     credentials: true,
