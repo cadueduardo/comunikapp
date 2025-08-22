@@ -7,10 +7,6 @@ export class ApiClient {
     const url = buildApiUrl(endpoint);
     const headers = getAuthHeaders(token);
     
-    // Evitar cache do navegador/proxy em GETs
-    headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0';
-    headers['Pragma'] = 'no-cache';
-    
     try {
       const response = await fetch(url, {
         method: 'GET',
