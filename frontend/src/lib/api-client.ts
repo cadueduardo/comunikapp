@@ -7,10 +7,15 @@ export class ApiClient {
     const url = buildApiUrl(endpoint);
     const headers = getAuthHeaders(token);
     
+    // Evitar cache do navegador/proxy em GETs
+    headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0';
+    headers['Pragma'] = 'no-cache';
+    
     try {
       const response = await fetch(url, {
         method: 'GET',
         headers,
+        cache: 'no-store',
       });
       
       if (!response.ok) {
@@ -212,7 +217,7 @@ export const maquinasApi = {
   getAll: (token: string) => ApiClient.get('/maquinas', token),
   getById: (id: string, token: string) => ApiClient.get(`/maquinas/${id}`, token),
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/maquinas', data, token),
-  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/maquinas/${id}`, data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/maquinas/${id}`, data, token),
   delete: (id: string, token: string) => ApiClient.delete(`/maquinas/${id}`, token),
 };
 
@@ -220,7 +225,7 @@ export const funcoesApi = {
   getAll: (token: string) => ApiClient.get('/funcoes', token),
   getById: (id: string, token: string) => ApiClient.get(`/funcoes/${id}`, token),
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/funcoes', data, token),
-  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/funcoes/${id}`, data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/funcoes/${id}`, data, token),
   delete: (id: string, token: string) => ApiClient.delete(`/funcoes/${id}`, token),
 };
 
