@@ -134,6 +134,8 @@ export class OrcamentosController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Criar orçamento' })
+  @ApiResponse({ status: 201, description: 'Orçamento criado com sucesso' })
   async create(@Body() createOrcamentoDto: CreateOrcamentoDto, @Request() req) {
     console.log('💼 Criando novo orçamento...');
     // Processando dados do orçamento...
@@ -150,6 +152,8 @@ export class OrcamentosController {
 
   @Post('rascunho')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Salvar rascunho de orçamento' })
+  @ApiResponse({ status: 200, description: 'Rascunho salvo com sucesso' })
   async salvarRascunho(
     @Body() createOrcamentoDto: CreateOrcamentoDto,
     @Request() req,
@@ -162,12 +166,16 @@ export class OrcamentosController {
 
   @Post(':id/enviar')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Enviar orçamento ao cliente' })
+  @ApiResponse({ status: 200, description: 'Orçamento enviado' })
   async enviarOrcamento(@Param('id') id: string, @Request() req) {
     return this.orcamentosService.enviarOrcamento(id, req.user.loja_id);
   }
 
   @Post('aprovar/:codigo')
   @Public()
+  @ApiOperation({ summary: 'Aprovar orçamento (público)' })
+  @ApiResponse({ status: 200, description: 'Aprovação registrada' })
   async aprovarOrcamento(@Param('codigo') codigo: string) {
     console.log('🔍 Controller - Código recebido:', JSON.stringify(codigo));
     console.log('🔍 Controller - Enviando para service...');
@@ -176,6 +184,8 @@ export class OrcamentosController {
 
   @Post('reenviar-codigo/:id')
   @Public()
+  @ApiOperation({ summary: 'Reenviar código de aprovação (público)' })
+  @ApiResponse({ status: 200, description: 'Código reenviado' })
   async reenviarCodigoAprovacao(@Param('id') id: string) {
     console.log(
       '📧 Controller - Reenviando código de aprovação para orçamento:',
@@ -185,6 +195,8 @@ export class OrcamentosController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'Listar orçamentos' })
+  @ApiResponse({ status: 200, description: 'Lista de orçamentos retornada' })
   async findAll(@CurrentLojaId() lojaId: string) {
     const orcamentos = await this.orcamentosService.findAll(lojaId);
 
@@ -239,6 +251,7 @@ export class OrcamentosController {
   }
 
   @Get('test/:id')
+  @ApiOperation({ summary: 'Testar busca de orçamento por ID (debug)' })
   async testFindOne(@Param('id') id: string, @CurrentLojaId() lojaId: string) {
     // Usar o service para buscar
     try {
@@ -258,11 +271,13 @@ export class OrcamentosController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Buscar orçamento por ID' })
   async findOne(@Param('id') id: string, @CurrentLojaId() lojaId: string) {
     return this.orcamentosService.findOne(id, lojaId);
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Atualizar orçamento' })
   async update(
     @Param('id') id: string,
     @Body() updateOrcamentoDto: UpdateOrcamentoDto,
@@ -272,6 +287,7 @@ export class OrcamentosController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Remover orçamento' })
   async remove(@Param('id') id: string, @CurrentLojaId() lojaId: string) {
     return this.orcamentosService.remove(id, lojaId);
   }
@@ -282,12 +298,14 @@ export class OrcamentosController {
 
   @Get(':id/publico')
   @Public()
+  @ApiOperation({ summary: 'Buscar orçamento (público)' })
   async findOnePublico(@Param('id') id: string) {
     return this.orcamentosService.findOnePublico(id);
   }
 
   @Post(':id/publico/acao')
   @Public()
+  @ApiOperation({ summary: 'Executar ação pública do cliente (aprovar/rejeitar/negociar)' })
   async acaoClientePublico(
     @Param('id') id: string,
     @Body()
@@ -312,6 +330,7 @@ export class OrcamentosController {
    */
   @Post(':orcamentoId/mensagens/:mensagemId/visualizar')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Marcar mensagem como visualizada' })
   async marcarMensagemComoVisualizada(
     @Param('orcamentoId') orcamentoId: string,
     @Param('mensagemId') mensagemId: string,
@@ -324,6 +343,7 @@ export class OrcamentosController {
 
   @Post('recalcular-existentes')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Recalcular orçamentos existentes (admin)' })
   async recalcularOrcamentosExistentes(@Request() req) {
     const lojaId = req.user.loja_id;
     return this.orcamentosService.recalcularOrcamentosExistentes(lojaId);
