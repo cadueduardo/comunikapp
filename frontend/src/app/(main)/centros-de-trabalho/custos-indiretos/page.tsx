@@ -1,15 +1,4 @@
-'use client';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-
-export default function CustosIndiretosPage() {
-  const router = useRouter();
-  useEffect(() => {
-    router.replace('/configuracoes/custos-indiretos');
-  }, [router]);
-
-  return null;
-}
+export { default } from '../../../configuracoes/custos-indiretos/page';
 
 
 
