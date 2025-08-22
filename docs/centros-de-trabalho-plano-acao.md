@@ -128,6 +128,32 @@ Reaproveitar o padrão de "Estoque/Itens" (imagem de referência) como baseline 
 - Commit no branch `feature/centros-de-trabalho` com mensagem padronizada.
 
 ## Handoff (continuidade para o próximo agente)
+Resumo do dia (estado da Fase 2):
+- Código de automação criado em `backend/src/orcamentos/calculo-automacao.ts` com funções puras para horas de máquinas e funções (suporte a eficiência e setup). Sem lints.
+- `OrcamentosService` integrado parcialmente:
+  - Máquinas (M2_H): quando `horas_utilizadas` não informado, calcula horas a partir de `areaTotalM2` do orçamento, `velocidade_m2_h`, `eficiencia_percent` e `setup_min`. Fallback manual preservado.
+  - Funções: automações para `POR_M2`, `ACOMPANHA_MAQUINA` e `POR_UNIDADE` quando horas não informadas, usando `areaTotalM2`, `horasMaquinas` e `quantidade_produto`. Fallback manual preservado.
+  - Quantidade aplicada nos totais, mantendo alinhamento com o preview (que permanece client-side, inalterado).
+- Pendências: muitos lints em `OrcamentosService` (pré-existentes e alguns de formatação após logs). Corrigir gradualmente apenas nas áreas tocadas para não ampliar escopo.
+
+Próximos passos sugeridos (amanhã):
+1) Concluir limpeza mínima de lints no `OrcamentosService` apenas nas linhas alteradas (quebras de linha e nomes de variáveis). Evitar refactors amplos agora.
+2) Criar testes unitários para `calculo-automacao.ts` cobrindo:
+   - Máquinas: M2_H com/sem eficiência e setup; fallback manual.
+   - Funções: POR_M2, ACOMPANHA_MAQUINA, POR_UNIDADE; fallback manual; eficiência e setup.
+3) Validar na UI: orçamento com máquina M2_H e função ACOMPANHA_MAQUINA; conferir preview x grid após salvar. Em caso de divergência, revisar multiplicadores de quantidade e cálculo de horas.
+4) Commitar testes e ajustes.
+
+Notas operacionais:
+- Commit: usar mensagens ASCII simples para evitar glitches do PSReadLine no PowerShell.
+- Prisma: não usar output customizado; usar `migrate diff` sem shadow DB se necessário.
+- Multi-tenant: garantir filtros por `loja_id` em todas as consultas.
+
+Critérios de aceite parciais da Fase 2 para encerrar este ciclo:
+- Testes unitários passando para `calculo-automacao.ts` (≥80% no arquivo).
+- Preview e grid iguais após salvar para ao menos 1 cenário com M2_H + ACOMPANHA_MAQUINA e 1 cenário com POR_M2.
+- Lints limpos nas linhas alteradas.
+
 
 Resumo rápido (estado atual):
 - Branch de trabalho: `feature/centros-de-trabalho`.
