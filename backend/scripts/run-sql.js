@@ -6,7 +6,8 @@ const path_1 = require("path");
 async function main() {
     const prisma = new client_1.PrismaClient();
     try {
-        const sqlPath = (0, path_1.join)(__dirname, '..', 'sql', 'create_estoque_lotes_if_not_exists.sql');
+        const argPath = process.argv[2];
+        const sqlPath = argPath ? (0, path_1.resolve)(process.cwd(), argPath) : (0, path_1.join)(__dirname, '..', 'sql', 'create_estoque_lotes_if_not_exists.sql');
         const sql = (0, fs_1.readFileSync)(sqlPath, 'utf8');
         const statements = sql
             .split(';')
@@ -15,7 +16,7 @@ async function main() {
         for (const stmt of statements) {
             await prisma.$executeRawUnsafe(stmt);
         }
-        console.log('✅ Tabela estoque_lotes verificada/criada com sucesso');
+        console.log('✅ SQL executado com sucesso:', sqlPath);
     }
     catch (e) {
         console.error('❌ Falha ao executar SQL:', e.message);

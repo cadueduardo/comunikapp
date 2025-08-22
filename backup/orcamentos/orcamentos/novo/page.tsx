@@ -178,8 +178,10 @@ export default function NovoOrcamentoPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
+    // IMPORTANTE: Sem defaultValues vazios para evitar sobrescrever dados reais
     defaultValues: {
       cliente_id: '',
+      margem_lucro_customizada: '',
       margem_lucro_customizada: '',
       impostos_customizados: '',
       condicoes_comerciais: '',
@@ -190,7 +192,7 @@ export default function NovoOrcamentoPage() {
         altura_produto: '',
         unidade_medida_produto: '',
         area_produto: '',
-        materiais: [{ insumo_id: '', quantidade: '1' }],
+        materiais: [],
         maquinas: [],
         funcoes: [],
       }],

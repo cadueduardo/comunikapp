@@ -145,11 +145,41 @@ export function ProdutoSelectionModal({ open, onClose, onSelect }: ProdutoSelect
     return matchesSearch && matchesCategoria && produto.ativo;
   });
 
-  // Calcular custo total do produto
+  // Calcular custo total do produto (em tempo real, igual ao preview)
   const calcularCustoTotal = (produto: Produto) => {
-    const custoInsumos = produto.itens.reduce((sum, item) => sum + item.custo_total, 0);
-    const custoMaquinas = produto.maquinas.reduce((sum, maquina) => sum + maquina.custo_total, 0);
-    const custoFuncoes = produto.funcoes.reduce((sum, funcao) => sum + funcao.custo_total, 0);
+    // Calcular custo dos materiais em tempo real
+    const custoInsumos = produto.itens.reduce((sum, item) => {
+      const insumo = item.insumo;
+      const quantidade = Number(item.quantidade);
+      const custoUnitario = Number(insumo.custo_unitario);
+      const quantidadeCompra = Number(insumo.quantidade_compra);
+      const fatorConversao = Number(insumo.fator_conversao);
+
+      // Calcular custo por unidade de uso (mesmo que o preview)
+      let custoPorUnidadeUso = 0;
+      if (quantidadeCompra > 0 && fatorConversao > 0) {
+        custoPorUnidadeUso = custoUnitario / (quantidadeCompra * fatorConversao);
+      }
+
+      // Custo total para este item
+      const custoTotalItem = quantidade * custoPorUnidadeUso;
+      return sum + custoTotalItem;
+    }, 0);
+
+    // Calcular custo das máquinas em tempo real
+    const custoMaquinas = produto.maquinas.reduce((sum, maquina) => {
+      const horas = Number(maquina.horas_utilizadas);
+      const custoPorHora = Number(maquina.maquina.custo_hora);
+      return sum + (horas * custoPorHora);
+    }, 0);
+
+    // Calcular custo das funções em tempo real
+    const custoFuncoes = produto.funcoes.reduce((sum, funcao) => {
+      const horas = Number(funcao.horas_trabalhadas);
+      const custoPorHora = Number(funcao.funcao.custo_hora);
+      return sum + (horas * custoPorHora);
+    }, 0);
+
     return custoInsumos + custoMaquinas + custoFuncoes;
   };
 
@@ -273,18 +303,40 @@ export function ProdutoSelectionModal({ open, onClose, onSelect }: ProdutoSelect
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="font-medium">Materiais ({produto.itens.length}):</span>
-                        <span>{formatCurrency(produto.itens.reduce((sum, item) => sum + item.custo_total, 0))}</span>
+                        <span>{formatCurrency(produto.itens.reduce((sum, item) => {
+                          const insumo = item.insumo;
+                          const quantidade = Number(item.quantidade);
+                          const custoUnitario = Number(insumo.custo_unitario);
+                          const quantidadeCompra = Number(insumo.quantidade_compra);
+                          const fatorConversao = Number(insumo.fator_conversao);
+
+                          let custoPorUnidadeUso = 0;
+                          if (quantidadeCompra > 0 && fatorConversao > 0) {
+                            custoPorUnidadeUso = custoUnitario / (quantidadeCompra * fatorConversao);
+                          }
+
+                          const custoTotalItem = quantidade * custoPorUnidadeUso;
+                          return sum + custoTotalItem;
+                        }, 0))}</span>
                       </div>
                       {produto.maquinas.length > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="font-medium">Máquinas ({produto.maquinas.length}):</span>
-                          <span>{formatCurrency(produto.maquinas.reduce((sum, maquina) => sum + maquina.custo_total, 0))}</span>
+                          <span>{formatCurrency(produto.maquinas.reduce((sum, maquina) => {
+                            const horas = Number(maquina.horas_utilizadas);
+                            const custoPorHora = Number(maquina.maquina.custo_hora);
+                            return sum + (horas * custoPorHora);
+                          }, 0))}</span>
                         </div>
                       )}
                       {produto.funcoes.length > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="font-medium">Funções ({produto.funcoes.length}):</span>
-                          <span>{formatCurrency(produto.funcoes.reduce((sum, funcao) => sum + funcao.custo_total, 0))}</span>
+                          <span>{formatCurrency(produto.funcoes.reduce((sum, funcao) => {
+                            const horas = Number(funcao.horas_trabalhadas);
+                            const custoPorHora = Number(funcao.funcao.custo_hora);
+                            return sum + (horas * custoPorHora);
+                          }, 0))}</span>
                         </div>
                       )}
                     </div>

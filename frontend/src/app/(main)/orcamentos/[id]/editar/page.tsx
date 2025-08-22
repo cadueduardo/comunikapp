@@ -46,7 +46,7 @@ export default function EditarOrcamentoPage() {
     }
   };
 
-  if (loading) {
+  if (loading || !orcamentoData) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -61,7 +61,7 @@ export default function EditarOrcamentoPage() {
     <>
       <OrcamentoForm
         mode="editar"
-        initialData={orcamentoData || undefined}
+        initialData={orcamentoData}
         orcamentoId={orcamentoId}
         orcamentoStatus={orcamentoStatus}
       />

@@ -19,6 +19,7 @@ import { EstoqueModule } from './estoque/estoque.module';
 import { MensagensNegociacaoModule } from './mensagens-negociacao/mensagens-negociacao.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { WebsocketsModule } from './websockets/websockets.module';
+import { ServicosManuaisModule } from './servicos-manuais/servicos-manuais.module';
 import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
 
 @Module({
@@ -45,6 +46,7 @@ import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
     MensagensNegociacaoModule,
     UsuariosModule,
     WebsocketsModule,
+    ServicosManuaisModule,
   ],
 })
 export class AppModule {

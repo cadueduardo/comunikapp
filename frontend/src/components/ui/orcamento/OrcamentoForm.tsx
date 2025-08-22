@@ -126,10 +126,12 @@ export function OrcamentoForm({
   const [loading, setLoading] = useState(false);
   const [showProdutoModal, setShowProdutoModal] = useState(false);
   const [selectedProdutoIndex, setSelectedProdutoIndex] = useState<number>(0);
+  const [dadosCarregados, setDadosCarregados] = useState(false);
   const { clientes, insumos, maquinas, funcoes } = useOrcamentoData();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createFormSchema(mode)),
+    // IMPORTANTE: Sem defaultValues vazios para evitar sobrescrever dados reais
     defaultValues: {
       cliente_id: '',
       margem_lucro_customizada: '30',
@@ -148,9 +150,9 @@ export function OrcamentoForm({
           altura_produto: '',
           unidade_medida_produto: '',
           area_produto: '',
-          materiais: [{ insumo_id: '', quantidade: '1' }],
-          maquinas: [{ maquina_id: '', horas_utilizadas: '1' }],
-          funcoes: [{ funcao_id: '', horas_trabalhadas: '1' }],
+          materiais: [],
+          maquinas: [],
+          funcoes: [],
         }
       ],
     },
@@ -191,6 +193,14 @@ export function OrcamentoForm({
       
       console.log('🔍 Debug - OrcamentoForm - Dados formatados para o form:', dadosFormatados);
       form.reset(dadosFormatados);
+      
+      // Aguardar um momento para garantir que os dados foram aplicados
+      setTimeout(() => {
+        setDadosCarregados(true);
+        console.log('🔍 Debug - OrcamentoForm - Dados marcados como carregados');
+      }, 500); // Aumentado para 500ms para garantir sincronização
+    } else if (mode === 'novo') {
+      setDadosCarregados(true);
     }
   }, [mode, initialData, form]);
 
@@ -216,10 +226,22 @@ export function OrcamentoForm({
       throw new Error('O primeiro produto deve ter pelo menos um material');
     }
 
+    // Calcular horas de produção por unidade (soma das horas de máquinas e funções do primeiro produto)
+    const horasMaquinasPorUnidade = (primeiroProduto.maquinas || []).reduce((total, m) => {
+      const h = Number(String(m.horas_utilizadas || '0').replace(',', '.')) || 0;
+      return total + h;
+    }, 0);
+    const horasFuncoesPorUnidade = (primeiroProduto.funcoes || []).reduce((total, f) => {
+      const h = Number(String(f.horas_trabalhadas || '0').replace(',', '.')) || 0;
+      return total + h;
+    }, 0);
+    const horasProducaoPorUnidade = horasMaquinasPorUnidade + horasFuncoesPorUnidade;
+
     const dadosTransformados = {
       nome_servico: primeiroProduto.nome_servico || 'Orçamento',
       descricao: primeiroProduto.descricao || '',
-      horas_producao: 1, // Valor padrão
+      // IMPORTANTE: horas_producao por unidade (backend multiplica pela quantidade depois)
+      horas_producao: horasProducaoPorUnidade || 0,
       itens: data.itens_produto.flatMap(produto => 
         produto.materiais?.map(material => ({
           insumo_id: material.insumo_id,
@@ -613,13 +635,15 @@ export function OrcamentoForm({
               <div className="space-y-6">
                 {/* Preview do Cálculo */}
                 <CalculoPreview 
-                itemIndex={0}
-                insumos={insumos}
-                maquinas={maquinas}
-                funcoes={funcoes}
-                margemLucroCustomizada={form.watch('margem_lucro_customizada')}
-                impostosCustomizados={form.watch('impostos_customizados')}
-              />
+                  variant="orcamento"
+                  itemIndex={0}
+                  insumos={insumos}
+                  maquinas={maquinas}
+                  funcoes={funcoes}
+                  margemLucroCustomizada={form.watch('margem_lucro_customizada')}
+                  impostosCustomizados={form.watch('impostos_customizados')}
+                  dadosCarregados={dadosCarregados}
+                />
               
               {/* Resumo do Orçamento */}
               <OrcamentoResumo 

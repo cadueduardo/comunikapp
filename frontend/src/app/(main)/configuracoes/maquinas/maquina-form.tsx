@@ -41,6 +41,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 
 const formSchema = z.object({
   nome: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
@@ -51,6 +52,10 @@ const formSchema = z.object({
   status: z.string().min(1, 'Selecione um status.'),
   capacidade: z.string().optional(),
   observacoes: z.string().optional(),
+  modo_producao: z.enum(['M2_H', 'ML_H', 'MANUAL']).optional(),
+  velocidade_m2_h: z.any().optional(),
+  eficiencia_percent: z.any().optional(),
+  setup_min: z.any().optional(),
 });
 
 export type MaquinaFormValues = z.infer<typeof formSchema>;
@@ -64,6 +69,10 @@ interface MaquinaFormProps {
     status: string;
     capacidade?: string;
     observacoes?: string;
+    modo_producao?: 'M2_H' | 'ML_H' | 'MANUAL';
+    velocidade_m2_h?: number | string;
+    eficiencia_percent?: number | string;
+    setup_min?: number | string;
   };
   loading?: boolean;
 }
@@ -222,6 +231,10 @@ export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFor
       status: 'ATIVA',
       capacidade: '',
       observacoes: '',
+      modo_producao: 'M2_H',
+      velocidade_m2_h: '',
+      eficiencia_percent: '',
+      setup_min: '',
     },
   });
 
@@ -232,7 +245,7 @@ export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFor
   return (
     <div className="w-full max-w-none">
       <div className="mb-6">
-        <Link href="/configuracoes/maquinas" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+        <Link href="/centros-de-trabalho/maquinas" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Voltar para Máquinas
         </Link>
@@ -253,7 +266,9 @@ export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFor
                   name="nome"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nome da Máquina</FormLabel>
+                      <InfoTooltip content="Nome legível da máquina para identificação no sistema e nos cálculos.">
+                        <FormLabel>Nome da Máquina</FormLabel>
+                      </InfoTooltip>
                       <FormControl>
                         <Input placeholder="Ex: Plotter HP 1200" {...field} />
                       </FormControl>
@@ -267,7 +282,9 @@ export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFor
                   name="tipo"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Tipo de Máquina</FormLabel>
+                      <InfoTooltip content="Categoria da máquina (ex.: Plotter, Router, Laser). Use para organização e filtros.">
+                        <FormLabel>Tipo de Máquina</FormLabel>
+                      </InfoTooltip>
                       <FormControl>
                         <TipoMaquinaCombobox
                           value={field.value}
@@ -286,7 +303,9 @@ export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFor
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status</FormLabel>
+                      <InfoTooltip content="Estado operacional atual da máquina (Ativa, Manutenção ou Inativa).">
+                        <FormLabel>Status</FormLabel>
+                      </InfoTooltip>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -309,7 +328,9 @@ export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFor
                   name="custo_hora"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Custo por Hora (R$)</FormLabel>
+                      <InfoTooltip content="Custo operacional por hora de uso (inclui insumos consumíveis, depreciação e mão de obra alocada quando aplicável).">
+                        <FormLabel>Custo por Hora (R$)</FormLabel>
+                      </InfoTooltip>
                       <FormControl>
                         <CustomCurrencyInput
                           placeholder="0,00"
@@ -317,9 +338,6 @@ export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFor
                           onValueChange={field.onChange}
                         />
                       </FormControl>
-                      <FormDescription>
-                        Custo operacional por hora de uso da máquina.
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -332,13 +350,87 @@ export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFor
                   name="capacidade"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Capacidade</FormLabel>
+                      <InfoTooltip content="Especificações técnicas (ex.: largura útil, espessura máxima). Não participa diretamente do cálculo, mas ajuda na escolha da máquina.">
+                        <FormLabel>Capacidade</FormLabel>
+                      </InfoTooltip>
                       <FormControl>
                         <Input placeholder="Ex: 1200x2400mm, 300g/m²" {...field} />
                       </FormControl>
-                      <FormDescription>
-                        Especificações técnicas da máquina (tamanho, peso, etc.).
-                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="modo_producao"
+                  render={({ field }) => (
+                    <FormItem>
+                      <InfoTooltip content="Define a base de cálculo da produtividade: m²/h (área por hora), ml/h (metro linear por hora) ou Manual (horas inseridas/estimatívas). Fórmula típica: horas = (carga de produção ÷ velocidade) ajustada por setup e eficiência.">
+                        <FormLabel>Modo de Produção</FormLabel>
+                      </InfoTooltip>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o modo" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="M2_H">m²/h</SelectItem>
+                          <SelectItem value="ML_H">ml/h</SelectItem>
+                          <SelectItem value="MANUAL">Manual</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="velocidade_m2_h"
+                  render={({ field }) => (
+                    <FormItem>
+                      <InfoTooltip content="Produtividade nominal em m² por hora. Se você tem o valor em m²/min, multiplique por 60. Evite segundos. Este valor será ajustado por Eficiência (%).">
+                        <FormLabel>Velocidade (m²/h)</FormLabel>
+                      </InfoTooltip>
+                      <FormControl>
+                        <Input placeholder="Ex: 30" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="eficiencia_percent"
+                  render={({ field }) => (
+                    <FormItem>
+                      <InfoTooltip content="Percentual de rendimento real. Ex.: 80% significa que a máquina entrega 80% da velocidade nominal (paradas, ajustes, variações). Cálculo sugerido: eficiência = produção real ÷ produção nominal.">
+                        <FormLabel>Eficiência (%)</FormLabel>
+                      </InfoTooltip>
+                      <FormControl>
+                        <Input placeholder="Ex: 85" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="setup_min"
+                  render={({ field }) => (
+                    <FormItem>
+                      <InfoTooltip content="Tempo médio de preparação a cada trabalho (troca de mídia, ajuste de cor, posicionamento). É adicionado às horas calculadas pela velocidade.">
+                        <FormLabel>Setup (min)</FormLabel>
+                      </InfoTooltip>
+                      <FormControl>
+                        <Input placeholder="Ex: 15" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -367,7 +459,7 @@ export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFor
               />
 
               <div className="flex justify-end space-x-4">
-                <Link href="/configuracoes/maquinas">
+                <Link href="/centros-de-trabalho/maquinas">
                   <Button variant="outline" type="button">
                     Cancelar
                   </Button>

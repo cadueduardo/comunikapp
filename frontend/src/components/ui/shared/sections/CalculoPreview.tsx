@@ -19,6 +19,7 @@ interface CalculoPreviewProps {
   impostosCustomizados?: string;
   customFields?: React.ReactNode;
   customActions?: React.ReactNode;
+  dadosCarregados?: boolean; // Nova propriedade para controlar timing
 }
 
 interface CustoIndireto {
@@ -38,7 +39,9 @@ export function CalculoPreview({
   margemLucroCustomizada,
   impostosCustomizados,
   customFields,
-  customActions
+  customActions,
+  variant,
+  dadosCarregados = true
 }: CalculoPreviewProps) {
   // Função auxiliar para converter valores de forma robusta
   const converterValor = (valor: any): number => {
@@ -59,6 +62,14 @@ export function CalculoPreview({
   const [custosIndiretos, setCustosIndiretos] = useState<CustoIndireto[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // Helper robusto para converter valores (string/number) em número
+  const toNumber = (value: any, fallback = 0): number => {
+    if (value === null || value === undefined) return fallback;
+    if (typeof value === 'number') return isNaN(value) ? fallback : value;
+    const num = parseFloat(String(value).replace(',', '.'));
+    return isNaN(num) ? fallback : num;
+  };
+
   // Buscar custos indiretos da API
   useEffect(() => {
     const fetchCustosIndiretos = async () => {
@@ -77,6 +88,8 @@ export function CalculoPreview({
 
     fetchCustosIndiretos();
   }, []);
+
+  // (Revertido) Sem chamadas ao backend aqui — preview calcula no cliente
   
   // Verificar se o form está disponível
   if (!form) {
@@ -289,7 +302,22 @@ export function CalculoPreview({
 
   // Calcular custos das máquinas
   const calcularCustosMaquinas = () => {
-    const maquinasUtilizadas = form.watch(`itens_produto.${itemIndex}.maquinas`) || [];
+    // IMPORTANTE: Para produtos, usar props em vez do formulário
+    let maquinasUtilizadas;
+    if (variant === 'produto') {
+      // Usar dados das props (dados do produto)
+      // Os dados vêm com estrutura: { maquina: { id, nome, ... }, horas_utilizadas }
+      maquinasUtilizadas = maquinas.map((maquina: any) => ({
+        maquina_id: maquina.maquina?.id || maquina.id,
+        horas_utilizadas: String(maquina.horas_utilizadas || '1')
+      }));
+      console.log('🔍 Debug - CalculoPreview - Usando máquinas das props:', maquinasUtilizadas);
+      console.log('🔍 Debug - CalculoPreview - Estrutura real das máquinas:', maquinas);
+    } else {
+      // Usar dados do formulário (orcamento)
+      maquinasUtilizadas = form.watch(`itens_produto.${itemIndex}.maquinas`) || [];
+    }
+
     let custoTotal = 0;
     const maquinasDetalhadas: Array<{
       maquina_id: string;
@@ -302,17 +330,40 @@ export function CalculoPreview({
 
     maquinasUtilizadas.forEach((maquina: { maquina_id: string; horas_utilizadas: string }) => {
       if (maquina.maquina_id && maquina.horas_utilizadas) {
-        const maquinaEncontrada = maquinas.find(m => m.id === maquina.maquina_id);
+        // Para produtos, usar dados das props diretamente
+        let maquinaEncontrada;
+        if (variant === 'produto') {
+          // Buscar nos dados das props (dados do produto)
+          maquinaEncontrada = maquinas.find(m => (m.maquina?.id || m.id) === maquina.maquina_id);
+        } else {
+          // Buscar na lista global (orcamento)
+          maquinaEncontrada = maquinas.find(m => m.id === maquina.maquina_id);
+        }
+          
         if (maquinaEncontrada) {
           const horas = converterValor(maquina.horas_utilizadas);
-          const custoPorHora = converterValor(maquinaEncontrada.custo_hora);
+          
+          // Para produtos, usar dados da prop; para orçamentos, usar dados da lista global
+          let custoPorHora, nomeMaquina, tipoMaquina;
+          if (variant === 'produto') {
+            // Dados vêm da prop: { maquina: { id, nome, custo_hora, tipo }, horas_utilizadas }
+            custoPorHora = converterValor(maquinaEncontrada.maquina?.custo_hora || maquinaEncontrada.custo_hora);
+            nomeMaquina = maquinaEncontrada.maquina?.nome || maquinaEncontrada.nome;
+            tipoMaquina = maquinaEncontrada.maquina?.tipo || maquinaEncontrada.tipo || 'Geral';
+          } else {
+            // Dados vêm da lista global
+            custoPorHora = converterValor(maquinaEncontrada.custo_hora);
+            nomeMaquina = maquinaEncontrada.nome;
+            tipoMaquina = maquinaEncontrada.tipo || 'Geral';
+          }
+          
           const custoTotalItem = horas * custoPorHora;
           
           // Debug: Log dos valores da máquina
           console.log('🔍 Debug - Máquina:', {
-            nome: maquinaEncontrada.nome,
-            custo_hora_original: maquinaEncontrada.custo_hora,
-            tipo_custo_hora: typeof maquinaEncontrada.custo_hora,
+            nome: nomeMaquina,
+            custo_hora_original: variant === 'produto' ? maquinaEncontrada.maquina?.custo_hora : maquinaEncontrada.custo_hora,
+            tipo_custo_hora: typeof (variant === 'produto' ? maquinaEncontrada.maquina?.custo_hora : maquinaEncontrada.custo_hora),
             custo_hora_convertido: custoPorHora,
             horas: horas,
             custo_total: custoTotalItem
@@ -322,8 +373,8 @@ export function CalculoPreview({
           
           maquinasDetalhadas.push({
             maquina_id: maquinaEncontrada.id,
-            nome_maquina: maquinaEncontrada.nome,
-            tipo_maquina: maquinaEncontrada.tipo || 'Geral',
+            nome_maquina: nomeMaquina,
+            tipo_maquina: tipoMaquina,
             horas_utilizadas: horas,
             custo_por_hora: custoPorHora,
             custo_total: custoTotalItem,
@@ -337,7 +388,22 @@ export function CalculoPreview({
 
   // Calcular custos das funções
   const calcularCustosFuncoes = () => {
-    const funcoesUtilizadas = form.watch(`itens_produto.${itemIndex}.funcoes`) || [];
+    // IMPORTANTE: Para produtos, usar props em vez do formulário
+    let funcoesUtilizadas;
+    if (variant === 'produto') {
+      // Usar dados das props (dados do produto)
+      // Os dados vêm com estrutura: { funcao: { id, nome, ... }, horas_trabalhadas }
+      funcoesUtilizadas = funcoes.map((funcao: any) => ({
+        funcao_id: funcao.funcao?.id || funcao.id,
+        horas_trabalhadas: String(funcao.horas_trabalhadas || '1')
+      }));
+      console.log('🔍 Debug - CalculoPreview - Usando funções das props:', funcoesUtilizadas);
+      console.log('🔍 Debug - CalculoPreview - Estrutura real das funções:', funcoes);
+    } else {
+      // Usar dados do formulário (orcamento)
+      funcoesUtilizadas = form.watch(`itens_produto.${itemIndex}.funcoes`) || [];
+    }
+
     let custoTotal = 0;
     const funcoesDetalhadas: Array<{
       funcao_id: string;
@@ -350,17 +416,40 @@ export function CalculoPreview({
 
     funcoesUtilizadas.forEach((funcao: { funcao_id: string; horas_trabalhadas: string }) => {
       if (funcao.funcao_id && funcao.horas_trabalhadas) {
-        const funcaoEncontrada = funcoes.find(f => f.id === funcao.funcao_id);
+        // Para produtos, usar dados das props diretamente
+        let funcaoEncontrada;
+        if (variant === 'produto') {
+          // Buscar nos dados das props (dados do produto)
+          funcaoEncontrada = funcoes.find(f => (f.funcao?.id || f.id) === funcao.funcao_id);
+        } else {
+          // Buscar na lista global (orcamento)
+          funcaoEncontrada = funcoes.find(f => f.id === funcao.funcao_id);
+        }
+          
         if (funcaoEncontrada) {
           const horas = converterValor(funcao.horas_trabalhadas);
-          const custoPorHora = converterValor(funcaoEncontrada.custo_hora);
+          
+          // Para produtos, usar dados da prop; para orçamentos, usar dados da lista global
+          let custoPorHora, nomeFuncao, maquinaVinculada;
+          if (variant === 'produto') {
+            // Dados vêm da prop: { funcao: { id, nome, custo_hora, maquina }, horas_trabalhadas }
+            custoPorHora = converterValor(funcaoEncontrada.funcao?.custo_hora || funcaoEncontrada.custo_hora);
+            nomeFuncao = funcaoEncontrada.funcao?.nome || funcaoEncontrada.nome;
+            maquinaVinculada = funcaoEncontrada.funcao?.maquina?.nome || funcaoEncontrada.maquina?.nome;
+          } else {
+            // Dados vêm da lista global
+            custoPorHora = converterValor(funcaoEncontrada.custo_hora);
+            nomeFuncao = funcaoEncontrada.nome;
+            maquinaVinculada = funcaoEncontrada.maquina?.nome;
+          }
+          
           const custoTotalItem = horas * custoPorHora;
           
           // Debug: Log dos valores da função
           console.log('🔍 Debug - Função:', {
-            nome: funcaoEncontrada.nome,
-            custo_hora_original: funcaoEncontrada.custo_hora,
-            tipo_custo_hora: typeof funcaoEncontrada.custo_hora,
+            nome: nomeFuncao,
+            custo_hora_original: variant === 'produto' ? funcaoEncontrada.funcao?.custo_hora : funcaoEncontrada.custo_hora,
+            tipo_custo_hora: typeof (variant === 'produto' ? funcaoEncontrada.funcao?.custo_hora : funcaoEncontrada.custo_hora),
             custo_hora_convertido: custoPorHora,
             horas: horas,
             custo_total: custoTotalItem
@@ -370,11 +459,11 @@ export function CalculoPreview({
           
           funcoesDetalhadas.push({
             funcao_id: funcaoEncontrada.id,
-            nome_funcao: funcaoEncontrada.nome,
+            nome_funcao: nomeFuncao,
             horas_trabalhadas: horas,
             custo_por_hora: custoPorHora,
             custo_total: custoTotalItem,
-            maquina_vinculada: funcaoEncontrada.maquina?.nome,
+            maquina_vinculada: maquinaVinculada,
           });
         }
       }
@@ -449,8 +538,19 @@ export function CalculoPreview({
   };
 
   const calcularCustosProdutoIndividual = () => {
-    // Obter a quantidade do produto
-    const quantidadeProduto = Number(form.watch(`itens_produto.${itemIndex}.quantidade_produto`)?.replace(',', '.')) || 1;
+    // Quantidade do produto
+    // REGRAS:
+    // - orcamento: usar apenas quantidade_produto (default 1). NÃO usar área como fallback
+    // - produto: se quantidade vazia, usar area_produto como fallback
+    const rawQtd = form.getValues(`itens_produto.${itemIndex}.quantidade_produto`);
+    let quantidadeProduto = toNumber(rawQtd, 0);
+    if (quantidadeProduto === 0 && variant === 'produto') {
+      const rawArea = form.getValues(`itens_produto.${itemIndex}.area_produto`);
+      quantidadeProduto = toNumber(rawArea, 1);
+      console.log(`🔍 Preview: quantidade vazia no produto, usando area_produto: ${quantidadeProduto}`);
+    }
+    if (quantidadeProduto === 0) quantidadeProduto = 1;
+    console.log(`🔍 Preview: Quantidade final usada: ${quantidadeProduto}`);
     
     const { custoTotal: custoMaterial } = calcularCustosMateriais();
     const { custoTotal: custoMaquinaria } = calcularCustosMaquinas();
@@ -508,7 +608,7 @@ export function CalculoPreview({
   };
 
   const calcularCustosTodosProdutos = () => {
-    const todosProdutos = form.watch('itens_produto') || [];
+    const todosProdutos = form.getValues('itens_produto') || [];
     let totalGeral = 0;
     let totalCustoMaterial = 0;
     let totalCustoMaquinaria = 0;
@@ -530,7 +630,7 @@ export function CalculoPreview({
       
       const custoTotalProducao = custoMaterial + custoMaquinaria + custoMaoObra;
       const horasProducao = calcularHorasProducaoParaProduto(index);
-      const quantidadeProduto = Number(produto.quantidade_produto?.replace(',', '.')) || 1;
+      const quantidadeProduto = toNumber(produto?.quantidade_produto, 1);
       const { custoIndiretoTotal } = calcularCustosIndiretosParaProduto(index);
       const custoTotalComIndiretos = custoTotalProducao + custoIndiretoTotal;
       
@@ -606,8 +706,24 @@ export function CalculoPreview({
            funcoes.some((f: any) => f.funcao_id);
   };
 
-  // Se não há dados para calcular, mostrar mensagem informativa
-  if (!showAllProducts && !temDadosParaCalcular()) {
+  // IMPORTANTE: Aguardar dados estarem disponíveis no formulário
+  const temDadosNoFormulario = temDadosParaCalcular();
+  
+  // FORÇAR aguardo em modo orçamento até dados estarem disponíveis
+  if (variant === 'orcamento' && (!dadosCarregados || !temDadosNoFormulario)) {
+    return (
+      <div className="space-y-4">
+        <div className="p-4 bg-muted rounded-lg">
+          <p className="text-muted-foreground">Carregando dados do orçamento...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Para outros casos, verificar se há dados para calcular
+  if (!showAllProducts && !temDadosNoFormulario) {
+    
+    // Em modo produto, mostrar mensagem informativa
     return (
       <div className="space-y-4">
         <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -624,6 +740,8 @@ export function CalculoPreview({
       </div>
     );
   }
+
+  // (Revertido) Sem renderização especial por backend — segue render local
 
   // Renderização para modo geral (todos os produtos)
   if (showAllProducts && 'total_geral' in custosTotais) {

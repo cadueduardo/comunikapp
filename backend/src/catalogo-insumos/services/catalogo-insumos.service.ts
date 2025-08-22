@@ -19,7 +19,7 @@ export class CatalogoInsumosService {
       this.logger.log(`Criando insumo: ${dto.nome}`);
 
       // Verificar se código já existe
-      const existingInsumo = await this.prisma.catalogoInsumo.findUnique({
+      const existingInsumo = await (this.prisma as any).catalogoInsumo.findUnique({
         where: { codigo_catalogo: dto.codigo_catalogo },
       });
 
@@ -28,7 +28,7 @@ export class CatalogoInsumosService {
       }
 
       // Criar insumo
-      const insumo = await this.prisma.catalogoInsumo.create({
+      const insumo = await (this.prisma as any).catalogoInsumo.create({
         data: {
           ...dto,
           data_coleta: dto.data_coleta ? new Date(dto.data_coleta) : new Date(),
@@ -51,7 +51,7 @@ export class CatalogoInsumosService {
    */
   async findInsumoById(id: string): Promise<CatalogoInsumo> {
     try {
-      const insumo = await this.prisma.catalogoInsumo.findUnique({
+      const insumo = await (this.prisma as any).catalogoInsumo.findUnique({
         where: { id },
         include: {
           categoria_global: true,
@@ -100,10 +100,10 @@ export class CatalogoInsumosService {
       }
 
       // Contar total
-      const total = await this.prisma.catalogoInsumo.count({ where });
+      const total = await (this.prisma as any).catalogoInsumo.count({ where });
 
       // Buscar dados
-      const data = await this.prisma.catalogoInsumo.findMany({
+      const data = await (this.prisma as any).catalogoInsumo.findMany({
         where,
         include: {
           categoria_global: true,
@@ -140,7 +140,7 @@ export class CatalogoInsumosService {
 
       // Verificar se código já existe (se foi alterado)
       if (dto.codigo_catalogo && dto.codigo_catalogo !== existingInsumo.codigo_catalogo) {
-        const duplicateInsumo = await this.prisma.catalogoInsumo.findUnique({
+        const duplicateInsumo = await (this.prisma as any).catalogoInsumo.findUnique({
           where: { codigo_catalogo: dto.codigo_catalogo },
         });
 
@@ -150,7 +150,7 @@ export class CatalogoInsumosService {
       }
 
       // Atualizar insumo
-      const updatedInsumo = await this.prisma.catalogoInsumo.update({
+      const updatedInsumo = await (this.prisma as any).catalogoInsumo.update({
         where: { id },
         data: {
           ...dto,
@@ -176,7 +176,7 @@ export class CatalogoInsumosService {
     try {
       this.logger.log(`Desativando insumo: ${id}`);
 
-      const insumo = await this.prisma.catalogoInsumo.update({
+      const insumo = await (this.prisma as any).catalogoInsumo.update({
         where: { id },
         data: { ativo: false },
         include: {
@@ -199,7 +199,7 @@ export class CatalogoInsumosService {
     try {
       this.logger.log(`Ativando insumo: ${id}`);
 
-      const insumo = await this.prisma.catalogoInsumo.update({
+      const insumo = await (this.prisma as any).catalogoInsumo.update({
         where: { id },
         data: { ativo: true },
         include: {
@@ -220,7 +220,7 @@ export class CatalogoInsumosService {
    */
   async findInsumosByCategoria(categoriaId: string): Promise<CatalogoInsumo[]> {
     try {
-      const insumos = await this.prisma.catalogoInsumo.findMany({
+      const insumos = await (this.prisma as any).catalogoInsumo.findMany({
         where: {
           categoria_global_id: categoriaId,
           ativo: true,
@@ -243,7 +243,7 @@ export class CatalogoInsumosService {
    */
   async findInsumosByMarca(marca: string): Promise<CatalogoInsumo[]> {
     try {
-      const insumos = await this.prisma.catalogoInsumo.findMany({
+      const insumos = await (this.prisma as any).catalogoInsumo.findMany({
         where: {
           marca: { contains: marca },
           ativo: true,

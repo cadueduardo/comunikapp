@@ -3,46 +3,32 @@ import { PrismaClient } from '@prisma/client'
 async function main() {
   const prisma = new PrismaClient()
   try {
-    console.log('🔍 Verificando estrutura da tabela estoque_itens...')
+    console.log('🔍 Verificando estrutura da tabela item_template_produtos...')
     
-    // Verificar se a tabela existe
-    const tableExists = await prisma.$queryRaw<Array<{TABLE_NAME: string}>>`
-      SELECT TABLE_NAME 
-      FROM information_schema.TABLES 
-      WHERE TABLE_SCHEMA = 'comunikapp' 
-      AND TABLE_NAME = 'estoque_itens'
-    `
+    // Verificar estrutura da tabela
+    const estrutura = await prisma.$queryRaw`DESCRIBE item_template_produtos`
+    console.log('📋 Estrutura da tabela:', estrutura)
     
-    if (tableExists.length === 0) {
-      console.log('❌ Tabela estoque_itens não existe!')
-      return
-    }
-    
-    console.log('✅ Tabela estoque_itens existe')
-    
-    // Verificar colunas da tabela
-    const columns = await prisma.$queryRaw<Array<{COLUMN_NAME: string, DATA_TYPE: string, IS_NULLABLE: string}>>`
-      SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
-      FROM information_schema.COLUMNS 
-      WHERE TABLE_SCHEMA = 'comunikapp' 
-      AND TABLE_NAME = 'estoque_itens'
-      ORDER BY ORDINAL_POSITION
-    `
-    
-    console.log('📋 Colunas da tabela:')
-    columns.forEach(col => {
-      console.log(`  - ${col.COLUMN_NAME}: ${col.DATA_TYPE} (${col.IS_NULLABLE === 'YES' ? 'NULL' : 'NOT NULL'})`)
+    // Verificar dados de exemplo
+    const itens = await (prisma as any).itemTemplateProduto.findMany({
+      take: 2,
+      include: {
+        insumo: true,
+        templateProduto: true
+      }
     })
     
-    // Verificar se há dados na tabela
-    const count = await prisma.$queryRaw<Array<{total: bigint}>>`
-      SELECT COUNT(*) as total FROM estoque_itens
-    `
-    
-    console.log(`📊 Total de registros: ${count[0]?.total || 0}`)
+    console.log('\n📦 Dados de exemplo:')
+    for (const item of itens) {
+      console.log('  - Item ID:', item.id)
+      console.log('    Insumo:', item.insumo?.nome)
+      console.log('    Produto:', item.templateProduto?.nome)
+      console.log('    Campos disponíveis:', Object.keys(item))
+      console.log('')
+    }
     
   } catch (e: any) {
-    console.error('❌ Erro ao verificar tabela:', e.message)
+    console.error('❌ Erro ao verificar estrutura:', e.message)
   } finally {
     await prisma.$disconnect()
   }

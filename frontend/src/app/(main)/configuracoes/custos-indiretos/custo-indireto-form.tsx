@@ -81,7 +81,7 @@ export default function CustoIndiretoForm({ custoIndireto }: CustoIndiretoFormPr
         toast.success('Custo indireto criado com sucesso!');
       }
 
-      router.push('/configuracoes/custos-indiretos');
+      router.push('/centros-de-trabalho/custos-indiretos');
     } catch (error) {
       console.error('Erro:', error);
       toast.error(error instanceof Error ? error.message : 'Erro ao salvar custo indireto');
@@ -93,7 +93,7 @@ export default function CustoIndiretoForm({ custoIndireto }: CustoIndiretoFormPr
   return (
     <div className="container mx-auto py-6">
       <div className="flex items-center gap-4 mb-6">
-        <Link href="/configuracoes/custos-indiretos">
+        <Link href="/centros-de-trabalho/custos-indiretos">
           <Button variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar

@@ -71,7 +71,7 @@ export default function EditarMaquinaPage({ params }: { params: Promise<{ id: st
 
       await maquinasApi.update(id, { ...data, custo_hora: custo }, token);
       toast.success('Máquina atualizada com sucesso!');
-      router.push('/configuracoes/maquinas');
+      router.push('/centros-de-trabalho/maquinas');
     } catch (error) {
       console.error('Erro ao atualizar máquina:', error);
       toast.error('Erro ao atualizar máquina');

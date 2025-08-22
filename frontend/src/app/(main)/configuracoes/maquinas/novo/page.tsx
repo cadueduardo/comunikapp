@@ -44,7 +44,7 @@ export default function NovaMaquinaPage() {
       await maquinasApi.create(requestData, token);
 
       toast.success('Máquina criada com sucesso!');
-      router.push('/configuracoes/maquinas');
+      router.push('/centros-de-trabalho/maquinas');
     } catch (error) {
       console.error('Erro completo:', error);
       toast.error('Ocorreu um erro ao conectar com o servidor.');

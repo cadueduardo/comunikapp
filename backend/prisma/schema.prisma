@@ -533,7 +533,7 @@ model tipomaterial {
 model servico_manual {
   id                 String              @id @default(cuid())
   criado_em          DateTime            @default(now())
-  atualizado_em      DateTime
+  atualizado_em      DateTime            @updatedAt
   nome               String
   descricao          String?             @db.Text
   custo_hora         Decimal             @db.Decimal(10, 2)

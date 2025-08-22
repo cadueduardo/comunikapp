@@ -94,6 +94,38 @@ Estratégia Anti-Conflitos: Se um módulo causar problemas de import/path, SEMPR
 - **Configuração centralizada**: Usar variáveis de ambiente para JWT_SECRET
 - **Validação de token**: Manter JwtAuthGuard em todos os endpoints protegidos
 
+## 🔧 NOVAS PREMISSAS SOBRE FORMULÁRIOS E REACT HOOK FORM
+
+### **Princípio Fundamental: DefaultValues vs Form Reset**
+- **NUNCA usar defaultValues vazios** que possam sobrescrever dados reais
+- **DefaultValues vazios sobrescrevem form.reset()**: Se defaultValues têm IDs vazios, eles sobrescrevem os valores do reset
+- **Arrays vazios são preferíveis**: `maquinas: []` é melhor que `maquinas: [{ maquina_id: '', ... }]`
+- **Ordem de aplicação**: React Hook Form aplica primeiro defaultValues, depois form.reset()
+
+### **Estratégia de Preenchimento de Formulários**
+- **form.reset(defaultValues)**: Método padrão e mais confiável para preencher formulários
+- **form.setValue() individual**: Usar apenas para campos específicos, não para arrays completos
+- **Estrutura completa**: Sempre definir a estrutura completa dos arrays antes de valores individuais
+- **Timing de verificação**: Usar setTimeout para verificar se os valores foram aplicados corretamente
+
+### **Debug de Formulários**
+- **Logs sistemáticos**: Sempre adicionar logs para verificar dados antes e depois de form.reset()
+- **Verificação de caminhos**: Testar caminhos específicos como `form.getValues('itens_produto.0.maquinas.0.maquina_id')`
+- **Estrutura de dados**: Verificar se os dados estão sendo passados corretamente para o formulário
+- **Fallback para form.trigger()**: Usar form.trigger() para forçar re-renderização quando necessário
+
+### **Padrões de Formulário Recomendados**
+- **DefaultValues mínimos**: Usar apenas campos obrigatórios, deixar arrays vazios
+- **Estrutura de dados consistente**: Garantir que dados de entrada tenham a mesma estrutura esperada pelo formulário
+- **Validação de schema**: Sempre usar zodResolver para validação de tipos
+- **Tratamento de arrays**: Para arrays dinâmicos, sempre verificar se estão vazios antes de iterar
+
+### **Lições Aprendidas sobre React Hook Form**
+- **Problema mais simples**: Às vezes o problema mais simples é o mais difícil de encontrar
+- **Debug sistemático**: Sempre verificar a ordem de aplicação dos valores
+- **Paciência no debug**: Problemas de formulário podem ter causas não óbvias
+- **Teste incremental**: Testar cada pequena modificação antes de prosseguir
+
 Essas premissas devem ser definidas explicitamente na memória do agente, orientando o desenvolvimento e ajudando a evitar inconsistências, bugs de integração, problemas de estruturação e aumento da complexidade ao evoluir o sistema.
 
 Veja um resumo visual para facilitar o entendimento dos principais pontos-base que precisam estar na memória do seu agente:

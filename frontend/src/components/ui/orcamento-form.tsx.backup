@@ -447,6 +447,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
+    // IMPORTANTE: Sem defaultValues vazios para evitar sobrescrever dados reais
     defaultValues: initialData || {
       cliente_id: '',
       margem_lucro_customizada: '',
@@ -460,7 +461,7 @@ export default function OrcamentoForm({ mode, initialData, orcamentoId, onSucces
         altura_produto: '',
         unidade_medida_produto: '',
         area_produto: '',
-        materiais: [{ insumo_id: '', quantidade: '1' }],
+        materiais: [],
         maquinas: [],
         funcoes: [],
       }],

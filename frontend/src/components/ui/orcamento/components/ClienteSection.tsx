@@ -25,6 +25,28 @@ export function ClienteSection({ clientes, mode }: ClienteSectionProps) {
     return null;
   }
 
+  // Em modo editar, mostrar cliente como informação fixa (não editável)
+  if (mode === 'editar') {
+    const clienteId = form.watch('cliente_id');
+    if (clienteId) {
+      const cliente = clientes.find(c => c.id === clienteId);
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>Cliente</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="p-3 bg-gray-50 rounded-md border">
+              <p className="font-medium text-gray-900">{cliente ? cliente.nome : 'Carregando cliente...'}</p>
+              <p className="text-sm text-gray-600 mt-1">Cliente fixo - não pode ser alterado</p>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+  }
+
+  // Em modo novo, permitir seleção
   return (
     <Card>
       <CardHeader>

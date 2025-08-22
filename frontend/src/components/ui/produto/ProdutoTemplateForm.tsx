@@ -43,6 +43,7 @@ export function ProdutoTemplateForm({
 
   const form = useForm<ProdutoFormValues>({
     resolver: zodResolver(createProdutoSchema()),
+    // IMPORTANTE: Sem defaultValues vazios para evitar sobrescrever dados reais
     defaultValues: {
       itens_produto: [
         {
@@ -52,9 +53,9 @@ export function ProdutoTemplateForm({
           altura_produto: '',
           unidade_medida_produto: '',
           area_produto: '',
-          materiais: [{ insumo_id: '', quantidade: '1' }],
-          maquinas: [{ maquina_id: '', horas_utilizadas: '1' }],
-          funcoes: [{ funcao_id: '', horas_trabalhadas: '1' }],
+          materiais: [],
+          maquinas: [],
+          funcoes: [],
         }
       ],
     },
@@ -64,11 +65,58 @@ export function ProdutoTemplateForm({
   useEffect(() => {
     if (mode === 'editar' && initialData) {
       console.log('🔍 Debug - Dados iniciais recebidos:', initialData);
+      console.log('🔍 Debug - Máquinas recebidas:', initialData.maquinas);
+      console.log('🔍 Debug - Funções recebidas:', initialData.funcoes);
+      console.log('🔍 Debug - Itens recebidos:', initialData.itens);
+      
+              // DEBUG: Mostrar estrutura detalhada das máquinas e funções
+        if (initialData.maquinas && initialData.maquinas.length > 0) {
+          console.log('🔍 Debug - Estrutura da primeira máquina:', {
+            maquina_completa: initialData.maquinas[0],
+            maquina_id_direto: initialData.maquinas[0].maquina_id,
+            maquina_aninhada: initialData.maquinas[0].maquina,
+            maquina_id_aninhado: initialData.maquinas[0].maquina?.id,
+            horas: initialData.maquinas[0].horas_utilizadas,
+            // TESTE: Verificar todas as propriedades possíveis
+            todas_propriedades: Object.keys(initialData.maquinas[0])
+          });
+          
+          // TESTE DIRETO: Tentar acessar o ID de diferentes formas
+          console.log('🔍 Debug - Teste de IDs da máquina:', {
+            teste1: String(initialData.maquinas[0].maquina_id || ''),
+            teste2: String(initialData.maquinas[0].maquina?.id || ''),
+            teste3: String(initialData.maquinas[0].id || ''),
+            teste4: String(initialData.maquinas[0]['maquina_id'] || ''),
+          });
+        }
+      
+              if (initialData.funcoes && initialData.funcoes.length > 0) {
+          console.log('🔍 Debug - Estrutura da primeira função:', {
+            funcao_completa: initialData.funcoes[0],
+            funcao_id_direto: initialData.funcoes[0].funcao_id,
+            funcao_aninhada: initialData.funcoes[0].funcao,
+            funcao_id_aninhado: initialData.funcoes[0].funcao?.id,
+            horas: initialData.funcoes[0].horas_trabalhadas,
+            // TESTE: Verificar todas as propriedades possíveis
+            todas_propriedades: Object.keys(initialData.funcoes[0])
+          });
+          
+          // TESTE DIRETO: Tentar acessar o ID de diferentes formas
+          console.log('🔍 Debug - Teste de IDs da função:', {
+            teste1: String(initialData.funcoes[0].funcao_id || ''),
+            teste2: String(initialData.funcoes[0].funcao?.id || ''),
+            teste3: String(initialData.funcoes[0].id || ''),
+            teste4: String(initialData.funcoes[0]['funcao_id'] || ''),
+          });
+        }
+      
       // Adaptar dados do produto para o formato do formulário
       const dadosAdaptados = {
         itens_produto: [{
           nome_servico: String(initialData.nome_servico || ''),
           descricao: String(initialData.descricao_produto || ''),
+          // IMPORTANTE: Preencher quantidade_produto para evitar fallback
+          quantidade_produto: String(initialData.area_produto || '1'),
           largura_produto: initialData.largura_produto ? String(initialData.largura_produto) : '',
           altura_produto: initialData.altura_produto ? String(initialData.altura_produto) : '',
           unidade_medida_produto: String(initialData.unidade_medida_produto || ''),
@@ -80,14 +128,16 @@ export function ProdutoTemplateForm({
               }))
             : [{ insumo_id: '', quantidade: '1' }],
           maquinas: Array.isArray(initialData.maquinas) 
-            ? initialData.maquinas.map(maquina => ({
-                maquina_id: String(maquina.maquina?.id || maquina.maquina_id || ''),
+            ? initialData.maquinas.map((maquina: any) => ({
+                // IMPORTANTE: Os testes mostram que maquina_id está disponível
+                maquina_id: maquina.maquina_id || maquina.maquina?.id || '',
                 horas_utilizadas: String(maquina.horas_utilizadas || '1'),
               }))
             : [{ maquina_id: '', horas_utilizadas: '1' }],
           funcoes: Array.isArray(initialData.funcoes) 
-            ? initialData.funcoes.map(funcao => ({
-                funcao_id: String(funcao.funcao?.id || funcao.funcao_id || ''),
+            ? initialData.funcoes.map((funcao: any) => ({
+                // IMPORTANTE: Os testes mostram que funcao_id está disponível
+                funcao_id: funcao.funcao_id || funcao.funcao?.id || '',
                 horas_trabalhadas: String(funcao.horas_trabalhadas || '1'),
               }))
             : [{ funcao_id: '', horas_trabalhadas: '1' }],
@@ -95,7 +145,75 @@ export function ProdutoTemplateForm({
       };
       
       console.log('🔍 Debug - Dados adaptados:', dadosAdaptados);
-      form.reset(dadosAdaptados);
+      console.log('🔍 Debug - Máquinas adaptadas:', dadosAdaptados.itens_produto[0].maquinas);
+      console.log('🔍 Debug - Funções adaptadas:', dadosAdaptados.itens_produto[0].funcoes);
+      
+      // DEBUG: Verificar valores específicos antes do reset
+      console.log('🔍 Debug - ANTES do reset - Primeira máquina ID:', dadosAdaptados.itens_produto[0].maquinas[0]?.maquina_id);
+      console.log('🔍 Debug - ANTES do reset - Primeira função ID:', dadosAdaptados.itens_produto[0].funcoes[0]?.funcao_id);
+      
+      // TESTE: Abordagem COMPLETAMENTE DIFERENTE
+      console.log('🔍 Debug - Tentando abordagem COMPLETAMENTE DIFERENTE...');
+      
+      // IMPORTANTE: Usar defaultValues em vez de setValue
+      const defaultValues = {
+        itens_produto: [{
+          nome_servico: dadosAdaptados.itens_produto[0].nome_servico,
+          descricao: dadosAdaptados.itens_produto[0].descricao,
+          quantidade_produto: dadosAdaptados.itens_produto[0].quantidade_produto,
+          largura_produto: dadosAdaptados.itens_produto[0].largura_produto,
+          altura_produto: dadosAdaptados.itens_produto[0].altura_produto,
+          unidade_medida_produto: dadosAdaptados.itens_produto[0].unidade_medida_produto,
+          area_produto: dadosAdaptados.itens_produto[0].area_produto,
+          materiais: dadosAdaptados.itens_produto[0].materiais,
+          maquinas: dadosAdaptados.itens_produto[0].maquinas,
+          funcoes: dadosAdaptados.itens_produto[0].funcoes,
+        }]
+      };
+      
+      console.log('🔍 Debug - DefaultValues criados:', defaultValues);
+      
+      // IMPORTANTE: Usar reset com defaultValues
+      form.reset(defaultValues);
+      
+      // DEBUG: Verificar se o reset funcionou
+      setTimeout(() => {
+        console.log('🔍 Debug - Após reset com defaultValues:');
+        console.log('🔍 Debug - Máquinas:', form.getValues('itens_produto.0.maquinas'));
+        console.log('🔍 Debug - Funções:', form.getValues('itens_produto.0.funcoes'));
+        console.log('🔍 Debug - Materiais:', form.getValues('itens_produto.0.materiais'));
+      }, 50);
+      
+      // DEBUG: Verificar se o formulário foi preenchido corretamente
+      setTimeout(() => {
+        const maquinasForm = form.getValues(`itens_produto.0.maquinas`);
+        const funcoesForm = form.getValues(`itens_produto.0.funcoes`);
+        console.log('🔍 Debug - Formulário após setValue - Máquinas:', maquinasForm);
+        console.log('🔍 Debug - Formulário após setValue - Funções:', funcoesForm);
+        
+        // DEBUG: Mostrar conteúdo específico
+        if (maquinasForm && maquinasForm.length > 0) {
+          console.log('🔍 Debug - Primeira máquina:', {
+            maquina_id: maquinasForm[0].maquina_id,
+            horas_utilizadas: maquinasForm[0].horas_utilizadas
+          });
+        }
+        
+        if (funcoesForm && funcoesForm.length > 0) {
+          console.log('🔍 Debug - Primeira função:', {
+            funcao_id: funcoesForm[0].funcao_id,
+            horas_trabalhadas: funcoesForm[0].horas_trabalhadas
+          });
+        }
+        
+        // TESTE: Verificar se o problema é com o caminho dos campos
+        console.log('🔍 Debug - Teste caminho máquina:', form.getValues('itens_produto.0.maquinas.0.maquina_id'));
+        console.log('🔍 Debug - Teste caminho função:', form.getValues('itens_produto.0.funcoes.0.funcao_id'));
+        
+        // TESTE: Forçar re-renderização
+        console.log('🔍 Debug - Forçando re-renderização...');
+        form.trigger(); // Força validação e re-renderização
+      }, 100);
     }
   }, [mode, initialData, form]);
 
@@ -478,14 +596,62 @@ export function ProdutoTemplateForm({
                 <MaquinaSection
                   variant="produto"
                   itemIndex={0}
-                  maquinas={maquinas}
+                  // IMPORTANTE: Converter dados do produto para formato esperado pela seção
+                  maquinas={Array.isArray(initialData?.maquinas) 
+                    ? initialData.maquinas.map(m => ({
+                        id: m.maquina?.id || m.id,
+                        nome: m.maquina?.nome || 'Máquina não encontrada',
+                        tipo: m.maquina?.tipo || 'Geral',
+                        custo_hora: m.maquina?.custo_hora || 0,
+                        status: 'Ativo'
+                      }))
+                    : []
+                  }
                 />
 
                 <FuncaoSection
                   variant="produto"
                   itemIndex={0}
-                  funcoes={funcoes}
+                  // IMPORTANTE: Converter dados do produto para formato esperado pela seção
+                  funcoes={Array.isArray(initialData?.funcoes)
+                    ? initialData.funcoes.map(f => ({
+                        id: f.funcao?.id || f.id,
+                        nome: f.funcao?.nome || 'Função não encontrada',
+                        custo_hora: f.funcao?.custo_hora || 0,
+                        descricao: f.funcao?.descricao || '',
+                        maquina: f.funcao?.maquina ? { nome: f.funcao.maquina.nome } : undefined
+                      }))
+                    : []
+                  }
                 />
+
+                {/* DEBUG: Log das máquinas e funções convertidas */}
+                {(() => {
+                  const maquinasConvertidas = Array.isArray(initialData?.maquinas) 
+                    ? initialData.maquinas.map(m => ({
+                        id: m.maquina?.id || m.id,
+                        nome: m.maquina?.nome || 'Máquina não encontrada',
+                        tipo: m.maquina?.tipo || 'Geral',
+                        custo_hora: m.maquina?.custo_hora || 0,
+                        status: 'Ativo'
+                      }))
+                    : [];
+                  
+                  const funcoesConvertidas = Array.isArray(initialData?.funcoes)
+                    ? initialData.funcoes.map(f => ({
+                        id: f.funcao?.id || f.id,
+                        nome: f.funcao?.nome || 'Função não encontrada',
+                        custo_hora: f.funcao?.custo_hora || 0,
+                        descricao: f.funcao?.descricao || '',
+                        maquina: f.funcao?.maquina ? { nome: f.funcao.maquina.nome } : undefined
+                      }))
+                    : [];
+                  
+                  console.log('🔍 Debug - MaquinaSection - Máquinas convertidas:', maquinasConvertidas);
+                  console.log('🔍 Debug - FuncaoSection - Funções convertidas:', funcoesConvertidas);
+                  
+                  return null;
+                })()}
               </CardContent>
             </Card>
 
@@ -526,8 +692,9 @@ export function ProdutoTemplateForm({
                     variant="produto"
                     itemIndex={0}
                     insumos={insumos}
-                    maquinas={maquinas}
-                    funcoes={funcoes}
+                    // IMPORTANTE: Passar dados específicos do produto em vez das listas globais
+                    maquinas={Array.isArray(initialData?.maquinas) ? initialData.maquinas : []}
+                    funcoes={Array.isArray(initialData?.funcoes) ? initialData.funcoes : []}
                   />
                 </CardContent>
               </Card>

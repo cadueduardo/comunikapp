@@ -94,6 +94,24 @@ Reaproveitar o padrão de "Estoque/Itens" (imagem de referência) como baseline 
 
 ---
 
+## Ajuste de Navegação e Limpeza de Rotas (pós-fases)
+Observação de governança: para evitar retrabalho durante as fases em andamento, a consolidação de navegação e remoção das rotas antigas de Configurações será feita APENAS ao final das fases 5–7.
+
+Checklist ao final das fases 5–7:
+- Atualizar `frontend/src/app/(main)/configuracoes/page.tsx` para:
+  - Remover os cartões de “Máquinas”, “Funções” e “Custos Indiretos” ou redirecioná-los para `centros-de-trabalho/*`.
+- Remover as rotas antigas (apenas após verificação de referências):
+  - `frontend/src/app/(main)/configuracoes/maquinas/**`
+  - `frontend/src/app/(main)/configuracoes/funcoes/**`
+  - `frontend/src/app/(main)/configuracoes/custos-indiretos/**`
+- Garantir que todas as páginas de Novo/Editar/Voltar apontem para `centros-de-trabalho/*`.
+- Manter “Categorias” em Configurações (não mover).
+- Rodar build e navegar nas rotas de CT para validar fluxos CRUD completos.
+
+Justificativa: evita mudanças de navegação durante a implementação do motor e dos novos campos, reduzindo risco de regressões de rota.
+
+---
+
 ## Padronização de CRUD — Diretrizes (Base: Estoque/Itens)
 - Desktop: DataGrid por padrão; alternador para Cards.
 - Mobile: Cards por padrão; alternador ativo.
@@ -110,13 +128,19 @@ Reaproveitar o padrão de "Estoque/Itens" (imagem de referência) como baseline 
 - Fase 0: [x] concluída — branch criado e documentos congelados.
 - Fase 1: [x] concluída — modelagem Prisma e migrações versionadas.
 - Fase 2: [x] concluída — motor com automação e override (fallback manual); testes do cálculo passando (inclui ML_H, eficiência, setup). Logs padronizados adicionados.
-- Fase 3: [ ] pendente
-- Fase 4: [ ] pendente
-- Fase 5: [ ] pendente
-- Fase 6: [ ] pendente
+- Fase 3: [x] concluída — DTOs estendidos com campos opcionais de automação e OpenAPI/Swagger habilitado em `/api/docs` com descrições nos endpoints de Orçamentos.
+- Fase 4: [x] concluída — módulo “Centros de Trabalho” no menu e homepage em cards (Máquinas, Funções, Serviços Manuais, Custos Indiretos).
+- Fase 5: [~] em andamento — padronização visual de CRUDs (padrão `estoque/itens`): DataTable com header cinza/linhas brancas, alternância Tabela/Cards, toolbar com busca. `CrudPage` e `DataTable` reutilizados globalmente.
+- Fase 6: [~] em andamento — CRUDs migrados/atualizados em CT:
+  - Máquinas: campos `modo_producao`, `velocidade_m2_h`, `eficiencia_percent`, `setup_min`; tooltips explicativos; rotas `centros-de-trabalho/maquinas/*` (novo/editar).
+  - Funções: campos `tipo_calculo`, `fator_acompanhamento`, `horas_por_m2`, `horas_por_unidade`, `eficiencia_percent`; tooltips; rotas `centros-de-trabalho/funcoes/*`.
+  - Custos Indiretos: rotas `centros-de-trabalho/custos-indiretos/*` (novo/editar) com visual padronizado.
+  - Serviços Manuais: [pendente].
+  - Modos de Impressão por máquina: [pendente].
 - Fase 7: [ ] pendente
 - Fase 8: [ ] pendente
 - Fase 9: [ ] pendente
+- Ajuste de Navegação/Rotas: agendado para pós Fase 7
 
 ---
 

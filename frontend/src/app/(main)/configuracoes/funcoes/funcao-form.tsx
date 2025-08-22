@@ -28,6 +28,7 @@ import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { maquinasApi } from '@/lib/api-client';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 
 const formSchema = z.object({
   nome: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
@@ -36,6 +37,12 @@ const formSchema = z.object({
   }),
   descricao: z.string().optional(),
   maquina_id: z.string().optional(),
+  // Novos campos do CT
+  tipo_calculo: z.enum(['ACOMPANHA_MAQUINA', 'POR_M2', 'POR_UNIDADE', 'MANUAL']).optional(),
+  fator_acompanhamento: z.any().optional(),
+  horas_por_m2: z.any().optional(),
+  horas_por_unidade: z.any().optional(),
+  eficiencia_percent: z.any().optional(),
 });
 
 export type FuncaoFormValues = z.infer<typeof formSchema>;
@@ -47,6 +54,11 @@ interface FuncaoFormProps {
     custo_hora: number;
     descricao?: string;
     maquina_id?: string;
+    tipo_calculo?: 'ACOMPANHA_MAQUINA' | 'POR_M2' | 'POR_UNIDADE' | 'MANUAL';
+    fator_acompanhamento?: number | string;
+    horas_por_m2?: number | string;
+    horas_por_unidade?: number | string;
+    eficiencia_percent?: number | string;
   };
   loading?: boolean;
 }
@@ -67,8 +79,50 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
       custo_hora: '',
       descricao: '',
       maquina_id: 'null',
+      tipo_calculo: 'MANUAL',
+      fator_acompanhamento: '',
+      horas_por_m2: '',
+      horas_por_unidade: '',
+      eficiencia_percent: '',
     },
   });
+
+  const tipo = form.watch('tipo_calculo');
+  const custoHora = form.watch('custo_hora');
+  const horasM2 = form.watch('horas_por_m2');
+  const horasUn = form.watch('horas_por_unidade');
+  const eficiencia = form.watch('eficiencia_percent');
+  useEffect(() => {
+    if (tipo !== 'POR_M2') {
+      form.setValue('horas_por_m2', '' as any);
+    }
+    if (tipo !== 'POR_UNIDADE') {
+      form.setValue('horas_por_unidade', '' as any);
+    }
+  }, [tipo]);
+
+  const toNumber = (v: any): number => {
+    if (v == null || v === '') return 0;
+    if (typeof v === 'number') return v;
+    const unified = String(v).trim().replace(/\s+/g, '').replace(',', '.');
+    const clean = unified.replace(/[^0-9.\-]/g, '');
+    const n = parseFloat(clean);
+    return isNaN(n) ? 0 : n;
+  };
+
+  const preview = (() => {
+    const ch = toNumber(custoHora);
+    const eff = Math.max(toNumber(eficiencia) / 100 || 1, 0.01);
+    if (tipo === 'POR_M2') {
+      const hm2 = toNumber(horasM2);
+      return { label: 'Custo estimado por m²', valor: ch * (hm2 / eff) };
+    }
+    if (tipo === 'POR_UNIDADE') {
+      const hun = toNumber(horasUn);
+      return { label: 'Custo estimado por unidade', valor: ch * (hun / eff) };
+    }
+    return null;
+  })();
 
   useEffect(() => {
     fetchMaquinas();
@@ -93,7 +147,7 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
   return (
     <div className="w-full max-w-none">
       <div className="mb-6">
-        <Link href="/configuracoes/funcoes" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+        <Link href="/centros-de-trabalho/funcoes" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Voltar para Funções
         </Link>
@@ -114,7 +168,9 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
                   name="nome"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nome da Função</FormLabel>
+                      <InfoTooltip content="Nome para identificar a função (ex.: Operador de Plotter, Acabador).">
+                        <FormLabel>Nome da Função</FormLabel>
+                      </InfoTooltip>
                       <FormControl>
                         <Input placeholder="Ex: Operador Plotter" {...field} />
                       </FormControl>
@@ -128,7 +184,9 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
                   name="custo_hora"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Custo por Hora (R$)</FormLabel>
+                      <InfoTooltip content="Custo/hora desta função (salário + encargos + benefícios rateados).">
+                        <FormLabel>Custo por Hora (R$)</FormLabel>
+                      </InfoTooltip>
                       <FormControl>
                         <CustomCurrencyInput
                           placeholder="0,00"
@@ -145,13 +203,22 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
                 />
               </div>
 
+              {preview && (
+                <div className="rounded-md border p-3 bg-gray-50 text-sm">
+                  <span className="text-gray-600 mr-2">{preview.label}:</span>
+                  <span className="font-medium">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(preview.valor || 0)}</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
                   name="maquina_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Máquina Vinculada (Opcional)</FormLabel>
+                      <InfoTooltip content="Relacione a função a uma máquina quando ela acompanha a operação da máquina.">
+                        <FormLabel>Máquina Vinculada (Opcional)</FormLabel>
+                      </InfoTooltip>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -170,6 +237,105 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
                       <FormDescription>
                         Vincule esta função a uma máquina específica (opcional).
                       </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Novos campos CT */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="tipo_calculo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <InfoTooltip content="Define como as horas da função são obtidas: Acompanha Máquina (proporcional), Por m², Por unidade, ou Manual (informado direto).">
+                        <FormLabel>Tipo de Cálculo</FormLabel>
+                      </InfoTooltip>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o tipo" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="ACOMPANHA_MAQUINA">Acompanha Máquina</SelectItem>
+                          <SelectItem value="POR_M2">Por m²</SelectItem>
+                          <SelectItem value="POR_UNIDADE">Por unidade</SelectItem>
+                          <SelectItem value="MANUAL">Manual</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="fator_acompanhamento"
+                  render={({ field }) => (
+                    <FormItem>
+                      <InfoTooltip content="Quando a função acompanha a máquina: 1 = igual às horas da máquina, 0,5 = metade, 2 = dobro, etc.">
+                        <FormLabel>Fator de Acompanhamento</FormLabel>
+                      </InfoTooltip>
+                      <FormControl>
+                        <Input placeholder="Ex: 1" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {tipo === 'POR_M2' && (
+                  <FormField
+                    control={form.control}
+                    name="horas_por_m2"
+                    render={({ field }) => (
+                      <FormItem>
+                        <InfoTooltip content="Quando o cálculo é por m²: quantas horas de função para cada metro quadrado produzido.">
+                          <FormLabel>Horas por m²</FormLabel>
+                        </InfoTooltip>
+                        <FormControl>
+                          <Input placeholder="Ex: 0.05" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+                {tipo === 'POR_UNIDADE' && (
+                  <FormField
+                    control={form.control}
+                    name="horas_por_unidade"
+                    render={({ field }) => (
+                      <FormItem>
+                        <InfoTooltip content="Quando o cálculo é por unidade: horas gastas por cada unidade produzida.">
+                          <FormLabel>Horas por unidade</FormLabel>
+                        </InfoTooltip>
+                        <FormControl>
+                          <Input placeholder="Ex: 0.1" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="eficiencia_percent"
+                  render={({ field }) => (
+                    <FormItem>
+                      <InfoTooltip content="Percentual de rendimento da função. Ex.: 85% significa que 15% do tempo é consumido em atividades não produtivas.">
+                        <FormLabel>Eficiência (%)</FormLabel>
+                      </InfoTooltip>
+                      <FormControl>
+                        <Input placeholder="Ex: 85" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -198,7 +364,7 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
               />
 
               <div className="flex justify-end space-x-4">
-                <Link href="/configuracoes/funcoes">
+                <Link href="/centros-de-trabalho/funcoes">
                   <Button variant="outline" type="button">
                     Cancelar
                   </Button>
