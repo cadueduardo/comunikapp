@@ -10,13 +10,10 @@ import {
 } from '../notificacoes/notificacoes.service';
 import { MailService } from '../mail/mail.service';
 import { CalcularOrcamentoDto } from './dto/calcular-orcamento.dto';
-import {
-  ResultadoCalculoDto,
-  ItemOrcamentoCalculadoDto,
-  DetalhamentoCustoDto,
-} from './dto/resultado-calculo.dto';
+import { ResultadoCalculoDto, ItemOrcamentoCalculadoDto } from './dto/resultado-calculo.dto';
 import { CreateOrcamentoDto } from './dto/create-orcamento.dto';
 import { UpdateOrcamentoDto } from './dto/update-orcamento.dto';
+import { calcularHorasMaquina, calcularHorasFuncao } from './calculo-automacao';
 
 @Injectable()
 export class OrcamentosService {
@@ -81,22 +78,38 @@ export class OrcamentosService {
     );
 
     // 4. Buscar máquinas e funções se fornecidas
-    const maquinasCalculadas = await this.calcularCustosMaquinas(
+    const quantidadeProdutoCtx = Number(dto.quantidade_produto) || 1;
+    const areaTotalM2Ctx = this.calcularAreaTotalM2DoOrcamento(
+      dto.itens || [],
+      quantidadeProdutoCtx,
+    );
+
+    const maquinasCalcRes = await this.calcularCustosMaquinas(
       dto.maquinas || [],
       lojaId,
+      { areaTotalM2: areaTotalM2Ctx },
     );
-    const funcoesCalculadas = await this.calcularCustosFuncoes(
+    const totalHorasMaquinas = (
+      maquinasCalcRes.maquinasCalculadas || []
+    ).reduce((sum: number, m: any) => sum + (Number(m.horas_utilizadas) || 0), 0);
+
+    const funcoesCalcRes = await this.calcularCustosFuncoes(
       dto.funcoes || [],
       lojaId,
+      {
+        areaTotalM2: areaTotalM2Ctx,
+        horasMaquinas: totalHorasMaquinas,
+        quantidadeProduto: quantidadeProdutoCtx,
+      },
     );
 
     console.log(
       '🔍 Debug - calcularOrcamento - Custos de máquinas:',
-      maquinasCalculadas,
+      maquinasCalcRes,
     );
     console.log(
       '🔍 Debug - calcularOrcamento - Custos de funções:',
-      funcoesCalculadas,
+      funcoesCalcRes,
     );
 
     // 5. Calcular custo indireto por hora
@@ -153,16 +166,16 @@ export class OrcamentosService {
 
     console.log('🔍 Debug - Backend - Custos antes da quantidade:', {
       custoMaterial,
-      custoMaquinas: maquinasCalculadas.custoTotal,
-      custoFuncoes: funcoesCalculadas.custoTotal,
+      custoMaquinas: maquinasCalcRes.custoTotal,
+      custoFuncoes: funcoesCalcRes.custoTotal,
       custoIndiretolAlocado,
     });
 
     const custoMaterialComQuantidade = custoMaterial * quantidadeProduto;
     const custoMaquinasComQuantidade =
-      maquinasCalculadas.custoTotal * quantidadeProduto;
+      maquinasCalcRes.custoTotal * quantidadeProduto;
     const custoFuncoesComQuantidade =
-      funcoesCalculadas.custoTotal * quantidadeProduto;
+      funcoesCalcRes.custoTotal * quantidadeProduto;
     const custoIndiretolAlocadoComQuantidade =
       custoIndiretolAlocado * quantidadeProduto;
 
@@ -261,8 +274,8 @@ export class OrcamentosService {
       descricao: dto.descricao,
       horas_producao: dto.horas_producao,
       itens: itensCalculados,
-      maquinas: maquinasCalculadas.maquinasCalculadas,
-      funcoes: funcoesCalculadas.funcoesCalculadas,
+      maquinas: maquinasCalcRes.maquinasCalculadas,
+      funcoes: funcoesCalcRes.funcoesCalculadas,
       custos: {
         custo_material: custoMaterialComQuantidade,
         custo_mao_obra: custoFuncoesComQuantidade,
@@ -632,6 +645,7 @@ export class OrcamentosService {
   private async calcularCustosMaquinas(
     maquinas: any[],
     lojaId: string,
+    contexto?: { areaTotalM2?: number },
   ): Promise<{ custoTotal: number; maquinasCalculadas: any[] }> {
     if (!maquinas || maquinas.length === 0) {
       return { custoTotal: 0, maquinasCalculadas: [] };
@@ -653,9 +667,26 @@ export class OrcamentosService {
       if (!maquinaData) continue;
 
       const custoPorHora = Number(maquinaData.custo_hora);
-      const horasUtilizadas = Number(maquina.horas_utilizadas);
-      const custoTotalMaquina = custoPorHora * horasUtilizadas;
+      const horasInformadas = Number(maquina.horas_utilizadas);
 
+      // Automação M2_H quando possível, senão fallback manual
+      let horasUtilizadas = horasInformadas && horasInformadas > 0 ? horasInformadas : 0;
+      const modo = (maquinaData as any).modo_producao as string | undefined;
+      const velocidadeM2H = Number((maquinaData as any).velocidade_m2_h) || undefined;
+      const eficiencia = Number((maquinaData as any).eficiencia_percent) || undefined;
+      const setupMin = Number((maquinaData as any).setup_min) || undefined;
+
+      if ((!horasInformadas || horasInformadas <= 0) && modo === 'M2_H' && velocidadeM2H && contexto?.areaTotalM2 && contexto.areaTotalM2 > 0) {
+        horasUtilizadas = calcularHorasMaquina({
+          modoProducao: 'M2_H',
+          areaTotalM2: contexto.areaTotalM2,
+          velocidadeM2PorHora: velocidadeM2H,
+          eficienciaPercent: eficiencia,
+          setupMin: setupMin,
+        });
+      }
+
+      const custoTotalMaquina = custoPorHora * horasUtilizadas;
       custoTotal += custoTotalMaquina;
 
       maquinasCalculadas.push({
@@ -677,6 +708,7 @@ export class OrcamentosService {
   private async calcularCustosFuncoes(
     funcoes: any[],
     lojaId: string,
+    contexto?: { areaTotalM2?: number; horasMaquinas?: number; quantidadeProduto?: number },
   ): Promise<{ custoTotal: number; funcoesCalculadas: any[] }> {
     if (!funcoes || funcoes.length === 0) {
       return { custoTotal: 0, funcoesCalculadas: [] };
@@ -688,31 +720,80 @@ export class OrcamentosService {
         id: { in: funcaoIds },
         loja_id: lojaId,
       },
-      include: {
-        maquina: true,
-      },
     });
 
     let custoTotal = 0;
     const funcoesCalculadas: any[] = [];
 
-    for (const funcao of funcoes) {
-      const funcaoData = funcoesData.find((f) => f.id === funcao.funcao_id);
-      if (!funcaoData) continue;
+    for (const func of funcoes) {
+      const funcData = funcoesData.find((f) => f.id === func.funcao_id);
+      if (!funcData) continue;
 
-      const custoPorHora = Number(funcaoData.custo_hora);
-      const horasTrabalhadas = Number(funcao.horas_trabalhadas);
+      const custoPorHora = Number(funcData.custo_hora);
+      const horasInformadas = Number(func.horas_trabalhadas);
+
+      const tipoCalculo = (funcData as any).tipo_calculo as string | undefined;
+      const horasPorM2 = Number((funcData as any).horas_por_m2) || undefined;
+      const horasPorUnidade = Number((funcData as any).horas_por_unidade) || undefined;
+      const eficiencia = Number((funcData as any).eficiencia_percent) || undefined;
+      const fatorAcomp = Number((funcData as any).fator_acompanhamento) || undefined;
+      const setupMin = Number((funcData as any).setup_min) || undefined;
+
+      let horasTrabalhadas = horasInformadas && horasInformadas > 0 ? horasInformadas : 0;
+
+      if (!horasInformadas || horasInformadas <= 0) {
+        if (tipoCalculo === 'POR_M2' && contexto?.areaTotalM2 && horasPorM2) {
+          horasTrabalhadas = calcularHorasFuncao({
+            tipoCalculo: 'POR_M2',
+            areaTotalM2: contexto.areaTotalM2,
+            horasPorM2: horasPorM2,
+            eficienciaPercent: eficiencia,
+            setupMin: setupMin,
+          });
+        } else if (
+          tipoCalculo === 'ACOMPANHA_MAQUINA' &&
+          contexto?.horasMaquinas &&
+          contexto.horasMaquinas > 0
+        ) {
+          horasTrabalhadas = calcularHorasFuncao({
+            tipoCalculo: 'ACOMPANHA_MAQUINA',
+            horasMaquina: contexto.horasMaquinas,
+            fatorAcompanhamento: fatorAcomp || 1,
+            eficienciaPercent: eficiencia,
+            setupMin: setupMin,
+          });
+        } else if (
+          tipoCalculo === 'POR_UNIDADE' &&
+          contexto?.quantidadeProduto &&
+          horasPorUnidade
+        ) {
+          horasTrabalhadas = calcularHorasFuncao({
+            tipoCalculo: 'POR_UNIDADE',
+            quantidade: contexto.quantidadeProduto,
+            horasPorUnidade: horasPorUnidade,
+            eficienciaPercent: eficiencia,
+            setupMin: setupMin,
+          });
+        }
+      }
+
       const custoTotalFuncao = custoPorHora * horasTrabalhadas;
-
       custoTotal += custoTotalFuncao;
 
       funcoesCalculadas.push({
-        funcao_id: funcaoData.id,
-        nome_funcao: funcaoData.nome,
+        funcao_id: funcData.id,
+        nome_funcao: funcData.nome,
         horas_trabalhadas: horasTrabalhadas,
         custo_por_hora: custoPorHora,
         custo_total: custoTotalFuncao,
-        maquina_vinculada: funcaoData.maquina?.nome,
+        maquina_vinculada: (funcData as any).maquina_id || undefined,
+        parametros: {
+          tipo_calculo: tipoCalculo,
+          horas_por_m2: horasPorM2,
+          horas_por_unidade: horasPorUnidade,
+          eficiencia_percent: eficiencia,
+          fator_acompanhamento: fatorAcomp,
+        },
       });
     }
 
@@ -1375,6 +1456,8 @@ export class OrcamentosService {
   }
 
   async findAll(lojaId: string) {
+    console.log(`🔍 Debug - OrcamentosService.findAll - Iniciando busca para loja: ${lojaId}`);
+    
     const orcamentos = await this.prisma.orcamento.findMany({
       where: { loja: { id: lojaId } },
       include: {
@@ -1403,9 +1486,117 @@ export class OrcamentosService {
       orderBy: { criado_em: 'desc' },
     });
 
-    // Orçamentos carregados com máquinas e funções
+    console.log(`🔍 Debug - OrcamentosService.findAll - ${orcamentos.length} orçamentos encontrados no banco`);
 
-    return orcamentos;
+    // IMPORTANTE: Recalcular valores para garantir consistência com o preview
+    console.log(`🔍 Debug - OrcamentosService.findAll - Iniciando recálculo de valores...`);
+    
+    const orcamentosComValoresRecalculados = await Promise.all(
+      orcamentos.map(async (orcamento) => {
+        try {
+          console.log(`🔍 Debug - OrcamentosService.findAll - Recalculando orçamento: ${orcamento.id} - ${orcamento.nome_servico}`);
+          
+          // Buscar dados da loja para margem e impostos padrão
+          const loja = await this.prisma.loja.findUnique({
+            where: { id: lojaId },
+            select: {
+              margem_lucro_padrao: true,
+              impostos_padrao: true,
+            },
+          });
+
+          // Preparar DTO para recálculo
+          const dtoParaRecalculo = {
+            nome_servico: orcamento.nome_servico,
+            descricao: orcamento.descricao,
+            horas_producao: Number(orcamento.horas_producao),
+            largura_produto: orcamento.largura_produto ? Number(orcamento.largura_produto) : undefined,
+            altura_produto: orcamento.altura_produto ? Number(orcamento.altura_produto) : undefined,
+            area_produto: orcamento.area_produto ? Number(orcamento.area_produto) : undefined,
+            unidade_medida_produto: orcamento.unidade_medida_produto,
+            quantidade_produto: orcamento.quantidade_produto ? Number(orcamento.quantidade_produto) : 1,
+            itens: orcamento.itemorcamento.map(item => ({
+              insumo_id: item.insumo_id,
+              quantidade: Number(item.quantidade),
+            })),
+            maquinas: orcamento.maquinaorcamento.map(maq => ({
+              maquina_id: maq.maquina_id,
+              horas_utilizadas: Number(maq.horas_utilizadas),
+            })),
+            funcoes: orcamento.funcaoorcamento.map(func => ({
+              funcao_id: func.funcao_id,
+              horas_trabalhadas: Number(func.horas_trabalhadas),
+            })),
+            margem_lucro_customizada: orcamento.margem_lucro ? Number(orcamento.margem_lucro) : undefined,
+            impostos_customizados: orcamento.impostos ? Number(orcamento.impostos) : undefined,
+          };
+
+          console.log(`🔍 Debug - OrcamentosService.findAll - DTO preparado para recálculo:`, {
+            orcamento_id: orcamento.id,
+            itens_count: dtoParaRecalculo.itens.length,
+            maquinas_count: dtoParaRecalculo.maquinas.length,
+            funcoes_count: dtoParaRecalculo.funcoes.length,
+          });
+
+          // Recalcular usando o motor de cálculo
+          const calculo = await this.calcularOrcamento(dtoParaRecalculo, lojaId);
+
+          console.log(`🔍 Debug - OrcamentosService.findAll - Valores recalculados para ${orcamento.id}:`, {
+            preco_final_anterior: orcamento.preco_final,
+            preco_final_novo: calculo.custos.preco_final,
+            custo_total_anterior: orcamento.custo_total,
+            custo_total_novo: calculo.custos.custo_total_producao,
+          });
+
+          // Persistir no banco se houver divergência relevante (garantir que o grid e o banco sigam o preview)
+          try {
+            const diferencaPreco = Math.abs(Number(orcamento.preco_final || 0) - Number(calculo.custos.preco_final || 0));
+            const diferencaCustoTotal = Math.abs(Number(orcamento.custo_total || 0) - Number(calculo.custos.custo_total_producao || 0));
+
+            if (diferencaPreco > 0.005 || diferencaCustoTotal > 0.005) {
+              await this.prisma.orcamento.update({
+                where: { id: orcamento.id },
+                data: {
+                  custo_material: calculo.custos.custo_material,
+                  custo_mao_obra: calculo.custos.custo_mao_obra,
+                  custo_indireto: calculo.custos.custo_indireto,
+                  custo_total: calculo.custos.custo_total_producao,
+                  margem_lucro: calculo.custos.margem_lucro_percentual,
+                  impostos: calculo.custos.impostos_percentual,
+                  preco_final: calculo.custos.preco_final,
+                  atualizado_em: new Date(),
+                },
+              });
+              console.log(`💾 Orcamento ${orcamento.id} atualizado para refletir cálculo do preview.`);
+            }
+          } catch (e) {
+            console.error(`❌ Falha ao persistir recálculo do orçamento ${orcamento.id}:`, e);
+          }
+
+          // Retornar orçamento com valores recalculados
+          return {
+            ...orcamento,
+            // IMPORTANTE: Usar valores recalculados em vez dos do banco
+            custo_material: calculo.custos.custo_material,
+            custo_mao_obra: calculo.custos.custo_mao_obra,
+            custo_maquinaria: calculo.custos.custo_maquinaria,
+            custo_indireto: calculo.custos.custo_indireto,
+            custo_total: calculo.custos.custo_total_producao,
+            margem_lucro: calculo.custos.margem_lucro_percentual,
+            impostos: calculo.custos.impostos_percentual,
+            preco_final: calculo.custos.preco_final,
+          };
+        } catch (error) {
+          console.error(`❌ Erro ao recalcular orçamento ${orcamento.id}:`, error);
+          // Em caso de erro, retornar orçamento original
+          return orcamento;
+        }
+      })
+    );
+
+    console.log(`🔍 Debug - OrcamentosService.findAll - Recálculo concluído. Retornando ${orcamentosComValoresRecalculados.length} orçamentos`);
+    
+    return orcamentosComValoresRecalculados;
   }
 
   async findOne(id: string, lojaId: string) {
@@ -1500,137 +1691,130 @@ export class OrcamentosService {
     // Verificar se o orçamento existe
     await this.findOne(id, lojaId);
 
-    // Se houver mudanças nos itens, máquinas, funções, quantidade ou parâmetros, recalcular
-    const deveRecalcular =
-      updateOrcamentoDto.itens ||
-      updateOrcamentoDto.maquinas ||
-      updateOrcamentoDto.funcoes ||
-      updateOrcamentoDto.horas_producao ||
-      updateOrcamentoDto.quantidade_produto ||
-      updateOrcamentoDto.margem_lucro_customizada ||
-      updateOrcamentoDto.impostos_customizados;
+    // Buscar dados atuais para fallback
+    const atual = await this.prisma.orcamento.findUnique({
+      where: { id },
+      include: {
+        itemorcamento: true,
+        maquinaorcamento: true,
+        funcaoorcamento: true,
+      },
+    });
 
-    if (deveRecalcular) {
-      // Recalcular usando o motor
-      const calculoDto: CalcularOrcamentoDto = {
-        nome_servico: updateOrcamentoDto.nome_servico || '',
-        descricao: updateOrcamentoDto.descricao,
-        horas_producao: updateOrcamentoDto.horas_producao || 0,
-        quantidade_produto: updateOrcamentoDto.quantidade_produto || 1,
-        itens: updateOrcamentoDto.itens || [],
-        maquinas: updateOrcamentoDto.maquinas || [],
-        funcoes: updateOrcamentoDto.funcoes || [],
-        cliente_id: updateOrcamentoDto.cliente_id,
-        margem_lucro_customizada: updateOrcamentoDto.margem_lucro_customizada,
-        impostos_customizados: updateOrcamentoDto.impostos_customizados,
-      };
+    // Recalcular SEMPRE usando dados do DTO ou do orcamento atual
+    const toNumberSafe = (v: any): number => {
+      if (v === null || v === undefined) return 0;
+      if (typeof v === 'number') return v;
+      if (typeof v === 'string') return Number(v);
+      if (typeof v === 'object' && 'toNumber' in v) {
+        try {
+          return (v as any).toNumber();
+        } catch {
+          return Number(v);
+        }
+      }
+      return Number(v);
+    };
 
-      const resultado = await this.calcularOrcamento(calculoDto, lojaId);
-
-      console.log('🔍 Debug - Backend - Update - Dados sendo salvos:', {
-        preco_final: resultado.custos.preco_final,
-        quantidade_produto: updateOrcamentoDto.quantidade_produto,
-        custo_total: resultado.custos.custo_total_producao,
-      });
-
-      // Atualizar com os novos valores calculados
-      const orcamentoAtualizado = await this.prisma.orcamento.update({
-        where: { id },
-        data: {
-          nome_servico: updateOrcamentoDto.nome_servico,
-          descricao: updateOrcamentoDto.descricao,
-          horas_producao: updateOrcamentoDto.horas_producao,
-          largura_produto: updateOrcamentoDto.largura_produto,
-          altura_produto: updateOrcamentoDto.altura_produto,
-          area_produto: updateOrcamentoDto.area_produto,
-          unidade_medida_produto: updateOrcamentoDto.unidade_medida_produto,
-          quantidade_produto: updateOrcamentoDto.quantidade_produto,
-          custo_material: resultado.custos.custo_material,
-          custo_mao_obra: resultado.custos.custo_mao_obra,
-          custo_indireto: resultado.custos.custo_indireto,
-          custo_total: resultado.custos.custo_total_producao,
-          margem_lucro: resultado.custos.margem_lucro_percentual,
-          impostos: resultado.custos.impostos_percentual,
-          preco_final: resultado.custos.preco_final,
-          // Configurações comerciais
-          prazo_entrega: updateOrcamentoDto.prazo_entrega,
-          forma_pagamento: updateOrcamentoDto.forma_pagamento,
-          validade_proposta: updateOrcamentoDto.validade_proposta,
-          atendente: updateOrcamentoDto.atendente,
-          cliente_id: updateOrcamentoDto.cliente_id,
-        },
-      });
-
-      // Se houver novos itens, atualizar
-      if (updateOrcamentoDto.itens) {
-        // Remover itens antigos
-        await this.prisma.itemorcamento.deleteMany({
-          where: { orcamento_id: id },
-        });
-
-        // Criar novos itens
-        const itensData = resultado.itens.map((item) => ({
-          orcamento_id: id,
+    const calculoDto: CalcularOrcamentoDto = {
+      nome_servico: updateOrcamentoDto.nome_servico || atual?.nome_servico || '',
+      descricao: updateOrcamentoDto.descricao ?? atual?.descricao ?? undefined,
+      horas_producao: updateOrcamentoDto.horas_producao ?? toNumberSafe(atual?.horas_producao) ?? 0,
+      quantidade_produto: updateOrcamentoDto.quantidade_produto ?? toNumberSafe(atual?.quantidade_produto) ?? 1,
+      itens:
+        updateOrcamentoDto.itens ||
+        (atual?.itemorcamento || []).map((item) => ({
           insumo_id: item.insumo_id,
-          quantidade: item.quantidade,
-          custo_unitario: item.custo_unitario,
-          custo_total: item.custo_total,
-        }));
+          quantidade: Number(item.quantidade),
+        })),
+      maquinas:
+        updateOrcamentoDto.maquinas ||
+        (atual?.maquinaorcamento || []).map((maq) => ({
+          maquina_id: maq.maquina_id,
+          horas_utilizadas: Number(maq.horas_utilizadas),
+        })),
+      funcoes:
+        updateOrcamentoDto.funcoes ||
+        (atual?.funcaoorcamento || []).map((func) => ({
+          funcao_id: func.funcao_id,
+          horas_trabalhadas: Number(func.horas_trabalhadas),
+        })),
+      cliente_id: updateOrcamentoDto.cliente_id ?? atual?.cliente_id ?? undefined,
+      margem_lucro_customizada:
+        updateOrcamentoDto.margem_lucro_customizada ?? (atual ? toNumberSafe(atual.margem_lucro) : undefined),
+      impostos_customizados:
+        updateOrcamentoDto.impostos_customizados ?? (atual ? toNumberSafe(atual.impostos) : undefined),
+    };
 
-        await this.prisma.itemorcamento.createMany({
-          data: itensData,
-        });
-      }
+    const resultado = await this.calcularOrcamento(calculoDto, lojaId);
 
-      // Se houver novas máquinas, atualizar
-      if (updateOrcamentoDto.maquinas) {
-        // Remover máquinas antigas
-        await this.prisma.maquinaorcamento.deleteMany({
-          where: { orcamento_id: id },
-        });
+    // Preparar dados para update principal
+    const dadosParaUpdate: any = {
+      nome_servico: updateOrcamentoDto.nome_servico ?? atual?.nome_servico,
+      descricao: updateOrcamentoDto.descricao ?? atual?.descricao,
+      horas_producao: updateOrcamentoDto.horas_producao ?? atual?.horas_producao,
+      largura_produto: updateOrcamentoDto.largura_produto ?? atual?.largura_produto,
+      altura_produto: updateOrcamentoDto.altura_produto ?? atual?.altura_produto,
+      area_produto: updateOrcamentoDto.area_produto ?? atual?.area_produto,
+      unidade_medida_produto:
+        updateOrcamentoDto.unidade_medida_produto ?? atual?.unidade_medida_produto,
+      quantidade_produto: updateOrcamentoDto.quantidade_produto ?? atual?.quantidade_produto,
+      custo_material: resultado.custos.custo_material,
+      custo_mao_obra: resultado.custos.custo_mao_obra,
+      custo_indireto: resultado.custos.custo_indireto,
+      custo_total: resultado.custos.custo_total_producao,
+      margem_lucro: resultado.custos.margem_lucro_percentual,
+      impostos: resultado.custos.impostos_percentual,
+      preco_final: resultado.custos.preco_final,
+      prazo_entrega: updateOrcamentoDto.prazo_entrega ?? atual?.prazo_entrega,
+      forma_pagamento: updateOrcamentoDto.forma_pagamento ?? atual?.forma_pagamento,
+      validade_proposta:
+        updateOrcamentoDto.validade_proposta ?? atual?.validade_proposta,
+      atendente: updateOrcamentoDto.atendente ?? atual?.atendente,
+    };
 
-        // Criar novas máquinas usando os dados calculados
-        const maquinasData = resultado.maquinas.map((maquina) => ({
-          orcamento_id: id,
-          maquina_id: maquina.maquina_id,
-          horas_utilizadas: maquina.horas_utilizadas,
-          custo_total: maquina.custo_total,
-        }));
+    if (
+      updateOrcamentoDto.cliente_id &&
+      updateOrcamentoDto.cliente_id.trim() !== ''
+    ) {
+      dadosParaUpdate.cliente_id = updateOrcamentoDto.cliente_id;
+    }
 
-        await this.prisma.maquinaorcamento.createMany({
-          data: maquinasData,
-        });
-      }
+    await this.prisma.orcamento.update({ where: { id }, data: dadosParaUpdate });
 
-      // Se houver novas funções, atualizar
-      if (updateOrcamentoDto.funcoes) {
-        // Remover funções antigas
-        await this.prisma.funcaoorcamento.deleteMany({
-          where: { orcamento_id: id },
-        });
+    // Atualizar relacionamentos apenas quando enviados no DTO
+    if (updateOrcamentoDto.itens) {
+      await this.prisma.itemorcamento.deleteMany({ where: { orcamento_id: id } });
+      const itensData = resultado.itens.map((item) => ({
+        orcamento_id: id,
+        insumo_id: item.insumo_id,
+        quantidade: item.quantidade,
+        custo_unitario: item.custo_unitario,
+        custo_total: item.custo_total,
+      }));
+      await this.prisma.itemorcamento.createMany({ data: itensData });
+    }
 
-        // Criar novas funções usando os dados calculados
-        const funcoesData = resultado.funcoes.map((funcao) => ({
-          orcamento_id: id,
-          funcao_id: funcao.funcao_id,
-          horas_trabalhadas: funcao.horas_trabalhadas,
-          custo_total: funcao.custo_total,
-        }));
+    if (updateOrcamentoDto.maquinas) {
+      await this.prisma.maquinaorcamento.deleteMany({ where: { orcamento_id: id } });
+      const maquinasData = resultado.maquinas.map((maquina) => ({
+        orcamento_id: id,
+        maquina_id: maquina.maquina_id,
+        horas_utilizadas: maquina.horas_utilizadas,
+        custo_total: maquina.custo_total,
+      }));
+      await this.prisma.maquinaorcamento.createMany({ data: maquinasData });
+    }
 
-        await this.prisma.funcaoorcamento.createMany({
-          data: funcoesData,
-        });
-      }
-    } else {
-      // Atualização simples sem recálculo
-      await this.prisma.orcamento.update({
-        where: { id },
-        data: {
-          nome_servico: updateOrcamentoDto.nome_servico,
-          descricao: updateOrcamentoDto.descricao,
-          cliente_id: updateOrcamentoDto.cliente_id,
-        },
-      });
+    if (updateOrcamentoDto.funcoes) {
+      await this.prisma.funcaoorcamento.deleteMany({ where: { orcamento_id: id } });
+      const funcoesData = resultado.funcoes.map((funcao) => ({
+        orcamento_id: id,
+        funcao_id: funcao.funcao_id,
+        horas_trabalhadas: funcao.horas_trabalhadas,
+        custo_total: funcao.custo_total,
+      }));
+      await this.prisma.funcaoorcamento.createMany({ data: funcoesData });
     }
 
     return this.findOne(id, lojaId);
@@ -2201,5 +2385,23 @@ export class OrcamentosService {
       corrigidos,
       erros,
     };
+  }
+
+  private calcularAreaTotalM2DoOrcamento(itens: any[], quantidadeProduto: number): number {
+    // Heurística: se ItemCalculoDto traz area_produto, somar (area * quantidadeItem) e multiplicar por quantidadeProduto.
+    // Caso contrário, retorna 0 e a automação cai no fallback manual.
+    if (!Array.isArray(itens) || itens.length === 0) return 0;
+    let areaTotal = 0;
+    for (const item of itens) {
+      const qtd = Number(item.quantidade) || 0;
+      const area = Number((item as any).area_produto) || 0;
+      if (area > 0 && qtd > 0) {
+        areaTotal += area * qtd;
+      }
+    }
+    if (quantidadeProduto && quantidadeProduto > 1) {
+      areaTotal = areaTotal * quantidadeProduto;
+    }
+    return areaTotal;
   }
 }

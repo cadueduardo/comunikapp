@@ -50,6 +50,18 @@ describe('calculo-automacao', () => {
       const horas = calcularHorasMaquina(params);
       expect(horas).toBeCloseTo(0.75, 5);
     });
+
+    it('ML_H: calcula horas por comprimento/velocidade linear com eficiência e setup', () => {
+      const params: MaquinaParametros = {
+        modoProducao: 'ML_H',
+        comprimentoLinearTotalM: 120,
+        velocidadeMLPorHora: 60, // 2h base
+        eficienciaPercent: 80, // 2.5h
+        setupMin: 30, // +0.5h => 3.0h
+      };
+      const horas = calcularHorasMaquina(params);
+      expect(horas).toBeCloseTo(3.0, 5);
+    });
   });
 
   describe('calcularHorasFuncao', () => {
@@ -96,6 +108,18 @@ describe('calculo-automacao', () => {
       expect(horas).toBeCloseTo(2.5, 5);
     });
 
+    it('POR_M2 com setup: soma setup após eficiência', () => {
+      const params: FuncaoParametros = {
+        tipoCalculo: 'POR_M2',
+        areaTotalM2: 20,
+        horasPorM2: 0.1, // 2h base
+        eficienciaPercent: 80, // 2.5h
+        setupMin: 30, // +0.5h => 3.0h
+      };
+      const horas = calcularHorasFuncao(params);
+      expect(horas).toBeCloseTo(3.0, 5);
+    });
+
     it('MANUAL: usa horasManuais + setup', () => {
       const params: FuncaoParametros = {
         tipoCalculo: 'MANUAL',
@@ -107,5 +131,6 @@ describe('calculo-automacao', () => {
     });
   });
 });
+
 
 
