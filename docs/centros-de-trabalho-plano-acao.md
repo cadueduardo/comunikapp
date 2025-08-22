@@ -109,7 +109,7 @@ Reaproveitar o padrão de "Estoque/Itens" (imagem de referência) como baseline 
 ## Progresso e Notas (atualizar ao fim de cada fase)
 - Fase 0: [x] concluída — branch criado e documentos congelados.
 - Fase 1: [x] concluída — modelagem Prisma e migrações versionadas.
-- Fase 2: [ ] em andamento — motor com automação e override (fallback manual); testes unitários iniciais do cálculo criados.
+- Fase 2: [x] concluída — motor com automação e override (fallback manual); testes do cálculo passando (inclui ML_H, eficiência, setup). Logs padronizados adicionados.
 - Fase 3: [ ] pendente
 - Fase 4: [ ] pendente
 - Fase 5: [ ] pendente

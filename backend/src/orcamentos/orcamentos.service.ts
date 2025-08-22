@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -17,6 +18,7 @@ import { calcularHorasMaquina, calcularHorasFuncao } from './calculo-automacao';
 
 @Injectable()
 export class OrcamentosService {
+  private readonly logger = new Logger(OrcamentosService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificacoesService: NotificacoesService,
@@ -689,6 +691,10 @@ export class OrcamentosService {
       const custoTotalMaquina = custoPorHora * horasUtilizadas;
       custoTotal += custoTotalMaquina;
 
+      this.logger.debug(
+        `ct-calculo: maquina {id=${maquinaData.id}, modo=${modo}, areaTotalM2=${contexto?.areaTotalM2 ?? 'n/a'}, v_m2_h=${velocidadeM2H ?? 'n/a'}, eficiencia=${eficiencia ?? 'n/a'}, setupMin=${setupMin ?? 0}, horas=${horasUtilizadas}, custo_hora=${custoPorHora}, custo_total=${custoTotalMaquina}}`,
+      );
+
       maquinasCalculadas.push({
         maquina_id: maquinaData.id,
         nome_maquina: maquinaData.nome,
@@ -779,6 +785,10 @@ export class OrcamentosService {
 
       const custoTotalFuncao = custoPorHora * horasTrabalhadas;
       custoTotal += custoTotalFuncao;
+
+      this.logger.debug(
+        `ct-calculo: funcao {id=${funcData.id}, tipo=${tipoCalculo ?? 'MANUAL'}, areaTotalM2=${contexto?.areaTotalM2 ?? 'n/a'}, horasMaquinas=${contexto?.horasMaquinas ?? 'n/a'}, qtd=${contexto?.quantidadeProduto ?? 'n/a'}, horas=${horasTrabalhadas}, custo_hora=${custoPorHora}, custo_total=${custoTotalFuncao}, eficiencia=${eficiencia ?? 'n/a'}, setupMin=${setupMin ?? 0}, fator_acomp=${fatorAcomp ?? 1}}`,
+      );
 
       funcoesCalculadas.push({
         funcao_id: funcData.id,
