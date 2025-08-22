@@ -109,7 +109,7 @@ Reaproveitar o padrão de "Estoque/Itens" (imagem de referência) como baseline 
 ## Progresso e Notas (atualizar ao fim de cada fase)
 - Fase 0: [x] concluída — branch criado e documentos congelados.
 - Fase 1: [x] concluída — modelagem Prisma e migrações versionadas.
-- Fase 2: [ ] em andamento — motor com automação e override (fallback manual).
+- Fase 2: [ ] em andamento — motor com automação e override (fallback manual); testes unitários iniciais do cálculo criados.
 - Fase 3: [ ] pendente
 - Fase 4: [ ] pendente
 - Fase 5: [ ] pendente
@@ -134,13 +134,15 @@ Resumo do dia (estado da Fase 2):
   - Máquinas (M2_H): quando `horas_utilizadas` não informado, calcula horas a partir de `areaTotalM2` do orçamento, `velocidade_m2_h`, `eficiencia_percent` e `setup_min`. Fallback manual preservado.
   - Funções: automações para `POR_M2`, `ACOMPANHA_MAQUINA` e `POR_UNIDADE` quando horas não informadas, usando `areaTotalM2`, `horasMaquinas` e `quantidade_produto`. Fallback manual preservado.
   - Quantidade aplicada nos totais, mantendo alinhamento com o preview (que permanece client-side, inalterado).
+- Testes unitários básicos criados em `backend/src/orcamentos/__tests__/calculo-automacao.spec.ts` cobrindo M2_H, POR_M2, ACOMPANHA_MAQUINA e POR_UNIDADE (com eficiência e setup). Ampliar para Serviços Manuais e ML_H.
 - Pendências: muitos lints em `OrcamentosService` (pré-existentes e alguns de formatação após logs). Corrigir gradualmente apenas nas áreas tocadas para não ampliar escopo.
 
 Próximos passos sugeridos (amanhã):
 1) Concluir limpeza mínima de lints no `OrcamentosService` apenas nas linhas alteradas (quebras de linha e nomes de variáveis). Evitar refactors amplos agora.
-2) Criar testes unitários para `calculo-automacao.ts` cobrindo:
+2) Ampliar testes unitários para `calculo-automacao.ts` cobrindo:
    - Máquinas: M2_H com/sem eficiência e setup; fallback manual.
    - Funções: POR_M2, ACOMPANHA_MAQUINA, POR_UNIDADE; fallback manual; eficiência e setup.
+   - Serviços Manuais e (quando modelado) ML_H; casos-limite; meta ≥ 80% de cobertura no arquivo.
 3) Validar na UI: orçamento com máquina M2_H e função ACOMPANHA_MAQUINA; conferir preview x grid após salvar. Em caso de divergência, revisar multiplicadores de quantidade e cálculo de horas.
 4) Commitar testes e ajustes.
 
