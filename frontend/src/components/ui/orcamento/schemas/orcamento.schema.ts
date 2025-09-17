@@ -52,6 +52,11 @@ export const createFormSchema = (mode: 'novo' | 'editar' | 'template') => z.obje
       funcao_id: z.string().min(1, 'Selecione uma função'),
       horas_trabalhadas: z.string().min(1, 'Horas trabalhadas é obrigatória'),
     })),
+    // Serviços manuais utilizados para este produto
+    servicos: z.array(z.object({
+      servico_id: z.string().min(1, 'Selecione um serviço'),
+      horas_trabalhadas: z.string().min(1, 'Horas trabalhadas é obrigatória'),
+    })),
   })).min(1, 'Adicione pelo menos um produto'),
 });
 

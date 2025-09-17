@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { toast } from "sonner";
+import { formatTimeDisplay } from "@/components/ui/time-input";
 
 type Maquina = {
   id: string;
@@ -119,9 +120,9 @@ export default function MaquinasCTPage() {
         cell: ({ row }) => (row.original.eficiencia_percent ? Number(row.original.eficiencia_percent).toFixed(0) : "—"),
       },
       {
-        header: "Setup(min)",
+        header: "Setup",
         accessorKey: "setup_min",
-        cell: ({ row }) => (row.original.setup_min ? Number(row.original.setup_min).toFixed(0) : "—"),
+        cell: ({ row }) => (row.original.setup_min ? formatTimeDisplay(Number(row.original.setup_min) / 60) : "—"),
       },
       {
         header: "Custo/Hora",
@@ -257,7 +258,7 @@ export default function MaquinasCTPage() {
                     <div className="space-y-3 text-sm">
                       <div className="flex justify-between"><span>Veloc.(m²/h):</span><span>{m.velocidade_m2_h ? Number(m.velocidade_m2_h).toFixed(2) : '—'}</span></div>
                       <div className="flex justify-between"><span>Eficiência(%):</span><span>{m.eficiencia_percent ? Number(m.eficiencia_percent).toFixed(0) : '—'}</span></div>
-                      <div className="flex justify-between"><span>Setup(min):</span><span>{m.setup_min ? Number(m.setup_min).toFixed(0) : '—'}</span></div>
+                      <div className="flex justify-between"><span>Setup:</span><span className="font-mono">{m.setup_min ? formatTimeDisplay(Number(m.setup_min) / 60) : '—'}</span></div>
                       <div className="flex justify-between"><span>Custo/Hora:</span><span>R$ {Number(m.custo_hora).toFixed(2)}</span></div>
                       <div className="pt-3 border-t flex gap-2">
                         <Link href={`/centros-de-trabalho/maquinas/editar/${m.id}`} className="flex-1">

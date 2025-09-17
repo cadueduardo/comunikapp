@@ -46,4 +46,28 @@ export interface Funcao {
   maquina?: {
     nome: string;
   };
+  // Campos do Centro de Trabalho
+  tipo_calculo?: 'ACOMPANHA_MAQUINA' | 'POR_M2' | 'POR_UNIDADE' | 'MANUAL';
+  fator_acompanhamento?: number | string;
+  horas_por_m2?: number | string;
+  horas_por_unidade?: number | string;
+  eficiencia_percent?: number | string;
+}
+
+export interface ServicoManual {
+  id: string;
+  nome: string;
+  descricao?: string;
+  custo_hora: number | string;
+  tipo_calculo?: 'ACOMPANHA_MAQUINA' | 'POR_M2' | 'POR_UNIDADE' | 'POR_PECA_COM_CATEGORIA' | 'MANUAL';
+  horas_por_m2?: number | string;
+  horas_por_unidade?: number | string;
+  eficiencia_percent?: number | string;
+  setup_min?: number | string;
+  categorias?: Array<{
+    nome: string;
+    ate_m2: number;
+    tempo_min: number | string;
+  }>;
+  criado_em?: string;
 } 

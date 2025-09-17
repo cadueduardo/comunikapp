@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { MaquinaForm, MaquinaFormValues } from '../../../configuracoes/maquinas/maquina-form';
 import { maquinasApi } from '@/lib/api-client';
+import { parseTimeValue } from '@/components/ui/time-input';
 
 export default function NovaMaquinaCTPage() {
   const router = useRouter();
@@ -28,7 +29,18 @@ export default function NovaMaquinaCTPage() {
         return;
       }
 
-      await maquinasApi.create({ ...data, custo_hora: custo }, token);
+      // Transformar dados para o backend
+      const transformedData = {
+        ...data,
+        custo_hora: custo,
+        // Converter setup de HH:MM para minutos
+        setup_min: data.setup_min ? parseTimeValue(data.setup_min) * 60 : undefined,
+        // Converter outros campos numéricos
+        velocidade_m2_h: data.velocidade_m2_h ? Number(String(data.velocidade_m2_h).replace(',', '.')) : undefined,
+        eficiencia_percent: data.eficiencia_percent ? Number(String(data.eficiencia_percent).replace(',', '.')) : undefined,
+      };
+
+      await maquinasApi.create(transformedData, token);
       toast.success('Máquina criada com sucesso!');
       router.push('/centros-de-trabalho/maquinas');
     } catch (error) {

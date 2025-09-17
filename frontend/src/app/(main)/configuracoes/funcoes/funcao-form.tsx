@@ -29,6 +29,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { maquinasApi } from '@/lib/api-client';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
+import { TimeInput, parseTimeValue, formatTimeDisplay } from '@/components/ui/time-input';
 
 const formSchema = z.object({
   nome: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
@@ -92,6 +93,7 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
   const horasM2 = form.watch('horas_por_m2');
   const horasUn = form.watch('horas_por_unidade');
   const eficiencia = form.watch('eficiencia_percent');
+
   useEffect(() => {
     if (tipo !== 'POR_M2') {
       form.setValue('horas_por_m2', '' as any);
@@ -110,16 +112,31 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
     return isNaN(n) ? 0 : n;
   };
 
+  // Função para converter porcentagem (10 = 10%, não 0.10)
+  const toPercent = (v: any): number => {
+    const num = toNumber(v);
+    return num; // Mantém como está (10 = 10%)
+  };
+
+  const effPercent = toPercent(eficiencia);
+
   const preview = (() => {
     const ch = toNumber(custoHora);
-    const eff = Math.max(toNumber(eficiencia) / 100 || 1, 0.01);
+    
+    // Validação de eficiência: mínimo 5% para evitar cálculos irreais
+    const eff = effPercent > 0 ? Math.max(effPercent / 100, 0.05) : 1;
+    
     if (tipo === 'POR_M2') {
-      const hm2 = toNumber(horasM2);
-      return { label: 'Custo estimado por m²', valor: ch * (hm2 / eff) };
+      const hm2 = parseTimeValue(horasM2);
+      // Lógica correta: horas necessárias considerando eficiência
+      const horasReais = hm2 / eff; // Se eficiência é 50%, precisa de 2x mais tempo
+      return { label: 'Custo estimado por m²', valor: ch * horasReais };
     }
     if (tipo === 'POR_UNIDADE') {
-      const hun = toNumber(horasUn);
-      return { label: 'Custo estimado por unidade', valor: ch * (hun / eff) };
+      const hun = parseTimeValue(horasUn);
+      // Lógica correta: horas necessárias considerando eficiência  
+      const horasReais = hun / eff; // Se eficiência é 50%, precisa de 2x mais tempo
+      return { label: 'Custo estimado por unidade', valor: ch * horasReais };
     }
     return null;
   })();
@@ -203,13 +220,6 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
                 />
               </div>
 
-              {preview && (
-                <div className="rounded-md border p-3 bg-gray-50 text-sm">
-                  <span className="text-gray-600 mr-2">{preview.label}:</span>
-                  <span className="font-medium">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(preview.valor || 0)}</span>
-                </div>
-              )}
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -241,9 +251,35 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
                     </FormItem>
                   )}
                 />
+                
+                <FormField
+                  control={form.control}
+                  name="fator_acompanhamento"
+                  render={({ field }) => (
+                    <FormItem>
+                      <InfoTooltip content="Percentual de acompanhamento da máquina: 100% = igual às horas da máquina, 50% = metade, 200% = dobro, etc.">
+                        <FormLabel>Fator de Acompanhamento (%)</FormLabel>
+                      </InfoTooltip>
+                      <FormControl>
+                        <Input 
+                          placeholder="Ex: 100" 
+                          {...field}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/[^0-9,.-]/g, '');
+                            field.onChange(value);
+                          }}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Percentual de tempo que acompanha a máquina.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              {/* Novos campos CT */}
+              {/* Tipo de Cálculo */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -270,52 +306,42 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="fator_acompanhamento"
-                  render={({ field }) => (
-                    <FormItem>
-                      <InfoTooltip content="Quando a função acompanha a máquina: 1 = igual às horas da máquina, 0,5 = metade, 2 = dobro, etc.">
-                        <FormLabel>Fator de Acompanhamento</FormLabel>
-                      </InfoTooltip>
-                      <FormControl>
-                        <Input placeholder="Ex: 1" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
                 {tipo === 'POR_M2' && (
                   <FormField
                     control={form.control}
                     name="horas_por_m2"
                     render={({ field }) => (
                       <FormItem>
-                        <InfoTooltip content="Quando o cálculo é por m²: quantas horas de função para cada metro quadrado produzido.">
-                          <FormLabel>Horas por m²</FormLabel>
+                        <InfoTooltip content="Tempo necessário para cada metro quadrado. Digite apenas números: 10 = 00:10, 150 = 01:50, 1230 = 12:30.">
+                          <FormLabel>Horas por m² (HH:MM)</FormLabel>
                         </InfoTooltip>
                         <FormControl>
-                          <Input placeholder="Ex: 0.05" {...field} />
+                          <TimeInput 
+                            value={field.value || ''}
+                            onChange={field.onChange}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 )}
+                
                 {tipo === 'POR_UNIDADE' && (
                   <FormField
                     control={form.control}
                     name="horas_por_unidade"
                     render={({ field }) => (
                       <FormItem>
-                        <InfoTooltip content="Quando o cálculo é por unidade: horas gastas por cada unidade produzida.">
-                          <FormLabel>Horas por unidade</FormLabel>
+                        <InfoTooltip content="Tempo necessário para cada unidade. Digite apenas números: 10 = 00:10, 215 = 02:15, 1030 = 10:30.">
+                          <FormLabel>Horas por unidade (HH:MM)</FormLabel>
                         </InfoTooltip>
                         <FormControl>
-                          <Input placeholder="Ex: 0.1" {...field} />
+                          <TimeInput 
+                            value={field.value || ''}
+                            onChange={field.onChange}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -334,13 +360,32 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
                         <FormLabel>Eficiência (%)</FormLabel>
                       </InfoTooltip>
                       <FormControl>
-                        <Input placeholder="Ex: 85" {...field} />
+                        <Input 
+                          placeholder="Ex: 85" 
+                          {...field}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/[^0-9,.-]/g, '');
+                            field.onChange(value);
+                          }}
+                        />
                       </FormControl>
+                      <FormDescription>
+                        Percentual de produtividade (10 = 10%, não 1%). {effPercent > 0 && effPercent < 5 && <span className="text-amber-600 font-medium">⚠️ Eficiência muito baixa pode gerar custos irreais.</span>}
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
+
+              {preview && (
+                <div className="text-xs text-green-600 bg-green-50 p-3 rounded">
+                  <div>
+                    <span className="text-green-800 font-medium">{preview.label}:</span>
+                    <span className="ml-2 font-semibold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(preview.valor || 0)}</span>
+                  </div>
+                </div>
+              )}
 
               <FormField
                 control={form.control}

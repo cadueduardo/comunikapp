@@ -13,17 +13,20 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { servicosManuaisApi } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
+import { formatTimeDisplay } from "@/components/ui/time-input";
 
 interface ServicoManual {
   id: string;
   nome: string;
-  tipo_calculo?: 'ACOMPANHA_MAQUINA' | 'POR_M2' | 'POR_UNIDADE' | 'MANUAL';
+  tipo_calculo?: 'ACOMPANHA_MAQUINA' | 'POR_M2' | 'POR_UNIDADE' | 'POR_PECA_COM_CATEGORIA' | 'MANUAL';
   horas_por_m2?: number | string;
   horas_por_unidade?: number | string;
   eficiencia_percent?: number | string;
   custo_hora?: number | string;
   descricao?: string;
   ativo?: boolean;
+  setup_min?: number | string;
+  categorias?: Array<{nome: string; ate_m2: number; tempo_min: number}>;
 }
 
 export default function ServicosPage() {
@@ -31,6 +34,7 @@ export default function ServicosPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<'table' | 'cards'>("table");
   const [toDelete, setToDelete] = useState<ServicoManual | null>(null);
+  const [modalCategorias, setModalCategorias] = useState<ServicoManual | null>(null);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -82,6 +86,8 @@ export default function ServicosPage() {
         return 'Por unidade';
       case 'ACOMPANHA_MAQUINA':
         return 'Acompanha máquina';
+      case 'POR_PECA_COM_CATEGORIA':
+        return 'Por peça com categoria';
       case 'MANUAL':
         return 'Manual';
       default:
@@ -115,7 +121,21 @@ export default function ServicosPage() {
     {
       id: 'tipo_calculo',
       header: 'Tipo de Cálculo',
-      cell: ({ row }) => <span>{mapTipoCalculo(row.original.tipo_calculo)}</span>,
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <span>{mapTipoCalculo(row.original.tipo_calculo)}</span>
+          {row.original.tipo_calculo === 'POR_PECA_COM_CATEGORIA' && row.original.categorias && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setModalCategorias(row.original)}
+              className="text-xs"
+            >
+              Ver Categorias
+            </Button>
+          )}
+        </div>
+      ),
     },
     {
       id: 'custo_estimado',
@@ -236,10 +256,59 @@ export default function ServicosPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3 text-sm">
-                    <div className="flex justify-between"><span>Custo/Hora:</span><span>R$ {typeof r.custo_hora === 'string' ? parseFloat(r.custo_hora).toFixed(2) : Number(r.custo_hora || 0).toFixed(2)}</span></div>
+                    <div className="flex justify-between">
+                      <span>Tipo:</span>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={r.tipo_calculo === 'MANUAL' ? 'secondary' : 'default'} className="text-xs">
+                          {mapTipoCalculo(r.tipo_calculo)}
+                        </Badge>
+                        {r.tipo_calculo === 'POR_PECA_COM_CATEGORIA' && r.categorias && r.categorias.length > 0 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setModalCategorias(r)}
+                            className="text-xs h-6 px-2"
+                          >
+                            Ver Categorias
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {r.horas_por_m2 && (
+                      <div className="flex justify-between">
+                        <span>Horas/m²:</span>
+                        <span className="font-mono">{formatTimeDisplay(r.horas_por_m2)}</span>
+                      </div>
+                    )}
+                    
+                    {r.horas_por_unidade && (
+                      <div className="flex justify-between">
+                        <span>Horas/Un:</span>
+                        <span className="font-mono">{formatTimeDisplay(r.horas_por_unidade)}</span>
+                      </div>
+                    )}
+                    
+                    {r.eficiencia_percent && (
+                      <div className="flex justify-between">
+                        <span>Eficiência:</span>
+                        <span>{Number(r.eficiencia_percent)}%</span>
+                      </div>
+                    )}
+                    
+                    {r.setup_min && (
+                      <div className="flex justify-between">
+                        <span>Setup:</span>
+                        <span className="font-mono">{formatTimeDisplay(r.setup_min / 60)}</span>
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between"><span>Custo/Hora:</span><span className="font-medium">R$ {typeof r.custo_hora === 'string' ? parseFloat(r.custo_hora).toFixed(2) : Number(r.custo_hora || 0).toFixed(2)}</span></div>
+                    
                     {(() => { const ce = calcularCustoEstimado(r); return ce.valor != null ? (
-                      <div className="flex justify-between"><span>Custo Estimado:</span><span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ce.valor)}{ce.label && <span className="text-xs text-gray-500"> / {ce.label}</span>}</span></div>
+                      <div className="flex justify-between"><span>Custo Estimado:</span><span className="font-medium">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ce.valor)}{ce.label && <span className="text-xs text-gray-500"> / {ce.label}</span>}</span></div>
                     ) : null; })()}
+                    
                     <div className="pt-3 border-t flex gap-2">
                       <Link href={`/centros-de-trabalho/servicos/editar/${r.id}`} className="flex-1">
                         <Button variant="outline" size="sm" className="w-full">Editar</Button>
@@ -254,6 +323,57 @@ export default function ServicosPage() {
         )
       ) : (
         emptyState
+      )}
+
+      {/* Modal de Categorias */}
+      {modalCategorias && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Categorias - {modalCategorias.nome}</CardTitle>
+                  <p className="text-sm text-gray-600 mt-1">Faixas de área e tempo configuradas</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setModalCategorias(null)}
+                  className="h-8 w-8 p-0"
+                >
+                  ✕
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {modalCategorias.categorias && modalCategorias.categorias.length > 0 ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-3 gap-4 text-sm font-medium text-gray-700 pb-2 border-b">
+                    <div>Categoria</div>
+                    <div>Até (m²)</div>
+                    <div>Tempo</div>
+                  </div>
+                  {modalCategorias.categorias.map((cat, index) => (
+                    <div key={index} className="grid grid-cols-3 gap-4 text-sm">
+                      <div className="font-medium">{cat.nome}</div>
+                      <div>{cat.ate_m2.toFixed(1)}m²</div>
+                      <div>{Math.floor(cat.tempo_min / 60).toString().padStart(2, '0')}:{Math.round(cat.tempo_min % 60).toString().padStart(2, '0')}</div>
+                    </div>
+                  ))}
+                  
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+                    <p className="font-medium">Como funciona:</p>
+                    <p>O sistema seleciona automaticamente a categoria baseada na área individual da peça e aplica o tempo correspondente multiplicado pela quantidade.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>Nenhuma categoria configurada</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       <ConfirmDialog

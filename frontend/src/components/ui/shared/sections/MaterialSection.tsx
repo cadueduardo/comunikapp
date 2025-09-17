@@ -1,6 +1,7 @@
 'use client';
 
 import { useFormContext } from 'react-hook-form';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   FormControl,
@@ -36,6 +37,89 @@ export function MaterialSection({
   customActions
 }: MaterialSectionProps) {
   const form = useFormContext();
+
+  // Monitorar mudanças nas dimensões e quantidade do produto para recalcular materiais automaticamente
+  const quantidadeProduto = form.watch(`itens_produto.${itemIndex}.quantidade_produto`);
+  const areaProduto = form.watch(`itens_produto.${itemIndex}.area_produto`);
+  const larguraProduto = form.watch(`itens_produto.${itemIndex}.largura_produto`);
+  const alturaProduto = form.watch(`itens_produto.${itemIndex}.altura_produto`);
+  const unidadeMedidaProduto = form.watch(`itens_produto.${itemIndex}.unidade_medida_produto`);
+
+  useEffect(() => {
+    // Recalcular automaticamente as quantidades de materiais quando as dimensões ou quantidade do produto mudarem
+    const materiais = form.getValues(`itens_produto.${itemIndex}.materiais`) || [];
+    
+    materiais.forEach((material: { insumo_id: string; quantidade: string }, materialIndex: number) => {
+      if (material.insumo_id) {
+        const insumoSelecionado = insumos.find(insumo => insumo.id === material.insumo_id);
+        if (insumoSelecionado) {
+          let novaQuantidade = '';
+          const quantidadeProdutoNum = Number(quantidadeProduto) || 1;
+          const areaProdutoNum = Number(areaProduto) || 0;
+          const larguraProdutoNum = Number(larguraProduto) || 0;
+          const alturaProdutoNum = Number(alturaProduto) || 0;
+          
+          // Verificar se tem lógica personalizada
+          if (insumoSelecionado.logica_consumo === 'custom' && insumoSelecionado.tipoMaterial) {
+            const parametros = insumoSelecionado.tipoMaterial.parametros_padrao;
+            
+            if (parametros && parametros.tipo_calculo) {
+              switch (parametros.tipo_calculo) {
+                case 'espacamento':
+                  if (parametros.espacamento && larguraProdutoNum && alturaProdutoNum) {
+                    const perimetro = 2 * (larguraProdutoNum + alturaProdutoNum);
+                    const espacamento = Number(parametros.espacamento);
+                    novaQuantidade = (Math.ceil(perimetro / espacamento) * quantidadeProdutoNum).toString();
+                  }
+                  break;
+                
+                case 'quantidade_por_m2':
+                  if (parametros.quantidade_por_m2 && areaProdutoNum > 0) {
+                    novaQuantidade = (areaProdutoNum * Number(parametros.quantidade_por_m2) * quantidadeProdutoNum).toString();
+                  }
+                  break;
+                
+                case 'multiplicador':
+                  if (parametros.multiplicador) {
+                    novaQuantidade = (1 * Number(parametros.multiplicador) * quantidadeProdutoNum).toString();
+                  }
+                  break;
+                
+                case 'quantidade_fixa':
+                  if (parametros.quantidade_fixa) {
+                    novaQuantidade = (parametros.quantidade_fixa * quantidadeProdutoNum).toString();
+                  }
+                  break;
+              }
+            }
+          } else {
+            // Lógica padrão baseada na unidade de uso
+            switch (insumoSelecionado.unidade_uso) {
+              case 'M2':
+                if (larguraProdutoNum && alturaProdutoNum && unidadeMedidaProduto) {
+                  const area = calcularArea(larguraProdutoNum, alturaProdutoNum, unidadeMedidaProduto);
+                  novaQuantidade = (area * quantidadeProdutoNum).toFixed(2);
+                }
+                break;
+              case 'M':
+                if (larguraProdutoNum && alturaProdutoNum && unidadeMedidaProduto) {
+                  const larguraEmMetros = converterParaMetros(larguraProdutoNum, unidadeMedidaProduto);
+                  const alturaEmMetros = converterParaMetros(alturaProdutoNum, unidadeMedidaProduto);
+                  const perimetro = 2 * (larguraEmMetros + alturaEmMetros);
+                  novaQuantidade = (perimetro * quantidadeProdutoNum).toFixed(2);
+                }
+                break;
+            }
+          }
+          
+          // Atualizar apenas se a nova quantidade for diferente e válida
+          if (novaQuantidade && novaQuantidade !== material.quantidade) {
+            form.setValue(`itens_produto.${itemIndex}.materiais.${materialIndex}.quantidade`, novaQuantidade);
+          }
+        }
+      }
+    });
+  }, [quantidadeProduto, areaProduto, larguraProduto, alturaProduto, unidadeMedidaProduto, form, itemIndex, insumos]);
 
   const handleAddMaterial = () => {
     if (onAddMaterial) {
@@ -82,6 +166,10 @@ export function MaterialSection({
         const campoQuantidade = getCampoQuantidade(insumoSelecionado);
         const custoPorUnidade = insumoSelecionado ? calcularCustoPorUnidadeUso(insumoSelecionado) : 0;
         const quantidade = Number(String(material.quantidade).replace(',', '.')) || 0;
+        // Calcular custo considerando se a quantidade já inclui a multiplicação pelo produto
+        // Se o material foi calculado automaticamente, a quantidade já considera a quantidade do produto
+        // Se foi digitado manualmente, precisamos verificar se deve multiplicar
+        const quantidadeProduto = Number(form.watch(`itens_produto.${itemIndex}.quantidade_produto`)) || 1;
         const custoCalculado = custoPorUnidade * quantidade;
         
         // Obter dimensões do produto para materiais calculados por m²
@@ -347,24 +435,37 @@ export function MaterialSection({
               <FormField
                 control={form.control}
                 name={`itens_produto.${itemIndex}.materiais.${materialIndex}.quantidade`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{campoQuantidade.label}</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="text" 
-                        placeholder={campoQuantidade.placeholder}
-                        {...field}
-                        onChange={(e) => {
-                          // Permitir vírgula e ponto como separador decimal
-                          const value = e.target.value.replace(/[^0-9,.-]/g, '');
-                          field.onChange(value);
-                        }}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  // Verificar se o material é calculado por área (M2) ou tem lógica personalizada baseada em área
+                  const isAreaCalculated = insumoSelecionado && (
+                    insumoSelecionado.unidade_uso === 'M2' ||
+                    (insumoSelecionado.logica_consumo === 'custom' && 
+                     insumoSelecionado.tipoMaterial?.parametros_padrao?.tipo_calculo === 'quantidade_por_m2')
+                  );
+                  
+                  return (
+                    <FormItem>
+                      <FormLabel>{campoQuantidade.label}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="text" 
+                          placeholder={campoQuantidade.placeholder}
+                          {...field}
+                          readOnly={isAreaCalculated}
+                          className={isAreaCalculated ? "bg-muted" : ""}
+                          onChange={(e) => {
+                            if (!isAreaCalculated) {
+                              // Permitir vírgula e ponto como separador decimal
+                              const value = e.target.value.replace(/[^0-9,.-]/g, '');
+                              field.onChange(value);
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
               
               <div className="flex items-center justify-end">

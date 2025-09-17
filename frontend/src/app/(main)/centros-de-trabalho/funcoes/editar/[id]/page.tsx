@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import React from 'react';
 import { FuncaoForm, FuncaoFormValues } from '../../../../configuracoes/funcoes/funcao-form';
 import { funcoesApi } from '@/lib/api-client';
+import { parseTimeValue, formatTimeDisplay } from '@/components/ui/time-input';
 
 interface Funcao {
   id: string;
@@ -53,7 +54,22 @@ export default function EditarFuncaoCTPage({ params }: { params: Promise<{ id: s
         toast.error('Token de autenticação não encontrado');
         return;
       }
-      await funcoesApi.update(id, { ...data }, token);
+      // Transformar dados para o formato esperado pelo backend
+      const transformedData = {
+        ...data,
+        // Converter valores de tempo mascarados para horas decimais
+        horas_por_m2: data.horas_por_m2 ? parseTimeValue(data.horas_por_m2) : undefined,
+        horas_por_unidade: data.horas_por_unidade ? parseTimeValue(data.horas_por_unidade) : undefined,
+        // Converter porcentagens para decimais se necessário
+        fator_acompanhamento: data.fator_acompanhamento ? Number(String(data.fator_acompanhamento).replace(',', '.')) / 100 : undefined,
+        eficiencia_percent: data.eficiencia_percent ? Number(String(data.eficiencia_percent).replace(',', '.')) : undefined,
+        // Garantir que custo_hora seja número
+        custo_hora: Number(String(data.custo_hora).replace(/[^0-9,-]/g, '').replace(',', '.'))
+      };
+
+      console.log('Dados transformados para backend (edição):', transformedData); // DEBUG
+
+      await funcoesApi.update(id, transformedData, token);
       toast.success('Função atualizada com sucesso!');
       router.push('/centros-de-trabalho/funcoes');
     } catch (error) {
@@ -71,8 +87,9 @@ export default function EditarFuncaoCTPage({ params }: { params: Promise<{ id: s
     maquina_id: registro.maquina_id || 'null',
     tipo_calculo: registro.tipo_calculo || 'MANUAL',
     fator_acompanhamento: registro.fator_acompanhamento || '',
-    horas_por_m2: registro.horas_por_m2 || '',
-    horas_por_unidade: registro.horas_por_unidade || '',
+    // Converter horas decimais para HH:MM para exibição
+    horas_por_m2: registro.horas_por_m2 ? formatTimeDisplay(registro.horas_por_m2) : '',
+    horas_por_unidade: registro.horas_por_unidade ? formatTimeDisplay(registro.horas_por_unidade) : '',
     eficiencia_percent: registro.eficiencia_percent || '',
   } : undefined;
 

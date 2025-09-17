@@ -42,6 +42,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
+import { TimeInput, parseTimeValue, formatTimeDisplay } from '@/components/ui/time-input';
 
 const formSchema = z.object({
   nome: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
@@ -425,11 +426,15 @@ export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFor
                   name="setup_min"
                   render={({ field }) => (
                     <FormItem>
-                      <InfoTooltip content="Tempo médio de preparação a cada trabalho (troca de mídia, ajuste de cor, posicionamento). É adicionado às horas calculadas pela velocidade.">
-                        <FormLabel>Setup (min)</FormLabel>
+                      <InfoTooltip content="Tempo médio de preparação a cada trabalho (troca de mídia, ajuste de cor, posicionamento). Digite em minutos: 15 = 00:15, 90 = 01:30.">
+                        <FormLabel>Setup (HH:MM)</FormLabel>
                       </InfoTooltip>
                       <FormControl>
-                        <Input placeholder="Ex: 15" {...field} />
+                        <TimeInput 
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          placeholder="Ex: 15 → 00:15"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

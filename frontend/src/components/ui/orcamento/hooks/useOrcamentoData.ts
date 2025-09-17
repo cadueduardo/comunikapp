@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Cliente, Insumo, Maquina, Funcao } from '../../shared/types/common.types';
-import { clientesApi, insumosApi, maquinasApi, funcoesApi } from '@/lib/api-client';
+import { Cliente, Insumo, Maquina, Funcao, ServicoManual } from '../../shared/types/common.types';
+import { clientesApi, insumosApi, maquinasApi, funcoesApi, servicosManuaisApi } from '@/lib/api-client';
 
 export function useOrcamentoData() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [maquinas, setMaquinas] = useState<Maquina[]>([]);
   const [funcoes, setFuncoes] = useState<Funcao[]>([]);
+  const [servicos, setServicos] = useState<ServicoManual[]>([]);
 
   const fetchClientes = async () => {
     try {
@@ -56,11 +57,24 @@ export function useOrcamentoData() {
     }
   };
 
+  const fetchServicos = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      const data = await servicosManuaisApi.getAll(token);
+      setServicos(data);
+    } catch (error) {
+      console.error('Erro ao buscar serviços manuais:', error);
+    }
+  };
+
   useEffect(() => {
     fetchClientes();
     fetchInsumos();
     fetchMaquinas();
     fetchFuncoes();
+    fetchServicos();
   }, []);
 
   return {
@@ -68,9 +82,11 @@ export function useOrcamentoData() {
     insumos,
     maquinas,
     funcoes,
+    servicos,
     fetchClientes,
     fetchInsumos,
     fetchMaquinas,
     fetchFuncoes,
+    fetchServicos,
   };
 } 

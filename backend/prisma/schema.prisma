@@ -542,6 +542,8 @@ model servico_manual {
   horas_por_m2       Decimal?            @db.Decimal(10, 3)
   horas_por_unidade  Decimal?            @db.Decimal(10, 3)
   eficiencia_percent Decimal?            @db.Decimal(5, 2)
+  setup_min          Decimal?            @db.Decimal(10, 2)
+  categorias         String?             @db.LongText
 
   loja loja @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "ServicoManual_loja_id_fkey")
 
@@ -860,5 +862,6 @@ enum funcao_tipo_calculo {
   ACOMPANHA_MAQUINA
   POR_M2
   POR_UNIDADE
+  POR_PECA_COM_CATEGORIA
   MANUAL
 }

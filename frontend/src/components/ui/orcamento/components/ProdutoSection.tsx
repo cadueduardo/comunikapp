@@ -28,7 +28,7 @@ import {
 import { Plus, Package, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { MaterialSection, MaquinaSection, FuncaoSection } from '../../shared/sections';
+import { MaterialSection, MaquinaSection, FuncaoSection, ServicoSection } from '../../shared/sections';
 
 interface ProdutoSectionProps {
   mode: 'novo' | 'editar' | 'template';
@@ -55,9 +55,24 @@ interface ProdutoSectionProps {
     custo_hora: number;
     maquina?: { nome: string };
   }>;
+  servicos?: Array<{
+    id: string;
+    nome: string;
+    custo_hora: number | string;
+    tipo_calculo?: 'ACOMPANHA_MAQUINA' | 'POR_M2' | 'POR_UNIDADE' | 'POR_PECA_COM_CATEGORIA' | 'MANUAL';
+    horas_por_m2?: number | string;
+    horas_por_unidade?: number | string;
+    eficiencia_percent?: number | string;
+    setup_min?: number | string;
+    categorias?: Array<{
+      nome: string;
+      ate_m2: number;
+      tempo_min: number | string;
+    }>;
+  }>;
 }
 
-export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [], funcoes = [] }: ProdutoSectionProps) {
+export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [], funcoes = [], servicos = [] }: ProdutoSectionProps) {
   const form = useFormContext();
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -76,6 +91,7 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
       materiais: [{ insumo_id: '', quantidade: '1' }],
       maquinas: [{ maquina_id: '', horas_utilizadas: '1' }],
       funcoes: [{ funcao_id: '', horas_trabalhadas: '1' }],
+      servicos: [{ servico_id: '', horas_trabalhadas: '1' }],
     });
   };
 
@@ -396,6 +412,13 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
                       variant="orcamento"
                       itemIndex={index}
                       funcoes={funcoes}
+                    />
+
+                    {/* Serviços Manuais */}
+                    <ServicoSection
+                      variant="orcamento"
+                      itemIndex={index}
+                      servicos={servicos}
                     />
                   </div>
                 </CardContent>

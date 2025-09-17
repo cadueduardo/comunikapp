@@ -1,6 +1,7 @@
 'use client';
 
 import { useFormContext } from 'react-hook-form';
+import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   FormControl,
@@ -94,7 +95,112 @@ export function MaquinaSection({
       {form.watch(`itens_produto.${itemIndex}.maquinas`)?.map((maquina: { maquina_id: string; horas_utilizadas: string }, maquinaIndex: number) => {
         const maquinaSelecionada = maquinas.find(m => m.id === maquina.maquina_id);
         const horasUtilizadas = Number(String(maquina.horas_utilizadas).replace(',', '.')) || 0;
-        const custoCalculado = maquinaSelecionada ? maquinaSelecionada.custo_hora * horasUtilizadas : 0;
+
+        // Função auxiliar para converter valores
+        const toNumber = (v: any): number => {
+          if (v == null || v === '') return 0;
+          if (typeof v === 'number') return v;
+          if (typeof v === 'string') return parseFloat(v.replace(',', '.')) || 0;
+          if (v && typeof v.toString === 'function') {
+            return parseFloat(v.toString().replace(',', '.')) || 0;
+          }
+          return 0;
+        };
+
+        // Calcular horas e custo baseado no modo de produção
+        const { horasCalculadas, disclaimer, isManual } = useMemo(() => {
+          if (!maquinaSelecionada || !maquinaSelecionada.modo_producao) {
+            return { horasCalculadas: 0, disclaimer: 'Modo de produção não definido', isManual: true };
+          }
+
+          const areaM2 = toNumber(form.watch(`itens_produto.${itemIndex}.area_produto`)) || 0;
+          const qtd = toNumber(form.watch(`itens_produto.${itemIndex}.quantidade_produto`)) || 1;
+          const areaTotal = areaM2 * qtd;
+          
+          const velocidadeM2H = toNumber(maquinaSelecionada.velocidade_m2_h) || 0;
+          const eficienciaPercent = toNumber(maquinaSelecionada.eficiencia_percent) || 100;
+          const setupMin = toNumber(maquinaSelecionada.setup_min) || 0;
+          
+          const eficienciaDecimal = eficienciaPercent / 100;
+          const fatorEficiencia = 1 / Math.max(eficienciaDecimal, 0.05);
+          
+          let horasAuto = 0;
+          let disclaimerTexto = '';
+          let manual = true;
+
+          switch (maquinaSelecionada.modo_producao) {
+            case 'M2_H':
+              if (velocidadeM2H > 0 && areaTotal > 0) {
+                let velocidadeCorrigida = velocidadeM2H;
+                
+                // CORREÇÃO: Se velocidade for muito baixa (< 0.5), pode estar invertida
+                if (velocidadeM2H < 0.5) {
+                  velocidadeCorrigida = 1 / velocidadeM2H; // Inverter se necessário
+                  console.warn('⚠️ Velocidade muito baixa detectada, invertendo:', velocidadeM2H, '→', velocidadeCorrigida);
+                }
+                
+                const horasBase = areaTotal / velocidadeCorrigida; // área ÷ velocidade
+                const horasSetup = setupMin / 60;
+                horasAuto = (horasBase + horasSetup) * fatorEficiencia;
+                
+                // Validação final
+                if (horasAuto > 500) {
+                  console.warn('⚠️ Resultado muito alto para máquina, limitando a 100h');
+                  horasAuto = 100;
+                }
+                
+                // Debug detalhado do cálculo
+                console.log('🔍 Debug Máquina M2_H:', {
+                  maquinaNome: maquinaSelecionada.nome,
+                  areaM2,
+                  qtd,
+                  areaTotal,
+                  velocidadeM2H,
+                  setupMin,
+                  eficienciaPercent,
+                  fatorEficiencia,
+                  calculoDetalhado: {
+                    horasBase: `${areaTotal} ÷ ${velocidadeM2H} = ${horasBase}`,
+                    horasSetup: `${setupMin} ÷ 60 = ${horasSetup}`,
+                    calculoFinal: `(${horasBase} + ${horasSetup}) × ${fatorEficiencia} = ${horasAuto}`
+                  }
+                });
+                
+                disclaimerTexto = `${areaTotal.toFixed(2)}m² ÷ ${velocidadeCorrigida.toFixed(2)}m²/h + ${setupMin}min setup com ${eficienciaPercent}% eficiência = ${horasAuto.toFixed(2)}h`;
+                manual = false;
+              }
+              break;
+              
+            case 'ML_H':
+              // TODO: Implementar cálculo para modo linear
+              disclaimerTexto = 'Modo linear (ML/H) - implementação pendente';
+              manual = false;
+              break;
+              
+            default: // MANUAL
+              disclaimerTexto = 'Horas inseridas manualmente';
+              manual = true;
+              break;
+          }
+
+          return { 
+            horasCalculadas: horasAuto, 
+            disclaimer: disclaimerTexto, 
+            isManual: manual 
+          };
+        }, [
+          maquinaSelecionada?.id, 
+          maquinaSelecionada?.modo_producao, 
+          maquinaSelecionada?.velocidade_m2_h, 
+          maquinaSelecionada?.eficiencia_percent,
+          maquinaSelecionada?.setup_min,
+          form.watch(`itens_produto.${itemIndex}.area_produto`), 
+          form.watch(`itens_produto.${itemIndex}.quantidade_produto`)
+        ]);
+
+        // Usar horas calculadas automaticamente ou horas manuais
+        const horasFinais = isManual ? horasUtilizadas : horasCalculadas;
+        const custoCalculado = maquinaSelecionada ? converterValor(maquinaSelecionada.custo_hora) * horasFinais : 0;
         
         return (
           <div key={maquinaIndex} className="space-y-4 mb-4">
@@ -133,13 +239,17 @@ export function MaquinaSection({
                     <FormControl>
                       <Input 
                         type="text" 
-                        placeholder="0.00"
-                        {...field}
+                        placeholder={isManual ? "0.00" : horasCalculadas.toFixed(2)}
+                        value={isManual ? field.value : horasCalculadas.toFixed(2)}
                         onChange={(e) => {
-                          // Permitir vírgula e ponto como separador decimal
-                          const value = e.target.value.replace(/[^0-9,.-]/g, '');
-                          field.onChange(value);
+                          if (isManual) {
+                            // Permitir vírgula e ponto como separador decimal
+                            const value = e.target.value.replace(/[^0-9,.-]/g, '');
+                            field.onChange(value);
+                          }
                         }}
+                        readOnly={!isManual}
+                        className={!isManual ? "bg-muted" : ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -162,14 +272,24 @@ export function MaquinaSection({
             </div>
             
             {/* Custo calculado */}
-            {maquinaSelecionada && horasUtilizadas > 0 && custoCalculado > 0 && (
+            {maquinaSelecionada && horasFinais > 0 && custoCalculado > 0 && (
               <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
                 <div className="flex items-center justify-between">
                   <div>
                     <div>Custo: {formatCurrency(custoCalculado)} ({formatCurrency(converterValor(maquinaSelecionada.custo_hora))} por hora)</div>
                     <div className="text-green-700 mt-1 font-medium">
-                      {maquinaSelecionada.nome} • {maquinaSelecionada.tipo} • {horasUtilizadas}h
+                      {maquinaSelecionada.nome} • {maquinaSelecionada.tipo} • {horasFinais.toFixed(2)}h
+                      {maquinaSelecionada.modo_producao && (
+                        <span className="ml-2 text-xs">
+                          ({maquinaSelecionada.modo_producao})
+                        </span>
+                      )}
                     </div>
+                    {disclaimer && (
+                      <div className="text-green-700 mt-1 text-xs">
+                        💡 {disclaimer}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

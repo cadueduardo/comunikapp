@@ -27,18 +27,41 @@ export class ServicosManuaisService {
       eficiencia_percent: this.toNumber(dto.eficiencia_percent),
       atualizado_em: new Date(),
     };
+
+    // Adicionar novos campos se fornecidos (compatibilidade com schema futuro)
+    if (dto.setup_min !== undefined) {
+      payload.setup_min = this.toNumber(dto.setup_min);
+    }
+    
+    if (dto.categorias !== undefined) {
+      payload.categorias = dto.categorias ? JSON.stringify(dto.categorias) : null;
+    }
+
     return this.prisma.servico_manual.create({ data: payload });
   }
 
   async findAll(lojaCtx: loja) {
-    return this.prisma.servico_manual.findMany({
+    const servicos = await this.prisma.servico_manual.findMany({
       where: { loja_id: lojaCtx.id },
       orderBy: { criado_em: 'desc' },
     });
+
+    // Parse das categorias JSON para objetos
+    return servicos.map(servico => ({
+      ...servico,
+      categorias: (servico as any).categorias ? JSON.parse((servico as any).categorias) : null
+    }));
   }
 
   async findOne(id: string, lojaCtx: loja) {
-    return this.prisma.servico_manual.findFirst({ where: { id, loja_id: lojaCtx.id } });
+    const servico = await this.prisma.servico_manual.findFirst({ where: { id, loja_id: lojaCtx.id } });
+    if (!servico) return null;
+    
+    // Parse das categorias JSON para objeto
+    return {
+      ...servico,
+      categorias: (servico as any).categorias ? JSON.parse((servico as any).categorias) : null
+    };
   }
 
   async update(id: string, dto: any, lojaCtx: loja) {
@@ -52,6 +75,16 @@ export class ServicosManuaisService {
       eficiencia_percent: this.toNumber(dto.eficiencia_percent),
       atualizado_em: new Date(),
     };
+
+    // Adicionar novos campos se fornecidos (compatibilidade com schema futuro)
+    if (dto.setup_min !== undefined) {
+      data.setup_min = this.toNumber(dto.setup_min);
+    }
+    
+    if (dto.categorias !== undefined) {
+      data.categorias = dto.categorias ? JSON.stringify(dto.categorias) : null;
+    }
+
     return this.prisma.servico_manual.update({ where: { id }, data, });
   }
 

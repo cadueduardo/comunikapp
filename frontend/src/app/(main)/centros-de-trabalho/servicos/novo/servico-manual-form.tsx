@@ -28,10 +28,13 @@ import Link from 'next/link';
 import { useEffect, useMemo } from 'react';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { CustomCurrencyInput } from '@/components/ui/currency-input';
+import { TimeInput, parseTimeValue } from '@/components/ui/time-input';
+import { useState } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 
 const formSchema = z.object({
   nome: z.string().min(2, 'Informe o nome.'),
-  tipo_calculo: z.enum(['ACOMPANHA_MAQUINA', 'POR_M2', 'POR_UNIDADE', 'MANUAL']).default('MANUAL'),
+  tipo_calculo: z.enum(['ACOMPANHA_MAQUINA', 'POR_M2', 'POR_UNIDADE', 'POR_PECA_COM_CATEGORIA', 'MANUAL']).default('MANUAL'),
   horas_por_m2: z.any().optional(),
   horas_por_unidade: z.any().optional(),
   eficiencia_percent: z.any().optional(),
@@ -39,11 +42,20 @@ const formSchema = z.object({
     message: 'Informe um custo válido (pode ser 0 para preço base em outro lugar).',
   }),
   descricao: z.string().optional(),
+  // Novos campos para ranges
+  setup_min: z.string().optional(),
+  categorias: z.array(z.object({
+    nome: z.string().min(1, 'Nome é obrigatório'),
+    ate_m2: z.number().min(0.1, 'Área deve ser maior que 0'),
+    tempo_min: z.string().min(1, 'Tempo é obrigatório')
+  })).optional(),
 });
 
 export type ServicoManualFormValues = z.infer<typeof formSchema>;
 
 export default function ServicoManualForm({ onSave, initialData, loading = false }: { onSave: (data: ServicoManualFormValues) => Promise<void>; initialData?: Partial<ServicoManualFormValues>; loading?: boolean; }) {
+  const [categorias, setCategorias] = useState<Array<{nome: string; ate_m2: number; tempo_min: string}>>([]);
+
   const form = useForm<ServicoManualFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -54,8 +66,18 @@ export default function ServicoManualForm({ onSave, initialData, loading = false
       eficiencia_percent: initialData?.eficiencia_percent || '',
       custo_hora: initialData?.custo_hora || '',
       descricao: initialData?.descricao || '',
+      setup_min: initialData?.setup_min || '',
+      categorias: initialData?.categorias || [],
     },
   });
+
+  // Sincronizar categorias com o form
+  useEffect(() => {
+    if (initialData?.categorias) {
+      setCategorias(initialData.categorias);
+      form.setValue('categorias', initialData.categorias);
+    }
+  }, [initialData]);
 
   const tipo = form.watch('tipo_calculo');
   const custoHora = form.watch('custo_hora');
@@ -94,6 +116,11 @@ export default function ServicoManualForm({ onSave, initialData, loading = false
     }
     if (tipo !== 'POR_UNIDADE') {
       form.setValue('horas_por_unidade', '' as any);
+    }
+    if (tipo !== 'POR_PECA_COM_CATEGORIA') {
+      form.setValue('setup_min', '' as any);
+      form.setValue('categorias', [] as any);
+      setCategorias([]);
     }
   }, [tipo]);
 
@@ -159,6 +186,7 @@ export default function ServicoManualForm({ onSave, initialData, loading = false
                         <SelectItem value="ACOMPANHA_MAQUINA">Acompanha Máquina</SelectItem>
                         <SelectItem value="POR_M2">Por m²</SelectItem>
                         <SelectItem value="POR_UNIDADE">Por unidade</SelectItem>
+                        <SelectItem value="POR_PECA_COM_CATEGORIA">Por peça com categoria</SelectItem>
                         <SelectItem value="MANUAL">Manual</SelectItem>
                       </SelectContent>
                     </Select>
@@ -207,6 +235,128 @@ export default function ServicoManualForm({ onSave, initialData, loading = false
                   )} />
                 )}
               </div>
+
+              {/* Campos específicos para POR_PECA_COM_CATEGORIA */}
+              {tipo === 'POR_PECA_COM_CATEGORIA' && (
+                <div className="space-y-6">
+                  {/* Campo Setup */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="setup_min"
+                      render={({ field }) => (
+                        <FormItem>
+                          <InfoTooltip content="Tempo de preparação antes de iniciar o serviço. Ex: 30 = 00:30 (30 minutos).">
+                            <FormLabel>Setup (HH:MM)</FormLabel>
+                          </InfoTooltip>
+                          <FormControl>
+                            <TimeInput 
+                              value={field.value || ''}
+                              onChange={field.onChange}
+                              placeholder="Ex: 30 → 00:30"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Grid de Categorias */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-lg font-medium">Categorias por Tamanho</h4>
+                        <p className="text-sm text-gray-600">Defina faixas de área e tempo específico para cada categoria</p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const novaCategoria = { nome: '', ate_m2: 0, tempo_min: '' };
+                          const novasCategorias = [...categorias, novaCategoria];
+                          setCategorias(novasCategorias);
+                          form.setValue('categorias', novasCategorias);
+                        }}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Adicionar Categoria
+                      </Button>
+                    </div>
+
+                    {categorias.length > 0 && (
+                      <div className="border rounded-lg p-4 space-y-3">
+                        <div className="grid grid-cols-4 gap-4 text-sm font-medium text-gray-700 pb-2 border-b">
+                          <div>Nome da Categoria</div>
+                          <div>Até (m²)</div>
+                          <div>Tempo (HH:MM)</div>
+                          <div className="text-center">Ações</div>
+                        </div>
+                        
+                        {categorias.map((categoria, index) => (
+                          <div key={index} className="grid grid-cols-4 gap-4 items-end">
+                            <Input
+                              placeholder="Ex: Pequeno"
+                              value={categoria.nome}
+                              onChange={(e) => {
+                                const novasCategorias = [...categorias];
+                                novasCategorias[index].nome = e.target.value;
+                                setCategorias(novasCategorias);
+                                form.setValue('categorias', novasCategorias);
+                              }}
+                            />
+                            <Input
+                              type="number"
+                              step="0.1"
+                              placeholder="Ex: 2.0"
+                              value={categoria.ate_m2 || ''}
+                              onChange={(e) => {
+                                const novasCategorias = [...categorias];
+                                novasCategorias[index].ate_m2 = parseFloat(e.target.value) || 0;
+                                setCategorias(novasCategorias);
+                                form.setValue('categorias', novasCategorias);
+                              }}
+                            />
+                            <TimeInput
+                              value={categoria.tempo_min}
+                              onChange={(value) => {
+                                const novasCategorias = [...categorias];
+                                novasCategorias[index].tempo_min = value;
+                                setCategorias(novasCategorias);
+                                form.setValue('categorias', novasCategorias);
+                              }}
+                              placeholder="Ex: 15 → 00:15"
+                            />
+                            <div className="flex justify-center">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const novasCategorias = categorias.filter((_, i) => i !== index);
+                                  setCategorias(novasCategorias);
+                                  form.setValue('categorias', novasCategorias);
+                                }}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {categorias.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>Nenhuma categoria configurada</p>
+                        <p className="text-sm">Clique em "Adicionar Categoria" para começar</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {preview && (
                 <div className="rounded-md border p-3 bg-gray-50 text-sm">

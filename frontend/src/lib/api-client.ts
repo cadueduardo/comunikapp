@@ -237,7 +237,7 @@ export const servicosManuaisApi = {
   getAll: (token: string) => ApiClient.get('/servicos-manuais', token),
   getById: (id: string, token: string) => ApiClient.get(`/servicos-manuais/${id}`, token),
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/servicos-manuais', data, token),
-  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/servicos-manuais/${id}`, data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/servicos-manuais/${id}`, data, token),
   delete: (id: string, token: string) => ApiClient.delete(`/servicos-manuais/${id}`, token),
 };
 

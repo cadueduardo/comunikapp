@@ -37,7 +37,7 @@ export function OrcamentoV2Form({
   const [loading, setLoading] = useState(false);
   const [showProdutoModal, setShowProdutoModal] = useState(false);
   const [selectedProdutoIndex, setSelectedProdutoIndex] = useState<number>(0);
-  const { clientes, insumos, maquinas, funcoes } = useOrcamentoData();
+  const { clientes, insumos, maquinas, funcoes, servicos } = useOrcamentoData();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createFormSchema(mode)),
@@ -62,6 +62,7 @@ export function OrcamentoV2Form({
           materiais: [{ insumo_id: '', quantidade: '1' }],
           maquinas: [{ maquina_id: '', horas_utilizadas: '1' }],
           funcoes: [{ funcao_id: '', horas_trabalhadas: '1' }],
+          servicos: [{ servico_id: '', horas_trabalhadas: '1' }],
         }
       ],
     },
@@ -370,7 +371,8 @@ export function OrcamentoV2Form({
         funcoes: produto.funcoes?.map((func) => ({
           funcao_id: func.funcao.id,
           horas_trabalhadas: func.horas_trabalhadas.toString()
-        })) || []
+        })) || [],
+        servicos: [] // Produtos template não têm serviços por enquanto
       };
 
       // Atualizar o item do produto no formulário
@@ -454,6 +456,7 @@ export function OrcamentoV2Form({
               insumos={insumos}
               maquinas={maquinas}
               funcoes={funcoes}
+              servicos={servicos as any}
             />
 
             <Separator />

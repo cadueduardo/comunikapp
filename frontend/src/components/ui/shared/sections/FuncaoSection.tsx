@@ -1,6 +1,7 @@
 'use client';
 
 import { useFormContext } from 'react-hook-form';
+import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   FormControl,
@@ -14,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { Funcao } from '../types/common.types';
+import { formatTimeDisplay } from '@/components/ui/time-input';
 
 interface FuncaoSectionProps {
   variant?: 'orcamento' | 'produto';
@@ -94,7 +96,84 @@ export function FuncaoSection({
       {form.watch(`itens_produto.${itemIndex}.funcoes`)?.map((funcao: { funcao_id: string; horas_trabalhadas: string }, funcaoIndex: number) => {
         const funcaoSelecionada = funcoes.find(f => f.id === funcao.funcao_id);
         const horasTrabalhadas = Number(String(funcao.horas_trabalhadas).replace(',', '.')) || 0;
-        const custoCalculado = funcaoSelecionada ? funcaoSelecionada.custo_hora * horasTrabalhadas : 0;
+
+        // Função auxiliar para converter valores
+        const toNumber = (v: any): number => {
+          if (v == null || v === '') return 0;
+          if (typeof v === 'number') return v;
+          if (typeof v === 'string') return parseFloat(v.replace(',', '.')) || 0;
+          if (v && typeof v.toString === 'function') {
+            return parseFloat(v.toString().replace(',', '.')) || 0;
+          }
+          return 0;
+        };
+
+        // Calcular horas e custo baseado no tipo de cálculo
+        const { horasCalculadas, disclaimer, isManual } = useMemo(() => {
+          if (!funcaoSelecionada) return { horasCalculadas: 0, disclaimer: '', isManual: true };
+
+          const areaM2 = toNumber(form.watch(`itens_produto.${itemIndex}.area_produto`)) || 0;
+          const qtd = toNumber(form.watch(`itens_produto.${itemIndex}.quantidade_produto`)) || 1;
+          const areaTotal = areaM2 * qtd;
+          
+          const eff = toNumber(funcaoSelecionada.eficiencia_percent) || 100;
+          const fatorEficiencia = 100 / Math.max(eff, 5); // Mínimo 5% para evitar valores irreais
+          
+          let horasAuto = 0;
+          let disclaimerTexto = '';
+          let manual = true;
+
+          switch (funcaoSelecionada.tipo_calculo) {
+            case 'POR_M2':
+              if (funcaoSelecionada.horas_por_m2 && areaTotal > 0) {
+                const horasM2 = toNumber(funcaoSelecionada.horas_por_m2);
+                const horasBase = areaTotal * horasM2;
+                horasAuto = horasBase * fatorEficiencia;
+                disclaimerTexto = `${areaTotal.toFixed(2)}m² × ${formatTimeDisplay(horasM2)} × ${fatorEficiencia.toFixed(2)} eficiência = ${horasAuto.toFixed(2)}h`;
+                manual = false;
+              }
+              break;
+              
+            case 'POR_UNIDADE':
+              if (funcaoSelecionada.horas_por_unidade && qtd > 0) {
+                const horasUn = toNumber(funcaoSelecionada.horas_por_unidade);
+                const horasBase = qtd * horasUn;
+                horasAuto = horasBase * fatorEficiencia;
+                disclaimerTexto = `${qtd} un × ${formatTimeDisplay(horasUn)} × ${fatorEficiencia.toFixed(2)} eficiência = ${horasAuto.toFixed(2)}h`;
+                manual = false;
+              }
+              break;
+              
+            case 'ACOMPANHA_MAQUINA':
+              // TODO: Implementar lógica de acompanhamento de máquina
+              disclaimerTexto = 'Acompanha tempo da máquina vinculada';
+              manual = false;
+              break;
+              
+            default: // MANUAL
+              disclaimerTexto = 'Horas inseridas manualmente';
+              manual = true;
+              break;
+          }
+
+          return { 
+            horasCalculadas: horasAuto, 
+            disclaimer: disclaimerTexto, 
+            isManual: manual 
+          };
+        }, [
+          funcaoSelecionada?.id, 
+          funcaoSelecionada?.tipo_calculo, 
+          funcaoSelecionada?.horas_por_m2, 
+          funcaoSelecionada?.horas_por_unidade, 
+          funcaoSelecionada?.eficiencia_percent,
+          form.watch(`itens_produto.${itemIndex}.area_produto`), 
+          form.watch(`itens_produto.${itemIndex}.quantidade_produto`)
+        ]);
+
+        // Usar horas calculadas automaticamente ou horas manuais
+        const horasFinais = isManual ? horasTrabalhadas : horasCalculadas;
+        const custoCalculado = funcaoSelecionada ? converterValor(funcaoSelecionada.custo_hora) * horasFinais : 0;
         
         return (
           <div key={funcaoIndex} className="space-y-4 mb-4">
@@ -133,13 +212,17 @@ export function FuncaoSection({
                     <FormControl>
                       <Input 
                         type="text" 
-                        placeholder="0.00"
-                        {...field}
+                        placeholder={isManual ? "0.00" : horasCalculadas.toFixed(2)}
+                        value={isManual ? field.value : horasCalculadas.toFixed(2)}
                         onChange={(e) => {
-                          // Permitir vírgula e ponto como separador decimal
-                          const value = e.target.value.replace(/[^0-9,.-]/g, '');
-                          field.onChange(value);
+                          if (isManual) {
+                            // Permitir vírgula e ponto como separador decimal
+                            const value = e.target.value.replace(/[^0-9,.-]/g, '');
+                            field.onChange(value);
+                          }
                         }}
+                        readOnly={!isManual}
+                        className={!isManual ? "bg-muted" : ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -162,15 +245,20 @@ export function FuncaoSection({
             </div>
             
             {/* Custo calculado */}
-            {funcaoSelecionada && horasTrabalhadas > 0 && custoCalculado > 0 && (
+            {funcaoSelecionada && horasFinais > 0 && custoCalculado > 0 && (
               <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
                 <div className="flex items-center justify-between">
                   <div>
                     <div>Custo: {formatCurrency(custoCalculado)} ({formatCurrency(converterValor(funcaoSelecionada.custo_hora))} por hora)</div>
                     <div className="text-green-700 mt-1 font-medium">
-                      {funcaoSelecionada.nome} • {horasTrabalhadas}h
+                      {funcaoSelecionada.nome} • {horasFinais.toFixed(2)}h
                       {funcaoSelecionada.maquina && ` • ${funcaoSelecionada.maquina.nome}`}
                     </div>
+                    {disclaimer && (
+                      <div className="text-blue-700 mt-1 text-xs">
+                        💡 {disclaimer}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

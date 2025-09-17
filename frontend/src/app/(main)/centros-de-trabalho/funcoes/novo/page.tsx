@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { FuncaoForm, FuncaoFormValues } from '../../../configuracoes/funcoes/funcao-form';
 import { funcoesApi } from '@/lib/api-client';
+import { parseTimeValue } from '@/components/ui/time-input';
 
 export default function NovaFuncaoCTPage() {
   const router = useRouter();
@@ -16,8 +17,35 @@ export default function NovaFuncaoCTPage() {
         return;
       }
 
-      // custo_hora já é tratado pelo form como currency string/number
-      await funcoesApi.create({ ...data }, token);
+      // Transformar dados para o formato esperado pelo backend
+      const transformedData: any = {
+        nome: data.nome,
+        custo_hora: Number(String(data.custo_hora).replace(/[^0-9,-]/g, '').replace(',', '.')),
+        descricao: data.descricao || undefined,
+        maquina_id: data.maquina_id && data.maquina_id !== 'null' ? data.maquina_id : undefined,
+        tipo_calculo: data.tipo_calculo || 'MANUAL',
+      };
+
+      // Adicionar campos opcionais apenas se preenchidos
+      if (data.fator_acompanhamento) {
+        transformedData.fator_acompanhamento = Number(String(data.fator_acompanhamento).replace(',', '.')) / 100;
+      }
+      
+      if (data.horas_por_m2) {
+        transformedData.horas_por_m2 = parseTimeValue(data.horas_por_m2);
+      }
+      
+      if (data.horas_por_unidade) {
+        transformedData.horas_por_unidade = parseTimeValue(data.horas_por_unidade);
+      }
+      
+      if (data.eficiencia_percent) {
+        transformedData.eficiencia_percent = Number(String(data.eficiencia_percent).replace(',', '.'));
+      }
+
+      console.log('Dados transformados para backend:', JSON.stringify(transformedData, null, 2)); // DEBUG
+
+      await funcoesApi.create(transformedData, token);
       toast.success('Função criada com sucesso!');
       router.push('/centros-de-trabalho/funcoes');
     } catch (error) {

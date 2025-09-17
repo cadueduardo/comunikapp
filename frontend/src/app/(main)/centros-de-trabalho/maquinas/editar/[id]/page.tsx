@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import React from 'react';
 import { MaquinaForm, MaquinaFormValues } from '../../../../configuracoes/maquinas/maquina-form';
 import { maquinasApi } from '@/lib/api-client';
+import { parseTimeValue, formatTimeDisplay } from '@/components/ui/time-input';
 
 interface Maquina {
   id: string;
@@ -69,7 +70,18 @@ export default function EditarMaquinaCTPage({ params }: { params: Promise<{ id: 
         return;
       }
 
-      await maquinasApi.update(id, { ...data, custo_hora: custo }, token);
+      // Transformar dados para o backend
+      const transformedData = {
+        ...data,
+        custo_hora: custo,
+        // Converter setup de HH:MM para minutos
+        setup_min: data.setup_min ? parseTimeValue(data.setup_min) * 60 : undefined,
+        // Converter outros campos numéricos
+        velocidade_m2_h: data.velocidade_m2_h ? Number(String(data.velocidade_m2_h).replace(',', '.')) : undefined,
+        eficiencia_percent: data.eficiencia_percent ? Number(String(data.eficiencia_percent).replace(',', '.')) : undefined,
+      };
+
+      await maquinasApi.update(id, transformedData, token);
       toast.success('Máquina atualizada com sucesso!');
       router.push('/centros-de-trabalho/maquinas');
     } catch (error) {
@@ -90,7 +102,8 @@ export default function EditarMaquinaCTPage({ params }: { params: Promise<{ id: 
     modo_producao: maquina.modo_producao,
     velocidade_m2_h: maquina.velocidade_m2_h || '',
     eficiencia_percent: maquina.eficiencia_percent || '',
-    setup_min: maquina.setup_min || '',
+    // Converter setup_min de minutos para HH:MM
+    setup_min: maquina.setup_min ? formatTimeDisplay(Number(maquina.setup_min) / 60) : '',
   } : undefined;
 
   if (loading) {

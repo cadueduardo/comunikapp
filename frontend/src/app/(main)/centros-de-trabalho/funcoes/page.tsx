@@ -13,6 +13,7 @@ import { Plus, Search, List, Grid3X3, Users, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { funcoesApi } from "@/lib/api-client";
+import { formatTimeDisplay } from "@/components/ui/time-input";
 
 interface Funcao {
   id: string;
@@ -22,6 +23,12 @@ interface Funcao {
   maquina?: { nome: string } | null;
   criado_em?: string;
   ativo?: boolean;
+  // Campos do Centro de Trabalho
+  tipo_calculo?: 'ACOMPANHA_MAQUINA' | 'POR_M2' | 'POR_UNIDADE' | 'MANUAL';
+  fator_acompanhamento?: number | string;
+  horas_por_m2?: number | string;
+  horas_por_unidade?: number | string;
+  eficiencia_percent?: number | string;
 }
 
 export default function FuncoesCTPage() {
@@ -77,8 +84,63 @@ export default function FuncoesCTPage() {
       ),
     },
     {
+      accessorKey: 'tipo_calculo',
+      header: 'Tipo de Cálculo',
+      cell: ({ row }) => {
+        const tipo = row.original.tipo_calculo;
+        const tipoTexto = {
+          'ACOMPANHA_MAQUINA': 'Acompanha Máquina',
+          'POR_M2': 'Por m²',
+          'POR_UNIDADE': 'Por unidade',
+          'MANUAL': 'Manual'
+        }[tipo || 'MANUAL'] || 'Manual';
+        
+        return (
+          <Badge variant={tipo === 'MANUAL' ? 'secondary' : 'default'} className="text-xs">
+            {tipoTexto}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: 'horas_por_m2',
+      header: 'Horas/m²',
+      cell: ({ row }) => {
+        const horas = row.original.horas_por_m2;
+        return (
+          <span className="text-sm font-mono">
+            {horas ? formatTimeDisplay(horas) : '—'}
+          </span>
+        );
+      },
+    },
+    {
+      accessorKey: 'horas_por_unidade',
+      header: 'Horas/Un',
+      cell: ({ row }) => {
+        const horas = row.original.horas_por_unidade;
+        return (
+          <span className="text-sm font-mono">
+            {horas ? formatTimeDisplay(horas) : '—'}
+          </span>
+        );
+      },
+    },
+    {
+      accessorKey: 'eficiencia_percent',
+      header: 'Eficiência',
+      cell: ({ row }) => {
+        const eff = row.original.eficiencia_percent;
+        return (
+          <span className="text-sm">
+            {eff ? `${Number(eff)}%` : '—'}
+          </span>
+        );
+      },
+    },
+    {
       accessorKey: 'maquina',
-      header: 'Máquina Vinculada',
+      header: 'Máquina',
       cell: ({ row }) => (
         <span className="text-sm text-gray-600">{row.original.maquina?.nome || '—'}</span>
       ),
@@ -89,7 +151,7 @@ export default function FuncoesCTPage() {
       cell: ({ row }) => {
         const v = row.original.custo_hora;
         const n = typeof v === 'string' ? parseFloat(v) : v;
-        return <span>R$ {isFinite(n as number) ? (n as number).toFixed(2) : '0,00'}</span>;
+        return <span className="font-medium">R$ {isFinite(n as number) ? (n as number).toFixed(2) : '0,00'}</span>;
       },
     },
     {
@@ -211,10 +273,45 @@ export default function FuncoesCTPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3 text-sm">
-                    <div className="flex justify-between"><span>Custo/Hora:</span><span>R$ {typeof f.custo_hora === 'string' ? parseFloat(f.custo_hora).toFixed(2) : Number(f.custo_hora || 0).toFixed(2)}</span></div>
-                    {f.descricao && (
-                      <div className="text-gray-600">{f.descricao}</div>
+                    <div className="flex justify-between">
+                      <span>Tipo:</span>
+                      <Badge variant={f.tipo_calculo === 'MANUAL' ? 'secondary' : 'default'} className="text-xs">
+                        {{
+                          'ACOMPANHA_MAQUINA': 'Acompanha Máquina',
+                          'POR_M2': 'Por m²',
+                          'POR_UNIDADE': 'Por unidade',
+                          'MANUAL': 'Manual'
+                        }[f.tipo_calculo || 'MANUAL'] || 'Manual'}
+                      </Badge>
+                    </div>
+                    
+                    {f.horas_por_m2 && (
+                      <div className="flex justify-between">
+                        <span>Horas/m²:</span>
+                        <span className="font-mono">{formatTimeDisplay(f.horas_por_m2)}</span>
+                      </div>
                     )}
+                    
+                    {f.horas_por_unidade && (
+                      <div className="flex justify-between">
+                        <span>Horas/Un:</span>
+                        <span className="font-mono">{formatTimeDisplay(f.horas_por_unidade)}</span>
+                      </div>
+                    )}
+                    
+                    {f.eficiencia_percent && (
+                      <div className="flex justify-between">
+                        <span>Eficiência:</span>
+                        <span>{Number(f.eficiencia_percent)}%</span>
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between"><span>Custo/Hora:</span><span className="font-medium">R$ {typeof f.custo_hora === 'string' ? parseFloat(f.custo_hora).toFixed(2) : Number(f.custo_hora || 0).toFixed(2)}</span></div>
+                    
+                    {f.descricao && (
+                      <div className="text-gray-600 pt-2 border-t">{f.descricao}</div>
+                    )}
+                    
                     <div className="pt-3 border-t flex gap-2">
                       <Link href={`/centros-de-trabalho/funcoes/editar/${f.id}`} className="flex-1">
                         <Button variant="outline" size="sm" className="w-full">Editar</Button>
