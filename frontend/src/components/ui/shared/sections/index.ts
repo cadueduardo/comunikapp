@@ -2,4 +2,5 @@
 export { MaterialSection } from './MaterialSection';
 export { MaquinaSection } from './MaquinaSection';
 export { FuncaoSection } from './FuncaoSection';
-export { CalculoPreview } from './CalculoPreview'; 
+export { CalculoPreview } from './CalculoPreview';
+export { default as PreviewCalculoV2 } from './PreviewCalculoV2'; 
