@@ -70,3 +70,4 @@ console.log('⚠️  ATENÇÃO: Substitua SEU_TOKEN_AQUI por um token válido an
 console.log('⚠️  Execute: node test-servicos-ranges.js');
 
 // testarAPI(); // Descomente para executar
+

@@ -167,8 +167,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   // Se não há dados, mostrar estado vazio
   if (!data) {
     return (
-      <div className="w-full max-w-sm bg-white border-l border-gray-200 h-screen overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 z-10">
+      <div className="sticky top-6 bg-white rounded-lg shadow-sm border max-h-[calc(100vh-3rem)] flex flex-col">
+        {/* Header fixo */}
+        <div className="p-6 pb-4 border-b border-gray-100">
           <div className="flex items-center gap-2 mb-2">
             <Calculator className="h-5 w-5 text-blue-600" />
             <h2 className="text-lg font-semibold text-gray-900">Preview do Cálculo</h2>
@@ -178,7 +179,8 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
           </Badge>
         </div>
         
-        <div className="p-4">
+        {/* Conteúdo com scroll */}
+        <div className="flex-1 overflow-y-auto p-6 pt-4">
           <div className="text-center text-gray-500 py-8">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
             <p>Nenhum cálculo disponível</p>
@@ -190,9 +192,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   }
 
   return (
-    <div className="w-full max-w-sm bg-white border-l border-gray-200 h-screen overflow-y-auto">
-      {/* Header Sticky */}
-      <div className="sticky top-0 bg-white border-b border-gray-200 p-4 z-10">
+    <div className="sticky top-6 bg-white rounded-lg shadow-sm border max-h-[calc(100vh-3rem)] flex flex-col">
+      {/* Header fixo */}
+      <div className="p-6 pb-4 border-b border-gray-100">
         <div className="flex items-center gap-2 mb-2">
           <Calculator className="h-5 w-5 text-blue-600" />
           <h2 className="text-lg font-semibold text-gray-900">Preview do Cálculo</h2>
@@ -202,7 +204,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         </Badge>
       </div>
 
-      <div className="p-4 space-y-4">
+      {/* Conteúdo com scroll */}
+      <div className="flex-1 overflow-y-auto p-6 pt-4">
+        <div className="space-y-4">
         {/* Resumo do Orçamento */}
         <Card>
           <CardHeader className="pb-3">
@@ -445,6 +449,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
           <div>Última atualização: {data.metadata.timestamp_calculo.toLocaleTimeString('pt-BR')}</div>
           <div className="mt-1">Versão do cálculo: {data.metadata.versao_motor}</div>
           <div className="mt-1">Tempo de execução: {data.metadata.tempo_execucao_ms}ms</div>
+        </div>
         </div>
       </div>
     </div>

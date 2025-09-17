@@ -102,6 +102,11 @@ export class CreateOrcamentoDto {
   @Type(() => Number)
   impostos_customizados?: number;
 
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  comissao_percentual?: number;
+
   // Dimensões do produto
   @IsNumber()
   @IsOptional()

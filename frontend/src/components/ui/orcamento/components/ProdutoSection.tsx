@@ -176,7 +176,7 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
         {fields.map((field, index) => (
           <AccordionItem key={field.id} value={`item-${index}`}>
             <Card>
-              <AccordionTrigger className="px-6 py-4">
+              <AccordionTrigger className="px-6 !py-0">
                 <div className="flex items-center justify-between w-full pr-4">
                   <div className="flex items-center space-x-4">
                     <span className="font-medium">

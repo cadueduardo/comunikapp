@@ -498,6 +498,7 @@ model orcamento {
   forma_pagamento        String?              @default("50% entrada, restante na entrega")
   prazo_entrega          String?              @default("10 a 15 dias úteis")
   validade_proposta      String?              @default("30 dias")
+  comissao_percentual    Decimal?             @db.Decimal(5, 2)
   funcaoorcamento        funcaoorcamento[]
   itemorcamento          itemorcamento[]
   maquinaorcamento       maquinaorcamento[]

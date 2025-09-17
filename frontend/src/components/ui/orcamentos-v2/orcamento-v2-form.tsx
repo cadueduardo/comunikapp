@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { ArrowLeft, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { orcamentosApi } from '@/lib/api-client';
 import { createFormSchema, FormValues } from '../orcamento/schemas/orcamento.schema';
 import { useOrcamentoData } from '../orcamento/hooks/useOrcamentoData';
@@ -30,11 +30,10 @@ export function OrcamentoV2Form({
   mode, 
   initialData, 
   orcamentoId, 
-  onSuccess,
   orcamentoStatus 
 }: OrcamentoFormProps) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [showProdutoModal, setShowProdutoModal] = useState(false);
   const [selectedProdutoIndex, setSelectedProdutoIndex] = useState<number>(0);
   const { clientes, insumos, maquinas, funcoes, servicos } = useOrcamentoData();
@@ -50,6 +49,7 @@ export function OrcamentoV2Form({
       forma_pagamento: '50% entrada, restante na entrega',
       validade_proposta: '30 dias',
       atendente: 'Equipe Comercial',
+      comissao_percentual: '5',
       itens_produto: [
         {
           nome_servico: '',
@@ -158,6 +158,7 @@ export function OrcamentoV2Form({
       atendente: data.atendente,
       margem_lucro_customizada: data.margem_lucro_customizada ? Number(data.margem_lucro_customizada.replace(',', '.')) : undefined,
       impostos_customizados: data.impostos_customizados ? Number(data.impostos_customizados.replace(',', '.')) : undefined,
+      comissao_percentual: data.comissao_percentual ? Number(data.comissao_percentual.replace(',', '.')) : undefined,
       largura_produto: primeiroProduto.largura_produto ? Number(primeiroProduto.largura_produto.replace(',', '.')) : undefined,
       altura_produto: primeiroProduto.altura_produto ? Number(primeiroProduto.altura_produto.replace(',', '.')) : undefined,
       area_produto: primeiroProduto.area_produto ? Number(primeiroProduto.area_produto.replace(',', '.')) : undefined,
@@ -416,30 +417,11 @@ export function OrcamentoV2Form({
   };
 
   return (
-    <div className="container mx-auto py-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button
-            variant="ghost"
-            onClick={() => router.back()}
-            className="flex items-center space-x-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Voltar</span>
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">{getTitle()}</h1>
-            <p className="text-muted-foreground">{getDescription()}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6">
-        <Form {...form}>
-                 <form onSubmit={form.handleSubmit(handleSubmit)} className="w-full">
-           {/* Formulário */}
-           <div className="w-full bg-white rounded-lg shadow-sm border p-6 space-y-6">
+    <div>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="w-full">
+          {/* Formulário */}
+          <div className="w-full bg-white rounded-lg shadow-sm border p-6 space-y-6">
             
             {/* Seção de Cliente */}
             <ClienteSection 
@@ -555,8 +537,7 @@ export function OrcamentoV2Form({
 
           
         </form>
-        </Form>
-      </div>
+      </Form>
 
       {showProdutoModal && (
         <ProdutoSelectionModal
