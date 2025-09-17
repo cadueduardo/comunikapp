@@ -149,9 +149,16 @@ export default function DashboardLayout({
     },
     {
       label: 'Orçamentos',
-      href: '/orcamentos',
+      href: '/orcamentos-v2',
       icon: (
         <IconFileText className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      ),
+    },
+    {
+      label: 'Orçamentos (legado)',
+      href: '/orcamentos',
+      icon: (
+        <IconFileText className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0 opacity-60" />
       ),
     },
     {

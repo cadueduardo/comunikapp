@@ -128,6 +128,17 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
     }
   };
 
+  // Função para calcular área total considerando quantidade
+  const calcularAreaTotal = (itemIndex: number) => {
+    const areaUnitaria = Number(form.watch(`itens_produto.${itemIndex}.area_produto`));
+    const quantidade = Number(form.watch(`itens_produto.${itemIndex}.quantidade_produto`));
+    
+    if (areaUnitaria && quantidade) {
+      return (areaUnitaria * quantidade).toFixed(2);
+    }
+    return '0.00';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -202,6 +213,8 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
                                onChange={(e) => {
                                  const value = e.target.value.replace(/[^0-9,.-]/g, '');
                                  field.onChange(value);
+                                 // Força re-render do disclaimer para atualizar área total
+                                 setTimeout(() => form.trigger(`itens_produto.${index}.quantidade_produto`), 0);
                                }}
                              />
                            </FormControl>
@@ -347,6 +360,30 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
                          )}
                        />
                     </div>
+                    
+                    {/* Disclaimer da Área Total */}
+                    {form.watch(`itens_produto.${index}.area_produto`) && 
+                     form.watch(`itens_produto.${index}.quantidade_produto`) && 
+                     Number(form.watch(`itens_produto.${index}.quantidade_produto`)) > 1 && (
+                      <div className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded-r-md">
+                        <div className="flex items-center">
+                          <div className="text-sm">
+                            <p className="text-blue-800 font-medium">
+                              📐 Área Total (quantidade × área unitária):
+                            </p>
+                            <p className="text-blue-700">
+                              {form.watch(`itens_produto.${index}.quantidade_produto`)} × {form.watch(`itens_produto.${index}.area_produto`)}m² = 
+                              <span className="font-semibold text-blue-900 ml-1">
+                                {calcularAreaTotal(index)}m²
+                              </span>
+                            </p>
+                            <p className="text-xs text-blue-600 mt-1">
+                              ⚠️ Esta área total será considerada nos cálculos de tempo e materiais
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   
