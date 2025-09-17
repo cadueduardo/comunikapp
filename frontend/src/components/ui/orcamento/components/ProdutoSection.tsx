@@ -366,21 +366,8 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
                      form.watch(`itens_produto.${index}.quantidade_produto`) && 
                      Number(form.watch(`itens_produto.${index}.quantidade_produto`)) > 1 && (
                       <div className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded-r-md">
-                        <div className="flex items-center">
-                          <div className="text-sm">
-                            <p className="text-blue-800 font-medium">
-                              📐 Área Total (quantidade × área unitária):
-                            </p>
-                            <p className="text-blue-700">
-                              {form.watch(`itens_produto.${index}.quantidade_produto`)} × {form.watch(`itens_produto.${index}.area_produto`)}m² = 
-                              <span className="font-semibold text-blue-900 ml-1">
-                                {calcularAreaTotal(index)}m²
-                              </span>
-                            </p>
-                            <p className="text-xs text-blue-600 mt-1">
-                              ⚠️ Esta área total será considerada nos cálculos de tempo e materiais
-                            </p>
-                          </div>
+                        <div className="text-sm text-blue-800">
+                          📐 <span className="font-medium">Área Total:</span> {form.watch(`itens_produto.${index}.quantidade_produto`)} × {form.watch(`itens_produto.${index}.area_produto`)}m² = <span className="font-semibold text-blue-900">{calcularAreaTotal(index)}m²</span>
                         </div>
                       </div>
                     )}
