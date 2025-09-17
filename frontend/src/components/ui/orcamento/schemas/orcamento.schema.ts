@@ -11,6 +11,15 @@ export const createFormSchema = (mode: 'novo' | 'editar' | 'template') => z.obje
   forma_pagamento: z.string().optional(),
   validade_proposta: z.string().optional(),
   atendente: z.string().optional(),
+  comissao_percentual: z.string().optional().refine(
+    (val) => {
+      if (!val || val.trim() === '') return true; // Opcional
+      const cleanVal = val.replace(',', '.');
+      const num = Number(cleanVal);
+      return !isNaN(num) && num >= 0 && num <= 100;
+    },
+    'Comissão deve ser um número entre 0 e 100'
+  ),
   // Itens de produto
   itens_produto: z.array(z.object({
     nome_servico: z.string().min(1, 'Nome do produto é obrigatório'),

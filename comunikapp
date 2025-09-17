@@ -1,0 +1,30 @@
+[33mf9de5e1[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/preview-calculo-multiplos-produtos[m[33m)[m ct(fase4): corrigir imports relativos das páginas de Centros de Trabalho
+[33ma85a8d5[m ct(fase4): apontar páginas do módulo para os CRUDs existentes (reuso imediato)
+[33mb5901ee[m ct(fase4): redirecionar páginas do módulo para CRUDs existentes (migração gradual)
+[33m9fdfacd[m ct(fase4): alinhar cards dos Centros de Trabalho ao estilo do Estoque (ícones e layout)
+[33m78d3796[m ct(fase4): criar páginas base (cards/shell) de Máquinas/Funções/Serviços/Custos Indiretos
+[33m480edb1[m feat(CT): menu e página base de Centros de Trabalho
+[33mb78c760[m[33m ([m[1;32mrecovery/centros-de-trabalho-restore[m[33m)[m chore: WIP antes de restaurar Centros de Trabalho
+[33m6f64e25[m[33m ([m[1;32mfeature/migracao-motor-calculo-v2[m[33m)[m fix: Implementação de PrismaExtendedService para resolver erros de build
+[33mc20a7a9[m feat: Implementação completa da FASE 2 - Services V2 do módulo orcamentos-v2
+[33mb3572f6[m feat: Melhorar UX do login com mensagens mais amigáveis
+[33m905b623[m feat: Concluir FASE 5 - Implementar testes de performance e arquitetura event-driven
+[33m295aab3[m ✅ FASE 4 COMPLETADA: LegacyIntegrationService 100% funcional - Todos os 20 testes passando - Integração legacy garantida - Cache otimizado - Sincronização robusta - Compatibilidade V1↔V2 funcionando
+[33m18fc951[m \feat: FASE 3 CONCLUÍDA - Testes Integração e Documentação API"
+[33m3193dae[m feat: Implementar FASE 2 - Sistema de Eventos e WebSockets
+[33m821f7aa[m feat: FASE 1 CONCLUÍDA - Motor de Cálculo V2 implementado e testado
+[33m1b94c8d[m[33m ([m[1;35mrefs/stash[m[33m)[m On feature/centros-de-trabalho: WIP: Salvando trabalho atual antes de criar branch de migração do motor de cálculo
+[33m8fb80f9[m index on feature/centros-de-trabalho: 93eb3ff chore(cors): permitir headers 'Cache-Control' e 'Pragma' no CORS do NestJS
+[33m93eb3ff[m[33m ([m[1;32mfeature/centros-de-trabalho[m[33m)[m chore(cors): permitir headers 'Cache-Control' e 'Pragma' no CORS do NestJS
+[33mbefd40b[m fix(cors): remover headers de no-cache no GET para evitar bloqueio CORS; manter cache: no-store
+[33mc057eed[m fix(ui): evitar cache em GETs no ApiClient (no-store + headers) para refletir valores atualizados ao voltar às listas
+[33m17f8986[m feat(ct): CRUD de Serviços Manuais (FE/BE), tooltips, preview de custos, DataTable padronizado; ajustes de rotas CT; fix prisma updatedAt e parsing numérico; coluna de custo estimado e labels legíveis
+[33mfd5fbc0[m ct(fase4): corrigir imports relativos das páginas de Centros de Trabalho
+[33m2dcf3a3[m ct(fase4): apontar páginas do módulo para os CRUDs existentes (reuso imediato)
+[33me101ad9[m ct(fase4): redirecionar páginas do módulo para CRUDs existentes (migração gradual)
+[33ma437225[m ct(fase4): alinhar cards dos Centros de Trabalho ao estilo do Estoque (ícones e layout)
+[33m60a8b1d[m ct(fase4): criar páginas base (cards/shell) de Máquinas/Funções/Serviços/Custos Indiretos
+[33me1cb397[m ct(fase4): add menu and landing page (cards) for Centros de Trabalho
+[33m436148c[m ct(fase3): habilitar Swagger OpenAPI em /api/docs (backend principal)
+[33m7e6dd58[m ct(fase3): OpenAPI nos endpoints CRUD e públicos de orçamentos
+[33me3c4a7e[m ct(fase3): OpenAPI no POST /orcamentos/calcular com exemplos

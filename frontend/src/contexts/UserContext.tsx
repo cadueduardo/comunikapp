@@ -150,8 +150,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
                       window.location.pathname.includes('/login') || 
                       window.location.pathname.includes('/verificar');
     
+    // Verificar se estamos em páginas públicas
+    const isPublicPage = window.location.pathname === '/' || 
+                         window.location.pathname.startsWith('/orcamento/');
+    
     const token = localStorage.getItem('access_token');
-    if (token && !isAuthPage) {
+    if (token && !isAuthPage && !isPublicPage) {
       fetchUserData();
     } else {
       setLoading(false);

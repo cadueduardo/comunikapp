@@ -156,6 +156,34 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
                 </FormItem>
               )}
             />
+            
+            <FormField
+              control={form.control}
+              name="comissao_percentual"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Comissão (%)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      placeholder="5.0"
+                      {...field}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Permitir apenas números, ponto e vírgula
+                        if (value === '' || /^[0-9]+([,.][0-9]*)?$/.test(value)) {
+                          field.onChange(value);
+                        }
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         </div>
       </CardContent>
