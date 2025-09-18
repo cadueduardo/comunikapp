@@ -49,8 +49,8 @@ export const useCalculoWebSocket = (): CalculoWebSocketHook => {
       }
 
       // Conectar ao namespace específico do cálculo com token
-      console.log('🔧 Hook WebSocket - Criando socket para:', 'http://localhost:3001/calculo-preview');
-      const socket = io('http://localhost:3001/calculo-preview', {
+      console.log('🔧 Hook WebSocket - Criando socket para:', 'http://localhost:4000/calculo-v2');
+      const socket = io('http://localhost:4000/calculo-v2', {
         transports: ['websocket', 'polling'],
         timeout: 10000,
         forceNew: true,
@@ -59,6 +59,8 @@ export const useCalculoWebSocket = (): CalculoWebSocketHook => {
         reconnectionDelay: 0,
         query: {
           token: token, // ✅ ENVIAR TOKEN VIA QUERY PARAMS
+          lojaId: 'loja_atual', // TODO: Obter da sessão
+          usuarioId: 'usuario_atual', // TODO: Obter da sessão
         },
         extraHeaders: {
           Authorization: `Bearer ${token}`, // ✅ ENVIAR TOKEN VIA HEADERS TAMBÉM
