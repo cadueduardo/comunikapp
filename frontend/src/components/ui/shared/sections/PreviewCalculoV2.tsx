@@ -190,7 +190,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       
       if (itensFormulario.length === 0) return null;
 
-      // Transformar cada produto do formulário
+      // Transformar cada produto do formulário seguindo a interface DTOCalculo
       const produtos = itensFormulario.map((item: any, index: number) => ({
         id: `produto_${index}`,
         nome: item.nome_servico || `Produto ${index + 1}`,
@@ -205,7 +205,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             preco_unitario: Number(insumoData?.custo_unitario) || 0,
             quantidade: Number(material.quantidade?.replace(',', '.')) || 0,
             categoria: 'Material',
-            fornecedor: 'Fornecedor',
+            fornecedor: 'Fornecedor Padrão',
             estoque_disponivel: 100,
           };
         }),
@@ -235,11 +235,14 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         }),
         servicos_manuais: (item.servicos || []).map((servico: any) => ({
           id: servico.servico_id,
+          nome: `Serviço ${servico.servico_id}`,
           horas: Number(servico.horas_trabalhadas?.replace(',', '.')) || 1,
           custo_por_hora: 50, // TODO: Obter do cadastro de serviços
         })),
         custos_indiretos: custosIndiretos.map((custo: any) => ({
           id: custo.id,
+          nome: custo.nome || 'Custo Indireto',
+          tipo: 'rateio',
           percentual: 15, // Rateio padrão
           valor_fixo: Number(custo.valor_mensal) || 0,
         })),
@@ -251,19 +254,34 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         },
       }));
 
-      return {
-        lojaId: 'loja_atual', // TODO: Obter da sessão
+      // Formato completo para DTOCalculo
+      const dtoCalculo = {
+        lojaId: 'loja_atual', // TODO: Obter da sessão do usuário
         produtos,
         configuracoes: {
-          margem_lucro_padrao: Number(formData.margem_lucro_customizada?.replace(',', '.')) || 30,
-          impostos_padrao: Number(formData.impostos_customizados?.replace(',', '.')) || 18,
-          custos_indiretos_padrao: 15,
+          margem_lucro_padrao: (Number(formData.margem_lucro_customizada?.replace(',', '.')) || 30) / 100,
+          impostos_padrao: (Number(formData.impostos_customizados?.replace(',', '.')) || 18) / 100,
+          custos_indiretos_padrao: 0.15,
           desconto_padrao: 0,
           prazo_entrega_padrao: 10,
+          horas_produtivas_mensais: 160,
           unidade_monetaria: 'BRL',
           timezone: 'America/Sao_Paulo',
+          modo_calculo: 'preview' as const,
+          aplicar_regras_negocio: true,
+          validar_estoque: false, // Para preview não validar estoque
         },
+        metadata: {
+          timestamp_criacao: new Date(),
+          versao_motor: '2.0.0',
+          modo_calculo: 'preview' as const,
+          origem: 'preview_formulario',
+        }
       };
+
+      console.log('🔄 Dados transformados para Motor V2:', dtoCalculo);
+      return dtoCalculo;
+      
     } catch (error) {
       console.error('Erro ao transformar dados do formulário:', error);
       return null;
@@ -299,10 +317,78 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
 
   // Função para processar dados reais e converter para formato do preview
   const processarDadosReais = () => {
-    // Usar resultado do WebSocket se disponível, senão calcular localmente
-    if (resultadoOrcamento && form) {
-      console.log('✅ Usando resultado do WebSocket:', resultadoOrcamento);
-      return resultadoOrcamento.data || mockData;
+    // Usar resultado do WebSocket se disponível
+    if (resultadoOrcamento && resultadoOrcamento.resultado) {
+      console.log('✅ Usando resultado do Motor V2:', resultadoOrcamento);
+      
+      try {
+        // Converter resultado do motor V2 para formato do preview
+        const resultadoMotor = resultadoOrcamento.resultado;
+        
+        return {
+          produtos: resultadoMotor.produtos.map((produto: any) => ({
+            id: produto.id,
+            nome: produto.nome,
+            quantidade: produto.quantidade,
+            dimensoes: produto.metadata || {
+              largura: 0,
+              altura: 0,
+              unidade_medida: 'm'
+            },
+            insumos: produto.insumos.map((insumo: any) => ({
+              insumo_id: insumo.id,
+              nome: insumo.nome,
+              quantidade: insumo.quantidade,
+              custo_unitario: insumo.preco_unitario,
+              unidade_consumo: insumo.unidade,
+              custo_total: insumo.quantidade * insumo.preco_unitario
+            })),
+            maquinas: produto.maquinas.map((maquina: any) => ({
+              maquina_id: maquina.id,
+              nome: maquina.nome,
+              horas_utilizadas: maquina.tempo_setup,
+              custo_por_hora: maquina.custo_hora,
+              custo_total: maquina.tempo_setup * maquina.custo_hora
+            })),
+            funcoes: produto.funcoes.map((funcao: any) => ({
+              funcao_id: funcao.id,
+              nome: funcao.nome,
+              horas_trabalhadas: funcao.tempo_estimado,
+              custo_por_hora: funcao.custo_hora,
+              custo_total: funcao.tempo_estimado * funcao.custo_hora
+            })),
+            servicos: produto.servicos_manuais.map((servico: any) => ({
+              servico_id: servico.id,
+              nome: servico.nome,
+              horas_trabalhadas: servico.horas,
+              custo_por_hora: servico.custo_por_hora,
+              custo_total: servico.horas * servico.custo_por_hora
+            })),
+            custos_indiretos_rateados: produto.custos_indiretos.reduce((acc: number, custo: any) => {
+              return acc + (custo.valor_fixo || 0);
+            }, 0),
+            custo_total_producao: resultadoMotor.custo_total_producao || 0,
+            preco_unitario: resultadoMotor.preco_unitario || 0,
+            preco_total: resultadoMotor.preco_total || 0,
+            horas_producao: produto.tempo_total_producao || 0,
+          })),
+          recursos_compartilhados: resultadoMotor.recursos_compartilhados || {},
+          contexto_comercial: {
+            margem_lucro: resultadoMotor.margem_lucro_aplicada || 0,
+            impostos: resultadoMotor.impostos_aplicados || 0,
+            desconto: resultadoMotor.desconto_aplicado || 0
+          },
+          metadata: {
+            timestamp_calculo: new Date(),
+            versao_motor: resultadoOrcamento.versao_motor || '2.0.0',
+            tempo_execucao_ms: resultadoOrcamento.tempo_execucao_ms || 0,
+            estagios_executados: ['validacao', 'calculo', 'consolidacao']
+          }
+        };
+      } catch (error) {
+        console.error('❌ Erro ao processar resultado do motor V2:', error);
+        return mockData;
+      }
     }
     
     if (!form) return mockData;

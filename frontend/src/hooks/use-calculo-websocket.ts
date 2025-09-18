@@ -89,18 +89,19 @@ export const useCalculoWebSocket = (): CalculoWebSocketHook => {
         console.log('✅ Conectado ao Motor de Cálculo:', message);
       });
 
-      socket.on('resultado-produto', (message: any) => {
-        console.log('📊 Resultado produto recebido via WebSocket:', message);
-        setResultadoProduto(message);
+      // Eventos do Motor V2
+      socket.on('calculo_iniciado', (message: any) => {
+        console.log('🔄 Cálculo iniciado:', message);
       });
 
-      socket.on('resultado-orcamento', (message: any) => {
-        console.log('📊 Resultado orçamento recebido via WebSocket:', message);
+      socket.on('calculo_concluido', (message: any) => {
+        console.log('📊 Resultado do cálculo recebido:', message);
         setResultadoOrcamento(message);
       });
 
-      socket.on('erro-calculo', (message: any) => {
-        console.error('❌ Erro de cálculo via WebSocket:', message);
+      socket.on('erro', (error: any) => {
+        console.error('❌ Erro no cálculo:', error);
+        setConnectionStatus('error');
       });
 
       socket.on('erro-autenticacao', (message: any) => {
@@ -164,18 +165,18 @@ export const useCalculoWebSocket = (): CalculoWebSocketHook => {
   // Executar cálculo de produto
   const executarCalculo = useCallback((data: any) => {
     if (socketRef.current && isConnected) {
-      console.log('🚀 Enviando cálculo de produto via WebSocket:', data);
-      socketRef.current.emit('calcular-produto', data);
+      console.log('🚀 Enviando cálculo preview via WebSocket:', data);
+      socketRef.current.emit('calcular_preview', data);
     } else {
       console.warn('⚠️ WebSocket não conectado, não é possível executar cálculo');
     }
   }, [isConnected]);
 
-  // Executar cálculo de orçamento
+  // Executar cálculo de orçamento (preview)
   const executarCalculoOrcamento = useCallback((data: any) => {
     if (socketRef.current && isConnected) {
-      console.log('🚀 Enviando cálculo de orçamento via WebSocket:', data);
-      socketRef.current.emit('calcular-orcamento', data);
+      console.log('🚀 Enviando cálculo preview de orçamento via WebSocket:', data);
+      socketRef.current.emit('calcular_preview', data);
     } else {
       console.warn('⚠️ WebSocket não conectado, não é possível executar cálculo');
     }
