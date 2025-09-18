@@ -13,6 +13,7 @@ import { orcamentosApi } from '@/lib/api-client';
 import { createFormSchema, FormValues } from '../orcamento/schemas/orcamento.schema';
 import { useOrcamentoData } from '../orcamento/hooks/useOrcamentoData';
 import { ClienteSection, ProdutoSection, ConfiguracoesSection } from '../orcamento/components';
+import { PreviewCalculoV2 } from '../shared/sections';
 
 import { ProdutoSelectionModal } from '../../../app/(main)/produtos/components/produto-selection-modal';
 
@@ -22,6 +23,7 @@ interface OrcamentoFormProps {
   mode: 'novo' | 'editar' | 'template';
   initialData?: Record<string, unknown>;
   orcamentoId?: string;
+  showPreview?: boolean;
   onSuccess?: () => void;
   orcamentoStatus?: string;
 }
@@ -30,6 +32,7 @@ export function OrcamentoV2Form({
   mode, 
   initialData, 
   orcamentoId, 
+  showPreview = false,
   orcamentoStatus 
 }: OrcamentoFormProps) {
   const router = useRouter();
@@ -85,7 +88,7 @@ export function OrcamentoV2Form({
         forma_pagamento: String(initialData.forma_pagamento || '50% entrada, restante na entrega'),
         validade_proposta: String(initialData.validade_proposta || '30 dias'),
         atendente: String(initialData.atendente || 'Equipe Comercial'),
-        itens_produto: (initialData.itens_produto as any[]) || [
+        itens_produto: (initialData.itens_produto as FormValues['itens_produto']) || [
           {
             nome_servico: String(initialData.nome_servico || ''),
             descricao: String(initialData.descricao || ''),
@@ -303,8 +306,8 @@ export function OrcamentoV2Form({
       } else {
         // Para novo orçamento, criar e enviar
         const orcamentoCriado = await orcamentosApi.create(dadosTransformados, token);
-        if (orcamentoCriado && orcamentoCriado.id) {
-          await orcamentosApi.enviar(orcamentoCriado.id, token);
+        if (orcamentoCriado && (orcamentoCriado as { id?: string }).id) {
+          await orcamentosApi.enviar((orcamentoCriado as { id: string }).id, token);
           toast.success('Orçamento criado e enviado com sucesso!');
         } else {
           toast.success('Orçamento criado com sucesso!');
@@ -390,64 +393,85 @@ export function OrcamentoV2Form({
     }
   };
 
-  const getTitle = () => {
-    switch (mode) {
-      case 'novo':
-        return 'Novo Orçamento V2';
-      case 'editar':
-        return 'Editar Orçamento V2';
-      case 'template':
-        return 'Novo Produto Template V2';
-      default:
-        return 'Orçamento V2';
-    }
-  };
-
-  const getDescription = () => {
-    switch (mode) {
-      case 'novo':
-        return 'Crie um novo orçamento para o cliente usando o sistema V2';
-      case 'editar':
-        return 'Edite as informações do orçamento V2';
-      case 'template':
-        return 'Crie um novo template de produto V2';
-      default:
-        return '';
-    }
-  };
 
   return (
     <div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="w-full">
-          {/* Formulário */}
-          <div className="w-full bg-white rounded-lg shadow-sm border p-6 space-y-6">
-            
-            {/* Seção de Cliente */}
-            <ClienteSection 
-              clientes={clientes} 
-              mode={mode} 
-            />
+          {showPreview ? (
+            /* Layout com Preview - Flex horizontal */
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Formulário principal */}
+              <div className="flex-1">
+                <div className="w-full bg-white rounded-lg shadow-sm border p-6 space-y-6">
+                  {/* Seção de Cliente */}
+                  <ClienteSection 
+                    clientes={clientes} 
+                    mode={mode} 
+                  />
 
-            <Separator />
+                  <Separator />
 
-            {/* Seção de Produtos */}
-            <ProdutoSection 
-              mode={mode}
-              onCarregarProduto={handleCarregarProduto}
-              insumos={insumos}
-              maquinas={maquinas}
-              funcoes={funcoes}
-              servicos={servicos as any}
-            />
+                  {/* Seção de Produtos */}
+                  <ProdutoSection 
+                    mode={mode}
+                    onCarregarProduto={handleCarregarProduto}
+                    insumos={insumos}
+                    maquinas={maquinas}
+                    funcoes={funcoes}
+                    servicos={servicos}
+                  />
 
-            <Separator />
+                  <Separator />
 
-            {/* Configurações Comerciais */}
-            <ConfiguracoesSection mode={mode} />
+                  {/* Configurações Comerciais */}
+                  <ConfiguracoesSection mode={mode} />
 
-            {/* Botões de Ação */}
-            <div className="flex justify-end space-x-4">
+                  {/* Botões de Ação */}
+                  <div className="flex justify-end space-x-4">
+                    <Button type="submit" disabled={loading}>
+                      <Save className="w-4 h-4 mr-2" />
+                      Salvar Orçamento
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sidebar com preview de cálculo */}
+              <div className="w-full lg:w-80 lg:flex-shrink-0">
+                <div className="sticky top-6">
+                  <PreviewCalculoV2 />
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Layout sem Preview - Formulário completo */
+            <div className="w-full bg-white rounded-lg shadow-sm border p-6 space-y-6">
+              {/* Seção de Cliente */}
+              <ClienteSection 
+                clientes={clientes} 
+                mode={mode} 
+              />
+
+              <Separator />
+
+              {/* Seção de Produtos */}
+              <ProdutoSection 
+                mode={mode}
+                onCarregarProduto={handleCarregarProduto}
+                insumos={insumos}
+                maquinas={maquinas}
+                funcoes={funcoes}
+                servicos={servicos}
+              />
+
+              <Separator />
+
+              {/* Configurações Comerciais */}
+              <ConfiguracoesSection mode={mode} />
+
+              {/* Botões de Ação */}
+              <div className="flex justify-end space-x-4">
               <Button
                 type="button"
                 variant="outline"
@@ -533,9 +557,8 @@ export function OrcamentoV2Form({
                 </>
               )}
             </div>
-          </div>
-
-          
+            </div>
+          )}
         </form>
       </Form>
 

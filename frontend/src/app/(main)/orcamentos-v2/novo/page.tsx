@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { OrcamentoV2Form } from '@/components/ui/orcamentos-v2/orcamento-v2-form';
-import { PreviewCalculoV2 } from '@/components/ui/shared/sections';
 
 export default function NovoOrcamentoV2Page() {
   return (
@@ -29,16 +28,9 @@ export default function NovoOrcamentoV2Page() {
 
         {/* Área do Formulário e Preview - mesma altura */}
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Formulário principal */}
+          {/* Formulário principal com preview integrado */}
           <div className="flex-1">
-            <OrcamentoV2Form mode="novo" hideHeader={true} />
-          </div>
-
-          {/* Sidebar com preview de cálculo */}
-          <div className="w-full lg:w-80 lg:flex-shrink-0">
-            <div className="sticky top-6">
-              <PreviewCalculoV2 />
-            </div>
+            <OrcamentoV2Form mode="novo" showPreview={true} />
           </div>
         </div>
       </div>
