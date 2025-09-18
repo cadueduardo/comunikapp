@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   ContextoCalculo,
   ValidationResult,
+  EventoCalculo,
 } from '../interfaces/calculo.interface';
 
 @Injectable()

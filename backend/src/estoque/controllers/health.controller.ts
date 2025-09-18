@@ -100,7 +100,7 @@ export class HealthController {
     try {
       // Verificar acesso ao banco com o contexto (consulta simples por loja)
       const rows: any[] = await this.prisma.$queryRawUnsafe(
-        'SELECT COUNT(*) as total FROM estoque_localizacoes WHERE lojaId = ? LIMIT 1',
+        'SELECT COUNT(*) as total FROM localizacoes WHERE loja_id = ? LIMIT 1',
         context.lojaId,
       );
 
