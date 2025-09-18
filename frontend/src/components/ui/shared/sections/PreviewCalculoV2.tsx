@@ -391,13 +391,29 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       }
     }
     
-    if (!form) return mockData;
+    if (!form) {
+      console.log('🔍 Debug Preview V2 - Sem formulário, usando mockData');
+      return mockData;
+    }
 
     try {
       const formData = form.getValues();
       const itensFormulario = formData.itens_produto || [];
 
-      // Converter resultado do motor V2 para formato do preview (mantendo estrutura)
+      console.log('🔍 Debug Preview V2 - Dados do formulário:', {
+        formData,
+        itensFormulario,
+        insumos: insumos.length,
+        maquinas: maquinas.length,
+        funcoes: funcoes.length
+      });
+
+      if (itensFormulario.length === 0) {
+        console.log('🔍 Debug Preview V2 - Nenhum item no formulário, usando mockData');
+        return mockData;
+      }
+
+      // Converter dados do formulário para formato do preview (cálculo local temporário)
       const produtos = itensFormulario.map((item: any, index: number) => {
         const insumosDoProduto = (item.materiais || []).map((material: any) => {
           const insumoData = insumos.find(i => i.id === material.insumo_id);
@@ -553,7 +569,24 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   };
 
   // Usar dados reais se disponíveis, senão usar mockados
-  const data = form && dadosCarregados ? processarDadosReais() : mockData;
+  const data = (() => {
+    console.log('🔍 Debug Preview V2 - Estados:', {
+      form: !!form,
+      dadosCarregados,
+      isConnected,
+      resultadoOrcamento: !!resultadoOrcamento,
+      resultadoOrcamento_detalhes: resultadoOrcamento
+    });
+
+    if (form && dadosCarregados) {
+      const dadosReais = processarDadosReais();
+      console.log('🔍 Debug Preview V2 - Dados processados:', dadosReais);
+      return dadosReais;
+    }
+    
+    console.log('🔍 Debug Preview V2 - Usando mockData');
+    return mockData;
+  })();
 
   // Calcular total dos custos indiretos
   const totalCustosIndiretos = data.custosIndiretos.reduce((total: number, custo: any) => {
