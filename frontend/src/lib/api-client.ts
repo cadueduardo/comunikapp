@@ -198,6 +198,50 @@ export const orcamentosApi = {
   getPublico: (id: string) => ApiClient.get(`/orcamentos/${id}/publico`),
   salvarRascunho: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos/rascunho', data, token),
   recalcularExistentes: (token: string) => ApiClient.post('/orcamentos/recalcular-existentes', {}, token),
+  
+  // APIs V2 - Sistema Multi-Produtos
+  v2: {
+    getAll: (token: string) => ApiClient.get('/orcamentos-v2', token),
+    getById: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}`, token),
+    create: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos-v2', data, token),
+    update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/orcamentos-v2/${id}`, data, token),
+    delete: (id: string, token: string) => ApiClient.delete(`/orcamentos-v2/${id}`, token),
+    
+    // Cálculo via Motor V2
+    calcularOrcamento: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos-v2/calcular', data, token),
+    calcularPreview: (data: Record<string, unknown>, token: string) => ApiClient.post('/motor-calculo-v2/preview', data, token),
+    validarDados: (data: Record<string, unknown>, token: string) => ApiClient.post('/motor-calculo-v2/validar', data, token),
+    
+    // Operações específicas V2
+    enviarParaAprovacao: (id: string, observacoes: string, token: string) => 
+      ApiClient.post(`/orcamentos-v2/${id}/enviar-aprovacao`, { observacoes }, token),
+    aprovar: (id: string, observacoes: string, token: string) => 
+      ApiClient.post(`/orcamentos-v2/${id}/aprovar`, { observacoes }, token),
+    rejeitar: (id: string, motivo: string, token: string) => 
+      ApiClient.post(`/orcamentos-v2/${id}/rejeitar`, { motivo }, token),
+    
+    // Chat e mensagens V2
+    getMensagens: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}/chat/mensagens`, token),
+    enviarMensagem: (id: string, mensagem: string, token: string) => 
+      ApiClient.post(`/orcamentos-v2/${id}/chat/mensagens`, { mensagem }, token),
+    
+    // Links públicos V2
+    criarLinkPublico: (id: string, configuracoes: Record<string, unknown>, token: string) => 
+      ApiClient.post(`/orcamentos-v2/${id}/links`, configuracoes, token),
+    getLinkPublico: (token: string) => ApiClient.get(`/orcamentos-v2/links/${token}`),
+    
+    // Versões e histórico V2
+    getVersoes: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}/versoes`, token),
+    criarVersao: (id: string, descricao: string, token: string) => 
+      ApiClient.post(`/orcamentos-v2/${id}/versoes`, { descricao }, token),
+    
+    // Validação de estoque V2
+    validarEstoque: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}/validar-estoque`, token),
+    
+    // Estatísticas V2
+    getEstatisticas: (token: string) => ApiClient.get('/motor-calculo-v2/estatisticas', token),
+    healthCheck: () => ApiClient.get('/motor-calculo-v2/health'),
+  },
 };
 
 export const clientesApi = {
