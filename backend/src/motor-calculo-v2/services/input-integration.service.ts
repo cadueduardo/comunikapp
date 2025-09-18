@@ -118,7 +118,7 @@ export class InputIntegrationService {
       const [insumos, maquinas, funcoes] = await Promise.all([
         this.prisma.insumo.count({ where: { loja_id: lojaId, ativo: true } }),
         this.prisma.maquina.count({ where: { loja_id: lojaId } }),
-        this.prisma.funcao.count({ where: { loja_id: lojaId, ativo: true } }),
+        this.prisma.funcao.count({ where: { loja_id: lojaId } }),
       ]);
 
       return {

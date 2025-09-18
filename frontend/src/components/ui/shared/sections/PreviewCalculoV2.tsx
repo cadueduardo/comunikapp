@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ChevronDown, ChevronUp, Eye, Calculator, Clock, Package, AlertCircle } from 'lucide-react';
 import { orcamentosApi } from '@/lib/api-client';
-import { useOrcamentoData } from '../orcamento/hooks/useOrcamentoData';
+import { useOrcamentoData } from '../../orcamento/hooks/useOrcamentoData';
 import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
 
 interface PreviewCalculoV2Props {

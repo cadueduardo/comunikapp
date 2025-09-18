@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Cliente, Insumo, Maquina, Funcao, ServicoManual } from '../../shared/types/common.types';
-import { clientesApi, insumosApi, maquinasApi, funcoesApi, servicosManuaisApi } from '@/lib/api-client';
+import { clientesApi, insumosApi, maquinasApi, funcoesApi, servicosManuaisApi, custosIndiretosApi } from '@/lib/api-client';
 
 export function useOrcamentoData() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -8,6 +8,7 @@ export function useOrcamentoData() {
   const [maquinas, setMaquinas] = useState<Maquina[]>([]);
   const [funcoes, setFuncoes] = useState<Funcao[]>([]);
   const [servicos, setServicos] = useState<ServicoManual[]>([]);
+  const [custosIndiretos, setCustosIndiretos] = useState<any[]>([]);
 
   const fetchClientes = async () => {
     try {
@@ -69,12 +70,25 @@ export function useOrcamentoData() {
     }
   };
 
+  const fetchCustosIndiretos = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      const data = await custosIndiretosApi.getAll(token);
+      setCustosIndiretos(data);
+    } catch (error) {
+      console.error('Erro ao buscar custos indiretos:', error);
+    }
+  };
+
   useEffect(() => {
     fetchClientes();
     fetchInsumos();
     fetchMaquinas();
     fetchFuncoes();
     fetchServicos();
+    fetchCustosIndiretos();
   }, []);
 
   return {
@@ -83,10 +97,12 @@ export function useOrcamentoData() {
     maquinas,
     funcoes,
     servicos,
+    custosIndiretos,
     fetchClientes,
     fetchInsumos,
     fetchMaquinas,
     fetchFuncoes,
     fetchServicos,
+    fetchCustosIndiretos,
   };
 } 
