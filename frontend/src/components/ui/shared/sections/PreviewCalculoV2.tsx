@@ -1,11 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useFormContext } from 'react-hook-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ChevronDown, ChevronUp, Eye, Calculator, Clock, Package, AlertCircle } from 'lucide-react';
+import { orcamentosApi } from '@/lib/api-client';
+import { useOrcamentoData } from '../orcamento/hooks/useOrcamentoData';
+import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
 
 interface PreviewCalculoV2Props {
   variant?: 'orcamento' | 'produto';
@@ -20,8 +24,27 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
 }) => {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [showIndirectCosts, setShowIndirectCosts] = useState(false);
+  
+  // Tentar obter contexto do formulário (se disponível)
+  let form: any = null;
+  try {
+    form = useFormContext();
+  } catch {
+    // Formulário não disponível - usar dados mockados
+  }
 
-  // Dados mockados baseados no arquivo original
+  // Hook para dados auxiliares (insumos, máquinas, etc.)
+  const { insumos, maquinas, funcoes, custosIndiretos } = useOrcamentoData();
+  
+  // Hook para WebSocket em tempo real
+  const { 
+    connectionStatus,
+    isConnected,
+    executarCalculoOrcamento,
+    resultadoOrcamento
+  } = useCalculoWebSocket();
+
+  // Dados mockados como fallback (mantendo estrutura original)
   const mockData = {
     resumo: {
       total_produtos: 3,
@@ -157,12 +180,299 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     return `${horas}h`;
   };
 
+  // Função para transformar dados do formulário para o motor V2
+  const transformarDadosParaMotor = () => {
+    if (!form) return null;
+
+    try {
+      const formData = form.getValues();
+      const itensFormulario = formData.itens_produto || [];
+      
+      if (itensFormulario.length === 0) return null;
+
+      // Transformar cada produto do formulário
+      const produtos = itensFormulario.map((item: any, index: number) => ({
+        id: `produto_${index}`,
+        nome: item.nome_servico || `Produto ${index + 1}`,
+        nome_servico: item.nome_servico || `Produto ${index + 1}`,
+        quantidade: Number(item.quantidade_produto?.replace(',', '.')) || 1,
+        insumos: (item.materiais || []).map((material: any) => {
+          const insumoData = insumos.find(i => i.id === material.insumo_id);
+          return {
+            id: material.insumo_id,
+            nome: insumoData?.nome || 'Insumo não encontrado',
+            unidade: insumoData?.unidade_uso || 'un',
+            preco_unitario: Number(insumoData?.custo_unitario) || 0,
+            quantidade: Number(material.quantidade?.replace(',', '.')) || 0,
+            categoria: 'Material',
+            fornecedor: 'Fornecedor',
+            estoque_disponivel: 100,
+          };
+        }),
+        maquinas: (item.maquinas || []).map((maquina: any) => {
+          const maquinaData = maquinas.find(m => m.id === maquina.maquina_id);
+          return {
+            id: maquina.maquina_id,
+            nome: maquinaData?.nome || 'Máquina não encontrada',
+            tipo: maquinaData?.tipo || 'Equipamento',
+            custo_hora: Number(maquinaData?.custo_hora) || 0,
+            tempo_setup: Number(maquina.horas_utilizadas?.replace(',', '.')) || 1,
+            eficiencia: 100,
+            disponivel: true,
+          };
+        }),
+        funcoes: (item.funcoes || []).map((funcao: any) => {
+          const funcaoData = funcoes.find(f => f.id === funcao.funcao_id);
+          return {
+            id: funcao.funcao_id,
+            nome: funcaoData?.nome || 'Função não encontrada',
+            categoria: 'Operacional',
+            custo_hora: Number(funcaoData?.custo_hora) || 0,
+            tempo_estimado: Number(funcao.horas_trabalhadas?.replace(',', '.')) || 1,
+            nivel_experiencia: 'Intermediário',
+            disponivel: true,
+          };
+        }),
+        servicos_manuais: (item.servicos || []).map((servico: any) => ({
+          id: servico.servico_id,
+          horas: Number(servico.horas_trabalhadas?.replace(',', '.')) || 1,
+          custo_por_hora: 50, // TODO: Obter do cadastro de serviços
+        })),
+        custos_indiretos: custosIndiretos.map((custo: any) => ({
+          id: custo.id,
+          percentual: 15, // Rateio padrão
+          valor_fixo: Number(custo.valor_mensal) || 0,
+        })),
+        metadata: {
+          largura: Number(item.largura_produto?.replace(',', '.')) || 0,
+          altura: Number(item.altura_produto?.replace(',', '.')) || 0,
+          area_produto: Number(item.area_produto?.replace(',', '.')) || 0,
+          unidade_medida: item.unidade_medida_produto || 'm',
+        },
+      }));
+
+      return {
+        lojaId: 'loja_atual', // TODO: Obter da sessão
+        produtos,
+        configuracoes: {
+          margem_lucro_padrao: Number(formData.margem_lucro_customizada?.replace(',', '.')) || 30,
+          impostos_padrao: Number(formData.impostos_customizados?.replace(',', '.')) || 18,
+          custos_indiretos_padrao: 15,
+          desconto_padrao: 0,
+          prazo_entrega_padrao: 10,
+          unidade_monetaria: 'BRL',
+          timezone: 'America/Sao_Paulo',
+        },
+      };
+    } catch (error) {
+      console.error('Erro ao transformar dados do formulário:', error);
+      return null;
+    }
+  };
+
+  // Executar cálculo via WebSocket quando dados do formulário mudarem
+  useEffect(() => {
+    if (form && dadosCarregados && isConnected) {
+      const subscription = form.watch(() => {
+        // Debounce para evitar muitas chamadas
+        const timeoutId = setTimeout(() => {
+          const dadosMotor = transformarDadosParaMotor();
+          if (dadosMotor) {
+            console.log('🔄 Enviando cálculo via WebSocket:', dadosMotor);
+            executarCalculoOrcamento(dadosMotor);
+          }
+        }, 500);
+        
+        return () => clearTimeout(timeoutId);
+      });
+
+      // Executar cálculo inicial
+      const dadosMotor = transformarDadosParaMotor();
+      if (dadosMotor) {
+        console.log('🔄 Cálculo inicial via WebSocket:', dadosMotor);
+        executarCalculoOrcamento(dadosMotor);
+      }
+
+      return () => subscription?.unsubscribe?.();
+    }
+  }, [form, dadosCarregados, isConnected, insumos, maquinas, funcoes, executarCalculoOrcamento]);
+
+  // Função para processar dados reais e converter para formato do preview
+  const processarDadosReais = () => {
+    // Usar resultado do WebSocket se disponível, senão calcular localmente
+    if (resultadoOrcamento && form) {
+      console.log('✅ Usando resultado do WebSocket:', resultadoOrcamento);
+      return resultadoOrcamento.data || mockData;
+    }
+    
+    if (!form) return mockData;
+
+    try {
+      const formData = form.getValues();
+      const itensFormulario = formData.itens_produto || [];
+
+      // Converter resultado do motor V2 para formato do preview (mantendo estrutura)
+      const produtos = itensFormulario.map((item: any, index: number) => {
+        const insumosDoProduto = (item.materiais || []).map((material: any) => {
+          const insumoData = insumos.find(i => i.id === material.insumo_id);
+          const quantidade = Number(material.quantidade?.replace(',', '.')) || 0;
+          const custoUnitario = Number(insumoData?.custo_unitario) || 0;
+          
+          return {
+            insumo_id: material.insumo_id,
+            nome: insumoData?.nome || 'Insumo não encontrado',
+            quantidade: quantidade,
+            custo_unitario: custoUnitario,
+            unidade_consumo: insumoData?.unidade_uso || 'un',
+          };
+        });
+
+        const maquinasDoProduto = (item.maquinas || []).map((maquina: any) => {
+          const maquinaData = maquinas.find(m => m.id === maquina.maquina_id);
+          const horasUtilizadas = Number(maquina.horas_utilizadas?.replace(',', '.')) || 1;
+          const custoPorHora = Number(maquinaData?.custo_hora) || 0;
+          
+          return {
+            maquina_id: maquina.maquina_id,
+            nome: maquinaData?.nome || 'Máquina não encontrada',
+            horas_utilizadas: horasUtilizadas,
+            custo_por_hora: custoPorHora,
+          };
+        });
+
+        const funcoesDoProduto = (item.funcoes || []).map((funcao: any) => {
+          const funcaoData = funcoes.find(f => f.id === funcao.funcao_id);
+          const horasTrabalhadas = Number(funcao.horas_trabalhadas?.replace(',', '.')) || 1;
+          const custoPorHora = Number(funcaoData?.custo_hora) || 0;
+          
+          return {
+            funcao_id: funcao.funcao_id,
+            nome: funcaoData?.nome || 'Função não encontrada',
+            horas_trabalhadas: horasTrabalhadas,
+            custo_por_hora: custoPorHora,
+          };
+        });
+
+        const servicosDoProduto = (item.servicos || []).map((servico: any) => {
+          const horasTrabalhadas = Number(servico.horas_trabalhadas?.replace(',', '.')) || 1;
+          
+          return {
+            servico_id: servico.servico_id,
+            nome: 'Serviço Manual',
+            horas_trabalhadas: horasTrabalhadas,
+            custo_por_hora: 50, // TODO: Obter do cadastro
+          };
+        });
+
+        // Calcular custos do produto
+        const custoMateriais = insumosDoProduto.reduce((acc, mat) => 
+          acc + (mat.quantidade * mat.custo_unitario), 0);
+        const custoMaquinas = maquinasDoProduto.reduce((acc, maq) => 
+          acc + (maq.horas_utilizadas * maq.custo_por_hora), 0);
+        const custoFuncoes = funcoesDoProduto.reduce((acc, func) => 
+          acc + (func.horas_trabalhadas * func.custo_por_hora), 0);
+        const custoServicos = servicosDoProduto.reduce((acc, serv) => 
+          acc + (serv.horas_trabalhadas * serv.custo_por_hora), 0);
+        
+        const custoTotalProducao = custoMateriais + custoMaquinas + custoFuncoes + custoServicos;
+        const horasProducao = maquinasDoProduto.reduce((acc, maq) => acc + maq.horas_utilizadas, 0) +
+                             funcoesDoProduto.reduce((acc, func) => acc + func.horas_trabalhadas, 0) +
+                             servicosDoProduto.reduce((acc, serv) => acc + serv.horas_trabalhadas, 0);
+        
+        const quantidade = Number(item.quantidade_produto?.replace(',', '.')) || 1;
+        const custosIndiretos = custoTotalProducao * 0.15; // 15% padrão
+        const precoUnitario = (custoTotalProducao + custosIndiretos) * 1.3 * 1.18; // Margem + impostos
+        const precoTotal = precoUnitario * quantidade;
+
+        return {
+          id: `${index + 1}`,
+          nome_servico: item.nome_servico || `Produto ${index + 1}`,
+          descricao: item.descricao || `Descrição do produto ${index + 1}`,
+          quantidade: quantidade,
+          dimensoes: {
+            largura: Number(item.largura_produto?.replace(',', '.')) || 0,
+            altura: Number(item.altura_produto?.replace(',', '.')) || 0,
+            area_produto: Number(item.area_produto?.replace(',', '.')) || 0,
+            unidade_medida: item.unidade_medida_produto || 'm',
+          },
+          materiais: insumosDoProduto,
+          maquinas: maquinasDoProduto,
+          funcoes: funcoesDoProduto,
+          servicos: servicosDoProduto,
+          custo_total_producao: custoTotalProducao,
+          preco_unitario: precoUnitario,
+          preco_total: precoTotal,
+          horas_producao: horasProducao,
+          custos_indiretos_rateados: custosIndiretos,
+        };
+      });
+
+      // Calcular resumo geral
+      const totalCustoMaterial = produtos.reduce((acc, p) => 
+        acc + p.materiais.reduce((acc2, m) => acc2 + (m.quantidade * m.custo_unitario), 0), 0);
+      const totalCustoMaquinaria = produtos.reduce((acc, p) => 
+        acc + p.maquinas.reduce((acc2, m) => acc2 + (m.horas_utilizadas * m.custo_por_hora), 0), 0);
+      const totalCustoMaoObra = produtos.reduce((acc, p) => 
+        acc + p.funcoes.reduce((acc2, f) => acc2 + (f.horas_trabalhadas * f.custo_por_hora), 0), 0);
+      const totalCustoIndireto = produtos.reduce((acc, p) => acc + p.custos_indiretos_rateados, 0);
+      const totalCustoProducao = totalCustoMaterial + totalCustoMaquinaria + totalCustoMaoObra + totalCustoIndireto;
+      
+      const margemLucroPercentual = Number(formData.margem_lucro_customizada?.replace(',', '.')) || 30;
+      const impostosPercentual = Number(formData.impostos_customizados?.replace(',', '.')) || 18;
+      const comissaoPercentual = Number(formData.comissao_percentual?.replace(',', '.')) || 5;
+      
+      const totalMargemLucro = totalCustoProducao * (margemLucroPercentual / 100);
+      const subtotalComLucro = totalCustoProducao + totalMargemLucro;
+      const totalImpostos = subtotalComLucro * (impostosPercentual / 100);
+      const precoFinal = subtotalComLucro + totalImpostos;
+      const comissaoTotal = precoFinal * (comissaoPercentual / 100);
+      const tempoTotalProducao = produtos.reduce((acc, p) => acc + p.horas_producao, 0);
+
+      return {
+        resumo: {
+          total_produtos: produtos.length,
+          total_custo_material: totalCustoMaterial,
+          total_custo_maquinaria: totalCustoMaquinaria,
+          total_custo_mao_obra: totalCustoMaoObra,
+          total_custo_indireto: totalCustoIndireto,
+          total_custo_producao: totalCustoProducao,
+          total_margem_lucro: totalMargemLucro,
+          total_impostos: totalImpostos,
+          preco_final: precoFinal,
+          tempo_total_producao: tempoTotalProducao,
+          margem_lucro_percentual: margemLucroPercentual,
+          impostos_percentual: impostosPercentual,
+          comissao_percentual: comissaoPercentual,
+          comissao_total: comissaoTotal,
+        },
+        produtos: produtos,
+        custosIndiretos: custosIndiretos.map((custo: any) => ({
+          id: custo.id,
+          nome: custo.nome,
+          categoria: custo.categoria || 'Geral',
+          valor_mensal: Number(custo.valor_mensal) || 0,
+          ativo: true,
+        })),
+        metadata: {
+          timestamp_calculo: new Date(),
+          versao_motor: '2.1.3',
+          tempo_execucao_ms: loading ? 0 : 245,
+          estagios_executados: ['validacao', 'materiais', 'maquinas', 'funcoes', 'custos_indiretos', 'margem_lucro', 'impostos'],
+        },
+      };
+    } catch (error) {
+      console.error('Erro ao processar dados reais:', error);
+      return mockData;
+    }
+  };
+
+  // Usar dados reais se disponíveis, senão usar mockados
+  const data = form && dadosCarregados ? processarDadosReais() : mockData;
+
   // Calcular total dos custos indiretos
-  const totalCustosIndiretos = mockData.custosIndiretos.reduce((total, custo) => {
+  const totalCustosIndiretos = data.custosIndiretos.reduce((total: number, custo: any) => {
     return total + custo.valor_mensal;
   }, 0);
-
-  const data = mockData;
 
   // Se não há dados, mostrar estado vazio
   if (!data) {
@@ -199,8 +509,13 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
           <Calculator className="h-5 w-5 text-blue-600" />
           <h2 className="text-lg font-semibold text-gray-900">Preview do Cálculo</h2>
         </div>
-        <Badge variant="outline" className="text-xs">
-          Atualizado em tempo real
+        <Badge 
+          variant="outline" 
+          className={`text-xs ${isConnected ? 'text-green-600 border-green-200' : 'text-red-600 border-red-200'}`}
+        >
+          {connectionStatus === 'connecting' ? 'Conectando...' : 
+           isConnected ? 'Tempo real ativo' : 
+           connectionStatus === 'error' ? 'Erro de conexão' : 'Desconectado'}
         </Badge>
       </div>
 

@@ -20,6 +20,8 @@ import { MensagensNegociacaoModule } from './mensagens-negociacao/mensagens-nego
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { WebsocketsModule } from './websockets/websockets.module';
 import { ServicosManuaisModule } from './servicos-manuais/servicos-manuais.module';
+// import { OrcamentosV2Module } from './orcamentos-v2/orcamentos-v2.module';  // Desabilitado até resolver schema
+import { MotorCalculoV2Module } from './motor-calculo-v2/motor-calculo-v2.module';
 import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
 
 @Module({
@@ -47,6 +49,8 @@ import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
     UsuariosModule,
     WebsocketsModule,
     ServicosManuaisModule,
+    // OrcamentosV2Module,  // Temporariamente desabilitado até resolver schema
+    MotorCalculoV2Module,
   ],
 })
 export class AppModule {

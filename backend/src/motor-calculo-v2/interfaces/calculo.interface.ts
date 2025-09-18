@@ -254,6 +254,7 @@ export interface EventoCalculo {
     versao_motor: string;
     tempo_producao?: number;
     versao?: string;
+    origem?: string;
   };
 }
 

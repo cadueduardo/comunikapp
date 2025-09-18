@@ -230,7 +230,6 @@ export class InputIntegrationService {
             where: {
               id: funcao.id,
               loja_id: contexto.lojaId,
-              ativo: true,
             },
             include: {
               maquina: true,

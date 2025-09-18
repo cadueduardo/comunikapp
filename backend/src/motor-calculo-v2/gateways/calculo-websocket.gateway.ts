@@ -9,7 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Logger, UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { MotorCalculoV2Service } from '../services/motor-calculo-v2.service';
 import { DTOCalculo, EventoCalculo } from '../interfaces/calculo.interface';
 
