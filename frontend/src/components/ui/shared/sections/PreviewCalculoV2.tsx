@@ -5,7 +5,7 @@ import { useFormContext } from 'react-hook-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Separator } from '@/components/ui/separator';
 import { useUser } from '@/contexts/UserContext';
 import { ChevronDown, ChevronUp, Eye, Calculator, Clock, Package, AlertCircle } from 'lucide-react';
 import { useOrcamentoData } from '../../orcamento/hooks/useOrcamentoData';
@@ -25,33 +25,33 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [showIndirectCosts, setShowIndirectCosts] = useState(false);
   
-  // Tentar obter contexto do formulário (se disponível)
+  // Tentar obter contexto do formulario (se disponivel)
   let form: any = null;
   try {
     form = useFormContext();
   } catch {
-    // Formulário não disponível - usar dados mockados
+    // Formulario nao disponivel - usar dados mockados
   }
 
-  // Hook para dados auxiliares (insumos, máquinas, etc.)
-  const { insumos, maquinas, funcoes, custosIndiretos } = useOrcamentoData();
-  const { user } = useUser();
-
-  const resolvedLojaId = useMemo(() => {
-    if (user?.loja?.id) return user.loja.id;
-    if (user?.loja_id) return user.loja_id;
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('loja_id') ?? undefined;
-    }
-    return undefined;
-  }, [user]);
-
-  const resolvedUsuarioId = useMemo(() => {
-    if (user?.id) return user.id;
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('user_id') ?? undefined;
-    }
-    return undefined;
+  // Hook para dados auxiliares (insumos, maquinas, etc.)
+  const { insumos, maquinas, funcoes, custosIndiretos } = useOrcamentoData();
+  const { user } = useUser();
+
+  const resolvedLojaId = useMemo(() => {
+    if (user?.loja?.id) return user.loja.id;
+    if (user?.loja_id) return user.loja_id;
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('loja_id') ?? undefined;
+    }
+    return undefined;
+  }, [user]);
+
+  const resolvedUsuarioId = useMemo(() => {
+    if (user?.id) return user.id;
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('user_id') ?? undefined;
+    }
+    return undefined;
   }, [user]);
   
   // Hook para WebSocket em tempo real
@@ -88,11 +88,11 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         quantidade: 100,
         dimensoes: { largura: 2, altura: 1, area_produto: 2, unidade_medida: 'm' },
         materiais: [
-          { insumo_id: '1', nome: "Vinil Brilho", quantidade: 200, custo_unitario: 15.00, unidade_consumo: 'm²' },
-          { insumo_id: '2', nome: "Cordão", quantidade: 600, custo_unitario: 2.50, unidade_consumo: 'm' }
+          { insumo_id: '1', nome: "Vinil Brilho", quantidade: 200, custo_unitario: 15.00, unidade_consumo: 'm2' },
+          { insumo_id: '2', nome: "Cordao", quantidade: 600, custo_unitario: 2.50, unidade_consumo: 'm' }
         ],
         maquinas: [
-          { maquina_id: '1', nome: "Plotter de Impressão", horas_utilizadas: 15, custo_por_hora: 50.00 }
+          { maquina_id: '1', nome: "Plotter de Impressao", horas_utilizadas: 15, custo_por_hora: 50.00 }
         ],
         funcoes: [
           { funcao_id: '1', nome: "Operador de Plotter", horas_trabalhadas: 15, custo_por_hora: 30.00 }
@@ -109,12 +109,12 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       {
         id: '2',
         nome_servico: "Painel",
-        descricao: "Painel ACM com impressão",
+        descricao: "Painel ACM com impressao",
         quantidade: 1,
         dimensoes: { largura: 3, altura: 2, area_produto: 6, unidade_medida: 'm' },
         materiais: [
-          { insumo_id: '3', nome: "ACM", quantidade: 6, custo_unitario: 80.00, unidade_consumo: 'm²' },
-          { insumo_id: '4', nome: "Adesivo", quantidade: 6, custo_unitario: 25.00, unidade_consumo: 'm²' }
+          { insumo_id: '3', nome: "ACM", quantidade: 6, custo_unitario: 80.00, unidade_consumo: 'm2' },
+          { insumo_id: '4', nome: "Adesivo", quantidade: 6, custo_unitario: 25.00, unidade_consumo: 'm2' }
         ],
         maquinas: [
           { maquina_id: '2', nome: "Router CNC", horas_utilizadas: 2, custo_por_hora: 120.00 }
@@ -159,9 +159,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     ],
     custosIndiretos: [
       { id: '1', nome: "Aluguel", categoria: "Infraestrutura", valor_mensal: 2000.00, ativo: true },
-      { id: '2', nome: "Energia Elétrica", categoria: "Serviços", valor_mensal: 800.00, ativo: true },
-      { id: '3', nome: "Água", categoria: "Serviços", valor_mensal: 200.00, ativo: true },
-      { id: '4', nome: "Internet", categoria: "Serviços", valor_mensal: 150.00, ativo: true },
+      { id: '2', nome: "Energia Eletrica", categoria: "Servicos", valor_mensal: 800.00, ativo: true },
+      { id: '3', nome: "Agua", categoria: "Servicos", valor_mensal: 200.00, ativo: true },
+      { id: '4', nome: "Internet", categoria: "Servicos", valor_mensal: 150.00, ativo: true },
       { id: '5', nome: "Seguro", categoria: "Seguros", valor_mensal: 300.00, ativo: true }
     ],
     metadata: {
@@ -172,7 +172,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     }
   };
 
-  // Toggle de expansão de itens
+  // Toggle de expansao de itens
   const toggleItemExpansion = (itemId: string) => {
     setExpandedItems(prev => ({
       ...prev,
@@ -180,7 +180,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     }));
   };
 
-  // Formatar dimensões
+  // Formatar dimensoes
   const formatarDimensoes = (dimensoes: any): string => {
     if (dimensoes.unidade_medida === 'm') {
       return `${dimensoes.largura}x${dimensoes.altura}m`;
@@ -198,7 +198,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     return `${horas}h`;
   };
 
-  // Formatar valores monetários (aceita números ou "Aguardando...")
+  // Formatar valores monetarios (aceita numeros ou "Aguardando...")
   const formatarValor = (valor: unknown): string => {
     if (typeof valor === 'string') {
       return valor;
@@ -227,7 +227,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
 
     return '0';
   };
-  // Função para transformar dados do formulário para o motor V2
+  // Funcao para transformar dados do formulario para o motor V2
   const transformarDadosParaMotor = () => {
     if (!form) return null;
 
@@ -237,7 +237,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       
       if (itensFormulario.length === 0) return null;
 
-      // Transformar cada produto do formulário seguindo a interface DTOCalculo
+      // Transformar cada produto do formulario seguindo a interface DTOCalculo
       const produtos = itensFormulario.map((item: any, index: number) => ({
         id: `produto_${index}`,
         nome: item.nome_servico || `Produto ${index + 1}`,
@@ -248,7 +248,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             if (!material.insumo_id || !material.quantidade) return false;
             const insumoData = insumos.find(i => i.id === material.insumo_id);
             if (!insumoData) {
-              console.warn(`⚠️ Insumo ${material.insumo_id} não encontrado para WebSocket, ignorando`);
+              console.warn(` Insumo ${material.insumo_id} nao encontrado para WebSocket, ignorando`);
               return false;
             }
             return true;
@@ -262,7 +262,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
               preco_unitario: Number(insumoData.custo_unitario) || 0,
               quantidade: Number(material.quantidade?.replace(',', '.')) || 0,
               categoria: 'Material',
-              fornecedor: 'Fornecedor Padrão',
+              fornecedor: 'Fornecedor Padrao',
               estoque_disponivel: 100,
             };
           }),
@@ -271,7 +271,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             if (!maquina.maquina_id || !maquina.horas_utilizadas) return false;
             const maquinaData = maquinas.find(m => m.id === maquina.maquina_id);
             if (!maquinaData) {
-              console.warn(`⚠️ Máquina ${maquina.maquina_id} não encontrada para WebSocket, ignorando`);
+              console.warn(` Maquina ${maquina.maquina_id} nao encontrada para WebSocket, ignorando`);
               return false;
             }
             return true;
@@ -293,7 +293,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             if (!funcao.funcao_id || !funcao.horas_trabalhadas) return false;
             const funcaoData = funcoes.find(f => f.id === funcao.funcao_id);
             if (!funcaoData) {
-              console.warn(`⚠️ Função ${funcao.funcao_id} não encontrada para WebSocket, ignorando`);
+              console.warn(` Funcao ${funcao.funcao_id} nao encontrada para WebSocket, ignorando`);
               return false;
             }
             return true;
@@ -306,21 +306,21 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
               categoria: 'Operacional',
               custo_hora: Number(funcaoData.custo_hora) || 0,
               tempo_estimado: Number(funcao.horas_trabalhadas?.replace(',', '.')) || 1,
-              nivel_experiencia: 'Intermediário',
+              nivel_experiencia: 'Intermediario',
               disponivel: true,
             };
           }),
         servicos_manuais: (item.servicos || []).map((servico: any) => ({
           id: servico.servico_id,
-          nome: `Serviço ${servico.servico_id}`,
+          nome: `Servico ${servico.servico_id}`,
           horas: Number(servico.horas_trabalhadas?.replace(',', '.')) || 1,
-          custo_por_hora: 50, // TODO: Obter do cadastro de serviços
+          custo_por_hora: 50, // TODO: Obter do cadastro de servicos
         })),
         custos_indiretos: custosIndiretos.map((custo: any) => ({
           id: custo.id,
           nome: custo.nome || 'Custo Indireto',
           tipo: 'rateio',
-          percentual: 15, // Rateio padrão
+          percentual: 15, // Rateio padrao
           valor_fixo: Number(custo.valor_mensal) || 0,
         })),
         metadata: {
@@ -346,7 +346,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
           timezone: 'America/Sao_Paulo',
           modo_calculo: 'preview' as const,
           aplicar_regras_negocio: true,
-          validar_estoque: false, // Para preview não validar estoque
+          validar_estoque: false, // Para preview nao validar estoque
         },
         metadata: {
           timestamp_criacao: new Date(),
@@ -356,16 +356,16 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         }
       };
 
-      console.log('🔄 Dados transformados para Motor V2:', dtoCalculo);
+      console.log(' Dados transformados para Motor V2:', dtoCalculo);
       return dtoCalculo;
       
     } catch (error) {
-      console.error('Erro ao transformar dados do formulário:', error);
+      console.error('Erro ao transformar dados do formulario:', error);
       return null;
     }
   };
 
-  // Executar cálculo via WebSocket quando dados do formulário mudarem
+  // Executar calculo via WebSocket quando dados do formulario mudarem
   useEffect(() => {
     if (form && dadosCarregados && isConnected) {
       const subscription = form.watch(() => {
@@ -373,16 +373,16 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         const timeoutId = setTimeout(() => {
           const dadosMotor = transformarDadosParaMotor();
           if (dadosMotor && dadosMotor.produtos.length > 0) {
-            // Verificar se pelo menos um produto tem insumos, máquinas ou funções
+            // Verificar se pelo menos um produto tem insumos, maquinas ou funcoes
             const temDadosSuficientes = dadosMotor.produtos.some(produto => 
               produto.insumos.length > 0 || produto.maquinas.length > 0 || produto.funcoes.length > 0
             );
             
             if (temDadosSuficientes) {
-              console.log('🔄 Enviando cálculo via WebSocket:', dadosMotor);
+              console.log(' Enviando calculo via WebSocket:', dadosMotor);
               executarCalculoOrcamento(dadosMotor);
             } else {
-              console.log('⏳ Dados insuficientes para cálculo, aguardando mais inputs...');
+              console.log(' Dados insuficientes para calculo, aguardando mais inputs...');
             }
           }
         }, 500);
@@ -390,19 +390,19 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         return () => clearTimeout(timeoutId);
       });
 
-      // Executar cálculo inicial (só se tiver dados suficientes)
+      // Executar calculo inicial (so se tiver dados suficientes)
       const dadosMotor = transformarDadosParaMotor();
       if (dadosMotor && dadosMotor.produtos.length > 0) {
-        // Verificar se pelo menos um produto tem insumos, máquinas ou funções
+        // Verificar se pelo menos um produto tem insumos, maquinas ou funcoes
         const temDadosSuficientes = dadosMotor.produtos.some(produto => 
           produto.insumos.length > 0 || produto.maquinas.length > 0 || produto.funcoes.length > 0
         );
         
         if (temDadosSuficientes) {
-          console.log('🔄 Cálculo inicial via WebSocket:', dadosMotor);
+          console.log(' Calculo inicial via WebSocket:', dadosMotor);
           executarCalculoOrcamento(dadosMotor);
         } else {
-          console.log('⏳ Dados insuficientes para cálculo, aguardando mais inputs...');
+          console.log(' Dados insuficientes para calculo, aguardando mais inputs...');
         }
       }
 
@@ -410,11 +410,11 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     }
   }, [form, dadosCarregados, isConnected, insumos, maquinas, funcoes, executarCalculoOrcamento]);
 
-  // Função para processar dados reais e converter para formato do preview
+  // Funcao para processar dados reais e converter para formato do preview
   const processarDadosReais = () => {
-    // Usar resultado do WebSocket se disponível
+    // Usar resultado do WebSocket se disponivel
     if (resultadoOrcamento && resultadoOrcamento.resultado) {
-      console.log('✅ Usando resultado do Motor V2:', resultadoOrcamento);
+      console.log(' Usando resultado do Motor V2:', resultadoOrcamento);
       
       try {
         // Converter resultado do motor V2 para formato do preview
@@ -481,13 +481,13 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
           }
         };
       } catch (error) {
-        console.error('❌ Erro ao processar resultado do motor V2:', error);
+        console.error(' Erro ao processar resultado do motor V2:', error);
         return mockData;
       }
     }
     
     if (!form) {
-      console.log('🔍 Debug Preview V2 - Sem formulário, usando mockData');
+      console.log(' Debug Preview V2 - Sem formulario, usando mockData');
       return mockData;
     }
 
@@ -495,7 +495,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       const formData = form.getValues();
       const itensFormulario = formData.itens_produto || [];
 
-      console.log('🔍 Debug Preview V2 - Dados do formulário:', {
+      console.log(' Debug Preview V2 - Dados do formulario:', {
         formData,
         itensFormulario,
         insumos: insumos.length,
@@ -504,13 +504,13 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       });
 
       if (itensFormulario.length === 0) {
-        console.log('🔍 Debug Preview V2 - Nenhum item no formulário, usando mockData');
+        console.log(' Debug Preview V2 - Nenhum item no formulario, usando mockData');
         return mockData;
       }
 
-      // Converter dados do formulário para formato do preview com estado "Aguardando..."
+      // Converter dados do formulario para formato do preview com estado "Aguardando..."
       const produtos = itensFormulario.map((item: any, index: number) => {
-        // Verificar se campos básicos estão preenchidos
+        // Verificar se campos basicos estao preenchidos
         const temNome = item.nome_servico && item.nome_servico.trim() !== '';
         const temQuantidade = item.quantidade_produto && Number(item.quantidade_produto.replace(',', '.')) > 0;
         
@@ -520,13 +520,13 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             if (!material.insumo_id || !material.quantidade) return false;
             const insumoData = insumos.find(i => i.id === material.insumo_id);
             if (!insumoData) {
-              console.warn(`⚠️ Insumo ${material.insumo_id} não encontrado na lista, ignorando`);
+              console.warn(` Insumo ${material.insumo_id} nao encontrado na lista, ignorando`);
               return false;
             }
             return true;
           })
           .map((material: any) => {
-            const insumoData = insumos.find(i => i.id === material.insumo_id)!; // ! porque já validamos no filter
+            const insumoData = insumos.find(i => i.id === material.insumo_id)!; // ! porque ja validamos no filter
             const quantidade = Number(material.quantidade?.replace(',', '.')) || 0;
             const custoUnitario = Number(insumoData.custo_unitario) || 0;
             
@@ -540,13 +540,13 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             };
           });
 
-        // Processar máquinas apenas se estiverem selecionadas, com horas E existirem no banco
+        // Processar maquinas apenas se estiverem selecionadas, com horas E existirem no banco
         const maquinasDoProduto = (item.maquinas || [])
           .filter((maquina: any) => {
             if (!maquina.maquina_id || !maquina.horas_utilizadas) return false;
             const maquinaData = maquinas.find(m => m.id === maquina.maquina_id);
             if (!maquinaData) {
-              console.warn(`⚠️ Máquina ${maquina.maquina_id} não encontrada na lista, ignorando`);
+              console.warn(` Maquina ${maquina.maquina_id} nao encontrada na lista, ignorando`);
               return false;
             }
             return true;
@@ -565,13 +565,13 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             };
           });
 
-        // Processar funções apenas se estiverem selecionadas, com horas E existirem no banco
+        // Processar funcoes apenas se estiverem selecionadas, com horas E existirem no banco
         const funcoesDoProduto = (item.funcoes || [])
           .filter((funcao: any) => {
             if (!funcao.funcao_id || !funcao.horas_trabalhadas) return false;
             const funcaoData = funcoes.find(f => f.id === funcao.funcao_id);
             if (!funcaoData) {
-              console.warn(`⚠️ Função ${funcao.funcao_id} não encontrada na lista, ignorando`);
+              console.warn(` Funcao ${funcao.funcao_id} nao encontrada na lista, ignorando`);
               return false;
             }
             return true;
@@ -590,7 +590,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             };
           });
 
-        // Processar serviços apenas se estiverem selecionados e com horas
+        // Processar servicos apenas se estiverem selecionados e com horas
         const servicosDoProduto = (item.servicos || [])
           .filter((servico: any) => servico.servico_id && servico.horas_trabalhadas)
           .map((servico: any) => {
@@ -598,14 +598,14 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             
             return {
               servico_id: servico.servico_id,
-              nome: 'Serviço Manual',
+              nome: 'Servico Manual',
               horas_trabalhadas: horasTrabalhadas,
               custo_por_hora: 50, // TODO: Obter do cadastro
               custo_total: horasTrabalhadas * 50
             };
           });
 
-        // Calcular custos do produto (só se tiver dados)
+        // Calcular custos do produto (so se tiver dados)
         const custoMateriais = insumosDoProduto.reduce((acc, mat) => acc + mat.custo_total, 0);
         const custoMaquinas = maquinasDoProduto.reduce((acc, maq) => acc + maq.custo_total, 0);
         const custoFuncoes = funcoesDoProduto.reduce((acc, func) => acc + func.custo_total, 0);
@@ -618,7 +618,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         
         const quantidade = temQuantidade ? Number(item.quantidade_produto.replace(',', '.')) : 1;
         
-        // Aplicar "Aguardando..." para campos não preenchidos
+        // Aplicar "Aguardando..." para campos nao preenchidos
         const custosIndiretos = custoTotalProducao > 0 ? custoTotalProducao * 0.15 : 'Aguardando...';
         const precoUnitario = custoTotalProducao > 0 ? (custoTotalProducao + (typeof custosIndiretos === 'number' ? custosIndiretos : 0)) * 1.3 * 1.18 : 'Aguardando...';
         const precoTotal = (typeof precoUnitario === 'number') ? precoUnitario * quantidade : 'Aguardando...';
@@ -626,7 +626,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         return {
           id: `${index + 1}`,
           nome_servico: temNome ? item.nome_servico : 'Aguardando...',
-          descricao: item.descricao || 'Aguardando descrição...',
+          descricao: item.descricao || 'Aguardando descricao...',
           quantidade: temQuantidade ? quantidade : 'Aguardando...',
           dimensoes: {
             largura: (item.largura_produto && Number(item.largura_produto.replace(',', '.'))) || 'Aguardando...',
@@ -676,7 +676,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       const impostosPercentual = Number(formData.impostos_customizados?.replace(',', '.')) || 18;
       const comissaoPercentual = Number(formData.comissao_percentual?.replace(',', '.')) || 5;
       
-      // Aplicar "Aguardando..." se não houver custos calculados
+      // Aplicar "Aguardando..." se nao houver custos calculados
       const totalMargemLucro = totalCustoProducao > 0 ? totalCustoProducao * (margemLucroPercentual / 100) : 'Aguardando...';
       const subtotalComLucro = (totalCustoProducao > 0 && typeof totalMargemLucro === 'number') ? totalCustoProducao + totalMargemLucro : 'Aguardando...';
       const totalImpostos = (typeof subtotalComLucro === 'number') ? subtotalComLucro * (impostosPercentual / 100) : 'Aguardando...';
@@ -728,9 +728,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     }
   };
 
-  // Usar dados reais se disponíveis, senão usar mockados
+  // Usar dados reais se disponiveis, senao usar mockados
   const data = (() => {
-    console.log('🔍 Debug Preview V2 - Estados:', {
+    console.log(' Debug Preview V2 - Estados:', {
       form: !!form,
       dadosCarregados,
       isConnected,
@@ -741,21 +741,21 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
 
     if (form && dadosCarregados) {
       const dadosReais = processarDadosReais();
-      console.log('🔍 Debug Preview V2 - Dados processados:', dadosReais);
+      console.log(' Debug Preview V2 - Dados processados:', dadosReais);
       return dadosReais;
     }
     
-    console.log('🔍 Debug Preview V2 - Usando mockData porque:', {
+    console.log(' Debug Preview V2 - Usando mockData porque:', {
       form: !!form,
       dadosCarregados,
-      motivo: !form ? 'sem formulário' : !dadosCarregados ? 'dados não carregados' : 'desconhecido'
+      motivo: !form ? 'sem formulario' : !dadosCarregados ? 'dados nao carregados' : 'desconhecido'
     });
     
-    // TEMPORÁRIO: Vamos forçar usar dados reais mesmo sem form completo
+    // TEMPORARIO: Vamos forcar usar dados reais mesmo sem form completo
     if (form) {
-      console.log('🔧 FORÇANDO processamento de dados reais...');
+      console.log(' FORCANDO processamento de dados reais...');
       const dadosReais = processarDadosReais();
-      console.log('🔧 Dados reais processados:', dadosReais);
+      console.log(' Dados reais processados:', dadosReais);
       return dadosReais;
     }
     
@@ -767,7 +767,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     return total + custo.valor_mensal;
   }, 0);
 
-  // Se não há dados, mostrar estado vazio
+  // Se nao ha dados, mostrar estado vazio
   if (!data) {
     return (
       <div className="sticky top-6 bg-white rounded-lg shadow-sm border max-h-[calc(100vh-3rem)] flex flex-col">
@@ -775,18 +775,18 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         <div className="p-6 pb-4 border-b border-gray-100">
           <div className="flex items-center gap-2 mb-2">
             <Calculator className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Preview do Cálculo</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Preview do Calculo</h2>
           </div>
           <Badge variant="outline" className="text-xs">
             Desconectado
           </Badge>
         </div>
         
-        {/* Conteúdo com scroll */}
+        {/* Conteudo com scroll */}
         <div className="flex-1 overflow-y-auto p-6 pt-4">
           <div className="text-center text-gray-500 py-8">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-            <p>Nenhum cálculo disponível</p>
+            <p>Nenhum calculo disponivel</p>
             <p className="text-sm">Adicione produtos para ver o preview</p>
           </div>
         </div>
@@ -800,7 +800,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       <div className="p-6 pb-4 border-b border-gray-100">
         <div className="flex items-center gap-2 mb-2">
           <Calculator className="h-5 w-5 text-blue-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Preview do Cálculo</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Preview do Calculo</h2>
         </div>
         <Badge 
           variant="outline" 
@@ -808,19 +808,19 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         >
           {connectionStatus === 'connecting' ? 'Conectando...' : 
            isConnected ? 'Tempo real ativo' : 
-           connectionStatus === 'error' ? 'Erro de conexão' : 'Desconectado'}
+           connectionStatus === 'error' ? 'Erro de conexao' : 'Desconectado'}
         </Badge>
       </div>
 
-      {/* Conteúdo com scroll */}
+      {/* Conteudo com scroll */}
       <div className="flex-1 overflow-y-auto p-6 pt-4">
         <div className="space-y-4">
-        {/* Resumo do Orçamento */}
+        {/* Resumo do Orcamento */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Package className="h-4 w-4" />
-              Resumo do Orçamento
+              Resumo do Orcamento
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -835,7 +835,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Custo de Produção</span>
+                <span className="text-gray-600">Custo de Producao</span>
                 <span>R$ {formatarValor(data.resumo.total_custo_producao)}</span>
               </div>
               <div className="flex justify-between">
@@ -847,7 +847,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                 <span className="text-red-600">+R$ {formatarValor(data.resumo.total_impostos)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Comissão ({data.resumo.comissao_percentual}%)</span>
+                <span className="text-gray-600">Comissao ({data.resumo.comissao_percentual}%)</span>
                 <span className="text-orange-600">+R$ {formatarValor(data.resumo.comissao_total)}</span>
               </div>
             </div>
@@ -859,11 +859,11 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                 <Clock className="h-3 w-3" />
                 <span className="text-gray-600">Horas Totais</span>
               </div>
-              <span>{data.resumo.tempo_total_producao}h</span>
+              <span>{formatarNumero(data.resumo.tempo_total_producao)}h</span>
             </div>
             
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Itens no Orçamento</span>
+              <span className="text-gray-600">Itens no Orcamento</span>
               <span>{data.resumo.total_produtos}</span>
             </div>
           </CardContent>
@@ -872,7 +872,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         {/* Detalhamento por Produto */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Produtos no Orçamento</CardTitle>
+            <CardTitle className="text-base">Produtos no Orcamento</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {data.produtos.map((produto) => (
@@ -881,7 +881,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                   <div className="flex-1">
                     <h4 className="font-medium text-sm">{produto.nome_servico}</h4>
                     <p className="text-xs text-gray-500">
-                      {produto.quantidade}x • {formatarDimensoes(produto.dimensoes)} • {produto.descricao}
+                      {formatarNumero(produto.quantidade)}x - {formatarDimensoes(produto.dimensoes)} - {produto.descricao}
                     </p>
                   </div>
                   <div className="text-right">
@@ -898,11 +898,11 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
 
                 <div className="space-y-1 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Custo de Produção</span>
+                    <span className="text-gray-600">Custo de Producao</span>
                     <span>R$ {formatarValor(produto.custo_total_producao)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Horas de Produção</span>
+                    <span className="text-gray-600">Horas de Producao</span>
                     <span>{formatarNumero(produto.horas_producao)}h</span>
                   </div>
                 </div>
@@ -929,7 +929,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                             <div>
                               <div className="font-medium">{material.nome}</div>
                               <div className="text-gray-500">
-                                {formatarConsumoMaterial(material)} • R$ {material.custo_unitario)}
+                                {formatarConsumoMaterial(material)} - R$ {formatarValor(material.custo_unitario)}
                               </div>
                             </div>
                             <div className="text-right">
@@ -940,16 +940,16 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                       </div>
                     </div>
 
-                    {/* Máquinas */}
+                    {/* Maquinas */}
                     <div>
-                      <h5 className="text-xs font-medium mb-2">Máquinas</h5>
+                      <h5 className="text-xs font-medium mb-2">Maquinas</h5>
                       <div className="space-y-1">
                         {produto.maquinas.map((maquina, idx) => (
                           <div key={idx} className="flex justify-between text-xs">
                             <div>
                               <div className="font-medium">{maquina.nome}</div>
                               <div className="text-gray-500">
-                                {formatarHoras(maquina.horas_utilizadas)} • R$ {maquina.custo_por_hora)}/h
+                                {formatarHoras(maquina.horas_utilizadas)} - R$ {formatarValor(maquina.custo_por_hora)}/h
                               </div>
                             </div>
                             <div className="text-right">
@@ -960,16 +960,16 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                       </div>
                     </div>
 
-                    {/* Funções */}
+                    {/* Funcoes */}
                     <div>
-                      <h5 className="text-xs font-medium mb-2">Mão de Obra</h5>
+                      <h5 className="text-xs font-medium mb-2">Mao de Obra</h5>
                       <div className="space-y-1">
                         {produto.funcoes.map((funcao, idx) => (
                           <div key={idx} className="flex justify-between text-xs">
                             <div>
                               <div className="font-medium">{funcao.nome}</div>
                               <div className="text-gray-500">
-                                {formatarHoras(funcao.horas_trabalhadas)} • R$ {funcao.custo_por_hora)}/h
+                                {formatarHoras(funcao.horas_trabalhadas)} - R$ {formatarValor(funcao.custo_por_hora)}/h
                               </div>
                             </div>
                             <div className="text-right">
@@ -980,16 +980,16 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                       </div>
                     </div>
 
-                    {/* Serviços Manuais */}
+                    {/* Servicos Manuais */}
                     <div>
-                      <h5 className="text-xs font-medium mb-2">Serviços Manuais</h5>
+                      <h5 className="text-xs font-medium mb-2">Servicos Manuais</h5>
                       <div className="space-y-1">
                         {produto.servicos.map((servico, idx) => (
                           <div key={idx} className="flex justify-between text-xs">
                             <div>
                               <div className="font-medium">{servico.nome}</div>
                               <div className="text-gray-500">
-                                {formatarHoras(servico.horas_trabalhadas)} • R$ {servico.custo_por_hora)}/h
+                                {formatarHoras(servico.horas_trabalhadas)} - R$ {formatarValor(servico.custo_por_hora)}/h
                               </div>
                             </div>
                             <div className="text-right">
@@ -1052,11 +1052,11 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
           </CardContent>
         </Card>
 
-        {/* Informações de Sistema */}
+        {/* Informacoes de Sistema */}
         <div className="text-xs text-gray-500 text-center p-2 bg-gray-50 rounded">
-          <div>Última atualização: {data.metadata.timestamp_calculo.toLocaleTimeString('pt-BR')}</div>
-          <div className="mt-1">Versão do cálculo: {data.metadata.versao_motor}</div>
-          <div className="mt-1">Tempo de execução: {data.metadata.tempo_execucao_ms}ms</div>
+          <div>Ultima atualizacao: {data.metadata.timestamp_calculo.toLocaleTimeString('pt-BR')}</div>
+          <div className="mt-1">Versao do calculo: {data.metadata.versao_motor}</div>
+          <div className="mt-1">Tempo de execucao: {data.metadata.tempo_execucao_ms}ms</div>
         </div>
         </div>
       </div>
@@ -1065,6 +1065,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
 };
 
 export default PreviewCalculoV2;
+
+
+
 
 
 
