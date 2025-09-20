@@ -1,0 +1,36 @@
+{
+  "timestamp": "2025-09-18T12:41:20.201Z",
+  "dadosParaSalvar": {
+    "numero": "2025090002",
+    "nome_servico": "Banner",
+    "descricao": "teste",
+    "horas_producao": 1,
+    "largura_produto": 90,
+    "altura_produto": 120,
+    "area_produto": 1.08,
+    "unidade_medida_produto": "cm",
+    "quantidade_produto": 20,
+    "custo_material": 4381.097142857143,
+    "custo_mao_obra": 900,
+    "custo_indireto": 681.8181818181819,
+    "custo_total": 6562.915324675325,
+    "margem_lucro": 30,
+    "impostos": 25,
+    "preco_final": 10664.737402597402,
+    "prazo_entrega": "10 a 15 dias úteis",
+    "forma_pagamento": "50% entrada, restante na entrega",
+    "validade_proposta": "30 dias",
+    "atendente": "Equipe Comercial",
+    "atualizado_em": "2025-09-18T12:41:20.201Z",
+    "loja": {
+      "connect": {
+        "id": "u5cx9auuj"
+      }
+    },
+    "cliente": {
+      "connect": {
+        "id": "g78q3j0jq"
+      }
+    }
+  }
+}

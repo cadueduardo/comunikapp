@@ -1,0 +1,41 @@
+{
+  "timestamp": "2025-09-18T12:41:20.170Z",
+  "dto": {
+    "nome_servico": "Banner",
+    "descricao": "teste",
+    "horas_producao": 1,
+    "itens": [
+      {
+        "insumo_id": "cmf5soom40005w418ih8zd5tu",
+        "quantidade": 21.6
+      }
+    ],
+    "maquinas": [
+      {
+        "maquina_id": "cmf6xsgtm0000w4ss4kdehy1g",
+        "horas_utilizadas": 1
+      }
+    ],
+    "funcoes": [
+      {
+        "funcao_id": "cmfftx8hq0000w4wwckjbudli",
+        "horas_trabalhadas": 1
+      }
+    ],
+    "cliente_id": "g78q3j0jq",
+    "condicoes_comerciais": "",
+    "prazo_entrega": "10 a 15 dias úteis",
+    "forma_pagamento": "50% entrada, restante na entrega",
+    "validade_proposta": "30 dias",
+    "atendente": "Equipe Comercial",
+    "margem_lucro_customizada": 30,
+    "impostos_customizados": 25,
+    "comissao_percentual": 5,
+    "largura_produto": 90,
+    "altura_produto": 120,
+    "area_produto": 1.08,
+    "unidade_medida_produto": "cm",
+    "quantidade_produto": 20
+  },
+  "lojaId": "u5cx9auuj"
+}

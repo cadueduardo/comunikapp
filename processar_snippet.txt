@@ -1,0 +1,50 @@
+﻿  const processarDadosReais = () => {
+    if (!form) {
+      console.log('ðŸ” Debug Preview V2 - Sem formulÃ¡rio, usando mockData');
+      return mockData;
+    }
+
+    try {
+      const formData = form.getValues();
+      const itensFormulario = formData.itens_produto || [];
+
+      if (itensFormulario.length === 0) {
+        console.log('ðŸ” Debug Preview V2 - Nenhum item no formulÃ¡rio, usando mockData');
+        return mockData;
+      }
+
+      const margemPercentualForm =
+        Number(formData.margem_lucro_customizada?.replace(',', '.')) || 30;
+      const impostosPercentualForm =
+        Number(formData.impostos_customizados?.replace(',', '.')) || 18;
+      const comissaoPercentualForm =
+        Number(formData.comissao_percentual?.replace(',', '.')) || 5;
+      const percentualIndiretosBase = 15;
+
+      let totalMateriaisLocal = 0;
+      let totalMaquinasLocal = 0;
+      let totalMaoObraLocal = 0;
+      let totalServicosLocal = 0;
+      let totalIndiretosLocal = 0;
+      let tempoTotalLocal = 0;
+
+      const produtosLocais = itensFormulario.map((item: any, index: number) => {
+        const produtoId = `produto_${index}`;
+        const quantidade = Number(item.quantidade_produto?.replace(',', '.')) || 1;
+
+        const insumosDoProduto = (item.materiais || []).map((material: any) => {
+          const insumoData = insumos.find((i) => i.id === material.insumo_id);
+          const quantidadeMaterial = Number(material.quantidade?.replace(',', '.')) || 0;
+          const custoUnitario = Number(insumoData?.custo_unitario) || 0;
+
+          return {
+            insumo_id: material.insumo_id,
+            nome: insumoData?.nome || 'Insumo nÃ£o encontrado',
+            quantidade: quantidadeMaterial,
+            custo_unitario: custoUnitario,
+            custo_total: quantidadeMaterial * custoUnitario,
+            unidade_consumo: insumoData?.unidade_uso || 'un',
+          };
+        });
+
+        const custoMateriais = insu

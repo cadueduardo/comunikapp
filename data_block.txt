@@ -1,0 +1,36 @@
+  const data = (() => {
+    console.log('ðŸ” Debug Preview V2 - Estados:', {
+      form: !!form,
+      dadosCarregados,
+      isConnected,
+      connectionStatus,
+      resultadoOrcamento: !!resultadoOrcamento,
+      resultadoOrcamento_detalhes: resultadoOrcamento
+    });
+
+    if (form && dadosCarregados) {
+      const dadosReais = processarDadosReais();
+      console.log('ðŸ” Debug Preview V2 - Dados processados:', dadosReais);
+      return dadosReais;
+    }
+    
+    console.log('ðŸ” Debug Preview V2 - Usando mockData porque:', {
+      form: !!form,
+      dadosCarregados,
+      motivo: !form ? 'sem formulÃ¡rio' : !dadosCarregados ? 'dados nÃ£o carregados' : 'desconhecido'
+    });
+    
+    // TEMPORÃRIO: Vamos forÃ§ar usar dados reais mesmo sem form completo
+    if (form) {
+      console.log('ðŸ”§ FORÃ‡ANDO processamento de dados reais...');
+      const dadosReais = processarDadosReais();
+      console.log('ðŸ”§ Dados reais processados:', dadosReais);
+      return dadosReais;
+    }
+    
+    return mockData;
+  })();
+
+  // Calcular total dos custos indiretos
+  const totalCustosIndiretos = data.custosIndiretos.reduce((total: number, custo: any) => {
+    return total + custo.valor_

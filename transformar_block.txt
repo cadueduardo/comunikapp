@@ -1,0 +1,44 @@
+const transformarDadosParaMotor = () => {
+    if (!form) return null;
+
+    try {
+      const formData = form.getValues();
+      const itensFormulario = formData.itens_produto || [];
+      
+      if (itensFormulario.length === 0) return null;
+
+      // Transformar cada produto do formulÃ¡rio seguindo a interface DTOCalculo
+      const produtos = itensFormulario.map((item: any, index: number) => ({
+        id: `produto_${index}`,
+        nome: item.nome_servico || `Produto ${index + 1}`,
+        nome_servico: item.nome_servico || `Produto ${index + 1}`,
+        quantidade: Number(item.quantidade_produto?.replace(',', '.')) || 1,
+        insumos: (item.materiais || [])
+          .filter((material: any) => {
+            if (!material.insumo_id || !material.quantidade) return false;
+            const insumoData = insumos.find(i => i.id === material.insumo_id);
+            if (!insumoData) {
+              console.warn(`âš ï¸ Insumo ${material.insumo_id} nÃ£o encontrado para WebSocket, ignorando`);
+              return false;
+            }
+            return true;
+          })
+          .map((material: any) => {
+            const insumoData = insumos.find(i => i.id === material.insumo_id)!;
+            return {
+              id: material.insumo_id,
+              nome: insumoData.nome,
+              unidade: insumoData.unidade_uso || 'un',
+              preco_unitario: Number(insumoData.custo_unitario) || 0,
+              quantidade: Number(material.quantidade?.replace(',', '.')) || 0,
+              categoria: 'Material',
+              fornecedor: 'Fornecedor PadrÃ£o',
+              estoque_disponivel: 100,
+            };
+          }),
+        maquinas: (item.maquinas || [])
+          .filter((maquina: any) => {
+            if (!maquina.maquina_id || !maquina.horas_utilizadas) return false;
+            const maquinaData = maquinas.find(m => m.id === maquina.maquina_id);
+            if (!maquinaData) {
+              console.warn(`âš ï¸ MÃ¡quina ${maquina.maquina_id} nÃ£o e

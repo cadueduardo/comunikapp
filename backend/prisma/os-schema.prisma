@@ -1,0 +1,154 @@
+// Schema Prisma isolado para desenvolvimento do módulo OS
+// Seguindo premissas: @prisma/client padrão, sem outputs customizados
+
+generator client {
+  provider = "prisma-client-js"
+  // ❌ NUNCA usar output customizado (conforme premissas)
+  // output = "../src/generated/client"  # PROIBIDO
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== ENTIDADES DO MÓDULO OS =====
+
+model OrdemServico {
+  id                 String    @id @default(cuid())
+  numero             String    // Autonumeração sequencial
+  loja_id            String
+  cliente_id         String
+  orcamento_id       String?   // Opcional - vínculo com orçamento aprovado
+  data_abertura      DateTime  @default(now())
+  data_prazo         DateTime?
+  status             String    @default("FILA")
+  responsavel_id     String?
+  observacoes        String?   @db.Text
+  criado_em          DateTime  @default(now())
+  atualizado_em      DateTime  @updatedAt
+  
+  // Campos específicos do produto/serviço
+  nome_servico       String
+  descricao          String?   @db.Text
+  quantidade         Decimal   @db.Decimal(10, 2)
+  parametros_tecnicos String?  @db.LongText // JSON com medidas, cores, etc
+  insumos_calculados  String?  @db.LongText // JSON dos insumos necessários
+  materiais_disponivel Boolean @default(false)
+  
+  // Relacionamentos (serão criados no merge final)
+  // loja               loja      @relation(fields: [loja_id], references: [id])
+  // cliente            cliente   @relation(fields: [cliente_id], references: [id])
+  // orcamento          orcamento? @relation(fields: [orcamento_id], references: [id])
+  
+  // Relacionamentos internos do módulo
+  itens              ItemOS[]
+  movimentacoes      MovimentacaoOS[]
+  checklists         ChecklistOS[]
+  
+  @@unique([loja_id, numero])
+  @@index([loja_id, status])
+  @@index([cliente_id])
+  @@index([responsavel_id])
+  @@index([data_abertura])
+  @@map("ordens_servico")
+}
+
+model ItemOS {
+  id                 String    @id @default(cuid())
+  os_id              String
+  produto_servico    String
+  quantidade         Decimal   @db.Decimal(10, 2)
+  parametros_tecnicos String?  @db.LongText // JSON
+  insumos_necessarios String?  @db.LongText // JSON calculado
+  materiais_disponivel Boolean @default(false)
+  observacoes        String?   @db.Text
+  criado_em          DateTime  @default(now())
+  
+  os                 OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  
+  @@index([os_id])
+  @@map("itens_os")
+}
+
+model WorkflowOS {
+  id                 String    @id @default(cuid())
+  loja_id            String
+  nome               String
+  descricao          String?   @db.Text
+  etapas             String    @db.LongText // JSON das etapas configuráveis
+  ativo              Boolean   @default(true)
+  sequencial         Boolean   @default(true) // true = sequencial, false = paralelo
+  criado_em          DateTime  @default(now())
+  atualizado_em      DateTime  @updatedAt
+  
+  // Relacionamento será criado no merge final
+  // loja               loja      @relation(fields: [loja_id], references: [id])
+  
+  @@unique([loja_id, nome])
+  @@index([loja_id, ativo])
+  @@map("workflows_os")
+}
+
+model MovimentacaoOS {
+  id                 String    @id @default(cuid())
+  os_id              String
+  etapa_anterior     String?
+  etapa_atual        String
+  usuario_id         String
+  data_movimentacao  DateTime  @default(now())
+  observacoes        String?   @db.Text
+  anexos             String?   @db.LongText // JSON de anexos
+  ip_origem          String?
+  user_agent         String?
+  
+  os                 OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  
+  @@index([os_id])
+  @@index([data_movimentacao])
+  @@index([usuario_id])
+  @@map("movimentacoes_os")
+}
+
+model ChecklistOS {
+  id                 String    @id @default(cuid())
+  os_id              String
+  etapa              String
+  item_checklist     String
+  concluido          Boolean   @default(false)
+  usuario_id         String?
+  data_conclusao     DateTime?
+  observacoes        String?   @db.Text
+  obrigatório        Boolean   @default(true)
+  ordem              Int       @default(0)
+  
+  os                 OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  
+  @@index([os_id, etapa])
+  @@index([concluido])
+  @@map("checklists_os")
+}
+
+// Enums para status das OS
+enum StatusOS {
+  FILA
+  PRODUCAO
+  ACABAMENTO
+  FINALIZADA
+  CANCELADA
+  AGUARDANDO_MATERIAL
+  PAUSADA
+}
+
+// Enum para tipos de movimentação
+enum TipoMovimentacaoOS {
+  CRIACAO
+  AVANCAR_ETAPA
+  RETROCEDER_ETAPA
+  PAUSAR
+  RETOMAR
+  CANCELAR
+  FINALIZAR
+  ATRIBUIR_RESPONSAVEL
+  ADICIONAR_OBSERVACAO
+}

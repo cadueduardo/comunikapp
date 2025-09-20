@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useUser } from '@/contexts/UserContext';
 import { ChevronDown, ChevronUp, Eye, Calculator, Clock, Package, AlertCircle } from 'lucide-react';
-import { orcamentosApi } from '@/lib/api-client';
 import { useOrcamentoData } from '../../orcamento/hooks/useOrcamentoData';
 import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
 
@@ -35,6 +35,24 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
 
   // Hook para dados auxiliares (insumos, máquinas, etc.)
   const { insumos, maquinas, funcoes, custosIndiretos } = useOrcamentoData();
+  const { user } = useUser();
+
+  const resolvedLojaId = useMemo(() => {
+    if (user?.loja?.id) return user.loja.id;
+    if (user?.loja_id) return user.loja_id;
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('loja_id') ?? undefined;
+    }
+    return undefined;
+  }, [user]);
+
+  const resolvedUsuarioId = useMemo(() => {
+    if (user?.id) return user.id;
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('user_id') ?? undefined;
+    }
+    return undefined;
+  }, [user]);
   
   // Hook para WebSocket em tempo real
   const { 
@@ -181,27 +199,34 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   };
 
   // Formatar valores monetários (aceita números ou "Aguardando...")
-  const formatarValor = (valor: any): string => {
+  const formatarValor = (valor: unknown): string => {
     if (typeof valor === 'string') {
-      return valor; // "Aguardando..."
+      return valor;
     }
-    if (typeof valor === 'number') {
-      return valor);
+
+    if (typeof valor === 'number' && Number.isFinite(valor)) {
+      return valor.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
     }
-    return '0.00';
+
+    return '0,00';
   };
 
-  // Formatar quantidade/horas (aceita números ou "Aguardando...")
-  const formatarNumero = (numero: any): string => {
+  const formatarNumero = (numero: unknown): string => {
     if (typeof numero === 'string') {
-      return numero; // "Aguardando..."
+      return numero;
     }
-    if (typeof numero === 'number') {
-      return numero.toString();
+
+    if (typeof numero === 'number' && Number.isFinite(numero)) {
+      return numero.toLocaleString('pt-BR', {
+        maximumFractionDigits: 2,
+      });
     }
+
     return '0';
   };
-
   // Função para transformar dados do formulário para o motor V2
   const transformarDadosParaMotor = () => {
     if (!form) return null;
@@ -861,11 +886,11 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-semibold">
-                      R$ {produto.preco_total)}
+                      R$ {formatarValor(produto.preco_total)}
                     </div>
                     {produto.quantidade > 1 && (
                       <div className="text-xs text-gray-500">
-                        R$ {produto.preco_unitario)}/un
+                        R$ {formatarValor(produto.preco_unitario)}/un
                       </div>
                     )}
                   </div>
@@ -874,11 +899,11 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                 <div className="space-y-1 text-xs">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Custo de Produção</span>
-                    <span>R$ {produto.custo_total_producao)}</span>
+                    <span>R$ {formatarValor(produto.custo_total_producao)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Horas de Produção</span>
-                    <span>{produto.horas_producao}h</span>
+                    <span>{formatarNumero(produto.horas_producao)}h</span>
                   </div>
                 </div>
 
@@ -908,7 +933,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                               </div>
                             </div>
                             <div className="text-right">
-                              R$ {(material.quantidade * material.custo_unitario))}
+                              R$ {formatarValor(material.quantidade * material.custo_unitario)}
                             </div>
                           </div>
                         ))}
@@ -928,7 +953,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                               </div>
                             </div>
                             <div className="text-right">
-                              R$ {(maquina.horas_utilizadas * maquina.custo_por_hora))}
+                              R$ {formatarValor(maquina.horas_utilizadas * maquina.custo_por_hora)}
                             </div>
                           </div>
                         ))}
@@ -948,7 +973,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                               </div>
                             </div>
                             <div className="text-right">
-                              R$ {(funcao.horas_trabalhadas * funcao.custo_por_hora))}
+                              R$ {formatarValor(funcao.horas_trabalhadas * funcao.custo_por_hora)}
                             </div>
                           </div>
                         ))}
@@ -968,7 +993,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                               </div>
                             </div>
                             <div className="text-right">
-                              R$ {(servico.horas_trabalhadas * servico.custo_por_hora))}
+                              R$ {formatarValor(servico.horas_trabalhadas * servico.custo_por_hora)}
                             </div>
                           </div>
                         ))}
@@ -980,7 +1005,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                       <h5 className="text-xs font-medium mb-2">Custos Indiretos (Rateados)</h5>
                       <div className="flex justify-between text-xs">
                         <span>Total rateado para este item</span>
-                        <span>R$ {produto.custos_indiretos_rateados)}</span>
+                        <span>R$ {formatarValor(produto.custos_indiretos_rateados)}</span>
                       </div>
                     </div>
                   </div>
@@ -999,7 +1024,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm">Total dos Custos Indiretos</span>
               <span className="font-semibold">
-                R$ {totalCustosIndiretos)}
+                R$ {formatarValor(totalCustosIndiretos)}
               </span>
             </div>
             
@@ -1019,7 +1044,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                 {data.custosIndiretos.map((custo) => (
                   <div key={custo.id} className="flex justify-between text-xs">
                     <span>{custo.nome}</span>
-                    <span>R$ {custo.valor_mensal)}</span>
+                    <span>R$ {formatarValor(custo.valor_mensal)}</span>
                   </div>
                 ))}
               </div>
@@ -1040,3 +1065,6 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
 };
 
 export default PreviewCalculoV2;
+
+
+

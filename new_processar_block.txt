@@ -1,0 +1,100 @@
+﻿  const parsePercentual = (valor: unknown, fallback: number) => {
+    if (valor === null || valor === undefined || valor === '') return fallback;
+    if (typeof valor === 'number') return Number.isFinite(valor) ? valor : fallback;
+    if (typeof valor === 'string') {
+      const normalizado = valor.replace(',', '.');
+      const parsed = parseFloat(normalizado);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
+    return fallback;
+  };
+
+  const processarDadosReais = () => {
+    if (!form) {
+      return mockData;
+    }
+
+    try {
+      const formData = form.getValues();
+      const itensFormulario = formData.itens_produto || [];
+
+      if (!itensFormulario.length) {
+        return mockData;
+      }
+
+      const margemPercentualForm = parsePercentual(formData.margem_lucro_customizada, 30);
+      const impostosPercentualForm = parsePercentual(formData.impostos_customizados, 18);
+      const comissaoPercentualForm = parsePercentual(formData.comissao_percentual, 5);
+      const custosIndiretosPercentual = 15;
+
+      const { produtos: produtosCalculados, totais } = calcularProdutosPreview(
+        itensFormulario,
+        { insumos, maquinas, funcoes, servicos },
+        custosIndiretosPercentual,
+        margemPercentualForm,
+        impostosPercentualForm,
+      );
+
+      const totalCustoProducaoLocal =
+        totais.materiais +
+        totais.maquinas +
+        totais.funcoes +
+        totais.servicos +
+        totais.indiretos;
+
+      const totalMargemLocal = totalCustoProducaoLocal * (margemPercentualForm / 100);
+      const subtotalComLucroLocal = totalCustoProducaoLocal + totalMargemLocal;
+      const totalImpostosLocal = subtotalComLucroLocal * (impostosPercentualForm / 100);
+      const precoFinalLocal = subtotalComLucroLocal + totalImpostosLocal;
+      const comissaoTotalLocal = precoFinalLocal * (comissaoPercentualForm / 100);
+
+      const custosIndiretosDetalhes = (custosIndiretos || []).map((custo: any) => ({
+        id: custo.id,
+        nome: custo.nome,
+        categoria: custo.categoria || 'Geral',
+        valor_mensal: Number(custo.valor_mensal) || 0,
+        ativo: true,
+      }));
+
+      const metadataBase = resultadoOrcamento?.resultado?.metadata;
+      const metadata = metadataBase
+        ? {
+            timestamp_calculo: new Date(metadataBase.timestamp_calculo ?? new Date()),
+            versao_motor: metadataBase.versao_motor || 'preview-local',
+            tempo_execucao_ms: metadataBase.tempo_execucao_ms ?? 0,
+            estagios_executados: metadataBase.estagios_executados || [],
+          }
+        : {
+            timestamp_calculo: new Date(),
+            versao_motor: 'preview-local',
+            tempo_execucao_ms: 0,
+            estagios_executados: [],
+          };
+
+      return {
+        resumo: {
+          total_produtos: produtosCalculados.length,
+          total_custo_material: totais.materiais,
+          total_custo_maquinaria: totais.maquinas,
+          total_custo_mao_obra: totais.funcoes,
+          total_custo_indireto: totais.indiretos,
+          total_custo_producao: totalCustoProducaoLocal,
+          total_margem_lucro: totalMargemLocal,
+          total_impostos: totalImpostosLocal,
+          preco_final: precoFinalLocal,
+          tempo_total_producao: totais.horas,
+          margem_lucro_percentual: margemPercentualForm,
+          impostos_percentual: impostosPercentualForm,
+          comissao_percentual: comissaoPercentualForm,
+          comissao_total: comissaoTotalLocal,
+        },
+        produtos: produtosCalculados,
+        custosIndiretos: custosIndiretosDetalhes,
+        metadata,
+      };
+    } catch (error) {
+      console.error('Erro ao processar dados reais:', error);
+      return mockData;
+    }
+  };
+

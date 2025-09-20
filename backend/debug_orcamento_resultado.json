@@ -1,0 +1,90 @@
+{
+  "timestamp": "2025-09-18T12:41:20.193Z",
+  "resultado": {
+    "nome_servico": "Banner",
+    "descricao": "teste",
+    "horas_producao": 1,
+    "itens": [
+      {
+        "insumo_id": "cmf5soom40005w418ih8zd5tu",
+        "nome_insumo": "Bobina Lona Impressão Digital Rolo 1,40x50m Branco 440g",
+        "quantidade": 21.6,
+        "custo_unitario": 10.141428571428571,
+        "custo_total": 219.05485714285714,
+        "unidade_medida": "M2"
+      }
+    ],
+    "maquinas": [
+      {
+        "maquina_id": "cmf6xsgtm0000w4ss4kdehy1g",
+        "nome_maquina": "Plotter HP 720",
+        "tipo_maquina": "PLOTTER_GRANDE_FORMATO",
+        "horas_utilizadas": 1,
+        "custo_por_hora": 30,
+        "custo_total": 30
+      }
+    ],
+    "funcoes": [
+      {
+        "funcao_id": "cmfftx8hq0000w4wwckjbudli",
+        "nome_funcao": "Operador de Plotter",
+        "horas_trabalhadas": 1,
+        "custo_por_hora": 45,
+        "custo_total": 45,
+        "maquina_vinculada": "cmf6xsgtm0000w4ss4kdehy1g",
+        "parametros": {
+          "tipo_calculo": "POR_M2",
+          "horas_por_m2": 0.167,
+          "eficiencia_percent": 80,
+          "fator_acompanhamento": 0.8
+        }
+      }
+    ],
+    "custos": {
+      "custo_material": 4381.097142857143,
+      "custo_mao_obra": 900,
+      "custo_maquinaria": 600,
+      "custo_indireto": 681.8181818181819,
+      "custos_indiretos_detalhados": [
+        {
+          "nome": "Aluguel",
+          "categoria": "Infra Estrutura",
+          "valor_rateado": 14.204545454545455,
+          "percentual_rateio": 41.66666666666667
+        },
+        {
+          "nome": "Água",
+          "categoria": "Infra Estrutura",
+          "valor_rateado": 4.261363636363637,
+          "percentual_rateio": 12.5
+        },
+        {
+          "nome": "Internet",
+          "categoria": "Infra Estrutura",
+          "valor_rateado": 1.4204545454545454,
+          "percentual_rateio": 4.166666666666666
+        },
+        {
+          "nome": "Energia",
+          "categoria": "Infra Estrutura",
+          "valor_rateado": 14.204545454545455,
+          "percentual_rateio": 41.66666666666667
+        }
+      ],
+      "custo_total_producao": 6562.915324675325,
+      "margem_lucro_percentual": 30,
+      "margem_lucro_valor": 1968.8745974025974,
+      "subtotal_com_lucro": 8531.789922077922,
+      "impostos_percentual": 25,
+      "impostos_valor": 2132.9474805194805,
+      "preco_final": 10664.737402597402
+    },
+    "parametros": {
+      "custo_maquinaria_por_hora": 0,
+      "custos_indiretos_por_hora": 34.09090909090909,
+      "margem_lucro_percentual": 30,
+      "impostos_percentual": 25,
+      "total_horas_produtivas_mes": 352
+    }
+  }
+}
