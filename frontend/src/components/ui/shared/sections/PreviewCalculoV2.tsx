@@ -333,7 +333,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
 
       // Formato completo para DTOCalculo
       const dtoCalculo = {
-        lojaId: 'loja_1', // Usando ID fixo por enquanto
+        lojaId: resolvedLojaId ?? 'loja_preview',
         produtos,
         configuracoes: {
           margem_lucro_padrao: (Number(formData.margem_lucro_customizada?.replace(',', '.')) || 30) / 100,
@@ -352,7 +352,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
           timestamp_criacao: new Date(),
           versao_motor: '2.0.0',
           modo_calculo: 'preview' as const,
-          origem: 'preview_formulario',
+          origem: 'preview_formulario',\r\n          loja_id: resolvedLojaId ?? null,\r\n          usuario_id: resolvedUsuarioId ?? null,
         }
       };
 
@@ -1068,6 +1068,7 @@ export default PreviewCalculoV2;
 
 
 
+
 
 
 
