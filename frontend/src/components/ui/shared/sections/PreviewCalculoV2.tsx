@@ -677,6 +677,68 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
               <span>{data.resumo.total_produtos}</span>
             </div>
           </div>
+
+          {/* Alerta de Risco de Prejuízo */}
+          {(() => {
+            const custoProducao = data.resumo.total_custo_producao;
+            const margemLucro = data.resumo.total_margem_lucro;
+            const impostos = data.resumo.total_impostos;
+            const comissao = data.resumo.comissao_total;
+            
+            const lucroReal = margemLucro - impostos - comissao;
+            const percentualLucroReal = custoProducao > 0 ? (lucroReal / custoProducao) * 100 : 0;
+            
+            if (lucroReal < 0) {
+              // ALERTA CRÍTICO - PREJUÍZO
+              return (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-600" />
+                    <span className="text-red-800 font-semibold text-sm">
+                      ⚠️ ALERTA: Orçamento com PREJUÍZO de R$ {formatarValor(Math.abs(lucroReal))}
+                    </span>
+                  </div>
+                  <p className="text-red-700 text-xs mt-1">
+                    Ajuste a margem de lucro ou reduza impostos/comissão para evitar prejuízo
+                  </p>
+                </div>
+              );
+            }
+            
+            if (percentualLucroReal < 10) {
+              // ALERTA DE RISCO - MARGEM BAIXA
+              return (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-3">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-yellow-600" />
+                    <span className="text-yellow-800 font-semibold text-sm">
+                      ⚠️ ATENÇÃO: Margem de lucro muito baixa ({percentualLucroReal.toFixed(1)}%)
+                    </span>
+                  </div>
+                  <p className="text-yellow-700 text-xs mt-1">
+                    Considere aumentar a margem de lucro para garantir rentabilidade
+                  </p>
+                </div>
+              );
+            }
+            
+            // SITUAÇÃO OK
+            return (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-4 rounded-full bg-green-600 flex items-center justify-center">
+                    <div className="h-2 w-2 rounded-full bg-white"></div>
+                  </div>
+                  <span className="text-green-800 font-semibold text-sm">
+                    ✅ Margem de lucro adequada ({percentualLucroReal.toFixed(1)}%)
+                  </span>
+                </div>
+                <p className="text-green-700 text-xs mt-1">
+                  Lucro real: R$ {formatarValor(lucroReal)}
+                </p>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Separador */}
@@ -688,7 +750,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             <h3 className="text-base font-semibold">Produtos no Orcamento</h3>
           </div>
           <div className="space-y-3">
-            {data.produtos.map((produto, index) => (
+            {data.produtos.map((produto: any, index: number) => (
               <div key={produto.id}>
                 {index > 0 && <Separator className="my-3" />}
                 <div className="p-3">
@@ -745,7 +807,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                     <div>
                       <h5 className="text-xs font-medium mb-2">Materiais</h5>
                       <div className="space-y-1">
-                        {produto.materiais.map((material, idx) => (
+                        {produto.materiais.map((material: any, idx: number) => (
                           <div key={idx} className="flex justify-between items-start text-xs">
                             <div className="flex-1 pr-2 min-w-0">
                               <div className="font-medium break-words">{material.nome}</div>
@@ -765,7 +827,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                     <div>
                       <h5 className="text-xs font-medium mb-2">Maquinas</h5>
                       <div className="space-y-1">
-                        {produto.maquinas.map((maquina, idx) => (
+                        {produto.maquinas.map((maquina: any, idx: number) => (
                           <div key={idx} className="flex justify-between items-start text-xs">
                             <div className="flex-1 pr-2 min-w-0">
                               <div className="font-medium break-words">{maquina.nome}</div>
@@ -785,7 +847,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                     <div>
                       <h5 className="text-xs font-medium mb-2">Mao de Obra</h5>
                       <div className="space-y-1">
-                        {produto.funcoes.map((funcao, idx) => (
+                        {produto.funcoes.map((funcao: any, idx: number) => (
                           <div key={idx} className="flex justify-between items-start text-xs">
                             <div className="flex-1 pr-2 min-w-0">
                               <div className="font-medium break-words">{funcao.nome}</div>
@@ -805,7 +867,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                     <div>
                       <h5 className="text-xs font-medium mb-2">Servicos Manuais</h5>
                       <div className="space-y-1">
-                        {produto.servicos.map((servico, idx) => (
+                        {produto.servicos.map((servico: any, idx: number) => (
                           <div key={idx} className="flex justify-between items-start text-xs">
                             <div className="flex-1 pr-2 min-w-0">
                               <div className="font-medium break-words">{servico.nome}</div>
@@ -866,7 +928,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
 
             {showIndirectCosts && (
               <div className="mt-3 space-y-2 border-t border-gray-100 pt-3">
-                {data.custosIndiretos.map((custo) => (
+                {data.custosIndiretos.map((custo: any) => (
                   <div key={custo.id} className="flex justify-between items-start text-xs">
                     <div className="flex-1 pr-2 min-w-0">
                       <div className="break-words">{custo.nome}</div>
