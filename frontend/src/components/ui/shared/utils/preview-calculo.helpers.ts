@@ -203,16 +203,21 @@ const calcularHorasMaquina = (
   maquina: Maquina | undefined,
   contexto: ProdutoContexto,
 ): number => {
-  const horasManuais = parseNumber(entrada?.horas_utilizadas);
-  if (horasManuais > 0) {
-    return horasManuais;
-  }
-
   if (!maquina || !entrada?.maquina_id) {
     return 0;
   }
 
+  const horasManuais = parseNumber(entrada?.horas_utilizadas);
+  
+  // Verificar se deve usar cálculo automático ou manual
+  // Se não há modo de produção definido ou é MANUAL, usar horas manuais
   const modo = maquina?.modo_producao as string | undefined;
+  if (!modo || modo === 'MANUAL') {
+    return horasManuais > 0 ? horasManuais : 0;
+  }
+
+  // Para modos automáticos, calcular como no formulário
+  // Se não há horas manuais ou são zero, calcular automaticamente
   const eficienciaPercent = parseNumber((maquina as any)?.eficiencia_percent) || 100;
   const eficienciaDecimal = clampDecimal(eficienciaPercent / 100);
   const fatorEficiencia = 1 / eficienciaDecimal;
@@ -293,16 +298,19 @@ const calcularHorasFuncao = (
   funcao: Funcao | undefined,
   contexto: ProdutoContexto,
 ): number => {
-  const horasManuais = parseNumber(entrada?.horas_trabalhadas);
-  if (horasManuais > 0) {
-    return horasManuais;
-  }
-
   if (!funcao || !entrada?.funcao_id) {
     return 0;
   }
 
+  const horasManuais = parseNumber(entrada?.horas_trabalhadas);
+  
+  // Verificar se deve usar cálculo automático ou manual
   const tipoCalculo = funcao?.tipo_calculo as string | undefined;
+  if (!tipoCalculo || tipoCalculo === 'MANUAL') {
+    return horasManuais > 0 ? horasManuais : 0;
+  }
+
+  // Para tipos automáticos, calcular como no formulário
   const eficienciaPercent = parseNumber(funcao?.eficiencia_percent) || 100;
   const fatorEficiencia = 100 / Math.max(eficienciaPercent, 5);
 
@@ -311,7 +319,7 @@ const calcularHorasFuncao = (
       const horasPorM2 = parseNumber(funcao?.horas_por_m2);
       if (horasPorM2 > 0 && contexto.areaTotal > 0) {
         const horasBase = contexto.areaTotal * horasPorM2;
-        const horasAuto = (horasBase * fatorEficiencia) / 100;
+        const horasAuto = horasBase * fatorEficiencia;
         return horasAuto > 0 ? horasAuto : 0;
       }
       break;
@@ -320,7 +328,7 @@ const calcularHorasFuncao = (
       const horasPorUnidade = parseNumber(funcao?.horas_por_unidade);
       if (horasPorUnidade > 0 && contexto.quantidade > 0) {
         const horasBase = contexto.quantidade * horasPorUnidade;
-        const horasAuto = (horasBase * fatorEficiencia) / 100;
+        const horasAuto = horasBase * fatorEficiencia;
         return horasAuto > 0 ? horasAuto : 0;
       }
       break;
@@ -393,19 +401,22 @@ const calcularHorasServico = (
   servico: ServicoManual | undefined,
   contexto: ProdutoContexto,
 ): number => {
-  const horasManuais = parseNumber(entrada?.horas_trabalhadas);
-  if (horasManuais > 0) {
-    return horasManuais;
-  }
-
   if (!servico || !entrada?.servico_id) {
     return 0;
   }
 
+  const horasManuais = parseNumber(entrada?.horas_trabalhadas);
+  
+  // Verificar se deve usar cálculo automático ou manual
   const tipoCalculo = servico?.tipo_calculo as string | undefined;
-  const eficienciaPercent = parseNumber(servico?.eficiencia_percent) || 100;
-  const eficienciaDecimal = clampDecimal(eficienciaPercent / 100);
-  const fatorEficiencia = 1 / eficienciaDecimal;
+  if (!tipoCalculo || tipoCalculo === 'MANUAL') {
+    return horasManuais > 0 ? horasManuais : 0;
+  }
+
+  // Para tipos automáticos, calcular como no formulário
+  const effPercent = parseNumber(servico?.eficiencia_percent) || 100;
+  const effDecimal = effPercent / 100; // Converter % para decimal (70% = 0.70)
+  const fatorEficiencia = 1 / Math.max(effDecimal, 0.05); // 70% = 0.70 → 1/0.70 = 1.43
 
   switch (tipoCalculo) {
     case 'POR_M2': {
@@ -431,12 +442,35 @@ const calcularHorasServico = (
       if (categorias.length > 0) {
         const areaUnit = contexto.areaUnit;
         const categoria = categorias.find((cat) => areaUnit <= (cat.ate_m2 || 0)) || categorias[categorias.length - 1];
-        const tempoMin = typeof categoria?.tempo_min === 'number' ? categoria.tempo_min : converterTempoMinutos(categoria?.tempo_min);
+        let tempoMin = 0;
+        
+        // Converter tempo_min para minutos se necessário (mesma lógica do ServicoSection)
+        if (typeof categoria?.tempo_min === 'number') {
+          // CORREÇÃO: Se o valor for muito alto (> 500), provavelmente está em formato incorreto
+          if (categoria.tempo_min > 500) {
+            tempoMin = categoria.tempo_min / 60; // Converter de formato incorreto para minutos
+          } else {
+            tempoMin = categoria.tempo_min; // Já são minutos
+          }
+        } else if (typeof categoria?.tempo_min === 'string' && categoria.tempo_min.includes(':')) {
+          // Converter HH:MM para minutos
+          const [horas, minutos] = categoria.tempo_min.split(':').map(Number);
+          tempoMin = (horas * 60) + minutos;
+        } else {
+          tempoMin = parseNumber(categoria?.tempo_min) || 0;
+        }
         const setupMin = parseNumber(servico?.setup_min);
         const horasBase = (contexto.quantidade * tempoMin) / 60;
         const horasSetup = setupMin / 60;
-        const horasAuto = (horasBase + horasSetup) * fatorEficiencia;
-        if (horasAuto > 0 && horasAuto < 1000) {
+        let horasAuto = (horasBase + horasSetup) * fatorEficiencia;
+        
+        // Validação final para garantir valores razoáveis (mesma lógica do ServicoSection)
+        if (horasAuto > 1000) {
+          console.warn('⚠️ Valor muito alto detectado, limitando a 100 horas.');
+          horasAuto = 100;
+        }
+        
+        if (horasAuto > 0) {
           return horasAuto;
         }
         return 0;
