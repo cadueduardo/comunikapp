@@ -1,8 +1,8 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import CustoIndiretoForm from '../../../configuracoes/custos-indiretos/custo-indireto-form';
+import CustoIndiretoForm from '../../../../configuracoes/custos-indiretos/custo-indireto-form';
 import { custosIndiretosApi } from '@/lib/api-client';
 
 export default function EditarCustoIndiretoCTPage({ params }: { params: Promise<{ id: string }> }) {
@@ -25,7 +25,7 @@ export default function EditarCustoIndiretoCTPage({ params }: { params: Promise<
   }, [id]);
 
   if (loading) return <div className="p-6">Carregando...</div>;
-  if (!registro) return <div className="p-6">Registro não encontrado.</div>;
+  if (!registro) return <div className="p-6">Registro nÃ£o encontrado.</div>;
 
   return <CustoIndiretoForm custoIndireto={registro} />;
 }

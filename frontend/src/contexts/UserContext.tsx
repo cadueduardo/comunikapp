@@ -68,6 +68,9 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       // Verificar se há token antes de fazer a requisição
       const token = localStorage.getItem('access_token');
       if (!token) {
+        localStorage.removeItem('loja_id');
+        localStorage.removeItem('user_roles');
+        localStorage.removeItem('user_id');
         setUser(null);
         setLoading(false);
         return;
@@ -81,6 +84,9 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         try {
           if (userData?.loja?.id || userData?.loja_id) {
             localStorage.setItem('loja_id', String(userData.loja?.id || userData.loja_id));
+          }
+          if (userData?.id) {
+            localStorage.setItem('user_id', String(userData.id));
           }
           if (userData?.funcao) {
             // mapear função para role primária, mantendo consistência com middleware
@@ -98,6 +104,9 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         // Deixar que o usuário tente novamente quando o servidor estiver disponível
       } else if (error instanceof Error && error.message.includes('401')) {
         localStorage.removeItem('access_token');
+        localStorage.removeItem('loja_id');
+        localStorage.removeItem('user_roles');
+        localStorage.removeItem('user_id');
         setUser(null);
       } else {
         setUser(null);
@@ -122,6 +131,9 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = useCallback(() => {
     localStorage.removeItem('access_token');
+    localStorage.removeItem('loja_id');
+    localStorage.removeItem('user_roles');
+    localStorage.removeItem('user_id');
     setUser(null);
     router.push('/login');
   }, [router]);

@@ -209,7 +209,7 @@ export function OrcamentoV2Form({
         toast.success('Orçamento criado com sucesso!');
       }
 
-      router.push('/orcamentos');
+      router.push('/orcamentos-v2');
     } catch (error) {
       console.error('Erro ao salvar orçamento:', error);
       
@@ -260,7 +260,7 @@ export function OrcamentoV2Form({
       }
       
       // Redirecionar para o grid de orçamentos após salvar rascunho
-      router.push('/orcamentos');
+      router.push('/orcamentos-v2');
     } catch (error) {
       console.error('Erro ao salvar rascunho:', error);
       
@@ -314,7 +314,7 @@ export function OrcamentoV2Form({
         }
       }
       
-      router.push('/orcamentos');
+      router.push('/orcamentos-v2');
     } catch (error) {
       console.error('Erro ao enviar orçamento:', error);
       
@@ -397,7 +397,7 @@ export function OrcamentoV2Form({
   return (
     <div>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="w-full">
+        <form onSubmit={(e) => e.preventDefault()} className="w-full">
           {showPreview ? (
             /* Layout com Preview - Flex horizontal */
             <div className="flex flex-col lg:flex-row gap-6">
@@ -429,7 +429,11 @@ export function OrcamentoV2Form({
 
                   {/* Botões de Ação */}
                   <div className="flex justify-end space-x-4">
-                    <Button type="submit" disabled={loading}>
+                    <Button 
+                      type="button" 
+                      onClick={() => handleSubmit(form.getValues())}
+                      disabled={loading}
+                    >
                       <Save className="w-4 h-4 mr-2" />
                       Salvar Orçamento
                     </Button>
@@ -438,7 +442,7 @@ export function OrcamentoV2Form({
               </div>
 
               {/* Sidebar com preview de cálculo */}
-              <div className="w-full lg:w-80 lg:flex-shrink-0">
+              <div className="w-full lg:w-3/10 lg:flex-shrink-0">
                 <div className="sticky top-6">
                   <PreviewCalculoV2 />
                 </div>

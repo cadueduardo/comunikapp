@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-// ✅ REATIVAR WEBSOCKET - Vamos resolver o problema real!
 const WEBSOCKET_DISABLED = false;
+
+interface UseCalculoWebSocketOptions {
+  lojaId?: string;
+  usuarioId?: string;
+}
 
 export interface CalculoWebSocketHook {
   connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error';
@@ -13,8 +17,12 @@ export interface CalculoWebSocketHook {
   resultadoOrcamento: any;
 }
 
-export const useCalculoWebSocket = (): CalculoWebSocketHook => {
-  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
+export const useCalculoWebSocket = (
+  options: UseCalculoWebSocketOptions = {},
+): CalculoWebSocketHook => {
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>(
+    'disconnected',
+  );
   const [isConnected, setIsConnected] = useState(false);
   const [resultadoProduto, setResultadoProduto] = useState<any>(null);
   const [resultadoOrcamento, setResultadoOrcamento] = useState<any>(null);
@@ -22,192 +30,184 @@ export const useCalculoWebSocket = (): CalculoWebSocketHook => {
   const socketRef = useRef<Socket | null>(null);
   const isConnectingRef = useRef(false);
   const hasConnectedRef = useRef(false);
+  const shouldReconnectRef = useRef(true);
+  const identifiersRef = useRef<{ lojaId?: string; usuarioId?: string }>({
+    lojaId: options.lojaId,
+    usuarioId: options.usuarioId,
+  });
 
-  // Conectar ao WebSocket
-  const connect = useCallback(() => {
-    console.log('🔧 Hook WebSocket - Tentando conectar...');
+  const resolveIdentifiers = useCallback(() => {
+    const lojaId =
+      options.lojaId ??
+      (typeof window !== 'undefined' ? localStorage.getItem('loja_id') ?? undefined : undefined);
+    const usuarioId =
+      options.usuarioId ??
+      (typeof window !== 'undefined' ? localStorage.getItem('user_id') ?? undefined : undefined);
 
-    if (isConnectingRef.current || hasConnectedRef.current) {
-      console.log('🔧 Hook WebSocket - Já conectando ou conectado, ignorando...');
-      return;
-    }
+    identifiersRef.current = { lojaId, usuarioId };
+    return identifiersRef.current;
+  }, [options.lojaId, options.usuarioId]);
 
-    isConnectingRef.current = true;
-    setConnectionStatus('connecting');
-    console.log('🔧 Hook WebSocket - Iniciando conexão...');
-
-    try {
-      // ✅ OBTER TOKEN JWT PARA AUTENTICAÇÃO
-      const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
-      console.log('🔧 Hook WebSocket - Token encontrado:', token ? 'Sim' : 'Não');
-
-      if (!token) {
-        console.error('❌ Token de acesso não encontrado para WebSocket');
-        setConnectionStatus('error');
-        isConnectingRef.current = false;
-        return;
-      }
-
-      // Conectar ao namespace específico do cálculo com token
-      console.log('🔧 Hook WebSocket - Criando socket para:', 'http://localhost:4000/calculo-v2');
-      const socket = io('http://localhost:4000/calculo-v2', {
-        transports: ['websocket', 'polling'],
-        timeout: 10000,
-        forceNew: true,
-        reconnection: false, // ✅ DESABILITAR RECONEXÃO AUTOMÁTICA
-        reconnectionAttempts: 0,
-        reconnectionDelay: 0,
-        query: {
-          token: token, // ✅ ENVIAR TOKEN VIA QUERY PARAMS
-          lojaId: 'loja_1', // Usando ID fixo por enquanto
-          usuarioId: 'user_1', // Usando ID fixo por enquanto
-        },
-        extraHeaders: {
-          Authorization: `Bearer ${token}`, // ✅ ENVIAR TOKEN VIA HEADERS TAMBÉM
-        },
-      });
-      console.log('🔧 Hook WebSocket - Socket criado, aguardando eventos...');
-
-      socketRef.current = socket;
-
-      // Event listeners
-      socket.on('connect', () => {
-        console.log('🔌 Conectado ao WebSocket do Motor de Cálculo');
-        setConnectionStatus('connected');
-        setIsConnected(true);
-        isConnectingRef.current = false;
-        hasConnectedRef.current = true;
-      });
-
-      socket.on('connect_error', (error) => {
-        console.error('❌ Erro de conexão WebSocket:', error);
-        setConnectionStatus('error');
-        isConnectingRef.current = false;
-      });
-
-      socket.on('conectado', (message) => {
-        console.log('✅ Conectado ao Motor de Cálculo:', message);
-      });
-
-      // Eventos do Motor V2
-      socket.on('calculo_iniciado', (message: any) => {
-        console.log('🔄 Cálculo iniciado:', message);
-      });
-
-      socket.on('calculo_concluido', (message: any) => {
-        console.log('📊 Resultado do cálculo recebido:', message);
-        setResultadoOrcamento(message);
-      });
-
-      socket.on('erro', (error: any) => {
-        console.error('❌ Erro no cálculo:', error);
-        console.error('❌ Tipo do erro:', typeof error);
-        console.error('❌ Keys do erro:', Object.keys(error || {}));
-        console.error('❌ Erro stringified:', JSON.stringify(error));
-        setConnectionStatus('error');
-      });
-
-      socket.on('erro-autenticacao', (message: any) => {
-        console.error('❌ Erro de autenticação WebSocket:', message);
-        setConnectionStatus('error');
-        isConnectingRef.current = false;
-      });
-
-      socket.on('disconnect', (reason) => {
-        console.log('🔌 Desconectado do WebSocket:', reason);
-        setConnectionStatus('disconnected');
-        setIsConnected(false);
-        hasConnectedRef.current = false;
-        isConnectingRef.current = false;
-
-        // ✅ RECONEXÃO CONTROLADA APENAS PARA DESCONEXÕES DO SERVIDOR
-        if (reason === 'io server disconnect') {
-          console.log('🔄 Servidor desconectou, tentando reconectar em 5s...');
-          setTimeout(() => {
-            if (!hasConnectedRef.current) {
-              connect();
-            }
-          }, 5000);
-        }
-      });
-
-      socket.on('connect_error', (error) => {
-        console.error('❌ Erro de conexão WebSocket:', error);
-        setConnectionStatus('error');
-        isConnectingRef.current = false;
-
-        // ✅ RECONEXÃO CONTROLADA PARA ERROS DE CONEXÃO
-        console.log('🔄 Erro de conexão, tentando reconectar em 3s...');
-        setTimeout(() => {
-          if (!hasConnectedRef.current) {
-            connect();
-          }
-        }, 3000);
-      });
-
-    } catch (error) {
-      console.error('❌ Erro ao conectar WebSocket:', error);
-      setConnectionStatus('error');
-      isConnectingRef.current = false;
-    }
-  }, []);
-
-  // Desconectar
   const disconnect = useCallback(() => {
+    shouldReconnectRef.current = false;
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
     }
 
-    setConnectionStatus('disconnected');
+    setConnectionStatus((prev) => (prev === 'disconnected' ? prev : 'disconnected'));
     setIsConnected(false);
-    hasConnectedRef.current = false;
+    setResultadoProduto(null);
+    setResultadoOrcamento(null);
     isConnectingRef.current = false;
+    hasConnectedRef.current = false;
   }, []);
 
-  // Executar cálculo de produto
-  const executarCalculo = useCallback((data: any) => {
-    if (socketRef.current && isConnected) {
-      console.log('🚀 Enviando cálculo preview via WebSocket:', data);
-      socketRef.current.emit('calcular_preview', data);
-    } else {
-      console.warn('⚠️ WebSocket não conectado, não é possível executar cálculo');
+  const connect = useCallback(() => {
+    if (isConnectingRef.current) {
+      return;
     }
-  }, [isConnected]);
 
-  // Executar cálculo de orçamento (preview)
-  const executarCalculoOrcamento = useCallback((data: any) => {
-    if (socketRef.current && isConnected) {
-      console.log('🚀 Enviando cálculo preview de orçamento via WebSocket:', data);
-      socketRef.current.emit('calcular_preview', data);
-    } else {
-      console.warn('⚠️ WebSocket não conectado, não é possível executar cálculo');
+    const token =
+      (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null) ||
+      (typeof window !== 'undefined' ? sessionStorage.getItem('access_token') : null);
+
+    if (!token) {
+      setConnectionStatus('disconnected');
+      return;
     }
-  }, [isConnected]);
 
-  // Auto-conectar quando o hook é montado
+    const { lojaId, usuarioId } = resolveIdentifiers();
+
+    if (!lojaId || !usuarioId) {
+      setConnectionStatus('disconnected');
+      return;
+    }
+
+    if (socketRef.current?.connected) {
+      return;
+    }
+
+    isConnectingRef.current = true;
+    setConnectionStatus('connecting');
+    shouldReconnectRef.current = true;
+
+    const socket = io('http://localhost:4000/calculo-v2', {
+      transports: ['websocket', 'polling'],
+      timeout: 10000,
+      forceNew: true,
+      reconnection: false,
+      query: {
+        token,
+        lojaId,
+        usuarioId,
+      },
+      extraHeaders: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      setConnectionStatus('connected');
+      setIsConnected(true);
+      isConnectingRef.current = false;
+      hasConnectedRef.current = true;
+    });
+
+    socket.on('status', (message: any) => {
+      if (message?.conectado) {
+        setConnectionStatus('connected');
+        setIsConnected(true);
+      }
+    });
+
+    socket.on('calculo_concluido', (message: any) => {
+      setResultadoProduto(message);
+      setResultadoOrcamento(message);
+    });
+
+    socket.on('erro', () => {
+      setConnectionStatus('error');
+    });
+
+    socket.on('disconnect', () => {
+      setConnectionStatus('disconnected');
+      setIsConnected(false);
+      setResultadoProduto(null);
+      setResultadoOrcamento(null);
+      isConnectingRef.current = false;
+      hasConnectedRef.current = false;
+
+      if (shouldReconnectRef.current) {
+        setTimeout(() => {
+          if (!hasConnectedRef.current && shouldReconnectRef.current) {
+            connect();
+          }
+        }, 5000);
+      }
+    });
+
+    socket.on('connect_error', () => {
+      setConnectionStatus('error');
+      isConnectingRef.current = false;
+      if (shouldReconnectRef.current) {
+        setTimeout(() => {
+          if (!hasConnectedRef.current && shouldReconnectRef.current) {
+            connect();
+          }
+        }, 3000);
+      }
+    });
+
+    socket.on('erro-autenticacao', () => {
+      setConnectionStatus('error');
+      isConnectingRef.current = false;
+    });
+  }, [resolveIdentifiers]);
+
   useEffect(() => {
-    console.log('🔧 Hook WebSocket - useEffect executado, tentando conectar...');
-    connect();
+    if (WEBSOCKET_DISABLED) {
+      return () => undefined;
+    }
+
+    const { lojaId, usuarioId } = resolveIdentifiers();
+
+    if (lojaId && usuarioId) {
+      connect();
+    } else {
+      setConnectionStatus('disconnected');
+    }
 
     return () => {
-      console.log('🔧 Hook WebSocket - useEffect cleanup, desconectando...');
       disconnect();
     };
-  }, [connect, disconnect]);
+  }, [connect, disconnect, resolveIdentifiers]);
 
-  // ✅ REATIVAR WEBSOCKET - Vamos resolver o problema real!
+  const executarCalculo = useCallback(
+    (data: any) => {
+      if (socketRef.current && isConnected) {
+        socketRef.current.emit('calcular_preview', data);
+      }
+    },
+    [isConnected],
+  );
+
+  const executarCalculoOrcamento = useCallback(
+    (data: any) => {
+      if (socketRef.current && isConnected) {
+        socketRef.current.emit('calcular_preview', data);
+      }
+    },
+    [isConnected],
+  );
+
   if (WEBSOCKET_DISABLED) {
     return {
       connectionStatus: 'disconnected',
-      executarCalculo: () => {
-        console.log('🔧 WEBSOCKET DESABILITADO - Usando HTTP em vez de WebSocket');
-        // TODO: Implementar chamada HTTP para cálculo
-      },
-      executarCalculoOrcamento: () => {
-        console.log('🔧 WEBSOCKET DESABILITADO - Usando HTTP em vez de WebSocket');
-        // TODO: Implementar chamada HTTP para orçamento
-      },
+      executarCalculo: () => undefined,
+      executarCalculoOrcamento: () => undefined,
       isConnected: false,
       resultadoProduto: null,
       resultadoOrcamento: null,
