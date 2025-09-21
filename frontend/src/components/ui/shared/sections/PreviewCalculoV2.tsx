@@ -5,7 +5,7 @@ import { useFormContext } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ChevronDown, ChevronUp, Eye, Calculator, Clock, Package, AlertCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eye, Calculator, Clock, Package } from 'lucide-react';
 import { calcularProdutosPreview } from '../utils/preview-calculo.helpers';
 import { useOrcamentoData } from '../../orcamento/hooks/useOrcamentoData';
 import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
@@ -404,11 +404,19 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     const totalCustoProducao =
       totalCustoMaterial + totalCustoMaquinaria + totalCustoFuncoes + totalCustoServicos + totalCustoIndireto;
 
-    const totalMargemLucro = totalCustoProducao * (margemPercentual / 100);
-    const subtotalComLucro = totalCustoProducao + totalMargemLucro;
-    const totalImpostos = subtotalComLucro * (impostosPercentual / 100);
-    const precoFinal = subtotalComLucro + totalImpostos;
-    const comissaoTotal = precoFinal * (comissaoPercentual / 100);
+    // Fórmula correta: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
+    const percentualMargemDecimal = margemPercentual / 100;
+    const percentualImpostosDecimal = impostosPercentual / 100;
+    const percentualComissaoDecimal = comissaoPercentual / 100;
+    const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
+    
+    const precoFinal = divisor > 0 ? totalCustoProducao / divisor : totalCustoProducao;
+    
+    // Calcular valores para exibição
+    const totalImpostos = precoFinal * percentualImpostosDecimal;
+    const comissaoTotal = precoFinal * percentualComissaoDecimal;
+    const totalMargemLucro = precoFinal * percentualMargemDecimal;
+    const subtotalComLucro = precoFinal - totalImpostos - comissaoTotal;
 
     return {
       resumo: {
@@ -595,7 +603,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         {/* Conteudo com scroll */}
         <div className="flex-1 overflow-y-auto p-6 pt-4">
           <div className="text-center text-gray-500 py-8">
-            <AlertCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+            <Calculator className="h-12 w-12 mx-auto mb-4 text-gray-400" />
             <p>Nenhum calculo disponivel</p>
             <p className="text-sm">Adicione produtos para ver o preview</p>
           </div>
@@ -678,67 +686,6 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             </div>
           </div>
 
-          {/* Alerta de Risco de Prejuízo */}
-          {(() => {
-            const custoProducao = data.resumo.total_custo_producao;
-            const margemLucro = data.resumo.total_margem_lucro;
-            const impostos = data.resumo.total_impostos;
-            const comissao = data.resumo.comissao_total;
-            
-            const lucroReal = margemLucro - impostos - comissao;
-            const percentualLucroReal = custoProducao > 0 ? (lucroReal / custoProducao) * 100 : 0;
-            
-            if (lucroReal < 0) {
-              // ALERTA CRÍTICO - PREJUÍZO
-              return (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-red-600" />
-                    <span className="text-red-800 font-semibold text-sm">
-                      ⚠️ ALERTA: Orçamento com PREJUÍZO de R$ {formatarValor(Math.abs(lucroReal))}
-                    </span>
-                  </div>
-                  <p className="text-red-700 text-xs mt-1">
-                    Ajuste a margem de lucro ou reduza impostos/comissão para evitar prejuízo
-                  </p>
-                </div>
-              );
-            }
-            
-            if (percentualLucroReal < 10) {
-              // ALERTA DE RISCO - MARGEM BAIXA
-              return (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-3">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-yellow-600" />
-                    <span className="text-yellow-800 font-semibold text-sm">
-                      ⚠️ ATENÇÃO: Margem de lucro muito baixa ({percentualLucroReal.toFixed(1)}%)
-                    </span>
-                  </div>
-                  <p className="text-yellow-700 text-xs mt-1">
-                    Considere aumentar a margem de lucro para garantir rentabilidade
-                  </p>
-                </div>
-              );
-            }
-            
-            // SITUAÇÃO OK
-            return (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-3">
-                <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 rounded-full bg-green-600 flex items-center justify-center">
-                    <div className="h-2 w-2 rounded-full bg-white"></div>
-                  </div>
-                  <span className="text-green-800 font-semibold text-sm">
-                    ✅ Margem de lucro adequada ({percentualLucroReal.toFixed(1)}%)
-                  </span>
-                </div>
-                <p className="text-green-700 text-xs mt-1">
-                  Lucro real: R$ {formatarValor(lucroReal)}
-                </p>
-              </div>
-            );
-          })()}
         </div>
 
         {/* Separador */}

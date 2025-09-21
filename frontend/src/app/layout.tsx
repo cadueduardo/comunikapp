@@ -4,7 +4,11 @@ import "./globals.css";
 import { UserProvider } from "@/contexts/UserContext";
 import { Toaster } from "@/components/ui/sonner"; // Importando o Toaster
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ 
+  subsets: ["latin"],
+  display: 'swap',
+  fallback: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif']
+});
 
 export const metadata: Metadata = {
   title: "Comunikapp",

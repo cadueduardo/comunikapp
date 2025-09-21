@@ -118,6 +118,8 @@ export function FuncaoSection({
           
           const eff = toNumber(funcaoSelecionada.eficiencia_percent) || 100;
           const fatorEficiencia = 100 / Math.max(eff, 5); // Mínimo 5% para evitar valores irreais
+          const setupMin = toNumber(funcaoSelecionada.setup_min) || 0;
+          const horasSetup = setupMin / 60;
           
           let horasAuto = 0;
           let disclaimerTexto = '';
@@ -128,8 +130,8 @@ export function FuncaoSection({
               if (funcaoSelecionada.horas_por_m2 && areaTotal > 0) {
                 const horasM2 = toNumber(funcaoSelecionada.horas_por_m2);
                 const horasBase = areaTotal * horasM2;
-                horasAuto = horasBase * fatorEficiencia;
-                disclaimerTexto = `${areaTotal.toFixed(2)}m² × ${formatTimeDisplay(horasM2)} × ${fatorEficiencia.toFixed(2)} eficiência = ${horasAuto.toFixed(2)}h`;
+                horasAuto = (horasBase * fatorEficiencia) + horasSetup;
+                disclaimerTexto = `(${areaTotal.toFixed(2)}m² × ${formatTimeDisplay(horasM2)} × ${fatorEficiencia.toFixed(2)} eficiência) + ${setupMin}min setup = ${horasAuto.toFixed(2)}h`;
                 manual = false;
               }
               break;
@@ -138,8 +140,8 @@ export function FuncaoSection({
               if (funcaoSelecionada.horas_por_unidade && qtd > 0) {
                 const horasUn = toNumber(funcaoSelecionada.horas_por_unidade);
                 const horasBase = qtd * horasUn;
-                horasAuto = horasBase * fatorEficiencia;
-                disclaimerTexto = `${qtd} un × ${formatTimeDisplay(horasUn)} × ${fatorEficiencia.toFixed(2)} eficiência = ${horasAuto.toFixed(2)}h`;
+                horasAuto = (horasBase * fatorEficiencia) + horasSetup;
+                disclaimerTexto = `(${qtd} un × ${formatTimeDisplay(horasUn)} × ${fatorEficiencia.toFixed(2)} eficiência) + ${setupMin}min setup = ${horasAuto.toFixed(2)}h`;
                 manual = false;
               }
               break;

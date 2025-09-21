@@ -19,6 +19,7 @@ interface Funcao {
   horas_por_m2?: number | string;
   horas_por_unidade?: number | string;
   eficiencia_percent?: number | string;
+  setup_min?: number | string;
 }
 
 export default function EditarFuncaoCTPage({ params }: { params: Promise<{ id: string }> }) {
@@ -60,8 +61,9 @@ export default function EditarFuncaoCTPage({ params }: { params: Promise<{ id: s
         // Converter valores de tempo mascarados para horas decimais
         horas_por_m2: data.horas_por_m2 ? parseTimeValue(data.horas_por_m2) : undefined,
         horas_por_unidade: data.horas_por_unidade ? parseTimeValue(data.horas_por_unidade) : undefined,
+        setup_min: data.setup_min ? parseTimeValue(data.setup_min) * 60 : undefined, // Converter para minutos
         // Converter porcentagens para decimais se necessário
-        fator_acompanhamento: data.fator_acompanhamento ? Number(String(data.fator_acompanhamento).replace(',', '.')) / 100 : undefined,
+        fator_acompanhamento: data.fator_acompanhamento ? Number(String(data.fator_acompanhamento).replace(',', '.')) : undefined,
         eficiencia_percent: data.eficiencia_percent ? Number(String(data.eficiencia_percent).replace(',', '.')) : undefined,
         // Garantir que custo_hora seja número
         custo_hora: Number(String(data.custo_hora).replace(/[^0-9,-]/g, '').replace(',', '.'))
@@ -90,6 +92,7 @@ export default function EditarFuncaoCTPage({ params }: { params: Promise<{ id: s
     // Converter horas decimais para HH:MM para exibição
     horas_por_m2: registro.horas_por_m2 ? formatTimeDisplay(registro.horas_por_m2) : '',
     horas_por_unidade: registro.horas_por_unidade ? formatTimeDisplay(registro.horas_por_unidade) : '',
+    setup_min: registro.setup_min ? formatTimeDisplay(registro.setup_min / 60) : '', // Converter minutos para horas
     eficiencia_percent: registro.eficiencia_percent || '',
   } : undefined;
 

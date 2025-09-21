@@ -67,7 +67,10 @@ export class FuncoesService {
   async update(id: string, data: UpdateFuncaoDto, loja: loja) {
     return this.prisma.funcao.update({
       where: { id },
-      data,
+      data: {
+        ...data,
+        atualizado_em: new Date(),
+      },
     });
   }
 

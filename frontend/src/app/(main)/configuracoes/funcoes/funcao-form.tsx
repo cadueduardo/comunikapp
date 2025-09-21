@@ -44,6 +44,7 @@ const formSchema = z.object({
   horas_por_m2: z.any().optional(),
   horas_por_unidade: z.any().optional(),
   eficiencia_percent: z.any().optional(),
+  setup_min: z.any().optional(),
 });
 
 export type FuncaoFormValues = z.infer<typeof formSchema>;
@@ -60,6 +61,7 @@ interface FuncaoFormProps {
     horas_por_m2?: number | string;
     horas_por_unidade?: number | string;
     eficiencia_percent?: number | string;
+    setup_min?: number | string;
   };
   loading?: boolean;
 }
@@ -85,6 +87,7 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
       horas_por_m2: '',
       horas_por_unidade: '',
       eficiencia_percent: '',
+      setup_min: '',
     },
   });
 
@@ -371,6 +374,28 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
                       </FormControl>
                       <FormDescription>
                         Percentual de produtividade (10 = 10%, não 1%). {effPercent > 0 && effPercent < 5 && <span className="text-amber-600 font-medium">⚠️ Eficiência muito baixa pode gerar custos irreais.</span>}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="setup_min"
+                  render={({ field }) => (
+                    <FormItem>
+                      <InfoTooltip content="Tempo mínimo de setup que será sempre somado ao cálculo automático.">
+                        <FormLabel>Setup</FormLabel>
+                      </InfoTooltip>
+                      <FormControl>
+                        <TimeInput 
+                          placeholder="Ex: 0:30" 
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Tempo mínimo de preparação que será sempre cobrado
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

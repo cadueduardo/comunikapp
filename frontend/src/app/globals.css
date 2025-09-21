@@ -1,6 +1,15 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Fallback para fontes do sistema */
+@font-face {
+  font-family: 'Inter Fallback';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: local('system-ui'), local('-apple-system'), local('BlinkMacSystemFont'), local('Segoe UI'), local('Roboto'), local('sans-serif');
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

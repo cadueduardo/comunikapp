@@ -56,11 +56,21 @@ export class MaquinasService {
   }
 
   async update(id: string, updateMaquinaDto: UpdateMaquinaDto, loja: loja) {
+    console.log('🔧 [MaquinasService] Iniciando update para máquina:', id);
+    console.log('🔧 [MaquinasService] Dados recebidos:', updateMaquinaDto);
+    
     await this.findOne(id, loja); // Garante que a máquina existe e pertence à loja
+
+    const dataToUpdate = {
+      ...updateMaquinaDto,
+      atualizado_em: new Date(),
+    };
+    
+    console.log('🔧 [MaquinasService] Dados para atualização:', dataToUpdate);
 
     return this.prisma.maquina.update({
       where: { id },
-      data: updateMaquinaDto,
+      data: dataToUpdate,
     });
   }
 

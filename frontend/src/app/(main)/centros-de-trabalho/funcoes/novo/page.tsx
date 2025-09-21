@@ -28,7 +28,7 @@ export default function NovaFuncaoCTPage() {
 
       // Adicionar campos opcionais apenas se preenchidos
       if (data.fator_acompanhamento) {
-        transformedData.fator_acompanhamento = Number(String(data.fator_acompanhamento).replace(',', '.')) / 100;
+        transformedData.fator_acompanhamento = Number(String(data.fator_acompanhamento).replace(',', '.'));
       }
       
       if (data.horas_por_m2) {
@@ -37,6 +37,10 @@ export default function NovaFuncaoCTPage() {
       
       if (data.horas_por_unidade) {
         transformedData.horas_por_unidade = parseTimeValue(data.horas_por_unidade);
+      }
+      
+      if (data.setup_min) {
+        transformedData.setup_min = parseTimeValue(data.setup_min) * 60; // Converter para minutos
       }
       
       if (data.eficiencia_percent) {

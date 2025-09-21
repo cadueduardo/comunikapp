@@ -101,7 +101,9 @@ export class CreateMaquinaDto {
   nome: string;
 
   @IsString()
-  @IsIn(TIPOS_MAQUINAS_VALIDOS)
+  @IsIn(TIPOS_MAQUINAS_VALIDOS, {
+    message: `Tipo deve ser um dos valores válidos: ${TIPOS_MAQUINAS_VALIDOS.join(', ')}`
+  })
   tipo: string;
 
   @Transform(({ value }) => {
@@ -110,7 +112,9 @@ export class CreateMaquinaDto {
     }
     return value;
   })
-  @IsNumber()
+  @IsNumber({}, {
+    message: 'Custo por hora deve ser um número válido'
+  })
   custo_hora: number;
 
   @IsString()
@@ -125,4 +129,20 @@ export class CreateMaquinaDto {
   @IsString()
   @IsOptional()
   observacoes?: string;
+
+  @IsOptional()
+  @IsNumber()
+  setup_min?: number;
+
+  @IsOptional()
+  @IsNumber()
+  velocidade_m2_h?: number;
+
+  @IsOptional()
+  @IsNumber()
+  eficiencia_percent?: number;
+
+  @IsOptional()
+  @IsIn(['M2_H', 'ML_H', 'MANUAL'])
+  modo_producao?: 'M2_H' | 'ML_H' | 'MANUAL';
 }

@@ -366,6 +366,7 @@ export class MotorCalculoV2Service {
         configuracoes: dados.configuracoes || {
           margem_lucro_padrao: 30,
           impostos_padrao: 18,
+          comissao_padrao: 5,
           custos_indiretos_padrao: 15,
           desconto_padrao: 0,
           prazo_entrega_padrao: 10,
@@ -399,6 +400,7 @@ export class MotorCalculoV2Service {
         configuracoes: {
           margem_lucro_padrao: 30,
           impostos_padrao: 18,
+          comissao_padrao: 5,
           custos_indiretos_padrao: 15,
           desconto_padrao: 0,
           prazo_entrega_padrao: 10,

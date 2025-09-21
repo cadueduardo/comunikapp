@@ -223,7 +223,7 @@ model anexomensagem {
 model cliente {
   id                 String                 @id @default(cuid())
   criado_em          DateTime               @default(now())
-  atualizado_em      DateTime
+  atualizado_em      DateTime               @updatedAt
   nome               String
   tipo_pessoa        cliente_tipo_pessoa
   documento          String
@@ -286,7 +286,7 @@ model fornecedor {
 model funcao {
   id                   String                  @id @default(cuid())
   criado_em            DateTime                @default(now())
-  atualizado_em        DateTime
+  atualizado_em        DateTime                @updatedAt
   nome                 String
   custo_hora           Decimal                 @db.Decimal(10, 2)
   descricao            String?                 @db.Text
@@ -297,6 +297,7 @@ model funcao {
   horas_por_m2         Decimal?                @db.Decimal(10, 3)
   horas_por_unidade    Decimal?                @db.Decimal(10, 3)
   eficiencia_percent   Decimal?                @db.Decimal(5, 2)
+  setup_min            Decimal?                @db.Decimal(10, 2)
   loja                 loja                    @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Funcao_loja_id_fkey")
   maquina              maquina?                @relation(fields: [maquina_id], references: [id], map: "Funcao_maquina_id_fkey")
   funcoes_template     FuncaoTemplateProduto[]
@@ -376,7 +377,7 @@ model loja {
 model maquina {
   id                 String                   @id @default(cuid())
   criado_em          DateTime                 @default(now())
-  atualizado_em      DateTime
+  atualizado_em      DateTime                 @updatedAt
   nome               String
   tipo               String
   custo_hora         Decimal                  @db.Decimal(10, 2)

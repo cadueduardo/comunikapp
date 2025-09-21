@@ -69,6 +69,7 @@ export interface CustoIndiretoCalculo {
 export interface ConfiguracaoCalculo {
   margem_lucro_padrao: number;
   impostos_padrao: number;
+  comissao_padrao: number;
   custos_indiretos_padrao: number;
   desconto_padrao: number;
   prazo_entrega_padrao: number;

@@ -29,6 +29,7 @@ interface Funcao {
   horas_por_m2?: number | string;
   horas_por_unidade?: number | string;
   eficiencia_percent?: number | string;
+  setup_min?: number | string;
 }
 
 export default function FuncoesCTPage() {
@@ -134,6 +135,18 @@ export default function FuncoesCTPage() {
         return (
           <span className="text-sm">
             {eff ? `${Number(eff)}%` : '—'}
+          </span>
+        );
+      },
+    },
+    {
+      accessorKey: 'setup_min',
+      header: 'Setup',
+      cell: ({ row }) => {
+        const setup = row.original.setup_min;
+        return (
+          <span className="text-sm font-mono">
+            {setup ? formatTimeDisplay(Number(setup) / 60) : '—'}
           </span>
         );
       },
@@ -303,6 +316,13 @@ export default function FuncoesCTPage() {
                       <div className="flex justify-between">
                         <span>Eficiência:</span>
                         <span>{Number(f.eficiencia_percent)}%</span>
+                      </div>
+                    )}
+                    
+                    {f.setup_min && (
+                      <div className="flex justify-between">
+                        <span>Setup:</span>
+                        <span className="font-mono">{formatTimeDisplay(Number(f.setup_min) / 60)}</span>
                       </div>
                     )}
                     

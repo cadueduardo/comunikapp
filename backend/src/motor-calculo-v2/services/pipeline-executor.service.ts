@@ -357,13 +357,33 @@ export class PipelineExecutorService {
       (resultado.custo_indiretos || 0);
 
     const percentualMargem = contexto.configuracoes.margem_lucro_padrao || 30;
-    const margemLucro = custoTotal * (percentualMargem / 100);
+    const percentualImpostos = contexto.configuracoes.impostos_padrao || 18;
+    const percentualComissao = contexto.configuracoes.comissao_padrao || 5;
+    
+    // Fórmula correta: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
+    // Isso garante que a margem de lucro seja aplicada APÓS impostos e comissão
+    const percentualMargemDecimal = percentualMargem / 100;
+    const percentualImpostosDecimal = percentualImpostos / 100;
+    const percentualComissaoDecimal = percentualComissao / 100;
+    const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
+    
+    const precoFinal = divisor > 0 ? custoTotal / divisor : custoTotal;
+    
+    // Calcular valores para exibição
+    const impostosValor = precoFinal * percentualImpostosDecimal;
+    const comissaoValor = precoFinal * percentualComissaoDecimal;
+    const margemLucro = precoFinal * percentualMargemDecimal;
+    const subtotalComLucro = precoFinal - impostosValor - comissaoValor;
 
     const dados = {
       margem_lucro: margemLucro,
       percentual_aplicado: percentualMargem,
       base_calculo: custoTotal,
-      subtotal_com_lucro: custoTotal + margemLucro,
+      subtotal_com_lucro: subtotalComLucro,
+      preco_final: precoFinal,
+      impostos_valor: impostosValor,
+      comissao_valor: comissaoValor,
+      comissao_percentual: percentualComissao,
     };
 
     return {
@@ -382,15 +402,16 @@ export class PipelineExecutorService {
     contexto: ContextoCalculo,
     resultado: any,
   ): Promise<ResultadoEstagio> {
-    const subtotalComLucro = resultado.subtotal_com_lucro || 0;
+    // Os impostos já foram calculados junto com a margem de lucro
+    // Esta função agora apenas retorna os dados já calculados
+    const impostos = resultado.impostos_valor || 0;
+    const precoFinal = resultado.preco_final || 0;
     const percentualImpostos = contexto.configuracoes.impostos_padrao || 18;
-    const impostos = subtotalComLucro * (percentualImpostos / 100);
-    const precoFinal = subtotalComLucro + impostos;
 
     const dados = {
       impostos: impostos,
       percentual_aplicado: percentualImpostos,
-      base_calculo: subtotalComLucro,
+      base_calculo: resultado.subtotal_com_lucro || 0,
       preco_final: precoFinal,
     };
 

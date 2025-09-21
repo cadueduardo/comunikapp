@@ -141,7 +141,7 @@ export function MaquinaSection({
                 
                 const horasBase = areaTotal / velocidadeCorrigida; // área ÷ velocidade
                 const horasSetup = setupMin / 60;
-                horasAuto = (horasBase + horasSetup) * fatorEficiencia;
+                horasAuto = (horasBase * fatorEficiencia) + horasSetup;
                 
                 // Validação final
                 if (horasAuto > 500) {
@@ -166,7 +166,7 @@ export function MaquinaSection({
                   }
                 });
                 
-                disclaimerTexto = `${areaTotal.toFixed(2)}m² ÷ ${velocidadeCorrigida.toFixed(2)}m²/h + ${setupMin}min setup com ${eficienciaPercent}% eficiência = ${horasAuto.toFixed(2)}h`;
+                disclaimerTexto = `(${areaTotal.toFixed(2)}m² ÷ ${velocidadeCorrigida.toFixed(2)}m²/h × ${fatorEficiencia.toFixed(2)} eficiência) + ${setupMin}min setup = ${horasAuto.toFixed(2)}h`;
                 manual = false;
               }
               break;

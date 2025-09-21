@@ -48,4 +48,9 @@ export class CreateFuncaoDto {
   @IsNumber()
   @Type(() => Number)
   eficiencia_percent?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  setup_min?: number;
 }

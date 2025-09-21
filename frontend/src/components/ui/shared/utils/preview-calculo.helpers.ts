@@ -230,7 +230,7 @@ const calcularHorasMaquina = (
         const velocidadeCorrigida = velocidade < 0.5 ? 1 / velocidade : velocidade;
         const horasBase = contexto.areaTotal / velocidadeCorrigida;
         const horasSetup = setupMin / 60;
-        const horasAuto = (horasBase + horasSetup) * fatorEficiencia;
+        const horasAuto = (horasBase * fatorEficiencia) + horasSetup;
         if (Number.isFinite(horasAuto) && horasAuto > 0 && horasAuto < 500) {
           return horasAuto;
         }
@@ -313,13 +313,15 @@ const calcularHorasFuncao = (
   // Para tipos automáticos, calcular como no formulário
   const eficienciaPercent = parseNumber(funcao?.eficiencia_percent) || 100;
   const fatorEficiencia = 100 / Math.max(eficienciaPercent, 5);
-
+  const setupMin = parseNumber(funcao?.setup_min) || 0;
+  const horasSetup = setupMin / 60;
+  
   switch (tipoCalculo) {
     case 'POR_M2': {
       const horasPorM2 = parseNumber(funcao?.horas_por_m2);
       if (horasPorM2 > 0 && contexto.areaTotal > 0) {
         const horasBase = contexto.areaTotal * horasPorM2;
-        const horasAuto = horasBase * fatorEficiencia;
+        const horasAuto = (horasBase * fatorEficiencia) + horasSetup;
         return horasAuto > 0 ? horasAuto : 0;
       }
       break;
@@ -328,7 +330,7 @@ const calcularHorasFuncao = (
       const horasPorUnidade = parseNumber(funcao?.horas_por_unidade);
       if (horasPorUnidade > 0 && contexto.quantidade > 0) {
         const horasBase = contexto.quantidade * horasPorUnidade;
-        const horasAuto = horasBase * fatorEficiencia;
+        const horasAuto = (horasBase * fatorEficiencia) + horasSetup;
         return horasAuto > 0 ? horasAuto : 0;
       }
       break;
@@ -570,6 +572,7 @@ export const calcularProdutosPreview = (
   custosIndiretosPercentual: number,
   margemPercentual: number,
   impostosPercentual: number,
+  comissaoPercentual: number = 5, // Valor padrão se não fornecido
 ): ProdutosPreviewResultado => {
   let totalMateriais = 0;
   let totalMaquinas = 0;
@@ -595,10 +598,20 @@ export const calcularProdutosPreview = (
     const custoIndiretos = custoBase * (custosIndiretosPercentual / 100);
 
     const custoTotalProducao = custoBase + custoIndiretos;
-    const margemValor = custoTotalProducao * (margemPercentual / 100);
-    const subtotalComLucro = custoTotalProducao + margemValor;
-    const impostosValor = subtotalComLucro * (impostosPercentual / 100);
-    const precoTotal = subtotalComLucro + impostosValor;
+    
+    // Fórmula correta: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
+    const percentualMargemDecimal = margemPercentual / 100;
+    const percentualImpostosDecimal = impostosPercentual / 100;
+    const percentualComissaoDecimal = comissaoPercentual / 100;
+    const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
+    
+    const precoTotal = divisor > 0 ? custoTotalProducao / divisor : custoTotalProducao;
+    
+    // Calcular valores para exibição
+    const impostosValor = precoTotal * percentualImpostosDecimal;
+    const comissaoValor = precoTotal * percentualComissaoDecimal;
+    const margemValor = precoTotal * percentualMargemDecimal;
+    const subtotalComLucro = precoTotal - impostosValor - comissaoValor;
     const quantidadeSegura = contexto.quantidade > 0 ? contexto.quantidade : 1;
     const precoUnitario = precoTotal / quantidadeSegura;
 
