@@ -704,28 +704,24 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                   </p>
                 </div>
 
-                {/* Valor Total com quantidade - linha separada */}
+                {/* Custo Total de Produção com quantidade - linha separada */}
                 <div className="mb-1">
                   <div className="flex justify-between items-center text-sm font-semibold">
-                    <span>Valor Total</span>
-                    <span>R$ {formatarValor(produto.preco_total)} ({formatarNumero(produto.quantidade)}/unid)</span>
+                    <span>Custo Total de Produção</span>
+                    <span>R$ {formatarValor(produto.custo_total_producao)} ({formatarNumero(produto.quantidade)}/unid)</span>
                   </div>
                 </div>
 
-                {/* Valor unitário - linha separada */}
+                {/* Custo unitário de produção - linha separada */}
                 <div className="mb-3">
                   <div className="flex justify-between items-center text-xs text-gray-600">
-                    <span>Valor unitário</span>
-                    <span>R$ {formatarValor(produto.preco_unitario)}</span>
+                    <span>Custo unitário de produção</span>
+                    <span>R$ {formatarValor(produto.custo_total_producao / produto.quantidade)}</span>
                   </div>
                 </div>
 
-                {/* Custos de produção */}
+                {/* Informações de produção */}
                 <div className="space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Custo de Produção</span>
-                    <span>R$ {formatarValor(produto.custo_total_producao)}</span>
-                  </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Horas de Produção</span>
                     <span>{formatarNumero(produto.horas_producao)}h</span>
