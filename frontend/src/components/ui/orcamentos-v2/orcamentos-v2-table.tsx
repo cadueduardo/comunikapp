@@ -6,89 +6,43 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Edit, Trash2, Share2, Search, Filter } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, Share2, Search, Filter, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
-
-export type OrcamentoV2 = {
-  id: string;
-  numero: string;
-  nome_servico: string;
-  descricao?: string;
-  preco_final: number;
-  criado_em: string;
-  status?: string;
-  status_aprovacao?: string;
-  cliente?: {
-    id: string;
-    nome: string;
-  };
-};
+import { useOrcamentosV2, OrcamentoV2 } from './hooks/useOrcamentosV2';
 
 interface OrcamentosV2TableProps {
-  data?: OrcamentoV2[];
   onDelete?: (id: string, nome: string) => void;
   onShare?: (orcamento: OrcamentoV2) => void;
 }
 
-export function OrcamentosV2Table({ data = [], onDelete, onShare }: OrcamentosV2TableProps) {
+export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
-
-  // Dados mockados para demonstração
-  const mockData: OrcamentoV2[] = [
-    {
-      id: '1',
-      numero: '001',
-      nome_servico: 'Banner Personalizado',
-      descricao: 'Banner de 3x1 metros com impressão digital',
-      preco_final: 150.00,
-      criado_em: '2024-01-15T10:00:00Z',
-      status: 'enviado',
-      status_aprovacao: 'PENDENTE',
-      cliente: { id: '1', nome: 'Empresa ABC Ltda' }
-    },
-    {
-      id: '2',
-      numero: '002',
-      nome_servico: 'Cartão de Visita',
-      descricao: '500 cartões de visita em papel couché',
-      preco_final: 89.90,
-      criado_em: '2024-01-14T14:30:00Z',
-      status: 'rascunho',
-      status_aprovacao: undefined,
-      cliente: { id: '2', nome: 'João Silva' }
-    },
-    {
-      id: '3',
-      numero: '003',
-      nome_servico: 'Folheto Promocional',
-      descricao: 'Folheto A4 frente e verso, 1000 unidades',
-      preco_final: 320.00,
-      criado_em: '2024-01-13T09:15:00Z',
-      status: 'enviado',
-      status_aprovacao: 'APROVADO',
-      cliente: { id: '3', nome: 'Restaurante XYZ' }
-    },
-    {
-      id: '4',
-      numero: '004',
-      nome_servico: 'Adesivo Vinil',
-      descricao: 'Adesivo para fachada, 2x3 metros',
-      preco_final: 180.00,
-      criado_em: '2024-01-12T16:45:00Z',
-      status: 'enviado',
-      status_aprovacao: 'NEGOCIANDO',
-      cliente: { id: '4', nome: 'Loja de Roupas Fashion' }
-    }
-  ];
-
-  const tableData = (data && data.length > 0) ? data : mockData;
+  
+  // Usar hook para buscar dados reais do backend
+  const { orcamentos, loading, error, refetch } = useOrcamentosV2();
+  
+  // Debug: verificar dados recebidos
+  console.log('🔍 OrcamentosV2Table - Dados recebidos:', {
+    orcamentos,
+    loading,
+    error,
+    count: orcamentos?.length || 0
+  });
 
 
 
   const filteredData = useMemo(() => {
-    let filtered = tableData;
+    let filtered = orcamentos;
+
+    // Debug: verificar dados antes da filtragem
+    console.log('🔍 Debug - Dados antes da filtragem:', {
+      orcamentos,
+      searchTerm,
+      statusFilter,
+      filtered
+    });
 
     // Filtro por busca
     if (searchTerm) {
@@ -108,8 +62,14 @@ export function OrcamentosV2Table({ data = [], onDelete, onShare }: OrcamentosV2
       }
     }
 
+    // Debug: verificar dados após filtragem
+    console.log('🔍 Debug - Dados após filtragem:', {
+      filtered,
+      length: filtered.length
+    });
+
     return filtered;
-  }, [tableData, searchTerm, statusFilter]);
+  }, [orcamentos, searchTerm, statusFilter]);
 
 
 
@@ -128,6 +88,33 @@ export function OrcamentosV2Table({ data = [], onDelete, onShare }: OrcamentosV2
       console.log('Compartilhar orçamento:', orcamento);
     }
   };
+
+  // Mostrar loading
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Carregando orçamentos...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar erro
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+        <div className="text-red-600 text-center">
+          <div className="text-lg font-medium">Erro ao carregar orçamentos</div>
+          <div className="text-sm text-gray-600 mt-1">{error}</div>
+        </div>
+        <Button onClick={refetch} variant="outline">
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -167,7 +154,7 @@ export function OrcamentosV2Table({ data = [], onDelete, onShare }: OrcamentosV2
                   Número
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Serviço
+                  Título
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Cliente
@@ -182,7 +169,10 @@ export function OrcamentosV2Table({ data = [], onDelete, onShare }: OrcamentosV2
                   Aprovação
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Data
+                  Criado em
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Atualizado em
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Ações
@@ -224,7 +214,7 @@ export function OrcamentosV2Table({ data = [], onDelete, onShare }: OrcamentosV2
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {!orcamento.status || orcamento.status === 'rascunho' ? (
-                        <Link href={`/orcamentos-v2/${orcamento.id}/editar`} className="hover:opacity-80">
+                        <Link href={`/orcamentos-v2/novo?id=${orcamento.id}`} className="hover:opacity-80" onClick={() => console.log('🔍 Clicando para editar orcamento:', orcamento.id)}>
                           <Badge variant="outline" className="text-xs bg-gray-100 text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors">
                             📝 Rascunho
                           </Badge>
@@ -250,11 +240,11 @@ export function OrcamentosV2Table({ data = [], onDelete, onShare }: OrcamentosV2
                         (() => {
                           const status = orcamento.status_aprovacao;
                           const linkHref = status === 'NEGOCIANDO' 
-                            ? `/orcamentos-v2/${orcamento.id}/editar`
+                            ? `/orcamentos-v2/novo?id=${orcamento.id}`
                             : `/orcamentos-v2/${orcamento.id}`;
                           
                           return (
-                            <Link href={linkHref} className="hover:opacity-80">
+                            <Link href={linkHref} className="hover:opacity-80" onClick={() => console.log('🔍 Clicando para ver orcamento:', orcamento.id, 'link:', linkHref)}>
                               <Badge 
                                 variant={
                                   status === 'APROVADO' ? 'default' :
@@ -279,7 +269,10 @@ export function OrcamentosV2Table({ data = [], onDelete, onShare }: OrcamentosV2
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                      {new Date(orcamento.criado_em).toLocaleDateString('pt-BR')}
+                      {orcamento.criado_em || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                      {orcamento.atualizado_em || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <DropdownMenu>
@@ -296,7 +289,7 @@ export function OrcamentosV2Table({ data = [], onDelete, onShare }: OrcamentosV2
                             Compartilhar
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                            <Link href={`/orcamentos-v2/${orcamento.id}/editar`}>
+                            <Link href={`/orcamentos-v2/novo?id=${orcamento.id}`} onClick={() => console.log('🔍 Menu - Clicando para editar orcamento:', orcamento.id)}>
                               <Edit className="mr-2 h-4 w-4" />
                               Editar
                             </Link>
@@ -325,7 +318,7 @@ export function OrcamentosV2Table({ data = [], onDelete, onShare }: OrcamentosV2
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-700">
             Mostrando <span className="font-medium">{filteredData.length}</span> de{' '}
-            <span className="font-medium">{tableData.length}</span> orçamentos
+            <span className="font-medium">{orcamentos.length}</span> orçamentos
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 'use client';
 
-import { useFormContext } from 'react-hook-form';
-import { useEffect, useState } from 'react';
+import { useFormContext, useWatch } from 'react-hook-form';
+import { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 import { Insumo, Maquina, Funcao } from '../types/common.types';
@@ -146,7 +146,8 @@ export function CalculoPreview({
   };
 
   const calcularCustosMaquinasParaProduto = (produtoIndex: number) => {
-    const maquinasUtilizadas = form.watch(`itens_produto.${produtoIndex}.maquinas`) || [];
+    const produto = form.getValues(`itens_produto.${produtoIndex}`);
+    const maquinasProduto = produto?.maquinas || [];
     let custoTotal = 0;
     const maquinasDetalhadas: Array<{
       maquina_id: string;
@@ -157,25 +158,21 @@ export function CalculoPreview({
       custo_total: number;
     }> = [];
 
-    maquinasUtilizadas.forEach((maquina: { maquina_id: string; horas_utilizadas: string }) => {
-      if (maquina.maquina_id && maquina.horas_utilizadas) {
-        const maquinaEncontrada = maquinas.find(m => m.id === maquina.maquina_id);
-        if (maquinaEncontrada) {
-          const horas = Number(maquina.horas_utilizadas) || 0;
-          const custoPorHora = Number(maquinaEncontrada.custo_hora) || 0;
-          const custoTotalItem = horas * custoPorHora;
-          
-          custoTotal += custoTotalItem;
-          
-          maquinasDetalhadas.push({
-            maquina_id: maquinaEncontrada.id,
-            nome_maquina: maquinaEncontrada.nome,
-            tipo_maquina: maquinaEncontrada.tipo || 'Geral',
-            horas_utilizadas: horas,
-            custo_por_hora: custoPorHora,
-            custo_total: custoTotalItem,
-          });
-        }
+    maquinasProduto.forEach((maquina: any) => {
+      const maquinaEncontrada = maquinas.find(m => m.id === maquina.maquina_id || m.maquina?.id === maquina.maquina_id);
+      if (maquinaEncontrada) {
+        const horas = converterValor(maquina.horas_utilizadas);
+        const custoPorHora = converterValor(maquinaEncontrada.custo_hora || maquinaEncontrada.maquina?.custo_hora);
+        const custoTotalItem = horas * custoPorHora;
+        custoTotal += custoTotalItem;
+        maquinasDetalhadas.push({
+          maquina_id: maquinaEncontrada.id || maquinaEncontrada.maquina?.id,
+          nome_maquina: maquinaEncontrada.nome || maquinaEncontrada.maquina?.nome,
+          tipo_maquina: maquinaEncontrada.tipo || maquinaEncontrada.maquina?.tipo || 'Geral',
+          horas_utilizadas: horas,
+          custo_por_hora: custoPorHora,
+          custo_total: custoTotalItem,
+        });
       }
     });
 
@@ -183,7 +180,8 @@ export function CalculoPreview({
   };
 
   const calcularCustosFuncoesParaProduto = (produtoIndex: number) => {
-    const funcoesUtilizadas = form.watch(`itens_produto.${produtoIndex}.funcoes`) || [];
+    const produto = form.getValues(`itens_produto.${produtoIndex}`);
+    const funcoesProduto = produto?.funcoes || [];
     let custoTotal = 0;
     const funcoesDetalhadas: Array<{
       funcao_id: string;
@@ -194,25 +192,21 @@ export function CalculoPreview({
       maquina_vinculada?: string;
     }> = [];
 
-    funcoesUtilizadas.forEach((funcao: { funcao_id: string; horas_trabalhadas: string }) => {
-      if (funcao.funcao_id && funcao.horas_trabalhadas) {
-        const funcaoEncontrada = funcoes.find(f => f.id === funcao.funcao_id);
-        if (funcaoEncontrada) {
-          const horas = Number(funcao.horas_trabalhadas) || 0;
-          const custoPorHora = Number(funcaoEncontrada.custo_hora) || 0;
-          const custoTotalItem = horas * custoPorHora;
-          
-          custoTotal += custoTotalItem;
-          
-          funcoesDetalhadas.push({
-            funcao_id: funcaoEncontrada.id,
-            nome_funcao: funcaoEncontrada.nome,
-            horas_trabalhadas: horas,
-            custo_por_hora: custoPorHora,
-            custo_total: custoTotalItem,
-            maquina_vinculada: funcaoEncontrada.maquina?.nome,
-          });
-        }
+    funcoesProduto.forEach((funcao: any) => {
+      const funcaoEncontrada = funcoes.find(f => f.id === funcao.funcao_id || f.funcao?.id === funcao.funcao_id);
+      if (funcaoEncontrada) {
+        const horas = converterValor(funcao.horas_trabalhadas);
+        const custoPorHora = converterValor(funcaoEncontrada.custo_hora || funcaoEncontrada.funcao?.custo_hora);
+        const custoTotalItem = horas * custoPorHora;
+        custoTotal += custoTotalItem;
+        funcoesDetalhadas.push({
+          funcao_id: funcaoEncontrada.id || funcaoEncontrada.funcao?.id,
+          nome_funcao: funcaoEncontrada.nome || funcaoEncontrada.funcao?.nome,
+          horas_trabalhadas: horas,
+          custo_por_hora: custoPorHora,
+          custo_total: custoTotalItem,
+          maquina_vinculada: funcaoEncontrada.maquina?.nome || funcaoEncontrada.funcao?.maquina?.nome,
+        });
       }
     });
 
@@ -315,7 +309,7 @@ export function CalculoPreview({
       console.log('🔍 Debug - CalculoPreview - Estrutura real das máquinas:', maquinas);
     } else {
       // Usar dados do formulário (orcamento)
-      maquinasUtilizadas = form.watch(`itens_produto.${itemIndex}.maquinas`) || [];
+      maquinasUtilizadas = maquinasForm;
     }
 
     let custoTotal = 0;
@@ -401,7 +395,7 @@ export function CalculoPreview({
       console.log('🔍 Debug - CalculoPreview - Estrutura real das funções:', funcoes);
     } else {
       // Usar dados do formulário (orcamento)
-      funcoesUtilizadas = form.watch(`itens_produto.${itemIndex}.funcoes`) || [];
+      funcoesUtilizadas = funcoesForm;
     }
 
     let custoTotal = 0;
@@ -553,8 +547,23 @@ export function CalculoPreview({
     console.log(`🔍 Preview: Quantidade final usada: ${quantidadeProduto}`);
     
     const { custoTotal: custoMaterial } = calcularCustosMateriais();
-    const { custoTotal: custoMaquinaria } = calcularCustosMaquinas();
-    const { custoTotal: custoMaoObra } = calcularCustosFuncoes();
+    const { custoTotal: custoMaquinaria, maquinasDetalhadas } = calcularCustosMaquinas();
+    const { custoTotal: custoMaoObra, funcoesDetalhadas } = calcularCustosFuncoes();
+
+    const calcularResumoMaquinas = (maquinas: typeof maquinasDetalhadas) => {
+      const totalHoras = maquinas.reduce((acc, maquina) => acc + maquina.horas_utilizadas, 0);
+      const totalCusto = maquinas.reduce((acc, maquina) => acc + maquina.custo_total, 0);
+      return { totalHoras, totalCusto };
+    };
+
+    const calcularResumoFuncoes = (funcoes: typeof funcoesDetalhadas) => {
+      const totalHoras = funcoes.reduce((acc, funcao) => acc + funcao.horas_trabalhadas, 0);
+      const totalCusto = funcoes.reduce((acc, funcao) => acc + funcao.custo_total, 0);
+      return { totalHoras, totalCusto };
+    };
+
+    const resumoMaquinas = useMemo(() => calcularResumoMaquinas(maquinasDetalhadas), [maquinasDetalhadas]);
+    const resumoFuncoes = useMemo(() => calcularResumoFuncoes(funcoesDetalhadas), [funcoesDetalhadas]);
     
     const custoTotalProducao = custoMaterial + custoMaquinaria + custoMaoObra;
     const horasProducao = calcularHorasProducao();
@@ -625,8 +634,8 @@ export function CalculoPreview({
     todosProdutos.forEach((produto: any, index: number) => {
       // Calcular custos para este produto específico
       const { custoTotal: custoMaterial } = calcularCustosMateriaisParaProduto(index);
-      const { custoTotal: custoMaquinaria } = calcularCustosMaquinasParaProduto(index);
-      const { custoTotal: custoMaoObra } = calcularCustosFuncoesParaProduto(index);
+      const { custoTotal: custoMaquinaria, maquinasDetalhadas } = calcularCustosMaquinasParaProduto(index);
+      const { custoTotal: custoMaoObra, funcoesDetalhadas } = calcularCustosFuncoesParaProduto(index);
       
       const custoTotalProducao = custoMaterial + custoMaquinaria + custoMaoObra;
       const horasProducao = calcularHorasProducaoParaProduto(index);
@@ -652,8 +661,8 @@ export function CalculoPreview({
       // Acumular totais
       totalGeral += precoFinalTotal;
       totalCustoMaterial += custoMaterial * quantidadeProduto;
-      totalCustoMaquinaria += custoMaquinaria * quantidadeProduto;
-      totalCustoMaoObra += custoMaoObra * quantidadeProduto;
+      totalCustoMaquinaria += maquinasDetalhadas.reduce((acc, maquina) => acc + maquina.custo_total, 0) * quantidadeProduto;
+      totalCustoMaoObra += funcoesDetalhadas.reduce((acc, funcao) => acc + funcao.custo_total, 0) * quantidadeProduto;
       totalHorasProducao += horasProducao * quantidadeProduto;
       
       // Adicionar aos detalhes
@@ -678,8 +687,8 @@ export function CalculoPreview({
   };
 
   const custosTotais = calcularCustosTotais();
-  const { maquinasDetalhadas } = calcularCustosMaquinas();
-  const { funcoesDetalhadas } = calcularCustosFuncoes();
+  // já extraído acima
+  // já extraído acima
   
   // Debug: Log dos arrays de máquinas e funções
   console.log('🔍 Debug - CalculoPreview - maquinasDetalhadas:', maquinasDetalhadas);
@@ -697,9 +706,9 @@ export function CalculoPreview({
 
   // Verificar se há dados para calcular (materiais, máquinas ou funções)
   const temDadosParaCalcular = () => {
-    const materiais = form.watch(`itens_produto.${itemIndex}.materiais`) || [];
-    const maquinas = form.watch(`itens_produto.${itemIndex}.maquinas`) || [];
-    const funcoes = form.watch(`itens_produto.${itemIndex}.funcoes`) || [];
+    const materiais = materiaisForm;
+    const maquinas = maquinasForm;
+    const funcoes = funcoesForm;
     
     return materiais.some((m: any) => m.insumo_id) || 
            maquinas.some((m: any) => m.maquina_id) || 
@@ -864,11 +873,11 @@ export function CalculoPreview({
           </div>
           <div className="flex justify-between text-sm">
             <span>Máquinas:</span>
-            <span>{formatCurrency(custosIndividuais.custo_maquinaria * custosIndividuais.quantidade_produto)}</span>
+            <span>{formatCurrency(custosIndividuais.custo_maquinaria * custosIndividuais.quantidade_produto)} ({resumoMaquinas.totalHoras.toFixed(2)}h)</span>
           </div>
-          <div className="flex justify-between text-sm">
+          <div className="flex justify_between text-sm">
             <span>Mão de Obra:</span>
-            <span>{formatCurrency(custosIndividuais.custo_mao_obra * custosIndividuais.quantidade_produto)}</span>
+            <span>{formatCurrency(custosIndividuais.custo_mao_obra * custosIndividuais.quantidade_produto)} ({resumoFuncoes.totalHoras.toFixed(2)}h)</span>
           </div>
           <div className="flex justify-between text-sm">
             <span>Custos Indiretos:</span>

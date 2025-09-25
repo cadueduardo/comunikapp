@@ -12,8 +12,11 @@ model Insumo {
   loja_id            String
   nome               String
   descricao_tecnica  String?
+  descricao          String?                // Campo para V2
+  codigo             String?                // Campo para V2
   custo_unitario     Decimal                @db.Decimal(10, 2)
   estoque_minimo     Int?
+  estoque_atual      Decimal?               @db.Decimal(10, 3) // Campo para V2
   codigo_interno     String?
   observacoes        String?
   categoriaId        String
@@ -40,6 +43,9 @@ model Insumo {
   tipoMaterial       tipomaterial?          @relation(fields: [tipoMaterialId], references: [id])
   itens_template     ItemTemplateProduto[]
   itemorcamento      itemorcamento[]
+  itemInsumo         ItemInsumo[]
+  estoque            estoque[]
+  categoriaInsumo    categoriaInsumo?       @relation(fields: [categoriaId], references: [id], map: "insumos_categoriaId_fkey_v2")
 
   @@unique([loja_id, nome, fornecedorId])
   @@index([categoriaId], map: "insumos_categoriaId_fkey")
@@ -244,6 +250,7 @@ model cliente {
   cargo_responsavel  String?
   observacoes        String?                @db.Text
   status_cliente     cliente_status_cliente @default(ATIVO)
+  ativo              Boolean                @default(true) // Campo para V2
   origem             String?
   segmento           String?
   loja_id            String
@@ -267,6 +274,7 @@ model custoindireto {
   observacoes   String?  @db.Text
   loja_id       String
   loja          loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "CustoIndireto_loja_id_fkey")
+  itemCustoIndireto ItemCustoIndireto[]
 
   @@index([loja_id, categoria], map: "CustoIndireto_loja_id_categoria_idx")
   @@index([loja_id], map: "CustoIndireto_loja_id_idx")
@@ -276,6 +284,7 @@ model fornecedor {
   id      String   @id @default(cuid())
   nome    String
   loja_id String
+  ativo   Boolean @default(true) // Campo para V2
   loja    loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Fornecedor_loja_id_fkey")
   insumos Insumo[]
 
@@ -292,6 +301,7 @@ model funcao {
   descricao            String?                 @db.Text
   maquina_id           String?
   loja_id              String
+  ativo                Boolean                 @default(true) // Campo para V2
   tipo_calculo         funcao_tipo_calculo     @default(MANUAL)
   fator_acompanhamento Decimal?                @db.Decimal(10, 3)
   horas_por_m2         Decimal?                @db.Decimal(10, 3)
@@ -303,6 +313,7 @@ model funcao {
   funcoes_template     FuncaoTemplateProduto[]
   funcaoorcamento      funcaoorcamento[]
   historico_custos     HistoricoCustoFuncao[]
+  itemFuncao           ItemFuncao[]
 
   @@index([loja_id], map: "Funcao_loja_id_idx")
   @@index([maquina_id], map: "Funcao_maquina_id_idx")
@@ -382,6 +393,7 @@ model maquina {
   tipo               String
   custo_hora         Decimal                  @db.Decimal(10, 2)
   status             String                   @default("ATIVA")
+  ativo              Boolean                  @default(true) // Campo para V2
   capacidade         String?
   observacoes        String?                  @db.Text
   loja_id            String
@@ -390,6 +402,7 @@ model maquina {
   loja               loja                     @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Maquina_loja_id_fkey")
   maquinas_template  MaquinaTemplateProduto[]
   maquinaorcamento   maquinaorcamento[]
+  itemMaquina        ItemMaquina[]
   modo_producao      maquina_modo_producao    @default(M2_H)
   setup_min          Decimal?                 @db.Decimal(10, 2)
   velocidade_m2_h    Decimal?                 @db.Decimal(10, 2)
@@ -481,8 +494,8 @@ model orcamento {
   custo_mao_obra         Decimal              @db.Decimal(10, 2)
   custo_indireto         Decimal              @db.Decimal(10, 2)
   custo_total            Decimal              @db.Decimal(10, 2)
-  margem_lucro           Decimal              @db.Decimal(5, 2)
-  impostos               Decimal              @db.Decimal(5, 2)
+  margem_lucro           Decimal              @db.Decimal(10, 2)
+  impostos               Decimal              @db.Decimal(10, 2)
   preco_final            Decimal              @db.Decimal(10, 2)
   loja_id                String
   cliente_id             String?
@@ -500,6 +513,32 @@ model orcamento {
   prazo_entrega          String?              @default("10 a 15 dias úteis")
   validade_proposta      String?              @default("30 dias")
   comissao_percentual    Decimal?             @db.Decimal(5, 2)
+  
+  // Campos V2
+  titulo                 String?              // Título do orçamento
+  responsavel_id         String?
+  prioridade             String?              @default("NORMAL")
+  tipo_orcamento         String?              @default("PRODUTO")
+  condicoes_comerciais   String?              @db.Text
+  observacoes_internas   String?              @db.Text
+  tags                   String?              @db.Text
+  data_limite            DateTime?
+  data_aprovacao         DateTime?
+  aprovado_por           String?
+  motivo_rejeicao        String?              @db.Text
+  custos_calculados      String?              @db.LongText // JSON com custos detalhados
+  configuracao_calculo   String?              @db.LongText // JSON com configurações
+  versao_atual           Int                  @default(1)
+  ativo                  Boolean              @default(true)
+  valor_total            Decimal?             @db.Decimal(10, 2)
+  data_criacao           DateTime             @default(now())
+  data_atualizacao       DateTime             @updatedAt
+  ordem                  Int                  @default(0)
+  categoria              String?
+  detalhamento_calculo   String?              @db.LongText // JSON com detalhamento
+  alertas                String?              @db.LongText // JSON com alertas
+  data_ultimo_calculo    DateTime?
+  
   funcaoorcamento        funcaoorcamento[]
   itemorcamento          itemorcamento[]
   maquinaorcamento       maquinaorcamento[]
@@ -507,13 +546,314 @@ model orcamento {
   notificacao            notificacao[]
   cliente                cliente?             @relation(fields: [cliente_id], references: [id], map: "Orcamento_cliente_id_fkey")
   loja                   loja                 @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Orcamento_loja_id_fkey")
+  responsavel            usuario?             @relation(fields: [responsavel_id], references: [id])
   historico              OrcamentoHistorico[]
   logs                   OrcamentoLog[]
+  produtos               ProdutoOrcamento[]
+  historicoOrcamento     HistoricoOrcamento[]
+  versoes                VersaoOrcamento[]
+  mensagensChat          MensagemChat[]
+  linksPublicos          LinkPublico[]
+  aprovacoes             aprovacaoOrcamento[]
+  custos                 String?             @db.LongText // JSON com custos detalhados
 
   @@unique([loja_id, numero], map: "Orcamento_loja_id_numero_key")
   @@index([cliente_id], map: "Orcamento_cliente_id_fkey")
   @@index([loja_id], map: "Orcamento_loja_id_idx")
   @@index([loja_id, numero], map: "Orcamento_loja_id_numero_idx")
+  @@index([responsavel_id])
+  @@index([status])
+  @@index([tipo_orcamento])
+  @@index([ativo])
+}
+
+// Tabelas V2 para múltiplos produtos
+model ProdutoOrcamento {
+  id                    String              @id @default(cuid())
+  orcamento_id          String
+  nome_servico          String
+  descricao             String?             @db.Text
+  quantidade            Decimal             @db.Decimal(10, 3)
+  largura               Decimal?            @db.Decimal(10, 2)
+  altura                Decimal?            @db.Decimal(10, 2)
+  area_produto          Decimal?            @db.Decimal(10, 2)
+  unidade_medida        String?
+  custo_total_producao  Decimal             @db.Decimal(10, 2)
+  preco_unitario        Decimal             @db.Decimal(10, 2)
+  preco_total           Decimal             @db.Decimal(10, 2)
+  margem_lucro          Decimal             @db.Decimal(5, 2)
+  impostos              Decimal             @db.Decimal(5, 2)
+  observacoes           String?             @db.Text
+  ativo                 Boolean             @default(true)
+  criado_em             DateTime            @default(now())
+  atualizado_em         DateTime            @updatedAt
+  data_criacao          DateTime            @default(now())
+  data_atualizacao      DateTime            @updatedAt
+  ordem                 Int                 @default(0)
+  categoria             String?
+  nome                  String?             // Campo para V2
+
+  // Relacionamentos
+  orcamento             orcamento           @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  insumos               ItemInsumo[]
+  maquinas              ItemMaquina[]
+  funcoes               ItemFuncao[]
+  servicos_manuais      ItemServicoManual[]
+  custos_indiretos      ItemCustoIndireto[]
+
+  @@index([orcamento_id])
+  @@index([ativo])
+}
+
+model ItemInsumo {
+  id                    String              @id @default(cuid())
+  produto_id            String
+  insumo_id             String
+  quantidade            Decimal             @db.Decimal(10, 3)
+  unidade               String
+  preco_unitario        Decimal             @db.Decimal(10, 2)
+  preco_total           Decimal             @db.Decimal(10, 2)
+  estoque_disponivel    Decimal?            @db.Decimal(10, 3)
+  alerta_estoque        Boolean             @default(false)
+  criado_em             DateTime            @default(now())
+  data_criacao          DateTime            @default(now())
+
+  // Relacionamentos
+  produto               ProdutoOrcamento    @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  insumo                Insumo              @relation(fields: [insumo_id], references: [id])
+
+  @@index([produto_id])
+  @@index([insumo_id])
+}
+
+model ItemMaquina {
+  id                    String              @id @default(cuid())
+  produto_id            String
+  maquina_id            String
+  tempo_horas           Decimal             @db.Decimal(10, 2)
+  custo_hora            Decimal             @db.Decimal(10, 2)
+  custo_total           Decimal             @db.Decimal(10, 2)
+  criado_em             DateTime            @default(now())
+  data_criacao          DateTime            @default(now())
+
+  // Relacionamentos
+  produto               ProdutoOrcamento    @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  maquina               maquina             @relation(fields: [maquina_id], references: [id])
+
+  @@index([produto_id])
+  @@index([maquina_id])
+}
+
+model ItemFuncao {
+  id                    String              @id @default(cuid())
+  produto_id            String
+  funcao_id             String
+  tempo_horas           Decimal             @db.Decimal(10, 2)
+  custo_hora            Decimal             @db.Decimal(10, 2)
+  custo_total           Decimal             @db.Decimal(10, 2)
+  criado_em             DateTime            @default(now())
+  data_criacao          DateTime            @default(now())
+
+  // Relacionamentos
+  produto               ProdutoOrcamento    @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  funcao                funcao              @relation(fields: [funcao_id], references: [id])
+
+  @@index([produto_id])
+  @@index([funcao_id])
+}
+
+model ItemServicoManual {
+  id                    String              @id @default(cuid())
+  produto_id            String
+  servico_id            String
+  tempo_horas           Decimal             @db.Decimal(10, 2)
+  custo_hora            Decimal             @db.Decimal(10, 2)
+  custo_total           Decimal             @db.Decimal(10, 2)
+  criado_em             DateTime            @default(now())
+  data_criacao          DateTime            @default(now())
+  descricao             String?             @db.Text
+
+  // Relacionamentos
+  produto               ProdutoOrcamento    @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  servico               servico_manual      @relation(fields: [servico_id], references: [id])
+
+  @@index([produto_id])
+  @@index([servico_id])
+}
+
+model ItemCustoIndireto {
+  id                    String              @id @default(cuid())
+  produto_id            String
+  custo_id              String
+  percentual            Decimal             @db.Decimal(5, 2)
+  valor_fixo            Decimal?            @db.Decimal(10, 2)
+  custo_total           Decimal             @db.Decimal(10, 2)
+  criado_em             DateTime            @default(now())
+  data_criacao          DateTime            @default(now())
+  descricao             String?             @db.Text
+
+  // Relacionamentos
+  produto               ProdutoOrcamento    @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  custo                 custoindireto       @relation(fields: [custo_id], references: [id])
+
+  @@index([produto_id])
+  @@index([custo_id])
+}
+
+// Tabelas de histórico e versão para V2
+model HistoricoOrcamento {
+  id                    String              @id @default(cuid())
+  orcamento_id          String
+  acao                  String              // CRIADO, ATUALIZADO, APROVADO, etc.
+  dados_anteriores      String?             @db.LongText // JSON
+  dados_novos           String?             @db.LongText // JSON
+  usuario_id            String?
+  observacoes           String?             @db.Text
+  data                  DateTime            @default(now())
+  tipo                  String?             // Campo para V2
+  numero                Int?                // Campo para V2
+  descricao             String?             @db.Text // Campo para V2
+  criado_em             DateTime            @default(now())
+
+  // Relacionamentos
+  orcamento             orcamento           @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+
+  @@index([orcamento_id])
+  @@index([data])
+}
+
+model VersaoOrcamento {
+  id                    String              @id @default(cuid())
+  orcamento_id          String
+  versao                Int
+  dados_completos       String              @db.LongText // JSON com todos os dados da versão
+  motivo_alteracao      String?             @db.Text
+  usuario_id            String?
+  numero                Int?                // Campo para V2
+  responsavel_id        String?             // Campo para V2
+  criado_em             DateTime            @default(now())
+
+  // Relacionamentos
+  orcamento             orcamento           @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+
+  @@unique([orcamento_id, versao])
+  @@index([orcamento_id])
+}
+
+// Tabelas de chat e links para V2
+model MensagemChat {
+  id                    String              @id @default(cuid())
+  orcamento_id          String
+  usuario_id            String?
+  tipo                  String              // SISTEMA, USUARIO, CLIENTE
+  conteudo              String              @db.Text
+  dados_extras          String?             @db.LongText // JSON
+  lida                  Boolean             @default(false)
+  data_leitura          DateTime?
+  criado_em             DateTime            @default(now())
+  anexos                String?             @db.LongText // JSON com anexos
+  data_envio            DateTime            @default(now()) // Campo para V2
+  usuario               String?             // Campo para V2
+  dados                 String?             @db.LongText // Campo para V2
+
+  // Relacionamentos
+  orcamento             orcamento           @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+
+  @@index([orcamento_id])
+  @@index([criado_em])
+}
+
+model LinkPublico {
+  id                    String              @id @default(cuid())
+  orcamento_id          String
+  token                 String              @unique
+  expira_em             DateTime?
+  visualizacoes_max     Int?                // null = ilimitado
+  visualizacoes_atual   Int                 @default(0)
+  ativo                 Boolean             @default(true)
+  criado_em             DateTime            @default(now())
+  titulo                String?             // Campo para V2
+  permissoes            String?             @db.LongText // JSON com permissões
+  senha                 String?             // Campo para V2
+  data_expiracao        DateTime?           // Campo para V2
+  criado_por_usuario    String?             // Campo para V2
+  visualizacoes         Int?                // Campo para V2
+  max_visualizacoes     Int?                // Campo para V2
+  atualizado_em         DateTime            @updatedAt
+
+  // Relacionamentos
+  orcamento             orcamento           @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  acessos               AcessoLink[]
+
+  @@index([orcamento_id])
+  @@index([token])
+  @@index([ativo])
+}
+
+model AcessoLink {
+  id                    String              @id @default(cuid())
+  link_id               String
+  ip                    String?
+  user_agent            String?
+  visualizacoes         Int                 @default(1)
+  primeiro_acesso       DateTime            @default(now())
+  ultimo_acesso         DateTime            @updatedAt
+  ip_acesso             String?             // Campo para V2
+  data_acesso           DateTime            @default(now()) // Campo para V2
+  data_criacao          DateTime            @default(now()) // Campo para V2
+
+  // Relacionamentos
+  link                  LinkPublico         @relation(fields: [link_id], references: [id], onDelete: Cascade)
+
+  @@index([link_id])
+  @@index([primeiro_acesso])
+}
+
+// Tabelas adicionais para V2
+model estoque {
+  id                    String              @id @default(cuid())
+  insumo_id             String
+  quantidade            Decimal             @db.Decimal(10, 3)
+  tipo_movimentacao     String              // ENTRADA, SAIDA, AJUSTE
+  observacoes           String?             @db.Text
+  criado_em             DateTime            @default(now())
+  loja_id               String?             // Campo para V2
+  quantidade_atual      Decimal?            @db.Decimal(10, 3) // Campo para V2
+
+  // Relacionamentos
+  insumo                Insumo              @relation(fields: [insumo_id], references: [id], onDelete: Cascade)
+
+  @@index([insumo_id])
+  @@index([criado_em])
+}
+
+model aprovacaoOrcamento {
+  id                    String              @id @default(cuid())
+  orcamento_id          String
+  aprovador_id          String?
+  status                String              // PENDENTE, APROVADO, REJEITADO
+  observacoes           String?             @db.Text
+  criado_em             DateTime            @default(now())
+  atualizado_em         DateTime            @updatedAt
+  usuario               String?             // Campo para V2
+
+  // Relacionamentos
+  orcamento             orcamento           @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+
+  @@index([orcamento_id])
+  @@index([status])
+}
+
+model categoriaInsumo {
+  id                    String              @id @default(cuid())
+  nome                  String
+  descricao             String?             @db.Text
+  ativo                 Boolean             @default(true)
+  criado_em             DateTime            @default(now())
+  insumos               Insumo[]            // Relacionamento para V2
+  atualizado_em         DateTime            @updatedAt
+
+  @@index([nome])
 }
 
 model tipomaterial {
@@ -540,6 +880,7 @@ model servico_manual {
   descricao          String?             @db.Text
   custo_hora         Decimal             @db.Decimal(10, 2)
   loja_id            String
+  ativo              Boolean              @default(true) // Campo para V2
   tipo_calculo       funcao_tipo_calculo @default(MANUAL)
   horas_por_m2       Decimal?            @db.Decimal(10, 3)
   horas_por_unidade  Decimal?            @db.Decimal(10, 3)
@@ -548,6 +889,7 @@ model servico_manual {
   categorias         String?             @db.LongText
 
   loja loja @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "ServicoManual_loja_id_fkey")
+  itemServicoManual ItemServicoManual[]
 
   @@unique([loja_id, nome])
   @@index([loja_id], map: "ServicoManual_loja_id_idx")
@@ -566,10 +908,13 @@ model usuario {
   funcao                             usuario_funcao   @default(VENDAS)
   loja_id                            String
   nome_completo                      String
+  nome                               String?             // Campo para V2
   senha                              String?
   telefone                           String?
+  ativo                              Boolean          @default(true) // Campo para V2
   loja                               loja             @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Usuario_loja_id_fkey")
   perfis                             usuario_perfil[]
+  orcamentos_responsavel             orcamento[]
 
   @@index([loja_id], map: "Usuario_loja_id_idx")
 }

@@ -20,6 +20,7 @@ async function main() {
       margem_lucro_padrao: 30,
       impostos_padrao: 10,
       horas_produtivas_mensais: 160,
+      atualizado_em: new Date(),
     },
   });
 
@@ -70,9 +71,37 @@ async function main() {
 
   console.log('✅ Categorias criadas:', categorias.length);
 
+  // Criar categorias V2 espelhadas para satisfazer FKs duplas em Insumo
+  const categoriasV2 = await Promise.all([
+    prisma.categoriaInsumo.upsert({
+      where: { id: categorias[0].id },
+      update: {},
+      create: {
+        id: categorias[0].id,
+        nome: 'Papel',
+        ativo: true,
+        criado_em: new Date(),
+        atualizado_em: new Date(),
+      },
+    }),
+    prisma.categoriaInsumo.upsert({
+      where: { id: categorias[1].id },
+      update: {},
+      create: {
+        id: categorias[1].id,
+        nome: 'Tinta',
+        ativo: true,
+        criado_em: new Date(),
+        atualizado_em: new Date(),
+      },
+    }),
+  ]);
+
+  console.log('✅ Categorias V2 criadas:', categoriasV2.length);
+
   // Criar tipos de material de teste
   const tiposMaterial = await Promise.all([
-    prisma.tipoMaterial.upsert({
+    prisma.tipomaterial.upsert({
       where: { id: 'tipo-1' },
       update: {},
       create: {
@@ -84,10 +113,11 @@ async function main() {
           espacamento: 10, // 10cm entre cada cordão
         }),
         descricao: 'Cordão para acabamento',
-        loja_id: loja.id,
+        loja: { connect: { id: loja.id } },
+      atualizado_em: new Date(),
       },
     }),
-    prisma.tipoMaterial.upsert({
+    prisma.tipomaterial.upsert({
       where: { id: 'tipo-2' },
       update: {},
       create: {
@@ -99,7 +129,8 @@ async function main() {
           quantidade_por_m2: 2, // 2 adesivos por m²
         }),
         descricao: 'Adesivo para fixação',
-        loja_id: loja.id,
+        loja: { connect: { id: loja.id } },
+      atualizado_em: new Date(),
       },
     }),
   ]);
@@ -246,7 +277,7 @@ async function main() {
 
   // Criar custos indiretos de teste
   const custosIndiretos = await Promise.all([
-    prisma.custoIndireto.upsert({
+    prisma.custoindireto.upsert({
       where: { id: 'custo-1' },
       update: {},
       create: {
@@ -254,10 +285,11 @@ async function main() {
         nome: 'Aluguel',
         categoria: 'LOCACAO',
         valor_mensal: 5000.00,
-        loja_id: loja.id,
+        loja: { connect: { id: loja.id } },
+      atualizado_em: new Date(),
       },
     }),
-    prisma.custoIndireto.upsert({
+    prisma.custoindireto.upsert({
       where: { id: 'custo-2' },
       update: {},
       create: {
@@ -265,7 +297,8 @@ async function main() {
         nome: 'Energia Elétrica',
         categoria: 'SERVICOS',
         valor_mensal: 1500.00,
-        loja_id: loja.id,
+        loja: { connect: { id: loja.id } },
+      atualizado_em: new Date(),
       },
     }),
   ]);

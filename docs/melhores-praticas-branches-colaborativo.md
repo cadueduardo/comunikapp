@@ -184,3 +184,7 @@ git checkout feature/preview-calculo-multiplos-produtos
 **Qual abordagem você prefere que eu implemente?** 🤔
 
 
+
+
+
+

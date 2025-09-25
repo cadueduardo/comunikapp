@@ -1,7 +1,7 @@
 'use client';
 
-import { useFormContext } from 'react-hook-form';
-import { useMemo } from 'react';
+import { useEffect } from 'react';
+import { useFormContext, useWatch } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import {
   FormControl,
@@ -92,11 +92,9 @@ export function MaquinaSection({
         </Button>
       </div>
       
-      {form.watch(`itens_produto.${itemIndex}.maquinas`)?.map((maquina: { maquina_id: string; horas_utilizadas: string }, maquinaIndex: number) => {
-        const maquinaSelecionada = maquinas.find(m => m.id === maquina.maquina_id);
-        const horasUtilizadas = Number(String(maquina.horas_utilizadas).replace(',', '.')) || 0;
+      {(useWatch({ control: form.control, name: `itens_produto.${itemIndex}.maquinas` }) || []).map((maquina: { maquina_id: string; horas_utilizadas: string }, maquinaIndex: number) => {
+        const maquinaSelecionada = maquinas.find((m) => m.id === maquina.maquina_id);
 
-        // Função auxiliar para converter valores
         const toNumber = (v: any): number => {
           if (v == null || v === '') return 0;
           if (typeof v === 'number') return v;
@@ -107,101 +105,45 @@ export function MaquinaSection({
           return 0;
         };
 
-        // Calcular horas e custo baseado no modo de produção
-        const { horasCalculadas, disclaimer, isManual } = useMemo(() => {
-          if (!maquinaSelecionada || !maquinaSelecionada.modo_producao) {
-            return { horasCalculadas: 0, disclaimer: 'Modo de produção não definido', isManual: true };
+        const areaM2 = toNumber(useWatch({ control: form.control, name: `itens_produto.${itemIndex}.area_produto` })) || 0;
+        const quantidade = toNumber(useWatch({ control: form.control, name: `itens_produto.${itemIndex}.quantidade_produto` })) || 1;
+        const areaTotal = areaM2 * quantidade;
+
+        const velocidadeM2H = toNumber(maquinaSelecionada?.velocidade_m2_h) || 0;
+        const eficienciaPercent = Math.max(toNumber(maquinaSelecionada?.eficiencia_percent) || 100, 5);
+        const setupMin = toNumber(maquinaSelecionada?.setup_min) || 0;
+        const horasSetup = setupMin / 60;
+
+        let horasCalculadas = 0;
+        let disclaimer = '';
+        let isManual = true;
+
+        if (maquinaSelecionada && maquinaSelecionada.modo_producao === 'M2_H' && velocidadeM2H > 0 && areaTotal > 0) {
+          const horasBase = areaTotal / velocidadeM2H;
+          const fatorEficiencia = 100 / eficienciaPercent;
+          horasCalculadas = horasBase * fatorEficiencia + horasSetup;
+          disclaimer = `${areaTotal.toFixed(2)}m² ÷ ${velocidadeM2H.toFixed(2)}m²/h × (100 ÷ ${eficienciaPercent}%) + ${setupMin}min setup = ${horasCalculadas.toFixed(2)}h`;
+          isManual = false;
+        } else if (maquinaSelecionada && maquinaSelecionada.modo_producao === 'ML_H') {
+          disclaimer = 'Modo linear (ML/H) - implementação pendente';
+          isManual = false;
+        } else {
+          disclaimer = 'Horas inseridas manualmente';
+          isManual = true;
+        }
+
+        const fieldPath = `itens_produto.${itemIndex}.maquinas.${maquinaIndex}.horas_utilizadas`;
+        const horasFieldValue = useWatch<string>({ control: form.control, name: fieldPath });
+        const displayValue = isManual ? (horasFieldValue ?? '') : horasCalculadas.toFixed(2);
+        useEffect(() => {
+          if (!isManual && horasFieldValue !== displayValue) {
+            form.setValue(fieldPath, displayValue, { shouldDirty: true, shouldValidate: false });
           }
+        }, [displayValue, fieldPath, form, horasFieldValue, isManual]);
 
-          const areaM2 = toNumber(form.watch(`itens_produto.${itemIndex}.area_produto`)) || 0;
-          const qtd = toNumber(form.watch(`itens_produto.${itemIndex}.quantidade_produto`)) || 1;
-          const areaTotal = areaM2 * qtd;
-          
-          const velocidadeM2H = toNumber(maquinaSelecionada.velocidade_m2_h) || 0;
-          const eficienciaPercent = toNumber(maquinaSelecionada.eficiencia_percent) || 100;
-          const setupMin = toNumber(maquinaSelecionada.setup_min) || 0;
-          
-          const eficienciaDecimal = eficienciaPercent / 100;
-          const fatorEficiencia = 1 / Math.max(eficienciaDecimal, 0.05);
-          
-          let horasAuto = 0;
-          let disclaimerTexto = '';
-          let manual = true;
-
-          switch (maquinaSelecionada.modo_producao) {
-            case 'M2_H':
-              if (velocidadeM2H > 0 && areaTotal > 0) {
-                let velocidadeCorrigida = velocidadeM2H;
-                
-                // CORREÇÃO: Se velocidade for muito baixa (< 0.5), pode estar invertida
-                if (velocidadeM2H < 0.5) {
-                  velocidadeCorrigida = 1 / velocidadeM2H; // Inverter se necessário
-                  console.warn('⚠️ Velocidade muito baixa detectada, invertendo:', velocidadeM2H, '→', velocidadeCorrigida);
-                }
-                
-                const horasBase = areaTotal / velocidadeCorrigida; // área ÷ velocidade
-                const horasSetup = setupMin / 60;
-                horasAuto = (horasBase * fatorEficiencia) + horasSetup;
-                
-                // Validação final
-                if (horasAuto > 500) {
-                  console.warn('⚠️ Resultado muito alto para máquina, limitando a 100h');
-                  horasAuto = 100;
-                }
-                
-                // Debug detalhado do cálculo
-                console.log('🔍 Debug Máquina M2_H:', {
-                  maquinaNome: maquinaSelecionada.nome,
-                  areaM2,
-                  qtd,
-                  areaTotal,
-                  velocidadeM2H,
-                  setupMin,
-                  eficienciaPercent,
-                  fatorEficiencia,
-                  calculoDetalhado: {
-                    horasBase: `${areaTotal} ÷ ${velocidadeM2H} = ${horasBase}`,
-                    horasSetup: `${setupMin} ÷ 60 = ${horasSetup}`,
-                    calculoFinal: `(${horasBase} + ${horasSetup}) × ${fatorEficiencia} = ${horasAuto}`
-                  }
-                });
-                
-                disclaimerTexto = `(${areaTotal.toFixed(2)}m² ÷ ${velocidadeCorrigida.toFixed(2)}m²/h × ${fatorEficiencia.toFixed(2)} eficiência) + ${setupMin}min setup = ${horasAuto.toFixed(2)}h`;
-                manual = false;
-              }
-              break;
-              
-            case 'ML_H':
-              // TODO: Implementar cálculo para modo linear
-              disclaimerTexto = 'Modo linear (ML/H) - implementação pendente';
-              manual = false;
-              break;
-              
-            default: // MANUAL
-              disclaimerTexto = 'Horas inseridas manualmente';
-              manual = true;
-              break;
-          }
-
-          return { 
-            horasCalculadas: horasAuto, 
-            disclaimer: disclaimerTexto, 
-            isManual: manual 
-          };
-        }, [
-          maquinaSelecionada?.id, 
-          maquinaSelecionada?.modo_producao, 
-          maquinaSelecionada?.velocidade_m2_h, 
-          maquinaSelecionada?.eficiencia_percent,
-          maquinaSelecionada?.setup_min,
-          form.watch(`itens_produto.${itemIndex}.area_produto`), 
-          form.watch(`itens_produto.${itemIndex}.quantidade_produto`)
-        ]);
-
-        // Usar horas calculadas automaticamente ou horas manuais
-        const horasFinais = isManual ? horasUtilizadas : horasCalculadas;
+        const horasFinais = Number(displayValue) || 0;
         const custoCalculado = maquinaSelecionada ? converterValor(maquinaSelecionada.custo_hora) * horasFinais : 0;
-        
+
         return (
           <div key={maquinaIndex} className="space-y-4 mb-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
@@ -232,24 +174,23 @@ export function MaquinaSection({
               
               <FormField
                 control={form.control}
-                name={`itens_produto.${itemIndex}.maquinas.${maquinaIndex}.horas_utilizadas`}
+                name={fieldPath}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Horas Utilizadas</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="text" 
-                        placeholder={isManual ? "0.00" : horasCalculadas.toFixed(2)}
-                        value={isManual ? field.value : horasCalculadas.toFixed(2)}
+                      <Input
+                        type="text"
+                        placeholder={isManual ? '0.00' : displayValue}
+                        value={isManual ? field.value ?? '' : displayValue}
                         onChange={(e) => {
                           if (isManual) {
-                            // Permitir vírgula e ponto como separador decimal
                             const value = e.target.value.replace(/[^0-9,.-]/g, '');
                             field.onChange(value);
                           }
                         }}
                         readOnly={!isManual}
-                        className={!isManual ? "bg-muted" : ""}
+                        className={!isManual ? 'bg-muted' : ''}
                       />
                     </FormControl>
                     <FormMessage />

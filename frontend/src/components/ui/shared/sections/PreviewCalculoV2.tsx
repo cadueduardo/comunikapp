@@ -29,7 +29,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   let form: any = null;
   try {
     form = useFormContext();
-  } catch {
+    console.log('🔍 Debug - PreviewCalculoV2 - Contexto do formulário obtido:', !!form);
+  } catch (error) {
+    console.log('🔍 Debug - PreviewCalculoV2 - Erro ao obter contexto:', error);
     // Formulario nao disponivel - usar dados mockados
   }
 
@@ -502,7 +504,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         resultadoMotor.resumo &&
         Array.isArray(resultadoMotor.produtos)
       ) {
-        return {
+        const dadosProcessados = {
           ...resultadoMotor,
           metadata: {
             ...(resultadoMotor.metadata || {}),
@@ -513,6 +515,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
               resultadoOrcamento.tempo_execucao_ms ?? resultadoMotor.metadata?.tempo_execucao_ms ?? 0,
           },
         };
+        
+        // Dados processados com sucesso
+        return dadosProcessados;
       }
 
       console.debug('[PreviewCalculoV2] Estrutura do motor inesperada, usando fallback do formulario');
@@ -528,6 +533,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       const previewFormulario = montarPreviewFormulario(formData);
 
       if (previewFormulario) {
+        // Dados calculados localmente com sucesso
         return previewFormulario;
       }
 

@@ -7,7 +7,7 @@ import { ClientesModule } from './clientes/clientes.module';
 import { CategoriasModule } from './categorias/categorias.module';
 import { FornecedoresModule } from './fornecedores/fornecedores.module';
 import { InsumosModule } from './insumos/insumos.module';
-import { OrcamentosModule } from './orcamentos/orcamentos.module';
+// import { OrcamentosModule } from './orcamentos/orcamentos.module'; // LEGADO - mantido como referência
 import { NotificacoesModule } from './notificacoes/notificacoes.module';
 import { FuncoesModule } from './funcoes/funcoes.module';
 import { CustosIndiretosModule } from './custos-indiretos/custos-indiretos.module';
@@ -20,7 +20,8 @@ import { MensagensNegociacaoModule } from './mensagens-negociacao/mensagens-nego
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { WebsocketsModule } from './websockets/websockets.module';
 import { ServicosManuaisModule } from './servicos-manuais/servicos-manuais.module';
-// import { OrcamentosV2Module } from './orcamentos-v2/orcamentos-v2.module';  // Desabilitado até resolver schema
+import { OrcamentosV2Module } from './orcamentos-v2/orcamentos-v2.module'; // V2 ATIVO - substitui o legado
+// import { OrcamentosV2SimpleModule } from './orcamentos-v2-simple/orcamentos-v2-simple.module'; // Removido - V2 completo ativo
 import { MotorCalculoV2Module } from './motor-calculo-v2/motor-calculo-v2.module';
 import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
 
@@ -36,7 +37,7 @@ import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
     CategoriasModule,
     FornecedoresModule,
     InsumosModule,
-    OrcamentosModule,
+    // OrcamentosModule, // LEGADO - desabilitado
     NotificacoesModule,
     EstoqueModule,
     TiposMaterialModule,
@@ -49,7 +50,8 @@ import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
     UsuariosModule,
     WebsocketsModule,
     ServicosManuaisModule,
-    // OrcamentosV2Module,  // Temporariamente desabilitado até resolver schema
+    OrcamentosV2Module, // V2 ATIVO - substitui o legado
+    // OrcamentosV2SimpleModule, // Removido - V2 completo ativo
     MotorCalculoV2Module,
   ],
 })

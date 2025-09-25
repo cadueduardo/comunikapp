@@ -7,7 +7,11 @@ import {
   Param,
   Delete,
   UseGuards,
+  UploadedFile,
+  UseInterceptors,
+  Res,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { InsumosService } from './insumos.service';
 import { CreateInsumoDto } from './dto/create-insumo.dto';
 import { UpdateInsumoDto } from './dto/update-insumo.dto';
@@ -23,6 +27,23 @@ export class InsumosController {
   @Post()
   create(@Body() createInsumoDto: CreateInsumoDto, @GetLoja() loja: loja) {
     return this.insumosService.create(createInsumoDto, loja);
+  }
+
+  @Post('importar')
+  @UseInterceptors(FileInterceptor('file'))
+  importar(
+    @UploadedFile() file: Express.Multer.File,
+    @GetLoja() loja: loja,
+  ) {
+    return this.insumosService.importarExcel(file, loja);
+  }
+
+  @Get('template')
+  async baixarTemplate(@GetLoja() loja: loja, @Res() res: any) {
+    const { buffer, filename } = await this.insumosService.gerarTemplateImportacao(loja);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+    return res.send(buffer);
   }
 
   @Get()

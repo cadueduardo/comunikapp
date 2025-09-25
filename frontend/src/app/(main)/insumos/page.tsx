@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Grid3X3, List } from 'lucide-react';
+import { PlusCircle, Grid3X3, List, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Insumo, createColumns } from './columns';
@@ -11,12 +11,14 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { InsumoCard } from '@/components/ui/insumo-card';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { insumosApi } from '@/lib/api-client';
+import { BulkImportDialog } from '@/components/crud/BulkImportDialog';
 
 export default function InsumosPage() {
   const [data, setData] = useState<Insumo[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const isMobile = useIsMobile();
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
     insumoId: string | null;
@@ -41,6 +43,26 @@ export default function InsumosPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownloadTemplate = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('Você precisa estar autenticado para baixar o template.');
+    }
+    await insumosApi.downloadTemplate(token);
+    toast.success('Template baixado com sucesso!');
+  };
+
+  const handleImportFile = async (file: File) => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('Você precisa estar autenticado para importar.');
+    }
+    const result = await insumosApi.importar(file, token);
+    toast.success('Importação finalizada. Verifique os resultados.');
+    await fetchInsumos();
+    return result;
   };
 
   const handleDelete = async (id: string) => {
@@ -121,6 +143,10 @@ export default function InsumosPage() {
               Adicionar Insumo
             </Button>
           </Link>
+          <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Importar Excel
+          </Button>
         </div>
       </div>
 
@@ -153,6 +179,15 @@ export default function InsumosPage() {
         cancelText="Cancelar"
         onConfirm={confirmDelete}
         onCancel={closeDeleteDialog}
+      />
+
+      <BulkImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        title="Importar insumos via Excel"
+        description="Selecione o arquivo Excel seguindo o template padrão para cadastrar insumos em massa."
+        downloadTemplate={handleDownloadTemplate}
+        onImport={handleImportFile}
       />
     </div>
   );

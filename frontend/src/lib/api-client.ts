@@ -1,5 +1,35 @@
 import { buildApiUrl, getAuthHeaders } from './config';
 
+async function buildErrorMessage(response: Response): Promise<string> {
+  const baseMessage = `HTTP error! status: ${response.status}`;
+
+  try {
+    const data = await response.clone().json();
+
+    if (!data) {
+      return baseMessage;
+    }
+
+    if (typeof data === 'string') {
+      return `${baseMessage} - ${data}`;
+    }
+
+    const message = data.message || data.error || data.title;
+
+    if (!message) {
+      return baseMessage;
+    }
+
+    if (Array.isArray(message)) {
+      return `${baseMessage} - ${message.join(' | ')}`;
+    }
+
+    return `${baseMessage} - ${message}`;
+  } catch (error) {
+    return baseMessage;
+  }
+}
+
 // Cliente HTTP centralizado para todas as chamadas de API
 export class ApiClient {
   // GET request
@@ -15,17 +45,7 @@ export class ApiClient {
       });
       
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error(`HTTP error! status: ${response.status} - Unauthorized`);
-        } else if (response.status === 403) {
-          throw new Error(`HTTP error! status: ${response.status} - Forbidden`);
-        } else if (response.status === 404) {
-          throw new Error(`HTTP error! status: ${response.status} - Not Found`);
-        } else if (response.status >= 500) {
-          throw new Error(`HTTP error! status: ${response.status} - Server Error`);
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(await buildErrorMessage(response));
       }
       
       return response.json();
@@ -38,18 +58,23 @@ export class ApiClient {
   }
   
   // POST request
-  static async post<T>(endpoint: string, data: Record<string, unknown>, token?: string): Promise<T> {
+  static async post<T>(endpoint: string, data: Record<string, unknown> | FormData, token?: string): Promise<T> {
     const url = buildApiUrl(endpoint);
     const headers = getAuthHeaders(token);
+    const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
+    const requestHeaders = isFormData ? { ...headers } : headers;
+    if (isFormData) {
+      delete requestHeaders['Content-Type'];
+    }
     
     const response = await fetch(url, {
       method: 'POST',
-      headers,
-      body: JSON.stringify(data),
+      headers: requestHeaders,
+      body: isFormData ? data : JSON.stringify(data),
     });
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(await buildErrorMessage(response));
     }
     
     return response.json();
@@ -67,7 +92,7 @@ export class ApiClient {
     });
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(await buildErrorMessage(response));
     }
     
     return response.json();
@@ -84,7 +109,7 @@ export class ApiClient {
     });
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(await buildErrorMessage(response));
     }
     
     return response.json();
@@ -102,7 +127,7 @@ export class ApiClient {
     });
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(await buildErrorMessage(response));
     }
     
     return response.json();
@@ -144,8 +169,32 @@ export const insumosApi = {
   getAll: (token: string) => ApiClient.get('/insumos', token),
   getById: (id: string, token: string) => ApiClient.get(`/insumos/${id}`, token),
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/insumos', data, token),
-  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/insumos/${id}`, data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/insumos/${id}`, data, token),
   delete: (id: string, token: string) => ApiClient.delete(`/insumos/${id}`, token),
+  importar: (file: File, token: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return ApiClient.post('/insumos/importar', formData, token);
+  },
+  downloadTemplate: async (token: string) => {
+    const url = buildApiUrl('/insumos/template');
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getAuthHeaders(token),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = 'template-importacao-insumos.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+  },
 };
 
 export const estoqueApi = {
@@ -204,7 +253,7 @@ export const orcamentosApi = {
     getAll: (token: string) => ApiClient.get('/orcamentos-v2', token),
     getById: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}`, token),
     create: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos-v2', data, token),
-    update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/orcamentos-v2/${id}`, data, token),
+    update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/orcamentos-v2/${id}`, data, token),
     delete: (id: string, token: string) => ApiClient.delete(`/orcamentos-v2/${id}`, token),
     
     // Cálculo via Motor V2

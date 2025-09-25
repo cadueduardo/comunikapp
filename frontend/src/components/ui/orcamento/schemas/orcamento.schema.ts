@@ -2,6 +2,9 @@ import { z } from 'zod';
 
 export const createFormSchema = (mode: 'novo' | 'editar' | 'template') => z.object({
   cliente_id: mode === 'template' ? z.string().optional() : z.string().min(1, 'Selecione um cliente'),
+  titulo: mode === 'template'
+    ? z.string().optional()
+    : z.string().min(3, 'Informe um título com pelo menos 3 caracteres'),
   // Configurações globais
   margem_lucro_customizada: z.string().optional(),
   impostos_customizados: z.string().optional(),

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
@@ -12,7 +12,9 @@ import { Save } from 'lucide-react';
 import { orcamentosApi } from '@/lib/api-client';
 import { createFormSchema, FormValues } from '../orcamento/schemas/orcamento.schema';
 import { useOrcamentoData } from '../orcamento/hooks/useOrcamentoData';
-import { ClienteSection, ProdutoSection, ConfiguracoesSection } from '../orcamento/components';
+import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
+import { calcularProdutosPreview } from '../shared/utils/preview-calculo.helpers';
+import { ClienteSection, ProdutoSection, ConfiguracoesSection, TituloOrcamentoSection } from '../orcamento/components';
 import { PreviewCalculoV2 } from '../shared/sections';
 
 import { ProdutoSelectionModal } from '../../../app/(main)/produtos/components/produto-selection-modal';
@@ -35,16 +37,52 @@ export function OrcamentoV2Form({
   showPreview = false,
   orcamentoStatus 
 }: OrcamentoFormProps) {
+  // Forçar hot reload - versão atualizada
   const router = useRouter();
   const [loading] = useState(false);
   const [showProdutoModal, setShowProdutoModal] = useState(false);
   const [selectedProdutoIndex, setSelectedProdutoIndex] = useState<number>(0);
   const { clientes, insumos, maquinas, funcoes, servicos } = useOrcamentoData();
+  
+  // Hook para WebSocket - capturar dados calculados do preview
+  const { resultadoOrcamento, isConnected } = useCalculoWebSocket();
+  
+  // Estado para armazenar dados calculados localmente
+  const [dadosCalculadosLocais, setDadosCalculadosLocais] = useState<any>(null);
+  
+  // Função para calcular dados localmente quando WebSocket não estiver disponível
+  const calcularDadosLocalmente = (formData: FormValues) => {
+    try {
+      const itensFormulario = Array.isArray(formData?.itens_produto) ? formData.itens_produto : [];
+      if (itensFormulario.length === 0) {
+        return null;
+      }
+
+      const custosIndiretosPercentual = 15; // Valor padrão
+      const margemPercentual = parseFloat(formData?.margem_lucro_customizada || '30');
+      const impostosPercentual = parseFloat(formData?.impostos_customizados || '18');
+      const comissaoPercentual = parseFloat(formData?.comissao_percentual || '5');
+
+      const previewCalculado = calcularProdutosPreview(
+        itensFormulario,
+        { insumos, maquinas, funcoes, servicos, custosIndiretos: [] },
+        custosIndiretosPercentual,
+        margemPercentual,
+        impostosPercentual,
+      );
+
+      return previewCalculado;
+    } catch (error) {
+      console.error('Erro ao calcular dados localmente:', error);
+      return null;
+    }
+  };
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createFormSchema(mode)),
     defaultValues: {
       cliente_id: '',
+      titulo: '',
       margem_lucro_customizada: '30',
       impostos_customizados: '25',
       condicoes_comerciais: '',
@@ -70,17 +108,49 @@ export function OrcamentoV2Form({
       ],
     },
   });
+  
+  // Função para calcular dados quando necessário (sem useEffect)
+  const calcularDadosQuandoNecessario = () => {
+    const formData = form.getValues();
+    console.log('🔍 Debug - FormData para cálculo:', formData);
+    console.log('🔍 Debug - Insumos disponíveis:', insumos.length);
+    console.log('🔍 Debug - Máquinas disponíveis:', maquinas.length);
+    console.log('🔍 Debug - Funções disponíveis:', funcoes.length);
+    console.log('🔍 Debug - Serviços disponíveis:', servicos.length);
+    
+    if (formData.itens_produto && formData.itens_produto.length > 0) {
+      const calculoLocal = calcularDadosLocalmente(formData);
+      console.log('🔍 Debug - Resultado do cálculo local:', calculoLocal);
+      if (calculoLocal) {
+        setDadosCalculadosLocais(calculoLocal);
+        return calculoLocal;
+      }
+    }
+    return null;
+  };
+
+  // Debug: verificar props recebidas
+  useEffect(() => {
+    console.log('🔍 Debug - OrcamentoForm - Props recebidas:', {
+      mode,
+      hasInitialData: !!initialData,
+      orcamentoId,
+      orcamentoStatus
+    });
+  }, [mode, initialData, orcamentoId, orcamentoStatus]);
 
   // Carregar dados iniciais se for edição
   useEffect(() => {
     if (mode === 'editar' && initialData) {
-      console.log('🔍 Debug - OrcamentoForm - Dados recebidos para reset:', initialData);
-      console.log('🔍 Debug - OrcamentoForm - Cliente ID recebido:', initialData.cliente_id);
-      console.log('🔍 Debug - OrcamentoForm - Estrutura completa dos dados:', JSON.stringify(initialData, null, 2));
+      // Debug logs removidos para limpar terminal
+      // console.log('🔍 Debug - OrcamentoForm - Dados recebidos para reset:', initialData);
+      // console.log('🔍 Debug - OrcamentoForm - Cliente ID recebido:', initialData.cliente_id);
+      // console.log('🔍 Debug - OrcamentoForm - Estrutura completa dos dados:', JSON.stringify(initialData, null, 2));
       
       // Verificar se os dados estão no formato esperado pelo formulário
       const dadosFormatados = {
         cliente_id: String(initialData.cliente_id || ''),
+        titulo: String(initialData.titulo || ''),
         margem_lucro_customizada: String(initialData.margem_lucro_customizada || '30'),
         impostos_customizados: String(initialData.impostos_customizados || '25'),
         condicoes_comerciais: String(initialData.condicoes_comerciais || ''),
@@ -104,8 +174,20 @@ export function OrcamentoV2Form({
         ],
       };
       
-      console.log('🔍 Debug - OrcamentoForm - Dados formatados para o form:', dadosFormatados);
-      form.reset(dadosFormatados);
+      // Debug logs removidos para limpar terminal
+      // console.log('🔍 Debug - OrcamentoForm - Dados formatados para o form:', dadosFormatados);
+      
+      // Tentar reset com delay para garantir que o formulário esteja pronto
+      setTimeout(() => {
+        // console.log('🔍 Debug - OrcamentoForm - Executando reset com delay...');
+        form.reset(dadosFormatados);
+        
+        // Verificar se os valores foram aplicados
+        setTimeout(() => {
+          // const currentValues = form.getValues();
+          // console.log('🔍 Debug - OrcamentoForm - Valores atuais do form após reset:', currentValues);
+        }, 50);
+      }, 100);
     }
   }, [mode, initialData, form]);
 
@@ -119,61 +201,227 @@ export function OrcamentoV2Form({
   }, [mode, orcamentoStatus, initialData]);
 
   // Função auxiliar para transformar dados do frontend para o formato do backend
-  const transformarDadosParaBackend = (data: FormValues) => {
-    // Validar se há dados válidos
-    if (!data.itens_produto || data.itens_produto.length === 0) {
-      throw new Error('Nenhum produto foi adicionado ao orçamento');
-    }
+  const transformarDadosParaBackend = (data: FormValues, dadosCalculados?: any) => {
+    const itensProduto = (Array.isArray(data.itens_produto) ? data.itens_produto : []).filter(
+      (produto): produto is FormValues['itens_produto'][number] => Boolean(produto)
+    );
 
-    // Verificar se o primeiro produto tem materiais
-    const primeiroProduto = data.itens_produto[0];
-    if (!primeiroProduto.materiais || primeiroProduto.materiais.length === 0) {
-      throw new Error('O primeiro produto deve ter pelo menos um material');
-    }
+    const normalizarNumero = (valor: unknown): number => {
+      if (typeof valor === 'number') return valor;
+      if (typeof valor === 'string') {
+        const cleaned = valor.replace(/[^0-9,.-]/g, '').replace(',', '.');
+        const parsed = Number(cleaned);
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+      if (valor && typeof (valor as any).toString === 'function') {
+        const parsed = Number((valor as any).toString().replace(',', '.'));
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+      return 0;
+    };
+
+    const produtosTransformados = itensProduto.map((produto, index) => {
+      const quantidade = Math.max(normalizarNumero(produto.quantidade_produto) || 1, 1);
+      const largura = normalizarNumero(produto.largura_produto);
+      const altura = normalizarNumero(produto.altura_produto);
+      const area = normalizarNumero(produto.area_produto);
+
+      const nomeProduto = produto.nome_servico?.trim() || `Produto ${index + 1}`;
+
+      const produtoTransformado = {
+        nome_servico: nomeProduto,
+        nome: nomeProduto,
+        descricao: produto.descricao || '',
+        quantidade,
+        unidade: produto.unidade_medida_produto?.trim() || 'un',
+        unidade_medida: produto.unidade_medida_produto?.trim() || 'un',
+        observacoes: (produto as any)?.observacoes,
+        largura,
+        altura,
+        area,
+        insumos: Array.isArray(produto.materiais)
+          ? (produto.materiais || [])
+            .filter((material) => material?.insumo_id)
+            .map((material) => ({
+              insumo_id: material.insumo_id,
+              quantidade: normalizarNumero(material.quantidade),
+              unidade: (material as any)?.unidade || undefined,
+              preco_unitario: 0,
+              preco_total: 0,
+            }))
+          : undefined,
+        maquinas: Array.isArray(produto.maquinas)
+          ? (produto.maquinas || [])
+            .filter((maquina) => maquina?.maquina_id)
+            .map((maquina) => ({
+              maquina_id: maquina.maquina_id,
+              tempo_horas: normalizarNumero(maquina.horas_utilizadas),
+              custo_hora: 0,
+              custo_total: 0,
+            }))
+          : undefined,
+        funcoes: Array.isArray(produto.funcoes)
+          ? (produto.funcoes || [])
+            .filter((funcao) => funcao?.funcao_id)
+            .map((funcao) => ({
+              funcao_id: funcao.funcao_id,
+              tempo_horas: normalizarNumero(funcao.horas_trabalhadas),
+              custo_hora: 0,
+              custo_total: 0,
+            }))
+          : undefined,
+        servicos_manuais: Array.isArray(produto.servicos)
+          ? (produto.servicos || [])
+            .filter((servico) => servico?.servico_id)
+            .map((servico) => ({
+              servico_id: servico.servico_id,
+              tempo_horas: normalizarNumero(servico.horas_trabalhadas),
+              custo_hora: 0,
+              custo_total: 0,
+            }))
+          : undefined,
+        custos_indiretos: undefined,
+        custo_total_producao: 0,
+        preco_unitario: 0,
+        preco_total: 0,
+        margem_lucro: 0,
+        impostos: 0,
+      };
+
+      if (produtoTransformado.insumos && produtoTransformado.insumos.length === 0) {
+        delete produtoTransformado.insumos;
+      }
+      if (produtoTransformado.maquinas && produtoTransformado.maquinas.length === 0) {
+        delete produtoTransformado.maquinas;
+      }
+      if (produtoTransformado.funcoes && produtoTransformado.funcoes.length === 0) {
+        delete produtoTransformado.funcoes;
+      }
+      if (produtoTransformado.servicos_manuais && produtoTransformado.servicos_manuais.length === 0) {
+        delete produtoTransformado.servicos_manuais;
+      }
+
+      return produtoTransformado;
+    });
+
+    const primeiroProdutoTransformado = produtosTransformados[0];
+
+    // Determinar valores principais baseados nos dados do formulário
+    const primeiroProduto = data.itens_produto?.[0];
+    const nomeServicoPrincipal = primeiroProduto?.nome_servico?.trim() || data.titulo?.trim() || 'Orçamento sem nome';
+    const descricaoPrincipal = primeiroProduto?.descricao?.trim() || '';
+    const tituloPrincipal = data.titulo?.trim() || nomeServicoPrincipal;
+
+    const tipoOrcamento = 'produto_servico';
+
+    // Debug: verificar estrutura dos dados calculados
+    console.log('🔍 Debug - Estrutura dos dados calculados:', dadosCalculados);
+    console.log('🔍 Debug - Totais dos dados calculados:', dadosCalculados?.totais);
+    console.log('🔍 Debug - Dados calculados existe?', !!dadosCalculados);
+    
+    const custoMaterial = dadosCalculados?.totais?.materiais || 0;
+    const custoMaquinas = dadosCalculados?.totais?.maquinas || 0;
+    const custoFuncoes = dadosCalculados?.totais?.funcoes || 0;
+    const custoServicos = dadosCalculados?.totais?.servicos || 0;
+    const custoIndiretos = dadosCalculados?.totais?.indiretos || 0;
+    const custoMaoObra = custoMaquinas + custoFuncoes + custoServicos;
+    const custoTotal = custoMaterial + custoMaoObra + custoIndiretos;
+    
+    // Calcular preço final com margem, impostos e comissão
+    const margemPercentual = parseFloat(data?.margem_lucro_customizada || '30');
+    const impostosPercentual = parseFloat(data?.impostos_customizados || '25');
+    const comissaoPercentual = parseFloat(data?.comissao_percentual || '5');
+    
+    console.log('🔍 Debug - Percentuais do formulário:', {
+      margem_lucro_customizada: data?.margem_lucro_customizada,
+      impostos_customizados: data?.impostos_customizados,
+      comissao_percentual: data?.comissao_percentual,
+      margemPercentual,
+      impostosPercentual,
+      comissaoPercentual
+    });
+    
+    // Fórmula: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
+    const percentualMargemDecimal = margemPercentual / 100;
+    const percentualImpostosDecimal = impostosPercentual / 100;
+    const percentualComissaoDecimal = comissaoPercentual / 100;
+    const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
+    
+    console.log('🔍 Debug - Cálculo de percentuais:', {
+      percentualMargemDecimal,
+      percentualImpostosDecimal,
+      percentualComissaoDecimal,
+      divisor
+    });
+    
+    const precoFinal = divisor > 0 ? custoTotal / divisor : custoTotal;
+    const margemLucro = precoFinal * percentualMargemDecimal;
+    const impostos = precoFinal * percentualImpostosDecimal;
+    const comissao = precoFinal * percentualComissaoDecimal;
+    
+    console.log('🔍 Debug - Cálculo de preço final:', {
+      custoTotal,
+      margemPercentual,
+      impostosPercentual,
+      comissaoPercentual,
+      precoFinal,
+      margemLucro,
+      impostos,
+      comissao
+    });
+    
+    console.log('🔍 Debug - Custos calculados:', {
+      custoMaterial,
+      custoMaquinas,
+      custoFuncoes,
+      custoServicos,
+      custoIndiretos,
+      custoMaoObra,
+      custoTotal,
+      margemLucro,
+      impostos,
+      comissao,
+      precoFinal
+    });
 
     const dadosTransformados = {
-      nome_servico: primeiroProduto.nome_servico || 'Orçamento',
-      descricao: primeiroProduto.descricao || '',
-      horas_producao: 1, // Valor padrão
-      itens: data.itens_produto.flatMap(produto => 
-        produto.materiais?.map(material => ({
-          insumo_id: material.insumo_id,
-          quantidade: Number(material.quantidade.replace(',', '.'))
-        })) || []
-      ),
-      maquinas: data.itens_produto.flatMap(produto => 
-        produto.maquinas?.map(maquina => ({
-          maquina_id: maquina.maquina_id,
-          horas_utilizadas: Number(maquina.horas_utilizadas.replace(',', '.'))
-        })) || []
-      ),
-      funcoes: data.itens_produto.flatMap(produto => 
-        produto.funcoes?.map(funcao => ({
-          funcao_id: funcao.funcao_id,
-          horas_trabalhadas: Number(funcao.horas_trabalhadas.replace(',', '.'))
-        })) || []
-      ),
+      titulo: tituloPrincipal,
+      nome_servico: nomeServicoPrincipal,
+      descricao: descricaoPrincipal,
       cliente_id: data.cliente_id,
       condicoes_comerciais: data.condicoes_comerciais,
       prazo_entrega: data.prazo_entrega,
       forma_pagamento: data.forma_pagamento,
       validade_proposta: data.validade_proposta,
       atendente: data.atendente,
-      margem_lucro_customizada: data.margem_lucro_customizada ? Number(data.margem_lucro_customizada.replace(',', '.')) : undefined,
-      impostos_customizados: data.impostos_customizados ? Number(data.impostos_customizados.replace(',', '.')) : undefined,
-      comissao_percentual: data.comissao_percentual ? Number(data.comissao_percentual.replace(',', '.')) : undefined,
-      largura_produto: primeiroProduto.largura_produto ? Number(primeiroProduto.largura_produto.replace(',', '.')) : undefined,
-      altura_produto: primeiroProduto.altura_produto ? Number(primeiroProduto.altura_produto.replace(',', '.')) : undefined,
-      area_produto: primeiroProduto.area_produto ? Number(primeiroProduto.area_produto.replace(',', '.')) : undefined,
-      unidade_medida_produto: primeiroProduto.unidade_medida_produto,
-      quantidade_produto: primeiroProduto.quantidade_produto ? Number(primeiroProduto.quantidade_produto.replace(',', '.')) : 1
+      tipo: tipoOrcamento,
+      tipo_orcamento: tipoOrcamento,
+      horas_producao: produtosTransformados.reduce((total, produto) => {
+        const horasMaquinas = (produto.maquinas || []).reduce((acc, maquina) => acc + (maquina.tempo_horas || 0), 0);
+        const horasFuncoes = (produto.funcoes || []).reduce((acc, funcao) => acc + (funcao.tempo_horas || 0), 0);
+        const horasServicos = (produto.servicos_manuais || []).reduce((acc, servico) => acc + (servico.tempo_horas || 0), 0);
+        return total + horasMaquinas + horasFuncoes + horasServicos;
+      }, 0),
+      // Usar dados calculados do preview se disponíveis, senão usar zeros
+      custo_material: custoMaterial,
+      custo_mao_obra: custoMaoObra,
+      custo_indireto: custoIndiretos,
+      custo_total: custoTotal,
+      margem_lucro: margemLucro,
+      impostos: impostos,
+      preco_final: precoFinal,
+      produtos: produtosTransformados,
+      largura_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.largura : undefined,
+      altura_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.altura : undefined,
+      area_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.area : undefined,
+      unidade_medida_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.unidade : undefined,
+      quantidade_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.quantidade : undefined,
     };
 
-    // Log detalhado para debug
-    console.log('🔍 Debug - Dados originais do form:', data.itens_produto);
-    console.log('🔍 Debug - Dados transformados:', dadosTransformados);
-    console.log('🔍 Debug - Itens transformados:', dadosTransformados.itens);
-    console.log('🔍 Debug - Quantidades:', dadosTransformados.itens.map(item => item.quantidade));
+    // Log detalhado removido para limpar terminal
+    // console.log('🔍 Debug - Dados originais do form:', data.itens_produto);
+    // console.log('🔍 Debug - Dados transformados:', dadosTransformados);
+    // console.log('🔍 Debug - Produtos transformados:', dadosTransformados.produtos);
 
     return dadosTransformados;
   };
@@ -198,7 +446,20 @@ export function OrcamentoV2Form({
         return;
       }
 
-      const dadosTransformados = transformarDadosParaBackend(data);
+      // Capturar dados calculados do preview se disponíveis
+      let dadosCalculados = dadosCalculadosLocais || resultadoOrcamento?.resultado;
+      
+      // Se não há dados do preview, calcular localmente
+      if (!dadosCalculados) {
+        console.log('🔍 Debug - Sem dados do preview, calculando localmente...');
+        const calculoLocal = calcularDadosLocalmente(data);
+        if (calculoLocal) {
+          dadosCalculados = calculoLocal;
+          console.log('🔍 Debug - Dados calculados localmente:', dadosCalculados);
+        }
+      }
+      
+      const dadosTransformados = transformarDadosParaBackend(data, dadosCalculados);
       console.log('🔍 Dados transformados para backend:', dadosTransformados);
 
       if (mode === 'editar' && orcamentoId) {
@@ -244,19 +505,49 @@ export function OrcamentoV2Form({
         return;
       }
 
-      const dadosTransformados = transformarDadosParaBackend(formData);
+      // Calcular dados no momento do salvamento
+      console.log('🔍 Debug - Calculando dados para salvamento...');
+      const dadosCalculados = calcularDadosQuandoNecessario() || resultadoOrcamento?.resultado;
+      
+      if (dadosCalculados) {
+        console.log('🔍 Debug - Dados calculados para salvamento:', dadosCalculados);
+      } else {
+        console.log('🔍 Debug - Nenhum dado calculado disponível');
+      }
+      
+      const dadosTransformados = transformarDadosParaBackend(formData, dadosCalculados);
       
       console.log('🔍 Dados transformados para backend (rascunho):', dadosTransformados);
+      console.log('🔍 Debug - Valores específicos enviados:', {
+        preco_final: dadosTransformados.preco_final,
+        margem_lucro: dadosTransformados.margem_lucro,
+        impostos: dadosTransformados.impostos,
+        custo_total: dadosTransformados.custo_total
+      });
       
       // Se for edição, usar update; se for criação, usar salvarRascunho
       if (mode === 'editar' && orcamentoId) {
         console.log('🔍 Debug - Editando rascunho existente com ID:', orcamentoId);
-        await orcamentosApi.update(orcamentoId, dadosTransformados, token);
-        toast.success('Rascunho atualizado com sucesso!');
+        console.log('🔍 Debug - Fazendo requisição para API...');
+        try {
+          const resultado = await orcamentosApi.v2.update(orcamentoId, dadosTransformados, token);
+          console.log('🔍 Debug - Resposta da API:', resultado);
+          toast.success('Rascunho atualizado com sucesso!');
+        } catch (error) {
+          console.error('🔍 Debug - Erro na API:', error);
+          throw error;
+        }
       } else {
         console.log('🔍 Debug - Criando novo rascunho');
-        await orcamentosApi.salvarRascunho(dadosTransformados, token);
-        toast.success('Rascunho salvo com sucesso!');
+        console.log('🔍 Debug - Fazendo requisição para API...');
+        try {
+          const resultado = await orcamentosApi.v2.create(dadosTransformados, token);
+          console.log('🔍 Debug - Resposta da API:', resultado);
+          toast.success('Rascunho salvo com sucesso!');
+        } catch (error) {
+          console.error('🔍 Debug - Erro na API:', error);
+          throw error;
+        }
       }
       
       // Redirecionar para o grid de orçamentos após salvar rascunho
@@ -295,7 +586,20 @@ export function OrcamentoV2Form({
         return;
       }
 
-      const dadosTransformados = transformarDadosParaBackend(formData);
+      // Capturar dados calculados do preview se disponíveis
+      let dadosCalculados = dadosCalculadosLocais || resultadoOrcamento?.resultado;
+      
+      // Se não há dados do preview, calcular localmente
+      if (!dadosCalculados) {
+        console.log('🔍 Debug - Sem dados do preview, calculando localmente...');
+        const calculoLocal = calcularDadosLocalmente(formData);
+        if (calculoLocal) {
+          dadosCalculados = calculoLocal;
+          console.log('🔍 Debug - Dados calculados localmente:', dadosCalculados);
+        }
+      }
+      
+      const dadosTransformados = transformarDadosParaBackend(formData, dadosCalculados);
       
       console.log('🔍 Dados transformados para backend (enviar):', dadosTransformados);
       
@@ -412,6 +716,11 @@ export function OrcamentoV2Form({
 
                   <Separator />
 
+                  {/* Título do Orçamento */}
+                  <TituloOrcamentoSection modo={mode} />
+
+                  <Separator />
+
                   {/* Seção de Produtos */}
                   <ProdutoSection 
                     mode={mode}
@@ -429,14 +738,92 @@ export function OrcamentoV2Form({
 
                   {/* Botões de Ação */}
                   <div className="flex justify-end space-x-4">
-                    <Button 
-                      type="button" 
-                      onClick={() => handleSubmit(form.getValues())}
-                      disabled={loading}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => router.back()}
                     >
-                      <Save className="w-4 h-4 mr-2" />
-                      Salvar Orçamento
+                      Cancelar
                     </Button>
+                    
+                    {mode === 'template' && (
+                      <Button
+                        type="button"
+                        onClick={() => handleSubmit(form.getValues())}
+                        disabled={loading}
+                        className="flex items-center space-x-2"
+                      >
+                        <Save className="w-4 h-4" />
+                        <span>
+                          {loading ? 'Salvando...' : 'Criar Produto Template'}
+                        </span>
+                      </Button>
+                    )}
+                    
+                    {mode === 'novo' && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleSalvarRascunho()}
+                          disabled={loading}
+                          className="flex items-center space-x-2"
+                        >
+                          <Save className="w-4 h-4" />
+                          <span>{loading ? 'Salvando...' : 'Salvar Rascunho'}</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => handleEnviar()}
+                          disabled={loading}
+                          className="flex items-center space-x-2"
+                        >
+                          <Save className="w-4 h-4" />
+                          <span>{loading ? 'Enviando...' : 'Enviar Orçamento'}</span>
+                        </Button>
+                      </>
+                    )}
+                    
+                    {mode === 'editar' && (
+                      <>
+                        {(() => {
+                          console.log('🔍 Debug - Status:', orcamentoStatus);
+                          return orcamentoStatus === 'rascunho' ? (
+                            <>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => handleSalvarRascunho()}
+                                disabled={loading}
+                                className="flex items-center space-x-2"
+                              >
+                                <Save className="w-4 h-4" />
+                                <span>{loading ? 'Salvando...' : 'Salvar como Rascunho'}</span>
+                              </Button>
+                              <Button
+                                type="button"
+                                onClick={() => handleEnviar()}
+                                disabled={loading}
+                                className="flex items-center space-x-2"
+                              >
+                                <Save className="w-4 h-4" />
+                                <span>{loading ? 'Enviar para Cliente' : 'Enviar para Cliente'}</span>
+                              </Button>
+                            </>
+                          ) : (
+                            <Button
+                              type="button"
+                              onClick={() => handleSubmit(form.getValues())}
+                              disabled={loading}
+                              className="flex items-center space-x-2"
+                            >
+                              <Save className="w-4 h-4" />
+                              <span>{loading ? 'Atualizando...' : 'Atualizar Orçamento'}</span>
+                            </Button>
+                          );
+                        })()}
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

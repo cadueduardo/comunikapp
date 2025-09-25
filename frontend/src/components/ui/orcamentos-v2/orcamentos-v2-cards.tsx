@@ -6,66 +6,63 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, Edit, Trash2, Search, Filter, Calendar, User, DollarSign } from 'lucide-react';
-
-// Dados mockados para demonstração
-const mockOrcamentos = [
-  {
-    id: '1',
-    numero: 'ORC-2024-001',
-    nome_servico: 'Banner Promocional',
-    cliente: 'Empresa ABC Ltda',
-    status: 'PENDENTE',
-    valor_total: 14658.00,
-    data_criacao: '2024-01-15',
-    atendente: 'João Silva',
-    descricao: 'Banner promocional para campanha de marketing',
-  },
-  {
-    id: '2',
-    numero: 'ORC-2024-002',
-    nome_servico: 'Painel ACM',
-    cliente: 'Loja XYZ',
-    status: 'APROVADO',
-    valor_total: 8500.00,
-    data_criacao: '2024-01-14',
-    atendente: 'Maria Santos',
-    descricao: 'Painel ACM com impressão personalizada',
-  },
-  {
-    id: '3',
-    numero: 'ORC-2024-003',
-    nome_servico: 'Expositor PDV',
-    cliente: 'Supermercado Central',
-    status: 'EM_NEGOCIACAO',
-    valor_total: 3200.00,
-    data_criacao: '2024-01-13',
-    atendente: 'Pedro Costa',
-    descricao: 'Expositor para ponto de venda',
-  },
-];
+import { Eye, Edit, Trash2, Search, Filter, Calendar, User, DollarSign, Loader2 } from 'lucide-react';
+import { useOrcamentosV2 } from './hooks/useOrcamentosV2';
 
 const statusColors = {
   PENDENTE: 'bg-yellow-100 text-yellow-800',
   APROVADO: 'bg-green-100 text-green-800',
   REJEITADO: 'bg-red-100 text-red-800',
   EM_NEGOCIACAO: 'bg-blue-100 text-blue-800',
+  NEGOCIANDO: 'bg-blue-100 text-blue-800',
   CONCLUIDO: 'bg-gray-100 text-gray-800',
+  rascunho: 'bg-gray-100 text-gray-800',
+  enviado: 'bg-blue-100 text-blue-800',
 };
 
 export function OrcamentosV2Cards() {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('');
+  
+  // Usar hook para buscar dados reais do backend
+  const { orcamentos, loading, error, refetch } = useOrcamentosV2();
 
-  const filteredOrcamentos = mockOrcamentos.filter(orcamento => {
+  const filteredOrcamentos = orcamentos.filter(orcamento => {
     const matchesSearch = orcamento.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          orcamento.nome_servico.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         orcamento.cliente.toLowerCase().includes(searchTerm.toLowerCase());
+                         (orcamento.cliente?.nome && orcamento.cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = !statusFilter || orcamento.status === statusFilter;
     
     return matchesSearch && matchesStatus;
   });
+
+  // Mostrar loading
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Carregando orçamentos...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar erro
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+        <div className="text-red-600 text-center">
+          <div className="text-lg font-medium">Erro ao carregar orçamentos</div>
+          <div className="text-sm text-gray-600 mt-1">{error}</div>
+        </div>
+        <Button onClick={refetch} variant="outline">
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -93,11 +90,13 @@ export function OrcamentosV2Cards() {
                 <SelectValue placeholder="Filtrar por status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todos">Todos os status</SelectItem>
+                <SelectItem value="">Todos os status</SelectItem>
+                <SelectItem value="rascunho">Rascunho</SelectItem>
+                <SelectItem value="enviado">Enviado</SelectItem>
                 <SelectItem value="PENDENTE">Pendente</SelectItem>
                 <SelectItem value="APROVADO">Aprovado</SelectItem>
                 <SelectItem value="REJEITADO">Rejeitado</SelectItem>
-                <SelectItem value="EM_NEGOCIACAO">Em Negociação</SelectItem>
+                <SelectItem value="NEGOCIANDO">Negociando</SelectItem>
                 <SelectItem value="CONCLUIDO">Concluído</SelectItem>
               </SelectContent>
             </Select>
@@ -117,8 +116,11 @@ export function OrcamentosV2Cards() {
                     <Badge variant="outline" className="text-xs">
                       {orcamento.numero}
                     </Badge>
-                    <Badge className={statusColors[orcamento.status as keyof typeof statusColors]}>
-                      {orcamento.status.replace('_', ' ')}
+                    <Badge className={statusColors[orcamento.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}>
+                      {orcamento.status === 'rascunho' ? 'Rascunho' : 
+                       orcamento.status === 'enviado' ? 'Enviado' :
+                       orcamento.status === 'NEGOCIANDO' ? 'Negociando' :
+                       orcamento.status?.replace('_', ' ') || 'Sem status'}
                     </Badge>
                   </div>
                 </div>
@@ -135,20 +137,20 @@ export function OrcamentosV2Cards() {
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-700">{orcamento.cliente}</span>
+                  <span className="text-gray-700">{orcamento.cliente?.nome || 'Cliente não informado'}</span>
                 </div>
                 
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-gray-400" />
                   <span className="text-gray-700">
-                    {new Date(orcamento.data_criacao).toLocaleDateString('pt-BR')}
+                    {new Date(orcamento.criado_em).toLocaleDateString('pt-BR')}
                   </span>
                 </div>
                 
                 <div className="flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-gray-400" />
                   <span className="font-semibold text-gray-900">
-                    R$ {orcamento.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {orcamento.preco_final.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>

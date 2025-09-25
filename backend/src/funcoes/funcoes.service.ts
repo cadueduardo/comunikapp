@@ -33,10 +33,21 @@ export class FuncoesService {
 
   async findAll(loja: loja) {
     return this.prisma.funcao.findMany({
-      where: { 
-        loja: { id: loja.id }
+      where: {
+        loja_id: loja.id,
       },
-      include: {
+      select: {
+        id: true,
+        nome: true,
+        descricao: true,
+        ativo: true,
+        custo_hora: true,
+        tipo_calculo: true,
+        fator_acompanhamento: true,
+        horas_por_m2: true,
+        horas_por_unidade: true,
+        eficiencia_percent: true,
+        setup_min: true,
         maquina: {
           select: {
             id: true,
@@ -51,8 +62,19 @@ export class FuncoesService {
 
   async findOne(id: string, loja: loja) {
     return this.prisma.funcao.findFirst({
-      where: { id, loja: { id: loja.id } },
-      include: {
+      where: { id, loja_id: loja.id },
+      select: {
+        id: true,
+        nome: true,
+        descricao: true,
+        ativo: true,
+        custo_hora: true,
+        tipo_calculo: true,
+        fator_acompanhamento: true,
+        horas_por_m2: true,
+        horas_por_unidade: true,
+        eficiencia_percent: true,
+        setup_min: true,
         maquina: {
           select: {
             id: true,
@@ -65,10 +87,20 @@ export class FuncoesService {
   }
 
   async update(id: string, data: UpdateFuncaoDto, loja: loja) {
+    const { maquina_id, ...dataWithoutMaquinaId } = data;
+
     return this.prisma.funcao.update({
       where: { id },
       data: {
-        ...data,
+        ...dataWithoutMaquinaId,
+        ...(maquina_id !== undefined
+          ? {
+              maquina:
+                maquina_id === null
+                  ? { disconnect: true }
+                  : { connect: { id: maquina_id } },
+            }
+          : {}),
         atualizado_em: new Date(),
       },
     });

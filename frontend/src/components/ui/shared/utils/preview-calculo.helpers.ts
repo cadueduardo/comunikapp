@@ -297,6 +297,7 @@ const calcularHorasFuncao = (
   entrada: { funcao_id?: string; horas_trabalhadas?: NumericLike },
   funcao: Funcao | undefined,
   contexto: ProdutoContexto,
+  maquinasProduto: MaquinaPreview[],
 ): number => {
   if (!funcao || !entrada?.funcao_id) {
     return 0;
@@ -335,6 +336,29 @@ const calcularHorasFuncao = (
       }
       break;
     }
+    case 'ACOMPANHA_MAQUINA': {
+      const horasMaquinas = maquinasProduto.reduce((total, maquina) => {
+        const horas = Number(maquina?.horas_utilizadas) || 0;
+        return Number.isFinite(horas) ? total + horas : total;
+      }, 0);
+
+      if (horasMaquinas <= 0) {
+        return horasManuais > 0 ? horasManuais : 0;
+      }
+
+      const fatorAcompanhamentoRaw = parseNumber((funcao as any)?.fator_acompanhamento);
+      let fatorAcompanhamentoDecimal = 1;
+      if (fatorAcompanhamentoRaw > 1) {
+        fatorAcompanhamentoDecimal = fatorAcompanhamentoRaw / 100;
+      } else if (fatorAcompanhamentoRaw > 0) {
+        fatorAcompanhamentoDecimal = fatorAcompanhamentoRaw;
+      }
+
+      const horasBase = horasMaquinas * fatorAcompanhamentoDecimal;
+      const horasAuto = (horasBase * fatorEficiencia) + horasSetup;
+
+      return horasAuto > 0 ? horasAuto : 0;
+    }
     default:
       break;
   }
@@ -346,6 +370,7 @@ const calcularFuncoes = (
   funcoesEntrada: Array<{ funcao_id: string; horas_trabalhadas?: NumericLike }>,
   funcoes: Funcao[],
   contexto: ProdutoContexto,
+  maquinasProduto: MaquinaPreview[],
 ): { itens: FuncaoPreview[]; total: number; horas: number } => {
   const itens = (funcoesEntrada || []).reduce<FuncaoPreview[]>((acc, entrada) => {
     if (!entrada?.funcao_id) {
@@ -357,7 +382,7 @@ const calcularFuncoes = (
       return acc;
     }
 
-    const horas = calcularHorasFuncao(entrada, funcao, contexto);
+    const horas = calcularHorasFuncao(entrada, funcao, contexto, maquinasProduto);
     if (horas <= 0) {
       return acc;
     }
@@ -586,7 +611,12 @@ export const calcularProdutosPreview = (
 
     const materiais = calcularMateriais(item?.materiais || [], datasets.insumos);
     const maquinas = calcularMaquinas(item?.maquinas || [], datasets.maquinas, contexto);
-    const funcoes = calcularFuncoes(item?.funcoes || [], datasets.funcoes, contexto);
+    const funcoes = calcularFuncoes(
+      item?.funcoes || [],
+      datasets.funcoes,
+      contexto,
+      maquinas.itens,
+    );
     const servicos = calcularServicos(item?.servicos || [], datasets.servicos, contexto);
 
     const custoMateriais = materiais.total;

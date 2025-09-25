@@ -8,6 +8,9 @@ import * as express from 'express';
 import { join } from 'path';
 
 async function bootstrap() {
+  // Configurar timezone - padrão Brasil, mas configurável via .env
+  process.env.TZ = process.env.TZ || 'America/Sao_Paulo';
+  
   const app = await NestFactory.create(AppModule);
 
   // CORS deve ser habilitado o mais cedo possível
@@ -104,6 +107,12 @@ async function bootstrap() {
   console.log(
     '   - DATABASE_URL:',
     process.env.DATABASE_URL ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+  );
+  console.log(
+    '   - TIMEZONE:',
+    process.env.TZ,
+    '| Data atual:',
+    new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
   );
 
   try {
