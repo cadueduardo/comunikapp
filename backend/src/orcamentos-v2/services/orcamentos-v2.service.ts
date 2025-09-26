@@ -81,17 +81,43 @@ export class OrcamentosV2Service {
         },
       });
 
-      // 4. Calcular custos via motor V2
-      const resultadoCalculo = await this.integracaoMotor.calcularOrcamentoCompleto(
-        orcamentoCriado,
-        lojaId,
-      );
+      // 4. Verificar se o frontend enviou custos calculados (mesma lógica da edição)
+      const temCustosValidos = dados.custo_material > 0 || dados.custo_mao_obra > 0 || dados.custo_total > 0;
+      
+      if (temCustosValidos) {
+        // Usar custos do frontend (mesma lógica da edição)
+        this.logger.log(`💰 Usando custos calculados do frontend para novo orçamento: custo_total=${dados.custo_total}, preco_final=${dados.preco_final}`);
+        
+        const dadosParaSalvar = {
+          custo_material: dados.custo_material || 0,
+          custo_mao_obra: dados.custo_mao_obra || 0,
+          custo_indireto: dados.custo_indireto || 0,
+          custo_total: dados.custo_total || 0,
+          margem_lucro: dados.margem_lucro || 0,
+          impostos: dados.impostos || 0,
+          preco_final: dados.preco_final || 0,
+          data_ultimo_calculo: new Date(),
+        };
+        
+        await this.prisma.orcamento.update({
+          where: { id: orcamentoCriado.id },
+          data: dadosParaSalvar,
+        });
+        
+        this.logger.log(`✅ Custos do frontend salvos no banco para novo orçamento ${orcamentoCriado.id}`);
+      } else {
+        // Calcular via motor V2 (lógica atual)
+        this.logger.log(`🔄 Calculando custos via motor V2 para novo orçamento ${orcamentoCriado.id}`);
+        const resultadoCalculo = await this.integracaoMotor.calcularOrcamentoCompleto(
+          orcamentoCriado,
+          lojaId,
+        );
 
-      // 5. Atualizar com custos calculados
-      await this.atualizarCustosCalculados(
-        orcamentoCriado.id,
-        resultadoCalculo,
-      );
+        await this.atualizarCustosCalculados(
+          orcamentoCriado.id,
+          resultadoCalculo,
+        );
+      }
 
       // 6. Criar histórico
       await this.criarHistorico(
