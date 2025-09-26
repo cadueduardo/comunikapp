@@ -23,6 +23,7 @@ import { ServicosManuaisModule } from './servicos-manuais/servicos-manuais.modul
 import { OrcamentosV2Module } from './orcamentos-v2/orcamentos-v2.module'; // V2 ATIVO - substitui o legado
 // import { OrcamentosV2SimpleModule } from './orcamentos-v2-simple/orcamentos-v2-simple.module'; // Removido - V2 completo ativo
 import { MotorCalculoV2Module } from './motor-calculo-v2/motor-calculo-v2.module';
+import { OSModule } from './os/os.module';
 import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
 
 @Module({
@@ -53,6 +54,7 @@ import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
     OrcamentosV2Module, // V2 ATIVO - substitui o legado
     // OrcamentosV2SimpleModule, // Removido - V2 completo ativo
     MotorCalculoV2Module,
+    OSModule, // Módulo de Ordens de Serviço
   ],
 })
 export class AppModule {
