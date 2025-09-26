@@ -37,12 +37,14 @@ export function NotificacoesDropdown() {
   const [page, setPage] = useState(1);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef(1); // Ref para manter a página atual sem causar re-renders
 
   const carregarNotificacoes = useCallback(async (reset = false) => {
     try {
       if (reset) {
         setLoading(true);
         setPage(1);
+        pageRef.current = 1; // Resetar ref também
         setHasMore(true);
       } else {
         setLoadingMore(true);
@@ -63,7 +65,7 @@ export function NotificacoesDropdown() {
 
       console.log('Tentando carregar notificações com token:', token.substring(0, 20) + '...');
       
-      const currentPage = reset ? 1 : page;
+      const currentPage = reset ? 1 : pageRef.current;
       const limit = 10;
       const offset = (currentPage - 1) * limit;
       
@@ -87,7 +89,8 @@ export function NotificacoesDropdown() {
       }
       
       if (!reset) {
-        setPage(prev => prev + 1);
+        pageRef.current += 1; // Incrementar ref
+        setPage(pageRef.current); // Atualizar state para UI
       }
     } catch (error) {
       console.error('Erro ao carregar notificações:', error);
@@ -106,7 +109,7 @@ export function NotificacoesDropdown() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [page]);
+  }, []); // Sem dependências para evitar loop infinito
 
   useEffect(() => {
     carregarNotificacoes(true); // Reset para carregar as primeiras notificações
