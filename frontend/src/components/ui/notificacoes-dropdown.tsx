@@ -36,6 +36,7 @@ export function NotificacoesDropdown() {
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const carregarNotificacoes = useCallback(async (reset = false) => {
     try {
@@ -111,6 +112,23 @@ export function NotificacoesDropdown() {
     carregarNotificacoes(true); // Reset para carregar as primeiras notificações
     carregarContador();
   }, [carregarNotificacoes]);
+
+  // Fechar dropdown ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
 
   const carregarContador = async () => {
     try {
@@ -213,7 +231,7 @@ export function NotificacoesDropdown() {
   }, [hasMore, loadingMore, carregarNotificacoes]);
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <Button
         variant="ghost"
         size="sm"
