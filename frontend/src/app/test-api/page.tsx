@@ -80,7 +80,7 @@ export default function TestAPIPage() {
     
     try {
       console.log('🔍 Testando CORS...');
-      const response = await fetch('http://localhost:3001/lojas/me', {
+      const response = await fetch('http://localhost:4000/lojas/me', {
         method: 'OPTIONS',
         headers: {
           'Origin': 'http://localhost:4000',

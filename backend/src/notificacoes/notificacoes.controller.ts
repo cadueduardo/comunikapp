@@ -12,9 +12,11 @@ export class NotificacoesController {
   async buscarNotificacoes(
     @CurrentLojaId() lojaId: string,
     @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
   ) {
     const limitNumber = limit ? parseInt(limit) : 50;
-    return this.notificacoesService.buscarNotificacoes(lojaId, limitNumber);
+    const offsetNumber = offset ? parseInt(offset) : 0;
+    return this.notificacoesService.buscarNotificacoes(lojaId, limitNumber, offsetNumber);
   }
 
   @Get('nao-visualizadas')

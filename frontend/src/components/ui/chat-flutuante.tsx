@@ -75,13 +75,13 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
     orcamentoId,
     isPublic,
     onNewMessage: (data) => {
-      console.log('🔍 Polling recebeu nova mensagem:', data.message);
-      console.log('🔍 IDs existentes atuais:', mensagens.map(m => m.id));
+      // console.log('🔍 Polling recebeu nova mensagem:', data.message);
+      // console.log('🔍 IDs existentes atuais:', mensagens.map(m => m.id));
       
       // Verificar se a mensagem já existe para evitar duplicação
       const mensagemJaExiste = mensagens.some(msg => msg.id === data.message.id);
       
-      console.log('🔍 Mensagem já existe?', mensagemJaExiste, 'ID:', data.message.id);
+      // console.log('🔍 Mensagem já existe?', mensagemJaExiste, 'ID:', data.message.id);
       
       if (!mensagemJaExiste) {
         // Adicionar nova mensagem à lista
@@ -244,10 +244,10 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
     try {
       setLoading(true);
       
-      // Usar endpoint correto baseado no modo
+      // Usar endpoint correto baseado no modo - SEGUINDO PADRÃO DO LEGADO
       const endpoint = isPublic 
-        ? buildApiUrl(`/orcamentos/${orcamentoId}/mensagens/publico`)
-        : buildApiUrl(`/orcamentos/${orcamentoId}/mensagens`);
+        ? buildApiUrl(`/orcamentos-v2/${orcamentoId}/mensagens/publico`)
+        : buildApiUrl(`/orcamentos-v2/${orcamentoId}/mensagens`);
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json'
@@ -264,17 +264,29 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
       const response = await fetch(endpoint, { headers });
 
       if (response.ok) {
-        const data = await response.json();
-        console.log('🔍 Dados brutos recebidos do backend:', data);
+        const responseData = await response.json();
+        // console.log('🔍 Dados brutos recebidos do backend:', responseData);
+        
+        // Extrair array de mensagens da resposta
+        // O backend retorna {mensagens: [...], total: ..., etc}
+        const data = responseData.mensagens || responseData.data || responseData;
+        // console.log('🔍 Dados extraídos:', data);
+        
+        // Verificar se data é um array
+        if (!Array.isArray(data)) {
+          console.error('❌ Dados não são um array:', data);
+          setMensagens([]);
+          return;
+        }
         
         // Processar anexos das mensagens (parsear JSON strings para objetos)
         const mensagensProcessadas = data.map((msg: Mensagem) => {
-          console.log('🔍 Processando mensagem:', msg.id, 'anexos:', msg.anexos, 'tipo:', typeof msg.anexos);
+          // console.log('🔍 Processando mensagem:', msg.id, 'criado_em:', msg.criado_em, 'tipo:', typeof msg.criado_em);
           
           if (msg.anexos && typeof msg.anexos === 'string') {
             try {
               msg.anexos = JSON.parse(msg.anexos);
-              console.log('🔍 Anexos parseados:', msg.anexos);
+              // console.log('🔍 Anexos parseados:', msg.anexos);
             } catch (e) {
               console.error('Erro ao parsear anexos JSON:', e);
               msg.anexos = [];
@@ -321,7 +333,7 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
       
       for (const mensagem of mensagensNaoLidas) {
         try {
-          const response = await fetch(buildApiUrl(`/orcamentos/${orcamentoId}/mensagens/${mensagem.id}/visualizar`), {
+          const response = await fetch(buildApiUrl(`/orcamentos-v2/chat/${orcamentoId}/mensagens/${mensagem.id}/visualizar`), {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -384,10 +396,10 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
         scrollToBottom();
       }, 100);
       
-      // Usar endpoint correto baseado no modo
+      // Usar endpoint correto baseado no modo - SEGUINDO PADRÃO DO LEGADO
       const endpoint = isPublic 
-        ? buildApiUrl(`/orcamentos/${orcamentoId}/mensagens/publico`)
-        : buildApiUrl(`/orcamentos/${orcamentoId}/mensagens`);
+        ? buildApiUrl(`/orcamentos-v2/${orcamentoId}/mensagens/publico`)
+        : buildApiUrl(`/orcamentos-v2/${orcamentoId}/mensagens`);
       
       // Preparar dados para envio
       let body: string | FormData;
@@ -522,13 +534,27 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
   };
 
   const formatarData = (data: string) => {
-    return new Date(data).toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      const dataObj = new Date(data);
+      
+      // Verificar se a data é válida
+      if (isNaN(dataObj.getTime())) {
+        console.warn('Data inválida recebida:', data);
+        return 'Data inválida';
+      }
+      
+      return dataObj.toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'America/Sao_Paulo'
+      });
+    } catch (error) {
+      console.error('Erro ao formatar data:', error, 'Data recebida:', data);
+      return 'Data inválida';
+    }
   };
 
   const getIconeTipo = (tipo: string) => {
@@ -682,14 +708,14 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
                         <p className="text-sm whitespace-pre-line">{mensagem.mensagem}</p>
                         {(() => {
                           // Debug: verificar anexos da mensagem
-                          console.log('🔍 Renderizando mensagem:', mensagem.id, 'anexos:', mensagem.anexos);
+                          // console.log('🔍 Renderizando mensagem:', mensagem.id, 'anexos:', mensagem.anexos);
                           
                           // Garantir que anexos seja um array
                           let anexosArray = [];
                           if (mensagem.anexos) {
                             if (Array.isArray(mensagem.anexos)) {
                               anexosArray = mensagem.anexos;
-                              console.log('🔍 Anexos já é array:', anexosArray);
+                              // console.log('🔍 Anexos já é array:', anexosArray);
                             } else if (typeof mensagem.anexos === 'string') {
                               try {
                                 const parsed = JSON.parse(mensagem.anexos);
@@ -703,11 +729,11 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
                             } else if (typeof mensagem.anexos === 'object' && mensagem.anexos !== null) {
                               // Se já é um objeto, convertê-lo para array
                               anexosArray = [mensagem.anexos];
-                              console.log('🔍 Anexos convertido de objeto para array:', anexosArray);
+                              // console.log('🔍 Anexos convertido de objeto para array:', anexosArray);
                             }
                           }
                           
-                          console.log('🔍 AnexosArray final:', anexosArray);
+                          // console.log('🔍 AnexosArray final:', anexosArray);
                           
                           return anexosArray && anexosArray.length > 0 ? (
                             <div className="mt-2 space-y-1">

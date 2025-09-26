@@ -143,6 +143,53 @@ export class AtualizarOrcamentoDto {
   @IsOptional()
   @IsBoolean()
   ativo?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Tipo de orçamento (legado)',
+    example: 'produto_servico',
+  })
+  @IsOptional()
+  @IsString()
+  tipo_orcamento?: string;
+
+  @ApiPropertyOptional({
+    description: 'Custo total calculado',
+    example: 15000.00,
+    minimum: 0,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  custo_total?: number;
+
+  @ApiPropertyOptional({
+    description: 'Margem de lucro calculada',
+    example: 4500.00,
+    minimum: 0,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  margem_lucro?: number;
+
+  @ApiPropertyOptional({
+    description: 'Impostos calculados',
+    example: 3750.00,
+    minimum: 0,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  impostos?: number;
+
+  @ApiPropertyOptional({
+    description: 'Produtos do orçamento',
+    type: 'array',
+    items: { type: 'object' },
+  })
+  @IsOptional()
+  @IsArray()
+  produtos?: any[];
 }
 
 /**

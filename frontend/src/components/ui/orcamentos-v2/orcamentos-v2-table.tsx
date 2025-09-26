@@ -23,6 +23,12 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
   // Usar hook para buscar dados reais do backend
   const { orcamentos, loading, error, refetch } = useOrcamentosV2();
   
+  // Função para forçar atualização
+  const handleRefresh = async () => {
+    console.log('🔄 Forçando atualização dos dados...');
+    await refetch();
+  };
+  
   // Debug: verificar dados recebidos
   console.log('🔍 OrcamentosV2Table - Dados recebidos:', {
     orcamentos,
@@ -81,11 +87,28 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
     }
   };
 
-  const handleShare = (orcamento: OrcamentoV2) => {
-    if (onShare) {
-      onShare(orcamento);
-    } else {
-      console.log('Compartilhar orçamento:', orcamento);
+  const handleShare = async (orcamento: OrcamentoV2) => {
+    try {
+      // Gerar link público do orçamento V2
+      const linkPublico = `${window.location.origin}/orcamento-v2/${orcamento.id}`;
+      
+      // Tentar usar a Web Share API se disponível
+      if (navigator.share) {
+        await navigator.share({
+          title: `Orçamento ${orcamento.numero} - ${orcamento.nome_servico}`,
+          text: `Orçamento de ${formatCurrency(orcamento.preco_final)}`,
+          url: linkPublico,
+        });
+      } else {
+        // Fallback: copiar para área de transferência
+        await navigator.clipboard.writeText(linkPublico);
+        alert('Link copiado para a área de transferência!');
+      }
+    } catch (error) {
+      console.error('Erro ao compartilhar:', error);
+      // Fallback final: mostrar link em alert
+      const linkPublico = `${window.location.origin}/orcamento-v2/${orcamento.id}`;
+      alert(`Link do orçamento: ${linkPublico}`);
     }
   };
 
@@ -129,6 +152,15 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
             className="pl-10"
           />
         </div>
+        <Button 
+          onClick={handleRefresh} 
+          variant="outline" 
+          disabled={loading}
+          className="flex items-center gap-2"
+        >
+          <Loader2 className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Atualizar
+        </Button>
         <div className="flex gap-2">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-48">
@@ -163,10 +195,7 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
                   Valor
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tipo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Aprovação
+                  Status do Orçamento
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Criado em
@@ -213,60 +242,99 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {!orcamento.status || orcamento.status === 'rascunho' ? (
-                        <Link href={`/orcamentos-v2/novo?id=${orcamento.id}`} className="hover:opacity-80" onClick={() => console.log('🔍 Clicando para editar orcamento:', orcamento.id)}>
-                          <Badge variant="outline" className="text-xs bg-gray-100 text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors">
-                            📝 Rascunho
-                          </Badge>
-                        </Link>
-                      ) : (
-                        <Link href={`/orcamentos-v2/${orcamento.id}`} className="hover:opacity-80">
-                          <Badge variant="default" className="text-xs bg-blue-100 text-blue-800 border-blue-200 cursor-pointer hover:bg-blue-200 transition-colors">
-                            📤 Enviado
-                          </Badge>
-                        </Link>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {orcamento.status === 'rascunho' ? (
-                        <Badge variant="secondary" className="text-xs">-</Badge>
-                      ) : !orcamento.status_aprovacao || orcamento.status_aprovacao === 'PENDENTE' ? (
-                        <Link href={`/orcamentos-v2/${orcamento.id}`} className="hover:opacity-80">
-                          <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-gray-200 transition-colors">
-                            ⏳ Pendente
-                          </Badge>
-                        </Link>
-                      ) : (
-                        (() => {
-                          const status = orcamento.status_aprovacao;
-                          const linkHref = status === 'NEGOCIANDO' 
-                            ? `/orcamentos-v2/novo?id=${orcamento.id}`
-                            : `/orcamentos-v2/${orcamento.id}`;
-                          
-                          return (
-                            <Link href={linkHref} className="hover:opacity-80" onClick={() => console.log('🔍 Clicando para ver orcamento:', orcamento.id, 'link:', linkHref)}>
-                              <Badge 
-                                variant={
-                                  status === 'APROVADO' ? 'default' :
-                                  status === 'REJEITADO' ? 'destructive' :
-                                  'secondary'
-                                }
-                                className={`cursor-pointer transition-colors ${
-                                  status === 'APROVADO' ? 'text-xs bg-green-100 text-green-800 border-green-200 hover:bg-green-200' :
-                                  status === 'REJEITADO' ? 'text-xs hover:bg-red-200' :
-                                  status === 'NEGOCIANDO' ? 'text-xs bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200' :
-                                  'text-xs hover:bg-gray-200'
-                                }`}
-                              >
-                                {status === 'APROVADO' ? '✅ Aprovado' :
-                                 status === 'REJEITADO' ? '❌ Rejeitado' :
-                                 status === 'NEGOCIANDO' ? '💬 Negociando' :
-                                 status}
-                              </Badge>
-                            </Link>
-                          );
-                        })()
-                      )}
+                      {(() => {
+                        // Lógica inteligente para status do orçamento
+                        const status = orcamento.status || 'rascunho';
+                        const statusAprovacao = orcamento.hasOwnProperty('status_aprovacao') ? orcamento.status_aprovacao : null;
+                        
+                        // Debug adicional
+                        console.log('🔍 Debug - Orçamento no frontend:', {
+                          id: orcamento.id,
+                          status,
+                          statusAprovacao,
+                          hasStatusAprovacao: orcamento.hasOwnProperty('status_aprovacao'),
+                          allKeys: Object.keys(orcamento)
+                        });
+                        
+                        // Debug
+                        console.log('🔍 Debug - Status do orçamento:', {
+                          id: orcamento.id,
+                          status,
+                          statusAprovacao
+                        });
+                        
+                        // Determinar o status final
+                        let statusFinal, badgeVariant, badgeClass, icon;
+                        
+                        if (status === 'rascunho') {
+                          statusFinal = 'Rascunho';
+                          badgeVariant = 'outline';
+                          badgeClass = 'text-xs bg-gray-100 text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors';
+                          icon = '📝';
+                        } else if (status === 'aprovado') {
+                          statusFinal = 'Aprovado';
+                          badgeVariant = 'default';
+                          badgeClass = 'text-xs bg-green-100 text-green-800 border-green-200 cursor-pointer hover:bg-green-200 transition-colors';
+                          icon = '✅';
+                        } else if (status === 'rejeitado') {
+                          statusFinal = 'Rejeitado';
+                          badgeVariant = 'destructive';
+                          badgeClass = 'text-xs cursor-pointer hover:bg-red-200 transition-colors';
+                          icon = '❌';
+                        } else if (status === 'negociando') {
+                          statusFinal = 'Negociando';
+                          badgeVariant = 'secondary';
+                          badgeClass = 'text-xs bg-blue-100 text-blue-800 border-blue-200 cursor-pointer hover:bg-blue-200 transition-colors';
+                          icon = '💬';
+                        } else if (status === 'enviado') {
+                          // Se está enviado, verificar status de aprovação
+                          if (!statusAprovacao || statusAprovacao === 'PENDENTE') {
+                            statusFinal = 'Enviado - Pendente';
+                            badgeVariant = 'secondary';
+                            badgeClass = 'text-xs bg-yellow-100 text-yellow-800 border-yellow-200 cursor-pointer hover:bg-yellow-200 transition-colors';
+                            icon = '⏳';
+                          } else if (statusAprovacao === 'APROVADO') {
+                            statusFinal = 'Aprovado';
+                            badgeVariant = 'default';
+                            badgeClass = 'text-xs bg-green-100 text-green-800 border-green-200 cursor-pointer hover:bg-green-200 transition-colors';
+                            icon = '✅';
+                          } else if (statusAprovacao === 'REJEITADO') {
+                            statusFinal = 'Rejeitado';
+                            badgeVariant = 'destructive';
+                            badgeClass = 'text-xs cursor-pointer hover:bg-red-200 transition-colors';
+                            icon = '❌';
+                          } else if (statusAprovacao === 'NEGOCIANDO') {
+                            statusFinal = 'Negociando';
+                            badgeVariant = 'secondary';
+                            badgeClass = 'text-xs bg-blue-100 text-blue-800 border-blue-200 cursor-pointer hover:bg-blue-200 transition-colors';
+                            icon = '💬';
+                          } else {
+                            statusFinal = 'Enviado';
+                            badgeVariant = 'default';
+                            badgeClass = 'text-xs bg-blue-100 text-blue-800 border-blue-200 cursor-pointer hover:bg-blue-200 transition-colors';
+                            icon = '📤';
+                          }
+                        } else {
+                          // Fallback para outros status
+                          statusFinal = 'Enviado';
+                          badgeVariant = 'default';
+                          badgeClass = 'text-xs bg-blue-100 text-blue-800 border-blue-200 cursor-pointer hover:bg-blue-200 transition-colors';
+                          icon = '📤';
+                        }
+                        
+                        // Determinar link
+                        const linkHref = status === 'rascunho' || statusAprovacao === 'NEGOCIANDO' 
+                          ? `/orcamentos-v2/novo?id=${orcamento.id}`
+                          : `/orcamentos-v2/${orcamento.id}`;
+                        
+                        return (
+                          <Link href={linkHref} className="hover:opacity-80" onClick={() => console.log('🔍 Clicando para ver orcamento:', orcamento.id, 'link:', linkHref)}>
+                            <Badge variant={badgeVariant} className={badgeClass}>
+                              {icon} {statusFinal}
+                            </Badge>
+                          </Link>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-900">
                       {orcamento.criado_em || '-'}

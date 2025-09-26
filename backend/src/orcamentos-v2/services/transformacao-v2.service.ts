@@ -158,6 +158,7 @@ export class TransformacaoV2Service {
       cliente_id: dados.cliente_id,
       loja_id: dados.loja_id,
       status: dados.status,
+      status_aprovacao: dados.status_aprovacao,
       tipo: (dados.tipo || dados.tipo_orcamento) as OrcamentoTipo,
       tipo_orcamento: (dados.tipo_orcamento || dados.tipo) as OrcamentoTipo,
       data_criacao: dados.data_criacao,

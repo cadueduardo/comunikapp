@@ -31,6 +31,15 @@ export class JwtGlobalMiddleware implements NestMiddleware {
       return next();
     }
 
+    // Verificar rotas públicas específicas do orçamento V2
+    if (req.path.includes('/orcamentos-v2/') && (
+      req.path.includes('/publico') || 
+      req.path.includes('/reenviar-codigo')
+    )) {
+      // this.logger.debug(`✅ Rota pública do orçamento V2: ${req.path}`);
+      return next();
+    }
+
     // this.logger.debug(`🔐 Rota protegida: ${req.path}`);
 
     // Extrair token do header Authorization

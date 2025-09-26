@@ -51,7 +51,8 @@ export function useOrcamentosV2(): UseOrcamentosV2Return {
 
       console.log('🔍 Buscando orçamentos do backend (API v2)...');
       console.log('🔍 Token usado:', token ? 'Token presente' : 'Token ausente');
-      console.log('🔍 URL da API:', 'http://localhost:3001/orcamentos-v2');
+      console.log('🔍 URL da API:', 'http://localhost:4000/orcamentos-v2');
+      console.log('🔍 Timestamp da busca:', new Date().toISOString());
       
       const data = await orcamentosApi.v2.getAll(token);
       
@@ -76,39 +77,64 @@ export function useOrcamentosV2(): UseOrcamentosV2Return {
           nome_servico: orcamentosArray[0].nome_servico,
           preco_final: orcamentosArray[0].preco_final,
           criado_em: orcamentosArray[0].criado_em,
-          cliente: orcamentosArray[0].cliente
+          cliente: orcamentosArray[0].cliente,
+          status: orcamentosArray[0].status,
+          status_aprovacao: orcamentosArray[0].status_aprovacao
         });
         
         // Debug: verificar estrutura completa do objeto
         console.log('🔍 Debug - Estrutura completa do primeiro item:', orcamentosArray[0]);
         console.log('🔍 Debug - Chaves disponíveis:', Object.keys(orcamentosArray[0]));
+        
+        // Procurar pelo orçamento específico
+        const orcamentoEspecifico = orcamentosArray.find(o => o.id === 'cmfygr9l90001w4fo0r09klw4');
+        if (orcamentoEspecifico) {
+          console.log('🎯 Orçamento específico encontrado:', {
+            id: orcamentoEspecifico.id,
+            status: orcamentoEspecifico.status,
+            status_aprovacao: orcamentoEspecifico.status_aprovacao
+          });
+        } else {
+          console.log('❌ Orçamento específico não encontrado na lista');
+        }
       }
       
       // Transformar dados do backend para o formato esperado pelo frontend
-      const orcamentosTransformados: OrcamentoV2[] = orcamentosArray.map((orcamento: any) => ({
-        id: orcamento.id,
-        numero: orcamento.numero || `#${orcamento.id.slice(-6)}`,
-        nome_servico: orcamento.titulo || 'Orçamento sem nome', // ✅ Título do orçamento
-        descricao: orcamento.descricao,
-        preco_final: orcamento.custos?.preco_final || 0, // ✅ Valor total do orçamento
-        criado_em: orcamento.data_criacao ? new Date(orcamento.data_criacao).toLocaleString('pt-BR', { 
-          timeZone: 'America/Sao_Paulo',
-          day: '2-digit',
-          month: '2-digit', 
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }) : null, // ✅ Data de criação no fuso do Brasil com horário
-        atualizado_em: orcamento.data_atualizacao ? new Date(orcamento.data_atualizacao).toLocaleString('pt-BR', { 
-          timeZone: 'America/Sao_Paulo',
-          day: '2-digit',
-          month: '2-digit', 
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }) : null, // ✅ Data de última atualização no fuso do Brasil com horário
-        status: orcamento.status || 'rascunho',
-        status_aprovacao: orcamento.status_aprovacao,
+      const orcamentosTransformados: OrcamentoV2[] = orcamentosArray.map((orcamento: any) => {
+        console.log('🔄 Transformando orçamento:', {
+          id: orcamento.id,
+          status: orcamento.status,
+          status_aprovacao: orcamento.status_aprovacao,
+          hasStatusAprovacao: 'status_aprovacao' in orcamento,
+          titulo: orcamento.titulo,
+          custos: orcamento.custos,
+          allKeys: Object.keys(orcamento)
+        });
+        
+        return {
+          id: orcamento.id,
+          numero: orcamento.numero || `#${orcamento.id.slice(-6)}`,
+          nome_servico: orcamento.titulo || 'Orçamento sem nome', // ✅ Título do orçamento
+          descricao: orcamento.descricao,
+          preco_final: orcamento.custos?.preco_final || 0, // ✅ Valor total do orçamento
+          criado_em: orcamento.data_criacao ? new Date(orcamento.data_criacao).toLocaleString('pt-BR', { 
+            timeZone: 'America/Sao_Paulo',
+            day: '2-digit',
+            month: '2-digit', 
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }) : null, // ✅ Data de criação no fuso do Brasil com horário
+          atualizado_em: orcamento.data_atualizacao ? new Date(orcamento.data_atualizacao).toLocaleString('pt-BR', { 
+            timeZone: 'America/Sao_Paulo',
+            day: '2-digit',
+            month: '2-digit', 
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }) : null, // ✅ Data de última atualização no fuso do Brasil com horário
+          status: orcamento.status || 'rascunho',
+          status_aprovacao: orcamento.status_aprovacao || null,
         cliente: orcamento.cliente ? {
           id: orcamento.cliente.id,
           nome: orcamento.cliente.nome || orcamento.cliente.razao_social || 'Cliente sem nome'
@@ -122,7 +148,8 @@ export function useOrcamentosV2(): UseOrcamentosV2Return {
         validade_proposta: orcamento.validade_proposta,
         forma_pagamento: orcamento.forma_pagamento,
         prazo_entrega: orcamento.prazo_entrega,
-      }));
+        };
+      });
 
       setOrcamentos(orcamentosTransformados);
       console.log('✅ Orçamentos carregados com sucesso:', orcamentosTransformados.length);

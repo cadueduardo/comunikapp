@@ -82,7 +82,7 @@ export class ChatV2Service {
     porPagina: number;
     nao_lidas: number;
   }> {
-    this.logger.log(`🔍 Buscando mensagens do orçamento ${orcamentoId}`);
+    this.logger.log(`🔍 ChatV2Service: Buscando mensagens para orçamento ${orcamentoId}, usuário ${usuarioId}`);
 
     try {
       // Validar orçamento
@@ -117,6 +117,8 @@ export class ChatV2Service {
       await this.marcarMensagensComoLidas(orcamentoId, usuarioId);
 
       const mensagensProcessadas = mensagens.map(msg => this.transformarMensagem(msg));
+
+      this.logger.log(`📊 ChatV2Service: Retornando ${mensagensProcessadas.length} mensagens (total: ${total}, não lidas: ${naoLidas})`);
 
       return {
         mensagens: mensagensProcessadas,
@@ -456,6 +458,9 @@ export class ChatV2Service {
     if (this.isPergunta(mensagem.conteudo)) {
       await this.processarPergunta(mensagem, orcamento);
     }
+
+    // Enviar notificação para outros usuários da loja
+    await this.notificarNovaMensagemChat(orcamento, mensagem, 'vendedor');
   }
 
   private async processarMensagemSistema(mensagem: any, orcamento: any): Promise<void> {
@@ -515,6 +520,10 @@ export class ChatV2Service {
       data_envio: mensagem.data_envio,
       lida: mensagem.lida,
       anexos,
+      // Mapear para compatibilidade com frontend
+      criado_em: mensagem.data_envio ? new Date(mensagem.data_envio).toISOString() : new Date().toISOString(),
+      mensagem: mensagem.conteudo,
+      visualizada: mensagem.lida,
     } as any;
   }
 
@@ -637,5 +646,74 @@ export class ChatV2Service {
     if (valorInicial && valorFinal && valorFinal >= valorInicial) return 'negociacao_concluida';
     
     return 'negociacao_em_andamento';
+  }
+
+  /**
+   * Notifica nova mensagem no chat para outros usuários da loja
+   */
+  private async notificarNovaMensagemChat(
+    orcamento: any,
+    mensagem: any,
+    tipoRemetente: 'cliente' | 'vendedor',
+  ): Promise<void> {
+    try {
+      this.logger.log(`📢 Notificando nova mensagem no chat do orçamento ${orcamento.id}`);
+
+      // Buscar usuários da loja que devem receber notificação
+      const usuariosLoja = await this.prisma.usuario.findMany({
+        where: {
+          loja_id: orcamento.loja_id,
+          ativo: true,
+          id: { not: mensagem.usuario_id }, // Excluir o remetente
+        },
+        select: {
+          id: true,
+          nome_completo: true,
+          email: true,
+          funcao: true,
+        },
+      });
+
+      // Filtrar usuários relevantes (vendedores, gerentes, admins)
+      const usuariosRelevantes = usuariosLoja.filter(usuario => {
+        const funcaoLower = usuario.funcao?.toLowerCase();
+        return ['vendedor', 'gerente', 'admin', 'manager', 'administrador'].includes(funcaoLower);
+      });
+
+      // Criar notificação para cada usuário relevante
+      for (const usuario of usuariosRelevantes) {
+        try {
+          await this.prisma.notificacao.create({
+            data: {
+              tipo: 'chat_mensagem',
+              titulo: tipoRemetente === 'cliente' 
+                ? 'Nova mensagem do cliente'
+                : 'Nova mensagem no chat',
+              mensagem: tipoRemetente === 'cliente'
+                ? `Cliente enviou mensagem no orçamento "${orcamento.titulo}": "${mensagem.conteudo.substring(0, 100)}${mensagem.conteudo.length > 100 ? '...' : ''}"`
+                : `Nova mensagem no orçamento "${orcamento.titulo}": "${mensagem.conteudo.substring(0, 100)}${mensagem.conteudo.length > 100 ? '...' : ''}"`,
+              orcamento_id: orcamento.id,
+              loja_id: orcamento.loja_id,
+              dados_extras: JSON.stringify({
+                usuario_id: usuario.id,
+                mensagem_id: mensagem.id,
+                tipo_remetente: tipoRemetente,
+                link: `/orcamentos-v2/novo?id=${orcamento.id}`,
+              }),
+              visualizada: false,
+              criado_em: new Date(),
+            },
+          });
+
+          this.logger.log(`✅ Notificação criada para usuário ${usuario.nome_completo}`);
+        } catch (error) {
+          this.logger.error(`❌ Erro ao criar notificação para usuário ${usuario.id}: ${error.message}`);
+        }
+      }
+
+      this.logger.log(`📢 Notificações enviadas para ${usuariosRelevantes.length} usuários`);
+    } catch (error) {
+      this.logger.error(`❌ Erro ao notificar nova mensagem no chat: ${error.message}`);
+    }
   }
 }

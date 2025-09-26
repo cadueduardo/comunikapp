@@ -11,12 +11,19 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  Patch,
+  UseInterceptors,
+  UploadedFile,
+  ValidationPipe,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Public } from '../../auth/decorators';
 import { OrcamentosV2Service } from '../services/orcamentos-v2.service';
 import { IntegracaoMotorService } from '../services/integracao-motor.service';
 import { ValidacaoEstoqueService } from '../services/validacao-estoque.service';
 import { InsumosAutocompleteService } from '../services/insumos-autocomplete.service';
+import { NotificacoesService } from '../../notificacoes/notificacoes.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { UserRole } from '../../auth/enums/user-role.enum';
@@ -31,7 +38,6 @@ import { UserRole } from '../../auth/enums/user-role.enum';
  */
 @ApiTags('Orçamentos V2')
 @Controller('orcamentos-v2')
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class OrcamentosV2Controller {
   constructor(
@@ -39,12 +45,26 @@ export class OrcamentosV2Controller {
     private readonly integracaoMotor: IntegracaoMotorService,
     private readonly validacaoEstoque: ValidacaoEstoqueService,
     private readonly insumosAutocomplete: InsumosAutocompleteService,
+    private readonly notificacoesService: NotificacoesService,
   ) {}
+
+  /**
+   * Reenviar código de aprovação - DEVE SER PRIMEIRA ROTA PÚBLICA
+   */
+  @Post(':id/reenviar-codigo')
+  @Public()
+  @ApiOperation({ summary: 'Reenviar código de aprovação' })
+  @ApiResponse({ status: 200, description: 'Código reenviado com sucesso' })
+  @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
+  async reenviarCodigoAprovacao(@Param('id') id: string) {
+    return await this.orcamentosService.reenviarCodigoAprovacao(id);
+  }
 
   /**
    * Cria novo orçamento
    */
   @Post()
+  @UseGuards(JwtAuthGuard)
   @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
   @ApiOperation({ summary: 'Criar novo orçamento' })
   @ApiResponse({ status: 201, description: 'Orçamento criado com sucesso' })
@@ -56,6 +76,252 @@ export class OrcamentosV2Controller {
   ) {
     const { loja_id, user_id } = req.user;
     return await this.orcamentosService.criarOrcamento(dados, loja_id, user_id);
+  }
+
+  // ===== ENDPOINTS DE NOTIFICAÇÕES V2 =====
+  @Get('notificacoes')
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @ApiOperation({ summary: 'Listar notificações da loja' })
+  @ApiResponse({ status: 200, description: 'Lista de notificações' })
+  @ApiResponse({ status: 401, description: 'Não autorizado' })
+  async buscarNotificacoes(
+    @Request() req: any,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    const { loja_id } = req.user;
+    const limitNumber = limit ? parseInt(limit) : 50;
+    const offsetNumber = offset ? parseInt(offset) : 0;
+    return this.notificacoesService.buscarNotificacoes(loja_id, limitNumber, offsetNumber);
+  }
+
+  /**
+   * Busca notificações não visualizadas
+   */
+  @Get('notificacoes/nao-visualizadas')
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @ApiOperation({ summary: 'Listar notificações não visualizadas' })
+  @ApiResponse({ status: 200, description: 'Lista de notificações não visualizadas' })
+  @ApiResponse({ status: 401, description: 'Não autorizado' })
+  async buscarNaoVisualizadas(@Request() req: any) {
+    const { loja_id } = req.user;
+    return this.notificacoesService.buscarNaoVisualizadas(loja_id);
+  }
+
+  /**
+   * Conta notificações não visualizadas
+   */
+  @Get('notificacoes/nao-visualizadas/count')
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @ApiOperation({ summary: 'Contar notificações não visualizadas' })
+  @ApiResponse({ status: 200, description: 'Contador de notificações não visualizadas' })
+  @ApiResponse({ status: 401, description: 'Não autorizado' })
+  async contarNaoVisualizadas(@Request() req: any) {
+    const { loja_id } = req.user;
+    const count = await this.notificacoesService.contarNaoVisualizadas(loja_id);
+    return { count };
+  }
+
+  /**
+   * Marca notificação como visualizada
+   */
+  @Patch('notificacoes/:id/visualizar')
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @ApiOperation({ summary: 'Marcar notificação como visualizada' })
+  @ApiResponse({ status: 200, description: 'Notificação marcada como visualizada' })
+  @ApiResponse({ status: 401, description: 'Não autorizado' })
+  @ApiResponse({ status: 404, description: 'Notificação não encontrada' })
+  async marcarComoVisualizada(
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    const { loja_id } = req.user;
+    await this.notificacoesService.marcarComoVisualizada(id, loja_id);
+    return { message: 'Notificação marcada como visualizada' };
+  }
+
+  /**
+   * Marca todas as notificações como visualizadas
+   */
+  @Patch('notificacoes/visualizar-todas')
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @ApiOperation({ summary: 'Marcar todas as notificações como visualizadas' })
+  @ApiResponse({ status: 200, description: 'Todas as notificações foram marcadas como visualizadas' })
+  @ApiResponse({ status: 401, description: 'Não autorizado' })
+  async marcarTodasComoVisualizadas(@Request() req: any) {
+    const { loja_id } = req.user;
+    await this.notificacoesService.marcarTodasComoVisualizadas(loja_id);
+    return {
+      message: 'Todas as notificações foram marcadas como visualizadas',
+    };
+  }
+
+  /**
+   * Deleta notificação
+   */
+  @Delete('notificacoes/:id')
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Deletar notificação' })
+  @ApiResponse({ status: 204, description: 'Notificação deletada com sucesso' })
+  @ApiResponse({ status: 401, description: 'Não autorizado' })
+  @ApiResponse({ status: 404, description: 'Notificação não encontrada' })
+  async deletarNotificacao(
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    const { loja_id } = req.user;
+    await this.notificacoesService.deletarNotificacao(id, loja_id);
+  }
+
+  // ===== ENDPOINTS DE CHAT V2 =====
+  /**
+   * Buscar mensagens do chat (autenticado) - SEGUINDO PADRÃO DO LEGADO
+   */
+  @Get(':id/mensagens')
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @ApiOperation({ summary: 'Buscar mensagens do chat (autenticado)' })
+  @ApiResponse({ status: 200, description: 'Mensagens encontradas' })
+  @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
+  async buscarMensagensChat(
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    const { loja_id } = req.user;
+    return await this.orcamentosService.buscarMensagensChatLegado(id, loja_id);
+  }
+
+  /**
+   * Enviar mensagem no chat (autenticado - para vendedores) - SEGUINDO PADRÃO DO LEGADO
+   */
+  @Post(':id/mensagens')
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @UseInterceptors(FileInterceptor('arquivo'))
+  @ApiOperation({ summary: 'Enviar mensagem no chat (autenticado)' })
+  @ApiResponse({ status: 201, description: 'Mensagem enviada com sucesso' })
+  @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
+  @ApiResponse({ status: 400, description: 'Dados inválidos' })
+  async enviarMensagemChat(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body(new ValidationPipe({ skipMissingProperties: true, whitelist: false, forbidNonWhitelisted: false })) body: any,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    console.log('🔍 Controller V2 autenticado - OrcamentoId:', id);
+    console.log('🔍 Controller V2 autenticado - Body recebido:', JSON.stringify(body, null, 2));
+    console.log('🔍 Controller V2 autenticado - File recebido:', file ? `${file.originalname} (${file.size} bytes, ${file.mimetype})` : 'nenhum');
+
+    const { loja_id } = req.user;
+
+    // Criar DTO manualmente a partir do body
+    const dados = {
+      mensagem: body.mensagem || '',
+      tipo: body.tipo || 'VENDEDOR',
+      anexos: file ? [file.originalname] : undefined,
+    };
+
+    return await this.orcamentosService.enviarMensagemChatLegado(id, dados, loja_id, file);
+  }
+
+  /**
+   * Marcar mensagem como lida (autenticado)
+   */
+  @Post('chat/:id/mensagens/:mensagemId/visualizar')
+  @ApiOperation({ summary: 'Marcar mensagem como lida (autenticado)' })
+  @ApiResponse({ status: 200, description: 'Mensagem marcada como lida' })
+  @ApiResponse({ status: 404, description: 'Mensagem não encontrada' })
+  async marcarMensagemComoLida(
+    @Param('id') id: string,
+    @Param('mensagemId') mensagemId: string,
+    @Request() req: any,
+  ) {
+    const { usuario_id } = req.user;
+    return await this.orcamentosService.marcarMensagemVisualizada(id, mensagemId, usuario_id);
+  }
+
+  // ===== ENDPOINTS PÚBLICOS V2 =====
+  /**
+   * Buscar orçamento público (sem autenticação)
+   */
+  @Get(':id/publico')
+  @Public()
+  @ApiOperation({ summary: 'Buscar orçamento público' })
+  @ApiResponse({ status: 200, description: 'Orçamento público encontrado' })
+  @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
+  async buscarOrcamentoPublico(@Param('id') id: string) {
+    return await this.orcamentosService.buscarOrcamentoPublico(id);
+  }
+
+
+  /**
+   * Processar ação do cliente público
+   */
+  @Post(':id/publico/acao')
+  @Public()
+  @ApiOperation({ summary: 'Processar ação do cliente público' })
+  @ApiResponse({ status: 200, description: 'Ação processada com sucesso' })
+  @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
+  async processarAcaoClientePublico(
+    @Param('id') id: string,
+    @Body() dados: { acao: 'APROVAR' | 'REJEITAR' | 'NEGOCIAR'; observacoes?: string; codigo_aprovacao?: string; cliente_nome?: string; cliente_email?: string },
+  ) {
+    return await this.orcamentosService.processarAcaoClientePublico(id, dados);
+  }
+
+  /**
+   * Buscar mensagens do chat público - SEGUINDO PADRÃO DO LEGADO
+   */
+  @Get(':id/mensagens/publico')
+  @Public()
+  @ApiOperation({ summary: 'Buscar mensagens do chat público' })
+  @ApiResponse({ status: 200, description: 'Mensagens encontradas' })
+  @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
+  async buscarMensagensChatPublico(@Param('id') id: string) {
+    return await this.orcamentosService.buscarMensagensPublicasLegado(id);
+  }
+
+  /**
+   * Enviar mensagem no chat público - SEGUINDO PADRÃO DO LEGADO
+   */
+  @Post(':id/mensagens/publico')
+  @Public()
+  @UseInterceptors(FileInterceptor('arquivo'))
+  @ApiOperation({ summary: 'Enviar mensagem no chat público' })
+  @ApiResponse({ status: 201, description: 'Mensagem enviada com sucesso' })
+  @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
+  async enviarMensagemChatPublico(
+    @Param('id') id: string,
+    @Body(new ValidationPipe({ skipMissingProperties: true, whitelist: false, forbidNonWhitelisted: false })) body: any,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    console.log('🔍 Controller V2 público - OrcamentoId:', id);
+    console.log('🔍 Controller V2 público - Body recebido:', JSON.stringify(body, null, 2));
+    console.log('🔍 Controller V2 público - File recebido:', file ? `${file.originalname} (${file.size} bytes, ${file.mimetype})` : 'nenhum');
+
+    // Criar DTO manualmente a partir do body
+    const dados = {
+      mensagem: body.mensagem || '',
+      tipo: body.tipo || 'CLIENTE',
+      autor_nome: body.autor_nome || 'Cliente',
+      autor_email: body.autor_email || '',
+    };
+
+    return await this.orcamentosService.enviarMensagemPublicaLegadoComAnexo(id, dados, file);
+  }
+
+  /**
+   * Marcar mensagem como lida (chat público)
+   */
+  @Post(':id/publico/mensagens/:mensagemId/visualizar')
+  @Public()
+  @ApiOperation({ summary: 'Marcar mensagem como lida (chat público)' })
+  @ApiResponse({ status: 200, description: 'Mensagem marcada como lida' })
+  @ApiResponse({ status: 404, description: 'Mensagem não encontrada' })
+  async marcarMensagemComoLidaPublico(
+    @Param('id') id: string,
+    @Param('mensagemId') mensagemId: string,
+  ) {
+    return await this.orcamentosService.marcarMensagemVisualizadaPublica(id, mensagemId);
   }
 
   /**
@@ -71,6 +337,13 @@ export class OrcamentosV2Controller {
     @Param('id') id: string,
     @Request() req: any,
   ) {
+    console.log('🔍 Debug - req.user:', req.user);
+    console.log('🔍 Debug - req.headers:', req.headers);
+    
+    if (!req.user) {
+      throw new Error('Usuário não autenticado');
+    }
+    
     const { loja_id } = req.user;
     return await this.orcamentosService.buscarOrcamento(id, loja_id);
   }
@@ -298,4 +571,6 @@ export class OrcamentosV2Controller {
       timestamp: new Date(),
     };
   }
+
+
 }

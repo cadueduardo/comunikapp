@@ -18,6 +18,7 @@ import { ClienteSection, ProdutoSection, ConfiguracoesSection, TituloOrcamentoSe
 import { PreviewCalculoV2 } from '../shared/sections';
 
 import { ProdutoSelectionModal } from '../../../app/(main)/produtos/components/produto-selection-modal';
+import { ChatFlutuante } from '@/components/ui/chat-flutuante';
 
 
 
@@ -282,10 +283,11 @@ export function OrcamentoV2Form({
           : undefined,
         custos_indiretos: undefined,
         custo_total_producao: 0,
-        preco_unitario: 0,
-        preco_total: 0,
-        margem_lucro: 0,
-        impostos: 0,
+        // Calcular valores individuais do produto baseado nos dados calculados
+        preco_unitario: 0, // Será calculado abaixo
+        preco_total: 0, // Será calculado abaixo
+        margem_lucro: 0, // Será calculado abaixo
+        impostos: 0, // Será calculado abaixo
       };
 
       if (produtoTransformado.insumos && produtoTransformado.insumos.length === 0) {
@@ -368,6 +370,77 @@ export function OrcamentoV2Form({
       margemLucro,
       impostos,
       comissao
+    });
+    
+    // Calcular valores individuais para cada produto baseado em características específicas
+    const totalProdutos = produtosTransformados.length;
+    
+    // Calcular peso de cada produto baseado em área e quantidade
+    const produtosComPeso = produtosTransformados.map((produto, index) => {
+      const largura = produto.largura || 0;
+      const altura = produto.altura || 0;
+      const quantidade = produto.quantidade || 1;
+      
+      // Calcular área total do produto
+      const areaTotal = largura * altura * quantidade;
+      
+      // Se não há dimensões, usar apenas quantidade como peso
+      // Se há dimensões, usar área total como peso
+      const peso = areaTotal > 0 ? areaTotal : quantidade;
+      
+      console.log(`🔍 Debug - Produto ${index + 1} peso calculado:`, {
+        nome: produto.nome_servico,
+        largura,
+        altura,
+        quantidade,
+        areaTotal,
+        peso
+      });
+      
+      return { ...produto, peso };
+    });
+    
+    // Calcular peso total de todos os produtos
+    const pesoTotal = produtosComPeso.reduce((total, produto) => total + produto.peso, 0);
+    
+    console.log(`🔍 Debug - Peso total calculado:`, pesoTotal);
+    
+    // Distribuir valores proporcionalmente ao peso de cada produto
+    produtosComPeso.forEach((produto, index) => {
+      const proporcao = produto.peso / pesoTotal;
+      
+      const custoTotalPorProduto = custoTotal * proporcao;
+      const precoFinalPorProduto = precoFinal * proporcao;
+      const margemLucroPorProduto = margemLucro * proporcao;
+      const impostosPorProduto = impostos * proporcao;
+      
+      produto.custo_total_producao = custoTotalPorProduto;
+      produto.preco_unitario = precoFinalPorProduto / produto.quantidade;
+      produto.preco_total = precoFinalPorProduto;
+      produto.margem_lucro = margemLucroPorProduto;
+      produto.impostos = impostosPorProduto;
+      
+      console.log(`🔍 Debug - Produto ${index + 1} calculado com peso:`, {
+        nome: produto.nome_servico,
+        quantidade: produto.quantidade,
+        peso: produto.peso,
+        proporcao: proporcao.toFixed(4),
+        preco_unitario: produto.preco_unitario,
+        preco_total: produto.preco_total,
+        margem_lucro: produto.margem_lucro,
+        impostos: produto.impostos,
+        custo_total_producao: produto.custo_total_producao
+      });
+    });
+    
+    // Atualizar a lista original com os valores calculados
+    produtosTransformados.forEach((produto, index) => {
+      const produtoComPeso = produtosComPeso[index];
+      produto.custo_total_producao = produtoComPeso.custo_total_producao;
+      produto.preco_unitario = produtoComPeso.preco_unitario;
+      produto.preco_total = produtoComPeso.preco_total;
+      produto.margem_lucro = produtoComPeso.margem_lucro;
+      produto.impostos = produtoComPeso.impostos;
     });
     
     console.log('🔍 Debug - Custos calculados:', {
@@ -463,10 +536,10 @@ export function OrcamentoV2Form({
       console.log('🔍 Dados transformados para backend:', dadosTransformados);
 
       if (mode === 'editar' && orcamentoId) {
-        await orcamentosApi.update(orcamentoId, dadosTransformados, token);
+        await orcamentosApi.v2.update(orcamentoId, dadosTransformados, token);
         toast.success('Orçamento atualizado com sucesso!');
       } else {
-        await orcamentosApi.create(dadosTransformados, token);
+        await orcamentosApi.v2.create(dadosTransformados, token);
         toast.success('Orçamento criado com sucesso!');
       }
 
@@ -958,6 +1031,15 @@ export function OrcamentoV2Form({
           open={showProdutoModal}
           onClose={() => setShowProdutoModal(false)}
           onSelect={handleProdutoSelected}
+        />
+      )}
+
+      {/* Chat Flutuante - mostrar apenas para orçamentos em status pendente ou enviado */}
+      {orcamentoId && orcamentoStatus && ['pendente', 'enviado'].includes(orcamentoStatus) && (
+        <ChatFlutuante 
+          orcamentoId={orcamentoId}
+          isPublic={false}
+          shouldOpen={false}
         />
       )}
     </div>

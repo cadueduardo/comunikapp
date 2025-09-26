@@ -110,11 +110,12 @@ export class NotificacoesService {
     });
   }
 
-  async buscarNotificacoes(lojaId: string, limit = 50) {
+  async buscarNotificacoes(lojaId: string, limit = 50, offset = 0) {
     return this.prisma.notificacao.findMany({
       where: { loja_id: lojaId },
       orderBy: { criado_em: 'desc' },
       take: limit,
+      skip: offset,
     });
   }
 

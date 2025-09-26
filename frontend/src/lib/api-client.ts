@@ -112,6 +112,11 @@ export class ApiClient {
       throw new Error(await buildErrorMessage(response));
     }
     
+    // Se status 204 (No Content), retorna undefined
+    if (response.status === 204) {
+      return undefined as T;
+    }
+    
     return response.json();
   }
   
@@ -152,10 +157,16 @@ export const fornecedoresApi = {
 };
 
 export const notificacoesApi = {
-  getAll: (token: string, limit?: number) => ApiClient.get(`/notificacoes?limit=${limit || 10}`, token),
-  getUnreadCount: (token: string) => ApiClient.get('/notificacoes/nao-visualizadas/count', token),
-  markAsRead: (id: string, token: string) => ApiClient.patch(`/notificacoes/${id}/visualizar`, {}, token),
-  delete: (id: string, token: string) => ApiClient.delete(`/notificacoes/${id}/deletar`, token),
+  getAll: (token: string, limit?: number, offset?: number) => {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit.toString());
+    if (offset) params.append('offset', offset.toString());
+    return ApiClient.get(`/orcamentos-v2/notificacoes?${params.toString()}`, token);
+  },
+  getUnreadCount: (token: string) => ApiClient.get('/orcamentos-v2/notificacoes/nao-visualizadas/count', token),
+  markAsRead: (id: string, token: string) => ApiClient.patch(`/orcamentos-v2/notificacoes/${id}/visualizar`, {}, token),
+  markAllAsRead: (token: string) => ApiClient.patch('/orcamentos-v2/notificacoes/visualizar-todas', {}, token),
+  delete: (id: string, token: string) => ApiClient.delete(`/orcamentos-v2/notificacoes/${id}`, token),
 };
 
 export const lojasApi = {

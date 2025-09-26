@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -10,7 +10,8 @@ import {
   XCircle, 
   AlertCircle,
   Trash2,
-  Eye
+  Eye,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { notificacoesApi } from '@/lib/api-client';
@@ -31,15 +32,21 @@ export function NotificacoesDropdown() {
   const [naoVisualizadas, setNaoVisualizadas] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    carregarNotificacoes();
-    carregarContador();
-  }, []);
-
-  const carregarNotificacoes = async () => {
+  const carregarNotificacoes = useCallback(async (reset = false) => {
     try {
-      setLoading(true);
+      if (reset) {
+        setLoading(true);
+        setPage(1);
+        setHasMore(true);
+      } else {
+        setLoadingMore(true);
+      }
+      
       const token = localStorage.getItem('access_token');
       
       if (!token) {
@@ -55,8 +62,32 @@ export function NotificacoesDropdown() {
 
       console.log('Tentando carregar notificações com token:', token.substring(0, 20) + '...');
       
-      const data = await notificacoesApi.getAll(token, 10);
-      setNotificacoes(data as Notificacao[]);
+      const currentPage = reset ? 1 : page;
+      const limit = 10;
+      const offset = (currentPage - 1) * limit;
+      
+      // Usar paginação real do backend
+      const data = await notificacoesApi.getAll(token, limit, offset);
+      
+      if (reset) {
+        setNotificacoes(data as Notificacao[]);
+      } else {
+        setNotificacoes(prev => {
+          const novasNotificacoes = data as Notificacao[];
+          const idsExistentes = new Set(prev.map(n => n.id));
+          const notificacoesUnicas = novasNotificacoes.filter(n => !idsExistentes.has(n.id));
+          return [...prev, ...notificacoesUnicas];
+        });
+      }
+      
+      // Verificar se há mais dados para carregar
+      if ((data as Notificacao[]).length < limit) {
+        setHasMore(false);
+      }
+      
+      if (!reset) {
+        setPage(prev => prev + 1);
+      }
     } catch (error) {
       console.error('Erro ao carregar notificações:', error);
       
@@ -72,8 +103,14 @@ export function NotificacoesDropdown() {
       }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  };
+  }, [page]);
+
+  useEffect(() => {
+    carregarNotificacoes(true); // Reset para carregar as primeiras notificações
+    carregarContador();
+  }, [carregarNotificacoes]);
 
   const carregarContador = async () => {
     try {
@@ -102,7 +139,7 @@ export function NotificacoesDropdown() {
       const token = localStorage.getItem('access_token');
       if (token) {
         await notificacoesApi.markAsRead(notificacaoId, token);
-        await carregarNotificacoes();
+        await carregarNotificacoes(true); // Reset para recarregar tudo
         await carregarContador();
       }
     } catch (error) {
@@ -115,7 +152,7 @@ export function NotificacoesDropdown() {
       const token = localStorage.getItem('access_token');
       if (token) {
         await notificacoesApi.delete(notificacaoId, token);
-        await carregarNotificacoes();
+        await carregarNotificacoes(true); // Reset para recarregar tudo
         await carregarContador();
         toast.success('Notificação removida');
       }
@@ -165,6 +202,16 @@ export function NotificacoesDropdown() {
     });
   };
 
+  // Função para carregar mais notificações quando o usuário faz scroll
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    
+    // Verificar se chegou ao final (com margem de 50px)
+    if (scrollHeight - scrollTop <= clientHeight + 50 && hasMore && !loadingMore) {
+      carregarNotificacoes(false);
+    }
+  }, [hasMore, loadingMore, carregarNotificacoes]);
+
   return (
     <div className="relative">
       <Button
@@ -193,7 +240,11 @@ export function NotificacoesDropdown() {
             )}
           </div>
 
-          <div className="max-h-96 overflow-y-auto">
+          <div 
+            ref={scrollContainerRef}
+            className="max-h-96 overflow-y-auto"
+            onScroll={handleScroll}
+          >
             {loading ? (
               <div className="p-4 text-center text-gray-500">
                 Carregando notificações...
@@ -204,9 +255,9 @@ export function NotificacoesDropdown() {
               </div>
             ) : (
               <div className="space-y-1">
-                {notificacoes.map((notificacao) => (
+                {notificacoes.map((notificacao, index) => (
                   <div
-                    key={notificacao.id}
+                    key={`${notificacao.id}-${index}`}
                     className={`p-3 border-b last:border-b-0 hover:bg-gray-50 ${
                       !notificacao.visualizada ? 'bg-blue-50' : ''
                     }`}
@@ -244,12 +295,12 @@ export function NotificacoesDropdown() {
                               variant="outline"
                               size="sm"
                               onClick={() => {
-                                window.location.href = `/orcamentos/${notificacao.orcamento_id}/editar?chat=true`;
+                                window.location.href = `/orcamentos-v2/novo?id=${notificacao.orcamento_id}`;
                                 setIsOpen(false);
                               }}
                               className="text-xs"
                             >
-                              Editar Orçamento
+                              Ver Orçamento
                             </Button>
                           </div>
                         )}
@@ -284,6 +335,23 @@ export function NotificacoesDropdown() {
                     </div>
                   </div>
                 ))}
+                
+                {/* Indicador de carregamento para mais notificações */}
+                {loadingMore && (
+                  <div className="p-4 text-center bg-blue-50 border-t border-blue-100">
+                    <div className="flex items-center justify-center gap-2 text-blue-600">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span className="text-sm font-medium">Carregando mais notificações...</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Indicador quando não há mais notificações */}
+                {!hasMore && notificacoes.length > 0 && (
+                  <div className="p-4 text-center text-gray-400 text-sm">
+                    Todas as notificações foram carregadas
+                  </div>
+                )}
               </div>
             )}
           </div>

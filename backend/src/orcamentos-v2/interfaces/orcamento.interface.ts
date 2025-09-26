@@ -8,6 +8,7 @@ export interface OrcamentoBase {
   cliente_id: string;
   loja_id: string;
   status: OrcamentoStatus;
+  status_aprovacao?: string;
   tipo: OrcamentoTipo;
   tipo_orcamento?: OrcamentoTipo;
   data_criacao: Date;

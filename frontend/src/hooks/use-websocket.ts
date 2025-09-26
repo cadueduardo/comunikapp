@@ -36,7 +36,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
 
     try {
-      console.log('🔍 Polling: Verificando novas mensagens para orçamento:', options.orcamentoId);
+      // console.log('🔍 Polling: Verificando novas mensagens para orçamento:', options.orcamentoId);
       
       const token = options.isPublic ? null : localStorage.getItem('access_token');
       const headers: Record<string, string> = {
@@ -45,22 +45,21 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
-        console.log('🔍 Polling: Token encontrado');
+        // console.log('🔍 Polling: Token encontrado');
       } else {
-        console.log('🔍 Polling: Sem token (modo público)');
+        // console.log('🔍 Polling: Sem token (modo público)');
       }
 
-      // Usar endpoint público se estiver em modo público
+      // Usar endpoint público se estiver em modo público - SEGUINDO PADRÃO DO LEGADO
       const endpoint = options.isPublic 
-        ? `/orcamentos/${options.orcamentoId}/mensagens/publico`
-        : `/orcamentos/${options.orcamentoId}/mensagens`;
+        ? `/orcamentos-v2/${options.orcamentoId}/mensagens/publico`
+        : `/orcamentos-v2/${options.orcamentoId}/mensagens`;
 
       const fullUrl = buildApiUrl(endpoint);
-      console.log('🔍 Polling: Usando endpoint:', fullUrl);
 
       // Adicionar timeout para evitar requisições muito longas
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos
 
       const response = await fetch(fullUrl, {
         headers,
@@ -68,20 +67,30 @@ export function useWebSocket(options: UseWebSocketOptions) {
       });
 
       clearTimeout(timeoutId);
-      console.log('🔍 Polling: Status da resposta:', response.status);
 
       if (response.ok) {
-        const mensagens = await response.json();
-        console.log('🔍 Polling: Mensagens recebidas:', mensagens.length);
+        const responseData = await response.json();
+        console.log('🔍 Polling: Dados brutos recebidos:', responseData);
+        
+        // Extrair mensagens da resposta
+        const mensagens = responseData.mensagens || responseData.data || responseData;
+        
+        // Log para debug
+        console.log(`🔍 Polling: ${mensagens?.length || 'undefined'} mensagens recebidas para orçamento ${options.orcamentoId}`);
         
         // Verificar se há mensagens novas
-        if (mensagens.length > 0) {
-          const ultimaMensagem = mensagens[mensagens.length - 1];
-          console.log('🔍 Polling: Última mensagem ID:', ultimaMensagem.id);
-          console.log('🔍 Polling: Last message ID ref:', lastMessageIdRef.current);
+        if (mensagens && Array.isArray(mensagens) && mensagens.length > 0) {
+          // Ordenar mensagens por data para garantir ordem correta
+          const mensagensOrdenadas = [...mensagens].sort((a, b) => 
+            new Date(a.criado_em || a.data_envio).getTime() - new Date(b.criado_em || b.data_envio).getTime()
+          );
+          
+          const ultimaMensagem = mensagensOrdenadas[mensagensOrdenadas.length - 1];
+          
+          console.log(`🔍 Polling: Última mensagem ID: ${ultimaMensagem.id}, Last ID: ${lastMessageIdRef.current}`);
           
           if (lastMessageIdRef.current !== ultimaMensagem.id) {
-            console.log('✅ Polling: Nova mensagem detectada!');
+            console.log(`✅ Polling: Nova mensagem detectada! ID: ${ultimaMensagem.id}`);
             lastMessageIdRef.current = ultimaMensagem.id;
             
             // Simular evento de nova mensagem
@@ -97,18 +106,16 @@ export function useWebSocket(options: UseWebSocketOptions) {
               timestamp: new Date().toISOString(),
             };
             
-            console.log('📨 Polling: Chamando onNewMessage com:', webSocketMessage);
+            console.log(`📨 Polling: Chamando onNewMessage com:`, webSocketMessage);
             options.onNewMessage?.(webSocketMessage);
           } else {
-            console.log('🔍 Polling: Nenhuma mensagem nova');
+            console.log(`🔍 Polling: Nenhuma mensagem nova`);
           }
         } else {
-          console.log('🔍 Polling: Nenhuma mensagem encontrada');
+          console.log(`🔍 Polling: Nenhuma mensagem encontrada`);
         }
       } else {
-        console.error('❌ Polling: Erro na resposta:', response.status, response.statusText);
-        const errorText = await response.text();
-        console.error('❌ Polling: Detalhes do erro:', errorText);
+        console.error('❌ Polling: Erro na resposta:', response.status);
       }
     } catch (error) {
       // Verificar se é um erro de abort ou outro tipo
@@ -125,36 +132,29 @@ export function useWebSocket(options: UseWebSocketOptions) {
   // Iniciar polling quando o componente montar
   useEffect(() => {
     if (options.orcamentoId && typeof window !== 'undefined') {
-      console.log('🚀 Polling: Iniciando para orçamento:', options.orcamentoId);
-      
       // Pequeno delay para garantir que o componente está totalmente montado
       const initialDelay = setTimeout(() => {
         checkNewMessages();
       }, 100);
       
-      // Configurar polling a cada 3 segundos
-      pollingIntervalRef.current = setInterval(checkNewMessages, 3000);
-      console.log('⏰ Polling: Intervalo configurado (3s)');
+      // Configurar polling a cada 5 segundos (reduzido de 3s para 5s)
+      pollingIntervalRef.current = setInterval(checkNewMessages, 5000);
       
       return () => {
         clearTimeout(initialDelay);
-        console.log('🛑 Polling: Limpando intervalo');
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
           pollingIntervalRef.current = null;
         }
       };
-    } else {
-      console.log('⚠️ Polling: OrcamentoId não fornecido ou não está no browser, não iniciando');
     }
   }, [checkNewMessages]);
 
   const connect = useCallback(() => {
-    console.log('🔌 Polling: Conectando...');
+    // Conectado via polling
   }, []);
 
   const disconnect = useCallback(() => {
-    console.log('🔌 Polling: Desconectando...');
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
@@ -162,7 +162,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
   }, []);
 
   const emitTyping = useCallback((isTyping: boolean) => {
-    console.log('⌨️ Polling: Typing:', isTyping);
+    // Typing não implementado no polling
   }, []);
 
   const emitMessageRead = useCallback(async (messageId: string) => {
@@ -175,8 +175,6 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
 
     try {
-      console.log('👁️ Polling: Marcando mensagem como lida:', messageId);
-
       const token = options.isPublic ? null : localStorage.getItem('access_token');
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -188,20 +186,17 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
       // Usar endpoint correto baseado no modo
       const endpoint = options.isPublic
-        ? `/orcamentos/${options.orcamentoId}/mensagens/publico/${messageId}/visualizar`
-        : `/orcamentos/${options.orcamentoId}/mensagens/${messageId}/visualizar`;
+        ? `/orcamentos-v2/${options.orcamentoId}/publico/mensagens/${messageId}/visualizar`
+        : `/orcamentos-v2/chat/${options.orcamentoId}/mensagens/${messageId}/visualizar`;
 
       const fullUrl = buildApiUrl(endpoint);
-      console.log('👁️ Polling: Usando endpoint para marcar como lida:', fullUrl);
 
       const response = await fetch(fullUrl, {
         method: 'POST',
         headers,
       });
 
-      if (response.ok) {
-        console.log('✅ Polling: Mensagem marcada como lida');
-      } else {
+      if (!response.ok) {
         console.error('❌ Polling: Erro ao marcar como lida:', response.status);
       }
     } catch (error) {
@@ -210,7 +205,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
   }, [options.orcamentoId, options.isPublic]);
 
   const ping = useCallback(() => {
-    console.log('💓 Polling: Ping');
+    // Ping não implementado no polling
   }, []);
 
   return {

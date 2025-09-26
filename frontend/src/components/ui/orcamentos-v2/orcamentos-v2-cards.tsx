@@ -6,8 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, Edit, Trash2, Search, Filter, Calendar, User, DollarSign, Loader2 } from 'lucide-react';
+import { Eye, Edit, Trash2, Search, Filter, Calendar, User, DollarSign, Loader2, Share2 } from 'lucide-react';
 import { useOrcamentosV2 } from './hooks/useOrcamentosV2';
+import { formatCurrency } from '@/lib/utils';
 
 const statusColors = {
   PENDENTE: 'bg-yellow-100 text-yellow-800',
@@ -22,17 +23,42 @@ const statusColors = {
 
 export function OrcamentosV2Cards() {
   const [searchTerm, setSearchTerm] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState('todos');
   
   // Usar hook para buscar dados reais do backend
   const { orcamentos, loading, error, refetch } = useOrcamentosV2();
+
+  const handleShare = async (orcamento: any) => {
+    try {
+      // Gerar link público do orçamento V2
+      const linkPublico = `${window.location.origin}/orcamento-v2/${orcamento.id}`;
+      
+      // Tentar usar a Web Share API se disponível
+      if (navigator.share) {
+        await navigator.share({
+          title: `Orçamento ${orcamento.numero} - ${orcamento.nome_servico}`,
+          text: `Orçamento de ${formatCurrency(orcamento.preco_final)}`,
+          url: linkPublico,
+        });
+      } else {
+        // Fallback: copiar para área de transferência
+        await navigator.clipboard.writeText(linkPublico);
+        alert('Link copiado para a área de transferência!');
+      }
+    } catch (error) {
+      console.error('Erro ao compartilhar:', error);
+      // Fallback final: mostrar link em alert
+      const linkPublico = `${window.location.origin}/orcamento-v2/${orcamento.id}`;
+      alert(`Link do orçamento: ${linkPublico}`);
+    }
+  };
 
   const filteredOrcamentos = orcamentos.filter(orcamento => {
     const matchesSearch = orcamento.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          orcamento.nome_servico.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (orcamento.cliente?.nome && orcamento.cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesStatus = !statusFilter || orcamento.status === statusFilter;
+    const matchesStatus = statusFilter === 'todos' || orcamento.status === statusFilter;
     
     return matchesSearch && matchesStatus;
   });
@@ -90,7 +116,7 @@ export function OrcamentosV2Cards() {
                 <SelectValue placeholder="Filtrar por status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os status</SelectItem>
+                <SelectItem value="todos">Todos os status</SelectItem>
                 <SelectItem value="rascunho">Rascunho</SelectItem>
                 <SelectItem value="enviado">Enviado</SelectItem>
                 <SelectItem value="PENDENTE">Pendente</SelectItem>
@@ -143,14 +169,14 @@ export function OrcamentosV2Cards() {
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-gray-400" />
                   <span className="text-gray-700">
-                    {new Date(orcamento.criado_em).toLocaleDateString('pt-BR')}
+                    {orcamento.criado_em || '-'}
                   </span>
                 </div>
                 
                 <div className="flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-gray-400" />
                   <span className="font-semibold text-gray-900">
-                    R$ {orcamento.preco_final.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {formatCurrency(orcamento.preco_final)}
                   </span>
                 </div>
               </div>
@@ -164,6 +190,14 @@ export function OrcamentosV2Cards() {
                 <Button variant="ghost" size="sm" className="flex-1">
                   <Edit className="w-4 h-4 mr-2" />
                   Editar
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => handleShare(orcamento)}
+                  className="text-blue-600 hover:text-blue-700"
+                >
+                  <Share2 className="w-4 h-4" />
                 </Button>
                 <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
                   <Trash2 className="w-4 h-4" />
