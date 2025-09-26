@@ -1034,12 +1034,12 @@ export function OrcamentoV2Form({
         />
       )}
 
-      {/* Chat Flutuante - mostrar apenas para orçamentos em status pendente ou enviado */}
-      {orcamentoId && orcamentoStatus && ['pendente', 'enviado'].includes(orcamentoStatus) && (
+      {/* Chat Flutuante - mostrar para todos os status exceto rascunho */}
+      {orcamentoId && orcamentoStatus && orcamentoStatus !== 'rascunho' && (
         <ChatFlutuante 
           orcamentoId={orcamentoId}
           isPublic={false}
-          shouldOpen={false}
+          shouldOpen={orcamentoStatus === 'negociando' || orcamentoStatus === 'NEGOCIANDO'}
         />
       )}
     </div>

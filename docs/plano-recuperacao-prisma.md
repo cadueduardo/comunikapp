@@ -14,4 +14,4 @@
 
 ## Observações
 - As alterações do orçamento V2 permanecem intactas; nenhuma modificação foi feita nos módulos `orcamentos-v2`.
-- Caso seja necessário reimplantar a numeração de documentos, planejar migração incremental do schema (novas tabelas e serviços dedicados) sem alterar nomes/IDs existentes.
+- Caso seja necessário reimplantar a numeração de documentos, planejar migração incremental do schema (novas tabelas e serviços dedicados) sem alterar nomes/IDs existentes.\r\n## Atualizacao set/2025\r\n- [x] Adicionar tabela document_sequences e indice unico Orcamento_loja_id_numero_key.\r\n- [x] Implementar DocumentCodeService isolado e integrar com OrcamentosService.\r\n- [x] Criar modulo DocumentosModule para compartilhar o servico.\r\n- [x] Injetar dependencia nos testes de OrcamentosService.\r\n- [ ] Executar script de backfill das sequencias existentes antes de migrar dados reais.\r\n

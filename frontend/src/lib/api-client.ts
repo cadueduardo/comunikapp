@@ -99,13 +99,17 @@ export class ApiClient {
   }
   
   // DELETE request
-  static async delete<T>(endpoint: string, token?: string): Promise<T> {
+  static async delete<T>(endpoint: string, token?: string, data?: Record<string, unknown>): Promise<T> {
     const url = buildApiUrl(endpoint);
     const headers = getAuthHeaders(token);
     
     const response = await fetch(url, {
       method: 'DELETE',
-      headers,
+      headers: {
+        ...headers,
+        ...(data && { 'Content-Type': 'application/json' }),
+      },
+      ...(data && { body: JSON.stringify(data) }),
     });
     
     if (!response.ok) {
@@ -265,7 +269,7 @@ export const orcamentosApi = {
     getById: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}`, token),
     create: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos-v2', data, token),
     update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/orcamentos-v2/${id}`, data, token),
-    delete: (id: string, token: string) => ApiClient.delete(`/orcamentos-v2/${id}`, token),
+    delete: (id: string, token: string, data?: { motivo?: string }) => ApiClient.delete(`/orcamentos-v2/${id}`, token, data),
     
     // Cálculo via Motor V2
     calcularOrcamento: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos-v2/calcular', data, token),

@@ -45,7 +45,7 @@ export class TransformacaoV2Service {
       data_criacao: new Date(),
       data_atualizacao: new Date(),
       atualizado_em: new Date(),
-      numero: dados.numero || this.gerarNumeroOrcamento(),
+      numero: dados.numero,
       horas_producao: dados.horas_producao ?? 0,
       custo_material: dados.custo_material ?? 0,
       custo_mao_obra: dados.custo_mao_obra ?? 0,
@@ -81,11 +81,6 @@ export class TransformacaoV2Service {
     return dadosPreparados;
   }
 
-  private gerarNumeroOrcamento(): string {
-    const timestamp = Date.now().toString(36).toUpperCase();
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `ORC-${timestamp}-${random}`;
-  }
 
   /**
    * Prepara dados para atualização de orçamento
@@ -153,6 +148,7 @@ export class TransformacaoV2Service {
 
     const orcamento: OrcamentoCompleto = {
       id: dados.id,
+      numero: dados.numero,
       titulo: dados.titulo,
       descricao: dados.descricao,
       cliente_id: dados.cliente_id,
@@ -597,3 +593,5 @@ export class TransformacaoV2Service {
     }));
   }
 }
+
+

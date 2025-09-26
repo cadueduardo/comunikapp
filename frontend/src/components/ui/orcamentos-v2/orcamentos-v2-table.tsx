@@ -1,135 +1,232 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Edit, Trash2, Share2, Search, Filter, Loader2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { DeleteOrcamentoDialog } from '@/components/ui/delete-orcamento-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/utils';
-import { useOrcamentosV2, OrcamentoV2 } from './hooks/useOrcamentosV2';
+import { orcamentosApi } from '@/lib/api-client';
+import { Edit, Filter, Loader2, MoreHorizontal, Search, Share2, Trash2 } from 'lucide-react';
+import { OrcamentoV2, useOrcamentosV2 } from './hooks/useOrcamentosV2';
+
+type StatusFilter = 'todos' | 'rascunho' | 'enviado';
 
 interface OrcamentosV2TableProps {
   onDelete?: (id: string, nome: string) => void;
   onShare?: (orcamento: OrcamentoV2) => void;
 }
 
+interface StatusConfig {
+  label: string;
+  variant: 'default' | 'secondary' | 'outline' | 'destructive';
+  className?: string;
+  href: string;
+}
+
+function resolveStatusConfig(orcamento: OrcamentoV2): StatusConfig {
+  const status = orcamento.status ?? 'rascunho';
+  const approval = orcamento.status_aprovacao ?? null;
+  const viewHref = `/orcamentos-v2/${orcamento.id}`;
+  const editHref = `/orcamentos-v2/novo?id=${orcamento.id}`;
+
+  if (status === 'rascunho') {
+    return {
+      label: 'Rascunho',
+      variant: 'outline',
+      className: 'text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors',
+      href: editHref,
+    };
+  }
+
+  if (status === 'aprovado') {
+    return {
+      label: 'Aprovado',
+      variant: 'default',
+      className: 'text-xs bg-green-100 text-green-800 border-green-200 hover:bg-green-200 transition-colors',
+      href: viewHref,
+    };
+  }
+
+  if (status === 'rejeitado') {
+    return {
+      label: 'Rejeitado',
+      variant: 'destructive',
+      className: 'text-xs hover:bg-red-200 transition-colors',
+      href: viewHref,
+    };
+  }
+
+  if (status === 'negociando') {
+    return {
+      label: 'Negociando',
+      variant: 'secondary',
+      className: 'text-xs bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 transition-colors',
+      href: editHref,
+    };
+  }
+
+  if (status === 'enviado') {
+    if (!approval || approval === 'PENDENTE') {
+      return {
+        label: 'Enviado - Pendente',
+        variant: 'secondary',
+        className: 'text-xs bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200 transition-colors',
+        href: viewHref,
+      };
+    }
+
+    if (approval === 'APROVADO') {
+      return {
+        label: 'Enviado - Aprovado',
+        variant: 'default',
+        className: 'text-xs bg-green-100 text-green-800 border-green-200 hover:bg-green-200 transition-colors',
+        href: viewHref,
+      };
+    }
+
+    if (approval === 'REJEITADO') {
+      return {
+        label: 'Enviado - Rejeitado',
+        variant: 'destructive',
+        className: 'text-xs hover:bg-red-200 transition-colors',
+        href: viewHref,
+      };
+    }
+
+    if (approval === 'NEGOCIANDO') {
+      return {
+        label: 'Enviado - Negociando',
+        variant: 'secondary',
+        className: 'text-xs bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 transition-colors',
+        href: editHref,
+      };
+    }
+  }
+
+  return {
+    label: 'Enviado',
+    variant: 'secondary',
+    className: 'text-xs bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 transition-colors',
+    href: viewHref,
+  };
+}
+
 export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('todos');
-  
-  // Usar hook para buscar dados reais do backend
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('todos');
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; orcamentoId?: string; nome?: string; loading?: boolean }>({ open: false });
   const { orcamentos, loading, error, refetch } = useOrcamentosV2();
-  
-  // Função para forçar atualização
-  const handleRefresh = async () => {
-    console.log('🔄 Forçando atualização dos dados...');
-    await refetch();
-  };
-  
-  // Debug: verificar dados recebidos
-  console.log('🔍 OrcamentosV2Table - Dados recebidos:', {
-    orcamentos,
-    loading,
-    error,
-    count: orcamentos?.length || 0
-  });
-
-
 
   const filteredData = useMemo(() => {
-    let filtered = orcamentos;
+    const normalizedTerm = searchTerm.trim().toLowerCase();
+    let data = [...orcamentos];
 
-    // Debug: verificar dados antes da filtragem
-    console.log('🔍 Debug - Dados antes da filtragem:', {
-      orcamentos,
-      searchTerm,
-      statusFilter,
-      filtered
-    });
-
-    // Filtro por busca
-    if (searchTerm) {
-      filtered = filtered.filter(orcamento =>
-        orcamento.nome_servico.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        orcamento.cliente?.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        orcamento.numero.includes(searchTerm)
-      );
+    if (normalizedTerm) {
+      data = data.filter((item) => {
+        const matchesTitulo = item.nome_servico.toLowerCase().includes(normalizedTerm);
+        const matchesCliente = item.cliente?.nome?.toLowerCase().includes(normalizedTerm);
+        const matchesNumero = item.numero.toLowerCase().includes(normalizedTerm);
+        return matchesTitulo || matchesCliente || matchesNumero;
+      });
     }
 
-    // Filtro por status
-    if (statusFilter !== 'todos') {
-      if (statusFilter === 'rascunho') {
-        filtered = filtered.filter(orcamento => !orcamento.status || orcamento.status === 'rascunho');
-      } else if (statusFilter === 'enviado') {
-        filtered = filtered.filter(orcamento => orcamento.status === 'enviado');
-      }
+    if (statusFilter === 'rascunho') {
+      data = data.filter((item) => !item.status || item.status === 'rascunho');
+    } else if (statusFilter === 'enviado') {
+      data = data.filter((item) => item.status === 'enviado');
     }
 
-    // Debug: verificar dados após filtragem
-    console.log('🔍 Debug - Dados após filtragem:', {
-      filtered,
-      length: filtered.length
-    });
-
-    return filtered;
+    return data;
   }, [orcamentos, searchTerm, statusFilter]);
 
+  const handleRefresh = async () => {
+    await refetch();
+  };
 
+  const openDeleteDialog = (id: string, nome: string) => {
+    setDeleteDialog({ open: true, orcamentoId: id, nome, loading: false });
+  };
 
-  const handleDelete = (id: string, nome: string) => {
-    if (onDelete) {
-      onDelete(id, nome);
-    } else {
-      console.log('Deletar orçamento:', id, nome);
+  const confirmDelete = async (motivo: string) => {
+    if (!deleteDialog.orcamentoId) {
+      return;
+    }
+
+    setDeleteDialog((previous) => ({ ...previous, loading: true }));
+
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        throw new Error('Token de autenticacao nao encontrado.');
+      }
+
+      await orcamentosApi.v2.delete(deleteDialog.orcamentoId, token, { motivo });
+      toast.success('Orcamento excluido com sucesso.');
+      onDelete?.(deleteDialog.orcamentoId, deleteDialog.nome ?? '');
+      await refetch();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao excluir o orcamento.';
+      toast.error(message);
+    } finally {
+      setDeleteDialog({ open: false, loading: false });
     }
   };
 
   const handleShare = async (orcamento: OrcamentoV2) => {
+    if (onShare) {
+      onShare(orcamento);
+      return;
+    }
+
     try {
-      // Gerar link público do orçamento V2
-      const linkPublico = `${window.location.origin}/orcamento-v2/${orcamento.id}`;
-      
-      // Tentar usar a Web Share API se disponível
+      const publicLink = `${window.location.origin}/orcamento-v2/${orcamento.id}`;
+
       if (navigator.share) {
         await navigator.share({
-          title: `Orçamento ${orcamento.numero} - ${orcamento.nome_servico}`,
-          text: `Orçamento de ${formatCurrency(orcamento.preco_final)}`,
-          url: linkPublico,
+          title: `Orcamento ${orcamento.numero} - ${orcamento.nome_servico}`,
+          text: `Orcamento de ${formatCurrency(orcamento.preco_final)}`,
+          url: publicLink,
         });
-      } else {
-        // Fallback: copiar para área de transferência
-        await navigator.clipboard.writeText(linkPublico);
-        alert('Link copiado para a área de transferência!');
+        return;
       }
-    } catch (error) {
-      console.error('Erro ao compartilhar:', error);
-      // Fallback final: mostrar link em alert
-      const linkPublico = `${window.location.origin}/orcamento-v2/${orcamento.id}`;
-      alert(`Link do orçamento: ${linkPublico}`);
+
+      await navigator.clipboard.writeText(publicLink);
+      toast.success('Link copiado para a area de transferencia.');
+    } catch (err) {
+      const fallbackLink = `${window.location.origin}/orcamento-v2/${orcamento.id}`;
+      console.error('Erro ao compartilhar orcamento:', err);
+      alert(`Link do orcamento: ${fallbackLink}`);
     }
   };
 
-  // Mostrar loading
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="flex items-center gap-2">
           <Loader2 className="h-5 w-5 animate-spin" />
-          <span>Carregando orçamentos...</span>
+          <span>Carregando orcamentos...</span>
         </div>
       </div>
     );
   }
 
-  // Mostrar erro
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-12 space-y-4">
-        <div className="text-red-600 text-center">
-          <div className="text-lg font-medium">Erro ao carregar orçamentos</div>
+        <div className="text-center">
+          <div className="text-lg font-medium text-red-600">Erro ao carregar orcamentos</div>
           <div className="text-sm text-gray-600 mt-1">{error}</div>
         </div>
         <Button onClick={refetch} variant="outline">
@@ -141,31 +238,27 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
 
   return (
     <div className="space-y-4">
-      {/* Filtros e Busca */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
-            placeholder="Buscar por serviço, cliente ou número..."
+            placeholder="Buscar por servico, cliente ou numero..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(event) => setSearchTerm(event.target.value)}
             className="pl-10"
           />
         </div>
-        <Button 
-          onClick={handleRefresh} 
-          variant="outline" 
-          disabled={loading}
-          className="flex items-center gap-2"
-        >
-          <Loader2 className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Atualizar
-        </Button>
-        <div className="flex gap-2">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-48">
-              <Filter className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="Filtrar por status" />
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <Button onClick={handleRefresh} variant="outline" className="flex items-center gap-2">
+            <Loader2 className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+          <Select value={statusFilter} onValueChange={(value: StatusFilter) => setStatusFilter(value)}>
+            <SelectTrigger className="w-full sm:w-48">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-gray-500" />
+                <SelectValue placeholder="Filtrar por status" />
+              </div>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos os status</SelectItem>
@@ -176,220 +269,139 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
         </div>
       </div>
 
-      {/* Tabela */}
-      <div className="border rounded-lg">
+      <div className="overflow-hidden rounded-lg border">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Número
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Numero
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Título
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Servico
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Cliente
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Valor
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status do Orçamento
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Criado em
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Atualizado em
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ações
+                <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Acoes
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-200 bg-white">
               {filteredData.length === 0 ? (
-                                 <tr>
-                   <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
-                    <div className="flex flex-col items-center space-y-2">
-                      <div className="text-4xl">📋</div>
-                      <div className="text-lg font-medium">Nenhum orçamento encontrado</div>
-                      <div className="text-sm">Tente ajustar os filtros ou criar um novo orçamento</div>
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                    <div className="space-y-2">
+                      <div className="text-lg font-medium">Nenhum orcamento encontrado</div>
+                      <div className="text-sm text-gray-400">Ajuste os filtros ou crie um novo orcamento.</div>
                     </div>
                   </td>
                 </tr>
               ) : (
-                                 filteredData.map((orcamento) => (
-                  <tr key={orcamento.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge variant="secondary">#{orcamento.numero}</Badge>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
+                filteredData.map((orcamento) => {
+                  const statusConfig = resolveStatusConfig(orcamento);
+
+                  return (
+                    <tr key={orcamento.id} className="hover:bg-gray-50">
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <Badge variant="secondary">#{orcamento.numero}</Badge>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4">
                         <div className="font-medium text-gray-900">{orcamento.nome_servico}</div>
                         {orcamento.descricao && (
                           <div className="text-sm text-gray-500">{orcamento.descricao}</div>
                         )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                      {orcamento.cliente?.nome || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="font-semibold text-green-600">
-                        {formatCurrency(orcamento.preco_final)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {(() => {
-                        // Lógica inteligente para status do orçamento
-                        const status = orcamento.status || 'rascunho';
-                        const statusAprovacao = orcamento.hasOwnProperty('status_aprovacao') ? orcamento.status_aprovacao : null;
-                        
-                        // Debug adicional
-                        console.log('🔍 Debug - Orçamento no frontend:', {
-                          id: orcamento.id,
-                          status,
-                          statusAprovacao,
-                          hasStatusAprovacao: orcamento.hasOwnProperty('status_aprovacao'),
-                          allKeys: Object.keys(orcamento)
-                        });
-                        
-                        // Debug
-                        console.log('🔍 Debug - Status do orçamento:', {
-                          id: orcamento.id,
-                          status,
-                          statusAprovacao
-                        });
-                        
-                        // Determinar o status final
-                        let statusFinal, badgeVariant, badgeClass, icon;
-                        
-                        if (status === 'rascunho') {
-                          statusFinal = 'Rascunho';
-                          badgeVariant = 'outline';
-                          badgeClass = 'text-xs bg-gray-100 text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors';
-                          icon = '📝';
-                        } else if (status === 'aprovado') {
-                          statusFinal = 'Aprovado';
-                          badgeVariant = 'default';
-                          badgeClass = 'text-xs bg-green-100 text-green-800 border-green-200 cursor-pointer hover:bg-green-200 transition-colors';
-                          icon = '✅';
-                        } else if (status === 'rejeitado') {
-                          statusFinal = 'Rejeitado';
-                          badgeVariant = 'destructive';
-                          badgeClass = 'text-xs cursor-pointer hover:bg-red-200 transition-colors';
-                          icon = '❌';
-                        } else if (status === 'negociando') {
-                          statusFinal = 'Negociando';
-                          badgeVariant = 'secondary';
-                          badgeClass = 'text-xs bg-blue-100 text-blue-800 border-blue-200 cursor-pointer hover:bg-blue-200 transition-colors';
-                          icon = '💬';
-                        } else if (status === 'enviado') {
-                          // Se está enviado, verificar status de aprovação
-                          if (!statusAprovacao || statusAprovacao === 'PENDENTE') {
-                            statusFinal = 'Enviado - Pendente';
-                            badgeVariant = 'secondary';
-                            badgeClass = 'text-xs bg-yellow-100 text-yellow-800 border-yellow-200 cursor-pointer hover:bg-yellow-200 transition-colors';
-                            icon = '⏳';
-                          } else if (statusAprovacao === 'APROVADO') {
-                            statusFinal = 'Aprovado';
-                            badgeVariant = 'default';
-                            badgeClass = 'text-xs bg-green-100 text-green-800 border-green-200 cursor-pointer hover:bg-green-200 transition-colors';
-                            icon = '✅';
-                          } else if (statusAprovacao === 'REJEITADO') {
-                            statusFinal = 'Rejeitado';
-                            badgeVariant = 'destructive';
-                            badgeClass = 'text-xs cursor-pointer hover:bg-red-200 transition-colors';
-                            icon = '❌';
-                          } else if (statusAprovacao === 'NEGOCIANDO') {
-                            statusFinal = 'Negociando';
-                            badgeVariant = 'secondary';
-                            badgeClass = 'text-xs bg-blue-100 text-blue-800 border-blue-200 cursor-pointer hover:bg-blue-200 transition-colors';
-                            icon = '💬';
-                          } else {
-                            statusFinal = 'Enviado';
-                            badgeVariant = 'default';
-                            badgeClass = 'text-xs bg-blue-100 text-blue-800 border-blue-200 cursor-pointer hover:bg-blue-200 transition-colors';
-                            icon = '📤';
-                          }
-                        } else {
-                          // Fallback para outros status
-                          statusFinal = 'Enviado';
-                          badgeVariant = 'default';
-                          badgeClass = 'text-xs bg-blue-100 text-blue-800 border-blue-200 cursor-pointer hover:bg-blue-200 transition-colors';
-                          icon = '📤';
-                        }
-                        
-                        // Determinar link
-                        const linkHref = status === 'rascunho' || statusAprovacao === 'NEGOCIANDO' 
-                          ? `/orcamentos-v2/novo?id=${orcamento.id}`
-                          : `/orcamentos-v2/${orcamento.id}`;
-                        
-                        return (
-                          <Link href={linkHref} className="hover:opacity-80" onClick={() => console.log('🔍 Clicando para ver orcamento:', orcamento.id, 'link:', linkHref)}>
-                            <Badge variant={badgeVariant} className={badgeClass}>
-                              {icon} {statusFinal}
-                            </Badge>
-                          </Link>
-                        );
-                      })()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                      {orcamento.criado_em || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                      {orcamento.atualizado_em || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Abrir menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleShare(orcamento)}>
-                            <Share2 className="mr-2 h-4 w-4" />
-                            Compartilhar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href={`/orcamentos-v2/novo?id=${orcamento.id}`} onClick={() => console.log('🔍 Menu - Clicando para editar orcamento:', orcamento.id)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Editar
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            onClick={() => handleDelete(orcamento.id, orcamento.nome_servico)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-gray-900">
+                        {orcamento.cliente?.nome ?? '-'}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <span className="font-semibold text-green-600">
+                          {formatCurrency(orcamento.preco_final)}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <Link href={statusConfig.href} className="inline-block">
+                          <Badge variant={statusConfig.variant} className={statusConfig.className}>
+                            {statusConfig.label}
+                          </Badge>
+                        </Link>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-gray-900">
+                        {orcamento.criado_em ?? '-'}
+                      </td>
+                       <td className="whitespace-nowrap px-6 py-4 text-gray-900">
+                         {(orcamento as any).data_atualizacao ?? '-'}
+                       </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Abrir menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Acoes</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleShare(orcamento)}>
+                              <Share2 className="mr-2 h-4 w-4" />
+                              Compartilhar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/orcamentos-v2/novo?id=${orcamento.id}`}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Editar
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => openDeleteDialog(orcamento.id, orcamento.nome_servico)}
+                              className="text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Paginação */}
       {filteredData.length > 0 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-700">
+        <div className="flex items-center justify-between text-sm text-gray-700">
+          <div>
             Mostrando <span className="font-medium">{filteredData.length}</span> de{' '}
-            <span className="font-medium">{orcamentos.length}</span> orçamentos
+            <span className="font-medium">{orcamentos.length}</span> orcamentos
           </div>
         </div>
       )}
+
+      <DeleteOrcamentoDialog
+        open={deleteDialog.open}
+        orcamentoNome={deleteDialog.nome}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteDialog({ open: false })}
+        loading={deleteDialog.loading}
+      />
     </div>
   );
 }

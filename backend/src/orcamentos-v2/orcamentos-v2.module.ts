@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificacoesModule } from '../notificacoes/notificacoes.module';
 import { MailModule } from '../mail/mail.module';
+import { DocumentosModule } from '../documentos/documentos.module';
 import { MotorCalculoV2Module } from '../motor-calculo-v2/motor-calculo-v2.module';
 
 // Controllers
@@ -33,6 +34,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     PrismaModule,
     NotificacoesModule,
     MailModule,
+    DocumentosModule,
     MotorCalculoV2Module, // Integração com motor já funcionando
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'your-secret-key',

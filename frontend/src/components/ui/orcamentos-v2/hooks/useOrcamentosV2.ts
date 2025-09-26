@@ -10,6 +10,7 @@ export interface OrcamentoV2 {
   descricao?: string;
   preco_final: number;
   criado_em: string;
+  data_atualizacao?: string;
   status?: string;
   status_aprovacao?: string;
   cliente?: {

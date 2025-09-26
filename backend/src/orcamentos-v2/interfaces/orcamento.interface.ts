@@ -3,6 +3,7 @@
 
 export interface OrcamentoBase {
   id: string;
+  numero: string;
   titulo: string;
   descricao?: string;
   cliente_id: string;

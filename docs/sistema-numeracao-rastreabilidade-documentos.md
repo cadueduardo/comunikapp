@@ -1,3 +1,22 @@
+﻿## Escopo atual (set/2025)
+
+- Foco apenas no modulo de orcamentos V2.
+- Codigos seguem o formato ORC-AAAA-NNN por loja com controle anual.
+- Sequencias persistidas na tabela document_sequences e gerenciadas pelo servico DocumentCodeService.
+- Integracao feita apenas no backend; frontend continua exibindo o campo numero.
+
+### Checklist da Fase 1 (Pronto para QA)
+- [x] Criar tabela de sequencia multi-tenant (document_sequences).
+- [x] Garantir @@unique([loja_id, numero]) em orcamento.
+- [x] Isolar DocumentCodeService e modulo compartilhado.
+- [x] Consumir o servico em OrcamentosService (criacao/duplicacao).
+- [ ] Popular sequencias legadas (script opcional).
+- [ ] Atualizar frontend para exibir formato ORC-AAAA-NNN quando necessario.
+
+### Proximos passos planejados
+1. Especificar endpoints de consulta de codigos e rastreabilidade (fase 2).
+2. Modelar OS/NF apenas quando os respectivos modulos forem iniciados.
+3. Definir plano de migracao de dados reais e roteiro de QA.
 # Sistema de Numeração e Rastreabilidade de Documentos
 
 ## 📋 Objetivo
@@ -489,3 +508,6 @@ DOCUMENT_CODE_PREFIX_NF=NF
 ---
 
 **Este documento segue as premissas de arquitetura modular, multi-tenant e melhores práticas definidas no projeto, garantindo escalabilidade, manutenibilidade e integridade dos dados.**
+
+
+

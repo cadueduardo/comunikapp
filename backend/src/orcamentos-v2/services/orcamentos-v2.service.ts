@@ -6,6 +6,7 @@ import { TransformacaoV2Service } from './transformacao-v2.service';
 import { NotificacaoV2Service } from './notificacao-v2.service';
 import { NotificacoesService, TipoNotificacao } from '../../notificacoes/notificacoes.service';
 import { ValidacaoEstoqueService } from './validacao-estoque.service';
+import { DocumentCodeService } from '../../documentos/document-code.service';
 import { ChatV2Service } from './chat-v2.service';
 import { 
   OrcamentoCompleto, 
@@ -36,6 +37,7 @@ export class OrcamentosV2Service {
     private readonly notificacoesService: NotificacoesService,
     private readonly validacaoEstoque: ValidacaoEstoqueService,
     private readonly chatService: ChatV2Service,
+    private readonly documentCodeService: DocumentCodeService,
   ) {}
 
   /**
@@ -58,6 +60,8 @@ export class OrcamentosV2Service {
         lojaId,
         usuarioId,
       );
+      // Garantir numero sequencial controlado pelo DocumentCodeService
+      dadosPreparados.numero = await this.documentCodeService.gerarCodigoOrcamento(lojaId);
 
       // 3. Criar orçamento no banco
       const orcamentoCriado = await this.prisma.orcamento.create({
@@ -233,6 +237,7 @@ export class OrcamentosV2Service {
           take,
           select: {
             id: true,
+            numero: true,
             titulo: true,
             descricao: true,
             cliente_id: true,
@@ -486,6 +491,7 @@ export class OrcamentosV2Service {
     id: string,
     lojaId: string,
     usuarioId: string,
+    motivo?: string,
   ): Promise<void> {
     this.logger.log(`🗑️ Removendo orçamento ${id} da loja ${lojaId}`);
 
@@ -496,18 +502,25 @@ export class OrcamentosV2Service {
       // 2. Validar se pode ser removido
       await this.validacaoService.validarRemocao(id, lojaId);
 
-      // 3. Remover do banco
-      await this.prisma.orcamento.delete({
-        where: { id },
-      });
-
-      // 4. Criar histórico
+      // 3. Criar histórico ANTES de "excluir"
       await this.criarHistorico(
         id,
         'remocao',
-        'Orçamento removido',
+        `Orçamento removido${motivo ? `: ${motivo}` : ''}`,
         usuarioId,
+        { motivo_exclusao: motivo }
       );
+
+      // 4. Soft delete - marcar como excluído
+      await this.prisma.orcamento.update({
+        where: { id },
+        data: {
+          status: 'EXCLUIDO',
+          excluido_em: new Date(),
+          excluido_por: usuarioId,
+          motivo_exclusao: motivo,
+        },
+      });
 
       // 5. Notificar remoção
       await this.notificacaoService.notificarRemocao(id, lojaId);
@@ -603,7 +616,10 @@ export class OrcamentosV2Service {
   }
 
   private construirFiltros(filtros: any, lojaId: string): any {
-    const where: any = { loja_id: lojaId };
+    const where: any = { 
+      loja_id: lojaId,
+      status: { not: 'EXCLUIDO' } // Excluir orçamentos deletados
+    };
 
     if (filtros.status) where.status = filtros.status;
     if (filtros.tipo) where.tipo = filtros.tipo;
@@ -1771,3 +1787,5 @@ export class OrcamentosV2Service {
     }
   }
 }
+
+

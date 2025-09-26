@@ -562,6 +562,7 @@ export class OrcamentosV2Repository {
   private transformarOrcamento(orcamento: any): OrcamentoCompleto {
     return {
       id: orcamento.id,
+      numero: orcamento.numero,
       titulo: orcamento.titulo,
       descricao: orcamento.descricao,
       cliente_id: orcamento.cliente_id,

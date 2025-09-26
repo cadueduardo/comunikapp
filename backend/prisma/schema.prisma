@@ -556,6 +556,11 @@ model orcamento {
   linksPublicos          LinkPublico[]
   aprovacoes             aprovacaoOrcamento[]
   custos                 String?             @db.LongText // JSON com custos detalhados
+  
+  // Campos para soft delete
+  excluido_em            DateTime?
+  excluido_por           String?
+  motivo_exclusao        String?             @db.Text
 
   @@unique([loja_id, numero], map: "Orcamento_loja_id_numero_key")
   @@index([cliente_id], map: "Orcamento_cliente_id_fkey")
@@ -1211,4 +1216,18 @@ enum funcao_tipo_calculo {
   POR_UNIDADE
   POR_PECA_COM_CATEGORIA
   MANUAL
+}
+
+model document_sequence {
+  id           String   @id @default(cuid())
+  loja_id      String
+  tipo         String   // 'ORC', 'OS', 'NF'
+  ano          Int
+  ultimo_numero Int     @default(0)
+  criado_em    DateTime @default(now())
+  atualizado_em DateTime @updatedAt
+
+  @@unique([loja_id, tipo, ano])
+  @@index([loja_id])
+  @@map("document_sequences")
 }

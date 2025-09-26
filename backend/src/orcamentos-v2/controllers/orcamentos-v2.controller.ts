@@ -398,9 +398,10 @@ export class OrcamentosV2Controller {
   async removerOrcamento(
     @Param('id') id: string,
     @Request() req: any,
+    @Body() body: { motivo?: string },
   ) {
     const { loja_id, user_id } = req.user;
-    await this.orcamentosService.removerOrcamento(id, loja_id, user_id);
+    await this.orcamentosService.removerOrcamento(id, loja_id, user_id, body.motivo);
   }
 
   /**

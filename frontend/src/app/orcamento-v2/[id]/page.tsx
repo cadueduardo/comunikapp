@@ -264,6 +264,9 @@ export default function OrcamentoV2PublicoPage() {
   const emNegociacao = orcamento.status_aprovacao === 'NEGOCIANDO';
   const emRascunho = orcamento.status === 'rascunho';
   const podeInteragir = !jaAprovado && !jaRejeitado && !emRascunho;
+  
+  // Mostrar chat automaticamente se o orçamento ainda não foi aprovado ou rejeitado
+  const deveMostrarChat = !jaAprovado && !jaRejeitado && !emRascunho;
 
   return (
     <>
@@ -690,11 +693,11 @@ export default function OrcamentoV2PublicoPage() {
       </div>
 
       {/* Chat Flutuante */}
-      {mostrarChat && orcamento && (
+      {deveMostrarChat && orcamento && (
         <ChatFlutuante
           orcamentoId={orcamento.id}
           isPublic={true}
-          shouldOpen={mostrarChat}
+          shouldOpen={emNegociacao || mostrarChat}
         />
       )}
     </>
