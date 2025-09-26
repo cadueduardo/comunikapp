@@ -83,7 +83,7 @@ function resolveStatusConfig(orcamento: OrcamentoV2): StatusConfig {
         label: 'Enviado - Pendente',
         variant: 'secondary',
         className: 'text-xs bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200 transition-colors',
-        href: viewHref,
+        href: editHref,
       };
     }
 
@@ -119,7 +119,7 @@ function resolveStatusConfig(orcamento: OrcamentoV2): StatusConfig {
     label: 'Enviado',
     variant: 'secondary',
     className: 'text-xs bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 transition-colors',
-    href: viewHref,
+    href: editHref,
   };
 }
 
@@ -192,7 +192,7 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
 
     try {
       const publicLink = `${window.location.origin}/orcamento-v2/${orcamento.id}`;
-
+      
       if (navigator.share) {
         await navigator.share({
           title: `Orcamento ${orcamento.numero} - ${orcamento.nome_servico}`,
@@ -251,13 +251,13 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
           <Button onClick={handleRefresh} variant="outline" className="flex items-center gap-2">
             <Loader2 className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
+          Atualizar
+        </Button>
           <Select value={statusFilter} onValueChange={(value: StatusFilter) => setStatusFilter(value)}>
             <SelectTrigger className="w-full sm:w-48">
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-gray-500" />
-                <SelectValue placeholder="Filtrar por status" />
+              <SelectValue placeholder="Filtrar por status" />
               </div>
             </SelectTrigger>
             <SelectContent>
@@ -302,8 +302,8 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white">
               {filteredData.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                                 <tr>
+                   <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                     <div className="space-y-2">
                       <div className="text-lg font-medium">Nenhum orcamento encontrado</div>
                       <div className="text-sm text-gray-400">Ajuste os filtros ou crie um novo orcamento.</div>
@@ -315,69 +315,69 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
                   const statusConfig = resolveStatusConfig(orcamento);
 
                   return (
-                    <tr key={orcamento.id} className="hover:bg-gray-50">
+                  <tr key={orcamento.id} className="hover:bg-gray-50">
                       <td className="whitespace-nowrap px-6 py-4">
-                        <Badge variant="secondary">#{orcamento.numero}</Badge>
-                      </td>
+                      <Badge variant="secondary">#{orcamento.numero}</Badge>
+                    </td>
                       <td className="whitespace-nowrap px-6 py-4">
                         <div className="font-medium text-gray-900">{orcamento.nome_servico}</div>
                         {orcamento.descricao && (
                           <div className="text-sm text-gray-500">{orcamento.descricao}</div>
                         )}
-                      </td>
+                    </td>
                       <td className="whitespace-nowrap px-6 py-4 text-gray-900">
                         {orcamento.cliente?.nome ?? '-'}
-                      </td>
+                    </td>
                       <td className="whitespace-nowrap px-6 py-4">
-                        <span className="font-semibold text-green-600">
-                          {formatCurrency(orcamento.preco_final)}
-                        </span>
-                      </td>
+                      <span className="font-semibold text-green-600">
+                        {formatCurrency(orcamento.preco_final)}
+                      </span>
+                    </td>
                       <td className="whitespace-nowrap px-6 py-4">
                         <Link href={statusConfig.href} className="inline-block">
                           <Badge variant={statusConfig.variant} className={statusConfig.className}>
                             {statusConfig.label}
-                          </Badge>
-                        </Link>
-                      </td>
+                            </Badge>
+                          </Link>
+                    </td>
                       <td className="whitespace-nowrap px-6 py-4 text-gray-900">
                         {orcamento.criado_em ?? '-'}
-                      </td>
+                    </td>
                        <td className="whitespace-nowrap px-6 py-4 text-gray-900">
-                         {(orcamento as any).data_atualizacao ?? '-'}
-                       </td>
+                         {(orcamento as OrcamentoV2 & { data_atualizacao?: string }).data_atualizacao ?? '-'}
+                    </td>
                       <td className="whitespace-nowrap px-6 py-4 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">Abrir menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Abrir menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Acoes</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleShare(orcamento)}>
-                              <Share2 className="mr-2 h-4 w-4" />
-                              Compartilhar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
+                          <DropdownMenuItem onClick={() => handleShare(orcamento)}>
+                            <Share2 className="mr-2 h-4 w-4" />
+                            Compartilhar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
                               <Link href={`/orcamentos-v2/novo?id=${orcamento.id}`}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Editar
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
+                              <Edit className="mr-2 h-4 w-4" />
+                              Editar
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
                               onClick={() => openDeleteDialog(orcamento.id, orcamento.nome_servico)}
                               className="text-red-600 focus:text-red-600"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
                   );
                 })
               )}
