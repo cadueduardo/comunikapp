@@ -43,7 +43,7 @@ export default function OSPage() {
     setViewMode(isMobile ? 'cards' : 'table');
   }, [isMobile]);
 
-  // Carregar dados quando usu├írio estiver dispon├¡vel
+  // Carregar dados quando usuário estiver disponível
   useEffect(() => {
     if (!userLoading && user) {
       fetchOrdens();
@@ -54,7 +54,7 @@ export default function OSPage() {
   const fetchOrdens = async () => {
     try {
       setLoading(true);
-      const response = await apiRequest('/api/os');
+      const response = await apiRequest('/os');
 
       if (response.ok) {
         const data = await response.json();
@@ -64,7 +64,7 @@ export default function OSPage() {
       }
     } catch (error) {
       console.error('Erro ao carregar OS:', error);
-      toast.error('Erro ao carregar ordens de servi├ºo');
+      toast.error('Erro ao carregar ordens de serviço');
       setOrdens([]);
     } finally {
       setLoading(false);
@@ -73,13 +73,13 @@ export default function OSPage() {
 
   const fetchEstatisticas = async () => {
     try {
-      const response = await apiRequest('/api/os/estatisticas');
+      const response = await apiRequest('/os/estatisticas');
       if (response.ok) {
         const data = await response.json();
         setEstatisticas(data.data);
       }
     } catch (error) {
-      console.error('Erro ao carregar estat├¡sticas:', error);
+      console.error('Erro ao carregar estatísticas:', error);
     }
   };
 
@@ -92,12 +92,12 @@ export default function OSPage() {
 
   const handleDelete = async (id: string, numero: string) => {
     try {
-      const response = await apiRequest(`/api/os/${id}`, {
+      const response = await apiRequest(`/os/${id}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
-        toast.success(`OS #${numero} exclu├¡da com sucesso`);
+        toast.success(`OS #${numero} excluída com sucesso`);
         fetchOrdens();
         fetchEstatisticas();
       } else {
@@ -105,7 +105,7 @@ export default function OSPage() {
       }
     } catch (error) {
       console.error('Erro ao excluir OS:', error);
-      toast.error('Erro ao excluir ordem de servi├ºo');
+      toast.error('Erro ao excluir ordem de serviço');
     }
   };
 
@@ -123,10 +123,10 @@ export default function OSPage() {
 
   const header = (
     <PageHeader
-      title="Ordens de Servi├ºo"
+      title="Ordens de Serviço"
       backHref="/dashboard"
       icon={<ClipboardList className="h-8 w-8" />}
-      subtitle="Gerencie ordens de servi├ºo e acompanhe a produ├º├úo"
+      subtitle="Gerencie ordens de serviço e acompanhe a produção"
       actions={
         <div className="flex gap-2">
           <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
@@ -188,7 +188,7 @@ export default function OSPage() {
       <div className="flex items-center gap-2 w-full sm:w-auto">
         <Search className="h-4 w-4 text-gray-400" />
         <Input
-          placeholder="Buscar por n├║mero, servi├ºo ou cliente..."
+          placeholder="Buscar por número, serviço ou cliente..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full sm:w-96"
@@ -223,7 +223,7 @@ export default function OSPage() {
       <CardContent className="flex items-center justify-center h-32">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Carregando ordens de servi├ºo...</p>
+          <p className="mt-2 text-gray-600">Carregando ordens de serviço...</p>
         </div>
       </CardContent>
     </Card>
@@ -232,7 +232,7 @@ export default function OSPage() {
       <CardContent className="flex items-center justify-center h-32">
         <div className="text-center">
           <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">Nenhuma ordem de servi├ºo encontrada</p>
+          <p className="text-gray-600">Nenhuma ordem de serviço encontrada</p>
           <Link href="/os/novo">
             <Button className="mt-2" variant="outline">
               Criar primeira OS

@@ -10,10 +10,10 @@ export default function NovaOSPage() {
     <CrudPage
       header={
         <PageHeader
-          title="Nova Ordem de Servi├ºo"
+          title="Nova Ordem de Servico"
           backHref="/os"
           icon={<ClipboardList className="h-8 w-8" />}
-          subtitle="Criar nova ordem de servi├ºo para produ├º├úo"
+          subtitle="Criar nova ordem de servico para producao"
         />
       }
       table={
