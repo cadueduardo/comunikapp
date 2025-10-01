@@ -12,6 +12,7 @@ import {
   IconPackage,
   IconTools,
   IconClipboardList,
+  IconBuilding,
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -196,6 +197,35 @@ export default function DashboardLayout({
       icon: (
         <IconClipboardList className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
       ),
+    },
+    {
+      label: 'PCP',
+      href: '/pcp',
+      icon: (
+        <IconBuilding className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      ),
+      submenu: [
+        {
+          label: 'Kanban',
+          href: '/pcp/kanban',
+        },
+        {
+          label: 'Workflows',
+          href: '/pcp/workflows',
+        },
+        {
+          label: 'Etapas',
+          href: '/pcp/etapas',
+        },
+        {
+          label: 'Apontamentos',
+          href: '/pcp/apontamentos',
+        },
+        {
+          label: 'Relatórios',
+          href: '/pcp/relatorios',
+        },
+      ],
     },
     {
       label: 'Centros de Trabalho',

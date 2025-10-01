@@ -90,11 +90,8 @@ export const apiRequest = async (
 // Funções específicas para diferentes endpoints
 export const authAPI = {
   login: async (email: string, password: string) => {
-    const response = await fetch(`/api/lojas/login`, {
+    const response = await apiRequest('/lojas/login', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({ email, password }),
     });
     

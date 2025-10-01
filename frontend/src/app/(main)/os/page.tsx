@@ -24,7 +24,7 @@ import { CrudPage } from '@/components/crud/CrudPage';
 import { DataTable } from '@/components/data-table/data-table';
 import { apiRequest } from '@/lib/api';
 import { useUser } from '@/contexts/UserContext';
-import { OSCard } from './components/os-card';
+import { OSCard } from '@/components/ui/os-card';
 import { createColumns, type OrdemServico } from './columns';
 
 export default function OSPage() {
