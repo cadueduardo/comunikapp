@@ -1,0 +1,41 @@
+Categoria,Campo,Obrigatório,Descrição/Exemplo
+Identificação,Número da OS,Sim,OS-2024-001234 (sequencial único)
+Identificação,Data de Criação,Sim,01/10/2024 08:30
+Identificação,Responsável pela OS,Sim,João Silva - Vendedor
+Identificação,Código de Rastreamento,Sim,TRK-OS-001234
+Cliente,Nome/Razão Social,Sim,Empresa ABC Ltda
+Cliente,CNPJ/CPF,Sim,12.345.678/0001-99
+Cliente,Endereço Completo,Sim,"Rua das Flores, 123 - Centro"
+Cliente,Telefone/WhatsApp,Sim,(11) 99999-9999
+Cliente,E-mail,Não,contato@empresa.com
+Projeto/Produto,Descrição do Projeto,Sim,Fachada em ACM com adesivo plotado
+Projeto/Produto,Tipo de Produto,Sim,Fachada/Letreiro
+Projeto/Produto,Quantidade,Sim,1 unidade
+Projeto/Produto,Dimensões (LxAxP),Sim,"5,00 x 2,50 x 0,05m"
+Projeto/Produto,Cores/Layout,Não,Azul/Branco - Layout anexo
+Projeto/Produto,Arquivo de Arte,Não,arquivo_fachada.pdf
+Especificações Técnicas,Material Principal,Sim,ACM 3mm Branco
+Especificações Técnicas,Material Secundário,Não,Adesivo Plotado
+Especificações Técnicas,Acabamento,Sim,Laminação
+Especificações Técnicas,Tipo de Impressão,Sim,Plotagem Digital
+Especificações Técnicas,Instalação Necessária,Não,Sim - fixação em alvenaria
+Produção/Recursos,Máquinas Envolvidas,Não,"Plotter, Router CNC"
+Produção/Recursos,Mão de Obra Necessária,Sim,2 pessoas - 8h cada
+Produção/Recursos,Insumos/Materiais,Sim,"ACM, adesivo, parafusos"
+Produção/Recursos,Terceirizações,Não,Não
+Produção/Recursos,Observações Técnicas,Não,Cuidado com fiação elétrica
+Prazos/Cronograma,Data de Entrega,Sim,15/10/2024
+Prazos/Cronograma,Prazo de Produção,Sim,10 dias úteis
+Prazos/Cronograma,Data de Instalação,Não,16/10/2024
+Prazos/Cronograma,Prioridade,Sim,Normal
+Financeiro,Valor Total,Sim,"R$ 2.500,00"
+Financeiro,Forma de Pagamento,Sim,50% antecipado + 50% na entrega
+Financeiro,Status de Pagamento,Não,Parcial
+Financeiro,Margem de Lucro,Não,35%
+Controle/Rastreamento,Status da OS,Sim,Em Produção
+Controle/Rastreamento,Etapa Atual,Sim,Impressão
+Controle/Rastreamento,Percentual Concluído,Não,40%
+Controle/Rastreamento,Histórico de Movimentações,Sim,Log de todas as movimentações
+Aprovações,Assinatura Cliente,Não,Digital ou física
+Aprovações,Aprovação Técnica,Sim,Aprovado pelo técnico
+Aprovações,Liberação para Produção,Sim,Liberado em 02/10/2024

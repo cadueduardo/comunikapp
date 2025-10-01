@@ -22,9 +22,9 @@ import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateLojaDto } from './dto/update-loja.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { LoginDto } from './dto/login.dto';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { Public, CurrentUser, CurrentLojaId } from 'src/auth/decorators';
-import { AuthenticatedUser } from 'src/auth/auth.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Public, CurrentUser, CurrentLojaId } from '../auth/decorators';
+import { AuthenticatedUser } from '../auth/auth.service';
 import { UpdateConfiguracoesLojaDto } from './dto/update-configuracoes-loja.dto';
 
 @Controller('lojas')

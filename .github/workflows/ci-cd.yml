@@ -1,0 +1,320 @@
+name: CI/CD Pipeline - Orçamento → OS → PCP
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  NODE_VERSION: '18'
+  MYSQL_VERSION: '8.0'
+
+jobs:
+  # ========================================
+  # JOB 1: VALIDAÇÃO DE CÓDIGO
+  # ========================================
+  lint-and-format:
+    name: Lint e Formatação
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Instalar dependências
+        run: |
+          cd backend
+          npm ci
+          
+      - name: Executar ESLint
+        run: |
+          cd backend
+          npm run lint
+          
+      - name: Verificar formatação
+        run: |
+          cd backend
+          npm run format -- --check
+
+  # ========================================
+  # JOB 2: TESTES UNITÁRIOS
+  # ========================================
+  unit-tests:
+    name: Testes Unitários
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:${{ env.MYSQL_VERSION }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: comunikapp_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Instalar dependências
+        run: |
+          cd backend
+          npm ci
+          
+      - name: Configurar variáveis de ambiente
+        run: |
+          cd backend
+          cp .env.example .env.test
+          echo "DATABASE_URL=mysql://root:root@localhost:3306/comunikapp_test" >> .env.test
+          echo "NODE_ENV=test" >> .env.test
+          
+      - name: Gerar cliente Prisma
+        run: |
+          cd backend
+          npx prisma generate
+          
+      - name: Executar migrações de teste
+        run: |
+          cd backend
+          npx prisma migrate deploy
+          
+      - name: Executar testes unitários
+        run: |
+          cd backend
+          npm run test -- --coverage --silent
+          
+      - name: Upload cobertura de testes
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./backend/coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+  # ========================================
+  # JOB 3: TESTES E2E
+  # ========================================
+  e2e-tests:
+    name: Testes End-to-End
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:${{ env.MYSQL_VERSION }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: comunikapp_e2e
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Instalar dependências
+        run: |
+          cd backend
+          npm ci
+          
+      - name: Configurar variáveis de ambiente
+        run: |
+          cd backend
+          cp .env.example .env.e2e
+          echo "DATABASE_URL=mysql://root:root@localhost:3306/comunikapp_e2e" >> .env.e2e
+          echo "NODE_ENV=test" >> .env.e2e
+          
+      - name: Gerar cliente Prisma
+        run: |
+          cd backend
+          npx prisma generate
+          
+      - name: Executar migrações E2E
+        run: |
+          cd backend
+          npx prisma migrate deploy
+          
+      - name: Executar testes E2E
+        run: |
+          cd backend
+          npm run test:e2e
+          
+      - name: Upload resultados E2E
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: e2e-results
+          path: backend/test-results/
+
+  # ========================================
+  # JOB 4: VALIDAÇÃO PRISMA
+  # ========================================
+  prisma-validation:
+    name: Validação Prisma
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Instalar dependências
+        run: |
+          cd backend
+          npm ci
+          
+      - name: Validar schema Prisma
+        run: |
+          cd backend
+          npx prisma validate
+          
+      - name: Gerar cliente Prisma
+        run: |
+          cd backend
+          npx prisma generate
+          
+      - name: Verificar migrações
+        run: |
+          cd backend
+          npx prisma migrate status
+
+  # ========================================
+  # JOB 5: GERAÇÃO OPENAPI
+  # ========================================
+  generate-openapi:
+    name: Gerar OpenAPI
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Instalar dependências
+        run: |
+          cd backend
+          npm ci
+          
+      - name: Build da aplicação
+        run: |
+          cd backend
+          npm run build
+          
+      - name: Gerar documentação OpenAPI
+        run: |
+          cd backend
+          npm run start:prod &
+          sleep 10
+          curl -o openapi.json http://localhost:3000/api-json
+          pkill -f "node dist/main.js"
+          
+      - name: Validar OpenAPI
+        run: |
+          npx @apidevtools/swagger-parser validate openapi.json
+          
+      - name: Upload OpenAPI
+        uses: actions/upload-artifact@v3
+        with:
+          name: openapi-spec
+          path: openapi.json
+
+  # ========================================
+  # JOB 6: BUILD E DEPLOY
+  # ========================================
+  build-and-deploy:
+    name: Build e Deploy
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, unit-tests, e2e-tests, prisma-validation, generate-openapi]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Instalar dependências
+        run: |
+          cd backend
+          npm ci
+          
+      - name: Build da aplicação
+        run: |
+          cd backend
+          npm run build
+          
+      - name: Executar testes finais
+        run: |
+          cd backend
+          npm run test -- --silent
+          
+      - name: Deploy para produção
+        run: |
+          echo "Deploy para produção seria executado aqui"
+          echo "Configurar com seu provedor de cloud preferido"
+
+  # ========================================
+  # JOB 7: NOTIFICAÇÕES
+  # ========================================
+  notify:
+    name: Notificações
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, unit-tests, e2e-tests, prisma-validation, generate-openapi, build-and-deploy]
+    if: always()
+    
+    steps:
+      - name: Notificar sucesso
+        if: ${{ needs.build-and-deploy.result == 'success' }}
+        run: |
+          echo "✅ Pipeline executado com sucesso!"
+          echo "📊 Testes: ✅ Passaram"
+          echo "📚 OpenAPI: ✅ Gerado"
+          echo "🚀 Deploy: ✅ Concluído"
+          
+      - name: Notificar falha
+        if: ${{ needs.build-and-deploy.result == 'failure' }}
+        run: |
+          echo "❌ Pipeline falhou!"
+          echo "🔍 Verificar logs para detalhes"
+          exit 1

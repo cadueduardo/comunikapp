@@ -18,14 +18,60 @@ export interface OrdemServicoData {
   observacoes?: string;
   nome_servico: string;
   descricao?: string;
-  quantidade: number;
-  parametros_tecnicos?: ParametrosTecnicos;
-  insumos_calculados?: InsumoCalculado[];
+  quantidade: number | any; // Prisma retorna Decimal
+  parametros_tecnicos?: ParametrosTecnicos | string; // Prisma retorna string
+  insumos_calculados?: InsumoCalculado[] | string; // Prisma retorna string
   materiais_disponivel: boolean;
   criado_em: Date;
   atualizado_em: Date;
+  alertas_estoque?: string[];
+  recomendacoes_estoque?: string[];
+  detalhes_estoque?: EstoqueValidacaoDetalhe[];
+  
+  // Novos campos para OS Direta/Interna
+  tipo_os?: string;
+  origem_os?: string;
+  prioridade?: string;
+  departamento_solicitante?: string;
+  centro_custo?: string;
+  projeto_interno?: string;
+  aprovacao_gerencial?: string;
+  aprovacao_gerencial_por?: string;
+  aprovacao_gerencial_em?: Date;
+  aprovacao_gerencial_obs?: string;
+  valor_orcado?: number | any; // Prisma retorna Decimal
+  valor_realizado?: number | any; // Prisma retorna Decimal
+  margem_lucro_real?: number | any; // Prisma retorna Decimal
+  data_entrega_cliente?: Date;
+  satisfacao_cliente?: number;
+  observacoes_cliente?: string;
+  criado_por?: string;
+  modificado_por?: string;
+  motivo_modificacao?: string;
+  versao?: number;
+  aprovacao_tecnica_status?: string;
+  aprovacao_tecnica_por?: string;
+  aprovacao_tecnica_em?: Date;
+  aprovacao_tecnica_obs?: string;
+  data_instalacao_agendada?: Date;
+  observacoes_instalacao?: string;
 }
 
+export interface EstoqueValidacaoDetalhe {
+  insumo_id: string;
+  nome?: string;
+  categoria?: string;
+  fornecedor?: string;
+  estoque_atual?: number;
+  estoque_minimo?: number;
+  quantidade_necessaria?: number;
+  quantidade_disponivel?: number;
+  percentual_disponivel?: number;
+  unidade?: string;
+  alerta_estoque?: boolean;
+  alerta_estoque_minimo?: boolean;
+  alerta_fornecedor?: boolean;
+}
 export interface CreateOSData {
   cliente_id: string;
   orcamento_id?: string;

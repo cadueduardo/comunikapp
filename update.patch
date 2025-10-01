@@ -1,0 +1,210 @@
+diff --git a/frontend/src/app/(main)/os/[id]/page.tsx b/frontend/src/app/(main)/os/[id]/page.tsx
+index 16bf3c1..b8c0f5e 100644
+--- a/frontend/src/app/(main)/os/[id]/page.tsx
++++ b/frontend/src/app/(main)/os/[id]/page.tsx
+@@
+ interface OSDetalhada extends OrdemServico {
+   movimentacoes?: Array<{
+     id: string;
+     etapa_anterior?: string;
+     etapa_atual: string;
+@@
+   parametros_tecnicos?: {
+     largura?: number;
+     altura?: number;
+     area?: number;
+     unidade_medida?: string;
+     [key: string]: any;
+   };
++  alertas_estoque?: string[];
++  recomendacoes_estoque?: string[];
++  detalhes_estoque?: EstoqueDetalhe[];
+ }
++
++interface EstoqueDetalhe {
++  insumo_id: string;
++  nome?: string;
++  categoria?: string;
++  fornecedor?: string;
++  estoque_atual?: number;
++  estoque_minimo?: number;
++  quantidade_necessaria?: number;
++  quantidade_disponivel?: number;
++  percentual_disponivel?: number;
++  unidade?: string;
++  alerta_estoque?: boolean;
++  alerta_estoque_minimo?: boolean;
++  alerta_fornecedor?: boolean;
++}
+ 
+ // Configura??uo de status (reutilizando)
+ const getStatusConfig = (status: string) => {
+@@
+   const fetchOS = async () => {
+     try {
+       setLoading(true);
+-      const response = await apiRequest(/api/os/);
+-
+-      if (response.ok) {
+-        const data = await response.json();
+-        if (data.success) {
+-          setOS(data.data);
+-        } else {
+-          throw new Error(data.message || 'Erro ao carregar OS');
+-        }
+-      } else {
++      const response = await apiRequest(/os/);
++
++      if (!response.ok) {
+         throw new Error('OS nuo encontrada');
+       }
++
++      const payload = await response.json();
++      const osData = (payload && payload.data ? payload.data : payload) as OSDetalhada | undefined;
++
++      if (!osData || !osData.id) {
++        throw new Error('OS nuo encontrada');
++      }
++
++      setOS({
++        ...osData,
++        alertas_estoque: osData.alertas_estoque ?? [],
++        recomendacoes_estoque: osData.recomendacoes_estoque ?? [],
++        detalhes_estoque: osData.detalhes_estoque ?? [],
++      });
+     } catch (error) {
+       console.error('Erro ao carregar OS:', error);
+       toast.error('Erro ao carregar ordem de servi??o');
+       router.push('/os');
+     } finally {
+@@
+   const handleAvancarEtapa = async (novaEtapa: string) => {
+     try {
+-      const response = await apiRequest(/api/os//avancar-etapa, {
++      const response = await apiRequest(/os//avancar-etapa, {
+         method: 'PATCH',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           nova_etapa: novaEtapa,
+           observacoes: Etapa avan??ada para ,
+         }),
+       });
+ 
+       if (response.ok) {
+         toast.success(Etapa avan??ada para );
+         fetchOS(); // Recarregar dados
+       } else {
+-        const errorData = await response.json();
+-        throw new Error(errorData.message || 'Erro ao avan??ar etapa');
++        const errorData = await response.json().catch(() => null);
++        throw new Error((errorData && errorData.message) || 'Erro ao avan??ar etapa');
+       }
+     } catch (error) {
+       console.error('Erro ao avan??ar etapa:', error);
+       toast.error(error instanceof Error ? error.message : 'Erro ao avan??ar etapa');
+@@
+   const isAtrasada = dataPrazo && dataPrazo < hoje;
+   const isVencendo = dataPrazo && dataPrazo <= new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000);
+   const podeEditar = os.status !== 'FINALIZADA' && os.status !== 'CANCELADA';
++  const alertasEstoque = os.alertas_estoque ?? [];
++  const recomendacoesEstoque = os.recomendacoes_estoque ?? [];
++  const detalhesEstoque = os.detalhes_estoque ?? [];
+ 
+   // Pr??ximas etapas poss??veis (simplificado)
+   const proximasEtapas = {
+@@
+           </CardHeader>
+           <CardContent>
+             <div className="flex items-center gap-2">
+               {os.materiais_disponivel ? (
+                 <>
+                   <CheckCircle className="h-5 w-5 text-green-500" />
+                   <span className="text-green-600 font-medium">Materiais Dispon??veis</span>
+                 </>
+               ) : (
+                 <>
+                   <AlertTriangle className="h-5 w-5 text-orange-500" />
+                   <span className="text-orange-600 font-medium">Verificar Disponibilidade</span>
+                 </>
+               )}
+             </div>
++
++            {alertasEstoque.length > 0 && (
++              <div className="mt-4 space-y-2">
++                <label className="text-sm font-medium text-orange-600">Alertas de estoque</label>
++                <ul className="list-disc pl-5 text-sm text-orange-700 space-y-1">
++                  {alertasEstoque.map((alerta, index) => (
++                    <li key={lerta-}>{alerta}</li>
++                  ))}
++                </ul>
++              </div>
++            )}
++
++            {recomendacoesEstoque.length > 0 && (
++              <div className="mt-4 space-y-2">
++                <label className="text-sm font-medium text-blue-600">Recomenda??es</label>
++                <ul className="list-disc pl-5 text-sm text-blue-700 space-y-1">
++                  {recomendacoesEstoque.map((item, index) => (
++                    <li key={ecomendacao-}>{item}</li>
++                  ))}
++                </ul>
++              </div>
++            )}
++
++            {detalhesEstoque.length > 0 && (
++              <div className="mt-4 space-y-3">
++                <label className="text-sm font-medium text-gray-500">Detalhes por insumo</label>
++                <div className="space-y-2">
++                  {detalhesEstoque.map((detalhe) => {
++                    const nomeInsumo = detalhe.nome || detalhe.insumo_id;
++                    const disponibilidade =
++                      detalhe.quantidade_disponivel !== undefined && detalhe.quantidade_necessaria !== undefined
++                        ? ${detalhe.quantidade_disponivel}/
++                        : undefined;
++                    return (
++                      <div
++                        key={detalhe.insumo_id}
++                        className="border rounded-md p-3 text-sm space-y-1 bg-gray-50"
++                      >
++                        <div className="font-medium text-gray-800">{nomeInsumo}</div>
++                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1 text-gray-600">
++                          {detalhe.categoria && <span>Categoria: {detalhe.categoria}</span>}
++                          {detalhe.fornecedor && <span>Fornecedor: {detalhe.fornecedor}</span>}
++                          {detalhe.estoque_atual !== undefined && (
++                            <span>Estoque atual: {detalhe.estoque_atual}</span>
++                          )}
++                          {detalhe.estoque_minimo !== undefined && (
++                            <span>Estoque m??nimo: {detalhe.estoque_minimo}</span>
++                          )}
++                          {disponibilidade && <span>Disponibilidade: {disponibilidade}</span>}
++                          {detalhe.percentual_disponivel !== undefined && (
++                            <span>
++                              Percentual dispon??vel: {Math.round(detalhe.percentual_disponivel)}%
++                            </span>
++                          )}
++                          {detalhe.unidade && <span>Unidade: {detalhe.unidade}</span>}
++                          {(detalhe.alerta_estoque || detalhe.alerta_estoque_minimo || detalhe.alerta_fornecedor) && (
++                            <span className="text-red-600 flex items-center gap-1">
++                              <AlertTriangle className="h-4 w-4" />
++                              Alerta ativo
++                            </span>
++                          )}
++                        </div>
++                      </div>
++                    );
++                  })}
++                </div>
++              </div>
++            )}
+           </CardContent>
+         </Card>
+ 
+         {/* A????es de workflow */}
+@@
+             </CardContent>
+           </Card>
+         )}
+ 
+         {/* Informa????es do responsovel */}
+@@
+ }

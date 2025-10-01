@@ -1,7 +1,7 @@
 /**
- * Módulo principal de OS (Ordens de Serviço)
- * Implementa arquitetura modular plugável conforme premissas
- * Isolamento total com outros módulos, multi-tenant
+ * Modulo principal de OS (Ordens de Servico)
+ * Implementa arquitetura modular plugavel conforme premissas
+ * Isolamento total com outros modulos, multi-tenant
  */
 
 import {
@@ -14,15 +14,27 @@ import {
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PrismaModule } from '../prisma/prisma.module';
+import { DocumentosModule } from '../documentos/documentos.module';
+import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-estoque.service';
 
-// Controllers (≤ 200 linhas cada)
+// Controllers (<= 200 linhas cada)
 import { OSController } from './controllers/os.controller';
+import { ImpressaoOSController } from './controllers/impressao-os.controller';
 import { WorkflowController } from './controllers/workflow.controller';
+import { OSDiretaInternaController } from './controllers/os-direta-interna.controller';
+import { AprovacaoAlcadaController } from './controllers/aprovacao-alcada.controller';
+import { WorkflowInstanciaController } from './controllers/workflow-instancia.controller';
+import { AprovacaoTecnicaController } from './controllers/aprovacao-tecnica.controller';
 // import { HistoricoController } from './controllers/historico.controller'; // TODO: Implementar
 
-// Services (≤ 400 linhas cada)
+// Services (<= 400 linhas cada)
 import { OSService } from './services/os.service';
+import { ImpressaoOSService } from './services/impressao-os.service';
 import { WorkflowService } from './services/workflow.service';
+import { AprovacaoAlcadaService } from './services/aprovacao-alcada.service';
+import { WorkflowInstanciaService } from './services/workflow-instancia.service';
+import { EstoqueApontamentoService } from './services/estoque-apontamento.service';
+import { AprovacaoTecnicaService } from './services/aprovacao-tecnica.service';
 // import { NotificacoesOSService } from './services/notificacoes-os.service'; // TODO: Implementar
 // import { IntegracaoService } from './services/integracao.service'; // TODO: Implementar
 
@@ -33,9 +45,10 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
 @Global()
 @Module({
   imports: [
-    ConfigModule, // Para acessar variáveis de ambiente
+    ConfigModule, // Para acessar variaveis de ambiente
+    DocumentosModule, // Fornece DocumentCodeService compartilhado
     PrismaModule, // Para acessar banco de dados
-    // JWT Module próprio (conforme premissas de autenticação)
+    // JWT Module proprio (conforme premissas de autenticacao)
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -50,20 +63,31 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
   ],
   controllers: [
     OSController,
+    ImpressaoOSController,
     WorkflowController,
+    OSDiretaInternaController,
+    AprovacaoAlcadaController,
+    WorkflowInstanciaController,
+    AprovacaoTecnicaController,
     // HistoricoController, // TODO: Implementar
   ],
   providers: [
     // Services principais
     OSService,
+    ImpressaoOSService,
     WorkflowService,
+    AprovacaoAlcadaService,
+    WorkflowInstanciaService,
+    EstoqueApontamentoService,
+    AprovacaoTecnicaService,
+    ValidacaoEstoqueService,
     // NotificacoesOSService, // TODO: Implementar
     // IntegracaoService, // TODO: Implementar
-    
-    // Guards e segurança
+
+    // Guards e seguranca
     OSPermissionsGuard,
-    
-    // Configuração do módulo
+
+    // Configuracao do modulo
     {
       provide: 'OS_MODULE_CONFIG',
       useFactory: () => ({
@@ -71,20 +95,26 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
         version: '1.0.0',
         isolated: true,
         multiTenant: true,
-        description: 'Módulo de Ordens de Serviço com workflows configuráveis',
+        description: 'Modulo de Ordens de Servico com workflows configuraveis',
         features: [
-          'workflows-configuráveis',
+          'workflows-configuraveis',
           'multi-tenant',
           'auditoria-completa',
-          'integração-estoque',
-          'notificações-tempo-real',
+          'integracao-estoque',
+          'notificacoes-tempo-real',
         ],
       }),
     },
   ],
   exports: [
     OSService,
+    ImpressaoOSService,
     WorkflowService,
+    AprovacaoAlcadaService,
+    WorkflowInstanciaService,
+    EstoqueApontamentoService,
+    AprovacaoTecnicaService,
+    ValidacaoEstoqueService,
     // NotificacoesOSService, // TODO: Implementar
     // IntegracaoService, // TODO: Implementar
     OSPermissionsGuard,
@@ -94,14 +124,13 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
 export class OSModule implements NestModule {
   constructor() {
     console.log(
-      '✅ OSModule carregado - APIs REST ativas com isolamento total',
+      '[OK] OSModule carregado - APIs REST ativas com isolamento total',
     );
   }
 
   configure(consumer: MiddlewareConsumer) {
     // Middleware de isolamento tenant removido - usando apenas JWT global + guards
-    // O JWT global já aplica autenticação para todas as rotas
-    // Os guards específicos do OS (OSPermissionsGuard) fazem a validação granular
+    // O JWT global ja aplica autenticacao para todas as rotas
+    // Os guards especificos do OS (OSPermissionsGuard) fazem a validacao granular
   }
 }
-

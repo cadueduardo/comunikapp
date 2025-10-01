@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
+﻿import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificacoesModule } from '../notificacoes/notificacoes.module';
 import { MailModule } from '../mail/mail.module';
 import { DocumentosModule } from '../documentos/documentos.module';
 import { MotorCalculoV2Module } from '../motor-calculo-v2/motor-calculo-v2.module';
+import { OSModule } from '../os/os.module';
 
 // Controllers
 import { OrcamentosV2Controller } from './controllers/orcamentos-v2.controller';
@@ -35,7 +36,8 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     NotificacoesModule,
     MailModule,
     DocumentosModule,
-    MotorCalculoV2Module, // Integração com motor já funcionando
+    MotorCalculoV2Module, // Integracao com motor ja funcionando
+    OSModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'your-secret-key',
       signOptions: { expiresIn: '24h' },
@@ -81,3 +83,9 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
   ],
 })
 export class OrcamentosV2Module {}
+
+
+
+
+
+

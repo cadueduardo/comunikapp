@@ -18,6 +18,9 @@ export class JwtGlobalMiddleware implements NestMiddleware {
     
     // Lista de rotas que não precisam de autenticação
     const publicRoutes = [
+      '/api/lojas/login',
+      '/api/lojas', // permitir cadastro (POST /api/lojas)
+      '/api/lojas/health',
       '/lojas/login',
       '/lojas', // permitir cadastro (POST /lojas)
       '/lojas/health',

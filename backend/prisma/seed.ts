@@ -1,10 +1,10 @@
-import { PrismaClient } from '@prisma/client';
+﻿import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Iniciando seed do banco de dados...');
+  console.log('ðŸŒ± Iniciando seed do banco de dados...');
 
   // Criar uma loja de teste
   const loja = await prisma.loja.upsert({
@@ -24,9 +24,37 @@ async function main() {
     },
   });
 
-  console.log('✅ Loja criada:', loja.nome);
+  console.log('âœ… Loja criada:', loja.nome);
+  const anoAtual = new Date().getFullYear();
 
-  // Criar um usuário de teste
+  await prisma.document_sequence.upsert({
+    where: {
+      loja_id_tipo_ano: { loja_id: loja.id, tipo: 'ORC', ano: anoAtual },
+    },
+    update: {},
+    create: {
+      loja_id: loja.id,
+      tipo: 'ORC',
+      ano: anoAtual,
+      ultimo_numero: 0,
+    },
+  });
+
+  await prisma.document_sequence.upsert({
+    where: {
+      loja_id_tipo_ano: { loja_id: loja.id, tipo: 'OS', ano: anoAtual },
+    },
+    update: {},
+    create: {
+      loja_id: loja.id,
+      tipo: 'OS',
+      ano: anoAtual,
+      ultimo_numero: 0,
+    },
+  });
+
+
+  // Criar um usuÃ¡rio de teste
   const senhaHash = await bcrypt.hash('123456', 10);
   
   const usuario = await prisma.usuario.upsert({
@@ -34,7 +62,7 @@ async function main() {
     update: {},
     create: {
       id: 'test-user-1',
-      nome_completo: 'Usuário Teste',
+      nome_completo: 'UsuÃ¡rio Teste',
       email: 'usuario@teste.com',
       senha: senhaHash,
       telefone: '(11) 99999-9999',
@@ -45,7 +73,7 @@ async function main() {
     },
   });
 
-  console.log('✅ Usuário criado:', usuario.nome_completo);
+  console.log('âœ… UsuÃ¡rio criado:', usuario.nome_completo);
 
   // Criar categorias de teste
   const categorias = await Promise.all([
@@ -69,7 +97,7 @@ async function main() {
     }),
   ]);
 
-  console.log('✅ Categorias criadas:', categorias.length);
+  console.log('âœ… Categorias criadas:', categorias.length);
 
   // Criar categorias V2 espelhadas para satisfazer FKs duplas em Insumo
   const categoriasV2 = await Promise.all([
@@ -97,7 +125,7 @@ async function main() {
     }),
   ]);
 
-  console.log('✅ Categorias V2 criadas:', categoriasV2.length);
+  console.log('âœ… Categorias V2 criadas:', categoriasV2.length);
 
   // Criar tipos de material de teste
   const tiposMaterial = await Promise.all([
@@ -106,13 +134,13 @@ async function main() {
       update: {},
       create: {
         id: 'tipo-1',
-        nome: 'Cordão',
+        nome: 'CordÃ£o',
         logica_consumo: 'custom',
         parametros_padrao: JSON.stringify({
           tipo_calculo: 'espacamento',
-          espacamento: 10, // 10cm entre cada cordão
+          espacamento: 10, // 10cm entre cada cordÃ£o
         }),
-        descricao: 'Cordão para acabamento',
+        descricao: 'CordÃ£o para acabamento',
         loja: { connect: { id: loja.id } },
       atualizado_em: new Date(),
       },
@@ -126,16 +154,16 @@ async function main() {
         logica_consumo: 'custom',
         parametros_padrao: JSON.stringify({
           tipo_calculo: 'quantidade_por_m2',
-          quantidade_por_m2: 2, // 2 adesivos por m²
+          quantidade_por_m2: 2, // 2 adesivos por mÂ²
         }),
-        descricao: 'Adesivo para fixação',
+        descricao: 'Adesivo para fixaÃ§Ã£o',
         loja: { connect: { id: loja.id } },
       atualizado_em: new Date(),
       },
     }),
   ]);
 
-  console.log('✅ Tipos de material criados:', tiposMaterial.length);
+  console.log('âœ… Tipos de material criados:', tiposMaterial.length);
 
   // Criar fornecedores de teste primeiro
   const fornecedores = await Promise.all([
@@ -150,7 +178,7 @@ async function main() {
     }),
   ]);
 
-  console.log('✅ Fornecedores criados:', fornecedores.length);
+  console.log('âœ… Fornecedores criados:', fornecedores.length);
 
   // Criar insumos de teste
   const insumos = await Promise.all([
@@ -177,7 +205,7 @@ async function main() {
       update: {},
       create: {
         id: 'insumo-2',
-        nome: 'Cordão Dourado',
+        nome: 'CordÃ£o Dourado',
         unidade_compra: 'M',
         custo_unitario: 15.00,
         quantidade_compra: 100,
@@ -185,7 +213,7 @@ async function main() {
         fator_conversao: 100,
         largura: 0.5,
         altura: 0.5,
-        unidade_dimensao: 'CENTÍMETROS',
+        unidade_dimensao: 'CENTÃMETROS',
         tipo_calculo: 'COMPRIMENTO LINEAR',
         estoque_minimo: 5,
         logica_consumo: 'perimetro',
@@ -197,7 +225,7 @@ async function main() {
     }),
   ]);
 
-  console.log('✅ Insumos criados:', insumos.length);
+  console.log('âœ… Insumos criados:', insumos.length);
 
   // Criar cliente de teste
   const cliente = await prisma.cliente.upsert({
@@ -215,9 +243,9 @@ async function main() {
     },
   });
 
-  console.log('✅ Cliente criado:', cliente.nome);
+  console.log('âœ… Cliente criado:', cliente.nome);
 
-  // Criar máquinas de teste
+  // Criar mÃ¡quinas de teste
   const maquinas = await Promise.all([
     prisma.maquina.upsert({
       where: { id: 'maquina-1' },
@@ -245,18 +273,18 @@ async function main() {
     }),
   ]);
 
-  console.log('✅ Máquinas criadas:', maquinas.length);
+  console.log('âœ… MÃ¡quinas criadas:', maquinas.length);
 
-  // Criar funções de teste
+  // Criar funÃ§Ãµes de teste
   const funcoes = await Promise.all([
     prisma.funcao.upsert({
       where: { id: 'funcao-1' },
       update: {},
       create: {
         id: 'funcao-1',
-        nome: 'Operador de Impressão',
+        nome: 'Operador de ImpressÃ£o',
         custo_hora: 25.00,
-        descricao: 'Operação de impressoras e plotters',
+        descricao: 'OperaÃ§Ã£o de impressoras e plotters',
         loja_id: loja.id,
       },
     }),
@@ -273,7 +301,7 @@ async function main() {
     }),
   ]);
 
-  console.log('✅ Funções criadas:', funcoes.length);
+  console.log('âœ… FunÃ§Ãµes criadas:', funcoes.length);
 
   // Criar custos indiretos de teste
   const custosIndiretos = await Promise.all([
@@ -294,7 +322,7 @@ async function main() {
       update: {},
       create: {
         id: 'custo-2',
-        nome: 'Energia Elétrica',
+        nome: 'Energia ElÃ©trica',
         categoria: 'SERVICOS',
         valor_mensal: 1500.00,
         loja: { connect: { id: loja.id } },
@@ -303,11 +331,11 @@ async function main() {
     }),
   ]);
 
-  console.log('✅ Custos indiretos criados:', custosIndiretos.length);
+  console.log('âœ… Custos indiretos criados:', custosIndiretos.length);
 
-  console.log('🎉 Seed concluído com sucesso!');
+  console.log('ðŸŽ‰ Seed concluÃ­do com sucesso!');
   console.log('');
-  console.log('📋 Dados de acesso:');
+  console.log('ðŸ“‹ Dados de acesso:');
   console.log('Email: usuario@teste.com');
   console.log('Senha: 123456');
   console.log('Loja: Loja Teste Comunikapp');
@@ -315,7 +343,7 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error('❌ Erro no seed:', e);
+    console.error('âŒ Erro no seed:', e);
     process.exit(1);
   })
   .finally(async () => {

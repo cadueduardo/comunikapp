@@ -230,6 +230,30 @@ export interface ClienteInfo {
   cpf_cnpj?: string;
 }
 
+export interface DadosHerdadosOrcamento {
+  orcamento_id: string;
+  cliente_id: string;
+  loja_id: string;
+  nome_servico: string;
+  descricao?: string;
+  quantidade_produto: number;
+  largura_produto?: number;
+  altura_produto?: number;
+  area_produto?: number;
+  unidade_medida_produto?: string;
+  horas_producao: number;
+  custos_calculados?: any;
+  configuracao_calculo?: any;
+  responsavel_id?: string;
+  prioridade?: PrioridadeOrcamento;
+  prazo_entrega?: string;
+  observacoes_internas?: string;
+  tipo_orcamento?: OrcamentoTipo;
+  tags?: string[];
+  data_validade?: Date;
+  configuracoes?: ConfiguracaoCalculo;
+}
+
 // Enums
 export enum OrcamentoStatus {
   RASCUNHO = 'rascunho',

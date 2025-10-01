@@ -1,14 +1,22 @@
-import { Injectable, Logger } from '@nestjs/common';
+﻿import { Injectable, Logger } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
 
 const DOCUMENTO_ORCAMENTO = 'ORC';
+const DOCUMENTO_OS = 'OS';
+const DOCUMENTO_OS_INTERNA = 'OSI';
+const DOCUMENTO_NOTA_FISCAL = 'NF';
 const PADRAO_NUMERO = 3;
 
 interface GerarCodigoParams {
   tipoDocumento: string;
   lojaId: string;
   ano?: number;
+}
+
+export enum TipoOS {
+  COMERCIAL = 'COMERCIAL',
+  INTERNA = 'INTERNA'
 }
 
 @Injectable()
@@ -20,6 +28,57 @@ export class DocumentCodeService {
   async gerarCodigoOrcamento(lojaId: string, ano?: number): Promise<string> {
     return this.gerarCodigo({
       tipoDocumento: DOCUMENTO_ORCAMENTO,
+      lojaId,
+      ano,
+    });
+  }
+
+  async gerarCodigoOS(lojaId: string, ano?: number): Promise<string> {
+    return this.gerarCodigo({
+      tipoDocumento: DOCUMENTO_OS,
+      lojaId,
+      ano,
+    });
+  }
+
+  /**
+   * Gera código para OS Comercial (formato: OS-AAAA-NNN)
+   */
+  async gerarCodigoOSComercial(lojaId: string, ano?: number): Promise<string> {
+    return this.gerarCodigo({
+      tipoDocumento: DOCUMENTO_OS,
+      lojaId,
+      ano,
+    });
+  }
+
+  /**
+   * Gera código para OS Interna (formato: OSI-AAAA-NNN)
+   */
+  async gerarCodigoOSInterna(lojaId: string, ano?: number): Promise<string> {
+    return this.gerarCodigo({
+      tipoDocumento: DOCUMENTO_OS_INTERNA,
+      lojaId,
+      ano,
+    });
+  }
+
+  /**
+   * Gera código para OS baseado no tipo (Comercial ou Interna)
+   */
+  async gerarCodigoOSPorTipo(lojaId: string, tipoOS: TipoOS, ano?: number): Promise<string> {
+    if (tipoOS === TipoOS.COMERCIAL) {
+      return this.gerarCodigoOSComercial(lojaId, ano);
+    } else if (tipoOS === TipoOS.INTERNA) {
+      return this.gerarCodigoOSInterna(lojaId, ano);
+    } else {
+      throw new Error(`Tipo de OS inválido: ${tipoOS}`);
+    }
+  }
+
+  async gerarCodigoNotaFiscal(lojaId: string, ano?: number): Promise<string> {
+    return this.gerarCodigo({
+      tipoDocumento: DOCUMENTO_NOTA_FISCAL,
       lojaId,
       ano,
     });
@@ -66,5 +125,130 @@ export class DocumentCodeService {
 
     return codigo;
   }
+
+  /**
+   * Valida se um código de OS é válido
+   */
+  validarCodigoOS(codigo: string): { valido: boolean; tipo?: TipoOS; erro?: string } {
+    // Regex para OS Comercial: OS-AAAA-NNN
+    const regexOSComercial = /^OS-\d{4}-\d{3}$/;
+    // Regex para OS Interna: OSI-AAAA-NNN
+    const regexOSInterna = /^OSI-\d{4}-\d{3}$/;
+
+    if (regexOSComercial.test(codigo)) {
+      return { valido: true, tipo: TipoOS.COMERCIAL };
+    } else if (regexOSInterna.test(codigo)) {
+      return { valido: true, tipo: TipoOS.INTERNA };
+    } else {
+      return { 
+        valido: false, 
+        erro: 'Formato inválido. Use OS-AAAA-NNN para comercial ou OSI-AAAA-NNN para interna' 
+      };
+    }
+  }
+
+  /**
+   * Extrai informações de um código de OS
+   */
+  extrairInformacoesCodigo(codigo: string): { tipo: TipoOS; ano: number; numero: number } | null {
+    const validacao = this.validarCodigoOS(codigo);
+    if (!validacao.valido) {
+      return null;
+    }
+
+    const partes = codigo.split('-');
+    const tipo = validacao.tipo!;
+    const ano = parseInt(partes[1], 10);
+    const numero = parseInt(partes[2], 10);
+
+    return { tipo, ano, numero };
+  }
+
+  /**
+   * Verifica se um código já existe no banco
+   */
+  async verificarCodigoExistente(codigo: string, lojaId: string): Promise<boolean> {
+    const informacoes = this.extrairInformacoesCodigo(codigo);
+    if (!informacoes) {
+      return false;
+    }
+
+    const tipoDocumento = informacoes.tipo === TipoOS.COMERCIAL ? DOCUMENTO_OS : DOCUMENTO_OS_INTERNA;
+    
+    const sequence = await this.prisma.document_sequence.findUnique({
+      where: {
+        loja_id_tipo_ano: {
+          loja_id: lojaId,
+          tipo: tipoDocumento,
+          ano: informacoes.ano,
+        },
+      },
+    });
+
+    return sequence ? sequence.ultimo_numero >= informacoes.numero : false;
+  }
+
+  /**
+   * Obtém estatísticas de numeração por tipo
+   */
+  async obterEstatisticasNumeracao(lojaId: string, ano?: number): Promise<{
+    comercial: { total: number; ultimoNumero: number };
+    interna: { total: number; ultimoNumero: number };
+  }> {
+    const anoReferencia = ano ?? new Date().getFullYear();
+
+    const [sequenceComercial, sequenceInterna] = await Promise.all([
+      this.prisma.document_sequence.findUnique({
+        where: {
+          loja_id_tipo_ano: {
+            loja_id: lojaId,
+            tipo: DOCUMENTO_OS,
+            ano: anoReferencia,
+          },
+        },
+      }),
+      this.prisma.document_sequence.findUnique({
+        where: {
+          loja_id_tipo_ano: {
+            loja_id: lojaId,
+            tipo: DOCUMENTO_OS_INTERNA,
+            ano: anoReferencia,
+          },
+        },
+      }),
+    ]);
+
+    return {
+      comercial: {
+        total: sequenceComercial?.ultimo_numero || 0,
+        ultimoNumero: sequenceComercial?.ultimo_numero || 0,
+      },
+      interna: {
+        total: sequenceInterna?.ultimo_numero || 0,
+        ultimoNumero: sequenceInterna?.ultimo_numero || 0,
+      },
+    };
+  }
+
+  /**
+   * Obtém próximo número disponível para um tipo específico
+   */
+  async obterProximoNumero(lojaId: string, tipoOS: TipoOS, ano?: number): Promise<number> {
+    const anoReferencia = ano ?? new Date().getFullYear();
+    const tipoDocumento = tipoOS === TipoOS.COMERCIAL ? DOCUMENTO_OS : DOCUMENTO_OS_INTERNA;
+
+    const sequence = await this.prisma.document_sequence.findUnique({
+      where: {
+        loja_id_tipo_ano: {
+          loja_id: lojaId,
+          tipo: tipoDocumento,
+          ano: anoReferencia,
+        },
+      },
+    });
+
+    return (sequence?.ultimo_numero || 0) + 1;
+  }
 }
+
 

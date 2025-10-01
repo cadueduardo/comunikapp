@@ -585,6 +585,7 @@ model ProdutoOrcamento {
   quantidade            Decimal             @db.Decimal(10, 3)
   largura               Decimal?            @db.Decimal(10, 2)
   altura                Decimal?            @db.Decimal(10, 2)
+  profundidade          Decimal?            @db.Decimal(10, 2) // Campo para produtos 3D (totens, letras caixa)
   area_produto          Decimal?            @db.Decimal(10, 2)
   unidade_medida        String?
   custo_total_producao  Decimal             @db.Decimal(10, 2)
@@ -612,6 +613,7 @@ model ProdutoOrcamento {
 
   @@index([orcamento_id])
   @@index([ativo])
+  @@index([profundidade])
 }
 
 model ItemInsumo {
@@ -1260,6 +1262,44 @@ model OrdemServico {
   insumos_calculados  String?  @db.LongText // JSON dos insumos necessários
   materiais_disponivel Boolean @default(false)
 
+  // Campos de aprovação técnica (checkpoint pre-produção)
+  aprovacao_tecnica_status String?  @default("PENDENTE") // PENDENTE, APROVADA, REJEITADA
+  aprovacao_tecnica_por    String?  // usuario_id do aprovador
+  aprovacao_tecnica_em     DateTime? // data da aprovação
+  aprovacao_tecnica_obs    String?  @db.Text // observações da aprovação
+
+  // Campos de agendamento de instalação
+  data_instalacao_agendada DateTime? // data agendada para instalação (após contato com cliente)
+  observacoes_instalacao   String?  @db.Text // observações para coordenação de instalação externa
+
+  // Campos para diferenciação OS Direta vs Interna
+  tipo_os                  String   @default("COMERCIAL") // COMERCIAL, INTERNA
+  origem_os                String?  // ORCAMENTO, DIRETA, INTERNA
+  prioridade               String   @default("NORMAL") // URGENTE, ALTA, NORMAL, BAIXA
+  
+  // Campos específicos para OS Interna
+  departamento_solicitante String?  // Departamento que solicitou a OS interna
+  centro_custo             String?  // Centro de custo para OS interna
+  projeto_interno          String?  // Projeto interno relacionado
+  aprovacao_gerencial      String?  @default("PENDENTE") // PENDENTE, APROVADA, REJEITADA
+  aprovacao_gerencial_por  String?  // usuario_id do aprovador gerencial
+  aprovacao_gerencial_em   DateTime? // data da aprovação gerencial
+  aprovacao_gerencial_obs  String?  @db.Text // observações da aprovação gerencial
+  
+  // Campos específicos para OS Comercial
+  valor_orcado             Decimal? @db.Decimal(12, 2) // Valor do orçamento aprovado
+  valor_realizado          Decimal? @db.Decimal(12, 2) // Valor real gasto na produção
+  margem_lucro_real        Decimal? @db.Decimal(5, 2) // Margem de lucro real obtida
+  data_entrega_cliente     DateTime? // Data real de entrega ao cliente
+  satisfacao_cliente       Int?     // Nota de satisfação do cliente (1-5)
+  observacoes_cliente      String?  @db.Text // Observações do cliente sobre o serviço
+  
+  // Campos de controle e auditoria
+  criado_por               String?  // usuario_id que criou a OS
+  modificado_por           String?  // usuario_id que fez a última modificação
+  motivo_modificacao       String?  @db.Text // Motivo da última modificação
+  versao                   Int      @default(1) // Controle de versão da OS
+
   // Relacionamentos
   loja               loja      @relation(fields: [loja_id], references: [id])
   cliente            cliente   @relation(fields: [cliente_id], references: [id])
@@ -1269,12 +1309,28 @@ model OrdemServico {
   itens              ItemOS[]
   movimentacoes      MovimentacaoOS[]
   checklists         ChecklistOS[]
+  workflow_instancia WorkflowInstancia?
+  apontamentos       Apontamento[]
 
   @@unique([loja_id, numero])
   @@index([loja_id, status])
   @@index([cliente_id])
   @@index([responsavel_id])
   @@index([data_abertura])
+  @@index([aprovacao_tecnica_status])
+  @@index([aprovacao_tecnica_por])
+  @@index([data_instalacao_agendada])
+  @@index([tipo_os])
+  @@index([origem_os])
+  @@index([prioridade])
+  @@index([departamento_solicitante])
+  @@index([centro_custo])
+  @@index([aprovacao_gerencial])
+  @@index([aprovacao_gerencial_por])
+  @@index([data_entrega_cliente])
+  @@index([criado_por])
+  @@index([modificado_por])
+  @@index([versao])
   @@map("ordens_servico")
 }
 
@@ -1307,6 +1363,7 @@ model WorkflowOS {
   atualizado_em      DateTime  @updatedAt
 
   loja               loja      @relation(fields: [loja_id], references: [id])
+  instancias         WorkflowInstancia[]
 
   @@unique([loja_id, nome])
   @@index([loja_id, ativo])
@@ -1350,6 +1407,108 @@ model ChecklistOS {
   @@index([os_id, etapa])
   @@index([concluido])
   @@map("checklists_os")
+}
+
+// ===== ENTIDADES DE WORKFLOW PARA PCP =====
+
+model WorkflowInstancia {
+  id                 String    @id @default(cuid())
+  os_id              String    @unique
+  workflow_id        String
+  status             String    @default("ATIVO") // ATIVO, PAUSADO, CONCLUIDO, CANCELADO
+  etapa_atual        String?
+  data_inicio        DateTime  @default(now())
+  data_fim           DateTime?
+  criado_em          DateTime  @default(now())
+  atualizado_em      DateTime  @updatedAt
+
+  // Relacionamentos
+  os                 OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  workflow           WorkflowOS @relation(fields: [workflow_id], references: [id])
+  etapas             EtapaInstancia[]
+
+  @@index([workflow_id])
+  @@index([status])
+  @@index([etapa_atual])
+  @@index([data_inicio])
+  @@map("workflow_instancia")
+}
+
+model EtapaInstancia {
+  id                 String    @id @default(cuid())
+  workflow_instancia_id String
+  etapa_nome         String
+  ordem              Int
+  status             String    @default("PENDENTE") // PENDENTE, EM_ANDAMENTO, CONCLUIDA, PAUSADA, CANCELADA
+  data_inicio        DateTime?
+  data_fim           DateTime?
+  responsavel_id     String?
+  tempo_estimado     Int?      // em minutos
+  tempo_real         Int?      // em minutos
+  observacoes        String?   @db.Text
+  criado_em          DateTime  @default(now())
+  atualizado_em      DateTime  @updatedAt
+
+  // Relacionamentos
+  workflow_instancia WorkflowInstancia @relation(fields: [workflow_instancia_id], references: [id], onDelete: Cascade)
+  checklists         ChecklistInstancia[]
+  apontamentos       Apontamento[]
+
+  @@index([workflow_instancia_id])
+  @@index([etapa_nome])
+  @@index([status])
+  @@index([ordem])
+  @@index([responsavel_id])
+  @@map("etapa_instancia")
+}
+
+model ChecklistInstancia {
+  id                 String    @id @default(cuid())
+  etapa_instancia_id String
+  item_descricao     String    @db.VarChar(500)
+  obrigatorio        Boolean   @default(true)
+  concluido          Boolean   @default(false)
+  concluido_por      String?
+  data_conclusao     DateTime?
+  observacoes        String?   @db.Text
+  ordem              Int       @default(0)
+  criado_em          DateTime  @default(now())
+  atualizado_em      DateTime  @updatedAt
+
+  // Relacionamentos
+  etapa_instancia    EtapaInstancia @relation(fields: [etapa_instancia_id], references: [id], onDelete: Cascade)
+
+  @@index([etapa_instancia_id])
+  @@index([concluido])
+  @@index([ordem])
+  @@map("checklist_instancia")
+}
+
+model Apontamento {
+  id                 String    @id @default(cuid())
+  os_id              String
+  etapa_instancia_id String?
+  tipo               String    // INICIO, PAUSA, RETOMADA, CONCLUSAO, REFUGO
+  data_apontamento   DateTime  @default(now())
+  usuario_id         String
+  observacoes        String?   @db.Text
+  quantidade_produzida Decimal? @db.Decimal(10, 3)
+  quantidade_refugo  Decimal?  @db.Decimal(10, 3)
+  tempo_gasto        Int?      // em minutos
+  ip_origem          String?
+  user_agent         String?   @db.VarChar(500)
+  criado_em          DateTime  @default(now())
+
+  // Relacionamentos
+  os                 OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  etapa_instancia    EtapaInstancia? @relation(fields: [etapa_instancia_id], references: [id])
+
+  @@index([os_id])
+  @@index([etapa_instancia_id])
+  @@index([tipo])
+  @@index([data_apontamento])
+  @@index([usuario_id])
+  @@map("apontamento")
 }
 
 // Enums para status das OS

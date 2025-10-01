@@ -8,6 +8,10 @@ import * as express from 'express';
 import { join } from 'path';
 
 async function bootstrap() {
+  // Configurar codificação UTF-8 para caracteres especiais
+  process.stdout.setEncoding('utf8');
+  process.stderr.setEncoding('utf8');
+  
   // Configurar timezone - padrão Brasil, mas configurável via .env
   process.env.TZ = process.env.TZ || 'America/Sao_Paulo';
   

@@ -18,6 +18,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { OSService } from '../services/os.service';
+import { OrdemServicoResponseDto } from '../dto/os-response.dto';
 import { CreateOSDto } from '../dto/create-os.dto';
 import { UpdateOSDto } from '../dto/update-os.dto';
 import { OSPermissionsGuard } from '../guards/os-permissions.guard';
@@ -31,12 +32,13 @@ export class OSController {
 
   @Post()
   @ApiOperation({ summary: 'Criar nova ordem de serviço' })
-  @ApiResponse({ status: 201, description: 'OS criada com sucesso' })
+  @ApiResponse({ status: 201, description: 'OS criada com sucesso', type: OrdemServicoResponseDto })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
   async criarOS(@Body() createOSDto: CreateOSDto, @Request() req: any) {
     const user = req['user'] || req.user;
     const loja_id = user.loja_id;
-    return await this.osService.create(loja_id, createOSDto);
+    const resultado = await this.osService.create(loja_id, createOSDto);
+      return OrdemServicoResponseDto.fromDomain(resultado);
   }
 
   @Get()
@@ -51,13 +53,18 @@ export class OSController {
   ) {
     const user = req['user'] || req.user;
     const loja_id = user.loja_id;
-    return await this.osService.findAll(
+    const resultado = await this.osService.findAll(
       loja_id,
       parseInt(page),
       parseInt(limit),
       status,
       cliente_id,
     );
+
+    return {
+      ...resultado,
+      data: resultado.data.map(item => OrdemServicoResponseDto.fromDomain(item)),
+    };
   }
 
   @Get('estatisticas')
@@ -71,17 +78,18 @@ export class OSController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Obter OS por ID' })
-  @ApiResponse({ status: 200, description: 'OS encontrada' })
+  @ApiResponse({ status: 200, description: 'OS encontrada', type: OrdemServicoResponseDto })
   @ApiResponse({ status: 404, description: 'OS não encontrada' })
   async obterOS(@Param('id') id: string, @Request() req: any) {
     const user = req['user'] || req.user;
     const loja_id = user.loja_id;
-    return await this.osService.findOne(id, loja_id);
+    const resultado = await this.osService.findOne(id, loja_id);
+    return OrdemServicoResponseDto.fromDomain(resultado);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar OS' })
-  @ApiResponse({ status: 200, description: 'OS atualizada com sucesso' })
+  @ApiResponse({ status: 200, description: 'OS atualizada com sucesso', type: OrdemServicoResponseDto })
   @ApiResponse({ status: 404, description: 'OS não encontrada' })
   async atualizarOS(
     @Param('id') id: string,
@@ -91,7 +99,8 @@ export class OSController {
     const user = req['user'] || req.user;
     const loja_id = user.loja_id;
     const user_id = user.sub || user.id;
-    return await this.osService.update(id, loja_id, updateOSDto, user_id);
+    const resultado = await this.osService.update(id, loja_id, updateOSDto, user_id);
+    return OrdemServicoResponseDto.fromDomain(resultado);
   }
 
   @Patch(':id/avancar-etapa')
@@ -106,12 +115,13 @@ export class OSController {
     const user = req['user'] || req.user;
     const loja_id = user.loja_id;
     const user_id = user.sub || user.id;
-    return await this.osService.avancarEtapa(
+    const resultado = await this.osService.avancarEtapa(
       id,
       body.nova_etapa,
       loja_id,
       user_id,
     );
+    return OrdemServicoResponseDto.fromDomain(resultado);
   }
 
   @Delete(':id')

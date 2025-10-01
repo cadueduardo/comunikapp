@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OS {{OS_NUMERO}}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1cm;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #000;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .logo {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .os-info {
+            text-align: right;
+        }
+        
+        .os-numero {
+            font-size: 24px;
+            font-weight: bold;
+            color: #000;
+        }
+        
+        .os-data {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .qr-code {
+            width: 80px;
+            height: 80px;
+        }
+        
+        .section {
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+        }
+        
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            background-color: #f0f0f0;
+            padding: 5px 10px;
+            border-left: 4px solid #000;
+            margin-bottom: 10px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            font-size: 10px;
+            color: #666;
+        }
+        
+        .info-value {
+            font-size: 12px;
+        }
+        
+        .materiais-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        .materiais-table th,
+        .materiais-table td {
+            border: 1px solid #000;
+            padding: 5px;
+            text-align: left;
+        }
+        
+        .materiais-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            padding-top: 10px;
+            border-top: 1px solid #000;
+            font-size: 10px;
+            text-align: center;
+        }
+        
+        .aprovacao-box {
+            border: 1px solid #000;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .aprovacao-status {
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .aprovacao-aprovada {
+            color: #008000;
+        }
+        
+        .aprovacao-pendente {
+            color: #ff8c00;
+        }
+        
+        .aprovacao-rejeitada {
+            color: #ff0000;
+        }
+        
+        .instalacao-box {
+            border: 1px solid #000;
+            padding: 10px;
+            margin-top: 10px;
+            background-color: #f9f9f9;
+        }
+        
+        .instalacao-agendada {
+            color: #008000;
+        }
+        
+        .instalacao-nao-agendada {
+            color: #ff8c00;
+        }
+        
+        .observacoes-box {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 10px;
+            background-color: #fafafa;
+            min-height: 50px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-fila {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .status-producao {
+            background-color: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .status-finalizada {
+            background-color: #e8f5e8;
+            color: #388e3c;
+        }
+        
+        .status-cancelada {
+            background-color: #ffebee;
+            color: #d32f2f;
+        }
+        
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .no-print {
+                display: none;
+            }
+            
+            .page-break {
+                page-break-before: always;
+            }
+        }
+        
+        /* Estilos para preview */
+        .preview-mode {
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .preview-mode .section {
+            background-color: white;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">{{LOJA_NOME}}</div>
+        <div class="os-info">
+            <div class="os-numero">{{OS_NUMERO}}</div>
+            <div class="os-data">{{OS_DATA}}</div>
+        </div>
+        <div class="qr-code">{{QR_CODE}}</div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">CLIENTE</div>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Nome</div>
+                <div class="info-value">{{CLIENTE_NOME}}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Documento</div>
+                <div class="info-value">{{CLIENTE_DOCUMENTO}}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Telefone</div>
+                <div class="info-value">{{CLIENTE_TELEFONE}}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Email</div>
+                <div class="info-value">{{CLIENTE_EMAIL}}</div>
+            </div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">Endereço</div>
+            <div class="info-value">{{CLIENTE_ENDERECO}}</div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">PROJETO</div>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Descrição</div>
+                <div class="info-value">{{PROJETO_DESCRICAO}}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Quantidade</div>
+                <div class="info-value">{{PROJETO_QUANTIDADE}}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Dimensões</div>
+                <div class="info-value">{{PROJETO_DIMENSOES}}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Prazo</div>
+                <div class="info-value">{{PROJETO_PRAZO}}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Status</div>
+                <div class="info-value">
+                    <span class="status-badge status-{{PROJETO_PRIORIDADE}}">{{PROJETO_PRIORIDADE}}</span>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Instalação</div>
+                <div class="info-value">{{INSTALACAO_NECESSARIA}}</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">ESPECIFICAÇÕES TÉCNICAS</div>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Materiais Principais</div>
+                <div class="info-value">{{MATERIAIS_PRINCIPAIS}}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Tipo de Impressão</div>
+                <div class="info-value">{{TIPO_IMPRESSAO}}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Acabamentos</div>
+                <div class="info-value">{{ACABAMENTOS}}</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">MATERIAIS NECESSÁRIOS</div>
+        <table class="materiais-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Quantidade</th>
+                    <th>Unidade</th>
+                    <th>Observação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{MATERIAIS_TABELA}}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">APROVAÇÃO TÉCNICA</div>
+        <div class="aprovacao-box">
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Status</div>
+                    <div class="info-value aprovacao-status aprovacao-{{APROVACAO_TECNICA}}">{{APROVACAO_TECNICA}}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Aprovado por</div>
+                    <div class="info-value">{{APROVACAO_TECNICA_POR}}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Data</div>
+                    <div class="info-value">{{APROVACAO_TECNICA_DATA}}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Observações</div>
+                    <div class="info-value">{{APROVACAO_TECNICA_OBS}}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">AGENDAMENTO DE INSTALAÇÃO</div>
+        <div class="instalacao-box">
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Data Agendada</div>
+                    <div class="info-value instalacao-{{INSTALACAO_STATUS}}">{{AGENDAMENTO_INSTALACAO}}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Observações</div>
+                    <div class="info-value">{{OBSERVACOES_INSTALACAO}}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">OBSERVAÇÕES GERAIS</div>
+        <div class="observacoes-box">
+            {{OBSERVACOES}}
+        </div>
+    </div>
+    
+    <div class="footer">
+        <div>Impresso em: {{DATA_IMPRESSAO}} por {{RESPONSAVEL_IMPRESSAO}}</div>
+        <div>{{LOJA_NOME}} - {{LOJA_ENDERECO}}</div>
+        <div class="no-print">Para acessar digitalmente: escaneie o QR Code acima</div>
+    </div>
+</body>
+</html>
