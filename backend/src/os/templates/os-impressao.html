@@ -165,6 +165,138 @@
             min-height: 50px;
         }
         
+        /* Estilos para checklists operacionais */
+        .checklist-section {
+            margin-top: 20px;
+            page-break-inside: avoid;
+        }
+        
+        .checklist-title {
+            font-size: 14px;
+            font-weight: bold;
+            background-color: #e3f2fd;
+            padding: 8px 12px;
+            border-left: 4px solid #1976d2;
+            margin-bottom: 10px;
+        }
+        
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 5px;
+            border-bottom: 1px dotted #ccc;
+        }
+        
+        .checklist-checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #000;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .checklist-checkbox.checked {
+            background-color: #000;
+            color: white;
+        }
+        
+        .checklist-label {
+            flex: 1;
+            font-size: 11px;
+        }
+        
+        .apontamentos-section {
+            margin-top: 20px;
+            page-break-inside: avoid;
+        }
+        
+        .apontamentos-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 10px;
+        }
+        
+        .apontamentos-table th,
+        .apontamentos-table td {
+            border: 1px solid #000;
+            padding: 4px;
+            text-align: left;
+            vertical-align: top;
+        }
+        
+        .apontamentos-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        
+        .apontamentos-table .etapa-col {
+            width: 25%;
+        }
+        
+        .apontamentos-table .inicio-col {
+            width: 20%;
+        }
+        
+        .apontamentos-table .termino-col {
+            width: 20%;
+        }
+        
+        .apontamentos-table .responsavel-col {
+            width: 20%;
+        }
+        
+        .apontamentos-table .observacoes-col {
+            width: 15%;
+        }
+        
+        .qualidade-section {
+            margin-top: 20px;
+            page-break-inside: avoid;
+        }
+        
+        .conferencia-box {
+            border: 2px solid #000;
+            padding: 15px;
+            margin-top: 10px;
+            background-color: #fff;
+        }
+        
+        .assinatura-box {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #000;
+            min-height: 60px;
+        }
+        
+        .assinatura-line {
+            border-bottom: 1px solid #000;
+            margin-bottom: 5px;
+            padding-bottom: 2px;
+        }
+        
+        .assinatura-label {
+            font-size: 10px;
+            color: #666;
+        }
+        
+        .versao-completa {
+            display: none;
+        }
+        
+        .versao-simples .versao-completa {
+            display: none;
+        }
+        
+        .versao-completa .versao-completa {
+            display: block;
+        }
+        
         .status-badge {
             display: inline-block;
             padding: 2px 8px;
@@ -374,10 +506,135 @@
         </div>
     </div>
     
+    <!-- CHECKLIST DE ETAPAS DO WORKFLOW -->
+    <div class="checklist-section">
+        <div class="checklist-title">CHECKLIST DE ETAPAS DO WORKFLOW</div>
+        <div class="checklist-item">
+            <div class="checklist-checkbox">{{CHECKLIST_FILA}}</div>
+            <div class="checklist-label">OS liberada para produção - Fila de produção</div>
+        </div>
+        <div class="checklist-item">
+            <div class="checklist-checkbox">{{CHECKLIST_PRODUCAO}}</div>
+            <div class="checklist-label">Início da produção - Materiais separados</div>
+        </div>
+        <div class="checklist-item">
+            <div class="checklist-checkbox">{{CHECKLIST_IMPRESSAO}}</div>
+            <div class="checklist-label">Impressão concluída - Qualidade verificada</div>
+        </div>
+        <div class="checklist-item">
+            <div class="checklist-checkbox">{{CHECKLIST_ACABAMENTO}}</div>
+            <div class="checklist-label">Acabamentos aplicados - Acabamentos conferidos</div>
+        </div>
+        <div class="checklist-item">
+            <div class="checklist-checkbox">{{CHECKLIST_INSTALACAO}}</div>
+            <div class="checklist-label">Instalação agendada - Instalação realizada</div>
+        </div>
+        <div class="checklist-item">
+            <div class="checklist-checkbox">{{CHECKLIST_ENTREGA}}</div>
+            <div class="checklist-label">Produto finalizado - Entregue ao cliente</div>
+        </div>
+    </div>
+    
+    <!-- APONTAMENTOS -->
+    <div class="apontamentos-section versao-completa">
+        <div class="checklist-title">APONTAMENTOS DE PRODUÇÃO</div>
+        <table class="apontamentos-table">
+            <thead>
+                <tr>
+                    <th class="etapa-col">Etapa</th>
+                    <th class="inicio-col">Início</th>
+                    <th class="termino-col">Término</th>
+                    <th class="responsavel-col">Responsável</th>
+                    <th class="observacoes-col">Observações</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Separação de Materiais</td>
+                    <td>{{APONTAMENTO_SEPARACAO_INICIO}}</td>
+                    <td>{{APONTAMENTO_SEPARACAO_TERMINO}}</td>
+                    <td>{{APONTAMENTO_SEPARACAO_RESPONSAVEL}}</td>
+                    <td>{{APONTAMENTO_SEPARACAO_OBS}}</td>
+                </tr>
+                <tr>
+                    <td>Impressão</td>
+                    <td>{{APONTAMENTO_IMPRESSAO_INICIO}}</td>
+                    <td>{{APONTAMENTO_IMPRESSAO_TERMINO}}</td>
+                    <td>{{APONTAMENTO_IMPRESSAO_RESPONSAVEL}}</td>
+                    <td>{{APONTAMENTO_IMPRESSAO_OBS}}</td>
+                </tr>
+                <tr>
+                    <td>Acabamentos</td>
+                    <td>{{APONTAMENTO_ACABAMENTO_INICIO}}</td>
+                    <td>{{APONTAMENTO_ACABAMENTO_TERMINO}}</td>
+                    <td>{{APONTAMENTO_ACABAMENTO_RESPONSAVEL}}</td>
+                    <td>{{APONTAMENTO_ACABAMENTO_OBS}}</td>
+                </tr>
+                <tr>
+                    <td>Instalação</td>
+                    <td>{{APONTAMENTO_INSTALACAO_INICIO}}</td>
+                    <td>{{APONTAMENTO_INSTALACAO_TERMINO}}</td>
+                    <td>{{APONTAMENTO_INSTALACAO_RESPONSAVEL}}</td>
+                    <td>{{APONTAMENTO_INSTALACAO_OBS}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- CHECKLIST DE QUALIDADE -->
+    <div class="qualidade-section versao-completa">
+        <div class="checklist-title">CHECKLIST DE QUALIDADE - CONFERÊNCIA PRÉ-ENTREGA</div>
+        <div class="checklist-item">
+            <div class="checklist-checkbox">{{QUALIDADE_DIMENSOES}}</div>
+            <div class="checklist-label">Dimensões conferidas conforme projeto</div>
+        </div>
+        <div class="checklist-item">
+            <div class="checklist-checkbox">{{QUALIDADE_IMPRESSAO}}</div>
+            <div class="checklist-label">Qualidade da impressão verificada</div>
+        </div>
+        <div class="checklist-item">
+            <div class="checklist-checkbox">{{QUALIDADE_ACABAMENTO}}</div>
+            <div class="checklist-label">Acabamentos aplicados corretamente</div>
+        </div>
+        <div class="checklist-item">
+            <div class="checklist-checkbox">{{QUALIDADE_MATERIAIS}}</div>
+            <div class="checklist-label">Materiais conforme especificação</div>
+        </div>
+        <div class="checklist-item">
+            <div class="checklist-checkbox">{{QUALIDADE_LIMPEZA}}</div>
+            <div class="checklist-label">Produto limpo e sem defeitos</div>
+        </div>
+        <div class="checklist-item">
+            <div class="checklist-checkbox">{{QUALIDADE_EMBALAGEM}}</div>
+            <div class="checklist-label">Embalagem adequada para transporte</div>
+        </div>
+        
+        <div class="conferencia-box">
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Data da Conferência</div>
+                    <div class="info-value">{{QUALIDADE_DATA_CONFERENCIA}}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Horário</div>
+                    <div class="info-value">{{QUALIDADE_HORARIO_CONFERENCIA}}</div>
+                </div>
+            </div>
+            <div class="assinatura-box">
+                <div class="assinatura-label">Conferido por:</div>
+                <div class="assinatura-line"></div>
+                <div class="assinatura-label">Nome: _________________________</div>
+                <div class="assinatura-label">Assinatura: ____________________</div>
+                <div class="assinatura-label">Data: ___/___/______</div>
+            </div>
+        </div>
+    </div>
+    
     <div class="footer">
         <div>Impresso em: {{DATA_IMPRESSAO}} por {{RESPONSAVEL_IMPRESSAO}}</div>
         <div>{{LOJA_NOME}} - {{LOJA_ENDERECO}}</div>
         <div class="no-print">Para acessar digitalmente: escaneie o QR Code acima</div>
+        <div class="no-print">Versão: {{VERSAO_TEMPLATE}} - {{TIPO_VERSAO}}</div>
     </div>
 </body>
 </html>

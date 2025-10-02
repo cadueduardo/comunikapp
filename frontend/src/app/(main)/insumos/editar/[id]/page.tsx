@@ -60,6 +60,13 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
   };
 
   // Prepara os dados para o formulário, garantindo que nenhum valor seja null/undefined
+  console.log('🔍 EditarInsumoPage - Dados do insumo recebidos:', {
+    logica_consumo: insumo?.logica_consumo,
+    tipoMaterialId: insumo?.tipoMaterialId,
+    tipo_material_id: insumo?.tipo_material_id,
+    parametros_consumo: insumo?.parametros_consumo
+  });
+
   const formInitialData = insumo ? {
       nome: insumo.nome,
       custo_unitario: insumo.custo_unitario?.toString() ?? '',
@@ -80,6 +87,11 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
       // Campos de uso
       unidade_uso: insumo.unidade_uso,
       fator_conversao: insumo.fator_conversao?.toString() ?? '',
+      
+      // Campos de lógica de consumo personalizada
+      logica_consumo: insumo.logica_consumo ?? 'area',
+      tipo_material_id: insumo.tipoMaterialId ?? insumo.tipo_material_id ?? '',
+      parametros_consumo: insumo.parametros_consumo ?? null,
       
       // Outros campos
       estoque_minimo: insumo.estoque_minimo?.toString() ?? '',

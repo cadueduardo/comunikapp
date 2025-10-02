@@ -25,6 +25,10 @@ import { OSDiretaInternaController } from './controllers/os-direta-interna.contr
 import { AprovacaoAlcadaController } from './controllers/aprovacao-alcada.controller';
 import { WorkflowInstanciaController } from './controllers/workflow-instancia.controller';
 import { AprovacaoTecnicaController } from './controllers/aprovacao-tecnica.controller';
+import { WorkflowComercialController } from './controllers/workflow-comercial.controller';
+import { WorkflowInternoController } from './controllers/workflow-interno.controller';
+import { AlcadasOrcamentoController } from './controllers/alcadas-orcamento.controller';
+import { CentroCustoController } from './controllers/centro-custo.controller';
 // import { HistoricoController } from './controllers/historico.controller'; // TODO: Implementar
 
 // Services (<= 400 linhas cada)
@@ -35,6 +39,8 @@ import { AprovacaoAlcadaService } from './services/aprovacao-alcada.service';
 import { WorkflowInstanciaService } from './services/workflow-instancia.service';
 import { EstoqueApontamentoService } from './services/estoque-apontamento.service';
 import { AprovacaoTecnicaService } from './services/aprovacao-tecnica.service';
+import { AlcadasOrcamentoService } from './services/alcadas-orcamento.service';
+import { CentroCustoService } from './services/centro-custo.service';
 // import { NotificacoesOSService } from './services/notificacoes-os.service'; // TODO: Implementar
 // import { IntegracaoService } from './services/integracao.service'; // TODO: Implementar
 
@@ -69,6 +75,10 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
     AprovacaoAlcadaController,
     WorkflowInstanciaController,
     AprovacaoTecnicaController,
+    WorkflowComercialController,
+    WorkflowInternoController,
+    AlcadasOrcamentoController,
+    CentroCustoController,
     // HistoricoController, // TODO: Implementar
   ],
   providers: [
@@ -80,6 +90,8 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
     WorkflowInstanciaService,
     EstoqueApontamentoService,
     AprovacaoTecnicaService,
+    AlcadasOrcamentoService,
+    CentroCustoService,
     ValidacaoEstoqueService,
     // NotificacoesOSService, // TODO: Implementar
     // IntegracaoService, // TODO: Implementar
@@ -114,6 +126,8 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
     WorkflowInstanciaService,
     EstoqueApontamentoService,
     AprovacaoTecnicaService,
+    AlcadasOrcamentoService,
+    CentroCustoService,
     ValidacaoEstoqueService,
     // NotificacoesOSService, // TODO: Implementar
     // IntegracaoService, // TODO: Implementar

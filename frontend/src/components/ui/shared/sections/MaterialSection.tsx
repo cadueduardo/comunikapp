@@ -198,6 +198,17 @@ export function MaterialSection({
             const larguraProduto = Number(form.watch(`itens_produto.${itemIndex}.largura_produto`)) || 0;
             const alturaProduto = Number(form.watch(`itens_produto.${itemIndex}.altura_produto`)) || 0;
             
+            console.log('🔍 MaterialSection - Cálculo personalizado:', {
+              insumo: insumoSelecionado.nome,
+              logica_consumo: insumoSelecionado.logica_consumo,
+              tipoMaterial: insumoSelecionado.tipoMaterial,
+              parametros,
+              areaProduto,
+              larguraProduto,
+              alturaProduto,
+              quantidadeProduto
+            });
+            
             if (parametros && parametros.tipo_calculo) {
               switch (parametros.tipo_calculo) {
                 case 'espacamento':
@@ -205,6 +216,19 @@ export function MaterialSection({
                     const perimetro = 2 * (larguraProduto + alturaProduto);
                     const espacamento = Number(parametros.espacamento);
                     sugestao = (Math.ceil(perimetro / espacamento) * quantidadeProduto).toString();
+                    console.log('🔍 MaterialSection - Cálculo espaçamento:', {
+                      perimetro,
+                      espacamento,
+                      quantidadeUnitaria: Math.ceil(perimetro / espacamento),
+                      quantidadeProduto,
+                      sugestao
+                    });
+                  } else {
+                    console.warn('⚠️ MaterialSection - Parâmetros de espaçamento incompletos:', {
+                      espacamento: parametros.espacamento,
+                      larguraProduto,
+                      alturaProduto
+                    });
                   }
                   break;
                 
@@ -225,6 +249,24 @@ export function MaterialSection({
                     sugestao = (parametros.quantidade_fixa * quantidadeProduto).toString();
                   }
                   break;
+              }
+            } else {
+              console.log('⚠️ MaterialSection - Parâmetros não encontrados ou tipo_calculo vazio');
+              
+              // Fallback: se é um material de ilhós mas não tem parâmetros corretos,
+              // usar cálculo padrão de espaçamento de 15cm
+              if (insumoSelecionado.nome.toLowerCase().includes('ilh') && larguraProduto && alturaProduto) {
+                console.log('🔧 MaterialSection - Aplicando fallback para ilhós (15cm)');
+                const perimetro = 2 * (larguraProduto + alturaProduto);
+                const espacamento = 15; // Fallback padrão
+                sugestao = (Math.ceil(perimetro / espacamento) * quantidadeProduto).toString();
+                console.log('🔍 MaterialSection - Cálculo fallback:', {
+                  perimetro,
+                  espacamento,
+                  quantidadeUnitaria: Math.ceil(perimetro / espacamento),
+                  quantidadeProduto,
+                  sugestao
+                });
               }
             }
           } else {

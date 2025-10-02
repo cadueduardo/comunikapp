@@ -1064,7 +1064,7 @@ export class OrcamentosV2Service {
   }
 
   /**
-   * Buscar mensagens do chat público - BASEADO NO LEGADO
+   * Buscar mensagens do chat público - NATIVO V2
    */
   async buscarMensagensPublicasLegado(orcamentoId: string) {
     this.logger.log(`ðŸ” Buscando mensagens públicas do orçamento legado: ${orcamentoId}`);
@@ -1110,7 +1110,7 @@ export class OrcamentosV2Service {
   }
 
   /**
-   * Enviar mensagem no chat (autenticado) - BASEADO NO LEGADO
+   * Enviar mensagem no chat (autenticado) - NATIVO V2
    */
   async enviarMensagemChatLegado(
     orcamentoId: string,
@@ -1200,7 +1200,7 @@ export class OrcamentosV2Service {
           orcamento_id: orcamentoId,
           conteudo: dados.mensagem,
           tipo: tipo,
-          usuario: 'Vendedor',
+          usuario: tipo === 'VENDEDOR' ? 'Vendedor' : tipo === 'CLIENTE' ? 'Cliente' : 'Sistema',
           anexos: anexoInfo ? JSON.stringify(anexoInfo) : null,
         },
       });
@@ -1218,7 +1218,7 @@ export class OrcamentosV2Service {
   }
 
   /**
-   * Enviar mensagem no chat público - BASEADO NO LEGADO
+   * Enviar mensagem no chat público - NATIVO V2
    */
   async enviarMensagemPublicaLegado(
     orcamentoId: string,
@@ -1228,7 +1228,7 @@ export class OrcamentosV2Service {
   }
 
   /**
-   * Enviar mensagem no chat público com anexo - BASEADO NO LEGADO
+   * Enviar mensagem no chat público com anexo - NATIVO V2
    */
   async enviarMensagemPublicaLegadoComAnexo(
     orcamentoId: string,
@@ -1312,7 +1312,7 @@ export class OrcamentosV2Service {
           orcamento_id: orcamentoId,
           conteudo: dados.mensagem,
           tipo: tipo,
-          usuario: dados.autor_nome || 'Cliente',
+          usuario: tipo === 'VENDEDOR' ? 'Vendedor' : tipo === 'CLIENTE' ? 'Cliente' : 'Sistema',
           anexos: anexoInfo ? JSON.stringify(anexoInfo) : null,
         },
       });
@@ -1833,7 +1833,7 @@ export class OrcamentosV2Service {
   }
 
   /**
-   * Buscar mensagens do chat (autenticado - para vendedores) - BASEADO NO LEGADO
+   * Buscar mensagens do chat (autenticado - para vendedores) - NATIVO V2
    */
   async buscarMensagensChatLegado(
     orcamentoId: string,

@@ -166,14 +166,20 @@ export class TransformacaoDadosHelper {
     return servicosManuais
       .filter(servico => {
         const categorias = servico.categorias || servico.servico?.categorias || [];
-        return !categorias.includes('instalacao');
+        const categoriasArray = Array.isArray(categorias) ? categorias : [];
+        return !categoriasArray.includes('instalacao');
       })
-      .map(servico => ({
-        nome: servico.nome || servico.servico?.nome || 'Serviço',
-        descricao: servico.descricao || servico.servico?.descricao || '',
-        categoria: (servico.categorias || servico.servico?.categorias || []).join(', '),
-        custo_total: typeof servico.custo_total === 'string' ? parseFloat(servico.custo_total) : servico.custo_total
-      }));
+      .map(servico => {
+        const categorias = servico.categorias || servico.servico?.categorias || [];
+        const categoriasArray = Array.isArray(categorias) ? categorias : [];
+        
+        return {
+          nome: servico.nome || servico.servico?.nome || 'Serviço',
+          descricao: servico.descricao || servico.servico?.descricao || '',
+          categoria: categoriasArray.join(', ') || 'N/A',
+          custo_total: typeof servico.custo_total === 'string' ? parseFloat(servico.custo_total) : servico.custo_total
+        };
+      });
   }
   
   /**
@@ -186,7 +192,8 @@ export class TransformacaoDadosHelper {
     
     return servicosManuais.some(servico => {
       const categorias = servico.categorias || servico.servico?.categorias || [];
-      return categorias.includes('instalacao');
+      const categoriasArray = Array.isArray(categorias) ? categorias : [];
+      return categoriasArray.includes('instalacao');
     });
   }
   

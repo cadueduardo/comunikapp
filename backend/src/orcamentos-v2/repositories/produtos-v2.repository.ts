@@ -44,8 +44,8 @@ export class ProdutosV2Repository {
           quantidade: rest.quantidade,
           unidade_medida: unidade,
           custo_total_producao: rest.custo_total_producao ?? 0,
-          preco_unitario: preco_unitario,
-          preco_total: preco_total,
+          preco_unitario: preco_unitario || 0, // Será recalculado pelo motor
+          preco_total: preco_total || 0, // Será recalculado pelo motor
           margem_lucro: rest.margem_lucro,
           impostos: rest.impostos,
           observacoes: rest.observacoes,

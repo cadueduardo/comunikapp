@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormContext } from 'react-hook-form';
+import { useFormContext, useWatch } from 'react-hook-form';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -52,6 +52,12 @@ export function ServicoSection({
   };
 
   const form = useFormContext();
+  
+  // Hooks devem ser chamados sempre na mesma ordem - movidos para fora do map
+  const servicosData = useWatch({ control: form.control, name: `itens_produto.${itemIndex}.servicos` }) || [];
+  
+  // Usar watch para obter todos os valores de uma vez
+  const allFormValues = useWatch({ control: form.control });
 
   const handleAddServico = () => {
     if (onAddServico) {
@@ -93,7 +99,7 @@ export function ServicoSection({
         </Button>
       </div>
       
-      {(form.watch(`itens_produto.${itemIndex}.servicos`) || [])?.map((servico: { servico_id: string; horas_trabalhadas: string }, servicoIndex: number) => {
+      {servicosData.map((servico: { servico_id: string; horas_trabalhadas: string }, servicoIndex: number) => {
         const servicoSelecionado = servicos.find(s => s.id === servico.servico_id);
         const horasTrabalhadas = Number(String(servico.horas_trabalhadas).replace(',', '.')) || 0;
 
@@ -109,11 +115,11 @@ export function ServicoSection({
         };
 
         // Calcular horas e custo baseado no tipo de cálculo
-        const { horasCalculadas, disclaimer, isManual } = useMemo(() => {
+        const calcularHorasServico = () => {
           if (!servicoSelecionado) return { horasCalculadas: 0, disclaimer: '', isManual: true };
 
-          const areaM2 = toNumber(form.watch(`itens_produto.${itemIndex}.area_produto`)) || 0;
-          const qtd = toNumber(form.watch(`itens_produto.${itemIndex}.quantidade_produto`)) || 1;
+          const areaM2 = toNumber(allFormValues?.itens_produto?.[itemIndex]?.area_produto) || 0;
+          const qtd = toNumber(allFormValues?.itens_produto?.[itemIndex]?.quantidade_produto) || 1;
           const areaTotal = areaM2 * qtd;
           
           const effPercent = toNumber(servicoSelecionado.eficiencia_percent) || 100;
@@ -207,17 +213,9 @@ export function ServicoSection({
             disclaimer: disclaimerTexto, 
             isManual: manual 
           };
-        }, [
-          servicoSelecionado?.id, 
-          servicoSelecionado?.tipo_calculo, 
-          servicoSelecionado?.horas_por_m2, 
-          servicoSelecionado?.horas_por_unidade, 
-          servicoSelecionado?.eficiencia_percent,
-          servicoSelecionado?.setup_min,
-          servicoSelecionado?.categorias,
-          form.watch(`itens_produto.${itemIndex}.area_produto`), 
-          form.watch(`itens_produto.${itemIndex}.quantidade_produto`)
-        ]);
+        };
+
+        const { horasCalculadas, disclaimer, isManual } = calcularHorasServico();
 
         // Usar horas calculadas automaticamente ou horas manuais
         const horasFinais = isManual ? horasTrabalhadas : horasCalculadas;

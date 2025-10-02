@@ -14,6 +14,16 @@ import { createFormSchema, FormValues } from '../orcamento/schemas/orcamento.sch
 import { useOrcamentoData } from '../orcamento/hooks/useOrcamentoData';
 import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
 import { calcularProdutosPreview } from '../shared/utils/preview-calculo.helpers';
+
+// Função para calcular custo por unidade de uso
+const calcularCustoPorUnidadeUso = (insumo: any): number => {
+  if (!insumo) return 0;
+  
+  const custoUnitario = insumo.custo_unitario || 0;
+  const fatorConversao = insumo.fator_conversao || 1;
+  
+  return custoUnitario / fatorConversao;
+};
 import { ClienteSection, ProdutoSection, ConfiguracoesSection, TituloOrcamentoSection } from '../orcamento/components';
 import { PreviewCalculoV2 } from '../shared/sections';
 
@@ -190,7 +200,7 @@ export function OrcamentoV2Form({
         }, 50);
       }, 100);
     }
-  }, [mode, initialData, form]);
+  }, [mode, initialData]);
 
   // Debug: verificar se o status está sendo recebido
   useEffect(() => {
@@ -206,6 +216,12 @@ export function OrcamentoV2Form({
     const itensProduto = (Array.isArray(data.itens_produto) ? data.itens_produto : []).filter(
       (produto): produto is FormValues['itens_produto'][number] => Boolean(produto)
     );
+
+    // Definir variáveis de percentuais que estavam faltando
+    const custosIndiretosPercentual = 15; // Valor padrão
+    const margemPercentual = parseFloat(data?.margem_lucro_customizada || '30');
+    const impostosPercentual = parseFloat(data?.impostos_customizados || '25');
+    const comissaoPercentual = parseFloat(data?.comissao_percentual || '5');
 
     const normalizarNumero = (valor: unknown): number => {
       if (typeof valor === 'number') return valor;
@@ -330,9 +346,7 @@ export function OrcamentoV2Form({
     const custoTotal = custoMaterial + custoMaoObra + custoIndiretos;
     
     // Calcular preço final com margem, impostos e comissão
-    const margemPercentual = parseFloat(data?.margem_lucro_customizada || '30');
-    const impostosPercentual = parseFloat(data?.impostos_customizados || '25');
-    const comissaoPercentual = parseFloat(data?.comissao_percentual || '5');
+    // (variáveis já definidas acima na função transformarDadosParaBackend)
     
     console.log('🔍 Debug - Percentuais do formulário:', {
       margem_lucro_customizada: data?.margem_lucro_customizada,
@@ -405,31 +419,54 @@ export function OrcamentoV2Form({
     
     console.log(`🔍 Debug - Peso total calculado:`, pesoTotal);
     
-    // Distribuir valores proporcionalmente ao peso de cada produto
+    // Calcular preço individual para cada produto baseado em seus próprios custos
     produtosComPeso.forEach((produto, index) => {
-      const proporcao = produto.peso / pesoTotal;
+      // Calcular custos individuais do produto
+      const custoMaterialProduto = produto.insumos?.reduce((total: number, insumo: any) => {
+        const insumoEncontrado = insumos.find(i => i.id === insumo.insumo_id);
+        const custoUnitario = insumoEncontrado ? calcularCustoPorUnidadeUso(insumoEncontrado) : 0;
+        return total + (insumo.quantidade * custoUnitario);
+      }, 0) || 0;
+
+      const custoMaquinaProduto = produto.maquinas?.reduce((total: number, maquina: any) => {
+        const maquinaEncontrada = maquinas.find(m => m.id === maquina.maquina_id);
+        const custoHora = maquinaEncontrada ? maquinaEncontrada.custo_hora : 0;
+        return total + (maquina.horas_utilizadas * custoHora);
+      }, 0) || 0;
+
+      const custoFuncaoProduto = produto.funcoes?.reduce((total: number, funcao: any) => {
+        const funcaoEncontrada = funcoes.find(f => f.id === funcao.funcao_id);
+        const custoHora = funcaoEncontrada ? funcaoEncontrada.custo_hora : 0;
+        return total + (funcao.horas_trabalhadas * custoHora);
+      }, 0) || 0;
+
+      const custoBaseProduto = custoMaterialProduto + custoMaquinaProduto + custoFuncaoProduto;
+      const custoIndiretoProduto = custoBaseProduto * (custosIndiretosPercentual / 100);
+      const custoTotalProduto = custoBaseProduto + custoIndiretoProduto;
+
+      // Aplicar a mesma fórmula do total para cada produto individualmente
+      const divisorProduto = divisor; // Usar o mesmo divisor do cálculo total
+      const precoFinalProduto = divisorProduto > 0 ? custoTotalProduto / divisorProduto : custoTotalProduto;
+      const margemLucroProduto = precoFinalProduto * percentualMargemDecimal;
+      const impostosProduto = precoFinalProduto * percentualImpostosDecimal;
+
+      produto.custo_total_producao = custoTotalProduto;
+      produto.preco_unitario = precoFinalProduto / produto.quantidade;
+      produto.preco_total = precoFinalProduto;
+      produto.margem_lucro = margemLucroProduto;
+      produto.impostos = impostosProduto;
       
-      const custoTotalPorProduto = custoTotal * proporcao;
-      const precoFinalPorProduto = precoFinal * proporcao;
-      const margemLucroPorProduto = margemLucro * proporcao;
-      const impostosPorProduto = impostos * proporcao;
-      
-      produto.custo_total_producao = custoTotalPorProduto;
-      produto.preco_unitario = precoFinalPorProduto / produto.quantidade;
-      produto.preco_total = precoFinalPorProduto;
-      produto.margem_lucro = margemLucroPorProduto;
-      produto.impostos = impostosPorProduto;
-      
-      console.log(`🔍 Debug - Produto ${index + 1} calculado com peso:`, {
+      console.log(`🔍 Debug - Produto ${index + 1} calculado individualmente:`, {
         nome: produto.nome_servico,
         quantidade: produto.quantidade,
-        peso: produto.peso,
-        proporcao: proporcao.toFixed(4),
+        custo_material: custoMaterialProduto,
+        custo_maquina: custoMaquinaProduto,
+        custo_funcao: custoFuncaoProduto,
+        custo_total: custoTotalProduto,
         preco_unitario: produto.preco_unitario,
         preco_total: produto.preco_total,
         margem_lucro: produto.margem_lucro,
-        impostos: produto.impostos,
-        custo_total_producao: produto.custo_total_producao
+        impostos: produto.impostos
       });
     });
     
@@ -441,6 +478,14 @@ export function OrcamentoV2Form({
       produto.preco_total = produtoComPeso.preco_total;
       produto.margem_lucro = produtoComPeso.margem_lucro;
       produto.impostos = produtoComPeso.impostos;
+      
+      // Debug: verificar se os valores estão corretos
+      console.log(`🔍 Debug - Produto ${index + 1} (${produto.nome_servico}):`, {
+        preco_unitario: produto.preco_unitario,
+        preco_total: produto.preco_total,
+        quantidade: produto.quantidade,
+        custo_total_producao: produto.custo_total_producao
+      });
     });
     
     console.log('🔍 Debug - Custos calculados:', {

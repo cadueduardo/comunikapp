@@ -18,6 +18,7 @@ export class ImpressaoOSController {
    * 
    * Query params:
    * - formato: 'html' | 'pdf' (default: 'html')
+   * - versao: 'simples' | 'completa' (default: 'simples')
    * - incluirQRCode: boolean (default: true)
    * - incluirLogo: boolean (default: true)
    * - incluirDetalhesTecnicos: boolean (default: true)
@@ -26,6 +27,7 @@ export class ImpressaoOSController {
   async imprimirOS(
     @Param('id') osId: string,
     @Query('formato') formato: 'html' | 'pdf' = 'html',
+    @Query('versao') versao: 'simples' | 'completa' = 'simples',
     @Query('incluirQRCode') incluirQRCode: string = 'true',
     @Query('incluirLogo') incluirLogo: string = 'true',
     @Query('incluirDetalhesTecnicos') incluirDetalhesTecnicos: string = 'true',
@@ -34,6 +36,7 @@ export class ImpressaoOSController {
     try {
       const config: ConfiguracaoImpressao = {
         formato,
+        versao,
         incluirQRCode: incluirQRCode === 'true',
         incluirLogo: incluirLogo === 'true',
         incluirDetalhesTecnicos: incluirDetalhesTecnicos === 'true'
@@ -80,6 +83,7 @@ export class ImpressaoOSController {
     try {
       const config: ConfiguracaoImpressao = {
         formato: 'html',
+        versao: 'simples',
         incluirQRCode: incluirQRCode === 'true',
         incluirLogo: incluirLogo === 'true',
         incluirDetalhesTecnicos: incluirDetalhesTecnicos === 'true'
@@ -125,6 +129,7 @@ export class ImpressaoOSController {
     try {
       const config: ConfiguracaoImpressao = {
         formato: 'html',
+        versao: 'simples',
         incluirQRCode: incluirQRCode === 'true',
         incluirLogo: incluirLogo === 'true',
         incluirDetalhesTecnicos: incluirDetalhesTecnicos === 'true'

@@ -41,6 +41,15 @@ interface ProdutoSectionProps {
     quantidade_compra: number;
     unidade_uso: string;
     fator_conversao: number;
+    logica_consumo?: string | null;
+    tipo_material_id?: string | null;
+    parametros_consumo?: Record<string, unknown> | null;
+    tipoMaterial?: {
+      id: string;
+      nome: string;
+      logica_consumo: string;
+      parametros_padrao: Record<string, unknown> | null;
+    } | null;
     categoria: { nome: string };
   }>;
   maquinas?: Array<{

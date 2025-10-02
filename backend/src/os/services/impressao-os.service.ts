@@ -28,6 +28,7 @@ export interface ConfiguracaoImpressao {
   incluirLogo: boolean;
   incluirDetalhesTecnicos: boolean;
   formato: 'html' | 'pdf';
+  versao: 'simples' | 'completa';
 }
 
 @Injectable()
@@ -45,7 +46,8 @@ export class ImpressaoOSService {
     incluirQRCode: true,
     incluirLogo: true,
     incluirDetalhesTecnicos: true,
-    formato: 'html'
+    formato: 'html',
+    versao: 'simples'
   }): Promise<DadosImpressaoOS> {
     
     // Buscar dados completos da OS
@@ -123,6 +125,10 @@ export class ImpressaoOSService {
   async gerarTemplateHTML(dados: DadosImpressaoOS, config: ConfiguracaoImpressao): Promise<string> {
     const template = await this.carregarTemplate();
     
+    // Determinar versão do template baseada na configuração
+    const isVersaoCompleta = config.versao === 'completa' || config.formato === 'pdf';
+    const tipoVersao = isVersaoCompleta ? 'Completa' : 'Simplificada';
+    
     // Substituir variáveis no template
     const html = template
       .replace('{{OS_NUMERO}}', dados.os.numero)
@@ -144,12 +150,53 @@ export class ImpressaoOSService {
       .replace('{{MATERIAIS_TABELA}}', this.formatarTabelaMateriais(dados.insumos))
       .replace('{{OBSERVACOES}}', dados.os.observacoes || '')
       .replace('{{APROVACAO_TECNICA}}', this.formatarAprovacaoTecnica(dados.os))
+      .replace('{{APROVACAO_TECNICA_POR}}', dados.os.aprovacao_tecnica_por || 'N/A')
+      .replace('{{APROVACAO_TECNICA_DATA}}', dados.os.aprovacao_tecnica_em ? this.formatarData(dados.os.aprovacao_tecnica_em) : 'N/A')
+      .replace('{{APROVACAO_TECNICA_OBS}}', dados.os.aprovacao_tecnica_observacoes || 'N/A')
       .replace('{{AGENDAMENTO_INSTALACAO}}', this.formatarAgendamentoInstalacao(dados.os))
+      .replace('{{INSTALACAO_STATUS}}', dados.os.data_instalacao_agendada ? 'agendada' : 'nao-agendada')
+      .replace('{{OBSERVACOES_INSTALACAO}}', dados.os.observacoes_instalacao || 'N/A')
       .replace('{{QR_CODE}}', dados.qrCodeDataUrl ? `<img src="${dados.qrCodeDataUrl}" alt="QR Code" class="qr-code">` : '')
       .replace('{{LOJA_NOME}}', dados.loja.nome || 'N/A')
       .replace('{{LOJA_ENDERECO}}', this.formatarEnderecoLoja(dados.loja))
       .replace('{{DATA_IMPRESSAO}}', this.formatarData(new Date()))
-      .replace('{{RESPONSAVEL_IMPRESSAO}}', 'Sistema'); // Seria o usuário logado
+      .replace('{{RESPONSAVEL_IMPRESSAO}}', 'Sistema')
+      // Novos placeholders para checklists
+      .replace('{{CHECKLIST_FILA}}', this.gerarCheckboxStatus(dados.os.status, 'FILA'))
+      .replace('{{CHECKLIST_PRODUCAO}}', this.gerarCheckboxStatus(dados.os.status, 'PRODUCAO'))
+      .replace('{{CHECKLIST_IMPRESSAO}}', this.gerarCheckboxStatus(dados.os.status, 'IMPRESSAO'))
+      .replace('{{CHECKLIST_ACABAMENTO}}', this.gerarCheckboxStatus(dados.os.status, 'ACABAMENTO'))
+      .replace('{{CHECKLIST_INSTALACAO}}', this.gerarCheckboxStatus(dados.os.status, 'INSTALACAO'))
+      .replace('{{CHECKLIST_ENTREGA}}', this.gerarCheckboxStatus(dados.os.status, 'ENTREGA'))
+      // Placeholders para apontamentos
+      .replace('{{APONTAMENTO_SEPARACAO_INICIO}}', this.gerarCampoApontamento('SEPARACAO', 'inicio'))
+      .replace('{{APONTAMENTO_SEPARACAO_TERMINO}}', this.gerarCampoApontamento('SEPARACAO', 'termino'))
+      .replace('{{APONTAMENTO_SEPARACAO_RESPONSAVEL}}', this.gerarCampoApontamento('SEPARACAO', 'responsavel'))
+      .replace('{{APONTAMENTO_SEPARACAO_OBS}}', this.gerarCampoApontamento('SEPARACAO', 'observacoes'))
+      .replace('{{APONTAMENTO_IMPRESSAO_INICIO}}', this.gerarCampoApontamento('IMPRESSAO', 'inicio'))
+      .replace('{{APONTAMENTO_IMPRESSAO_TERMINO}}', this.gerarCampoApontamento('IMPRESSAO', 'termino'))
+      .replace('{{APONTAMENTO_IMPRESSAO_RESPONSAVEL}}', this.gerarCampoApontamento('IMPRESSAO', 'responsavel'))
+      .replace('{{APONTAMENTO_IMPRESSAO_OBS}}', this.gerarCampoApontamento('IMPRESSAO', 'observacoes'))
+      .replace('{{APONTAMENTO_ACABAMENTO_INICIO}}', this.gerarCampoApontamento('ACABAMENTO', 'inicio'))
+      .replace('{{APONTAMENTO_ACABAMENTO_TERMINO}}', this.gerarCampoApontamento('ACABAMENTO', 'termino'))
+      .replace('{{APONTAMENTO_ACABAMENTO_RESPONSAVEL}}', this.gerarCampoApontamento('ACABAMENTO', 'responsavel'))
+      .replace('{{APONTAMENTO_ACABAMENTO_OBS}}', this.gerarCampoApontamento('ACABAMENTO', 'observacoes'))
+      .replace('{{APONTAMENTO_INSTALACAO_INICIO}}', this.gerarCampoApontamento('INSTALACAO', 'inicio'))
+      .replace('{{APONTAMENTO_INSTALACAO_TERMINO}}', this.gerarCampoApontamento('INSTALACAO', 'termino'))
+      .replace('{{APONTAMENTO_INSTALACAO_RESPONSAVEL}}', this.gerarCampoApontamento('INSTALACAO', 'responsavel'))
+      .replace('{{APONTAMENTO_INSTALACAO_OBS}}', this.gerarCampoApontamento('INSTALACAO', 'observacoes'))
+      // Placeholders para qualidade
+      .replace('{{QUALIDADE_DIMENSOES}}', this.gerarCheckboxQualidade('dimensoes'))
+      .replace('{{QUALIDADE_IMPRESSAO}}', this.gerarCheckboxQualidade('impressao'))
+      .replace('{{QUALIDADE_ACABAMENTO}}', this.gerarCheckboxQualidade('acabamento'))
+      .replace('{{QUALIDADE_MATERIAIS}}', this.gerarCheckboxQualidade('materiais'))
+      .replace('{{QUALIDADE_LIMPEZA}}', this.gerarCheckboxQualidade('limpeza'))
+      .replace('{{QUALIDADE_EMBALAGEM}}', this.gerarCheckboxQualidade('embalagem'))
+      .replace('{{QUALIDADE_DATA_CONFERENCIA}}', this.gerarCampoQualidade('data'))
+      .replace('{{QUALIDADE_HORARIO_CONFERENCIA}}', this.gerarCampoQualidade('horario'))
+      // Versão do template
+      .replace('{{VERSAO_TEMPLATE}}', '2.0')
+      .replace('{{TIPO_VERSAO}}', tipoVersao)
     
     return html;
   }
@@ -531,30 +578,30 @@ export class ImpressaoOSService {
   }
   
   private formatarMateriaisPrincipais(materiais: any[]): string {
-    if (!materiais || materiais.length === 0) return 'N/A';
+    if (!materiais || !Array.isArray(materiais) || materiais.length === 0) return 'N/A';
     
-    return materiais.map(m => `${m.nome} (${m.quantidade} ${m.unidade})`).join(', ');
+    return materiais.filter(m => m && m.nome).map(m => `${m.nome} (${m.quantidade || 0} ${m.unidade || 'un'})`).join(', ') || 'N/A';
   }
   
   private formatarAcabamentos(acabamentos: any[]): string {
-    if (!acabamentos || acabamentos.length === 0) return 'N/A';
+    if (!acabamentos || !Array.isArray(acabamentos) || acabamentos.length === 0) return 'N/A';
     
-    return acabamentos.map(a => a.nome).join(', ');
+    return acabamentos.filter(a => a && a.nome).map(a => a.nome).join(', ') || 'N/A';
   }
   
   private formatarTabelaMateriais(insumos: any[]): string {
-    if (!insumos || insumos.length === 0) {
+    if (!insumos || !Array.isArray(insumos) || insumos.length === 0) {
       return '<tr><td colspan="4">Nenhum material listado</td></tr>';
     }
     
-    return insumos.map(insumo => `
+    return insumos.filter(insumo => insumo).map(insumo => `
       <tr>
         <td>${insumo.insumo?.nome || insumo.nome || 'Material'}</td>
-        <td>${insumo.quantidade}</td>
+        <td>${insumo.quantidade || 0}</td>
         <td>${insumo.unidade || insumo.insumo?.unidade_uso || 'un'}</td>
         <td>${insumo.observacoes || ''}</td>
       </tr>
-    `).join('');
+    `).join('') || '<tr><td colspan="4">Nenhum material listado</td></tr>';
   }
   
   private formatarAprovacaoTecnica(os: any): string {
@@ -566,5 +613,64 @@ export class ImpressaoOSService {
     if (!os.data_instalacao_agendada) return 'Não agendado';
     
     return this.formatarData(os.data_instalacao_agendada);
+  }
+
+  /**
+   * Gerar checkbox para status do workflow
+   * @param statusAtual Status atual da OS
+   * @param statusEtapa Status da etapa específica
+   * @returns HTML do checkbox
+   */
+  private gerarCheckboxStatus(statusAtual: string, statusEtapa: string): string {
+    // Mapear status para ordem de execução
+    const ordemStatus = ['FILA', 'PRODUCAO', 'IMPRESSAO', 'ACABAMENTO', 'INSTALACAO', 'ENTREGA'];
+    const indiceAtual = ordemStatus.indexOf(statusAtual);
+    const indiceEtapa = ordemStatus.indexOf(statusEtapa);
+    
+    // Se a etapa já foi concluída ou está em andamento
+    const isConcluida = indiceAtual > indiceEtapa;
+    const isEmAndamento = indiceAtual === indiceEtapa;
+    
+    if (isConcluida) {
+      return '<div class="checklist-checkbox checked">✓</div>';
+    } else if (isEmAndamento) {
+      return '<div class="checklist-checkbox">○</div>';
+    } else {
+      return '<div class="checklist-checkbox">☐</div>';
+    }
+  }
+
+  /**
+   * Gerar campo para apontamentos
+   * @param etapa Etapa do apontamento
+   * @param tipo Tipo do campo (inicio, termino, responsavel, observacoes)
+   * @returns Campo vazio para preenchimento manual
+   */
+  private gerarCampoApontamento(etapa: string, tipo: string): string {
+    // TODO: Implementar busca de apontamentos reais do banco de dados
+    // Por enquanto, retorna campos vazios para preenchimento manual
+    return '_________________';
+  }
+
+  /**
+   * Gerar checkbox para qualidade
+   * @param tipo Tipo do item de qualidade
+   * @returns HTML do checkbox vazio
+   */
+  private gerarCheckboxQualidade(tipo: string): string {
+    // TODO: Implementar busca de status de qualidade real do banco de dados
+    // Por enquanto, retorna checkbox vazio para preenchimento manual
+    return '<div class="checklist-checkbox">☐</div>';
+  }
+
+  /**
+   * Gerar campo para qualidade
+   * @param tipo Tipo do campo (data, horario)
+   * @returns Campo vazio para preenchimento manual
+   */
+  private gerarCampoQualidade(tipo: string): string {
+    // TODO: Implementar busca de dados de qualidade reais do banco de dados
+    // Por enquanto, retorna campo vazio para preenchimento manual
+    return '_________________';
   }
 }

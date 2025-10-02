@@ -1,11 +1,7 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateTipoMaterialDto } from './dto/create-tipo-material.dto';
 import { UpdateTipoMaterialDto } from './dto/update-tipo-material.dto';
-import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class TiposMaterialService {
@@ -39,62 +35,128 @@ export class TiposMaterialService {
     });
   }
 
-  async findOne(id: string, loja: { id: string }) {
-    const tipoMaterial = await this.prisma.tipomaterial.findFirst({
+  findOne(id: string, loja: { id: string }) {
+    return this.prisma.tipomaterial.findFirst({
       where: {
         id,
         loja_id: loja.id,
       },
     });
-
-    if (!tipoMaterial) {
-      throw new NotFoundException('Tipo de material não encontrado');
-    }
-
-    return tipoMaterial;
   }
 
-  async update(
-    id: string,
-    updateTipoMaterialDto: UpdateTipoMaterialDto,
-    loja: { id: string },
-  ) {
-    // Verificar se o tipo de material existe e pertence à loja
-    await this.findOne(id, loja);
-
-    // Preparar dados para atualização, convertendo parametros_padrao se necessário
-    const updateData = { ...updateTipoMaterialDto };
-    if (updateTipoMaterialDto.parametros_padrao !== undefined) {
-      updateData.parametros_padrao = updateTipoMaterialDto.parametros_padrao
-        ? JSON.stringify(updateTipoMaterialDto.parametros_padrao)
-        : null;
-    }
-
+  update(id: string, updateTipoMaterialDto: UpdateTipoMaterialDto, loja: { id: string }) {
     return this.prisma.tipomaterial.update({
-      where: { id },
-      data: updateData,
-    });
-  }
-
-  async remove(id: string, loja: { id: string }) {
-    // Verificar se o tipo de material existe e pertence à loja
-    await this.findOne(id, loja);
-
-    // Verificar se há insumos usando este tipo de material
-    const insumosComTipo = await this.prisma.insumo.findMany({
       where: {
-        tipoMaterialId: id,
+        id,
+        loja_id: loja.id,
+      },
+      data: {
+        ...updateTipoMaterialDto,
+        parametros_padrao: updateTipoMaterialDto.parametros_padrao
+          ? JSON.stringify(updateTipoMaterialDto.parametros_padrao)
+          : undefined,
+        atualizado_em: new Date(),
       },
     });
+  }
 
-    if (insumosComTipo.length > 0) {
-      throw new ForbiddenException(
-        'Não é possível excluir este tipo de material pois existem insumos associados a ele.',
-      );
-    }
-
+  remove(id: string, loja: { id: string }) {
     return this.prisma.tipomaterial.delete({
-      where: { id },
+      where: {
+        id,
+        loja_id: loja.id,
+      },
     });
+  }
+
+  /**
+   * Método para criar ou corrigir o tipo de material "Ilhós"
+   */
+  async criarOuCorrigirTipoMaterialIlhos(loja: { id: string }) {
+    console.log('🔧 Criando ou corrigindo tipo de material para ilhós...');
+    
+    // Buscar tipos de material que contenham "ilhós" ou "ilhos" no nome
+    const tiposExistentes = await this.prisma.tipomaterial.findMany({
+      where: {
+        loja_id: loja.id,
+        OR: [
+          { nome: { contains: 'ilhós' } },
+          { nome: { contains: 'ilhos' } },
+          { nome: { contains: 'ilhó' } },
+          { nome: { contains: 'ilho' } }
+        ]
+      }
+    });
+
+    const parametrosCorretos = {
+      tipo_calculo: 'espacamento',
+      espacamento: 15 // a cada 15cm
+    };
+
+    if (tiposExistentes.length === 0) {
+      // Criar novo tipo de material
+      console.log('📝 Criando novo tipo de material para ilhós...');
+      
+      const novoTipoMaterial = await this.prisma.tipomaterial.create({
+        data: {
+          nome: 'Ilhós',
+          descricao: 'Ilhós para banners e lonas - aplicação a cada 15cm do perímetro',
+          logica_consumo: 'custom',
+          parametros_padrao: JSON.stringify(parametrosCorretos),
+          atualizado_em: new Date(),
+          loja: {
+            connect: { id: loja.id }
+          }
+        }
+      });
+      
+      console.log(`✅ Tipo de material criado: ${novoTipoMaterial.nome} (ID: ${novoTipoMaterial.id})`);
+      return novoTipoMaterial;
+    } else {
+      // Corrigir tipos existentes
+      console.log(`🔧 Corrigindo ${tiposExistentes.length} tipos de material existentes...`);
+      
+      for (const tipo of tiposExistentes) {
+        let precisaCorrecao = false;
+        let novosParametros = parametrosCorretos;
+        
+        if (!tipo.parametros_padrao) {
+          precisaCorrecao = true;
+        } else {
+          try {
+            const parametros = JSON.parse(tipo.parametros_padrao);
+            if (!parametros.tipo_calculo || parametros.tipo_calculo === '') {
+              precisaCorrecao = true;
+              novosParametros = {
+                ...parametros,
+                tipo_calculo: 'espacamento',
+                espacamento: parametros.espacamento || 15
+              };
+            }
+          } catch (e) {
+            precisaCorrecao = true;
+          }
+        }
+        
+        if (precisaCorrecao) {
+          console.log(`🔧 Corrigindo tipo: ${tipo.nome}`);
+          
+          await this.prisma.tipomaterial.update({
+            where: { id: tipo.id },
+            data: {
+              logica_consumo: 'custom',
+              parametros_padrao: JSON.stringify(novosParametros),
+              atualizado_em: new Date()
+            }
+          });
+          
+          console.log(`✅ Tipo corrigido: ${tipo.nome}`);
+        } else {
+          console.log(`✅ Tipo já está correto: ${tipo.nome}`);
+        }
+      }
+      
+      return tiposExistentes[0]; // Retornar o primeiro tipo encontrado
+    }
   }
 }

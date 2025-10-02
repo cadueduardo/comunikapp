@@ -55,6 +55,76 @@ export interface OrdemServicoData {
   aprovacao_tecnica_obs?: string;
   data_instalacao_agendada?: Date;
   observacoes_instalacao?: string;
+  
+  // Novos campos estruturados para frontend
+  cliente?: {
+    id: string;
+    nome: string;
+    email: string;
+    telefone: string;
+  };
+  cliente_nome?: string; // Para compatibilidade com Grid
+  produtos?: ProdutoOSData[];
+  materiais_consolidados?: MaterialConsolidadoData[];
+}
+
+export interface ProdutoOSData {
+  id: string;
+  nome: string;
+  descricao?: string;
+  quantidade: number;
+  unidade_medida?: string;
+  largura?: number;
+  altura?: number;
+  profundidade?: number;
+  area_produto?: number;
+  observacoes?: string;
+  materiais: MaterialProdutoData[];
+  maquinas: MaquinaProdutoData[];
+  funcoes: FuncaoProdutoData[];
+}
+
+export interface MaterialProdutoData {
+  id: string;
+  nome: string;
+  quantidade: number;
+  unidade: string;
+  categoria: string;
+  tipo_material?: string;
+  logica_consumo?: string;
+  parametros_consumo?: any;
+}
+
+export interface MaquinaProdutoData {
+  id: string;
+  nome: string;
+  horas_uso: number;
+  custo_hora: number;
+  custo_total: number;
+}
+
+export interface FuncaoProdutoData {
+  id: string;
+  nome: string;
+  horas_uso: number;
+  custo_hora: number;
+  custo_total: number;
+}
+
+export interface MaterialConsolidadoData {
+  id: string;
+  nome: string;
+  quantidade_total: number;
+  unidade: string;
+  categoria: string;
+  tipo_material?: string;
+  logica_consumo?: string;
+  parametros_consumo?: any;
+  produtos: {
+    nome: string;
+    quantidade: number;
+    quantidade_material: number;
+  }[];
 }
 
 export interface EstoqueValidacaoDetalhe {
@@ -242,6 +312,11 @@ export interface NotificacaoOS {
 
 export enum StatusOS {
   FILA = 'FILA',
+  AGUARDANDO_APROVACAO_TECNICA = 'AGUARDANDO_APROVACAO_TECNICA',
+  APROVADA_TECNICA = 'APROVADA_TECNICA',
+  AGUARDANDO_APROVACAO_ORCAMENTARIA = 'AGUARDANDO_APROVACAO_ORCAMENTARIA',
+  APROVADA_ORCAMENTARIA = 'APROVADA_ORCAMENTARIA',
+  REJEITADA = 'REJEITADA',
   PRODUCAO = 'PRODUCAO',
   ACABAMENTO = 'ACABAMENTO',
   FINALIZADA = 'FINALIZADA',
@@ -260,6 +335,8 @@ export enum TipoMovimentacaoOS {
   FINALIZAR = 'FINALIZAR',
   ATRIBUIR_RESPONSAVEL = 'ATRIBUIR_RESPONSAVEL',
   ADICIONAR_OBSERVACAO = 'ADICIONAR_OBSERVACAO',
+  APROVACAO_TECNICA = 'APROVACAO_TECNICA',
+  APROVACAO_ORCAMENTARIA = 'APROVACAO_ORCAMENTARIA',
 }
 
 export enum TipoNotificacaoOS {

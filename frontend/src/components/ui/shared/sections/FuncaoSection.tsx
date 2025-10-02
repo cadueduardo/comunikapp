@@ -52,6 +52,73 @@ export function FuncaoSection({
   };
 
   const form = useFormContext();
+  
+  // Hooks devem ser chamados sempre na mesma ordem - movidos para fora do map
+  const funcoesData = useWatch({ control: form.control, name: `itens_produto.${itemIndex}.funcoes` }) || [];
+  
+  // Usar watch para obter todos os valores de uma vez
+  const allFormValues = useWatch({ control: form.control });
+
+  // useEffect para atualizar valores automaticamente sem causar re-render durante o render
+  useEffect(() => {
+    if (!funcoesData || funcoesData.length === 0) return;
+
+    funcoesData.forEach((funcao: { funcao_id: string; horas_trabalhadas: string }, funcaoIndex: number) => {
+      const funcaoSelecionada = funcoes.find(f => f.id === funcao.funcao_id);
+      
+      if (!funcaoSelecionada) return;
+
+      const maquinasProduto = form.getValues(`itens_produto.${itemIndex}.maquinas`) || [];
+      const horasMaquinas = maquinasProduto.reduce((total: number, maquina: any) => {
+        const horas = Number(String(maquina.horas_utilizadas).replace(',', '.')) || 0;
+        return total + horas;
+      }, 0);
+
+      const toNumber = (v: any): number => {
+        if (v == null || v === '') return 0;
+        if (typeof v === 'number') return v;
+        if (typeof v === 'string') return parseFloat(v.replace(',', '.')) || 0;
+        if (v && typeof v.toString === 'function') {
+          return parseFloat(v.toString().replace(',', '.')) || 0;
+        }
+        return 0;
+      };
+
+      let horasCalculadas = 0;
+      let isManual = true;
+
+      if (funcaoSelecionada.tipo_calculo === 'ACOMPANHA_MAQUINA') {
+        horasCalculadas = horasMaquinas;
+        isManual = false;
+      } else if (funcaoSelecionada.tipo_calculo === 'POR_M2') {
+        const areaM2 = toNumber(form.getValues(`itens_produto.${itemIndex}.area_produto`)) || 0;
+        const quantidade = toNumber(form.getValues(`itens_produto.${itemIndex}.quantidade_produto`)) || 1;
+        const areaTotal = areaM2 * quantidade;
+        const horasPorM2 = toNumber(funcaoSelecionada.horas_por_m2) || 0;
+        horasCalculadas = areaTotal * horasPorM2;
+        isManual = false;
+      } else if (funcaoSelecionada.tipo_calculo === 'POR_UNIDADE') {
+        const quantidade = toNumber(form.getValues(`itens_produto.${itemIndex}.quantidade_produto`)) || 1;
+        const horasPorUnidade = toNumber(funcaoSelecionada.horas_por_unidade) || 0;
+        horasCalculadas = quantidade * horasPorUnidade;
+        isManual = false;
+      }
+
+      if (!isManual) {
+        const fieldPath = `itens_produto.${itemIndex}.funcoes.${funcaoIndex}.horas_trabalhadas`;
+        const horasFieldValue = allFormValues?.itens_produto?.[itemIndex]?.funcoes?.[funcaoIndex]?.horas_trabalhadas || '';
+        const displayValue = horasCalculadas.toFixed(2);
+        
+        if (funcaoSelecionada.tipo_calculo === 'ACOMPANHA_MAQUINA' && horasMaquinas === 0) {
+          if (horasFieldValue !== '') {
+            form.setValue(fieldPath, '', { shouldDirty: true, shouldValidate: false });
+          }
+        } else if (horasFieldValue !== displayValue) {
+          form.setValue(fieldPath, displayValue, { shouldDirty: true, shouldValidate: false });
+        }
+      }
+    });
+  }, [funcoesData, funcoes, itemIndex, allFormValues, form]);
 
   const handleAddFuncao = () => {
     if (onAddFuncao) {
@@ -93,7 +160,7 @@ export function FuncaoSection({
         </Button>
       </div>
       
-      {(useWatch({ control: form.control, name: `itens_produto.${itemIndex}.funcoes` }) || []).map((funcao: { funcao_id: string; horas_trabalhadas: string }, funcaoIndex: number) => {
+      {funcoesData.map((funcao: { funcao_id: string; horas_trabalhadas: string }, funcaoIndex: number) => {
         const funcaoSelecionada = funcoes.find(f => f.id === funcao.funcao_id);
         const horasTrabalhadas = Number(String(funcao.horas_trabalhadas).replace(',', '.')) || 0;
 
@@ -180,18 +247,8 @@ export function FuncaoSection({
         const custoCalculado = funcaoSelecionada ? converterValor(funcaoSelecionada.custo_hora) * horasFinais : 0;
         
         const fieldPath = `itens_produto.${itemIndex}.funcoes.${funcaoIndex}.horas_trabalhadas`;
-        const horasFieldValue = useWatch<string>({ control: form.control, name: fieldPath });
+        const horasFieldValue = allFormValues?.itens_produto?.[itemIndex]?.funcoes?.[funcaoIndex]?.horas_trabalhadas || '';
         const displayValue = isManual ? (horasFieldValue ?? '') : horasCalculadas.toFixed(2);
-        useEffect(() => {
-          if (isManual) return;
-          if (funcaoSelecionada?.tipo_calculo === 'ACOMPANHA_MAQUINA' && horasMaquinas === 0) {
-            form.setValue(fieldPath, '', { shouldDirty: true, shouldValidate: false });
-            return;
-          }
-          if (horasFieldValue !== displayValue) {
-            form.setValue(fieldPath, displayValue, { shouldDirty: true, shouldValidate: false });
-          }
-        }, [displayValue, fieldPath, form, funcaoSelecionada?.tipo_calculo, horasFieldValue, horasMaquinas, isManual]);
 
         if (!funcaoSelecionada && funcaoSelecionada?.tipo_calculo === 'ACOMPANHA_MAQUINA') {
           disclaimer = 'Nenhuma máquina encontrada para acompanhar; selecione uma máquina antes desta função.';

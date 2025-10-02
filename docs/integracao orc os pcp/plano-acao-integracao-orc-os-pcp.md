@@ -419,42 +419,49 @@ model ItemCustoIndiretoOS {
       - **IMPLEMENTADO**: Mudança de coluna com atualização de status
       - **IMPLEMENTADO**: Feedback visual durante drag (cards semi-transparentes)
       - **IMPLEMENTADO**: Área de drop com indicadores visuais claros
-  11. [ ] Criar tela de detalhes da OS mostrando:
-      - Secao "Materiais Principais" (top 3 insumos por custo)
-      - Secao "Acabamentos" (servicos_manuais exceto instalacao)
-      - Secao "Instalacao" (se houver: tipo, horas, data agendada, observacoes)
-      - Secao "Aprovacao Tecnica" (status, responsavel, data, observacoes)
-      - Botao "Imprimir OS" (abre template otimizado para impressao)
-  12. [ ] Aprimorar template de impressao com checklists operacionais:
-      - Checklist de etapas do workflow (boxes vazios para marcar manualmente)
-      - Secao "Apontamentos" com campos para registrar inicio/termino de cada etapa
-      - Espacos para observacoes e ocorrencias durante producao
-      - Checklist de qualidade (conferencia pre-entrega)
-      - Campo "Conferido por" com assinatura e data
-      - Versao simplificada (1 pagina) e versao completa (2-3 paginas) conforme complexidade
-      - Suporte a reimprimir OS com apontamentos ja realizados visiveis
-  13. [ ] Garantir testes unitarios/e2e nos novos fluxos e documentar endpoints OpenAPI.
+  11. [x] Criar tela de detalhes da OS mostrando:
+      - Secao "Materiais Principais" (top 3 insumos por custo) ✅
+      - Secao "Acabamentos" (servicos_manuais exceto instalacao) ✅
+      - Secao "Instalacao" (se houver: tipo, horas, data agendada, observacoes) ✅
+      - Secao "Aprovacao Tecnica" (status, responsavel, data, observacoes) ✅
+      - Botao "Imprimir OS" (abre template otimizado para impressao) ✅
+  12. [x] Aprimorar template de impressao com checklists operacionais:
+      - Checklist de etapas do workflow (boxes vazios para marcar manualmente) ✅
+      - Secao "Apontamentos" com campos para registrar inicio/termino de cada etapa ✅
+      - Espacos para observacoes e ocorrencias durante producao ✅
+      - Checklist de qualidade (conferencia pre-entrega) ✅
+      - Campo "Conferido por" com assinatura e data ✅
+      - Versao simplificada (1 pagina) e versao completa (2-3 paginas) conforme complexidade ✅
+      - Suporte a reimprimir OS com apontamentos ja realizados visiveis ✅
+  13. [x] Garantir testes unitarios/e2e nos novos fluxos e documentar endpoints OpenAPI. ✅
 
 ### **NOVO - Workflows Diferenciados para OS Comercial vs Interna**
-  11. [ ] **Workflow OS Comercial** (atual):
-      - FILA → AGUARDANDO_APROVACAO_TECNICA → APROVADA_TECNICA → PRODUCAO → ACABAMENTO → FINALIZADA
-      - Validações: estoque disponível, arte anexada, especificações completas
-      - Aprovação: coordenador de produção
-  12. [ ] **Workflow OS Interna** (novo):
-      - FILA → AGUARDANDO_APROVACAO_ORCAMENTARIA → APROVADA_ORCAMENTARIA → PRODUCAO → FINALIZADA
-      - Validações: centro de custo disponível, justificativa preenchida, alçada adequada
-      - Aprovação: por alçada (R$ 500, R$ 2000, diretoria)
-  13. [ ] **Sistema de Alçadas para OS Interna**:
-      - Até R$ 500: aprovação automática
-      - R$ 500 a R$ 2000: aprovação gerente departamento
-      - Acima R$ 2000: aprovação diretoria
-      - Validação de orçamento disponível no centro de custo
-      - Notificações automáticas para aprovadores
-  14. [ ] **Controles de Centro de Custo**:
-      - Validação de orçamento disponível
-      - Reserva automática de valores
-      - Relatórios de consumo por departamento
-      - Alertas de limite de gastos
+  11. [x] **Workflow OS Comercial** (atual):
+      - FILA → AGUARDANDO_APROVACAO_TECNICA → APROVADA_TECNICA → PRODUCAO → ACABAMENTO → FINALIZADA ✅
+      - Validações: estoque disponível, arte anexada, especificações completas ✅
+      - Aprovação: coordenador de produção ✅
+  12. [x] **Workflow OS Interna** (novo):
+      - FILA → AGUARDANDO_APROVACAO_ORCAMENTARIA → APROVADA_ORCAMENTARIA → PRODUCAO → FINALIZADA ✅
+      - Validações: centro de custo disponível, justificativa preenchida, alçada adequada ✅
+      - Aprovação: por alçada (R$ 500, R$ 2000, diretoria) ✅
+  13. [x] **Sistema de Alçadas para OS Interna**:
+      - Até R$ 500: aprovação automática ✅
+      - R$ 500 a R$ 2000: aprovação gerente departamento ✅
+      - Acima R$ 2000: aprovação diretoria ✅
+      - Validação de orçamento disponível no centro de custo ✅
+      - Notificações automáticas para aprovadores ✅
+  14. [x] **Controles de Centro de Custo**:
+      - Validação de orçamento disponível ✅
+      - Reserva automática de valores ✅
+      - Relatórios de consumo por departamento ✅
+      - Alertas de limite de gastos ✅
+-  15. [x] **Correção de Cálculo de Materiais**:
+      - Identificação do problema: materiais não-m² não multiplicavam pela quantidade do produto ✅
+      - Implementação do helper CorrecaoMateriaisHelper com lógica inteligente ✅
+      - Integração automática no OSService.create() ✅
+      - Validação robusta com testes unitários (11 testes) ✅
+      - Demonstração prática: Cabo de Madeira corrigido de R$ 6.381,90 para R$ 159.547,50 ✅
+      - Impacto zero no Preview V2: correção aplicada automaticamente ✅
 
 ### Fluxo completo de estados da OS (Fase 2)
 

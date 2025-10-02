@@ -33,6 +33,10 @@ export type Insumo = {
   descricao_tecnica?: string | null;
   observacoes?: string | null;
   ativo: boolean | string | number;
+  // Campos de lógica de consumo personalizada
+  logica_consumo?: string | null;
+  tipo_material_id?: string | null;
+  parametros_consumo?: any | null;
   categoria: {
     id: string;
     nome: string;

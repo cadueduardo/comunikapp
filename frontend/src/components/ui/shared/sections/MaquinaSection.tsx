@@ -51,6 +51,64 @@ export function MaquinaSection({
   };
 
   const form = useFormContext();
+  
+  // Hooks devem ser chamados sempre na mesma ordem - movidos para fora do map
+  const maquinasData = useWatch({ control: form.control, name: `itens_produto.${itemIndex}.maquinas` }) || [];
+  const areaM2 = useWatch({ control: form.control, name: `itens_produto.${itemIndex}.area_produto` });
+  const quantidade = useWatch({ control: form.control, name: `itens_produto.${itemIndex}.quantidade_produto` });
+  
+  // Usar watch para obter todos os valores de uma vez
+  const allFormValues = useWatch({ control: form.control });
+
+  // useEffect para atualizar valores automaticamente sem causar re-render durante o render
+  useEffect(() => {
+    if (!maquinasData || maquinasData.length === 0) return;
+
+    maquinasData.forEach((maquina: { maquina_id: string; horas_utilizadas: string }, maquinaIndex: number) => {
+      const maquinaSelecionada = maquinas.find((m) => m.id === maquina.maquina_id);
+      
+      if (!maquinaSelecionada) return;
+
+      const toNumber = (v: any): number => {
+        if (v == null || v === '') return 0;
+        if (typeof v === 'number') return v;
+        if (typeof v === 'string') return parseFloat(v.replace(',', '.')) || 0;
+        if (v && typeof v.toString === 'function') {
+          return parseFloat(v.toString().replace(',', '.')) || 0;
+        }
+        return 0;
+      };
+
+      const areaM2Value = toNumber(areaM2) || 0;
+      const quantidadeValue = toNumber(quantidade) || 1;
+      const areaTotal = areaM2Value * quantidadeValue;
+
+      const velocidadeM2H = toNumber(maquinaSelecionada?.velocidade_m2_h) || 0;
+      const eficienciaPercent = Math.max(toNumber(maquinaSelecionada?.eficiencia_percent) || 100, 5);
+      const setupMin = toNumber(maquinaSelecionada?.setup_min) || 0;
+      const horasSetup = setupMin / 60;
+
+      let horasCalculadas = 0;
+      let isManual = true;
+
+      if (maquinaSelecionada && maquinaSelecionada.modo_producao === 'M2_H' && velocidadeM2H > 0 && areaTotal > 0) {
+        const horasBase = areaTotal / velocidadeM2H;
+        const fatorEficiencia = 100 / eficienciaPercent;
+        horasCalculadas = horasBase * fatorEficiencia + horasSetup;
+        isManual = false;
+      }
+
+      if (!isManual) {
+        const fieldPath = `itens_produto.${itemIndex}.maquinas.${maquinaIndex}.horas_utilizadas`;
+        const horasFieldValue = allFormValues?.itens_produto?.[itemIndex]?.maquinas?.[maquinaIndex]?.horas_utilizadas || '';
+        const displayValue = horasCalculadas.toFixed(2);
+        
+        if (horasFieldValue !== displayValue) {
+          form.setValue(fieldPath, displayValue, { shouldDirty: true, shouldValidate: false });
+        }
+      }
+    });
+  }, [maquinasData, areaM2, quantidade, maquinas, itemIndex, allFormValues, form]);
 
   const handleAddMaquina = () => {
     if (onAddMaquina) {
@@ -92,7 +150,7 @@ export function MaquinaSection({
         </Button>
       </div>
       
-      {(useWatch({ control: form.control, name: `itens_produto.${itemIndex}.maquinas` }) || []).map((maquina: { maquina_id: string; horas_utilizadas: string }, maquinaIndex: number) => {
+      {maquinasData.map((maquina: { maquina_id: string; horas_utilizadas: string }, maquinaIndex: number) => {
         const maquinaSelecionada = maquinas.find((m) => m.id === maquina.maquina_id);
 
         const toNumber = (v: any): number => {
@@ -105,9 +163,9 @@ export function MaquinaSection({
           return 0;
         };
 
-        const areaM2 = toNumber(useWatch({ control: form.control, name: `itens_produto.${itemIndex}.area_produto` })) || 0;
-        const quantidade = toNumber(useWatch({ control: form.control, name: `itens_produto.${itemIndex}.quantidade_produto` })) || 1;
-        const areaTotal = areaM2 * quantidade;
+        const areaM2Value = toNumber(areaM2) || 0;
+        const quantidadeValue = toNumber(quantidade) || 1;
+        const areaTotal = areaM2Value * quantidadeValue;
 
         const velocidadeM2H = toNumber(maquinaSelecionada?.velocidade_m2_h) || 0;
         const eficienciaPercent = Math.max(toNumber(maquinaSelecionada?.eficiencia_percent) || 100, 5);
@@ -133,13 +191,8 @@ export function MaquinaSection({
         }
 
         const fieldPath = `itens_produto.${itemIndex}.maquinas.${maquinaIndex}.horas_utilizadas`;
-        const horasFieldValue = useWatch<string>({ control: form.control, name: fieldPath });
+        const horasFieldValue = allFormValues?.itens_produto?.[itemIndex]?.maquinas?.[maquinaIndex]?.horas_utilizadas || '';
         const displayValue = isManual ? (horasFieldValue ?? '') : horasCalculadas.toFixed(2);
-        useEffect(() => {
-          if (!isManual && horasFieldValue !== displayValue) {
-            form.setValue(fieldPath, displayValue, { shouldDirty: true, shouldValidate: false });
-          }
-        }, [displayValue, fieldPath, form, horasFieldValue, isManual]);
 
         const horasFinais = Number(displayValue) || 0;
         const custoCalculado = maquinaSelecionada ? converterValor(maquinaSelecionada.custo_hora) * horasFinais : 0;

@@ -147,6 +147,21 @@ export class OrdemServicoResponseDto implements OrdemServicoData {
   @ApiPropertyOptional({ description: 'Observações da instalação' })
   observacoes_instalacao?: string;
 
+  // Novos campos estruturados para frontend
+  @ApiPropertyOptional({ description: 'Dados do cliente' })
+  cliente?: {
+    id: string;
+    nome: string;
+    email: string;
+    telefone: string;
+  };
+
+  @ApiPropertyOptional({ description: 'Produtos do orçamento', type: [Object] })
+  produtos?: any[];
+
+  @ApiPropertyOptional({ description: 'Materiais consolidados por tipo', type: [Object] })
+  materiais_consolidados?: any[];
+
   static fromDomain(data: OrdemServicoData): OrdemServicoResponseDto {
     const dto = new OrdemServicoResponseDto();
     Object.assign(dto, data);

@@ -51,4 +51,9 @@ export class TiposMaterialController {
   remove(@Param('id') id: string, @GetLoja() loja: loja) {
     return this.tiposMaterialService.remove(id, loja);
   }
+
+  @Post('corrigir-ilhos')
+  async corrigirTipoMaterialIlhos(@GetLoja() loja: loja) {
+    return this.tiposMaterialService.criarOuCorrigirTipoMaterialIlhos(loja);
+  }
 }

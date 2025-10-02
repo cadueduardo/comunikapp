@@ -19,6 +19,8 @@ export interface Insumo {
   tipo_calculo?: string | null;
   gramatura?: number | null;
   logica_consumo?: string | null;
+  tipo_material_id?: string | null;
+  parametros_consumo?: Record<string, unknown> | null;
   tipoMaterial?: {
     id: string;
     nome: string;

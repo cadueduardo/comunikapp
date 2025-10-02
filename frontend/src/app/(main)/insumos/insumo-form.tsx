@@ -126,7 +126,7 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
       fator_conversao: '',
       logica_consumo: 'area', // Valor padrão
       tipo_material_id: '',
-      parametros_consumo: {},
+      parametros_consumo: null,
       codigo_interno: '',
       estoque_minimo: '',
       descricao_tecnica: '',
@@ -139,8 +139,15 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
   // Aplicar dados iniciais quando disponíveis
   useEffect(() => {
     if (initialData) {
+      console.log('🔍 InsumoForm - Aplicando dados iniciais:', initialData);
       Object.entries(initialData).forEach(([key, value]) => {
+        // Permitir valores vazios ('') para campos de string, mas não null/undefined
         if (value !== undefined && value !== null) {
+          console.log(`🔍 InsumoForm - Setando ${key}:`, value);
+          form.setValue(key as keyof InsumoFormValues, value);
+        } else if (value === '') {
+          // Permitir strings vazias para campos como tipo_material_id
+          console.log(`🔍 InsumoForm - Setando ${key} como string vazia:`, value);
           form.setValue(key as keyof InsumoFormValues, value);
         }
       });
@@ -447,6 +454,8 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
           value: tipo.id,
           label: tipo.nome,
         })));
+        
+        console.log('🔍 InsumoForm - Tipos de material carregados:', tiposMaterialData);
       } catch (error) {
         toast.error('Falha ao carregar dados de referência.');
         console.error('Erro ao carregar dados:', error);
@@ -503,7 +512,8 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
       descricao_tecnica: data.descricao_tecnica || undefined,
       observacoes: data.observacoes || undefined,
       logica_consumo: data.logica_consumo || 'area', // Valor padrão se não selecionado
-      tipo_material_id: data.tipo_material_id || undefined,
+      tipo_material_id: data.tipo_material_id || '',
+      parametros_consumo: data.parametros_consumo || null,
       ativo: data.ativo ?? true,
     }
     

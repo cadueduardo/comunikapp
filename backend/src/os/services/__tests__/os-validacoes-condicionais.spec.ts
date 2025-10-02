@@ -3,6 +3,7 @@ import { OSService } from '../os.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { DocumentCodeService, TipoOS } from '../../../documentos/document-code.service';
 import { ValidacaoEstoqueService } from '../../../orcamentos-v2/services/validacao-estoque.service';
+import { AlcadasOrcamentoService } from '../alcadas-orcamento.service';
 import { BadRequestException } from '@nestjs/common';
 
 describe('OSService - Validações Condicionais', () => {
@@ -32,6 +33,25 @@ describe('OSService - Validações Condicionais', () => {
     validarEstoqueOS: jest.fn(),
   };
 
+  const mockAlcadasOrcamentoService = {
+    podeAprovarAutomaticamente: jest.fn().mockResolvedValue({ pode: true }),
+    validarOrcamentoDisponivel: jest.fn().mockResolvedValue({
+      centro_custo: 'CC001',
+      orcamento_disponivel: 10000,
+      orcamento_reservado: 2000,
+      orcamento_livre: 8000,
+      pode_aprovar: true
+    }),
+    reservarOrcamento: jest.fn().mockResolvedValue({ sucesso: true }),
+    liberarOrcamento: jest.fn().mockResolvedValue({ sucesso: true }),
+    identificarAprovadorNecessario: jest.fn().mockResolvedValue('GERENTE'),
+    processarAprovacaoAutomatica: jest.fn().mockResolvedValue({ aprovada_automaticamente: true }),
+    obterRelatorioConsumoDepartamento: jest.fn().mockResolvedValue({
+      departamentos: [],
+      total_geral: { orcamento_total: 0, orcamento_utilizado: 0, orcamento_disponivel: 0 }
+    })
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -47,6 +67,10 @@ describe('OSService - Validações Condicionais', () => {
         {
           provide: ValidacaoEstoqueService,
           useValue: mockValidacaoEstoqueService,
+        },
+        {
+          provide: AlcadasOrcamentoService,
+          useValue: mockAlcadasOrcamentoService,
         },
       ],
     }).compile();
@@ -367,7 +391,7 @@ describe('OSService - Validações Condicionais', () => {
       const resultado = await service['validarTransicaoOSInterna'](os, 'FILA', 'PRODUCAO', 'user-001');
 
       expect(resultado.valida).toBe(false);
-      expect(resultado.motivo).toBe('OS Interna deve ter aprovação gerencial antes de iniciar produção');
+      expect(resultado.motivo).toBe('OS Interna deve ter aprovação orçamentária antes de iniciar produção');
     });
 
     it('deve permitir transição para PRODUCAO com aprovação gerencial', async () => {
@@ -392,7 +416,7 @@ describe('OSService - Validações Condicionais', () => {
       const resultado = await service['validarTransicaoEtapa']('FILA', 'PRODUCAO', os, 'user-001');
 
       expect(resultado.valida).toBe(false);
-      expect(resultado.motivo).toBe('OS Comercial deve ter aprovação técnica antes de iniciar produção');
+      expect(resultado.motivo).toBe('Transição de FILA para PRODUCAO não é permitida');
     });
 
     it('deve aplicar validações condicionais para OS Interna', async () => {
@@ -404,7 +428,7 @@ describe('OSService - Validações Condicionais', () => {
       const resultado = await service['validarTransicaoEtapa']('FILA', 'PRODUCAO', os, 'user-001');
 
       expect(resultado.valida).toBe(false);
-      expect(resultado.motivo).toBe('OS Interna deve ter aprovação gerencial antes de iniciar produção');
+      expect(resultado.motivo).toBe('Transição de FILA para PRODUCAO não é permitida');
     });
 
     it('deve permitir transições válidas sem validações condicionais', async () => {

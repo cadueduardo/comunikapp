@@ -4,10 +4,12 @@
  * Funcionalidades: CRUD básico, numeração automática, validações
  */
 
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DocumentCodeService, TipoOS } from '../../documentos/document-code.service';
 import { ValidacaoEstoqueService } from '../../orcamentos-v2/services/validacao-estoque.service';
+import { AlcadasOrcamentoService } from './alcadas-orcamento.service';
+import { CorrecaoMateriaisHelper } from '../helpers/correcao-materiais.helper';
 import { CreateOSDto } from '../dto/create-os.dto';
 import { UpdateOSDto, AvancarEtapaDto } from '../dto/update-os.dto';
 import {
@@ -48,6 +50,7 @@ export class OSService {
     private readonly prisma: PrismaService,
     private readonly documentCodeService: DocumentCodeService,
     private readonly validacaoEstoqueService: ValidacaoEstoqueService,
+    private readonly alcadasOrcamentoService: AlcadasOrcamentoService,
   ) {}
 
   // ===== CRUD BÁSICO =====
@@ -65,7 +68,17 @@ export class OSService {
       // 3. Validar disponibilidade de estoque (sem bloquear criacao)
       const validacaoEstoque = await this.executarValidacaoEstoque(lojaId, createOSDto);
 
-      // 4. Criar OS
+      // 4. Determinar status inicial baseado no tipo de OS
+      let statusInicial = StatusOS.FILA;
+      if (createOSDto.tipo_os === TipoOS.COMERCIAL) {
+        // OS comercial vai direto para aprovação técnica
+        statusInicial = StatusOS.AGUARDANDO_APROVACAO_TECNICA;
+      } else if (createOSDto.tipo_os === TipoOS.INTERNA) {
+        // OS interna vai direto para aprovação orçamentária
+        statusInicial = StatusOS.AGUARDANDO_APROVACAO_ORCAMENTARIA;
+      }
+
+      // 5. Criar OS
       const os = await this.prisma.ordemServico.create({
         data: {
           numero,
@@ -79,24 +92,25 @@ export class OSService {
             ? JSON.stringify(createOSDto.parametros_tecnicos)
             : null,
           insumos_calculados: createOSDto.insumos_calculados
-            ? JSON.stringify(createOSDto.insumos_calculados)
+            ? JSON.stringify(this.corrigirInsumosCalculados(createOSDto.insumos_calculados, createOSDto.quantidade))
             : null,
           data_prazo: createOSDto.data_prazo ? new Date(createOSDto.data_prazo) : null,
           responsavel_id: createOSDto.responsavel_id,
           observacoes: createOSDto.observacoes,
-          status: StatusOS.FILA,
+          status: statusInicial,
           materiais_disponivel: validacaoEstoque.materiaisDisponiveis,
+          tipo_os: createOSDto.tipo_os || TipoOS.COMERCIAL,
         },
       });
 
-      // 5. Registrar movimentacao inicial
+      // 6. Registrar movimentacao inicial
       await this.adicionarMovimentacao(
         os.id,
         TipoMovimentacaoOS.CRIACAO,
         null,
-        StatusOS.FILA,
+        statusInicial,
         createOSDto.responsavel_id || 'SISTEMA',
-        'OS criada no sistema',
+        `OS criada no sistema - Status: ${statusInicial}`,
       );
 
       this.logger.log(`[OK] OS #${numero} criada com sucesso - ID: ${os.id}`);
@@ -135,6 +149,14 @@ export class OSService {
           take: limit,
           orderBy: { criado_em: 'desc' },
           include: {
+            cliente: {
+              select: {
+                id: true,
+                nome: true,
+                email: true,
+                telefone: true,
+              },
+            },
             itens: true,
             movimentacoes: {
               take: 1,
@@ -164,6 +186,42 @@ export class OSService {
       const os = await this.prisma.ordemServico.findFirst({
         where: { id, loja_id: lojaId }, // Isolamento por tenant
         include: {
+          cliente: {
+            select: {
+              id: true,
+              nome: true,
+              email: true,
+              telefone: true,
+            },
+          },
+          orcamento: {
+            include: {
+              produtos: {
+                include: {
+                  insumos: {
+                    include: {
+                      insumo: {
+                        include: {
+                          categoria: true,
+                          tipoMaterial: true
+                        }
+                      }
+                    }
+                  },
+                  maquinas: {
+                    include: {
+                      maquina: true
+                    }
+                  },
+                  funcoes: {
+                    include: {
+                      funcao: true
+                    }
+                  }
+                }
+              }
+            }
+          },
           itens: true,
           movimentacoes: {
             orderBy: { data_movimentacao: 'desc' },
@@ -384,45 +442,6 @@ export class OSService {
     return os as OrdemServicoData;
   }
 
-  /**
-   * Aprovar OS Técnica (para OS Comercial)
-   */
-  async aprovarOSTecnica(
-    osId: string, 
-    usuarioId: string, 
-    aprovado: boolean, 
-    observacoes?: string
-  ): Promise<OrdemServicoData> {
-    const os = await this.prisma.ordemServico.findUnique({
-      where: { id: osId }
-    });
-
-    if (!os) {
-      throw new NotFoundException(`OS ${osId} não encontrada`);
-    }
-
-    if (os.tipo_os !== TipoOS.COMERCIAL) {
-      throw new BadRequestException('Aprovação técnica só se aplica a OS Comercial');
-    }
-
-    const statusAprovacao = aprovado ? 'APROVADA' : 'REJEITADA';
-    
-    const osAtualizada = await this.prisma.ordemServico.update({
-      where: { id: osId },
-      data: {
-        aprovacao_tecnica_status: statusAprovacao,
-        aprovacao_tecnica_por: usuarioId,
-        aprovacao_tecnica_em: new Date(),
-        aprovacao_tecnica_obs: observacoes,
-        modificado_por: usuarioId,
-        motivo_modificacao: `Aprovação técnica ${statusAprovacao.toLowerCase()}`,
-        versao: { increment: 1 }
-      }
-    });
-
-    this.logger.log(`OS ${os.numero} aprovada tecnicamente: ${statusAprovacao}`);
-    return osAtualizada as OrdemServicoData;
-  }
 
   /**
    * Aprovar OS Gerencial (para OS Interna)
@@ -881,7 +900,12 @@ export class OSService {
     
     // Transições válidas por etapa
     const transicoesValidas = {
-      'FILA': ['PRODUCAO', 'CANCELADA', 'PAUSADA'],
+      'FILA': ['AGUARDANDO_APROVACAO_TECNICA', 'AGUARDANDO_APROVACAO_ORCAMENTARIA', 'CANCELADA', 'PAUSADA'],
+      'AGUARDANDO_APROVACAO_TECNICA': ['APROVADA_TECNICA', 'REJEITADA', 'FILA'],
+      'APROVADA_TECNICA': ['PRODUCAO', 'FILA'],
+      'AGUARDANDO_APROVACAO_ORCAMENTARIA': ['APROVADA_ORCAMENTARIA', 'REJEITADA', 'FILA'],
+      'APROVADA_ORCAMENTARIA': ['PRODUCAO', 'FILA'],
+      'REJEITADA': ['FILA', 'CANCELADA'],
       'PRODUCAO': ['ACABAMENTO', 'PAUSADA', 'AGUARDANDO_MATERIAL'],
       'ACABAMENTO': ['FINALIZADA', 'PRODUCAO'], // Pode voltar para produção
       'PAUSADA': ['FILA', 'PRODUCAO', 'ACABAMENTO'], // Pode retomar qualquer etapa
@@ -921,7 +945,52 @@ export class OSService {
     novaEtapa: string,
     usuarioId: string
   ): Promise<{ valida: boolean; motivo?: string }> {
-    // Para OS Comercial, aprovação técnica é obrigatória antes de PRODUCAO
+    
+    // Transição para AGUARDANDO_APROVACAO_TECNICA
+    if (novaEtapa === 'AGUARDANDO_APROVACAO_TECNICA') {
+      // Validar se estoque está disponível
+      const estoqueOk = await this.validarEstoqueDisponivel(os.id);
+      if (!estoqueOk) {
+        return {
+          valida: false,
+          motivo: 'Estoque insuficiente para aprovação técnica'
+        };
+      }
+
+      // Validar se arte está anexada (se aplicável)
+      const arteOk = await this.validarArteAnexada(os.id);
+      if (!arteOk) {
+        return {
+          valida: false,
+          motivo: 'Arte deve estar anexada para aprovação técnica'
+        };
+      }
+
+      // Validar se especificações estão completas
+      const especificacoesOk = await this.validarEspecificacoesCompletas(os.id);
+      if (!especificacoesOk) {
+        return {
+          valida: false,
+          motivo: 'Especificações técnicas devem estar completas'
+        };
+      }
+    }
+
+    // Transição para APROVADA_TECNICA (apenas coordenador de produção)
+    if (novaEtapa === 'APROVADA_TECNICA') {
+      const usuario = await this.prisma.usuario.findUnique({
+        where: { id: usuarioId }
+      });
+      
+      if (!usuario || usuario.funcao !== 'PRODUCAO') {
+        return {
+          valida: false,
+          motivo: 'Apenas coordenador de produção pode aprovar tecnicamente'
+        };
+      }
+    }
+
+    // Transição para PRODUCAO
     if (novaEtapa === 'PRODUCAO') {
       if (os.aprovacao_tecnica_status !== 'APROVADA') {
         return {
@@ -931,7 +1000,7 @@ export class OSService {
       }
     }
 
-    // Para finalização, verificar se materiais estão disponíveis
+    // Transição para FINALIZADA
     if (novaEtapa === 'FINALIZADA') {
       if (!os.materiais_disponivel) {
         return {
@@ -953,12 +1022,68 @@ export class OSService {
     novaEtapa: string,
     usuarioId: string
   ): Promise<{ valida: boolean; motivo?: string }> {
-    // Para OS Interna, aprovação gerencial é obrigatória antes de PRODUCAO
+    
+    // Transição para AGUARDANDO_APROVACAO_ORCAMENTARIA
+    if (novaEtapa === 'AGUARDANDO_APROVACAO_ORCAMENTARIA') {
+      // Validar se centro de custo está disponível
+      const centroCustoOk = await this.validarCentroCustoDisponivel(os.centro_custo, os.loja_id);
+      if (!centroCustoOk) {
+        return {
+          valida: false,
+          motivo: 'Centro de custo não disponível ou inválido'
+        };
+      }
+
+      // Validar se justificativa está preenchida
+      const justificativaOk = await this.validarJustificativaPreenchida(os.id);
+      if (!justificativaOk) {
+        return {
+          valida: false,
+          motivo: 'Justificativa deve estar preenchida para OS interna'
+        };
+      }
+
+      // Validar se alçada é adequada
+      const alcadaOk = await this.validarAlcadaAdequada(os.valor_orcado, os.centro_custo, os.loja_id);
+      if (!alcadaOk) {
+        return {
+          valida: false,
+          motivo: 'Valor excede a alçada permitida para o centro de custo'
+        };
+      }
+    }
+
+    // Transição para APROVADA_ORCAMENTARIA
+    if (novaEtapa === 'APROVADA_ORCAMENTARIA') {
+      // Verificar se usuário tem permissão para aprovar
+      const usuario = await this.prisma.usuario.findUnique({
+        where: { id: usuarioId }
+      });
+      
+      if (!usuario) {
+        return {
+          valida: false,
+          motivo: 'Usuário não encontrado'
+        };
+      }
+
+      // Validar alçada do usuário
+      const valorEstimado = Number(os.valor_orcado || 0);
+      const alcadaPermitida = await this.validarAlcadaUsuario(usuario.funcao, valorEstimado);
+      if (!alcadaPermitida) {
+        return {
+          valida: false,
+          motivo: 'Usuário não tem alçada suficiente para aprovar este valor'
+        };
+      }
+    }
+
+    // Transição para PRODUCAO
     if (novaEtapa === 'PRODUCAO') {
       if (os.aprovacao_gerencial !== 'APROVADA') {
         return {
           valida: false,
-          motivo: 'OS Interna deve ter aprovação gerencial antes de iniciar produção'
+          motivo: 'OS Interna deve ter aprovação orçamentária antes de iniciar produção'
         };
       }
     }
@@ -995,6 +1120,95 @@ export class OSService {
     os: any,
     extras?: Partial<Pick<OrdemServicoData, 'alertas_estoque' | 'recomendacoes_estoque' | 'detalhes_estoque'>>,
   ): OrdemServicoData {
+    // Processar produtos do orçamento
+    const produtos = os.orcamento?.produtos || [];
+    const produtosFormatados = produtos.map(produto => ({
+      id: produto.id,
+      nome: produto.nome,
+      descricao: produto.descricao,
+      quantidade: produto.quantidade,
+      unidade_medida: produto.unidade_medida,
+      largura: produto.largura,
+      altura: produto.altura,
+      profundidade: produto.profundidade,
+      area_produto: produto.area_produto,
+      observacoes: produto.observacoes,
+      // Materiais por produto - usar quantidade calculada do insumos_calculados
+      materiais: produto.insumos?.map(itemInsumo => {
+        // Buscar quantidade calculada nos insumos_calculados
+        const insumosCalculados = os.insumos_calculados ? 
+          (typeof os.insumos_calculados === 'string' ? 
+            JSON.parse(os.insumos_calculados) : 
+            os.insumos_calculados) : [];
+        
+        const insumoCalculado = insumosCalculados.find((ic: any) => 
+          ic.insumo_id === itemInsumo.insumo.id && ic.produto_nome === produto.nome
+        );
+        
+        return {
+          id: itemInsumo.insumo.id,
+          nome: itemInsumo.insumo.nome,
+          quantidade: insumoCalculado?.quantidade_necessaria || itemInsumo.quantidade,
+          unidade: itemInsumo.unidade,
+          categoria: itemInsumo.insumo.categoria?.nome || 'Sem categoria',
+          tipo_material: itemInsumo.insumo.tipoMaterial?.nome || null,
+          logica_consumo: itemInsumo.insumo.logica_consumo,
+          parametros_consumo: itemInsumo.insumo.parametros_consumo ? 
+            (typeof itemInsumo.insumo.parametros_consumo === 'string' ? 
+              JSON.parse(itemInsumo.insumo.parametros_consumo) : 
+              itemInsumo.insumo.parametros_consumo) : null
+        };
+      }) || [],
+      // Máquinas por produto
+      maquinas: produto.maquinas?.map(itemMaquina => ({
+        id: itemMaquina.maquina.id,
+        nome: itemMaquina.maquina.nome,
+        horas_uso: itemMaquina.horas_uso,
+        custo_hora: itemMaquina.custo_hora,
+        custo_total: itemMaquina.custo_total
+      })) || [],
+      // Funções por produto
+      funcoes: produto.funcoes?.map(itemFuncao => ({
+        id: itemFuncao.funcao.id,
+        nome: itemFuncao.funcao.nome,
+        horas_uso: itemFuncao.horas_uso,
+        custo_hora: itemFuncao.custo_hora,
+        custo_total: itemFuncao.custo_total
+      })) || []
+    }));
+
+    // Consolidar materiais por tipo (para Materiais Principais)
+    const materiaisConsolidados = new Map();
+    produtosFormatados.forEach(produto => {
+      produto.materiais.forEach(material => {
+        if (materiaisConsolidados.has(material.id)) {
+          const existente = materiaisConsolidados.get(material.id);
+          existente.quantidade_total += material.quantidade;
+          existente.produtos.push({
+            nome: produto.nome,
+            quantidade: produto.quantidade,
+            quantidade_material: material.quantidade
+          });
+        } else {
+          materiaisConsolidados.set(material.id, {
+            id: material.id,
+            nome: material.nome,
+            quantidade_total: material.quantidade, // Já é a quantidade calculada correta
+            unidade: material.unidade,
+            categoria: material.categoria,
+            tipo_material: material.tipo_material,
+            logica_consumo: material.logica_consumo,
+            parametros_consumo: material.parametros_consumo,
+            produtos: [{
+              nome: produto.nome,
+              quantidade: produto.quantidade,
+              quantidade_material: material.quantidade // Já é a quantidade calculada correta
+            }]
+          });
+        }
+      });
+    });
+
     const data: OrdemServicoData = {
       id: os.id,
       numero: os.numero,
@@ -1013,11 +1227,28 @@ export class OSService {
         ? JSON.parse(os.parametros_tecnicos)
         : null,
       insumos_calculados: os.insumos_calculados
-        ? JSON.parse(os.insumos_calculados)
-        : null,
+        ? (typeof os.insumos_calculados === 'string' 
+            ? JSON.parse(os.insumos_calculados) 
+            : os.insumos_calculados)
+        : [],
       materiais_disponivel: os.materiais_disponivel,
+      aprovacao_tecnica_status: os.aprovacao_tecnica_status,
+      aprovacao_tecnica_por: os.aprovacao_tecnica_por,
+      aprovacao_tecnica_em: os.aprovacao_tecnica_em,
+      aprovacao_tecnica_obs: os.aprovacao_tecnica_obs,
       criado_em: os.criado_em,
       atualizado_em: os.atualizado_em,
+      cliente: os.cliente ? {
+        id: os.cliente.id,
+        nome: os.cliente.nome,
+        email: os.cliente.email,
+        telefone: os.cliente.telefone,
+      } : null,
+      // Campo para compatibilidade com Grid
+      cliente_nome: os.cliente?.nome || null,
+      // Novos campos estruturados
+      produtos: produtosFormatados,
+      materiais_consolidados: Array.from(materiaisConsolidados.values()),
     };
 
     if (extras) {
@@ -1139,6 +1370,411 @@ export class OSService {
     }
   }
 
+  // ===== MÉTODOS DE TRANSIÇÃO DE ESTADOS =====
+
+  /**
+   * Transiciona OS para próximo estado do workflow comercial
+   */
+  async transicionarEstadoOS(
+    osId: string,
+    novoStatus: StatusOS,
+    usuarioId: string,
+    observacoes?: string
+  ): Promise<OrdemServicoData> {
+    try {
+      const os = await this.prisma.ordemServico.findUnique({
+        where: { id: osId }
+      });
+
+      if (!os) {
+        throw new NotFoundException(`OS ${osId} não encontrada`);
+      }
+
+      // Validar transição
+      const validacao = await this.validarTransicaoEtapa(
+        os.status,
+        novoStatus,
+        os,
+        usuarioId
+      );
+
+      if (!validacao.valida) {
+        throw new BadRequestException(validacao.motivo);
+      }
+
+      // Atualizar OS
+      const osAtualizada = await this.prisma.ordemServico.update({
+        where: { id: osId },
+        data: {
+          status: novoStatus,
+          modificado_por: usuarioId,
+          motivo_modificacao: observacoes || `Transição para ${novoStatus}`,
+          versao: { increment: 1 }
+        }
+      });
+
+      // Registrar movimentação
+      await this.adicionarMovimentacao(
+        osId,
+        TipoMovimentacaoOS.AVANCAR_ETAPA,
+        os.status,
+        novoStatus,
+        usuarioId,
+        observacoes || `OS transicionada para ${novoStatus}`
+      );
+
+      this.logger.log(`OS ${os.numero} transicionada de ${os.status} para ${novoStatus}`);
+      return this.formatarOrdemServico(osAtualizada);
+    } catch (error) {
+      this.logger.error(`Erro ao transicionar OS ${osId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Aprova OS orçamentária (workflow interna)
+   */
+  async aprovarOSOrcamentaria(
+    osId: string,
+    usuarioId: string,
+    aprovado: boolean,
+    observacoes?: string
+  ): Promise<OrdemServicoData> {
+    try {
+      const os = await this.prisma.ordemServico.findUnique({
+        where: { id: osId }
+      });
+
+      if (!os) {
+        throw new NotFoundException(`OS ${osId} não encontrada`);
+      }
+
+      if (os.tipo_os !== TipoOS.INTERNA) {
+        throw new BadRequestException('Aprovação orçamentária só se aplica a OS Interna');
+      }
+
+      if (os.status !== StatusOS.AGUARDANDO_APROVACAO_ORCAMENTARIA) {
+        throw new BadRequestException('OS não está aguardando aprovação orçamentária');
+      }
+
+      // Verificar permissões do usuário
+      const usuario = await this.prisma.usuario.findUnique({
+        where: { id: usuarioId }
+      });
+
+      if (!usuario) {
+        throw new ForbiddenException('Usuário não encontrado');
+      }
+
+      // Validar alçada do usuário usando o sistema de alçadas
+      const valorEstimado = Number(os.valor_orcado || 0);
+      const validacaoAlcada = await this.alcadasOrcamentoService.podeAprovarAutomaticamente(
+        usuario.funcao,
+        valorEstimado
+      );
+      
+      if (!validacaoAlcada.pode) {
+        throw new ForbiddenException(validacaoAlcada.motivo || 'Usuário não tem alçada suficiente para aprovar este valor');
+      }
+
+      // Validar orçamento disponível no centro de custo
+      const validacaoOrcamento = await this.alcadasOrcamentoService.validarOrcamentoDisponivel(
+        os.centro_custo,
+        valorEstimado,
+        os.loja_id
+      );
+      
+      if (!validacaoOrcamento.pode_aprovar) {
+        throw new BadRequestException(validacaoOrcamento.motivo_rejeicao || 'Orçamento insuficiente no centro de custo');
+      }
+
+      const statusAprovacao = aprovado ? 'APROVADA' : 'REJEITADA';
+      const novoStatus = aprovado ? StatusOS.APROVADA_ORCAMENTARIA : StatusOS.REJEITADA;
+      
+      // Se aprovada, reservar orçamento
+      if (aprovado) {
+        const reservaOrcamento = await this.alcadasOrcamentoService.reservarOrcamento(
+          os.centro_custo,
+          valorEstimado,
+          os.loja_id,
+          osId
+        );
+        
+        if (!reservaOrcamento.sucesso) {
+          throw new BadRequestException(reservaOrcamento.motivo || 'Erro ao reservar orçamento');
+        }
+      }
+      
+      const osAtualizada = await this.prisma.ordemServico.update({
+        where: { id: osId },
+        data: {
+          status: novoStatus,
+          aprovacao_gerencial: statusAprovacao,
+          aprovacao_gerencial_por: usuarioId,
+          aprovacao_gerencial_em: new Date(),
+          aprovacao_gerencial_obs: observacoes,
+          modificado_por: usuarioId,
+          motivo_modificacao: `Aprovação orçamentária ${statusAprovacao.toLowerCase()}`,
+          versao: { increment: 1 }
+        }
+      });
+
+      // Registrar movimentação
+      await this.adicionarMovimentacao(
+        osId,
+        TipoMovimentacaoOS.APROVACAO_ORCAMENTARIA,
+        StatusOS.AGUARDANDO_APROVACAO_ORCAMENTARIA,
+        novoStatus,
+        usuarioId,
+        observacoes || `Aprovação orçamentária ${statusAprovacao.toLowerCase()}`
+      );
+
+      this.logger.log(`OS ${os.numero} aprovada orçamentariamente: ${statusAprovacao}`);
+      return this.formatarOrdemServico(osAtualizada);
+    } catch (error) {
+      this.logger.error(`Erro ao aprovar OS orçamentária ${osId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Aprova OS técnica (workflow comercial)
+   */
+  async aprovarOSTecnica(
+    osId: string,
+    usuarioId: string,
+    aprovado: boolean,
+    observacoes?: string
+  ): Promise<OrdemServicoData> {
+    try {
+      const os = await this.prisma.ordemServico.findUnique({
+        where: { id: osId }
+      });
+
+      if (!os) {
+        throw new NotFoundException(`OS ${osId} não encontrada`);
+      }
+
+      if (os.tipo_os !== TipoOS.COMERCIAL) {
+        throw new BadRequestException('Aprovação técnica só se aplica a OS Comercial');
+      }
+
+      if (os.status !== StatusOS.AGUARDANDO_APROVACAO_TECNICA) {
+        throw new BadRequestException('OS não está aguardando aprovação técnica');
+      }
+
+      // Verificar permissões do usuário
+      const usuario = await this.prisma.usuario.findUnique({
+        where: { id: usuarioId }
+      });
+
+      if (!usuario || usuario.funcao !== 'PRODUCAO') {
+        throw new ForbiddenException('Apenas coordenador de produção pode aprovar tecnicamente');
+      }
+
+      const statusAprovacao = aprovado ? 'APROVADA' : 'REJEITADA';
+      const novoStatus = aprovado ? StatusOS.APROVADA_TECNICA : StatusOS.REJEITADA;
+      
+      const osAtualizada = await this.prisma.ordemServico.update({
+        where: { id: osId },
+        data: {
+          status: novoStatus,
+          aprovacao_tecnica_status: statusAprovacao,
+          aprovacao_tecnica_por: usuarioId,
+          aprovacao_tecnica_em: new Date(),
+          aprovacao_tecnica_obs: observacoes,
+          modificado_por: usuarioId,
+          motivo_modificacao: `Aprovação técnica ${statusAprovacao.toLowerCase()}`,
+          versao: { increment: 1 }
+        }
+      });
+
+      // Registrar movimentação
+      await this.adicionarMovimentacao(
+        osId,
+        TipoMovimentacaoOS.APROVACAO_TECNICA,
+        StatusOS.AGUARDANDO_APROVACAO_TECNICA,
+        novoStatus,
+        usuarioId,
+        observacoes || `Aprovação técnica ${statusAprovacao.toLowerCase()}`
+      );
+
+      this.logger.log(`OS ${os.numero} aprovada tecnicamente: ${statusAprovacao}`);
+      return this.formatarOrdemServico(osAtualizada);
+    } catch (error) {
+      this.logger.error(`Erro ao aprovar OS técnica ${osId}:`, error);
+      throw error;
+    }
+  }
+
+  // ===== MÉTODOS DE VALIDAÇÃO PARA WORKFLOW INTERNA =====
+
+  /**
+   * Valida se centro de custo está disponível
+   */
+  private async validarCentroCustoDisponivel(centroCusto: string, lojaId: string): Promise<boolean> {
+    try {
+      // TODO: Implementar validação real de centro de custo
+      // Por enquanto, retorna true para não bloquear o desenvolvimento
+      return true;
+    } catch (error) {
+      this.logger.error('Erro ao validar centro de custo:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Valida se justificativa está preenchida
+   */
+  private async validarJustificativaPreenchida(osId: string): Promise<boolean> {
+    try {
+      const os = await this.prisma.ordemServico.findUnique({
+        where: { id: osId }
+      });
+
+      if (!os) {
+        return false;
+      }
+
+      // Verificar se justificativa está preenchida (usando observacoes como fallback)
+      return !!(os.observacoes && os.observacoes.trim().length > 0);
+    } catch (error) {
+      this.logger.error('Erro ao validar justificativa:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Valida se alçada é adequada para o valor
+   */
+  private async validarAlcadaAdequada(valorOrcado: number, centroCusto: string, lojaId: string): Promise<boolean> {
+    try {
+      const valor = Number(valorOrcado || 0);
+      
+      // Definir limites de alçada
+      const limitesAlcada = {
+        'GERENTE': 2000,
+        'DIRETOR': 10000,
+        'SUPERVISOR': 500
+      };
+
+      // TODO: Implementar validação real baseada no centro de custo
+      // Por enquanto, valida apenas se valor não excede limite máximo
+      return valor <= limitesAlcada['DIRETOR'];
+    } catch (error) {
+      this.logger.error('Erro ao validar alçada:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Valida se usuário tem alçada suficiente para aprovar valor
+   */
+  private async validarAlcadaUsuario(funcaoUsuario: string, valorEstimado: number): Promise<boolean> {
+    try {
+      const limitesAlcada = {
+        'SUPERVISOR': 500,
+        'GERENTE': 2000,
+        'DIRETOR': 10000,
+        'ADMIN': 50000
+      };
+
+      const limiteUsuario = limitesAlcada[funcaoUsuario] || 0;
+      return valorEstimado <= limiteUsuario;
+    } catch (error) {
+      this.logger.error('Erro ao validar alçada do usuário:', error);
+      return false;
+    }
+  }
+
+  // ===== MÉTODOS DE VALIDAÇÃO PARA WORKFLOW COMERCIAL =====
+
+  /**
+   * Valida se estoque está disponível para todos os insumos da OS
+   */
+  private async validarEstoqueDisponivel(osId: string): Promise<boolean> {
+    try {
+      const os = await this.prisma.ordemServico.findUnique({
+        where: { id: osId }
+      });
+
+      if (!os) {
+        return false;
+      }
+
+      // TODO: Implementar validação real de estoque usando ValidacaoEstoqueService
+      // Por enquanto, retorna true para não bloquear o desenvolvimento
+      return true;
+    } catch (error) {
+      this.logger.error('Erro ao validar estoque:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Valida se arte está anexada (quando aplicável)
+   */
+  private async validarArteAnexada(osId: string): Promise<boolean> {
+    try {
+      const os = await this.prisma.ordemServico.findUnique({
+        where: { id: osId }
+      });
+
+      if (!os) {
+        return false;
+      }
+
+      // TODO: Implementar validação real de arquivos anexados
+      // Por enquanto, retorna true para não bloquear o desenvolvimento
+      return true;
+    } catch (error) {
+      this.logger.error('Erro ao validar arte anexada:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Valida se especificações técnicas estão completas
+   */
+  private async validarEspecificacoesCompletas(osId: string): Promise<boolean> {
+    try {
+      const os = await this.prisma.ordemServico.findUnique({
+        where: { id: osId }
+      });
+
+      if (!os) {
+        return false;
+      }
+
+      // Verificar campos obrigatórios
+      const camposObrigatorios = [
+        'nome_servico',
+        'descricao',
+        'quantidade',
+        'parametros_tecnicos'
+      ];
+
+      for (const campo of camposObrigatorios) {
+        if (!os[campo]) {
+          return false;
+        }
+      }
+
+      // Verificar se parâmetros técnicos estão completos
+      if (os.parametros_tecnicos) {
+        const parametros = os.parametros_tecnicos as any;
+        if (!parametros.dimensoes || !parametros.material_principal) {
+          return false;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      this.logger.error('Erro ao validar especificações:', error);
+      return false;
+    }
+  }
+
   // ===== MÉTODOS DE INTEGRAÇÃO =====
 
   async criarOSDeOrcamento(
@@ -1195,6 +1831,43 @@ export class OSService {
         status: 'ERROR',
         timestamp: new Date().toISOString(),
       };
+    }
+  }
+
+  /**
+   * Corrige os insumos calculados aplicando multiplicação pela quantidade do produto
+   * para materiais que não usam m² (metros lineares, unidades, etc.)
+   */
+  private corrigirInsumosCalculados(
+    insumosCalculados: any[],
+    quantidadeProduto: number
+  ): any[] {
+    try {
+      this.logger.log(`🔧 Aplicando correção de materiais para quantidade ${quantidadeProduto}`);
+      
+      const insumosCorrigidos = CorrecaoMateriaisHelper.corrigirInsumosCalculados(
+        insumosCalculados,
+        quantidadeProduto
+      );
+
+      // Validar correção
+      const validacao = CorrecaoMateriaisHelper.validarCorrecao(
+        insumosCalculados,
+        insumosCorrigidos,
+        quantidadeProduto
+      );
+
+      if (!validacao.valido) {
+        this.logger.warn(`⚠️ Problemas na correção de materiais: ${validacao.erros.join(', ')}`);
+      } else {
+        this.logger.log(`✅ Correção de materiais aplicada com sucesso`);
+      }
+
+      return insumosCorrigidos;
+    } catch (error) {
+      this.logger.error('Erro ao corrigir insumos calculados:', error);
+      // Em caso de erro, retornar os insumos originais
+      return insumosCalculados;
     }
   }
 }

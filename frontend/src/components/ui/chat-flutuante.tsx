@@ -59,7 +59,6 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
   const [novasMensagens, setNovasMensagens] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const prevMensagensLengthRef = useRef(0);
 
   // Abrir chat quando shouldOpen for true (apenas uma vez por mudança)
   useEffect(() => {
@@ -211,25 +210,19 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
   // }, [orcamentoId]); // Apenas orcamentoId como dependência
 
   useEffect(() => {
-    // Só fazer scroll automático se:
-    // 1. Chat estiver aberto e não minimizado
-    // 2. Houver novas mensagens (length aumentou)
-    // 3. Ou se for a primeira vez carregando mensagens
-    if (isOpen && !isMinimized) {
-      const currentLength = mensagens.length;
-      const prevLength = prevMensagensLengthRef.current;
-      
-      // Se há novas mensagens ou é a primeira vez
-      if (currentLength > prevLength || (prevLength === 0 && currentLength > 0)) {
-        // Pequeno delay para garantir que o DOM foi atualizado
-        setTimeout(() => {
-          scrollToBottom();
-        }, 50);
-      }
-      
-      prevMensagensLengthRef.current = currentLength;
+    // Comportamento padrão de chat: scroll para o final apenas quando há novas mensagens
+    if (isOpen && !isMinimized && mensagens.length > 0) {
+      // Scroll imediato para evitar delay visual
+      scrollToBottom();
     }
-  }, [mensagens, isOpen, isMinimized]);
+  }, [mensagens.length, isOpen, isMinimized]); // Usar mensagens.length em vez de mensagens
+
+  // Scroll quando abre/desminimiza o chat
+  useEffect(() => {
+    if (isOpen && !isMinimized && mensagens.length > 0) {
+      scrollToBottom();
+    }
+  }, [isOpen, isMinimized]);
 
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
@@ -391,11 +384,6 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
       setNovaMensagem('');
       setAnexo(null);
       
-      // Fazer scroll suave para a nova mensagem
-      setTimeout(() => {
-        scrollToBottom();
-      }, 100);
-      
       // Usar endpoint correto baseado no modo - SEGUINDO PADRÃO DO LEGADO
       const endpoint = isPublic 
         ? buildApiUrl(`/orcamentos-v2/${orcamentoId}/mensagens/publico`)
@@ -448,6 +436,9 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
         const mensagemEnviada = await response.json();
         console.log('✅ Mensagem enviada com sucesso:', mensagemEnviada);
         
+        // ✅ SOLUÇÃO DEFINITIVA: NÃO recarregar mensagens após envio
+        // A substituição da mensagem temporária pela real já é suficiente
+        
         // Substituir mensagem temporária pela real (incluindo anexos corretos)
         setMensagens(prev => {
           const novasMensagens = prev.map(msg => {
@@ -475,6 +466,10 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
       } else {
         // Se falhou, limpar URLs temporárias e remover mensagem
         console.error('❌ Erro ao enviar mensagem:', response.status, response.statusText);
+        
+        // ✅ SOLUÇÃO DEFINITIVA: NÃO recarregar mensagens em caso de erro
+        // A mensagem temporária já foi removida, não precisa recarregar
+        
         setMensagens(prev => {
           const mensagemTemp = prev.find(msg => msg.id === tempId);
           if (mensagemTemp?.anexos) {
@@ -493,6 +488,12 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
     } catch (error) {
       // Se falhou, limpar URLs temporárias e remover mensagem
       console.error('❌ Erro ao enviar mensagem:', error);
+      
+      // ✅ CORREÇÃO: Tentar recarregar mensagens mesmo em caso de erro
+      setTimeout(() => {
+        carregarMensagens();
+      }, 1000);
+      
       setMensagens(prev => {
         const mensagemTemp = prev.find(msg => msg.id === tempId);
         if (mensagemTemp?.anexos) {

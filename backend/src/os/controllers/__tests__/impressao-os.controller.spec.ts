@@ -47,7 +47,7 @@ describe('ImpressaoOSController', () => {
         dadosTransformados: null,
         qrCodeDataUrl: 'data:image/png;base64,mock-qr'
       };
-      const mockHTML = '<html>Template HTML</html>';
+      const mockHTML = '<html>Template HTML preview-mode</html>';
 
       mockImpressaoOSService.gerarDadosImpressao.mockResolvedValue(mockDados);
       mockImpressaoOSService.gerarTemplateHTML.mockResolvedValue(mockHTML);
@@ -57,16 +57,18 @@ describe('ImpressaoOSController', () => {
         send: jest.fn(),
       } as any;
 
-      await controller.imprimirOS(osId, 'html', 'true', 'true', 'true', mockRes);
+      await controller.imprimirOS(osId, 'html', 'simples', 'true', 'true', 'true', mockRes);
 
       expect(mockImpressaoOSService.gerarDadosImpressao).toHaveBeenCalledWith(osId, {
         formato: 'html',
+        versao: 'simples',
         incluirQRCode: true,
         incluirLogo: true,
         incluirDetalhesTecnicos: true
       });
       expect(mockImpressaoOSService.gerarTemplateHTML).toHaveBeenCalledWith(mockDados, {
         formato: 'html',
+        versao: 'simples',
         incluirQRCode: true,
         incluirLogo: true,
         incluirDetalhesTecnicos: true
@@ -90,7 +92,7 @@ describe('ImpressaoOSController', () => {
         dadosTransformados: null,
         qrCodeDataUrl: ''
       };
-      const mockHTML = '<html>Template HTML</html>';
+      const mockHTML = '<html>Template HTML preview-mode</html>';
 
       mockImpressaoOSService.gerarDadosImpressao.mockResolvedValue(mockDados);
       mockImpressaoOSService.gerarTemplateHTML.mockResolvedValue(mockHTML);
@@ -100,10 +102,11 @@ describe('ImpressaoOSController', () => {
         send: jest.fn(),
       } as any;
 
-      await controller.imprimirOS(osId, undefined, undefined, undefined, undefined, mockRes);
+      await controller.imprimirOS(osId, undefined, undefined, undefined, undefined, undefined, mockRes);
 
       expect(mockImpressaoOSService.gerarDadosImpressao).toHaveBeenCalledWith(osId, {
         formato: 'html',
+        versao: 'simples',
         incluirQRCode: true,
         incluirLogo: true,
         incluirDetalhesTecnicos: true
@@ -124,7 +127,7 @@ describe('ImpressaoOSController', () => {
         dadosTransformados: null,
         qrCodeDataUrl: ''
       };
-      const mockHTML = '<html>Template HTML</html>';
+      const mockHTML = '<html>Template HTML preview-mode</html>';
 
       mockImpressaoOSService.gerarDadosImpressao.mockResolvedValue(mockDados);
       mockImpressaoOSService.gerarTemplateHTML.mockResolvedValue(mockHTML);
@@ -134,10 +137,11 @@ describe('ImpressaoOSController', () => {
         send: jest.fn(),
       } as any;
 
-      await controller.imprimirOS(osId, 'html', 'false', 'false', 'false', mockRes);
+      await controller.imprimirOS(osId, 'html', 'simples', 'false', 'false', 'false', mockRes);
 
       expect(mockImpressaoOSService.gerarDadosImpressao).toHaveBeenCalledWith(osId, {
         formato: 'html',
+        versao: 'simples',
         incluirQRCode: false,
         incluirLogo: false,
         incluirDetalhesTecnicos: false
@@ -155,11 +159,11 @@ describe('ImpressaoOSController', () => {
         send: jest.fn(),
       } as any;
 
-      await expect(controller.imprimirOS(osId, 'html', 'true', 'true', 'true', mockRes))
+      await expect(controller.imprimirOS(osId, 'html', 'simples', 'true', 'true', 'true', mockRes))
         .rejects.toThrow(HttpException);
 
       try {
-        await controller.imprimirOS(osId, 'html', 'true', 'true', 'true', mockRes);
+        await controller.imprimirOS(osId, 'html', 'simples', 'true', 'true', 'true', mockRes);
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.message).toContain('Erro ao gerar impressão da OS');
@@ -184,7 +188,7 @@ describe('ImpressaoOSController', () => {
         dadosTransformados: null,
         qrCodeDataUrl: ''
       };
-      const mockHTML = '<html>Template HTML</html>';
+      const mockHTML = '<html>Template HTML preview-mode</html>';
 
       mockImpressaoOSService.gerarDadosImpressao.mockResolvedValue(mockDados);
       mockImpressaoOSService.gerarTemplateHTML.mockResolvedValue(mockHTML);
@@ -198,12 +202,14 @@ describe('ImpressaoOSController', () => {
 
       expect(mockImpressaoOSService.gerarDadosImpressao).toHaveBeenCalledWith(osId, {
         formato: 'html',
+        versao: 'simples',
         incluirQRCode: true,
         incluirLogo: true,
         incluirDetalhesTecnicos: true
       });
       expect(mockImpressaoOSService.gerarTemplateHTML).toHaveBeenCalledWith(mockDados, {
         formato: 'html',
+        versao: 'simples',
         incluirQRCode: true,
         incluirLogo: true,
         incluirDetalhesTecnicos: true

@@ -105,8 +105,8 @@ export class AprovacaoTecnicaService {
       throw new NotFoundException('Ordem de Serviço não encontrada');
     }
 
-    if (os.status !== 'FILA') {
-      throw new BadRequestException('OS não está em status FILA para aprovação técnica');
+    if (os.status !== 'AGUARDANDO_APROVACAO_TECNICA') {
+      throw new BadRequestException('OS não está aguardando aprovação técnica');
     }
 
     // Verificar permissões do usuário

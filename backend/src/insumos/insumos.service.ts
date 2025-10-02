@@ -439,11 +439,25 @@ export class InsumosService {
       fatorConversao: dataWithoutExtraFields.fator_conversao,
     });
 
+    // Converter parametros_consumo para string JSON se for objeto
+    let parametrosConsumoProcessado = null;
+    if (dataWithoutExtraFields.parametros_consumo) {
+      // Se já é uma string JSON, verificar se não está corrompida
+      if (typeof dataWithoutExtraFields.parametros_consumo === 'string') {
+        if (dataWithoutExtraFields.parametros_consumo.includes('\\\\\\"')) {
+          console.warn('⚠️ Detectada string corrompida no create, ignorando');
+          parametrosConsumoProcessado = null;
+        } else {
+          parametrosConsumoProcessado = dataWithoutExtraFields.parametros_consumo;
+        }
+      } else {
+        parametrosConsumoProcessado = JSON.stringify(dataWithoutExtraFields.parametros_consumo);
+      }
+    }
+
     const dataForPrisma = {
       ...dataWithoutExtraFields,
-      parametros_consumo: dataWithoutExtraFields.parametros_consumo 
-        ? JSON.stringify(dataWithoutExtraFields.parametros_consumo)
-        : null,
+      parametros_consumo: parametrosConsumoProcessado,
       loja_id: loja.id,
       tipoMaterialId: tipo_material_id,
       ativo: createInsumoDto.ativo ?? true,
@@ -484,16 +498,46 @@ export class InsumosService {
       },
     });
 
-    // Converter valores Decimal para números
-    return insumos.map((insumo) => ({
-      ...insumo,
-      custo_unitario: Number(insumo.custo_unitario),
-      quantidade_compra: Number(insumo.quantidade_compra),
-      fator_conversao: Number(insumo.fator_conversao),
-      largura: insumo.largura ? Number(insumo.largura) : null,
-      altura: insumo.altura ? Number(insumo.altura) : null,
-      gramatura: insumo.gramatura ? Number(insumo.gramatura) : null,
-    }));
+    // Converter valores Decimal para números e processar campos personalizados
+    return insumos.map((insumo) => {
+      const resultado = {
+        ...insumo,
+        custo_unitario: Number(insumo.custo_unitario),
+        quantidade_compra: Number(insumo.quantidade_compra),
+        fator_conversao: Number(insumo.fator_conversao),
+        largura: insumo.largura ? Number(insumo.largura) : null,
+        altura: insumo.altura ? Number(insumo.altura) : null,
+        gramatura: insumo.gramatura ? Number(insumo.gramatura) : null,
+      };
+
+      // Processar parametros_consumo se existir
+      if (resultado.parametros_consumo && typeof resultado.parametros_consumo === 'string') {
+        try {
+          // Verificar se é uma string corrompida
+          if (resultado.parametros_consumo.includes('\\\\\\"')) {
+            console.warn('⚠️ Detectada string corrompida no findAll, limpando parametros_consumo');
+            resultado.parametros_consumo = null;
+          } else {
+            resultado.parametros_consumo = JSON.parse(resultado.parametros_consumo);
+          }
+        } catch (e) {
+          console.warn('⚠️ Erro ao parsear parametros_consumo no findAll:', e.message);
+          resultado.parametros_consumo = null;
+        }
+      }
+
+      // Processar tipoMaterial.parametros_padrao se existir
+      if (resultado.tipoMaterial && resultado.tipoMaterial.parametros_padrao && typeof resultado.tipoMaterial.parametros_padrao === 'string') {
+        try {
+          resultado.tipoMaterial.parametros_padrao = JSON.parse(resultado.tipoMaterial.parametros_padrao);
+        } catch (e) {
+          console.warn('⚠️ Erro ao parsear tipoMaterial.parametros_padrao no findAll:', e.message);
+          resultado.tipoMaterial.parametros_padrao = null;
+        }
+      }
+
+      return resultado;
+    });
   }
 
   async findOne(id: string, loja: loja) {
@@ -517,7 +561,7 @@ export class InsumosService {
     }
 
     // Converter valores Decimal para números
-    return {
+    const resultado = {
       ...insumo,
       custo_unitario: Number(insumo.custo_unitario),
       quantidade_compra: Number(insumo.quantidade_compra),
@@ -526,6 +570,39 @@ export class InsumosService {
       altura: insumo.altura ? Number(insumo.altura) : null,
       gramatura: insumo.gramatura ? Number(insumo.gramatura) : null,
     };
+
+    // Processar parametros_consumo para evitar problemas de serialização
+    if (resultado.parametros_consumo && typeof resultado.parametros_consumo === 'string') {
+      try {
+        // Verificar se é uma string corrompida
+        if (resultado.parametros_consumo.includes('\\\\\\"')) {
+          console.warn('⚠️ Detectada string corrompida, limpando parametros_consumo');
+          resultado.parametros_consumo = null;
+        } else {
+          resultado.parametros_consumo = JSON.parse(resultado.parametros_consumo);
+        }
+      } catch (e) {
+        console.warn('⚠️ Erro ao parsear parametros_consumo:', e.message);
+        resultado.parametros_consumo = null;
+      }
+    }
+
+    console.log('🔍 InsumosService.findOne - Dados retornados:', {
+      logica_consumo: resultado.logica_consumo,
+      tipoMaterialId: resultado.tipoMaterialId,
+      parametros_consumo: resultado.parametros_consumo,
+      tipoMaterial: resultado.tipoMaterial,
+      // Verificar se o campo está sendo retornado corretamente
+      camposCompletos: {
+        id: resultado.id,
+        nome: resultado.nome,
+        logica_consumo: resultado.logica_consumo,
+        tipoMaterialId: resultado.tipoMaterialId,
+        parametros_consumo: resultado.parametros_consumo
+      }
+    });
+
+    return resultado;
   }
 
   async update(id: string, updateInsumoDto: UpdateInsumoDto, loja: loja) {
@@ -565,14 +642,39 @@ export class InsumosService {
     // Remover campos que não existem no modelo Prisma
     const { tipo_material_id, ...dataWithoutExtraFields } = updateInsumoDto;
 
+    console.log('🔍 InsumosService.update - Dados recebidos:', {
+      logica_consumo: updateInsumoDto.logica_consumo,
+      tipo_material_id: tipo_material_id,
+      parametros_consumo: updateInsumoDto.parametros_consumo
+    });
+
     // Converter parametros_consumo para string JSON se for objeto
+    let parametrosConsumoProcessado = null;
+    if (dataWithoutExtraFields.parametros_consumo) {
+      // Se já é uma string JSON, verificar se não está corrompida
+      if (typeof dataWithoutExtraFields.parametros_consumo === 'string') {
+        if (dataWithoutExtraFields.parametros_consumo.includes('\\\\\\"')) {
+          console.warn('⚠️ Detectada string corrompida no update, ignorando');
+          parametrosConsumoProcessado = null;
+        } else {
+          parametrosConsumoProcessado = dataWithoutExtraFields.parametros_consumo;
+        }
+      } else {
+        parametrosConsumoProcessado = JSON.stringify(dataWithoutExtraFields.parametros_consumo);
+      }
+    }
+
     const dataForPrisma = {
       ...dataWithoutExtraFields,
-      parametros_consumo: dataWithoutExtraFields.parametros_consumo 
-        ? JSON.stringify(dataWithoutExtraFields.parametros_consumo)
-        : null,
+      parametros_consumo: parametrosConsumoProcessado,
       tipoMaterialId: tipo_material_id,
     };
+
+    console.log('🔍 InsumosService.update - Dados para Prisma:', {
+      logica_consumo: dataForPrisma.logica_consumo,
+      tipoMaterialId: dataForPrisma.tipoMaterialId,
+      parametros_consumo: dataForPrisma.parametros_consumo
+    });
 
     const insumo = await this.prisma.insumo.update({
       where: { id },
@@ -585,7 +687,7 @@ export class InsumosService {
     });
 
     // Converter valores Decimal para números
-    return {
+    const resultado = {
       ...insumo,
       custo_unitario: Number(insumo.custo_unitario),
       quantidade_compra: Number(insumo.quantidade_compra),
@@ -594,6 +696,24 @@ export class InsumosService {
       altura: insumo.altura ? Number(insumo.altura) : null,
       gramatura: insumo.gramatura ? Number(insumo.gramatura) : null,
     };
+
+    // Processar parametros_consumo para evitar problemas de serialização
+    if (resultado.parametros_consumo && typeof resultado.parametros_consumo === 'string') {
+      try {
+        // Verificar se é uma string corrompida
+        if (resultado.parametros_consumo.includes('\\\\\\"')) {
+          console.warn('⚠️ Detectada string corrompida no update, limpando parametros_consumo');
+          resultado.parametros_consumo = null;
+        } else {
+          resultado.parametros_consumo = JSON.parse(resultado.parametros_consumo);
+        }
+      } catch (e) {
+        console.warn('⚠️ Erro ao parsear parametros_consumo no update:', e.message);
+        resultado.parametros_consumo = null;
+      }
+    }
+
+    return resultado;
   }
 
   async remove(id: string, loja: loja) {
