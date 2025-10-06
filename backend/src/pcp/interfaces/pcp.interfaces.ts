@@ -109,3 +109,51 @@ export interface UpdateApontamentoDto {
   quantidade_refugo?: number;
   tempo_gasto?: number;
 }
+
+// ===== WORKFLOW TEMPLATES =====
+
+export interface WorkflowTemplateData {
+  id: string;
+  loja_id: string;
+  nome: string;
+  descricao?: string;
+  etapas: EtapaTemplateData[];
+  ativo: boolean;
+  sequencial: boolean;
+  criado_em: Date;
+  atualizado_em: Date;
+}
+
+export interface EtapaTemplateData {
+  id: string;
+  nome: string;
+  descricao?: string;
+  ordem: number;
+  obrigatoria: boolean;
+  tempo_estimado?: number; // em minutos
+  responsaveis_permitidos?: string[]; // IDs dos usuarios/funcoes
+  checklist?: ChecklistTemplateData[];
+}
+
+export interface ChecklistTemplateData {
+  id: string;
+  descricao: string;
+  obrigatorio: boolean;
+  ordem: number;
+}
+
+export interface CreateWorkflowTemplateDto {
+  nome: string;
+  descricao?: string;
+  etapas?: EtapaTemplateData[];
+  ativo?: boolean;
+  sequencial?: boolean;
+}
+
+export interface UpdateWorkflowTemplateDto {
+  nome?: string;
+  descricao?: string;
+  etapas?: EtapaTemplateData[];
+  ativo?: boolean;
+  sequencial?: boolean;
+}

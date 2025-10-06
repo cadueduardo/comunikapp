@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
+import { WebsocketsModule } from '../websockets/websockets.module';
 import { WorkflowController } from './controllers/workflow.controller';
+import { WorkflowTemplateController } from './controllers/workflow-template.controller';
 import { EtapaController } from './controllers/etapa.controller';
 import { ApontamentoController } from './controllers/apontamento.controller';
 import { NotificacoesController } from './controllers/notificacoes.controller';
@@ -12,9 +14,10 @@ import { NotificacoesPCPService } from './services/notificacoes-pcp.service';
 import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-estoque.service';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, WebsocketsModule],
   controllers: [
     WorkflowController,
+    WorkflowTemplateController,
     EtapaController,
     ApontamentoController,
     NotificacoesController

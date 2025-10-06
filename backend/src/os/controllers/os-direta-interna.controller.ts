@@ -13,6 +13,7 @@ import {
   Query,
   Request,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { OSService } from '../services/os.service';
@@ -115,8 +116,19 @@ export class OSDiretaInternaController {
     @Body() body: { aprovado: boolean; observacoes?: string },
     @Request() req: any
   ) {
+    console.log('🔍 Debug - OSDiretaInternaController - req.user:', req.user);
+    console.log('🔍 Debug - OSDiretaInternaController - req["user"]:', req['user']);
+    
     const user = req['user'] || req.user;
-    const usuarioId = user.id;
+    console.log('🔍 Debug - OSDiretaInternaController - user:', user);
+    
+    if (!user || (!user.id && !user.sub)) {
+      console.log('🔍 Debug - OSDiretaInternaController - User ou ID não encontrado');
+      throw new BadRequestException('Usuário não autenticado ou ID não encontrado');
+    }
+    
+    const usuarioId = user.sub || user.id;
+    console.log('🔍 Debug - OSDiretaInternaController - UsuarioId:', usuarioId);
 
     const resultado = await this.osService.aprovarOSTecnica(
       osId,
@@ -296,5 +308,34 @@ export class OSDiretaInternaController {
       data: osComInstalacao.map(item => OrdemServicoResponseDto.fromDomain(item)),
       total: osComInstalacao.length
     };
+  }
+
+  @Get(':id/validar-sincronizacao')
+  @ApiOperation({ summary: 'Validar sincronização OS-Orçamento' })
+  @ApiResponse({ status: 200, description: 'Validação realizada com sucesso' })
+  @ApiResponse({ status: 404, description: 'OS não encontrada' })
+  async validarSincronizacao(
+    @Param('id') osId: string,
+    @Request() req: any
+  ) {
+    const user = req['user'] || req.user;
+    const lojaId = user.loja_id;
+
+    return await this.osService.validarSincronizacaoOSOrcamento(osId);
+  }
+
+  @Patch(':id/sincronizar-orcamento')
+  @ApiOperation({ summary: 'Sincronizar OS com orçamento' })
+  @ApiResponse({ status: 200, description: 'Sincronização realizada com sucesso' })
+  @ApiResponse({ status: 404, description: 'OS não encontrada' })
+  @ApiResponse({ status: 400, description: 'OS sem orçamento vinculado' })
+  async sincronizarComOrcamento(
+    @Param('id') osId: string,
+    @Request() req: any
+  ) {
+    const user = req['user'] || req.user;
+    const lojaId = user.loja_id;
+
+    return await this.osService.sincronizarComOrcamento(osId, lojaId);
   }
 }

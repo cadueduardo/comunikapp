@@ -135,8 +135,7 @@ export class CreateOSDto {
     ],
   })
   @IsOptional()
-  @IsObject()
-  insumos_calculados?: Array<{
+  insumos_calculados?: string | Array<{
     insumo_id: string;
     nome: string;
     quantidade_necessaria: number;

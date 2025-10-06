@@ -250,6 +250,12 @@ export interface InsumoCalculado {
   unidade: string;
   custo_unitario: number;
   custo_total: number;
+  produto_nome: string; // Nome do produto para rastreabilidade
+  logica_consumo?: string; // Lógica de consumo do insumo
+  parametros_consumo?: any; // Parâmetros de consumo do insumo
+  origem: 'orcamento' | 'os'; // Origem do cálculo
+  orcamento_id?: string; // ID do orçamento de origem
+  data_calculo?: Date; // Data do cálculo do orçamento
   disponivel_estoque: boolean;
   quantidade_disponivel?: number;
   localizacao_estoque?: string;
@@ -317,6 +323,8 @@ export enum StatusOS {
   AGUARDANDO_APROVACAO_ORCAMENTARIA = 'AGUARDANDO_APROVACAO_ORCAMENTARIA',
   APROVADA_ORCAMENTARIA = 'APROVADA_ORCAMENTARIA',
   REJEITADA = 'REJEITADA',
+  LIBERADA_PARA_PCP = 'LIBERADA_PARA_PCP',
+  EM_WORKFLOW = 'EM_WORKFLOW',
   PRODUCAO = 'PRODUCAO',
   ACABAMENTO = 'ACABAMENTO',
   FINALIZADA = 'FINALIZADA',

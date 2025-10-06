@@ -6,10 +6,11 @@
 
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { OSApprovalPermissionsService } from './os-approval-permissions.service';
 import { DocumentCodeService, TipoOS } from '../../documentos/document-code.service';
 import { ValidacaoEstoqueService } from '../../orcamentos-v2/services/validacao-estoque.service';
 import { AlcadasOrcamentoService } from './alcadas-orcamento.service';
-import { CorrecaoMateriaisHelper } from '../helpers/correcao-materiais.helper';
+import { EventosAutomaticosService } from './eventos-automaticos.service';
 import { CreateOSDto } from '../dto/create-os.dto';
 import { UpdateOSDto, AvancarEtapaDto } from '../dto/update-os.dto';
 import {
@@ -19,6 +20,7 @@ import {
   ApiResponse,
   PaginatedResponse,
   EstoqueValidacaoDetalhe,
+  InsumoCalculado,
 } from '../interfaces/os.interfaces';
 import { TipoOS as TipoOSInterface, OrigemOS, PrioridadeOS } from '../interfaces/os-direta-interna.interface';
 
@@ -44,13 +46,15 @@ interface ValidacaoEstoqueOSResultado {
 }
 @Injectable()
 export class OSService {
-  private readonly logger = new Logger(OSService.name);
-
+  private readonly logger = new Logger(OSService.name)
+  
   constructor(
     private readonly prisma: PrismaService,
     private readonly documentCodeService: DocumentCodeService,
     private readonly validacaoEstoqueService: ValidacaoEstoqueService,
     private readonly alcadasOrcamentoService: AlcadasOrcamentoService,
+    private readonly eventosAutomaticosService: EventosAutomaticosService,
+    private readonly osApprovalPermissionsService: OSApprovalPermissionsService,
   ) {}
 
   // ===== CRUD BÁSICO =====
@@ -91,8 +95,10 @@ export class OSService {
           parametros_tecnicos: createOSDto.parametros_tecnicos
             ? JSON.stringify(createOSDto.parametros_tecnicos)
             : null,
+          // NOTA: Os insumos calculados devem vir já processados pelo Motor de Cálculo V2
+          // que aplica corretamente a multiplicação pela quantidade do produto
           insumos_calculados: createOSDto.insumos_calculados
-            ? JSON.stringify(this.corrigirInsumosCalculados(createOSDto.insumos_calculados, createOSDto.quantidade))
+            ? JSON.stringify(createOSDto.insumos_calculados)
             : null,
           data_prazo: createOSDto.data_prazo ? new Date(createOSDto.data_prazo) : null,
           responsavel_id: createOSDto.responsavel_id,
@@ -239,6 +245,96 @@ export class OSService {
       return this.formatarOrdemServico(os);
     } catch (error) {
       this.logger.error(`Erro ao buscar OS ${id}:`, error);
+      throw error;
+    }
+  }
+
+  async findByStatus(lojaId: string, status: StatusOS): Promise<OrdemServicoData[]> {
+    try {
+      const oss = await this.prisma.ordemServico.findMany({
+        where: { loja_id: lojaId, status },
+        include: {
+          cliente: {
+            select: {
+              id: true,
+              nome: true,
+              email: true,
+              telefone: true,
+            },
+          },
+          orcamento: {
+            include: {
+              produtos: true
+            }
+          }
+        },
+        orderBy: { criado_em: 'desc' }
+      });
+
+      return oss.map(os => this.formatarOrdemServico(os));
+    } catch (error) {
+      this.logger.error('Erro ao buscar OSs por status:', error);
+      throw error;
+    }
+  }
+
+  async atualizarStatus(id: string, dados: { status: StatusOS }, usuarioId?: string): Promise<OrdemServicoData> {
+    try {
+      // Buscar OS atual para obter status anterior
+      const osAtual = await this.prisma.ordemServico.findUnique({
+        where: { id },
+        select: { status: true, loja_id: true }
+      });
+
+      if (!osAtual) {
+        throw new NotFoundException(`OS com ID ${id} não encontrada`);
+      }
+
+      const os = await this.prisma.ordemServico.update({
+        where: { id },
+        data: {
+          status: dados.status,
+          atualizado_em: new Date()
+        },
+        include: {
+          cliente: {
+            select: {
+              id: true,
+              nome: true,
+              email: true,
+              telefone: true,
+            },
+          },
+          orcamento: {
+            include: {
+              produtos: true
+            }
+          }
+        }
+      });
+
+      // Notificar mudança de status via eventos automáticos
+      await this.eventosAutomaticosService.notificarMudancaStatusOS(
+        id,
+        osAtual.status,
+        dados.status,
+        osAtual.loja_id,
+        usuarioId
+      );
+
+      // Notificar liberação para PCP
+      if (dados.status === StatusOS.LIBERADA_PARA_PCP) {
+        await this.eventosAutomaticosService.notificarOSLiberadaParaPCP(
+          id,
+          osAtual.loja_id,
+          undefined, // workflowId será definido posteriormente
+          usuarioId
+        );
+      }
+
+      return this.formatarOrdemServico(os);
+    } catch (error) {
+      this.logger.error(`Erro ao atualizar status da OS ${id}:`, error);
       throw error;
     }
   }
@@ -976,16 +1072,28 @@ export class OSService {
       }
     }
 
-    // Transição para APROVADA_TECNICA (apenas coordenador de produção)
+    // Transição para APROVADA_TECNICA
     if (novaEtapa === 'APROVADA_TECNICA') {
       const usuario = await this.prisma.usuario.findUnique({
         where: { id: usuarioId }
       });
       
-      if (!usuario || usuario.funcao !== 'PRODUCAO') {
+      if (!usuario) {
         return {
           valida: false,
-          motivo: 'Apenas coordenador de produção pode aprovar tecnicamente'
+          motivo: 'Usuário não encontrado'
+        };
+      }
+
+      const permissaoAprovacao = await this.osApprovalPermissionsService.podeAprovarTecnica(
+        usuarioId, 
+        usuario.loja_id
+      );
+
+      if (!permissaoAprovacao.pode) {
+        return {
+          valida: false,
+          motivo: permissaoAprovacao.motivo || 'Usuário não tem permissão para aprovar tecnicamente'
         };
       }
     }
@@ -1133,30 +1241,54 @@ export class OSService {
       profundidade: produto.profundidade,
       area_produto: produto.area_produto,
       observacoes: produto.observacoes,
-      // Materiais por produto - usar quantidade calculada do insumos_calculados
+      // Materiais por produto - usar dados exatos do orçamento via insumos_calculados
       materiais: produto.insumos?.map(itemInsumo => {
-        // Buscar quantidade calculada nos insumos_calculados
-        const insumosCalculados = os.insumos_calculados ? 
-          (typeof os.insumos_calculados === 'string' ? 
-            JSON.parse(os.insumos_calculados) : 
-            os.insumos_calculados) : [];
+        // Buscar material correspondente nos insumos_calculados (dados do orçamento)
+        let insumosCalculados = [];
+        try {
+          if (os.insumos_calculados) {
+            if (typeof os.insumos_calculados === 'string') {
+              insumosCalculados = JSON.parse(os.insumos_calculados);
+            } else if (Array.isArray(os.insumos_calculados)) {
+              insumosCalculados = os.insumos_calculados;
+            }
+          }
+        } catch (error) {
+          this.logger.warn(`Erro ao processar insumos_calculados para OS ${os.id}:`, error);
+          insumosCalculados = [];
+        }
+        
+        // Garantir que insumosCalculados é um array
+        if (!Array.isArray(insumosCalculados)) {
+          insumosCalculados = [];
+        }
         
         const insumoCalculado = insumosCalculados.find((ic: any) => 
           ic.insumo_id === itemInsumo.insumo.id && ic.produto_nome === produto.nome
         );
         
+        // Usar dados do orçamento quando disponível, fallback para dados da OS
         return {
           id: itemInsumo.insumo.id,
           nome: itemInsumo.insumo.nome,
+          // USAR QUANTIDADE EXATA DO ORÇAMENTO (prioridade)
           quantidade: insumoCalculado?.quantidade_necessaria || itemInsumo.quantidade,
-          unidade: itemInsumo.unidade,
+          unidade: insumoCalculado?.unidade || itemInsumo.unidade,
           categoria: itemInsumo.insumo.categoria?.nome || 'Sem categoria',
           tipo_material: itemInsumo.insumo.tipoMaterial?.nome || null,
-          logica_consumo: itemInsumo.insumo.logica_consumo,
-          parametros_consumo: itemInsumo.insumo.parametros_consumo ? 
-            (typeof itemInsumo.insumo.parametros_consumo === 'string' ? 
-              JSON.parse(itemInsumo.insumo.parametros_consumo) : 
-              itemInsumo.insumo.parametros_consumo) : null
+          // Usar lógica de consumo do orçamento quando disponível
+          logica_consumo: insumoCalculado?.logica_consumo || itemInsumo.insumo.logica_consumo,
+          parametros_consumo: insumoCalculado?.parametros_consumo || 
+            (itemInsumo.insumo.parametros_consumo ? 
+              (typeof itemInsumo.insumo.parametros_consumo === 'string' ? 
+                JSON.parse(itemInsumo.insumo.parametros_consumo) : 
+                itemInsumo.insumo.parametros_consumo) : null),
+          // Adicionar informações de rastreabilidade
+          origem: insumoCalculado?.origem || 'os',
+          orcamento_id: insumoCalculado?.orcamento_id || os.orcamento_id,
+          data_calculo: insumoCalculado?.data_calculo,
+          custo_unitario: insumoCalculado?.custo_unitario || itemInsumo.custo_unitario,
+          custo_total: insumoCalculado?.custo_total || itemInsumo.custo_total
         };
       }) || [],
       // Máquinas por produto
@@ -1226,11 +1358,21 @@ export class OSService {
       parametros_tecnicos: os.parametros_tecnicos
         ? JSON.parse(os.parametros_tecnicos)
         : null,
-      insumos_calculados: os.insumos_calculados
-        ? (typeof os.insumos_calculados === 'string' 
-            ? JSON.parse(os.insumos_calculados) 
-            : os.insumos_calculados)
-        : [],
+      insumos_calculados: (() => {
+        try {
+          if (os.insumos_calculados) {
+            if (typeof os.insumos_calculados === 'string') {
+              return JSON.parse(os.insumos_calculados);
+            } else if (Array.isArray(os.insumos_calculados)) {
+              return os.insumos_calculados;
+            }
+          }
+          return [];
+        } catch (error) {
+          this.logger.warn(`Erro ao processar insumos_calculados para OS ${os.id}:`, error);
+          return [];
+        }
+      })(),
       materiais_disponivel: os.materiais_disponivel,
       aprovacao_tecnica_status: os.aprovacao_tecnica_status,
       aprovacao_tecnica_por: os.aprovacao_tecnica_por,
@@ -1563,13 +1705,26 @@ export class OSService {
         throw new BadRequestException('OS não está aguardando aprovação técnica');
       }
 
-      // Verificar permissões do usuário
+      // Verificar permissões do usuário usando sistema centralizado
+      if (!usuarioId) {
+        throw new BadRequestException('ID do usuário é obrigatório');
+      }
+      
       const usuario = await this.prisma.usuario.findUnique({
         where: { id: usuarioId }
       });
 
-      if (!usuario || usuario.funcao !== 'PRODUCAO') {
-        throw new ForbiddenException('Apenas coordenador de produção pode aprovar tecnicamente');
+      if (!usuario) {
+        throw new BadRequestException('Usuário não encontrado');
+      }
+
+      const permissaoAprovacao = await this.osApprovalPermissionsService.podeAprovarTecnica(
+        usuarioId, 
+        usuario.loja_id
+      );
+
+      if (!permissaoAprovacao.pode) {
+        throw new ForbiddenException(permissaoAprovacao.motivo || 'Usuário não tem permissão para aprovar tecnicamente');
       }
 
       const statusAprovacao = aprovado ? 'APROVADA' : 'REJEITADA';
@@ -1785,6 +1940,37 @@ export class OSService {
     try {
       this.logger.log(`Criando OS a partir do orçamento ${dadosOrcamento.orcamento_id}`);
 
+      // 1. Buscar orçamento completo com produtos e insumos
+      const orcamentoCompleto = await this.prisma.orcamento.findUnique({
+        where: { 
+          id: dadosOrcamento.orcamento_id,
+          loja_id: lojaId 
+        },
+        include: {
+          produtos: {
+            include: {
+              insumos: {
+                include: { 
+                  insumo: {
+                    include: {
+                      categoria: true,
+                      tipoMaterial: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!orcamentoCompleto) {
+        throw new Error(`Orçamento ${dadosOrcamento.orcamento_id} não encontrado`);
+      }
+
+      // 2. Extrair materiais exatos do orçamento
+      const materiaisOrcamento = this.extrairMateriaisDoOrcamento(orcamentoCompleto);
+
       const createDto: CreateOSDto = {
         tipo_os: TipoOS.COMERCIAL, // OS criada a partir de orçamento é sempre comercial
         origem_os: OrigemOS.ORCAMENTO,
@@ -1801,18 +1987,302 @@ export class OSService {
           unidade_medida: dadosOrcamento.unidade_medida_produto,
         },
         responsavel_id: dadosOrcamento.responsavel_id,
-        insumos_calculados: dadosOrcamento.custos_calculados,
+        insumos_calculados: JSON.stringify(materiaisOrcamento), // Materiais exatos do orçamento
       };
 
       const os = await this.create(lojaId, createDto);
 
-      this.logger.log(`[OK] OS #${os.numero} criada automaticamente do orçamento`);
+      this.logger.log(`[OK] OS #${os.numero} criada automaticamente do orçamento com ${materiaisOrcamento.length} materiais`);
       return os;
     } catch (error) {
       this.logger.error('Erro ao criar OS de orçamento:', error);
       throw error;
     }
   }
+
+  /**
+   * Extrai materiais exatos do orçamento para garantir consistência na OS
+   */
+  private extrairMateriaisDoOrcamento(orcamento: any): InsumoCalculado[] {
+    const materiais: InsumoCalculado[] = [];
+
+    if (!orcamento.produtos || !Array.isArray(orcamento.produtos)) {
+      this.logger.warn('Orçamento sem produtos válidos');
+      return materiais;
+    }
+
+    orcamento.produtos.forEach(produto => {
+      if (!produto.insumos || !Array.isArray(produto.insumos)) {
+        this.logger.warn(`Produto ${produto.nome} sem insumos válidos`);
+        return;
+      }
+
+      produto.insumos.forEach(itemInsumo => {
+        if (!itemInsumo.insumo) {
+          this.logger.warn(`ItemInsumo ${itemInsumo.id} sem insumo associado`);
+          return;
+        }
+
+        // Usar dados exatos do orçamento
+        materiais.push({
+          insumo_id: itemInsumo.insumo.id,
+          nome: itemInsumo.insumo.nome,
+          quantidade_necessaria: parseFloat(itemInsumo.quantidade || '0'),
+          unidade: itemInsumo.unidade || itemInsumo.insumo.unidade_uso || 'un',
+          custo_unitario: parseFloat(itemInsumo.custo_unitario || '0'),
+          custo_total: parseFloat(itemInsumo.custo_total || '0'),
+          produto_nome: produto.nome || 'Produto sem nome',
+          logica_consumo: itemInsumo.insumo.logica_consumo || 'area',
+          parametros_consumo: itemInsumo.insumo.parametros_consumo ? 
+            (typeof itemInsumo.insumo.parametros_consumo === 'string' ? 
+              JSON.parse(itemInsumo.insumo.parametros_consumo) : 
+              itemInsumo.insumo.parametros_consumo) : null,
+          origem: 'orcamento',
+          orcamento_id: orcamento.id,
+          data_calculo: orcamento.data_ultimo_calculo || orcamento.criado_em,
+          disponivel_estoque: false, // Será calculado posteriormente
+          quantidade_disponivel: 0,
+          localizacao_estoque: null
+        });
+      });
+    });
+
+    this.logger.log(`Extraídos ${materiais.length} materiais do orçamento ${orcamento.id}`);
+    return materiais;
+  }
+
+  /**
+   * Valida se a OS está sincronizada com o orçamento
+   */
+  async validarSincronizacaoOSOrcamento(osId: string): Promise<{
+    sincronizada: boolean;
+    diferencas: any[];
+    alertas: string[];
+  }> {
+    try {
+      const os = await this.prisma.ordemServico.findUnique({
+        where: { id: osId },
+        include: { 
+          orcamento: {
+            include: {
+              produtos: {
+                include: {
+                  insumos: {
+                    include: { insumo: true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!os) {
+        throw new Error(`OS ${osId} não encontrada`);
+      }
+
+      if (!os.orcamento_id || !os.orcamento) {
+        return {
+          sincronizada: true,
+          diferencas: [],
+          alertas: ['OS sem orçamento vinculado - não há sincronização necessária']
+        };
+      }
+
+      // Extrair materiais atuais da OS
+      let materiaisOS = [];
+      try {
+        if (os.insumos_calculados) {
+          if (typeof os.insumos_calculados === 'string') {
+            materiaisOS = JSON.parse(os.insumos_calculados);
+          } else if (Array.isArray(os.insumos_calculados)) {
+            materiaisOS = os.insumos_calculados;
+          }
+        }
+      } catch (error) {
+        this.logger.warn(`Erro ao processar insumos_calculados da OS ${osId}:`, error);
+        return {
+          sincronizada: false,
+          diferencas: [],
+          alertas: ['Erro ao processar materiais da OS']
+        };
+      }
+
+      // Extrair materiais do orçamento
+      const materiaisOrcamento = this.extrairMateriaisDoOrcamento(os.orcamento);
+
+      // Comparar materiais
+      const diferencas = [];
+      const alertas = [];
+
+      // Verificar se todos os materiais da OS existem no orçamento
+      for (const materialOS of materiaisOS) {
+        const materialOrcamento = materiaisOrcamento.find(m => 
+          m.insumo_id === materialOS.insumo_id && m.produto_nome === materialOS.produto_nome
+        );
+
+        if (!materialOrcamento) {
+          diferencas.push({
+            tipo: 'material_nao_encontrado',
+            insumo_id: materialOS.insumo_id,
+            produto_nome: materialOS.produto_nome,
+            mensagem: 'Material da OS não encontrado no orçamento'
+          });
+          continue;
+        }
+
+        // Comparar quantidades
+        if (materialOS.quantidade_necessaria !== materialOrcamento.quantidade_necessaria) {
+          diferencas.push({
+            tipo: 'quantidade_diferente',
+            insumo_id: materialOS.insumo_id,
+            produto_nome: materialOS.produto_nome,
+            quantidade_os: materialOS.quantidade_necessaria,
+            quantidade_orcamento: materialOrcamento.quantidade_necessaria,
+            diferenca: materialOS.quantidade_necessaria - materialOrcamento.quantidade_necessaria
+          });
+        }
+
+        // Comparar custos
+        if (Math.abs(materialOS.custo_unitario - materialOrcamento.custo_unitario) > 0.01) {
+          diferencas.push({
+            tipo: 'custo_diferente',
+            insumo_id: materialOS.insumo_id,
+            produto_nome: materialOS.produto_nome,
+            custo_os: materialOS.custo_unitario,
+            custo_orcamento: materialOrcamento.custo_unitario,
+            diferenca: materialOS.custo_unitario - materialOrcamento.custo_unitario
+          });
+        }
+      }
+
+      // Verificar se todos os materiais do orçamento existem na OS
+      for (const materialOrcamento of materiaisOrcamento) {
+        const materialOS = materiaisOS.find(m => 
+          m.insumo_id === materialOrcamento.insumo_id && m.produto_nome === materialOrcamento.produto_nome
+        );
+
+        if (!materialOS) {
+          diferencas.push({
+            tipo: 'material_faltando',
+            insumo_id: materialOrcamento.insumo_id,
+            produto_nome: materialOrcamento.produto_nome,
+            mensagem: 'Material do orçamento não encontrado na OS'
+          });
+        }
+      }
+
+      // Gerar alertas baseados nas diferenças
+      if (diferencas.length > 0) {
+        alertas.push(`Encontradas ${diferencas.length} diferenças entre OS e orçamento`);
+        
+        const tiposDiferentes = [...new Set(diferencas.map(d => d.tipo))];
+        tiposDiferentes.forEach(tipo => {
+          const count = diferencas.filter(d => d.tipo === tipo).length;
+          alertas.push(`${count} ${tipo.replace('_', ' ')}`);
+        });
+      }
+
+      const sincronizada = diferencas.length === 0;
+
+      this.logger.log(`Validação de sincronização OS ${osId}: ${sincronizada ? 'SINCRONIZADA' : 'DESINCRONIZADA'} (${diferencas.length} diferenças)`);
+
+      return {
+        sincronizada,
+        diferencas,
+        alertas
+      };
+
+    } catch (error) {
+      this.logger.error(`Erro ao validar sincronização OS ${osId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sincroniza OS com o orçamento (re-extrai materiais exatos)
+   */
+  async sincronizarComOrcamento(osId: string, lojaId: string): Promise<{
+    sucesso: boolean;
+    materiais: InsumoCalculado[];
+    diferencas: any[];
+    alertas: string[];
+  }> {
+    try {
+      this.logger.log(`Iniciando sincronização da OS ${osId} com orçamento`);
+
+      const os = await this.prisma.ordemServico.findUnique({
+        where: { 
+          id: osId,
+          loja_id: lojaId 
+        },
+        include: { 
+          orcamento: {
+            include: {
+              produtos: {
+                include: {
+                  insumos: {
+                    include: { 
+                      insumo: {
+                        include: {
+                          categoria: true,
+                          tipoMaterial: true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!os) {
+        throw new Error(`OS ${osId} não encontrada`);
+      }
+
+      if (!os.orcamento_id || !os.orcamento) {
+        throw new Error('OS não possui orçamento vinculado');
+      }
+
+      // Validar sincronização antes da atualização
+      const validacao = await this.validarSincronizacaoOSOrcamento(osId);
+
+      // Re-extrair materiais do orçamento
+      const materiaisAtualizados = this.extrairMateriaisDoOrcamento(os.orcamento);
+
+      // Atualizar OS com materiais exatos do orçamento
+      await this.prisma.ordemServico.update({
+        where: { id: osId },
+        data: {
+          insumos_calculados: JSON.stringify(materiaisAtualizados),
+          atualizado_em: new Date()
+        }
+      });
+
+      // Validar sincronização após a atualização
+      const validacaoPos = await this.validarSincronizacaoOSOrcamento(osId);
+
+      this.logger.log(`Sincronização concluída: OS ${osId} atualizada com ${materiaisAtualizados.length} materiais`);
+
+      return {
+        sucesso: true,
+        materiais: materiaisAtualizados,
+        diferencas: validacaoPos.diferencas,
+        alertas: [
+          `OS sincronizada com orçamento ${os.orcamento_id}`,
+          `Atualizados ${materiaisAtualizados.length} materiais`,
+          ...validacaoPos.alertas
+        ]
+      };
+
+    } catch (error) {
+      this.logger.error(`Erro ao sincronizar OS ${osId}:`, error);
+      throw error;
+    }
+  }
+
 
   // ===== HEALTH CHECK =====
 
@@ -1834,41 +2304,5 @@ export class OSService {
     }
   }
 
-  /**
-   * Corrige os insumos calculados aplicando multiplicação pela quantidade do produto
-   * para materiais que não usam m² (metros lineares, unidades, etc.)
-   */
-  private corrigirInsumosCalculados(
-    insumosCalculados: any[],
-    quantidadeProduto: number
-  ): any[] {
-    try {
-      this.logger.log(`🔧 Aplicando correção de materiais para quantidade ${quantidadeProduto}`);
-      
-      const insumosCorrigidos = CorrecaoMateriaisHelper.corrigirInsumosCalculados(
-        insumosCalculados,
-        quantidadeProduto
-      );
-
-      // Validar correção
-      const validacao = CorrecaoMateriaisHelper.validarCorrecao(
-        insumosCalculados,
-        insumosCorrigidos,
-        quantidadeProduto
-      );
-
-      if (!validacao.valido) {
-        this.logger.warn(`⚠️ Problemas na correção de materiais: ${validacao.erros.join(', ')}`);
-      } else {
-        this.logger.log(`✅ Correção de materiais aplicada com sucesso`);
-      }
-
-      return insumosCorrigidos;
-    } catch (error) {
-      this.logger.error('Erro ao corrigir insumos calculados:', error);
-      // Em caso de erro, retornar os insumos originais
-      return insumosCalculados;
-    }
-  }
 }
 

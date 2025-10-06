@@ -1,11 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { WebsocketsService } from '../../websockets/websockets.service';
 
 @Injectable()
 export class OSPCPIntegrationService {
   private readonly logger = new Logger(OSPCPIntegrationService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private websocketsService: WebsocketsService
+  ) {}
 
   async notificarInstanciaCriada(osId: string, workflowInstanciaId: string): Promise<void> {
     try {
@@ -20,6 +24,22 @@ export class OSPCPIntegrationService {
       });
 
       this.logger.log(`OS ${osId} atualizada com workflow_instancia_id: ${workflowInstanciaId}`);
+
+      // Notificar início do workflow via WebSockets
+      const os = await this.prisma.ordemServico.findUnique({
+        where: { id: osId },
+        select: { loja_id: true }
+      });
+
+      if (os) {
+        await this.websocketsService.emitToLoja(os.loja_id, 'workflow_iniciado', {
+          tipo: 'WORKFLOW_INICIADO',
+          os_id: osId,
+          workflow_instancia_id: workflowInstanciaId,
+          timestamp: new Date().toISOString(),
+          loja_id: os.loja_id
+        });
+      }
     } catch (error) {
       this.logger.error(`Erro ao notificar criação de instância para OS ${osId}:`, error);
       throw error;

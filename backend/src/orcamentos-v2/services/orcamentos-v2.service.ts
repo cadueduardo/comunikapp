@@ -1464,7 +1464,7 @@ export class OrcamentosV2Service {
       orcamento_id: orcamento.id,
       cliente_id: orcamento.cliente_id,
       loja_id: orcamento.loja_id,
-      nome_servico: produtoPrincipal?.nome ?? orcamento.titulo ?? 'Orcamento ' + orcamento.numero,
+      nome_servico: orcamento.titulo ?? produtoPrincipal?.nome ?? 'Orcamento ' + orcamento.numero,
       descricao: produtoPrincipal?.descricao ?? orcamento.descricao ?? undefined,
       quantidade_produto: quantidadeCalculada > 0 ? quantidadeCalculada : 1,
       largura_produto: produtoPrincipal?.largura ?? orcamento.largura_produto ?? undefined,

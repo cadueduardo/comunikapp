@@ -49,3 +49,8 @@ async function verificarSchemaItemInsumo() {
 
 verificarSchemaItemInsumo();
 
+
+
+
+
+

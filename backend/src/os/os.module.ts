@@ -15,6 +15,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PrismaModule } from '../prisma/prisma.module';
 import { DocumentosModule } from '../documentos/documentos.module';
+import { WebsocketsModule } from '../websockets/websockets.module';
+import { PCPModule } from '../pcp/pcp.module';
 import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-estoque.service';
 
 // Controllers (<= 200 linhas cada)
@@ -27,6 +29,7 @@ import { WorkflowInstanciaController } from './controllers/workflow-instancia.co
 import { AprovacaoTecnicaController } from './controllers/aprovacao-tecnica.controller';
 import { WorkflowComercialController } from './controllers/workflow-comercial.controller';
 import { WorkflowInternoController } from './controllers/workflow-interno.controller';
+import { LiberacaoPCPController } from './controllers/liberacao-pcp.controller';
 import { AlcadasOrcamentoController } from './controllers/alcadas-orcamento.controller';
 import { CentroCustoController } from './controllers/centro-custo.controller';
 // import { HistoricoController } from './controllers/historico.controller'; // TODO: Implementar
@@ -41,6 +44,9 @@ import { EstoqueApontamentoService } from './services/estoque-apontamento.servic
 import { AprovacaoTecnicaService } from './services/aprovacao-tecnica.service';
 import { AlcadasOrcamentoService } from './services/alcadas-orcamento.service';
 import { CentroCustoService } from './services/centro-custo.service';
+import { EventosAutomaticosService } from './services/eventos-automaticos.service';
+import { OSApprovalPermissionsService } from './services/os-approval-permissions.service';
+import { CorrecaoMateriaisHelper } from './helpers/correcao-materiais.helper';
 // import { NotificacoesOSService } from './services/notificacoes-os.service'; // TODO: Implementar
 // import { IntegracaoService } from './services/integracao.service'; // TODO: Implementar
 
@@ -54,6 +60,8 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
     ConfigModule, // Para acessar variaveis de ambiente
     DocumentosModule, // Fornece DocumentCodeService compartilhado
     PrismaModule, // Para acessar banco de dados
+    WebsocketsModule, // Para eventos automáticos
+    PCPModule, // Para integração OS ↔ PCP
     // JWT Module proprio (conforme premissas de autenticacao)
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -77,6 +85,7 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
     AprovacaoTecnicaController,
     WorkflowComercialController,
     WorkflowInternoController,
+    LiberacaoPCPController,
     AlcadasOrcamentoController,
     CentroCustoController,
     // HistoricoController, // TODO: Implementar
@@ -93,6 +102,9 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
     AlcadasOrcamentoService,
     CentroCustoService,
     ValidacaoEstoqueService,
+    EventosAutomaticosService,
+    OSApprovalPermissionsService,
+    CorrecaoMateriaisHelper,
     // NotificacoesOSService, // TODO: Implementar
     // IntegracaoService, // TODO: Implementar
 
@@ -129,6 +141,7 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
     AlcadasOrcamentoService,
     CentroCustoService,
     ValidacaoEstoqueService,
+    EventosAutomaticosService,
     // NotificacoesOSService, // TODO: Implementar
     // IntegracaoService, // TODO: Implementar
     OSPermissionsGuard,

@@ -22,6 +22,7 @@ import { OrdemServicoResponseDto } from '../dto/os-response.dto';
 import { CreateOSDto } from '../dto/create-os.dto';
 import { UpdateOSDto } from '../dto/update-os.dto';
 import { OSPermissionsGuard } from '../guards/os-permissions.guard';
+import { StatusOS } from '../interfaces/os.interfaces';
 
 @ApiTags('Ordens de Serviço')
 @ApiBearerAuth()
@@ -74,6 +75,43 @@ export class OSController {
     const user = req['user'] || req.user;
     const loja_id = user.loja_id;
     return await this.osService.getEstatisticas(loja_id);
+  }
+
+
+  @Get('liberadas-para-pcp')
+  @ApiOperation({ summary: 'Listar OSs liberadas para PCP' })
+  @ApiResponse({ status: 200, description: 'Lista de OSs liberadas retornada com sucesso' })
+  async listarOSsLiberadas(@Request() req: any) {
+    const user = req['user'] || req.user;
+    const lojaId = user.loja_id;
+
+    // Buscar OSs com status LIBERADA_PARA_PCP
+    const ossLiberadas = await this.osService.findByStatus(lojaId, StatusOS.LIBERADA_PARA_PCP);
+
+    // Para cada OS, verificar se já tem workflow instanciado
+    const ossComStatusWorkflow = await Promise.all(
+      ossLiberadas.map(async (os) => {
+        try {
+          // TODO: Implementar busca de workflow por OS
+          // const workflow = await this.workflowService.buscarPorOS(os.id);
+          return {
+            ...os,
+            workflow_instanciado: false, // Temporário
+            workflow_status: null,
+            workflow_progresso: 0
+          };
+        } catch (error) {
+          return {
+            ...os,
+            workflow_instanciado: false,
+            workflow_status: null,
+            workflow_progresso: 0
+          };
+        }
+      })
+    );
+
+    return ossComStatusWorkflow;
   }
 
   @Get(':id')
