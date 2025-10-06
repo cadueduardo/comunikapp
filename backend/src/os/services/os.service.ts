@@ -2029,12 +2029,23 @@ export class OSService {
     // Lógica específica para madeira (unidades físicas)
     if (nome?.toLowerCase().includes('madeira') || nome?.toLowerCase().includes('cabo')) {
       // Para madeira, calcular unidades físicas necessárias
-      // Exemplo: 100cm por banner, madeira de 105cm = 1 unidade por banner
-      const cmPorBanner = 100; // Assumindo 100cm por banner
-      const cmDisponivel = 105; // Madeira de 105cm
-      const unidadesNecessarias = Math.ceil((cmPorBanner * quantidadeProdutos) / cmDisponivel);
+      // REGRA: Cada banner precisa de uma unidade completa de madeira
+      // Se a sobra não é suficiente para outro banner, não considerar otimização
       
-      return { quantidade: unidadesNecessarias, unidade: 'UNID' };
+      const cmPorBanner = 100; // 100cm por banner
+      const cmDisponivel = 105; // Madeira de 105cm (ou 104cm)
+      const sobra = cmDisponivel - cmPorBanner; // 4-5cm de sobra
+      
+      // Se a sobra é menor que o tamanho do banner, não pode ser aproveitada
+      if (sobra < cmPorBanner) {
+        // Cada banner precisa de uma unidade completa
+        const unidadesNecessarias = quantidadeProdutos;
+        return { quantidade: unidadesNecessarias, unidade: 'UNID' };
+      } else {
+        // Se a sobra é suficiente para outro banner, pode otimizar
+        const unidadesNecessarias = Math.ceil((cmPorBanner * quantidadeProdutos) / cmDisponivel);
+        return { quantidade: unidadesNecessarias, unidade: 'UNID' };
+      }
     }
     
     // Lógica específica para cordão (metro linear)
