@@ -1268,12 +1268,22 @@ export class OSService {
         );
         
         // Usar dados do orçamento quando disponível, fallback para dados da OS
+        let quantidadeFinal = itemInsumo.quantidade;
+        let unidadeFinal = itemInsumo.unidade;
+        
+        // Se tem dados do orçamento, aplicar lógica inteligente
+        if (insumoCalculado) {
+          const quantidadeInteligente = this.calcularQuantidadeInteligente(insumoCalculado, produto);
+          quantidadeFinal = quantidadeInteligente.quantidade;
+          unidadeFinal = quantidadeInteligente.unidade;
+        }
+        
         return {
           id: itemInsumo.insumo.id,
           nome: itemInsumo.insumo.nome,
-          // USAR QUANTIDADE EXATA DO ORÇAMENTO (prioridade)
-          quantidade: insumoCalculado?.quantidade_necessaria || itemInsumo.quantidade,
-          unidade: insumoCalculado?.unidade || itemInsumo.unidade,
+          // USAR QUANTIDADE INTELIGENTE CALCULADA
+          quantidade: quantidadeFinal,
+          unidade: unidadeFinal,
           categoria: itemInsumo.insumo.categoria?.nome || 'Sem categoria',
           tipo_material: itemInsumo.insumo.tipoMaterial?.nome || null,
           // Usar lógica de consumo do orçamento quando disponível
@@ -1998,6 +2008,76 @@ export class OSService {
       this.logger.error('Erro ao criar OS de orçamento:', error);
       throw error;
     }
+  }
+
+  /**
+   * Calcula quantidade inteligente baseada na lógica de consumo
+   */
+  private calcularQuantidadeInteligente(
+    insumoCalculado: InsumoCalculado,
+    produto: any
+  ): { quantidade: number; unidade: string } {
+    const { logica_consumo, parametros_consumo, quantidade_necessaria, unidade, nome } = insumoCalculado;
+    const quantidadeProdutos = parseFloat(produto.quantidade || '1');
+    
+    // Lógica específica para bobinas (área em m²)
+    if (nome?.toLowerCase().includes('bobina') && nome?.toLowerCase().includes('lona')) {
+      // Para bobinas, mostrar área em m²
+      return { quantidade: quantidade_necessaria, unidade: 'M2' };
+    }
+    
+    // Lógica específica para madeira (unidades físicas)
+    if (nome?.toLowerCase().includes('madeira') || nome?.toLowerCase().includes('cabo')) {
+      // Para madeira, calcular unidades físicas necessárias
+      // Exemplo: 100cm por banner, madeira de 105cm = 1 unidade por banner
+      const cmPorBanner = 100; // Assumindo 100cm por banner
+      const cmDisponivel = 105; // Madeira de 105cm
+      const unidadesNecessarias = Math.ceil((cmPorBanner * quantidadeProdutos) / cmDisponivel);
+      
+      return { quantidade: unidadesNecessarias, unidade: 'UNID' };
+    }
+    
+    // Lógica específica para cordão (metro linear)
+    if (nome?.toLowerCase().includes('cordao') || nome?.toLowerCase().includes('cordão')) {
+      // Para cordão, calcular metros lineares necessários
+      // Exemplo: 12m por banner (perímetro)
+      const metrosPorBanner = 12; // Assumindo 12m por banner
+      const metrosNecessarios = metrosPorBanner * quantidadeProdutos;
+      
+      return { quantidade: metrosNecessarios, unidade: 'M' };
+    }
+    
+    // Lógica específica para ponteiras (unidades)
+    if (nome?.toLowerCase().includes('ponteira')) {
+      // Para ponteiras, calcular unidades necessárias
+      // Exemplo: 2 ponteiras por banner
+      const ponteirasPorBanner = 2;
+      const unidadesNecessarias = ponteirasPorBanner * quantidadeProdutos;
+      
+      return { quantidade: unidadesNecessarias, unidade: 'UNID' };
+    }
+    
+    // Lógica específica para ilhos (unidades)
+    if (nome?.toLowerCase().includes('ilho')) {
+      // Para ilhos, calcular unidades necessárias
+      // Exemplo: 4 ilhos por banner
+      const ilhosPorBanner = 4;
+      const unidadesNecessarias = ilhosPorBanner * quantidadeProdutos;
+      
+      return { quantidade: unidadesNecessarias, unidade: 'UNID' };
+    }
+
+    // Lógica genérica baseada na lógica de consumo
+    if (logica_consumo === 'area') {
+      return { quantidade: quantidade_necessaria, unidade: 'M2' };
+    }
+    
+    if (logica_consumo === 'linear' || logica_consumo === 'quantidade_fixa') {
+      return { quantidade: quantidade_necessaria, unidade: 'UNID' };
+    }
+
+    // Fallback: retorna quantidade original
+    return { quantidade: quantidade_necessaria, unidade };
   }
 
   /**
