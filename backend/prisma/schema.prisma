@@ -163,6 +163,49 @@ model OrdemServicoLog {
   @@map("ordem_servico_logs")
 }
 
+model RegraValidacao {
+  id                String    @id @default(cuid())
+  loja_id           String
+  nome              String
+  descricao         String?   @db.Text
+  categoria         String
+  tipo              String    // BLOQUEIO, ALERTA, INFO
+  condicao          String    @db.LongText // JSON com a condição
+  mensagem          String    @db.Text
+  ativo             Boolean   @default(true)
+  prioridade        Int       @default(0)
+  criado_em         DateTime  @default(now())
+  atualizado_em     DateTime  @updatedAt
+  
+  execucoes         ExecucaoRegra[]
+
+  @@index([loja_id])
+  @@index([categoria])
+  @@index([ativo])
+  @@map("regras_validacao")
+}
+
+model ExecucaoRegra {
+  id                String    @id @default(cuid())
+  regra_id          String
+  os_id             String?
+  orcamento_id      String?
+  resultado         String    // PASSOU, FALHOU, ERRO
+  mensagem          String?   @db.Text
+  dados_contexto    String?   @db.LongText // JSON
+  tempo_execucao_ms Int?
+  criado_em         DateTime  @default(now())
+  
+  regra             RegraValidacao @relation(fields: [regra_id], references: [id], onDelete: Cascade)
+
+  @@index([regra_id])
+  @@index([os_id])
+  @@index([orcamento_id])
+  @@index([resultado])
+  @@index([criado_em])
+  @@map("execucoes_regras")
+}
+
 model TemplateProduto {
   id                     String                   @id @default(cuid())
   criado_em              DateTime                 @default(now())
