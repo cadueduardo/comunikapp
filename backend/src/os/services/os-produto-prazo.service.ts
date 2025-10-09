@@ -50,6 +50,8 @@ export class OSProdutoPrazoService {
     } = request;
 
     // 1. Verificar se o item existe e pertence à OS/loja
+    console.log('🔍 Buscando item:', { itemId, osId, lojaId });
+    
     const item = await this.prisma.itemOS.findFirst({
       where: {
         id: itemId,
@@ -64,13 +66,98 @@ export class OSProdutoPrazoService {
             id: true,
             numero: true,
             data_prazo: true,
-            status: true
+            status: true,
+            orcamento_id: true
           }
         }
       }
     });
 
+    console.log('📦 Item encontrado:', item ? 'SIM' : 'NÃO');
+    
     if (!item) {
+      // Verificar se é um produto do orçamento e migrar para ItemOS
+      console.log('🔍 Tentando buscar como produto de orçamento...');
+      
+      const os = await this.prisma.ordemServico.findFirst({
+        where: {
+          id: osId,
+          loja_id: lojaId
+        },
+        include: {
+          orcamento: {
+            include: {
+              produtos: {
+                where: {
+                  id: itemId
+                }
+              }
+            }
+          }
+        }
+      });
+
+      console.log('📋 OS encontrada:', os ? 'SIM' : 'NÃO');
+      console.log('🛒 Produto do orçamento:', os?.orcamento?.produtos?.length || 0);
+
+      if (os?.orcamento?.produtos?.length > 0) {
+        // Migrar produto do orçamento para ItemOS
+        const produtoOrcamento = os.orcamento.produtos[0];
+        console.log('🔄 Migrando produto do orçamento para ItemOS...');
+        
+        // Verificar se já existe um ItemOS com ID diferente (conflito de tabelas)
+        const itemExistente = await this.prisma.itemOS.findUnique({
+          where: { id: produtoOrcamento.id }
+        });
+        
+        if (itemExistente) {
+          console.log('⚠️  ItemOS já existe (tabelas diferentes). Buscando novamente...');
+          // Se já existe, deve ter sido encontrado na primeira busca. Algo está errado.
+          throw new NotFoundException('Inconsistência detectada: ItemOS existe mas não foi encontrado na busca inicial');
+        }
+        
+        // Montar parametros técnicos a partir dos campos do produto
+        const parametrosTecnicos = {
+          largura: produtoOrcamento.largura?.toString(),
+          altura: produtoOrcamento.altura?.toString(),
+          profundidade: produtoOrcamento.profundidade?.toString(),
+          area: produtoOrcamento.area_produto?.toString(),
+          unidade_medida: produtoOrcamento.unidade_medida,
+          categoria: produtoOrcamento.categoria,
+          observacoes: produtoOrcamento.observacoes
+        };
+        
+        try {
+          const novoItem = await this.prisma.itemOS.create({
+            data: {
+              id: produtoOrcamento.id, // Manter o mesmo ID do ProdutoOrcamento
+              os_id: osId,
+              produto_servico: produtoOrcamento.nome || produtoOrcamento.nome_servico || 'Produto sem nome',
+              quantidade: produtoOrcamento.quantidade,
+              parametros_tecnicos: JSON.stringify(parametrosTecnicos),
+              insumos_necessarios: null, // Será calculado posteriormente se necessário
+              observacoes: produtoOrcamento.descricao,
+              materiais_disponivel: false,
+              // Inicializar campos de prazo
+              data_inicio_producao: null,
+              data_prazo_produto: null,
+              status_liberacao_pcp: 'PENDENTE',
+              prioridade_produto: 'NORMAL',
+              ordem_producao: null
+            }
+          });
+          
+          console.log('✅ ItemOS criado com sucesso:', novoItem.id);
+          
+          // Reprocessar com o novo itemId
+          const novaRequest = { ...request, itemId: novoItem.id };
+          return await this.definirPrazoProduto(novaRequest);
+        } catch (error) {
+          console.error('❌ Erro ao criar ItemOS:', error);
+          throw new BadRequestException('Erro ao migrar produto do orçamento para ItemOS: ' + error.message);
+        }
+      }
+      
       throw new NotFoundException('Produto não encontrado ou não pertence à OS');
     }
 
@@ -214,6 +301,7 @@ export class OSProdutoPrazoService {
 
     return {
       item_id: item.id,
+      produto_id: item.id, // Para ItemOS migrados, usar o mesmo ID (era original do ProdutoOrcamento)
       produto_servico: item.produto_servico,
       data_inicio_producao: item.data_inicio_producao,
       data_prazo_produto: item.data_prazo_produto,
@@ -386,19 +474,33 @@ export class OSProdutoPrazoService {
       throw new NotFoundException('OS não encontrada ou não pertence à sua loja');
     }
 
-    // Se a OS tem itens próprios (OS Direta), usar ItemOS
-    // Se não, buscar do orçamento vinculado
+    // Combinar produtos: ItemOS migrados + produtos do orçamento não migrados
     let produtos = [];
 
+    // 1. Buscar produtos já migrados para ItemOS
     if (os.itens && os.itens.length > 0) {
-      produtos = await Promise.all(
+      const produtosItemOS = await Promise.all(
         os.itens.map(item => this.consultarStatusPrazoProduto(item.id, osId, lojaId))
       );
-    } else if (os.orcamento && os.orcamento.produtos && os.orcamento.produtos.length > 0) {
-      // OS vinda de orçamento - criar itens temporários ou usar produtos do orçamento
-      produtos = os.orcamento.produtos.map(produto => ({
+      produtos.push(...produtosItemOS);
+    }
+
+    // 2. Buscar produtos do orçamento que ainda não foram migrados
+    if (os.orcamento && os.orcamento.produtos && os.orcamento.produtos.length > 0) {
+      // Filtrar apenas produtos que não foram migrados para ItemOS
+      const idsItemOS = os.itens?.map(item => item.id) || [];
+      const produtosOrcamentoNaoMigrados = os.orcamento.produtos.filter(
+        produto => !idsItemOS.includes(produto.id)
+      );
+
+      console.log('🔍 Produtos ItemOS migrados:', idsItemOS);
+      console.log('🔍 Produtos orçamento total:', os.orcamento.produtos.length);
+      console.log('🔍 Produtos orçamento não migrados:', produtosOrcamentoNaoMigrados.length);
+
+      const produtosOrcamento = produtosOrcamentoNaoMigrados.map(produto => ({
         item_id: produto.id,
-        produto_servico: produto.nome || 'Produto sem nome',
+        produto_id: produto.id, // ID original do ProdutoOrcamento para API de detalhes
+        produto_servico: produto.nome || produto.nome_servico || 'Produto sem nome',
         data_inicio_producao: undefined,
         data_prazo_produto: undefined,
         status_liberacao_pcp: 'PENDENTE',
@@ -408,6 +510,8 @@ export class OSProdutoPrazoService {
         mensagem: 'Prazo não definido',
         excede_prazo_final: false
       }));
+
+      produtos.push(...produtosOrcamento);
     }
 
     const resumo = {

@@ -86,6 +86,13 @@ export class StatusPrazoProdutoResponse {
   item_id: string;
 
   @ApiProperty({
+    description: 'ID original do produto no orçamento (para API de detalhes)',
+    example: 'produto_123',
+    required: false
+  })
+  produto_id?: string;
+
+  @ApiProperty({
     description: 'Nome do produto/serviço',
     example: 'Fachada ACM'
   })
@@ -172,3 +179,5 @@ export class ValidarPrazoProdutoResponse {
   })
   erros?: string[];
 }
+
+
