@@ -115,6 +115,11 @@ export class CreateRegraValidacaoDto {
   @ValidateNested()
   @Type(() => AcaoRegraDto)
   acoes: AcaoRegraDto;
+
+  @ApiPropertyOptional({ description: 'Mensagem da validação' })
+  @IsOptional()
+  @IsString()
+  mensagem?: string;
 }
 
 export class UpdateRegraValidacaoDto {

@@ -393,11 +393,12 @@ export class ValidacoesAutomaticasService {
       execucoesRecentes: execucoesRecentes.map(e => ({
         id: e.id,
         regra_id: e.regra_id,
-        os_id: e.os_id,
-        resultado: e.resultado,
+        os_id: e.os_id || undefined,
+        orcamento_id: e.orcamento_id || undefined,
+        resultado: e.resultado as any,
         mensagem: e.mensagem || undefined,
-        dados_execucao: (e.dados_execucao as any) || {},
-        tempo_execucao: e.tempo_execucao,
+        dados_execucao: e.dados_execucao ? JSON.parse(e.dados_execucao) : {},
+        tempo_execucao: e.tempo_execucao || 0,
         criado_em: e.criado_em
       }))
     };

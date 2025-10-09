@@ -34,9 +34,9 @@ export class RegrasValidacaoService {
         ativo: dto.ativo ?? true,
         prioridade: dto.prioridade ?? 1,
         loja_id: dto.loja_id || null,
-        condicoes: dto.condicoes as any,
-        acoes: dto.acoes as any,
-        criado_por: usuarioId,
+        condicoes: JSON.stringify(dto.condicoes || {}),
+        acoes: dto.acoes ? JSON.stringify(dto.acoes) : null,
+        mensagem: dto.mensagem || 'Validação automática',
       },
     });
 
@@ -76,9 +76,6 @@ export class RegrasValidacaoService {
       this.prisma.regraValidacao.findMany({
         where,
         include: {
-          loja: {
-            select: { nome: true }
-          },
           _count: {
             select: { execucoes: true }
           }
@@ -119,7 +116,6 @@ export class RegrasValidacaoService {
             id: true,
             resultado: true,
             mensagem: true,
-            tempo_execucao: true,
             criado_em: true
           }
         }
@@ -192,9 +188,9 @@ export class RegrasValidacaoService {
         ativo: false, // Cópia inativa por padrão
         prioridade: regraOriginal.prioridade,
         loja_id: regraOriginal.loja_id || null,
-        condicoes: regraOriginal.condicoes as any,
-        acoes: regraOriginal.acoes as any,
-        criado_por: usuarioId,
+        condicoes: regraOriginal.condicoes,
+        acoes: regraOriginal.acoes,
+        mensagem: regraOriginal.mensagem,
       },
     });
 

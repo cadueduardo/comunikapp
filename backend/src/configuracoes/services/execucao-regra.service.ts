@@ -32,12 +32,12 @@ export class ExecucaoRegraService {
         os_id: dados.os_id,
         resultado: dados.resultado,
         mensagem: dados.mensagem,
-        dados_execucao: dados.dados_execucao,
+        dados_execucao: JSON.stringify(dados.dados_execucao || {}),
         tempo_execucao: dados.tempo_execucao,
       },
     });
 
-    return execucao as ExecucaoRegra;
+    return execucao as any;
   }
 
   /**
