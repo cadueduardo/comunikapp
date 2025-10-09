@@ -44,3 +44,8 @@ function testarLogicaMadeira() {
 
 // Executar teste
 testarLogicaMadeira();
+
+
+
+
+

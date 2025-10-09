@@ -1,89 +1,138 @@
 'use client';
 
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
 import Link from 'next/link';
-import { Settings, Boxes, Truck, Store, Cog, Users, Receipt, Package } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ValidacoesAutomaticasCard } from '@/components/configuracoes/ValidacoesAutomaticasCard';
+import {
+  Settings,
+  Tag,
+  DollarSign,
+  Truck,
+  Users,
+  Wrench,
+  Building2,
+  Package,
+  Shield,
+  Grid3x3
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 
-const settingsOptions = [
-  {
-    title: 'Dados da Empresa',
-    description: 'Gerencie o logo, custos e parâmetros do seu negócio.',
-    icon: Store,
-    href: '/configuracoes/loja',
-  },
-  {
-    title: 'Máquinas',
-    description: 'Gerencie as máquinas e seus custos operacionais.',
-    icon: Cog,
-    href: '/configuracoes/maquinas',
-  },
-  {
-    title: 'Funções',
-    description: 'Gerencie as funções e custos de mão de obra.',
-    icon: Users,
-    href: '/configuracoes/funcoes',
-  },
-  {
-    title: 'Categorias',
-    description: 'Organize seus insumos e produtos em categorias.',
-    icon: Boxes,
-    href: '/configuracoes/categorias',
-  },
-  {
-    title: 'Fornecedores',
-    description: 'Gerencie os fornecedores de insumos e serviços.',
-    icon: Truck,
-    href: '/configuracoes/fornecedores',
-  },
-  {
-    title: 'Tipos de Material',
-    description: 'Configure tipos de material para cálculo automático de consumo.',
-    icon: Package,
-    href: '/configuracoes/tipos-material',
-  },
-  {
-    title: 'Custos Indiretos',
-    description: 'Gerencie os custos indiretos da sua empresa.',
-    icon: Receipt,
-    href: '/configuracoes/custos-indiretos',
-  },
-];
+export default function ConfiguracoesPage() {
+  const [statsValidacoes, setStatsValidacoes] = useState<any>(null);
 
-export default function SettingsPage() {
+  useEffect(() => {
+    // Carregar estatísticas de validações
+    const loadStats = async () => {
+      try {
+        const response = await fetch('/api/configuracoes/validacoes-automaticas/dashboard');
+        const data = await response.json();
+        setStatsValidacoes({
+          totalRegras: data.totalRegras || 0,
+          regrasAtivas: data.regrasAtivas || 0,
+          execucoesHoje: data.execucoesHoje || 0,
+          taxaSucesso: data.taxaSucesso || 0
+        });
+      } catch (error) {
+        console.error('Erro ao carregar stats:', error);
+      }
+    };
+
+    loadStats();
+  }, []);
+
+  const configuracoes = [
+    {
+      titulo: 'Categorias de Insumos',
+      descricao: 'Gerencie as categorias de insumos',
+      href: '/configuracoes/categorias',
+      icone: Tag,
+      cor: 'bg-blue-100 text-blue-600'
+    },
+    {
+      titulo: 'Custos Indiretos',
+      descricao: 'Configure custos indiretos e impostos',
+      href: '/configuracoes/custos-indiretos',
+      icone: DollarSign,
+      cor: 'bg-green-100 text-green-600'
+    },
+    {
+      titulo: 'Fornecedores',
+      descricao: 'Cadastro de fornecedores',
+      href: '/configuracoes/fornecedores',
+      icone: Truck,
+      cor: 'bg-purple-100 text-purple-600'
+    },
+    {
+      titulo: 'Funções',
+      descricao: 'Gerencie funções e mão de obra',
+      href: '/configuracoes/funcoes',
+      icone: Users,
+      cor: 'bg-orange-100 text-orange-600'
+    },
+    {
+      titulo: 'Máquinas',
+      descricao: 'Cadastro de máquinas e equipamentos',
+      href: '/configuracoes/maquinas',
+      icone: Wrench,
+      cor: 'bg-red-100 text-red-600'
+    },
+    {
+      titulo: 'Loja',
+      descricao: 'Configurações da loja',
+      href: '/configuracoes/loja',
+      icone: Building2,
+      cor: 'bg-indigo-100 text-indigo-600'
+    },
+    {
+      titulo: 'Tipos de Material',
+      descricao: 'Gerencie tipos de material',
+      href: '/configuracoes/tipos-material',
+      icone: Package,
+      cor: 'bg-pink-100 text-pink-600'
+    }
+  ];
+
   return (
-    <div className="p-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold flex items-center">
-          <Settings className="mr-3 h-8 w-8" />
-          Configurações
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Ajustes e personalizações gerais do sistema.
-        </p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Configurações</h1>
+        <p className="text-gray-600">Gerencie as configurações do sistema</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {settingsOptions.map((option) => (
-          <Link href={option.href} key={option.title} passHref>
-            <Card className="hover:shadow-lg transition-shadow duration-200 cursor-pointer h-full flex flex-col">
-              <CardHeader className="flex-grow">
-                <div className="flex items-start justify-between">
-                  <div className="flex-grow">
-                    <CardTitle className="text-xl font-semibold mb-2">{option.title}</CardTitle>
-                    <CardDescription>{option.description}</CardDescription>
-                  </div>
-                  <option.icon className="h-8 w-8 text-gray-400 ml-4 flex-shrink-0" />
-                </div>
-              </CardHeader>
-            </Card>
-          </Link>
-        ))}
+      {/* Card de Validações Automáticas em destaque */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ValidacoesAutomaticasCard stats={statsValidacoes} />
+      </div>
+
+      {/* Grid de outras configurações */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Outras Configurações</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {configuracoes.map((config) => {
+            const Icone = config.icone;
+            return (
+              <Link key={config.href} href={config.href}>
+                <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center space-x-3">
+                      <div className={`p-2 rounded-lg ${config.cor}`}>
+                        <Icone className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">{config.titulo}</CardTitle>
+                        <CardDescription className="text-sm">
+                          {config.descricao}
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
-} 
+}

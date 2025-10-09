@@ -174,3 +174,14 @@ function demonstrarCorrecaoPreview() {
 // Executar demonstração
 demonstrarCorrecaoPreview();
 
+
+
+
+
+
+
+
+
+
+
+

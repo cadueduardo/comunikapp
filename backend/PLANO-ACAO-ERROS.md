@@ -810,3 +810,29 @@ Invoke-WebRequest -Uri "http://localhost:4000/categorias" -Method GET
 - [x] ✅ **Teste realizado** - Dashboard retorna 4 SAÍDAS como esperado
 - ✅ **Módulo completo** - EstoqueModule funcionando perfeitamente
 - ✅ **Todas as funcionalidades** - Localizações, itens, movimentações, lotes, transferências, sobras, relatórios
+
+#### **7.48 Erro Next.js Params Corrigido ✅**
+- [x] ✅ **Problema identificado**: Erro "Route used `params.id`. `params` should be awaited before using its properties"
+- [x] ✅ **Causa raiz**: Next.js 15+ exige que `params` seja aguardado antes de acessar suas propriedades
+- [x] ✅ **Solução implementada**: Corrigidos 6 arquivos de rotas API para aguardar `params` antes de usar
+- [x] ✅ **Arquivos corrigidos**:
+  - `/api/os/calculo-material/[id]/route.ts` - GET
+  - `/api/os/validacoes/[id]/historico/route.ts` - GET
+  - `/api/os/validacoes/[id]/executar/route.ts` - POST
+  - `/api/configuracoes/regras-validacao/[id]/route.ts` - GET, PUT, DELETE
+  - `/api/debug/validacoes/os/[id]/route.ts` - GET
+- [x] ✅ **Validação de token adicionada**: Rotas agora verificam se o token existe antes de fazer requisições
+- [x] ✅ **Tratamento de erro melhorado**: Mensagens de erro mais específicas
+- ✅ **Rotas funcionando** - Todas as rotas dinâmicas corrigidas
+- ✅ **Padrão Next.js 15+** - Código alinhado com as melhores práticas
+
+#### **7.49 Erro JWT Malformed Corrigido ✅**
+- [x] ✅ **Problema identificado**: Backend recebendo "jwt malformed" - token inválido
+- [x] ✅ **Causa raiz**: Frontend enviava `Bearer null` quando não havia token nos cookies
+- [x] ✅ **Solução implementada**: Validação de token antes de fazer requisições ao backend
+- [x] ✅ **Melhorias aplicadas**:
+  - **Validação prévia** - Verificação se o token existe antes de enviar requisição
+  - **Retorno 401** - Resposta adequada quando não há autenticação
+  - **Logs informativos** - Mensagens de erro mais claras para debugging
+- ✅ **Erro resolvido** - Backend não recebe mais tokens malformados
+- ✅ **Autenticação robusta** - Sistema valida tokens corretamente

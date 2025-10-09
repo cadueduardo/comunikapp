@@ -2,129 +2,312 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  ArrowLeft,
+  Edit,
+  Printer,
+  ClipboardList,
+  Package,
+  CheckCircle,
+  Settings,
+  ChevronDown,
+} from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { apiRequest } from "@/lib/api";
 import { OrdemServico } from "../columns";
-import { 
-  TransformacaoDadosHelper,
-  OSHeader,
-  OSSidebar,
-  OSTabs,
-  OSTimeline,
-  OSWorkflowActions
-} from "@/components/ui/os";
-
-interface EstoqueDetalhe {
-  insumo_id: string;
-  nome?: string;
-  categoria?: string;
-  fornecedor?: string;
-  estoque_atual?: number;
-  estoque_minimo?: number;
-  quantidade_necessaria?: number;
-  quantidade_disponivel?: number;
-  percentual_disponivel?: number;
-  unidade?: string;
-  alerta_estoque?: boolean;
-  alerta_estoque_minimo?: boolean;
-  alerta_fornecedor?: boolean;
-}
+import { PrazoOSComponent } from "@/components/os/PrazoOSComponent";
 
 interface OSDetalhada extends OrdemServico {
-  movimentacoes?: Array<{
-    id: string;
-    etapa_anterior?: string;
-    etapa_atual: string;
-    usuario_id: string;
-    data_movimentacao: string;
-    observacoes?: string;
-  }>;
-  checklists?: Array<{
-    id: string;
-    etapa: string;
-    item_checklist: string;
-    concluido: boolean;
-    data_conclusao?: string;
-  }>;
-  parametros_tecnicos?: {
-    largura?: number;
-    altura?: number;
-    area?: number;
-    unidade_medida?: string;
-    [key: string]: any;
-  };
-  alertas_estoque?: string[];
-  recomendacoes_estoque?: string[];
-  detalhes_estoque?: EstoqueDetalhe[];
-  
-  // Novos campos estruturados
-  cliente?: {
-    id: string;
-    nome: string;
-    email: string;
-    telefone: string;
-  };
-  produtos?: Array<{
-    id: string;
-    nome: string;
-    descricao?: string;
-    quantidade: number;
-    unidade_medida?: string;
-    largura?: number;
-    altura?: number;
-    profundidade?: number;
-    area_produto?: number;
-    observacoes?: string;
-    materiais: Array<{
-      id: string;
-      nome: string;
-      quantidade: number;
-      unidade: string;
-      categoria: string;
-      tipo_material?: string;
-      logica_consumo?: string;
-      parametros_consumo?: any;
-    }>;
-    maquinas: Array<{
-      id: string;
-      nome: string;
-      horas_uso: number;
-      custo_hora: number;
-      custo_total: number;
-    }>;
-    funcoes: Array<{
-      id: string;
-      nome: string;
-      horas_uso: number;
-      custo_hora: number;
-      custo_total: number;
-    }>;
-  }>;
-  materiais_consolidados?: Array<{
-    id: string;
-    nome: string;
-    quantidade_total: number;
-    unidade: string;
-    categoria: string;
-    tipo_material?: string;
-    logica_consumo?: string;
-    parametros_consumo?: any;
-    produtos: Array<{
-      nome: string;
-      quantidade: number;
-      quantidade_material: number;
-    }>;
-  }>;
+  // Mantendo apenas as interfaces essenciais
 }
 
-// Removido - agora está no OSHeader
+type TabType = 'resumo' | 'arte-aprovacao' | 'materiais' | 'analise-inteligente';
+
+// Função para renderizar a aba Resumo
+function renderResumoTab(os: OSDetalhada, isResumoCollapsed: boolean, setIsResumoCollapsed: React.Dispatch<React.SetStateAction<boolean>>) {
+
+  return (
+    <div className="flex flex-col lg:flex-row h-full">
+      {/* Sidebar Esquerdo - Persistente (25% desktop, full mobile) */}
+      <div className="w-full lg:w-[25%] lg:pr-6 mb-6 lg:mb-0">
+        <div className="space-y-6">
+          <div>
+            {/* Título com botão de colapso - Mobile only */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Resumo da OS</h3>
+              <button
+                onClick={() => setIsResumoCollapsed(!isResumoCollapsed)}
+                className="lg:hidden p-1 hover:bg-gray-100 rounded"
+              >
+                <ChevronDown 
+                  className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${
+                    isResumoCollapsed ? 'rotate-[-90deg]' : ''
+                  }`} 
+                />
+              </button>
+            </div>
+            
+            {/* Conteúdo colapsável */}
+            <div className={`space-y-3 transition-all duration-300 ${
+              isResumoCollapsed ? 'lg:block hidden' : 'block'
+            }`}>
+              <div>
+                <span className="text-sm text-gray-600">Cliente:</span>
+                <p className="font-medium text-gray-900">Carla Conceição</p>
+              </div>
+              
+              <div>
+                <span className="text-sm text-gray-600">Projeto:</span>
+                <p className="font-medium text-gray-900">{os.nome_servico}</p>
+              </div>
+              
+              {/* Componente de Prazo */}
+              <PrazoOSComponent 
+                osId={os.id} 
+                dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
+                onPrazoChange={(novaData) => {
+                  // Atualizar o estado local da OS
+                  // Pode ser expandido para atualizar o cache ou recarregar dados
+                }}
+              />
+              
+              <div>
+                <span className="text-sm text-gray-600">Prioridade:</span>
+                <p className="font-medium text-gray-900">Normal</p>
+              </div>
+              
+              <div>
+                <span className="text-sm text-gray-600">Status:</span>
+                <p className="text-sm text-gray-700 mt-1">Em análise de materiais e aguardando aprovação final.</p>
+              </div>
+              
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Linha Separadora - Desktop only */}
+      <div className="hidden lg:block w-px bg-gray-200"></div>
+
+      {/* Conteúdo Central (50% desktop, full mobile) */}
+      <div className="w-full lg:flex-1 lg:px-6">
+        <div className="space-y-6">
+          {/* Serviços nesta OS */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Serviços nesta OS</h3>
+            
+            <div className="flex flex-wrap gap-2 mb-6">
+              {/* Fachada Principal - Ativo */}
+              <div className="flex items-center space-x-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg flex-shrink-0">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-medium text-blue-900">Fachada Principal</span>
+                <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">v3</span>
+              </div>
+              
+              {/* Banner Interno - Inativo */}
+              <div className="flex items-center space-x-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex-shrink-0">
+                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-700">Banner Interno</span>
+                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">v1</span>
+              </div>
+              
+              {/* Painel Externo - Inativo */}
+              <div className="flex items-center space-x-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex-shrink-0">
+                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-700">Painel Externo</span>
+                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">v2</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Detalhamento Técnico */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalhamento Técnico</h3>
+            <p className="text-gray-700">
+              Fachada em ACM 4mm, recorte CNC, pintura automotiva e iluminação embutida.
+            </p>
+          </div>
+
+          {/* Status da Arte por Serviço */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Status da Arte por Serviço</h3>
+            
+            <div className="space-y-4">
+              {/* Fachada Principal */}
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center">
+                    <span className="text-xs font-medium text-gray-600">v3</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Fachada Principal</p>
+                    <p className="text-sm text-gray-600">Atual: v3 • Aprovada: v1</p>
+                  </div>
+                </div>
+                <span className="text-sm font-medium text-green-600">Aprovada</span>
+              </div>
+
+              {/* Banner Interno */}
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center">
+                    <span className="text-xs font-medium text-gray-600">v1</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Banner Interno</p>
+                    <p className="text-sm text-gray-600">Atual: v1 • Aprovada: —</p>
+                  </div>
+                </div>
+                <span className="text-sm font-medium text-red-600">Aguardando aprovação</span>
+              </div>
+
+              {/* Painel Externo */}
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center">
+                    <span className="text-xs font-medium text-gray-600">v2</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Painel Externo</p>
+                    <p className="text-sm text-gray-600">Atual: v2 • Aprovada: —</p>
+                  </div>
+                </div>
+                <span className="text-sm font-medium text-orange-600">Revisão solicitada</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Linha Separadora - Desktop only */}
+      <div className="hidden lg:block w-px bg-gray-200"></div>
+
+      {/* Sidebar Direito - Dinâmico (25% desktop, full mobile) */}
+      <div className="w-full lg:w-[25%] lg:pl-6 mt-6 lg:mt-0">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Checklist de Estoque</h3>
+          
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-gray-900">Estoque OK</span>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">Bobina Lona Impressão 1,40x50m</span>
+                <span className="text-sm font-medium text-green-600">Disponível</span>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">Cabo de Madeira 19mm</span>
+                <span className="text-sm font-medium text-green-600">Disponível</span>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">Cordão 3mm Branco</span>
+                <span className="text-sm font-medium text-green-600">Disponível</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Componente de Abas simplificado
+function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed }: { 
+  os: OSDetalhada; 
+  isResumoCollapsed: boolean; 
+  setIsResumoCollapsed: React.Dispatch<React.SetStateAction<boolean>>; 
+}) {
+  const [activeTab, setActiveTab] = useState<TabType>('resumo');
+
+  const tabs = [
+    { id: 'resumo' as TabType, label: 'Resumo', icon: Package },
+    { id: 'arte-aprovacao' as TabType, label: 'Arte & Aprovação', icon: CheckCircle },
+    { id: 'materiais' as TabType, label: 'Materiais', icon: Package },
+    { id: 'analise-inteligente' as TabType, label: 'Análise Inteligente', icon: Settings },
+  ];
+
+  return (
+    <div className="bg-gray-50">
+      {/* Navegação por Abas - Design responsivo */}
+      <div>
+        <nav className="flex w-full">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 py-2 sm:py-3 md:py-4 px-1 sm:px-2 border-b-2 font-medium flex flex-col items-center space-y-0.5 sm:space-y-1 transition-colors duration-200 min-h-[60px] sm:min-h-[70px] ${
+                  isActive
+                    ? 'border-blue-600 text-blue-600 bg-white'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                <Icon className="h-4 w-4 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+                <span className="text-[9px] sm:text-[10px] md:text-xs lg:text-sm text-center leading-tight font-medium">
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Conteúdo da Aba Ativa */}
+      <div className="p-4 lg:p-6 h-full bg-white">
+        {activeTab === 'resumo' && renderResumoTab(os, isResumoCollapsed, setIsResumoCollapsed)}
+        {activeTab === 'arte-aprovacao' && (
+          <div className="text-center py-12">
+            <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-lg font-medium text-gray-900 mb-2">
+              Aba "Arte & Aprovação" Selecionada
+            </h2>
+            <p className="text-gray-600">
+              Conteúdo da aba será implementado nas próximas etapas.
+            </p>
+          </div>
+        )}
+        {activeTab === 'materiais' && (
+          <div className="text-center py-12">
+            <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-lg font-medium text-gray-900 mb-2">
+              Aba "Materiais" Selecionada
+            </h2>
+            <p className="text-gray-600">
+              Conteúdo da aba será implementado nas próximas etapas.
+            </p>
+          </div>
+        )}
+        {activeTab === 'analise-inteligente' && (
+          <div className="text-center py-12">
+            <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-lg font-medium text-gray-900 mb-2">
+              Aba "Análise Inteligente" Selecionada
+            </h2>
+            <p className="text-gray-600">
+              Conteúdo da aba será implementado nas próximas etapas.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function OSDetalhePage() {
   const params = useParams();
   const router = useRouter();
   const [os, setOS] = useState<OSDetalhada | null>(null);
   const [loading, setLoading] = useState(true);
-  const [dadosTransformados, setDadosTransformados] = useState<any>(null);
+  const [isResumoCollapsed, setIsResumoCollapsed] = useState(false);
 
   useEffect(() => {
     if (params.id) {
@@ -149,16 +332,7 @@ export default function OSDetalhePage() {
         throw new Error("OS nao encontrada");
       }
 
-      setOS({
-        ...osData,
-        alertas_estoque: osData.alertas_estoque ?? [],
-        recomendacoes_estoque: osData.recomendacoes_estoque ?? [],
-        detalhes_estoque: osData.detalhes_estoque ?? [],
-      });
-
-      // Transformar dados para exibição
-      const transformados = TransformacaoDadosHelper.transformarDadosOS(osData);
-      setDadosTransformados(transformados);
+      setOS(osData);
     } catch (error) {
       console.error("Erro ao carregar OS:", error);
       toast.error("Erro ao carregar ordem de servico");
@@ -175,22 +349,12 @@ export default function OSDetalhePage() {
     window.open(`/os/${os.id}/imprimir`, '_blank');
   };
 
-  const handleDuplicarOS = () => {
-    toast.info("Funcionalidade de duplicar OS em desenvolvimento");
-  };
-
-  const handleAdicionarNota = () => {
-    toast.info("Funcionalidade de adicionar nota em desenvolvimento");
-  };
-
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
             <p className="mt-2 text-gray-600">Carregando ordem de servico...</p>
-          </div>
         </div>
       </div>
     );
@@ -198,9 +362,14 @@ export default function OSDetalhePage() {
 
   if (!os) {
     return (
-      <div className="p-6">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600">Ordem de servico nao encontrada</p>
+          <Link href="/os">
+            <Button className="mt-4" variant="outline">
+              Voltar para lista
+            </Button>
+          </Link>
         </div>
       </div>
     );
@@ -209,49 +378,63 @@ export default function OSDetalhePage() {
   const podeEditar = os.status !== "FINALIZADA" && os.status !== "CANCELADA";
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Cabeçalho Principal */}
-      <OSHeader 
-        os={{
-          ...os,
-          pode_editar: podeEditar
-        }}
-        onImprimirOS={handleImprimirOS}
-      />
+    <div className="min-h-screen bg-white">
+      {/* Header conforme a imagem */}
+      <div className="bg-white px-4 sm:px-6 py-4">
+        {/* Layout responsivo: Desktop em linha, Mobile em coluna */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+          {/* Lado esquerdo: Título */}
+          <div className="flex items-center space-x-3">
+            <ClipboardList className="h-8 w-8 text-gray-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {os.nome_servico}
+              </h1>
+              <p className="text-sm text-gray-600">
+                #{os.numero}
+              </p>
+            </div>
+          </div>
 
-      {/* Layout Principal - 2 Colunas */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Coluna Esquerda - Conteúdo Principal (2/3) */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Sistema de Abas */}
-          <OSTabs 
-            os={os}
-            dadosTransformados={dadosTransformados}
-            movimentacoes={os.movimentacoes}
-          />
+          {/* Lado direito: Botões */}
+          <div className="flex items-center justify-between lg:justify-end space-x-3">
+            {/* Botão Voltar - Mobile only */}
+            <Link href="/os" className="lg:hidden">
+              <Button variant="outline" className="flex items-center space-x-2">
+                <ArrowLeft className="h-4 w-4" />
+                <span>Voltar</span>
+              </Button>
+            </Link>
 
-          {/* Timeline/Histórico */}
-          <OSTimeline 
-            movimentacoes={os.movimentacoes}
-            os={os}
-          />
-        </div>
+            {/* Botões de ação */}
+            <div className="flex items-center space-x-3">
+              <Button 
+                onClick={handleImprimirOS} 
+                variant="outline" 
+                className="flex items-center space-x-2"
+              >
+                <Printer className="h-4 w-4" />
+                <span className="hidden sm:inline">Imprimir OS</span>
+              </Button>
 
-        {/* Coluna Direita - Painel Lateral (1/3) */}
-        <div className="space-y-6">
-          {/* Ações de Workflow */}
-          <OSWorkflowActions 
-            os={os}
-            onStatusChange={fetchOS}
-          />
-          
-          <OSSidebar 
-            os={os}
-            onDuplicarOS={handleDuplicarOS}
-            onAdicionarNota={handleAdicionarNota}
-          />
+              {podeEditar && (
+                <Link href={`/os/${os.id}/editar`}>
+                  <Button className="flex items-center space-x-2 bg-gray-900 hover:bg-gray-800">
+                    <Edit className="h-4 w-4" />
+                    <span className="hidden sm:inline">Editar OS</span>
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Linha separadora sutil */}
+      <div className="h-px bg-gray-100"></div>
+
+          {/* Sistema de Abas */}
+      <OSTabsComponent os={os} isResumoCollapsed={isResumoCollapsed} setIsResumoCollapsed={setIsResumoCollapsed} />
     </div>
   );
 }

@@ -117,3 +117,8 @@ Todos os scripts geram logs detalhados mostrando:
 - Faça **backup manual** da base de dados antes de executar em produção
 - Verifique os **logs** para confirmar que tudo correu bem
 - Teste algumas OSs manualmente após a migração
+
+
+
+
+

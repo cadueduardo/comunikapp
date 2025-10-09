@@ -57,86 +57,92 @@ export default function KanbanPage() {
 
   // Simular carregamento de dados
   useEffect(() => {
+    fetchKanbanData();
+  }, []);
+
+  const fetchKanbanData = async () => {
     setLoading(true);
-    // Simular API call
-    setTimeout(() => {
-      // Dados mock para demonstração
+    
+    try {
+      const token = localStorage.getItem('access_token');
+      
+      // Buscar OSs liberadas para PCP
+      const response = await fetch('/api/os/liberadas-para-pcp', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao buscar OSs liberadas para PCP');
+      }
+
+      const ossLiberadas = await response.json();
+      
+      // Converter dados da API para formato do Kanban
+      const kanbanData: OSCard[] = ossLiberadas.map((os: any) => ({
+        id: os.id,
+        numero: os.numero,
+        titulo: os.nome_servico,
+        cliente: os.cliente?.nome || 'Cliente não informado',
+        status: os.status,
+        prioridade: os.prioridade || 'MEDIA',
+        responsavel: os.responsavel_id || 'Não atribuído',
+        data_prazo: os.data_prazo ? new Date(os.data_prazo).toISOString().split('T')[0] : '',
+        progresso: os.workflow_progresso || 0,
+        alertas: os.alertas_estoque || []
+      }));
+
+      setKanbanData(kanbanData);
+      
+      // Calcular estatísticas
+      const stats: KanbanStats = {
+        total: kanbanData.length,
+        fila: kanbanData.filter(os => os.status === 'LIBERADA_PARA_PCP').length,
+        producao: kanbanData.filter(os => os.status === 'EM_WORKFLOW').length,
+        concluida: kanbanData.filter(os => os.status === 'FINALIZADA').length,
+        rejeitada: kanbanData.filter(os => os.status === 'REJEITADA').length,
+        atrasadas: kanbanData.filter(os => {
+          if (!os.data_prazo) return false;
+          return new Date(os.data_prazo) < new Date() && os.status !== 'FINALIZADA';
+        }).length,
+        criticas: kanbanData.filter(os => os.prioridade === 'CRITICA').length
+      };
+      
+      setStats(stats);
+    } catch (error) {
+      console.error('Erro ao buscar dados do Kanban:', error);
+      
+      // Fallback para dados mock em caso de erro
       const mockData: OSCard[] = [
         {
           id: '1',
           numero: 'OS-2024-001',
           titulo: 'Banner Promocional',
           cliente: 'Empresa ABC',
-          status: 'FILA',
+          status: 'LIBERADA_PARA_PCP',
           prioridade: 'ALTA',
           responsavel: 'João Silva',
           data_prazo: '2024-01-15',
           progresso: 0,
           alertas: []
-        },
-        {
-          id: '2',
-          numero: 'OS-2024-002',
-          titulo: 'Placa de Sinalização',
-          cliente: 'Loja XYZ',
-          status: 'PRODUCAO',
-          prioridade: 'MEDIA',
-          responsavel: 'Maria Santos',
-          data_prazo: '2024-01-20',
-          progresso: 60,
-          alertas: ['Prazo próximo']
-        },
-        {
-          id: '3',
-          numero: 'OS-2024-003',
-          titulo: 'Adesivos Personalizados',
-          cliente: 'Restaurante DEF',
-          status: 'CONCLUIDA',
-          prioridade: 'BAIXA',
-          responsavel: 'Pedro Costa',
-          data_prazo: '2024-01-10',
-          progresso: 100,
-          alertas: []
-        },
-        {
-          id: '4',
-          numero: 'OS-2024-004',
-          titulo: 'Banner de Vendas',
-          cliente: 'Loja GHI',
-          status: 'PRODUCAO',
-          prioridade: 'ALTA',
-          responsavel: 'Ana Lima',
-          data_prazo: '2024-01-25',
-          progresso: 30,
-          alertas: ['Material atrasado']
-        },
-        {
-          id: '5',
-          numero: 'OS-2024-005',
-          titulo: 'Placa de Rua',
-          cliente: 'Prefeitura',
-          status: 'FILA',
-          prioridade: 'CRITICA',
-          responsavel: 'Carlos Silva',
-          data_prazo: '2024-01-12',
-          progresso: 0,
-          alertas: ['Urgente']
         }
       ];
       
       setKanbanData(mockData);
       setStats({
-        total: 21,
-        fila: 3,
-        producao: 5,
-        concluida: 12,
-        rejeitada: 1,
-        atrasadas: 2,
-        criticas: 1
+        total: 1,
+        fila: 1,
+        producao: 0,
+        concluida: 0,
+        rejeitada: 0,
+        atrasadas: 0,
+        criticas: 0
       });
+    } finally {
       setLoading(false);
-    }, 1000);
-  }, []);
+    }
+  };
 
   const handleStatusChange = (osId: string, newStatus: string) => {
     console.log(`Mudando OS ${osId} para status ${newStatus}`);

@@ -45,7 +45,7 @@ const getStatusConfig = (status: string) => {
     },
     AGUARDANDO_APROVACAO_TECNICA: { 
       variant: "outline" as const, 
-      label: "Aguardando aprovação técnica", 
+      label: "Aguardando Aprovação Técnica", 
       color: "bg-blue-100 text-blue-800",
       icon: Clock
     },

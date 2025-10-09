@@ -317,22 +317,74 @@ model ItemCustoIndiretoOS {
 2. [x] Criar helper dedicado para preparar dados de orcamento/insumos antes da chamada a ValidacaoEstoqueService (interfaces tipadas, tratamento de dados faltantes).
 3. [x] Ajustar create() e demais fluxos de abertura de OS para usar o helper e propagar alertas/recomendacoes/detalhes de estoque no retorno ao frontend.
 4. [x] Atualizar DTOs para refletir os novos campos de validacao (OrdemServicoResponseDto com alertas_estoque, recomendacoes_estoque, detalhes_estoque).
-5. [ ] Adicionar testes unitarios e e2e para fluxos de validacao de estoque (cenarios: estoque OK, estoque insuficiente, fornecedor inativo).
-6. [ ] Documentar no guia de uso os cenarios de bloqueio e mensagens esperadas.
+5. [x] Adicionar testes unitarios e e2e para fluxos de validacao de estoque (cenarios: estoque OK, estoque insuficiente, fornecedor inativo).
+6. [x] Documentar no guia de uso os cenarios de bloqueio e mensagens esperadas.
 
-### Plano incremental - migracao de schema Prisma
-1. [ ] Criar migration para adicionar campo `profundidade` em ProdutoOrcamento.
-2. [ ] Criar migration para adicionar campos de aprovacao_tecnica em OrdemServico.
-3. [ ] Criar migration para adicionar campos de instalacao em OrdemServico.
-4. [ ] Atualizar DTOs (CreateOSDto, UpdateOSDto, OSResponseDto) com novos campos.
-5. [ ] Atualizar interfaces TypeScript no frontend com novos campos.
-6. [ ] Gerar cliente Prisma (`npx prisma generate`) e validar tipos.
+### Plano incremental - migracao de schema Prisma ✅ **CONCLUÍDO**
+1. [x] Criar migration para adicionar campo `profundidade` em ProdutoOrcamento.
+2. [x] Criar migration para adicionar campos de aprovacao_tecnica em OrdemServico.
+3. [x] Criar migration para adicionar campos de instalacao em OrdemServico.
+4. [x] Atualizar DTOs (CreateOSDto, UpdateOSDto, OSResponseDto) com novos campos.
+5. [x] Atualizar interfaces TypeScript no frontend com novos campos.
+6. [x] Gerar cliente Prisma (`npx prisma generate`) e validar tipos.
 
-## Fase 2 — MVP do PCP e workflows operacionais (5–6 semanas) ✅ **EM ANDAMENTO**
+## Fase 2 — MVP do PCP e workflows operacionais (5–6 semanas) ✅ **CONCLUÍDA**
 **Objetivo**: disponibilizar controle operacional basico com apontamentos, aprovacao tecnica e checklists, incluindo workflows diferenciados para OS comercial vs interna.
 
-### **EVOLUÇÃO DE HOJE (2025-10-01) - KANBAN PCP IMPLEMENTADO**
-**Status**: ✅ **CONCLUÍDO** - Drag & drop robusto e funcional
+### **EVOLUÇÃO DE HOJE (2025-10-03) - FASE 2 COMPLETAMENTE IMPLEMENTADA**
+**Status**: ✅ **CONCLUÍDA** - Todas as funcionalidades principais implementadas
+
+#### **🎯 IMPLEMENTAÇÕES REALIZADAS**
+
+**1. Página de Criação de Workflows** ✅
+- ✅ Controller backend para templates de workflow (`WorkflowTemplateController`)
+- ✅ Interfaces e DTOs para workflows templates
+- ✅ Página frontend `/pcp/workflows/novo` com formulário completo
+- ✅ Validação de dados e criação de workflows com etapas e checklist
+
+**2. Integração Real OS → PCP** ✅
+- ✅ Controller de liberação de OS para PCP (`LiberacaoPCPController`)
+- ✅ Endpoints para listar, liberar e retirar OSs do PCP
+- ✅ Métodos no OSService para busca por status e atualização
+- ✅ Novos status no enum: `LIBERADA_PARA_PCP` e `EM_WORKFLOW`
+
+**3. Kanban com Dados Reais** ✅
+- ✅ Substituição completa de dados mock por API real
+- ✅ Integração com endpoint `/api/os/liberadas-para-pcp`
+- ✅ Cálculo automático de estatísticas baseado em dados reais
+- ✅ Fallback para dados mock em caso de erro de API
+
+**4. Sistema de Eventos Automáticos** ✅
+- ✅ Serviço completo de eventos automáticos (`EventosAutomaticosService`)
+- ✅ Integração com sistema WebSockets existente
+- ✅ Notificações automáticas para:
+  - Mudanças de status de OS
+  - Liberação de OS para PCP
+  - Início e conclusão de workflows
+  - Conclusão de etapas
+  - Aprovações técnicas
+  - Alertas de prazo
+- ✅ Logs automáticos de eventos no banco de dados
+
+#### **🔧 MELHORIAS TÉCNICAS**
+
+**Backend:**
+- ✅ Novos controllers e endpoints REST
+- ✅ Integração entre módulos OS e PCP
+- ✅ Sistema de eventos em tempo real via WebSockets
+- ✅ Validações e tratamento de erros robustos
+
+**Frontend:**
+- ✅ Página de criação de workflows com UX moderna
+- ✅ Kanban conectado com dados reais
+- ✅ Tratamento de erros e fallbacks
+- ✅ Interface responsiva e acessível
+
+**Arquitetura:**
+- ✅ Comunicação bidirecional OS ↔ PCP
+- ✅ Eventos automáticos para sincronização
+- ✅ Isolamento de módulos mantido
+- ✅ Multi-tenancy preservado
 
 **Principais Entregas Realizadas**:
 - ✅ **Biblioteca Robusta**: Substituído @dnd-kit por @hello-pangea/dnd (compatível com React 19)
@@ -389,6 +441,17 @@ model ItemCustoIndiretoOS {
      - Menu lateral com ícone PCP dedicado
      - Componentes reutilizando UI padrão
      - Navegação integrada com sistema existente
+  2.1. [x] **DASHBOARD PRINCIPAL PCP (/pcp/page.tsx)** ✅ **CONCLUÍDO**:
+     - Cards de resumo com dados reais das OSs liberadas para PCP ✅
+     - Workflows ativos em execução (status EM_WORKFLOW) ✅
+     - Etapas pendentes de OSs reais ✅
+     - Estatísticas operacionais baseadas em dados reais ✅
+     - Integração com APIs: `/api/os/liberadas-para-pcp`, `/api/pcp/workflow-instances` ✅
+     - Ações funcionais: visualizar OS, iniciar workflow, monitorar progresso ✅
+     - Substituir dados mock por dados reais da API ✅
+     - Loading states e tratamento de erros ✅
+     - Botão de atualizar dados em tempo real ✅
+     - Links funcionais para páginas relacionadas ✅
   3. [x] **COMUNICAÇÃO OS ↔ PCP**:
      - Services para integração bidirecional
      - Eventos OS → PCP (OS_CRIADA, OS_APROVADA_TECNICA, OS_CANCELADA)

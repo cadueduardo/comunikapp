@@ -71,6 +71,21 @@ const getStatusConfig = (status: string) => {
       label: 'Pausada',
       color: 'bg-gray-100 text-gray-600',
     },
+    AGUARDANDO_APROVACAO_TECNICA: {
+      variant: 'outline' as const,
+      label: 'Aguardando Aprovação Técnica',
+      color: 'bg-blue-100 text-blue-800',
+    },
+    APROVADA_TECNICA: {
+      variant: 'default' as const,
+      label: 'Aprovada Tecnicamente',
+      color: 'bg-green-100 text-green-800',
+    },
+    REJEITADA: {
+      variant: 'destructive' as const,
+      label: 'Rejeitada',
+      color: 'bg-red-100 text-red-800',
+    },
   };
 
   return configs[status as keyof typeof configs] || {
@@ -118,12 +133,8 @@ export const createColumns = (
     header: 'Serviço',
     cell: ({ row }) => {
       const nome = row.getValue('nome_servico') as string;
-      const quantidade = row.original.quantidade ?? 0;
       return (
-        <div>
-          <div className="font-medium">{nome}</div>
-          <div className="text-sm text-muted-foreground">Qtd: {quantidade}</div>
-        </div>
+        <div className="font-medium">{nome}</div>
       );
     },
   },

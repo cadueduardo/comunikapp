@@ -141,6 +141,28 @@ model OrcamentoLog {
   @@map("orcamento_logs")
 }
 
+model OrdemServicoLog {
+  id           String    @id @default(cuid())
+  os_id        String
+  tipo_acao    String
+  descricao    String    @db.Text
+  dados_extras String?   @db.LongText
+  ip_origem    String?
+  user_agent   String?
+  criado_em    DateTime  @default(now())
+  usuario_id   String?
+  
+  // Relacionamentos
+  os           OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  usuario      usuario?     @relation(fields: [usuario_id], references: [id])
+
+  @@index([os_id])
+  @@index([tipo_acao])
+  @@index([criado_em])
+  @@index([usuario_id])
+  @@map("ordem_servico_logs")
+}
+
 model TemplateProduto {
   id                     String                   @id @default(cuid())
   criado_em              DateTime                 @default(now())
@@ -926,6 +948,7 @@ model usuario {
   loja                               loja             @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Usuario_loja_id_fkey")
   perfis                             usuario_perfil[]
   orcamentos_responsavel             orcamento[]
+  os_logs                            OrdemServicoLog[]
 
   @@index([loja_id], map: "Usuario_loja_id_idx")
 }
@@ -1311,6 +1334,7 @@ model OrdemServico {
   checklists         ChecklistOS[]
   workflow_instancia WorkflowInstancia?
   apontamentos       Apontamento[]
+  logs               OrdemServicoLog[]
 
   @@unique([loja_id, numero])
   @@index([loja_id, status])

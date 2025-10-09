@@ -89,10 +89,15 @@ export interface MaterialProdutoData {
   nome: string;
   quantidade: number;
   unidade: string;
+  display: string;
   categoria: string;
   tipo_material?: string;
-  logica_consumo?: string;
   parametros_consumo?: any;
+  disponivel_estoque?: boolean;
+  quantidade_disponivel?: number;
+  localizacao_estoque?: string;
+  custo_unitario?: number;
+  custo_total?: number;
 }
 
 export interface MaquinaProdutoData {
@@ -116,10 +121,13 @@ export interface MaterialConsolidadoData {
   nome: string;
   quantidade_total: number;
   unidade: string;
+  display: string;
   categoria: string;
   tipo_material?: string;
-  logica_consumo?: string;
   parametros_consumo?: any;
+  disponivel_estoque?: boolean;
+  quantidade_disponivel?: number;
+  localizacao_estoque?: string;
   produtos: {
     nome: string;
     quantidade: number;
@@ -248,6 +256,7 @@ export interface InsumoCalculado {
   nome: string;
   quantidade_necessaria: number;
   unidade: string;
+  display: string;
   custo_unitario: number;
   custo_total: number;
   produto_nome: string; // Nome do produto para rastreabilidade

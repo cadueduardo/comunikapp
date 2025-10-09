@@ -137,3 +137,14 @@ import {
 - **Indicadores visuais** intuitivos
 - **Navegação fluida** entre seções
 
+
+
+
+
+
+
+
+
+
+
+

@@ -11,6 +11,7 @@ import { DocumentCodeService, TipoOS } from '../../documentos/document-code.serv
 import { ValidacaoEstoqueService } from '../../orcamentos-v2/services/validacao-estoque.service';
 import { AlcadasOrcamentoService } from './alcadas-orcamento.service';
 import { EventosAutomaticosService } from './eventos-automaticos.service';
+import { OSValidacoesService } from './os-validacoes.service';
 import { CreateOSDto } from '../dto/create-os.dto';
 import { UpdateOSDto, AvancarEtapaDto } from '../dto/update-os.dto';
 import {
@@ -47,7 +48,7 @@ interface ValidacaoEstoqueOSResultado {
 @Injectable()
 export class OSService {
   private readonly logger = new Logger(OSService.name)
-  
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly documentCodeService: DocumentCodeService,
@@ -55,6 +56,7 @@ export class OSService {
     private readonly alcadasOrcamentoService: AlcadasOrcamentoService,
     private readonly eventosAutomaticosService: EventosAutomaticosService,
     private readonly osApprovalPermissionsService: OSApprovalPermissionsService,
+    private readonly osValidacoesService: OSValidacoesService,
   ) {}
 
   // ===== CRUD BÁSICO =====
@@ -118,6 +120,25 @@ export class OSService {
         createOSDto.responsavel_id || 'SISTEMA',
         `OS criada no sistema - Status: ${statusInicial}`,
       );
+
+      // 7. Executar validações automáticas
+      try {
+        const resultadoValidacoes = await this.osValidacoesService.validarOS(os.id, lojaId);
+        
+        // Aplicar ações automáticas se necessário
+        if (resultadoValidacoes.acoes.length > 0) {
+          await this.osValidacoesService.aplicarAcoesAutomaticas(os.id, resultadoValidacoes);
+        }
+
+        this.logger.log(`Validações automáticas executadas para OS ${os.id}:`, {
+          valida: resultadoValidacoes.valida,
+          correcoes: resultadoValidacoes.correcoes_necessarias.length,
+          alertas: resultadoValidacoes.alertas.length
+        });
+      } catch (error) {
+        this.logger.error(`Erro ao executar validações automáticas para OS ${os.id}:`, error);
+        // Não falha a criação da OS por erro nas validações
+      }
 
       this.logger.log(`[OK] OS #${numero} criada com sucesso - ID: ${os.id}`);
       return this.formatarOrdemServico(os, {
@@ -378,6 +399,25 @@ export class OSService {
         usuarioId,
         'OS atualizada',
       );
+
+      // Executar validações automáticas após atualização
+      try {
+        const resultadoValidacoes = await this.osValidacoesService.validarOS(id, lojaId);
+        
+        // Aplicar ações automáticas se necessário
+        if (resultadoValidacoes.acoes.length > 0) {
+          await this.osValidacoesService.aplicarAcoesAutomaticas(id, resultadoValidacoes);
+        }
+
+        this.logger.log(`Validações automáticas executadas para OS ${id} após atualização:`, {
+          valida: resultadoValidacoes.valida,
+          correcoes: resultadoValidacoes.correcoes_necessarias.length,
+          alertas: resultadoValidacoes.alertas.length
+        });
+      } catch (error) {
+        this.logger.error(`Erro ao executar validações automáticas para OS ${id}:`, error);
+        // Não falha a atualização da OS por erro nas validações
+      }
 
       this.logger.log(`[OK] OS #${osAtualizada.numero} atualizada com sucesso`);
       return this.formatarOrdemServico(osAtualizada);
@@ -1272,10 +1312,12 @@ export class OSService {
         let unidadeFinal = itemInsumo.unidade;
         
         // Se tem dados do orçamento, aplicar lógica inteligente
+        let displayFinal = `${quantidadeFinal} ${unidadeFinal}`;
         if (insumoCalculado) {
           const quantidadeInteligente = this.calcularQuantidadeInteligente(insumoCalculado, produto);
           quantidadeFinal = quantidadeInteligente.quantidade;
           unidadeFinal = quantidadeInteligente.unidade;
+          displayFinal = quantidadeInteligente.display;
         }
         
         return {
@@ -1284,21 +1326,24 @@ export class OSService {
           // USAR QUANTIDADE INTELIGENTE CALCULADA
           quantidade: quantidadeFinal,
           unidade: unidadeFinal,
+          display: displayFinal,
           categoria: itemInsumo.insumo.categoria?.nome || 'Sem categoria',
           tipo_material: itemInsumo.insumo.tipoMaterial?.nome || null,
-          // Usar lógica de consumo do orçamento quando disponível
-          logica_consumo: insumoCalculado?.logica_consumo || itemInsumo.insumo.logica_consumo,
           parametros_consumo: insumoCalculado?.parametros_consumo || 
             (itemInsumo.insumo.parametros_consumo ? 
-              (typeof itemInsumo.insumo.parametros_consumo === 'string' ? 
-                JSON.parse(itemInsumo.insumo.parametros_consumo) : 
+            (typeof itemInsumo.insumo.parametros_consumo === 'string' ? 
+              JSON.parse(itemInsumo.insumo.parametros_consumo) : 
                 itemInsumo.insumo.parametros_consumo) : null),
           // Adicionar informações de rastreabilidade
           origem: insumoCalculado?.origem || 'os',
           orcamento_id: insumoCalculado?.orcamento_id || os.orcamento_id,
           data_calculo: insumoCalculado?.data_calculo,
           custo_unitario: insumoCalculado?.custo_unitario || itemInsumo.custo_unitario,
-          custo_total: insumoCalculado?.custo_total || itemInsumo.custo_total
+          custo_total: insumoCalculado?.custo_total || itemInsumo.custo_total,
+          // Informações de estoque
+          disponivel_estoque: insumoCalculado?.disponivel_estoque ?? true,
+          quantidade_disponivel: insumoCalculado?.quantidade_disponivel,
+          localizacao_estoque: insumoCalculado?.localizacao_estoque
         };
       }) || [],
       // Máquinas por produto
@@ -2016,14 +2061,36 @@ export class OSService {
   private calcularQuantidadeInteligente(
     insumoCalculado: InsumoCalculado,
     produto: any
-  ): { quantidade: number; unidade: string } {
+  ): { quantidade: number; unidade: string; display: string; [key: string]: any } {
     const { logica_consumo, parametros_consumo, quantidade_necessaria, unidade, nome } = insumoCalculado;
     const quantidadeProdutos = parseFloat(produto.quantidade || '1');
     
-    // Lógica específica para bobinas (área em m²)
+    // Lógica específica para bobinas (área em m² + unidades físicas)
     if (nome?.toLowerCase().includes('bobina') && nome?.toLowerCase().includes('lona')) {
-      // Para bobinas, mostrar área em m²
-      return { quantidade: quantidade_necessaria, unidade: 'M2' };
+      // Para bobinas, calcular área em m² e unidades físicas necessárias
+      
+      // Extrair dimensões da bobina do nome (ex: 1,40x50m)
+      let areaPorBobina = 70; // Default 70m²
+      const match = nome.match(/(\d+[,.]?\d*)\s*[x×]\s*(\d+[,.]?\d*)\s*m/i);
+      if (match) {
+        const largura = parseFloat(match[1].replace(',', '.'));
+        const altura = parseFloat(match[2].replace(',', '.'));
+        areaPorBobina = largura * altura;
+      }
+      
+      // Calcular quantas bobinas são necessárias
+      const bobinasNecessarias = Math.ceil(quantidade_necessaria / areaPorBobina);
+      
+      // Retornar informações completas para validação de estoque
+      return {
+        quantidade: bobinasNecessarias, 
+        unidade: 'UNID',
+        display: `${quantidade_necessaria} M2 - ${bobinasNecessarias} UNID - BOBINA`,
+        // Informações adicionais para validação
+        bobinas_necessarias: bobinasNecessarias,
+        area_por_bobina: areaPorBobina,
+        area_total: quantidade_necessaria
+      };
     }
     
     // Lógica específica para madeira (unidades físicas)
@@ -2039,23 +2106,44 @@ export class OSService {
       // Se a sobra é menor que o tamanho do banner, não pode ser aproveitada
       if (sobra < cmPorBanner) {
         // Cada banner precisa de uma unidade completa
-        const unidadesNecessarias = quantidadeProdutos;
-        return { quantidade: unidadesNecessarias, unidade: 'UNID' };
+      const unidadesNecessarias = quantidadeProdutos;
+      return { quantidade: unidadesNecessarias, unidade: 'UNID', display: `${unidadesNecessarias} UNID` };
       } else {
         // Se a sobra é suficiente para outro banner, pode otimizar
         const unidadesNecessarias = Math.ceil((cmPorBanner * quantidadeProdutos) / cmDisponivel);
-        return { quantidade: unidadesNecessarias, unidade: 'UNID' };
+        return { quantidade: unidadesNecessarias, unidade: 'UNID', display: `${unidadesNecessarias} UNID` };
       }
     }
     
-    // Lógica específica para cordão (metro linear)
+    // Lógica específica para cordão (unidades físicas de tubos)
     if (nome?.toLowerCase().includes('cordao') || nome?.toLowerCase().includes('cordão')) {
-      // Para cordão, calcular metros lineares necessários
-      // Exemplo: 12m por banner (perímetro)
-      const metrosPorBanner = 12; // Assumindo 12m por banner
-      const metrosNecessarios = metrosPorBanner * quantidadeProdutos;
+      // Para cordão, calcular unidades físicas de tubos necessárias
+      // Cordão vem em tubos (ex: 205m por tubo)
       
-      return { quantidade: metrosNecessarios, unidade: 'M' };
+      // Extrair metros por tubo do nome do produto
+      let metrosPorTubo = 205; // Default
+      const match = nome.match(/(\d+)\s*m\s+branco/i) || nome.match(/(\d+)\s*m\s*$/i); // Procura por "205 M Branco" ou "205 M" no final
+      if (match) {
+        metrosPorTubo = parseInt(match[1]);
+      }
+      
+      // Calcular metros necessários (ex: 12m por banner)
+      const metrosPorBanner = 12; // Assumindo 12m por banner
+      const metrosTotaisNecessarios = metrosPorBanner * quantidadeProdutos;
+      
+      // Calcular quantos tubos são necessários
+      const tubosNecessarios = Math.ceil(metrosTotaisNecessarios / metrosPorTubo);
+      
+      // Retornar informações completas para validação de estoque
+      return { 
+        quantidade: tubosNecessarios, 
+        unidade: 'UNID',
+        display: `${metrosTotaisNecessarios}M - ${tubosNecessarios} UNID - ROLO`,
+        // Informações adicionais para validação
+        metros_necessarios: metrosTotaisNecessarios,
+        metros_por_tubo: metrosPorTubo,
+        metros_por_banner: metrosPorBanner
+      };
     }
     
     // Lógica específica para ponteiras (unidades)
@@ -2065,30 +2153,62 @@ export class OSService {
       const ponteirasPorBanner = 2;
       const unidadesNecessarias = ponteirasPorBanner * quantidadeProdutos;
       
-      return { quantidade: unidadesNecessarias, unidade: 'UNID' };
+      return { quantidade: unidadesNecessarias, unidade: 'UNID', display: `${unidadesNecessarias} UNID` };
     }
     
-    // Lógica específica para ilhos (unidades)
+    // Lógica específica para ilhos (unidades) - IGUAL AO PREVIEW V2
     if (nome?.toLowerCase().includes('ilho')) {
-      // Para ilhos, calcular unidades necessárias
-      // Exemplo: 4 ilhos por banner
-      const ilhosPorBanner = 4;
-      const unidadesNecessarias = ilhosPorBanner * quantidadeProdutos;
+      // Usar a mesma lógica do preview V2: cálculo por perímetro e espaçamento
+      const larguraProduto = parseFloat(produto.largura?.toString() || '0');
+      const alturaProduto = parseFloat(produto.altura?.toString() || '0');
       
-      return { quantidade: unidadesNecessarias, unidade: 'UNID' };
+      if (larguraProduto > 0 && alturaProduto > 0) {
+        // Cálculo igual ao preview V2
+        const perimetro = 2 * (larguraProduto + alturaProduto);
+        const espacamento = 15; // cm entre ilhós (mesmo do preview V2)
+        const quantidadeUnitaria = Math.ceil(perimetro / espacamento);
+        const unidadesNecessarias = quantidadeUnitaria * quantidadeProdutos;
+        
+        return { 
+          quantidade: unidadesNecessarias, 
+          unidade: 'UNID', 
+          display: `${unidadesNecessarias} UNID`,
+          perimetro: perimetro,
+          espacamento: espacamento,
+          quantidade_unitaria: quantidadeUnitaria
+        };
+      } else {
+        // CORREÇÃO: Usar quantidade original do orçamento se disponível
+        // Isso garante que a OS use o mesmo cálculo do preview V2
+        if (quantidade_necessaria > 0 && quantidade_necessaria !== (4 * quantidadeProdutos)) {
+          // Se a quantidade original não é 4×produtos, usar ela (vem do preview V2)
+          return { 
+            quantidade: quantidade_necessaria, 
+            unidade: 'UNID', 
+            display: `${quantidade_necessaria} UNID`,
+            origem: 'preview_v2'
+          };
+        } else {
+          // Fallback: 4 ilhós por banner (lógica antiga)
+          const ilhosPorBanner = 4;
+          const unidadesNecessarias = ilhosPorBanner * quantidadeProdutos;
+          
+          return { quantidade: unidadesNecessarias, unidade: 'UNID', display: `${unidadesNecessarias} UNID` };
+        }
+      }
     }
 
     // Lógica genérica baseada na lógica de consumo
     if (logica_consumo === 'area') {
-      return { quantidade: quantidade_necessaria, unidade: 'M2' };
+      return { quantidade: quantidade_necessaria, unidade: 'M2', display: `${quantidade_necessaria} M2` };
     }
     
     if (logica_consumo === 'linear' || logica_consumo === 'quantidade_fixa') {
-      return { quantidade: quantidade_necessaria, unidade: 'UNID' };
+      return { quantidade: quantidade_necessaria, unidade: 'UNID', display: `${quantidade_necessaria} UNID` };
     }
 
     // Fallback: retorna quantidade original
-    return { quantidade: quantidade_necessaria, unidade };
+    return { quantidade: quantidade_necessaria, unidade, display: `${quantidade_necessaria} ${unidade}` };
   }
 
   /**
@@ -2115,11 +2235,73 @@ export class OSService {
         }
 
         // Usar dados exatos do orçamento
+        // Aplicar lógica inteligente para calcular display
+        const quantidade_base = parseFloat(itemInsumo.quantidade || '0');
+        const unidade = itemInsumo.unidade || itemInsumo.insumo.unidade_uso || 'un';
+        const quantidadeProdutos = parseFloat(produto.quantidade || '1');
+        const nome = itemInsumo.insumo.nome;
+        
+        // Verificar se precisa multiplicar pela quantidade do produto
+        // IMPORTANTE: Para materiais calculados por área, a quantidade no orçamento
+        // já representa o TOTAL de m² necessários, não por unidade
+        const logica_consumo = itemInsumo.insumo.logica_consumo || 'area';
+        const unidade_uso = itemInsumo.insumo.unidade_uso?.toLowerCase() || '';
+        
+        // Determinar se precisa multiplicar pela quantidade do produto
+        // Para materiais por m², a quantidade já é o total, NÃO multiplicar
+        // Para materiais por unidade (bobina, rolo), pode precisar multiplicar
+        const precisaMultiplicar = 
+          (unidade_uso.includes('un') || unidade_uso.includes('unidade')) &&
+          !unidade_uso.includes('m2') && 
+          !unidade_uso.includes('m²') &&
+          logica_consumo !== 'area';
+        
+        // Calcular quantidade necessária total
+        const quantidade_necessaria = precisaMultiplicar 
+          ? quantidade_base * quantidadeProdutos 
+          : quantidade_base;
+        
+        this.logger.debug(`Calculando quantidade para ${nome}:`, {
+          quantidade_base,
+          quantidadeProdutos,
+          precisaMultiplicar,
+          quantidade_necessaria,
+          logica_consumo,
+          unidade_uso
+        });
+        
+        // Calcular display baseado no tipo de material
+        let display = `${quantidade_necessaria} ${unidade}`;
+        if (nome?.toLowerCase().includes('bobina') && nome?.toLowerCase().includes('lona')) {
+          // Para bobinas, mostrar área + unidades físicas
+          let areaPorBobina = 70; // Default
+          const match = nome.match(/(\d+[,.]?\d*)\s*[x×]\s*(\d+[,.]?\d*)\s*m/i);
+          if (match) {
+            const largura = parseFloat(match[1].replace(',', '.'));
+            const altura = parseFloat(match[2].replace(',', '.'));
+            areaPorBobina = largura * altura;
+          }
+          const bobinasNecessarias = Math.ceil(quantidade_necessaria / areaPorBobina);
+          display = `${quantidade_necessaria} M2 - ${bobinasNecessarias} UNID - BOBINA`;
+        } else if (nome?.toLowerCase().includes('cordao') || nome?.toLowerCase().includes('cordão')) {
+          // Para cordão, mostrar metros + unidades físicas
+          let metrosPorTubo = 205;
+          const match = nome.match(/(\d+)\s*m\s+branco/i) || nome.match(/(\d+)\s*m\s*$/i);
+          if (match) {
+            metrosPorTubo = parseInt(match[1]);
+          }
+          const metrosPorBanner = 12;
+          const metrosTotaisNecessarios = metrosPorBanner * quantidadeProdutos;
+          const tubosNecessarios = Math.ceil(metrosTotaisNecessarios / metrosPorTubo);
+          display = `${metrosTotaisNecessarios}M - ${tubosNecessarios} UNID - ROLO`;
+        }
+
         materiais.push({
           insumo_id: itemInsumo.insumo.id,
           nome: itemInsumo.insumo.nome,
-          quantidade_necessaria: parseFloat(itemInsumo.quantidade || '0'),
+          quantidade_necessaria: quantidade_necessaria,
           unidade: itemInsumo.unidade || itemInsumo.insumo.unidade_uso || 'un',
+          display: display,
           custo_unitario: parseFloat(itemInsumo.custo_unitario || '0'),
           custo_total: parseFloat(itemInsumo.custo_total || '0'),
           produto_nome: produto.nome || 'Produto sem nome',
@@ -2131,9 +2313,9 @@ export class OSService {
           origem: 'orcamento',
           orcamento_id: orcamento.id,
           data_calculo: orcamento.data_ultimo_calculo || orcamento.criado_em,
-          disponivel_estoque: false, // Será calculado posteriormente
-          quantidade_disponivel: 0,
-          localizacao_estoque: null
+          disponivel_estoque: true, // TODO: Implementar validação real de estoque
+          quantidade_disponivel: quantidade_necessaria,
+          localizacao_estoque: 'A1-B2' // TODO: Implementar localização real
         });
       });
     });

@@ -251,7 +251,7 @@ export default function DashboardLayout({
   ];
 
   return (
-    <div className="flex flex-col lg:flex-row bg-gray-100 dark:bg-neutral-800 w-full min-h-screen">
+    <div className="flex flex-col lg:flex-row bg-white dark:bg-neutral-800 w-full min-h-screen">
       {/* O Sidebar agora gerencia seu próprio estado */}
       <Sidebar> 
         <SidebarBody className="justify-between gap-10">
@@ -294,7 +294,7 @@ export default function DashboardLayout({
       {/* Área de conteúdo principal */}
       <main className="flex-1">
         <MainHeader />
-        <div className="p-6 md:p-10">
+        <div>
           {children}
         </div>
       </main>

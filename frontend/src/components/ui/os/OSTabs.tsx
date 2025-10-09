@@ -17,6 +17,7 @@ import {
   CheckSquare
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import MateriaisTab from '@/components/os/materiais/MateriaisTab';
 
 interface MaterialPrincipal {
   nome: string;
@@ -54,6 +55,7 @@ interface OSTabsProps {
     nome_servico: string;
     descricao?: string;
     quantidade: number;
+    status?: string;
     parametros_tecnicos?: any;
     aprovacao_tecnica_status?: string;
     aprovacao_tecnica_por?: string;
@@ -62,6 +64,8 @@ interface OSTabsProps {
     data_instalacao_agendada?: Date;
     observacoes_instalacao?: string;
     insumos_calculados?: any[];
+    produtos?: any[];
+    materiais_consolidados?: any[];
   };
   dadosTransformados?: DadosTransformacao;
   movimentacoes?: Array<{
@@ -74,7 +78,7 @@ interface OSTabsProps {
   }>;
 }
 
-type TabType = 'resumo' | 'tecnico' | 'materiais' | 'aprovacao' | 'instalacao';
+type TabType = 'resumo' | 'arte-aprovacao' | 'materiais' | 'analise-inteligente';
 
 export function OSTabs({ os, dadosTransformados, movimentacoes }: OSTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>('resumo');
@@ -91,10 +95,9 @@ export function OSTabs({ os, dadosTransformados, movimentacoes }: OSTabsProps) {
 
   const tabs = [
     { id: 'resumo' as TabType, label: 'Resumo', icon: Package },
-    { id: 'tecnico' as TabType, label: 'Técnico', icon: Settings },
+    { id: 'arte-aprovacao' as TabType, label: 'Arte & Aprovação', icon: CheckCircle },
     { id: 'materiais' as TabType, label: 'Materiais', icon: Package },
-    { id: 'aprovacao' as TabType, label: 'Aprovação', icon: CheckCircle },
-    { id: 'instalacao' as TabType, label: 'Instalação', icon: Wrench },
+    { id: 'analise-inteligente' as TabType, label: 'Análise Inteligente', icon: Settings },
   ];
 
   // Renderização da aba Resumo
@@ -178,7 +181,7 @@ export function OSTabs({ os, dadosTransformados, movimentacoes }: OSTabsProps) {
                   <div className="mt-3">
                     <div className="text-xs text-gray-500 mb-2">Usado em:</div>
                     <div className="space-y-1">
-                      {material.produtos.map((produto, prodIndex) => (
+                      {material.produtos.map((produto: any, prodIndex: number) => (
                         <div key={prodIndex} className="flex justify-between items-center text-sm">
                           <span className="text-gray-700">{produto.nome}</span>
                           <Badge variant="secondary" className="text-xs">
@@ -322,178 +325,40 @@ export function OSTabs({ os, dadosTransformados, movimentacoes }: OSTabsProps) {
     </div>
   );
 
+  // Renderização da aba Arte & Aprovação
+  const renderArteAprovacaoTab = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Arte & Aprovação</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-gray-500 italic">
+            Funcionalidade em desenvolvimento...
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   // Renderização da aba Materiais
   const renderMateriaisTab = () => (
+    <MateriaisTab osData={os} dadosTransformados={dadosTransformados} />
+  );
+
+  // Renderização da aba Análise Inteligente
+  const renderAnaliseInteligenteTab = () => (
     <div className="space-y-6">
-      {/* Lista Completa de Materiais por Produto */}
-      {os.produtos && os.produtos.length > 0 ? (
-        os.produtos.map((produto, index) => (
-          <Card key={produto.id}>
-            <CardHeader>
-              <CardTitle className="text-lg">Materiais - {produto.nome}</CardTitle>
-              <div className="text-sm text-gray-600">
-                {produto.quantidade} unidades
-              </div>
-            </CardHeader>
-            <CardContent>
-              {produto.materiais && produto.materiais.length > 0 ? (
-                <div className="space-y-3">
-                  {produto.materiais.map((material, matIndex) => (
-                    <div key={material.id} className="p-3 border rounded-lg">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">{material.nome}</div>
-                          <div className="text-xs text-gray-600 mt-1">
-                            <Badge variant="outline" className="mr-2">
-                              {material.quantidade} {material.unidade}
-                            </Badge>
-                            <span className="text-gray-500">{material.categoria}</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Informações técnicas do material */}
-                      <div className="mt-2 text-xs text-gray-500">
-                        {material.tipo_material && (
-                          <span className="mr-3">Tipo: {material.tipo_material}</span>
-                        )}
-                        {material.logica_consumo && (
-                          <span className="mr-3">Lógica: {material.logica_consumo}</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-sm text-gray-500 italic">
-                  Nenhum material para este produto
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Lista Completa de Materiais</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm text-gray-500 italic">
-              Nenhum material disponível
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Máquinas e Funções por Produto */}
-      {os.produtos && os.produtos.length > 0 && (
-        os.produtos.map((produto, index) => (
-          <div key={`equipamentos-${produto.id}`} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Máquinas */}
-            {produto.maquinas && produto.maquinas.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Máquinas - {produto.nome}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {produto.maquinas.map((maquina, maqIndex) => (
-                      <div key={maquina.id} className="p-3 border rounded-lg">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">{maquina.nome}</div>
-                            <div className="text-xs text-gray-600 mt-1">
-                              <Badge variant="outline" className="mr-2">
-                                {formatNumber(maquina.horas_uso)}h
-                              </Badge>
-                              <span className="text-gray-500">
-                                R$ {formatCurrency(maquina.custo_hora)}/h
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium text-sm">
-                            Total: R$ {formatCurrency(maquina.custo_total)}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Funções */}
-            {produto.funcoes && produto.funcoes.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Mão de Obra - {produto.nome}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {produto.funcoes.map((funcao, funcIndex) => (
-                      <div key={funcao.id} className="p-3 border rounded-lg">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">{funcao.nome}</div>
-                            <div className="text-xs text-gray-600 mt-1">
-                              <Badge variant="outline" className="mr-2">
-                                {formatNumber(funcao.horas_uso)}h
-                              </Badge>
-                              <span className="text-gray-500">
-                                R$ {formatCurrency(funcao.custo_hora)}/h
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium text-sm">
-                            Total: R$ {formatCurrency(funcao.custo_total)}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Análise Inteligente</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-gray-500 italic">
+            Funcionalidade em desenvolvimento...
           </div>
-        ))
-      )}
-
-      {/* Acabamentos */}
-      {dadosTransformados?.acabamentos && dadosTransformados.acabamentos.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Acabamentos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {dadosTransformados.acabamentos.map((acabamento, index) => (
-                <div key={index} className="flex justify-between items-center p-2 bg-blue-50 rounded">
-                  <div className="flex-1">
-                    <div className="font-medium text-sm">{acabamento.nome}</div>
-                    {acabamento.descricao && (
-                      <div className="text-xs text-gray-600">{acabamento.descricao}</div>
-                    )}
-                    {acabamento.categoria && (
-                      <Badge variant="outline" className="text-xs mt-1">
-                        {acabamento.categoria}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <div className="font-medium text-sm">
-                      {formatCurrency(acabamento.custo_total)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        </CardContent>
+      </Card>
     </div>
   );
 
@@ -601,14 +466,12 @@ export function OSTabs({ os, dadosTransformados, movimentacoes }: OSTabsProps) {
     switch (activeTab) {
       case 'resumo':
         return renderResumoTab();
-      case 'tecnico':
-        return renderTecnicoTab();
+      case 'arte-aprovacao':
+        return renderArteAprovacaoTab();
       case 'materiais':
         return renderMateriaisTab();
-      case 'aprovacao':
-        return renderAprovacaoTab();
-      case 'instalacao':
-        return renderInstalacaoTab();
+      case 'analise-inteligente':
+        return renderAnaliseInteligenteTab();
       default:
         return renderResumoTab();
     }

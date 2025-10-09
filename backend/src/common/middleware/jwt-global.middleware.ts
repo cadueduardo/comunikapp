@@ -25,6 +25,11 @@ export class JwtGlobalMiddleware implements NestMiddleware {
       '/lojas', // permitir cadastro (POST /lojas)
       '/lojas/health',
       '/api/estoque/health',
+      '/test-validacoes', // Rotas de teste sem autenticação
+      '/test-campos-validacao', // Rotas de teste de campos sem autenticação
+      '/test-os-validacoes', // Rotas de teste de validações OS sem autenticação
+      '/debug', // Rotas de debug sem autenticação
+      '/debug/validacao-detalhada', // Rotas de debug de validações detalhadas sem autenticação
       '/favicon.ico',
     ];
 

@@ -15,8 +15,11 @@ import {
   Calendar,
   FileText,
   Copy,
-  MessageSquare
+  MessageSquare,
+  XCircle,
+  CheckSquare
 } from 'lucide-react';
+import { ChecklistEstoque } from './ChecklistEstoque';
 
 interface OSSidebarProps {
   os: {
@@ -36,6 +39,19 @@ interface OSSidebarProps {
     aprovacao_tecnica_em?: Date;
     materiais_disponivel?: boolean;
     alertas_estoque?: string[];
+    recomendacoes_estoque?: string[];
+    produtos?: Array<{
+      id: string;
+      nome: string;
+      materiais?: Array<{
+        id: string;
+        nome: string;
+        quantidade: number;
+        unidade: string;
+        display: string;
+        disponivel_estoque?: boolean;
+      }>;
+    }>;
     observacoes?: string;
   };
   onDuplicarOS?: () => void;
@@ -96,39 +112,14 @@ export function OSSidebar({ os, onDuplicarOS, onAdicionarNota }: OSSidebarProps)
 
   return (
     <div className="space-y-4">
-      {/* Status de Materiais */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center space-x-2">
-            <Package className="h-4 w-4" />
-            <span>Status de Materiais</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center space-x-2">
-            <MaterialIcon className="h-4 w-4" />
-            <Badge className={materialStatus.color}>
-              {materialStatus.status}
-            </Badge>
-          </div>
-          
-          {os.alertas_estoque && os.alertas_estoque.length > 0 && (
-            <div className="space-y-1">
-              <div className="text-xs text-orange-600 font-medium">Alertas:</div>
-              {os.alertas_estoque.slice(0, 3).map((alerta, index) => (
-                <div key={index} className="text-xs text-orange-700">
-                  • {alerta}
-                </div>
-              ))}
-              {os.alertas_estoque.length > 3 && (
-                <div className="text-xs text-orange-600">
-                  +{os.alertas_estoque.length - 3} mais...
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Checklist de Validação de Estoque */}
+      <ChecklistEstoque
+        produtos={os.produtos}
+        alertas_estoque={os.alertas_estoque}
+        recomendacoes_estoque={os.recomendacoes_estoque}
+        materiais_disponivel={os.materiais_disponivel}
+        aprovacao_tecnica_status={os.aprovacao_tecnica_status}
+      />
 
       {/* Contato Cliente */}
       <Card>

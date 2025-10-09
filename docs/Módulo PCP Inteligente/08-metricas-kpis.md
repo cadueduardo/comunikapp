@@ -466,3 +466,8 @@ function calculateNPS(scores: number[]): number {
 **Data:** 2024  
 **Autor:** Product Manager  
 **Status:** Em Desenvolvimento
+
+
+
+
+

@@ -372,3 +372,8 @@ Baixo Valor + Alto Esforço = Não Fazer
 **Data:** 2024  
 **Autor:** Product Manager  
 **Status:** Em Desenvolvimento
+
+
+
+
+

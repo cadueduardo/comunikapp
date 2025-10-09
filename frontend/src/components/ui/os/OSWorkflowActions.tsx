@@ -32,8 +32,8 @@ export function OSWorkflowActions({ os, onStatusChange }: OSWorkflowActionsProps
   const handleAprovarTecnica = async (aprovado: boolean) => {
     try {
       setLoading('tecnica');
-      const response = await apiRequest(`/os/workflow-comercial/${os.id}/aprovar-tecnica`, {
-        method: 'POST',
+      const response = await apiRequest(`/os/${os.id}/aprovar-tecnica`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           aprovado,
@@ -254,4 +254,7 @@ export function OSWorkflowActions({ os, onStatusChange }: OSWorkflowActionsProps
     </Card>
   );
 }
+
+
+
 
