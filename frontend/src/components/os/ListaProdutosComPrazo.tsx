@@ -50,7 +50,14 @@ export function ListaProdutosComPrazo({
   const carregarProdutos = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/os/produtos/${osId}/status-produtos`);
+      const token = localStorage.getItem('access_token');
+      
+      const response = await fetch(`/api/os/produtos/${osId}/status-produtos`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
       const result = await response.json();
       
       if (result.success) {
@@ -133,11 +140,12 @@ export function ListaProdutosComPrazo({
 
       {/* Lista de produtos */}
       <div className="space-y-3">
-        {produtos.map((produto) => (
+        {produtos.map((produto, index) => (
           <PrazoProdutoComponent
-            key={produto.id}
+            key={produto.item_id || `produto-${index}-${produto.produto_servico}`}
             osId={osId}
-            itemId={produto.id}
+            itemId={produto.item_id} // ID do item da OS
+            produtoId={produto.item_id} // Usar item_id também como produtoId
             produtoNome={produto.produto_servico}
             dataPrazoProduto={produto.data_prazo_produto}
             dataInicio={produto.data_inicio_producao}

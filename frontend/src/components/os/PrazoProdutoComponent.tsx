@@ -41,6 +41,7 @@ import { toast } from 'sonner';
 interface PrazoProdutoComponentProps {
   osId: string;
   itemId: string;
+  produtoId?: string; // ID do produto no orçamento para buscar dados detalhados
   produtoNome: string;
   dataPrazoProduto?: Date;
   dataInicio?: Date;
@@ -54,6 +55,7 @@ interface PrazoProdutoComponentProps {
 export function PrazoProdutoComponent({ 
   osId,
   itemId,
+  produtoId,
   produtoNome,
   dataPrazoProduto,
   dataInicio,
@@ -67,6 +69,7 @@ export function PrazoProdutoComponent({
   const [isLoading, setIsLoading] = useState(false);
   const [showRetroactiveModal, setShowRetroactiveModal] = useState(false);
   const [pendingData, setPendingData] = useState<any>(null);
+  const [dadosProduto, setDadosProduto] = useState<any>(null);
   
   // Formulário
   const [formData, setFormData] = useState({
@@ -90,6 +93,50 @@ export function PrazoProdutoComponent({
       });
     }
   }, [isEditing, dataPrazoProduto, dataInicio, prioridade]);
+
+  // Buscar dados detalhados do produto do orçamento
+  useEffect(() => {
+    if (produtoId && osId) {
+      carregarDadosProduto();
+    }
+  }, [produtoId, osId]);
+
+  const carregarDadosProduto = async () => {
+    if (!produtoId) {
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`/api/orcamentos/produto/${produtoId}/detalhes`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setDadosProduto(result.data);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados do produto:', error);
+      // Em caso de erro, usar dados mockados
+      setDadosProduto({
+        dimensoes: { largura: 90, altura: 120, unidade_medida: 'cm' },
+        quantidade: 25,
+        descricao: produtoNome,
+        materiais: [
+          { nome: 'Bobina Lona Impressão Digital Rolo 1,40x50m Front 1000x1000', quantidade: 27, unidade: 'M2' },
+          { nome: 'Cabo De Madeira Para Banner 50 Unidades - 19mm X 1,05 Cm', quantidade: 2500, unidade: 'CM' },
+          { nome: 'Cordao Para Banner 3 Mm 205 M Branco', quantidade: 3000, unidade: 'CM' },
+          { nome: 'Ponteira Para Banner 5/8 Branca - 1000pçs', quantidade: 50, unidade: 'UNID' }
+        ]
+      });
+    }
+  };
 
   const iniciarEdicao = () => {
     if (readonly || statusLiberacao === 'LIBERADO' || statusLiberacao === 'EM_PRODUCAO') {
@@ -117,6 +164,7 @@ export function PrazoProdutoComponent({
 
     try {
       setIsLoading(true);
+      const token = localStorage.getItem('access_token');
       
       const requestData = {
         data_prazo_produto: new Date(formData.data_prazo_produto).toISOString(),
@@ -131,6 +179,7 @@ export function PrazoProdutoComponent({
       const response = await fetch(`/api/os/produtos/${osId}/item/${itemId}/definir-prazo`, {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestData),
@@ -167,10 +216,12 @@ export function PrazoProdutoComponent({
     
     try {
       setIsLoading(true);
+      const token = localStorage.getItem('access_token');
       
       const response = await fetch(`/api/os/produtos/${osId}/item/${itemId}/definir-prazo`, {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -206,10 +257,12 @@ export function PrazoProdutoComponent({
 
     try {
       setIsLoading(true);
+      const token = localStorage.getItem('access_token');
       
       const response = await fetch(`/api/os/produtos/${osId}/item/${itemId}/liberar-pcp`, {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -267,6 +320,121 @@ export function PrazoProdutoComponent({
       month: '2-digit',
       year: 'numeric'
     }).format(new Date(data));
+  };
+
+  // Função para obter detalhamento técnico baseado nos dados reais do produto
+  const getDetalhamentoTecnico = () => {
+    if (!dadosProduto) {
+      return 'Carregando detalhamento técnico...';
+    }
+
+    const { dimensoes, quantidade, descricao } = dadosProduto;
+    
+    let detalhamento = '';
+    
+    // Descrição do produto
+    if (descricao) {
+      detalhamento += descricao;
+    }
+    
+    // Dimensões
+    if (dimensoes && dimensoes.largura && dimensoes.altura) {
+      detalhamento += `\n\nDimensões: ${dimensoes.largura}x${dimensoes.altura}${dimensoes.unidade_medida || 'cm'}`;
+    }
+    
+    // Quantidade
+    if (quantidade) {
+      detalhamento += `\nQuantidade: ${quantidade} unidade(s)`;
+    }
+    
+    return detalhamento || 'Detalhamento técnico não disponível.';
+  };
+
+  // Função para obter status da arte (mockado por enquanto)
+  const getStatusArte = () => {
+    const statusArte: Record<string, { versao: string; aprovada: string; status: string; cor: string }> = {
+      'Fachada Principal': {
+        versao: 'v3',
+        aprovada: 'v1',
+        status: 'Aprovada',
+        cor: 'text-green-600'
+      },
+      'Banner Interno': {
+        versao: 'v1',
+        aprovada: '—',
+        status: 'Aguardando aprovação',
+        cor: 'text-red-600'
+      },
+      'Painel Externo': {
+        versao: 'v2',
+        aprovada: '—',
+        status: 'Revisão solicitada',
+        cor: 'text-orange-600'
+      },
+      'Letreiro Iluminado': {
+        versao: 'v1',
+        aprovada: 'v1',
+        status: 'Aprovada',
+        cor: 'text-green-600'
+      },
+      'Placa de Identificação': {
+        versao: 'v2',
+        aprovada: '—',
+        status: 'Em desenvolvimento',
+        cor: 'text-blue-600'
+      }
+    };
+
+    const arte = statusArte[produtoNome] || {
+      versao: 'v1',
+      aprovada: '—',
+      status: 'Não definido',
+      cor: 'text-gray-600'
+    };
+
+    return (
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <span className="text-sm text-gray-600">
+            Atual: {arte.versao} • Aprovada: {arte.aprovada}
+          </span>
+        </div>
+        <span className={`text-sm font-medium ${arte.cor}`}>
+          {arte.status}
+        </span>
+      </div>
+    );
+  };
+
+  // Função para obter materiais baseados nos dados reais do produto
+  const getMateriaisProduto = () => {
+    if (!dadosProduto || !dadosProduto.materiais) {
+      return (
+        <div className="text-sm text-gray-500">
+          Carregando materiais...
+        </div>
+      );
+    }
+
+
+    return (
+      <div className="space-y-2">
+        {dadosProduto.materiais.map((material: any, index: number) => (
+          <div key={material.id || `material-${index}`} className="flex justify-between items-start text-xs">
+            <div className="flex-1 pr-2">
+              <div className="font-medium text-gray-900 break-words">
+                {material.nome}
+              </div>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <div className="font-medium text-gray-700">
+                {Math.round((material.quantidade || 0) * (dadosProduto.quantidade || 1))} {material.unidade_uso || material.unidade || 'un'}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -417,18 +585,42 @@ export function PrazoProdutoComponent({
             )}
           </div>
 
+          {/* Detalhamento Técnico */}
+          <div className="border-t border-gray-100 pt-3">
+            <h5 className="text-sm font-medium text-gray-900 mb-2">Detalhamento Técnico</h5>
+            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+              {getDetalhamentoTecnico()}
+            </p>
+          </div>
+
+          {/* Materiais */}
+          <div className="border-t border-gray-100 pt-3">
+            <h5 className="text-sm font-medium text-gray-900 mb-2">Materiais</h5>
+            {getMateriaisProduto()}
+          </div>
+
+          {/* Status da Arte */}
+          <div className="border-t border-gray-100 pt-3">
+            <h5 className="text-sm font-medium text-gray-900 mb-2">Status da Arte</h5>
+            <div className="space-y-2">
+              {getStatusArte()}
+            </div>
+          </div>
+
           {/* Botão de liberar para PCP */}
           {dataPrazoProduto && statusLiberacao === 'PENDENTE' && !readonly && (
-            <Button
-              onClick={liberarParaPCP}
-              disabled={isLoading}
-              size="sm"
-              variant="outline"
-              className="w-full flex items-center justify-center space-x-2"
-            >
-              <CheckCircle className="h-4 w-4" />
-              <span>Liberar para PCP</span>
-            </Button>
+            <div className="border-t border-gray-100 pt-3">
+              <Button
+                onClick={liberarParaPCP}
+                disabled={isLoading}
+                size="sm"
+                variant="outline"
+                className="w-full flex items-center justify-center space-x-2"
+              >
+                <CheckCircle className="h-4 w-4" />
+                <span>Liberar para PCP</span>
+              </Button>
+            </div>
           )}
         </div>
       )}

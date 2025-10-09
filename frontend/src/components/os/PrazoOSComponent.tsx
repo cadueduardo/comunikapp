@@ -79,7 +79,14 @@ export function PrazoOSComponent({
   const carregarStatusPrazo = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/os/prazo/${osId}/status`);
+      const token = localStorage.getItem('access_token');
+      
+      const response = await fetch(`/api/os/prazo/${osId}/status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
       const result = await response.json();
       
       if (result.success) {
@@ -125,6 +132,7 @@ export function PrazoOSComponent({
 
     try {
       setIsLoading(true);
+      const token = localStorage.getItem('access_token');
       
       const requestData: DefinirPrazoRequest = {
         data_prazo: new Date(formData.data_prazo).toISOString(),
@@ -135,6 +143,7 @@ export function PrazoOSComponent({
       const response = await fetch(`/api/os/prazo/${osId}/definir`, {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestData),
@@ -172,10 +181,12 @@ export function PrazoOSComponent({
     
     try {
       setIsLoading(true);
+      const token = localStorage.getItem('access_token');
       
       const response = await fetch(`/api/os/prazo/${osId}/definir`, {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

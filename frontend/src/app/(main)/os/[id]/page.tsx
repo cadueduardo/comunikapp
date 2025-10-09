@@ -105,62 +105,6 @@ function renderResumoTab(os: OSDetalhada, isResumoCollapsed: boolean, setIsResum
             />
           </div>
 
-          {/* Detalhamento Técnico */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalhamento Técnico</h3>
-            <p className="text-gray-700">
-              Fachada em ACM 4mm, recorte CNC, pintura automotiva e iluminação embutida.
-            </p>
-          </div>
-
-          {/* Status da Arte por Serviço */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Status da Arte por Serviço</h3>
-            
-            <div className="space-y-4">
-              {/* Fachada Principal */}
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center">
-                    <span className="text-xs font-medium text-gray-600">v3</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Fachada Principal</p>
-                    <p className="text-sm text-gray-600">Atual: v3 • Aprovada: v1</p>
-                  </div>
-                </div>
-                <span className="text-sm font-medium text-green-600">Aprovada</span>
-              </div>
-
-              {/* Banner Interno */}
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center">
-                    <span className="text-xs font-medium text-gray-600">v1</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Banner Interno</p>
-                    <p className="text-sm text-gray-600">Atual: v1 • Aprovada: —</p>
-                  </div>
-                </div>
-                <span className="text-sm font-medium text-red-600">Aguardando aprovação</span>
-              </div>
-
-              {/* Painel Externo */}
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center">
-                    <span className="text-xs font-medium text-gray-600">v2</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Painel Externo</p>
-                    <p className="text-sm text-gray-600">Atual: v2 • Aprovada: —</p>
-                  </div>
-                </div>
-                <span className="text-sm font-medium text-orange-600">Revisão solicitada</span>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 

@@ -1,32 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { apiRequest } from '@/lib/api';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ osId: string; itemId: string }> }
 ) {
   try {
-    const body = await request.json();
     const { osId, itemId } = await params;
+    const token = request.headers.get('authorization')?.replace('Bearer ', '');
 
-    const result = await apiRequest(
-      `/os/produtos/${osId}/item/${itemId}/definir-prazo`,
-      {
-        method: 'POST',
-        body,
+    if (!token) {
+      return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
+    }
+
+    const body = await request.json();
+
+    const response = await fetch(`${API_BASE_URL}/os/produtos/${osId}/item/${itemId}/definir-prazo`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
       },
-      request
-    );
+      body: JSON.stringify(body),
+    });
 
-    return NextResponse.json(result);
-  } catch (error: any) {
+    if (!response.ok) {
+      const errorData = await response.json();
+      return NextResponse.json(
+        { error: errorData.message || 'Erro ao definir prazo do produto' },
+        { status: response.status }
+      );
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (error) {
     console.error('Erro ao definir prazo do produto:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: error.message || 'Erro ao definir prazo do produto' 
-      },
-      { status: error.status || 500 }
+      { error: 'Erro interno do servidor' },
+      { status: 500 }
     );
   }
 }

@@ -373,7 +373,12 @@ export class OSProdutoPrazoService {
         loja_id: lojaId
       },
       include: {
-        itens: true
+        itens: true,
+        orcamento: {
+          include: {
+            produtos: true
+          }
+        }
       }
     });
 
@@ -381,9 +386,29 @@ export class OSProdutoPrazoService {
       throw new NotFoundException('OS não encontrada ou não pertence à sua loja');
     }
 
-    const produtos = await Promise.all(
-      os.itens.map(item => this.consultarStatusPrazoProduto(item.id, osId, lojaId))
-    );
+    // Se a OS tem itens próprios (OS Direta), usar ItemOS
+    // Se não, buscar do orçamento vinculado
+    let produtos = [];
+
+    if (os.itens && os.itens.length > 0) {
+      produtos = await Promise.all(
+        os.itens.map(item => this.consultarStatusPrazoProduto(item.id, osId, lojaId))
+      );
+    } else if (os.orcamento && os.orcamento.produtos && os.orcamento.produtos.length > 0) {
+      // OS vinda de orçamento - criar itens temporários ou usar produtos do orçamento
+      produtos = os.orcamento.produtos.map(produto => ({
+        item_id: produto.id,
+        produto_servico: produto.nome || 'Produto sem nome',
+        data_inicio_producao: undefined,
+        data_prazo_produto: undefined,
+        status_liberacao_pcp: 'PENDENTE',
+        prioridade_produto: 'NORMAL',
+        dias_restantes: undefined,
+        is_retroativo: false,
+        mensagem: 'Prazo não definido',
+        excede_prazo_final: false
+      }));
+    }
 
     const resumo = {
       total_produtos: produtos.length,

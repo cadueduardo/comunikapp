@@ -114,4 +114,59 @@ export const authAPI = {
   },
 };
 
+// Função para uso em API Routes (server-side)
+export const apiRequestServer = async (
+  endpoint: string,
+  options: RequestInit = {},
+  request?: Request
+): Promise<any> => {
+  // Extrair token do request do servidor (pode vir do header ou cookie)
+  let token = null;
+  if (request) {
+    // Tentar pegar do header Authorization
+    const authHeader = request.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+    
+    // Se não encontrou no header, tentar pegar do cookie
+    if (!token) {
+      const cookieHeader = request.headers.get('cookie');
+      if (cookieHeader) {
+        const cookies = cookieHeader.split(';').map(c => c.trim());
+        const tokenCookie = cookies.find(c => c.startsWith('access_token='));
+        if (tokenCookie) {
+          token = tokenCookie.split('=')[1];
+        }
+      }
+    }
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Erro na requisição: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('❌ Erro na requisição API (server):', error);
+    throw error;
+  }
+};
+
 export default apiRequest; 

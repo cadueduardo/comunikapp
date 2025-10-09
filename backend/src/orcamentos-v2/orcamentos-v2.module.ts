@@ -13,6 +13,7 @@ import { CalculoV2Controller } from './controllers/calculo-v2.controller';
 import { ChatV2Controller } from './controllers/chat-v2.controller';
 import { LinksV2Controller } from './controllers/links-v2.controller';
 import { ImpressaoV2Controller } from './controllers/impressao-v2.controller';
+import { ProdutoDetalhesController } from './controllers/produto-detalhes.controller';
 
 // Services
 import { OrcamentosV2Service } from './services/orcamentos-v2.service';
@@ -49,6 +50,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     ChatV2Controller,
     LinksV2Controller,
     ImpressaoV2Controller,
+    ProdutoDetalhesController,
   ],
   providers: [
     // Services principais
