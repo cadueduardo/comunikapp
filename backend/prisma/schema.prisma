@@ -170,13 +170,15 @@ model RegraValidacao {
   descricao         String?   @db.Text
   categoria         String
   tipo              String    // BLOQUEIO, ALERTA, INFO
-  condicao          String    @db.LongText // JSON com a condição
+  condicoes         String    @db.LongText // JSON com as condições
+  acoes             String?   @db.LongText // JSON com as ações
   mensagem          String    @db.Text
   ativo             Boolean   @default(true)
   prioridade        Int       @default(0)
   criado_em         DateTime  @default(now())
   atualizado_em     DateTime  @updatedAt
   
+  loja              loja              @relation(fields: [loja_id], references: [id])
   execucoes         ExecucaoRegra[]
 
   @@index([loja_id])
@@ -190,13 +192,15 @@ model ExecucaoRegra {
   regra_id          String
   os_id             String?
   orcamento_id      String?
-  resultado         String    // PASSOU, FALHOU, ERRO
+  resultado         String    // SUCESSO, ERRO, ALERTA, BLOQUEIO
   mensagem          String?   @db.Text
-  dados_contexto    String?   @db.LongText // JSON
-  tempo_execucao_ms Int?
+  dados_execucao    String?   @db.LongText // JSON
+  tempo_execucao    Int?      // ms
   criado_em         DateTime  @default(now())
   
   regra             RegraValidacao @relation(fields: [regra_id], references: [id], onDelete: Cascade)
+  os                OrdemServico?  @relation(fields: [os_id], references: [id])
+  orcamento         orcamento?     @relation(fields: [orcamento_id], references: [id])
 
   @@index([regra_id])
   @@index([os_id])
@@ -451,6 +455,7 @@ model loja {
   modo_impressao           modo_impressao[]
   ordens_servico           OrdemServico[]
   workflows_os             WorkflowOS[]
+  regras_validacao         RegraValidacao[]
 }
 
 model maquina {
@@ -623,6 +628,7 @@ model orcamento {
   mensagensChat          MensagemChat[]
   linksPublicos          LinkPublico[]
   aprovacoes             aprovacaoOrcamento[]
+  execucoes_regras       ExecucaoRegra[]
   custos                 String?             @db.LongText // JSON com custos detalhados
   ordens_servico         OrdemServico[]
   
@@ -1378,6 +1384,7 @@ model OrdemServico {
   workflow_instancia WorkflowInstancia?
   apontamentos       Apontamento[]
   logs               OrdemServicoLog[]
+  execucoes_regras   ExecucaoRegra[]
 
   @@unique([loja_id, numero])
   @@index([loja_id, status])
