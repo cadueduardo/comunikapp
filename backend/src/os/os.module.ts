@@ -38,6 +38,7 @@ import { CalculoMaterialController } from './controllers/calculo-material.contro
 import { DebugValidacoesController } from './controllers/debug-validacoes.controller';
 import { TestOSValidacoesController } from './controllers/test-os-validacoes.controller';
 import { OSPrazoController } from './controllers/os-prazo.controller';
+import { OSProdutoPrazoController } from './controllers/os-produto-prazo.controller';
 // import { HistoricoController } from './controllers/historico.controller'; // TODO: Implementar
 
 // Services (<= 400 linhas cada)
@@ -55,6 +56,7 @@ import { OSApprovalPermissionsService } from './services/os-approval-permissions
 import { OSValidacoesService } from './services/os-validacoes.service';
 import { CalculoMaterialUnidadeService } from './services/calculo-material-unidade.service';
 import { OSPrazoService } from './services/os-prazo.service';
+import { OSProdutoPrazoService } from './services/os-produto-prazo.service';
 import { CorrecaoMateriaisHelper } from './helpers/correcao-materiais.helper';
 // import { NotificacoesOSService } from './services/notificacoes-os.service'; // TODO: Implementar
 // import { IntegracaoService } from './services/integracao.service'; // TODO: Implementar
@@ -103,6 +105,7 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
     DebugValidacoesController,
     TestOSValidacoesController,
     OSPrazoController,
+    OSProdutoPrazoController,
     // HistoricoController, // TODO: Implementar
   ],
   providers: [
@@ -122,6 +125,7 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
     OSValidacoesService,
     CalculoMaterialUnidadeService,
     OSPrazoService,
+    OSProdutoPrazoService,
     CorrecaoMateriaisHelper,
     // NotificacoesOSService, // TODO: Implementar
     // IntegracaoService, // TODO: Implementar
@@ -163,6 +167,7 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
     OSValidacoesService,
     CalculoMaterialUnidadeService,
     OSPrazoService,
+    OSProdutoPrazoService,
     // NotificacoesOSService, // TODO: Implementar
     // IntegracaoService, // TODO: Implementar
     OSPermissionsGuard,

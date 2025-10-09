@@ -348,11 +348,11 @@ POST   /os/:id/validacoes/executar           // Força execução de validaçõe
 - [x] Integração na aba "Resumo"
 
 ### **🔄 Fase 2: Prazos por Produto (EM ANDAMENTO)**
-- [ ] Ajustar schema: adicionar campos em `ItemOS`
-- [ ] Backend: APIs de prazo por produto
+- [x] Ajustar schema: adicionar campos em `ItemOS`
+- [x] Backend: APIs de prazo por produto
 - [ ] Frontend: Componente `PrazoProdutoComponent`
 - [ ] Frontend: Lista de produtos com prazos
-- [ ] Validação: prazo produto <= prazo final
+- [x] Validação: prazo produto <= prazo final
 - [ ] Disclaimers dinâmicos
 
 ### **⏳ Fase 3: Validações Dinâmicas (PRÓXIMA)**

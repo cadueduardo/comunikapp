@@ -1368,10 +1368,25 @@ model ItemOS {
   materiais_disponivel Boolean @default(false)
   observacoes        String?   @db.Text
   criado_em          DateTime  @default(now())
+  
+  // PRAZOS DO PRODUTO
+  data_inicio_producao   DateTime?  // Quando deve iniciar produção
+  data_prazo_produto     DateTime?  // Prazo específico deste produto
+  
+  // LIBERAÇÃO PCP
+  status_liberacao_pcp   String?    @default("PENDENTE") // PENDENTE, LIBERADO, EM_PRODUCAO, CONCLUIDO
+  liberado_pcp_por       String?    // usuario_id
+  liberado_pcp_em        DateTime?  // Data de liberação
+  
+  // PRIORIDADE E ORDEM
+  prioridade_produto     String?    @default("NORMAL") // URGENTE, ALTA, NORMAL, BAIXA
+  ordem_producao         Int?       // Ordem de produção (1, 2, 3...)
 
   os                 OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
 
   @@index([os_id])
+  @@index([status_liberacao_pcp])
+  @@index([data_inicio_producao])
   @@map("itens_os")
 }
 
