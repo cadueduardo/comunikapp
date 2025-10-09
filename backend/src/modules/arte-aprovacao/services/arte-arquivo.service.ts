@@ -1,0 +1,190 @@
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { ArteArquivoResponseDto } from '../dto/arte-response.dto';
+
+@Injectable()
+export class ArteArquivoService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Lista todos os arquivos de uma versão
+   */
+  async findArquivosByVersao(versaoId: string, lojaId: string): Promise<ArteArquivoResponseDto[]> {
+    console.log('📁 Buscando arquivos da versão:', { versaoId, lojaId });
+
+    // Verificar se a versão existe e pertence à loja
+    const versao = await this.prisma.arteVersao.findFirst({
+      where: {
+        id: versaoId,
+        loja_id: lojaId
+      }
+    });
+
+    if (!versao) {
+      throw new NotFoundException('Versão não encontrada');
+    }
+
+    const arquivos = await this.prisma.arteArquivo.findMany({
+      where: {
+        versao_id: versaoId,
+        loja_id: lojaId
+      },
+      orderBy: {
+        data_upload: 'desc'
+      }
+    });
+
+    console.log(`📋 Encontrados ${arquivos.length} arquivos`);
+
+    return arquivos.map(arquivo => this.formatArquivoResponse(arquivo));
+  }
+
+  /**
+   * Busca um arquivo específico
+   */
+  async findArquivoById(arquivoId: string, lojaId: string): Promise<ArteArquivoResponseDto> {
+    console.log('🔍 Buscando arquivo:', { arquivoId, lojaId });
+
+    const arquivo = await this.prisma.arteArquivo.findFirst({
+      where: {
+        id: arquivoId,
+        loja_id: lojaId
+      }
+    });
+
+    if (!arquivo) {
+      throw new NotFoundException('Arquivo não encontrado');
+    }
+
+    return this.formatArquivoResponse(arquivo);
+  }
+
+  /**
+   * Adiciona um arquivo a uma versão
+   */
+  async addArquivo(
+    versaoId: string,
+    arquivoData: {
+      nome_arquivo: string;
+      nome_original: string;
+      tipo_arquivo: string;
+      tamanho: bigint;
+      url_arquivo: string;
+      url_thumbnail?: string;
+      storage_provider: string;
+      storage_path: string;
+    },
+    lojaId: string
+  ): Promise<ArteArquivoResponseDto> {
+    console.log('📤 Adicionando arquivo à versão:', { versaoId, arquivoData, lojaId });
+
+    // Verificar se a versão existe e pertence à loja
+    const versao = await this.prisma.arteVersao.findFirst({
+      where: {
+        id: versaoId,
+        loja_id: lojaId
+      }
+    });
+
+    if (!versao) {
+      throw new NotFoundException('Versão não encontrada');
+    }
+
+    // Validar tipo de arquivo
+    const tiposPermitidos = ['pdf', 'jpg', 'jpeg', 'png', 'ai', 'psd', 'eps'];
+    const extensao = arquivoData.tipo_arquivo.toLowerCase();
+    
+    if (!tiposPermitidos.includes(extensao)) {
+      throw new BadRequestException(
+        `Tipo de arquivo não permitido. Tipos aceitos: ${tiposPermitidos.join(', ')}`
+      );
+    }
+
+    // Validar tamanho (máximo 50MB)
+    const maxSize = 50 * 1024 * 1024; // 50MB em bytes
+    if (Number(arquivoData.tamanho) > maxSize) {
+      throw new BadRequestException('Arquivo muito grande. Tamanho máximo: 50MB');
+    }
+
+    // Criar o arquivo
+    const arquivo = await this.prisma.arteArquivo.create({
+      data: {
+        versao_id: versaoId,
+        nome_arquivo: arquivoData.nome_arquivo,
+        nome_original: arquivoData.nome_original,
+        tipo_arquivo: arquivoData.tipo_arquivo,
+        tamanho: arquivoData.tamanho,
+        url_arquivo: arquivoData.url_arquivo,
+        url_thumbnail: arquivoData.url_thumbnail,
+        storage_provider: arquivoData.storage_provider,
+        storage_path: arquivoData.storage_path,
+        loja_id: lojaId
+      }
+    });
+
+    console.log('✅ Arquivo adicionado com sucesso:', arquivo.id);
+
+    return this.formatArquivoResponse(arquivo);
+  }
+
+  /**
+   * Remove um arquivo
+   */
+  async removeArquivo(arquivoId: string, lojaId: string): Promise<void> {
+    console.log('🗑️ Removendo arquivo:', { arquivoId, lojaId });
+
+    // Verificar se o arquivo existe
+    const arquivoExistente = await this.prisma.arteArquivo.findFirst({
+      where: {
+        id: arquivoId,
+        loja_id: lojaId
+      }
+    });
+
+    if (!arquivoExistente) {
+      throw new NotFoundException('Arquivo não encontrado');
+    }
+
+    // TODO: Aqui deveria remover o arquivo do storage também
+    // Por enquanto, apenas remove do banco de dados
+
+    // Remover o arquivo
+    await this.prisma.arteArquivo.delete({
+      where: {
+        id: arquivoId
+      }
+    });
+
+    console.log('✅ Arquivo removido com sucesso');
+  }
+
+  /**
+   * Gera URL pública para download (temporária)
+   */
+  async generatePublicUrl(arquivoId: string, lojaId: string): Promise<string> {
+    console.log('🔗 Gerando URL pública:', { arquivoId, lojaId });
+
+    const arquivo = await this.findArquivoById(arquivoId, lojaId);
+    
+    // TODO: Implementar geração de URL temporária baseada no storage provider
+    // Por enquanto, retorna a URL direta
+    return arquivo.url_arquivo;
+  }
+
+  /**
+   * Formata a resposta do arquivo
+   */
+  private formatArquivoResponse(arquivo: any): ArteArquivoResponseDto {
+    return {
+      id: arquivo.id,
+      nome_arquivo: arquivo.nome_arquivo,
+      nome_original: arquivo.nome_original,
+      tipo_arquivo: arquivo.tipo_arquivo,
+      tamanho: arquivo.tamanho,
+      url_arquivo: arquivo.url_arquivo,
+      url_thumbnail: arquivo.url_thumbnail,
+      storage_provider: arquivo.storage_provider,
+      data_upload: arquivo.data_upload
+    };
+  }
+}

@@ -998,6 +998,11 @@ model usuario {
   perfis                             usuario_perfil[]
   orcamentos_responsavel             orcamento[]
   os_logs                            OrdemServicoLog[]
+  
+  // Relacionamentos Arte & Aprovação
+  artes_autor                        ArteVersao[]     @relation("ArteAutor")
+  artes_aprovador                    ArteVersao[]     @relation("ArteAprovador")
+  comentarios_arte                   ArteComentario[]
 
   @@index([loja_id], map: "Usuario_loja_id_idx")
 }
@@ -1385,6 +1390,9 @@ model OrdemServico {
   apontamentos       Apontamento[]
   logs               OrdemServicoLog[]
   execucoes_regras   ExecucaoRegra[]
+  
+  // Relacionamentos Arte & Aprovação
+  artes_versoes      ArteVersao[]
 
   @@unique([loja_id, numero])
   @@index([loja_id, status])
@@ -1622,4 +1630,114 @@ enum TipoMovimentacaoOS {
   FINALIZAR
   ATRIBUIR_RESPONSAVEL
   ADICIONAR_OBSERVACAO
+}
+
+// ==========================================
+// MÓDULO ARTE & APROVAÇÃO
+// ==========================================
+
+model ArteVersao {
+  id                String   @id @default(cuid())
+  os_id             String
+  servico_id        String?  // Referência ao serviço específico
+  versao            String   // v1, v2, v3, etc.
+  status            ArteStatus
+  autor_id          String
+  descricao         String?
+  observacoes       String?
+  data_criacao      DateTime @default(now())
+  data_aprovacao    DateTime?
+  aprovado_por      String?
+  aprovado_por_cliente Boolean @default(false)
+  loja_id           String   // Multi-tenant
+  
+  // Relacionamentos
+  os                OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  autor             usuario @relation("ArteAutor", fields: [autor_id], references: [id])
+  aprovador         usuario? @relation("ArteAprovador", fields: [aprovado_por], references: [id])
+  arquivos          ArteArquivo[]
+  comentarios       ArteComentario[]
+  links_aprovacao   ArteLinkAprovacao[]
+  
+  @@map("arte_versoes")
+  @@index([os_id, loja_id])
+  @@index([status, loja_id])
+  @@index([autor_id, loja_id])
+}
+
+model ArteArquivo {
+  id                String   @id @default(cuid())
+  versao_id         String
+  nome_arquivo      String
+  nome_original     String
+  tipo_arquivo      String   // pdf, jpg, png, ai, etc.
+  tamanho           BigInt
+  url_arquivo       String
+  url_thumbnail     String?  // Para preview
+  storage_provider  String   // google_drive, aws_s3, local
+  storage_path      String
+  data_upload       DateTime @default(now())
+  loja_id           String   // Multi-tenant
+  
+  // Relacionamentos
+  versao            ArteVersao @relation(fields: [versao_id], references: [id], onDelete: Cascade)
+  
+  @@map("arte_arquivos")
+  @@index([versao_id, loja_id])
+  @@index([tipo_arquivo, loja_id])
+}
+
+model ArteComentario {
+  id                String   @id @default(cuid())
+  versao_id         String
+  usuario_id        String
+  comentario        String   @db.LongText
+  tipo              ComentarioTipo @default(INTERNO)
+  data_comentario   DateTime @default(now())
+  loja_id           String   // Multi-tenant
+  
+  // Relacionamentos
+  versao            ArteVersao @relation(fields: [versao_id], references: [id], onDelete: Cascade)
+  usuario           usuario @relation(fields: [usuario_id], references: [id])
+  
+  @@map("arte_comentarios")
+  @@index([versao_id, loja_id])
+  @@index([usuario_id, loja_id])
+}
+
+model ArteLinkAprovacao {
+  id                String   @id @default(cuid())
+  versao_id         String
+  token_publico     String   @unique
+  expira_em         DateTime
+  aprovado          Boolean  @default(false)
+  data_aprovacao    DateTime?
+  ip_aprovacao      String?
+  user_agent        String?
+  comentario_cliente String? @db.LongText
+  ativo             Boolean  @default(true)
+  loja_id           String   // Multi-tenant
+  
+  // Relacionamentos
+  versao            ArteVersao @relation(fields: [versao_id], references: [id], onDelete: Cascade)
+  
+  @@map("arte_links_aprovacao")
+  @@index([token_publico])
+  @@index([loja_id])
+  @@index([expira_em])
+}
+
+enum ArteStatus {
+  RASCUNHO
+  ENVIADA_CLIENTE
+  APROVADA
+  REVISAO_SOLICITADA
+  BLOQUEADA
+  ENVIADA_PCP
+}
+
+enum ComentarioTipo {
+  INTERNO
+  CLIENTE
+  SISTEMA
 }

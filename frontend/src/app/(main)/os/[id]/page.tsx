@@ -19,6 +19,8 @@ import { apiRequest } from "@/lib/api";
 import { OrdemServico } from "../columns";
 import { PrazoOSComponent } from "@/components/os/PrazoOSComponent";
 import { ListaProdutosComPrazo } from "@/components/os/ListaProdutosComPrazo";
+import { ArteAprovacaoWireframe as ArteAprovacaoTab } from "@/components/os/arte-aprovacao/ArteAprovacaoWireframe";
+import { ArteAprovacaoSidebar } from "@/components/os/arte-aprovacao/ArteAprovacaoSidebar";
 
 interface OSDetalhada extends OrdemServico {
   // Mantendo apenas as interfaces essenciais
@@ -154,7 +156,7 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed }: {
 
   const tabs = [
     { id: 'resumo' as TabType, label: 'Resumo', icon: Package },
-    { id: 'arte-aprovacao' as TabType, label: 'Arte & Aprovação', icon: CheckCircle },
+    { id: 'arte-aprovacao' as TabType, label: '🎨 Arte & Aprovação', icon: CheckCircle },
     { id: 'materiais' as TabType, label: 'Materiais', icon: Package },
     { id: 'analise-inteligente' as TabType, label: 'Análise Inteligente', icon: Settings },
   ];
@@ -189,42 +191,50 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed }: {
       </div>
 
       {/* Conteúdo da Aba Ativa */}
-      <div className="p-4 lg:p-6 h-full bg-white">
-        {activeTab === 'resumo' && renderResumoTab(os, isResumoCollapsed, setIsResumoCollapsed)}
-        {activeTab === 'arte-aprovacao' && (
-          <div className="text-center py-12">
-            <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-lg font-medium text-gray-900 mb-2">
-              Aba "Arte & Aprovação" Selecionada
-            </h2>
-            <p className="text-gray-600">
-              Conteúdo da aba será implementado nas próximas etapas.
-            </p>
+      {activeTab === 'arte-aprovacao' ? (
+        // Layout especial para Arte & Aprovação com sidebar direito
+        <div className="flex flex-col lg:flex-row h-full">
+          {/* Área Principal - Miolo (75% desktop) */}
+          <div className="w-full lg:w-[75%] p-4 lg:p-6 bg-white">
+            <ArteAprovacaoTab 
+              osId={os.id} 
+              readonly={false}
+            />
           </div>
-        )}
-        {activeTab === 'materiais' && (
-          <div className="text-center py-12">
-            <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-lg font-medium text-gray-900 mb-2">
-              Aba "Materiais" Selecionada
-            </h2>
-            <p className="text-gray-600">
-              Conteúdo da aba será implementado nas próximas etapas.
-            </p>
+          
+          {/* Sidebar Direito - Dinâmico (25% desktop) */}
+          <div className="w-full lg:w-[25%] p-4 lg:p-6 bg-white">
+            <ArteAprovacaoSidebar osId={os.id} />
           </div>
-        )}
-        {activeTab === 'analise-inteligente' && (
-          <div className="text-center py-12">
-            <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-lg font-medium text-gray-900 mb-2">
-              Aba "Análise Inteligente" Selecionada
-            </h2>
-            <p className="text-gray-600">
-              Conteúdo da aba será implementado nas próximas etapas.
-            </p>
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        // Layout padrão para outras abas
+        <div className="p-4 lg:p-6 h-full bg-white">
+          {activeTab === 'resumo' && renderResumoTab(os, isResumoCollapsed, setIsResumoCollapsed)}
+          {activeTab === 'materiais' && (
+            <div className="text-center py-12">
+              <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h2 className="text-lg font-medium text-gray-900 mb-2">
+                Aba "Materiais" Selecionada
+              </h2>
+              <p className="text-gray-600">
+                Conteúdo da aba será implementado nas próximas etapas.
+              </p>
+            </div>
+          )}
+          {activeTab === 'analise-inteligente' && (
+            <div className="text-center py-12">
+              <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h2 className="text-lg font-medium text-gray-900 mb-2">
+                Aba "Análise Inteligente" Selecionada
+              </h2>
+              <p className="text-gray-600">
+                Conteúdo da aba será implementado nas próximas etapas.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
