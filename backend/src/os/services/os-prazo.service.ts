@@ -242,16 +242,19 @@ export class OSPrazoService {
       }
     });
 
-    return logs.map(log => ({
-      id: log.id,
-      data_prazo_definida: log.dados_extras?.data_prazo_definida,
-      data_atual: log.dados_extras?.data_atual,
-      motivo: log.dados_extras?.motivo,
-      usuario: log.usuario,
-      ip_origem: log.ip_origem,
-      user_agent: log.user_agent,
-      criado_em: log.criado_em
-    }));
+    return logs.map(log => {
+      const dadosExtras = log.dados_extras ? JSON.parse(log.dados_extras) : {};
+      return {
+        id: log.id,
+        data_prazo_definida: dadosExtras.data_prazo_definida,
+        data_atual: dadosExtras.data_atual,
+        motivo: dadosExtras.motivo,
+        usuario: log.usuario,
+        ip_origem: log.ip_origem,
+        user_agent: log.user_agent,
+        criado_em: log.criado_em
+      };
+    });
   }
 
   /**
@@ -264,14 +267,14 @@ export class OSPrazoService {
           os_id: logData.os_id,
           tipo_acao: 'PRAZO_RETROATIVO',
           descricao: `Prazo retroativo definido: ${logData.data_definida}`,
-          dados_extras: {
+          dados_extras: JSON.stringify({
             data_prazo_definida: logData.data_definida,
             data_atual: logData.data_atual,
             motivo: logData.motivo,
             dias_atras: Math.ceil(
               (new Date(logData.data_atual).getTime() - new Date(logData.data_definida).getTime()) / (1000 * 60 * 60 * 24)
             )
-          },
+          }),
           usuario_id: logData.usuario_id,
           ip_origem: logData.ip_origem,
           user_agent: logData.user_agent

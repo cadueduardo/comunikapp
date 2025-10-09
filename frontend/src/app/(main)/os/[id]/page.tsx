@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { apiRequest } from "@/lib/api";
 import { OrdemServico } from "../columns";
 import { PrazoOSComponent } from "@/components/os/PrazoOSComponent";
+import { ListaProdutosComPrazo } from "@/components/os/ListaProdutosComPrazo";
 
 interface OSDetalhada extends OrdemServico {
   // Mantendo apenas as interfaces essenciais
@@ -94,32 +95,14 @@ function renderResumoTab(os: OSDetalhada, isResumoCollapsed: boolean, setIsResum
       {/* Conteúdo Central (50% desktop, full mobile) */}
       <div className="w-full lg:flex-1 lg:px-6">
         <div className="space-y-6">
-          {/* Serviços nesta OS */}
+          {/* Produtos e Prazos */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Serviços nesta OS</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Produtos e Prazos de Produção</h3>
             
-            <div className="flex flex-wrap gap-2 mb-6">
-              {/* Fachada Principal - Ativo */}
-              <div className="flex items-center space-x-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg flex-shrink-0">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm font-medium text-blue-900">Fachada Principal</span>
-                <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">v3</span>
-              </div>
-              
-              {/* Banner Interno - Inativo */}
-              <div className="flex items-center space-x-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex-shrink-0">
-                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-700">Banner Interno</span>
-                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">v1</span>
-              </div>
-              
-              {/* Painel Externo - Inativo */}
-              <div className="flex items-center space-x-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex-shrink-0">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-700">Painel Externo</span>
-                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">v2</span>
-              </div>
-            </div>
+            <ListaProdutosComPrazo 
+              osId={os.id}
+              prazoFinalOS={os.data_prazo ? new Date(os.data_prazo) : undefined}
+            />
           </div>
 
           {/* Detalhamento Técnico */}
@@ -408,26 +391,26 @@ export default function OSDetalhePage() {
 
             {/* Botões de ação */}
             <div className="flex items-center space-x-3">
-              <Button 
+                  <Button
                 onClick={handleImprimirOS} 
-                variant="outline" 
+                    variant="outline"
                 className="flex items-center space-x-2"
               >
-                <Printer className="h-4 w-4" />
+              <Printer className="h-4 w-4" />
                 <span className="hidden sm:inline">Imprimir OS</span>
-              </Button>
+            </Button>
 
-              {podeEditar && (
-                <Link href={`/os/${os.id}/editar`}>
+            {podeEditar && (
+              <Link href={`/os/${os.id}/editar`}>
                   <Button className="flex items-center space-x-2 bg-gray-900 hover:bg-gray-800">
                     <Edit className="h-4 w-4" />
                     <span className="hidden sm:inline">Editar OS</span>
-                  </Button>
-                </Link>
+                    </Button>
+                  </Link>
               )}
             </div>
-          </div>
-        </div>
+              </div>
+              </div>
       </div>
 
       {/* Linha separadora sutil */}

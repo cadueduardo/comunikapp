@@ -343,12 +343,12 @@ export class OSProdutoPrazoService {
         os_id: osId,
         tipo_acao: 'LIBERACAO_PRODUTO_PCP',
         descricao: `Produto "${item.produto_servico}" liberado para PCP`,
-        dados_extras: {
+        dados_extras: JSON.stringify({
           item_id: itemId,
           produto_servico: item.produto_servico,
           data_prazo_produto: item.data_prazo_produto,
           motivo: motivo
-        },
+        }),
         usuario_id: usuarioId
       }
     });
@@ -412,7 +412,7 @@ export class OSProdutoPrazoService {
           os_id: logData.os_id,
           tipo_acao: 'PRAZO_PRODUTO_RETROATIVO',
           descricao: `Prazo retroativo definido para produto`,
-          dados_extras: {
+          dados_extras: JSON.stringify({
             item_id: logData.item_id,
             data_prazo_definida: logData.data_definida,
             data_atual: logData.data_atual,
@@ -420,7 +420,7 @@ export class OSProdutoPrazoService {
             dias_atras: Math.ceil(
               (new Date(logData.data_atual).getTime() - new Date(logData.data_definida).getTime()) / (1000 * 60 * 60 * 24)
             )
-          },
+          }),
           usuario_id: logData.usuario_id,
           ip_origem: logData.ip_origem,
           user_agent: logData.user_agent
