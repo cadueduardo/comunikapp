@@ -3,16 +3,18 @@ import { apiRequest } from '@/lib/api';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { osId: string } }
+  { params }: { params: Promise<{ osId: string }> }
 ) {
   try {
-    const { osId } = params;
+    const { osId } = await params;
 
-    const result = await apiRequest({
-      method: 'GET',
-      endpoint: `/os/produtos/${osId}/status-produtos`,
-      request,
-    });
+    const result = await apiRequest(
+      `/os/produtos/${osId}/status-produtos`,
+      {
+        method: 'GET',
+      },
+      request
+    );
 
     return NextResponse.json(result);
   } catch (error: any) {

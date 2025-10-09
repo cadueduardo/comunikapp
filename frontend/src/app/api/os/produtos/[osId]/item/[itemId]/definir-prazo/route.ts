@@ -3,18 +3,20 @@ import { apiRequest } from '@/lib/api';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { osId: string; itemId: string } }
+  { params }: { params: Promise<{ osId: string; itemId: string }> }
 ) {
   try {
     const body = await request.json();
-    const { osId, itemId } = params;
+    const { osId, itemId } = await params;
 
-    const result = await apiRequest({
-      method: 'POST',
-      endpoint: `/os/produtos/${osId}/item/${itemId}/definir-prazo`,
-      body,
-      request,
-    });
+    const result = await apiRequest(
+      `/os/produtos/${osId}/item/${itemId}/definir-prazo`,
+      {
+        method: 'POST',
+        body,
+      },
+      request
+    );
 
     return NextResponse.json(result);
   } catch (error: any) {
