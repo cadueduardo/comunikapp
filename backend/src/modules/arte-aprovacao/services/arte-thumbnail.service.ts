@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import sharp from 'sharp';
+import * as sharp from 'sharp';
 import { existsSync } from 'fs';
 import { join, extname, basename } from 'path';
 
