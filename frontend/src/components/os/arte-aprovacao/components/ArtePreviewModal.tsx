@@ -19,6 +19,7 @@ import {
   User,
   MessageSquare
 } from 'lucide-react';
+import { ArteCommentsPanel } from './ArteCommentsPanel';
 import { ArtePreviewModalProps, ArteStatus, ComentarioTipo } from '../types/arte-types';
 
 export function ArtePreviewModal({ versao, isOpen, onClose }: ArtePreviewModalProps) {
@@ -241,32 +242,10 @@ export function ArtePreviewModal({ versao, isOpen, onClose }: ArtePreviewModalPr
               </div>
 
               {/* Comentários */}
-              <div className="space-y-3">
-                <h3 className="font-medium text-gray-900">Comentários ({versao.comentarios.length})</h3>
-                {versao.comentarios.length > 0 ? (
-                  <div className="space-y-2">
-                    {versao.comentarios.map((comentario) => (
-                      <div key={comentario.id} className="border rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium">{comentario.usuario_nome}</span>
-                          <Badge className={getComentarioTipoColor(comentario.tipo)} size="sm">
-                            {getComentarioTipoLabel(comentario.tipo)}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-gray-600">{comentario.comentario}</p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(comentario.data_comentario).toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-4 text-gray-500">
-                    <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Nenhum comentário</p>
-                  </div>
-                )}
-              </div>
+              <ArteCommentsPanel 
+                versaoId={versao.id}
+                readonly={false}
+              />
             </div>
           </div>
         </div>

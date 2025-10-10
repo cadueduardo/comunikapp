@@ -22,6 +22,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ArteCommentsPanel } from '@/components/os/arte-aprovacao/components/ArteCommentsPanel';
 
 interface ArtePublicApprovalPageProps {}
 
@@ -346,24 +347,11 @@ export default function ArtePublicApprovalPage({}: ArtePublicApprovalPageProps) 
             </Card>
 
             {/* Comentários */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold mb-4">Comentários ({arteData.comentarios.length})</h2>
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {arteData.comentarios.map((comentario) => (
-                    <div key={comentario.id} className="p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">{comentario.usuario.nome}</span>
-                        <span className="text-xs text-gray-500">
-                          {new Date(comentario.data_comentario).toLocaleDateString('pt-BR')}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-700">{comentario.comentario}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <ArteCommentsPanel 
+              versaoId={arteData.versao.id}
+              token={token}
+              readonly={arteData.versao.status !== 'ENVIADA_CLIENTE' || arteData.link.aprovado}
+            />
           </div>
 
           {/* Coluna Central - Preview */}
@@ -454,33 +442,6 @@ export default function ArtePublicApprovalPage({}: ArtePublicApprovalPageProps) 
               </Card>
             )}
 
-            {/* Comentário para Rejeição */}
-            {arteData.versao.status === 'ENVIADA_CLIENTE' && !arteData.link.aprovado && (
-              <Card>
-                <CardContent className="p-6">
-                  <h2 className="text-lg font-semibold mb-4">Comentário (Opcional)</h2>
-                  <Textarea
-                    placeholder="Deixe seu comentário aqui..."
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    className="mb-4"
-                    rows={4}
-                  />
-                  <Button
-                    onClick={() => {
-                      // Aqui você pode implementar envio de comentário
-                      toast.success('Comentário enviado com sucesso!');
-                      setComment('');
-                    }}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    Enviar Comentário
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           {/* Coluna Direita - Navegação de Arquivos */}
