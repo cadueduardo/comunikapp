@@ -12,7 +12,7 @@ import {
   UseGuards 
 } from '@nestjs/common';
 import { ArteComentarioService, CreateComentarioDto, ComentarioPublicoDto } from '../services/arte-comentario.service';
-import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 
 @Controller('arte-aprovacao/comentarios')
 export class ArteComentarioController {

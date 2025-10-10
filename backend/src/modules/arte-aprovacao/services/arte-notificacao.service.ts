@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 import * as nodemailer from 'nodemailer';
 
 export interface NotificacaoEmailDto {
@@ -22,7 +22,7 @@ export class ArteNotificacaoService {
   private transporter: nodemailer.Transporter;
 
   constructor(private prisma: PrismaService) {
-    this.transporter = nodemailer.createTransporter({
+    this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.SMTP_PORT || '587'),
       secure: false,

@@ -9,7 +9,7 @@ import {
   Get 
 } from '@nestjs/common';
 import { ArteNotificacaoService, NotificacaoArteDto } from '../services/arte-notificacao.service';
-import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 
 @Controller('arte-aprovacao/notificacoes')
 export class ArteNotificacaoController {

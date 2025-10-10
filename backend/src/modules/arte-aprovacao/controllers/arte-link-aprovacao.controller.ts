@@ -10,7 +10,7 @@ import {
   UseGuards 
 } from '@nestjs/common';
 import { ArteLinkAprovacaoService, CreateLinkAprovacaoDto, AprovarArteDto } from '../services/arte-link-aprovacao.service';
-import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 
 @Controller('arte-aprovacao/links')
 export class ArteLinkAprovacaoController {
