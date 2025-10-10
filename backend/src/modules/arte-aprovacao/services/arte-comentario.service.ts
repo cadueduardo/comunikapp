@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { ComentarioTipo } from '@prisma/client';
+import { ArteNotificacaoService } from './arte-notificacao.service';
 
 export interface CreateComentarioDto {
   versao_id: string;
@@ -29,7 +30,10 @@ export interface ComentarioPublicoDto {
 
 @Injectable()
 export class ArteComentarioService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificacaoService: ArteNotificacaoService
+  ) {}
 
   /**
    * Cria um novo comentário em uma versão
@@ -78,6 +82,25 @@ export class ArteComentarioService {
         },
       },
     });
+
+    // Enviar notificação por email se for comentário interno
+    if (tipo === ComentarioTipo.INTERNO) {
+      try {
+        await this.notificacaoService.notificarComentarioAdicionado({
+          tipo: 'COMENTARIO_ADICIONADO',
+          os_id: versao.os_id,
+          versao_id,
+          destinatarios: [versao.os.cliente.email],
+          dados: {
+            comentario: comentario,
+            comentario_autor: usuario.nome,
+          },
+        });
+      } catch (error) {
+        console.error('❌ Erro ao enviar notificação de comentário:', error);
+        // Não falhar a operação principal por causa da notificação
+      }
+    }
 
     return {
       id: novoComentario.id,

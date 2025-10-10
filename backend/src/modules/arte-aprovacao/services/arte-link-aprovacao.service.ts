@@ -3,6 +3,7 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { ArteLinkAprovacao, ArteStatus } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
+import { ArteNotificacaoService } from './arte-notificacao.service';
 
 export interface CreateLinkAprovacaoDto {
   versao_id: string;
@@ -29,7 +30,10 @@ export interface AprovarArteDto {
 
 @Injectable()
 export class ArteLinkAprovacaoService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificacaoService: ArteNotificacaoService
+  ) {}
 
   /**
    * Cria um novo link de aprovação para uma versão
@@ -94,6 +98,22 @@ export class ArteLinkAprovacaoService {
       where: { id: versao_id },
       data: { status: ArteStatus.ENVIADA_CLIENTE },
     });
+
+    // Enviar notificação por email
+    try {
+      await this.notificacaoService.notificarAprovacaoSolicitada({
+        tipo: 'APROVACAO_SOLICITADA',
+        os_id: versao.os_id,
+        versao_id,
+        destinatarios: [versao.os.cliente.email],
+        dados: {
+          link_id: link.id,
+        },
+      });
+    } catch (error) {
+      console.error('❌ Erro ao enviar notificação de aprovação solicitada:', error);
+      // Não falhar a operação principal por causa da notificação
+    }
 
     return {
       id: link.id,
@@ -233,6 +253,32 @@ export class ArteLinkAprovacaoService {
           loja_id: link.versao.loja_id,
         },
       });
+    }
+
+    // Enviar notificação por email
+    try {
+      if (aprovado) {
+        await this.notificacaoService.notificarArteAprovada({
+          tipo: 'ARTE_APROVADA',
+          os_id: link.versao.os_id,
+          versao_id: link.versao_id,
+          destinatarios: [link.versao.autor.email],
+          dados: {},
+        });
+      } else {
+        await this.notificacaoService.notificarArteRejeitada({
+          tipo: 'ARTE_REJEITADA',
+          os_id: link.versao.os_id,
+          versao_id: link.versao_id,
+          destinatarios: [link.versao.autor.email],
+          dados: {
+            comentario_cliente: comentario,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('❌ Erro ao enviar notificação de aprovação/rejeição:', error);
+      // Não falhar a operação principal por causa da notificação
     }
 
     return {
