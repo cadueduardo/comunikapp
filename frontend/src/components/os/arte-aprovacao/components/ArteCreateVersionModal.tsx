@@ -345,7 +345,15 @@ export function ArteCreateVersionModal({
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{uploadFile.file.name}</p>
+                    <p 
+                      className="text-sm font-medium truncate" 
+                      title={uploadFile.file.name}
+                    >
+                      {uploadFile.file.name.length > 40 
+                        ? `${uploadFile.file.name.substring(0, 37)}...` 
+                        : uploadFile.file.name
+                      }
+                    </p>
                     <p className="text-xs text-gray-500">{formatFileSize(uploadFile.file.size)}</p>
                     
                     {/* Progress bar durante upload */}
