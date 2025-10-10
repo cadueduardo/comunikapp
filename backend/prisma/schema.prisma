@@ -1002,6 +1002,7 @@ model usuario {
   // Relacionamentos Arte & Aprovação
   artes_autor                        ArteVersao[]     @relation("ArteAutor")
   artes_aprovador                    ArteVersao[]     @relation("ArteAprovador")
+  artes_excluidor                    ArteVersao[]     @relation("ArteExcluidor")
   comentarios_arte                   ArteComentario[]
 
   @@index([loja_id], map: "Usuario_loja_id_idx")
@@ -1651,10 +1652,16 @@ model ArteVersao {
   aprovado_por_cliente Boolean @default(false)
   loja_id           String   // Multi-tenant
   
+  // Soft Delete
+  deletado          Boolean  @default(false)
+  data_exclusao     DateTime?
+  excluido_por      String?
+  
   // Relacionamentos
   os                OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
   autor             usuario @relation("ArteAutor", fields: [autor_id], references: [id])
   aprovador         usuario? @relation("ArteAprovador", fields: [aprovado_por], references: [id])
+  excluidor         usuario? @relation("ArteExcluidor", fields: [excluido_por], references: [id])
   arquivos          ArteArquivo[]
   comentarios       ArteComentario[]
   links_aprovacao   ArteLinkAprovacao[]
@@ -1663,6 +1670,7 @@ model ArteVersao {
   @@index([os_id, loja_id])
   @@index([status, loja_id])
   @@index([autor_id, loja_id])
+  @@index([deletado, loja_id])
 }
 
 model ArteArquivo {

@@ -118,7 +118,7 @@ export class ArteVersaoController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Remover versão' })
+  @ApiOperation({ summary: 'Remover versão (soft delete)' })
   @ApiResponse({ status: 204, description: 'Versão removida com sucesso' })
   @ApiResponse({ status: 404, description: 'Versão não encontrada' })
   async remove(
@@ -127,9 +127,30 @@ export class ArteVersaoController {
   ): Promise<void> {
     console.log('🗑️ [Controller] Removendo versão:', {
       id,
+      usuarioId: req.user.id,
       lojaId: req.user.loja_id
     });
 
-    return this.arteVersaoService.removeVersao(id, req.user.loja_id);
+    return this.arteVersaoService.removeVersao(id, req.user.loja_id, req.user.id);
+  }
+
+  @Post(':id/restore')
+  @ApiOperation({ summary: 'Restaurar versão deletada' })
+  @ApiResponse({
+    status: 200,
+    description: 'Versão restaurada com sucesso',
+    type: ArteVersaoResponseDto
+  })
+  @ApiResponse({ status: 404, description: 'Versão não encontrada' })
+  async restore(
+    @Param('id') id: string,
+    @Request() req: any
+  ): Promise<ArteVersaoResponseDto> {
+    console.log('♻️ [Controller] Restaurando versão:', {
+      id,
+      lojaId: req.user.loja_id
+    });
+
+    return this.arteVersaoService.restoreVersao(id, req.user.loja_id);
   }
 }

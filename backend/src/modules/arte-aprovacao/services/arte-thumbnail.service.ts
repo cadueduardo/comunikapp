@@ -40,7 +40,7 @@ export class ArteThumbnailService {
       const quality = options.quality || 80;
 
       // Gerar nome do thumbnail
-      const dir = filePath.substring(0, filePath.lastIndexOf('/'));
+      const dir = filePath.substring(0, Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\')));
       const fileName = basename(filePath, ext);
       const thumbnailPath = join(dir, `thumb_${fileName}.jpg`);
 

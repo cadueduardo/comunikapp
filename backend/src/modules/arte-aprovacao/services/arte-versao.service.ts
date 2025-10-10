@@ -36,17 +36,19 @@ export class ArteVersaoService {
       throw new NotFoundException('Ordem de Serviço não encontrada');
     }
 
-    // Verificar se já existe uma versão com o mesmo número
+    // Verificar se já existe uma versão com o mesmo número PARA O MESMO SERVIÇO (não deletada)
     const versaoExistente = await this.prisma.arteVersao.findFirst({
       where: {
         os_id: createDto.os_id,
         versao: createDto.versao,
-        loja_id: lojaId
+        servico_id: createDto.servico_id || null, // Importante: considerar null se não tiver servico_id
+        loja_id: lojaId,
+        deletado: false // Não considerar versões deletadas
       }
     });
 
     if (versaoExistente) {
-      throw new ForbiddenException(`Versão ${createDto.versao} já existe para esta OS`);
+      throw new ForbiddenException(`Versão ${createDto.versao} já existe para este produto/serviço`);
     }
 
     // Criar a versão
@@ -106,7 +108,8 @@ export class ArteVersaoService {
       const versoes = await this.prisma.arteVersao.findMany({
         where: {
           os_id: osId,
-          loja_id: lojaId
+          loja_id: lojaId,
+          deletado: false // Não mostrar versões deletadas
         },
         include: {
           autor: {
@@ -268,16 +271,17 @@ export class ArteVersaoService {
   }
 
   /**
-   * Remove uma versão
+   * Remove uma versão (Soft Delete)
    */
-  async removeVersao(versaoId: string, lojaId: string): Promise<void> {
-    console.log('🗑️ Removendo versão:', { versaoId, lojaId });
+  async removeVersao(versaoId: string, lojaId: string, usuarioId: string): Promise<void> {
+    console.log('🗑️ Removendo versão (soft delete):', { versaoId, lojaId, usuarioId });
 
     // Verificar se a versão existe
     const versaoExistente = await this.prisma.arteVersao.findFirst({
       where: {
         id: versaoId,
-        loja_id: lojaId
+        loja_id: lojaId,
+        deletado: false
       }
     });
 
@@ -285,14 +289,83 @@ export class ArteVersaoService {
       throw new NotFoundException('Versão não encontrada');
     }
 
-    // Remover a versão (cascade vai remover arquivos e comentários)
-    await this.prisma.arteVersao.delete({
+    // Soft Delete - marcar como deletado
+    await this.prisma.arteVersao.update({
       where: {
         id: versaoId
+      },
+      data: {
+        deletado: true,
+        data_exclusao: new Date(),
+        excluido_por: usuarioId
       }
     });
 
-    console.log('✅ Versão removida com sucesso');
+    console.log('✅ Versão marcada como deletada (soft delete)');
+  }
+
+  /**
+   * Restaura uma versão deletada
+   */
+  async restoreVersao(versaoId: string, lojaId: string): Promise<ArteVersaoResponseDto> {
+    console.log('♻️ Restaurando versão:', { versaoId, lojaId });
+
+    // Verificar se a versão existe e está deletada
+    const versaoExistente = await this.prisma.arteVersao.findFirst({
+      where: {
+        id: versaoId,
+        loja_id: lojaId,
+        deletado: true
+      }
+    });
+
+    if (!versaoExistente) {
+      throw new NotFoundException('Versão deletada não encontrada');
+    }
+
+    // Restaurar versão
+    const versao = await this.prisma.arteVersao.update({
+      where: {
+        id: versaoId
+      },
+      data: {
+        deletado: false,
+        data_exclusao: null,
+        excluido_por: null
+      },
+      include: {
+        autor: {
+          select: {
+            id: true,
+            nome_completo: true
+          }
+        },
+        aprovador: {
+          select: {
+            id: true,
+            nome_completo: true
+          }
+        },
+        arquivos: true,
+        comentarios: {
+          include: {
+            usuario: {
+              select: {
+                id: true,
+                nome_completo: true
+              }
+            }
+          },
+          orderBy: {
+            data_comentario: 'desc'
+          }
+        }
+      }
+    });
+
+    console.log('✅ Versão restaurada com sucesso');
+
+    return this.formatVersaoResponse(versao);
   }
 
   /**
