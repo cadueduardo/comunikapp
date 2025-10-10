@@ -4,6 +4,16 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   Plus, 
   Upload, 
@@ -51,7 +61,9 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedVersao, setSelectedVersao] = useState<ArteVersao | undefined>();
+  const [versaoToDelete, setVersaoToDelete] = useState<string | null>(null);
   
   // Estado para produto selecionado
   const [selectedProduto, setSelectedProduto] = useState<string>('fachada-principal');
@@ -166,15 +178,22 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     refreshVersoes();
   };
 
-  const handleDeleteVersao = async (versaoId: string) => {
-    if (confirm('Tem certeza que deseja remover esta versão?')) {
-      try {
-        await deleteVersao(versaoId);
-        toast.success('Versão removida com sucesso!');
-      } catch (error) {
-        console.error('Erro ao remover versão:', error);
-        toast.error('Erro ao remover versão');
-      }
+  const handleDeleteVersao = (versaoId: string) => {
+    setVersaoToDelete(versaoId);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!versaoToDelete) return;
+    
+    try {
+      await deleteVersao(versaoToDelete);
+      toast.success('Versão removida com sucesso!');
+      setShowDeleteDialog(false);
+      setVersaoToDelete(null);
+    } catch (error) {
+      console.error('Erro ao remover versão:', error);
+      toast.error('Erro ao remover versão');
     }
   };
 
@@ -187,6 +206,34 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     setShowUploadModal(false);
     refreshVersoes();
     toast.success('Arquivo enviado com sucesso!');
+  };
+
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao baixar arquivo');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Erro no download:', error);
+      toast.error('Erro ao baixar arquivo');
+    }
   };
 
   // Filtrar versões por produto selecionado
@@ -370,12 +417,19 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                   <div className="space-y-2">
                     <h4 className="font-medium text-sm">Preview</h4>
                     {versao.arquivos.length > 0 && versao.arquivos[0].url_thumbnail ? (
-                      <div className="bg-gray-100 rounded-lg overflow-hidden border border-gray-300">
+                      <div 
+                        className="bg-gray-100 rounded-lg overflow-hidden border border-gray-300 cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => handleViewVersao(versao)}
+                      >
                         <img 
-                          src={versao.arquivos[0].url_thumbnail} 
+                          src={versao.arquivos[0].url_thumbnail}
                           alt={`Preview ${versao.versao}`}
-                          className="w-full h-32 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                          onClick={() => handleViewVersao(versao)}
+                          className="w-full h-32 object-cover"
+                          onError={(e) => {
+                            // Se falhar, mostrar ícone de arquivo
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.parentElement!.innerHTML = '<div class="flex items-center justify-center h-32"><svg class="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg></div>';
+                          }}
                         />
                       </div>
                     ) : versao.arquivos.length > 0 ? (
@@ -421,15 +475,16 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                               )}
                               <span className="truncate">{arquivo.nome_original}</span>
                             </div>
-                            <a
-                              href={arquivo.url_arquivo}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownload(arquivo.url_arquivo, arquivo.nome_original);
+                              }}
                               className="ml-2 text-blue-600 hover:text-blue-800 flex-shrink-0"
-                              onClick={(e) => e.stopPropagation()}
+                              title="Baixar arquivo"
                             >
                               <Download className="h-3 w-3" />
-                            </a>
+                            </button>
                           </div>
                         ))}
                         {versao.arquivos.length > 3 && (
@@ -455,8 +510,8 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
       {showUploadModal && selectedVersao && (
         <ArteFileUpload
           versaoId={selectedVersao.id}
-          onSuccess={handleUploadSuccess}
-          onError={(error) => {
+          onUploadSuccess={handleUploadSuccess}
+          onUploadError={(error) => {
             toast.error(error);
             setShowUploadModal(false);
           }}
@@ -485,6 +540,29 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
           proximaVersao={getProximaVersao()}
         />
       )}
+
+      {/* Dialog de Confirmação de Exclusão */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover esta versão? Esta ação não pode ser desfeita e todos os arquivos associados serão removidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDeleteDialog(false);
+              setVersaoToDelete(null);
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
