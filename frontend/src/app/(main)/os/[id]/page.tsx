@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -21,6 +21,7 @@ import { PrazoOSComponent } from "@/components/os/PrazoOSComponent";
 import { ListaProdutosComPrazo } from "@/components/os/ListaProdutosComPrazo";
 import { ArteAprovacaoWireframe as ArteAprovacaoTab } from "@/components/os/arte-aprovacao/ArteAprovacaoWireframe";
 import { ArteAprovacaoSidebar } from "@/components/os/arte-aprovacao/ArteAprovacaoSidebar";
+import { ResumoOSSidebar } from "@/components/os/ResumoOSSidebar";
 
 interface OSDetalhada extends OrdemServico {
   // Mantendo apenas as interfaces essenciais
@@ -34,62 +35,20 @@ function renderResumoTab(os: OSDetalhada, isResumoCollapsed: boolean, setIsResum
   return (
     <div className="flex flex-col lg:flex-row h-full">
       {/* Sidebar Esquerdo - Persistente (25% desktop, full mobile) */}
-      <div className="w-full lg:w-[25%] lg:pr-6 mb-6 lg:mb-0">
-        <div className="space-y-6">
-          <div>
-            {/* Título com botão de colapso - Mobile only */}
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Resumo da OS</h3>
-              <button
-                onClick={() => setIsResumoCollapsed(!isResumoCollapsed)}
-                className="lg:hidden p-1 hover:bg-gray-100 rounded"
-              >
-                <ChevronDown 
-                  className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${
-                    isResumoCollapsed ? 'rotate-[-90deg]' : ''
-                  }`} 
-                />
-              </button>
-            </div>
-            
-            {/* Conteúdo colapsável */}
-            <div className={`space-y-3 transition-all duration-300 ${
-              isResumoCollapsed ? 'lg:block hidden' : 'block'
-            }`}>
-              <div>
-                <span className="text-sm text-gray-600">Cliente:</span>
-                <p className="font-medium text-gray-900">Carla Conceição</p>
-              </div>
-              
-              <div>
-                <span className="text-sm text-gray-600">Projeto:</span>
-                <p className="font-medium text-gray-900">{os.nome_servico}</p>
-              </div>
-              
-              {/* Componente de Prazo */}
-              <PrazoOSComponent 
-                osId={os.id} 
-                dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
-                onPrazoChange={(novaData) => {
-                  // Atualizar o estado local da OS
-                  // Pode ser expandido para atualizar o cache ou recarregar dados
-                }}
-              />
-              
-              <div>
-                <span className="text-sm text-gray-600">Prioridade:</span>
-                <p className="font-medium text-gray-900">Normal</p>
-              </div>
-              
-              <div>
-                <span className="text-sm text-gray-600">Status:</span>
-                <p className="text-sm text-gray-700 mt-1">Em análise de materiais e aguardando aprovação final.</p>
-              </div>
-              
-            </div>
-          </div>
-        </div>
-      </div>
+      <ResumoOSSidebar 
+        osId={os.id}
+        clienteNome={os.cliente_nome || "Carla Conceição"}
+        projeto={os.nome_servico}
+        dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
+        prioridade="Normal"
+        status="Em análise de materiais e aguardando aprovação final."
+        isCollapsed={isResumoCollapsed}
+        onCollapsedChange={setIsResumoCollapsed}
+        onPrazoChange={(novaData) => {
+          // Atualizar o estado local da OS
+          // Pode ser expandido para atualizar o cache ou recarregar dados
+        }}
+      />
 
       {/* Linha Separadora - Desktop only */}
       <div className="hidden lg:block w-px bg-gray-200"></div>
@@ -152,7 +111,34 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed }: {
   isResumoCollapsed: boolean; 
   setIsResumoCollapsed: React.Dispatch<React.SetStateAction<boolean>>; 
 }) {
-  const [activeTab, setActiveTab] = useState<TabType>('resumo');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Obter aba ativa da URL ou usar 'resumo' como padrão
+  const getActiveTabFromURL = (): TabType => {
+    const tab = searchParams.get('tab') as TabType;
+    return tab && ['resumo', 'arte-aprovacao', 'materiais', 'analise-inteligente'].includes(tab) 
+      ? tab 
+      : 'resumo';
+  };
+  
+  const [activeTab, setActiveTab] = useState<TabType>(getActiveTabFromURL);
+  
+  // Atualizar aba ativa quando URL mudar
+  useEffect(() => {
+    const tabFromURL = getActiveTabFromURL();
+    setActiveTab(tabFromURL);
+  }, [searchParams]);
+  
+  // Função para mudar aba e atualizar URL
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    
+    // Atualizar URL sem recarregar a página
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', tab);
+    router.replace(`/os/${os.id}?${params.toString()}`, { scroll: false });
+  };
 
   const tabs = [
     { id: 'resumo' as TabType, label: 'Resumo', icon: Package },
@@ -173,7 +159,7 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed }: {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`flex-1 py-2 sm:py-3 md:py-4 px-1 sm:px-2 border-b-2 font-medium flex flex-col items-center space-y-0.5 sm:space-y-1 transition-colors duration-200 min-h-[60px] sm:min-h-[70px] ${
                   isActive
                     ? 'border-blue-600 text-blue-600 bg-white'
@@ -192,45 +178,105 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed }: {
 
       {/* Conteúdo da Aba Ativa */}
       {activeTab === 'arte-aprovacao' ? (
-        // Layout especial para Arte & Aprovação com sidebar direito
-        <div className="flex flex-col lg:flex-row h-full">
-          {/* Área Principal - Miolo (75% desktop) */}
-          <div className="w-full lg:w-[75%] p-4 lg:p-6 bg-white">
+        // Layout especial para Arte & Aprovação: Sidebar Esquerdo (Resumo OS) + Área Principal + Sidebar Direito (Arte)
+        <div className="flex flex-col lg:flex-row h-full p-4 lg:p-6 bg-white">
+          {/* Sidebar Esquerdo - Resumo da OS (25%) */}
+          <ResumoOSSidebar 
+            osId={os.id}
+            clienteNome={os.cliente_nome || "Carla Conceição"}
+            projeto={os.nome_servico}
+            dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
+            prioridade="Normal"
+            status="Em análise de materiais e aguardando aprovação final."
+            isCollapsed={isResumoCollapsed}
+            onCollapsedChange={setIsResumoCollapsed}
+          />
+          
+          {/* Linha Separadora - Desktop only */}
+          <div className="hidden lg:block w-px bg-gray-200 mx-4"></div>
+          
+          {/* Área Principal - Miolo (50% desktop) */}
+          <div className="w-full lg:flex-1 lg:px-4">
             <ArteAprovacaoTab 
               osId={os.id} 
               readonly={false}
             />
           </div>
           
-          {/* Sidebar Direito - Dinâmico (25% desktop) */}
-          <div className="w-full lg:w-[25%] p-4 lg:p-6 bg-white">
+          {/* Linha Separadora - Desktop only */}
+          <div className="hidden lg:block w-px bg-gray-200 mx-4"></div>
+          
+          {/* Sidebar Direito - Arte & Aprovação (25% desktop) */}
+          <div className="w-full lg:w-[25%] lg:pl-4 mt-6 lg:mt-0 lg:min-w-0">
             <ArteAprovacaoSidebar osId={os.id} />
           </div>
         </div>
       ) : (
-        // Layout padrão para outras abas
+        // Layout padrão para outras abas com Sidebar Esquerdo (Resumo OS) + Conteúdo
         <div className="p-4 lg:p-6 h-full bg-white">
           {activeTab === 'resumo' && renderResumoTab(os, isResumoCollapsed, setIsResumoCollapsed)}
+          
           {activeTab === 'materiais' && (
-            <div className="text-center py-12">
-              <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h2 className="text-lg font-medium text-gray-900 mb-2">
-                Aba "Materiais" Selecionada
-              </h2>
-              <p className="text-gray-600">
-                Conteúdo da aba será implementado nas próximas etapas.
-              </p>
+            <div className="flex flex-col lg:flex-row h-full">
+              {/* Sidebar Esquerdo - Resumo da OS (25%) */}
+              <ResumoOSSidebar 
+                osId={os.id}
+                clienteNome={os.cliente_nome || "Carla Conceição"}
+                projeto={os.nome_servico}
+                dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
+                prioridade="Normal"
+                status="Em análise de materiais e aguardando aprovação final."
+                isCollapsed={isResumoCollapsed}
+                onCollapsedChange={setIsResumoCollapsed}
+              />
+              
+              {/* Linha Separadora - Desktop only */}
+              <div className="hidden lg:block w-px bg-gray-200"></div>
+              
+              {/* Conteúdo Central */}
+              <div className="w-full lg:flex-1 lg:px-6">
+                <div className="text-center py-12">
+                  <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h2 className="text-lg font-medium text-gray-900 mb-2">
+                    Aba "Materiais" Selecionada
+                  </h2>
+                  <p className="text-gray-600">
+                    Conteúdo da aba será implementado nas próximas etapas.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
+          
           {activeTab === 'analise-inteligente' && (
-            <div className="text-center py-12">
-              <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h2 className="text-lg font-medium text-gray-900 mb-2">
-                Aba "Análise Inteligente" Selecionada
-              </h2>
-              <p className="text-gray-600">
-                Conteúdo da aba será implementado nas próximas etapas.
-              </p>
+            <div className="flex flex-col lg:flex-row h-full">
+              {/* Sidebar Esquerdo - Resumo da OS (25%) */}
+              <ResumoOSSidebar 
+                osId={os.id}
+                clienteNome={os.cliente_nome || "Carla Conceição"}
+                projeto={os.nome_servico}
+                dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
+                prioridade="Normal"
+                status="Em análise de materiais e aguardando aprovação final."
+                isCollapsed={isResumoCollapsed}
+                onCollapsedChange={setIsResumoCollapsed}
+              />
+              
+              {/* Linha Separadora - Desktop only */}
+              <div className="hidden lg:block w-px bg-gray-200"></div>
+              
+              {/* Conteúdo Central */}
+              <div className="w-full lg:flex-1 lg:px-6">
+                <div className="text-center py-12">
+                  <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h2 className="text-lg font-medium text-gray-900 mb-2">
+                    Aba "Análise Inteligente" Selecionada
+                  </h2>
+                  <p className="text-gray-600">
+                    Conteúdo da aba será implementado nas próximas etapas.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>

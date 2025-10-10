@@ -145,7 +145,7 @@ export function ListaProdutosComPrazo({
             key={produto.item_id || `produto-${index}-${produto.produto_servico}`}
             osId={osId}
             itemId={produto.item_id} // ID do item da OS
-            produtoId={produto.item_id} // Usar item_id também como produtoId
+            produtoId={produto.produto_id || produto.item_id} // Usar produto_id se disponível (ID original do orçamento)
             produtoNome={produto.produto_servico}
             dataPrazoProduto={produto.data_prazo_produto}
             dataInicio={produto.data_inicio_producao}

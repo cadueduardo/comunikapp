@@ -264,3 +264,4 @@ export function ArtePreviewModal({ versao, isOpen, onClose }: ArtePreviewModalPr
     </Dialog>
   );
 }
+

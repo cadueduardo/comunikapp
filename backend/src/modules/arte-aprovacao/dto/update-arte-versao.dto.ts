@@ -40,3 +40,4 @@ export class UpdateArteVersaoDto {
   @IsString()
   observacoes?: string;
 }
+

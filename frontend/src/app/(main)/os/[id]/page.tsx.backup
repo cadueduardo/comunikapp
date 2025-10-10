@@ -475,3 +475,6 @@ export default function OSDetalhePage() {
     </div>
   );
 }
+
+
+

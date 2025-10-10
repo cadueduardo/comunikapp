@@ -54,3 +54,4 @@ export class CreateArteVersaoDto {
   @IsString()
   observacoes?: string;
 }
+

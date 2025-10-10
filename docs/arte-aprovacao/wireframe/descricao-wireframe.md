@@ -113,3 +113,4 @@ Inclui o mesmo alerta sobre prazo de entrega, reforçando a necessidade de defin
   - 🟠 Âmbar = Pendente
   - 🔴 Vermelho = Revisão solicitada
 
+

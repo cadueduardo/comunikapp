@@ -272,3 +272,4 @@ Como implementar testes abrangentes para o módulo?
 | 008 | Pirâmide testes | Qualidade | ✅ Aceito |
 
 **Próxima revisão**: Após implementação da Fase 1
+

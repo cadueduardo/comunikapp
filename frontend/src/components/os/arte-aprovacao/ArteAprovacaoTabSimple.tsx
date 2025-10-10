@@ -206,3 +206,4 @@ export function ArteAprovacaoTabSimple({ osId, readonly = false }: ArteAprovacao
     </div>
   );
 }
+

@@ -20,3 +20,4 @@ export function ArteAprovacaoSimple({ osId, readonly = false }: ArteAprovacaoSim
     </div>
   );
 }
+

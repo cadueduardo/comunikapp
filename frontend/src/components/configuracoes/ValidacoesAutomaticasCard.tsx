@@ -150,3 +150,6 @@ export function ValidacoesAutomaticasCard({ stats }: ValidacoesAutomaticasCardPr
 
 
 
+
+
+

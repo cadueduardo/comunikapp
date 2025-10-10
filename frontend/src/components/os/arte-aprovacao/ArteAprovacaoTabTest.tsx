@@ -53,3 +53,4 @@ export function ArteAprovacaoTabTest({ osId, readonly = false }: ArteAprovacaoTa
     </div>
   );
 }
+

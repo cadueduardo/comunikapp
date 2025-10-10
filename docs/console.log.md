@@ -1,30 +1,60 @@
+report-hmr-latency.ts:26 [Fast Refresh] done in NaNms
 notificacoes-dropdown.tsx:66 Tentando carregar notificações com token: eyJhbGciOiJIUzI1NiIs...
 notificacoes-dropdown.tsx:66 Tentando carregar notificações com token: eyJhbGciOiJIUzI1NiIs...
-PrazoProdutoComponent.tsx:99 🔍 PrazoProdutoComponent useEffect: {produtoId: undefined, osId: 'cmgcbwu3x0002jazo4uotdi8i', produtoNome: 'Banner'}
-PrazoProdutoComponent.tsx:99 🔍 PrazoProdutoComponent useEffect: {produtoId: undefined, osId: 'cmgcbwu3x0002jazo4uotdi8i', produtoNome: 'Lona com Ilhós'}
-PrazoProdutoComponent.tsx:99 🔍 PrazoProdutoComponent useEffect: {produtoId: undefined, osId: 'cmgcbwu3x0002jazo4uotdi8i', produtoNome: 'Banner'}
-PrazoProdutoComponent.tsx:99 🔍 PrazoProdutoComponent useEffect: {produtoId: undefined, osId: 'cmgcbwu3x0002jazo4uotdi8i', produtoNome: 'Lona com Ilhós'}
-
-[dev:frontend]  GET /os/cmgcbwu3x0002jazo4uotdi8i 200 in 889ms
-[dev:frontend]  GET /.well-known/appspecific/com.chrome.devtools.json 404 in 594ms
-[dev:backend] [Nest] 14580  - 09/10/2025, 12:34:50     LOG [OSPermissionsGuard] Object(6) {
-[dev:backend]   evento: 'ACESSO_AUTORIZADO_OS',
-[dev:backend]   usuario_id: 'wzutso1xj',
-[dev:backend]   funcao: 'ADMINISTRADOR',
-[dev:backend]   acao: 'VISUALIZAR',
-[dev:backend]   etapa: undefined,
-[dev:backend]   timestamp: '2025-10-09T15:34:50.030Z'
-[dev:backend] }
-[dev:backend] [Nest] 14580  - 09/10/2025, 12:34:50     LOG [OSPermissionsGuard] Object(6) {
-[dev:backend]   evento: 'ACESSO_AUTORIZADO_OS',
-[dev:backend]   usuario_id: 'wzutso1xj',
-[dev:backend]   funcao: 'ADMINISTRADOR',
-[dev:backend]   acao: 'VISUALIZAR',
-[dev:backend]   etapa: undefined,
-[dev:backend]   timestamp: '2025-10-09T15:34:50.098Z'
-[dev:backend] }
-[dev:frontend]  GET /favicon.ico?favicon.45db1c09.ico 200 in 648ms
-[dev:frontend]  GET /api/os/prazo/cmgcbwu3x0002jazo4uotdi8i/status 200 in 475ms
-[dev:frontend]  GET /api/os/produtos/cmgcbwu3x0002jazo4uotdi8i/status-produtos 200 in 538ms
-[dev:frontend]  GET /api/os/prazo/cmgcbwu3x0002jazo4uotdi8i/status 200 in 455ms
-[dev:frontend]  GET /api/os/produtos/cmgcbwu3x0002jazo4uotdi8i/status-produtos 200 in 424ms
+ContentScript.js:6 onChange started
+ContentScript.js:6 onChange completed
+ContentScript.js:6 onChange started
+ContentScript.js:6 onChange completed
+PrazoProdutoComponent.tsx:185 Enviando dados: {
+  "data_prazo_produto": "2025-10-13T00:00:00.000Z",
+  "data_inicio_producao": "2025-10-10T00:00:00.000Z",
+  "prioridade_produto": "NORMAL",
+  "confirmar_retroativa": false,
+  "osId": "cmgcbwu3x0002jazo4uotdi8i",
+  "itemId": "cmg9y4gwj001kjatg8ppjriyl"
+}
+PrazoProdutoComponent.tsx:187  POST http://localhost:3000/api/os/produtos-definir-prazo 400 (Bad Request)
+salvarPrazo @ PrazoProdutoComponent.tsx:187
+onClick @ PrazoProdutoComponent.tsx:549
+executeDispatch @ react-dom-client.development.js:16501
+runWithFiberInDEV @ react-dom-client.development.js:844
+processDispatchQueue @ react-dom-client.development.js:16551
+(anônimo) @ react-dom-client.development.js:17149
+batchedUpdates$1 @ react-dom-client.development.js:3262
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:16705
+dispatchEvent @ react-dom-client.development.js:20815
+dispatchDiscreteEvent @ react-dom-client.development.js:20783
+<button>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+Button @ button.tsx:51
+react-stack-bottom-frame @ react-dom-client.development.js:22973
+renderWithHooksAgain @ react-dom-client.development.js:6766
+renderWithHooks @ react-dom-client.development.js:6678
+updateFunctionComponent @ react-dom-client.development.js:8930
+beginWork @ react-dom-client.development.js:10555
+runWithFiberInDEV @ react-dom-client.development.js:844
+performUnitOfWork @ react-dom-client.development.js:15257
+workLoopSync @ react-dom-client.development.js:15077
+renderRootSync @ react-dom-client.development.js:15057
+performWorkOnRoot @ react-dom-client.development.js:14525
+performSyncWorkOnRoot @ react-dom-client.development.js:16364
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16210
+processRootScheduleInMicrotask @ react-dom-client.development.js:16249
+(anônimo) @ react-dom-client.development.js:16383
+<Button>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+PrazoProdutoComponent @ PrazoProdutoComponent.tsx:548
+react-stack-bottom-frame @ react-dom-client.development.js:22973
+renderWithHooksAgain @ react-dom-client.development.js:6766
+renderWithHooks @ react-dom-client.development.js:6678
+updateFunctionComponent @ react-dom-client.development.js:8930
+beginWork @ react-dom-client.development.js:10555
+runWithFiberInDEV @ react-dom-client.development.js:844
+performUnitOfWork @ react-dom-client.development.js:15257
+workLoopSync @ react-dom-client.development.js:15077
+renderRootSync @ react-dom-client.development.js:15057
+performWorkOnRoot @ react-dom-client.development.js:14525
+performSyncWorkOnRoot @ react-dom-client.development.js:16364
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16210
+processRootScheduleInMicrotask @ react-dom-client.development.js:16249
+(anônimo) @ react-dom-client.development.js:16383

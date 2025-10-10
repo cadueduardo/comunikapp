@@ -102,3 +102,4 @@ export interface ArtePreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+

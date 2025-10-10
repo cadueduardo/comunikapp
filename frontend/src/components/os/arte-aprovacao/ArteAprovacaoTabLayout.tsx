@@ -398,3 +398,4 @@ export function ArteAprovacaoTabLayout({ osId, readonly = false }: ArteAprovacao
     </div>
   );
 }
+

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import MateriaisTab from '@/components/os/materiais/MateriaisTab';
+// import { ArteAprovacaoSimple as ArteAprovacaoTab } from '@/components/os/arte-aprovacao/ArteAprovacaoSimple';
 
 interface MaterialPrincipal {
   nome: string;
@@ -95,7 +96,7 @@ export function OSTabs({ os, dadosTransformados, movimentacoes }: OSTabsProps) {
 
   const tabs = [
     { id: 'resumo' as TabType, label: 'Resumo', icon: Package },
-    { id: 'arte-aprovacao' as TabType, label: 'Arte & Aprovação', icon: CheckCircle },
+    { id: 'arte-aprovacao' as TabType, label: '🎨 Arte & Aprovação', icon: CheckCircle },
     { id: 'materiais' as TabType, label: 'Materiais', icon: Package },
     { id: 'analise-inteligente' as TabType, label: 'Análise Inteligente', icon: Settings },
   ];
@@ -326,20 +327,17 @@ export function OSTabs({ os, dadosTransformados, movimentacoes }: OSTabsProps) {
   );
 
   // Renderização da aba Arte & Aprovação
-  const renderArteAprovacaoTab = () => (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Arte & Aprovação</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-gray-500 italic">
-            Funcionalidade em desenvolvimento...
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  const renderArteAprovacaoTab = () => {
+    console.log('🎨 Renderizando aba Arte & Aprovação, OS ID:', os.id);
+    return (
+      <div className="p-6 bg-red-100 border border-red-400 text-red-700">
+        <h2 className="text-xl font-bold">🎨 ARTE & APROVAÇÃO FUNCIONANDO!</h2>
+        <p>OS ID: {os.id}</p>
+        <p>Readonly: {readonly ? 'Sim' : 'Não'}</p>
+        <p>Timestamp: {new Date().toLocaleTimeString()}</p>
+      </div>
+    );
+  };
 
   // Renderização da aba Materiais
   const renderMateriaisTab = () => (
@@ -463,16 +461,19 @@ export function OSTabs({ os, dadosTransformados, movimentacoes }: OSTabsProps) {
   );
 
   const renderTabContent = () => {
+    console.log('🔄 Renderizando conteúdo da aba:', activeTab);
     switch (activeTab) {
       case 'resumo':
         return renderResumoTab();
       case 'arte-aprovacao':
+        console.log('🎨 Caso arte-aprovacao detectado');
         return renderArteAprovacaoTab();
       case 'materiais':
         return renderMateriaisTab();
       case 'analise-inteligente':
         return renderAnaliseInteligenteTab();
       default:
+        console.log('⚠️ Aba padrão, activeTab:', activeTab);
         return renderResumoTab();
     }
   };
@@ -487,7 +488,10 @@ export function OSTabs({ os, dadosTransformados, movimentacoes }: OSTabsProps) {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  console.log('🖱️ Clicando na aba:', tab.id);
+                  setActiveTab(tab.id);
+                }}
                 className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'

@@ -175,7 +175,11 @@ export function PrazoProdutoComponent({
         motivo: formData.motivo || undefined,
         confirmar_retroativa: confirmarRetroativa
       };
-
+      
+      console.log('Enviando dados:', JSON.stringify(requestData, null, 2));
+      console.log('Para osId:', osId, 'itemId:', itemId);
+      
+      // Usa a rota correta com parâmetros dinâmicos
       const response = await fetch(`/api/os/produtos/${osId}/item/${itemId}/definir-prazo`, {
         method: 'POST',
         headers: {
@@ -473,7 +477,7 @@ export function PrazoProdutoComponent({
 
       {/* Conteúdo */}
       {isEditing ? (
-        <div className="space-y-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+        <div className="space-y-4 p-4 border border-gray-200 rounded-lg bg-white">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="data_inicio">Data de Início</Label>

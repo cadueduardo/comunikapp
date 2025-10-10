@@ -107,3 +107,4 @@ export class ArteVersaoListResponseDto {
   @ApiProperty({ description: 'Total de versões' })
   total: number;
 }
+
