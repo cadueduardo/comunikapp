@@ -169,10 +169,25 @@ export class ArteArquivoController {
 
     const file = createReadStream(filePath);
     
-    // Definir headers para download
+    // Detectar tipo de arquivo
+    const ext = filename.split('.').pop()?.toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'pdf': 'application/pdf',
+      'ai': 'application/postscript',
+      'psd': 'image/vnd.adobe.photoshop',
+      'eps': 'application/postscript',
+    };
+    
+    const contentType = mimeTypes[ext || ''] || 'application/octet-stream';
+    
+    // Definir headers para preview inline
     res.set({
-      'Content-Type': 'application/octet-stream',
+      'Content-Type': contentType,
       'Content-Disposition': `inline; filename="${filename}"`,
+      'Cache-Control': 'public, max-age=31536000', // Cache por 1 ano
     });
 
     return new StreamableFile(file);

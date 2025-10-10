@@ -208,31 +208,43 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     toast.success('Arquivo enviado com sucesso!');
   };
 
-  const handleDownload = async (url: string, filename: string) => {
+  const handleViewFile = async (url: string, filename: string, tipoArquivo: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      
+      // Para PNG, JPG, PDF - abrir em nova aba
+      const tiposPreview = ['png', 'jpg', 'jpeg', 'pdf'];
+      const extensao = tipoArquivo.toLowerCase();
+      
+      if (tiposPreview.includes(extensao)) {
+        // Criar URL com token como query param para preview
+        const previewUrl = `${url}?token=${token}`;
+        window.open(previewUrl, '_blank');
+      } else {
+        // Para outros tipos, fazer download
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
 
-      if (!response.ok) {
-        throw new Error('Erro ao baixar arquivo');
+        if (!response.ok) {
+          throw new Error('Erro ao baixar arquivo');
+        }
+
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
       }
-
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
-      console.error('Erro no download:', error);
-      toast.error('Erro ao baixar arquivo');
+      console.error('Erro ao visualizar arquivo:', error);
+      toast.error('Erro ao visualizar arquivo');
     }
   };
 
@@ -478,12 +490,12 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDownload(arquivo.url_arquivo, arquivo.nome_original);
+                                handleViewFile(arquivo.url_arquivo, arquivo.nome_original, arquivo.tipo_arquivo);
                               }}
                               className="ml-2 text-blue-600 hover:text-blue-800 flex-shrink-0"
-                              title="Baixar arquivo"
+                              title="Visualizar arquivo"
                             >
-                              <Download className="h-3 w-3" />
+                              <Eye className="h-3 w-3" />
                             </button>
                           </div>
                         ))}

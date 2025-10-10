@@ -8,7 +8,13 @@ export async function GET(
 ) {
   try {
     const { versaoId, filename } = await params;
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    
+    // Aceitar token do header ou query param
+    let token = request.headers.get('authorization')?.replace('Bearer ', '');
+    if (!token) {
+      const { searchParams } = new URL(request.url);
+      token = searchParams.get('token');
+    }
     
     if (!token) {
       return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
