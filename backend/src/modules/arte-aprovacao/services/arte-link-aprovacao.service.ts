@@ -49,7 +49,11 @@ export class ArteLinkAprovacaoService {
         deletado: false,
       },
       include: {
-        os: true,
+        os: {
+          include: {
+            cliente: true,
+          },
+        },
       },
     });
 
@@ -197,7 +201,16 @@ export class ArteLinkAprovacaoService {
     const link = await this.prisma.arteLinkAprovacao.findUnique({
       where: { token_publico },
       include: {
-        versao: true,
+        versao: {
+          include: {
+            autor: true,
+            os: {
+              include: {
+                cliente: true,
+              },
+            },
+          },
+        },
       },
     });
 

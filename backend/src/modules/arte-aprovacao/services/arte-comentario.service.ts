@@ -64,6 +64,22 @@ export class ArteComentarioService {
       throw new Error('Usuário não encontrado');
     }
 
+    // Buscar versão com relacionamentos
+    const versao = await this.prisma.arteVersao.findUnique({
+      where: { id: versao_id },
+      include: {
+        os: {
+          include: {
+            cliente: true,
+          },
+        },
+      },
+    });
+
+    if (!versao) {
+      throw new Error('Versão não encontrada');
+    }
+
     // Criar comentário
     const novoComentario = await this.prisma.arteComentario.create({
       data: {
