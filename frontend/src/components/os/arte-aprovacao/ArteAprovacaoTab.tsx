@@ -434,7 +434,7 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                         onClick={() => handleViewVersao(versao)}
                       >
                         <img 
-                          src={versao.arquivos[0].url_thumbnail}
+                          src={`${versao.arquivos[0].url_thumbnail}?token=${localStorage.getItem('access_token')}`}
                           alt={`Preview ${versao.versao}`}
                           className="w-full h-32 object-cover"
                           onError={(e) => {
