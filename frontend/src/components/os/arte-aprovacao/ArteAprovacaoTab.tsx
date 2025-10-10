@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,6 +68,9 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
   
   // Estado para produto selecionado
   const [selectedProduto, setSelectedProduto] = useState<string>('fachada-principal');
+  
+  // Estado para versões selecionadas para envio
+  const [versoesSelecionadas, setVersoesSelecionadas] = useState<Set<string>>(new Set());
 
   // Produtos/componentes da OS (baseado no wireframe)
   const produtos: ProdutoArte[] = [
@@ -176,6 +180,9 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
   const handleCreateSuccess = (versaoId: string) => {
     // Atualizar lista de versões
     refreshVersoes();
+    
+    // Auto-selecionar nova versão criada
+    setVersoesSelecionadas(prev => new Set([...prev, versaoId]));
   };
 
   const handleDeleteVersao = (versaoId: string) => {
@@ -248,13 +255,43 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     }
   };
 
+  // Funções para gerenciar seleção de versões
+  const toggleVersaoSelecionada = (versaoId: string) => {
+    setVersoesSelecionadas(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(versaoId)) {
+        newSet.delete(versaoId);
+      } else {
+        newSet.add(versaoId);
+      }
+      return newSet;
+    });
+  };
+
+  const selecionarTodasVersoesProduto = () => {
+    const versoesProduto = versoesDoProduto.filter(v => v.status === 'RASCUNHO');
+    const versaoIds = versoesProduto.map(v => v.id);
+    setVersoesSelecionadas(prev => new Set([...prev, ...versaoIds]));
+  };
+
+  const desmarcarTodasVersoesProduto = () => {
+    const versoesProduto = versoesDoProduto.filter(v => v.status === 'RASCUNHO');
+    const versaoIds = versoesProduto.map(v => v.id);
+    setVersoesSelecionadas(prev => {
+      const newSet = new Set(prev);
+      versaoIds.forEach(id => newSet.delete(id));
+      return newSet;
+    });
+  };
+
   // Função para enviar versões de um produto específico
   const handleEnviarProduto = async (produtoId: string) => {
     try {
-      const versoesProduto = versoes.filter(v => v.servico_id === produtoId && v.status === 'RASCUNHO');
+      const versoesProduto = versoesDoProduto.filter(v => v.status === 'RASCUNHO');
+      const versoesSelecionadasProduto = versoesProduto.filter(v => versoesSelecionadas.has(v.id));
       
-      if (versoesProduto.length === 0) {
-        toast.warning('Nenhuma versão em rascunho encontrada para este produto');
+      if (versoesSelecionadasProduto.length === 0) {
+        toast.warning('Nenhuma versão selecionada para envio');
         return;
       }
 
@@ -263,10 +300,10 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
 
       // Aqui você implementaria a lógica de envio
       // Por enquanto, apenas um toast de confirmação
-      toast.success(`Enviando ${versoesProduto.length} versão(ões) de ${produtoNome} para o cliente...`);
+      toast.success(`Enviando ${versoesSelecionadasProduto.length} versão(ões) selecionada(s) de ${produtoNome} para o cliente...`);
       
       // TODO: Implementar chamada para API de envio
-      // await enviarVersoesParaCliente(versoesProduto.map(v => v.id));
+      // await enviarVersoesParaCliente(versoesSelecionadasProduto.map(v => v.id));
       
     } catch (error) {
       console.error('Erro ao enviar produto:', error);
@@ -278,31 +315,32 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
   const handleEnviarTodasArtes = async () => {
     try {
       const versoesRascunho = versoes.filter(v => v.status === 'RASCUNHO');
+      const versoesSelecionadasParaEnvio = versoesRascunho.filter(v => versoesSelecionadas.has(v.id));
       
-      if (versoesRascunho.length === 0) {
-        toast.warning('Nenhuma versão em rascunho encontrada');
+      if (versoesSelecionadasParaEnvio.length === 0) {
+        toast.warning('Nenhuma versão selecionada para envio');
         return;
       }
 
       // Agrupar por produto
-      const versoesPorProduto = versoesRascunho.reduce((acc, versao) => {
+      const versoesPorProduto = versoesSelecionadasParaEnvio.reduce((acc, versao) => {
         const produtoId = versao.servico_id || 'sem-produto';
         if (!acc[produtoId]) {
           acc[produtoId] = [];
         }
         acc[produtoId].push(versao);
         return acc;
-      }, {} as Record<string, typeof versoesRascunho>);
+      }, {} as Record<string, typeof versoesSelecionadasParaEnvio>);
 
       const produtosEnviados = Object.keys(versoesPorProduto).length;
-      const totalVersoes = versoesRascunho.length;
+      const totalVersoes = versoesSelecionadasParaEnvio.length;
 
       // Aqui você implementaria a lógica de envio
       // Por enquanto, apenas um toast de confirmação
-      toast.success(`Enviando ${totalVersoes} versão(ões) de ${produtosEnviados} produto(s) para o cliente...`);
+      toast.success(`Enviando ${totalVersoes} versão(ões) selecionada(s) de ${produtosEnviados} produto(s) para o cliente...`);
       
       // TODO: Implementar chamada para API de envio
-      // await enviarTodasVersoesParaCliente(versoesRascunho.map(v => v.id));
+      // await enviarTodasVersoesParaCliente(versoesSelecionadasParaEnvio.map(v => v.id));
       
     } catch (error) {
       console.error('Erro ao enviar todas as artes:', error);
@@ -409,16 +447,32 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                   </Button>
                 )}
                 
-                {/* Botão Enviar para este produto específico */}
+                {/* Botões de seleção */}
                 {versoesDoProduto.length > 0 && versoesDoProduto.some(v => v.status === 'RASCUNHO') && (
-                  <Button 
-                    onClick={() => handleEnviarProduto(selectedProduto)}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    Enviar para Cliente
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={selecionarTodasVersoesProduto}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Selecionar Todas
+                    </Button>
+                    <Button 
+                      onClick={desmarcarTodasVersoesProduto}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Desmarcar Todas
+                    </Button>
+                    <Button 
+                      onClick={() => handleEnviarProduto(selectedProduto)}
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      Enviar Selecionadas
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
@@ -452,6 +506,14 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
+                    {/* Checkbox para seleção */}
+                    {versao.status === 'RASCUNHO' && (
+                      <Checkbox
+                        checked={versoesSelecionadas.has(versao.id)}
+                        onCheckedChange={() => toggleVersaoSelecionada(versao.id)}
+                      />
+                    )}
+                    
                     <div>
                       <h3 className="font-semibold text-lg">{versao.versao}</h3>
                       {versao.descricao && (
@@ -504,15 +566,6 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                   {/* Preview/Thumbnail */}
                   <div className="space-y-2">
                     <h4 className="font-medium text-sm">Preview</h4>
-                    {(() => {
-                      console.log('🔍 [ArteAprovacaoTab] Verificando thumbnail para versão:', {
-                        versao: versao.versao,
-                        arquivos: versao.arquivos.length,
-                        url_thumbnail: versao.arquivos[0]?.url_thumbnail,
-                        nome_arquivo: versao.arquivos[0]?.nome_original
-                      });
-                      return null;
-                    })()}
                     {versao.arquivos.length > 0 && versao.arquivos[0].url_thumbnail ? (
                       <div 
                         className="bg-gray-100 rounded-lg overflow-hidden border border-gray-300 cursor-pointer hover:opacity-90 transition-opacity"
@@ -523,22 +576,9 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                           alt={`Preview ${versao.versao}`}
                           className="w-full h-32 object-cover"
                           onError={(e) => {
-                            console.error('❌ [ArteAprovacaoTab] Erro ao carregar thumbnail:', {
-                              url: versao.arquivos[0].url_thumbnail,
-                              versao: versao.versao,
-                              arquivo: versao.arquivos[0].nome_original,
-                              error: e
-                            });
                             // Se falhar, mostrar ícone de arquivo
                             e.currentTarget.style.display = 'none';
                             e.currentTarget.parentElement!.innerHTML = '<div class="flex items-center justify-center h-32"><svg class="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg></div>';
-                          }}
-                          onLoad={() => {
-                            console.log('✅ [ArteAprovacaoTab] Thumbnail carregado com sucesso:', {
-                              url: versao.arquivos[0].url_thumbnail,
-                              versao: versao.versao,
-                              arquivo: versao.arquivos[0].nome_original
-                            });
                           }}
                         />
                       </div>

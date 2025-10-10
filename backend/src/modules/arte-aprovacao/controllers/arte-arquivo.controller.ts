@@ -87,24 +87,14 @@ export class ArteArquivoController {
     let thumbnailPath: string | null = null;
     let thumbnailFilename: string | undefined = undefined;
     
-    console.log('🔍 [Controller] Verificando se é imagem:', {
-      path: arquivo.path,
-      isImage: this.thumbnailService.isImage(arquivo.path)
-    });
-    
     if (this.thumbnailService.isImage(arquivo.path)) {
-      console.log('📸 [Controller] Gerando thumbnail para:', arquivo.path);
       thumbnailPath = await this.thumbnailService.generateThumbnail(arquivo.path);
-      console.log('📸 [Controller] Thumbnail gerado:', thumbnailPath);
       
       if (thumbnailPath) {
         // Extrair apenas o nome do arquivo do thumbnail
         const parts = thumbnailPath.split(/[/\\]/);
         thumbnailFilename = parts[parts.length - 1];
-        console.log('📸 [Controller] Nome do thumbnail:', thumbnailFilename);
       }
-    } else {
-      console.log('❌ [Controller] Arquivo não é uma imagem, pulando thumbnail');
     }
 
     // Preparar dados do arquivo
@@ -121,14 +111,6 @@ export class ArteArquivoController {
       storage_path: arquivo.path
     };
 
-    console.log('✅ [Controller] Arquivo salvo:', {
-      path: arquivo.path,
-      filename: arquivo.filename,
-      thumbnail: thumbnailPath,
-      thumbnailFilename: thumbnailFilename,
-      url_arquivo: arquivoData.url_arquivo,
-      url_thumbnail: arquivoData.url_thumbnail
-    });
 
     return this.arteArquivoService.addArquivo(versaoId, arquivoData, req.user.loja_id);
   }
