@@ -5,6 +5,35 @@ import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
 import { ArteNotificacaoService } from './arte-notificacao.service';
 
+/**
+ * Converte BigInt para string em objetos
+ */
+function serializeBigInt(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  
+  if (typeof obj === 'bigint') {
+    return obj.toString();
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(serializeBigInt);
+  }
+  
+  if (typeof obj === 'object') {
+    const serialized: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        serialized[key] = serializeBigInt(obj[key]);
+      }
+    }
+    return serialized;
+  }
+  
+  return obj;
+}
+
 export interface CreateLinkAprovacaoDto {
   versao_id: string;
   expira_em?: Date;
@@ -182,7 +211,7 @@ export class ArteLinkAprovacaoService {
       throw new Error('Link de aprovação expirado');
     }
 
-    return {
+    return serializeBigInt({
       link,
       versao: link.versao,
       os: link.versao.os,
@@ -190,7 +219,7 @@ export class ArteLinkAprovacaoService {
       arquivos: link.versao.arquivos,
       comentarios: link.versao.comentarios,
       autor: link.versao.autor,
-    };
+    });
   }
 
   /**
