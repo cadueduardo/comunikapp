@@ -31,6 +31,8 @@ export class JwtGlobalMiddleware implements NestMiddleware {
       '/debug', // Rotas de debug sem autenticação
       '/debug/validacao-detalhada', // Rotas de debug de validações detalhadas sem autenticação
       '/favicon.ico',
+      '/arte-aprovacao/links/public', // Rotas públicas de aprovação de arte
+      '/arte-aprovacao/comentarios/public', // Rotas públicas de comentários
     ];
 
     // Verificar se a rota é pública
