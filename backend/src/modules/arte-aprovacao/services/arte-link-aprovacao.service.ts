@@ -119,10 +119,12 @@ export class ArteLinkAprovacaoService {
       // Não falhar a operação principal por causa da notificação
     }
 
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    
     return {
       id: link.id,
       token_publico: link.token_publico,
-      url_aprovacao: `${process.env.FRONTEND_URL}/arte/aprovacao/${link.token_publico}`,
+      url_aprovacao: `${frontendUrl}/arte/aprovacao/${link.token_publico}`,
       expira_em: link.expira_em,
       ativo: link.ativo,
       versao_id: link.versao_id,
