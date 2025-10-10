@@ -38,7 +38,9 @@ import {
   ArrowLeft,
   MoreVertical,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Link,
+  ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useArteVersoes } from './hooks/useArteVersoes';
@@ -71,6 +73,7 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
   
   // Estado para versões selecionadas para envio
   const [versoesSelecionadas, setVersoesSelecionadas] = useState<Set<string>>(new Set());
+  const [linksAprovacao, setLinksAprovacao] = useState<Record<string, any>>({});
 
   // Produtos/componentes da OS (baseado no wireframe)
   const produtos: ProdutoArte[] = [
@@ -348,6 +351,62 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     }
   };
 
+  // Funções para gerenciar links de aprovação
+  const handleGerarLinkAprovacao = async (versaoId: string) => {
+    try {
+      toast.loading('Gerando link de aprovação...');
+      
+      const response = await fetch('/api/arte-aprovacao/links', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        },
+        body: JSON.stringify({
+          versao_id: versaoId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.message);
+      }
+
+      const link = data.data;
+      
+      // Salvar link no estado
+      setLinksAprovacao(prev => ({
+        ...prev,
+        [versaoId]: link,
+      }));
+
+      // Copiar link para clipboard
+      await navigator.clipboard.writeText(link.url_aprovacao);
+      
+      toast.success('Link de aprovação gerado e copiado para a área de transferência!');
+      
+    } catch (error) {
+      toast.error('Erro ao gerar link de aprovação');
+      console.error('Erro ao gerar link:', error);
+    }
+  };
+
+  const handleCopiarLink = async (versaoId: string) => {
+    const link = linksAprovacao[versaoId];
+    if (!link) {
+      toast.error('Link não encontrado');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(link.url_aprovacao);
+      toast.success('Link copiado para a área de transferência!');
+    } catch (error) {
+      toast.error('Erro ao copiar link');
+    }
+  };
+
   // Filtrar versões por produto selecionado
   const versoesDoProduto = versoes.filter(v => v.servico_id === selectedProduto);
 
@@ -541,6 +600,29 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                       </Button>
                     )}
                     
+                    {/* Botão para gerar/copiar link de aprovação */}
+                    {versao.status === ArteStatus.RASCUNHO && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (linksAprovacao[versao.id]) {
+                            handleCopiarLink(versao.id);
+                          } else {
+                            handleGerarLinkAprovacao(versao.id);
+                          }
+                        }}
+                        className="text-blue-600 hover:text-blue-700"
+                        title={linksAprovacao[versao.id] ? 'Copiar link de aprovação' : 'Gerar link de aprovação'}
+                      >
+                        {linksAprovacao[versao.id] ? (
+                          <Copy className="h-4 w-4" />
+                        ) : (
+                          <Link className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
+
                     {!readonly && versao.status === ArteStatus.RASCUNHO && (
                       <Button
                         variant="outline"
