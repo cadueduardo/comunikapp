@@ -389,95 +389,88 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Arte & Aprovação</CardTitle>
-        </CardHeader>
-      </Card>
+      {/* Header - Solto na página */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900">Arte & Aprovação</h2>
+      </div>
 
       {/* Seleção de Produtos/Componentes */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-2">
-            {produtos.map((produto) => (
-              <button
-                key={produto.id}
-                onClick={() => setSelectedProduto(produto.id)}
-                className={`px-4 py-2 rounded-lg border-2 transition-all ${
-                  selectedProduto === produto.id
-                    ? produto.cor + ' border-current'
-                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <span className="font-medium">{produto.versaoAtual} {produto.nome}</span>
-                  <div className="flex items-center space-x-1">
-                    {getStatusIcon(produto.status)}
-                    <span className="text-xs">{getStatusLabel(produto.status)}</span>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Botão Nova Versão - Contextual ao produto selecionado */}
-      {selectedProduto && (
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-medium text-gray-900">
-                  {produtos.find(p => p.id === selectedProduto)?.nome}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Gerencie as versões de arte para este produto
-                </p>
-              </div>
-              <div className="flex gap-2">
-                {!readonly && (
-                  <Button 
-                    onClick={handleCreateVersao}
-                    size="sm"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nova Versão
-                  </Button>
-                )}
-                
-                {/* Botões de seleção */}
-                {versoesDoProduto.length > 0 && versoesDoProduto.some(v => v.status === 'RASCUNHO') && (
-                  <div className="flex gap-2">
-                    <Button 
-                      onClick={selecionarTodasVersoesProduto}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Selecionar Todas
-                    </Button>
-                    <Button 
-                      onClick={desmarcarTodasVersoesProduto}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Desmarcar Todas
-                    </Button>
-                    <Button 
-                      onClick={() => handleEnviarProduto(selectedProduto)}
-                      size="sm"
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      <Send className="h-4 w-4 mr-2" />
-                      Enviar Selecionadas
-                    </Button>
-                  </div>
-                )}
+      <div className="flex flex-wrap gap-2">
+        {produtos.map((produto) => (
+          <button
+            key={produto.id}
+            onClick={() => setSelectedProduto(produto.id)}
+            className={`px-4 py-2 rounded-lg border-2 transition-all ${
+              selectedProduto === produto.id
+                ? produto.cor + ' border-current'
+                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <span className="font-medium">{produto.versaoAtual} {produto.nome}</span>
+              <div className="flex items-center space-x-1">
+                {getStatusIcon(produto.status)}
+                <span className="text-xs">{getStatusLabel(produto.status)}</span>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </button>
+        ))}
+      </div>
+
+      {/* Controle de Versões - Solto na página */}
+      {selectedProduto && (
+        <div>
+          {/* Título e subtítulo */}
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              {produtos.find(p => p.id === selectedProduto)?.nome}
+            </h3>
+            <p className="text-sm text-gray-600">
+              Gerencie as versões de arte para este produto
+            </p>
+          </div>
+          
+          {/* Botões */}
+          <div className="flex gap-2">
+            {!readonly && (
+              <Button 
+                onClick={handleCreateVersao}
+                size="sm"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Versão
+              </Button>
+            )}
+            
+            {/* Botões de seleção */}
+            {versoesDoProduto.length > 0 && versoesDoProduto.some(v => v.status === 'RASCUNHO') && (
+              <>
+                <Button 
+                  onClick={selecionarTodasVersoesProduto}
+                  variant="outline"
+                  size="sm"
+                >
+                  Selecionar Todas
+                </Button>
+                <Button 
+                  onClick={desmarcarTodasVersoesProduto}
+                  variant="outline"
+                  size="sm"
+                >
+                  Desmarcar Todas
+                </Button>
+                <Button 
+                  onClick={() => handleEnviarProduto(selectedProduto)}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  Enviar Selecionadas
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Lista de versões do produto selecionado */}
@@ -504,6 +497,7 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
           {versoesDoProduto.map((versao) => (
             <Card key={versao.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
+                {/* Título em uma linha: [check] V2 - Fachada Principal [badge] */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     {/* Checkbox para seleção */}
@@ -514,17 +508,17 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                       />
                     )}
                     
-                    <div>
+                    <div className="flex items-center space-x-2">
                       <h3 className="font-semibold text-lg">{versao.versao}</h3>
-                      {versao.descricao && (
-                        <p className="text-sm text-gray-600 mt-1">{versao.descricao}</p>
-                      )}
+                      <span className="text-gray-400">-</span>
+                      <span className="text-gray-600">{produtos.find(p => p.id === versao.servico_id)?.nome || 'Produto'}</span>
+                      <Badge className={getStatusColor(versao.status)}>
+                        {getStatusLabel(versao.status)}
+                      </Badge>
                     </div>
-                    <Badge className={getStatusColor(versao.status)}>
-                      {getStatusLabel(versao.status)}
-                    </Badge>
                   </div>
                   
+                  {/* Botões de ação */}
                   <div className="flex items-center space-x-2">
                     <Button
                       variant="outline"
@@ -559,13 +553,13 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                     )}
                   </div>
                 </div>
+                
               </CardHeader>
               
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Preview/Thumbnail */}
                   <div className="space-y-2">
-                    <h4 className="font-medium text-sm">Preview</h4>
                     {versao.arquivos.length > 0 && versao.arquivos[0].url_thumbnail ? (
                       <div 
                         className="bg-gray-100 rounded-lg overflow-hidden border border-gray-300 cursor-pointer hover:opacity-90 transition-opacity"
@@ -613,41 +607,45 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                   {/* Arquivos */}
                   <div className="space-y-2">
                     <h4 className="font-medium text-sm">Arquivos ({versao.arquivos.length})</h4>
-                    {versao.arquivos.length > 0 ? (
-                      <div className="space-y-1">
-                        {versao.arquivos.slice(0, 3).map((arquivo) => (
-                          <div key={arquivo.id} className="flex items-center justify-between text-xs text-gray-600 hover:bg-gray-50 p-1 rounded">
-                            <div className="flex items-center min-w-0 flex-1">
-                              {arquivo.tipo_arquivo.startsWith('image/') || arquivo.tipo_arquivo === 'jpeg' || arquivo.tipo_arquivo === 'jpg' || arquivo.tipo_arquivo === 'png' ? (
-                                <Image className="h-3 w-3 mr-1 flex-shrink-0" />
-                              ) : (
-                                <FileText className="h-3 w-3 mr-1 flex-shrink-0" />
-                              )}
-                              <span className="truncate">{arquivo.nome_original}</span>
+                    
+                    {/* Separador */}
+                    <div className="border-t border-gray-200 pt-2">
+                      {versao.arquivos.length > 0 ? (
+                        <div className="space-y-1">
+                          {versao.arquivos.slice(0, 3).map((arquivo) => (
+                            <div key={arquivo.id} className="flex items-center justify-between text-xs text-gray-600 hover:bg-gray-50 p-1 rounded">
+                              <div className="flex items-center min-w-0 flex-1">
+                                {arquivo.tipo_arquivo.startsWith('image/') || arquivo.tipo_arquivo === 'jpeg' || arquivo.tipo_arquivo === 'jpg' || arquivo.tipo_arquivo === 'png' ? (
+                                  <Image className="h-3 w-3 mr-1 flex-shrink-0" />
+                                ) : (
+                                  <FileText className="h-3 w-3 mr-1 flex-shrink-0" />
+                                )}
+                                <span className="truncate">{arquivo.nome_original}</span>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewFile(arquivo.url_arquivo, arquivo.nome_original, arquivo.tipo_arquivo);
+                                }}
+                                className="ml-2 text-blue-600 hover:text-blue-800 flex-shrink-0"
+                                title="Visualizar arquivo"
+                              >
+                                <Eye className="h-3 w-3" />
+                              </button>
                             </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewFile(arquivo.url_arquivo, arquivo.nome_original, arquivo.tipo_arquivo);
-                              }}
-                              className="ml-2 text-blue-600 hover:text-blue-800 flex-shrink-0"
-                              title="Visualizar arquivo"
-                            >
-                              <Eye className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ))}
-                        {versao.arquivos.length > 3 && (
-                          <div className="text-xs text-gray-500">
-                            +{versao.arquivos.length - 3} mais
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-gray-500 italic">
-                        Nenhum arquivo anexado
-                      </div>
-                    )}
+                          ))}
+                          {versao.arquivos.length > 3 && (
+                            <div className="text-xs text-gray-500">
+                              +{versao.arquivos.length - 3} mais
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-500 italic">
+                          Nenhum arquivo anexado
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>

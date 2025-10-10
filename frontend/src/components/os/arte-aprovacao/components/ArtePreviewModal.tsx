@@ -107,157 +107,167 @@ export function ArtePreviewModal({ versao, isOpen, onClose }: ArtePreviewModalPr
     setSelectedArquivo(arquivo.url_arquivo);
   };
 
+  // Encontrar o primeiro arquivo de imagem
+  const firstImageFile = versao.arquivos.find(arquivo => isImageFile(arquivo.tipo_arquivo));
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl">
-              {versao.versao} - {versao.descricao || 'Sem descrição'}
-            </DialogTitle>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
+      <DialogContent className="max-w-6xl max-h-[95vh] p-0">
+        {/* Header compacto */}
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center space-x-3">
+            <h2 className="text-lg font-semibold">
+              {versao.versao} - {versao.descricao || 'Visualização'}
+            </h2>
+            <Badge className={getStatusColor(versao.status)}>
+              {getStatusLabel(versao.status)}
+            </Badge>
           </div>
-        </DialogHeader>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
 
-        <div className="space-y-6">
-          {/* Informações da versão */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <Badge className={getStatusColor(versao.status)}>
-                  {getStatusLabel(versao.status)}
-                </Badge>
-                {versao.aprovado_por_cliente && (
-                  <Badge variant="outline" className="text-green-600 border-green-600">
-                    Aprovado pelo Cliente
-                  </Badge>
-                )}
+        <div className="flex h-[calc(95vh-80px)]">
+          {/* Área principal - Imagem ampliada */}
+          <div className="flex-1 flex items-center justify-center bg-gray-50 p-4">
+            {firstImageFile ? (
+              <div className="relative max-w-full max-h-full">
+                <img
+                  src={`${firstImageFile.url_arquivo}?token=${localStorage.getItem('access_token')}`}
+                  alt={firstImageFile.nome_original}
+                  className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.parentElement!.innerHTML = `
+                      <div class="text-center text-gray-500">
+                        <FileText class="h-16 w-16 mx-auto mb-4 opacity-50" />
+                        <p>Erro ao carregar imagem</p>
+                      </div>
+                    `;
+                  }}
+                />
+                
+                {/* Informações sobrepostas */}
+                <div className="absolute bottom-4 left-4 bg-black bg-opacity-70 text-white px-3 py-2 rounded-lg">
+                  <p className="text-sm font-medium">{firstImageFile.nome_original}</p>
+                  <p className="text-xs opacity-75">
+                    {formatFileSize(firstImageFile.tamanho)} • {firstImageFile.tipo_arquivo.toUpperCase()}
+                  </p>
+                </div>
               </div>
-              
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center text-gray-600">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Criado em: {new Date(versao.data_criacao).toLocaleDateString('pt-BR')}
-                </div>
-                
-                <div className="flex items-center text-gray-600">
-                  <User className="h-4 w-4 mr-2" />
-                  Autor: {versao.autor_nome}
-                </div>
-                
-                {versao.data_aprovacao && (
+            ) : (
+              <div className="text-center text-gray-500">
+                <FileText className="h-24 w-24 mx-auto mb-4 opacity-50" />
+                <p className="text-lg">Nenhuma imagem encontrada</p>
+                <p className="text-sm">Esta versão não possui arquivos de imagem</p>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar com informações */}
+          <div className="w-80 border-l bg-white overflow-y-auto">
+            <div className="p-4 space-y-6">
+              {/* Informações da versão */}
+              <div className="space-y-3">
+                <h3 className="font-medium text-gray-900">Informações</h3>
+                <div className="space-y-2 text-sm">
                   <div className="flex items-center text-gray-600">
                     <Calendar className="h-4 w-4 mr-2" />
-                    Aprovado em: {new Date(versao.data_aprovacao).toLocaleDateString('pt-BR')}
+                    {new Date(versao.data_criacao).toLocaleDateString('pt-BR')}
                   </div>
-                )}
-                
-                {versao.aprovador_nome && (
                   <div className="flex items-center text-gray-600">
                     <User className="h-4 w-4 mr-2" />
-                    Aprovador: {versao.aprovador_nome}
+                    {versao.autor_nome || 'Desconhecido'}
+                  </div>
+                  {versao.data_aprovacao && (
+                    <div className="flex items-center text-gray-600">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Aprovado: {new Date(versao.data_aprovacao).toLocaleDateString('pt-BR')}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Arquivos */}
+              <div className="space-y-3">
+                <h3 className="font-medium text-gray-900">Arquivos ({versao.arquivos.length})</h3>
+                {versao.arquivos.length > 0 ? (
+                  <div className="space-y-2">
+                    {versao.arquivos.map((arquivo) => (
+                      <div key={arquivo.id} className="border rounded-lg p-3 hover:bg-gray-50">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2 min-w-0 flex-1">
+                            {isImageFile(arquivo.tipo_arquivo) ? (
+                              <Image className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                            ) : (
+                              <FileText className="h-4 w-4 text-gray-600 flex-shrink-0" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium truncate">{arquivo.nome_original}</p>
+                              <p className="text-xs text-gray-500">
+                                {formatFileSize(arquivo.tamanho)} • {arquivo.tipo_arquivo.toUpperCase()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex space-x-1 ml-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewArquivo(arquivo)}
+                              className="h-6 w-6 p-0"
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDownload(arquivo)}
+                              className="h-6 w-6 p-0"
+                            >
+                              <Download className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Nenhum arquivo</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Comentários */}
+              <div className="space-y-3">
+                <h3 className="font-medium text-gray-900">Comentários ({versao.comentarios.length})</h3>
+                {versao.comentarios.length > 0 ? (
+                  <div className="space-y-2">
+                    {versao.comentarios.map((comentario) => (
+                      <div key={comentario.id} className="border rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium">{comentario.usuario_nome}</span>
+                          <Badge className={getComentarioTipoColor(comentario.tipo)} size="sm">
+                            {getComentarioTipoLabel(comentario.tipo)}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-gray-600">{comentario.comentario}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {new Date(comentario.data_comentario).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Nenhum comentário</p>
                   </div>
                 )}
               </div>
             </div>
-
-            {versao.observacoes && (
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="font-medium mb-2">Observações:</h4>
-                <p className="text-sm text-gray-700">{versao.observacoes}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Arquivos */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Arquivos ({versao.arquivos.length})</h3>
-            
-            {versao.arquivos.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {versao.arquivos.map((arquivo) => (
-                  <div key={arquivo.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center space-x-3">
-                        {isImageFile(arquivo.tipo_arquivo) ? (
-                          <Image className="h-5 w-5 text-blue-600" />
-                        ) : (
-                          <FileText className="h-5 w-5 text-gray-600" />
-                        )}
-                        <div>
-                          <p className="font-medium text-sm">{arquivo.nome_original}</p>
-                          <p className="text-xs text-gray-500">
-                            {formatFileSize(arquivo.tamanho)} • {arquivo.tipo_arquivo.toUpperCase()}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewArquivo(arquivo)}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Visualizar
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownload(arquivo)}
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        Baixar
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum arquivo anexado</p>
-              </div>
-            )}
-          </div>
-
-          {/* Comentários */}
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <MessageSquare className="h-5 w-5" />
-              <h3 className="text-lg font-semibold">
-                Comentários ({versao.comentarios.length})
-              </h3>
-            </div>
-            
-            {versao.comentarios.length > 0 ? (
-              <div className="space-y-3">
-                {versao.comentarios.map((comentario) => (
-                  <div key={comentario.id} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-medium text-sm">{comentario.usuario_nome}</span>
-                        <Badge className={getComentarioTipoColor(comentario.tipo)}>
-                          {getComentarioTipoLabel(comentario.tipo)}
-                        </Badge>
-                      </div>
-                      <span className="text-xs text-gray-500">
-                        {new Date(comentario.data_comentario).toLocaleDateString('pt-BR')}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-700">{comentario.comentario}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum comentário</p>
-              </div>
-            )}
           </div>
         </div>
       </DialogContent>
