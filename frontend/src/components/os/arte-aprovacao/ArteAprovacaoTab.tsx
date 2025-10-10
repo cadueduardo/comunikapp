@@ -248,6 +248,68 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     }
   };
 
+  // Função para enviar versões de um produto específico
+  const handleEnviarProduto = async (produtoId: string) => {
+    try {
+      const versoesProduto = versoes.filter(v => v.servico_id === produtoId && v.status === 'RASCUNHO');
+      
+      if (versoesProduto.length === 0) {
+        toast.warning('Nenhuma versão em rascunho encontrada para este produto');
+        return;
+      }
+
+      const produto = produtos.find(p => p.id === produtoId);
+      const produtoNome = produto?.nome || 'Produto';
+
+      // Aqui você implementaria a lógica de envio
+      // Por enquanto, apenas um toast de confirmação
+      toast.success(`Enviando ${versoesProduto.length} versão(ões) de ${produtoNome} para o cliente...`);
+      
+      // TODO: Implementar chamada para API de envio
+      // await enviarVersoesParaCliente(versoesProduto.map(v => v.id));
+      
+    } catch (error) {
+      console.error('Erro ao enviar produto:', error);
+      toast.error('Erro ao enviar versões para o cliente');
+    }
+  };
+
+  // Função para enviar todas as artes
+  const handleEnviarTodasArtes = async () => {
+    try {
+      const versoesRascunho = versoes.filter(v => v.status === 'RASCUNHO');
+      
+      if (versoesRascunho.length === 0) {
+        toast.warning('Nenhuma versão em rascunho encontrada');
+        return;
+      }
+
+      // Agrupar por produto
+      const versoesPorProduto = versoesRascunho.reduce((acc, versao) => {
+        const produtoId = versao.servico_id || 'sem-produto';
+        if (!acc[produtoId]) {
+          acc[produtoId] = [];
+        }
+        acc[produtoId].push(versao);
+        return acc;
+      }, {} as Record<string, typeof versoesRascunho>);
+
+      const produtosEnviados = Object.keys(versoesPorProduto).length;
+      const totalVersoes = versoesRascunho.length;
+
+      // Aqui você implementaria a lógica de envio
+      // Por enquanto, apenas um toast de confirmação
+      toast.success(`Enviando ${totalVersoes} versão(ões) de ${produtosEnviados} produto(s) para o cliente...`);
+      
+      // TODO: Implementar chamada para API de envio
+      // await enviarTodasVersoesParaCliente(versoesRascunho.map(v => v.id));
+      
+    } catch (error) {
+      console.error('Erro ao enviar todas as artes:', error);
+      toast.error('Erro ao enviar todas as artes para o cliente');
+    }
+  };
+
   // Filtrar versões por produto selecionado
   const versoesDoProduto = versoes.filter(v => v.servico_id === selectedProduto);
 
@@ -336,15 +398,29 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                   Gerencie as versões de arte para este produto
                 </p>
               </div>
-              {!readonly && (
-                <Button 
-                  onClick={handleCreateVersao}
-                  size="sm"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nova Versão
-                </Button>
-              )}
+              <div className="flex gap-2">
+                {!readonly && (
+                  <Button 
+                    onClick={handleCreateVersao}
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nova Versão
+                  </Button>
+                )}
+                
+                {/* Botão Enviar para este produto específico */}
+                {versoesDoProduto.length > 0 && versoesDoProduto.some(v => v.status === 'RASCUNHO') && (
+                  <Button 
+                    onClick={() => handleEnviarProduto(selectedProduto)}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Enviar para Cliente
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -428,6 +504,15 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                   {/* Preview/Thumbnail */}
                   <div className="space-y-2">
                     <h4 className="font-medium text-sm">Preview</h4>
+                    {(() => {
+                      console.log('🔍 [ArteAprovacaoTab] Verificando thumbnail para versão:', {
+                        versao: versao.versao,
+                        arquivos: versao.arquivos.length,
+                        url_thumbnail: versao.arquivos[0]?.url_thumbnail,
+                        nome_arquivo: versao.arquivos[0]?.nome_original
+                      });
+                      return null;
+                    })()}
                     {versao.arquivos.length > 0 && versao.arquivos[0].url_thumbnail ? (
                       <div 
                         className="bg-gray-100 rounded-lg overflow-hidden border border-gray-300 cursor-pointer hover:opacity-90 transition-opacity"
@@ -438,13 +523,22 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                           alt={`Preview ${versao.versao}`}
                           className="w-full h-32 object-cover"
                           onError={(e) => {
-                            console.error('❌ Erro ao carregar thumbnail:', versao.arquivos[0].url_thumbnail);
+                            console.error('❌ [ArteAprovacaoTab] Erro ao carregar thumbnail:', {
+                              url: versao.arquivos[0].url_thumbnail,
+                              versao: versao.versao,
+                              arquivo: versao.arquivos[0].nome_original,
+                              error: e
+                            });
                             // Se falhar, mostrar ícone de arquivo
                             e.currentTarget.style.display = 'none';
                             e.currentTarget.parentElement!.innerHTML = '<div class="flex items-center justify-center h-32"><svg class="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg></div>';
                           }}
                           onLoad={() => {
-                            console.log('✅ Thumbnail carregado com sucesso:', versao.arquivos[0].url_thumbnail);
+                            console.log('✅ [ArteAprovacaoTab] Thumbnail carregado com sucesso:', {
+                              url: versao.arquivos[0].url_thumbnail,
+                              versao: versao.versao,
+                              arquivo: versao.arquivos[0].nome_original
+                            });
                           }}
                         />
                       </div>

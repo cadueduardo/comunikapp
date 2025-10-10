@@ -208,7 +208,14 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed }: {
           
           {/* Sidebar Direito - Arte & Aprovação (25% desktop) */}
           <div className="w-full lg:w-[25%] lg:pl-4 mt-6 lg:mt-0 lg:min-w-0">
-            <ArteAprovacaoSidebar osId={os.id} />
+            <ArteAprovacaoSidebar 
+              osId={os.id}
+              onEnviarTodasArtes={() => {
+                // Esta função será passada do ArteAprovacaoTab
+                console.log('Enviar todas as artes - implementar integração');
+              }}
+              hasVersoesRascunho={true}
+            />
           </div>
         </div>
       ) : (

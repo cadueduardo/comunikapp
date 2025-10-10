@@ -8,14 +8,17 @@ import {
   CheckCircle, 
   ExternalLink,
   MessageSquare,
-  User
+  User,
+  Send
 } from 'lucide-react';
 
 interface ArteAprovacaoSidebarProps {
   osId: string;
+  onEnviarTodasArtes?: () => void;
+  hasVersoesRascunho?: boolean;
 }
 
-export function ArteAprovacaoSidebar({ osId }: ArteAprovacaoSidebarProps) {
+export function ArteAprovacaoSidebar({ osId, onEnviarTodasArtes, hasVersoesRascunho = false }: ArteAprovacaoSidebarProps) {
   const comentarios = [
     {
       autor: 'Cliente',
@@ -36,6 +39,17 @@ export function ArteAprovacaoSidebar({ osId }: ArteAprovacaoSidebarProps) {
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Aprovação do Cliente</h3>
         
         <div className="space-y-3">
+          {/* Botão Enviar Todas as Artes */}
+          {hasVersoesRascunho && onEnviarTodasArtes && (
+            <Button 
+              onClick={onEnviarTodasArtes}
+              className="w-full justify-start bg-green-600 hover:bg-green-700 text-left min-w-0"
+            >
+              <Send className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span className="truncate">Enviar Todas as Artes</span>
+            </Button>
+          )}
+          
           <Button variant="outline" className="w-full justify-start text-left min-w-0">
             <Copy className="h-4 w-4 mr-2 flex-shrink-0" />
             <span className="truncate">Copiar link público</span>
