@@ -41,19 +41,6 @@ export class ArteComentarioService {
   async createComentario(dto: CreateComentarioDto): Promise<ComentarioResponse> {
     const { versao_id, comentario, tipo = ComentarioTipo.INTERNO, loja_id, usuario_id } = dto;
 
-    // Verificar se a versão existe e pertence à loja
-    const versao = await this.prisma.arteVersao.findFirst({
-      where: {
-        id: versao_id,
-        loja_id,
-        deletado: false,
-      },
-    });
-
-    if (!versao) {
-      throw new Error('Versão não encontrada ou não pertence à loja');
-    }
-
     // Verificar se o usuário existe
     const usuario = await this.prisma.usuario.findUnique({
       where: { id: usuario_id },
@@ -65,8 +52,12 @@ export class ArteComentarioService {
     }
 
     // Buscar versão com relacionamentos
-    const versao = await this.prisma.arteVersao.findUnique({
-      where: { id: versao_id },
+    const versao = await this.prisma.arteVersao.findFirst({
+      where: {
+        id: versao_id,
+        loja_id,
+        deletado: false,
+      },
       include: {
         os: {
           include: {
