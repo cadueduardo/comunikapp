@@ -33,23 +33,25 @@ interface ArteData {
     status: string;
     descricao?: string;
     data_criacao: string;
-    autor: {
-      nome: string;
-      email: string;
-    };
+    os_id: string;
+  };
+  autor: {
+    nome: string;
+    email: string;
   };
   os: {
     id: string;
-    numero: string;
-    cliente: {
-      nome: string;
-      email: string;
-    };
+    numero_os: string;
+  };
+  cliente: {
+    nome: string;
+    email: string;
   };
   arquivos: Array<{
     id: string;
     nome_original: string;
     tipo_arquivo: string;
+    tamanho: number;
     url_arquivo: string;
     url_thumbnail?: string;
   }>;
@@ -294,11 +296,11 @@ export default function ArtePublicApprovalPage({}: ArtePublicApprovalPageProps) 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">OS:</span>
-                    <span className="font-medium">#{arteData.os.numero}</span>
+                    <span className="font-medium">#{arteData.os.numero_os}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Cliente:</span>
-                    <span className="font-medium">{arteData.os.cliente.nome}</span>
+                    <span className="font-medium">{arteData.cliente.nome}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Versão:</span>
@@ -306,7 +308,7 @@ export default function ArtePublicApprovalPage({}: ArtePublicApprovalPageProps) 
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Criado por:</span>
-                    <span className="font-medium">{arteData.versao.autor.nome}</span>
+                    <span className="font-medium">{arteData.autor.nome}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Data:</span>
