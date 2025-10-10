@@ -15,7 +15,7 @@ export class ArteArquivoResponseDto {
   tipo_arquivo: string;
 
   @ApiProperty({ description: 'Tamanho do arquivo em bytes' })
-  tamanho: bigint;
+  tamanho: number;
 
   @ApiProperty({ description: 'URL do arquivo' })
   url_arquivo: string;

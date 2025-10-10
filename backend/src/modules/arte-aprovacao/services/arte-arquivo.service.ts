@@ -180,7 +180,7 @@ export class ArteArquivoService {
       nome_arquivo: arquivo.nome_arquivo,
       nome_original: arquivo.nome_original,
       tipo_arquivo: arquivo.tipo_arquivo,
-      tamanho: arquivo.tamanho,
+      tamanho: Number(arquivo.tamanho), // Converter BigInt para Number
       url_arquivo: arquivo.url_arquivo,
       url_thumbnail: arquivo.url_thumbnail,
       storage_provider: arquivo.storage_provider,

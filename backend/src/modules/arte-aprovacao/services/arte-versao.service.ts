@@ -100,49 +100,54 @@ export class ArteVersaoService {
    * Lista todas as versões de uma OS
    */
   async findVersoesByOS(osId: string, lojaId: string): Promise<ArteVersaoResponseDto[]> {
-    console.log('🔍 Buscando versões da OS:', { osId, lojaId });
+    try {
+      console.log('🔍 Buscando versões da OS:', { osId, lojaId });
 
-    const versoes = await this.prisma.arteVersao.findMany({
-      where: {
-        os_id: osId,
-        loja_id: lojaId
-      },
-      include: {
-        autor: {
-          select: {
-            id: true,
-            nome_completo: true
-          }
+      const versoes = await this.prisma.arteVersao.findMany({
+        where: {
+          os_id: osId,
+          loja_id: lojaId
         },
-        aprovador: {
-          select: {
-            id: true,
-            nome_completo: true
-          }
-        },
-        arquivos: true,
-        comentarios: {
-          include: {
-            usuario: {
-              select: {
-                id: true,
-                nome_completo: true
-              }
+        include: {
+          autor: {
+            select: {
+              id: true,
+              nome_completo: true
             }
           },
-          orderBy: {
-            data_comentario: 'desc'
+          aprovador: {
+            select: {
+              id: true,
+              nome_completo: true
+            }
+          },
+          arquivos: true,
+          comentarios: {
+            include: {
+              usuario: {
+                select: {
+                  id: true,
+                  nome_completo: true
+                }
+              }
+            },
+            orderBy: {
+              data_comentario: 'desc'
+            }
           }
+        },
+        orderBy: {
+          data_criacao: 'desc'
         }
-      },
-      orderBy: {
-        data_criacao: 'desc'
-      }
-    });
+      });
 
-    console.log(`📋 Encontradas ${versoes.length} versões`);
+      console.log(`📋 Encontradas ${versoes.length} versões`);
 
-    return versoes.map(versao => this.formatVersaoResponse(versao));
+      return versoes.map(versao => this.formatVersaoResponse(versao));
+    } catch (error) {
+      console.error('❌ Erro ao buscar versões:', error);
+      throw error;
+    }
   }
 
   /**
@@ -314,7 +319,7 @@ export class ArteVersaoService {
         nome_arquivo: arquivo.nome_arquivo,
         nome_original: arquivo.nome_original,
         tipo_arquivo: arquivo.tipo_arquivo,
-        tamanho: arquivo.tamanho,
+        tamanho: Number(arquivo.tamanho), // Converter BigInt para Number
         url_arquivo: arquivo.url_arquivo,
         url_thumbnail: arquivo.url_thumbnail,
         storage_provider: arquivo.storage_provider,

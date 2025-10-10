@@ -10,20 +10,30 @@ import {
   HttpStatus,
   UseInterceptors,
   UploadedFile,
-  BadRequestException
+  BadRequestException,
+  Res,
+  StreamableFile
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
+import { createReadStream, existsSync } from 'fs';
+import { join } from 'path';
 import { ArteArquivoService } from '../services/arte-arquivo.service';
+import { ArteThumbnailService } from '../services/arte-thumbnail.service';
 import { ArteArquivoResponseDto } from '../dto/arte-response.dto';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
+import { multerConfig } from '../../../config/multer.config';
 
 @ApiTags('Arte & Aprovação - Arquivos')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('arte-aprovacao/versoes/:versaoId/arquivos')
 export class ArteArquivoController {
-  constructor(private readonly arteArquivoService: ArteArquivoService) {}
+  constructor(
+    private readonly arteArquivoService: ArteArquivoService,
+    private readonly thumbnailService: ArteThumbnailService
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Listar arquivos de uma versão' })
@@ -46,7 +56,7 @@ export class ArteArquivoController {
   }
 
   @Post('upload')
-  @UseInterceptors(FileInterceptor('arquivo'))
+  @UseInterceptors(FileInterceptor('arquivo', multerConfig))
   @ApiOperation({ summary: 'Upload de arquivo para versão' })
   @ApiConsumes('multipart/form-data')
   @ApiResponse({
@@ -65,6 +75,7 @@ export class ArteArquivoController {
       versaoId,
       nomeArquivo: arquivo?.originalname,
       tamanho: arquivo?.size,
+      path: arquivo?.path,
       lojaId: req.user.loja_id
     });
 
@@ -72,20 +83,41 @@ export class ArteArquivoController {
       throw new BadRequestException('Nenhum arquivo foi enviado');
     }
 
-    // TODO: Implementar upload real para storage (Google Drive, AWS S3, etc.)
-    // Por enquanto, simular dados do arquivo
+    // Gerar thumbnail se for imagem
+    let thumbnailPath: string | null = null;
+    let thumbnailFilename: string | undefined = undefined;
+    
+    if (this.thumbnailService.isImage(arquivo.path)) {
+      thumbnailPath = await this.thumbnailService.generateThumbnail(arquivo.path);
+      if (thumbnailPath) {
+        // Extrair apenas o nome do arquivo do thumbnail
+        const parts = thumbnailPath.split(/[/\\]/);
+        thumbnailFilename = parts[parts.length - 1];
+      }
+    }
+
+    // Preparar dados do arquivo
     const arquivoData = {
-      nome_arquivo: `${Date.now()}-${arquivo.originalname}`,
+      nome_arquivo: arquivo.filename, // Nome gerado pelo multer
       nome_original: arquivo.originalname,
       tipo_arquivo: arquivo.mimetype.split('/')[1] || 'unknown',
       tamanho: BigInt(arquivo.size),
-      url_arquivo: `/uploads/arte/${versaoId}/${arquivo.originalname}`,
-      url_thumbnail: arquivo.mimetype.startsWith('image/') 
-        ? `/uploads/arte/${versaoId}/thumb_${arquivo.originalname}`
+      url_arquivo: `/api/arte-aprovacao/versoes/${versaoId}/arquivos/download/${arquivo.filename}`,
+      url_thumbnail: thumbnailFilename 
+        ? `/api/arte-aprovacao/versoes/${versaoId}/arquivos/download/${thumbnailFilename}`
         : undefined,
       storage_provider: 'local',
-      storage_path: `/uploads/arte/${versaoId}/${arquivo.originalname}`
+      storage_path: arquivo.path
     };
+
+    console.log('✅ [Controller] Arquivo salvo:', {
+      path: arquivo.path,
+      filename: arquivo.filename,
+      thumbnail: thumbnailPath,
+      thumbnailFilename: thumbnailFilename,
+      url_arquivo: arquivoData.url_arquivo,
+      url_thumbnail: arquivoData.url_thumbnail
+    });
 
     return this.arteArquivoService.addArquivo(versaoId, arquivoData, req.user.loja_id);
   }
@@ -110,6 +142,40 @@ export class ArteArquivoController {
     });
 
     return this.arteArquivoService.findArquivoById(arquivoId, req.user.loja_id);
+  }
+
+  @Get('download/:filename')
+  @ApiOperation({ summary: 'Download de arquivo' })
+  @ApiResponse({
+    status: 200,
+    description: 'Arquivo para download'
+  })
+  @ApiResponse({ status: 404, description: 'Arquivo não encontrado' })
+  async downloadArquivo(
+    @Param('versaoId') versaoId: string,
+    @Param('filename') filename: string,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<StreamableFile> {
+    console.log('📥 [Controller] Download de arquivo:', {
+      versaoId,
+      filename
+    });
+
+    const filePath = join(process.cwd(), 'uploads', 'arte', versaoId, filename);
+
+    if (!existsSync(filePath)) {
+      throw new BadRequestException('Arquivo não encontrado');
+    }
+
+    const file = createReadStream(filePath);
+    
+    // Definir headers para download
+    res.set({
+      'Content-Type': 'application/octet-stream',
+      'Content-Disposition': `inline; filename="${filename}"`,
+    });
+
+    return new StreamableFile(file);
   }
 
   @Get(':arquivoId/url-publica')
