@@ -32,7 +32,8 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
       });
 
       if (!response.ok) {
-        throw new Error('Erro ao carregar versões');
+        const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
+        throw new Error(errorData.message || `Erro ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -74,7 +75,7 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
   const updateVersao = async (id: string, data: UpdateArteVersaoRequest): Promise<ArteVersao> => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`/api/arte-aprovacao/versoes/versao/${id}`, {
+      const response = await fetch(`/api/arte-aprovacao/versoes/${id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -100,7 +101,7 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
   const deleteVersao = async (id: string): Promise<void> => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`/api/arte-aprovacao/versoes/versao/${id}`, {
+      const response = await fetch(`/api/arte-aprovacao/versoes/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

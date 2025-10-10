@@ -19,7 +19,7 @@ import { apiRequest } from "@/lib/api";
 import { OrdemServico } from "../columns";
 import { PrazoOSComponent } from "@/components/os/PrazoOSComponent";
 import { ListaProdutosComPrazo } from "@/components/os/ListaProdutosComPrazo";
-import { ArteAprovacaoWireframe as ArteAprovacaoTab } from "@/components/os/arte-aprovacao/ArteAprovacaoWireframe";
+import { ArteAprovacaoTab } from "@/components/os/arte-aprovacao/ArteAprovacaoTab";
 import { ArteAprovacaoSidebar } from "@/components/os/arte-aprovacao/ArteAprovacaoSidebar";
 import { ResumoOSSidebar } from "@/components/os/ResumoOSSidebar";
 

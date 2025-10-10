@@ -35,7 +35,6 @@ import { ArteVersao, ArteStatus } from './types/arte-types';
 import { ArteAprovacaoTabProps } from './types/arte-types';
 import { ArteFileUpload } from './components/ArteFileUpload';
 import { ArtePreviewModal } from './components/ArtePreviewModal';
-import { ArteCreateVersionModal } from './components/ArteCreateVersionModal';
 
 // Interface para produtos/componentes da OS
 interface ProdutoArte {
@@ -50,8 +49,8 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
   const { versoes, loading, error, createVersao, deleteVersao, refreshVersoes } = useArteVersoes(osId);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedVersao, setSelectedVersao] = useState<ArteVersao | undefined>();
+  const [creatingVersao, setCreatingVersao] = useState(false);
   
   // Estado para produto selecionado
   const [selectedProduto, setSelectedProduto] = useState<string>('fachada-principal');
@@ -138,32 +137,31 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     }
   };
 
-  // Calcular próxima versão baseada nas versões reais do banco
-  const getProximaVersao = (): string => {
-    // Filtrar versões do produto selecionado
-    const versoesDoProduto = versoes.filter(v => v.servico_id === selectedProduto);
+  const handleCreateVersao = async () => {
+    if (creatingVersao) return;
     
-    if (versoesDoProduto.length === 0) {
-      return 'v1';
+    try {
+      setCreatingVersao(true);
+      
+      // Gerar próxima versão automaticamente para o produto selecionado
+      const produtoAtual = produtos.find(p => p.id === selectedProduto);
+      const proximaVersao = `v${parseInt(produtoAtual?.versaoAtual.replace('v', '') || '0') + 1}`;
+      
+      await createVersao({
+        os_id: osId,
+        versao: proximaVersao,
+        status: ArteStatus.RASCUNHO,
+        descricao: `Nova versão ${proximaVersao} - ${produtoAtual?.nome}`,
+        produto_id: selectedProduto
+      });
+      
+      toast.success(`Versão ${proximaVersao} criada para ${produtoAtual?.nome}!`);
+    } catch (error) {
+      console.error('Erro ao criar versão:', error);
+      toast.error('Erro ao criar versão');
+    } finally {
+      setCreatingVersao(false);
     }
-    
-    // Extrair números das versões e encontrar o maior
-    const numeros = versoesDoProduto
-      .map(v => parseInt(v.versao.replace('v', '').replace('V', '')))
-      .filter(n => !isNaN(n));
-    
-    const maiorNumero = Math.max(...numeros, 0);
-    return `v${maiorNumero + 1}`;
-  };
-
-  const handleCreateVersao = () => {
-    // Abrir modal de criação com upload integrado
-    setShowCreateModal(true);
-  };
-
-  const handleCreateSuccess = (versaoId: string) => {
-    // Atualizar lista de versões
-    refreshVersoes();
   };
 
   const handleDeleteVersao = async (versaoId: string) => {
@@ -190,7 +188,7 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
   };
 
   // Filtrar versões por produto selecionado
-  const versoesDoProduto = versoes.filter(v => v.servico_id === selectedProduto);
+  const versoesDoProduto = versoes.filter(v => v.produto_id === selectedProduto);
 
   if (loading) {
     return (
@@ -230,10 +228,24 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header com ações */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Arte & Aprovação</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Arte & Aprovação</CardTitle>
+            {!readonly && (
+              <div className="flex space-x-2">
+                <Button 
+                  onClick={handleCreateVersao}
+                  disabled={creatingVersao}
+                  size="sm"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {creatingVersao ? 'Criando...' : 'Nova Versão'}
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
       </Card>
 
@@ -264,33 +276,6 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
         </CardContent>
       </Card>
 
-      {/* Botão Nova Versão - Contextual ao produto selecionado */}
-      {selectedProduto && (
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-medium text-gray-900">
-                  {produtos.find(p => p.id === selectedProduto)?.nome}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Gerencie as versões de arte para este produto
-                </p>
-              </div>
-              {!readonly && (
-                <Button 
-                  onClick={handleCreateVersao}
-                  size="sm"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nova Versão
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Lista de versões do produto selecionado */}
       {versoesDoProduto.length === 0 ? (
         <Card>
@@ -302,7 +287,7 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                 Comece criando a primeira versão da arte para <strong>{produtos.find(p => p.id === selectedProduto)?.nome}</strong>.
               </p>
               {!readonly && (
-                <Button onClick={handleCreateVersao}>
+                <Button onClick={handleCreateVersao} disabled={creatingVersao}>
                   <Plus className="h-4 w-4 mr-2" />
                   Criar Primeira Versão
                 </Button>
@@ -369,26 +354,10 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                   {/* Preview/Thumbnail */}
                   <div className="space-y-2">
                     <h4 className="font-medium text-sm">Preview</h4>
-                    {versao.arquivos.length > 0 && versao.arquivos[0].url_thumbnail ? (
-                      <div className="bg-gray-100 rounded-lg overflow-hidden border border-gray-300">
-                        <img 
-                          src={versao.arquivos[0].url_thumbnail} 
-                          alt={`Preview ${versao.versao}`}
-                          className="w-full h-32 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                          onClick={() => handleViewVersao(versao)}
-                        />
-                      </div>
-                    ) : versao.arquivos.length > 0 ? (
-                      <div className="bg-gray-100 rounded-lg p-8 text-center border-2 border-dashed border-gray-300">
-                        <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                        <p className="text-xs text-gray-500">{versao.arquivos[0].nome_original}</p>
-                      </div>
-                    ) : (
-                      <div className="bg-gray-100 rounded-lg p-8 text-center border-2 border-dashed border-gray-300">
-                        <Image className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                        <p className="text-sm text-gray-500">Sem preview</p>
-                      </div>
-                    )}
+                    <div className="bg-gray-100 rounded-lg p-8 text-center border-2 border-dashed border-gray-300">
+                      <Image className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                      <p className="text-sm text-gray-500">Preview {versao.versao}</p>
+                    </div>
                   </div>
 
                   {/* Informações da versão */}
@@ -412,24 +381,13 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                     {versao.arquivos.length > 0 ? (
                       <div className="space-y-1">
                         {versao.arquivos.slice(0, 3).map((arquivo) => (
-                          <div key={arquivo.id} className="flex items-center justify-between text-xs text-gray-600 hover:bg-gray-50 p-1 rounded">
-                            <div className="flex items-center min-w-0 flex-1">
-                              {arquivo.tipo_arquivo.startsWith('image/') || arquivo.tipo_arquivo === 'jpeg' || arquivo.tipo_arquivo === 'jpg' || arquivo.tipo_arquivo === 'png' ? (
-                                <Image className="h-3 w-3 mr-1 flex-shrink-0" />
-                              ) : (
-                                <FileText className="h-3 w-3 mr-1 flex-shrink-0" />
-                              )}
-                              <span className="truncate">{arquivo.nome_original}</span>
-                            </div>
-                            <a
-                              href={arquivo.url_arquivo}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="ml-2 text-blue-600 hover:text-blue-800 flex-shrink-0"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Download className="h-3 w-3" />
-                            </a>
+                          <div key={arquivo.id} className="flex items-center text-xs text-gray-600">
+                            {arquivo.tipo_arquivo.startsWith('image/') ? (
+                              <Image className="h-3 w-3 mr-1" />
+                            ) : (
+                              <FileText className="h-3 w-3 mr-1" />
+                            )}
+                            {arquivo.nome_original}
                           </div>
                         ))}
                         {versao.arquivos.length > 3 && (
@@ -470,19 +428,6 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
           versao={selectedVersao}
           isOpen={showPreviewModal}
           onClose={() => setShowPreviewModal(false)}
-        />
-      )}
-
-      {/* Modal de Criação de Versão com Upload */}
-      {showCreateModal && (
-        <ArteCreateVersionModal
-          open={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={handleCreateSuccess}
-          osId={osId}
-          servicoId={selectedProduto}
-          servicoNome={produtos.find(p => p.id === selectedProduto)?.nome || ''}
-          proximaVersao={getProximaVersao()}
         />
       )}
     </div>

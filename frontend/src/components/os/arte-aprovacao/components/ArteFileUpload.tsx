@@ -90,12 +90,14 @@ export function ArteFileUpload({
     setUploading(true);
     
     try {
+      let uploadedCount = 0;
+      
       for (const file of selectedFiles) {
         const formData = new FormData();
         formData.append('arquivo', file);
         
         const token = localStorage.getItem('access_token');
-        const response = await fetch(`/api/arte-aprovacao/versoes/versao/${versaoId}/arquivos/upload`, {
+        const response = await fetch(`/api/arte-aprovacao/versoes/${versaoId}/arquivos/upload`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -107,10 +109,17 @@ export function ArteFileUpload({
           const errorData = await response.json();
           throw new Error(errorData.message || 'Erro ao fazer upload do arquivo');
         }
+
+        const arquivo = await response.json();
+        uploadedCount++;
       }
       
-      onUploadSuccess?.();
       setSelectedFiles([]);
+      
+      // Chamar callback de sucesso DEPOIS de todos os uploads
+      if (uploadedCount > 0) {
+        onUploadSuccess?.(uploadedCount as any); // Passar quantidade de arquivos
+      }
     } catch (error) {
       console.error('Erro no upload:', error);
       onUploadError?.(error instanceof Error ? error.message : 'Erro no upload');
