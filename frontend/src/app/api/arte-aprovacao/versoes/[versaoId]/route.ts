@@ -4,19 +4,19 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ versaoId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { versaoId } = await params;
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
     
     if (!token) {
       return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
     }
 
-    console.log('🔍 [API Route] Buscando versão:', id);
+    console.log('🔍 [API Route] Buscando versão:', versaoId);
 
-    const response = await fetch(`${API_BASE_URL}/arte-aprovacao/versoes/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/arte-aprovacao/versoes/${versaoId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -47,10 +47,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ versaoId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { versaoId } = await params;
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
     
     if (!token) {
@@ -58,9 +58,9 @@ export async function PUT(
     }
 
     const body = await request.json();
-    console.log('✏️ [API Route] Atualizando versão:', { id, body });
+    console.log('✏️ [API Route] Atualizando versão:', { versaoId, body });
 
-    const response = await fetch(`${API_BASE_URL}/arte-aprovacao/versoes/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/arte-aprovacao/versoes/${versaoId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -92,19 +92,19 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ versaoId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { versaoId } = await params;
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
     
     if (!token) {
       return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
     }
 
-    console.log('🗑️ [API Route] Removendo versão:', id);
+    console.log('🗑️ [API Route] Removendo versão:', versaoId);
 
-    const response = await fetch(`${API_BASE_URL}/arte-aprovacao/versoes/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/arte-aprovacao/versoes/${versaoId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -120,7 +120,7 @@ export async function DELETE(
       );
     }
 
-    console.log('✅ [API Route] Versão removida:', id);
+    console.log('✅ [API Route] Versão removida:', versaoId);
     return new NextResponse(null, { status: 204 });
   } catch (error: any) {
     console.error('❌ [API Route] Erro ao remover versão:', error);

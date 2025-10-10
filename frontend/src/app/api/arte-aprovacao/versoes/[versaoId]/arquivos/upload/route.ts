@@ -4,10 +4,10 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ versaoId: string }> }
 ) {
   try {
-    const { id: versaoId } = await params;
+    const { versaoId } = await params;
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
     
     if (!token) {
