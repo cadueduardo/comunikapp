@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsBoolean } from 'class-validator';
 import { ArteStatus } from '@prisma/client';
 
 export class UpdateArteVersaoDto {
@@ -39,5 +39,14 @@ export class UpdateArteVersaoDto {
   @IsOptional()
   @IsString()
   observacoes?: string;
+
+  @ApiProperty({
+    description: 'Indica se foi aprovado pelo cliente',
+    example: true,
+    required: false
+  })
+  @IsOptional()
+  @IsBoolean()
+  aprovado_por_cliente?: boolean;
 }
 
