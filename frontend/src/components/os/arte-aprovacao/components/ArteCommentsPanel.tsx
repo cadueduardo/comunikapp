@@ -395,3 +395,4 @@ export function ArteCommentsPanel({
     </Card>
   );
 }
+

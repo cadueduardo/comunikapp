@@ -560,3 +560,4 @@ export function ArteWorkflowManager({
     </Card>
   );
 }
+

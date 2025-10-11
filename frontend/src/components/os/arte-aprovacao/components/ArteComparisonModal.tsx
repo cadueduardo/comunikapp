@@ -476,3 +476,4 @@ export function ArteComparisonModal({
     </div>
   );
 }
+

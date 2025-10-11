@@ -14,3 +14,4 @@ export default function ArteLayout({
   return <>{children}</>;
 }
 
+

@@ -132,3 +132,4 @@ O sistema registra logs de envio de emails:
 ```
 
 Verifique os logs do backend para monitorar o status das notificações.
+

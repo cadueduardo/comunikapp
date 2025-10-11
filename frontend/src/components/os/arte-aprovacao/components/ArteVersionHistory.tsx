@@ -336,3 +336,4 @@ export function ArteVersionHistory({
     </div>
   );
 }
+

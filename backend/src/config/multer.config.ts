@@ -64,3 +64,4 @@ export const multerConfig = {
 
 export const uploadPath = uploadDir;
 
+

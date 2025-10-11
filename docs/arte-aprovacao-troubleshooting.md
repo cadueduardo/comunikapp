@@ -316,3 +316,4 @@ npx prisma studio
 3. Network tab (requisição de upload)
 4. Screenshot do erro
 
+
