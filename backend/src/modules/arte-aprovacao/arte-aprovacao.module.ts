@@ -5,12 +5,14 @@ import { ArteArquivoController } from './controllers/arte-arquivo.controller';
 import { ArteLinkAprovacaoController } from './controllers/arte-link-aprovacao.controller';
 import { ArteComentarioController } from './controllers/arte-comentario.controller';
 import { ArteNotificacaoController } from './controllers/arte-notificacao.controller';
+import { ArteMensagemController } from './controllers/arte-mensagem.controller';
 import { ArteVersaoService } from './services/arte-versao.service';
 import { ArteArquivoService } from './services/arte-arquivo.service';
 import { ArteThumbnailService } from './services/arte-thumbnail.service';
 import { ArteLinkAprovacaoService } from './services/arte-link-aprovacao.service';
 import { ArteComentarioService } from './services/arte-comentario.service';
 import { ArteNotificacaoService } from './services/arte-notificacao.service';
+import { ArteMensagemService } from './services/arte-mensagem.service';
 
 @Module({
   imports: [
@@ -21,7 +23,8 @@ import { ArteNotificacaoService } from './services/arte-notificacao.service';
     ArteArquivoController,
     ArteLinkAprovacaoController,
     ArteComentarioController,
-    ArteNotificacaoController
+    ArteNotificacaoController,
+    ArteMensagemController
   ],
   providers: [
     ArteVersaoService,
@@ -29,7 +32,8 @@ import { ArteNotificacaoService } from './services/arte-notificacao.service';
     ArteThumbnailService,
     ArteLinkAprovacaoService,
     ArteComentarioService,
-    ArteNotificacaoService
+    ArteNotificacaoService,
+    ArteMensagemService
   ],
   exports: [
     ArteVersaoService,
@@ -37,7 +41,8 @@ import { ArteNotificacaoService } from './services/arte-notificacao.service';
     ArteThumbnailService,
     ArteLinkAprovacaoService,
     ArteComentarioService,
-    ArteNotificacaoService
+    ArteNotificacaoService,
+    ArteMensagemService
   ]
 })
 export class ArteAprovacaoModule {}

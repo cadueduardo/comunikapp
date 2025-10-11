@@ -1,0 +1,473 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { ArteNotificacaoService } from './arte-notificacao.service';
+import { CreateMensagemDto, UpdateMensagemDto } from '../dto/mensagem.dto';
+import { AutorTipo } from '@prisma/client';
+
+@Injectable()
+export class ArteMensagemService {
+  private readonly logger = new Logger(ArteMensagemService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificacaoService: ArteNotificacaoService,
+  ) {}
+
+  /**
+   * Criar nova mensagem
+   */
+  async criarMensagem(data: CreateMensagemDto & { usuario_id: string; loja_id: string }) {
+    try {
+      // Verificar se a OS existe e pertence à loja
+      const os = await this.prisma.ordemServico.findFirst({
+        where: {
+          id: data.os_id,
+          loja_id: data.loja_id,
+        },
+        include: {
+          cliente: true,
+        },
+      });
+
+      if (!os) {
+        throw new Error('OS não encontrada ou não pertence à loja');
+      }
+
+      // Buscar dados do usuário se for mensagem da equipe
+      let autorNome = data.autor_nome;
+      let autorEmail = data.autor_email;
+
+      if (data.autor_tipo === AutorTipo.EQUIPE) {
+        const usuario = await this.prisma.usuario.findUnique({
+          where: { id: data.usuario_id },
+          select: { nome: true, email: true },
+        });
+
+        if (usuario) {
+          autorNome = usuario.nome;
+          autorEmail = usuario.email;
+        } else {
+          this.logger.warn(`Usuário não encontrado: ${data.usuario_id}`);
+        }
+      } else if (data.autor_tipo === AutorTipo.CLIENTE) {
+        // Para mensagens do cliente, usar dados da OS
+        autorNome = os.cliente.nome;
+        autorEmail = os.cliente.email;
+      }
+
+      // Se ainda não tiver nome, usar um padrão
+      if (!autorNome) {
+        autorNome = data.autor_tipo === AutorTipo.EQUIPE ? 'Equipe' : 'Cliente';
+        this.logger.warn(`Autor sem nome, usando padrão: ${autorNome}`);
+      }
+
+      // Criar mensagem
+      const mensagem = await this.prisma.arteMensagem.create({
+        data: {
+          os_id: data.os_id,
+          produto_id: data.produto_id,
+          versao_id: data.versao_id,
+          mensagem: data.mensagem,
+          autor_tipo: data.autor_tipo,
+          autor_nome: autorNome,
+          autor_email: autorEmail || '',
+          lida: data.lida || false,
+          loja_id: data.loja_id,
+        },
+        include: {
+          os: {
+            include: {
+              cliente: true,
+            },
+          },
+        },
+      });
+
+      this.logger.log(`Mensagem criada: ${mensagem.id} para OS ${data.os_id}`);
+
+      // Enviar notificações
+      await this.enviarNotificacoesMensagem(mensagem, data.autor_tipo as AutorTipo);
+
+      return mensagem;
+    } catch (error) {
+      this.logger.error('Erro ao criar mensagem:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Listar mensagens de um produto
+   */
+  async listarMensagensProduto(osId: string, produtoId: string, lojaId: string) {
+    return this.prisma.arteMensagem.findMany({
+      where: {
+        os_id: osId,
+        produto_id: produtoId,
+        loja_id: lojaId,
+      },
+      orderBy: {
+        created_at: 'asc',
+      },
+    });
+  }
+
+  /**
+   * Listar mensagens de uma versão específica
+   */
+  async listarMensagensVersao(versaoId: string, lojaId: string) {
+    return this.prisma.arteMensagem.findMany({
+      where: {
+        versao_id: versaoId,
+        loja_id: lojaId,
+      },
+      orderBy: {
+        created_at: 'asc',
+      },
+    });
+  }
+
+  /**
+   * Listar mensagens de uma OS (todos os produtos)
+   */
+  async listarMensagensOS(osId: string, lojaId: string) {
+    return this.prisma.arteMensagem.findMany({
+      where: {
+        os_id: osId,
+        loja_id: lojaId,
+      },
+      orderBy: [
+        { produto_id: 'asc' },
+        { created_at: 'asc' },
+      ],
+    });
+  }
+
+  /**
+   * Atualizar mensagem
+   */
+  async atualizarMensagem(id: string, dto: UpdateMensagemDto, usuarioId: string, lojaId: string) {
+    // Verificar se a mensagem existe e pertence ao usuário/loja
+    const mensagemExistente = await this.prisma.arteMensagem.findFirst({
+      where: {
+        id,
+        loja_id: lojaId,
+      },
+    });
+
+    if (!mensagemExistente) {
+      throw new Error('Mensagem não encontrada');
+    }
+
+    // Verificar se o usuário pode editar (apenas mensagens da equipe)
+    if (mensagemExistente.autor_tipo === AutorTipo.CLIENTE) {
+      throw new Error('Não é possível editar mensagens do cliente');
+    }
+
+    return this.prisma.arteMensagem.update({
+      where: { id },
+      data: dto,
+    });
+  }
+
+  /**
+   * Deletar mensagem
+   */
+  async deletarMensagem(id: string, usuarioId: string, lojaId: string) {
+    // Verificar se a mensagem existe e pertence ao usuário/loja
+    const mensagemExistente = await this.prisma.arteMensagem.findFirst({
+      where: {
+        id,
+        loja_id: lojaId,
+      },
+    });
+
+    if (!mensagemExistente) {
+      throw new Error('Mensagem não encontrada');
+    }
+
+    // Verificar se o usuário pode deletar (apenas mensagens da equipe)
+    if (mensagemExistente.autor_tipo === AutorTipo.CLIENTE) {
+      throw new Error('Não é possível deletar mensagens do cliente');
+    }
+
+    return this.prisma.arteMensagem.delete({
+      where: { id },
+    });
+  }
+
+  /**
+   * Marcar mensagens como lidas
+   */
+  async marcarMensagensLidas(mensagemIds: string[], usuarioId: string, lojaId: string) {
+    return this.prisma.arteMensagem.updateMany({
+      where: {
+        id: { in: mensagemIds },
+        loja_id: lojaId,
+      },
+      data: {
+        lida: true,
+      },
+    });
+  }
+
+  /**
+   * Contar mensagens não lidas por produto (apenas do cliente)
+   */
+  async contarMensagensNaoLidas(osId: string, lojaId: string) {
+    const mensagensNaoLidas = await this.prisma.arteMensagem.groupBy({
+      by: ['produto_id'],
+      where: {
+        os_id: osId,
+        loja_id: lojaId,
+        lida: false,
+        autor_tipo: AutorTipo.CLIENTE, // Apenas mensagens não lidas do cliente
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    // Buscar nomes dos produtos através do relacionamento com orcamento
+    const produtoIds = mensagensNaoLidas.map(m => m.produto_id);
+    const produtos = await this.prisma.produtoOrcamento.findMany({
+      where: {
+        id: { in: produtoIds },
+        orcamento: {
+          loja_id: lojaId,
+        },
+      },
+      select: {
+        id: true,
+        nome: true,
+        nome_servico: true
+      },
+    });
+
+    return mensagensNaoLidas.map(mensagem => {
+      const produto = produtos.find(p => p.id === mensagem.produto_id);
+      return {
+        produto_id: mensagem.produto_id,
+        produto_nome: produto?.nome || 'Produto não encontrado',
+        mensagens_nao_lidas: mensagem._count.id,
+      };
+    });
+  }
+
+  /**
+   * Buscar últimas mensagens por produto
+   */
+  async buscarUltimasMensagensPorProduto(osId: string, lojaId: string) {
+    // Buscar todas as mensagens da OS
+    const mensagens = await this.prisma.arteMensagem.findMany({
+      where: {
+        os_id: osId,
+        loja_id: lojaId,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    // Agrupar por produto e pegar a última mensagem de cada
+    const mensagensPorProduto = new Map();
+    
+    for (const mensagem of mensagens) {
+      if (!mensagensPorProduto.has(mensagem.produto_id)) {
+        mensagensPorProduto.set(mensagem.produto_id, mensagem);
+      }
+    }
+
+    // ✅ USAR A MESMA LÓGICA DA API STATUS-PRODUTOS
+    // Buscar nomes dos produtos usando a mesma lógica da aba Resumo
+    const produtoIds = Array.from(mensagensPorProduto.keys());
+    
+    console.log('🔍 [buscarUltimasMensagensPorProduto] Debug:', {
+      osId,
+      lojaId,
+      produtoIds,
+      mensagensCount: mensagens.length
+    });
+    
+    // Primeiro tentar buscar na tabela ItemOS (produtos da OS)
+    let produtos = await this.prisma.itemOS.findMany({
+      where: {
+        id: { in: produtoIds },
+        os: {
+          loja_id: lojaId,
+        },
+      },
+      select: {
+        id: true,
+        produto_servico: true, // ✅ USAR produto_servico como na API status-produtos
+      },
+    });
+    
+    console.log('🔍 [buscarUltimasMensagensPorProduto] ItemOS encontrados:', produtos);
+
+    // Se não encontrou todos os produtos, buscar na tabela produtoOrcamento
+    const produtosEncontradosIds = produtos.map(p => p.id);
+    const produtosNaoEncontradosIds = produtoIds.filter(id => !produtosEncontradosIds.includes(id));
+    
+    console.log('🔍 [buscarUltimasMensagensPorProduto] Produtos não encontrados em ItemOS:', produtosNaoEncontradosIds);
+    
+    if (produtosNaoEncontradosIds.length > 0) {
+      const produtosOrcamento = await this.prisma.produtoOrcamento.findMany({
+        where: {
+          id: { in: produtosNaoEncontradosIds },
+          orcamento: {
+            loja_id: lojaId,
+          },
+        },
+        select: {
+          id: true,
+          nome_servico: true // ✅ USAR nome_servico
+        },
+      });
+      
+      console.log('🔍 [buscarUltimasMensagensPorProduto] Produtos do orçamento encontrados:', produtosOrcamento);
+      
+      // Adicionar produtos do orçamento à lista
+      produtos = [
+        ...produtos,
+        ...produtosOrcamento.map(p => ({
+          id: p.id,
+          produto_servico: p.nome_servico || 'Produto não encontrado'
+        }))
+      ];
+    }
+
+    console.log('🔍 [buscarUltimasMensagensPorProduto] Produtos finais:', produtos);
+
+    // Formatar resposta
+    const resultado = Array.from(mensagensPorProduto.values()).map(mensagem => {
+      const produto = produtos.find(p => p.id === mensagem.produto_id);
+      console.log('🔍 [buscarUltimasMensagensPorProduto] Processando mensagem:', {
+        mensagem_id: mensagem.id,
+        produto_id: mensagem.produto_id,
+        produto_encontrado: produto,
+        produto_nome_final: produto?.produto_servico || 'Produto não encontrado'
+      });
+      
+      return {
+        id: mensagem.id,
+        produto_id: mensagem.produto_id,
+        produto_nome: produto?.produto_servico || 'Produto não encontrado', // ✅ USAR produto_servico
+        autor_nome: mensagem.autor_nome,
+        autor_tipo: mensagem.autor_tipo,
+        mensagem: mensagem.mensagem,
+        created_at: mensagem.created_at,
+        versao_id: mensagem.versao_id,
+      };
+    }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    
+    console.log('🔍 [buscarUltimasMensagensPorProduto] Resultado final:', resultado);
+    return resultado;
+  }
+
+  /**
+   * Enviar notificações para nova mensagem
+   */
+  private async enviarNotificacoesMensagem(mensagem: any, autorTipo: AutorTipo) {
+    try {
+      if (autorTipo === AutorTipo.EQUIPE) {
+        // Notificar cliente por email
+        await this.notificacaoService.notificarNovaMensagemCliente({
+          tipo: 'NOVA_MENSAGEM_CLIENTE',
+          os_id: mensagem.os_id,
+          versao_id: mensagem.versao_id,
+          destinatarios: [mensagem.os.cliente.email],
+          dados: {
+            produto_id: mensagem.produto_id,
+            mensagem: mensagem.mensagem,
+            autor_nome: mensagem.autor_nome,
+            os_numero: mensagem.os.numero,
+          },
+        });
+
+        // Criar notificação no sistema para o cliente
+        await this.criarNotificacaoSistema({
+          tipo: 'NOVA_MENSAGEM_CLIENTE',
+          os_id: mensagem.os_id,
+          produto_id: mensagem.produto_id,
+          titulo: `Nova mensagem - OS #${mensagem.os.numero}`,
+          mensagem: `${mensagem.autor_nome} enviou uma nova mensagem sobre o produto.`,
+          destinatario_email: mensagem.os.cliente.email,
+          loja_id: mensagem.loja_id,
+          dados_extras: {
+            produto_id: mensagem.produto_id,
+            versao_id: mensagem.versao_id,
+          },
+        });
+      } else if (autorTipo === AutorTipo.CLIENTE) {
+        // Notificar equipe por email
+        await this.notificacaoService.notificarNovaMensagemEquipe({
+          tipo: 'NOVA_MENSAGEM_EQUIPE',
+          os_id: mensagem.os_id,
+          versao_id: mensagem.versao_id,
+          destinatarios: [mensagem.autor_email],
+          dados: {
+            produto_id: mensagem.produto_id,
+            mensagem: mensagem.mensagem,
+            cliente_nome: mensagem.os.cliente.nome,
+            os_numero: mensagem.os.numero,
+          },
+        });
+
+        // Criar notificação no sistema para a equipe
+        await this.criarNotificacaoSistema({
+          tipo: 'NOVA_MENSAGEM_CLIENTE',
+          os_id: mensagem.os_id,
+          produto_id: mensagem.produto_id,
+          titulo: `Nova mensagem do cliente - OS #${mensagem.os.numero}`,
+          mensagem: `${mensagem.os.cliente.nome} enviou uma nova mensagem sobre o produto.`,
+          destinatario_email: null, // Notificar todos os usuários da loja
+          loja_id: mensagem.loja_id,
+          dados_extras: {
+            produto_id: mensagem.produto_id,
+            versao_id: mensagem.versao_id,
+            cliente_nome: mensagem.os.cliente.nome,
+          },
+        });
+      }
+    } catch (error) {
+      this.logger.error('Erro ao enviar notificações de mensagem:', error);
+      // Não falhar a operação principal por causa das notificações
+    }
+  }
+
+  /**
+   * Criar notificação no sistema
+   */
+  private async criarNotificacaoSistema(data: {
+    tipo: string;
+    os_id: string;
+    produto_id: string;
+    titulo: string;
+    mensagem: string;
+    destinatario_email?: string;
+    dados_extras?: any;
+    loja_id: string;
+  }) {
+    try {
+      await this.prisma.notificacao.create({
+        data: {
+          tipo: data.tipo,
+          titulo: data.titulo,
+          mensagem: data.mensagem,
+          orcamento_id: null,
+          loja_id: data.loja_id,
+          visualizada: false,
+          dados_extras: JSON.stringify({
+            os_id: data.os_id,
+            produto_id: data.produto_id,
+            ...data.dados_extras,
+          }),
+        },
+      });
+
+      this.logger.log(`Notificação criada: ${data.tipo} para OS ${data.os_id}`);
+    } catch (error) {
+      this.logger.error('Erro ao criar notificação no sistema:', error);
+    }
+  }
+}

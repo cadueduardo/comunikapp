@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +44,10 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useArteVersoes } from './hooks/useArteVersoes';
+import { useArteProdutos } from './hooks/useArteProdutos';
+import { useArteMessages } from './hooks/useArteMessages';
+import { ArteMessagesIcon } from './components/ArteMessagesIcon';
+import { ArteMessagesModal } from './components/ArteMessagesModal';
 import { ArteVersao, ArteStatus } from './types/arte-types';
 import { ArteAprovacaoTabProps } from './types/arte-types';
 import { ArteFileUpload } from './components/ArteFileUpload';
@@ -60,45 +64,65 @@ interface ProdutoArte {
 }
 
 export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabProps) {
-  const { versoes, loading, error, createVersao, deleteVersao, refreshVersoes } = useArteVersoes(osId);
+  const { versoes, loading, error, createVersao, updateVersao, deleteVersao, refreshVersoes } = useArteVersoes(osId);
+  const { produtos, loading: loadingProdutos, error: errorProdutos } = useArteProdutos(osId);
+  const { produtosMessages, loading: loadingMessages } = useArteMessages(osId);
+  
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showMessagesModal, setShowMessagesModal] = useState(false);
   const [selectedVersao, setSelectedVersao] = useState<ArteVersao | undefined>();
   const [versaoToDelete, setVersaoToDelete] = useState<string | null>(null);
   
-  // Estado para produto selecionado
-  const [selectedProduto, setSelectedProduto] = useState<string>('fachada-principal');
+  // Estado para produto selecionado - usar o primeiro produto disponível
+  const [selectedProduto, setSelectedProduto] = useState<string>('');
   
   // Estado para versões selecionadas para envio
   const [versoesSelecionadas, setVersoesSelecionadas] = useState<Set<string>>(new Set());
   const [linksAprovacao, setLinksAprovacao] = useState<Record<string, any>>({});
+  
+  // Estado para mensagens
+  const [selectedVersaoId, setSelectedVersaoId] = useState<string>('');
+  
+  // Estado para dados da OS
+  const [osData, setOsData] = useState<any>(null);
 
-  // Produtos/componentes da OS (baseado no wireframe)
-  const produtos: ProdutoArte[] = [
-    {
-      id: 'fachada-principal',
-      nome: 'Fachada Principal',
-      versaoAtual: 'v3',
-      status: ArteStatus.APROVADA,
-      cor: 'bg-purple-100 text-purple-800 border-purple-200'
-    },
-    {
-      id: 'banner-interno',
-      nome: 'Banner Interno',
-      versaoAtual: 'v1',
-      status: ArteStatus.RASCUNHO,
-      cor: 'bg-gray-100 text-gray-800 border-gray-200'
-    },
-    {
-      id: 'painel-externo',
-      nome: 'Painel Externo',
-      versaoAtual: 'v2',
-      status: ArteStatus.REVISAO_SOLICITADA,
-      cor: 'bg-gray-100 text-gray-800 border-gray-200'
+  // Buscar dados da OS
+  useEffect(() => {
+    const fetchOsData = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        if (!token) return;
+        
+        const response = await fetch(`/api/os/${osId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setOsData(data.data);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar dados da OS:', error);
+      }
+    };
+    
+    if (osId) {
+      fetchOsData();
     }
-  ];
+  }, [osId]);
+
+  // Definir produto selecionado quando os produtos carregarem
+  useEffect(() => {
+    if (produtos.length > 0 && !selectedProduto) {
+      setSelectedProduto(produtos[0].id);
+    }
+  }, [produtos, selectedProduto]);
 
   const getStatusColor = (status: ArteStatus) => {
     switch (status) {
@@ -159,8 +183,15 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
 
   // Calcular próxima versão baseada nas versões reais do banco
   const getProximaVersao = (): string => {
-    // Filtrar versões do produto selecionado
-    const versoesDoProduto = versoes.filter(v => v.servico_id === selectedProduto);
+    // Filtrar versões do produto selecionado (com filtro inteligente para compatibilidade)
+    const produtoAtual = produtos.find(p => p.id === selectedProduto);
+    const versoesDoProduto = versoes.filter(v => 
+      v.servico_id === selectedProduto || 
+      (produtoAtual && (
+        v.descricao?.toLowerCase().includes(produtoAtual.nome.toLowerCase()) ||
+        v.descricao?.toLowerCase().includes('servico-principal')
+      ))
+    );
     
     if (versoesDoProduto.length === 0) {
       return 'v1';
@@ -301,12 +332,16 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
       const produto = produtos.find(p => p.id === produtoId);
       const produtoNome = produto?.nome || 'Produto';
 
-      // Aqui você implementaria a lógica de envio
-      // Por enquanto, apenas um toast de confirmação
-      toast.success(`Enviando ${versoesSelecionadasProduto.length} versão(ões) selecionada(s) de ${produtoNome} para o cliente...`);
-      
-      // TODO: Implementar chamada para API de envio
-      // await enviarVersoesParaCliente(versoesSelecionadasProduto.map(v => v.id));
+      // Atualizar status de cada versão para ENVIADA_CLIENTE
+      for (const versao of versoesSelecionadasProduto) {
+        await updateVersao(versao.id, {
+          status: 'ENVIADA_CLIENTE',
+          descricao: versao.descricao,
+          observacoes: versao.observacoes
+        });
+      }
+
+      toast.success(`${versoesSelecionadasProduto.length} versão(ões) de ${produtoNome} enviada(s) para o cliente!`);
       
     } catch (error) {
       console.error('Erro ao enviar produto:', error);
@@ -338,16 +373,48 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
       const produtosEnviados = Object.keys(versoesPorProduto).length;
       const totalVersoes = versoesSelecionadasParaEnvio.length;
 
-      // Aqui você implementaria a lógica de envio
-      // Por enquanto, apenas um toast de confirmação
-      toast.success(`Enviando ${totalVersoes} versão(ões) selecionada(s) de ${produtosEnviados} produto(s) para o cliente...`);
-      
-      // TODO: Implementar chamada para API de envio
-      // await enviarTodasVersoesParaCliente(versoesSelecionadasParaEnvio.map(v => v.id));
+      // Atualizar status de todas as versões para ENVIADA_CLIENTE
+      for (const versao of versoesSelecionadasParaEnvio) {
+        await updateVersao(versao.id, {
+          status: 'ENVIADA_CLIENTE',
+          descricao: versao.descricao,
+          observacoes: versao.observacoes
+        });
+      }
+
+      toast.success(`${totalVersoes} versão(ões) de ${produtosEnviados} produto(s) enviada(s) para o cliente!`);
       
     } catch (error) {
       console.error('Erro ao enviar todas as artes:', error);
       toast.error('Erro ao enviar todas as artes para o cliente');
+    }
+  };
+
+  // Função para enviar uma versão específica para aprovação
+  const handleSendForApproval = async (versao: ArteVersao) => {
+    try {
+      await updateVersao(versao.id, {
+        status: 'ENVIADA_CLIENTE',
+        descricao: versao.descricao,
+        observacoes: versao.observacoes
+      });
+
+      toast.success(`Versão ${versao.versao} enviada para o cliente!`);
+    } catch (error) {
+      console.error('Erro ao enviar versão para aprovação:', error);
+      toast.error('Erro ao enviar versão para aprovação');
+    }
+  };
+
+  // Função para abrir modal de mensagens
+  const handleOpenMessages = (versaoId: string) => {
+    const versao = versoes.find(v => v.id === versaoId);
+    if (versao) {
+      setSelectedVersaoId(versaoId);
+      // Se servico_id é 'servico-principal', usar o primeiro produto disponível
+      const produtoId = versao.servico_id === 'servico-principal' ? (produtos[0]?.id || '') : (versao.servico_id || '');
+      setSelectedProduto(produtoId);
+      setShowMessagesModal(true);
     }
   };
 
@@ -407,8 +474,24 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     }
   };
 
-  // Filtrar versões por produto selecionado
-  const versoesDoProduto = versoes.filter(v => v.servico_id === selectedProduto);
+  // Filtrar versões por produto selecionado (com filtro inteligente para compatibilidade)
+  const produtoSelecionado = produtos.find(p => p.id === selectedProduto);
+  const versoesDoProduto = versoes.filter(v => {
+    // Tentar match direto pelo ID
+    if (v.servico_id === selectedProduto) return true;
+    
+    // Fallback: match pela descrição (para versões antigas com ID fictício)
+    if (produtoSelecionado) {
+      const descLower = v.descricao?.toLowerCase() || '';
+      const nomeLower = produtoSelecionado.nome.toLowerCase();
+      
+      return descLower.includes(nomeLower) || 
+             descLower.includes('servico-principal') ||
+             v.servico_id === 'servico-principal';
+    }
+    
+    return false;
+  });
 
   if (loading) {
     return (
@@ -455,25 +538,40 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
 
       {/* Seleção de Produtos/Componentes */}
       <div className="flex flex-wrap gap-2">
-        {produtos.map((produto) => (
-          <button
-            key={produto.id}
-            onClick={() => setSelectedProduto(produto.id)}
-            className={`px-4 py-2 rounded-lg border-2 transition-all ${
-              selectedProduto === produto.id
-                ? produto.cor + ' border-current'
-                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-            }`}
-          >
-            <div className="flex items-center space-x-2">
-              <span className="font-medium">{produto.versaoAtual} {produto.nome}</span>
-              <div className="flex items-center space-x-1">
-                {getStatusIcon(produto.status)}
-                <span className="text-xs">{getStatusLabel(produto.status)}</span>
+        {loadingProdutos ? (
+          <div className="flex items-center space-x-2 text-gray-500">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            <span>Carregando produtos...</span>
+          </div>
+        ) : errorProdutos ? (
+          <div className="text-red-600 text-sm">
+            Erro ao carregar produtos: {errorProdutos}
+          </div>
+        ) : produtos.length === 0 ? (
+          <div className="text-gray-500 text-sm">
+            Nenhum produto encontrado para esta OS
+          </div>
+        ) : (
+          produtos.map((produto) => (
+            <button
+              key={produto.id}
+              onClick={() => setSelectedProduto(produto.id)}
+              className={`px-4 py-2 rounded-lg border-2 transition-all ${
+                selectedProduto === produto.id
+                  ? produto.cor + ' border-current'
+                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <span className="font-medium">{produto.nome}</span>
+                <div className="flex items-center space-x-1">
+                  {getStatusIcon(produto.status)}
+                  <span className="text-xs">{getStatusLabel(produto.status)}</span>
+                </div>
               </div>
-            </div>
-          </button>
-        ))}
+            </button>
+          ))
+        )}
       </div>
 
       {/* Controle de Versões - Solto na página */}
@@ -570,7 +668,27 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                     <div className="flex items-center space-x-2">
                       <h3 className="font-semibold text-lg">{versao.versao}</h3>
                       <span className="text-gray-400">-</span>
-                      <span className="text-gray-600">{produtos.find(p => p.id === versao.servico_id)?.nome || 'Produto'}</span>
+                      <span className="text-gray-600">
+                        {(() => {
+                          // Se servico_id é 'servico-principal', usar o primeiro produto disponível
+                          if (versao.servico_id === 'servico-principal') {
+                            // Buscar o produto real da OS, não o nome do serviço
+                            if (produtos.length > 0) {
+                              return produtos[0].nome;
+                            }
+                            // Fallback: buscar nos itens da OS
+                            if (osData?.itens && osData.itens.length > 0) {
+                              return osData.itens[0].nome;
+                            }
+                            // Último fallback: nome do serviço
+                            return osData?.nome_servico || 'Produto';
+                          }
+                          
+                          // Para outros casos, buscar pelo ID do produto
+                          const produto = produtos.find(p => p.id === versao.servico_id);
+                          return produto?.nome || 'Produto não encontrado';
+                        })()}
+                      </span>
                       <Badge className={getStatusColor(versao.status)}>
                         {getStatusLabel(versao.status)}
                       </Badge>
@@ -579,6 +697,29 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                   
                   {/* Botões de ação */}
                   <div className="flex items-center space-x-2">
+                    {/* Ícone de mensagens */}
+                    <ArteMessagesIcon
+                      produtoId={versao.servico_id === 'servico-principal' ? (produtos[0]?.id || 'sem-produto') : (versao.servico_id || 'sem-produto')}
+                      produtoNome={(() => {
+                        if (versao.servico_id === 'servico-principal') {
+                          // Buscar o produto real da OS, não o nome do serviço
+                          if (produtos.length > 0) {
+                            return produtos[0].nome;
+                          }
+                          // Fallback: buscar nos itens da OS
+                          if (osData?.itens && osData.itens.length > 0) {
+                            return osData.itens[0].nome;
+                          }
+                          // Último fallback: nome do serviço
+                          return osData?.nome_servico || 'Produto';
+                        }
+                        return produtos.find(p => p.id === versao.servico_id)?.nome || 'Produto';
+                      })()}
+                      mensagensNaoLidas={produtosMessages.find(p => p.produtoId === (versao.servico_id === 'servico-principal' ? produtos[0]?.id : versao.servico_id))?.mensagensNaoLidas || 0}
+                      totalMensagens={produtosMessages.find(p => p.produtoId === (versao.servico_id === 'servico-principal' ? produtos[0]?.id : versao.servico_id))?.totalMensagens || 0}
+                      onClick={() => handleOpenMessages(versao.id)}
+                    />
+                    
                     <Button
                       variant="outline"
                       size="sm"
@@ -648,7 +789,7 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                         onClick={() => handleViewVersao(versao)}
                       >
                         <img 
-                          src={`${versao.arquivos[0].url_thumbnail}?token=${localStorage.getItem('access_token')}`}
+                          src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${versao.arquivos[0].url_thumbnail}`}
                           alt={`Preview ${versao.versao}`}
                           className="w-full h-32 object-cover"
                           onError={(e) => {
@@ -793,6 +934,20 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal de Mensagens */}
+      <ArteMessagesModal
+        isOpen={showMessagesModal}
+        onClose={() => setShowMessagesModal(false)}
+        produtoId={selectedProduto}
+        produtoNome={
+          selectedVersaoId 
+            ? `${produtos.find(p => p.id === selectedProduto)?.nome || 'Produto'} - ${versoes.find(v => v.id === selectedVersaoId)?.versao || 'Versão'}`
+            : produtos.find(p => p.id === selectedProduto)?.nome || 'Produto'
+        }
+        osId={osId}
+        versaoId={selectedVersaoId}
+      />
     </div>
   );
 }

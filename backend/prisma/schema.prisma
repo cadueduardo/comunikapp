@@ -1394,6 +1394,7 @@ model OrdemServico {
   
   // Relacionamentos Arte & Aprovação
   artes_versoes      ArteVersao[]
+  artes_mensagens    ArteMensagem[]
 
   @@unique([loja_id, numero])
   @@index([loja_id, status])
@@ -1665,6 +1666,7 @@ model ArteVersao {
   arquivos          ArteArquivo[]
   comentarios       ArteComentario[]
   links_aprovacao   ArteLinkAprovacao[]
+  mensagens         ArteMensagem[]
   
   @@map("arte_versoes")
   @@index([os_id, loja_id])
@@ -1735,6 +1737,32 @@ model ArteLinkAprovacao {
   @@index([expira_em])
 }
 
+model ArteMensagem {
+  id                String   @id @default(cuid())
+  os_id             String
+  produto_id        String   // ID do produto específico
+  versao_id         String?  // ID da versão (opcional)
+  mensagem          String   @db.LongText
+  autor_tipo        AutorTipo
+  autor_nome        String
+  autor_email       String?
+  lida              Boolean  @default(false)
+  data_leitura      DateTime?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  loja_id           String   // Multi-tenant
+  
+  // Relacionamentos
+  os                OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  versao            ArteVersao? @relation(fields: [versao_id], references: [id], onDelete: SetNull)
+  
+  @@map("arte_mensagens")
+  @@index([os_id, produto_id, loja_id])
+  @@index([autor_tipo, loja_id])
+  @@index([lida, loja_id])
+  @@index([created_at, loja_id])
+}
+
 enum ArteStatus {
   RASCUNHO
   ENVIADA_CLIENTE
@@ -1748,4 +1776,9 @@ enum ComentarioTipo {
   INTERNO
   CLIENTE
   SISTEMA
+}
+
+enum AutorTipo {
+  CLIENTE
+  EQUIPE
 }

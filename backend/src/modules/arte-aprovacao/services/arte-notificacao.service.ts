@@ -10,9 +10,9 @@ export interface NotificacaoEmailDto {
 }
 
 export interface NotificacaoArteDto {
-  tipo: 'NOVA_VERSAO' | 'APROVACAO_SOLICITADA' | 'ARTE_APROVADA' | 'ARTE_REJEITADA' | 'COMENTARIO_ADICIONADO';
+  tipo: 'NOVA_VERSAO' | 'APROVACAO_SOLICITADA' | 'ARTE_APROVADA' | 'ARTE_REJEITADA' | 'COMENTARIO_ADICIONADO' | 'NOVA_MENSAGEM_CLIENTE' | 'NOVA_MENSAGEM_EQUIPE';
   os_id: string;
-  versao_id: string;
+  versao_id?: string;
   destinatarios: string[];
   dados: Record<string, any>;
 }
@@ -22,15 +22,34 @@ export class ArteNotificacaoService {
   private transporter: nodemailer.Transporter;
 
   constructor(private prisma: PrismaService) {
-    this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
+    // Configurar ETHEREAL EMAIL para testes
+    if (process.env.NODE_ENV === 'development' || !process.env.SMTP_HOST) {
+      // Usar ETHEREAL EMAIL para desenvolvimento
+      this.transporter = nodemailer.createTransport({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        secure: false,
+        auth: {
+          user: 'a3ej5gb3cjyx2iuy@ethereal.email',
+          pass: 'tq3cnQcJFmW2YpCUSF',
+        },
+      });
+      
+      console.log('📧 [ArteNotificacaoService] Configurado ETHEREAL EMAIL para testes');
+    } else {
+      // Usar configuração SMTP de produção
+      this.transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+      
+      console.log('📧 [ArteNotificacaoService] Configurado SMTP de produção');
+    }
   }
 
   /**
@@ -561,5 +580,73 @@ export class ArteNotificacaoService {
       console.error('❌ Erro ao enviar email de teste:', error);
       return false;
     }
+  }
+
+  /**
+   * Envia notificação de nova mensagem para cliente
+   */
+  async notificarNovaMensagemCliente(dto: NotificacaoArteDto) {
+    const { os_id, destinatarios, dados } = dto;
+
+    // Buscar dados da OS
+    const os = await this.prisma.ordemServico.findUnique({
+      where: { id: os_id },
+      include: {
+        cliente: true,
+      },
+    });
+
+    if (!os) {
+      throw new Error('OS não encontrada');
+    }
+
+    const assunto = `Nova mensagem - OS #${os.numero}`;
+    const template = 'nova-mensagem-cliente';
+
+    await this.enviarEmail({
+      destinatarios,
+      assunto,
+      template,
+      dados: {
+        ...dados,
+        os_numero: os.numero,
+        cliente_nome: os.cliente.nome,
+        link_aprovacao: `${process.env.FRONTEND_URL}/os/${os_id}?tab=arte-aprovacao`,
+      },
+    });
+  }
+
+  /**
+   * Envia notificação de nova mensagem para equipe
+   */
+  async notificarNovaMensagemEquipe(dto: NotificacaoArteDto) {
+    const { os_id, destinatarios, dados } = dto;
+
+    // Buscar dados da OS
+    const os = await this.prisma.ordemServico.findUnique({
+      where: { id: os_id },
+      include: {
+        cliente: true,
+      },
+    });
+
+    if (!os) {
+      throw new Error('OS não encontrada');
+    }
+
+    const assunto = `Nova mensagem do cliente - OS #${os.numero}`;
+    const template = 'nova-mensagem-equipe';
+
+    await this.enviarEmail({
+      destinatarios,
+      assunto,
+      template,
+      dados: {
+        ...dados,
+        os_numero: os.numero,
+        cliente_nome: os.cliente.nome,
+        link_os: `${process.env.FRONTEND_URL}/os/${os_id}?tab=arte-aprovacao`,
+      },
+    });
   }
 }

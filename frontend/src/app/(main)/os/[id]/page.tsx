@@ -210,6 +210,7 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed }: {
           <div className="w-full lg:w-[25%] lg:pl-4 mt-6 lg:mt-0 lg:min-w-0">
             <ArteAprovacaoSidebar 
               osId={os.id}
+              osNumero={os.numero}
               onEnviarTodasArtes={() => {
                 // Esta função será passada do ArteAprovacaoTab
                 console.log('Enviar todas as artes - implementar integração');

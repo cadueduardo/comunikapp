@@ -105,7 +105,7 @@ export class ArteArquivoController {
       tamanho: BigInt(arquivo.size),
       url_arquivo: `/api/arte-aprovacao/versoes/${versaoId}/arquivos/download/${arquivo.filename}`,
       url_thumbnail: thumbnailFilename 
-        ? `/api/arte-aprovacao/versoes/${versaoId}/arquivos/download/${thumbnailFilename}`
+        ? `/uploads/arte/${versaoId}/${thumbnailFilename}`
         : undefined,
       storage_provider: 'local',
       storage_path: arquivo.path

@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { versaoId: string; token: string } }
+  { params }: { params: Promise<{ versaoId: string; token: string }> }
 ) {
   try {
-    const { versaoId, token } = params;
+    const { versaoId, token } = await params;
     
     const response = await fetch(`${process.env.BACKEND_URL}/arte-aprovacao/comentarios/public/${versaoId}/${token}`, {
       method: 'GET',

@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import MateriaisTab from '@/components/os/materiais/MateriaisTab';
-// import { ArteAprovacaoSimple as ArteAprovacaoTab } from '@/components/os/arte-aprovacao/ArteAprovacaoSimple';
+import { ArteAprovacaoTab } from '@/components/os/arte-aprovacao/ArteAprovacaoTab';
 
 interface MaterialPrincipal {
   nome: string;
@@ -329,14 +329,7 @@ export function OSTabs({ os, dadosTransformados, movimentacoes }: OSTabsProps) {
   // Renderização da aba Arte & Aprovação
   const renderArteAprovacaoTab = () => {
     console.log('🎨 Renderizando aba Arte & Aprovação, OS ID:', os.id);
-    return (
-      <div className="p-6 bg-red-100 border border-red-400 text-red-700">
-        <h2 className="text-xl font-bold">🎨 ARTE & APROVAÇÃO FUNCIONANDO!</h2>
-        <p>OS ID: {os.id}</p>
-        <p>Readonly: {readonly ? 'Sim' : 'Não'}</p>
-        <p>Timestamp: {new Date().toLocaleTimeString()}</p>
-      </div>
-    );
+    return <ArteAprovacaoTab osId={os.id} readonly={readonly} />;
   };
 
   // Renderização da aba Materiais

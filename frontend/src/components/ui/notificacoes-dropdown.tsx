@@ -186,12 +186,16 @@ export function NotificacoesDropdown() {
   const getIconeTipo = (tipo: string) => {
     switch (tipo) {
       case 'NOVA_MENSAGEM':
+      case 'NOVA_MENSAGEM_CLIENTE':
         return <MessageCircle className="w-4 h-4" />;
       case 'ORCAMENTO_APROVADO':
+      case 'ARTE_APROVADA':
         return <CheckCircle className="w-4 h-4" />;
       case 'ORCAMENTO_REJEITADO':
+      case 'ARTE_REJEITADA':
         return <XCircle className="w-4 h-4" />;
       case 'ORCAMENTO_NEGOCIANDO':
+      case 'APROVACAO_SOLICITADA':
         return <AlertCircle className="w-4 h-4" />;
       default:
         return <Bell className="w-4 h-4" />;
@@ -201,12 +205,16 @@ export function NotificacoesDropdown() {
   const getCorTipo = (tipo: string) => {
     switch (tipo) {
       case 'NOVA_MENSAGEM':
+      case 'NOVA_MENSAGEM_CLIENTE':
         return 'bg-blue-100 text-blue-800';
       case 'ORCAMENTO_APROVADO':
+      case 'ARTE_APROVADA':
         return 'bg-green-100 text-green-800';
       case 'ORCAMENTO_REJEITADO':
+      case 'ARTE_REJEITADA':
         return 'bg-red-100 text-red-800';
       case 'ORCAMENTO_NEGOCIANDO':
+      case 'APROVACAO_SOLICITADA':
         return 'bg-yellow-100 text-yellow-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -310,18 +318,23 @@ export function NotificacoesDropdown() {
                           {notificacao.mensagem}
                         </p>
                         
-                        {notificacao.orcamento_id && (
+                        {(notificacao.orcamento_id || notificacao.dados_extras?.os_id) && (
                           <div className="mb-2">
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => {
-                                window.location.href = `/orcamentos-v2/novo?id=${notificacao.orcamento_id}`;
+                                // Navegar para OS se for notificação de arte & aprovação
+                                if (notificacao.dados_extras?.os_id) {
+                                  window.location.href = `/os/${notificacao.dados_extras.os_id}?tab=arte-aprovacao`;
+                                } else if (notificacao.orcamento_id) {
+                                  window.location.href = `/orcamentos-v2/novo?id=${notificacao.orcamento_id}`;
+                                }
                                 setIsOpen(false);
                               }}
                               className="text-xs"
                             >
-                              Ver Orçamento
+                              {notificacao.dados_extras?.os_id ? 'Ver OS' : 'Ver Orçamento'}
                             </Button>
                           </div>
                         )}

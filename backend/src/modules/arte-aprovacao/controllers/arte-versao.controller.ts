@@ -153,4 +153,63 @@ export class ArteVersaoController {
 
     return this.arteVersaoService.restoreVersao(id, req.user.loja_id);
   }
+
+  @Post(':id/aprovar')
+  @ApiOperation({ summary: 'Aprovar versão de arte (equipe interna)' })
+  @ApiResponse({ status: 200, description: 'Versão aprovada com sucesso' })
+  async aprovarVersao(
+    @Param('id') id: string,
+    @Request() req
+  ): Promise<ArteVersaoResponseDto> {
+    const usuarioId = req.user.id;
+    const lojaId = req.user.loja_id;
+    
+    return this.arteVersaoService.updateVersao(id, {
+      status: 'APROVADA' as any,
+      aprovado_por_cliente: true,
+    }, lojaId);
+  }
+
+  @Post(':id/rejeitar')
+  @ApiOperation({ summary: 'Rejeitar versão de arte (equipe interna)' })
+  @ApiResponse({ status: 200, description: 'Versão rejeitada com sucesso' })
+  async rejeitarVersao(
+    @Param('id') id: string,
+    @Request() req
+  ): Promise<ArteVersaoResponseDto> {
+    const usuarioId = req.user.id;
+    const lojaId = req.user.loja_id;
+    
+    return this.arteVersaoService.updateVersao(id, {
+      status: 'REVISAO_SOLICITADA' as any,
+      aprovado_por_cliente: false,
+    }, lojaId);
+  }
+
+  @Post('aprovar-multiplas')
+  @ApiOperation({ summary: 'Aprovar múltiplas versões de arte' })
+  @ApiResponse({ status: 200, description: 'Versões aprovadas com sucesso' })
+  async aprovarMultiplasVersoes(
+    @Body() dto: { versaoIds: string[] },
+    @Request() req
+  ): Promise<{ aprovadas: number; erros: string[] }> {
+    const usuarioId = req.user.id;
+    const lojaId = req.user.loja_id;
+    const erros: string[] = [];
+    let aprovadas = 0;
+
+    for (const versaoId of dto.versaoIds) {
+      try {
+        await this.arteVersaoService.updateVersao(versaoId, {
+          status: 'APROVADA' as any,
+          aprovado_por_cliente: true,
+        }, lojaId);
+        aprovadas++;
+      } catch (error) {
+        erros.push(`Erro ao aprovar versão ${versaoId}: ${error.message}`);
+      }
+    }
+
+    return { aprovadas, erros };
+  }
 }
