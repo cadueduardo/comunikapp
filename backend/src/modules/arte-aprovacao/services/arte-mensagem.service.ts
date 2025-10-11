@@ -303,16 +303,26 @@ export class ArteMensagemService {
 
     // 1. Buscar produtos já migrados para ItemOS
     if (os.itens && os.itens.length > 0) {
-      const produtosItemOS = await Promise.all(
-        os.itens.map(item => this.consultarStatusPrazoProduto(item.id, osId, lojaId))
-      );
+      const produtosItemOS = os.itens.map(item => ({
+        item_id: item.id,
+        produto_id: item.id, // Para ItemOS, usar o mesmo ID
+        produto_servico: item.produto_servico,
+        data_inicio_producao: item.data_inicio_producao,
+        data_prazo_produto: item.data_prazo_produto,
+        status_liberacao_pcp: item.status_liberacao_pcp || 'PENDENTE',
+        prioridade_produto: item.prioridade_produto || 'NORMAL',
+        dias_restantes: null,
+        is_retroativo: false,
+        mensagem: 'Prazo não definido',
+        excede_prazo_final: false
+      }));
       produtos.push(...produtosItemOS);
     }
 
     // 2. Buscar produtos do orçamento que ainda não foram migrados
     if (os.orcamento?.produtos && os.orcamento.produtos.length > 0) {
       const produtosOrcamento = os.orcamento.produtos
-        .filter(produto => !os.itens.some(item => item.produto_id === produto.id))
+        .filter(produto => !os.itens.some(item => item.produto_servico === produto.nome_servico))
         .map(produto => ({
           item_id: produto.id,
           produto_id: produto.id,
@@ -334,18 +344,25 @@ export class ArteMensagemService {
     // Formatar resposta
     const resultado = Array.from(mensagensPorProduto.values()).map(mensagem => {
       // Buscar o produto pelo ID da mensagem
-      const produto = produtos.find(p => p.item_id === mensagem.produto_id || p.produto_id === mensagem.produto_id);
+      let produto = produtos.find(p => p.item_id === mensagem.produto_id || p.produto_id === mensagem.produto_id);
+      
+      // ✅ FALLBACK: Se não encontrou o produto específico e há apenas um produto na OS, usar esse
+      if (!produto && produtos.length === 1) {
+        produto = produtos[0];
+        console.log('🔍 [buscarUltimasMensagensPorProduto] Usando produto único da OS como fallback:', produto);
+      }
       
       console.log('🔍 [buscarUltimasMensagensPorProduto] Processando mensagem:', {
         mensagem_id: mensagem.id,
         produto_id: mensagem.produto_id,
         produto_encontrado: produto,
-        produto_nome_final: produto?.produto_servico || 'Produto não encontrado'
+        produto_nome_final: produto?.produto_servico || 'Produto não encontrado',
+        produtos_disponiveis: produtos.length
       });
       
       return {
         id: mensagem.id,
-        produto_id: mensagem.produto_id,
+        produto_id: produto?.item_id || produto?.produto_id || mensagem.produto_id, // ✅ RETORNAR ID CORRETO DO PRODUTO
         produto_nome: produto?.produto_servico || 'Produto não encontrado', // ✅ USAR produto_servico
         autor_nome: mensagem.autor_nome,
         autor_tipo: mensagem.autor_tipo,

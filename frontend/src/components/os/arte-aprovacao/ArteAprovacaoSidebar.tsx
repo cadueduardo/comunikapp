@@ -442,11 +442,7 @@ export function ArteAprovacaoSidebar({ osId, osNumero, onEnviarTodasArtes, hasVe
           setSelectedVersaoId('');
         }}
         produtoId={selectedProdutoId}
-        produtoNome={
-          selectedVersaoId 
-            ? `${produtos.find(p => p.id === selectedProdutoId)?.nome || 'Produto'} - ${selectedVersaoId}`
-            : produtos.find(p => p.id === selectedProdutoId)?.nome || 'Produto'
-        }
+        produtoNome={produtos.find(p => p.id === selectedProdutoId)?.nome || 'Produto'}
         osId={osId}
         versaoId={selectedVersaoId}
       />

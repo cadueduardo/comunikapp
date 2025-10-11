@@ -411,8 +411,20 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     const versao = versoes.find(v => v.id === versaoId);
     if (versao) {
       setSelectedVersaoId(versaoId);
-      // Se servico_id é 'servico-principal', usar o primeiro produto disponível
-      const produtoId = versao.servico_id === 'servico-principal' ? (produtos[0]?.id || '') : (versao.servico_id || '');
+      
+      // ✅ SEMPRE usar o primeiro produto disponível (já que há apenas um produto na OS)
+      // Este é o ID correto do produto da OS
+      const produtoId = produtos[0]?.id || '';
+      
+      console.log('🔍 [handleOpenMessages] Debug:', {
+        versaoId,
+        versao_servico_id: versao.servico_id,
+        produtos_disponiveis: produtos.map(p => ({ id: p.id, nome: p.nome })),
+        produtoId_selecionado: produtoId,
+        produto_nome: produtos[0]?.nome,
+        selectedProduto_anterior: selectedProduto
+      });
+      
       setSelectedProduto(produtoId);
       setShowMessagesModal(true);
     }
@@ -941,9 +953,7 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
         onClose={() => setShowMessagesModal(false)}
         produtoId={selectedProduto}
         produtoNome={
-          selectedVersaoId 
-            ? `${produtos.find(p => p.id === selectedProduto)?.nome || 'Produto'} - ${versoes.find(v => v.id === selectedVersaoId)?.versao || 'Versão'}`
-            : produtos.find(p => p.id === selectedProduto)?.nome || 'Produto'
+          produtos.find(p => p.id === selectedProduto)?.nome || 'Produto'
         }
         osId={osId}
         versaoId={selectedVersaoId}

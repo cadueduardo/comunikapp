@@ -23,12 +23,19 @@ export function ArteMessagesIcon({
 }: ArteMessagesIconProps) {
   const hasNotificacao = mensagensNaoLidas > 0;
 
+  const handleClick = () => {
+    console.log('🔍 [ArteMessagesIcon] Clique detectado:', { produtoId, produtoNome });
+    if (onClick) {
+      onClick();
+    }
+  };
+
   return (
     <div className={`relative ${className}`}>
       <Button
         variant="ghost"
         size="sm"
-        onClick={onClick}
+        onClick={handleClick}
         className="relative p-2 hover:bg-gray-100 rounded-full"
         title={`Mensagens para ${produtoNome}${totalMensagens > 0 ? ` (${totalMensagens})` : ''}${hasNotificacao ? ` - ${mensagensNaoLidas} nova(s)` : ''}`}
       >
