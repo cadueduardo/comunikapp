@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ArteNotificacaoService } from './arte-notificacao.service';
 import { CreateMensagemDto, UpdateMensagemDto } from '../dto/mensagem.dto';
@@ -277,70 +277,65 @@ export class ArteMensagemService {
       }
     }
 
-    // ✅ USAR A MESMA LÓGICA DA API STATUS-PRODUTOS
-    // Buscar nomes dos produtos usando a mesma lógica da aba Resumo
-    const produtoIds = Array.from(mensagensPorProduto.keys());
-    
-    console.log('🔍 [buscarUltimasMensagensPorProduto] Debug:', {
-      osId,
-      lojaId,
-      produtoIds,
-      mensagensCount: mensagens.length
-    });
-    
-    // Primeiro tentar buscar na tabela ItemOS (produtos da OS)
-    let produtos = await this.prisma.itemOS.findMany({
+    // ✅ USAR EXATAMENTE A MESMA LÓGICA DO useOSProdutos
+    // Buscar produtos usando a API status-produtos (que funciona perfeitamente)
+    const os = await this.prisma.ordemServico.findFirst({
       where: {
-        id: { in: produtoIds },
-        os: {
-          loja_id: lojaId,
-        },
+        id: osId,
+        loja_id: lojaId
       },
-      select: {
-        id: true,
-        produto_servico: true, // ✅ USAR produto_servico como na API status-produtos
-      },
+      include: {
+        itens: true,
+        orcamento: {
+          include: {
+            produtos: true
+          }
+        }
+      }
     });
-    
-    console.log('🔍 [buscarUltimasMensagensPorProduto] ItemOS encontrados:', produtos);
 
-    // Se não encontrou todos os produtos, buscar na tabela produtoOrcamento
-    const produtosEncontradosIds = produtos.map(p => p.id);
-    const produtosNaoEncontradosIds = produtoIds.filter(id => !produtosEncontradosIds.includes(id));
-    
-    console.log('🔍 [buscarUltimasMensagensPorProduto] Produtos não encontrados em ItemOS:', produtosNaoEncontradosIds);
-    
-    if (produtosNaoEncontradosIds.length > 0) {
-      const produtosOrcamento = await this.prisma.produtoOrcamento.findMany({
-        where: {
-          id: { in: produtosNaoEncontradosIds },
-          orcamento: {
-            loja_id: lojaId,
-          },
-        },
-        select: {
-          id: true,
-          nome_servico: true // ✅ USAR nome_servico
-        },
-      });
-      
-      console.log('🔍 [buscarUltimasMensagensPorProduto] Produtos do orçamento encontrados:', produtosOrcamento);
-      
-      // Adicionar produtos do orçamento à lista
-      produtos = [
-        ...produtos,
-        ...produtosOrcamento.map(p => ({
-          id: p.id,
-          produto_servico: p.nome_servico || 'Produto não encontrado'
-        }))
-      ];
+    if (!os) {
+      throw new NotFoundException('OS não encontrada');
     }
 
-    console.log('🔍 [buscarUltimasMensagensPorProduto] Produtos finais:', produtos);
+    // Combinar produtos: ItemOS migrados + produtos do orçamento não migrados
+    let produtos = [];
+
+    // 1. Buscar produtos já migrados para ItemOS
+    if (os.itens && os.itens.length > 0) {
+      const produtosItemOS = await Promise.all(
+        os.itens.map(item => this.consultarStatusPrazoProduto(item.id, osId, lojaId))
+      );
+      produtos.push(...produtosItemOS);
+    }
+
+    // 2. Buscar produtos do orçamento que ainda não foram migrados
+    if (os.orcamento?.produtos && os.orcamento.produtos.length > 0) {
+      const produtosOrcamento = os.orcamento.produtos
+        .filter(produto => !os.itens.some(item => item.produto_id === produto.id))
+        .map(produto => ({
+          item_id: produto.id,
+          produto_id: produto.id,
+          produto_servico: produto.nome_servico || produto.nome || 'Produto',
+          data_inicio_producao: null,
+          data_prazo_produto: null,
+          status_liberacao_pcp: 'PENDENTE',
+          prioridade_produto: 'NORMAL',
+          dias_restantes: null,
+          is_retroativo: false,
+          mensagem: 'Prazo não definido',
+          excede_prazo_final: false
+        }));
+      produtos.push(...produtosOrcamento);
+    }
+
+    console.log('🔍 [buscarUltimasMensagensPorProduto] Produtos da API status-produtos:', produtos);
 
     // Formatar resposta
     const resultado = Array.from(mensagensPorProduto.values()).map(mensagem => {
-      const produto = produtos.find(p => p.id === mensagem.produto_id);
+      // Buscar o produto pelo ID da mensagem
+      const produto = produtos.find(p => p.item_id === mensagem.produto_id || p.produto_id === mensagem.produto_id);
+      
       console.log('🔍 [buscarUltimasMensagensPorProduto] Processando mensagem:', {
         mensagem_id: mensagem.id,
         produto_id: mensagem.produto_id,
