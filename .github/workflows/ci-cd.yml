@@ -102,7 +102,7 @@ jobs:
           npm run test -- --coverage --silent
           
       - name: Upload cobertura de testes
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           file: ./backend/coverage/lcov.info
           flags: unittests
@@ -167,7 +167,7 @@ jobs:
           npm run test:e2e
           
       - name: Upload resultados E2E
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: e2e-results
@@ -250,7 +250,7 @@ jobs:
           npx @apidevtools/swagger-parser validate openapi.json
           
       - name: Upload OpenAPI
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openapi-spec
           path: openapi.json
