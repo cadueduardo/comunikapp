@@ -321,3 +321,4 @@ Se encontrar problemas não documentados aqui, verifique:
 
 **Última atualização:** 13/10/2025
 
+

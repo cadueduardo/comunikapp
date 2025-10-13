@@ -63,6 +63,8 @@ export class ArteLinkAprovacaoController {
           arquivos: data.arquivos,
           comentarios: data.comentarios,
           autor: data.autor,
+          versoes: data.versoes, // Todas as versões da mesma OS
+          produtos: data.produtos || [], // Produtos da OS
           link: {
             id: data.link.id,
             expira_em: data.link.expira_em,

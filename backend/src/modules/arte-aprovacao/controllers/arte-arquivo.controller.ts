@@ -12,7 +12,8 @@ import {
   UploadedFile,
   BadRequestException,
   Res,
-  StreamableFile
+  StreamableFile,
+  SetMetadata
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -22,8 +23,11 @@ import { join } from 'path';
 import { ArteArquivoService } from '../services/arte-arquivo.service';
 import { ArteThumbnailService } from '../services/arte-thumbnail.service';
 import { ArteArquivoResponseDto } from '../dto/arte-response.dto';
-import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
+import { JwtAuthGuard, IS_PUBLIC_KEY } from '../../../auth/jwt-auth.guard';
 import { multerConfig } from '../../../config/multer.config';
+
+// Decorator para marcar rotas públicas
+export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
 @ApiTags('Arte & Aprovação - Arquivos')
 @ApiBearerAuth()
@@ -135,6 +139,60 @@ export class ArteArquivoController {
     });
 
     return this.arteArquivoService.findArquivoById(arquivoId, req.user.loja_id);
+  }
+
+  @Get('public/download/:filename')
+  @Public()
+  @ApiOperation({ summary: 'Download público de arquivo (para links de aprovação)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Arquivo para download'
+  })
+  @ApiResponse({ status: 404, description: 'Arquivo não encontrado' })
+  async downloadArquivoPublico(
+    @Param('versaoId') versaoId: string,
+    @Param('filename') filename: string,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<StreamableFile> {
+    console.log('📥 [Controller] Download público de arquivo:', {
+      versaoId,
+      filename,
+      cwd: process.cwd()
+    });
+
+    const filePath = join(process.cwd(), 'uploads', 'arte', versaoId, filename);
+    console.log('📁 [Controller] Caminho completo do arquivo:', filePath);
+    console.log('📁 [Controller] Arquivo existe?', existsSync(filePath));
+
+    if (!existsSync(filePath)) {
+      console.error('❌ [Controller] Arquivo não encontrado:', filePath);
+      throw new BadRequestException(`Arquivo não encontrado: ${filename}`);
+    }
+
+    const file = createReadStream(filePath);
+    
+    // Detectar tipo de arquivo
+    const ext = filename.split('.').pop()?.toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'pdf': 'application/pdf',
+      'ai': 'application/postscript',
+      'psd': 'image/vnd.adobe.photoshop',
+      'eps': 'application/postscript',
+    };
+    
+    const contentType = mimeTypes[ext || ''] || 'application/octet-stream';
+    
+    // Definir headers para preview inline
+    res.set({
+      'Content-Type': contentType,
+      'Content-Disposition': `inline; filename="${filename}"`,
+      'Cache-Control': 'public, max-age=31536000', // Cache por 1 ano
+    });
+
+    return new StreamableFile(file);
   }
 
   @Get('download/:filename')

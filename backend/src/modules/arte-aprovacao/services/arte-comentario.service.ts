@@ -219,12 +219,25 @@ export class ArteComentarioService {
    * Lista comentários públicos de uma versão (via token)
    */
   async listarComentariosPublicos(versao_id: string, token_publico: string): Promise<ComentarioResponse[]> {
+    console.log('🔍 [listarComentariosPublicos] Buscando comentários:', {
+      versao_id,
+      token_publico: token_publico.substring(0, 10) + '...'
+    });
+
     // Verificar se o token é válido
     const link = await this.prisma.arteLinkAprovacao.findUnique({
       where: { token_publico },
       include: {
         versao: true,
       },
+    });
+
+    console.log('🔍 [listarComentariosPublicos] Link encontrado:', {
+      link_existe: !!link,
+      versao_id_link: link?.versao_id,
+      versao_id_solicitada: versao_id,
+      ativo: link?.ativo,
+      expira_em: link?.expira_em
     });
 
     if (!link) {
@@ -240,7 +253,7 @@ export class ArteComentarioService {
     }
 
     if (link.versao_id !== versao_id) {
-      throw new Error('Token não corresponde à versão');
+      throw new Error(`Token não corresponde à versão. Token: ${link.versao_id}, Solicitada: ${versao_id}`);
     }
 
     const comentarios = await this.prisma.arteComentario.findMany({

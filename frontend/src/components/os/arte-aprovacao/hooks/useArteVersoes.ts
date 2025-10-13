@@ -85,8 +85,25 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao atualizar versão');
+        // Verificar se a resposta é JSON válido
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Erro ao atualizar versão');
+        } else {
+          // Se não for JSON, pode ser HTML de erro
+          const errorText = await response.text();
+          console.error('Resposta não-JSON recebida:', errorText);
+          throw new Error(`Erro ${response.status}: ${response.statusText}`);
+        }
+      }
+
+      // Verificar se a resposta é JSON válido
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const responseText = await response.text();
+        console.error('Resposta não-JSON recebida:', responseText);
+        throw new Error('Resposta inválida do servidor');
       }
 
       const versaoAtualizada = await response.json();

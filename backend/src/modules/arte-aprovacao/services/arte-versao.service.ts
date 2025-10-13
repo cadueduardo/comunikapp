@@ -154,6 +154,61 @@ export class ArteVersaoService {
   }
 
   /**
+   * Lista todas as versões de um produto específico
+   */
+  async findVersoesByProduto(produtoId: string, lojaId: string): Promise<ArteVersaoResponseDto[]> {
+    try {
+      console.log('🔍 Buscando versões do produto:', { produtoId, lojaId });
+
+      const versoes = await this.prisma.arteVersao.findMany({
+        where: {
+          servico_id: produtoId,
+          loja_id: lojaId,
+          deletado: false // Não mostrar versões deletadas
+        },
+        include: {
+          autor: {
+            select: {
+              id: true,
+              nome_completo: true
+            }
+          },
+          aprovador: {
+            select: {
+              id: true,
+              nome_completo: true
+            }
+          },
+          arquivos: true,
+          comentarios: {
+            include: {
+              usuario: {
+                select: {
+                  id: true,
+                  nome_completo: true
+                }
+              }
+            },
+            orderBy: {
+              data_comentario: 'desc'
+            }
+          }
+        },
+        orderBy: {
+          data_criacao: 'desc'
+        }
+      });
+
+      console.log(`📋 Encontradas ${versoes.length} versões para o produto ${produtoId}`);
+
+      return versoes.map(versao => this.formatVersaoResponse(versao));
+    } catch (error) {
+      console.error('❌ Erro ao buscar versões do produto:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Busca uma versão específica
    */
   async findVersaoById(versaoId: string, lojaId: string): Promise<ArteVersaoResponseDto> {

@@ -134,3 +134,4 @@ Write-Host "   npm run dev:test         - Modo de teste" -ForegroundColor White
 Write-Host "   cd backend && npm run db:studio - Interface do banco" -ForegroundColor White
 Write-Host ""
 
+

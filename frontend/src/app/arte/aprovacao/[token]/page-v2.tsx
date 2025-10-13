@@ -154,27 +154,47 @@ export default function ArtePublicApprovalPageV2() {
   // Carregar versões de um produto específico
   const carregarVersoesProduto = async (produtoId: string, data?: ArteData) => {
     try {
-      // TODO: Implementar API para buscar versões de um produto específico
-      // Por enquanto, usar dados mockados baseados no produto atual
+      // Buscar todas as versões do produto específico
       const produto = data?.produtos.find(p => p.id === produtoId);
       if (!produto) return;
 
-      const versoesProcessadas: VersaoHistorico[] = [
-        {
-          id: produto.versao_mais_recente.id,
-          versao: produto.versao_mais_recente.versao,
-          data: produto.versao_mais_recente.data_criacao,
-          autor: produto.versao_mais_recente.autor.nome,
-          status: produto.versao_mais_recente.status,
-          thumbnail: produto.versao_mais_recente.arquivos[0]?.url_thumbnail || '',
-          isAtual: true
-        }
-      ];
+      // Se temos dados da API pública, usar as versões retornadas
+      if (data?.versoes && Array.isArray(data.versoes)) {
+        const versoesDoProduto = data.versoes.filter(v => 
+          v.servico_id === produtoId || 
+          v.id === produto.versao_mais_recente.id
+        );
 
-      setVersoesHistorico(versoesProcessadas);
+        const versoesProcessadas: VersaoHistorico[] = versoesDoProduto.map(v => ({
+          id: v.id,
+          versao: v.versao,
+          data: v.data_criacao,
+          autor: v.autor.nome,
+          status: v.status,
+          thumbnail: v.arquivos?.[0]?.url_thumbnail || '',
+          isAtual: v.id === produto.versao_mais_recente.id
+        }));
+
+        setVersoesHistorico(versoesProcessadas);
+      } else {
+        // Fallback: usar apenas a versão mais recente
+        const versoesProcessadas: VersaoHistorico[] = [
+          {
+            id: produto.versao_mais_recente.id,
+            versao: produto.versao_mais_recente.versao,
+            data: produto.versao_mais_recente.data_criacao,
+            autor: produto.versao_mais_recente.autor.nome,
+            status: produto.versao_mais_recente.status,
+            thumbnail: produto.versao_mais_recente.arquivos[0]?.url_thumbnail || '',
+            isAtual: true
+          }
+        ];
+
+        setVersoesHistorico(versoesProcessadas);
+      }
       
-      if (versoesProcessadas.length > 0) {
-        setVersaoSelecionada(versoesProcessadas[0].id);
+      if (versoesHistorico.length > 0) {
+        setVersaoSelecionada(versoesHistorico[0].id);
       }
       
     } catch (error) {

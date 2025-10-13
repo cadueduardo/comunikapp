@@ -332,3 +332,4 @@ const arquivoData = {
 **Quer que eu implemente o Storage Local agora?** É rápido e vai fazer o upload funcionar completamente! 🚀
 
 
+

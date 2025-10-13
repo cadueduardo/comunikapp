@@ -73,6 +73,26 @@ export class ArteVersaoController {
     return this.arteVersaoService.findVersoesByOS(osId, req.user.loja_id);
   }
 
+  @Get('produto/:produtoId')
+  @ApiOperation({ summary: 'Listar versões de um produto específico' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de versões do produto',
+    type: [ArteVersaoResponseDto]
+  })
+  @ApiResponse({ status: 404, description: 'Produto não encontrado' })
+  async findByProduto(
+    @Param('produtoId') produtoId: string,
+    @Request() req: any
+  ): Promise<ArteVersaoResponseDto[]> {
+    console.log('📋 [Controller] Listando versões do produto:', {
+      produtoId,
+      lojaId: req.user.loja_id
+    });
+
+    return this.arteVersaoService.findVersoesByProduto(produtoId, req.user.loja_id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Buscar versão por ID' })
   @ApiResponse({
@@ -107,13 +127,30 @@ export class ArteVersaoController {
     @Body() updateDto: UpdateArteVersaoDto,
     @Request() req: any
   ): Promise<ArteVersaoResponseDto> {
-    console.log('✏️ [Controller] Atualizando versão:', {
+    console.log('✏️ [Controller] PUT /arte-aprovacao/versoes/:id chamado:', {
       id,
       updateDto,
-      lojaId: req.user.loja_id
+      lojaId: req.user?.loja_id,
+      userId: req.user?.id,
+      user: req.user,
+      headers: req.headers,
+      method: req.method,
+      url: req.url
     });
 
-    return this.arteVersaoService.updateVersao(id, updateDto, req.user.loja_id);
+    try {
+      if (!req.user) {
+        console.error('❌ [Controller] Usuário não autenticado');
+        throw new Error('Usuário não autenticado');
+      }
+
+      const result = await this.arteVersaoService.updateVersao(id, updateDto, req.user.loja_id);
+      console.log('✅ [Controller] Versão atualizada com sucesso:', result.id);
+      return result;
+    } catch (error) {
+      console.error('❌ [Controller] Erro ao atualizar versão:', error);
+      throw error;
+    }
   }
 
   @Delete(':id')

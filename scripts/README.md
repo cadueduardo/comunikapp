@@ -124,3 +124,4 @@ npm run db:migrate -- --reset
 
 **Última atualização:** 13/10/2025
 
+

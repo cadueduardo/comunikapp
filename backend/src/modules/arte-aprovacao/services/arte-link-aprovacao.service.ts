@@ -211,6 +211,86 @@ export class ArteLinkAprovacaoService {
       throw new Error('Link de aprovação expirado');
     }
 
+    // Buscar todas as versões da mesma OS (todos os produtos/serviços)
+    console.log('🔍 [getVersaoByToken] Buscando versões para:', {
+      os_id: link.versao.os_id,
+      loja_id: link.versao.loja_id
+    });
+
+    const todasVersoes = await this.prisma.arteVersao.findMany({
+      where: {
+        os_id: link.versao.os_id,
+        // Removido filtro por servico_id para buscar TODAS as versões da OS
+        loja_id: link.versao.loja_id,
+        deletado: false
+      },
+      include: {
+        autor: {
+          select: {
+            id: true,
+            nome_completo: true
+          }
+        },
+        arquivos: true,
+        comentarios: {
+          include: {
+            usuario: {
+              select: {
+                id: true,
+                nome_completo: true
+              }
+            }
+          },
+          orderBy: {
+            data_comentario: 'desc'
+          }
+        }
+      },
+      orderBy: {
+        data_criacao: 'desc'
+      }
+    });
+
+    console.log('📋 [getVersaoByToken] Encontradas versões:', {
+      quantidade: todasVersoes.length,
+      versoes: todasVersoes.map(v => ({
+        id: v.id,
+        versao: v.versao,
+        servico_id: v.servico_id,
+        status: v.status,
+        data_criacao: v.data_criacao
+      }))
+    });
+
+    // Buscar produtos da OS para estruturar os dados corretamente
+    const produtos = await this.prisma.itemOS.findMany({
+      where: {
+        os_id: link.versao.os_id
+      },
+      select: {
+        id: true,
+        produto_servico: true,
+        quantidade: true
+      }
+    });
+
+    // Estruturar produtos com suas versões mais recentes
+    const produtosComVersoes = produtos.map(produto => {
+      const versaoProduto = todasVersoes.find(v => v.servico_id === produto.id);
+      return {
+        id: produto.id,
+        nome: produto.produto_servico,
+        versao_mais_recente: versaoProduto || {
+          id: link.versao.id,
+          versao: link.versao.versao,
+          status: link.versao.status,
+          data_criacao: link.versao.data_criacao,
+          autor: link.versao.autor,
+          arquivos: link.versao.arquivos
+        }
+      };
+    });
+
     return serializeBigInt({
       link,
       versao: link.versao,
@@ -219,6 +299,8 @@ export class ArteLinkAprovacaoService {
       arquivos: link.versao.arquivos,
       comentarios: link.versao.comentarios,
       autor: link.versao.autor,
+      versoes: todasVersoes, // Todas as versões da mesma OS
+      produtos: produtosComVersoes, // Produtos estruturados
     });
   }
 

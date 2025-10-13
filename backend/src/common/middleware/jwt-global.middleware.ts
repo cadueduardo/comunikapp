@@ -50,6 +50,12 @@ export class JwtGlobalMiddleware implements NestMiddleware {
       return next();
     }
 
+    // Verificar rotas públicas de download de arquivos de arte
+    if (req.path.includes('/arte-aprovacao/versoes/') && req.path.includes('/arquivos/public/download/')) {
+      // this.logger.debug(`✅ Rota pública de download de arte: ${req.path}`);
+      return next();
+    }
+
     // this.logger.debug(`🔐 Rota protegida: ${req.path}`);
 
     // Extrair token do header Authorization

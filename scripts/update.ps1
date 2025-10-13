@@ -115,3 +115,4 @@ Write-Host "   2. Verifique se MySQL está rodando" -ForegroundColor White
 Write-Host "   3. Execute: cd backend && npm run db:push" -ForegroundColor White
 Write-Host ""
 
+
