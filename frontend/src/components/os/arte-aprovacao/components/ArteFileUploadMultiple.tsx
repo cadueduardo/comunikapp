@@ -137,10 +137,10 @@ export function ArteFileUploadMultiple({
     const formData = new FormData();
     formData.append('arquivo', uploadFile.file);
 
-      const response = await fetch(`/api/arte-aprovacao/versoes/${versaoId}/arquivos/upload`, {
+      const response = await fetch(`/api/arte-aprovacao/versoes/versao/${versaoId}/arquivos/upload`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
       },
       body: formData,
     });

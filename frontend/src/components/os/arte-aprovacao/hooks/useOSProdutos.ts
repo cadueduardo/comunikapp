@@ -63,7 +63,7 @@ export function useOSProdutos(osId: string): UseOSProdutosReturn {
           status: 'ativo'
         }));
 
-        console.log('🔍 [useOSProdutos] Produtos carregados da API status-produtos:', produtosOS);
+        // console.log('🔍 [useOSProdutos] Produtos carregados da API status-produtos:', produtosOS);
         setProdutos(produtosOS);
       } else {
         throw new Error(result.message || 'Erro ao carregar produtos');

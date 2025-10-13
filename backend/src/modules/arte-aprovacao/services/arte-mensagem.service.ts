@@ -214,18 +214,23 @@ export class ArteMensagemService {
    * Contar mensagens não lidas por produto (apenas do cliente)
    */
   async contarMensagensNaoLidas(osId: string, lojaId: string) {
-    const mensagensNaoLidas = await this.prisma.arteMensagem.groupBy({
-      by: ['produto_id'],
-      where: {
-        os_id: osId,
-        loja_id: lojaId,
-        lida: false,
-        autor_tipo: AutorTipo.CLIENTE, // Apenas mensagens não lidas do cliente
-      },
-      _count: {
-        id: true,
-      },
-    });
+    try {
+      this.logger.log(`🔍 Contando mensagens não lidas - OS: ${osId}, Loja: ${lojaId}`);
+      
+      const mensagensNaoLidas = await this.prisma.arteMensagem.groupBy({
+        by: ['produto_id'],
+        where: {
+          os_id: osId,
+          loja_id: lojaId,
+          lida: false,
+          autor_tipo: AutorTipo.CLIENTE, // Apenas mensagens não lidas do cliente
+        },
+        _count: {
+          id: true,
+        },
+      });
+      
+      this.logger.log(`✅ Mensagens agrupadas: ${mensagensNaoLidas.length} produtos com mensagens`);
 
     // Buscar nomes dos produtos através do relacionamento com orcamento
     const produtoIds = mensagensNaoLidas.map(m => m.produto_id);
@@ -243,14 +248,21 @@ export class ArteMensagemService {
       },
     });
 
-    return mensagensNaoLidas.map(mensagem => {
-      const produto = produtos.find(p => p.id === mensagem.produto_id);
-      return {
-        produto_id: mensagem.produto_id,
-        produto_nome: produto?.nome || 'Produto não encontrado',
-        mensagens_nao_lidas: mensagem._count.id,
-      };
-    });
+      const resultado = mensagensNaoLidas.map(mensagem => {
+        const produto = produtos.find(p => p.id === mensagem.produto_id);
+        return {
+          produto_id: mensagem.produto_id,
+          produto_nome: produto?.nome || 'Produto não encontrado',
+          mensagens_nao_lidas: mensagem._count.id,
+        };
+      });
+      
+      this.logger.log(`✅ Resultado final: ${resultado.length} produtos com mensagens não lidas`);
+      return resultado;
+    } catch (error) {
+      this.logger.error('❌ Erro ao contar mensagens não lidas:', error);
+      throw error;
+    }
   }
 
   /**

@@ -36,13 +36,8 @@ export function ArteMessagesModal({
   versaoId 
 }: ArteMessagesModalProps) {
   
-  // Debug: Log dos props recebidos
-  console.log('🔍 [ArteMessagesModal] Props recebidos:', {
-    produtoId,
-    produtoNome,
-    osId,
-    versaoId
-  });
+  // Debug desabilitado - habilite apenas quando necessário
+  // console.log('🔍 [ArteMessagesModal] Props recebidos:', { produtoId, produtoNome, osId, versaoId });
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [novaMensagem, setNovaMensagem] = useState('');
   const [enviando, setEnviando] = useState(false);

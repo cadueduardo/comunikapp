@@ -52,7 +52,10 @@ export function useArteMessages(osId: string): UseArteMessagesReturn {
       });
 
       if (!response.ok) {
-        throw new Error('Erro ao carregar mensagens não lidas');
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || errorData.error || `Erro ${response.status} ao carregar mensagens`;
+        console.error('❌ Erro do backend:', errorData);
+        throw new Error(errorMessage);
       }
 
       const mensagensNaoLidas = await response.json();
