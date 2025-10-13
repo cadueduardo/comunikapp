@@ -141,7 +141,7 @@ npm run dev
 **Acesse:**
 - Frontend: http://localhost:3000
 - Backend: http://localhost:4000
-- API Docs: http://localhost:4000/api-docs
+- API Docs: http://localhost:4000/api/docs
 
 ### Instalação Manual
 
@@ -289,8 +289,8 @@ frontend/src/components/[nome-modulo]/
 ### API Documentation
 
 Quando o backend estiver rodando:
-- Swagger UI: http://localhost:4000/api-docs
-- OpenAPI JSON: http://localhost:4000/api-json
+- Swagger UI: http://localhost:4000/api/docs
+- OpenAPI JSON: http://localhost:4000/api/docs-json
 
 ### Arquitetura Técnica
 
