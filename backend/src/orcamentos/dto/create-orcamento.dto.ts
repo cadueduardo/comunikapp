@@ -38,6 +38,57 @@ export class CreateFuncaoOrcamentoDto {
   horas_trabalhadas: number;
 }
 
+export class CreateProdutoOrcamentoDto {
+  @IsString()
+  @IsOptional()
+  nome_servico?: string;
+
+  @IsString()
+  @IsOptional()
+  descricao?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  quantidade?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  largura?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  altura?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  area_produto?: number;
+
+  @IsString()
+  @IsOptional()
+  unidade_medida?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  ordem?: number;
+
+  @IsArray()
+  @IsOptional()
+  materiais?: any[];
+
+  @IsArray()
+  @IsOptional()
+  maquinas?: any[];
+
+  @IsArray()
+  @IsOptional()
+  funcoes?: any[];
+}
+
 export class CreateOrcamentoDto {
   @IsString()
   nome_servico: string;
@@ -177,4 +228,11 @@ export class CreateOrcamentoDto {
   @IsOptional()
   @Type(() => Number)
   preco_final?: number;
+
+  // Múltiplos produtos
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateProdutoOrcamentoDto)
+  @IsOptional()
+  itens_produto?: CreateProdutoOrcamentoDto[];
 }

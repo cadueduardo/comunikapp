@@ -11,10 +11,9 @@ async function bootstrap() {
   // Configurar codificação UTF-8 para caracteres especiais
   process.stdout.setEncoding('utf8');
   process.stderr.setEncoding('utf8');
-  
+
   // Configurar timezone - padrão Brasil, mas configurável via .env
   process.env.TZ = process.env.TZ || 'America/Sao_Paulo';
-  
   const app = await NestFactory.create(AppModule);
 
   // CORS deve ser habilitado o mais cedo possível
@@ -54,8 +53,10 @@ async function bootstrap() {
   // Segurança básica
   app.use(
     helmet({
-      contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+      contentSecurityPolicy:
+        process.env.NODE_ENV === 'production' ? undefined : false,
       crossOriginResourcePolicy: { policy: 'cross-origin' },
+      frameguard: false, // Permite iframes para visualização de PDFs
     }),
   );
   app.use(
@@ -64,7 +65,7 @@ async function bootstrap() {
       max: 1000,
       standardHeaders: true,
       legacyHeaders: false,
-      skip: (req: any) => req.method === 'OPTIONS',
+      skip: (req: any) => (req as any).method === 'OPTIONS',
     }) as any,
   );
 
@@ -100,14 +101,8 @@ async function bootstrap() {
   const port = process.env.PORT ?? 4000;
   console.log('🚀 Tentando iniciar servidor na porta:', port);
   console.log('🔧 Variáveis de ambiente:');
-  console.log(
-    '   - PORT:',
-    process.env.PORT,
-  );
-  console.log(
-    '   - NODE_ENV:',
-    process.env.NODE_ENV,
-  );
+  console.log('   - PORT:', process.env.PORT);
+  console.log('   - NODE_ENV:', process.env.NODE_ENV);
   console.log(
     '   - DATABASE_URL:',
     process.env.DATABASE_URL ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
@@ -116,7 +111,7 @@ async function bootstrap() {
     '   - TIMEZONE:',
     process.env.TZ,
     '| Data atual:',
-    new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+    new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
   );
 
   try {
@@ -128,4 +123,4 @@ async function bootstrap() {
     process.exit(1);
   }
 }
-bootstrap();
+void bootstrap();

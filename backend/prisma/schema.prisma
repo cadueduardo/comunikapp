@@ -45,7 +45,6 @@ model Insumo {
   itemorcamento      itemorcamento[]
   itemInsumo         ItemInsumo[]
   estoque            estoque[]
-  categoriaInsumo    categoriaInsumo?       @relation(fields: [categoriaId], references: [id], map: "insumos_categoriaId_fkey_v2")
 
   @@unique([loja_id, nome, fornecedorId])
   @@index([categoriaId], map: "insumos_categoriaId_fkey")
@@ -932,7 +931,6 @@ model categoriaInsumo {
   descricao             String?             @db.Text
   ativo                 Boolean             @default(true)
   criado_em             DateTime            @default(now())
-  insumos               Insumo[]            // Relacionamento para V2
   atualizado_em         DateTime            @updatedAt
 
   @@index([nome])

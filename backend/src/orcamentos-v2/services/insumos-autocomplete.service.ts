@@ -498,11 +498,11 @@ export class InsumosAutocompleteService {
 
   private async buscarCategoriasDisponiveis(lojaId: string): Promise<any[]> {
     try {
-      const categorias = await this.prisma.categoriaInsumo.findMany({
+      const categorias = await this.prisma.categoria.findMany({
         where: {
+          loja_id: lojaId,
           insumos: {
             some: {
-              loja_id: lojaId,
               ativo: true,
             },
           },
@@ -513,7 +513,6 @@ export class InsumosAutocompleteService {
       return categorias.map(categoria => ({
         id: categoria.id,
         nome: categoria.nome,
-        descricao: categoria.descricao,
       }));
 
     } catch (error) {

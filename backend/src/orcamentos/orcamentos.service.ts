@@ -1827,6 +1827,35 @@ export class OrcamentosService {
       await this.prisma.funcaoorcamento.createMany({ data: funcoesData });
     }
 
+    // Processar múltiplos produtos se enviados
+    if (updateOrcamentoDto.itens_produto && updateOrcamentoDto.itens_produto.length > 0) {
+      console.log('🔍 Debug - Processando itens_produto:', updateOrcamentoDto.itens_produto);
+      
+      // Deletar produtos existentes
+      await this.prisma.produtoOrcamento.deleteMany({ where: { orcamento_id: id } });
+      
+      // Criar novos produtos
+      const produtosData = updateOrcamentoDto.itens_produto.map((produto) => ({
+        orcamento_id: id,
+        nome_servico: produto.nome_servico || 'Produto',
+        descricao: produto.descricao || '',
+        quantidade: produto.quantidade || 1,
+        largura: produto.largura || null,
+        altura: produto.altura || null,
+        area_produto: produto.area_produto || null,
+        unidade_medida: produto.unidade_medida || '',
+        ordem: produto.ordem || 0,
+        custo_total_producao: 0, // Será calculado depois
+        preco_unitario: 0,
+        preco_total: 0,
+        margem_lucro: 0,
+        impostos: 0,
+      }));
+      
+      console.log('🔍 Debug - Dados dos produtos para criar:', produtosData);
+      await this.prisma.produtoOrcamento.createMany({ data: produtosData });
+    }
+
     return this.findOne(id, lojaId);
   }
 

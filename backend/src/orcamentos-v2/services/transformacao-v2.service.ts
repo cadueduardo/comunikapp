@@ -257,63 +257,119 @@ export class TransformacaoV2Service {
 
   private prepararProdutoCriacao(produto: any, index: number): any {
     const nomeProduto = (produto.nome_servico || produto.nome || `Produto ${index + 1}`).toString();
+    const toNumber = (valor: any, precision?: number): number => {
+      const numero = typeof valor === 'number' ? valor : Number(valor);
+      if (!Number.isFinite(numero)) {
+        return 0;
+      }
+      if (typeof precision === 'number') {
+        return Number(numero.toFixed(precision));
+      }
+      return numero;
+    };
+    
+    this.logger.log(`🔍 Preparando produto ${index + 1} - Medidas recebidas:`, {
+      nome: produto.nome_servico || produto.nome,
+      largura: produto.largura,
+      altura: produto.altura,
+      area: produto.area_produto || produto.area
+    });
+    
     const produtoPreparado: any = {
       nome_servico: nomeProduto,
       nome: nomeProduto,
       descricao: produto.descricao,
       quantidade: produto.quantidade,
+      largura: produto.largura ?? null,
+      altura: produto.altura ?? null,
+      area_produto: produto.area_produto || produto.area || null,
       unidade_medida: produto.unidade_medida || produto.unidade || 'un',
       observacoes: produto.observacoes,
-      custo_total_producao: produto.custo_total_producao ?? 0,
-      preco_unitario: produto.preco_unitario ?? 0,
-      preco_total: produto.preco_total ?? 0,
-      margem_lucro: produto.margem_lucro ?? 0,
-      impostos: produto.impostos ?? 0,
+      ordem: index,
+      custo_total_producao: toNumber(produto.custo_total_producao),
+      preco_unitario: toNumber(produto.preco_unitario),
+      preco_total: toNumber(produto.preco_total),
+      margem_lucro: toNumber(produto.margem_lucro),
+      impostos: toNumber(produto.impostos),
       ativo: true,
     };
 
     if (produto.insumos && produto.insumos.length > 0) {
       produtoPreparado.insumos = {
-        create: produto.insumos.map((insumo: any) => ({
-          insumo_id: insumo.insumo_id,
-          quantidade: insumo.quantidade,
-          unidade: insumo.unidade || 'un',
-          preco_unitario: insumo.preco_unitario || 0,
-          preco_total: insumo.preco_total || 0,
-        })),
+        create: produto.insumos
+          .filter((insumo: any) => insumo?.insumo_id)
+          .map((insumo: any) => {
+            const quantidade = toNumber(insumo.quantidade, 3);
+            const precoUnitario = toNumber(insumo.preco_unitario ?? insumo.custo_unitario);
+            const precoTotal = toNumber(
+              insumo.preco_total ?? insumo.custo_total ?? quantidade * precoUnitario,
+            );
+
+            return {
+              insumo_id: insumo.insumo_id,
+              quantidade,
+              unidade: insumo.unidade || insumo.unidade_consumo || 'un',
+              preco_unitario: precoUnitario,
+              preco_total: precoTotal,
+            };
+          }),
       };
     }
 
     if (produto.maquinas && produto.maquinas.length > 0) {
       produtoPreparado.maquinas = {
-        create: produto.maquinas.map((maquina: any) => ({
-          maquina_id: maquina.maquina_id,
-          tempo_horas: maquina.tempo_horas || 0,
-          custo_hora: maquina.custo_hora || 0,
-          custo_total: maquina.custo_total || 0,
-        })),
+        create: produto.maquinas
+          .filter((maquina: any) => maquina?.maquina_id)
+          .map((maquina: any) => {
+            const tempoHoras = toNumber(maquina.tempo_horas ?? maquina.horas_utilizadas, 3);
+            const custoHora = toNumber(maquina.custo_hora ?? maquina.custo_por_hora);
+            const custoTotal = toNumber(maquina.custo_total ?? tempoHoras * custoHora);
+
+            return {
+              maquina_id: maquina.maquina_id,
+              tempo_horas: tempoHoras,
+              custo_hora: custoHora,
+              custo_total: custoTotal,
+            };
+          }),
       };
     }
 
     if (produto.funcoes && produto.funcoes.length > 0) {
       produtoPreparado.funcoes = {
-        create: produto.funcoes.map((funcao: any) => ({
-          funcao_id: funcao.funcao_id,
-          tempo_horas: funcao.tempo_horas || 0,
-          custo_hora: funcao.custo_hora || 0,
-          custo_total: funcao.custo_total || 0,
-        })),
+        create: produto.funcoes
+          .filter((funcao: any) => funcao?.funcao_id)
+          .map((funcao: any) => {
+            const tempoHoras = toNumber(funcao.tempo_horas ?? funcao.horas_trabalhadas, 3);
+            const custoHora = toNumber(funcao.custo_hora ?? funcao.custo_por_hora ?? funcao.valor_hora);
+            const custoTotal = toNumber(funcao.custo_total ?? tempoHoras * custoHora);
+
+            return {
+              funcao_id: funcao.funcao_id,
+              tempo_horas: tempoHoras,
+              custo_hora: custoHora,
+              custo_total: custoTotal,
+            };
+          }),
       };
     }
 
     if (produto.servicos_manuais && produto.servicos_manuais.length > 0) {
       produtoPreparado.servicos_manuais = {
-        create: produto.servicos_manuais.map((servico: any) => ({
-          servico_id: servico.servico_id,
-          tempo_horas: servico.tempo_horas || 0,
-          custo_hora: servico.custo_hora || 0,
-          custo_total: servico.custo_total || 0,
-        })),
+        create: produto.servicos_manuais
+          .filter((servico: any) => servico?.servico_id)
+          .map((servico: any) => {
+            const tempoHoras = toNumber(servico.tempo_horas ?? servico.horas_trabalhadas, 3);
+            const custoHora = toNumber(servico.custo_hora ?? servico.custo_por_hora);
+            const custoTotal = toNumber(servico.custo_total ?? tempoHoras * custoHora);
+
+            return {
+              servico_id: servico.servico_id,
+              tempo_horas: tempoHoras,
+              custo_hora: custoHora,
+              custo_total: custoTotal,
+            };
+          }),
       };
     }
 
@@ -321,9 +377,9 @@ export class TransformacaoV2Service {
       produtoPreparado.custos_indiretos = {
         create: produto.custos_indiretos.map((custo: any) => ({
           custo_id: custo.custo_id,
-          percentual: custo.percentual || 0,
-          valor_fixo: custo.valor_fixo || 0,
-          custo_total: custo.custo_total || 0,
+          percentual: toNumber(custo.percentual),
+          valor_fixo: toNumber(custo.valor_fixo),
+          custo_total: toNumber(custo.custo_total),
         })),
       };
     }
@@ -356,6 +412,17 @@ export class TransformacaoV2Service {
   private prepararProdutosParaMotor(produtos: any[]): any[] {
     if (!produtos || !Array.isArray(produtos)) return [];
 
+    const toNumber = (valor: any, precision?: number): number => {
+      const numero = typeof valor === 'number' ? valor : Number(valor);
+      if (!Number.isFinite(numero)) {
+        return 0;
+      }
+      if (typeof precision === 'number') {
+        return Number(numero.toFixed(precision));
+      }
+      return numero;
+    };
+
     return produtos.map(produto => ({
       id: produto.id,
       nome: produto.nome,
@@ -365,33 +432,33 @@ export class TransformacaoV2Service {
       
       insumos: produto.insumos?.map(insumo => ({
         insumo_id: insumo.insumo_id,
-        quantidade: insumo.quantidade,
-        unidade: insumo.unidade,
-        preco_unitario: insumo.preco_unitario,
+        quantidade: toNumber(insumo.quantidade, 3),
+        unidade: insumo.unidade || insumo.unidade_consumo,
+        preco_unitario: toNumber(insumo.preco_unitario ?? insumo.custo_unitario),
       })) || [],
       
       maquinas: produto.maquinas?.map(maquina => ({
         maquina_id: maquina.maquina_id,
-        tempo_horas: maquina.tempo_horas,
-        custo_hora: maquina.custo_hora,
+        tempo_horas: toNumber(maquina.tempo_horas ?? maquina.horas_utilizadas, 3),
+        custo_hora: toNumber(maquina.custo_hora ?? maquina.custo_por_hora),
       })) || [],
       
       funcoes: produto.funcoes?.map(funcao => ({
         funcao_id: funcao.funcao_id,
-        tempo_horas: funcao.tempo_horas,
-        custo_hora: funcao.custo_hora,
+        tempo_horas: toNumber(funcao.tempo_horas ?? funcao.horas_trabalhadas, 3),
+        custo_hora: toNumber(funcao.custo_hora ?? funcao.custo_por_hora ?? funcao.valor_hora),
       })) || [],
       
       servicos_manuais: produto.servicos_manuais?.map(servico => ({
         servico_id: servico.servico_id,
-        tempo_horas: servico.tempo_horas,
-        custo_hora: servico.custo_hora,
+        tempo_horas: toNumber(servico.tempo_horas ?? servico.horas_trabalhadas, 3),
+        custo_hora: toNumber(servico.custo_hora ?? servico.custo_por_hora),
       })) || [],
       
       custos_indiretos: produto.custos_indiretos?.map(custo => ({
         custo_id: custo.custo_id,
-        percentual: custo.percentual,
-        valor_fixo: custo.valor_fixo,
+        percentual: toNumber(custo.percentual),
+        valor_fixo: toNumber(custo.valor_fixo),
       })) || [],
     }));
   }
@@ -593,5 +660,3 @@ export class TransformacaoV2Service {
     }));
   }
 }
-
-

@@ -352,7 +352,7 @@ export class ArteLinkAprovacaoService {
         ip_aprovacao: ip_address,
         user_agent,
         comentario_cliente: comentario,
-        ativo: false, // Desativar após uso
+        ativo: aprovado ? false : true, // Desativar apenas se aprovado, manter ativo para revisões
       },
     });
 

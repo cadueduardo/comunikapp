@@ -72,7 +72,26 @@ export class OrcamentosV2Service {
         include: {
           cliente: true,
           produtos: {
-            include: {
+            select: {
+              id: true,
+              nome_servico: true,
+              nome: true,
+              descricao: true,
+              quantidade: true,
+              largura: true,
+              altura: true,
+              profundidade: true,
+              area_produto: true,
+              unidade_medida: true,
+              custo_total_producao: true,
+              preco_unitario: true,
+              preco_total: true,
+              margem_lucro: true,
+              impostos: true,
+              observacoes: true,
+              ativo: true,
+              ordem: true,
+              categoria: true,
               insumos: true,
               maquinas: true,
               funcoes: true,
@@ -157,7 +176,26 @@ export class OrcamentosV2Service {
         include: {
           cliente: true,
           produtos: {
-            include: {
+            select: {
+              id: true,
+              nome_servico: true,
+              nome: true,
+              descricao: true,
+              quantidade: true,
+              largura: true,
+              altura: true,
+              profundidade: true,
+              area_produto: true,
+              unidade_medida: true,
+              custo_total_producao: true,
+              preco_unitario: true,
+              preco_total: true,
+              margem_lucro: true,
+              impostos: true,
+              observacoes: true,
+              ativo: true,
+              ordem: true,
+              categoria: true,
               insumos: true,
               maquinas: true,
               funcoes: true,
@@ -382,7 +420,26 @@ export class OrcamentosV2Service {
         include: {
           cliente: true,
           produtos: {
-            include: {
+            select: {
+              id: true,
+              nome_servico: true,
+              nome: true,
+              descricao: true,
+              quantidade: true,
+              largura: true,
+              altura: true,
+              profundidade: true,
+              area_produto: true,
+              unidade_medida: true,
+              custo_total_producao: true,
+              preco_unitario: true,
+              preco_total: true,
+              margem_lucro: true,
+              impostos: true,
+              observacoes: true,
+              ativo: true,
+              ordem: true,
+              categoria: true,
               insumos: true,
               maquinas: true,
               funcoes: true,
@@ -724,7 +781,26 @@ export class OrcamentosV2Service {
           },
         },
         produtos: {
-          include: {
+          select: {
+            id: true,
+            nome_servico: true,
+            nome: true,
+            descricao: true,
+            quantidade: true,
+            largura: true,
+            altura: true,
+            profundidade: true,
+            area_produto: true,
+            unidade_medida: true,
+            custo_total_producao: true,
+            preco_unitario: true,
+            preco_total: true,
+            margem_lucro: true,
+            impostos: true,
+            observacoes: true,
+            ativo: true,
+            ordem: true,
+            categoria: true,
             insumos: true,
             maquinas: true,
             funcoes: true,
@@ -760,8 +836,16 @@ export class OrcamentosV2Service {
           preco_total: produto.preco_total,
           quantidade: produto.quantidade,
           largura: produto.largura,
-          altura: produto.altura
+          altura: produto.altura,
+          custo_total_producao: produto.custo_total_producao,
+          margem_lucro: produto.margem_lucro,
+          impostos: produto.impostos
         });
+        
+        // Converter Decimal para Number
+        const custoTotalProducaoConvertido = Number(produto.custo_total_producao) || 0;
+        
+        console.log(`🔍 Debug - custo_total_producao: ${produto.custo_total_producao} (tipo: ${typeof produto.custo_total_producao}) → ${custoTotalProducaoConvertido} (tipo: ${typeof custoTotalProducaoConvertido})`);
         
         return {
           id: produto.id,
@@ -772,10 +856,12 @@ export class OrcamentosV2Service {
           largura: produto.largura,
           altura: produto.altura,
           area: produto.area_produto,
-          preco_unitario: produto.preco_unitario,
-          preco_total: produto.preco_total,
-          margem_lucro: produto.margem_lucro,
-          impostos: produto.impostos,
+          // CORREÇÃO: Usar valores corretos salvos no banco
+          preco_unitario: Number(produto.preco_unitario) || 0,
+          preco_total: Number(produto.preco_total) || 0,
+          custo_total_producao: custoTotalProducaoConvertido,
+          margem_lucro: Number(produto.margem_lucro) || 0,
+          impostos: Number(produto.impostos) || 0,
           observacoes: produto.observacoes,
         };
       }) || [],

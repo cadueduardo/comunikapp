@@ -386,44 +386,93 @@ export class InsumosService {
   }
 
   async create(createInsumoDto: CreateInsumoDto, loja: loja) {
-    // Verificar unicidade por fornecedor
-    const existingInsumo = await this.prisma.insumo.findFirst({
-      where: {
-        loja_id: loja.id,
-        nome: createInsumoDto.nome,
-        fornecedorId: createInsumoDto.fornecedorId,
-      },
+    console.log('🔍 InsumosService.create - DTO recebido:', {
+      categoriaId: createInsumoDto.categoriaId,
+      fornecedorId: createInsumoDto.fornecedorId,
+      tipo_material_id: createInsumoDto.tipo_material_id,
     });
 
-    if (existingInsumo) {
-      throw new ConflictException(
-        `Já existe um insumo com o nome "${createInsumoDto.nome}" para este fornecedor.`,
-      );
+    // Verificar unicidade por fornecedor (apenas se fornecedor foi informado)
+    if (createInsumoDto.fornecedorId && createInsumoDto.fornecedorId !== '') {
+      const existingInsumo = await this.prisma.insumo.findFirst({
+        where: {
+          loja_id: loja.id,
+          nome: createInsumoDto.nome,
+          fornecedorId: createInsumoDto.fornecedorId,
+        },
+      });
+
+      if (existingInsumo) {
+        throw new ConflictException(
+          `Já existe um insumo com o nome "${createInsumoDto.nome}" para este fornecedor.`,
+        );
+      }
     }
 
     // Verificar se categoria e fornecedor pertencem à mesma loja
-    const categoria = await this.prisma.categoria.findFirst({
-      where: { id: createInsumoDto.categoriaId, loja_id: loja.id },
-    });
+    if (createInsumoDto.categoriaId && createInsumoDto.categoriaId !== '') {
+      const categoria = await this.prisma.categoria.findFirst({
+        where: { id: createInsumoDto.categoriaId, loja_id: loja.id },
+      });
 
-    if (!categoria) {
+      console.log('🔍 Verificação de categoria:', {
+        categoriaId: createInsumoDto.categoriaId,
+        loja_id: loja.id,
+        encontrada: !!categoria,
+        categoria: categoria,
+      });
+
+      if (!categoria) {
+        // Verificar se a categoria existe em outra loja
+        const categoriaOutraLoja = await this.prisma.categoria.findUnique({
+          where: { id: createInsumoDto.categoriaId },
+        });
+        
+        console.error('❌ Categoria não encontrada:', {
+          categoriaId: createInsumoDto.categoriaId,
+          loja_id: loja.id,
+          existeEmOutraLoja: !!categoriaOutraLoja,
+          lojaCategoria: categoriaOutraLoja?.loja_id,
+        });
+        throw new BadRequestException(
+          `Categoria não encontrada (ID: ${createInsumoDto.categoriaId}). Por favor, selecione uma categoria válida.`,
+        );
+      }
+    } else {
       throw new BadRequestException(
-        'Categoria não encontrada ou não pertence à sua loja.',
+        'Categoria é obrigatória para criar um insumo.',
       );
     }
 
-    const fornecedor = await this.prisma.fornecedor.findFirst({
-      where: { id: createInsumoDto.fornecedorId, loja_id: loja.id },
-    });
+    if (createInsumoDto.fornecedorId && createInsumoDto.fornecedorId !== '') {
+      const fornecedor = await this.prisma.fornecedor.findFirst({
+        where: { id: createInsumoDto.fornecedorId, loja_id: loja.id },
+      });
 
-    if (!fornecedor) {
+      console.log('🔍 Verificação de fornecedor:', {
+        fornecedorId: createInsumoDto.fornecedorId,
+        loja_id: loja.id,
+        encontrado: !!fornecedor,
+        fornecedor: fornecedor,
+      });
+
+      if (!fornecedor) {
+        console.error('❌ Fornecedor não encontrado:', {
+          fornecedorId: createInsumoDto.fornecedorId,
+          loja_id: loja.id,
+        });
+        throw new BadRequestException(
+          `Fornecedor não encontrado (ID: ${createInsumoDto.fornecedorId}). Por favor, selecione um fornecedor válido.`,
+        );
+      }
+    } else {
       throw new BadRequestException(
-        'Fornecedor não encontrado ou não pertence à sua loja.',
+        'Fornecedor é obrigatório para criar um insumo.',
       );
     }
 
-    // Remover campos que não existem no modelo Prisma
-    const { tipo_material_id, ...dataWithoutExtraFields } = createInsumoDto;
+    // Remover campos que não existem no modelo Prisma e campos vazios de FK
+    const { tipo_material_id, categoriaId, fornecedorId, ...dataWithoutExtraFields } = createInsumoDto;
 
     // Converter parametros_consumo para string JSON se for objeto
     const quantidadeCalculada = this.calcularQuantidadeTotal({
@@ -459,10 +508,18 @@ export class InsumosService {
       ...dataWithoutExtraFields,
       parametros_consumo: parametrosConsumoProcessado,
       loja_id: loja.id,
-      tipoMaterialId: tipo_material_id,
+      ...(tipo_material_id && tipo_material_id !== '' && { tipoMaterialId: tipo_material_id }),
+      ...(categoriaId && categoriaId !== '' && { categoriaId }),
+      ...(fornecedorId && fornecedorId !== '' && { fornecedorId }),
       ativo: createInsumoDto.ativo ?? true,
       quantidade_compra: quantidadeCalculada,
     };
+
+    console.log('🔍 InsumosService.create - dataForPrisma:', {
+      categoriaId: dataForPrisma.categoriaId,
+      fornecedorId: dataForPrisma.fornecedorId,
+      tipoMaterialId: dataForPrisma.tipoMaterialId,
+    });
 
     const insumo = await this.prisma.insumo.create({
       data: dataForPrisma,
@@ -667,7 +724,7 @@ export class InsumosService {
     const dataForPrisma = {
       ...dataWithoutExtraFields,
       parametros_consumo: parametrosConsumoProcessado,
-      tipoMaterialId: tipo_material_id,
+      ...(tipo_material_id && tipo_material_id !== '' && { tipoMaterialId: tipo_material_id }),
     };
 
     console.log('🔍 InsumosService.update - Dados para Prisma:', {
