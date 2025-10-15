@@ -258,6 +258,56 @@ export default function OrcamentoV2PublicoPage() {
   console.log('🔍 Debug - Orçamento completo:', orcamento);
   console.log('🔍 Debug - Status do orçamento:', orcamento.status);
   console.log('🔍 Debug - Status aprovação:', orcamento.status_aprovacao);
+
+  // Usar valores corretos do banco em vez de recalcular
+  const usarValoresCorretosDoBanco = (produtos: any[]) => {
+    if (!produtos || produtos.length === 0) return produtos;
+
+    console.log('🔍 Debug - Usando valores corretos do banco:', {
+      produtosCount: produtos.length,
+      produtosDetalhados: produtos.map(p => ({
+        nome: p.nome,
+        quantidade: p.quantidade,
+        custo_total_producao: p.custo_total_producao,
+        preco_unitario_banco: p.preco_unitario,
+        preco_total_banco: p.preco_total,
+        preco_unitario_final: Number(p.preco_unitario) || 0,
+        preco_total_final: Number(p.preco_total) || 0,
+        margem_lucro: p.margem_lucro,
+        impostos: p.impostos
+      }))
+    });
+    
+    // Log individual detalhado de cada produto
+    produtos.forEach((produto, index) => {
+      console.log(`🔍 Debug - Produto ${index + 1} detalhado:`, {
+        nome: produto.nome,
+        quantidade: produto.quantidade,
+        custo_total_producao: produto.custo_total_producao,
+        preco_unitario: produto.preco_unitario,
+        preco_total: produto.preco_total,
+        preco_unitario_number: Number(produto.preco_unitario),
+        preco_total_number: Number(produto.preco_total),
+        margem_lucro: produto.margem_lucro,
+        impostos: produto.impostos,
+        // Valores brutos para debug
+        preco_unitario_raw: produto.preco_unitario,
+        preco_total_raw: produto.preco_total,
+        custo_total_producao_raw: produto.custo_total_producao
+      });
+    });
+
+    return produtos.map(produto => ({
+      ...produto,
+      preco_unitario: Number(produto.preco_unitario) || 0,
+      preco_total: Number(produto.preco_total) || 0,
+    }));
+  };
+
+  // Usar valores corretos do banco em vez de recalcular
+  const produtosComPrecosCorretos = orcamento.produtos && orcamento.produtos.length > 0 
+    ? usarValoresCorretosDoBanco(orcamento.produtos)
+    : [];
   
   const jaAprovado = orcamento.status_aprovacao === 'APROVADO';
   const jaRejeitado = orcamento.status_aprovacao === 'REJEITADO';
@@ -388,8 +438,8 @@ export default function OrcamentoV2PublicoPage() {
                 </thead>
                 <tbody>
                   {/* Se há produtos específicos, mostrar cada um */}
-                  {orcamento.produtos && orcamento.produtos.length > 0 ? (
-                    orcamento.produtos.map((produto, index) => (
+                  {produtosComPrecosCorretos && produtosComPrecosCorretos.length > 0 ? (
+                    produtosComPrecosCorretos.map((produto, index) => (
                       <tr key={produto.id || index}>
                         <td className="border border-gray-400 px-3 py-2 text-center">
                           {String(produto.quantidade || 1).padStart(2, '0')}

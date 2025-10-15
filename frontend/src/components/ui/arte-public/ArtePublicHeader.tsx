@@ -4,7 +4,6 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Download, 
   X, 
   CheckCircle, 
   Clock, 
@@ -27,8 +26,6 @@ interface ArtePublicHeaderProps {
   produtos: ProdutoArte[];
   produtoSelecionado: string;
   onProdutoChange: (produtoId: string) => void;
-  onDownloadPDF: () => void;
-  onDownloadJPG: () => void;
   onClose: () => void;
 }
 
@@ -37,8 +34,6 @@ export function ArtePublicHeader({
   produtos,
   produtoSelecionado,
   onProdutoChange,
-  onDownloadPDF,
-  onDownloadJPG,
   onClose
 }: ArtePublicHeaderProps) {
   
@@ -69,30 +64,20 @@ export function ArtePublicHeader({
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg">
-      <div className="flex items-center justify-between px-6 py-4">
+    <div className="bg-white">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-4">
         {/* Título e Cliente */}
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
             Prévia pública — Aprovação de Arte
           </h1>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 truncate">
             • {osData.cliente.nome}
           </p>
         </div>
         
-        {/* Botões de Download e Fechar */}
-        <div className="flex items-center space-x-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onDownloadPDF}
-            className="flex items-center space-x-2"
-          >
-            <Download className="h-4 w-4" />
-            <span>Baixar Arquivo</span>
-          </Button>
-          
+        {/* Botão Fechar */}
+        <div className="flex items-center ml-4">
           <Button
             variant="ghost"
             size="sm"

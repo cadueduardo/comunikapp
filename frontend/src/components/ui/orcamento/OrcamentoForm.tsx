@@ -176,15 +176,15 @@ export function OrcamentoForm({
         forma_pagamento: String(initialData.forma_pagamento || '50% entrada, restante na entrega'),
         validade_proposta: String(initialData.validade_proposta || '30 dias'),
         atendente: String(initialData.atendente || 'Equipe Comercial'),
-        itens_produto: (initialData.itens_produto as any[]) || [
+        itens_produto: [
           {
             nome_servico: String(initialData.nome_servico || ''),
             descricao: String(initialData.descricao || ''),
-            quantidade_produto: '1',
-            largura_produto: '',
-            altura_produto: '',
-            unidade_medida_produto: '',
-            area_produto: '',
+            quantidade_produto: String(initialData.quantidade_produto || '1'),
+            largura_produto: String(initialData.largura_produto || ''),
+            altura_produto: String(initialData.altura_produto || ''),
+            unidade_medida_produto: String(initialData.unidade_medida_produto || ''),
+            area_produto: String(initialData.area_produto || ''),
             materiais: [],
             maquinas: [],
             funcoes: [],
@@ -269,6 +269,21 @@ export function OrcamentoForm({
       atendente: data.atendente,
       margem_lucro_customizada: data.margem_lucro_customizada ? Number(data.margem_lucro_customizada.replace(',', '.')) : undefined,
       impostos_customizados: data.impostos_customizados ? Number(data.impostos_customizados.replace(',', '.')) : undefined,
+      // Enviar dados de múltiplos produtos
+      itens_produto: data.itens_produto.map((produto, index) => ({
+        nome_servico: produto.nome_servico || `Produto ${index + 1}`,
+        descricao: produto.descricao || '',
+        quantidade: produto.quantidade_produto ? Number(produto.quantidade_produto.replace(',', '.')) : 1,
+        largura: produto.largura_produto ? Number(produto.largura_produto.replace(',', '.')) : undefined,
+        altura: produto.altura_produto ? Number(produto.altura_produto.replace(',', '.')) : undefined,
+        area_produto: produto.area_produto ? Number(produto.area_produto.replace(',', '.')) : undefined,
+        unidade_medida: produto.unidade_medida_produto || '',
+        ordem: index,
+        materiais: produto.materiais || [],
+        maquinas: produto.maquinas || [],
+        funcoes: produto.funcoes || []
+      })),
+      // Manter compatibilidade com campos do primeiro produto para o nível raiz
       largura_produto: primeiroProduto.largura_produto ? Number(primeiroProduto.largura_produto.replace(',', '.')) : undefined,
       altura_produto: primeiroProduto.altura_produto ? Number(primeiroProduto.altura_produto.replace(',', '.')) : undefined,
       area_produto: primeiroProduto.area_produto ? Number(primeiroProduto.area_produto.replace(',', '.')) : undefined,
@@ -279,8 +294,13 @@ export function OrcamentoForm({
     // Log detalhado para debug
     console.log('🔍 Debug - Dados originais do form:', data.itens_produto);
     console.log('🔍 Debug - Dados transformados:', dadosTransformados);
-    console.log('🔍 Debug - Itens transformados:', dadosTransformados.itens);
-    console.log('🔍 Debug - Quantidades:', dadosTransformados.itens.map(item => item.quantidade));
+    console.log('🔍 Debug - Itens_produto enviados:', dadosTransformados.itens_produto);
+    console.log('🔍 Debug - Medidas dos produtos:', dadosTransformados.itens_produto.map(p => ({
+      nome: p.nome_servico,
+      largura: p.largura,
+      altura: p.altura,
+      area: p.area_produto
+    })));
 
     return dadosTransformados;
   };

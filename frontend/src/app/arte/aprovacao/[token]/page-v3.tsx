@@ -184,3 +184,4 @@ export default function ArtePublicApprovalPageV3() {
     </div>
   );
 }
+

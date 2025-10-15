@@ -75,6 +75,13 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
   const updateVersao = async (id: string, data: UpdateArteVersaoRequest): Promise<ArteVersao> => {
     try {
       const token = localStorage.getItem('access_token');
+      
+      console.log('🔄 [useArteVersoes] Atualizando versão:', {
+        id,
+        data,
+        endpoint: `/api/arte-aprovacao/versoes/${id}`
+      });
+      
       const response = await fetch(`/api/arte-aprovacao/versoes/${id}`, {
         method: 'PUT',
         headers: {
@@ -84,6 +91,12 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
         body: JSON.stringify(data),
       });
 
+      console.log('📡 [useArteVersoes] Resposta recebida:', {
+        status: response.status,
+        statusText: response.statusText,
+        contentType: response.headers.get('content-type')
+      });
+
       if (!response.ok) {
         // Verificar se a resposta é JSON válido
         const contentType = response.headers.get('content-type');
@@ -91,10 +104,10 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
           const errorData = await response.json();
           throw new Error(errorData.message || 'Erro ao atualizar versão');
         } else {
-          // Se não for JSON, pode ser HTML de erro
+          // Se não for JSON, pode ser HTML de erro (404, 500, etc)
           const errorText = await response.text();
-          console.error('Resposta não-JSON recebida:', errorText);
-          throw new Error(`Erro ${response.status}: ${response.statusText}`);
+          console.error('❌ [useArteVersoes] Resposta não-JSON recebida:', errorText.substring(0, 200));
+          throw new Error(`Erro ${response.status}: A rota não está disponível ou houve um erro no servidor`);
         }
       }
 
@@ -102,15 +115,18 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         const responseText = await response.text();
-        console.error('Resposta não-JSON recebida:', responseText);
+        console.error('❌ [useArteVersoes] Resposta de sucesso não é JSON:', responseText.substring(0, 200));
         throw new Error('Resposta inválida do servidor');
       }
 
       const versaoAtualizada = await response.json();
+      
+      console.log('✅ [useArteVersoes] Versão atualizada com sucesso:', versaoAtualizada.id);
+      
       setVersoes(prev => prev.map(v => v.id === id ? versaoAtualizada : v));
       return versaoAtualizada;
     } catch (err) {
-      console.error('Erro ao atualizar versão:', err);
+      console.error('❌ [useArteVersoes] Erro ao atualizar versão:', err);
       throw err;
     }
   };
@@ -118,6 +134,12 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
   const deleteVersao = async (id: string): Promise<void> => {
     try {
       const token = localStorage.getItem('access_token');
+      
+      console.log('🗑️ [useArteVersoes] Removendo versão:', {
+        id,
+        endpoint: `/api/arte-aprovacao/versoes/${id}`
+      });
+      
       const response = await fetch(`/api/arte-aprovacao/versoes/${id}`, {
         method: 'DELETE',
         headers: {
@@ -125,14 +147,29 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
         },
       });
 
+      console.log('📡 [useArteVersoes] Resposta de remoção recebida:', {
+        status: response.status,
+        statusText: response.statusText,
+        contentType: response.headers.get('content-type')
+      });
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao remover versão');
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Erro ao remover versão');
+        } else {
+          const errorText = await response.text();
+          console.error('❌ [useArteVersoes] Erro ao remover versão (não-JSON):', errorText.substring(0, 200));
+          throw new Error(`Erro ${response.status}: A rota não está disponível ou houve um erro no servidor`);
+        }
       }
 
+      console.log('✅ [useArteVersoes] Versão removida com sucesso');
+      
       setVersoes(prev => prev.filter(v => v.id !== id));
     } catch (err) {
-      console.error('Erro ao remover versão:', err);
+      console.error('❌ [useArteVersoes] Erro ao remover versão:', err);
       throw err;
     }
   };

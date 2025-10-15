@@ -2,12 +2,15 @@
 
 import React from 'react';
 import { useParams } from 'next/navigation';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   ArtePublicHeader,
   ArtePublicMainSimple,
-  ArtePublicSidebarNew
+  ArtePublicSidebarNew,
+  ArtePublicTabs
 } from '@/components/ui/arte-public';
 import { useArtePublicApproval } from '@/components/ui/arte-public/hooks/useArtePublicApproval';
 
@@ -36,14 +39,57 @@ export default function ArtePublicApprovalPage() {
     rejeitarArte,
   } = useArtePublicApproval(token);
 
-  const handleDownloadPDF = () => {
-    console.log('Download PDF');
-    toast.info('Funcionalidade de download PDF em desenvolvimento');
-  };
-
-  const handleDownloadJPG = () => {
-    console.log('Download JPG');
-    toast.info('Funcionalidade de download JPG em desenvolvimento');
+  const handleDownload = async () => {
+    if (versaoAtual?.arquivos?.[0]) {
+      const arquivo = versaoAtual.arquivos[0];
+      try {
+        // Extrair o nome do arquivo da URL
+        const filename = arquivo.url_arquivo.split('/').pop();
+        // Obter versaoId da URL do arquivo
+        const urlParts = arquivo.url_arquivo.split('/');
+        const versaoIndex = urlParts.findIndex(part => part === 'versoes');
+        const versaoId = versaoIndex !== -1 ? urlParts[versaoIndex + 1] : null;
+        
+        if (versaoId && filename) {
+          const downloadUrl = `http://localhost:4000/uploads/arte/${versaoId}/${filename}`;
+          
+          // Fazer fetch do arquivo para forçar download
+          const response = await fetch(downloadUrl);
+          if (!response.ok) {
+            throw new Error('Erro ao baixar arquivo');
+          }
+          
+          // Obter o blob do arquivo
+          const blob = await response.blob();
+          
+          // Criar URL temporária para o blob
+          const blobUrl = window.URL.createObjectURL(blob);
+          
+          // Criar link temporário para download
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = arquivo.nome_original;
+          link.style.display = 'none';
+          
+          // Adicionar ao DOM, clicar e remover
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // Limpar a URL temporária
+          window.URL.revokeObjectURL(blobUrl);
+          
+          toast.success('Download iniciado');
+        } else {
+          toast.error('Erro ao preparar download');
+        }
+      } catch (error) {
+        console.error('Erro no download:', error);
+        toast.error('Erro ao fazer download do arquivo');
+      }
+    } else {
+      toast.error('Nenhum arquivo disponível para download');
+    }
   };
 
   const handleClose = () => {
@@ -82,7 +128,7 @@ export default function ArtePublicApprovalPage() {
          return (
            <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
              {/* Header Principal - Toda a largura */}
-             <div className="px-6 py-4 bg-white border-b border-gray-200">
+             <div className="bg-white border-b border-gray-200">
                <ArtePublicHeader
                  osData={{
                    numero_os: arteData.os.numero_os,
@@ -91,57 +137,90 @@ export default function ArtePublicApprovalPage() {
                  produtos={produtos}
                  produtoSelecionado={produtoSelecionado}
                  onProdutoChange={setProdutoSelecionado}
-                 onDownloadPDF={handleDownloadPDF}
-                 onDownloadJPG={handleDownloadJPG}
                  onClose={handleClose}
                />
              </div>
 
-             {/* Layout Principal - 75% + 25% */}
-             <div className="flex-1 flex overflow-hidden">
-               {/* Área Principal - 75% */}
-               <div className="flex-1 px-6 py-6 overflow-hidden">
+             {/* Layout Principal - Responsivo */}
+             <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+               {/* Área Principal - Oculto em mobile, Desktop: 75% */}
+               <div className="hidden lg:flex lg:flex-[3] px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6 overflow-hidden">
                  <ArtePublicMainSimple
                    versaoAtual={versaoAtual}
                    produtoAtual={produtoAtual}
                    loading={loading}
                    token={token}
+                   onDownload={handleDownload}
                  />
                </div>
 
-               {/* Sidebar - 25% */}
-               <div className="w-1/4 flex-shrink-0 flex flex-col bg-white border-l border-gray-200">
-                 {/* Header da Sidebar */}
-                 <div className="px-6 py-4 border-b border-gray-200">
-                   <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                     <div className="flex items-center space-x-3">
-                       <span className="font-semibold text-lg text-purple-900">{produtoAtual?.nome || 'Produto'}</span>
-                       <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs flex items-center space-x-1 font-medium">
-                         <span>⏰</span>
-                         <span>Aguardando Aprovação</span>
-                       </span>
-                     </div>
-                   </div>
+               {/* Sidebar - Mobile: 100%, Desktop: 25% */}
+               <div className="w-full lg:w-1/4 lg:flex-shrink-0 flex flex-col bg-white border-t lg:border-t-0 lg:border-l border-gray-200">
+                 {/* Seleção de Produtos */}
+                 <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-200">
+                   <ArtePublicTabs
+                     produtos={produtos}
+                     produtoSelecionado={produtoSelecionado}
+                     onProdutoSelect={setProdutoSelecionado}
+                   />
                  </div>
 
                  {/* Conteúdo da Sidebar */}
-                 <div className="flex-1 px-6 py-4 overflow-hidden">
+                 <div className="flex-1 px-3 sm:px-4 lg:px-6 py-3 sm:py-4 overflow-hidden">
                    <ArtePublicSidebarNew
                      produtoAtual={produtoAtual}
                      versoes={versoes}
                      versaoSelecionada={versaoSelecionada}
                      onVersaoChange={setVersaoSelecionada}
-                     onAprovar={aprovarArte}
-                     onRejeitar={rejeitarArte}
-                     declarationChecked={declarationChecked}
-                     onDeclarationChange={setDeclarationChecked}
-                     processing={processing}
-                     readonly={arteData.link.aprovado}
                      token={token}
                    />
                  </div>
                </div>
              </div>
+
+             {/* Área de Aprovação Flutuante - Responsivo */}
+             {!arteData.link.aprovado && (
+               <div className="fixed bottom-0 left-0 right-0 lg:right-auto lg:w-3/4 z-50 bg-white border-t border-gray-200 shadow-lg">
+                 <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
+                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                     {/* Botões à esquerda */}
+                     <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 flex-1">
+                       <Button
+                         onClick={aprovarArte}
+                         disabled={processing || !declarationChecked}
+                         className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                         size="sm"
+                       >
+                         <CheckCircle className="h-4 w-4 mr-2" />
+                         Aprovar Arte
+                       </Button>
+                       <Button
+                         onClick={rejeitarArte}
+                         disabled={processing}
+                         variant="outline"
+                         className="flex-1 border-red-200 text-red-700 hover:bg-red-50"
+                         size="sm"
+                       >
+                         <XCircle className="h-4 w-4 mr-2" />
+                         Solicitar Alteração
+                       </Button>
+                     </div>
+                     
+                     {/* Checkbox à direita */}
+                     <div className="flex items-center space-x-2 flex-shrink-0">
+                       <Checkbox
+                         id="declaration"
+                         checked={declarationChecked}
+                         onCheckedChange={setDeclarationChecked}
+                       />
+                       <label htmlFor="declaration" className="text-xs text-gray-700 whitespace-nowrap">
+                         Declaro que revisei e aprovo a arte final
+                       </label>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             )}
            </div>
          );
 }

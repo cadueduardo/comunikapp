@@ -30,7 +30,105 @@ import { PreviewCalculoV2 } from '../shared/sections';
 import { ProdutoSelectionModal } from '../../../app/(main)/produtos/components/produto-selection-modal';
 import { ChatFlutuante } from '@/components/ui/chat-flutuante';
 
+const unidadesTotaisPreview = ['m²', 'm2', 'metro quadrado', 'metros quadrados'];
+const unidadesPorUnidadePreview = [
+  'cm',
+  'centimetro',
+  'centimetros',
+  'm',
+  'metro',
+  'metros',
+  'metro linear',
+  'metros lineares',
+  'un',
+  'unidade',
+  'unidades',
+  'unid',
+  'pe',
+  'peca',
+  'pecas',
+  'kg',
+  'kilograma',
+  'kilogramas',
+  'g',
+  'grama',
+  'gramas',
+  'l',
+  'litro',
+  'litros',
+  'ml',
+  'mililitro',
+  'mililitros',
+];
 
+const parseNumeroInicial = (valor: unknown): number => {
+  if (typeof valor === 'number') {
+    return Number.isFinite(valor) ? valor : 0;
+  }
+  if (typeof valor === 'string') {
+    const cleaned = valor.replace(/[^0-9,.-]/g, '').replace(',', '.');
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (valor && typeof (valor as any).toString === 'function') {
+    const parsed = Number((valor as any).toString().replace(',', '.'));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const formatNumeroFormulario = (valor: number, precision = 3): string => {
+  if (!Number.isFinite(valor)) {
+    return '';
+  }
+  if (valor === 0) {
+    return '0';
+  }
+  const normalized = Number(valor.toFixed(precision));
+  return normalized.toString();
+};
+
+const deveMultiplicarMaterialPreview = (unidade?: string | null): boolean => {
+  if (!unidade || typeof unidade !== 'string') {
+    return false;
+  }
+  const unidadeLower = unidade.toLowerCase().trim();
+
+  if (unidadesTotaisPreview.some((item) => unidadeLower.includes(item))) {
+    return false;
+  }
+
+  if (unidadesPorUnidadePreview.some((item) => unidadeLower.includes(item))) {
+    return true;
+  }
+
+  return false;
+};
+
+const ajustarQuantidadeMaterialParaFormulario = (
+  quantidadeTotal: unknown,
+  unidade: unknown,
+  quantidadeProduto: unknown,
+): string => {
+  const total = parseNumeroInicial(quantidadeTotal);
+  const unidadeStr = typeof unidade === 'string' ? unidade : '';
+
+  if (total === 0) {
+    return '0';
+  }
+
+  if (!deveMultiplicarMaterialPreview(unidadeStr)) {
+    return formatNumeroFormulario(total);
+  }
+
+  const quantidadeProdutoNumero = parseNumeroInicial(quantidadeProduto);
+  if (quantidadeProdutoNumero > 0) {
+    const porUnidade = total / quantidadeProdutoNumero;
+    return formatNumeroFormulario(porUnidade);
+  }
+
+  return formatNumeroFormulario(total);
+};
 
 interface OrcamentoFormProps {
   mode: 'novo' | 'editar' | 'template';
@@ -169,20 +267,105 @@ export function OrcamentoV2Form({
         forma_pagamento: String(initialData.forma_pagamento || '50% entrada, restante na entrega'),
         validade_proposta: String(initialData.validade_proposta || '30 dias'),
         atendente: String(initialData.atendente || 'Equipe Comercial'),
-        itens_produto: (initialData.itens_produto as FormValues['itens_produto']) || [
-          {
-            nome_servico: String(initialData.nome_servico || ''),
-            descricao: String(initialData.descricao || ''),
-            quantidade_produto: '1',
-            largura_produto: '',
-            altura_produto: '',
-            unidade_medida_produto: '',
-            area_produto: '',
-            materiais: [],
-            maquinas: [],
-            funcoes: [],
+        itens_produto: (() => {
+          // Se tem itens_produto no initialData, usar eles
+          if (initialData.itens_produto && Array.isArray(initialData.itens_produto) && initialData.itens_produto.length > 0) {
+            return (initialData.itens_produto as any[]).map((produto: any) => {
+              const quantidadeProdutoNumero = parseNumeroInicial(
+                produto.quantidade_produto || produto.quantidade || '1',
+              );
+              return {
+                nome_servico: String(produto.nome_servico || produto.nome || ''),
+                descricao: String(produto.descricao || ''),
+                quantidade_produto: String(produto.quantidade_produto || produto.quantidade || '1'),
+                largura_produto: String(produto.largura_produto?.toString() || produto.largura?.toString() || ''),
+                altura_produto: String(produto.altura_produto?.toString() || produto.altura?.toString() || ''),
+                unidade_medida_produto: String(
+                  produto.unidade_medida_produto || produto.unidade_medida || produto.unidade || '',
+                ),
+                area_produto: String(produto.area_produto?.toString() || produto.area?.toString() || ''),
+                materiais: Array.isArray(produto.materiais)
+                  ? produto.materiais.map((material: any) => ({
+                      ...material,
+                      quantidade: ajustarQuantidadeMaterialParaFormulario(
+                        material.quantidade,
+                        material.unidade,
+                        quantidadeProdutoNumero,
+                      ),
+                    }))
+                  : [],
+                maquinas: produto.maquinas || [],
+                funcoes: produto.funcoes || [],
+                servicos: produto.servicos || [],
+              };
+            });
           }
-        ],
+          
+          // Se tem produtos no initialData (formato do backend V2)
+          if (initialData.produtos && Array.isArray(initialData.produtos) && initialData.produtos.length > 0) {
+            console.log('🔍 Debug - Carregando produtos do backend V2:', initialData.produtos);
+            console.log('🔍 Debug - Dados completos do initialData:', initialData);
+            console.log('🔍 Debug - Medidas dos produtos do backend:', initialData.produtos.map((p: any) => ({
+              nome: p.nome_servico || p.nome,
+              largura: p.largura,
+              altura: p.altura,
+              area: p.area_produto || p.area,
+              larguraType: typeof p.largura,
+              alturaType: typeof p.altura,
+              areaType: typeof (p.area_produto || p.area)
+            })));
+            return (initialData.produtos as any[]).map((produto: any) => {
+              const quantidadeProdutoNumero = parseNumeroInicial(produto.quantidade || '1');
+              return {
+                nome_servico: String(produto.nome_servico || produto.nome || ''),
+                descricao: String(produto.descricao || ''),
+                quantidade_produto: String(produto.quantidade || '1'),
+                largura_produto: String(produto.largura?.toString() || ''),
+                altura_produto: String(produto.altura?.toString() || ''),
+                unidade_medida_produto: String(produto.unidade_medida || ''),
+                area_produto: String(produto.area_produto?.toString() || produto.area?.toString() || ''),
+                materiais: (produto.insumos || []).map((ins: any) => ({
+                  insumo_id: ins.insumo_id,
+                  quantidade: ajustarQuantidadeMaterialParaFormulario(
+                    ins.quantidade,
+                    ins.unidade || ins.unidade_consumo,
+                    quantidadeProdutoNumero,
+                  ),
+                  unidade: ins.unidade || ins.unidade_consumo,
+                })),
+                maquinas: (produto.maquinas || []).map((maq: any) => ({
+                  maquina_id: maq.maquina_id,
+                  horas_utilizadas: String(maq.horas_utilizadas || maq.tempo_horas || '1'),
+                })),
+                funcoes: (produto.funcoes || []).map((func: any) => ({
+                  funcao_id: func.funcao_id,
+                  horas_trabalhadas: String(func.horas_trabalhadas || func.tempo_horas || '1'),
+                })),
+                servicos: (produto.servicos_manuais || []).map((serv: any) => ({
+                  servico_id: serv.servico_id,
+                  horas_trabalhadas: String(serv.horas_trabalhadas || serv.tempo_horas || '1'),
+                })),
+              };
+            });
+          }
+          
+          // Fallback: criar um produto vazio com dados do nível raiz
+          return [
+            {
+              nome_servico: String(initialData.nome_servico || ''),
+              descricao: String(initialData.descricao || ''),
+              quantidade_produto: '1',
+              largura_produto: '',
+              altura_produto: '',
+              unidade_medida_produto: '',
+              area_produto: '',
+              materiais: [],
+              maquinas: [],
+              funcoes: [],
+              servicos: [],
+            }
+          ];
+        })(),
       };
       
       // Debug logs removidos para limpar terminal
@@ -213,6 +396,7 @@ export function OrcamentoV2Form({
 
   // Função auxiliar para transformar dados do frontend para o formato do backend
   const transformarDadosParaBackend = (data: FormValues, dadosCalculados?: any) => {
+    console.log('🔍 Debug - transformarDadosParaBackend - dadosCalculados:', dadosCalculados);
     const itensProduto = (Array.isArray(data.itens_produto) ? data.itens_produto : []).filter(
       (produto): produto is FormValues['itens_produto'][number] => Boolean(produto)
     );
@@ -236,6 +420,437 @@ export function OrcamentoV2Form({
       }
       return 0;
     };
+
+    const fixDecimal = (valor: unknown, precision = 2): number => {
+      const numero = typeof valor === 'number' ? valor : Number(valor);
+      if (!Number.isFinite(numero)) {
+        return 0;
+      }
+      return Number(numero.toFixed(precision));
+    };
+
+    const vazioParaUndefined = <T,>(lista: T[] | undefined): T[] | undefined =>
+      Array.isArray(lista) && lista.length > 0 ? lista : undefined;
+
+    const montarMateriaisFormulario = (produto: FormValues['itens_produto'][number]) => {
+      if (!Array.isArray(produto.materiais)) {
+        return undefined;
+      }
+
+      const itens = produto.materiais
+        .filter((material) => material?.insumo_id)
+        .map((material) => ({
+          insumo_id: material.insumo_id,
+          quantidade: fixDecimal(normalizarNumero(material.quantidade), 3),
+          unidade: (material as any)?.unidade || undefined,
+          preco_unitario: 0,
+          preco_total: 0,
+        }))
+        .filter((material) => material.quantidade > 0);
+
+      return vazioParaUndefined(itens);
+    };
+
+    const montarMaquinasFormulario = (produto: FormValues['itens_produto'][number]) => {
+      if (!Array.isArray(produto.maquinas)) {
+        return undefined;
+      }
+
+      const itens = produto.maquinas
+        .filter((maquina) => maquina?.maquina_id)
+        .map((maquina) => ({
+          maquina_id: maquina.maquina_id,
+          tempo_horas: fixDecimal(normalizarNumero(maquina.horas_utilizadas), 3),
+          custo_hora: 0,
+          custo_total: 0,
+        }))
+        .filter((maquina) => maquina.tempo_horas > 0);
+
+      return vazioParaUndefined(itens);
+    };
+
+    const montarFuncoesFormulario = (produto: FormValues['itens_produto'][number]) => {
+      if (!Array.isArray(produto.funcoes)) {
+        return undefined;
+      }
+
+      const itens = produto.funcoes
+        .filter((funcao) => funcao?.funcao_id)
+        .map((funcao) => ({
+          funcao_id: funcao.funcao_id,
+          tempo_horas: fixDecimal(normalizarNumero(funcao.horas_trabalhadas), 3),
+          custo_hora: 0,
+          custo_total: 0,
+        }))
+        .filter((funcao) => funcao.tempo_horas > 0);
+
+      return vazioParaUndefined(itens);
+    };
+
+    const montarServicosFormulario = (produto: FormValues['itens_produto'][number]) => {
+      if (!Array.isArray(produto.servicos)) {
+        return undefined;
+      }
+
+      const itens = produto.servicos
+        .filter((servico) => servico?.servico_id)
+        .map((servico) => ({
+          servico_id: servico.servico_id,
+          tempo_horas: fixDecimal(normalizarNumero(servico.horas_trabalhadas), 3),
+          custo_hora: 0,
+          custo_total: 0,
+        }))
+        .filter((servico) => servico.tempo_horas > 0);
+
+      return vazioParaUndefined(itens);
+    };
+
+    const somarCampo = <T extends Record<string, unknown>>(lista: T[] | undefined, campo: keyof T): number => {
+      if (!Array.isArray(lista)) {
+        return 0;
+      }
+
+      return lista.reduce((acc, item) => {
+        const valor = Number(item[campo] ?? 0);
+        return acc + (Number.isFinite(valor) ? valor : 0);
+      }, 0);
+    };
+
+    const produtosPreview = Array.isArray(dadosCalculados?.produtos) ? dadosCalculados.produtos : undefined;
+    const totaisPreview = dadosCalculados?.totais;
+    const resumoPreview = dadosCalculados?.resumo;
+    const custosIndiretosPreview = dadosCalculados?.custosIndiretosResumo;
+
+    if (produtosPreview && produtosPreview.length > 0) {
+      const margemPercentualEfetiva = fixDecimal(
+        resumoPreview?.margem_lucro_percentual ?? margemPercentual,
+      );
+      const impostosPercentualEfetiva = fixDecimal(
+        resumoPreview?.impostos_percentual ?? impostosPercentual,
+      );
+      const comissaoPercentualEfetiva = fixDecimal(
+        resumoPreview?.comissao_percentual ?? comissaoPercentual,
+      );
+
+      const percentualMargemDecimal = margemPercentualEfetiva / 100;
+      const percentualImpostosDecimal = impostosPercentualEfetiva / 100;
+      const percentualComissaoDecimal = comissaoPercentualEfetiva / 100;
+
+      let horasTotalPreview = 0;
+
+      const produtosTransformadosPreview = itensProduto.map((produtoFormulario, index) => {
+        const previewProduto = produtosPreview[index];
+
+        const nomeBase =
+          (typeof previewProduto?.nome_servico === 'string' && previewProduto.nome_servico.trim().length > 0
+            ? previewProduto.nome_servico
+            : typeof previewProduto?.nome === 'string' && previewProduto.nome.trim().length > 0
+            ? previewProduto.nome
+            : produtoFormulario.nome_servico) || `Produto ${index + 1}`;
+        const nomeProduto = String(nomeBase).trim();
+
+        const dimensoesPreview = previewProduto?.dimensoes || {};
+        const quantidade = Math.max(
+          fixDecimal(
+            typeof previewProduto?.quantidade === 'number'
+              ? previewProduto.quantidade
+              : normalizarNumero(produtoFormulario.quantidade_produto),
+            3,
+          ),
+          1,
+        );
+        const largura = fixDecimal(
+          typeof dimensoesPreview?.largura === 'number'
+            ? dimensoesPreview.largura
+            : normalizarNumero(produtoFormulario.largura_produto),
+          3,
+        );
+        const altura = fixDecimal(
+          typeof dimensoesPreview?.altura === 'number'
+            ? dimensoesPreview.altura
+            : normalizarNumero(produtoFormulario.altura_produto),
+          3,
+        );
+        const area = fixDecimal(
+          typeof dimensoesPreview?.area_produto === 'number'
+            ? dimensoesPreview.area_produto
+            : normalizarNumero(produtoFormulario.area_produto),
+          3,
+        );
+        const unidadeMedida =
+          (typeof dimensoesPreview?.unidade_medida === 'string' && dimensoesPreview.unidade_medida.trim().length > 0
+            ? dimensoesPreview.unidade_medida.trim()
+            : produtoFormulario.unidade_medida_produto?.trim()) || 'un';
+
+        const descricaoPreview =
+          typeof previewProduto?.descricao === 'string' ? previewProduto.descricao.trim() : '';
+        const descricao =
+          descricaoPreview.length > 0 ? descricaoPreview : (produtoFormulario.descricao || '');
+
+        const materiaisPreview = vazioParaUndefined(
+          Array.isArray(previewProduto?.materiais)
+            ? previewProduto.materiais
+                .filter((material: any) => material?.insumo_id)
+                .map((material: any) => {
+                  const quantidadeMaterial = fixDecimal(material.quantidade ?? 0, 3);
+                  const precoUnitario = fixDecimal(material.custo_unitario ?? 0);
+                  const precoTotalMaterial = fixDecimal(
+                    material.custo_total ?? quantidadeMaterial * precoUnitario,
+                  );
+                  const unidadeMaterial =
+                    material.unidade_consumo ||
+                    produtoFormulario.materiais?.find((item) => item?.insumo_id === material.insumo_id)?.unidade;
+
+                  return {
+                    insumo_id: material.insumo_id,
+                    quantidade: quantidadeMaterial,
+                    unidade: unidadeMaterial,
+                    preco_unitario: precoUnitario,
+                    preco_total: precoTotalMaterial,
+                  };
+                })
+            : undefined,
+        );
+        const materiais = materiaisPreview ?? montarMateriaisFormulario(produtoFormulario);
+
+        const maquinasPreview = vazioParaUndefined(
+          Array.isArray(previewProduto?.maquinas)
+            ? previewProduto.maquinas
+                .filter((maquina: any) => maquina?.maquina_id)
+                .map((maquina: any) => {
+                  const tempoHoras = fixDecimal(maquina.horas_utilizadas ?? maquina.tempo_horas ?? 0, 3);
+                  const custoHora = fixDecimal(maquina.custo_por_hora ?? maquina.custo_hora ?? 0);
+                  const custoTotalMaquina = fixDecimal(
+                    maquina.custo_total ?? tempoHoras * custoHora,
+                  );
+
+                  return {
+                    maquina_id: maquina.maquina_id,
+                    tempo_horas: tempoHoras,
+                    custo_hora: custoHora,
+                    custo_total: custoTotalMaquina,
+                  };
+                })
+            : undefined,
+        );
+        const maquinas = maquinasPreview ?? montarMaquinasFormulario(produtoFormulario);
+
+        const funcoesPreview = vazioParaUndefined(
+          Array.isArray(previewProduto?.funcoes)
+            ? previewProduto.funcoes
+                .filter((funcao: any) => funcao?.funcao_id)
+                .map((funcao: any) => {
+                  const tempoHoras = fixDecimal(funcao.horas_trabalhadas ?? funcao.tempo_horas ?? 0, 3);
+                  const custoHora = fixDecimal(funcao.custo_por_hora ?? funcao.custo_hora ?? 0);
+                  const custoTotalFuncao = fixDecimal(
+                    funcao.custo_total ?? tempoHoras * custoHora,
+                  );
+
+                  return {
+                    funcao_id: funcao.funcao_id,
+                    tempo_horas: tempoHoras,
+                    custo_hora: custoHora,
+                    custo_total: custoTotalFuncao,
+                  };
+                })
+            : undefined,
+        );
+        const funcoes = funcoesPreview ?? montarFuncoesFormulario(produtoFormulario);
+
+        const servicosPreview = vazioParaUndefined(
+          Array.isArray(previewProduto?.servicos)
+            ? previewProduto.servicos
+                .filter((servico: any) => servico?.servico_id)
+                .map((servico: any) => {
+                  const tempoHoras = fixDecimal(servico.horas_trabalhadas ?? servico.tempo_horas ?? 0, 3);
+                  const custoHora = fixDecimal(servico.custo_por_hora ?? servico.custo_hora ?? 0);
+                  const custoTotalServico = fixDecimal(
+                    servico.custo_total ?? tempoHoras * custoHora,
+                  );
+
+                  return {
+                    servico_id: servico.servico_id,
+                    tempo_horas: tempoHoras,
+                    custo_hora: custoHora,
+                    custo_total: custoTotalServico,
+                  };
+                })
+            : undefined,
+        );
+        const servicos = servicosPreview ?? montarServicosFormulario(produtoFormulario);
+
+        const custoMateriaisProduto = somarCampo(materiais, 'preco_total');
+        const custoMaquinasProduto = somarCampo(maquinas, 'custo_total');
+        const custoFuncoesProduto = somarCampo(funcoes, 'custo_total');
+        const custoServicosProduto = somarCampo(servicos, 'custo_total');
+
+        const custoTotalProducao = fixDecimal(
+          previewProduto?.custo_total_producao ??
+            custoMateriaisProduto + custoMaquinasProduto + custoFuncoesProduto + custoServicosProduto,
+        );
+
+        const precoTotalProduto = fixDecimal(
+          previewProduto?.preco_venda_total ?? previewProduto?.preco_total ?? custoTotalProducao,
+        );
+        const precoUnitarioProduto = fixDecimal(
+          previewProduto?.preco_venda_unitario ??
+            previewProduto?.preco_unitario ??
+            precoTotalProduto / Math.max(quantidade, 1),
+        );
+        const margemLucroProduto = fixDecimal(
+          previewProduto?.margem_lucro_produto ??
+            previewProduto?.margem_lucro ??
+            precoTotalProduto * percentualMargemDecimal,
+        );
+        const impostosProduto = fixDecimal(
+          previewProduto?.impostos_produto ??
+            previewProduto?.impostos ??
+            precoTotalProduto * percentualImpostosDecimal,
+        );
+
+        let horasProduto = Number(previewProduto?.horas_producao);
+        if (!Number.isFinite(horasProduto) || horasProduto <= 0) {
+          horasProduto =
+            somarCampo(maquinas, 'tempo_horas') +
+            somarCampo(funcoes, 'tempo_horas') +
+            somarCampo(servicos, 'tempo_horas');
+        }
+        horasTotalPreview += horasProduto;
+
+        const produtoTransformado: any = {
+          nome_servico: nomeProduto,
+          nome: nomeProduto,
+          descricao,
+          quantidade,
+          unidade: unidadeMedida,
+          unidade_medida: unidadeMedida,
+          observacoes: (produtoFormulario as any)?.observacoes,
+          largura,
+          altura,
+          area,
+          custo_total_producao: custoTotalProducao,
+          preco_unitario: precoUnitarioProduto,
+          preco_total: precoTotalProduto,
+          margem_lucro: margemLucroProduto,
+          impostos: impostosProduto,
+        };
+
+        if (materiais) {
+          produtoTransformado.insumos = materiais;
+        }
+        if (maquinas) {
+          produtoTransformado.maquinas = maquinas;
+        }
+        if (funcoes) {
+          produtoTransformado.funcoes = funcoes;
+        }
+        if (servicos) {
+          produtoTransformado.servicos_manuais = servicos;
+        }
+
+        return produtoTransformado;
+      });
+
+      const custoMaterial = fixDecimal(
+        totaisPreview?.materiais ??
+          produtosTransformadosPreview.reduce(
+            (total, produto) => total + somarCampo(produto.insumos, 'preco_total'),
+            0,
+          ),
+      );
+      const custoMaquinas = fixDecimal(
+        totaisPreview?.maquinas ??
+          produtosTransformadosPreview.reduce(
+            (total, produto) => total + somarCampo(produto.maquinas, 'custo_total'),
+            0,
+          ),
+      );
+      const custoFuncoes = fixDecimal(
+        totaisPreview?.funcoes ??
+          produtosTransformadosPreview.reduce(
+            (total, produto) => total + somarCampo(produto.funcoes, 'custo_total'),
+            0,
+          ),
+      );
+      const custoServicos = fixDecimal(
+        totaisPreview?.servicos ??
+          produtosTransformadosPreview.reduce(
+            (total, produto) => total + somarCampo(produto.servicos_manuais, 'custo_total'),
+            0,
+          ),
+      );
+      const custoIndiretos = fixDecimal(
+        totaisPreview?.indiretos ??
+          custosIndiretosPreview?.totalRateado ??
+          resumoPreview?.total_custo_indireto ??
+          0,
+      );
+      const custoMaoObra = fixDecimal(custoMaquinas + custoFuncoes + custoServicos);
+      let custoTotal = fixDecimal(
+        resumoPreview?.total_custo_producao ?? custoMaterial + custoMaoObra + custoIndiretos,
+      );
+
+      const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
+      let precoFinal = fixDecimal(
+        resumoPreview?.preco_final ?? (divisor > 0 ? custoTotal / divisor : custoTotal),
+      );
+      if (!Number.isFinite(precoFinal) || precoFinal <= 0) {
+        precoFinal = fixDecimal(custoTotal);
+      }
+
+      const margemLucro = fixDecimal(
+        resumoPreview?.total_margem_lucro ?? precoFinal * percentualMargemDecimal,
+      );
+      const impostos = fixDecimal(resumoPreview?.total_impostos ?? precoFinal * percentualImpostosDecimal);
+      const horasProducao = fixDecimal(horasTotalPreview, 3);
+
+      const primeiroProdutoFormulario = data.itens_produto?.[0];
+      const primeiroProdutoTransformado = produtosTransformadosPreview[0];
+
+      const nomeServicoPrincipal =
+        primeiroProdutoFormulario?.nome_servico?.trim() ||
+        primeiroProdutoTransformado?.nome_servico ||
+        data.titulo?.trim() ||
+        'Orçamento sem nome';
+      const tituloPrincipal = data.titulo?.trim() || nomeServicoPrincipal;
+      const descricaoPrincipal =
+        primeiroProdutoFormulario?.descricao?.trim() ||
+        primeiroProdutoTransformado?.descricao ||
+        '';
+
+      const dadosTransformados = {
+        titulo: tituloPrincipal,
+        nome_servico: nomeServicoPrincipal,
+        descricao: descricaoPrincipal,
+        cliente_id: data.cliente_id,
+        condicoes_comerciais: data.condicoes_comerciais,
+        prazo_entrega: data.prazo_entrega,
+        forma_pagamento: data.forma_pagamento,
+        validade_proposta: data.validade_proposta,
+        atendente: data.atendente,
+        comissao_percentual: comissaoPercentualEfetiva,
+        tipo: 'produto_servico',
+        tipo_orcamento: 'produto_servico',
+        horas_producao: horasProducao,
+        custo_material: custoMaterial,
+        custo_mao_obra: custoMaoObra,
+        custo_indireto: custoIndiretos,
+        custo_total: custoTotal,
+        margem_lucro: margemLucro,
+        impostos,
+        preco_final: precoFinal,
+        produtos: produtosTransformadosPreview,
+        largura_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.largura : undefined,
+        altura_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.altura : undefined,
+        area_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.area : undefined,
+        unidade_medida_produto: primeiroProdutoTransformado
+          ? primeiroProdutoTransformado.unidade
+          : undefined,
+        quantidade_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.quantidade : undefined,
+      };
+
+      return dadosTransformados;
+    }
 
     const produtosTransformados = itensProduto.map((produto, index) => {
       const quantidade = Math.max(normalizarNumero(produto.quantidade_produto) || 1, 1);
@@ -391,21 +1006,18 @@ export function OrcamentoV2Form({
     
     // Calcular peso de cada produto baseado em área e quantidade
     const produtosComPeso = produtosTransformados.map((produto, index) => {
-      const largura = produto.largura || 0;
-      const altura = produto.altura || 0;
+      const area = produto.area_produto || 0;
       const quantidade = produto.quantidade || 1;
       
-      // Calcular área total do produto
-      const areaTotal = largura * altura * quantidade;
+      // Calcular área total do produto (já está em m²)
+      const areaTotal = area * quantidade;
       
-      // Se não há dimensões, usar apenas quantidade como peso
-      // Se há dimensões, usar área total como peso
+      // Se não há área, usar apenas quantidade como peso
       const peso = areaTotal > 0 ? areaTotal : quantidade;
       
       console.log(`🔍 Debug - Produto ${index + 1} peso calculado:`, {
         nome: produto.nome_servico,
-        largura,
-        altura,
+        area,
         quantidade,
         areaTotal,
         peso
@@ -419,9 +1031,8 @@ export function OrcamentoV2Form({
     
     console.log(`🔍 Debug - Peso total calculado:`, pesoTotal);
     
-    // Calcular preço individual para cada produto baseado em seus próprios custos
-    produtosComPeso.forEach((produto, index) => {
-      // Calcular custos individuais do produto
+    // Primeiro, calcular custos individuais de todos os produtos
+    const custosProdutos = produtosComPeso.map((produto, index) => {
       const custoMaterialProduto = produto.insumos?.reduce((total: number, insumo: any) => {
         const insumoEncontrado = insumos.find(i => i.id === insumo.insumo_id);
         const custoUnitario = insumoEncontrado ? calcularCustoPorUnidadeUso(insumoEncontrado) : 0;
@@ -444,31 +1055,51 @@ export function OrcamentoV2Form({
       const custoIndiretoProduto = custoBaseProduto * (custosIndiretosPercentual / 100);
       const custoTotalProduto = custoBaseProduto + custoIndiretoProduto;
 
-      // Aplicar a mesma fórmula do total para cada produto individualmente
-      const divisorProduto = divisor; // Usar o mesmo divisor do cálculo total
-      const precoFinalProduto = divisorProduto > 0 ? custoTotalProduto / divisorProduto : custoTotalProduto;
-      const margemLucroProduto = precoFinalProduto * percentualMargemDecimal;
-      const impostosProduto = precoFinalProduto * percentualImpostosDecimal;
-
-      produto.custo_total_producao = custoTotalProduto;
-      produto.preco_unitario = precoFinalProduto / produto.quantidade;
-      produto.preco_total = precoFinalProduto;
-      produto.margem_lucro = margemLucroProduto;
-      produto.impostos = impostosProduto;
-      
-      console.log(`🔍 Debug - Produto ${index + 1} calculado individualmente:`, {
-        nome: produto.nome_servico,
-        quantidade: produto.quantidade,
-        custo_material: custoMaterialProduto,
-        custo_maquina: custoMaquinaProduto,
-        custo_funcao: custoFuncaoProduto,
-        custo_total: custoTotalProduto,
-        preco_unitario: produto.preco_unitario,
-        preco_total: produto.preco_total,
-        margem_lucro: produto.margem_lucro,
-        impostos: produto.impostos
-      });
+      return {
+        produto,
+        custoTotalProduto,
+        custoMaterialProduto,
+        custoMaquinaProduto,
+        custoFuncaoProduto
+      };
     });
+
+    // Calcular custo total real de todos os produtos
+    const custoTotalReal = custosProdutos.reduce((total, item) => total + item.custoTotalProduto, 0);
+    
+    console.log('🔍 Debug - Custo total real calculado:', custoTotalReal);
+    console.log('🔍 Debug - Custo total do preview:', custoTotal);
+
+        // Calcular preços individuais usando a fórmula correta
+        console.log('🔍 Debug - Calculando preços individuais para cada produto');
+        custosProdutos.forEach((item, index) => {
+          const { produto, custoTotalProduto } = item;
+          
+          // Aplicar mesma fórmula do total: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
+          const precoVendaProduto = divisor > 0 ? custoTotalProduto / divisor : custoTotalProduto;
+          const precoUnitarioVenda = precoVendaProduto / produto.quantidade;
+          
+          // Calcular componentes individuais
+          const margemLucroProduto = precoVendaProduto * percentualMargemDecimal;
+          const impostosProduto = precoVendaProduto * percentualImpostosDecimal;
+          const comissaoProduto = precoVendaProduto * percentualComissaoDecimal;
+
+          produto.custo_total_producao = custoTotalProduto;
+          produto.preco_unitario = precoUnitarioVenda;
+          produto.preco_total = precoVendaProduto;
+          produto.margem_lucro = margemLucroProduto;
+          produto.impostos = impostosProduto;
+        
+          console.log(`🔍 Debug - Produto ${index + 1} calculado:`, {
+            nome: produto.nome_servico,
+            quantidade: produto.quantidade,
+            custo_total_produto: custoTotalProduto,
+            preco_venda_produto: precoVendaProduto,
+            preco_unitario_venda: precoUnitarioVenda,
+            margem_lucro_produto: margemLucroProduto,
+            impostos_produto: impostosProduto
+          });
+        });
     
     // Atualizar a lista original com os valores calculados
     produtosTransformados.forEach((produto, index) => {
@@ -501,6 +1132,14 @@ export function OrcamentoV2Form({
       comissao,
       precoFinal
     });
+
+    // Debug: verificar medidas dos produtos antes de enviar
+    console.log('🔍 Debug - Medidas dos produtos ANTES de enviar ao backend:', produtosTransformados.map(p => ({
+      nome: p.nome_servico || p.nome,
+      largura: p.largura,
+      altura: p.altura,
+      area: p.area_produto || p.area
+    })));
 
     const dadosTransformados = {
       titulo: tituloPrincipal,
@@ -577,7 +1216,7 @@ export function OrcamentoV2Form({
         }
       }
       
-      const dadosTransformados = transformarDadosParaBackend(data, dadosCalculados);
+        const dadosTransformados = transformarDadosParaBackend(data, dadosCalculados);
       console.log('🔍 Dados transformados para backend:', dadosTransformados);
 
       if (mode === 'editar' && orcamentoId) {
@@ -633,6 +1272,7 @@ export function OrcamentoV2Form({
         console.log('🔍 Debug - Nenhum dado calculado disponível');
       }
       
+      // Usar dados calculados localmente se disponíveis, senão usar dados do WebSocket
       const dadosTransformados = transformarDadosParaBackend(formData, dadosCalculados);
       
       console.log('🔍 Dados transformados para backend (rascunho):', dadosTransformados);
@@ -717,6 +1357,7 @@ export function OrcamentoV2Form({
         }
       }
       
+      // Usar dados calculados localmente se disponíveis, senão usar dados do WebSocket
       const dadosTransformados = transformarDadosParaBackend(formData, dadosCalculados);
       
       console.log('🔍 Dados transformados para backend (enviar):', dadosTransformados);

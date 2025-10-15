@@ -93,6 +93,8 @@ export function useWebSocket(options: UseWebSocketOptions) {
             console.log(`✅ Polling: Nova mensagem detectada! ID: ${ultimaMensagem.id}`);
             lastMessageIdRef.current = ultimaMensagem.id;
             
+            // Nova mensagem detectada
+            
             // Simular evento de nova mensagem
             const webSocketMessage: WebSocketMessage = {
               message: {
@@ -137,8 +139,8 @@ export function useWebSocket(options: UseWebSocketOptions) {
         checkNewMessages();
       }, 100);
       
-      // Configurar polling a cada 5 segundos (reduzido de 3s para 5s)
-      pollingIntervalRef.current = setInterval(checkNewMessages, 5000);
+      // Polling mais responsivo (2s) para aproximar do tempo real enquanto não há WebSocket nativo
+      pollingIntervalRef.current = setInterval(checkNewMessages, 2000);
       
       return () => {
         clearTimeout(initialDelay);
@@ -161,7 +163,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
   }, []);
 
-  const emitTyping = useCallback((isTyping: boolean) => {
+  const emitTyping = useCallback(() => {
     // Typing não implementado no polling
   }, []);
 

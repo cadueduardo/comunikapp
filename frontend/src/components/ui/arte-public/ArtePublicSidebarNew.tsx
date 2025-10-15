@@ -11,9 +11,12 @@ import {
   Clock,
   MessageSquare,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  X,
+  Maximize2
 } from 'lucide-react';
 import { ArtePublicChatWithMentions } from './ArtePublicChatWithMentions';
+// Removido useIsMobile para evitar erro do React
 
 interface VersaoArte {
   id: string;
@@ -23,6 +26,13 @@ interface VersaoArte {
   autor: {
     nome: string;
   };
+  nomeArquivo?: string;
+  descricao?: string;
+  arquivos?: Array<{
+    id: string;
+    nome_original: string;
+    url_thumbnail?: string;
+  }>;
 }
 
 interface MensagemArte {
@@ -43,12 +53,6 @@ interface ArtePublicSidebarProps {
   versoes: VersaoArte[];
   versaoSelecionada: string;
   onVersaoChange: (versaoId: string) => void;
-  onAprovar: () => void;
-  onRejeitar: () => void;
-  declarationChecked: boolean;
-  onDeclarationChange: (checked: boolean) => void;
-  processing?: boolean;
-  readonly?: boolean;
   token: string;
 }
 
@@ -57,32 +61,74 @@ export function ArtePublicSidebarNew({
   versoes,
   versaoSelecionada,
   onVersaoChange,
-  onAprovar,
-  onRejeitar,
-  declarationChecked,
-  onDeclarationChange,
-  processing = false,
-  readonly = false,
   token
 }: ArtePublicSidebarProps) {
 
+  const [showMobileModal, setShowMobileModal] = useState(false);
+  const [versaoModal, setVersaoModal] = useState<VersaoArte | null>(null);
+
   // Função para formatar datas
-  const formatarData = (dataString: string): string => {
+  const formatarData = (dataString: any): string => {
+    console.log('🔍 [formatarData] Data recebida:', { 
+      dataString, 
+      tipo: typeof dataString,
+      keys: dataString && typeof dataString === 'object' ? Object.keys(dataString) : 'N/A'
+    });
+    
+    if (!dataString) {
+      return 'Data não disponível';
+    }
+
     try {
-      const data = new Date(dataString);
-      if (isNaN(data.getTime())) {
-        return 'Data inválida';
+      let data: Date;
+      
+      // Se já é um objeto Date
+      if (dataString instanceof Date) {
+        data = dataString;
+      } 
+      // Se é uma string
+      else if (typeof dataString === 'string') {
+        data = new Date(dataString);
       }
-      return data.toLocaleDateString('pt-BR', {
+      // Se é um objeto
+      else if (typeof dataString === 'object') {
+        // Verificar se é um objeto vazio
+        if (Object.keys(dataString).length === 0) {
+          console.warn('🔍 [formatarData] Objeto vazio recebido, usando data atual como fallback');
+          return 'Data não disponível';
+        }
+        
+        // Tentar diferentes propriedades comuns
+        const dateValue = dataString.date || dataString.data_criacao || dataString.created_at || dataString.timestamp;
+        if (dateValue) {
+          console.log('🔍 [formatarData] Usando propriedade de data:', dateValue);
+          data = new Date(dateValue);
+        } else {
+          console.warn('🔍 [formatarData] Nenhuma propriedade de data encontrada no objeto:', dataString);
+          return 'Data não disponível';
+        }
+      }
+      else {
+        console.warn('🔍 [formatarData] Tipo de data não suportado:', typeof dataString);
+        return 'Data não disponível';
+      }
+
+      if (isNaN(data.getTime())) {
+        console.warn('🔍 [formatarData] Data inválida após parsing:', dataString);
+        return 'Data não disponível';
+      }
+
+      const dataFormatada = data.toLocaleDateString('pt-BR', {
         day: '2-digit',
         month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+        year: 'numeric'
       });
+      
+      console.log('✅ [formatarData] Data formatada:', dataFormatada);
+      return dataFormatada;
     } catch (error) {
-      console.error('Erro ao formatar data:', error);
-      return 'Data inválida';
+      console.error('❌ [formatarData] Erro ao formatar data:', error, { dataString });
+      return 'Data não disponível';
     }
   };
 
@@ -101,7 +147,7 @@ export function ArtePublicSidebarNew({
 
 
   return (
-    <div className="w-full bg-white border-l border-gray-200 flex flex-col h-full">
+    <div className="w-full bg-white flex flex-col h-full">
       
              {/* Seletor de Versões */}
              <div className="border-b border-gray-200">
@@ -115,7 +161,13 @@ export function ArtePublicSidebarNew({
                    {versoes.slice(0, 10).map((versao) => (
                      <button
                        key={versao.id}
-                       onClick={() => onVersaoChange(versao.id)}
+                       onClick={() => {
+                         // Sempre abre modal mobile, CSS responsivo controla a exibição
+                         setVersaoModal(versao);
+                         setShowMobileModal(true);
+                         // Também seleciona a versão para desktop
+                         onVersaoChange(versao.id);
+                       }}
                        className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
                          versaoSelecionada === versao.id
                            ? 'border-purple-500 bg-purple-100 shadow-md ring-2 ring-purple-200'
@@ -124,23 +176,29 @@ export function ArtePublicSidebarNew({
                      >
                        <div className="flex items-center justify-between">
                          <div className="flex items-center space-x-2">
-                           <span className={`font-semibold text-sm ${
-                             versaoSelecionada === versao.id ? 'text-purple-900' : 'text-gray-700'
-                           }`}>
-                             {versao.versao}
+                           <span 
+                             className={`font-semibold text-sm ${
+                               versaoSelecionada === versao.id ? 'text-purple-900' : 'text-gray-700'
+                             }`}
+                             title={`${versao.versao.toUpperCase()} - ${produtoAtual?.nome || 'Produto'}`}
+                           >
+                             {(() => {
+                               const tituloCompleto = `${versao.versao.toUpperCase()} - ${produtoAtual?.nome || 'Produto'}`;
+                               return tituloCompleto.length > 25 ? `${tituloCompleto.substring(0, 22)}...` : tituloCompleto;
+                             })()}
                            </span>
                            {getStatusIcon(versao.status)}
+                           {/* Ícone para indicar modal - visível apenas em mobile */}
+                           <Maximize2 className="lg:hidden h-3 w-3 text-gray-400 ml-1" title="Toque para visualizar" />
                          </div>
-                         <div className={`text-xs truncate max-w-[60px] ${
-                           versaoSelecionada === versao.id ? 'text-purple-600' : 'text-gray-500'
-                         }`}>
+                         <div 
+                           className={`text-xs truncate max-w-[60px] ${
+                             versaoSelecionada === versao.id ? 'text-purple-600' : 'text-gray-500'
+                           }`}
+                           title={formatarData(versao.data_criacao)}
+                         >
                            {formatarData(versao.data_criacao)}
                          </div>
-                       </div>
-                       <div className={`text-xs mt-1 truncate ${
-                         versaoSelecionada === versao.id ? 'text-purple-600' : 'text-gray-600'
-                       }`}>
-                         {versao.autor.nome}
                        </div>
                      </button>
                    ))}
@@ -171,41 +229,57 @@ export function ArtePublicSidebarNew({
         />
       </div>
 
-      {/* Ações */}
-      {!readonly && (
-        <div className="p-4 border-t border-gray-200 space-y-3">
-          <div className="flex space-x-2">
-            <Button
-              onClick={onAprovar}
-              disabled={processing || !declarationChecked}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+      {/* Modal Mobile - Visualização da arte em tela cheia */}
+      {showMobileModal && versaoModal && (
+        <div 
+          className="fixed inset-0 bg-black z-50 flex flex-col lg:hidden"
+          onClick={() => setShowMobileModal(false)}
+        >
+          {/* Header do Modal Mobile */}
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-b border-gray-200">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg font-semibold text-gray-900 truncate">
+                {produtoAtual?.nome || 'Produto'}
+              </h3>
+              <p className="text-sm text-gray-600">
+                {versaoModal.versao.toUpperCase()} • {versaoModal.nomeArquivo || versaoModal.descricao || 'Arte'}
+              </p>
+            </div>
+            <button 
+              onClick={() => setShowMobileModal(false)}
+              className="ml-4 p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100"
             >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Aprovar Arte
-            </Button>
-            <Button
-              onClick={onRejeitar}
-              disabled={processing}
-              variant="outline"
-              className="flex-1 border-red-200 text-red-700 hover:bg-red-50"
-            >
-              <XCircle className="h-4 w-4 mr-2" />
-              Solicitar Alteração
-            </Button>
+              <X className="h-6 w-6" />
+            </button>
           </div>
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="declaration"
-              checked={declarationChecked}
-              onCheckedChange={onDeclarationChange}
-            />
-            <label htmlFor="declaration" className="text-xs text-gray-700">
-              Declaro que revisei e aprovo a arte final
-            </label>
+
+          {/* Conteúdo da Arte em Tela Cheia */}
+          <div className="flex-1 bg-black flex items-center justify-center p-4">
+            {versaoModal.arquivos?.[0]?.url_thumbnail ? (
+              <img
+                src={`http://localhost:4000${versaoModal.arquivos[0].url_thumbnail}`}
+                alt={versaoModal.arquivos[0].nome_original}
+                className="max-w-full max-h-full object-contain"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <div className="text-center text-white">
+                <div className="text-6xl mb-4">📄</div>
+                <p className="text-lg">Arte não disponível</p>
+              </div>
+            )}
+          </div>
+
+          {/* Footer com informações */}
+          <div className="bg-white px-4 py-3 border-t border-gray-200">
+            <div className="flex items-center justify-between text-sm text-gray-600">
+              <span>Toque fora da imagem para fechar</span>
+              <span>{versaoModal.versao.toUpperCase()}</span>
+            </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }

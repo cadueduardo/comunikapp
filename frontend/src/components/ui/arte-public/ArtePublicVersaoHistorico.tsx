@@ -12,6 +12,8 @@ interface VersaoHistorico {
   status: string;
   thumbnail: string;
   isAtual: boolean;
+  nomeArquivo?: string;
+  descricao?: string;
 }
 
 interface ArtePublicVersaoHistoricoProps {
@@ -91,7 +93,7 @@ export function ArtePublicVersaoHistorico({
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-1">
                 <span className="text-xs font-medium text-gray-900">
-                  {versao.versao}
+                  {versao.nomeArquivo || versao.descricao || versao.versao}
                 </span>
                 {versao.isAtual && (
                   <Badge variant="secondary" className="text-xs px-1 py-0">
@@ -130,3 +132,4 @@ export function ArtePublicVersaoHistorico({
     </div>
   );
 }
+

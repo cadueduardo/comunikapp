@@ -17,8 +17,6 @@ interface PreviewCalculoV2Props {
 }
 
 const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
-  variant = 'orcamento',
-  showAllProducts = true,
   dadosCarregados = true
 }) => {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
@@ -420,7 +418,29 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     const totalMargemLucro = precoFinal * percentualMargemDecimal;
     const subtotalComLucro = precoFinal - totalImpostos - comissaoTotal;
 
-    return {
+    // Calcular preços individuais por produto
+    const produtosComPrecos = produtosNormalizados.map((produto) => {
+      const custoBaseProduto = produto.custo_total_producao;
+      
+      // Aplicar mesma fórmula do total: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
+      const precoVendaProduto = divisor > 0 ? custoBaseProduto / divisor : custoBaseProduto;
+      
+      // Calcular componentes individuais
+      const margemLucroProduto = precoVendaProduto * percentualMargemDecimal;
+      const impostosProduto = precoVendaProduto * percentualImpostosDecimal;
+      const comissaoProduto = precoVendaProduto * percentualComissaoDecimal;
+      
+      return {
+        ...produto,
+        preco_venda_unitario: precoVendaProduto / produto.quantidade,
+        preco_venda_total: precoVendaProduto,
+        margem_lucro_produto: margemLucroProduto,
+        impostos_produto: impostosProduto,
+        comissao_produto: comissaoProduto,
+      };
+    });
+
+    const resultado = {
       resumo: {
         total_produtos: produtosNormalizados.length,
         total_custo_material: totalCustoMaterial,
@@ -437,7 +457,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         comissao_percentual: comissaoPercentual,
         comissao_total: comissaoTotal,
       },
-      produtos: produtosNormalizados,
+      produtos: produtosComPrecos,
       custosIndiretos: resumoIndiretos.itens.map((custo) => ({
         id: custo.id,
         nome: custo.nome,
@@ -462,6 +482,8 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         ],
       },
     };
+
+    return resultado;
   };
 
   // Funcao para transformar dados do formulario para o motor V2
@@ -653,6 +675,27 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
               <span className="text-lg font-bold text-green-600">
                 R$ {formatarValor(data.resumo.preco_final)}
               </span>
+            </div>
+            
+            {/* Preços de venda por produto */}
+            <div className="space-y-2 text-sm">
+              {data.produtos.map((produto: any) => (
+                <div key={produto.id}>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700 font-medium">
+                      {produto.nome_servico}
+                    </span>
+                    <span className="text-gray-700 font-medium">
+                      R$ {formatarValor(produto.preco_venda_total)} ({formatarNumero(produto.quantidade)})
+                    </span>
+                  </div>
+                  <div className="flex justify-end">
+                    <span className="text-xs text-gray-500">
+                      R$ {formatarValor(produto.preco_venda_unitario)}/un
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
             
             <Separator />

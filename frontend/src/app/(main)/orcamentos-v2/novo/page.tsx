@@ -167,19 +167,22 @@ export default function NovoOrcamentoV2Page() {
             // Transformar produtos se existirem
             itens_produto: orcamentoData.produtos ? orcamentoData.produtos.map((produto: any, index: number) => {
               console.log(`🔍 Debug - Produto ${index}:`, {
-                nome: produto.nome,
+                nome: produto.nome || produto.nome_servico,
                 largura: produto.largura,
                 altura: produto.altura,
-                area: produto.area
+                area: produto.area_produto || produto.area,
+                larguraType: typeof produto.largura,
+                alturaType: typeof produto.altura,
+                areaType: typeof (produto.area_produto || produto.area)
               });
               return ({
               nome_servico: produto.nome_servico || produto.nome || '',
               descricao: produto.descricao || '',
               quantidade_produto: String(produto.quantidade || 1),
-              largura_produto: String(produto.largura || orcamentoData.largura_produto || ''),
-              altura_produto: String(produto.altura || orcamentoData.altura_produto || ''),
+              largura_produto: String(produto.largura?.toString() || orcamentoData.largura_produto || ''),
+              altura_produto: String(produto.altura?.toString() || orcamentoData.altura_produto || ''),
               unidade_medida_produto: produto.unidade_medida || produto.unidade || orcamentoData.unidade_medida_produto || 'un',
-              area_produto: String(produto.area || orcamentoData.area_produto || ''),
+              area_produto: String(produto.area_produto?.toString() || produto.area?.toString() || orcamentoData.area_produto || ''),
               materiais: produto.insumos ? produto.insumos.map((insumo: any) => ({
                 insumo_id: insumo.insumo_id,
                 quantidade: String(insumo.quantidade || 1),

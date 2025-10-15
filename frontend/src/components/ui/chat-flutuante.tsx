@@ -60,6 +60,49 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const normalizarMensagem = React.useCallback((mensagem: any): Mensagem => {
+    if (!mensagem) {
+      return {
+        id: `temp_${Date.now()}`,
+        mensagem: '',
+        tipo: 'SISTEMA',
+        visualizada: false,
+        anexos: [],
+        criado_em: new Date().toISOString(),
+      };
+    }
+
+    const anexosOrigem = mensagem.anexos;
+    let anexosNormalizados: (string | Anexo)[] = [];
+
+    if (Array.isArray(anexosOrigem)) {
+      anexosNormalizados = anexosOrigem;
+    } else if (typeof anexosOrigem === 'string' && anexosOrigem.trim().length > 0) {
+      try {
+        const parsed = JSON.parse(anexosOrigem);
+        anexosNormalizados = Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        anexosNormalizados = [];
+      }
+    } else if (anexosOrigem && typeof anexosOrigem === 'object') {
+      anexosNormalizados = [anexosOrigem];
+    }
+
+    return {
+      id: mensagem.id,
+      mensagem: mensagem.mensagem ?? mensagem.conteudo ?? '',
+      tipo: (mensagem.tipo as Mensagem['tipo']) || 'SISTEMA',
+      autor_nome: mensagem.autor_nome || mensagem.usuario || undefined,
+      autor_email: mensagem.autor_email,
+      visualizada: Boolean(mensagem.visualizada ?? mensagem.lida),
+      anexos: anexosNormalizados,
+      criado_em:
+        mensagem.criado_em ||
+        mensagem.data_envio ||
+        (typeof mensagem.created_at === 'string' ? mensagem.created_at : new Date().toISOString()),
+    };
+  }, []);
+
   // Abrir chat quando shouldOpen for true (apenas uma vez por mudança)
   useEffect(() => {
     if (shouldOpen && !isOpen) {
@@ -84,10 +127,7 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
       
       if (!mensagemJaExiste) {
         // Adicionar nova mensagem à lista
-        const novaMensagem: Mensagem = {
-          ...data.message,
-          tipo: data.message.tipo as 'CLIENTE' | 'VENDEDOR' | 'SISTEMA',
-        };
+        const novaMensagem = normalizarMensagem(data.message);
         
         console.log('🔍 Adicionando nova mensagem do polling:', novaMensagem);
         
@@ -273,20 +313,7 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
         }
         
         // Processar anexos das mensagens (parsear JSON strings para objetos)
-        const mensagensProcessadas = data.map((msg: Mensagem) => {
-          // console.log('🔍 Processando mensagem:', msg.id, 'criado_em:', msg.criado_em, 'tipo:', typeof msg.criado_em);
-          
-          if (msg.anexos && typeof msg.anexos === 'string') {
-            try {
-              msg.anexos = JSON.parse(msg.anexos);
-              // console.log('🔍 Anexos parseados:', msg.anexos);
-            } catch (e) {
-              console.error('Erro ao parsear anexos JSON:', e);
-              msg.anexos = [];
-            }
-          }
-          return msg;
-        });
+        const mensagensProcessadas = data.map(normalizarMensagem);
         
         console.log('🔍 Mensagens processadas:', mensagensProcessadas);
         
@@ -435,6 +462,9 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
       if (response.ok) {
         const mensagemEnviada = await response.json();
         console.log('✅ Mensagem enviada com sucesso:', mensagemEnviada);
+        const mensagemNormalizada = normalizarMensagem(
+          mensagemEnviada?.mensagem || mensagemEnviada?.data || mensagemEnviada,
+        );
         
         // ✅ SOLUÇÃO DEFINITIVA: NÃO recarregar mensagens após envio
         // A substituição da mensagem temporária pela real já é suficiente
@@ -453,10 +483,7 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
               }
               
               // Substituir pela mensagem real do servidor
-              return {
-                ...mensagemEnviada,
-                anexos: mensagemEnviada.anexos || []
-              };
+              return mensagemNormalizada;
             }
             return msg;
           });

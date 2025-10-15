@@ -287,3 +287,4 @@ A implementação da **página pública com sidebar** está **100% completa** e 
 **Implementado por**: Assistente de Desenvolvimento  
 **Data**: 10/12/2025  
 **Versão**: 1.0
+

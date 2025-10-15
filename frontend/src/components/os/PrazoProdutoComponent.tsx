@@ -432,10 +432,7 @@ export function PrazoProdutoComponent({
             </div>
             <div className="text-right flex-shrink-0">
               <div className="font-medium text-gray-700">
-                {(material.unidade_uso === 'M2' || material.nome.toLowerCase().includes('ilhos'))
-                  ? material.quantidade
-                  : Math.round((material.quantidade || 0) * (dadosProduto.quantidade || 1))}
-                {' '}
+                {material.quantidade || 0}{' '}
                 {material.unidade_uso || material.unidade || 'un'}
               </div>
             </div>

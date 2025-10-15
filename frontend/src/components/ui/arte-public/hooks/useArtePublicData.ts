@@ -35,6 +35,22 @@ interface ArteData {
       }>;
     };
   }>;
+  versoes?: Array<{
+    id: string;
+    versao: string;
+    status: string;
+    descricao?: string;
+    data_criacao: string;
+    servico_id?: string;
+    autor?: {
+      nome_completo?: string;
+    };
+    arquivos?: Array<{
+      id: string;
+      nome_original: string;
+      url_thumbnail?: string;
+    }>;
+  }>;
   link: {
     id: string;
     expira_em: string;
@@ -58,6 +74,9 @@ interface VersaoHistorico {
   status: string;
   thumbnail: string;
   isAtual: boolean;
+  nomeArquivo?: string;
+  descricao?: string;
+  servico_id?: string;
 }
 
 interface MensagemArte {
@@ -185,22 +204,47 @@ export function useArtePublicData(token: string): UseArtePublicDataReturn {
   // Carregar versões de um produto específico
   const carregarVersoesProduto = async (produtoId: string, data?: ArteData) => {
     try {
-      // TODO: Implementar API para buscar versões de um produto específico
-      // Por enquanto, usar dados baseados no produto atual
-      const produto = data?.produtos.find(p => p.id === produtoId);
-      if (!produto) return;
+      if (!data) return;
 
-      const versoesProcessadas: VersaoHistorico[] = [
-        {
-          id: produto.versao_mais_recente.id,
-          versao: produto.versao_mais_recente.versao,
-          data: produto.versao_mais_recente.data_criacao,
-          autor: produto.versao_mais_recente.autor.nome,
-          status: produto.versao_mais_recente.status,
-          thumbnail: produto.versao_mais_recente.arquivos[0]?.url_thumbnail || '',
-          isAtual: true
-        }
-      ];
+      console.log('🔍 [carregarVersoesProduto] Carregando versões para produto:', {
+        produtoId,
+        todasVersoes: data.versoes?.length || 0
+      });
+
+      // Filtrar versões que pertencem ao produto selecionado
+      const versoesDoProduto = data.versoes?.filter(versao => 
+        versao.servico_id === produtoId
+      ) || [];
+
+      console.log('📋 [carregarVersoesProduto] Versões filtradas:', {
+        produtoId,
+        quantidade: versoesDoProduto.length,
+        versoes: versoesDoProduto.map(v => ({
+          id: v.id,
+          versao: v.versao,
+          servico_id: v.servico_id,
+          arquivos: v.arquivos?.length || 0
+        }))
+      });
+
+      // Processar versões com informações do arquivo
+      const versoesProcessadas: VersaoHistorico[] = versoesDoProduto.map((versao, index) => {
+        const primeiroArquivo = versao.arquivos?.[0];
+        return {
+          id: versao.id,
+          versao: versao.versao,
+          data: versao.data_criacao,
+          autor: versao.autor?.nome_completo || 'Desconhecido',
+          status: versao.status,
+          thumbnail: primeiroArquivo?.url_thumbnail || '',
+          nomeArquivo: primeiroArquivo?.nome_original,
+          descricao: versao.descricao,
+          servico_id: versao.servico_id,
+          isAtual: index === 0 // Primeira versão é a mais recente
+        };
+      });
+
+      console.log('✅ [carregarVersoesProduto] Versões processadas:', versoesProcessadas);
 
       setVersoesHistorico(versoesProcessadas);
       
@@ -343,3 +387,4 @@ export function useArtePublicData(token: string): UseArtePublicDataReturn {
     versaoAtual
   };
 }
+

@@ -71,7 +71,7 @@ export function ArtePublicTabs({
             <div className="flex items-center space-x-2">
               {getStatusIcon(produto.status, produto.statusColor)}
               <span className="text-sm font-medium text-gray-900">
-                {produto.versaoAtual} {produto.nome}
+                {produto.nome}
               </span>
             </div>
             
@@ -87,14 +87,9 @@ export function ArtePublicTabs({
               {getStatusLabel(produto.status)}
             </Badge>
           </div>
-          
-          {produtoSelecionado === produto.id && (
-            <div className="mt-2 text-xs text-purple-600">
-              Selecionado
-            </div>
-          )}
         </div>
       ))}
     </div>
   );
 }
+

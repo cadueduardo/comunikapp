@@ -1,6 +1,7 @@
 'use client';
 
 import { useFormContext, useFieldArray } from 'react-hook-form';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   FormControl,
@@ -141,14 +142,30 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
 
   // Função para calcular área automaticamente
   const calcularAreaAutomatica = (itemIndex: number) => {
-    const largura = Number(form.watch(`itens_produto.${itemIndex}.largura_produto`));
-    const altura = Number(form.watch(`itens_produto.${itemIndex}.altura_produto`));
+    const larguraStr = form.watch(`itens_produto.${itemIndex}.largura_produto`);
+    const alturaStr = form.watch(`itens_produto.${itemIndex}.altura_produto`);
     const unidade = form.watch(`itens_produto.${itemIndex}.unidade_medida_produto`);
+
+    // Converter string para número, tratando vírgulas
+    const largura = Number(larguraStr?.toString().replace(',', '.') || 0);
+    const altura = Number(alturaStr?.toString().replace(',', '.') || 0);
+
+    console.log(`🔍 Debug - Calculando área para produto ${itemIndex}:`, {
+      larguraStr,
+      alturaStr,
+      largura,
+      altura,
+      unidade,
+      larguraType: typeof largura,
+      alturaType: typeof altura
+    });
 
     if (largura && altura && unidade) {
       const area = calcularArea(largura, altura, unidade);
+      console.log(`🔍 Debug - Área calculada: ${area}`);
       form.setValue(`itens_produto.${itemIndex}.area_produto`, area.toFixed(2));
     } else {
+      console.log(`🔍 Debug - Valores inválidos, limpando área`);
       form.setValue(`itens_produto.${itemIndex}.area_produto`, '');
     }
   };
@@ -163,6 +180,27 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
     }
     return '0.00';
   };
+
+  // Recalcular área automaticamente quando os dados são carregados
+  useEffect(() => {
+    const itensProduto = form.watch('itens_produto');
+    if (itensProduto && Array.isArray(itensProduto)) {
+      itensProduto.forEach((_, index) => {
+        const largura = form.watch(`itens_produto.${index}.largura_produto`);
+        const altura = form.watch(`itens_produto.${index}.altura_produto`);
+        const unidade = form.watch(`itens_produto.${index}.unidade_medida_produto`);
+        
+        if (largura && altura && unidade) {
+          console.log(`🔍 Debug - Recalculando área inicial para produto ${index}:`, {
+            largura,
+            altura,
+            unidade
+          });
+          calcularAreaAutomatica(index);
+        }
+      });
+    }
+  }, [form.watch('itens_produto')]); // Executar quando itens_produto mudar
 
   return (
     <div className="space-y-6">

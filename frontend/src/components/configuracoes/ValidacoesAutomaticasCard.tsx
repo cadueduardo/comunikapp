@@ -9,7 +9,6 @@ import {
   Activity, 
   AlertTriangle, 
   CheckCircle,
-  ArrowRight,
   Plus,
   BarChart3
 } from 'lucide-react';
@@ -26,24 +25,22 @@ interface ValidacoesAutomaticasCardProps {
 
 export function ValidacoesAutomaticasCard({ stats }: ValidacoesAutomaticasCardProps) {
   return (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer group">
-      <Link href="/configuracoes/validacoes-automaticas">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
-                <Shield className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Validações Automáticas</CardTitle>
-                <CardDescription>
-                  Configure regras de validação para OSs
-                </CardDescription>
-              </div>
+    <Card className="hover:shadow-md transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-blue-100 rounded-lg transition-colors">
+              <Shield className="h-6 w-6 text-blue-600" />
             </div>
-            <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
+            <div>
+              <CardTitle className="text-lg">Validações Automáticas</CardTitle>
+              <CardDescription>
+                Configure regras de validação para OSs
+              </CardDescription>
+            </div>
           </div>
-        </CardHeader>
+        </div>
+      </CardHeader>
         
         <CardContent className="pt-0">
           {/* Estatísticas */}
@@ -142,7 +139,6 @@ export function ValidacoesAutomaticasCard({ stats }: ValidacoesAutomaticasCardPr
             </div>
           </div>
         </CardContent>
-      </Link>
     </Card>
   );
 }

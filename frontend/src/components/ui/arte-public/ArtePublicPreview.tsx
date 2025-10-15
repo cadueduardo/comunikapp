@@ -114,3 +114,4 @@ export function ArtePublicPreview({
     </div>
   );
 }
+

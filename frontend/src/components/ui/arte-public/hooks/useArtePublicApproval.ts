@@ -67,6 +67,7 @@ interface VersaoArte {
     nome: string;
     email: string;
   };
+  nomeArquivo?: string;
   arquivos: Array<{
     id: string;
     nome_original: string;
@@ -211,13 +212,44 @@ export function useArtePublicApproval(token: string): UseArtePublicApprovalRetur
         throw new Error(data.message);
       }
 
+      console.log('🔍 [carregarDados] Dados brutos da API:', data.data);
+      console.log('🔍 [carregarDados] Versões da API:', data.data.versoes?.map(v => ({
+        id: v.id,
+        versao: v.versao,
+        data_criacao: v.data_criacao,
+        tipo_data: typeof v.data_criacao
+      })));
       setArteData(data.data);
       processarDados(data.data);
       
     } catch (error: any) {
       console.error('Erro ao carregar dados da arte:', error);
-      setError(error.message || 'Erro ao carregar dados da arte');
-      toast.error('Erro ao carregar dados da arte');
+      
+      // Tratamento específico para diferentes tipos de erro
+      let errorMessage = 'Erro ao carregar dados da arte';
+      let toastMessage = 'Erro ao carregar dados da arte';
+      
+      if (error.message) {
+        if (error.message.includes('Link de aprovação inativo')) {
+          errorMessage = 'Este link de aprovação não está mais ativo. Entre em contato com o responsável para solicitar um novo link.';
+          toastMessage = 'Link de aprovação inativo';
+        } else if (error.message.includes('Link de aprovação expirado')) {
+          errorMessage = 'Este link de aprovação expirou. Entre em contato com o responsável para solicitar um novo link.';
+          toastMessage = 'Link de aprovação expirado';
+        } else if (error.message.includes('Link de aprovação não encontrado')) {
+          errorMessage = 'Link de aprovação não encontrado. Verifique se o link está correto.';
+          toastMessage = 'Link não encontrado';
+        } else if (error.message.includes('Arte já foi aprovada')) {
+          errorMessage = 'Esta arte já foi aprovada.';
+          toastMessage = 'Arte já aprovada';
+        } else {
+          errorMessage = error.message;
+          toastMessage = error.message;
+        }
+      }
+      
+      setError(errorMessage);
+      toast.error(toastMessage);
     } finally {
       setLoading(false);
     }
@@ -225,6 +257,12 @@ export function useArtePublicApproval(token: string): UseArtePublicApprovalRetur
 
   // Processar dados para a interface
   const processarDados = (data: ArteData) => {
+    console.log('🔍 [processarDados] Dados recebidos:', {
+      arquivos: data.arquivos?.length || 0,
+      versoes: data.versoes?.length || 0,
+      primeiroArquivo: data.arquivos?.[0]?.nome_original
+    });
+
     // Tentar extrair nome do produto do arquivo ou usar fallback
     const arquivoPrincipal = data.arquivos?.[0];
     let nomeProduto = 'Arte Principal'; // Fallback padrão
@@ -232,6 +270,8 @@ export function useArtePublicApproval(token: string): UseArtePublicApprovalRetur
     if (arquivoPrincipal?.nome_original) {
       // Tentar extrair nome do produto do nome do arquivo
       const nomeArquivo = arquivoPrincipal.nome_original;
+      console.log('🔍 [processarDados] Nome do arquivo:', nomeArquivo);
+      
       // Remover extensão e tentar identificar produto
       const nomeSemExtensao = nomeArquivo.replace(/\.[^/.]+$/, '');
       
@@ -252,6 +292,9 @@ export function useArtePublicApproval(token: string): UseArtePublicApprovalRetur
         nomeProduto = 'Cartaz';
       } else if (nomeSemExtensao.toLowerCase().includes('adesivo')) {
         nomeProduto = 'Adesivo';
+      } else if (nomeSemExtensao.toLowerCase().includes('thumb')) {
+        // Se contém "thumb", é provavelmente um thumbnail, usar nome mais genérico
+        nomeProduto = 'Arte Principal';
       } else {
         // Usar parte do nome do arquivo como nome do produto
         const partesNome = nomeSemExtensao.split(/[-_\s]/);
@@ -260,64 +303,131 @@ export function useArtePublicApproval(token: string): UseArtePublicApprovalRetur
           !/^\d+$/.test(parte) && 
           !/^\d{8}$/.test(parte) && // datas YYYYMMDD
           !/^\d{6}$/.test(parte) && // datas YYMMDD
-          parte.length > 2
+          parte.length > 2 &&
+          !parte.toLowerCase().includes('thumb') // Excluir "thumb"
         );
         
         if (partesFiltradas.length > 0) {
           nomeProduto = partesFiltradas[0];
         } else {
           // Se não conseguiu detectar, usar nome baseado no contexto
-          // Como é uma arte de chef/cozinha, pode ser um banner ou cartaz
-          nomeProduto = 'Banner';
+          nomeProduto = 'Arte Principal';
         }
       }
     }
     
-    // Como a API retorna apenas uma versão específica, vamos criar um "produto" único
-    const produtoUnico: ProdutoArte = {
-      id: data.versao.id,
-      nome: nomeProduto,
-      versaoAtual: data.versao.versao,
-      status: data.versao.status as 'APROVADA' | 'ENVIADA_CLIENTE' | 'REVISAO_SOLICITADA',
-      statusColor: getStatusColor(data.versao.status)
-    };
-
-    setProdutos([produtoUnico]);
-
-    // Verificar se a API retorna múltiplas versões
-    if (data.versoes && Array.isArray(data.versoes) && data.versoes.length > 0) {
-      // Usar as versões reais da API
-      const versoesReais: VersaoArte[] = data.versoes.map((versao: any) => ({
-        id: versao.id,
-        versao: versao.versao,
-        status: versao.status,
-        descricao: versao.descricao,
-        data_criacao: versao.data_criacao,
-        autor: versao.autor || data.autor,
-        arquivos: versao.arquivos || []
+    console.log('✅ [processarDados] Nome do produto final:', nomeProduto);
+    
+    // Verificar se a API retorna dados de produtos estruturados
+    let produtosProcessados: ProdutoArte[] = [];
+    
+    if (data.produtos && Array.isArray(data.produtos) && data.produtos.length > 0) {
+      // Usar os produtos reais da API
+      produtosProcessados = data.produtos.map((produto: any) => ({
+        id: produto.id,
+        nome: produto.nome,
+        versaoAtual: produto.versao_mais_recente?.versao || 'v1',
+        status: produto.versao_mais_recente?.status as 'APROVADA' | 'ENVIADA_CLIENTE' | 'REVISAO_SOLICITADA' || 'ENVIADA_CLIENTE',
+        statusColor: getStatusColor(produto.versao_mais_recente?.status || 'ENVIADA_CLIENTE')
       }));
       
-      setVersoes(versoesReais);
-      // Selecionar a versão atual (associada ao token) por padrão
-      setVersaoSelecionada(data.versao.id);
+      console.log('✅ [processarDados] Produtos da API:', produtosProcessados);
+    } else if (data.versoes && Array.isArray(data.versoes) && data.versoes.length > 0) {
+      // Se não há produtos estruturados, mas há versões, criar produtos baseados nas versões
+      console.log('🔍 [processarDados] Criando produtos baseados nas versões:', data.versoes.length);
+      
+      // Agrupar versões por servico_id (produto)
+      const versoesPorProduto = data.versoes.reduce((acc: any, versao: any) => {
+        const produtoId = versao.servico_id || 'produto-principal';
+        if (!acc[produtoId]) {
+          acc[produtoId] = [];
+        }
+        acc[produtoId].push(versao);
+        return acc;
+      }, {});
+
+      console.log('📋 [processarDados] Versões agrupadas por produto:', versoesPorProduto);
+
+      // Criar produtos baseados nos grupos
+      produtosProcessados = Object.keys(versoesPorProduto).map((produtoId, index) => {
+        const versoesDoProduto = versoesPorProduto[produtoId];
+        const versaoMaisRecente = versoesDoProduto[0]; // Já ordenado por data_criacao desc
+        
+        // Tentar extrair nome do produto do arquivo ou usar fallback
+        const arquivoPrincipal = versaoMaisRecente.arquivos?.[0];
+        let nomeProduto = `Produto ${index + 1}`;
+        
+        if (arquivoPrincipal?.nome_original) {
+          const nomeArquivo = arquivoPrincipal.nome_original;
+          const nomeSemExtensao = nomeArquivo.replace(/\.[^/.]+$/, '');
+          
+          // Detectar tipo de produto pelo nome do arquivo
+          if (nomeSemExtensao.toLowerCase().includes('banner')) {
+            nomeProduto = 'Banner';
+          } else if (nomeSemExtensao.toLowerCase().includes('adesivo')) {
+            nomeProduto = 'Adesivo';
+          } else if (nomeSemExtensao.toLowerCase().includes('flyer')) {
+            nomeProduto = 'Flyer';
+          } else if (nomeSemExtensao.toLowerCase().includes('cartao')) {
+            nomeProduto = 'Cartão';
+          } else if (nomeSemExtensao.toLowerCase().includes('logo')) {
+            nomeProduto = 'Logo';
+          } else if (nomeSemExtensao.toLowerCase().includes('panfleto')) {
+            nomeProduto = 'Panfleto';
+          } else if (nomeSemExtensao.toLowerCase().includes('lona')) {
+            nomeProduto = 'Lona com Ilhós';
+          } else if (nomeSemExtensao.toLowerCase().includes('cartaz')) {
+            nomeProduto = 'Cartaz';
+          } else {
+            // Usar parte do nome do arquivo
+            const partesNome = nomeSemExtensao.split(/[-_\s]/);
+            const partesFiltradas = partesNome.filter(parte => 
+              !/^\d+$/.test(parte) && 
+              !/^\d{8}$/.test(parte) && 
+              !/^\d{6}$/.test(parte) && 
+              parte.length > 2 &&
+              !parte.toLowerCase().includes('thumb')
+            );
+            
+            if (partesFiltradas.length > 0) {
+              nomeProduto = partesFiltradas[0];
+            }
+          }
+        }
+
+        return {
+          id: produtoId,
+          nome: nomeProduto,
+          versaoAtual: versaoMaisRecente.versao,
+          status: versaoMaisRecente.status as 'APROVADA' | 'ENVIADA_CLIENTE' | 'REVISAO_SOLICITADA',
+          statusColor: getStatusColor(versaoMaisRecente.status)
+        };
+      });
+
+      console.log('✅ [processarDados] Produtos criados baseados nas versões:', produtosProcessados);
     } else {
-      // Usar apenas a versão atual
-      const versaoAtual: VersaoArte = {
+      // Fallback: criar produto único baseado na versão atual
+      const produtoUnico: ProdutoArte = {
         id: data.versao.id,
-        versao: data.versao.versao,
-        status: data.versao.status,
-        descricao: data.versao.descricao,
-        data_criacao: data.versao.data_criacao,
-        autor: data.autor,
-        arquivos: data.arquivos || []
+        nome: nomeProduto,
+        versaoAtual: data.versao.versao,
+        status: data.versao.status as 'APROVADA' | 'ENVIADA_CLIENTE' | 'REVISAO_SOLICITADA',
+        statusColor: getStatusColor(data.versao.status)
       };
 
-      setVersoes([versaoAtual]);
-      setVersaoSelecionada(versaoAtual.id);
+      produtosProcessados = [produtoUnico];
+      console.log('✅ [processarDados] Produto único criado:', produtoUnico);
     }
 
-    // Selecionar o produto único automaticamente
-    setProdutoSelecionado(produtoUnico.id);
+    setProdutos(produtosProcessados);
+
+    // NÃO carregar todas as versões de uma vez - isso será feito quando um produto for selecionado
+    // Apenas preparar os dados para uso posterior
+
+    // Selecionar o primeiro produto automaticamente
+    if (produtosProcessados.length > 0) {
+      setProdutoSelecionado(produtosProcessados[0].id);
+    }
 
     // Processar comentários diretamente dos dados da API
     if (data.comentarios && Array.isArray(data.comentarios)) {
@@ -335,10 +445,99 @@ export function useArtePublicApproval(token: string): UseArtePublicApprovalRetur
     }
   };
 
-  // Carregar versões de um produto específico (simplificado)
+  // Carregar versões de um produto específico
   const carregarVersoesProduto = async (produtoId: string) => {
-    // Como já temos os dados da versão única, não precisamos fazer nada aqui
     console.log('📋 Carregando versões para produto:', produtoId);
+    
+    if (!arteData) return;
+    
+    // Se há múltiplas versões, filtrar por produto
+    if (arteData.versoes && Array.isArray(arteData.versoes) && arteData.versoes.length > 0) {
+      const versoesDoProduto = arteData.versoes.filter((versao: any) => 
+        versao.servico_id === produtoId
+      );
+      
+      console.log('📋 Versões filtradas para produto:', {
+        produtoId,
+        quantidade: versoesDoProduto.length,
+        versoes: versoesDoProduto.map(v => ({ id: v.id, versao: v.versao, servico_id: v.servico_id }))
+      });
+      
+      // Atualizar versões com as versões do produto selecionado
+      const versoesProcessadas: VersaoArte[] = versoesDoProduto.map((versao: any) => {
+        console.log('🔍 [carregarVersoesProduto] Processando versão:', {
+          id: versao.id,
+          versao: versao.versao,
+          data_criacao: versao.data_criacao,
+          tipo_data: typeof versao.data_criacao,
+          data_criacao_keys: versao.data_criacao && typeof versao.data_criacao === 'object' ? Object.keys(versao.data_criacao) : 'N/A'
+        });
+        
+        // Converter data_criacao para string se for um objeto vazio (problema de serialização BigInt)
+        let dataCriacao = versao.data_criacao;
+        if (typeof dataCriacao === 'object' && dataCriacao !== null && Object.keys(dataCriacao).length === 0) {
+          console.warn('🔧 [carregarVersoesProduto] Data vazia detectada, usando data atual como fallback');
+          dataCriacao = new Date().toISOString();
+        } else if (typeof dataCriacao === 'object' && dataCriacao !== null) {
+          // Se é um objeto com propriedades, tentar extrair a data
+          const dateValue = dataCriacao.$date || dataCriacao.value || dataCriacao.toString();
+          if (dateValue) {
+            dataCriacao = new Date(dateValue).toISOString();
+          } else {
+            console.warn('🔧 [carregarVersoesProduto] Objeto de data incompreensível, usando data atual');
+            dataCriacao = new Date().toISOString();
+          }
+        }
+
+        return {
+          id: versao.id,
+          versao: versao.versao,
+          status: versao.status,
+          descricao: versao.descricao,
+          data_criacao: dataCriacao,
+          autor: versao.autor || arteData.autor,
+          nomeArquivo: versao.arquivos?.[0]?.nome_original,
+          arquivos: versao.arquivos || []
+        };
+      });
+      
+      setVersoes(versoesProcessadas);
+      
+      // Selecionar a primeira versão do produto
+      if (versoesProcessadas.length > 0) {
+        setVersaoSelecionada(versoesProcessadas[0].id);
+      }
+    } else {
+      // Se não há múltiplas versões, usar apenas a versão atual
+      // Converter data_criacao para string se for um objeto vazio
+      let dataCriacao = arteData.versao.data_criacao;
+      if (typeof dataCriacao === 'object' && dataCriacao !== null && Object.keys(dataCriacao).length === 0) {
+        console.warn('🔧 [carregarVersoesProduto] Data vazia detectada (versão única), usando data atual como fallback');
+        dataCriacao = new Date().toISOString();
+      } else if (typeof dataCriacao === 'object' && dataCriacao !== null) {
+        const dateValue = dataCriacao.$date || dataCriacao.value || dataCriacao.toString();
+        if (dateValue) {
+          dataCriacao = new Date(dateValue).toISOString();
+        } else {
+          console.warn('🔧 [carregarVersoesProduto] Objeto de data incompreensível (versão única), usando data atual');
+          dataCriacao = new Date().toISOString();
+        }
+      }
+
+      const versaoAtual: VersaoArte = {
+        id: arteData.versao.id,
+        versao: arteData.versao.versao,
+        status: arteData.versao.status,
+        descricao: arteData.versao.descricao,
+        data_criacao: dataCriacao,
+        autor: arteData.autor,
+        nomeArquivo: arteData.arquivos?.[0]?.nome_original,
+        arquivos: arteData.arquivos || []
+      };
+
+      setVersoes([versaoAtual]);
+      setVersaoSelecionada(versaoAtual.id);
+    }
   };
 
   // Carregar mensagens de uma versão
@@ -474,6 +673,13 @@ export function useArtePublicApproval(token: string): UseArtePublicApprovalRetur
       carregarDados();
     }
   }, [token, carregarDados]); // Incluir carregarDados nas dependências
+
+  // Carregar versões quando um produto for selecionado
+  useEffect(() => {
+    if (produtoSelecionado && arteData) {
+      carregarVersoesProduto(produtoSelecionado);
+    }
+  }, [produtoSelecionado, arteData]);
 
   return {
     // Estados principais

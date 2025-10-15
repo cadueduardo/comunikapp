@@ -1,13 +1,19 @@
 'use client';
 
 import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   CheckCircle, 
   Clock, 
   XCircle,
   User,
-  Calendar
+  Calendar,
+  Download,
+  X,
+  Maximize2
 } from 'lucide-react';
+// Removido useIsMobile para evitar erro do React
 
 interface VersaoArte {
   id: string;
@@ -37,13 +43,21 @@ interface ArtePublicMainSimpleProps {
   } | null;
   loading: boolean;
   token: string;
+  onDownload?: () => void;
 }
 
 export function ArtePublicMainSimple({
   versaoAtual,
   produtoAtual,
   loading,
-  token
+  token,
+  onDownload,
+  onAprovar,
+  onRejeitar,
+  declarationChecked = false,
+  onDeclarationChange,
+  processing = false,
+  readonly = false
 }: ArtePublicMainSimpleProps) {
 
   const formatarData = (dataString: any): string => {
@@ -93,7 +107,9 @@ export function ArtePublicMainSimple({
   };
 
   const isPdfFile = (tipo: string, nome: string) => {
-    return tipo === 'application/pdf' || nome.toLowerCase().endsWith('.pdf');
+    const isPdf = tipo === 'application/pdf' || nome.toLowerCase().endsWith('.pdf');
+    console.log('🔍 [isPdfFile] Verificando se é PDF:', { tipo, nome, isPdf });
+    return isPdf;
   };
 
   if (loading) {
@@ -120,54 +136,113 @@ export function ArtePublicMainSimple({
 
   const arquivoPrincipal = versaoAtual.arquivos[0];
   
-  // Usar arquivo original em alta qualidade, não thumbnail
+  // Construir URL do arquivo para visualização
   let imageSrc = '';
+  console.log('🔍 [ArtePublicMainSimple] Arquivo principal:', arquivoPrincipal);
+  
   if (arquivoPrincipal?.url_arquivo) {
-    // SOLUÇÃO TEMPORÁRIA: Usar endpoint de arquivos estáticos
-    // O arquivo está em: backend/uploads/arte/cmgp6zhzs0003ja1sxdeal4wl/1760363516121-377257937-20250720_165442.jpg
-    // Endpoint estático: http://localhost:4000/uploads/arte/cmgp6zhzs0003ja1sxdeal4wl/1760363516121-377257937-20250720_165442.jpg
+    console.log('🔍 [ArtePublicMainSimple] URL do arquivo original:', arquivoPrincipal.url_arquivo);
     
-    // Extrair o nome do arquivo da URL
-    const filename = arquivoPrincipal.url_arquivo.split('/').pop();
-    // Obter versaoId da URL do arquivo ou do token
-    const urlParts = arquivoPrincipal.url_arquivo.split('/');
-    const versaoIndex = urlParts.findIndex(part => part === 'versoes');
-    const versaoId = versaoIndex !== -1 ? urlParts[versaoIndex + 1] : null;
-    
-    if (versaoId && filename) {
-      imageSrc = `http://localhost:4000/uploads/arte/${versaoId}/${filename}`;
+    // Se a URL já é completa (começa com http), usar diretamente
+    if (arquivoPrincipal.url_arquivo.startsWith('http')) {
+      imageSrc = arquivoPrincipal.url_arquivo;
+      console.log('✅ [ArtePublicMainSimple] URL completa detectada:', imageSrc);
+    } else {
+      // Se é uma URL relativa, construir a URL completa
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      console.log('🔍 [ArtePublicMainSimple] Base URL:', baseUrl);
+      
+      // Se a URL começa com /uploads, adicionar apenas o baseUrl
+      if (arquivoPrincipal.url_arquivo.startsWith('/uploads')) {
+        imageSrc = `${baseUrl}${arquivoPrincipal.url_arquivo}`;
+        console.log('✅ [ArtePublicMainSimple] URL com /uploads:', imageSrc);
+      } else {
+        // Extrair o nome do arquivo da URL
+        const filename = arquivoPrincipal.url_arquivo.split('/').pop();
+        // Obter versaoId da URL do arquivo
+        const urlParts = arquivoPrincipal.url_arquivo.split('/');
+        const versaoIndex = urlParts.findIndex(part => part === 'versoes');
+        const versaoId = versaoIndex !== -1 ? urlParts[versaoIndex + 1] : null;
+        
+        console.log('🔍 [ArtePublicMainSimple] Construindo URL:', { filename, versaoId, urlParts });
+        
+        if (versaoId && filename) {
+          imageSrc = `${baseUrl}/uploads/arte/${versaoId}/${filename}`;
+          console.log('✅ [ArtePublicMainSimple] URL construída:', imageSrc);
+        } else {
+          console.warn('⚠️ [ArtePublicMainSimple] Não foi possível construir URL:', { versaoId, filename });
+        }
+      }
     }
   } else if (arquivoPrincipal?.url_thumbnail) {
     // Fallback para thumbnail se não houver arquivo original
-    imageSrc = `http://localhost:4000${arquivoPrincipal.url_thumbnail}`;
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    if (arquivoPrincipal.url_thumbnail.startsWith('http')) {
+      imageSrc = arquivoPrincipal.url_thumbnail;
+    } else {
+      imageSrc = `${baseUrl}${arquivoPrincipal.url_thumbnail}`;
+    }
+    console.log('✅ [ArtePublicMainSimple] Usando thumbnail:', imageSrc);
+  } else {
+    console.warn('⚠️ [ArtePublicMainSimple] Nenhuma URL de arquivo encontrada');
+  }
+  
+  console.log('🎯 [ArtePublicMainSimple] URL final para visualização:', imageSrc);
+  
+  // Testar se a URL está acessível
+  if (imageSrc) {
+    fetch(imageSrc, { method: 'HEAD' })
+      .then(response => {
+        console.log('🔍 [ArtePublicMainSimple] Teste de acesso à URL:', {
+          url: imageSrc,
+          status: response.status,
+          statusText: response.statusText,
+          contentType: response.headers.get('content-type'),
+          contentDisposition: response.headers.get('content-disposition')
+        });
+      })
+      .catch(error => {
+        console.error('❌ [ArtePublicMainSimple] Erro ao acessar URL:', error);
+      });
   }
 
   const [showModal, setShowModal] = React.useState(false);
+  const [showMobileModal, setShowMobileModal] = React.useState(false);
 
   return (
     <>
-      <div className="flex-1 bg-white border border-gray-200 rounded-lg overflow-hidden">
-        {/* Header simplificado */}
-        <div className="bg-gray-50 border-b border-gray-200 px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Criado por {versaoAtual.autor.nome}
+      <div className="flex-1 bg-white border border-gray-200 rounded-lg overflow-hidden flex flex-col">
+
+        {/* Contexto da imagem - título, versão e download - Oculto em mobile */}
+        <div className="hidden lg:block bg-gray-50 px-3 sm:px-4 py-2 border-b border-gray-200">
+          <div className="flex items-center justify-between gap-3">
+            {/* Nome do produto e versão */}
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <span className="font-semibold text-base sm:text-lg text-gray-900 truncate">
+                {produtoAtual?.nome || 'Produto'}
+              </span>
+              <span className="text-xs sm:text-sm text-gray-600 bg-white px-2 py-1 rounded border flex-shrink-0">
+                {versaoAtual.versao.toUpperCase()}
+              </span>
             </div>
+            
+            {/* Botão de download */}
+            {onDownload && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onDownload}
+                className="flex items-center gap-1 text-xs sm:text-sm px-2 sm:px-3 py-1 h-7 sm:h-8 flex-shrink-0"
+              >
+                <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Baixar</span>
+              </Button>
+            )}
           </div>
         </div>
 
-        {/* Contexto da imagem - título e versão */}
-        <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-lg">{produtoAtual?.nome || 'Produto'}</span>
-            <span className="text-sm text-gray-600 bg-white px-2 py-1 rounded border">
-              Versão {versaoAtual.versao}
-            </span>
-          </div>
-        </div>
-
-        {/* Preview da Arte */}
-        <div className="flex-1 bg-gray-50 min-h-0 overflow-auto">
+        {/* Preview da Arte - Desktop */}
+        <div className="hidden lg:flex lg:flex-1 bg-gray-50 min-h-0 overflow-auto">
           <div className="w-full h-full flex items-center justify-center p-4">
             {imageSrc ? (
               isPdfFile(arquivoPrincipal.tipo_arquivo, arquivoPrincipal.nome_original) ? (
@@ -176,6 +251,13 @@ export function ArtePublicMainSimple({
                     src={imageSrc}
                     className="w-full h-full rounded-lg shadow-lg"
                     title={arquivoPrincipal.nome_original}
+                    onError={(e) => {
+                      console.error('❌ [ArtePublicMainSimple] Erro ao carregar PDF no iframe:', e);
+                      console.error('❌ [ArtePublicMainSimple] URL que falhou:', imageSrc);
+                    }}
+                    onLoad={() => {
+                      console.log('✅ [ArtePublicMainSimple] PDF carregado com sucesso:', imageSrc);
+                    }}
                   />
                 </div>
               ) : isImageFile(arquivoPrincipal.tipo_arquivo) ? (
@@ -207,9 +289,12 @@ export function ArtePublicMainSimple({
             )}
           </div>
         </div>
+
+        {/* Área completamente oculta em mobile */}
+        <div className="lg:hidden hidden"></div>
       </div>
 
-      {/* Modal para visualização completa */}
+      {/* Modal para visualização completa - Desktop */}
       {showModal && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
@@ -248,6 +333,61 @@ export function ArtePublicMainSimple({
           </div>
         </div>
       )}
+
+      {/* Modal Mobile - Tela cheia para visualização da arte */}
+      {showMobileModal && (
+        <div 
+          className="fixed inset-0 bg-black z-50 flex flex-col"
+          onClick={() => setShowMobileModal(false)}
+        >
+          {/* Header do Modal Mobile */}
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-b border-gray-200">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg font-semibold text-gray-900 truncate">
+                {produtoAtual?.nome || 'Produto'}
+              </h3>
+              <p className="text-sm text-gray-600">
+                {versaoAtual.versao.toUpperCase()} • {arquivoPrincipal?.nome_original}
+              </p>
+            </div>
+            <button 
+              onClick={() => setShowMobileModal(false)}
+              className="ml-4 p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Conteúdo da Arte em Tela Cheia */}
+          <div className="flex-1 bg-black flex items-center justify-center p-4">
+            {imageSrc && (
+              isPdfFile(arquivoPrincipal.tipo_arquivo, arquivoPrincipal.nome_original) ? (
+                <iframe
+                  src={imageSrc}
+                  className="w-full h-full rounded-lg"
+                  title={arquivoPrincipal.nome_original}
+                />
+              ) : (
+                <img
+                  src={imageSrc}
+                  alt={arquivoPrincipal.nome_original}
+                  className="max-w-full max-h-full object-contain"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              )
+            )}
+          </div>
+
+          {/* Footer com informações */}
+          <div className="bg-white px-4 py-3 border-t border-gray-200">
+            <div className="flex items-center justify-between text-sm text-gray-600">
+              <span>Toque fora da imagem para fechar</span>
+              <span>{versaoAtual.versao.toUpperCase()}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
     </>
   );
 }

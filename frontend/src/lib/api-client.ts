@@ -353,7 +353,7 @@ export const tiposMaterialApi = {
   getAll: (token: string) => ApiClient.get('/tipos-material', token),
   getById: (id: string, token: string) => ApiClient.get(`/tipos-material/${id}`, token),
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/tipos-material', data, token),
-  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/tipos-material/${id}`, data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/tipos-material/${id}`, data, token),
   delete: (id: string, token: string) => ApiClient.delete(`/tipos-material/${id}`, token),
 };
 
