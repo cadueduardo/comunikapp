@@ -25,6 +25,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
+    "migrate:arte-comentarios": "ts-node src/modules/arte-aprovacao/scripts/migrate-comentarios-to-mensagens.ts",
     "db:generate:estoque": "prisma generate --schema=prisma/estoque-schema.prisma",
     "db:migrate:estoque": "prisma migrate dev --schema=prisma/estoque-schema.prisma",
     "db:deploy:estoque": "prisma migrate deploy --schema=prisma/estoque-schema.prisma",

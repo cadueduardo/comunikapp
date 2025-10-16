@@ -101,5 +101,7 @@ export interface ArtePreviewModalProps {
   versao?: ArteVersao;
   isOpen: boolean;
   onClose: () => void;
+  osId?: string;
+  produtoId?: string;
 }
 

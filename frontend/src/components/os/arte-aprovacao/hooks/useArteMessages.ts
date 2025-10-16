@@ -38,6 +38,8 @@ export function useArteMessages(osId: string): UseArteMessagesReturn {
       setLoading(true);
       setError(null);
       
+      console.log('🔄 [useArteMessages] Buscando mensagens não lidas para OS:', osId);
+      
       const token = localStorage.getItem('access_token');
       if (!token) {
         throw new Error('Token de autenticação não encontrado');
@@ -60,12 +62,16 @@ export function useArteMessages(osId: string): UseArteMessagesReturn {
 
       const mensagensNaoLidas = await response.json();
       
+      console.log('📊 [useArteMessages] Mensagens não lidas recebidas:', mensagensNaoLidas);
+      
       // Converter para o formato esperado (apenas mensagens não lidas do cliente)
       const produtosMessagesData: ProdutoMessages[] = mensagensNaoLidas.map((item: any) => ({
         produtoId: item.produto_id,
         totalMensagens: item.mensagens_nao_lidas, // Apenas mensagens não lidas do cliente
         mensagensNaoLidas: item.mensagens_nao_lidas,
       }));
+
+      console.log('✅ [useArteMessages] Contadores atualizados:', produtosMessagesData);
 
       setProdutosMessages(produtosMessagesData);
     } catch (err) {

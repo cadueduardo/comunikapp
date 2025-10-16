@@ -33,6 +33,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
       '/favicon.ico',
       '/arte-aprovacao/links/public', // Rotas públicas de aprovação de arte
       '/arte-aprovacao/comentarios/public', // Rotas públicas de comentários
+      '/arte-aprovacao/mensagens/publico', // Rotas públicas de mensagens
     ];
 
     // Verificar se a rota é pública

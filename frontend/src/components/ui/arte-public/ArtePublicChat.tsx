@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Send, User, Clock, AtSign } from 'lucide-react';
 import { toast } from 'sonner';
+import { useArteWebSocket } from '@/hooks/use-arte-websocket';
 
 interface VersaoHistorico {
   id: string;
@@ -31,28 +32,88 @@ interface ArtePublicChatProps {
   mensagens: MensagemArte[];
   onEnviarMensagem: (mensagem: string, mencoes?: string[]) => void;
   versoesDisponiveis: VersaoHistorico[];
+  versaoAtualId?: string;
+  tokenAprovacao?: string;
 }
 
 export function ArtePublicChat({
   mensagens,
   onEnviarMensagem,
-  versoesDisponiveis
+  versoesDisponiveis,
+  versaoAtualId,
+  tokenAprovacao
 }: ArtePublicChatProps) {
   const [novaMensagem, setNovaMensagem] = useState('');
   const [mostrarAutocomplete, setMostrarAutocomplete] = useState(false);
   const [posicaoCursor, setPosicaoCursor] = useState(0);
   const [versoesFiltradas, setVersoesFiltradas] = useState<VersaoHistorico[]>([]);
   const [enviando, setEnviando] = useState(false);
+  const [mensagensLocais, setMensagensLocais] = useState<MensagemArte[]>(mensagens);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mensagensRef = useRef<HTMLDivElement>(null);
+
+  // WebSocket para cliente público
+  const {
+    connectionStatus,
+    isConnected,
+    novaMensagem: novaMensagemWS,
+    usuariosTyping,
+    marcarMensagemLida,
+    entrarSalaVersao,
+    sairSalaVersao,
+    toggleTyping,
+  } = useArteWebSocket({
+    versaoId: versaoAtualId,
+    token: tokenAprovacao, // Token público para cliente
+  });
+
+  // Atualizar mensagens locais quando props mudarem
+  useEffect(() => {
+    setMensagensLocais(mensagens);
+  }, [mensagens]);
 
   // Auto-scroll para novas mensagens
   useEffect(() => {
     if (mensagensRef.current) {
       mensagensRef.current.scrollTop = mensagensRef.current.scrollHeight;
     }
-  }, [mensagens]);
+  }, [mensagensLocais]);
+
+  // Entrar/sair da sala da versão quando mudar
+  useEffect(() => {
+    if (versaoAtualId && isConnected) {
+      entrarSalaVersao(versaoAtualId);
+    }
+    
+    return () => {
+      if (versaoAtualId && isConnected) {
+        sairSalaVersao(versaoAtualId);
+      }
+    };
+  }, [versaoAtualId, isConnected, entrarSalaVersao, sairSalaVersao]);
+
+  // Listener para novas mensagens via WebSocket
+  useEffect(() => {
+    if (novaMensagemWS) {
+      const novaMsg: MensagemArte = {
+        id: novaMensagemWS.id,
+        autor_nome: novaMensagemWS.autor_nome,
+        autor_tipo: novaMensagemWS.autor_tipo,
+        mensagem: novaMensagemWS.mensagem,
+        mensagem_processada: novaMensagemWS.mensagemProcessada,
+        data_comentario: novaMensagemWS.created_at,
+        mencoes_versoes: novaMensagemWS.versoesMencionadas,
+      };
+      
+      setMensagensLocais(prev => [...prev, novaMsg]);
+      
+      // Marcar como lida se for da equipe (cliente lê mensagem da equipe)
+      if (novaMensagemWS.autor_tipo === 'EQUIPE') {
+        marcarMensagemLida(novaMensagemWS.id);
+      }
+    }
+  }, [novaMensagemWS, marcarMensagemLida]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -63,24 +124,27 @@ export function ArtePublicChat({
     
     // Verificar se está digitando menção
     const textoAntesCursor = value.substring(0, cursorPos);
-    const match = textoAntesCursor.match(/@art(\d*)$/);
+    const match = textoAntesCursor.match(/@[vV](\d*)$/);
     
     if (match) {
       const numeroDigitado = match[1];
       const versoesFiltradas = versoesDisponiveis.filter(v => 
-        v.versao.replace('v', '').startsWith(numeroDigitado)
+        v.versao.replace('V', '').replace('v', '').startsWith(numeroDigitado)
       );
       setVersoesFiltradas(versoesFiltradas);
       setMostrarAutocomplete(true);
     } else {
       setMostrarAutocomplete(false);
     }
+    
+    // Indicador de digitação
+    toggleTyping(true);
   };
 
   const inserirMenção = (versao: VersaoHistorico) => {
     const textoAntesCursor = novaMensagem.substring(0, posicaoCursor);
     const textoDepoisCursor = novaMensagem.substring(posicaoCursor);
-    const textoAntesMenção = textoAntesCursor.replace(/@art\d*$/, '');
+    const textoAntesMenção = textoAntesCursor.replace(/@[vV]\d*$/, '');
     
     const novaMensagemTexto = `${textoAntesMenção}@${versao.versao} ${textoDepoisCursor}`;
     setNovaMensagem(novaMensagemTexto);
@@ -93,7 +157,7 @@ export function ArtePublicChat({
   };
 
   const processarMenções = (mensagem: string): { mensagemProcessada: string; mencoes: string[] } => {
-    const regex = /@art(\d+)/g;
+    const regex = /@[vV](\d+)/g;
     const mencoes: string[] = [];
     let mensagemProcessada = mensagem;
     
@@ -101,7 +165,7 @@ export function ArtePublicChat({
     while ((match = regex.exec(mensagem)) !== null) {
       const numeroVersao = match[1];
       const versao = versoesDisponiveis.find(v => 
-        v.versao.replace('v', '') === numeroVersao
+        v.versao.replace('V', '').replace('v', '') === numeroVersao
       );
       
       if (versao) {
@@ -120,6 +184,9 @@ export function ArtePublicChat({
     try {
       setEnviando(true);
       const { mencoes } = processarMenções(novaMensagem);
+      
+      // Parar indicador de digitação
+      toggleTyping(false);
       
       await onEnviarMensagem(novaMensagem, mencoes);
       setNovaMensagem('');
@@ -151,20 +218,39 @@ export function ArtePublicChat({
 
   return (
     <div className="flex flex-col h-full">
+      {/* Status de conexão */}
+      <div className="flex items-center justify-between p-3 border-b bg-gray-50">
+        <div className="flex items-center space-x-2">
+          <div className={`w-2 h-2 rounded-full ${
+            connectionStatus === 'connected' ? 'bg-green-500' : 
+            connectionStatus === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
+          }`} />
+          <span className="text-xs text-gray-600">
+            {connectionStatus === 'connected' ? 'Conectado' : 
+             connectionStatus === 'connecting' ? 'Conectando...' : 'Desconectado'}
+          </span>
+        </div>
+        {usuariosTyping.length > 0 && (
+          <div className="text-xs text-gray-500">
+            {usuariosTyping.map(u => u.tipo).join(', ')} está digitando...
+          </div>
+        )}
+      </div>
+
       {/* Mensagens */}
       <div 
         ref={mensagensRef}
         className="flex-1 overflow-y-auto p-4 space-y-3"
       >
-        {mensagens.length === 0 ? (
+        {mensagensLocais.length === 0 ? (
           <div className="text-center py-8">
             <AtSign className="h-8 w-8 text-gray-400 mx-auto mb-2" />
             <p className="text-sm text-gray-500">
-              Use @v1, @v2 para referenciar versões específicas
+              Use @V1, @V2 para referenciar versões específicas
             </p>
           </div>
         ) : (
-          mensagens.map((mensagem) => (
+          mensagensLocais.map((mensagem) => (
             <div
               key={mensagem.id}
               className={`
@@ -257,14 +343,14 @@ export function ArtePublicChat({
             value={novaMensagem}
             onChange={handleInputChange}
             onKeyPress={handleKeyPress}
-            placeholder="Digite sua mensagem... Use @v1, @v2 para referenciar versões"
+            placeholder="Digite sua mensagem... Use @V1, @V2 para referenciar versões"
             className="resize-none min-h-[60px] pr-12"
             disabled={enviando}
           />
           
           <Button
             onClick={handleEnviar}
-            disabled={!novaMensagem.trim() || enviando}
+            disabled={!novaMensagem.trim() || enviando || !isConnected}
             size="sm"
             className="absolute bottom-2 right-2"
           >
@@ -279,4 +365,5 @@ export function ArtePublicChat({
     </div>
   );
 }
+
 

@@ -222,6 +222,7 @@ export function ArtePublicSidebarNew({
           token={token}
           versoesDisponiveis={versoes}
           produtoNome={produtoAtual?.nome || ''}
+          produtoId={produtoAtual?.id}
           onMensagemEnviada={() => {
             // Callback para atualizar notificações no sistema interno
             console.log('Mensagem enviada - atualizar notificações');

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { notificacoesApi } from '@/lib/api-client';
+import { useArteWebSocket } from '@/hooks/use-arte-websocket';
 
 interface Notificacao {
   id: string;
@@ -38,6 +39,12 @@ export function NotificacoesDropdown() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef(1); // Ref para manter a página atual sem causar re-renders
+
+  // WebSocket para notificações de arte em tempo real
+  const { novaMensagem: novaMensagemArte } = useArteWebSocket({
+    lojaId: localStorage.getItem('loja_id') || undefined,
+    usuarioId: localStorage.getItem('user_id') || undefined,
+  });
 
   const carregarNotificacoes = useCallback(async (reset = false) => {
     try {
@@ -115,6 +122,34 @@ export function NotificacoesDropdown() {
     carregarNotificacoes(true); // Reset para carregar as primeiras notificações
     carregarContador();
   }, [carregarNotificacoes]);
+
+  // Listener para novas mensagens de arte via WebSocket
+  useEffect(() => {
+    if (novaMensagemArte && novaMensagemArte.mensagem && novaMensagemArte.autor_nome) {
+      // Mostrar toast de notificação para mensagens de arte
+      if (novaMensagemArte.autor_tipo === 'CLIENTE') {
+        const mensagemPreview = novaMensagemArte.mensagem.substring(0, 50) + 
+          (novaMensagemArte.mensagem.length > 50 ? '...' : '');
+        
+        toast.info(`Nova mensagem na aprovação de arte`, {
+          description: `${novaMensagemArte.autor_nome}: ${mensagemPreview}`,
+          action: {
+            label: 'Ver',
+            onClick: () => {
+              // TODO: Navegar para a página de aprovação de arte específica
+              console.log('Navegar para arte:', novaMensagemArte.versao_id);
+            },
+          },
+        });
+        
+        // Atualizar contador de notificações
+        setNaoVisualizadas(prev => prev + 1);
+        
+        // Recarregar notificações para incluir a nova
+        carregarNotificacoes(true);
+      }
+    }
+  }, [novaMensagemArte, carregarNotificacoes]);
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {

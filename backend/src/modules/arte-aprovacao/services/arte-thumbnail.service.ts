@@ -16,7 +16,7 @@ export class ArteThumbnailService {
       width?: number;
       height?: number;
       quality?: number;
-    } = {}
+    } = {},
   ): Promise<string | null> {
     try {
       // Verificar se o arquivo existe
@@ -28,7 +28,7 @@ export class ArteThumbnailService {
       // Verificar se é uma imagem
       const ext = extname(filePath).toLowerCase();
       const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
-      
+
       if (!imageExtensions.includes(ext)) {
         this.logger.debug(`Arquivo não é uma imagem: ${ext}`);
         return null;
@@ -40,7 +40,10 @@ export class ArteThumbnailService {
       const quality = options.quality || 80;
 
       // Gerar nome do thumbnail
-      const dir = filePath.substring(0, Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\')));
+      const dir = filePath.substring(
+        0,
+        Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\')),
+      );
       const fileName = basename(filePath, ext);
       const thumbnailPath = join(dir, `thumb_${fileName}.jpg`);
 
@@ -56,7 +59,10 @@ export class ArteThumbnailService {
       this.logger.log(`✅ Thumbnail gerado: ${thumbnailPath}`);
       return thumbnailPath;
     } catch (error) {
-      this.logger.error(`❌ Erro ao gerar thumbnail: ${error.message}`, error.stack);
+      this.logger.error(
+        `❌ Erro ao gerar thumbnail: ${(error as Error).message}`,
+        (error as Error).stack,
+      );
       return null;
     }
   }
@@ -66,7 +72,7 @@ export class ArteThumbnailService {
    */
   async generateMultipleThumbnails(
     filePath: string,
-    sizes: Array<{ name: string; width: number; height: number }>
+    sizes: Array<{ name: string; width: number; height: number }>,
   ): Promise<Record<string, string>> {
     const thumbnails: Record<string, string> = {};
 
@@ -108,7 +114,6 @@ export class ArteThumbnailService {
       }
 
       const metadata = await sharp(filePath).metadata();
-      const stats = await sharp(filePath).stats();
 
       return {
         width: metadata.width || 0,
@@ -117,9 +122,10 @@ export class ArteThumbnailService {
         size: metadata.size || 0,
       };
     } catch (error) {
-      this.logger.error(`Erro ao obter info da imagem: ${error.message}`);
+      this.logger.error(
+        `Erro ao obter info da imagem: ${(error as Error).message}`,
+      );
       return null;
     }
   }
 }
-

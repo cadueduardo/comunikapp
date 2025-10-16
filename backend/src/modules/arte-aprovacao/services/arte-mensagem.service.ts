@@ -1,8 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ArteNotificacaoService } from './arte-notificacao.service';
+import { ArteWebSocketGateway } from '../gateways/arte-websocket.gateway';
 import { CreateMensagemDto, UpdateMensagemDto } from '../dto/mensagem.dto';
 import { AutorTipo } from '@prisma/client';
+import { NotificacoesService } from '../../../notificacoes/notificacoes.service';
 
 @Injectable()
 export class ArteMensagemService {
@@ -11,12 +13,51 @@ export class ArteMensagemService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificacaoService: ArteNotificacaoService,
+    private readonly notificacoesGlobalService: NotificacoesService,
+    @Inject(forwardRef(() => ArteWebSocketGateway))
+    private readonly websocketGateway: ArteWebSocketGateway,
   ) {}
+
+  /**
+   * Processar menções na mensagem
+   */
+  processarMencoes(mensagem: string): { 
+    mensagemProcessada: string; 
+    versoesMencionadas: string[] 
+  } {
+    // Regex para capturar menções de versões (@V1, @v1, @V2, etc.)
+    const regex = /@[vV](\d+)/g;
+    const versoesMencionadas: string[] = [];
+    let mensagemProcessada = mensagem;
+    
+    let match;
+    while ((match = regex.exec(mensagem)) !== null) {
+      const versaoNumero = match[1];
+      const versaoCompleta = `V${versaoNumero}`;
+      
+      if (!versoesMencionadas.includes(versaoCompleta)) {
+        versoesMencionadas.push(versaoCompleta);
+      }
+      
+      // Substituir a menção por um link formatado
+      mensagemProcessada = mensagemProcessada.replace(
+        match[0], 
+        `<span class="mention" data-versao="${versaoCompleta}">@${versaoCompleta}</span>`
+      );
+    }
+    
+    this.logger.log(`Menções processadas: ${versoesMencionadas.join(', ')}`);
+    
+    return {
+      mensagemProcessada,
+      versoesMencionadas
+    };
+  }
 
   /**
    * Criar nova mensagem
    */
-  async criarMensagem(data: CreateMensagemDto & { usuario_id: string; loja_id: string }) {
+  async criarMensagem(data: CreateMensagemDto & { usuario_id?: string | null; loja_id: string }) {
     try {
       // Verificar se a OS existe e pertence à loja
       const os = await this.prisma.ordemServico.findFirst({
@@ -37,7 +78,7 @@ export class ArteMensagemService {
       let autorNome = data.autor_nome;
       let autorEmail = data.autor_email;
 
-      if (data.autor_tipo === AutorTipo.EQUIPE) {
+      if (data.autor_tipo === AutorTipo.EQUIPE && data.usuario_id) {
         const usuario = await this.prisma.usuario.findUnique({
           where: { id: data.usuario_id },
           select: { nome: true, email: true },
@@ -61,13 +102,16 @@ export class ArteMensagemService {
         this.logger.warn(`Autor sem nome, usando padrão: ${autorNome}`);
       }
 
+      // Processar menções na mensagem
+      const { mensagemProcessada, versoesMencionadas } = this.processarMencoes(data.mensagem);
+
       // Criar mensagem
       const mensagem = await this.prisma.arteMensagem.create({
         data: {
           os_id: data.os_id,
           produto_id: data.produto_id,
           versao_id: data.versao_id,
-          mensagem: data.mensagem,
+          mensagem: mensagemProcessada, // Usar mensagem com menções processadas
           autor_tipo: data.autor_tipo,
           autor_nome: autorNome,
           autor_email: autorEmail || '',
@@ -84,6 +128,25 @@ export class ArteMensagemService {
       });
 
       this.logger.log(`Mensagem criada: ${mensagem.id} para OS ${data.os_id}`);
+
+      // Emitir evento WebSocket em tempo real
+      if (data.versao_id && this.websocketGateway) {
+        await this.websocketGateway.emitirNovaMensagem(data.versao_id, {
+          id: mensagem.id,
+          os_id: mensagem.os_id,
+          produto_id: mensagem.produto_id,
+          versao_id: mensagem.versao_id,
+          mensagem: mensagem.mensagem,
+          autor_tipo: mensagem.autor_tipo,
+          autor_nome: mensagem.autor_nome,
+          autor_email: mensagem.autor_email,
+          created_at: mensagem.created_at,
+          lida: mensagem.lida,
+          loja_id: mensagem.loja_id,
+          versoesMencionadas, // Incluir dados das menções
+          mensagemOriginal: data.mensagem, // Manter mensagem original para referência
+        });
+      }
 
       // Enviar notificações
       await this.enviarNotificacoesMensagem(mensagem, data.autor_tipo as AutorTipo);
@@ -115,7 +178,9 @@ export class ArteMensagemService {
    * Listar mensagens de uma versão específica
    */
   async listarMensagensVersao(versaoId: string, lojaId: string) {
-    return this.prisma.arteMensagem.findMany({
+    this.logger.log(`🔍 Listando mensagens para versão: ${versaoId}, loja: ${lojaId}`);
+    
+    const mensagens = await this.prisma.arteMensagem.findMany({
       where: {
         versao_id: versaoId,
         loja_id: lojaId,
@@ -124,6 +189,9 @@ export class ArteMensagemService {
         created_at: 'asc',
       },
     });
+    
+    this.logger.log(`📊 Encontradas ${mensagens.length} mensagens para versão ${versaoId}`);
+    return mensagens;
   }
 
   /**
@@ -437,21 +505,14 @@ export class ArteMensagemService {
           },
         });
 
-        // Criar notificação no sistema para a equipe
-        await this.criarNotificacaoSistema({
-          tipo: 'NOVA_MENSAGEM_CLIENTE',
-          os_id: mensagem.os_id,
-          produto_id: mensagem.produto_id,
-          titulo: `Nova mensagem do cliente - OS #${mensagem.os.numero}`,
-          mensagem: `${mensagem.os.cliente.nome} enviou uma nova mensagem sobre o produto.`,
-          destinatario_email: null, // Notificar todos os usuários da loja
-          loja_id: mensagem.loja_id,
-          dados_extras: {
-            produto_id: mensagem.produto_id,
-            versao_id: mensagem.versao_id,
-            cliente_nome: mensagem.os.cliente.nome,
-          },
-        });
+        // Criar notificação global para a equipe
+        await this.notificacoesGlobalService.notificarNovaMensagemArte(
+          mensagem.os_id,
+          mensagem.loja_id,
+          mensagem.os.cliente.nome,
+          'Produto', // TODO: Buscar nome do produto específico
+          mensagem.versao_id,
+        );
       }
     } catch (error) {
       this.logger.error('Erro ao enviar notificações de mensagem:', error);

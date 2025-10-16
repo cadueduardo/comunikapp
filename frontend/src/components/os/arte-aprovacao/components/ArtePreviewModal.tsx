@@ -19,11 +19,12 @@ import {
   User,
   MessageSquare
 } from 'lucide-react';
-import { ArteCommentsPanel } from './ArteCommentsPanel';
+import { ArteMessagesModal } from './ArteMessagesModal';
 import { ArtePreviewModalProps, ArteStatus, ComentarioTipo } from '../types/arte-types';
 
-export function ArtePreviewModal({ versao, isOpen, onClose }: ArtePreviewModalProps) {
+export function ArtePreviewModal({ versao, isOpen, onClose, osId, produtoId }: ArtePreviewModalProps) {
   const [selectedArquivo, setSelectedArquivo] = useState<string | null>(null);
+  const [showMessagesModal, setShowMessagesModal] = useState(false);
 
   if (!versao) return null;
 
@@ -241,11 +242,29 @@ export function ArtePreviewModal({ versao, isOpen, onClose }: ArtePreviewModalPr
                 )}
               </div>
 
-              {/* Comentários */}
-              <ArteCommentsPanel 
-                versaoId={versao.id}
-                readonly={false}
-              />
+              {/* Mensagens - Botão para abrir modal */}
+              <div className="p-4 border-t border-gray-200">
+                <Button
+                  onClick={() => setShowMessagesModal(true)}
+                  className="w-full"
+                  variant="outline"
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Ver Mensagens desta Versão
+                </Button>
+              </div>
+              
+              {/* Modal de Mensagens */}
+              {showMessagesModal && osId && produtoId && (
+                <ArteMessagesModal
+                  isOpen={showMessagesModal}
+                  onClose={() => setShowMessagesModal(false)}
+                  produtoId={produtoId}
+                  produtoNome={versao.servico_id || 'Produto'}
+                  osId={osId}
+                  versaoId={versao.id}
+                />
+              )}
             </div>
           </div>
         </div>

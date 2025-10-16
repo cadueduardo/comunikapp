@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export enum TipoNotificacao {
   NOVA_MENSAGEM = 'NOVA_MENSAGEM',
+  NOVA_MENSAGEM_ARTE = 'NOVA_MENSAGEM_ARTE',
   ORCAMENTO_APROVADO = 'ORCAMENTO_APROVADO',
   ORCAMENTO_REJEITADO = 'ORCAMENTO_REJEITADO',
   ORCAMENTO_NEGOCIANDO = 'ORCAMENTO_NEGOCIANDO',
@@ -165,5 +166,35 @@ export class NotificacoesService {
         loja_id: lojaId,
       },
     });
+  }
+
+  async notificarNovaMensagemArte(
+    osId: string,
+    lojaId: string,
+    autorNome: string,
+    produtoNome: string,
+    versaoId?: string,
+  ) {
+    const os = await this.prisma.ordemServico.findUnique({
+      where: { id: osId },
+      select: { numero: true, nome_servico: true },
+    });
+
+    if (!os) return;
+
+    return this.criarNotificacao(
+      lojaId,
+      TipoNotificacao.NOVA_MENSAGEM_ARTE,
+      'Nova mensagem na aprovação de arte',
+      `${autorNome} enviou uma mensagem sobre ${produtoNome} na OS #${os.numero}`,
+      null, // Não usar orcamento_id para arte
+      { 
+        os_id: osId,
+        produto_nome: produtoNome,
+        versao_id: versaoId,
+        autor_nome: autorNome,
+        numero_os: os.numero,
+      },
+    );
   }
 }

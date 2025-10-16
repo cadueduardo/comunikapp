@@ -46,6 +46,7 @@ import { toast } from 'sonner';
 import { useArteVersoes } from './hooks/useArteVersoes';
 import { useArteProdutos } from './hooks/useArteProdutos';
 import { useArteMessages } from './hooks/useArteMessages';
+import { useArteWebSocket } from '@/hooks/use-arte-websocket';
 import { ArteMessagesIcon } from './components/ArteMessagesIcon';
 import { ArteMessagesModal } from './components/ArteMessagesModal';
 import { ArteVersao, ArteStatus } from './types/arte-types';
@@ -66,7 +67,13 @@ interface ProdutoArte {
 export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabProps) {
   const { versoes, loading, error, createVersao, updateVersao, deleteVersao, refreshVersoes } = useArteVersoes(osId);
   const { produtos, loading: loadingProdutos, error: errorProdutos } = useArteProdutos(osId);
-  const { produtosMessages, loading: loadingMessages } = useArteMessages(osId);
+  const { produtosMessages, loading: loadingMessages, refreshMessages } = useArteMessages(osId);
+  
+  // WebSocket para atualizações em tempo real
+  const { novaMensagem: novaMensagemWS, contadorAtualizado } = useArteWebSocket({
+    lojaId: localStorage.getItem('loja_id') || undefined,
+    usuarioId: localStorage.getItem('user_id') || undefined,
+  });
   
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -123,6 +130,41 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
       setSelectedProduto(produtos[0].id);
     }
   }, [produtos, selectedProduto]);
+
+  // Listener para novas mensagens via WebSocket
+  useEffect(() => {
+    if (novaMensagemWS && novaMensagemWS.mensagem) {
+      console.log('🔔 Nova mensagem recebida via WebSocket:', {
+        id: novaMensagemWS.id,
+        autor: novaMensagemWS.autor_nome,
+        tipo: novaMensagemWS.autor_tipo,
+        produto_id: novaMensagemWS.produto_id,
+        versao_id: novaMensagemWS.versao_id
+      });
+      
+      // Atualizar contadores quando nova mensagem chegar
+      console.log('🔄 Chamando refreshMessages...');
+      refreshMessages();
+      
+      // Mostrar notificação toast se for mensagem do cliente
+      if (novaMensagemWS.autor_tipo === 'CLIENTE' && novaMensagemWS.autor_nome) {
+        const mensagemPreview = novaMensagemWS.mensagem.substring(0, 50) + 
+          (novaMensagemWS.mensagem.length > 50 ? '...' : '');
+        
+        toast.info(`Nova mensagem de ${novaMensagemWS.autor_nome}`, {
+          description: mensagemPreview,
+        });
+      }
+    }
+  }, [novaMensagemWS, refreshMessages]);
+
+  // Listener para contador atualizado via WebSocket
+  useEffect(() => {
+    if (contadorAtualizado) {
+      // Atualizar contadores quando mensagens forem marcadas como lidas
+      refreshMessages();
+    }
+  }, [contadorAtualizado, refreshMessages]);
 
   const getStatusColor = (status: ArteStatus) => {
     switch (status) {
@@ -908,6 +950,8 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
           versao={selectedVersao}
           isOpen={showPreviewModal}
           onClose={() => setShowPreviewModal(false)}
+          osId={osId}
+          produtoId={selectedVersao.servico_id}
         />
       )}
 

@@ -38,6 +38,7 @@ interface ArtePublicChatWithMentionsProps {
   token: string;
   versoesDisponiveis: VersaoArte[];
   produtoNome: string;
+  produtoId?: string; // ID do produto para enviar mensagens
   onMensagemEnviada?: () => void;
 }
 
@@ -46,6 +47,7 @@ export function ArtePublicChatWithMentions({
   token,
   versoesDisponiveis,
   produtoNome,
+  produtoId,
   onMensagemEnviada
 }: ArtePublicChatWithMentionsProps) {
   
@@ -66,24 +68,37 @@ export function ArtePublicChatWithMentions({
     try {
       setLoading(true);
       
-      const response = await fetch(`/api/arte-aprovacao/comentarios/public/${versaoId}/${token}`);
+      console.log('🔍 Carregando mensagens - Token:', token, 'VersaoId:', versaoId);
+      
+      // Usar endpoint público de mensagens
+      const url = `/api/arte-aprovacao/mensagens/publico/${token}/versao/${versaoId}`;
+      console.log('🔍 URL:', url);
+      
+      const response = await fetch(url);
       const data = await response.json();
+      
+      console.log('🔍 Resposta do endpoint:', data);
 
-      if (data.success) {
-        const mensagensProcessadas: MensagemArte[] = data.data.map((comentario: any) => ({
-          id: comentario.id,
-          autor: comentario.usuario?.nome || 'Usuário',
-          autorTipo: comentario.tipo === 'CLIENTE' ? 'cliente' : 'equipe',
-          mensagem: comentario.comentario,
-          data: comentario.data_comentario,
-          lida: true,
-          mencoes: extrairMencoes(comentario.comentario)
+      if (data.success && Array.isArray(data.data)) {
+        const mensagensProcessadas: MensagemArte[] = data.data.map((msg: any) => ({
+          id: msg.id,
+          autor: msg.autor_nome || 'Usuário',
+          autorTipo: msg.autor_tipo === 'CLIENTE' ? 'cliente' : 'equipe',
+          mensagem: msg.mensagem,
+          data: msg.created_at,
+          lida: msg.lida || true,
+          mencoes: extrairMencoes(msg.mensagem)
         }));
         
         setMensagens(mensagensProcessadas);
+        console.log('✅ Mensagens carregadas via endpoint público:', mensagensProcessadas.length);
+        console.log('📋 IDs das mensagens:', mensagensProcessadas.map(m => m.id));
+      } else {
+        console.warn('⚠️ Nenhuma mensagem encontrada ou erro na resposta:', data);
+        setMensagens([]);
       }
     } catch (error) {
-      console.error('Erro ao carregar mensagens:', error);
+      console.error('❌ Erro ao carregar mensagens:', error);
       toast.error('Erro ao carregar mensagens');
     } finally {
       setLoading(false);
@@ -178,25 +193,46 @@ export function ArtePublicChatWithMentions({
     try {
       setSubmitting(true);
       
-      const response = await fetch('/api/arte-aprovacao/comentarios/public', {
+      console.log('🔍 Enviando mensagem - Token:', token, 'VersaoId:', versaoId, 'ProdutoId:', produtoId);
+      
+      const payload = {
+        versao_id: versaoId,
+        mensagem: mensagemTexto,
+        produto_id: produtoId || versaoId, // Usar produtoId se fornecido
+      };
+      
+      console.log('🔍 Payload:', payload);
+      
+      // Usar endpoint de mensagens públicas
+      const url = `/api/arte-aprovacao/mensagens/publico/${token}`;
+      console.log('🔍 URL de envio:', url);
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          versao_id: versaoId,
-          comentario: mensagemTexto,
-          token_publico: token,
-        }),
+        body: JSON.stringify(payload),
       });
+      
+      console.log('🔍 Status da resposta:', response.status);
 
       const data = await response.json();
+      console.log('🔍 Resposta completa do envio:', data);
 
       if (data.success) {
-        toast.success('Comentário adicionado com sucesso!');
+        console.log('✅ Mensagem enviada com sucesso, ID:', data.data?.id);
+        console.log('📦 Resposta completa:', JSON.stringify(data));
+        
+        toast.success('Mensagem enviada com sucesso!');
+        
+        console.log('🔄 Recarregando mensagens...');
         await carregarMensagens();
+        console.log('✅ Mensagens recarregadas');
+        
         onMensagemEnviada?.();
       } else {
+        console.error('❌ Erro na resposta:', data.message);
         throw new Error(data.message);
       }
     } catch (error: any) {
