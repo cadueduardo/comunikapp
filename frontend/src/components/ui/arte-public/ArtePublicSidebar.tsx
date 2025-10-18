@@ -17,6 +17,7 @@ import { ArtePublicTabs } from './ArtePublicTabs';
 import { ArtePublicChatWithMentions } from './ArtePublicChatWithMentions';
 import { ArtePublicPreview } from './ArtePublicPreview';
 import { ArtePublicVersaoHistorico } from './ArtePublicVersaoHistorico';
+import { ArteApprovalModal } from './ArteApprovalModal';
 
 interface ProdutoArte {
   id: string;
@@ -93,6 +94,16 @@ export function ArtePublicSidebar({
   processing = false
 }: ArtePublicSidebarProps) {
   const [chatExpanded, setChatExpanded] = useState(true);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+
+  const handleAprovarClick = () => {
+    setShowApprovalModal(true);
+  };
+
+  const handleConfirmApproval = () => {
+    setShowApprovalModal(false);
+    onAprovar();
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -140,7 +151,7 @@ export function ArtePublicSidebar({
       <div className="p-4 border-b border-gray-200 space-y-3">
         <div className="space-y-2">
           <Button
-            onClick={onAprovar}
+            onClick={handleAprovarClick}
             disabled={processing || !declarationChecked}
             className="w-full bg-green-600 hover:bg-green-700 text-white"
           >
@@ -212,6 +223,16 @@ export function ArtePublicSidebar({
           </div>
         )}
       </div>
+
+      {/* Modal de Confirmação de Aprovação */}
+      <ArteApprovalModal
+        isOpen={showApprovalModal}
+        onClose={() => setShowApprovalModal(false)}
+        onConfirm={handleConfirmApproval}
+        produtoNome={produtos.find(p => p.id === produtoSelecionado)?.nome || 'Produto'}
+        versao={versaoAtual?.versao || 'N/A'}
+        processing={processing}
+      />
     </div>
   );
 }

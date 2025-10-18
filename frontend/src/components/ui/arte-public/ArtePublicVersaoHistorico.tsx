@@ -63,18 +63,26 @@ export function ArtePublicVersaoHistorico({
 
   return (
     <div className="space-y-2 max-h-32 overflow-y-auto">
-      {versoes.map((versao) => (
-        <div
-          key={versao.id}
-          onClick={() => onVersaoSelect(versao.id)}
-          className={`
-            cursor-pointer rounded-lg p-2 transition-all duration-200
-            ${versaoAtual?.id === versao.id 
-              ? 'bg-blue-50 border border-blue-200' 
-              : 'bg-gray-50 hover:bg-gray-100'
-            }
-          `}
-        >
+      {versoes.map((versao) => {
+        const isAprovada = versao.status === 'APROVADA';
+        const isAtual = versaoAtual?.id === versao.id;
+        
+        return (
+          <div
+            key={versao.id}
+            onClick={() => onVersaoSelect(versao.id)}
+            className={`
+              cursor-pointer rounded-lg p-2 transition-all duration-200
+              ${isAprovada 
+                ? isAtual 
+                  ? 'bg-green-50 border-2 border-green-400 shadow-sm' 
+                  : 'bg-green-50 border border-green-200 hover:bg-green-100'
+                : isAtual 
+                  ? 'bg-blue-50 border border-blue-200' 
+                  : 'bg-gray-50 hover:bg-gray-100'
+              }
+            `}
+          >
           <div className="flex items-center space-x-2">
             {/* Thumbnail */}
             <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
@@ -111,17 +119,26 @@ export function ArtePublicVersaoHistorico({
             </div>
 
             {/* Status Badge */}
-            <Badge 
-              variant="secondary" 
-              className={`text-xs px-1 py-0 ${getStatusColor(versao.status)}`}
-            >
-              {versao.status === 'APROVADA' && 'Aprovada'}
-              {versao.status === 'REVISAO_SOLICITADA' && 'Revisão'}
-              {versao.status === 'ENVIADA_CLIENTE' && 'Pendente'}
-            </Badge>
+            {isAprovada ? (
+              <Badge 
+                variant="secondary" 
+                className="text-xs px-2 py-1 bg-green-600 text-white font-semibold"
+              >
+                ✓ Aprovado
+              </Badge>
+            ) : (
+              <Badge 
+                variant="secondary" 
+                className={`text-xs px-1 py-0 ${getStatusColor(versao.status)}`}
+              >
+                {versao.status === 'REVISAO_SOLICITADA' && 'Revisão'}
+                {versao.status === 'ENVIADA_CLIENTE' && 'Pendente'}
+              </Badge>
+            )}
           </div>
         </div>
-      ))}
+        );
+      })}
       
       {versoes.length === 0 && (
         <div className="text-center py-4">

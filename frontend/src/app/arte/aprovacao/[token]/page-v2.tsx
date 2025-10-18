@@ -285,6 +285,7 @@ export default function ArtePublicApprovalPageV2() {
     try {
       setProcessing(true);
       
+      // Enviar produto_id e versao_id específicos para aprovação individual
       const response = await fetch(`/api/arte-aprovacao/links/public/${token}/approve`, {
         method: 'POST',
         headers: {
@@ -292,6 +293,8 @@ export default function ArtePublicApprovalPageV2() {
         },
         body: JSON.stringify({
           aprovado,
+          produto_id: produtoSelecionado,
+          versao_id: versaoSelecionada,
           comentario: aprovado ? undefined : 'Solicitação de alteração via chat',
         }),
       });
@@ -302,12 +305,54 @@ export default function ArtePublicApprovalPageV2() {
         throw new Error(data.message);
       }
 
-      toast.success(data.data.mensagem);
-      
-      // Redirecionar para página de sucesso
-      setTimeout(() => {
-        window.location.href = '/arte/aprovacao/sucesso';
-      }, 2000);
+      if (aprovado) {
+        toast.success('Arte aprovada com sucesso! ✓');
+        
+        // Atualizar o status do produto na lista local
+        setProdutos(prev => prev.map(p => 
+          p.id === produtoSelecionado 
+            ? { ...p, status: 'APROVADA' as any, statusColor: 'green' as any }
+            : p
+        ));
+        
+        // Atualizar o status da versão no histórico
+        setVersoesHistorico(prev => prev.map(v =>
+          v.id === versaoSelecionada
+            ? { ...v, status: 'APROVADA' }
+            : v
+        ));
+
+        // Resetar checkbox após aprovação
+        setDeclarationChecked(false);
+
+        // Verificar se ainda há produtos pendentes
+        const produtosPendentes = produtos.filter(p => 
+          p.id !== produtoSelecionado && p.status !== 'APROVADA'
+        );
+
+        if (produtosPendentes.length === 0) {
+          // Todos os produtos foram aprovados, redirecionar após 3 segundos
+          toast.success('Todas as artes foram aprovadas! Redirecionando...', { duration: 3000 });
+          setTimeout(() => {
+            window.location.href = '/arte/aprovacao/sucesso';
+          }, 3000);
+        }
+      } else {
+        toast.success(data.data.mensagem || 'Solicitação de alteração enviada!');
+        
+        // Atualizar status para revisão solicitada
+        setProdutos(prev => prev.map(p => 
+          p.id === produtoSelecionado 
+            ? { ...p, status: 'REVISAO_SOLICITADA' as any, statusColor: 'red' as any }
+            : p
+        ));
+        
+        setVersoesHistorico(prev => prev.map(v =>
+          v.id === versaoSelecionada
+            ? { ...v, status: 'REVISAO_SOLICITADA' }
+            : v
+        ));
+      }
       
     } catch (error: any) {
       toast.error('Erro ao processar aprovação');
