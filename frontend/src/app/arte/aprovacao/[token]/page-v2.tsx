@@ -176,6 +176,7 @@ export default function ArtePublicApprovalPageV2() {
         }));
 
         setVersoesHistorico(versoesProcessadas);
+        console.log('🔍 [page-v2] Versões processadas:', versoesProcessadas);
       } else {
         // Fallback: usar apenas a versão mais recente
         const versoesProcessadas: VersaoHistorico[] = [
@@ -191,6 +192,7 @@ export default function ArtePublicApprovalPageV2() {
         ];
 
         setVersoesHistorico(versoesProcessadas);
+        console.log('🔍 [page-v2] Fallback - Versões processadas:', versoesProcessadas);
       }
       
       if (versoesHistorico.length > 0) {

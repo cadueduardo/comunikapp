@@ -31,6 +31,8 @@ export function TiptapEditor({
   mentions = [],
   editable = true,
 }: TiptapEditorProps) {
+  console.log('🔍 [TiptapEditor] Mentions recebidas:', mentions);
+  console.log('🔍 [TiptapEditor] Número de mentions:', mentions.length);
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -45,11 +47,15 @@ export function TiptapEditor({
         suggestion: {
           char: '@',
           items: ({ query }: { query: string }) => {
-            return mentions
+            console.log('🔍 [TiptapEditor] Buscando menções com query:', query);
+            console.log('🔍 [TiptapEditor] Mentions disponíveis:', mentions);
+            const filtered = mentions
               .filter((item) =>
                 item.label.toLowerCase().includes(query.toLowerCase())
               )
               .slice(0, 10);
+            console.log('🔍 [TiptapEditor] Mentions filtradas:', filtered);
+            return filtered;
           },
           command: ({ editor, range, props }: any) => {
             // Usa o sistema nativo do Tiptap para inserir menção

@@ -62,12 +62,16 @@ export function ArtePublicChatWithMentions({
   const mensagensRef = useRef<HTMLDivElement>(null);
 
   // Memoizar mentions para evitar re-renders desnecessários
-  const mentionsMemo = useMemo(() => 
-    versoesDisponiveis.map(v => ({
+  const mentionsMemo = useMemo(() => {
+    const mentions = versoesDisponiveis.map(v => ({
       id: v.id,
       label: `${v.versao} - ${produtoNome}`
-    })), [versoesDisponiveis, produtoNome]
-  );
+    }));
+    console.log('🔍 [ArtePublicChatWithMentions] Mentions memoizadas:', mentions);
+    console.log('🔍 [ArtePublicChatWithMentions] Versões disponíveis:', versoesDisponiveis);
+    console.log('🔍 [ArtePublicChatWithMentions] Nome do produto:', produtoNome);
+    return mentions;
+  }, [versoesDisponiveis, produtoNome]);
 
   // Memoizar onUpdate para evitar re-renders desnecessários
   const handleUpdate = useCallback((html: string) => {
