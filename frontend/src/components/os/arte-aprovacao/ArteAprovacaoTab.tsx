@@ -54,6 +54,8 @@ import { ArteAprovacaoTabProps } from './types/arte-types';
 import { ArteFileUpload } from './components/ArteFileUpload';
 import { ArtePreviewModal } from './components/ArtePreviewModal';
 import { ArteCreateVersionModal } from './components/ArteCreateVersionModal';
+import { ArteDesignerApprovalModal } from './components/ArteDesignerApprovalModal';
+import { ArteSendToPCPModal } from './components/ArteSendToPCPModal';
 
 // Interface para produtos/componentes da OS
 interface ProdutoArte {
@@ -96,8 +98,13 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showMessagesModal, setShowMessagesModal] = useState(false);
+  const [showDesignerApprovalModal, setShowDesignerApprovalModal] = useState(false);
+  const [showSendToPCPModal, setShowSendToPCPModal] = useState(false);
   const [selectedVersao, setSelectedVersao] = useState<ArteVersao | undefined>();
   const [versaoToDelete, setVersaoToDelete] = useState<string | null>(null);
+  const [versaoForApproval, setVersaoForApproval] = useState<ArteVersao | undefined>();
+  const [versaoForPCP, setVersaoForPCP] = useState<ArteVersao | undefined>();
+  const [processing, setProcessing] = useState(false);
   
   // Estado para produto selecionado - usar o primeiro produto disponível
   const [selectedProduto, setSelectedProduto] = useState<string>('');
@@ -490,19 +497,68 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     }
   };
 
-  // Função para enviar uma versão específica para PCP
-  const handleSendToPCP = async (versao: ArteVersao) => {
+  // Função para abrir modal de aprovação do designer
+  const handleDesignerApprovalClick = (versao: ArteVersao) => {
+    setVersaoForApproval(versao);
+    setShowDesignerApprovalModal(true);
+  };
+
+  // Função para confirmar aprovação do designer (com motivo)
+  const handleConfirmDesignerApproval = async (motivo: string) => {
+    if (!versaoForApproval) return;
+
     try {
-      await updateVersao(versao.id, {
-        status: 'ENVIADA_PCP',
-        descricao: versao.descricao,
-        observacoes: versao.observacoes
+      setProcessing(true);
+      
+      // Atualizar versão para status APROVADA e salvar o motivo nas observações
+      await updateVersao(versaoForApproval.id, {
+        status: 'APROVADA',
+        descricao: versaoForApproval.descricao,
+        observacoes: `${versaoForApproval.observacoes || ''}\n\n[APROVAÇÃO DESIGNER - ${new Date().toLocaleString('pt-BR')}]\nMotivo: ${motivo}`
       });
 
-      toast.success(`Versão ${versao.versao} enviada para o PCP!`);
+      toast.success(`Versão ${versaoForApproval.versao} aprovada com sucesso!`);
+      
+      // Fechar modal e limpar estado
+      setShowDesignerApprovalModal(false);
+      setVersaoForApproval(undefined);
+    } catch (error) {
+      console.error('Erro ao aprovar versão:', error);
+      toast.error('Erro ao aprovar versão');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Função para abrir modal de envio para PCP
+  const handleSendToPCPClick = (versao: ArteVersao) => {
+    setVersaoForPCP(versao);
+    setShowSendToPCPModal(true);
+  };
+
+  // Função para confirmar envio para PCP
+  const handleConfirmSendToPCP = async () => {
+    if (!versaoForPCP) return;
+
+    try {
+      setProcessing(true);
+      
+      await updateVersao(versaoForPCP.id, {
+        status: 'ENVIADA_PCP',
+        descricao: versaoForPCP.descricao,
+        observacoes: versaoForPCP.observacoes
+      });
+
+      toast.success(`Versão ${versaoForPCP.versao} enviada para o PCP!`);
+      
+      // Fechar modal e limpar estado
+      setShowSendToPCPModal(false);
+      setVersaoForPCP(undefined);
     } catch (error) {
       console.error('Erro ao enviar versão para PCP:', error);
       toast.error('Erro ao enviar versão para PCP');
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -869,12 +925,25 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                       </Button>
                     )}
 
-                    {/* Botão para enviar para PCP - sempre visível */}
-                    {!readonly && (
+                    {/* Botão para aprovar arte (designer) - apenas para versões não aprovadas */}
+                    {!readonly && versao.status !== ArteStatus.APROVADA && versao.status !== ArteStatus.ENVIADA_PCP && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleSendToPCP(versao)}
+                        onClick={() => handleDesignerApprovalClick(versao)}
+                        className="text-green-600 hover:text-green-700 border-green-200 hover:border-green-300"
+                        title="Aprovar Arte (Designer)"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                      </Button>
+                    )}
+
+                    {/* Botão para enviar para PCP - apenas para versões aprovadas */}
+                    {!readonly && versao.status === ArteStatus.APROVADA && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSendToPCPClick(versao)}
                         className="text-purple-600 hover:text-purple-700 border-purple-200 hover:border-purple-300"
                         title="Enviar para PCP"
                       >
@@ -1093,6 +1162,70 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
         }))}
         onNotificacoesZeradas={handleNotificacoesZeradas}
       />
+
+      {/* Modal de Aprovação do Designer */}
+      {versaoForApproval && (
+        <ArteDesignerApprovalModal
+          isOpen={showDesignerApprovalModal}
+          onClose={() => {
+            setShowDesignerApprovalModal(false);
+            setVersaoForApproval(undefined);
+          }}
+          onConfirm={handleConfirmDesignerApproval}
+          produtoNome={
+            (() => {
+              // Se servico_id é 'servico-principal', usar o primeiro produto disponível
+              if (versaoForApproval.servico_id === 'servico-principal') {
+                if (produtos.length > 0) {
+                  return produtos[0].nome;
+                }
+                if (osData?.itens && osData.itens.length > 0) {
+                  return osData.itens[0].nome;
+                }
+                return osData?.nome_servico || 'Produto';
+              }
+              
+              // Para outros casos, buscar pelo ID do produto
+              const produto = produtos.find(p => p.id === versaoForApproval.servico_id);
+              return produto?.nome || 'Produto não encontrado';
+            })()
+          }
+          versao={versaoForApproval.versao}
+          processing={processing}
+        />
+      )}
+
+      {/* Modal de Envio para PCP */}
+      {versaoForPCP && (
+        <ArteSendToPCPModal
+          isOpen={showSendToPCPModal}
+          onClose={() => {
+            setShowSendToPCPModal(false);
+            setVersaoForPCP(undefined);
+          }}
+          onConfirm={handleConfirmSendToPCP}
+          produtoNome={
+            (() => {
+              // Se servico_id é 'servico-principal', usar o primeiro produto disponível
+              if (versaoForPCP.servico_id === 'servico-principal') {
+                if (produtos.length > 0) {
+                  return produtos[0].nome;
+                }
+                if (osData?.itens && osData.itens.length > 0) {
+                  return osData.itens[0].nome;
+                }
+                return osData?.nome_servico || 'Produto';
+              }
+              
+              // Para outros casos, buscar pelo ID do produto
+              const produto = produtos.find(p => p.id === versaoForPCP.servico_id);
+              return produto?.nome || 'Produto não encontrado';
+            })()
+          }
+          versao={versaoForPCP.versao}
+          processing={processing}
+        />
+      )}
     </div>
   );
 }
