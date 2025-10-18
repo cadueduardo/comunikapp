@@ -23,8 +23,23 @@ export function ArteMessagesIcon({
 }: ArteMessagesIconProps) {
   const hasNotificacao = mensagensNaoLidas > 0;
 
+  // Debug: Log quando o componente é renderizado
+  console.log('🎯 [ArteMessagesIcon] Renderizado:', {
+    produtoId,
+    produtoNome,
+    mensagensNaoLidas,
+    totalMensagens,
+    hasNotificacao
+  });
+
   const handleClick = () => {
-    console.log('🔍 [ArteMessagesIcon] Clique detectado:', { produtoId, produtoNome });
+    console.log('🔍 [ArteMessagesIcon] Clique detectado:', { 
+      produtoId, 
+      produtoNome, 
+      mensagensNaoLidas, 
+      totalMensagens,
+      hasNotificacao 
+    });
     if (onClick) {
       onClick();
     }

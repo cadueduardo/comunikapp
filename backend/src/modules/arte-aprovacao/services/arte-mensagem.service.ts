@@ -372,6 +372,8 @@ export class ArteMensagemService {
    * Marcar todas as mensagens de um produto/vers├úo como lidas
    */
   async marcarMensagensLidasPorProduto(osId: string, produtoId: string, versaoId: string | null, lojaId: string) {
+    this.logger.log(`🔄 [marcarMensagensLidasPorProduto] Marcando mensagens como lidas para OS: ${osId}, Produto: ${produtoId}, Versão: ${versaoId}`);
+    
     const whereClause: any = {
       os_id: osId,
       produto_id: produtoId,
@@ -392,7 +394,7 @@ export class ArteMensagemService {
       },
     });
 
-    // Log removido para reduzir spam no console
+    this.logger.log(`✅ [marcarMensagensLidasPorProduto] ${result.count} mensagens marcadas como lidas`);
     
     return result;
   }
@@ -402,7 +404,7 @@ export class ArteMensagemService {
    */
   async contarMensagensNaoLidas(osId: string, lojaId: string) {
     try {
-      // Log removido para reduzir spam no console
+      this.logger.log(`🔄 [contarMensagensNaoLidas] Buscando mensagens não lidas para OS: ${osId}, Loja: ${lojaId}`);
       
       const mensagensNaoLidas = await this.prisma.arteMensagem.groupBy({
         by: ['versao_id'],
@@ -418,7 +420,7 @@ export class ArteMensagemService {
         },
       });
       
-      // Log removido para reduzir spam no console
+      this.logger.log(`📊 [contarMensagensNaoLidas] Mensagens não lidas encontradas:`, mensagensNaoLidas);
 
       // Buscar dados das vers├Áes
       const versaoIds = mensagensNaoLidas.map(m => m.versao_id).filter(Boolean);
@@ -444,7 +446,7 @@ export class ArteMensagemService {
         };
       });
       
-      // Log removido para reduzir spam no console
+      this.logger.log(`✅ [contarMensagensNaoLidas] Resultado final:`, resultado);
       return resultado;
     } catch (error) {
       this.logger.error('ÔØî Erro ao contar mensagens n├úo lidas:', error);

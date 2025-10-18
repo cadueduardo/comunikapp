@@ -169,16 +169,16 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
   // Listener para novas mensagens via WebSocket (otimizado)
   useEffect(() => {
     if (novaMensagemWS && novaMensagemWS.mensagem) {
-      // console.log('🔔 Nova mensagem recebida via WebSocket:', {
-      //   id: novaMensagemWS.id,
-      //   autor: novaMensagemWS.autor_nome,
-      //   tipo: novaMensagemWS.autor_tipo,
-      //   produto_id: novaMensagemWS.produto_id,
-      //   versao_id: novaMensagemWS.versao_id
-      // });
+      console.log('🔔 Nova mensagem recebida via WebSocket:', {
+        id: novaMensagemWS.id,
+        autor: novaMensagemWS.autor_nome,
+        tipo: novaMensagemWS.autor_tipo,
+        produto_id: novaMensagemWS.produto_id,
+        versao_id: novaMensagemWS.versao_id
+      });
       
       // Atualizar contadores quando nova mensagem chegar
-      // console.log('🔄 Chamando refreshMessages...');
+      console.log('🔄 Chamando refreshMessages...');
       refreshMessages();
       
       // Mostrar notificação toast se for mensagem do cliente
