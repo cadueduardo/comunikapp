@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -12,6 +12,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { TiptapEditor } from '@/components/ui/tiptap/TiptapEditor';
 
 interface VersaoArte {
   id: string;
@@ -57,14 +58,21 @@ export function ArtePublicChatWithMentions({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [chatExpanded, setChatExpanded] = useState(true);
-  const [showAutocomplete, setShowAutocomplete] = useState(false);
-  const [autocompletePosition, setAutocompletePosition] = useState({ top: 0, left: 0 });
-  const [cursorPosition, setCursorPosition] = useState(0);
-  const [indiceSelecionado, setIndiceSelecionado] = useState(0);
-  const [versoesFiltradas, setVersoesFiltradas] = useState<VersaoArte[]>([]);
   
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mensagensRef = useRef<HTMLDivElement>(null);
+
+  // Memoizar mentions para evitar re-renders desnecessários
+  const mentionsMemo = useMemo(() => 
+    versoesDisponiveis.map(v => ({
+      id: v.id,
+      label: `${v.versao} - ${produtoNome}`
+    })), [versoesDisponiveis, produtoNome]
+  );
+
+  // Memoizar onUpdate para evitar re-renders desnecessários
+  const handleUpdate = useCallback((html: string) => {
+    setNovaMensagem(html);
+  }, []);
 
   // Carregar mensagens da versão específica
   const carregarMensagens = async () => {
@@ -108,20 +116,7 @@ export function ArtePublicChatWithMentions({
     }
   };
 
-  // Extrair menções do texto
-  const extractMentions = (texto: string): string[] => {
-    const regex = /@(V\d+-\w+)/g;
-    const mencoes: string[] = [];
-    let match;
-    
-    while ((match = regex.exec(texto)) !== null) {
-      mencoes.push(match[1]);
-    }
-    
-    return mencoes;
-  };
-
-  // Processar menções no texto
+  // Processar menções no texto para exibição
   const processMentions = (texto: string): string => {
     // Suportar tanto @V1-Banner quanto @V1 - Banner
     return texto.replace(/@(V\d+)(?:\s*-\s*([^-\s]+(?:\s+[^-\s]+)*))(?=\s|$)/g, (match, versaoNum, descricao) => {
@@ -134,112 +129,13 @@ export function ArtePublicChatWithMentions({
     });
   };
 
-  // Detectar digitação de @
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    const cursorPos = e.target.selectionStart;
-    
-    setNovaMensagem(value);
-    setCursorPosition(cursorPos);
-
-    // Detectar @ para mostrar autocomplete
-    const textBeforeCursor = value.substring(0, cursorPos);
-    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-    
-    if (lastAtIndex !== -1) {
-      const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-      if (!textAfterAt.includes(' ')) {
-        // Filtrar versões baseado no texto após @
-        const versoesFiltradas = versoesDisponiveis.filter(v => 
-          textAfterAt === '' || v.versao.toLowerCase().includes(textAfterAt.toLowerCase())
-        );
-        setVersoesFiltradas(versoesFiltradas);
-        
-        // Mostrar autocomplete se há versões filtradas
-        if (versoesFiltradas.length > 0) {
-          const rect = e.target.getBoundingClientRect();
-          setAutocompletePosition({
-            top: rect.bottom + window.scrollY,
-            left: rect.left + window.scrollX
-          });
-          setShowAutocomplete(true);
-          setIndiceSelecionado(0);
-        } else {
-          setShowAutocomplete(false);
-        }
-      } else {
-        setShowAutocomplete(false);
-      }
-    } else {
-      setShowAutocomplete(false);
-    }
-  };
-
-  // Inserir menção no texto
-  const insertMention = (versao: VersaoArte) => {
-    const textBeforeCursor = novaMensagem.substring(0, cursorPosition);
-    const textAfterCursor = novaMensagem.substring(cursorPosition);
-    
-    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-    const mencao = `${versao.versao} - ${produtoNome}`;
-    
-    const novoTexto = textBeforeCursor.substring(0, lastAtIndex) + '@' + mencao + ' ' + textAfterCursor;
-    
-    setNovaMensagem(novoTexto);
-    setShowAutocomplete(false);
-    
-    // Focar no textarea novamente
-    setTimeout(() => {
-      if (textareaRef.current) {
-        const newCursorPos = lastAtIndex + mencao.length + 1;
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
-      }
-    }, 0);
-  };
-
-  // Navegação por teclado no autocomplete
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (!showAutocomplete || versoesFiltradas.length === 0) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        enviarMensagem();
-      }
-      return;
-    }
-
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        setIndiceSelecionado(prev => 
-          prev < versoesFiltradas.length - 1 ? prev + 1 : 0
-        );
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        setIndiceSelecionado(prev => 
-          prev > 0 ? prev - 1 : versoesFiltradas.length - 1
-        );
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (versoesFiltradas[indiceSelecionado]) {
-          insertMention(versoesFiltradas[indiceSelecionado]);
-        }
-        break;
-      case 'Escape':
-        setShowAutocomplete(false);
-        break;
-    }
-  };
-
   // Enviar mensagem
   const enviarMensagem = async () => {
     if (!novaMensagem.trim()) return;
 
-    const mensagemTexto = novaMensagem.trim();
+    // O Tiptap já envia HTML formatado, vamos usar direto
+    const mensagemHTML = novaMensagem.trim();
     setNovaMensagem('');
-    setShowAutocomplete(false);
 
     try {
       setSubmitting(true);
@@ -248,7 +144,7 @@ export function ArtePublicChatWithMentions({
       
       const payload = {
         versao_id: versaoId,
-        mensagem: mensagemTexto,
+        mensagem: mensagemHTML, // Enviar HTML do Tiptap
         produto_id: produtoId || versaoId, // Usar produtoId se fornecido
       };
       
@@ -294,13 +190,6 @@ export function ArtePublicChatWithMentions({
     }
   };
 
-  // Handle Enter key
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      enviarMensagem();
-    }
-  };
 
   // Auto-scroll para última mensagem
   useEffect(() => {
@@ -389,7 +278,7 @@ export function ArtePublicChatWithMentions({
                             mensagem.autorTipo === 'cliente' ? 'text-white' : 'text-gray-800'
                           }`}
                           dangerouslySetInnerHTML={{ 
-                            __html: mensagem.mensagemProcessada || processMentions(mensagem.mensagem)
+                            __html: mensagem.mensagemProcessada || mensagem.mensagem || ""
                           }}
                         />
                         {mensagem.mencoes && mensagem.mencoes.length > 0 && (
@@ -412,57 +301,21 @@ export function ArtePublicChatWithMentions({
           {/* Input de Mensagem */}
           <div className="p-4 border-t border-gray-200 relative">
             <div className="space-y-2">
-              <textarea
-                ref={textareaRef}
-                value={novaMensagem}
-                onChange={handleTextChange}
-                onKeyDown={handleKeyDown}
-                placeholder={`Digite sua mensagem... Use @V1 - ${produtoNome} para mencionar versões`}
-                className="w-full p-3 border border-gray-300 rounded-lg resize-none text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows={3}
-                disabled={submitting}
+              <TiptapEditor
+                content={novaMensagem}
+                onUpdate={handleUpdate}
+                onSubmit={enviarMensagem}
+                placeholder={`Digite sua mensagem... Use @ para mencionar versões`}
+                mentions={mentionsMemo}
               />
               
-              {/* Autocomplete */}
-              {showAutocomplete && (
-                <div 
-                  className="absolute z-10 bg-white border border-gray-300 rounded-lg shadow-lg max-h-32 overflow-y-auto"
-                  style={{
-                    top: autocompletePosition.top + 10,
-                    left: autocompletePosition.left,
-                    minWidth: '200px'
-                  }}
-                >
-                  {versoesFiltradas.map((versao, index) => (
-                    <button
-                      key={versao.id}
-                      onClick={() => insertMention(versao)}
-                      className={`w-full px-3 py-2 text-left text-sm flex items-center space-x-2 ${
-                        index === indiceSelecionado 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      <span className="text-sm">
-                        @{versao.versao} - {produtoNome}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              
-              <div className="flex items-end justify-between gap-2">
-                <p className="text-xs text-gray-500 flex-1">
-                  Pressione Enter para enviar • Use @V1 - {produtoNome} para mencionar versões
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-xs text-gray-500">
+                  Pressione Enter para enviar, Shift+Enter para nova linha
                 </p>
-                <Button
-                  onClick={enviarMensagem}
-                  disabled={!novaMensagem.trim() || submitting}
-                  size="sm"
-                  className="flex-shrink-0 h-8 w-8 p-0"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
+                <p className="text-xs text-gray-500">
+                  Use @ para mencionar versões
+                </p>
               </div>
             </div>
           </div>
