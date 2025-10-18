@@ -98,7 +98,7 @@ export function ArtePublicChatWithMentions({
           mensagem: msg.mensagem,
           data: msg.created_at,
           lida: msg.lida || true,
-          mencoes: extractMentions(msg.mensagem)
+          mencoes: [] // Não precisamos mais extrair menções manualmente, o Tiptap faz isso
         }));
         
         setMensagens(mensagensProcessadas);
