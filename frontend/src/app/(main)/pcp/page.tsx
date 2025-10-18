@@ -33,6 +33,9 @@ interface OSLiberada {
   workflow_instanciado: boolean;
   workflow_status?: string;
   workflow_progresso?: number;
+  produtos_liberados_count?: number;
+  total_produtos?: number;
+  liberacao_completa?: boolean;
 }
 
 interface WorkflowInstancia {
@@ -338,6 +341,18 @@ export default function PCPPage() {
                             <IconClock className="h-3 w-3" />
                             {new Date(os.data_prazo).toLocaleDateString('pt-BR')}
                           </div>
+                        )}
+                        {/* Badge de liberação de produtos */}
+                        {os.total_produtos && os.total_produtos > 0 && (
+                          <Badge 
+                            className={
+                              os.liberacao_completa 
+                                ? 'bg-green-100 text-green-800 border-green-200'
+                                : 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                            }
+                          >
+                            {os.liberacao_completa ? '🟢' : '🟡'} {os.produtos_liberados_count}/{os.total_produtos} produtos
+                          </Badge>
                         )}
                       </div>
                     </div>

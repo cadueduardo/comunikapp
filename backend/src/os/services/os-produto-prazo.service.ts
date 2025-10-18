@@ -425,7 +425,40 @@ export class OSProdutoPrazoService {
       }
     });
 
-    // Criar log
+    // Verificar se é o primeiro produto liberado e atualizar status da OS
+    const produtosLiberados = await this.prisma.itemOS.count({
+      where: {
+        os_id: osId,
+        status_liberacao_pcp: 'LIBERADO'
+      }
+    });
+
+    // Se for o primeiro produto liberado, mudar status da OS para LIBERADA_PARA_PCP
+    if (produtosLiberados === 1) {
+      await this.prisma.ordemServico.update({
+        where: { id: osId },
+        data: {
+          status: 'LIBERADA_PARA_PCP'
+        }
+      });
+
+      // Log da mudança de status da OS
+      await this.prisma.ordemServicoLog.create({
+        data: {
+          os_id: osId,
+          tipo_acao: 'MUDANCA_STATUS',
+          descricao: 'OS liberada para PCP (primeiro produto liberado)',
+          dados_extras: JSON.stringify({
+            status_anterior: 'EM_ANDAMENTO',
+            status_novo: 'LIBERADA_PARA_PCP',
+            motivo: 'Primeiro produto liberado para produção'
+          }),
+          usuario_id: usuarioId
+        }
+      });
+    }
+
+    // Criar log da liberação do produto
     await this.prisma.ordemServicoLog.create({
       data: {
         os_id: osId,
@@ -435,7 +468,8 @@ export class OSProdutoPrazoService {
           item_id: itemId,
           produto_servico: item.produto_servico,
           data_prazo_produto: item.data_prazo_produto,
-          motivo: motivo
+          motivo: motivo,
+          produtos_liberados_total: produtosLiberados
         }),
         usuario_id: usuarioId
       }
@@ -447,6 +481,7 @@ export class OSProdutoPrazoService {
       produto_servico: item.produto_servico,
       status_liberacao_pcp: 'LIBERADO',
       liberado_em: itemAtualizado.liberado_pcp_em,
+      produtos_liberados_total: produtosLiberados,
       mensagem: 'Produto liberado para PCP com sucesso'
     };
   }

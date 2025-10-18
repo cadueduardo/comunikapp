@@ -25,29 +25,57 @@ export class LiberacaoPCPController {
     // Buscar OSs com status LIBERADA_PARA_PCP
     const ossLiberadas = await this.osService.findByStatus(lojaId, StatusOS.LIBERADA_PARA_PCP);
 
-    // Para cada OS, verificar se já tem workflow instanciado
+    // Para cada OS, verificar se já tem workflow instanciado e contar produtos
     const ossComStatusWorkflow = await Promise.all(
       ossLiberadas.map(async (os) => {
         try {
           const workflow = await this.workflowService.buscarPorOS(os.id);
+          
+          // Contar produtos liberados e total
+          const { produtos_liberados_count, total_produtos } = await this.contarProdutosLiberados(os.id);
+          
           return {
             ...os,
             workflow_instanciado: !!workflow,
             workflow_status: workflow?.status || null,
-            workflow_progresso: workflow ? this.calcularProgresso(workflow) : 0
+            workflow_progresso: workflow ? this.calcularProgresso(workflow) : 0,
+            produtos_liberados_count,
+            total_produtos,
+            liberacao_completa: produtos_liberados_count === total_produtos && total_produtos > 0
           };
         } catch (error) {
+          const { produtos_liberados_count, total_produtos } = await this.contarProdutosLiberados(os.id);
+          
           return {
             ...os,
             workflow_instanciado: false,
             workflow_status: null,
-            workflow_progresso: 0
+            workflow_progresso: 0,
+            produtos_liberados_count,
+            total_produtos,
+            liberacao_completa: produtos_liberados_count === total_produtos && total_produtos > 0
           };
         }
       })
     );
 
     return ossComStatusWorkflow;
+  }
+
+  private async contarProdutosLiberados(osId: string): Promise<{ produtos_liberados_count: number; total_produtos: number }> {
+    // Buscar OS com itens
+    const os = await this.osService.findOne(osId, null);
+    
+    if (!os || !os.itens) {
+      return { produtos_liberados_count: 0, total_produtos: 0 };
+    }
+
+    const total_produtos = os.itens.length;
+    const produtos_liberados_count = os.itens.filter(
+      (item: any) => item.status_liberacao_pcp === 'LIBERADO'
+    ).length;
+
+    return { produtos_liberados_count, total_produtos };
   }
 
   @Post(':id/liberar-para-pcp')
