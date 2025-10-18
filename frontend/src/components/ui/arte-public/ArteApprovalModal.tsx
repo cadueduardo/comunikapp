@@ -39,14 +39,15 @@ export function ArteApprovalModal({
             </div>
             <DialogTitle className="text-xl">Confirmar Aprovação</DialogTitle>
           </div>
-          <DialogDescription className="text-base leading-relaxed pt-2">
-            Você está prestes a aprovar a arte:
-            <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="font-semibold text-gray-900">{produtoNome}</p>
-              <p className="text-sm text-gray-600">Versão: {versao}</p>
-            </div>
-          </DialogDescription>
         </DialogHeader>
+
+        <div className="text-base leading-relaxed text-gray-600 pt-2">
+          Você está prestes a aprovar a arte:
+          <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="font-semibold text-gray-900">{produtoNome}</div>
+            <div className="text-sm text-gray-600">Versão: {versao}</div>
+          </div>
+        </div>
 
         <div className="bg-amber-50 border-l-4 border-amber-400 p-4 my-4">
           <div className="flex">
@@ -54,13 +55,13 @@ export function ArteApprovalModal({
               <AlertTriangle className="h-5 w-5 text-amber-400" />
             </div>
             <div className="ml-3">
-              <p className="text-sm text-amber-700 font-medium">
+              <div className="text-sm text-amber-700 font-medium">
                 Atenção!
-              </p>
-              <p className="text-sm text-amber-700 mt-1">
+              </div>
+              <div className="text-sm text-amber-700 mt-1">
                 Esta aprovação está <strong>liberando a arte para produção</strong>. 
                 Certifique-se de que revisou todos os detalhes antes de confirmar.
-              </p>
+              </div>
             </div>
           </div>
         </div>
