@@ -304,18 +304,44 @@ export function PrazoProdutoComponent({
     }
   };
 
-  const abrirArteEmNovaAba = () => {
+  const abrirArteEmNovaAba = async () => {
     if (!dadosArteAprovada || !dadosArteAprovada.arquivos || dadosArteAprovada.arquivos.length === 0) {
       toast.error('Arte não encontrada');
       return;
     }
 
-    const primeiroArquivo = dadosArteAprovada.arquivos[0];
-    const urlCompleta = primeiroArquivo.url_arquivo.startsWith('http') 
-      ? primeiroArquivo.url_arquivo 
-      : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${primeiroArquivo.url_arquivo}`;
-    
-    window.open(urlCompleta, '_blank');
+    try {
+      const primeiroArquivo = dadosArteAprovada.arquivos[0];
+      const token = localStorage.getItem('access_token');
+      
+      // Extrair filename da URL do arquivo
+      const filename = primeiroArquivo.nome_arquivo || primeiroArquivo.url_arquivo.split('/').pop();
+      
+      // Buscar o arquivo com autenticação
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/arte-aprovacao/versoes/${dadosArteAprovada.id}/arquivos/download/${filename}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        // Se a resposta for o arquivo direto, criar blob e abrir
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        
+        // Limpar o blob URL após um tempo
+        setTimeout(() => window.URL.revokeObjectURL(url), 100);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Erro ao carregar arquivo:', errorData);
+        toast.error('Erro ao carregar arquivo da arte');
+      }
+    } catch (error) {
+      console.error('Erro ao abrir arte:', error);
+      toast.error('Erro ao abrir arquivo da arte');
+    }
   };
 
   const liberarParaPCP = async () => {
