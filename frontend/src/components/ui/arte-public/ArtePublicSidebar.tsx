@@ -14,7 +14,7 @@ import {
   Download
 } from 'lucide-react';
 import { ArtePublicTabs } from './ArtePublicTabs';
-import { ArtePublicChat } from './ArtePublicChat';
+import { ArtePublicChatWithMentions } from './ArtePublicChatWithMentions';
 import { ArtePublicPreview } from './ArtePublicPreview';
 import { ArtePublicVersaoHistorico } from './ArtePublicVersaoHistorico';
 
@@ -67,6 +67,9 @@ interface ArtePublicSidebarProps {
   declarationChecked: boolean;
   onDeclarationChange: (checked: boolean) => void;
   
+  // Token para chat público
+  token?: string;
+  
   // Estados
   loading?: boolean;
   processing?: boolean;
@@ -85,6 +88,7 @@ export function ArtePublicSidebar({
   onRejeitar,
   declarationChecked,
   onDeclarationChange,
+  token,
   loading = false,
   processing = false
 }: ArtePublicSidebarProps) {
@@ -189,10 +193,15 @@ export function ArtePublicSidebar({
 
         {chatExpanded && (
           <div className="flex-1 min-h-0">
-            <ArtePublicChat
-              mensagens={mensagens}
-              onEnviarMensagem={onEnviarMensagem}
+            <ArtePublicChatWithMentions
+              versaoId={versaoAtual?.id || ''}
+              token={token || ''}
               versoesDisponiveis={versoesHistorico}
+              produtoNome={produtos.find(p => p.id === produtoSelecionado)?.nome || 'Produto'}
+              produtoId={produtoSelecionado}
+              onMensagemEnviada={() => {
+                // Recarregar mensagens se necessário
+              }}
             />
           </div>
         )}
