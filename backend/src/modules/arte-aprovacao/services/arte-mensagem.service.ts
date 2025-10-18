@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+﻿import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ArteNotificacaoService } from './arte-notificacao.service';
 import { ArteWebSocketGateway } from '../gateways/arte-websocket.gateway';
@@ -19,143 +19,128 @@ export class ArteMensagemService {
   ) {}
 
   /**
-   * Processar menções na mensagem
+   * Processar men├º├Áes na mensagem
    */
-  processarMencoes(mensagem: string): { 
-    mensagemProcessada: string; 
-    versoesMencionadas: string[] 
+  processarMencoes(mensagem: string): {
+    mensagemProcessada: string;
+    versoesMencionadas: string[];
   } {
-    // Debug: Log da mensagem recebida
-    this.logger.log(`🔍 Mensagem recebida para processamento: ${mensagem}`);
-    
+    if (!mensagem) {
+      return {
+        mensagemProcessada: mensagem,
+        versoesMencionadas: [],
+      };
+    }
+
+    const escapeAttribute = (value: string) => value.replace(/"/g, '&quot;');
+
     const versoesMencionadas: string[] = [];
     let mensagemProcessada = mensagem;
-    
-    // Processar menções do Tiptap (HTML com data-type="mention")
-    // Regex para capturar spans com data-type="mention" (pode ter class="mention" também)
-    const tiptapMentionRegex = /<span[^>]*data-type="mention"[^>]*>([^<]*)<\/span>/g;
-    let match;
-    
-    // Primeiro, coletar todas as menções para processar
-    const mentionsToProcess: Array<{
-      fullMatch: string;
-      mentionId: string;
-      mentionLabel: string;
-      mentionText: string;
-      versaoCompleta: string;
-      badgeText: string;
-    }> = [];
-    
-    while ((match = tiptapMentionRegex.exec(mensagem)) !== null) {
-      const fullMatch = match[0];
-      const mentionText = match[1];
-      
-      // Extrair atributos do span
-      const idMatch = fullMatch.match(/data-id="([^"]*)"/);
-      const labelMatch = fullMatch.match(/data-label="([^"]*)"/);
-      
-      const mentionId = idMatch ? idMatch[1] : '';
-      const mentionLabel = labelMatch ? labelMatch[1] : mentionText;
-      
-      this.logger.log(`🔍 Processando menção: id=${mentionId}, label=${mentionLabel}, text=${mentionText}`);
-      
-      // Extrair versão do label (ex: "v2 - Banner" -> "V2")
-      const versaoMatch = mentionLabel.match(/^v(\d+)/i);
-      if (versaoMatch) {
-        const versaoNumero = versaoMatch[1];
-        const versaoCompleta = `V${versaoNumero}`;
-        
-        if (!versoesMencionadas.includes(versaoCompleta)) {
-          versoesMencionadas.push(versaoCompleta);
+
+    const mentionSpanRegex =
+      /<span\b[^>]*class="mention"[^>]*>(.*?)<\/span>/gis;
+
+    mensagemProcessada = mensagemProcessada.replace(
+      mentionSpanRegex,
+      (fullMatch, innerHtml) => {
+        const idAttr =
+          fullMatch.match(/data-(?:id|mention-id)="([^"]*)"/i)?.[1] ?? '';
+        const labelAttr =
+          fullMatch.match(/data-(?:label|mention-label)="([^"]*)"/i)?.[1]?.trim() ??
+          '';
+
+        const plainText = innerHtml
+          .replace(/<[^>]+>/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        const baseLabelRaw = labelAttr.length
+          ? labelAttr
+          : plainText.replace(/^@/, '').trim();
+
+        if (!baseLabelRaw) {
+          return fullMatch;
         }
-        
-        // Preparar badge formatado
-        const badgeText = mentionLabel.replace(/^v(\d+)\s*-\s*/i, '@V$1 - ');
-        
-        mentionsToProcess.push({
-          fullMatch,
-          mentionId,
-          mentionLabel,
-          mentionText,
-          versaoCompleta,
-          badgeText
-        });
-        
-        this.logger.log(`✅ Menção preparada: ${fullMatch} -> ${badgeText}`);
-      }
-    }
-    
-    // Agora substituir todas as menções de uma vez (da última para a primeira para evitar problemas de índice)
-    mentionsToProcess.reverse().forEach(mention => {
-      const newSpan = `<span class="mention" data-mention-id="${mention.mentionId}" data-mention-label="${mention.mentionLabel}">${mention.badgeText}</span>`;
-      mensagemProcessada = mensagemProcessada.replace(mention.fullMatch, newSpan);
-      this.logger.log(`🔄 Substituindo: ${mention.fullMatch} -> ${newSpan}`);
-    });
-    
-    // Limpar HTML malformado e spans aninhados
-    this.logger.log(`🧹 Limpando HTML malformado...`);
-    
-    // Remover spans vazios ou malformados
-    mensagemProcessada = mensagemProcessada.replace(/<span[^>]*><\/span>/g, '');
-    
-    // Corrigir spans aninhados - se há span.mention dentro de span.mention, extrair o conteúdo interno
-    // Primeiro, detectar e corrigir spans aninhados
-    mensagemProcessada = mensagemProcessada.replace(
-      /<span class="mention"[^>]*><span class="mention"[^>]*>([^<]*)<\/span><\/span>/g,
-      '<span class="mention" data-mention-id="" data-mention-label="">$1</span>'
+
+        const versaoRegex = /^@?\s*v(\d+)(?:\s*-\s*(.*))?$/i;
+        const labelMatch = baseLabelRaw.match(versaoRegex);
+        const textMatch = plainText.match(versaoRegex);
+
+        let versaoCodigo = '';
+        let descricao = '';
+
+        if (labelMatch) {
+          versaoCodigo = `V${labelMatch[1]}`;
+          descricao = labelMatch[2]?.trim() ?? '';
+        } else if (textMatch) {
+          versaoCodigo = `V${textMatch[1]}`;
+          descricao = textMatch[2]?.trim() ?? '';
+        }
+
+        const labelNormalizada =
+          versaoCodigo && descricao
+            ? `${versaoCodigo} - ${descricao}`
+            : versaoCodigo || baseLabelRaw;
+
+        if (versaoCodigo && !versoesMencionadas.includes(versaoCodigo)) {
+          versoesMencionadas.push(versaoCodigo);
+        }
+
+        const badgeText = labelNormalizada.startsWith('@')
+          ? labelNormalizada
+          : `@${labelNormalizada}`;
+
+        const dataIdAttr = idAttr
+          ? ` data-id="${escapeAttribute(idAttr)}"`
+          : '';
+
+        return `<span class="mention" data-type="mention"${dataIdAttr} data-label="${escapeAttribute(
+          labelNormalizada,
+        )}" data-mention-label="${escapeAttribute(
+          labelNormalizada,
+        )}">${badgeText}</span>`;
+      },
     );
-    
-    // Também corrigir casos onde há spans com class="mention" aninhados de outras formas
+
+    const placeholders: string[] = [];
     mensagemProcessada = mensagemProcessada.replace(
-      /<span[^>]*class="mention"[^>]*><span[^>]*class="mention"[^>]*>([^<]*)<\/span><\/span>/g,
-      '<span class="mention" data-mention-id="" data-mention-label="">$1</span>'
+      /<span class="mention"[^>]*>.*?<\/span>/gis,
+      (match) => {
+        placeholders.push(match);
+        return `__MENTION_PLACEHOLDER_${placeholders.length - 1}__`;
+      },
     );
-    
-    // Limpar atributos soltos que possam ter ficado
-    mensagemProcessada = mensagemProcessada.replace(/\s+data-mention-id="[^"]*"\s+data-mention-label="[^"]*">/g, '>');
-    
-    // Limpar spans malformados com atributos soltos
-    mensagemProcessada = mensagemProcessada.replace(/<span[^>]*>\s*<\/span>/g, '');
-    
-    // Limpeza final: garantir que não há spans aninhados
-    // Se ainda houver spans aninhados, extrair o conteúdo mais interno
-    let previousHtml = '';
-    while (previousHtml !== mensagemProcessada) {
-      previousHtml = mensagemProcessada;
-      mensagemProcessada = mensagemProcessada.replace(
-        /<span[^>]*><span[^>]*>([^<]*)<\/span><\/span>/g,
-        '<span class="mention">$1</span>'
-      );
-    }
-    
-    this.logger.log(`🧹 HTML limpo: ${mensagemProcessada}`);
-    
-    // Depois, processar menções de texto simples (@V1, @v1, @V2, etc.) para compatibilidade
-    const textMentionRegex = /@[vV](\d+)(?:\s*-\s*([^-\s]+(?:\s+[^-\s]+)*))(?=\s|$)/g;
-    
-    while ((match = textMentionRegex.exec(mensagemProcessada)) !== null) {
-      const versaoNumero = match[1];
-      const descricao = match[2] || '';
-      const versaoCompleta = `V${versaoNumero}`;
-      
-      if (!versoesMencionadas.includes(versaoCompleta)) {
-        versoesMencionadas.push(versaoCompleta);
-      }
-      
-      // Substituir a menção por um badge formatado
-      const badgeText = descricao ? `@${versaoCompleta} - ${descricao}` : `@${versaoCompleta}`;
-      mensagemProcessada = mensagemProcessada.replace(
-        match[0], 
-        `<span class="mention">${badgeText}</span>`
-      );
-    }
-    
-    this.logger.log(`Menções processadas: ${versoesMencionadas.join(', ')}`);
-    this.logger.log(`🔍 Mensagem final processada: ${mensagemProcessada}`);
-    
+
+    const textMentionRegex =
+      /(^|[\s>])@([vV]\d+)(?:\s*-\s*([^\s@<]+(?:\s+[^\s@<]+){0,4}))?(?=$|\s|[.,!?;:])/g;
+
+    mensagemProcessada = mensagemProcessada.replace(
+      textMentionRegex,
+      (_, prefix: string, versaoRaw: string, descricaoRaw?: string) => {
+        const versao = versaoRaw.toUpperCase();
+        const descricao = (descricaoRaw || '').trim();
+
+        if (!versoesMencionadas.includes(versao)) {
+          versoesMencionadas.push(versao);
+        }
+
+        const label = descricao ? `${versao} - ${descricao}` : versao;
+        const badgeText = `@${label}`;
+
+        return `${prefix}<span class="mention" data-type="mention" data-label="${escapeAttribute(
+          label,
+        )}" data-mention-label="${escapeAttribute(label)}">${badgeText}</span>`;
+      },
+    );
+
+    mensagemProcessada = mensagemProcessada.replace(
+      /__MENTION_PLACEHOLDER_(\d+)__/g,
+      (_, index) => placeholders[Number(index)],
+    );
+
     return {
       mensagemProcessada,
-      versoesMencionadas
+      versoesMencionadas,
     };
   }
 
@@ -164,7 +149,7 @@ export class ArteMensagemService {
    */
   async criarMensagem(data: CreateMensagemDto & { usuario_id?: string | null; loja_id: string }) {
     try {
-      // Verificar se a OS existe e pertence à loja
+      // Verificar se a OS existe e pertence ├á loja
       const os = await this.prisma.ordemServico.findFirst({
         where: {
           id: data.os_id,
@@ -176,10 +161,10 @@ export class ArteMensagemService {
       });
 
       if (!os) {
-        throw new Error('OS não encontrada ou não pertence à loja');
+        throw new Error('OS n├úo encontrada ou n├úo pertence ├á loja');
       }
 
-      // Buscar dados do usuário se for mensagem da equipe
+      // Buscar dados do usu├írio se for mensagem da equipe
       let autorNome = data.autor_nome;
       let autorEmail = data.autor_email;
 
@@ -193,7 +178,7 @@ export class ArteMensagemService {
           autorNome = usuario.nome;
           autorEmail = usuario.email;
         } else {
-          this.logger.warn(`Usuário não encontrado: ${data.usuario_id}`);
+          this.logger.warn(`Usu├írio n├úo encontrado: ${data.usuario_id}`);
         }
       } else if (data.autor_tipo === AutorTipo.CLIENTE) {
         // Para mensagens do cliente, usar dados da OS
@@ -201,13 +186,13 @@ export class ArteMensagemService {
         autorEmail = os.cliente.email;
       }
 
-      // Se ainda não tiver nome, usar um padrão
+      // Se ainda n├úo tiver nome, usar um padr├úo
       if (!autorNome) {
         autorNome = data.autor_tipo === AutorTipo.EQUIPE ? 'Equipe' : 'Cliente';
-        this.logger.warn(`Autor sem nome, usando padrão: ${autorNome}`);
+        this.logger.warn(`Autor sem nome, usando padr├úo: ${autorNome}`);
       }
 
-      // Processar menções na mensagem
+      // Processar men├º├Áes na mensagem
       const { mensagemProcessada, versoesMencionadas } = this.processarMencoes(data.mensagem);
 
       // Criar mensagem
@@ -216,7 +201,7 @@ export class ArteMensagemService {
           os_id: data.os_id,
           produto_id: data.produto_id,
           versao_id: data.versao_id,
-          mensagem: mensagemProcessada, // Usar mensagem com menções processadas
+          mensagem: mensagemProcessada, // Usar mensagem com men├º├Áes processadas
           autor_tipo: data.autor_tipo,
           autor_nome: autorNome,
           autor_email: autorEmail || '',
@@ -248,12 +233,12 @@ export class ArteMensagemService {
           created_at: mensagem.created_at,
           lida: mensagem.lida,
           loja_id: mensagem.loja_id,
-          versoesMencionadas, // Incluir dados das menções
-          mensagemOriginal: data.mensagem, // Manter mensagem original para referência
+          versoesMencionadas, // Incluir dados das men├º├Áes
+          mensagemOriginal: data.mensagem, // Manter mensagem original para refer├¬ncia
         });
       }
 
-      // Enviar notificações
+      // Enviar notifica├º├Áes
       await this.enviarNotificacoesMensagem(mensagem, data.autor_tipo as AutorTipo);
 
       return mensagem;
@@ -280,7 +265,7 @@ export class ArteMensagemService {
   }
 
   /**
-   * Listar mensagens de uma versão específica
+   * Listar mensagens de uma vers├úo espec├¡fica
    */
   async listarMensagensVersao(versaoId: string, lojaId: string) {
     // Log removido para reduzir spam no console
@@ -319,7 +304,7 @@ export class ArteMensagemService {
    * Atualizar mensagem
    */
   async atualizarMensagem(id: string, dto: UpdateMensagemDto, usuarioId: string, lojaId: string) {
-    // Verificar se a mensagem existe e pertence ao usuário/loja
+    // Verificar se a mensagem existe e pertence ao usu├írio/loja
     const mensagemExistente = await this.prisma.arteMensagem.findFirst({
       where: {
         id,
@@ -328,12 +313,12 @@ export class ArteMensagemService {
     });
 
     if (!mensagemExistente) {
-      throw new Error('Mensagem não encontrada');
+      throw new Error('Mensagem n├úo encontrada');
     }
 
-    // Verificar se o usuário pode editar (apenas mensagens da equipe)
+    // Verificar se o usu├írio pode editar (apenas mensagens da equipe)
     if (mensagemExistente.autor_tipo === AutorTipo.CLIENTE) {
-      throw new Error('Não é possível editar mensagens do cliente');
+      throw new Error('N├úo ├® poss├¡vel editar mensagens do cliente');
     }
 
     return this.prisma.arteMensagem.update({
@@ -346,7 +331,7 @@ export class ArteMensagemService {
    * Deletar mensagem
    */
   async deletarMensagem(id: string, usuarioId: string, lojaId: string) {
-    // Verificar se a mensagem existe e pertence ao usuário/loja
+    // Verificar se a mensagem existe e pertence ao usu├írio/loja
     const mensagemExistente = await this.prisma.arteMensagem.findFirst({
       where: {
         id,
@@ -355,12 +340,12 @@ export class ArteMensagemService {
     });
 
     if (!mensagemExistente) {
-      throw new Error('Mensagem não encontrada');
+      throw new Error('Mensagem n├úo encontrada');
     }
 
-    // Verificar se o usuário pode deletar (apenas mensagens da equipe)
+    // Verificar se o usu├írio pode deletar (apenas mensagens da equipe)
     if (mensagemExistente.autor_tipo === AutorTipo.CLIENTE) {
-      throw new Error('Não é possível deletar mensagens do cliente');
+      throw new Error('N├úo ├® poss├¡vel deletar mensagens do cliente');
     }
 
     return this.prisma.arteMensagem.delete({
@@ -384,14 +369,14 @@ export class ArteMensagemService {
   }
 
   /**
-   * Marcar todas as mensagens de um produto/versão como lidas
+   * Marcar todas as mensagens de um produto/vers├úo como lidas
    */
   async marcarMensagensLidasPorProduto(osId: string, produtoId: string, versaoId: string | null, lojaId: string) {
     const whereClause: any = {
       os_id: osId,
       produto_id: produtoId,
       loja_id: lojaId,
-      lida: false, // Apenas mensagens não lidas
+      lida: false, // Apenas mensagens n├úo lidas
       autor_tipo: 'CLIENTE', // Apenas mensagens do cliente
     };
 
@@ -413,7 +398,7 @@ export class ArteMensagemService {
   }
 
   /**
-   * Contar mensagens não lidas por versão (apenas do cliente)
+   * Contar mensagens n├úo lidas por vers├úo (apenas do cliente)
    */
   async contarMensagensNaoLidas(osId: string, lojaId: string) {
     try {
@@ -425,8 +410,8 @@ export class ArteMensagemService {
           os_id: osId,
           loja_id: lojaId,
           lida: false,
-          autor_tipo: AutorTipo.CLIENTE, // Apenas mensagens não lidas do cliente
-          versao_id: { not: null }, // Apenas mensagens com versão
+          autor_tipo: AutorTipo.CLIENTE, // Apenas mensagens n├úo lidas do cliente
+          versao_id: { not: null }, // Apenas mensagens com vers├úo
         },
         _count: {
           id: true,
@@ -435,7 +420,7 @@ export class ArteMensagemService {
       
       // Log removido para reduzir spam no console
 
-      // Buscar dados das versões
+      // Buscar dados das vers├Áes
       const versaoIds = mensagensNaoLidas.map(m => m.versao_id).filter(Boolean);
       const versoes = await this.prisma.arteVersao.findMany({
         where: {
@@ -454,7 +439,7 @@ export class ArteMensagemService {
         const versao = versoes.find(v => v.id === mensagem.versao_id);
         return {
           produto_id: mensagem.versao_id, // Usar versao_id como produto_id para compatibilidade
-          produto_nome: versao?.descricao || `Versão ${versao?.versao || 'N/A'}`,
+          produto_nome: versao?.descricao || `Vers├úo ${versao?.versao || 'N/A'}`,
           mensagens_nao_lidas: mensagem._count.id,
         };
       });
@@ -462,13 +447,13 @@ export class ArteMensagemService {
       // Log removido para reduzir spam no console
       return resultado;
     } catch (error) {
-      this.logger.error('❌ Erro ao contar mensagens não lidas:', error);
+      this.logger.error('ÔØî Erro ao contar mensagens n├úo lidas:', error);
       throw error;
     }
   }
 
   /**
-   * Buscar últimas mensagens por produto
+   * Buscar ├║ltimas mensagens por produto
    */
   async buscarUltimasMensagensPorProduto(osId: string, lojaId: string) {
     // Buscar todas as mensagens da OS
@@ -482,7 +467,7 @@ export class ArteMensagemService {
       },
     });
 
-    // Agrupar por produto e pegar a última mensagem de cada
+    // Agrupar por produto e pegar a ├║ltima mensagem de cada
     const mensagensPorProduto = new Map();
     
     for (const mensagem of mensagens) {
@@ -491,7 +476,7 @@ export class ArteMensagemService {
       }
     }
 
-    // ✅ USAR EXATAMENTE A MESMA LÓGICA DO useOSProdutos
+    // Ô£à USAR EXATAMENTE A MESMA L├ôGICA DO useOSProdutos
     // Buscar produtos usando a API status-produtos (que funciona perfeitamente)
     const os = await this.prisma.ordemServico.findFirst({
       where: {
@@ -509,13 +494,13 @@ export class ArteMensagemService {
     });
 
     if (!os) {
-      throw new NotFoundException('OS não encontrada');
+      throw new NotFoundException('OS n├úo encontrada');
     }
 
-    // Combinar produtos: ItemOS migrados + produtos do orçamento não migrados
+    // Combinar produtos: ItemOS migrados + produtos do or├ºamento n├úo migrados
     let produtos = [];
 
-    // 1. Buscar produtos já migrados para ItemOS
+    // 1. Buscar produtos j├í migrados para ItemOS
     if (os.itens && os.itens.length > 0) {
       const produtosItemOS = os.itens.map(item => ({
         item_id: item.id,
@@ -527,13 +512,13 @@ export class ArteMensagemService {
         prioridade_produto: item.prioridade_produto || 'NORMAL',
         dias_restantes: null,
         is_retroativo: false,
-        mensagem: 'Prazo não definido',
+        mensagem: 'Prazo n├úo definido',
         excede_prazo_final: false
       }));
       produtos.push(...produtosItemOS);
     }
 
-    // 2. Buscar produtos do orçamento que ainda não foram migrados
+    // 2. Buscar produtos do or├ºamento que ainda n├úo foram migrados
     if (os.orcamento?.produtos && os.orcamento.produtos.length > 0) {
       const produtosOrcamento = os.orcamento.produtos
         .filter(produto => !os.itens.some(item => item.produto_servico === produto.nome_servico))
@@ -547,37 +532,37 @@ export class ArteMensagemService {
           prioridade_produto: 'NORMAL',
           dias_restantes: null,
           is_retroativo: false,
-          mensagem: 'Prazo não definido',
+          mensagem: 'Prazo n├úo definido',
           excede_prazo_final: false
         }));
       produtos.push(...produtosOrcamento);
     }
 
-    console.log('🔍 [buscarUltimasMensagensPorProduto] Produtos da API status-produtos:', produtos);
+    console.log('­ƒöì [buscarUltimasMensagensPorProduto] Produtos da API status-produtos:', produtos);
 
     // Formatar resposta
     const resultado = Array.from(mensagensPorProduto.values()).map(mensagem => {
       // Buscar o produto pelo ID da mensagem
       let produto = produtos.find(p => p.item_id === mensagem.produto_id || p.produto_id === mensagem.produto_id);
       
-      // ✅ FALLBACK: Se não encontrou o produto específico e há apenas um produto na OS, usar esse
+      // Ô£à FALLBACK: Se n├úo encontrou o produto espec├¡fico e h├í apenas um produto na OS, usar esse
       if (!produto && produtos.length === 1) {
         produto = produtos[0];
-        console.log('🔍 [buscarUltimasMensagensPorProduto] Usando produto único da OS como fallback:', produto);
+        console.log('­ƒöì [buscarUltimasMensagensPorProduto] Usando produto ├║nico da OS como fallback:', produto);
       }
       
-      console.log('🔍 [buscarUltimasMensagensPorProduto] Processando mensagem:', {
+      console.log('­ƒöì [buscarUltimasMensagensPorProduto] Processando mensagem:', {
         mensagem_id: mensagem.id,
         produto_id: mensagem.produto_id,
         produto_encontrado: produto,
-        produto_nome_final: produto?.produto_servico || 'Produto não encontrado',
+        produto_nome_final: produto?.produto_servico || 'Produto n├úo encontrado',
         produtos_disponiveis: produtos.length
       });
       
       return {
         id: mensagem.id,
-        produto_id: produto?.item_id || produto?.produto_id || mensagem.produto_id, // ✅ RETORNAR ID CORRETO DO PRODUTO
-        produto_nome: produto?.produto_servico || 'Produto não encontrado', // ✅ USAR produto_servico
+        produto_id: produto?.item_id || produto?.produto_id || mensagem.produto_id, // Ô£à RETORNAR ID CORRETO DO PRODUTO
+        produto_nome: produto?.produto_servico || 'Produto n├úo encontrado', // Ô£à USAR produto_servico
         autor_nome: mensagem.autor_nome,
         autor_tipo: mensagem.autor_tipo,
         mensagem: mensagem.mensagem,
@@ -586,12 +571,12 @@ export class ArteMensagemService {
       };
     }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     
-    console.log('🔍 [buscarUltimasMensagensPorProduto] Resultado final:', resultado);
+    console.log('­ƒöì [buscarUltimasMensagensPorProduto] Resultado final:', resultado);
     return resultado;
   }
 
   /**
-   * Enviar notificações para nova mensagem
+   * Enviar notifica├º├Áes para nova mensagem
    */
   private async enviarNotificacoesMensagem(mensagem: any, autorTipo: AutorTipo) {
     try {
@@ -610,7 +595,7 @@ export class ArteMensagemService {
           },
         });
 
-        // Criar notificação no sistema para o cliente
+        // Criar notifica├º├úo no sistema para o cliente
         await this.criarNotificacaoSistema({
           tipo: 'NOVA_MENSAGEM_CLIENTE',
           os_id: mensagem.os_id,
@@ -639,23 +624,23 @@ export class ArteMensagemService {
           },
         });
 
-        // Criar notificação global para a equipe
+        // Criar notifica├º├úo global para a equipe
         await this.notificacoesGlobalService.notificarNovaMensagemArte(
           mensagem.os_id,
           mensagem.loja_id,
           mensagem.os.cliente.nome,
-          'Produto', // TODO: Buscar nome do produto específico
+          'Produto', // TODO: Buscar nome do produto espec├¡fico
           mensagem.versao_id,
         );
       }
     } catch (error) {
-      this.logger.error('Erro ao enviar notificações de mensagem:', error);
-      // Não falhar a operação principal por causa das notificações
+      this.logger.error('Erro ao enviar notifica├º├Áes de mensagem:', error);
+      // N├úo falhar a opera├º├úo principal por causa das notifica├º├Áes
     }
   }
 
   /**
-   * Criar notificação no sistema
+   * Criar notifica├º├úo no sistema
    */
   private async criarNotificacaoSistema(data: {
     tipo: string;
@@ -684,9 +669,9 @@ export class ArteMensagemService {
         },
       });
 
-      this.logger.log(`Notificação criada: ${data.tipo} para OS ${data.os_id}`);
+      this.logger.log(`Notifica├º├úo criada: ${data.tipo} para OS ${data.os_id}`);
     } catch (error) {
-      this.logger.error('Erro ao criar notificação no sistema:', error);
+      this.logger.error('Erro ao criar notifica├º├úo no sistema:', error);
     }
   }
 }
