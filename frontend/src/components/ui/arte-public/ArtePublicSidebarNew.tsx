@@ -158,50 +158,75 @@ export function ArtePublicSidebarNew({
                {/* Container com scroll limitado */}
                <div className="max-h-64 overflow-y-auto px-4 pb-4">
                  <div className="space-y-2">
-                   {versoes.slice(0, 10).map((versao) => (
-                     <button
-                       key={versao.id}
-                       onClick={() => {
-                         // Sempre abre modal mobile, CSS responsivo controla a exibição
-                         setVersaoModal(versao);
-                         setShowMobileModal(true);
-                         // Também seleciona a versão para desktop
-                         onVersaoChange(versao.id);
-                       }}
-                       className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
-                         versaoSelecionada === versao.id
-                           ? 'border-purple-500 bg-purple-100 shadow-md ring-2 ring-purple-200'
-                           : 'border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50'
-                       }`}
-                     >
-                       <div className="flex items-center justify-between">
-                         <div className="flex items-center space-x-2">
-                           <span 
-                             className={`font-semibold text-sm ${
-                               versaoSelecionada === versao.id ? 'text-purple-900' : 'text-gray-700'
-                             }`}
-                             title={`${versao.versao.toUpperCase()} - ${produtoAtual?.nome || 'Produto'}`}
-                           >
-                             {(() => {
-                               const tituloCompleto = `${versao.versao.toUpperCase()} - ${produtoAtual?.nome || 'Produto'}`;
-                               return tituloCompleto.length > 25 ? `${tituloCompleto.substring(0, 22)}...` : tituloCompleto;
-                             })()}
-                           </span>
-                           {getStatusIcon(versao.status)}
-                           {/* Ícone para indicar modal - visível apenas em mobile */}
-                           <Maximize2 className="lg:hidden h-3 w-3 text-gray-400 ml-1" title="Toque para visualizar" />
-                         </div>
-                         <div 
-                           className={`text-xs truncate max-w-[60px] ${
-                             versaoSelecionada === versao.id ? 'text-purple-600' : 'text-gray-500'
-                           }`}
-                           title={formatarData(versao.data_criacao)}
-                         >
-                           {formatarData(versao.data_criacao)}
-                         </div>
-                       </div>
-                     </button>
-                   ))}
+                  {versoes.slice(0, 10).map((versao) => {
+                    const isAprovada = versao.status === 'APROVADA';
+                    const isAtual = versaoSelecionada === versao.id;
+                    
+                    return (
+                    <button
+                      key={versao.id}
+                      onClick={() => {
+                        // Sempre abre modal mobile, CSS responsivo controla a exibição
+                        setVersaoModal(versao);
+                        setShowMobileModal(true);
+                        // Também seleciona a versão para desktop
+                        onVersaoChange(versao.id);
+                      }}
+                      className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
+                        isAprovada 
+                          ? isAtual 
+                            ? 'border-green-500 bg-green-100 shadow-md ring-2 ring-green-200' 
+                            : 'border-green-300 bg-green-50 hover:bg-green-100'
+                          : isAtual 
+                            ? 'border-purple-500 bg-purple-100 shadow-md ring-2 ring-purple-200'
+                            : 'border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2 flex-1 min-w-0">
+                          <span 
+                            className={`font-semibold text-sm truncate ${
+                              isAprovada 
+                                ? 'text-green-900' 
+                                : isAtual 
+                                  ? 'text-purple-900' 
+                                  : 'text-gray-700'
+                            }`}
+                            title={`${versao.versao.toUpperCase()} - ${produtoAtual?.nome || 'Produto'}`}
+                          >
+                            {(() => {
+                              const tituloCompleto = `${versao.versao.toUpperCase()} - ${produtoAtual?.nome || 'Produto'}`;
+                              return tituloCompleto.length > 25 ? `${tituloCompleto.substring(0, 22)}...` : tituloCompleto;
+                            })()}
+                          </span>
+                          {isAprovada ? (
+                            <Badge className="bg-green-600 text-white text-xs px-2 py-0.5 flex-shrink-0">
+                              ✓ Aprovado
+                            </Badge>
+                          ) : (
+                            <>
+                              {getStatusIcon(versao.status)}
+                              {/* Ícone para indicar modal - visível apenas em mobile */}
+                              <Maximize2 className="lg:hidden h-3 w-3 text-gray-400 ml-1" title="Toque para visualizar" />
+                            </>
+                          )}
+                        </div>
+                        <div 
+                          className={`text-xs truncate max-w-[60px] flex-shrink-0 ml-2 ${
+                            isAprovada 
+                              ? 'text-green-600 font-medium' 
+                              : isAtual 
+                                ? 'text-purple-600' 
+                                : 'text-gray-500'
+                          }`}
+                          title={formatarData(versao.data_criacao)}
+                        >
+                          {formatarData(versao.data_criacao)}
+                        </div>
+                      </div>
+                    </button>
+                    );
+                  })}
                    
                    {/* Indicador se há mais versões */}
                    {versoes.length > 10 && (

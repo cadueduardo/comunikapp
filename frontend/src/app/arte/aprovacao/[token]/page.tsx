@@ -12,6 +12,7 @@ import {
   ArtePublicSidebarNew,
   ArtePublicTabs
 } from '@/components/ui/arte-public';
+import { ArteApprovalModal } from '@/components/ui/arte-public/ArteApprovalModal';
 import { useArtePublicApproval } from '@/components/ui/arte-public/hooks/useArtePublicApproval';
 
 export default function ArtePublicApprovalPage() {
@@ -38,6 +39,21 @@ export default function ArtePublicApprovalPage() {
     aprovarArte,
     rejeitarArte,
   } = useArtePublicApproval(token);
+
+  const [showApprovalModal, setShowApprovalModal] = React.useState(false);
+
+  const handleAprovarClick = () => {
+    if (!declarationChecked) {
+      toast.error('Por favor, confirme que revisou e aprova a arte');
+      return;
+    }
+    setShowApprovalModal(true);
+  };
+
+  const handleConfirmApproval = async () => {
+    setShowApprovalModal(false);
+    await aprovarArte();
+  };
 
   const handleDownload = async () => {
     if (versaoAtual?.arquivos?.[0]) {
@@ -184,16 +200,16 @@ export default function ArtePublicApprovalPage() {
                  <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                      {/* Botões à esquerda */}
-                     <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 flex-1">
-                       <Button
-                         onClick={aprovarArte}
-                         disabled={processing || !declarationChecked}
-                         className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                         size="sm"
-                       >
-                         <CheckCircle className="h-4 w-4 mr-2" />
-                         Aprovar Arte
-                       </Button>
+                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 flex-1">
+                      <Button
+                        onClick={handleAprovarClick}
+                        disabled={processing || !declarationChecked}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                        size="sm"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Aprovar Arte
+                      </Button>
                        <Button
                          onClick={rejeitarArte}
                          disabled={processing}
@@ -221,6 +237,16 @@ export default function ArtePublicApprovalPage() {
                  </div>
                </div>
              )}
+
+             {/* Modal de Confirmação de Aprovação */}
+             <ArteApprovalModal
+               isOpen={showApprovalModal}
+               onClose={() => setShowApprovalModal(false)}
+               onConfirm={handleConfirmApproval}
+               produtoNome={produtoAtual?.nome || 'Produto'}
+               versao={versaoAtual?.versao || 'N/A'}
+               processing={processing}
+             />
            </div>
          );
 }
