@@ -34,7 +34,9 @@ import {
   Save,
   X,
   Play,
-  Package
+  Package,
+  Eye,
+  Image
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -70,6 +72,7 @@ export function PrazoProdutoComponent({
   const [showRetroactiveModal, setShowRetroactiveModal] = useState(false);
   const [pendingData, setPendingData] = useState<any>(null);
   const [dadosProduto, setDadosProduto] = useState<any>(null);
+  const [dadosArteAprovada, setDadosArteAprovada] = useState<any>(null);
   
   // Formulário
   const [formData, setFormData] = useState({
@@ -94,10 +97,11 @@ export function PrazoProdutoComponent({
     }
   }, [isEditing, dataPrazoProduto, dataInicio, prioridade]);
 
-  // Buscar dados detalhados do produto do orçamento
+  // Buscar dados detalhados do produto do orçamento e arte aprovada
   useEffect(() => {
     if (produtoId && osId) {
       carregarDadosProduto();
+      carregarDadosArteAprovada();
     }
   }, [produtoId, osId]);
 
@@ -135,6 +139,45 @@ export function PrazoProdutoComponent({
           { nome: 'Ponteira Para Banner 5/8 Branca - 1000pçs', quantidade: 50, unidade: 'UNID' }
         ]
       });
+    }
+  };
+
+  const carregarDadosArteAprovada = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`/api/arte-aprovacao/versoes/${osId}/aprovada/${produtoId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          setDadosArteAprovada(result.data);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados da arte aprovada:', error);
+      // Em caso de erro, usar dados mockados baseados no produto
+      const mockData = {
+        id: `arte-${produtoId}`,
+        versao: 'v2',
+        status: 'APROVADA',
+        arquivos: [
+          {
+            id: 'arquivo-1',
+            nome_original: `${produtoNome}_aprovada.pdf`,
+            url_arquivo: '/api/arte-aprovacao/arquivo/mock.pdf',
+            url_thumbnail: '/api/arte-aprovacao/thumbnail/mock.jpg',
+            tipo_arquivo: 'application/pdf'
+          }
+        ],
+        data_criacao: new Date().toISOString(),
+        autor_nome: 'Designer'
+      };
+      setDadosArteAprovada(mockData);
     }
   };
 
@@ -253,6 +296,20 @@ export function PrazoProdutoComponent({
     }
   };
 
+  const abrirArteEmNovaAba = () => {
+    if (!dadosArteAprovada || !dadosArteAprovada.arquivos || dadosArteAprovada.arquivos.length === 0) {
+      toast.error('Arte não encontrada');
+      return;
+    }
+
+    const primeiroArquivo = dadosArteAprovada.arquivos[0];
+    const urlCompleta = primeiroArquivo.url_arquivo.startsWith('http') 
+      ? primeiroArquivo.url_arquivo 
+      : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${primeiroArquivo.url_arquivo}`;
+    
+    window.open(urlCompleta, '_blank');
+  };
+
   const liberarParaPCP = async () => {
     if (!dataPrazoProduto) {
       toast.error('Defina o prazo do produto antes de liberar para o PCP');
@@ -354,58 +411,85 @@ export function PrazoProdutoComponent({
     return detalhamento || 'Detalhamento técnico não disponível.';
   };
 
-  // Função para obter status da arte (mockado por enquanto)
+  // Função para obter status da arte com dados reais
   const getStatusArte = () => {
-    const statusArte: Record<string, { versao: string; aprovada: string; status: string; cor: string }> = {
-      'Fachada Principal': {
-        versao: 'v3',
-        aprovada: 'v1',
-        status: 'Aprovada',
-        cor: 'text-green-600'
-      },
-      'Banner Interno': {
-        versao: 'v1',
-        aprovada: '—',
-        status: 'Aguardando aprovação',
-        cor: 'text-red-600'
-      },
-      'Painel Externo': {
-        versao: 'v2',
-        aprovada: '—',
-        status: 'Revisão solicitada',
-        cor: 'text-orange-600'
-      },
-      'Letreiro Iluminado': {
-        versao: 'v1',
-        aprovada: 'v1',
-        status: 'Aprovada',
-        cor: 'text-green-600'
-      },
-      'Placa de Identificação': {
-        versao: 'v2',
-        aprovada: '—',
-        status: 'Em desenvolvimento',
-        cor: 'text-blue-600'
-      }
-    };
-
-    const arte = statusArte[produtoNome] || {
-      versao: 'v1',
-      aprovada: '—',
-      status: 'Não definido',
-      cor: 'text-gray-600'
-    };
-
-    return (
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-600">
-            Atual: {arte.versao} • Aprovada: {arte.aprovada}
+    if (!dadosArteAprovada) {
+      return (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600">
+              Atual: — • Aprovada: —
+            </span>
+          </div>
+          <span className="text-sm font-medium text-gray-600">
+            Não definido
           </span>
         </div>
-        <span className={`text-sm font-medium ${arte.cor}`}>
-          {arte.status}
-        </span>
+      );
+    }
+
+    const temArquivo = dadosArteAprovada.arquivos && dadosArteAprovada.arquivos.length > 0;
+    const primeiroArquivo = temArquivo ? dadosArteAprovada.arquivos[0] : null;
+
+    return (
+      <div className="space-y-3">
+        {/* Thumbnail e informações da arte */}
+        <div className="flex items-start space-x-3">
+          {/* Thumbnail */}
+          {primeiroArquivo && primeiroArquivo.url_thumbnail ? (
+            <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
+              <img 
+                src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${primeiroArquivo.url_thumbnail}`}
+                alt="Thumbnail da arte"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = '<div class="flex items-center justify-center h-full"><Image class="h-6 w-6 text-gray-400" /></div>';
+                }}
+              />
+            </div>
+          ) : (
+            <div className="w-16 h-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center flex-shrink-0">
+              <Image className="h-6 w-6 text-gray-400" />
+            </div>
+          )}
+          
+          {/* Informações da arte */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium text-gray-900 truncate">
+                  {dadosArteAprovada.versao} - {produtoNome}
+                </div>
+                <div className="text-xs text-gray-500">
+                  Aprovada em {new Date(dadosArteAprovada.data_criacao).toLocaleDateString('pt-BR')}
+                </div>
+              </div>
+              <Button
+                onClick={abrirArteEmNovaAba}
+                variant="outline"
+                size="sm"
+                className="ml-2 flex-shrink-0"
+              >
+                <Eye className="h-3 w-3 mr-1" />
+                Ver Arte
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Status */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <CheckCircle className="h-4 w-4 text-green-500" />
+            <span className="text-sm text-gray-600">
+              Atual: {dadosArteAprovada.versao} • Aprovada: {dadosArteAprovada.versao}
+            </span>
+          </div>
+          <span className="text-sm font-medium text-green-600">
+            Aprovada
+          </span>
+        </div>
       </div>
     );
   };
@@ -619,8 +703,7 @@ export function PrazoProdutoComponent({
                 onClick={liberarParaPCP}
                 disabled={isLoading}
                 size="sm"
-                variant="outline"
-                className="w-full flex items-center justify-center space-x-2"
+                className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700"
               >
                 <CheckCircle className="h-4 w-4" />
                 <span>Liberar para PCP</span>

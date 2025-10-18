@@ -55,7 +55,6 @@ import { ArteFileUpload } from './components/ArteFileUpload';
 import { ArtePreviewModal } from './components/ArtePreviewModal';
 import { ArteCreateVersionModal } from './components/ArteCreateVersionModal';
 import { ArteDesignerApprovalModal } from './components/ArteDesignerApprovalModal';
-import { ArteSendToPCPModal } from './components/ArteSendToPCPModal';
 
 // Interface para produtos/componentes da OS
 interface ProdutoArte {
@@ -99,11 +98,9 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showMessagesModal, setShowMessagesModal] = useState(false);
   const [showDesignerApprovalModal, setShowDesignerApprovalModal] = useState(false);
-  const [showSendToPCPModal, setShowSendToPCPModal] = useState(false);
   const [selectedVersao, setSelectedVersao] = useState<ArteVersao | undefined>();
   const [versaoToDelete, setVersaoToDelete] = useState<string | null>(null);
   const [versaoForApproval, setVersaoForApproval] = useState<ArteVersao | undefined>();
-  const [versaoForPCP, setVersaoForPCP] = useState<ArteVersao | undefined>();
   const [processing, setProcessing] = useState(false);
   
   // Estado para produto selecionado - usar o primeiro produto disponível
@@ -530,37 +527,6 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     }
   };
 
-  // Função para abrir modal de envio para PCP
-  const handleSendToPCPClick = (versao: ArteVersao) => {
-    setVersaoForPCP(versao);
-    setShowSendToPCPModal(true);
-  };
-
-  // Função para confirmar envio para PCP
-  const handleConfirmSendToPCP = async () => {
-    if (!versaoForPCP) return;
-
-    try {
-      setProcessing(true);
-      
-      await updateVersao(versaoForPCP.id, {
-        status: 'ENVIADA_PCP',
-        descricao: versaoForPCP.descricao,
-        observacoes: versaoForPCP.observacoes
-      });
-
-      toast.success(`Versão ${versaoForPCP.versao} enviada para o PCP!`);
-      
-      // Fechar modal e limpar estado
-      setShowSendToPCPModal(false);
-      setVersaoForPCP(undefined);
-    } catch (error) {
-      console.error('Erro ao enviar versão para PCP:', error);
-      toast.error('Erro ao enviar versão para PCP');
-    } finally {
-      setProcessing(false);
-    }
-  };
 
   // Função para abrir modal de mensagens
   const handleOpenMessages = (versaoId: string) => {
@@ -938,18 +904,6 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                       </Button>
                     )}
 
-                    {/* Botão para enviar para PCP - apenas para versões aprovadas */}
-                    {!readonly && versao.status === ArteStatus.APROVADA && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSendToPCPClick(versao)}
-                        className="text-purple-600 hover:text-purple-700 border-purple-200 hover:border-purple-300"
-                        title="Enviar para PCP"
-                      >
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    )}
 
                     {!readonly && versao.status === ArteStatus.RASCUNHO && (
                       <Button
@@ -1195,37 +1149,6 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
         />
       )}
 
-      {/* Modal de Envio para PCP */}
-      {versaoForPCP && (
-        <ArteSendToPCPModal
-          isOpen={showSendToPCPModal}
-          onClose={() => {
-            setShowSendToPCPModal(false);
-            setVersaoForPCP(undefined);
-          }}
-          onConfirm={handleConfirmSendToPCP}
-          produtoNome={
-            (() => {
-              // Se servico_id é 'servico-principal', usar o primeiro produto disponível
-              if (versaoForPCP.servico_id === 'servico-principal') {
-                if (produtos.length > 0) {
-                  return produtos[0].nome;
-                }
-                if (osData?.itens && osData.itens.length > 0) {
-                  return osData.itens[0].nome;
-                }
-                return osData?.nome_servico || 'Produto';
-              }
-              
-              // Para outros casos, buscar pelo ID do produto
-              const produto = produtos.find(p => p.id === versaoForPCP.servico_id);
-              return produto?.nome || 'Produto não encontrado';
-            })()
-          }
-          versao={versaoForPCP.versao}
-          processing={processing}
-        />
-      )}
     </div>
   );
 }
