@@ -331,11 +331,8 @@ export default function ArtePublicApprovalPageV2() {
         );
 
         if (produtosPendentes.length === 0) {
-          // Todos os produtos foram aprovados, redirecionar após 3 segundos
-          toast.success('Todas as artes foram aprovadas! Redirecionando...', { duration: 3000 });
-          setTimeout(() => {
-            window.location.href = '/arte/aprovacao/sucesso';
-          }, 3000);
+          // Todos os produtos foram aprovados - apenas notificar, cliente decide quando fechar
+          toast.success('🎉 Todas as artes foram aprovadas com sucesso!', { duration: 5000 });
         }
       } else {
         toast.success(data.data.mensagem || 'Solicitação de alteração enviada!');
