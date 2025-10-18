@@ -196,7 +196,13 @@ export function ArtePublicSidebar({
             <ArtePublicChatWithMentions
               versaoId={versaoAtual?.id || ''}
               token={token || ''}
-              versoesDisponiveis={versoesHistorico}
+              versoesDisponiveis={versoesHistorico.map(v => ({
+                id: v.id,
+                versao: v.versao,
+                status: v.status,
+                data_criacao: v.data,
+                autor: { nome: v.autor }
+              }))}
               produtoNome={produtos.find(p => p.id === produtoSelecionado)?.nome || 'Produto'}
               produtoId={produtoSelecionado}
               onMensagemEnviada={() => {
