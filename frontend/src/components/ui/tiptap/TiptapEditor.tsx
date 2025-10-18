@@ -33,6 +33,11 @@ export function TiptapEditor({
 }: TiptapEditorProps) {
   console.log('🔍 [TiptapEditor] Mentions recebidas:', mentions);
   console.log('🔍 [TiptapEditor] Número de mentions:', mentions.length);
+  
+  // Usar useRef para manter a referência atualizada das mentions
+  const mentionsRef = useRef(mentions);
+  mentionsRef.current = mentions;
+  
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -47,9 +52,11 @@ export function TiptapEditor({
         suggestion: {
           char: '@',
           items: ({ query }: { query: string }) => {
+            // Usar mentionsRef.current para obter o valor mais recente
+            const currentMentions = mentionsRef.current;
             console.log('🔍 [TiptapEditor] Buscando menções com query:', query);
-            console.log('🔍 [TiptapEditor] Mentions disponíveis:', mentions);
-            const filtered = mentions
+            console.log('🔍 [TiptapEditor] Mentions disponíveis (ref):', currentMentions);
+            const filtered = currentMentions
               .filter((item) =>
                 item.label.toLowerCase().includes(query.toLowerCase())
               )
