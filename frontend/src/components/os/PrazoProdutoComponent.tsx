@@ -145,7 +145,7 @@ export function PrazoProdutoComponent({
   const carregarDadosArteAprovada = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`/api/arte-aprovacao/versoes/${osId}/aprovada/${produtoId}`, {
+      const response = await fetch(`/api/arte-aprovacao/versoes/os/${osId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -154,8 +154,16 @@ export function PrazoProdutoComponent({
       
       if (response.ok) {
         const result = await response.json();
-        if (result.success && result.data) {
-          setDadosArteAprovada(result.data);
+        if (result && Array.isArray(result)) {
+          // Filtrar versões aprovadas para este produto específico
+          const versaoAprovada = result.find((versao: any) => 
+            versao.status === 'APROVADA' && 
+            (versao.servico_id === produtoId || versao.servico_id === 'servico-principal')
+          );
+          
+          if (versaoAprovada) {
+            setDadosArteAprovada(versaoAprovada);
+          }
         }
       }
     } catch (error) {
