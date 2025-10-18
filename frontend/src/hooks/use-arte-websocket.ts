@@ -78,8 +78,8 @@ export const useArteWebSocket = (
     setConnectionStatus('connecting');
     shouldReconnectRef.current = true;
 
-    // Conectar ao namespace /arte
-    const socket = io('http://localhost:4000/arte', {
+    // Conectar ao namespace /arte-aprovacao
+    const socket = io('http://localhost:4000/arte-aprovacao', {
       transports: ['websocket', 'polling'],
       timeout: 10000,
       forceNew: true,
@@ -128,6 +128,14 @@ export const useArteWebSocket = (
       setConnectionStatus('error');
       isConnectingRef.current = false;
       console.error('❌ Erro de conexão Arte WebSocket:', error);
+      
+      // Se for erro de namespace inválido, não tentar reconectar (é erro de configuração)
+      const errorMessage = error?.message || '';
+      if (errorMessage.includes('Invalid namespace')) {
+        console.error('❌ Namespace inválido - verificar configuração do WebSocket');
+        shouldReconnectRef.current = false;
+        return;
+      }
       
       if (shouldReconnectRef.current) {
         setTimeout(() => {
@@ -192,14 +200,19 @@ export const useArteWebSocket = (
       setConnectionStatus('error');
     });
 
-  }, [options.token, options.lojaId, options.usuarioId]);
+  }, [options.token, options.lojaId, options.usuarioId]); // Dependências específicas para evitar re-criação desnecessária
 
   useEffect(() => {
-    const { lojaId, usuarioId } = options;
+    const { lojaId, usuarioId, token } = options;
+
+    // Evitar múltiplas conexões
+    if (socketRef.current?.connected) {
+      return;
+    }
 
     if (lojaId && usuarioId) {
       connect();
-    } else if (options.token) {
+    } else if (token) {
       // Cliente público com token
       connect();
     } else {
@@ -209,7 +222,7 @@ export const useArteWebSocket = (
     return () => {
       disconnect();
     };
-  }, [connect, disconnect, options.lojaId, options.usuarioId, options.token]);
+  }, [options.lojaId, options.usuarioId, options.token]); // Dependências específicas para evitar re-execuções desnecessárias
 
   // Removido: enviarMensagem - mensagens são enviadas via API HTTP, não WebSocket
 

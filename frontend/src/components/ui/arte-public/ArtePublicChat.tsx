@@ -109,7 +109,7 @@ export function ArtePublicChat({
       setMensagensLocais(prev => [...prev, novaMsg]);
       
       // Marcar como lida se for da equipe (cliente lê mensagem da equipe)
-      if (novaMensagemWS.autor_tipo === 'EQUIPE') {
+      if (novaMensagemWS.autor_tipo?.toLowerCase() === 'equipe') {
         marcarMensagemLida(novaMensagemWS.id);
       }
     }
@@ -141,12 +141,12 @@ export function ArtePublicChat({
     toggleTyping(true);
   };
 
-  const inserirMenção = (versao: VersaoHistorico) => {
+  const insertMention = (versao: VersaoHistorico) => {
     const textoAntesCursor = novaMensagem.substring(0, posicaoCursor);
     const textoDepoisCursor = novaMensagem.substring(posicaoCursor);
-    const textoAntesMenção = textoAntesCursor.replace(/@[vV]\d*$/, '');
+    const textoAntesMencao = textoAntesCursor.replace(/@[vV]\d*$/, '');
     
-    const novaMensagemTexto = `${textoAntesMenção}@${versao.versao} ${textoDepoisCursor}`;
+    const novaMensagemTexto = `${textoAntesMencao}@${versao.versao} ${textoDepoisCursor}`;
     setNovaMensagem(novaMensagemTexto);
     setMostrarAutocomplete(false);
     
@@ -156,7 +156,7 @@ export function ArtePublicChat({
     }, 100);
   };
 
-  const processarMenções = (mensagem: string): { mensagemProcessada: string; mencoes: string[] } => {
+  const processMentions = (mensagem: string): { mensagemProcessada: string; mencoes: string[] } => {
     const regex = /@[vV](\d+)/g;
     const mencoes: string[] = [];
     let mensagemProcessada = mensagem;
@@ -183,7 +183,7 @@ export function ArtePublicChat({
 
     try {
       setEnviando(true);
-      const { mencoes } = processarMenções(novaMensagem);
+      const { mencoes } = processMentions(novaMensagem);
       
       // Parar indicador de digitação
       toggleTyping(false);
@@ -255,10 +255,10 @@ export function ArtePublicChat({
               key={mensagem.id}
               className={`
                 flex space-x-3
-                ${mensagem.autor_tipo === 'CLIENTE' ? 'justify-end' : 'justify-start'}
+                ${mensagem.autor_tipo?.toLowerCase() === 'cliente' ? 'justify-end' : 'justify-start'}
               `}
             >
-              {mensagem.autor_tipo === 'EQUIPE' && (
+              {mensagem.autor_tipo?.toLowerCase() === 'equipe' && (
                 <div className="flex-shrink-0">
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                     <User className="h-4 w-4 text-blue-600" />
@@ -267,10 +267,10 @@ export function ArtePublicChat({
               )}
               
               <div className={`
-                max-w-xs lg:max-w-md px-3 py-2 rounded-lg
-                ${mensagem.autor_tipo === 'CLIENTE' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-100 text-gray-900'
+                max-w-[70%] px-4 py-3 rounded-2xl shadow-sm mx-4
+                ${mensagem.autor_tipo?.toLowerCase() === 'cliente' 
+                  ? 'bg-blue-500 text-white rounded-br-md' 
+                  : 'bg-gray-100 text-gray-900 rounded-bl-md'
                 }
               `}>
                 <div className="flex items-center space-x-2 mb-1">
@@ -305,7 +305,7 @@ export function ArtePublicChat({
                 )}
               </div>
               
-              {mensagem.autor_tipo === 'CLIENTE' && (
+              {mensagem.autor_tipo?.toLowerCase() === 'cliente' && (
                 <div className="flex-shrink-0">
                   <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                     <User className="h-4 w-4 text-green-600" />
@@ -327,7 +327,7 @@ export function ArtePublicChat({
                 <div 
                   key={versao.id}
                   className="px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                  onClick={() => inserirMenção(versao)}
+                  onClick={() => insertMention(versao)}
                 >
                   <div className="flex items-center space-x-2">
                     <span className="text-sm font-medium">@{versao.versao}</span>

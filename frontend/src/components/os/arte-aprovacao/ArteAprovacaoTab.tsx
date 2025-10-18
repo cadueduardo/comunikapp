@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -65,15 +65,42 @@ interface ProdutoArte {
 }
 
 export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabProps) {
-  const { versoes, loading, error, createVersao, updateVersao, deleteVersao, refreshVersoes } = useArteVersoes(osId);
-  const { produtos, loading: loadingProdutos, error: errorProdutos } = useArteProdutos(osId);
-  const { produtosMessages, loading: loadingMessages, refreshMessages } = useArteMessages(osId);
+  // Memoizar osId para evitar re-renders desnecessários
+  const memoizedOsId = useMemo(() => osId, [osId]);
   
-  // WebSocket para atualizações em tempo real
-  const { novaMensagem: novaMensagemWS, contadorAtualizado } = useArteWebSocket({
-    lojaId: localStorage.getItem('loja_id') || undefined,
-    usuarioId: localStorage.getItem('user_id') || undefined,
-  });
+  // TESTE 2: Reativar useArteVersoes + useArteProdutos com correções
+  const { versoes, loading, error, createVersao, updateVersao, deleteVersao, refreshVersoes } = useArteVersoes(memoizedOsId);
+  const { produtos, loading: loadingProdutos, error: errorProdutos, refreshProdutos } = useArteProdutos(memoizedOsId);
+  
+  // TEMPORÁRIO: Manter outros hooks desabilitados
+  // const { produtosMessages, loading: loadingMessages, refreshMessages } = useArteMessages(osId);
+  
+  // Dados mockados temporariamente para testar performance
+  const produtosMessages: any[] = [];
+  const loadingMessages = false;
+  const refreshMessages = async () => {};
+  
+  // WebSocket para atualizações em tempo real - valores estáveis
+  const websocketOptions = useMemo(() => {
+    if (typeof window === 'undefined') return { lojaId: undefined, usuarioId: undefined };
+    
+    const lojaId = localStorage.getItem('loja_id');
+    const usuarioId = localStorage.getItem('user_id');
+    
+    return {
+      lojaId: lojaId || undefined,
+      usuarioId: usuarioId || undefined,
+    };
+  }, []); // Array vazio para garantir que só execute uma vez
+
+  // TEMPORÁRIO: Desabilitar WebSocket para testar performance
+  // const { novaMensagem: novaMensagemWS, contadorAtualizado, entrarSalaVersao, sairSalaVersao } = useArteWebSocket(websocketOptions);
+  
+  // Dados mockados temporariamente para testar performance
+  const novaMensagemWS = null;
+  const contadorAtualizado = false;
+  const entrarSalaVersao = () => {};
+  const sairSalaVersao = () => {};
   
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -96,33 +123,41 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
   // Estado para dados da OS
   const [osData, setOsData] = useState<any>(null);
 
-  // Buscar dados da OS
-  useEffect(() => {
-    const fetchOsData = async () => {
-      try {
-        const token = localStorage.getItem('access_token');
-        if (!token) return;
-        
-        const response = await fetch(`/api/os/${osId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setOsData(data.data);
-        }
-      } catch (error) {
-        console.error('Erro ao buscar dados da OS:', error);
-      }
-    };
-    
-    if (osId) {
-      fetchOsData();
-    }
-  }, [osId]);
+  // TEMPORÁRIO: Desabilitar busca de dados da OS para testar performance
+  // useEffect(() => {
+  //   const fetchOsData = async () => {
+  //     try {
+  //       const token = localStorage.getItem('access_token');
+  //       if (!token) return;
+  //       
+  //       const response = await fetch(`/api/os/${osId}`, {
+  //         headers: {
+  //           'Authorization': `Bearer ${token}`,
+  //           'Content-Type': 'application/json',
+  //         },
+  //       });
+  //       
+  //       if (response.ok) {
+  //         const data = await response.json();
+  //         setOsData(data.data);
+  //         // Debug apenas em desenvolvimento
+  //         if (process.env.NODE_ENV === 'development') {
+  //           console.log('🏢 [ArteAprovacaoTab] Dados da OS carregados:', {
+  //             cliente_nome: data.data?.cliente?.nome,
+  //             empresa_nome: data.data?.loja?.nome,
+  //             os_id: data.data?.id
+  //           });
+  //         }
+  //       }
+  //     } catch (error) {
+  //       console.error('Erro ao buscar dados da OS:', error);
+  //     }
+  //   };
+  //   
+  //   if (osId) {
+  //     fetchOsData();
+  //   }
+  // }, [osId]);
 
   // Definir produto selecionado quando os produtos carregarem
   useEffect(() => {
@@ -131,23 +166,23 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     }
   }, [produtos, selectedProduto]);
 
-  // Listener para novas mensagens via WebSocket
+  // Listener para novas mensagens via WebSocket (otimizado)
   useEffect(() => {
     if (novaMensagemWS && novaMensagemWS.mensagem) {
-      console.log('🔔 Nova mensagem recebida via WebSocket:', {
-        id: novaMensagemWS.id,
-        autor: novaMensagemWS.autor_nome,
-        tipo: novaMensagemWS.autor_tipo,
-        produto_id: novaMensagemWS.produto_id,
-        versao_id: novaMensagemWS.versao_id
-      });
+      // console.log('🔔 Nova mensagem recebida via WebSocket:', {
+      //   id: novaMensagemWS.id,
+      //   autor: novaMensagemWS.autor_nome,
+      //   tipo: novaMensagemWS.autor_tipo,
+      //   produto_id: novaMensagemWS.produto_id,
+      //   versao_id: novaMensagemWS.versao_id
+      // });
       
       // Atualizar contadores quando nova mensagem chegar
-      console.log('🔄 Chamando refreshMessages...');
+      // console.log('🔄 Chamando refreshMessages...');
       refreshMessages();
       
       // Mostrar notificação toast se for mensagem do cliente
-      if (novaMensagemWS.autor_tipo === 'CLIENTE' && novaMensagemWS.autor_nome) {
+      if (novaMensagemWS.autor_tipo?.toLowerCase() === 'cliente' && novaMensagemWS.autor_nome) {
         const mensagemPreview = novaMensagemWS.mensagem.substring(0, 50) + 
           (novaMensagemWS.mensagem.length > 50 ? '...' : '');
         
@@ -156,7 +191,7 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
         });
       }
     }
-  }, [novaMensagemWS, refreshMessages]);
+  }, [novaMensagemWS]); // Removido refreshMessages das dependências
 
   // Listener para contador atualizado via WebSocket
   useEffect(() => {
@@ -164,7 +199,25 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
       // Atualizar contadores quando mensagens forem marcadas como lidas
       refreshMessages();
     }
-  }, [contadorAtualizado, refreshMessages]);
+  }, [contadorAtualizado]); // Removido refreshMessages das dependências
+
+  // ✅ Entrar nas salas de todas as versões para receber mensagens em tempo real (otimizado)
+  useEffect(() => {
+    if (versoes.length > 0 && entrarSalaVersao) {
+      versoes.forEach(versao => {
+        entrarSalaVersao(versao.id);
+      });
+    }
+
+    return () => {
+      // Sair das salas quando componente desmontar
+      if (versoes.length > 0 && sairSalaVersao) {
+        versoes.forEach(versao => {
+          sairSalaVersao(versao.id);
+        });
+      }
+    };
+  }, [versoes.length]); // Só re-executar quando o número de versões mudar
 
   const getStatusColor = (status: ArteStatus) => {
     switch (status) {
@@ -454,22 +507,29 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     if (versao) {
       setSelectedVersaoId(versaoId);
       
-      // ✅ SEMPRE usar o primeiro produto disponível (já que há apenas um produto na OS)
-      // Este é o ID correto do produto da OS
-      const produtoId = produtos[0]?.id || '';
+      // Usar o produto da versão diretamente
+      const produtoId = versao.servico_id || 'sem-produto';
+      const produto = produtos.find(p => p.id === produtoId);
+      const produtoNome = produto?.nome || 'Produto';
       
       console.log('🔍 [handleOpenMessages] Debug:', {
         versaoId,
         versao_servico_id: versao.servico_id,
         produtos_disponiveis: produtos.map(p => ({ id: p.id, nome: p.nome })),
-        produtoId_selecionado: produtoId,
-        produto_nome: produtos[0]?.nome,
-        selectedProduto_anterior: selectedProduto
+        produtoId_calculado: produtoId,
+        produto_nome: produtoNome,
+        selectedProduto_atual: selectedProduto
       });
       
       setSelectedProduto(produtoId);
       setShowMessagesModal(true);
     }
+  };
+
+  // ✅ Função para zerar notificações de uma versão
+  const handleNotificacoesZeradas = (versaoId: string) => {
+    // Recarregar notificações do servidor para atualizar o estado
+    refreshMessages();
   };
 
   // Funções para gerenciar links de aprovação
@@ -753,24 +813,10 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                   <div className="flex items-center space-x-2">
                     {/* Ícone de mensagens */}
                     <ArteMessagesIcon
-                      produtoId={versao.servico_id === 'servico-principal' ? (produtos[0]?.id || 'sem-produto') : (versao.servico_id || 'sem-produto')}
-                      produtoNome={(() => {
-                        if (versao.servico_id === 'servico-principal') {
-                          // Buscar o produto real da OS, não o nome do serviço
-                          if (produtos.length > 0) {
-                            return produtos[0].nome;
-                          }
-                          // Fallback: buscar nos itens da OS
-                          if (osData?.itens && osData.itens.length > 0) {
-                            return osData.itens[0].nome;
-                          }
-                          // Último fallback: nome do serviço
-                          return osData?.nome_servico || 'Produto';
-                        }
-                        return produtos.find(p => p.id === versao.servico_id)?.nome || 'Produto';
-                      })()}
-                      mensagensNaoLidas={produtosMessages.find(p => p.produtoId === (versao.servico_id === 'servico-principal' ? produtos[0]?.id : versao.servico_id))?.mensagensNaoLidas || 0}
-                      totalMensagens={produtosMessages.find(p => p.produtoId === (versao.servico_id === 'servico-principal' ? produtos[0]?.id : versao.servico_id))?.totalMensagens || 0}
+                      produtoId={versao.id}
+                      produtoNome={produtos.find(p => p.id === versao.servico_id)?.nome || 'Produto'}
+                      mensagensNaoLidas={produtosMessages.find(p => p.produtoId === versao.id)?.mensagensNaoLidas || 0}
+                      totalMensagens={produtosMessages.find(p => p.produtoId === versao.id)?.totalMensagens || 0}
                       onClick={() => handleOpenMessages(versao.id)}
                     />
                     
@@ -1001,6 +1047,33 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
         }
         osId={osId}
         versaoId={selectedVersaoId}
+        clienteNome={osData?.cliente?.nome || 'Cliente'}
+        empresaNome={osData?.loja?.nome || 'Empresa'}
+        versoesDisponiveis={versoes.map(v => ({
+          id: v.id,
+          versao: v.versao,
+          descricao: v.descricao,
+          produtoNome: (() => {
+            // Se servico_id é 'servico-principal', usar o primeiro produto disponível
+            if (v.servico_id === 'servico-principal') {
+              // Buscar o produto real da OS, não o nome do serviço
+              if (produtos.length > 0) {
+                return produtos[0].nome;
+              }
+              // Fallback: buscar nos itens da OS
+              if (osData?.itens && osData.itens.length > 0) {
+                return osData.itens[0].nome;
+              }
+              // Último fallback: nome do serviço
+              return osData?.nome_servico || 'Produto';
+            }
+            
+            // Para outros casos, buscar pelo ID do produto
+            const produto = produtos.find(p => p.id === v.servico_id);
+            return produto?.nome || 'Produto não encontrado';
+          })()
+        }))}
+        onNotificacoesZeradas={handleNotificacoesZeradas}
       />
     </div>
   );

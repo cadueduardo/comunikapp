@@ -25,28 +25,133 @@ export class ArteMensagemService {
     mensagemProcessada: string; 
     versoesMencionadas: string[] 
   } {
-    // Regex para capturar menções de versões (@V1, @v1, @V2, etc.)
-    const regex = /@[vV](\d+)/g;
+    // Debug: Log da mensagem recebida
+    this.logger.log(`🔍 Mensagem recebida para processamento: ${mensagem}`);
+    
     const versoesMencionadas: string[] = [];
     let mensagemProcessada = mensagem;
     
+    // Processar menções do Tiptap (HTML com data-type="mention")
+    // Regex para capturar spans com data-type="mention" (pode ter class="mention" também)
+    const tiptapMentionRegex = /<span[^>]*data-type="mention"[^>]*>([^<]*)<\/span>/g;
     let match;
-    while ((match = regex.exec(mensagem)) !== null) {
+    
+    // Primeiro, coletar todas as menções para processar
+    const mentionsToProcess: Array<{
+      fullMatch: string;
+      mentionId: string;
+      mentionLabel: string;
+      mentionText: string;
+      versaoCompleta: string;
+      badgeText: string;
+    }> = [];
+    
+    while ((match = tiptapMentionRegex.exec(mensagem)) !== null) {
+      const fullMatch = match[0];
+      const mentionText = match[1];
+      
+      // Extrair atributos do span
+      const idMatch = fullMatch.match(/data-id="([^"]*)"/);
+      const labelMatch = fullMatch.match(/data-label="([^"]*)"/);
+      
+      const mentionId = idMatch ? idMatch[1] : '';
+      const mentionLabel = labelMatch ? labelMatch[1] : mentionText;
+      
+      this.logger.log(`🔍 Processando menção: id=${mentionId}, label=${mentionLabel}, text=${mentionText}`);
+      
+      // Extrair versão do label (ex: "v2 - Banner" -> "V2")
+      const versaoMatch = mentionLabel.match(/^v(\d+)/i);
+      if (versaoMatch) {
+        const versaoNumero = versaoMatch[1];
+        const versaoCompleta = `V${versaoNumero}`;
+        
+        if (!versoesMencionadas.includes(versaoCompleta)) {
+          versoesMencionadas.push(versaoCompleta);
+        }
+        
+        // Preparar badge formatado
+        const badgeText = mentionLabel.replace(/^v(\d+)\s*-\s*/i, '@V$1 - ');
+        
+        mentionsToProcess.push({
+          fullMatch,
+          mentionId,
+          mentionLabel,
+          mentionText,
+          versaoCompleta,
+          badgeText
+        });
+        
+        this.logger.log(`✅ Menção preparada: ${fullMatch} -> ${badgeText}`);
+      }
+    }
+    
+    // Agora substituir todas as menções de uma vez (da última para a primeira para evitar problemas de índice)
+    mentionsToProcess.reverse().forEach(mention => {
+      const newSpan = `<span class="mention" data-mention-id="${mention.mentionId}" data-mention-label="${mention.mentionLabel}">${mention.badgeText}</span>`;
+      mensagemProcessada = mensagemProcessada.replace(mention.fullMatch, newSpan);
+      this.logger.log(`🔄 Substituindo: ${mention.fullMatch} -> ${newSpan}`);
+    });
+    
+    // Limpar HTML malformado e spans aninhados
+    this.logger.log(`🧹 Limpando HTML malformado...`);
+    
+    // Remover spans vazios ou malformados
+    mensagemProcessada = mensagemProcessada.replace(/<span[^>]*><\/span>/g, '');
+    
+    // Corrigir spans aninhados - se há span.mention dentro de span.mention, extrair o conteúdo interno
+    // Primeiro, detectar e corrigir spans aninhados
+    mensagemProcessada = mensagemProcessada.replace(
+      /<span class="mention"[^>]*><span class="mention"[^>]*>([^<]*)<\/span><\/span>/g,
+      '<span class="mention" data-mention-id="" data-mention-label="">$1</span>'
+    );
+    
+    // Também corrigir casos onde há spans com class="mention" aninhados de outras formas
+    mensagemProcessada = mensagemProcessada.replace(
+      /<span[^>]*class="mention"[^>]*><span[^>]*class="mention"[^>]*>([^<]*)<\/span><\/span>/g,
+      '<span class="mention" data-mention-id="" data-mention-label="">$1</span>'
+    );
+    
+    // Limpar atributos soltos que possam ter ficado
+    mensagemProcessada = mensagemProcessada.replace(/\s+data-mention-id="[^"]*"\s+data-mention-label="[^"]*">/g, '>');
+    
+    // Limpar spans malformados com atributos soltos
+    mensagemProcessada = mensagemProcessada.replace(/<span[^>]*>\s*<\/span>/g, '');
+    
+    // Limpeza final: garantir que não há spans aninhados
+    // Se ainda houver spans aninhados, extrair o conteúdo mais interno
+    let previousHtml = '';
+    while (previousHtml !== mensagemProcessada) {
+      previousHtml = mensagemProcessada;
+      mensagemProcessada = mensagemProcessada.replace(
+        /<span[^>]*><span[^>]*>([^<]*)<\/span><\/span>/g,
+        '<span class="mention">$1</span>'
+      );
+    }
+    
+    this.logger.log(`🧹 HTML limpo: ${mensagemProcessada}`);
+    
+    // Depois, processar menções de texto simples (@V1, @v1, @V2, etc.) para compatibilidade
+    const textMentionRegex = /@[vV](\d+)(?:\s*-\s*([^-\s]+(?:\s+[^-\s]+)*))(?=\s|$)/g;
+    
+    while ((match = textMentionRegex.exec(mensagemProcessada)) !== null) {
       const versaoNumero = match[1];
+      const descricao = match[2] || '';
       const versaoCompleta = `V${versaoNumero}`;
       
       if (!versoesMencionadas.includes(versaoCompleta)) {
         versoesMencionadas.push(versaoCompleta);
       }
       
-      // Substituir a menção por um link formatado
+      // Substituir a menção por um badge formatado
+      const badgeText = descricao ? `@${versaoCompleta} - ${descricao}` : `@${versaoCompleta}`;
       mensagemProcessada = mensagemProcessada.replace(
         match[0], 
-        `<span class="mention" data-versao="${versaoCompleta}">@${versaoCompleta}</span>`
+        `<span class="mention">${badgeText}</span>`
       );
     }
     
     this.logger.log(`Menções processadas: ${versoesMencionadas.join(', ')}`);
+    this.logger.log(`🔍 Mensagem final processada: ${mensagemProcessada}`);
     
     return {
       mensagemProcessada,
@@ -178,7 +283,7 @@ export class ArteMensagemService {
    * Listar mensagens de uma versão específica
    */
   async listarMensagensVersao(versaoId: string, lojaId: string) {
-    this.logger.log(`🔍 Listando mensagens para versão: ${versaoId}, loja: ${lojaId}`);
+    // Log removido para reduzir spam no console
     
     const mensagens = await this.prisma.arteMensagem.findMany({
       where: {
@@ -190,7 +295,7 @@ export class ArteMensagemService {
       },
     });
     
-    this.logger.log(`📊 Encontradas ${mensagens.length} mensagens para versão ${versaoId}`);
+    // Log removido para reduzir spam no console
     return mensagens;
   }
 
@@ -279,53 +384,82 @@ export class ArteMensagemService {
   }
 
   /**
-   * Contar mensagens não lidas por produto (apenas do cliente)
+   * Marcar todas as mensagens de um produto/versão como lidas
+   */
+  async marcarMensagensLidasPorProduto(osId: string, produtoId: string, versaoId: string | null, lojaId: string) {
+    const whereClause: any = {
+      os_id: osId,
+      produto_id: produtoId,
+      loja_id: lojaId,
+      lida: false, // Apenas mensagens não lidas
+      autor_tipo: 'CLIENTE', // Apenas mensagens do cliente
+    };
+
+    if (versaoId) {
+      whereClause.versao_id = versaoId;
+    }
+
+    const result = await this.prisma.arteMensagem.updateMany({
+      where: whereClause,
+      data: {
+        lida: true,
+        data_leitura: new Date(),
+      },
+    });
+
+    // Log removido para reduzir spam no console
+    
+    return result;
+  }
+
+  /**
+   * Contar mensagens não lidas por versão (apenas do cliente)
    */
   async contarMensagensNaoLidas(osId: string, lojaId: string) {
     try {
-      this.logger.log(`🔍 Contando mensagens não lidas - OS: ${osId}, Loja: ${lojaId}`);
+      // Log removido para reduzir spam no console
       
       const mensagensNaoLidas = await this.prisma.arteMensagem.groupBy({
-        by: ['produto_id'],
+        by: ['versao_id'],
         where: {
           os_id: osId,
           loja_id: lojaId,
           lida: false,
           autor_tipo: AutorTipo.CLIENTE, // Apenas mensagens não lidas do cliente
+          versao_id: { not: null }, // Apenas mensagens com versão
         },
         _count: {
           id: true,
         },
       });
       
-      this.logger.log(`✅ Mensagens agrupadas: ${mensagensNaoLidas.length} produtos com mensagens`);
+      // Log removido para reduzir spam no console
 
-    // Buscar nomes dos produtos através do relacionamento com orcamento
-    const produtoIds = mensagensNaoLidas.map(m => m.produto_id);
-    const produtos = await this.prisma.produtoOrcamento.findMany({
-      where: {
-        id: { in: produtoIds },
-        orcamento: {
+      // Buscar dados das versões
+      const versaoIds = mensagensNaoLidas.map(m => m.versao_id).filter(Boolean);
+      const versoes = await this.prisma.arteVersao.findMany({
+        where: {
+          id: { in: versaoIds },
           loja_id: lojaId,
         },
-      },
-      select: {
-        id: true,
-        nome: true,
-        nome_servico: true
-      },
-    });
+        select: {
+          id: true,
+          versao: true,
+          servico_id: true,
+          descricao: true,
+        },
+      });
 
       const resultado = mensagensNaoLidas.map(mensagem => {
-        const produto = produtos.find(p => p.id === mensagem.produto_id);
+        const versao = versoes.find(v => v.id === mensagem.versao_id);
         return {
-          produto_id: mensagem.produto_id,
-          produto_nome: produto?.nome || 'Produto não encontrado',
+          produto_id: mensagem.versao_id, // Usar versao_id como produto_id para compatibilidade
+          produto_nome: versao?.descricao || `Versão ${versao?.versao || 'N/A'}`,
           mensagens_nao_lidas: mensagem._count.id,
         };
       });
       
-      this.logger.log(`✅ Resultado final: ${resultado.length} produtos com mensagens não lidas`);
+      // Log removido para reduzir spam no console
       return resultado;
     } catch (error) {
       this.logger.error('❌ Erro ao contar mensagens não lidas:', error);

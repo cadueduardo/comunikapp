@@ -41,7 +41,7 @@ export class ApiClient {
       const response = await fetch(url, {
         method: 'GET',
         headers,
-        cache: 'no-store',
+        cache: 'default', // Mudado de 'no-store' para 'default' para permitir cache
       });
       
       if (!response.ok) {

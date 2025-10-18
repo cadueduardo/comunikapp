@@ -77,8 +77,10 @@ export function useOSProdutos(osId: string): UseOSProdutosReturn {
   };
 
   useEffect(() => {
-    fetchProdutos();
-  }, [osId]);
+    if (osId) {
+      fetchProdutos();
+    }
+  }, [osId]); // Só re-executar quando osId mudar
 
   return {
     produtos,

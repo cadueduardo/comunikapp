@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -40,11 +40,13 @@ export function NotificacoesDropdown() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef(1); // Ref para manter a página atual sem causar re-renders
 
-  // WebSocket para notificações de arte em tempo real
-  const { novaMensagem: novaMensagemArte } = useArteWebSocket({
-    lojaId: localStorage.getItem('loja_id') || undefined,
-    usuarioId: localStorage.getItem('user_id') || undefined,
-  });
+  // WebSocket para notificações de arte em tempo real - memoizar valores do localStorage
+  const websocketOptions = useMemo(() => ({
+    lojaId: typeof window !== 'undefined' ? localStorage.getItem('loja_id') || undefined : undefined,
+    usuarioId: typeof window !== 'undefined' ? localStorage.getItem('user_id') || undefined : undefined,
+  }), []);
+
+  const { novaMensagem: novaMensagemArte } = useArteWebSocket(websocketOptions);
 
   const carregarNotificacoes = useCallback(async (reset = false) => {
     try {
@@ -127,7 +129,7 @@ export function NotificacoesDropdown() {
   useEffect(() => {
     if (novaMensagemArte && novaMensagemArte.mensagem && novaMensagemArte.autor_nome) {
       // Mostrar toast de notificação para mensagens de arte
-      if (novaMensagemArte.autor_tipo === 'CLIENTE') {
+      if (novaMensagemArte.autor_tipo?.toLowerCase() === 'cliente') {
         const mensagemPreview = novaMensagemArte.mensagem.substring(0, 50) + 
           (novaMensagemArte.mensagem.length > 50 ? '...' : '');
         

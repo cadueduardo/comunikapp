@@ -129,7 +129,7 @@ export class ArteWebSocketGateway
         // Verificar se a versão pertence ao mesmo produto do token
         const linkAprovacao = await this.prisma.arteLinkAprovacao.findFirst({
           where: {
-            token: client.data.tokenAprovacao,
+            token_publico: client.data.tokenAprovacao,
             ativo: true,
           },
           include: {

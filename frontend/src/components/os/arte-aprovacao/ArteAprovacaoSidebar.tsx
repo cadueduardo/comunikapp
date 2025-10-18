@@ -388,10 +388,10 @@ export function ArteAprovacaoSidebar({ osId, osNumero, onEnviarTodasArtes, hasVe
               <div className="flex items-start space-x-3">
                 <div className="flex-shrink-0">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      mensagem.autor_tipo === 'CLIENTE' ? 'bg-blue-100' : 'bg-gray-100'
+                      mensagem.autor_tipo?.toLowerCase() === 'cliente' ? 'bg-blue-100' : 'bg-gray-100'
                     }`}>
                       <User className={`h-4 w-4 ${
-                        mensagem.autor_tipo === 'CLIENTE' ? 'text-blue-600' : 'text-gray-600'
+                        mensagem.autor_tipo?.toLowerCase() === 'cliente' ? 'text-blue-600' : 'text-gray-600'
                       }`} />
                   </div>
                 </div>
@@ -401,7 +401,12 @@ export function ArteAprovacaoSidebar({ osId, osNumero, onEnviarTodasArtes, hasVe
                     <span className="text-xs text-gray-500">•</span>
                       <span className="text-xs text-gray-500">{formatarData(mensagem.created_at)}</span>
                     </div>
-                    <p className="text-sm text-gray-700 break-words mb-1">{mensagem.mensagem}</p>
+                    <p 
+                      className="text-sm text-gray-700 break-words mb-1"
+                      dangerouslySetInnerHTML={{ 
+                        __html: mensagem.mensagemProcessada || mensagem.mensagem
+                      }}
+                    />
                     <p className="text-xs text-gray-500">Produto: {mensagem.produto_nome}</p>
                   </div>
                 </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useOSProdutos } from './useOSProdutos';
 import { ArteStatus } from '../types/arte-types';
 
@@ -19,7 +19,7 @@ export function useArteProdutos(osId: string) {
   const [loading, setLoading] = useState(true);
 
   // Buscar versões de arte para cada produto
-  const fetchVersoesPorProduto = async () => {
+  const fetchVersoesPorProduto = useCallback(async () => {
     if (!osId || produtosOS.length === 0) {
       setLoading(false);
       return;
@@ -111,7 +111,7 @@ export function useArteProdutos(osId: string) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [osId, produtosOS]);
 
   useEffect(() => {
     if (!loadingOS && produtosOS.length > 0) {
@@ -119,7 +119,7 @@ export function useArteProdutos(osId: string) {
     } else if (!loadingOS) {
       setLoading(false);
     }
-  }, [osId, produtosOS, loadingOS]);
+  }, [loadingOS, fetchVersoesPorProduto]); // Usar função memoizada
 
   return {
     produtos: produtosArte,

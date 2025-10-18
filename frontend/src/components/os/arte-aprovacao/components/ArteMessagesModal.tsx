@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Send, MessageSquare, User, Clock, AtSign } from 'lucide-react';
+import { Send, MessageSquare, User, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useArteWebSocket } from '@/hooks/use-arte-websocket';
+import { apiRequest } from '@/lib/api';
+import { TiptapEditor } from '@/components/ui/tiptap/TiptapEditor';
 
 interface Mensagem {
   id: string;
@@ -29,6 +29,10 @@ interface ArteMessagesModalProps {
   produtoNome: string;
   osId: string;
   versaoId?: string; // ID da versão específica
+  clienteNome?: string; // Nome do cliente
+  empresaNome?: string; // Nome da empresa
+  versoesDisponiveis?: Array<{ id: string; versao: string; descricao?: string; produtoNome?: string }>; // Versões disponíveis para menções
+  onNotificacoesZeradas?: (versaoId: string) => void; // Callback para zerar notificações
 }
 
 export function ArteMessagesModal({ 
@@ -36,9 +40,15 @@ export function ArteMessagesModal({
   onClose, 
   produtoId, 
   produtoNome, 
-  osId,
-  versaoId 
+  osId, 
+  versaoId,
+  clienteNome,
+  empresaNome,
+  versoesDisponiveis = [],
+  onNotificacoesZeradas
 }: ArteMessagesModalProps) {
+  
+  // Debug removido para reduzir spam no console
   
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [novaMensagem, setNovaMensagem] = useState('');
@@ -46,14 +56,16 @@ export function ArteMessagesModal({
   const [loading, setLoading] = useState(false);
   
   // Estados para sistema de menções
-  const [mostrarAutocomplete, setMostrarAutocomplete] = useState(false);
-  const [posicaoCursor, setPosicaoCursor] = useState(0);
-  const [versoesFiltradas, setVersoesFiltradas] = useState<Array<{id: string, versao: string}>>([]);
   
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mensagensRef = useRef<HTMLDivElement>(null);
 
-  // WebSocket para tempo real
+  // WebSocket para tempo real - memoizar valores do localStorage
+  const websocketOptions = useMemo(() => ({
+    versaoId: versaoId,
+    lojaId: typeof window !== 'undefined' ? localStorage.getItem('loja_id') || undefined : undefined,
+    usuarioId: typeof window !== 'undefined' ? localStorage.getItem('user_id') || undefined : undefined,
+  }), [versaoId]);
+
   const {
     connectionStatus,
     isConnected,
@@ -62,180 +74,68 @@ export function ArteMessagesModal({
     marcarMensagemLida,
     entrarSalaVersao,
     sairSalaVersao,
-    toggleTyping,
-  } = useArteWebSocket({
-    versaoId: versaoId,
-    lojaId: localStorage.getItem('loja_id') || undefined,
-    usuarioId: localStorage.getItem('user_id') || undefined,
-  });
+  } = useArteWebSocket(websocketOptions);
 
-  // Carregar mensagens quando o modal abrir ou quando mudar a versão
-  useEffect(() => {
-    if (isOpen) {
-      carregarMensagens();
-      
-      // Entrar na sala da versão via WebSocket
-      if (versaoId && isConnected) {
-        entrarSalaVersao(versaoId);
-      }
-    }
-    
-    return () => {
-      // Sair da sala quando modal fechar
-      if (versaoId && isConnected) {
-        sairSalaVersao(versaoId);
-      }
-    };
-  }, [isOpen, produtoId, versaoId, isConnected, entrarSalaVersao, sairSalaVersao]);
+  // useEffect será movido para depois das declarações das funções
 
-  // Auto-scroll para a última mensagem quando mensagens mudarem
-  useEffect(() => {
-    if (mensagens.length > 0 && mensagensRef.current) {
-      mensagensRef.current.scrollTop = mensagensRef.current.scrollHeight;
-    }
-  }, [mensagens]);
 
-  // Listener para novas mensagens via WebSocket
+  // Auto-scroll para a última mensagem quando mensagens mudarem (otimizado)
   useEffect(() => {
-    if (novaMensagemWS) {
-      console.log('🔍 Debug novaMensagemWS:', novaMensagemWS);
-      
-      // Extrair a mensagem real do wrapper
-      let mensagemReal = novaMensagemWS;
-      if (novaMensagemWS.mensagem && typeof novaMensagemWS.mensagem === 'object') {
-        mensagemReal = novaMensagemWS.mensagem;
-        console.log('🔍 Mensagem extraída do wrapper:', mensagemReal);
-      }
-      
-      if (mensagemReal && mensagemReal.mensagem) {
-        const autorTipo = mensagemReal.autor_tipo 
-          ? (typeof mensagemReal.autor_tipo === 'string' 
-              ? mensagemReal.autor_tipo.toLowerCase() 
-              : 'equipe')
-          : 'equipe';
-        
-        const novaMsg: Mensagem = {
-          id: mensagemReal.id || `temp-${Date.now()}`,
-          autor: mensagemReal.autor_nome || 'Desconhecido',
-          autorTipo: autorTipo as 'cliente' | 'equipe',
-          mensagem: mensagemReal.mensagem,
-          mensagemProcessada: mensagemReal.mensagemProcessada,
-          data: mensagemReal.created_at || new Date().toISOString(),
-          lida: mensagemReal.lida || false,
-          produtoId: mensagemReal.produto_id,
-          versaoId: mensagemReal.versao_id,
-          versoesMencionadas: mensagemReal.versoesMencionadas,
-        };
-        
-        console.log('🔍 Debug novaMsg final:', novaMsg);
-        
-        // Evitar duplicatas - verificar se a mensagem já existe
-        setMensagens(prev => {
-          const mensagemExiste = prev.some(msg => 
-            msg.id === novaMsg.id || 
-            (msg.mensagem === novaMsg.mensagem && 
-             msg.autor === novaMsg.autor && 
-             Math.abs(new Date(msg.data).getTime() - new Date(novaMsg.data).getTime()) < 5000) // 5 segundos de tolerância
-          );
-          
-          if (mensagemExiste) {
-            console.log('⚠️ Mensagem duplicada ignorada:', novaMsg.id);
-            return prev;
-          }
-          
-          console.log('✅ Nova mensagem adicionada:', novaMsg.id);
-          return [...prev, novaMsg];
-        });
-        
-        // Marcar como lida se for do cliente
-        if (mensagemReal.autor_tipo === 'CLIENTE' && mensagemReal.id) {
-          marcarMensagemLida(mensagemReal.id);
+    if (mensagensRef.current && isOpen) {
+      const timeoutId = setTimeout(() => {
+        if (mensagensRef.current) {
+          mensagensRef.current.scrollTop = mensagensRef.current.scrollHeight;
         }
-      } else {
-        console.warn('⚠️ novaMensagemWS sem mensagem válida:', novaMensagemWS);
-      }
+      }, 100);
+      return () => clearTimeout(timeoutId);
     }
-  }, [novaMensagemWS, marcarMensagemLida]);
+  }, [mensagens.length, isOpen]); // Incluir isOpen para garantir que só role quando o modal estiver aberto
 
-  // Sistema de menções
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    const cursorPos = e.target.selectionStart;
-    
-    setNovaMensagem(value);
-    setPosicaoCursor(cursorPos);
-    
-    // Verificar se está digitando menção
-    const textoAntesCursor = value.substring(0, cursorPos);
-    const match = textoAntesCursor.match(/@[vV](\d*)$/);
-    
-    if (match) {
-      const numeroDigitado = match[1];
-      // TODO: Buscar versões disponíveis da OS
-      const versoesDisponiveis = [
-        { id: 'v1', versao: 'V1' },
-        { id: 'v2', versao: 'V2' },
-        { id: 'v3', versao: 'V3' },
-      ];
-      
-      const versoesFiltradas = versoesDisponiveis.filter(v => 
-        v.versao.replace('V', '').startsWith(numeroDigitado)
-      );
-      setVersoesFiltradas(versoesFiltradas);
-      setMostrarAutocomplete(true);
-    } else {
-      setMostrarAutocomplete(false);
+  // Listener para novas mensagens via WebSocket (otimizado)
+  useEffect(() => {
+    if (!novaMensagemWS || !isOpen) return;
+
+    // Extrair a mensagem real do wrapper
+    let mensagemReal = novaMensagemWS;
+    if (novaMensagemWS.mensagem && typeof novaMensagemWS.mensagem === 'object') {
+      mensagemReal = novaMensagemWS.mensagem;
     }
     
-    // Indicador de digitação
-    toggleTyping(true);
-  };
+    if (!mensagemReal?.mensagem) return;
 
-  const inserirMenção = (versao: {id: string, versao: string}) => {
-    const textoAntesCursor = novaMensagem.substring(0, posicaoCursor);
-    const textoDepoisCursor = novaMensagem.substring(posicaoCursor);
-    const textoAntesMenção = textoAntesCursor.replace(/@[vV]\d*$/, '');
+    // Filtrar apenas mensagens da versão atual
+    if (versaoId && mensagemReal.versao_id !== versaoId) return;
     
-    const novaMensagemTexto = `${textoAntesMenção}@${versao.versao} ${textoDepoisCursor}`;
-    setNovaMensagem(novaMensagemTexto);
-    setMostrarAutocomplete(false);
+    const autorTipo = mensagemReal.autor_tipo?.toLowerCase() === 'cliente' ? 'cliente' : 'equipe';
     
-    // Focar novamente no textarea
-    setTimeout(() => {
-      textareaRef.current?.focus();
-    }, 100);
-  };
-
-  const processarMenções = (mensagem: string): { mensagemProcessada: string; mencoes: string[] } => {
-    const regex = /@[vV](\d+)/g;
-    const mencoes: string[] = [];
-    let mensagemProcessada = mensagem;
-    
-    let match;
-    while ((match = regex.exec(mensagem)) !== null) {
-      const versaoNumero = match[1];
-      const versaoCompleta = `V${versaoNumero}`;
-      
-      if (!mencoes.includes(versaoCompleta)) {
-        mencoes.push(versaoCompleta);
-      }
-      
-      // Substituir a menção por um link formatado
-      mensagemProcessada = mensagemProcessada.replace(
-        match[0], 
-        `<span class="mention" data-versao="${versaoCompleta}">@${versaoCompleta}</span>`
-      );
-    }
-    
-    return {
-      mensagemProcessada,
-      mencoes
+    const novaMsg: Mensagem = {
+      id: mensagemReal.id || `temp-${Date.now()}`,
+      autor: mensagemReal.autor_nome || 'Desconhecido',
+      autorTipo: autorTipo as 'cliente' | 'equipe',
+      mensagem: mensagemReal.mensagem,
+      mensagemProcessada: mensagemReal.mensagemProcessada,
+      data: mensagemReal.created_at || new Date().toISOString(),
+      lida: mensagemReal.lida || false,
+      produtoId: mensagemReal.produto_id,
+      versaoId: mensagemReal.versao_id,
+      versoesMencionadas: mensagemReal.versoesMencionadas,
     };
-  };
+    
+    // Adicionar mensagem (otimizado)
+    setMensagens(prev => {
+      if (prev.some(msg => msg.id === novaMsg.id)) return prev;
+      return [...prev, novaMsg];
+    });
+    
+    // Marcar como lida se for do cliente
+    if (autorTipo === 'cliente' && mensagemReal.id) {
+      marcarMensagemLida(mensagemReal.id);
+    }
+  }, [novaMensagemWS, isOpen, versaoId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const carregarMensagens = async () => {
-    try {
-      setLoading(true);
+  const carregarMensagens = useCallback(async () => {
+      try {
+        setLoading(true);
       
       const token = localStorage.getItem('access_token');
       if (!token) {
@@ -261,46 +161,102 @@ export function ArteMessagesModal({
       const mensagensData = await response.json();
       
       // Converter para o formato esperado
-      const mensagensCarregadas: Mensagem[] = mensagensData.map((msg: any) => ({
+      const mensagensCarregadas: Mensagem[] = mensagensData.map((msg: {
+        id: string;
+        autor_nome: string;
+        autor_tipo: string;
+        mensagem: string;
+        mensagem_processada?: string;
+        data_criacao: string;
+        lida: boolean;
+        created_at: string;
+        produto_id: string;
+        versao_id: string;
+      }) => ({
         id: msg.id,
         autor: msg.autor_nome,
-        autorTipo: msg.autor_tipo,
+        autorTipo: msg.autor_tipo?.toLowerCase() === 'cliente' ? 'cliente' : 'equipe',
         mensagem: msg.mensagem,
         data: msg.created_at,
         lida: msg.lida,
         produtoId: msg.produto_id,
+        versaoId: msg.versao_id
       }));
 
-      // Mesclar com mensagens existentes, evitando duplicatas
-      setMensagens(prev => {
-        const mensagensExistentes = prev.filter(existente => 
-          !mensagensCarregadas.some(carregada => carregada.id === existente.id)
-        );
-        
-        // Combinar mensagens existentes + novas mensagens carregadas
-        const mensagensCombinadas = [...mensagensExistentes, ...mensagensCarregadas];
-        
-        // Ordenar por data
-        return mensagensCombinadas.sort((a, b) => 
-          new Date(a.data).getTime() - new Date(b.data).getTime()
-        );
-      });
+      // ✅ CORRIGIDO: Sempre substituir mensagens pela versão específica
+      // Não mesclar com mensagens de outras versões
+      setMensagens(mensagensCarregadas);
       
-      console.log('✅ Mensagens carregadas e mescladas:', mensagensCarregadas.length);
+      console.log('✅ Mensagens carregadas para versão:', mensagensCarregadas.length);
     } catch (error) {
       console.error('Erro ao carregar mensagens:', error);
       toast.error('Erro ao carregar mensagens');
     } finally {
       setLoading(false);
     }
-  };
+  }, [versaoId, osId, produtoId]);
+
+  // ✅ Função para marcar todas as mensagens como lidas
+  const marcarTodasMensagensComoLidas = useCallback(async () => {
+    try {
+      // Marcar todas as mensagens não lidas do cliente como lidas
+      
+      const response = await apiRequest('/arte-aprovacao/mensagens/marcar-lidas-produto', {
+        method: 'POST',
+        body: JSON.stringify({
+          os_id: osId,
+          produto_id: produtoId,
+          versao_id: versaoId,
+        }),
+      });
+
+      if (response.ok) {
+        // Atualizar estado local
+        setMensagens(prev => 
+          prev.map(msg => ({ ...msg, lida: true }))
+        );
+        
+        // Chamar callback para zerar notificações no componente pai
+        if (onNotificacoesZeradas && versaoId) {
+          onNotificacoesZeradas(versaoId);
+        }
+      } else {
+        console.error('❌ Erro ao marcar mensagens como lidas:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error('Erro ao marcar mensagens como lidas:', error);
+    }
+  }, [osId, produtoId, versaoId, onNotificacoesZeradas]);
+
+  // Carregar mensagens quando o modal abrir (sem dependências para evitar loop)
+  useEffect(() => {
+    if (isOpen) {
+      carregarMensagens();
+      marcarTodasMensagensComoLidas();
+    }
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // WebSocket room management
+  useEffect(() => {
+    if (isOpen && versaoId && isConnected) {
+      entrarSalaVersao(versaoId);
+      return () => sairSalaVersao(versaoId);
+    }
+  }, [isOpen, versaoId, isConnected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const enviarMensagem = async () => {
     if (!novaMensagem.trim()) return;
 
-    const mensagemTexto = novaMensagem.trim();
-    setNovaMensagem(''); // Limpar campo imediatamente para melhor UX
-    setMostrarAutocomplete(false); // Fechar autocomplete
+    // O Tiptap já envia HTML formatado, vamos usar direto
+    const mensagemHTML = novaMensagem;
+    
+    // Debug: Log do HTML que está sendo enviado
+    console.log('🔍 HTML sendo enviado:', mensagemHTML);
+    
+    if (!mensagemHTML.trim()) return;
+
+    // Limpar campo ANTES de enviar
+    setNovaMensagem('');
 
     try {
       setEnviando(true);
@@ -310,73 +266,38 @@ export function ArteMessagesModal({
         throw new Error('Token de autenticação não encontrado');
       }
 
-      // Criar mensagem otimista (adicionar à lista localmente)
-      const mensagemOtimista: Mensagem = {
-        id: `temp-${Date.now()}`,
-        autor: 'Você',
-        autorTipo: 'equipe',
-        mensagem: mensagemTexto,
-        data: new Date().toISOString(),
-        lida: true,
-        produtoId: produtoId,
-        versaoId: versaoId,
-      };
-
-      // Adicionar mensagem à lista local imediatamente
-      setMensagens(prev => [...prev, mensagemOtimista]);
-
-      // Parar indicador de digitação
-      toggleTyping(false);
-
-      const response = await fetch('/api/arte-aprovacao/mensagens', {
+      const response = await apiRequest('/arte-aprovacao/mensagens', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           os_id: osId,
           produto_id: produtoId,
-          versao_id: versaoId, // Incluir versão específica
-          mensagem: mensagemTexto,
-          autor_tipo: 'EQUIPE',
-        }),
+          versao_id: versaoId,
+          mensagem: mensagemHTML, // Enviar HTML do Tiptap
+          autor_tipo: 'EQUIPE'
+        })
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao enviar mensagem');
+        throw new Error('Erro ao enviar mensagem');
       }
 
-      const novaMensagemData = await response.json();
-      
-      // Substituir mensagem temporária pela real
-      setMensagens(prev => 
-        prev.map(m => 
-          m.id === mensagemOtimista.id 
-            ? {
-                id: novaMensagemData.id,
-                autor: novaMensagemData.autor_nome,
-                autorTipo: novaMensagemData.autor_tipo.toLowerCase(),
-                mensagem: novaMensagemData.mensagem,
-                data: novaMensagemData.created_at,
-                lida: novaMensagemData.lida,
-                produtoId: novaMensagemData.produto_id,
-              }
-            : m
-        )
-      );
-      
-      console.log('✅ Mensagem otimista substituída pela real:', novaMensagemData.id);
-      
-      toast.success('Mensagem enviada!');
+      // Recarregar mensagens
+      await carregarMensagens();
+
+      // Forçar scroll para baixo após enviar mensagem
+      setTimeout(() => {
+        if (mensagensRef.current) {
+          mensagensRef.current.scrollTop = mensagensRef.current.scrollHeight;
+        }
+      }, 200);
+
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
       toast.error('Erro ao enviar mensagem');
-      
-      // Remover mensagem temporária em caso de erro
-      setMensagens(prev => prev.filter(m => m.id !== `temp-${Date.now()}`));
-      setNovaMensagem(mensagemTexto); // Restaurar mensagem no campo
     } finally {
       setEnviando(false);
     }
@@ -392,22 +313,112 @@ export function ArteMessagesModal({
     });
   };
 
-  const mensagensNaoLidas = mensagens.filter(m => !m.lida).length;
+  // const mensagensNaoLidas = mensagens.filter(m => !m.lida).length;
   
-  // Garantir chaves únicas para renderização
-  const mensagensUnicas = mensagens.reduce((acc, mensagem) => {
-    const existe = acc.find(m => m.id === mensagem.id);
-    if (!existe) {
-      acc.push(mensagem);
-    } else {
-      console.warn('⚠️ Mensagem duplicada removida na renderização:', mensagem.id);
+  // Usar mensagens diretamente (sem processamento adicional)
+  const mensagensUnicas = mensagens;
+
+  // Memoizar mentions para evitar re-renders desnecessários
+  const mentionsMemo = useMemo(() => 
+    versoesDisponiveis.map(v => ({
+      id: v.id,
+      label: `${v.versao} - ${v.produtoNome || produtoNome}` // Usar nome do produto específico da versão
+    })), [versoesDisponiveis, produtoNome]
+  );
+
+  // Memoizar onUpdate para evitar re-renders desnecessários
+  const handleUpdate = useCallback((html: string) => {
+    setNovaMensagem(html);
+  }, []);
+
+  // Função para processar menções - CAPTURAR TÍTULO COMPLETO
+  const processarMencoes = useCallback((html: string) => {
+    // Se é texto simples sem HTML, retornar direto
+    if (!html.includes('<') && !html.includes('>')) {
+      return html;
     }
-    return acc;
-  }, [] as Mensagem[]);
+    
+    console.log('🔍 Processando HTML:', html.substring(0, 200) + '...');
+    
+    let processedHtml = html;
+    
+    // 1. Limpar @ soltos
+    processedHtml = processedHtml.replace(/@<span/g, '<span');
+    
+    // 2. REMOVER SPAN MESTRE - EXTRAIR CONTEÚDO INTERNO
+    processedHtml = processedHtml.replace(
+      /<span class="mention"[^>]*>([^<]*(?:<[^>]*>[^<]*<\/[^>]*>[^<]*)*)<\/span>/g,
+      (match, innerContent) => {
+        if (innerContent.includes('<span class="mention"')) {
+          return innerContent;
+        }
+        return match;
+      }
+    );
+    
+    // 3. CAPTURAR TÍTULO COMPLETO - @V1 + TUDO ATÉ PRÓXIMO ESPAÇO OU FIM
+    processedHtml = processedHtml.replace(
+      /<span[^>]*>(@[^<]*)<\/span>\s*([^<\s]+(?:\s+[^<\s]+)*)/g,
+      (match, spanContent, titleText) => {
+        // Se o span tem @ e há texto após, juntar TUDO
+        if (spanContent.includes('@') && titleText.trim()) {
+          return `<span class="mention" data-mention-id="" data-mention-label="">${spanContent} ${titleText.trim()}</span>`;
+        }
+        return match;
+      }
+    );
+    
+    // 4. CORRIGIR SPANS COM data-versao
+    processedHtml = processedHtml.replace(
+      /<span[^>]*data-versao="[^"]*"[^>]*>(@?[^<]*)<\/span>/g, 
+      (match, content) => {
+        return `<span class="mention" data-mention-id="" data-mention-label="">${content}</span>`;
+      }
+    );
+    
+    // 5. REMOVER SPANS VAZIOS OU COM TEXTO QUE NÃO É MENTION
+    processedHtml = processedHtml.replace(
+      /<span class="mention"[^>]*>([^@][^<]*)<\/span>/g, 
+      (match, content) => {
+        if (!content.includes('@')) {
+          return content;
+        }
+        return match;
+      }
+    );
+    
+    console.log('✅ HTML processado:', processedHtml.substring(0, 200) + '...');
+    return processedHtml;
+  }, []);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-2xl h-[600px] flex flex-col">
+          <style jsx global>{`
+            .mensagens-container {
+              overflow-x: hidden;
+              word-wrap: break-word;
+              word-break: break-word;
+            }
+
+            .mensagens-container * {
+              max-width: 100%;
+              overflow-wrap: break-word;
+            }
+
+            .mention {
+              display: inline-flex;
+              align-items: center;
+              padding: 0.25rem 0.5rem;
+              border-radius: 9999px;
+              font-size: 0.75rem;
+              font-weight: 500;
+              background-color: #dbeafe;
+              color: #1e40af;
+              border: 1px solid #bfdbfe;
+              margin: 0 0.125rem;
+            }
+          `}</style>
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center space-x-2">
               <MessageSquare className="h-5 w-5" />
@@ -447,51 +458,67 @@ export function ArteMessagesModal({
               <p className="text-sm">Seja o primeiro a iniciar a conversa!</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {mensagensUnicas.map((mensagem) => (
+            mensagensUnicas.map((mensagem) => {
+              const isCliente = mensagem.autorTipo === 'cliente';
+              
+              return (
                 <div
                   key={mensagem.id}
-                  className={`flex ${mensagem.autorTipo === 'cliente' ? 'justify-start' : 'justify-end'}`}
+                  className={`flex mb-4 ${isCliente ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] p-3 rounded-lg ${
-                      mensagem.autorTipo === 'cliente'
-                        ? 'bg-gray-100 text-gray-900'
-                        : 'bg-blue-600 text-white'
-                    } ${!mensagem.lida && mensagem.autorTipo === 'cliente' ? 'border-l-4 border-blue-500' : ''}`}
+                    className={`flex gap-2 max-w-[75%] ${
+                      isCliente ? 'flex-row-reverse' : 'flex-row'
+                    }`}
                   >
-                    <div className="flex items-center space-x-2 mb-1">
-                      <User className="h-3 w-3" />
-                      <span className="text-xs font-medium">
-                        {mensagem.autor}
-                      </span>
-                      <Clock className="h-3 w-3" />
-                      <span className="text-xs opacity-75">
-                        {formatarData(mensagem.data)}
-                      </span>
-                      {mensagem.versoesMencionadas && mensagem.versoesMencionadas.length > 0 && (
-                        <AtSign className="h-3 w-3 text-blue-500" />
+                    {/* Avatar */}
+                    <div
+                      className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                        isCliente ? 'bg-green-100' : 'bg-blue-100'
+                      }`}
+                    >
+                      {isCliente ? (
+                        <User className="w-4 h-4 text-green-700" />
+                      ) : (
+                        <Building2 className="w-4 h-4 text-blue-700" />
                       )}
                     </div>
-                    <div 
-                      className="text-sm"
-                      dangerouslySetInnerHTML={{ 
-                        __html: mensagem.mensagemProcessada || mensagem.mensagem 
-                      }}
-                    />
-                    {mensagem.versoesMencionadas && mensagem.versoesMencionadas.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {mensagem.versoesMencionadas.map(versao => (
-                          <Badge key={versao} variant="outline" className="text-xs">
-                            @{versao}
-                          </Badge>
-                        ))}
+
+                    {/* Message bubble */}
+                    <div
+                      className={`flex flex-col ${
+                        isCliente ? 'items-end' : 'items-start'
+                      }`}
+                    >
+                      <div
+                        className={`rounded-2xl px-4 py-2 ${
+                          isCliente
+                            ? 'bg-green-500 text-white rounded-tr-none'
+                            : 'bg-gray-100 text-gray-900 rounded-tl-none'
+                        } ${!mensagem.lida && isCliente ? 'ring-2 ring-green-400' : ''}`}
+                      >
+                        <div className="text-xs font-semibold mb-1 opacity-75">
+                          {isCliente 
+                            ? (clienteNome ? clienteNome.split(' ')[0] : 'Cliente')
+                            : (empresaNome || 'Equipe')
+                          }
+                        </div>
+                        <div
+                          className="text-sm break-words"
+                          dangerouslySetInnerHTML={{ __html: processarMencoes(mensagem.mensagem) }}
+                        />
                       </div>
-                    )}
+                      <div className="text-xs text-gray-500 mt-1 px-2">
+                        {formatarData(mensagem.data)}
+                        {!mensagem.lida && isCliente && (
+                          <span className="ml-2 text-green-600">● Não lida</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })
           )}
         </div>
 
@@ -499,44 +526,13 @@ export function ArteMessagesModal({
         <div className="flex-shrink-0 border-t pt-4 relative">
           <div className="flex space-x-2">
             <div className="flex-1 relative">
-              <Textarea
-                ref={textareaRef}
-                value={novaMensagem}
-                onChange={handleInputChange}
-                placeholder="Digite sua mensagem... Use @V1 para mencionar versões"
-                className="flex-1 min-h-[80px] pr-10"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    enviarMensagem();
-                  } else if (e.key === 'Escape') {
-                    setMostrarAutocomplete(false);
-                  }
-                }}
-                onKeyUp={(e) => {
-                  if (e.key === 'Backspace' || e.key === 'Delete') {
-                    toggleTyping(false);
-                  }
-                }}
+              <TiptapEditor
+                content={novaMensagem}
+                onUpdate={handleUpdate}
+                onSubmit={enviarMensagem}
+                placeholder="Digite @ para mencionar uma versão..."
+                mentions={mentionsMemo}
               />
-              
-              {/* Autocomplete de menções */}
-              {mostrarAutocomplete && versoesFiltradas.length > 0 && (
-                <div className="absolute bottom-full left-0 mb-2 w-full bg-white border border-gray-300 rounded-lg shadow-lg z-10">
-                  <div className="max-h-32 overflow-y-auto">
-                    {versoesFiltradas.map((versao) => (
-                      <button
-                        key={versao.id}
-                        onClick={() => inserirMenção(versao)}
-                        className="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center space-x-2"
-                      >
-                        <AtSign className="h-4 w-4 text-blue-500" />
-                        <span className="text-sm">{versao.versao}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
             <Button
               onClick={enviarMensagem}
@@ -551,7 +547,7 @@ export function ArteMessagesModal({
               Pressione Enter para enviar, Shift+Enter para nova linha
             </p>
             <p className="text-xs text-gray-500">
-              Use @V1, @V2 para mencionar versões
+              Use @ para mencionar versões
             </p>
           </div>
         </div>
@@ -559,3 +555,4 @@ export function ArteMessagesModal({
     </Dialog>
   );
 }
+

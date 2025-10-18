@@ -1,0 +1,28 @@
+# Como enviar a lista de requests para análise
+
+## Método 1: Copiar do DevTools
+1. Abra o DevTools (F12)
+2. Vá para a aba "Network"
+3. Recarregue a página
+4. Clique com botão direito na lista de requests
+5. Selecione "Copy" > "Copy all as HAR"
+6. Cole o conteúdo aqui
+
+## Método 2: Lista simples
+Copie e cole aqui a lista de requests no formato:
+- GET /api/arte-aprovacao/mensagens/versao/xxx - 200
+- POST /api/arte-aprovacao/mensagens - 200
+- GET /api/arte-aprovacao/versoes/os/xxx - 200
+- etc...
+
+## Método 3: Screenshot
+Se preferir, envie um screenshot da aba Network mostrando:
+- A lista de requests
+- O filtro "All" selecionado
+- O número total de requests no canto inferior esquerdo
+
+## Requests suspeitos que podem estar duplicados:
+- Múltiplas chamadas para a mesma URL
+- Requests que se repetem rapidamente
+- WebSocket connections desnecessárias
+- Requests de imagens/thumbnails repetidos

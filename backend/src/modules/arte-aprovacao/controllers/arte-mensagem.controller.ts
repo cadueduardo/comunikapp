@@ -72,7 +72,7 @@ export class ArteMensagemController {
   }
 
   /**
-   * Marcar mensagens como lidas
+   * Marcar mensagens específicas como lidas
    */
   @Post('marcar-lidas')
   async marcarMensagensLidas(@Body() dto: { mensagemIds: string[] }, @Request() req) {
@@ -80,6 +80,24 @@ export class ArteMensagemController {
     const lojaId = req.user.loja_id;
     
     return this.mensagemService.marcarMensagensLidas(dto.mensagemIds, usuarioId, lojaId);
+  }
+
+  /**
+   * Marcar todas as mensagens de um produto/versão como lidas
+   */
+  @Post('marcar-lidas-produto')
+  async marcarMensagensLidasPorProduto(
+    @Body() dto: { os_id: string; produto_id: string; versao_id?: string }, 
+    @Request() req
+  ) {
+    const lojaId = req.user.loja_id;
+    
+    return this.mensagemService.marcarMensagensLidasPorProduto(
+      dto.os_id, 
+      dto.produto_id, 
+      dto.versao_id || null, 
+      lojaId
+    );
   }
 
   /**

@@ -38,7 +38,7 @@ export function useArteMessages(osId: string): UseArteMessagesReturn {
       setLoading(true);
       setError(null);
       
-      console.log('🔄 [useArteMessages] Buscando mensagens não lidas para OS:', osId);
+      // console.log('🔄 [useArteMessages] Buscando mensagens não lidas para OS:', osId);
       
       const token = localStorage.getItem('access_token');
       if (!token) {
@@ -62,16 +62,21 @@ export function useArteMessages(osId: string): UseArteMessagesReturn {
 
       const mensagensNaoLidas = await response.json();
       
-      console.log('📊 [useArteMessages] Mensagens não lidas recebidas:', mensagensNaoLidas);
+      // console.log('📊 [useArteMessages] Mensagens não lidas recebidas:', mensagensNaoLidas);
       
       // Converter para o formato esperado (apenas mensagens não lidas do cliente)
       const produtosMessagesData: ProdutoMessages[] = mensagensNaoLidas.map((item: any) => ({
-        produtoId: item.produto_id,
+        produtoId: item.produto_id, // Agora produto_id contém versao_id do backend
         totalMensagens: item.mensagens_nao_lidas, // Apenas mensagens não lidas do cliente
         mensagensNaoLidas: item.mensagens_nao_lidas,
       }));
 
-      console.log('✅ [useArteMessages] Contadores atualizados:', produtosMessagesData);
+      // console.log('✅ [useArteMessages] Contadores atualizados:', produtosMessagesData);
+      // console.log('🔍 [useArteMessages] Debug produtosMessages:', produtosMessagesData.map(p => ({
+      //   produtoId: p.produtoId,
+      //   mensagensNaoLidas: p.mensagensNaoLidas,
+      //   totalMensagens: p.totalMensagens
+      // })));
 
       setProdutosMessages(produtosMessagesData);
     } catch (err) {

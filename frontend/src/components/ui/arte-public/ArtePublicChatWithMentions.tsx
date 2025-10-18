@@ -28,6 +28,7 @@ interface MensagemArte {
   autor: string;
   autorTipo: 'cliente' | 'equipe';
   mensagem: string;
+  mensagemProcessada?: string; // Mensagem com menções processadas
   data: string;
   lida: boolean;
   mencoes?: string[];
@@ -59,6 +60,8 @@ export function ArtePublicChatWithMentions({
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [autocompletePosition, setAutocompletePosition] = useState({ top: 0, left: 0 });
   const [cursorPosition, setCursorPosition] = useState(0);
+  const [indiceSelecionado, setIndiceSelecionado] = useState(0);
+  const [versoesFiltradas, setVersoesFiltradas] = useState<VersaoArte[]>([]);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mensagensRef = useRef<HTMLDivElement>(null);
@@ -83,11 +86,11 @@ export function ArtePublicChatWithMentions({
         const mensagensProcessadas: MensagemArte[] = data.data.map((msg: any) => ({
           id: msg.id,
           autor: msg.autor_nome || 'Usuário',
-          autorTipo: msg.autor_tipo === 'CLIENTE' ? 'cliente' : 'equipe',
+          autorTipo: msg.autor_tipo?.toLowerCase() === 'cliente' ? 'cliente' : 'equipe',
           mensagem: msg.mensagem,
           data: msg.created_at,
           lida: msg.lida || true,
-          mencoes: extrairMencoes(msg.mensagem)
+          mencoes: extractMentions(msg.mensagem)
         }));
         
         setMensagens(mensagensProcessadas);
@@ -106,7 +109,7 @@ export function ArtePublicChatWithMentions({
   };
 
   // Extrair menções do texto
-  const extrairMencoes = (texto: string): string[] => {
+  const extractMentions = (texto: string): string[] => {
     const regex = /@(V\d+-\w+)/g;
     const mencoes: string[] = [];
     let match;
@@ -119,11 +122,13 @@ export function ArtePublicChatWithMentions({
   };
 
   // Processar menções no texto
-  const processarMencoes = (texto: string): string => {
-    return texto.replace(/@(V\d+-\w+)/g, (match, versaoRef) => {
-      const versao = versoesDisponiveis.find(v => `${v.versao}-${produtoNome}` === versaoRef);
+  const processMentions = (texto: string): string => {
+    // Suportar tanto @V1-Banner quanto @V1 - Banner
+    return texto.replace(/@(V\d+)(?:\s*-\s*([^-\s]+(?:\s+[^-\s]+)*))(?=\s|$)/g, (match, versaoNum, descricao) => {
+      const versao = versoesDisponiveis.find(v => v.versao === versaoNum);
       if (versao) {
-        return `<a href="#versao-${versao.id}" class="mention-link text-blue-600 hover:text-blue-800 underline cursor-pointer" data-versao-id="${versao.id}">${match}</a>`;
+        const descricaoFinal = descricao || produtoNome;
+        return `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">@${versaoNum} - ${descricaoFinal}</span>`;
       }
       return match;
     });
@@ -137,20 +142,31 @@ export function ArtePublicChatWithMentions({
     setNovaMensagem(value);
     setCursorPosition(cursorPos);
 
-    // Detectar @art para mostrar autocomplete
+    // Detectar @ para mostrar autocomplete
     const textBeforeCursor = value.substring(0, cursorPos);
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
     
     if (lastAtIndex !== -1) {
       const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-      if (textAfterAt.length <= 3 && !textAfterAt.includes(' ')) {
-        // Mostrar autocomplete
-        const rect = e.target.getBoundingClientRect();
-        setAutocompletePosition({
-          top: rect.bottom + window.scrollY,
-          left: rect.left + window.scrollX
-        });
-        setShowAutocomplete(true);
+      if (!textAfterAt.includes(' ')) {
+        // Filtrar versões baseado no texto após @
+        const versoesFiltradas = versoesDisponiveis.filter(v => 
+          textAfterAt === '' || v.versao.toLowerCase().includes(textAfterAt.toLowerCase())
+        );
+        setVersoesFiltradas(versoesFiltradas);
+        
+        // Mostrar autocomplete se há versões filtradas
+        if (versoesFiltradas.length > 0) {
+          const rect = e.target.getBoundingClientRect();
+          setAutocompletePosition({
+            top: rect.bottom + window.scrollY,
+            left: rect.left + window.scrollX
+          });
+          setShowAutocomplete(true);
+          setIndiceSelecionado(0);
+        } else {
+          setShowAutocomplete(false);
+        }
       } else {
         setShowAutocomplete(false);
       }
@@ -160,14 +176,14 @@ export function ArtePublicChatWithMentions({
   };
 
   // Inserir menção no texto
-  const inserirMencao = (versao: VersaoArte) => {
+  const insertMention = (versao: VersaoArte) => {
     const textBeforeCursor = novaMensagem.substring(0, cursorPosition);
     const textAfterCursor = novaMensagem.substring(cursorPosition);
     
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-    const mencao = `@${versao.versao}-${produtoNome}`;
+    const mencao = `${versao.versao} - ${produtoNome}`;
     
-    const novoTexto = textBeforeCursor.substring(0, lastAtIndex) + mencao + ' ' + textAfterCursor;
+    const novoTexto = textBeforeCursor.substring(0, lastAtIndex) + '@' + mencao + ' ' + textAfterCursor;
     
     setNovaMensagem(novoTexto);
     setShowAutocomplete(false);
@@ -180,6 +196,41 @@ export function ArtePublicChatWithMentions({
         textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
       }
     }, 0);
+  };
+
+  // Navegação por teclado no autocomplete
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!showAutocomplete || versoesFiltradas.length === 0) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        enviarMensagem();
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setIndiceSelecionado(prev => 
+          prev < versoesFiltradas.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setIndiceSelecionado(prev => 
+          prev > 0 ? prev - 1 : versoesFiltradas.length - 1
+        );
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (versoesFiltradas[indiceSelecionado]) {
+          insertMention(versoesFiltradas[indiceSelecionado]);
+        }
+        break;
+      case 'Escape':
+        setShowAutocomplete(false);
+        break;
+    }
   };
 
   // Enviar mensagem
@@ -305,7 +356,7 @@ export function ArtePublicChatWithMentions({
                 <MessageSquare className="h-8 w-8 mx-auto mb-2 text-gray-300" />
                 <p className="text-sm">Nenhum comentário ainda</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Use @V1-{produtoNome} para mencionar versões
+                  Use @V1 - {produtoNome} para mencionar versões
                 </p>
               </div>
             ) : (
@@ -313,35 +364,45 @@ export function ArtePublicChatWithMentions({
                 {mensagens.map((mensagem) => (
                   <div
                     key={mensagem.id}
-                    className={`p-3 rounded-lg ${
-                      mensagem.autorTipo === 'cliente'
-                        ? 'bg-blue-50 border-l-4 border-blue-200'
-                        : 'bg-gray-50 border-l-4 border-gray-200'
-                    }`}
+                    className={`flex ${mensagem.autorTipo === 'cliente' ? 'justify-end' : 'justify-start'} mb-4`}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-gray-700">
-                        {mensagem.autor}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {new Date(mensagem.data).toLocaleDateString('pt-BR')}
-                      </span>
-                    </div>
-                    <div 
-                      className="text-sm text-gray-800"
-                      dangerouslySetInnerHTML={{ 
-                        __html: processarMencoes(mensagem.mensagem) 
-                      }}
-                    />
-                    {mensagem.mencoes && mensagem.mencoes.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {mensagem.mencoes.map((mencao, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
-                            {mencao}
-                          </Badge>
-                        ))}
+                    <div className={`max-w-[70%] ${mensagem.autorTipo === 'cliente' ? 'ml-4 mr-4' : 'mr-4'}`}>
+                      <div className={`px-4 py-3 rounded-2xl shadow-sm ${
+                        mensagem.autorTipo === 'cliente'
+                          ? 'bg-blue-500 text-white rounded-br-md'
+                          : 'bg-gray-100 text-gray-900 rounded-bl-md'
+                      }`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-xs font-medium ${
+                            mensagem.autorTipo === 'cliente' ? 'text-white' : 'text-gray-700'
+                          }`}>
+                            {mensagem.autor}
+                          </span>
+                          <span className={`text-xs ${
+                            mensagem.autorTipo === 'cliente' ? 'text-blue-100' : 'text-gray-500'
+                          }`}>
+                            {new Date(mensagem.data).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                        <div 
+                          className={`text-sm ${
+                            mensagem.autorTipo === 'cliente' ? 'text-white' : 'text-gray-800'
+                          }`}
+                          dangerouslySetInnerHTML={{ 
+                            __html: mensagem.mensagemProcessada || processMentions(mensagem.mensagem)
+                          }}
+                        />
+                        {mensagem.mencoes && mensagem.mencoes.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {mensagem.mencoes.map((mencao, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {mencao}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -355,8 +416,8 @@ export function ArtePublicChatWithMentions({
                 ref={textareaRef}
                 value={novaMensagem}
                 onChange={handleTextChange}
-                onKeyPress={handleKeyPress}
-                placeholder={`Digite sua mensagem... Use @V1-${produtoNome} para mencionar versões`}
+                onKeyDown={handleKeyDown}
+                placeholder={`Digite sua mensagem... Use @V1 - ${produtoNome} para mencionar versões`}
                 className="w-full p-3 border border-gray-300 rounded-lg resize-none text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows={3}
                 disabled={submitting}
@@ -372,14 +433,19 @@ export function ArtePublicChatWithMentions({
                     minWidth: '200px'
                   }}
                 >
-                  {versoesDisponiveis.map((versao) => (
+                  {versoesFiltradas.map((versao, index) => (
                     <button
                       key={versao.id}
-                      onClick={() => inserirMencao(versao)}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center space-x-2"
+                      onClick={() => insertMention(versao)}
+                      className={`w-full px-3 py-2 text-left text-sm flex items-center space-x-2 ${
+                        index === indiceSelecionado 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'hover:bg-gray-100'
+                      }`}
                     >
-                      <span className="font-medium">{versao.versao}</span>
-                      <span className="text-gray-500">- {produtoNome}</span>
+                      <span className="text-sm">
+                        @{versao.versao} - {produtoNome}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -387,7 +453,7 @@ export function ArtePublicChatWithMentions({
               
               <div className="flex items-end justify-between gap-2">
                 <p className="text-xs text-gray-500 flex-1">
-                  Pressione Enter para enviar • Use @V1-{produtoNome} para mencionar versões
+                  Pressione Enter para enviar • Use @V1 - {produtoNome} para mencionar versões
                 </p>
                 <Button
                   onClick={enviarMensagem}

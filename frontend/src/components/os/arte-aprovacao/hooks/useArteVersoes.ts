@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ArteVersao, CreateArteVersaoRequest, UpdateArteVersaoRequest } from '../types/arte-types';
 
 interface UseArteVersoesReturn {
@@ -16,7 +16,7 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchVersoes = async () => {
+  const fetchVersoes = useCallback(async () => {
     if (!osId) return;
     
     try {
@@ -44,7 +44,7 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
     } finally {
       setLoading(false);
     }
-  };
+  }, [osId]);
 
   const createVersao = async (data: CreateArteVersaoRequest): Promise<ArteVersao> => {
     try {
@@ -176,7 +176,7 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
 
   useEffect(() => {
     fetchVersoes();
-  }, [osId]);
+  }, [fetchVersoes]);
 
   return {
     versoes,
