@@ -490,6 +490,22 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     }
   };
 
+  // Função para enviar uma versão específica para PCP
+  const handleSendToPCP = async (versao: ArteVersao) => {
+    try {
+      await updateVersao(versao.id, {
+        status: 'ENVIADA_PCP',
+        descricao: versao.descricao,
+        observacoes: versao.observacoes
+      });
+
+      toast.success(`Versão ${versao.versao} enviada para o PCP!`);
+    } catch (error) {
+      console.error('Erro ao enviar versão para PCP:', error);
+      toast.error('Erro ao enviar versão para PCP');
+    }
+  };
+
   // Função para abrir modal de mensagens
   const handleOpenMessages = (versaoId: string) => {
     const versao = versoes.find(v => v.id === versaoId);
@@ -850,6 +866,19 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                         ) : (
                           <Link className="h-4 w-4" />
                         )}
+                      </Button>
+                    )}
+
+                    {/* Botão para enviar para PCP - sempre visível */}
+                    {!readonly && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSendToPCP(versao)}
+                        className="text-purple-600 hover:text-purple-700 border-purple-200 hover:border-purple-300"
+                        title="Enviar para PCP"
+                      >
+                        <ArrowRight className="h-4 w-4" />
                       </Button>
                     )}
 
