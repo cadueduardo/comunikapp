@@ -72,13 +72,8 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
   const { versoes, loading, error, createVersao, updateVersao, deleteVersao, refreshVersoes } = useArteVersoes(memoizedOsId);
   const { produtos, loading: loadingProdutos, error: errorProdutos, refreshProdutos } = useArteProdutos(memoizedOsId);
   
-  // TEMPORÁRIO: Manter outros hooks desabilitados
-  // const { produtosMessages, loading: loadingMessages, refreshMessages } = useArteMessages(osId);
-  
-  // Dados mockados temporariamente para testar performance
-  const produtosMessages: any[] = [];
-  const loadingMessages = false;
-  const refreshMessages = async () => {};
+  // Hook para carregar mensagens não lidas
+  const { produtosMessages, loading: loadingMessages, refreshMessages } = useArteMessages(osId);
   
   // WebSocket para atualizações em tempo real - valores estáveis
   const websocketOptions = useMemo(() => {
@@ -93,14 +88,8 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     };
   }, []); // Array vazio para garantir que só execute uma vez
 
-  // TEMPORÁRIO: Desabilitar WebSocket para testar performance
-  // const { novaMensagem: novaMensagemWS, contadorAtualizado, entrarSalaVersao, sairSalaVersao } = useArteWebSocket(websocketOptions);
-  
-  // Dados mockados temporariamente para testar performance
-  const novaMensagemWS = null;
-  const contadorAtualizado = false;
-  const entrarSalaVersao = () => {};
-  const sairSalaVersao = () => {};
+  // WebSocket para atualizações em tempo real
+  const { novaMensagem: novaMensagemWS, contadorAtualizado, entrarSalaVersao, sairSalaVersao } = useArteWebSocket(websocketOptions);
   
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
