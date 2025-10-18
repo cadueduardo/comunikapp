@@ -175,6 +175,7 @@ export default function ArtePublicApprovalPageV3() {
               onRejeitar={rejeitarArte}
               declarationChecked={declarationChecked}
               onDeclarationChange={setDeclarationChecked}
+              token={token}
               loading={loading}
               processing={processing}
             />
