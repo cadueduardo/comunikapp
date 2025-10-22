@@ -63,17 +63,45 @@
 
 ---
 
-### **5. PLANO DE IMPLEMENTAÇÃO FASE 1** 🚀
-**Arquivo:** `PLANO-IMPLEMENTACAO-FASE1.md`
+### **5. PLANO DE REESTRUTURAÇÃO FASE 1** 🚀
+**Arquivo:** `PLANO-REESTRUTURACAO-PCP-FASE1-REFORMULADO.md`
 
 **Conteúdo:**
-- Cronograma detalhado (6 dias)
-- Checklist de implementação
-- Métricas de sucesso
+- Reestruturação do código existente (4 dias)
+- Regras de segurança para produção
+- Checklist pré-refatoração
 - Riscos e mitigações
-- Próximas fases
+- Estado atual do módulo
 
-**👉 EXECUTE** este plano para implementar.
+**👉 EXECUTE** este plano para reestruturar.
+
+---
+
+### **6. PLANO COMPLETO FASES 2-4** 📈
+**Arquivo:** `PLANO-COMPLETO-FASES-2-3-4.md`
+
+**Conteúdo:**
+- Fase 2: UX/UI e Automação (5 dias)
+- Fase 3: IA e Previsão (6 dias)  
+- Fase 4: Integração e Expansão (7 dias)
+- Métricas de sucesso por fase
+- Roadmap completo (22 dias total)
+
+**👉 CONSULTE** para planejamento futuro.
+
+---
+
+### **7. RESUMO EXECUTIVO COMPLETO** 🎯
+**Arquivo:** `RESUMO-EXECUTIVO-PLANO-COMPLETO.md`
+
+**Conteúdo:**
+- Visão geral das 4 fases
+- Métricas de sucesso gerais
+- Cronograma detalhado
+- ROI e investimento
+- Próximos passos
+
+**👉 LEIA** para visão executiva completa.
 
 ---
 
@@ -130,16 +158,16 @@ Cada produto da OS pode:
 
 ## 🚀 **ROADMAP**
 
-| Fase | Status | Arquivos |
-|------|--------|----------|
-| ✅ Planejamento | Concluído | Docs criados |
-| 📋 Fase 1: Setores | Pendente | Schema, Backend, Frontend |
-| 📋 Fase 2: Workflows | Pendente | Adaptar existente |
-| 📋 Fase 3: Vinculação | Pendente | Produtos |
-| 📋 Fase 4: Fila Setor | Pendente | Nova tela |
-| 📋 Fase 5: Kanban | Pendente | Adaptar existente |
+| Fase | Status | Duração | Foco | Arquivos |
+|------|--------|---------|------|----------|
+| ✅ Planejamento | Concluído | - | Documentação | Docs criados |
+| 📋 Fase 1: Reestruturação | Pendente | 4 dias | Código limpo, testes | `PLANO-REESTRUTURACAO-PCP-FASE1-REFORMULADO.md` |
+| 📋 Fase 2: UX/UI + Automação | Pendente | 5 dias | Interface avançada | `PLANO-COMPLETO-FASES-2-3-4.md` |
+| 📋 Fase 3: IA + Previsão | Pendente | 6 dias | Algoritmos, ML | `PLANO-COMPLETO-FASES-2-3-4.md` |
+| 📋 Fase 4: Integração + Escala | Pendente | 7 dias | APIs, mobile | `PLANO-COMPLETO-FASES-2-3-4.md` |
 
-**Próximo Passo:** Iniciar Fase 1 (Setores Produtivos)
+**Total:** 22 dias de desenvolvimento  
+**Próximo Passo:** Iniciar Fase 1 (Reestruturação)
 
 ---
 
