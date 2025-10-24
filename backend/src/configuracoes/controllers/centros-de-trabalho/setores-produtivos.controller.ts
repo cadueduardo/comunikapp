@@ -8,7 +8,7 @@ import { ApiTags, ApiBearerAuth, ApiResponse, ApiOperation } from '@nestjs/swagg
 @ApiTags('Centros de Trabalho - Setores Produtivos')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('configuracoes/centros-de-trabalho/setores-produtivos')
+@Controller('centros-de-trabalho/setores-produtivos')
 export class SetoresProdutivosController {
   constructor(private readonly setoresProdutivosService: SetoresProdutivosService) {}
 

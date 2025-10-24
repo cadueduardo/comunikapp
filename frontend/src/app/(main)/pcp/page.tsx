@@ -341,7 +341,7 @@ export default function PCPPage() {
               <h3 className="font-semibold">Setores Produtivos</h3>
               <p className="text-sm text-gray-600">Gerencie setores e operadores</p>
               <Button asChild variant="outline" size="sm" className="mt-2">
-                <Link href="/configuracoes/centros-de-trabalho/setores-produtivos">
+                <Link href="/centros-de-trabalho/setores-produtivos">
                   <IconSettings className="h-4 w-4 mr-1" />
                   Configurar
                 </Link>

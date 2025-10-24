@@ -6,10 +6,16 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import { Wrench, Users, Hand, DollarSign } from 'lucide-react';
+import { Wrench, Users, Hand, DollarSign, Building2 } from 'lucide-react';
 
 export default function CentrosDeTrabalhoPage() {
   const options = [
+    {
+      title: 'Setores Produtivos',
+      description: 'Gerencie setores produtivos e operadores.',
+      icon: Building2,
+      href: '/centros-de-trabalho/setores-produtivos',
+    },
     {
       title: 'Máquinas',
       description: 'Gerencie máquinas e modos de impressão.',

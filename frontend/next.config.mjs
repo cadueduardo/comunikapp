@@ -3,6 +3,14 @@ const nextConfig = {
     env: {
         BACKEND_URL: process.env.BACKEND_URL || 'http://localhost:4000',
     },
+    async rewrites() {
+        return [
+            {
+                source: '/api/:path*',
+                destination: 'http://localhost:4000/api/:path*',
+            },
+        ];
+    },
     images: {
         remotePatterns: [
             {
