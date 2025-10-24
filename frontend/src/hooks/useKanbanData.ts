@@ -75,8 +75,6 @@ export function useKanbanData(lojaId?: string): UseKanbanDataReturn {
 
   // Carregar dados do kanban
   const fetchKanbanData = useCallback(async () => {
-    if (!lojaId) return;
-
     try {
       setLoading(true);
       setError(null);
@@ -115,7 +113,7 @@ export function useKanbanData(lojaId?: string): UseKanbanDataReturn {
     } finally {
       setLoading(false);
     }
-  }, [lojaId, filters]);
+  }, [filters]);
 
   // Refresh manual dos dados
   const refreshData = useCallback(async () => {

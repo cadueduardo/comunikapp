@@ -15,12 +15,14 @@ import { RegrasValidacaoController } from './controllers/regras-validacao.contro
 import { CamposValidacaoController } from './controllers/campos-validacao.controller';
 import { TestValidacoesController } from './controllers/test-validacoes.controller';
 import { TestCamposValidacaoController } from './controllers/test-campos-validacao.controller';
+import { SetoresProdutivosController } from './controllers/centros-de-trabalho/setores-produtivos.controller';
 
 // Services
 import { ParametrosService } from './services/parametros.service';
 import { ValidacoesAutomaticasService } from './services/validacoes-automaticas.service';
 import { RegrasValidacaoService } from './services/regras-validacao.service';
 import { ExecucaoRegraService } from './services/execucao-regra.service';
+import { SetoresProdutivosService } from './services/centros-de-trabalho/setores-produtivos.service';
 
 @Module({
   imports: [
@@ -40,16 +42,19 @@ import { ExecucaoRegraService } from './services/execucao-regra.service';
     CamposValidacaoController,
     TestValidacoesController,
     TestCamposValidacaoController,
+    SetoresProdutivosController,
   ],
   providers: [
     ParametrosService,
     ValidacoesAutomaticasService,
     RegrasValidacaoService,
     ExecucaoRegraService,
+    SetoresProdutivosService,
   ],
   exports: [
     ValidacoesAutomaticasService, // Para uso no módulo OS
     RegrasValidacaoService,
+    SetoresProdutivosService, // Para uso no módulo PCP
   ],
 })
 export class ConfiguracoesModule {}

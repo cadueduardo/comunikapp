@@ -14,7 +14,10 @@ import {
   IconTrash,
   IconRefresh,
   IconAlertTriangle,
-  IconClock
+  IconClock,
+  IconUser,
+  IconUsers,
+  IconFactory
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -309,6 +312,56 @@ export default function PCPPage() {
         </Card>
       </div>
 
+      {/* Seção Meu Setor */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <IconFactory className="h-5 w-5" />
+            Meu Setor
+          </CardTitle>
+          <CardDescription>
+            Visualização personalizada para operadores - fila de produção do seu setor
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center p-4 border rounded-lg">
+              <IconUser className="h-8 w-8 mx-auto mb-2 text-blue-600" />
+              <h3 className="font-semibold">Operador</h3>
+              <p className="text-sm text-gray-600">Visualize sua fila de produção</p>
+              <Button asChild variant="outline" size="sm" className="mt-2">
+                <Link href="/pcp/meu-setor">
+                  <IconEye className="h-4 w-4 mr-1" />
+                  Acessar
+                </Link>
+              </Button>
+            </div>
+            <div className="text-center p-4 border rounded-lg">
+              <IconUsers className="h-8 w-8 mx-auto mb-2 text-green-600" />
+              <h3 className="font-semibold">Setores Produtivos</h3>
+              <p className="text-sm text-gray-600">Gerencie setores e operadores</p>
+              <Button asChild variant="outline" size="sm" className="mt-2">
+                <Link href="/configuracoes/centros-de-trabalho/setores-produtivos">
+                  <IconSettings className="h-4 w-4 mr-1" />
+                  Configurar
+                </Link>
+              </Button>
+            </div>
+            <div className="text-center p-4 border rounded-lg">
+              <IconClipboardList className="h-8 w-8 mx-auto mb-2 text-purple-600" />
+              <h3 className="font-semibold">Kanban</h3>
+              <p className="text-sm text-gray-600">Visualização geral da produção</p>
+              <Button asChild variant="outline" size="sm" className="mt-2">
+                <Link href="/pcp/kanban">
+                  <IconEye className="h-4 w-4 mr-1" />
+                  Visualizar
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Seções Principais */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* OSs Liberadas para PCP */}
@@ -450,7 +503,7 @@ export default function PCPPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <Button asChild variant="outline" className="h-20 flex-col">
               <Link href="/pcp/workflows">
                 <IconBuilding className="h-6 w-6 mb-2" />
@@ -461,6 +514,12 @@ export default function PCPPage() {
               <Link href="/pcp/kanban">
                 <IconClipboardList className="h-6 w-6 mb-2" />
                 Kanban PCP
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="h-20 flex-col">
+              <Link href="/pcp/meu-setor">
+                <IconUser className="h-6 w-6 mb-2" />
+                Meu Setor
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-20 flex-col">

@@ -25,6 +25,7 @@ import { OrcamentosV2Module } from './orcamentos-v2/orcamentos-v2.module'; // V2
 import { MotorCalculoV2Module } from './motor-calculo-v2/motor-calculo-v2.module';
 import { OSModule } from './os/os.module';
 import { PCPModule } from './pcp/pcp.module';
+import { ConfiguracoesModule } from './configuracoes/configuracoes.module';
 import { ArteAprovacaoModule } from './modules/arte-aprovacao/arte-aprovacao.module';
 import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
 
@@ -58,6 +59,7 @@ import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
     MotorCalculoV2Module,
     OSModule, // Módulo de Ordens de Serviço
     PCPModule, // Módulo de PCP (Planejamento e Controle de Produção)
+    ConfiguracoesModule, // Módulo de Configurações (inclui Centros de Trabalho)
     ArteAprovacaoModule, // Módulo de Arte & Aprovação
   ],
 })

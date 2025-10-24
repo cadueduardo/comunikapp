@@ -3,12 +3,16 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { OSCardKanban, KanbanStats, StatusSetorProdutivo } from '../entities/pcp.entities';
 import { KanbanQueryDto } from '../dto/kanban.dto';
 import { KanbanMapper } from '../mappers/kanban.mapper';
+import { SetoresProdutivosService } from '../../configuracoes/services/centros-de-trabalho/setores-produtivos.service';
 
 @Injectable()
 export class PCPKanbanService {
   private readonly logger = new Logger(PCPKanbanService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private setoresProdutivosService: SetoresProdutivosService
+  ) {}
 
   /**
    * Obtém dados do kanban geral para uma loja
