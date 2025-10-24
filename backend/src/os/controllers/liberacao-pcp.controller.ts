@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { OSService } from '../services/os.service';
 import { WorkflowService } from '../../pcp/services/workflow.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { StatusOS } from '../interfaces/os.interfaces';
 
 @ApiTags('Liberação OS para PCP')
@@ -12,8 +13,52 @@ import { StatusOS } from '../interfaces/os.interfaces';
 export class LiberacaoPCPController {
   constructor(
     private readonly osService: OSService,
-    private readonly workflowService: WorkflowService
+    private readonly workflowService: WorkflowService,
+    private readonly prisma: PrismaService
   ) {}
+
+  @Get('workflows-disponiveis')
+  @ApiOperation({ summary: 'Listar workflows disponíveis para OSs' })
+  @ApiResponse({ status: 200, description: 'Lista de workflows disponíveis retornada com sucesso' })
+  async listarWorkflowsDisponiveis(@Request() req: any) {
+    const user = req['user'] || req.user;
+    const lojaId = user.loja_id;
+
+    try {
+      // Buscar workflows ativos da loja
+      const workflows = await this.prisma.workflowOS.findMany({
+        where: {
+          loja_id: lojaId,
+          ativo: true
+        },
+        select: {
+          id: true,
+          nome: true,
+          descricao: true,
+          etapas: true,
+          sequencial: true,
+          criado_em: true
+        },
+        orderBy: {
+          nome: 'asc'
+        }
+      });
+
+      return {
+        workflows: workflows.map(workflow => ({
+          id: workflow.id,
+          nome: workflow.nome,
+          descricao: workflow.descricao,
+          etapas: JSON.parse(workflow.etapas),
+          sequencial: workflow.sequencial,
+          criado_em: workflow.criado_em
+        }))
+      };
+    } catch (error) {
+      console.error('Erro ao buscar workflows disponíveis:', error);
+      return { workflows: [] };
+    }
+  }
 
   @Get('liberadas-para-pcp')
   @ApiOperation({ summary: 'Listar OSs liberadas para PCP' })
@@ -63,8 +108,11 @@ export class LiberacaoPCPController {
   }
 
   private async contarProdutosLiberados(osId: string): Promise<{ produtos_liberados_count: number; total_produtos: number }> {
-    // Buscar OS com itens
-    const os = await this.osService.findOne(osId, null);
+    // Buscar OS com itens usando Prisma diretamente
+    const os = await this.prisma.ordemServico.findUnique({
+      where: { id: osId },
+      include: { itens: true }
+    });
     
     if (!os || !os.itens) {
       return { produtos_liberados_count: 0, total_produtos: 0 };

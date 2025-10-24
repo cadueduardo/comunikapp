@@ -455,6 +455,7 @@ model loja {
   ordens_servico           OrdemServico[]
   workflows_os             WorkflowOS[]
   regras_validacao         RegraValidacao[]
+  setores_produtivos       SetorProdutivo[]
 }
 
 model maquina {
@@ -1002,6 +1003,9 @@ model usuario {
   artes_aprovador                    ArteVersao[]     @relation("ArteAprovador")
   artes_excluidor                    ArteVersao[]     @relation("ArteExcluidor")
   comentarios_arte                   ArteComentario[]
+  
+  // Relacionamentos PCP
+  instancias_setor_operador          WorkflowInstanciaSetor[]
 
   @@index([loja_id], map: "Usuario_loja_id_idx")
 }
@@ -1441,6 +1445,7 @@ model ItemOS {
   ordem_producao         Int?       // Ordem de produção (1, 2, 3...)
 
   os                 OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  instancias_setor   WorkflowInstanciaSetor[]
 
   @@index([os_id])
   @@index([status_liberacao_pcp])
@@ -1461,6 +1466,7 @@ model WorkflowOS {
 
   loja               loja      @relation(fields: [loja_id], references: [id])
   instancias         WorkflowInstancia[]
+  workflow_setores   WorkflowSetor[]
 
   @@unique([loja_id, nome])
   @@index([loja_id, ativo])
@@ -1523,6 +1529,7 @@ model WorkflowInstancia {
   os                 OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
   workflow           WorkflowOS @relation(fields: [workflow_id], references: [id])
   etapas             EtapaInstancia[]
+  instancias_setor   WorkflowInstanciaSetor[]
 
   @@index([workflow_id])
   @@index([status])
@@ -1630,6 +1637,81 @@ enum TipoMovimentacaoOS {
   FINALIZAR
   ATRIBUIR_RESPONSAVEL
   ADICIONAR_OBSERVACAO
+}
+
+// ==========================================
+// MÓDULO PCP - SETORES PRODUTIVOS
+// ==========================================
+
+model SetorProdutivo {
+  id                 String    @id @default(cuid())
+  loja_id            String
+  nome               String
+  descricao          String?   @db.Text
+  cor                String    @default("#3B82F6") // Cor HEX para identificação visual
+  ativo              Boolean   @default(true)
+  ordem              Int       @default(0) // Ordem de exibição
+  criado_em          DateTime  @default(now())
+  atualizado_em      DateTime  @updatedAt
+
+  // Relacionamentos
+  loja               loja      @relation(fields: [loja_id], references: [id])
+  workflow_setores   WorkflowSetor[]
+  instancias_setor   WorkflowInstanciaSetor[]
+
+  @@unique([loja_id, nome])
+  @@index([loja_id, ativo])
+  @@index([ordem])
+  @@map("setores_produtivos")
+}
+
+model WorkflowSetor {
+  id                 String    @id @default(cuid())
+  workflow_id        String
+  setor_id           String
+  ordem              Int       @default(0)
+  tempo_estimado     Int?      // em minutos
+  obrigatorio        Boolean   @default(true)
+  criado_em          DateTime  @default(now())
+
+  // Relacionamentos
+  workflow           WorkflowOS @relation(fields: [workflow_id], references: [id], onDelete: Cascade)
+  setor              SetorProdutivo @relation(fields: [setor_id], references: [id])
+
+  @@unique([workflow_id, setor_id])
+  @@index([workflow_id])
+  @@index([setor_id])
+  @@map("workflow_setores")
+}
+
+model WorkflowInstanciaSetor {
+  id                 String    @id @default(cuid())
+  workflow_instancia_id String
+  setor_id           String
+  item_os_id         String?   // Opcional - pode ser por OS ou por item específico
+  status             String    @default("PENDENTE") // PENDENTE, EM_ANDAMENTO, CONCLUIDA, PAUSADA, CANCELADA
+  ordem              Int       @default(0)
+  data_inicio        DateTime?
+  data_conclusao     DateTime?
+  operador_id        String?
+  tempo_estimado     Int?      // em minutos
+  tempo_real         Int?      // em minutos
+  observacoes        String?   @db.Text
+  criado_em          DateTime  @default(now())
+  atualizado_em      DateTime  @updatedAt
+
+  // Relacionamentos
+  workflow_instancia WorkflowInstancia @relation(fields: [workflow_instancia_id], references: [id], onDelete: Cascade)
+  setor              SetorProdutivo @relation(fields: [setor_id], references: [id])
+  item_os            ItemOS? @relation(fields: [item_os_id], references: [id])
+  operador           usuario? @relation(fields: [operador_id], references: [id])
+
+  @@index([workflow_instancia_id])
+  @@index([setor_id])
+  @@index([item_os_id])
+  @@index([status])
+  @@index([operador_id])
+  @@map("workflow_instancia_setor")
 }
 
 // ==========================================
