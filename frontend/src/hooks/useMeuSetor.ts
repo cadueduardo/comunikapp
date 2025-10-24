@@ -75,7 +75,7 @@ export function useMeuSetor(): UseMeuSetorReturn {
       const token = localStorage.getItem('access_token');
       
       // Buscar setores disponíveis para o operador
-      const setoresResponse = await fetch(`/api/pcp/setores-produtivos/operador/${operadorId}`, {
+      const setoresResponse = await fetch(`/api/configuracoes/centros-de-trabalho/setores-produtivos/operador/${operadorId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -93,7 +93,7 @@ export function useMeuSetor(): UseMeuSetorReturn {
         setSetor(setorAtual);
         
         // Buscar fila do setor
-        const filaResponse = await fetch(`/api/pcp/kanban/fila/${setorAtual.id}?operadorId=${operadorId}`, {
+        const filaResponse = await fetch(`/api/pcp/kanban/fila-setor/${setorAtual.id}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
