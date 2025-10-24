@@ -17,7 +17,7 @@ import {
   IconClock,
   IconUser,
   IconUsers,
-  IconFactory
+  IconBuildingFactory
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -316,7 +316,7 @@ export default function PCPPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <IconFactory className="h-5 w-5" />
+            <IconBuildingFactory className="h-5 w-5" />
             Meu Setor
           </CardTitle>
           <CardDescription>
