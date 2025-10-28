@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { WorkflowAssignmentDialog } from '@/components/pcp/WorkflowAssignmentDialog';
 import { 
   IconBuilding, 
   IconClipboardList, 
@@ -68,6 +69,8 @@ export default function PCPPage() {
     etapasPendentes: 0,
     eficienciaMedia: 0
   });
+  const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
+  const [osSelecionada, setOsSelecionada] = useState<OSLiberada | null>(null);
 
   // Carregar dados ao montar o componente
   useEffect(() => {
@@ -172,15 +175,9 @@ export default function PCPPage() {
     fetchData();
   };
 
-  const handleIniciarWorkflow = async (osId: string) => {
-    try {
-      const token = localStorage.getItem('access_token');
-      // TODO: Implementar endpoint para iniciar workflow
-      toast.success(`Workflow iniciado para OS ${osId}`);
-      fetchData(); // Recarregar dados
-    } catch (error) {
-      toast.error('Erro ao iniciar workflow');
-    }
+  const handleIniciarWorkflow = (os: OSLiberada) => {
+    setOsSelecionada(os);
+    setAssignmentModalOpen(true);
   };
 
   const getPrioridadeColor = (prioridade: string) => {
@@ -232,6 +229,7 @@ export default function PCPPage() {
   }
 
   return (
+    <>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -428,7 +426,7 @@ export default function PCPPage() {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => handleIniciarWorkflow(os.id)}
+                          onClick={() => handleIniciarWorkflow(os)}
                         >
                           <IconPlus className="h-4 w-4 mr-1" />
                           Iniciar
@@ -538,5 +536,19 @@ export default function PCPPage() {
         </CardContent>
       </Card>
     </div>
+
+    <WorkflowAssignmentDialog
+      open={assignmentModalOpen}
+      osId={osSelecionada?.id}
+      osNumero={osSelecionada?.numero}
+      onClose={() => {
+        setAssignmentModalOpen(false);
+        setOsSelecionada(null);
+      }}
+      onAssigned={() => {
+        fetchData();
+      }}
+    />
+    </>
   );
 }
