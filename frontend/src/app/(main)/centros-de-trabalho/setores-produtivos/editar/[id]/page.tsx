@@ -7,14 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { 
-  IconBuildingFactory, 
+import {
+  IconBuildingFactory,
   IconArrowLeft,
-  IconSave,
+  IconDeviceFloppy,
   IconX
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { buildApiUrl } from '@/lib/config';
 
 interface SetorProdutivo {
   id: string;
@@ -73,11 +74,16 @@ export default function EditarSetorPage() {
       setLoadingData(true);
       const token = localStorage.getItem('access_token');
       
-      const response = await fetch(`/api/centros-de-trabalho/setores-produtivos/${setorId}`, {
+      if (!token) {
+        throw new Error('Sessão expirada. Faça login novamente.');
+      }
+      
+      const response = await fetch(buildApiUrl(`/centros-de-trabalho/setores-produtivos/${setorId}`), {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        cache: 'no-store'
       });
 
       if (response.ok) {
@@ -91,11 +97,14 @@ export default function EditarSetorPage() {
           ordem: data.ordem
         });
       } else {
-        throw new Error('Erro ao carregar setor');
+        const errorText = await response.text();
+        const message = errorText && errorText.trim() ? errorText : 'Erro ao carregar setor';
+        throw new Error(message);
       }
     } catch (error) {
       console.error('Erro ao carregar setor:', error);
-      toast.error('Erro ao carregar dados do setor');
+      const message = error instanceof Error ? error.message : 'Erro ao carregar dados do setor';
+      toast.error(message);
       router.push('/centros-de-trabalho/setores-produtivos');
     } finally {
       setLoadingData(false);
@@ -114,10 +123,14 @@ export default function EditarSetorPage() {
       setLoading(true);
       const token = localStorage.getItem('access_token');
       
-      const response = await fetch(`/api/centros-de-trabalho/setores-produtivos/${setorId}`, {
+      if (!token) {
+        throw new Error('Sessão expirada. Faça login novamente.');
+      }
+      
+      const response = await fetch(buildApiUrl(`/centros-de-trabalho/setores-produtivos/${setorId}`), {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(formData)
@@ -127,12 +140,22 @@ export default function EditarSetorPage() {
         toast.success('Setor atualizado com sucesso');
         router.push('/centros-de-trabalho/setores-produtivos');
       } else {
-        const error = await response.json();
-        throw new Error(error.message || 'Erro ao atualizar setor');
+        const errorText = await response.text();
+        let message = 'Erro ao atualizar setor';
+        try {
+          const parsed = JSON.parse(errorText);
+          message = parsed?.message || parsed?.error || message;
+        } catch {
+          if (errorText) {
+            message = errorText;
+          }
+        }
+        throw new Error(message);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao atualizar setor:', error);
-      toast.error(error.message || 'Erro ao atualizar setor');
+      const message = error instanceof Error ? error.message : 'Erro ao atualizar setor';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -316,7 +339,7 @@ export default function EditarSetorPage() {
             {/* Ações */}
             <div className="flex items-center gap-4 pt-6 border-t">
               <Button type="submit" disabled={loading}>
-                <IconSave className="h-4 w-4 mr-2" />
+                <IconDeviceFloppy className="h-4 w-4 mr-2" />
                 {loading ? 'Salvando...' : 'Salvar Alterações'}
               </Button>
               <Button type="button" variant="outline" asChild>
@@ -332,3 +355,4 @@ export default function EditarSetorPage() {
     </div>
   );
 }
+

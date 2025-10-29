@@ -28,17 +28,20 @@ export class KanbanMapper {
    * Mapeia instância de setor para formato do kanban
    */
   static mapearInstanciaParaKanban(instancia: any): OSCardKanban {
-    const os = instancia.item_os.ordemServico;
-    
+    const os = instancia.item_os?.os ?? instancia.workflow_instancia?.os ?? null;
+
     return {
-      id: instancia.item_os_id,
-      numero: os.numero,
-      titulo: instancia.item_os.produto?.nome || 'Produto',
-      cliente: os.cliente?.nome || 'Cliente não informado',
+      id: instancia.item_os_id ?? instancia.id,
+      numero: os?.numero || instancia.workflow_instancia?.os_id || '',
+      titulo:
+        instancia.item_os?.produto_servico ||
+        instancia.workflow_instancia?.os?.nome_servico ||
+        'Produto',
+      cliente: os?.cliente?.nome || 'Cliente nÃ£o informado',
       status: instancia.status,
-      prioridade: os.prioridade || 'MEDIA',
-      responsavel: instancia.operador?.nome || 'Não atribuído',
-      data_prazo: os.data_prazo ? new Date(os.data_prazo).toISOString().split('T')[0] : '',
+      prioridade: os?.prioridade || 'MEDIA',
+      responsavel: instancia.operador?.nome || 'NÃ£o atribuÃ­do',
+      data_prazo: os?.data_prazo ? new Date(os.data_prazo).toISOString().split('T')[0] : '',
       progresso: this.calcularProgressoInstancia(instancia),
       alertas: [],
       setor_atual: instancia.setor?.nome,

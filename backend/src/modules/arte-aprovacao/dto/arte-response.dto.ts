@@ -93,6 +93,18 @@ export class ArteVersaoResponseDto {
   @ApiProperty({ description: 'Aprovado pelo cliente' })
   aprovado_por_cliente: boolean;
 
+  @ApiProperty({ description: 'Liberado para PCP após verificação do designer' })
+  liberado_para_pcp: boolean;
+
+  @ApiProperty({ description: 'Data em que foi liberado para PCP', required: false })
+  liberado_em?: Date;
+
+  @ApiProperty({ description: 'ID do designer que liberou', required: false })
+  liberado_por?: string;
+
+  @ApiProperty({ description: 'Nome do designer que liberou', required: false })
+  liberador_nome?: string;
+
   @ApiProperty({ description: 'Arquivos da versão', type: [ArteArquivoResponseDto] })
   arquivos: ArteArquivoResponseDto[];
 

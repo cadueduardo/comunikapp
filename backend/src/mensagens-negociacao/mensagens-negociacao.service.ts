@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateMensagemNegociacaoDto } from '../orcamentos/dto/create-mensagem-negociacao.dto';
+import { CreateMensagemNegociacaoDto } from './dto/create-mensagem-negociacao.dto';
 import { NotificacoesService } from '../notificacoes/notificacoes.service';
 import { WebsocketsService } from '../websockets/websockets.service';
 import * as fs from 'fs';

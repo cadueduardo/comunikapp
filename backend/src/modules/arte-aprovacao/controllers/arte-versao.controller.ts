@@ -249,4 +249,21 @@ export class ArteVersaoController {
 
     return { aprovadas, erros };
   }
+
+  @Post(':id/liberar-para-pcp')
+  @ApiOperation({ summary: 'Liberar arte para PCP após verificação do designer' })
+  @ApiResponse({ status: 200, description: 'Arte liberada com sucesso' })
+  @ApiResponse({ status: 400, description: 'Arte não pode ser liberada' })
+  async liberarParaPCP(
+    @Param('id') id: string,
+    @Request() req
+  ): Promise<ArteVersaoResponseDto> {
+    console.log('🎨 [Controller] Liberando arte para PCP:', {
+      id,
+      usuarioId: req.user.id,
+      lojaId: req.user.loja_id
+    });
+
+    return this.arteVersaoService.liberarParaPCP(id, req.user.id, req.user.loja_id);
+  }
 }

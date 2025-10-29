@@ -113,7 +113,8 @@ export function ArteCreateVersionModal({
 
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`/api/arte-aprovacao/versoes/versao/${versaoId}/arquivos/upload`, {
+      console.log(`📤 Upload de arquivo para versão: ${versaoId}`);
+      const response = await fetch(`/api/arte-aprovacao/versoes/${versaoId}/arquivos/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -12,6 +12,7 @@ import { ValidacaoEstoqueService } from '../../orcamentos-v2/services/validacao-
 import { AlcadasOrcamentoService } from './alcadas-orcamento.service';
 import { EventosAutomaticosService } from './eventos-automaticos.service';
 import { OSValidacoesService } from './os-validacoes.service';
+import { WorkflowAssignmentService } from '../../pcp/services/workflow-assignment.service';
 import { CreateOSDto } from '../dto/create-os.dto';
 import { UpdateOSDto, AvancarEtapaDto } from '../dto/update-os.dto';
 import {
@@ -57,6 +58,7 @@ export class OSService {
     private readonly eventosAutomaticosService: EventosAutomaticosService,
     private readonly osApprovalPermissionsService: OSApprovalPermissionsService,
     private readonly osValidacoesService: OSValidacoesService,
+    private readonly workflowAssignmentService: WorkflowAssignmentService,
   ) {}
 
   // ===== CRUD BÁSICO =====
@@ -351,6 +353,17 @@ export class OSService {
           undefined, // workflowId será definido posteriormente
           usuarioId
         );
+
+        try {
+          await this.workflowAssignmentService.atribuirWorkflow(osAtual.loja_id, {
+            osId: id,
+            usuarioId,
+          });
+        } catch (error) {
+          this.logger.warn(
+            `Falha ao atribuir workflow automaticamente para OS ${id}: ${error instanceof Error ? error.message : error}`,
+          );
+        }
       }
 
       return this.formatarOrdemServico(os);
@@ -2578,4 +2591,3 @@ export class OSService {
   }
 
 }
-

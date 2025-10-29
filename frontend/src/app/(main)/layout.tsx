@@ -157,13 +157,6 @@ export default function DashboardLayout({
       ),
     },
     {
-      label: 'Orçamentos (legado)',
-      href: '/orcamentos',
-      icon: (
-        <IconFileText className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0 opacity-60" />
-      ),
-    },
-    {
       label: 'Clientes',
       href: '/clientes',
       icon: (

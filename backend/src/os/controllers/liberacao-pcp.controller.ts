@@ -61,71 +61,128 @@ export class LiberacaoPCPController {
   }
 
   @Get('liberadas-para-pcp')
+@Get('liberadas-para-pcp')
   @ApiOperation({ summary: 'Listar OSs liberadas para PCP' })
   @ApiResponse({ status: 200, description: 'Lista de OSs liberadas retornada com sucesso' })
   async listarOSsLiberadas(@Request() req: any) {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
 
-    // Buscar OSs com status LIBERADA_PARA_PCP
-    const ossLiberadas = await this.osService.findByStatus(lojaId, StatusOS.LIBERADA_PARA_PCP);
+    const [ossLiberadas, ossEmWorkflow] = await Promise.all([
+      this.osService.findByStatus(lojaId, StatusOS.LIBERADA_PARA_PCP),
+      this.osService.findByStatus(lojaId, StatusOS.EM_WORKFLOW),
+    ]);
 
-    // Para cada OS, verificar se já tem workflow instanciado e contar produtos
+    const ossCandidatas = [...ossLiberadas, ...ossEmWorkflow];
+
     const ossComStatusWorkflow = await Promise.all(
-      ossLiberadas.map(async (os) => {
-        try {
-          const workflow = await this.workflowService.buscarPorOS(os.id);
-          
-          // Contar produtos liberados e total
-          const { produtos_liberados_count, total_produtos } = await this.contarProdutosLiberados(os.id);
-          
-          return {
-            ...os,
-            workflow_instanciado: !!workflow,
-            workflow_status: workflow?.status || null,
-            workflow_progresso: workflow ? this.calcularProgresso(workflow) : 0,
-            produtos_liberados_count,
-            total_produtos,
-            liberacao_completa: produtos_liberados_count === total_produtos && total_produtos > 0
-          };
-        } catch (error) {
-          const { produtos_liberados_count, total_produtos } = await this.contarProdutosLiberados(os.id);
-          
-          return {
-            ...os,
-            workflow_instanciado: false,
-            workflow_status: null,
-            workflow_progresso: 0,
-            produtos_liberados_count,
-            total_produtos,
-            liberacao_completa: produtos_liberados_count === total_produtos && total_produtos > 0
-          };
+      ossCandidatas.map(async (os) => {
+        const produtosInfo = await this.contarProdutosLiberados(os.id);
+
+        if (
+          os.status === StatusOS.EM_WORKFLOW &&
+          produtosInfo.liberados_sem_workflow === 0
+        ) {
+          return null;
         }
-      })
+
+        let workflow: any = null;
+        try {
+          workflow = await this.workflowService.buscarPorOS(os.id);
+        } catch (error) {
+          workflow = null;
+        }
+
+        return {
+          ...os,
+          workflow_instanciado: !!workflow,
+          workflow_status: workflow?.status || null,
+          workflow_progresso: workflow ? this.calcularProgresso(workflow) : 0,
+          produtos_liberados_count: produtosInfo.produtos_liberados_count,
+          total_produtos: produtosInfo.total_produtos,
+          liberacao_completa:
+            produtosInfo.liberados_sem_workflow === 0 &&
+            produtosInfo.total_produtos > 0,
+          produtos_pendentes_workflow: produtosInfo.liberados_sem_workflow,
+          itens_sem_workflow_ids: produtosInfo.itens_sem_workflow_ids,
+        };
+      }),
     );
 
-    return ossComStatusWorkflow;
+    return ossComStatusWorkflow.filter(
+      (os): os is NonNullable<typeof os> => Boolean(os),
+    );
   }
 
-  private async contarProdutosLiberados(osId: string): Promise<{ produtos_liberados_count: number; total_produtos: number }> {
-    // Buscar OS com itens usando Prisma diretamente
+  private async contarProdutosLiberados(osId: string): Promise<{
+    produtos_liberados_count: number;
+    total_produtos: number;
+    liberados_com_workflow: number;
+    liberados_sem_workflow: number;
+    itens_liberados_ids: string[];
+    itens_sem_workflow_ids: string[];
+  }> {
     const os = await this.prisma.ordemServico.findUnique({
       where: { id: osId },
-      include: { itens: true }
+      include: { itens: true },
     });
     
     if (!os || !os.itens) {
-      return { produtos_liberados_count: 0, total_produtos: 0 };
+      return {
+        produtos_liberados_count: 0,
+        total_produtos: 0,
+        liberados_com_workflow: 0,
+        liberados_sem_workflow: 0,
+        itens_liberados_ids: [],
+        itens_sem_workflow_ids: [],
+      };
     }
 
     const total_produtos = os.itens.length;
-    const produtos_liberados_count = os.itens.filter(
-      (item: any) => item.status_liberacao_pcp === 'LIBERADO'
-    ).length;
+    const itensLiberados = os.itens.filter(
+      (item: any) => (item.status_liberacao_pcp ?? '').toUpperCase() === 'LIBERADO',
+    );
+    const produtos_liberados_count = itensLiberados.length;
 
-    return { produtos_liberados_count, total_produtos };
+    const workflowEtapas = await this.prisma.workflowInstanciaSetor.findMany({
+      where: {
+        workflow_instancia: {
+          os_id: osId,
+        },
+      },
+      select: {
+        item_os_id: true,
+      },
+    });
+
+    const possuiEscopoGeral = workflowEtapas.some(
+      (etapa) => etapa.item_os_id === null,
+    );
+
+    const itensComWorkflow = new Set(
+      workflowEtapas
+        .map((etapa) => etapa.item_os_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+
+    const itensLiberadosIds = itensLiberados.map((item: any) => item.id);
+    const itensSemWorkflowIds = possuiEscopoGeral
+      ? []
+      : itensLiberadosIds.filter((id) => !itensComWorkflow.has(id));
+
+    const liberadosComWorkflow = possuiEscopoGeral
+      ? itensLiberadosIds.length
+      : itensLiberadosIds.length - itensSemWorkflowIds.length;
+
+    return {
+      produtos_liberados_count,
+      total_produtos,
+      liberados_com_workflow: liberadosComWorkflow,
+      liberados_sem_workflow: itensSemWorkflowIds.length,
+      itens_liberados_ids: itensLiberadosIds,
+      itens_sem_workflow_ids: itensSemWorkflowIds,
+    };
   }
-
   @Post(':id/liberar-para-pcp')
   @ApiOperation({ summary: 'Liberar OS para PCP' })
   @ApiResponse({ status: 200, description: 'OS liberada para PCP com sucesso' })

@@ -48,5 +48,31 @@ export class UpdateArteVersaoDto {
   @IsOptional()
   @IsBoolean()
   aprovado_por_cliente?: boolean;
+
+  @ApiProperty({
+    description: 'Indica se foi liberado para PCP',
+    example: true,
+    required: false
+  })
+  @IsOptional()
+  @IsBoolean()
+  liberado_para_pcp?: boolean;
+
+  @ApiProperty({
+    description: 'Data em que foi liberado para PCP',
+    example: new Date(),
+    required: false
+  })
+  @IsOptional()
+  liberado_em?: Date;
+
+  @ApiProperty({
+    description: 'ID do usuário que liberou para PCP',
+    example: 'user123',
+    required: false
+  })
+  @IsOptional()
+  @IsString()
+  liberado_por?: string;
 }
 

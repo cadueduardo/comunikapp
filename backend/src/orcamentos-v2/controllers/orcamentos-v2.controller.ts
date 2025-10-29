@@ -501,6 +501,23 @@ export class OrcamentosV2Controller {
   }
 
   /**
+   * Enviar orçamento para cliente
+   */
+  @Post(':id/enviar')
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
+  @ApiOperation({ summary: 'Enviar orçamento para cliente' })
+  @ApiResponse({ status: 200, description: 'Orçamento enviado com sucesso' })
+  @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
+  @ApiResponse({ status: 401, description: 'Não autorizado' })
+  async enviarOrcamento(
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    const { loja_id, user_id } = req.user;
+    return await this.orcamentosService.enviarOrcamento(id, loja_id, user_id);
+  }
+
+  /**
    * Duplica orçamento existente
    */
   @Post(':id/duplicar')

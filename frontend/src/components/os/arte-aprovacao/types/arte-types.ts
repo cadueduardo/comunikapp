@@ -51,6 +51,10 @@ export interface ArteVersao {
   aprovado_por?: string;
   aprovador_nome?: string;
   aprovado_por_cliente: boolean;
+  liberado_para_pcp: boolean; // Indica se foi liberada pelo designer após aprovação do cliente
+  liberado_em?: string; // Data em que o designer liberou
+  liberado_por?: string; // ID do designer que liberou
+  liberador_nome?: string; // Nome do designer que liberou
   arquivos: ArteArquivo[];
   comentarios: ArteComentario[];
 }
@@ -69,6 +73,9 @@ export interface UpdateArteVersaoRequest {
   status?: ArteStatus;
   descricao?: string;
   observacoes?: string;
+  liberado_para_pcp?: boolean;
+  liberado_em?: Date;
+  liberado_por?: string;
 }
 
 export interface ArteVersaoListResponse {

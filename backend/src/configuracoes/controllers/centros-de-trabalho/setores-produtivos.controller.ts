@@ -28,6 +28,14 @@ export class SetoresProdutivosController {
     return this.setoresProdutivosService.listar(lojaId, ativoBoolean);
   }
 
+  @Get('operador/:operadorId')
+  @ApiOperation({ summary: 'Obtém o setor produtivo associado a um operador' })
+  @ApiResponse({ status: 200, description: 'Setor produtivo do operador.' })
+  @ApiResponse({ status: 404, description: 'Operador não associado a um setor.' })
+  async obterPorOperador(@Param('operadorId') operadorId: string) {
+    return this.setoresProdutivosService.obterPorOperador(operadorId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Obtém um setor produtivo pelo ID' })
   @ApiResponse({ status: 200, description: 'Setor produtivo encontrado.' })
@@ -52,14 +60,6 @@ export class SetoresProdutivosController {
   async deletar(@Param('id') id: string, @LojaId() lojaId: string) {
     await this.setoresProdutivosService.deletar(id, lojaId);
     return { message: 'Setor produtivo deletado com sucesso' };
-  }
-
-  @Get('operador/:operadorId')
-  @ApiOperation({ summary: 'Obtém o setor produtivo associado a um operador' })
-  @ApiResponse({ status: 200, description: 'Setor produtivo do operador.' })
-  @ApiResponse({ status: 404, description: 'Operador não associado a um setor.' })
-  async obterPorOperador(@Param('operadorId') operadorId: string) {
-    return this.setoresProdutivosService.obterPorOperador(operadorId);
   }
 
   @Get(':id/estatisticas')

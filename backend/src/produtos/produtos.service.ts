@@ -4,16 +4,17 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { OrcamentosService } from '../orcamentos/orcamentos.service';
+import { MotorCalculoV2Service } from '../motor-calculo-v2/services/motor-calculo-v2.service';
 import { CreateProdutoDto } from './dto/create-produto.dto';
 import { UpdateProdutoDto } from './dto/update-produto.dto';
 import { CalcularProdutoDto } from './dto/calcular-produto.dto';
+import { DTOCalculo, ResultadoCalculo } from '../motor-calculo-v2/interfaces/calculo.interface';
 
 @Injectable()
 export class ProdutosService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly orcamentosService: OrcamentosService,
+    private readonly motorCalculoV2Service: MotorCalculoV2Service,
   ) {}
 
   async create(createProdutoDto: CreateProdutoDto, lojaId: string) {
@@ -269,13 +270,13 @@ export class ProdutosService {
             impostos_customizados: undefined,
           };
 
-          // Calcular o valor usando o motor de cálculo
+          // Calcular o valor usando o motor de cálculo V2
           console.log(`🔍 Debug - Calculando produto ${produto.nome}:`, {
             dtoParaOrcamento,
             lojaId,
           });
 
-          const calculo = await this.orcamentosService.calcularOrcamento(
+          const calculo = await this.calcularProdutoV2(
             dtoParaOrcamento,
             lojaId,
           );
@@ -516,12 +517,12 @@ export class ProdutosService {
     return { message: 'Produto removido com sucesso.' };
   }
 
-  // REUTILIZA o motor de cálculo existente
+  // Utiliza o motor de cálculo V2
   async calcularProduto(
     calcularProdutoDto: CalcularProdutoDto,
     lojaId: string,
   ) {
-    // Converter para o formato esperado pelo motor de cálculo
+    // Converter para o formato esperado pelo motor de cálculo V2
     const dtoParaOrcamento = {
       nome_servico: calcularProdutoDto.nome_servico,
       descricao: calcularProdutoDto.descricao,
@@ -534,15 +535,109 @@ export class ProdutosService {
       impostos_customizados: calcularProdutoDto.impostos_customizados,
     };
 
-    // Usar o motor de cálculo do orçamento
-    // return this.orcamentosService.calcularOrcamento(dtoParaOrcamento, lojaId);
+    // Usar o motor de cálculo V2
+    return await this.calcularProdutoV2(dtoParaOrcamento, lojaId);
+  }
+
+  // Método auxiliar para calcular produto usando motor V2
+  private async calcularProdutoV2(
+    dtoParaOrcamento: any,
+    lojaId: string,
+  ) {
+    try {
+      // Preparar DTO para o motor V2
+      const dtoCalculo: DTOCalculo = {
+        lojaId,
+        produtos: [
+          {
+            id: 'temp',
+            nome: dtoParaOrcamento.nome_servico,
+            nome_servico: dtoParaOrcamento.nome_servico,
+            quantidade: dtoParaOrcamento.quantidade_produto || 1,
+            insumos: dtoParaOrcamento.itens.map((item: any) => ({
+              id: item.insumo_id,
+              nome: '',
+              unidade: '',
+              preco_unitario: 0,
+              quantidade: item.quantidade,
+              categoria: '',
+              fornecedor: '',
+              estoque_disponivel: 0,
+            })),
+            maquinas: dtoParaOrcamento.maquinas?.map((m: any) => ({
+              id: m.maquina_id,
+              nome: '',
+              tipo: '',
+              custo_hora: 0,
+              tempo_setup: 0,
+              eficiencia: 1,
+              disponivel: true,
+            })) || [],
+            funcoes: dtoParaOrcamento.funcoes?.map((f: any) => ({
+              id: f.funcao_id,
+              nome: '',
+              categoria: '',
+              custo_hora: 0,
+              tempo_estimado: 0,
+              nivel_experiencia: 'INTERMEDIARIO',
+              disponivel: true,
+            })) || [],
+            servicos_manuais: [],
+            custos_indiretos: [],
+          },
+        ],
+        configuracoes: {
+          margem_lucro_padrao: 20,
+          impostos_padrao: 25,
+          comissao_padrao: 0,
+          custos_indiretos_padrao: 0,
+          desconto_padrao: 0,
+          prazo_entrega_padrao: 10,
+          unidade_monetaria: 'BRL',
+          timezone: 'America/Sao_Paulo',
+        },
+      };
+
+      // Executar cálculo via motor V2
+      const resultado = await this.motorCalculoV2Service.executarCalculo(dtoCalculo);
+
+      // Converter resultado para formato esperado pelo módulo de produtos
+      // O resultado do motor V2 precisa ser adaptado para o formato antigo
+      return this.adaptarResultadoMotorV2(resultado);
+    } catch (error) {
+      console.error('Erro ao calcular produto com motor V2:', error);
+      // Retornar resultado vazio em caso de erro
+      return {
+        custos: {
+          preco_final: 0,
+          custo_material: 0,
+          custo_mao_obra: 0,
+          custo_maquinaria: 0,
+          custo_indireto: 0,
+        },
+      };
+    }
+  }
+
+  // Adaptar resultado do motor V2 para formato antigo
+  private adaptarResultadoMotorV2(resultado: ResultadoCalculo) {
+    // Extrair os valores do primeiro produto calculado
+    const primeiroProduto = resultado.produtos?.[0];
+    const custos = primeiroProduto?.custos;
+
+    const precoFinal = custos?.preco_final || 0;
+    const custoMaterial = custos?.custo_material || 0;
+    const custoMaoObra = custos?.custo_mao_obra || 0;
+    const custoMaquinaria = custos?.custo_maquinaria || 0;
+    const custoIndireto = custos?.custo_indireto || 0;
+
     return {
       custos: {
-        preco_final: 0,
-        custo_material: 0,
-        custo_mao_obra: 0,
-        custo_maquinaria: 0,
-        custo_indireto: 0,
+        preco_final: precoFinal,
+        custo_material: custoMaterial,
+        custo_mao_obra: custoMaoObra,
+        custo_maquinaria: custoMaquinaria,
+        custo_indireto: custoIndireto,
       },
     };
   }

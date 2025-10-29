@@ -14,7 +14,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
   constructor(private readonly jwtService: JwtService) {}
 
   use(req: Request, res: Response, next: NextFunction) {
-    // this.logger.debug(`🔒 Middleware JWT executado para: ${req.method} ${req.path}`);
+    this.logger.debug(`🔒 Middleware JWT executado para: ${req.method} ${req.path}`);
     
     // Lista de rotas que não precisam de autenticação
     const publicRoutes = [
@@ -38,16 +38,17 @@ export class JwtGlobalMiddleware implements NestMiddleware {
 
     // Verificar se a rota é pública
     if (publicRoutes.some((route) => req.path.startsWith(route))) {
-      // this.logger.debug(`✅ Rota pública: ${req.path}`);
+      this.logger.debug(`✅ Rota pública: ${req.path}`);
       return next();
     }
 
     // Verificar rotas públicas específicas do orçamento V2
-    if (req.path.includes('/orcamentos-v2/') && (
+    // Suporta tanto /orcamentos-v2 quanto /api/orcamentos-v2
+    if ((req.path.includes('/orcamentos-v2/') || req.path.includes('/api/orcamentos-v2/')) && (
       req.path.includes('/publico') || 
       req.path.includes('/reenviar-codigo')
     )) {
-      // this.logger.debug(`✅ Rota pública do orçamento V2: ${req.path}`);
+      this.logger.debug(`✅ Rota pública do orçamento V2: ${req.path}`);
       return next();
     }
 
@@ -57,7 +58,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
       return next();
     }
 
-    // this.logger.debug(`🔐 Rota protegida: ${req.path}`);
+    this.logger.debug(`🔐 Rota protegida: ${req.path}`);
 
     // Extrair token do header Authorization
     const authHeader = req.headers.authorization;

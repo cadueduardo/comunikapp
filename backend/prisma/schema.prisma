@@ -454,6 +454,7 @@ model loja {
   modo_impressao           modo_impressao[]
   ordens_servico           OrdemServico[]
   workflows_os             WorkflowOS[]
+  workflow_categorias      WorkflowCategoria[]
   regras_validacao         RegraValidacao[]
   setores_produtivos       SetorProdutivo[]
 }
@@ -1001,6 +1002,7 @@ model usuario {
   // Relacionamentos Arte & Aprovação
   artes_autor                        ArteVersao[]     @relation("ArteAutor")
   artes_aprovador                    ArteVersao[]     @relation("ArteAprovador")
+  artes_liberador                    ArteVersao[]     @relation("ArteLiberador")
   artes_excluidor                    ArteVersao[]     @relation("ArteExcluidor")
   comentarios_arte                   ArteComentario[]
   
@@ -1467,6 +1469,7 @@ model WorkflowOS {
   loja               loja      @relation(fields: [loja_id], references: [id])
   instancias         WorkflowInstancia[]
   workflow_setores   WorkflowSetor[]
+  categorias         WorkflowCategoria[] @relation("WorkflowCategoriaWorkflow")
 
   @@unique([loja_id, nome])
   @@index([loja_id, ativo])
@@ -1684,6 +1687,44 @@ model WorkflowSetor {
   @@map("workflow_setores")
 }
 
+model WorkflowCategoria {
+  id            String   @id @default(cuid())
+  loja_id       String
+  nome          String
+  descricao     String?  @db.Text
+  workflow_id   String
+  criterios     String?  @db.LongText
+  prioridade    Int      @default(0)
+  ativo         Boolean  @default(true)
+  criado_em     DateTime @default(now())
+  atualizado_em DateTime @updatedAt
+
+  loja     loja       @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  workflow WorkflowOS @relation("WorkflowCategoriaWorkflow", fields: [workflow_id], references: [id], onDelete: Cascade)
+  regras   WorkflowCategoriaRegra[]
+
+  @@unique([loja_id, nome])
+  @@index([workflow_id])
+  @@index([loja_id, ativo])
+  @@map("workflow_categorias")
+}
+
+model WorkflowCategoriaRegra {
+  id            String   @id @default(cuid())
+  categoria_id  String
+  tipo          String
+  valor         String
+  obrigatoria   Boolean  @default(true)
+  prioridade    Int      @default(0)
+  criado_em     DateTime @default(now())
+  atualizado_em DateTime @updatedAt
+
+  categoria WorkflowCategoria @relation(fields: [categoria_id], references: [id], onDelete: Cascade)
+
+  @@index([categoria_id])
+  @@map("workflow_categoria_regras")
+}
+
 model WorkflowInstanciaSetor {
   id                 String    @id @default(cuid())
   workflow_instancia_id String
@@ -1731,6 +1772,9 @@ model ArteVersao {
   data_aprovacao    DateTime?
   aprovado_por      String?
   aprovado_por_cliente Boolean @default(false)
+  liberado_para_pcp    Boolean @default(false) // Liberação final do designer após aprovação do cliente
+  liberado_em          DateTime? // Data em que o designer liberou para PCP
+  liberado_por         String? // ID do designer que liberou
   loja_id           String   // Multi-tenant
   
   // Soft Delete
@@ -1742,6 +1786,7 @@ model ArteVersao {
   os                OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
   autor             usuario @relation("ArteAutor", fields: [autor_id], references: [id])
   aprovador         usuario? @relation("ArteAprovador", fields: [aprovado_por], references: [id])
+  liberador         usuario? @relation("ArteLiberador", fields: [liberado_por], references: [id])
   excluidor         usuario? @relation("ArteExcluidor", fields: [excluido_por], references: [id])
   arquivos          ArteArquivo[]
   comentarios       ArteComentario[]

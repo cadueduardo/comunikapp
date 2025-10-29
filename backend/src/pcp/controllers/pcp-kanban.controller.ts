@@ -64,6 +64,17 @@ export class PCPKanbanController {
     return { message: 'Produção pausada com sucesso' };
   }
 
+  @Put('status/:osId')
+  @ApiOperation({ summary: 'Atualiza o status de uma OS no Kanban' })
+  @ApiResponse({ status: 200, description: 'Status atualizado com sucesso.' })
+  async atualizarStatusOS(
+    @Param('osId') osId: string,
+    @Body() data: { status: string }
+  ) {
+    await this.pcpKanbanService.atualizarStatusOS(osId, data.status);
+    return { message: 'Status atualizado com sucesso' };
+  }
+
   @Get('stats')
   @ApiOperation({ summary: 'Obtém estatísticas do Kanban' })
   @ApiResponse({ status: 200, description: 'Estatísticas do Kanban.' })

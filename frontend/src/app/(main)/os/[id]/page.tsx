@@ -22,6 +22,7 @@ import { ListaProdutosComPrazo } from "@/components/os/ListaProdutosComPrazo";
 import { ArteAprovacaoTab } from "@/components/os/arte-aprovacao/ArteAprovacaoTab";
 import { ArteAprovacaoSidebar } from "@/components/os/arte-aprovacao/ArteAprovacaoSidebar";
 import { ResumoOSSidebar } from "@/components/os/ResumoOSSidebar";
+import { useOsStatus } from "@/hooks/use-os-status";
 
 interface OSDetalhada extends OrdemServico {
   // Mantendo apenas as interfaces essenciais
@@ -30,7 +31,7 @@ interface OSDetalhada extends OrdemServico {
 type TabType = 'resumo' | 'arte-aprovacao' | 'materiais' | 'analise-inteligente';
 
 // Função para renderizar a aba Resumo
-function renderResumoTab(os: OSDetalhada, isResumoCollapsed: boolean, setIsResumoCollapsed: React.Dispatch<React.SetStateAction<boolean>>) {
+function renderResumoTab(os: OSDetalhada, isResumoCollapsed: boolean, setIsResumoCollapsed: React.Dispatch<React.SetStateAction<boolean>>, statusDinamico: string) {
 
   return (
     <div className="flex flex-col lg:flex-row h-full">
@@ -41,7 +42,7 @@ function renderResumoTab(os: OSDetalhada, isResumoCollapsed: boolean, setIsResum
         projeto={os.nome_servico}
         dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
         prioridade="Normal"
-        status="Em análise de materiais e aguardando aprovação final."
+        status={statusDinamico}
         isCollapsed={isResumoCollapsed}
         onCollapsedChange={setIsResumoCollapsed}
         onPrazoChange={(novaData) => {
@@ -106,10 +107,11 @@ function renderResumoTab(os: OSDetalhada, isResumoCollapsed: boolean, setIsResum
 }
 
 // Componente de Abas simplificado
-function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed }: { 
+function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed, statusDinamico }: { 
   os: OSDetalhada; 
   isResumoCollapsed: boolean; 
-  setIsResumoCollapsed: React.Dispatch<React.SetStateAction<boolean>>; 
+  setIsResumoCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  statusDinamico: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -187,7 +189,7 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed }: {
             projeto={os.nome_servico}
             dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
             prioridade="Normal"
-            status="Em análise de materiais e aguardando aprovação final."
+            status={statusDinamico}
             isCollapsed={isResumoCollapsed}
             onCollapsedChange={setIsResumoCollapsed}
           />
@@ -222,7 +224,7 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed }: {
       ) : (
         // Layout padrão para outras abas com Sidebar Esquerdo (Resumo OS) + Conteúdo
         <div className="p-4 lg:p-6 h-full bg-white">
-          {activeTab === 'resumo' && renderResumoTab(os, isResumoCollapsed, setIsResumoCollapsed)}
+          {activeTab === 'resumo' && renderResumoTab(os, isResumoCollapsed, setIsResumoCollapsed, statusDinamico)}
           
           {activeTab === 'materiais' && (
             <div className="flex flex-col lg:flex-row h-full">
@@ -233,7 +235,7 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed }: {
                 projeto={os.nome_servico}
                 dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
                 prioridade="Normal"
-                status="Em análise de materiais e aguardando aprovação final."
+                status={statusDinamico}
                 isCollapsed={isResumoCollapsed}
                 onCollapsedChange={setIsResumoCollapsed}
               />
@@ -265,7 +267,7 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed }: {
                 projeto={os.nome_servico}
                 dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
                 prioridade="Normal"
-                status="Em análise de materiais e aguardando aprovação final."
+                status={statusDinamico}
                 isCollapsed={isResumoCollapsed}
                 onCollapsedChange={setIsResumoCollapsed}
               />
@@ -299,6 +301,9 @@ export default function OSDetalhePage() {
   const [os, setOS] = useState<OSDetalhada | null>(null);
   const [loading, setLoading] = useState(true);
   const [isResumoCollapsed, setIsResumoCollapsed] = useState(false);
+  
+  // Hook para buscar status dinâmico da OS baseado nas versões de arte
+  const { statusTexto: statusDinamico } = useOsStatus(os?.id || '');
 
   useEffect(() => {
     if (params.id) {
@@ -425,7 +430,12 @@ export default function OSDetalhePage() {
       <div className="h-px bg-gray-100"></div>
 
           {/* Sistema de Abas */}
-      <OSTabsComponent os={os} isResumoCollapsed={isResumoCollapsed} setIsResumoCollapsed={setIsResumoCollapsed} />
+      <OSTabsComponent 
+        os={os} 
+        isResumoCollapsed={isResumoCollapsed} 
+        setIsResumoCollapsed={setIsResumoCollapsed}
+        statusDinamico={statusDinamico}
+      />
     </div>
   );
 }

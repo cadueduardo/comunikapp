@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NotificacoesService, TipoNotificacao } from '../../notificacoes/notificacoes.service';
 import { MailService } from '../../mail/mail.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { 
   OrcamentoCompleto, 
   OrcamentoStatus,
@@ -22,6 +23,7 @@ export class NotificacaoV2Service {
   constructor(
     private readonly notificacoesService: NotificacoesService,
     private readonly mailService: MailService,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -239,14 +241,35 @@ export class NotificacaoV2Service {
   }
 
   private async notificarGerentesCriacao(orcamento: any, lojaId: string): Promise<void> {
+    // Buscar nome do responsável
+    let nomeResponsavel = 'Usuário do sistema';
+    
+    if (orcamento.responsavel_id) {
+      try {
+        const usuario = await this.prisma.usuario.findUnique({
+          where: { id: orcamento.responsavel_id },
+          select: { nome: true },
+        });
+        
+        if (usuario?.nome) {
+          nomeResponsavel = usuario.nome;
+        } else {
+          nomeResponsavel = orcamento.responsavel_id;
+        }
+      } catch (error) {
+        this.logger.warn(`Não foi possível buscar nome do responsável: ${error.message}`);
+        nomeResponsavel = orcamento.responsavel_id || 'Usuário do sistema';
+      }
+    }
+
     await this.notificacoesService.criarNotificacao(
       lojaId,
       TipoNotificacao.SISTEMA,
       'Novo Orçamento Criado',
-      `Novo orçamento "${orcamento.titulo}" foi criado por ${orcamento.responsavel_id}.`,
+      `Novo orçamento "${orcamento.titulo}" foi criado por ${nomeResponsavel}.`,
       orcamento.id,
       {
-        responsavel: orcamento.responsavel_id,
+        responsavel: nomeResponsavel,
         cliente: orcamento.cliente?.nome,
         valor_estimado: orcamento.custos_calculados?.preco_final,
       },

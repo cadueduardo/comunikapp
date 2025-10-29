@@ -759,7 +759,8 @@ export class OrcamentosV2Service {
    * Buscar orçamento para visualização pública (versão simplificada)
    */
   async buscarOrcamentoPublico(id: string) {
-    this.logger.log(`ðŸ” Buscando orçamento público: ${id}`);
+    this.logger.log(`🔍 Buscando orçamento público: ${id}`);
+    console.log(`🔍 [PUBLICO] Buscando orçamento com ID: ${id}`);
 
     const orcamento = await this.prisma.orcamento.findUnique({
       where: { id },
@@ -812,8 +813,12 @@ export class OrcamentosV2Service {
     });
 
     if (!orcamento) {
+      console.log(`❌ [PUBLICO] Orçamento não encontrado com ID: ${id}`);
+      this.logger.error(`Orçamento não encontrado: ${id}`);
       throw new NotFoundException('Orçamento não encontrado');
     }
+    
+    console.log(`✅ [PUBLICO] Orçamento encontrado: ${orcamento.numero} - ${orcamento.titulo}`);
 
     // Retornar apenas os dados necessários para visualizaçÃ£o pública do cliente
     return {
@@ -1516,6 +1521,42 @@ export class OrcamentosV2Service {
     return orcamentoAtualizado;
   }
 
+  /**
+   * Enviar orçamento para o cliente
+   */
+  async enviarOrcamento(id: string, lojaId: string, userId: string) {
+    this.logger.log(`Enviando orçamento ${id} para o cliente`);
+
+    const orcamento = await this.prisma.orcamento.findFirst({
+      where: { id, loja_id: lojaId },
+      include: {
+        cliente: true,
+        loja: true,
+      },
+    });
+
+    if (!orcamento) {
+      throw new NotFoundException('Orçamento não encontrado');
+    }
+
+    // Alterar status para 'enviado'
+    await this.alterarStatus(id, 'enviado', lojaId, userId);
+
+    // Notificar cliente (se configurado)
+    try {
+      // TODO: Implementar envio de email para o cliente
+      this.logger.log(`Orçamento ${id} enviado para o cliente`);
+    } catch (error) {
+      this.logger.error(`Erro ao enviar notificação para cliente: ${error.message}`);
+    }
+
+    return {
+      success: true,
+      message: 'Orçamento enviado com sucesso',
+      orcamento_id: id,
+    };
+  }
+
   private async criarOSAutomaticaParaOrcamento(
     lojaId: string,
     orcamentoId: string,
@@ -2007,7 +2048,6 @@ export class OrcamentosV2Service {
     }
   }
 }
-
 
 
 

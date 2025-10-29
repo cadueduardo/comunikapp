@@ -344,6 +344,11 @@ export function useMeuSetor(): UseMeuSetorReturn {
   const iniciarProducao = useCallback(
     async (itemId: string, observacoes?: string) => {
       try {
+        if (!operadorId) {
+          toast.error('Operador não identificado para iniciar a produção.');
+          return;
+        }
+
         const token = localStorage.getItem('access_token');
 
         const response = await fetch(`/api/pcp/kanban/iniciar/${itemId}`, {
@@ -384,6 +389,11 @@ export function useMeuSetor(): UseMeuSetorReturn {
       quantidadeProduzida?: number,
     ) => {
       try {
+        if (!operadorId) {
+          toast.error('Operador não identificado para concluir a etapa.');
+          return;
+        }
+
         const token = localStorage.getItem('access_token');
 
         const response = await fetch(`/api/pcp/kanban/concluir/${itemId}`, {
@@ -393,6 +403,7 @@ export function useMeuSetor(): UseMeuSetorReturn {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            operadorId,
             observacoes,
             quantidadeProduzida,
           }),
@@ -410,7 +421,7 @@ export function useMeuSetor(): UseMeuSetorReturn {
         toast.error('Erro ao concluir etapa');
       }
     },
-    [],
+    [operadorId],
   );
 
   const pausarProducao = useCallback(

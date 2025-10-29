@@ -243,25 +243,25 @@ export const produtosApi = {
 };
 
 export const orcamentosApi = {
-  getAll: (token: string) => ApiClient.get('/orcamentos', token),
-  getById: (id: string, token: string) => ApiClient.get(`/orcamentos/${id}`, token),
-  create: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos', data, token),
-  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/orcamentos/${id}`, data, token),
-  delete: (id: string, token: string) => ApiClient.delete(`/orcamentos/${id}`, token),
-  calcular: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos/calcular', data, token),
-  enviar: (id: string, token: string) => ApiClient.post(`/orcamentos/${id}/enviar`, {}, token),
-  aprovar: (codigo: string, token: string) => ApiClient.post('/orcamentos/aprovar', { codigo }, token),
-  reenviarCodigo: (id: string, token: string) => ApiClient.post(`/orcamentos/${id}/reenviar-codigo`, {}, token),
-  getMensagens: (id: string, token: string) => ApiClient.get(`/orcamentos/${id}/mensagens`, token),
-  getMensagensNaoVisualizadas: (id: string, token: string) => ApiClient.get(`/orcamentos/${id}/mensagens/nao-visualizadas`, token),
+  getAll: (token: string) => ApiClient.get('/orcamentos-v2', token),
+  getById: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}`, token),
+  create: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos-v2', data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/orcamentos-v2/${id}`, data, token),
+  delete: (id: string, token: string) => ApiClient.delete(`/orcamentos-v2/${id}`, token),
+  calcular: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos-v2/calcular', data, token),
+  enviar: (id: string, token: string) => ApiClient.post(`/orcamentos-v2/${id}/enviar`, {}, token),
+  aprovar: (codigo: string, token: string) => ApiClient.post('/orcamentos-v2/aprovar', { codigo }, token),
+  reenviarCodigo: (id: string, token: string) => ApiClient.post(`/orcamentos-v2/${id}/reenviar-codigo`, {}, token),
+  getMensagens: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}/mensagens`, token),
+  getMensagensNaoVisualizadas: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}/mensagens/nao-visualizadas`, token),
   marcarMensagemVisualizada: (orcamentoId: string, mensagemId: string, token: string) => 
-    ApiClient.patch(`/orcamentos/${orcamentoId}/mensagens/${mensagemId}/visualizar`, {}, token),
+    ApiClient.patch(`/orcamentos-v2/${orcamentoId}/mensagens/${mensagemId}/visualizar`, {}, token),
   processarAcaoCliente: (id: string, acao: string, data: Record<string, unknown>, token: string) => 
-    ApiClient.post(`/orcamentos/${id}/acao-cliente`, { acao, ...data }, token),
-  getVersoes: (id: string, token: string) => ApiClient.get(`/orcamentos/${id}/versoes`, token),
-  getPublico: (id: string) => ApiClient.get(`/orcamentos/${id}/publico`),
-  salvarRascunho: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos/rascunho', data, token),
-  recalcularExistentes: (token: string) => ApiClient.post('/orcamentos/recalcular-existentes', {}, token),
+    ApiClient.post(`/orcamentos-v2/${id}/acao-cliente`, { acao, ...data }, token),
+  getVersoes: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}/versoes`, token),
+  getPublico: (id: string) => ApiClient.get(`/orcamentos-v2/${id}/publico`),
+  salvarRascunho: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos-v2/rascunho', data, token),
+  recalcularExistentes: (token: string) => ApiClient.post('/orcamentos-v2/recalcular-existentes', {}, token),
   
   // APIs V2 - Sistema Multi-Produtos
   v2: {

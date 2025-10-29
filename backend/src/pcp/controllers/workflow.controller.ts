@@ -1,16 +1,42 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { WorkflowService } from '../services/workflow.service';
 import { CreateWorkflowInstanciaDto, UpdateWorkflowInstanciaDto } from '../interfaces/pcp.interfaces';
+import { WorkflowAssignmentService, WorkflowSuggestion } from '../services/workflow-assignment.service';
+import { AssignWorkflowDto } from '../dto/workflow-assignment.dto';
 
 @Controller('pcp/workflows')
 @UseGuards(JwtAuthGuard)
 export class WorkflowController {
-  constructor(private workflowService: WorkflowService) {}
+  constructor(
+    private readonly workflowService: WorkflowService,
+    private readonly workflowAssignmentService: WorkflowAssignmentService,
+  ) {}
 
   @Post('instanciar')
   async criarInstancia(@Body() dto: CreateWorkflowInstanciaDto) {
     return this.workflowService.criarInstancia(dto);
+  }
+
+  @Post('atribuir')
+  async atribuirWorkflow(@Req() req: any, @Body() dto: AssignWorkflowDto) {
+    const lojaId = req.user?.loja_id;
+    if (!lojaId) {
+      throw new BadRequestException('Loja não identificada no token.');
+    }
+    return this.workflowAssignmentService.atribuirWorkflow(lojaId, dto);
+  }
+
+  @Get('sugestao/:osId')
+  async sugerirWorkflow(
+    @Req() req: any,
+    @Param('osId') osId: string,
+  ): Promise<WorkflowSuggestion | null> {
+    const lojaId = req.user?.loja_id;
+    if (!lojaId) {
+      throw new BadRequestException('Loja não identificada no token.');
+    }
+    return this.workflowAssignmentService.sugerirWorkflow(osId, lojaId);
   }
 
   @Get('os/:osId')

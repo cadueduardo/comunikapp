@@ -40,6 +40,8 @@ interface OSLiberada {
   produtos_liberados_count?: number;
   total_produtos?: number;
   liberacao_completa?: boolean;
+  produtos_pendentes_workflow?: number;
+  itens_sem_workflow_ids?: string[];
 }
 
 interface WorkflowInstancia {
@@ -158,7 +160,13 @@ export default function PCPPage() {
   const updateStats = (osData: OSLiberada[], workflowData: WorkflowInstancia[]) => {
     const totalOSs = osData.length;
     const workflowsAtivos = workflowData.filter(w => w.status === 'ATIVO').length;
-    const etapasPendentes = osData.filter(os => !os.workflow_instanciado).length;
+    const etapasPendentes = osData.filter((os) => {
+      const pendentes = os.produtos_pendentes_workflow ?? 0;
+      if (pendentes > 0) {
+        return true;
+      }
+      return !os.workflow_instanciado;
+    }).length;
     const eficienciaMedia = workflowData.length > 0 
       ? Math.round(workflowData.reduce((acc, w) => acc + w.progresso, 0) / workflowData.length)
       : 0;
@@ -407,32 +415,42 @@ export default function PCPPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {os.workflow_instanciado ? (
-                        <Badge variant="default">
-                          Workflow Ativo
+                      <div className="flex items-center gap-2">
+                        <Badge variant={os.workflow_instanciado ? 'default' : 'secondary'}>
+                          {os.workflow_instanciado ? 'Workflow Ativo' : 'Aguardando'}
                         </Badge>
-                      ) : (
-                        <Badge variant="secondary">
-                          Aguardando
-                        </Badge>
-                      )}
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/os/${os.id}`}>
-                          <IconEye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      {!os.workflow_instanciado && (
-                        <Button 
-                          variant="outline" 
+                        {typeof os.produtos_pendentes_workflow === 'number' &&
+                          os.produtos_pendentes_workflow > 0 && (
+                            <Badge
+                              variant="outline"
+                              className="border-amber-500 text-amber-600"
+                            >
+                              {os.produtos_pendentes_workflow} pendente(s)
+                            </Badge>
+                          )}
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`/os/${os.id}`}>
+                            <IconEye className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => handleIniciarWorkflow(os)}
                         >
-                          <IconPlus className="h-4 w-4 mr-1" />
-                          Iniciar
+                          {os.workflow_instanciado ? (
+                            <>
+                              <IconEdit className="h-4 w-4 mr-1" />
+                              Gerenciar
+                            </>
+                          ) : (
+                            <>
+                              <IconPlus className="h-4 w-4 mr-1" />
+                              Iniciar
+                            </>
+                          )}
                         </Button>
-                      )}
-                    </div>
+                      </div>
                   </div>
                 ))
               )}

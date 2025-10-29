@@ -142,12 +142,20 @@ export interface ChecklistTemplateData {
   ordem: number;
 }
 
+export interface WorkflowSetorTemplateData {
+  setorId: string;
+  ordem?: number;
+  tempoEstimado?: number | null;
+  obrigatorio?: boolean;
+}
+
 export interface CreateWorkflowTemplateDto {
   nome: string;
   descricao?: string;
   etapas?: EtapaTemplateData[];
   ativo?: boolean;
   sequencial?: boolean;
+  setores?: WorkflowSetorTemplateData[];
 }
 
 export interface UpdateWorkflowTemplateDto {
@@ -156,4 +164,5 @@ export interface UpdateWorkflowTemplateDto {
   etapas?: EtapaTemplateData[];
   ativo?: boolean;
   sequencial?: boolean;
+  setores?: WorkflowSetorTemplateData[];
 }

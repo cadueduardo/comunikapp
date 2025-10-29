@@ -549,12 +549,60 @@ export class OSProdutoPrazoService {
       produtos.push(...produtosOrcamento);
     }
 
+    const workflowEtapas = await this.prisma.workflowInstanciaSetor.findMany({
+      where: {
+        workflow_instancia: {
+          os_id: osId,
+        },
+      },
+      select: {
+        item_os_id: true,
+      },
+    });
+
+    const possuiEscopoGeral = workflowEtapas.some(
+      (etapa) => etapa.item_os_id === null,
+    );
+
+    const itensComWorkflow = new Set(
+      workflowEtapas
+        .map((etapa) => etapa.item_os_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+
+    const produtosEnriquecidos = produtos.map((produto: any) => {
+      const itemId = produto.item_id ?? null;
+      const workflowAtribuido =
+        possuiEscopoGeral || (itemId ? itensComWorkflow.has(itemId) : false);
+
+      return {
+        ...produto,
+        workflow_atribuido: workflowAtribuido,
+      };
+    });
+
+    produtos = produtosEnriquecidos;
+
+    const liberadosComWorkflow = produtos.filter(
+      (produto: any) =>
+        (produto.status_liberacao_pcp ?? '').toUpperCase() === 'LIBERADO' &&
+        produto.workflow_atribuido,
+    ).length;
+
+    const liberadosSemWorkflow = produtos.filter(
+      (produto: any) =>
+        (produto.status_liberacao_pcp ?? '').toUpperCase() === 'LIBERADO' &&
+        !produto.workflow_atribuido,
+    ).length;
+
     const resumo = {
       total_produtos: produtos.length,
       com_prazo: produtos.filter(p => p.data_prazo_produto).length,
       sem_prazo: produtos.filter(p => !p.data_prazo_produto).length,
-      liberados_pcp: produtos.filter(p => p.status_liberacao_pcp === 'LIBERADO').length,
-      pendentes: produtos.filter(p => p.status_liberacao_pcp === 'PENDENTE').length,
+      liberados_pcp: produtos.filter(p => (p.status_liberacao_pcp ?? '').toUpperCase() === 'LIBERADO').length,
+      pendentes: produtos.filter(p => (p.status_liberacao_pcp ?? '').toUpperCase() === 'PENDENTE').length,
+      liberados_com_workflow: liberadosComWorkflow,
+      liberados_sem_workflow: liberadosSemWorkflow,
       excedendo_prazo: produtos.filter(p => p.excede_prazo_final).length
     };
 

@@ -1,540 +1,525 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Link from 'next/link';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { 
-  IconArrowLeft,
-  IconDeviceFloppy,
-  IconPlus,
-  IconTrash,
-  IconGripVertical,
-  IconChevronDown,
-  IconChevronUp
-} from '@tabler/icons-react';
-import { toast } from 'sonner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  ArrowLeft,
+  Plus,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
+} from 'lucide-react';
 
-interface EtapaTemplate {
+interface SetorOption {
   id: string;
   nome: string;
   descricao?: string;
-  ordem: number;
-  obrigatoria: boolean;
-  tempo_estimado?: number;
-  responsaveis_permitidos?: string[];
-  checklist?: ChecklistTemplate[];
+  cor?: string;
 }
 
-interface ChecklistTemplate {
+interface WorkflowSetorForm {
   id: string;
-  descricao: string;
+  setorId: string;
+  tempoEstimado: string;
   obrigatorio: boolean;
-  ordem: number;
 }
 
-interface WorkflowTemplate {
-  id: string;
-  nome: string;
-  descricao?: string;
-  etapas: EtapaTemplate[];
-  ativo: boolean;
-  sequencial: boolean;
-  criado_em: string;
-  atualizado_em: string;
-}
-
-export default function EditWorkflowPage() {
-  const params = useParams();
+export default function EditarWorkflowPage() {
   const router = useRouter();
-  const [workflow, setWorkflow] = useState<WorkflowTemplate | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [collapsedEtapas, setCollapsedEtapas] = useState<{ [key: string]: boolean }>({});
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  // ✅ Removido justMovedIndex para eliminar animação de bounce
+  const params = useParams<{ id: string }>();
+  const workflowId = params.id;
 
-  // Form data
-  const [formData, setFormData] = useState({
-    nome: '',
-    descricao: '',
-    ativo: true,
-    sequencial: true,
-    etapas: [] as EtapaTemplate[]
-  });
+  const [carregandoTemplate, setCarregandoTemplate] = useState(true);
+  const [carregandoSetores, setCarregandoSetores] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+
+  const [nome, setNome] = useState('');
+  const [descricao, setDescricao] = useState('');
+  const [ativo, setAtivo] = useState(true);
+  const [sequencial, setSequencial] = useState(true);
+
+  const [setoresDisponiveis, setSetoresDisponiveis] = useState<SetorOption[]>(
+    [],
+  );
+  const [setoresWorkflow, setSetoresWorkflow] = useState<WorkflowSetorForm[]>(
+    [],
+  );
 
   useEffect(() => {
-    if (params.id) {
-      fetchWorkflow(params.id as string);
-    }
-  }, [params.id]);
+    const carregarSetores = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(
+          '/api/centros-de-trabalho/setores-produtivos',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
 
-  const fetchWorkflow = async (id: string) => {
-    try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`/api/pcp/workflow-templates/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+        if (!response.ok) {
+          throw new Error('Não foi possível carregar os setores produtivos.');
+        }
 
-      if (response.ok) {
         const data = await response.json();
-        setWorkflow(data);
-        setFormData({
-          nome: data.nome,
-          descricao: data.descricao || '',
-          ativo: data.ativo,
-          sequencial: data.sequencial,
-          etapas: data.etapas || []
-        });
-      } else {
-        toast.error('Erro ao carregar workflow');
-        router.push('/pcp/workflows');
+        setSetoresDisponiveis(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Erro ao buscar setores produtivos:', error);
+        toast.error('Erro ao carregar setores produtivos');
+      } finally {
+        setCarregandoSetores(false);
       }
-    } catch (error) {
-      console.error('Erro ao buscar workflow:', error);
-      toast.error('Erro ao conectar com o servidor');
-      router.push('/pcp/workflows');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  const handleSave = async () => {
-    setSaving(true);
-    
-    try {
-      const token = localStorage.getItem('access_token');
-      
-      const response = await fetch(`/api/pcp/workflow-templates/${params.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
+    carregarSetores();
+  }, []);
 
-      if (response.ok) {
-        toast.success('Workflow atualizado com sucesso!');
-        router.push('/pcp/workflows');
-      } else {
-        toast.error('Erro ao atualizar workflow');
+  useEffect(() => {
+    const carregarTemplate = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(
+          `/api/pcp/workflow-templates/${workflowId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error('Workflow não encontrado');
+        }
+
+        const data = await response.json();
+        setNome(data.nome || '');
+        setDescricao(data.descricao || '');
+        setAtivo(data.ativo ?? true);
+        setSequencial(data.sequencial ?? true);
+
+        const setores =
+          data.setores && Array.isArray(data.setores)
+            ? data.setores
+            : Array.isArray(data.etapas)
+            ? data.etapas.map((etapa: any, index: number) => ({
+                id: etapa.id ?? `legacy-${index}`,
+                setorId: etapa.setorId ?? '',
+                tempoEstimado:
+                  typeof etapa.tempoEstimado === 'number'
+                    ? String(etapa.tempoEstimado)
+                    : '',
+                obrigatorio: etapa.obrigatorio ?? true,
+              }))
+            : [];
+
+        setSetoresWorkflow(
+          setores.map((setor: any, index: number) => ({
+            id: setor.id ?? `setor-${Date.now()}-${index}`,
+            setorId: setor.setorId ?? '',
+            tempoEstimado:
+              typeof setor.tempoEstimado === 'number'
+                ? String(setor.tempoEstimado)
+                : '',
+            obrigatorio: setor.obrigatorio ?? true,
+          })),
+        );
+      } catch (error) {
+        console.error('Erro ao carregar workflow:', error);
+        toast.error('Erro ao carregar dados do workflow.');
+        router.replace('/pcp/workflows');
+      } finally {
+        setCarregandoTemplate(false);
       }
-    } catch (error) {
-      console.error('Erro ao salvar workflow:', error);
-      toast.error('Ocorreu um erro ao conectar com o servidor.');
-    } finally {
-      setSaving(false);
-    }
-  };
+    };
 
-  const toggleCollapse = (etapaId: string) => {
-    setCollapsedEtapas(prev => ({
+    if (workflowId) {
+      carregarTemplate();
+    }
+  }, [workflowId, router]);
+
+  const podeAdicionarSetor = useMemo(
+    () => setoresDisponiveis.length > 0,
+    [setoresDisponiveis],
+  );
+
+  const handleAdicionarSetor = () => {
+    if (!podeAdicionarSetor) {
+      toast.error('Cadastre setores produtivos antes de montar um workflow.');
+      return;
+    }
+
+    const defaultSetorId =
+      setoresDisponiveis.find(
+        (setor) => !setoresWorkflow.some((item) => item.setorId === setor.id),
+      )?.id ?? setoresDisponiveis[0].id;
+
+    setSetoresWorkflow((prev) => [
       ...prev,
-      [etapaId]: !prev[etapaId]
-    }));
+      {
+        id: `setor-${Date.now()}`,
+        setorId: defaultSetorId,
+        tempoEstimado: '',
+        obrigatorio: true,
+      },
+    ]);
   };
 
-  // Função para verificar se uma etapa está colapsada (padrão: true = colapsada)
-  const isEtapaCollapsed = (etapaId: string) => {
-    return collapsedEtapas[etapaId] !== false; // Default é colapsada (true)
+  const handleAtualizarSetor = (
+    formId: string,
+    campo: keyof WorkflowSetorForm,
+    valor: string | boolean,
+  ) => {
+    setSetoresWorkflow((prev) =>
+      prev.map((item) =>
+        item.id === formId ? { ...item, [campo]: valor } : item,
+      ),
+    );
   };
 
-  const addEtapa = () => {
-    const novaEtapa: EtapaTemplate = {
-      id: `etapa_${Date.now()}`,
-      nome: '',
-      descricao: '',
-      ordem: formData.etapas.length + 1,
-      obrigatoria: true,
-      tempo_estimado: 60,
-      checklist: []
-    };
+  const handleRemoverSetor = (formId: string) => {
+    setSetoresWorkflow((prev) => prev.filter((item) => item.id !== formId));
+  };
 
-    setFormData({
-      ...formData,
-      etapas: [...formData.etapas, novaEtapa]
+  const moverSetor = (index: number, direcao: 'up' | 'down') => {
+    setSetoresWorkflow((prev) => {
+      const novo = [...prev];
+      if (direcao === 'up' && index > 0) {
+        [novo[index - 1], novo[index]] = [novo[index], novo[index - 1]];
+      } else if (direcao === 'down' && index < novo.length - 1) {
+        [novo[index + 1], novo[index]] = [novo[index], novo[index + 1]];
+      }
+      return novo;
     });
   };
 
-  const updateEtapa = (index: number, field: keyof EtapaTemplate, value: any) => {
-    const etapasAtualizadas = [...formData.etapas];
-    etapasAtualizadas[index] = {
-      ...etapasAtualizadas[index],
-      [field]: value
-    };
-    setFormData({ ...formData, etapas: etapasAtualizadas });
-  };
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
 
-  const removeEtapa = (index: number) => {
-    const etapasAtualizadas = formData.etapas.filter((_, i) => i !== index);
-    // Reordenar etapas
-    etapasAtualizadas.forEach((etapa, i) => {
-      etapa.ordem = i + 1;
-    });
-    setFormData({ ...formData, etapas: etapasAtualizadas });
-  };
+    if (!nome.trim()) {
+      toast.error('Informe um nome para o workflow.');
+      return;
+    }
 
-  const moveEtapa = (fromIndex: number, toIndex: number) => {
-    if (fromIndex === toIndex) return;
-    
-    const etapasAtualizadas = [...formData.etapas];
-    const [movedEtapa] = etapasAtualizadas.splice(fromIndex, 1);
-    etapasAtualizadas.splice(toIndex, 0, movedEtapa);
-    
-    // Reordenar etapas
-    etapasAtualizadas.forEach((etapa, i) => {
-      etapa.ordem = i + 1;
-    });
-    
-        setFormData({ ...formData, etapas: etapasAtualizadas });
-        
-        // Feedback visual de sucesso
-        toast.success(`Etapa "${movedEtapa.nome || `Etapa ${movedEtapa.ordem}`}" movida para posição ${toIndex + 1}`);
-  };
+    if (setoresWorkflow.length === 0) {
+      toast.error('Adicione pelo menos um setor ao workflow.');
+      return;
+    }
 
-  const addChecklistItem = (etapaIndex: number) => {
-    const etapasAtualizadas = [...formData.etapas];
-    const etapa = etapasAtualizadas[etapaIndex];
-    const novoItem: ChecklistTemplate = {
-      id: `checklist_${Date.now()}`,
-      descricao: '',
-      obrigatorio: true,
-      ordem: (etapa.checklist?.length || 0) + 1
-    };
+    for (const setor of setoresWorkflow) {
+      if (!setor.setorId) {
+        toast.error('Selecione um setor para cada etapa do workflow.');
+        return;
+      }
 
-    etapa.checklist = [...(etapa.checklist || []), novoItem];
-    setFormData({ ...formData, etapas: etapasAtualizadas });
-  };
+      if (
+        setor.tempoEstimado.trim() !== '' &&
+        (Number.isNaN(Number(setor.tempoEstimado)) ||
+          Number(setor.tempoEstimado) < 0)
+      ) {
+        toast.error(
+          'Tempo estimado deve ser um número positivo (ou deixe em branco).',
+        );
+        return;
+      }
+    }
 
-  const updateChecklistItem = (etapaIndex: number, itemIndex: number, field: keyof ChecklistTemplate, value: any) => {
-    const etapasAtualizadas = [...formData.etapas];
-    const etapa = etapasAtualizadas[etapaIndex];
-    if (etapa.checklist) {
-      etapa.checklist[itemIndex] = {
-        ...etapa.checklist[itemIndex],
-        [field]: value
+    try {
+      setSalvando(true);
+      const token = localStorage.getItem('access_token');
+
+      const payload = {
+        nome,
+        descricao,
+        ativo,
+        sequencial,
+        etapas: [],
+        setores: setoresWorkflow.map((setor, index) => ({
+          setorId: setor.setorId,
+          ordem: index,
+          tempoEstimado:
+            setor.tempoEstimado.trim() === ''
+              ? undefined
+              : Number(setor.tempoEstimado),
+          obrigatorio: setor.obrigatorio,
+        })),
       };
-      setFormData({ ...formData, etapas: etapasAtualizadas });
+
+      const response = await fetch(
+        `/api/pcp/workflow-templates/${workflowId}`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(
+          error?.error || 'Erro ao atualizar workflow. Tente novamente.',
+        );
+      }
+
+      toast.success('Workflow atualizado com sucesso');
+      router.push('/pcp/workflows');
+    } catch (error) {
+      console.error('Erro ao atualizar workflow:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Erro ao atualizar workflow.',
+      );
+    } finally {
+      setSalvando(false);
     }
   };
 
-  const removeChecklistItem = (etapaIndex: number, itemIndex: number) => {
-    const etapasAtualizadas = [...formData.etapas];
-    const etapa = etapasAtualizadas[etapaIndex];
-    if (etapa.checklist) {
-      etapa.checklist = etapa.checklist.filter((_, i) => i !== itemIndex);
-      // Reordenar itens
-      etapa.checklist.forEach((item, i) => {
-        item.ordem = i + 1;
-      });
-      setFormData({ ...formData, etapas: etapasAtualizadas });
-    }
-  };
-
-  if (loading) {
+  if (carregandoTemplate) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => router.push('/pcp/workflows')}>
-            <IconArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
-          </Button>
-        </div>
-        <Card>
-          <CardContent className="text-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-500">Carregando workflow...</p>
-          </CardContent>
-        </Card>
+      <div className="space-y-4">
+        <div className="h-10 bg-gray-200 rounded animate-pulse" />
+        <div className="h-72 bg-gray-100 rounded animate-pulse" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => router.push('/pcp/workflows')}>
-          <IconArrowLeft className="h-4 w-4 mr-2" />
-          Voltar
-        </Button>
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Editar Workflow
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Modifique as configurações do workflow
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
+            Ajuste as informações e a sequência de setores do workflow.
           </p>
         </div>
-      </div>
-
-      {/* Informações Básicas */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Informações Básicas</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="nome">Nome do Workflow</Label>
-            <Input
-              id="nome"
-              value={formData.nome}
-              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-              placeholder="Ex: Produção de Banners"
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="descricao">Descrição</Label>
-            <Textarea
-              id="descricao"
-              value={formData.descricao}
-              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-              placeholder="Descreva o propósito deste workflow..."
-              rows={3}
-            />
-          </div>
-
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="ativo"
-                checked={formData.ativo}
-                onCheckedChange={(checked) => setFormData({ ...formData, ativo: checked })}
-              />
-              <Label htmlFor="ativo">Workflow Ativo</Label>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="sequencial"
-                checked={formData.sequencial}
-                onCheckedChange={(checked) => setFormData({ ...formData, sequencial: checked })}
-              />
-              <Label htmlFor="sequencial">Execução Sequencial</Label>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Etapas */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Etapas do Workflow</CardTitle>
-              <CardDescription>
-                Defina as etapas que compõem este workflow
-              </CardDescription>
-            </div>
-            <Button onClick={addEtapa}>
-              <IconPlus className="h-4 w-4 mr-2" />
-              Adicionar Etapa
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {formData.etapas.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">Nenhuma etapa definida</p>
-              <Button onClick={addEtapa}>
-                <IconPlus className="h-4 w-4 mr-2" />
-                Adicionar Primeira Etapa
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {formData.etapas.map((etapa, index) => (
-                <div
-                  key={etapa.id}
-                  className={`relative transition-all duration-200 ease-in-out ${
-                    draggedIndex === index ? 'opacity-50 scale-95 rotate-1' : ''
-                  }`}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDragOverIndex(index);
-                  }}
-                  onDragLeave={() => {
-                    setDragOverIndex(null);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setDragOverIndex(null);
-                    const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
-                    if (fromIndex !== index) {
-                      moveEtapa(fromIndex, index);
-                    }
-                  }}
-                >
-                  {/* Linha de drop antes da etapa */}
-                  {dragOverIndex === index && (
-                    <div className="h-2 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full animate-pulse shadow-lg mb-4" />
-                  )}
-                  
-                  <Card 
-                    className={`border-l-4 cursor-move transition-all duration-200 ease-in-out ${
-                      draggedIndex === index 
-                        ? 'border-l-blue-600 shadow-2xl bg-blue-50' 
-                        : 'border-l-blue-500 hover:shadow-lg hover:border-l-blue-600'
-                    } ${
-                      dragOverIndex === index 
-                        ? 'bg-blue-50 border-l-green-500 shadow-lg ring-2 ring-blue-200' 
-                        : ''
-                    }`}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('text/plain', index.toString());
-                      setDraggedIndex(index);
-                      e.dataTransfer.effectAllowed = 'move';
-                    }}
-                    onDragEnd={() => {
-                      setDraggedIndex(null);
-                      setDragOverIndex(null);
-                    }}
-                  >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 flex-1">
-                        <IconGripVertical 
-                          className="h-4 w-4 text-gray-400" 
-                        />
-                        <span className="font-medium">
-                          Etapa {etapa.ordem} - {etapa.nome || 'Sem nome'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleCollapse(etapa.id)}
-                        >
-                          {isEtapaCollapsed(etapa.id) ? (
-                            <IconChevronDown className="h-4 w-4" />
-                          ) : (
-                            <IconChevronUp className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeEtapa(index)}
-                        >
-                          <IconTrash className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  {!isEtapaCollapsed(etapa.id) && (
-                    <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor={`etapa_nome_${index}`}>Nome da Etapa</Label>
-                        <Input
-                          id={`etapa_nome_${index}`}
-                          value={etapa.nome}
-                          onChange={(e) => updateEtapa(index, 'nome', e.target.value)}
-                          placeholder="Ex: Preparação do Material"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor={`etapa_tempo_${index}`}>Tempo Estimado (min)</Label>
-                        <Input
-                          id={`etapa_tempo_${index}`}
-                          type="number"
-                          value={etapa.tempo_estimado || ''}
-                          onChange={(e) => updateEtapa(index, 'tempo_estimado', parseInt(e.target.value) || 0)}
-                          placeholder="60"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor={`etapa_descricao_${index}`}>Descrição</Label>
-                      <Textarea
-                        id={`etapa_descricao_${index}`}
-                        value={etapa.descricao || ''}
-                        onChange={(e) => updateEtapa(index, 'descricao', e.target.value)}
-                        placeholder="Descreva o que deve ser feito nesta etapa..."
-                        rows={2}
-                      />
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id={`etapa_obrigatoria_${index}`}
-                        checked={etapa.obrigatoria}
-                        onCheckedChange={(checked) => updateEtapa(index, 'obrigatoria', checked)}
-                      />
-                      <Label htmlFor={`etapa_obrigatoria_${index}`}>Etapa Obrigatória</Label>
-                    </div>
-
-                    {/* Checklist da Etapa */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label>Checklist da Etapa</Label>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addChecklistItem(index)}
-                        >
-                          <IconPlus className="h-3 w-3 mr-1" />
-                          Adicionar Item
-                        </Button>
-                      </div>
-                      
-                      {etapa.checklist && etapa.checklist.length > 0 && (
-                        <div className="space-y-2">
-                          {etapa.checklist.map((item, itemIndex) => (
-                            <div key={item.id} className="flex items-center gap-2">
-                              <Input
-                                value={item.descricao}
-                                onChange={(e) => updateChecklistItem(index, itemIndex, 'descricao', e.target.value)}
-                                placeholder="Item do checklist..."
-                                className="flex-1"
-                              />
-                              <Switch
-                                checked={item.obrigatorio}
-                                onCheckedChange={(checked) => updateChecklistItem(index, itemIndex, 'obrigatorio', checked)}
-                                size="sm"
-                              />
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeChecklistItem(index, itemIndex)}
-                              >
-                                <IconTrash className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    </CardContent>
-                  )}
-                  </Card>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Botão Salvar no Final */}
-      <div className="flex justify-end pt-6">
-        <Button onClick={handleSave} disabled={saving} size="lg">
-          <IconDeviceFloppy className="h-4 w-4 mr-2" />
-          {saving ? 'Salvando...' : 'Salvar Alterações'}
+        <Button variant="outline" asChild>
+          <Link href="/pcp/workflows">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
+          </Link>
         </Button>
       </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Informações gerais</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="nome">Nome *</Label>
+                <Input
+                  id="nome"
+                  value={nome}
+                  onChange={(event) => setNome(event.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex items-center gap-6 pt-6 md:pt-0">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="ativo"
+                    checked={ativo}
+                    onCheckedChange={setAtivo}
+                  />
+                  <Label htmlFor="ativo">Ativo</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="sequencial"
+                    checked={sequencial}
+                    onCheckedChange={setSequencial}
+                  />
+                  <Label htmlFor="sequencial">Sequencial</Label>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="descricao">Descrição</Label>
+              <Textarea
+                id="descricao"
+                value={descricao}
+                onChange={(event) => setDescricao(event.target.value)}
+                rows={3}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Sequência de setores</CardTitle>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleAdicionarSetor}
+              disabled={carregandoSetores || !podeAdicionarSetor}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar setor
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {carregandoSetores ? (
+              <p className="text-sm text-gray-500">Carregando setores...</p>
+            ) : setoresWorkflow.length === 0 ? (
+              <p className="text-sm text-gray-500 italic">
+                Nenhum setor na sequência. Clique em &ldquo;Adicionar
+                setor&rdquo; para começar.
+              </p>
+            ) : (
+              setoresWorkflow.map((item, index) => {
+                const setorSelecionado = setoresDisponiveis.find(
+                  (setor) => setor.id === item.setorId,
+                );
+
+                return (
+                  <Card key={item.id} className="border border-dashed">
+                    <CardContent className="pt-4 space-y-4">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-gray-500">
+                            Etapa {index + 1}
+                          </span>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              disabled={index === 0}
+                              onClick={() => moverSetor(index, 'up')}
+                              aria-label="Mover para cima"
+                            >
+                              <ChevronUp className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              disabled={index === setoresWorkflow.length - 1}
+                              onClick={() => moverSetor(index, 'down')}
+                              aria-label="Mover para baixo"
+                            >
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleRemoverSetor(item.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Remover
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-2">
+                          <Label>Setor produtivo *</Label>
+                          <Select
+                            value={item.setorId}
+                            onValueChange={(value) =>
+                              handleAtualizarSetor(item.id, 'setorId', value)
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o setor" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {setoresDisponiveis.map((setor) => (
+                                <SelectItem key={setor.id} value={setor.id}>
+                                  {setor.nome}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {setorSelecionado?.descricao && (
+                            <p className="mt-2 text-xs text-gray-500">
+                              {setorSelecionado.descricao}
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <Label>Tempo estimado (min)</Label>
+                          <Input
+                            value={item.tempoEstimado}
+                            onChange={(event) =>
+                              handleAtualizarSetor(
+                                item.id,
+                                'tempoEstimado',
+                                event.target.value,
+                              )
+                            }
+                            placeholder="Opcional"
+                            type="number"
+                            min="0"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id={`obrigatorio-${item.id}`}
+                          checked={item.obrigatorio}
+                          onCheckedChange={(checked) =>
+                            handleAtualizarSetor(
+                              item.id,
+                              'obrigatorio',
+                              checked,
+                            )
+                          }
+                        />
+                        <Label htmlFor={`obrigatorio-${item.id}`}>
+                          Etapa obrigatória
+                        </Label>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end gap-4">
+          <Button type="button" variant="outline" asChild>
+            <Link href="/pcp/workflows">Cancelar</Link>
+          </Button>
+          <Button type="submit" disabled={salvando}>
+            {salvando ? 'Salvando...' : 'Salvar alterações'}
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }
+

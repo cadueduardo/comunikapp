@@ -7,7 +7,6 @@ import { ClientesModule } from './clientes/clientes.module';
 import { CategoriasModule } from './categorias/categorias.module';
 import { FornecedoresModule } from './fornecedores/fornecedores.module';
 import { InsumosModule } from './insumos/insumos.module';
-// import { OrcamentosModule } from './orcamentos/orcamentos.module'; // LEGADO - mantido como referência
 import { NotificacoesModule } from './notificacoes/notificacoes.module';
 import { FuncoesModule } from './funcoes/funcoes.module';
 import { CustosIndiretosModule } from './custos-indiretos/custos-indiretos.module';

@@ -1,8 +1,28 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  BadRequestException,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Body,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateWorkflowTemplateDto, UpdateWorkflowTemplateDto } from '../interfaces/pcp.interfaces';
+import {
+  CreateWorkflowTemplateDto,
+  UpdateWorkflowTemplateDto,
+  WorkflowSetorTemplateData,
+} from '../interfaces/pcp.interfaces';
 
 @ApiTags('Workflow Templates')
 @ApiBearerAuth()
@@ -11,19 +31,19 @@ import { CreateWorkflowTemplateDto, UpdateWorkflowTemplateDto } from '../interfa
 export class WorkflowTemplateController {
   constructor(private prisma: PrismaService) {}
 
-  @Get()
-  @ApiOperation({ summary: 'Listar templates de workflow' })
-  @ApiResponse({ status: 200, description: 'Lista de templates retornada com sucesso' })
-  async listarTemplates(@Request() req: any) {
-    const user = req['user'] || req.user;
-    const lojaId = user.loja_id;
+  private readonly workflowInclude = {
+    workflow_setores: {
+      include: {
+        setor: true,
+      },
+      orderBy: {
+        ordem: 'asc' as const,
+      },
+    },
+  };
 
-    const templates = await this.prisma.workflowOS.findMany({
-      where: { loja_id: lojaId },
-      orderBy: { criado_em: 'desc' }
-    });
-
-    return templates.map(template => ({
+  private mapTemplate(template: any) {
+    return {
       id: template.id,
       nome: template.nome,
       descricao: template.descricao,
@@ -31,8 +51,59 @@ export class WorkflowTemplateController {
       ativo: template.ativo,
       sequencial: template.sequencial,
       criado_em: template.criado_em,
-      atualizado_em: template.atualizado_em
+      atualizado_em: template.atualizado_em,
+      setores:
+        template.workflow_setores?.map((setor: any) => ({
+          id: setor.id,
+          setorId: setor.setor_id,
+          nomeSetor: setor.setor?.nome,
+          ordem: setor.ordem,
+          tempoEstimado: setor.tempo_estimado,
+          obrigatorio: setor.obrigatorio,
+        })) ?? [],
+    };
+  }
+
+  private mapSetoresInput(
+    setores?: WorkflowSetorTemplateData[],
+  ): {
+    setor_id: string;
+    ordem: number;
+    tempo_estimado?: number | null;
+    obrigatorio: boolean;
+  }[] {
+    if (!setores?.length) {
+      return [];
+    }
+
+    return setores.map((setor, index) => ({
+      setor_id: setor.setorId,
+      ordem: setor.ordem ?? index,
+      tempo_estimado:
+        typeof setor.tempoEstimado === 'number'
+          ? setor.tempoEstimado
+          : setor.tempoEstimado ?? null,
+      obrigatorio: setor.obrigatorio ?? true,
     }));
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Listar templates de workflow' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de templates retornada com sucesso',
+  })
+  async listarTemplates(@Request() req: any) {
+    const user = req['user'] || req.user;
+    const lojaId = user.loja_id;
+
+    const templates = await this.prisma.workflowOS.findMany({
+      where: { loja_id: lojaId },
+      orderBy: { criado_em: 'desc' },
+      include: this.workflowInclude,
+    });
+
+    return templates.map((template) => this.mapTemplate(template));
   }
 
   @Get(':id')
@@ -44,41 +115,37 @@ export class WorkflowTemplateController {
     const lojaId = user.loja_id;
 
     const template = await this.prisma.workflowOS.findFirst({
-      where: { id, loja_id: lojaId }
+      where: { id, loja_id: lojaId },
+      include: this.workflowInclude,
     });
 
     if (!template) {
-      throw new Error('Template não encontrado');
+      throw new BadRequestException('Template não encontrado');
     }
 
-    return {
-      id: template.id,
-      nome: template.nome,
-      descricao: template.descricao,
-      etapas: JSON.parse(template.etapas || '[]'),
-      ativo: template.ativo,
-      sequencial: template.sequencial,
-      criado_em: template.criado_em,
-      atualizado_em: template.atualizado_em
-    };
+    return this.mapTemplate(template);
   }
 
   @Post()
   @ApiOperation({ summary: 'Criar novo template de workflow' })
   @ApiResponse({ status: 201, description: 'Template criado com sucesso' })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
-  async criarTemplate(@Body() dto: CreateWorkflowTemplateDto, @Request() req: any) {
+  async criarTemplate(
+    @Body() dto: CreateWorkflowTemplateDto,
+    @Request() req: any,
+  ) {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
 
-    // Verificar se já existe template com o mesmo nome
     const templateExistente = await this.prisma.workflowOS.findFirst({
-      where: { loja_id: lojaId, nome: dto.nome }
+      where: { loja_id: lojaId, nome: dto.nome },
     });
 
     if (templateExistente) {
-      throw new Error('Já existe um template com este nome');
+      throw new BadRequestException('Já existe um template com este nome');
     }
+
+    const setoresData = this.mapSetoresInput(dto.setores);
 
     const template = await this.prisma.workflowOS.create({
       data: {
@@ -87,20 +154,19 @@ export class WorkflowTemplateController {
         descricao: dto.descricao,
         etapas: JSON.stringify(dto.etapas || []),
         ativo: dto.ativo ?? true,
-        sequencial: dto.sequencial ?? true
-      }
+        sequencial: dto.sequencial ?? true,
+        workflow_setores: setoresData.length
+          ? {
+              create: setoresData.map((setor) => ({
+                ...setor,
+              })),
+            }
+          : undefined,
+      },
+      include: this.workflowInclude,
     });
 
-    return {
-      id: template.id,
-      nome: template.nome,
-      descricao: template.descricao,
-      etapas: JSON.parse(template.etapas || '[]'),
-      ativo: template.ativo,
-      sequencial: template.sequencial,
-      criado_em: template.criado_em,
-      atualizado_em: template.atualizado_em
-    };
+    return this.mapTemplate(template);
   }
 
   @Put(':id')
@@ -110,40 +176,62 @@ export class WorkflowTemplateController {
   async atualizarTemplate(
     @Param('id') id: string,
     @Body() dto: UpdateWorkflowTemplateDto,
-    @Request() req: any
+    @Request() req: any,
   ) {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
 
     const template = await this.prisma.workflowOS.findFirst({
-      where: { id, loja_id: lojaId }
+      where: { id, loja_id: lojaId },
+      include: this.workflowInclude,
     });
 
     if (!template) {
-      throw new Error('Template não encontrado');
+      throw new BadRequestException('Template não encontrado');
     }
 
-    const templateAtualizado = await this.prisma.workflowOS.update({
-      where: { id },
-      data: {
-        nome: dto.nome,
-        descricao: dto.descricao,
-        etapas: dto.etapas ? JSON.stringify(dto.etapas) : undefined,
-        ativo: dto.ativo,
-        sequencial: dto.sequencial
+    const setoresData = dto.setores
+      ? this.mapSetoresInput(dto.setores)
+      : null;
+
+    const resultado = await this.prisma.$transaction(async (tx) => {
+      await tx.workflowOS.update({
+        where: { id },
+        data: {
+          nome: dto.nome,
+          descricao: dto.descricao,
+          etapas: dto.etapas ? JSON.stringify(dto.etapas) : undefined,
+          ativo: dto.ativo,
+          sequencial: dto.sequencial,
+        },
+      });
+
+      if (setoresData !== null) {
+        await tx.workflowSetor.deleteMany({ where: { workflow_id: id } });
+
+        if (setoresData.length) {
+          for (const setor of setoresData) {
+            await tx.workflowSetor.create({
+              data: {
+                workflow_id: id,
+                ...setor,
+              },
+            });
+          }
+        }
       }
+
+      return tx.workflowOS.findFirst({
+        where: { id },
+        include: this.workflowInclude,
+      });
     });
 
-    return {
-      id: templateAtualizado.id,
-      nome: templateAtualizado.nome,
-      descricao: templateAtualizado.descricao,
-      etapas: JSON.parse(templateAtualizado.etapas || '[]'),
-      ativo: templateAtualizado.ativo,
-      sequencial: templateAtualizado.sequencial,
-      criado_em: templateAtualizado.criado_em,
-      atualizado_em: templateAtualizado.atualizado_em
-    };
+    if (!resultado) {
+      throw new BadRequestException('Erro ao carregar template atualizado');
+    }
+
+    return this.mapTemplate(resultado);
   }
 
   @Delete(':id')
@@ -155,29 +243,17 @@ export class WorkflowTemplateController {
     const lojaId = user.loja_id;
 
     const template = await this.prisma.workflowOS.findFirst({
-      where: { id, loja_id: lojaId }
+      where: { id, loja_id: lojaId },
     });
 
     if (!template) {
-      throw new Error('Template não encontrado');
+      throw new BadRequestException('Template não encontrado');
     }
 
     await this.prisma.workflowOS.delete({
-      where: { id }
+      where: { id },
     });
 
     return { message: 'Template deletado com sucesso' };
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-

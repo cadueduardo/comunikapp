@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000').replace(/\/$/, '');
+
 interface UseArteWebSocketOptions {
   versaoId?: string;
   token?: string; // Para cliente público
@@ -79,7 +81,7 @@ export const useArteWebSocket = (
     shouldReconnectRef.current = true;
 
     // Conectar ao namespace /arte-aprovacao
-    const socket = io('http://localhost:4000/arte-aprovacao', {
+    const socket = io(`${API_BASE_URL}/arte-aprovacao`, {
       transports: ['websocket', 'polling'],
       timeout: 10000,
       forceNew: true,

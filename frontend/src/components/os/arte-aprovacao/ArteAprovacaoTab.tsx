@@ -507,14 +507,22 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     try {
       setProcessing(true);
       
-      // Atualizar versão para status APROVADA e salvar o motivo nas observações
+      // Pegar o ID do usuário logado
+      const usuarioId = localStorage.getItem('user_id');
+      
+      // Quando o designer aprova diretamente (sem aprovação do cliente),
+      // a arte deve ser automaticamente liberada para PCP
       await updateVersao(versaoForApproval.id, {
         status: 'APROVADA',
         descricao: versaoForApproval.descricao,
-        observacoes: `${versaoForApproval.observacoes || ''}\n\n[APROVAÇÃO DESIGNER - ${new Date().toLocaleString('pt-BR')}]\nMotivo: ${motivo}`
+        observacoes: `${versaoForApproval.observacoes || ''}\n\n[APROVAÇÃO DESIGNER DIRETA - ${new Date().toLocaleString('pt-BR')}]\nMotivo: ${motivo}`,
+        // Liberar automaticamente para PCP quando aprovado diretamente pelo designer
+        liberado_para_pcp: true,
+        liberado_em: new Date(),
+        liberado_por: usuarioId || undefined
       });
 
-      toast.success(`Versão ${versaoForApproval.versao} aprovada com sucesso!`);
+      toast.success(`Versão ${versaoForApproval.versao} aprovada e liberada para PCP com sucesso!`);
       
       // Fechar modal e limpar estado
       setShowDesignerApprovalModal(false);
@@ -524,6 +532,49 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
       toast.error('Erro ao aprovar versão');
     } finally {
       setProcessing(false);
+    }
+  };
+
+  // Função para liberar arte para PCP
+  const handleLiberarParaPCP = async (versaoId: string) => {
+    let toastId: string | number | undefined;
+    
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        toast.error('Erro de autenticação');
+        return;
+      }
+
+      // Criar toast de loading e salvar o ID
+      toastId = toast.loading('Liberando arte para PCP...');
+
+      const response = await fetch(`/api/arte-aprovacao/versoes/${versaoId}/liberar-para-pcp`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Erro ao liberar arte para PCP');
+      }
+
+      // Dismiss do toast de loading e mostrar sucesso
+      if (toastId !== undefined) {
+        toast.dismiss(toastId);
+      }
+      toast.success('Arte liberada para PCP com sucesso!');
+      refreshVersoes();
+    } catch (error: any) {
+      console.error('Erro ao liberar arte para PCP:', error);
+      // Dismiss do toast de loading antes de mostrar erro
+      if (toastId !== undefined) {
+        toast.dismiss(toastId);
+      }
+      toast.error(error.message || 'Erro ao liberar arte para PCP');
     }
   };
 
@@ -904,6 +955,18 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                       </Button>
                     )}
 
+                    {/* Botão para liberar para PCP - apenas se aprovada pelo cliente mas não liberada pelo designer */}
+                    {!readonly && versao.aprovado_por_cliente && !versao.liberado_para_pcp && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleLiberarParaPCP(versao.id)}
+                        className="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
+                        title="Liberar para PCP"
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    )}
 
                     {!readonly && versao.status === ArteStatus.RASCUNHO && (
                       <Button

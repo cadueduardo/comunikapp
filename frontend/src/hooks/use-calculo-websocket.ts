@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 const WEBSOCKET_DISABLED = false;
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000').replace(/\/$/, '');
 
 interface UseCalculoWebSocketOptions {
   lojaId?: string;
@@ -92,7 +93,7 @@ export const useCalculoWebSocket = (
     setConnectionStatus('connecting');
     shouldReconnectRef.current = true;
 
-    const socket = io('http://localhost:4000/calculo-v2', {
+    const socket = io(`${API_BASE_URL}/calculo-v2`, {
       transports: ['websocket', 'polling'],
       timeout: 10000,
       forceNew: true,

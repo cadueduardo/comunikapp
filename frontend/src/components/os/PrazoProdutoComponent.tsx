@@ -112,7 +112,7 @@ export function PrazoProdutoComponent({
     
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`/api/orcamentos/produto/${produtoId}/detalhes`, {
+      const response = await fetch(`/api/orcamentos-v2/produto/${produtoId}/detalhes`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -168,24 +168,8 @@ export function PrazoProdutoComponent({
       }
     } catch (error) {
       console.error('Erro ao carregar dados da arte aprovada:', error);
-      // Em caso de erro, usar dados mockados baseados no produto
-      const mockData = {
-        id: `arte-${produtoId}`,
-        versao: 'v2',
-        status: 'APROVADA',
-        arquivos: [
-          {
-            id: 'arquivo-1',
-            nome_original: `${produtoNome}_aprovada.pdf`,
-            url_arquivo: '/api/arte-aprovacao/arquivo/mock.pdf',
-            url_thumbnail: '/api/arte-aprovacao/thumbnail/mock.jpg',
-            tipo_arquivo: 'application/pdf'
-          }
-        ],
-        data_criacao: new Date().toISOString(),
-        autor_nome: 'Designer'
-      };
-      setDadosArteAprovada(mockData);
+      // Não definir dados mockados - se não há arte, deixar como null
+      setDadosArteAprovada(null);
     }
   };
 
@@ -451,18 +435,35 @@ export function PrazoProdutoComponent({
       return (
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
+            <Clock className="h-4 w-4 text-yellow-500" />
             <span className="text-sm text-gray-600">
-              Atual: — • Aprovada: —
+              Aguardando arte
             </span>
           </div>
-          <span className="text-sm font-medium text-gray-600">
-            Não definido
+          <span className="text-sm font-medium text-yellow-600">
+            Pendente
           </span>
         </div>
       );
     }
-
+    
+    // Verificar se realmente tem arquivos
     const temArquivo = dadosArteAprovada.arquivos && dadosArteAprovada.arquivos.length > 0;
+    if (!temArquivo) {
+      return (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Clock className="h-4 w-4 text-yellow-500" />
+            <span className="text-sm text-gray-600">
+              Aguardando arquivos
+            </span>
+          </div>
+          <span className="text-sm font-medium text-yellow-600">
+            Pendente
+          </span>
+        </div>
+      );
+    }
     const primeiroArquivo = temArquivo ? dadosArteAprovada.arquivos[0] : null;
 
     return (
@@ -513,16 +514,17 @@ export function PrazoProdutoComponent({
         </div>
 
         {/* Status */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center">
           <div className="flex items-center space-x-2">
             <CheckCircle className="h-4 w-4 text-green-500" />
             <span className="text-sm text-gray-600">
-              Atual: {dadosArteAprovada.versao} • Aprovada: {dadosArteAprovada.versao}
+              {dadosArteAprovada.liberado_para_pcp 
+                ? 'Liberada pelo designer e pronta para PCP' 
+                : dadosArteAprovada.aprovado_por_cliente
+                  ? 'Aprovada pelo cliente - Aguardando liberação do designer'
+                  : 'Aprovada pelo designer e pronta para liberação'}
             </span>
           </div>
-          <span className="text-sm font-medium text-green-600">
-            Aprovada
-          </span>
         </div>
       </div>
     );
@@ -730,14 +732,16 @@ export function PrazoProdutoComponent({
             </div>
           </div>
 
-          {/* Botão de liberar para PCP */}
-          {dataPrazoProduto && statusLiberacao === 'PENDENTE' && !readonly && (
+          {/* Botão de liberar para PCP - Mostrar se arte aprovada (com ou sem cliente) ou já liberada */}
+          {dataPrazoProduto && statusLiberacao === 'PENDENTE' && !readonly && dadosArteAprovada && 
+           (dadosArteAprovada.status === 'APROVADA' || dadosArteAprovada.liberado_para_pcp) && (
             <div className="border-t border-gray-100 pt-3">
               <Button
                 onClick={liberarParaPCP}
                 disabled={isLoading}
                 size="sm"
                 className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700"
+                title="Liberar para PCP"
               >
                 <CheckCircle className="h-4 w-4" />
                 <span>Liberar para PCP</span>

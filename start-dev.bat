@@ -1995,3 +1995,8 @@ dev:backend] 🔍 Debug - Resultado do motor V2: {
 
 
 
+
+
+
+
+

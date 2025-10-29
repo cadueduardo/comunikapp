@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OSCardKanban, KanbanStats, StatusSetorProdutivo } from '../entities/pcp.entities';
 import { KanbanQueryDto } from '../dto/kanban.dto';
@@ -122,27 +122,67 @@ export class PCPKanbanService {
   }
 
   /**
+   * Atualiza o status operacional de uma OS diretamente no Kanban.
+   * Mantido simples para viabilizar o endpoint administrativo.
+   */
+  async atualizarStatusOS(osId: string, status: string): Promise<void> {
+    if (!status) {
+      throw new BadRequestException('Status invalido.');
+    }
+
+    try {
+      await this.prisma.ordemServico.update({
+        where: { id: osId },
+        data: {
+          status,
+          atualizado_em: new Date(),
+        },
+      });
+
+      this.logger.log(`Status da OS ${osId} atualizado para ${status}`);
+    } catch (error) {
+      this.logger.error(`Erro ao atualizar status da OS ${osId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Inicia produção de um item
    */
   async iniciarProducao(itemOsId: string, operadorId: string, observacoes?: string): Promise<void> {
     try {
-      this.logger.log(`Iniciando produção do item ${itemOsId} pelo operador ${operadorId}`);
+      this.logger.log(`Iniciando producao do item ${itemOsId} pelo operador ${operadorId}`);
 
-      // Atualizar instância do setor
-      await this.prisma.workflowInstanciaSetor.updateMany({
+      const etapa = await this.prisma.workflowInstanciaSetor.findFirst({
         where: {
           item_os_id: itemOsId,
           status: 'PENDENTE'
-        },
+        }
+      });
+
+      if (!etapa) {
+        throw new BadRequestException('Etapa nao disponivel para inicio (aguardando liberacao ou ja iniciada).');
+      }
+
+      await this.prisma.workflowInstanciaSetor.update({
+        where: { id: etapa.id },
         data: {
           status: 'EM_ANDAMENTO',
           operador_id: operadorId,
           data_inicio: new Date(),
-          observacoes: observacoes
+          observacoes,
+          atualizado_em: new Date()
         }
       });
 
-      // Criar apontamento de início
+      await this.prisma.workflowInstancia.update({
+        where: { id: etapa.workflow_instancia_id },
+        data: {
+          etapa_atual: etapa.setor_id,
+          atualizado_em: new Date()
+        }
+      });
+
       const itemOS = await this.prisma.itemOS.findUnique({
         where: { id: itemOsId },
         include: { os: true }
@@ -155,14 +195,14 @@ export class PCPKanbanService {
             tipo: 'INICIO',
             data_apontamento: new Date(),
             usuario_id: operadorId,
-            observacoes: observacoes
+            observacoes
           }
         });
       }
 
-      this.logger.log(`Produção iniciada com sucesso`);
+      this.logger.log(`Producao iniciada com sucesso`);
     } catch (error) {
-      this.logger.error(`Erro ao iniciar produção:`, error);
+      this.logger.error(`Erro ao iniciar producao:`, error);
       throw error;
     }
   }
@@ -174,20 +214,27 @@ export class PCPKanbanService {
     try {
       this.logger.log(`Concluindo etapa do item ${itemOsId}`);
 
-      // Atualizar instância do setor
-      await this.prisma.workflowInstanciaSetor.updateMany({
+      const etapaAtual = await this.prisma.workflowInstanciaSetor.findFirst({
         where: {
           item_os_id: itemOsId,
           status: 'EM_ANDAMENTO'
-        },
-        data: {
-          status: 'CONCLUIDA',
-          data_conclusao: new Date(),
-          observacoes: observacoes
         }
       });
 
-      // Criar apontamento de conclusão
+      if (!etapaAtual) {
+        throw new BadRequestException('Nenhuma etapa em andamento encontrada para este item.');
+      }
+
+      await this.prisma.workflowInstanciaSetor.update({
+        where: { id: etapaAtual.id },
+        data: {
+          status: 'CONCLUIDA',
+          data_conclusao: new Date(),
+          observacoes: observacoes,
+          atualizado_em: new Date()
+        }
+      });
+
       const itemOS = await this.prisma.itemOS.findUnique({
         where: { id: itemOsId },
         include: { os: true }
@@ -199,18 +246,84 @@ export class PCPKanbanService {
             os_id: itemOS.os_id,
             tipo: 'CONCLUSAO',
             data_apontamento: new Date(),
-            usuario_id: operadorId, // Adicionar usuario_id obrigatório
+            usuario_id: operadorId,
             observacoes: observacoes,
             quantidade_produzida: quantidadeProduzida
           }
         });
       }
 
-      this.logger.log(`Etapa concluída com sucesso`);
+      await this.liberarProximoGrupo(
+        etapaAtual.workflow_instancia_id,
+        etapaAtual.ordem ?? 0
+      );
+
+      this.logger.log(`Etapa concluida com sucesso`);
     } catch (error) {
       this.logger.error(`Erro ao concluir etapa:`, error);
       throw error;
     }
+  }
+
+
+  private async liberarProximoGrupo(workflowInstanciaId: string, ordemAtual: number) {
+    const pendentesNoGrupo = await this.prisma.workflowInstanciaSetor.findFirst({
+      where: {
+        workflow_instancia_id: workflowInstanciaId,
+        ordem: ordemAtual,
+        status: {
+          in: ['PENDENTE', 'EM_ANDAMENTO']
+        }
+      }
+    });
+
+    if (pendentesNoGrupo) {
+      return;
+    }
+
+    const proximoGrupo = await this.prisma.workflowInstanciaSetor.findFirst({
+      where: {
+        workflow_instancia_id: workflowInstanciaId,
+        ordem: { gt: ordemAtual },
+        status: 'AGUARDANDO'
+      },
+      orderBy: {
+        ordem: 'asc'
+      }
+    });
+
+    if (!proximoGrupo) {
+      await this.prisma.workflowInstancia.update({
+        where: { id: workflowInstanciaId },
+        data: {
+          status: 'CONCLUIDO',
+          data_fim: new Date(),
+          etapa_atual: null,
+          atualizado_em: new Date()
+        }
+      });
+      return;
+    }
+
+    await this.prisma.workflowInstanciaSetor.updateMany({
+      where: {
+        workflow_instancia_id: workflowInstanciaId,
+        ordem: proximoGrupo.ordem,
+        status: 'AGUARDANDO'
+      },
+      data: {
+        status: 'PENDENTE',
+        atualizado_em: new Date()
+      }
+    });
+
+    await this.prisma.workflowInstancia.update({
+      where: { id: workflowInstanciaId },
+      data: {
+        etapa_atual: proximoGrupo.setor_id,
+        atualizado_em: new Date()
+      }
+    });
   }
 
 

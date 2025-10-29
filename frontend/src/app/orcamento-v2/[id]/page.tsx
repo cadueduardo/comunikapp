@@ -210,7 +210,7 @@ export default function OrcamentoV2PublicoPage() {
   const handleReenviarCodigo = async () => {
     setReenviando(true);
     try {
-      const response = await fetch(`/api/orcamentos-v2/reenviar-codigo/${orcamento?.id}`, {
+      const response = await fetch(`/api/orcamentos-v2/${orcamento?.id}/reenviar-codigo`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

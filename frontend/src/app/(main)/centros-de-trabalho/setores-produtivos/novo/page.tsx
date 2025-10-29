@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { 
   IconBuildingFactory, 
   IconArrowLeft,
-  IconSave,
+  IconDeviceFloppy,
   IconX
 } from '@tabler/icons-react';
 import Link from 'next/link';
@@ -219,7 +219,7 @@ export default function NovoSetorPage() {
             {/* Ações */}
             <div className="flex items-center gap-4 pt-6 border-t">
               <Button type="submit" disabled={loading}>
-                <IconSave className="h-4 w-4 mr-2" />
+                <IconDeviceFloppy className="h-4 w-4 mr-2" />
                 {loading ? 'Salvando...' : 'Salvar Setor'}
               </Button>
               <Button type="button" variant="outline" asChild>

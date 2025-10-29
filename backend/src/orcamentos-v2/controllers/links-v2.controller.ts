@@ -114,7 +114,7 @@ export class LinksV2Controller {
         message: 'Link público criado com sucesso',
         data: {
           ...link,
-          url_publica: `/orcamentos/publico/${link.token}`,
+          url_publica: `/orcamento-v2/publico/${link.token}`,
         },
         timestamp: new Date().toISOString(),
       };

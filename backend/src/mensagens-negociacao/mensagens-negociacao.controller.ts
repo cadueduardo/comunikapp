@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MensagensNegociacaoService } from './mensagens-negociacao.service';
-import { CreateMensagemNegociacaoDto } from '../orcamentos/dto/create-mensagem-negociacao.dto';
+import { CreateMensagemNegociacaoDto } from './dto/create-mensagem-negociacao.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentLojaId } from '../auth/decorators';
 import { Public } from '../auth/decorators';

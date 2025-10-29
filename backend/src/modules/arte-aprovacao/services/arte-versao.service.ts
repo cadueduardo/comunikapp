@@ -424,6 +424,126 @@ export class ArteVersaoService {
   }
 
   /**
+   * Liberar arte para PCP após verificação do designer
+   */
+  async liberarParaPCP(
+    versaoId: string,
+    usuarioId: string,
+    lojaId: string
+  ): Promise<ArteVersaoResponseDto> {
+    console.log('🎨 Liberando arte para PCP:', {
+      versaoId,
+      usuarioId,
+      lojaId
+    });
+
+    // Buscar a versão
+    const versao = await this.prisma.arteVersao.findFirst({
+      where: {
+        id: versaoId,
+        loja_id: lojaId,
+        deletado: false
+      },
+      include: {
+        autor: {
+          select: {
+            id: true,
+            nome_completo: true
+          }
+        },
+        aprovador: {
+          select: {
+            id: true,
+            nome_completo: true
+          }
+        },
+        liberador: {
+          select: {
+            id: true,
+            nome_completo: true
+          }
+        },
+        arquivos: true,
+        comentarios: {
+          include: {
+            usuario: {
+              select: {
+                id: true,
+                nome_completo: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!versao) {
+      throw new NotFoundException('Versão de arte não encontrada');
+    }
+
+    // Verificar se a arte foi aprovada pelo cliente
+    if (!versao.aprovado_por_cliente) {
+      throw new ForbiddenException('Arte ainda não foi aprovada pelo cliente');
+    }
+
+    // Verificar se já foi liberada
+    if (versao.liberado_para_pcp) {
+      throw new ForbiddenException('Arte já foi liberada para PCP');
+    }
+
+    // Verificar se há arquivos
+    const versaoComArquivos = versao as any;
+    if (!versaoComArquivos.arquivos || versaoComArquivos.arquivos.length === 0) {
+      throw new ForbiddenException('Arte não possui arquivos. Adicione arquivos antes de liberar.');
+    }
+
+    // Liberar para PCP
+    const versaoAtualizada = await this.prisma.arteVersao.update({
+      where: { id: versaoId },
+      data: {
+        liberado_para_pcp: true,
+        liberado_em: new Date(),
+        liberado_por: usuarioId
+      },
+      include: {
+        autor: {
+          select: {
+            id: true,
+            nome_completo: true
+          }
+        },
+        aprovador: {
+          select: {
+            id: true,
+            nome_completo: true
+          }
+        },
+        liberador: {
+          select: {
+            id: true,
+            nome_completo: true
+          }
+        },
+        arquivos: true,
+        comentarios: {
+          include: {
+            usuario: {
+              select: {
+                id: true,
+                nome_completo: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    console.log('✅ Arte liberada para PCP com sucesso');
+
+    return this.formatVersaoResponse(versaoAtualizada);
+  }
+
+  /**
    * Formata a resposta da versão
    */
   private formatVersaoResponse(versao: any): ArteVersaoResponseDto {
@@ -442,6 +562,10 @@ export class ArteVersaoService {
       aprovado_por: versao.aprovado_por,
       aprovador_nome: versao.aprovador?.nome_completo,
       aprovado_por_cliente: versao.aprovado_por_cliente,
+      liberado_para_pcp: versao.liberado_para_pcp || false,
+      liberado_em: versao.liberado_em,
+      liberado_por: versao.liberado_por,
+      liberador_nome: versao.liberador?.nome_completo,
       arquivos: versao.arquivos.map((arquivo: any) => ({
         id: arquivo.id,
         nome_arquivo: arquivo.nome_arquivo,

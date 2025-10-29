@@ -1,21 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { 
-  IconBuildingFactory, 
-  IconPlus, 
-  IconSearch, 
-  IconEdit, 
-  IconTrash,
-  IconRefresh,
-  IconUsers,
-  IconSettings,
-  IconClock
-} from '@tabler/icons-react';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { DataTable } from '@/components/data-table/data-table';
+import { ColumnDef } from '@tanstack/react-table';
+import { Building2, Plus, Search, List, Grid3X3, ArrowLeft, Edit, Trash2 } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-media-query';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -34,6 +28,9 @@ export default function SetoresProdutivosPage() {
   const [setores, setSetores] = useState<SetorProdutivo[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [toDelete, setToDelete] = useState<SetorProdutivo | null>(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     fetchSetores();
@@ -48,9 +45,6 @@ export default function SetoresProdutivosPage() {
         throw new Error('Token de autenticação não encontrado. Faça login novamente.');
       }
       
-      console.log('🔍 Fazendo request para:', '/api/centros-de-trabalho/setores-produtivos');
-      console.log('🔍 Token encontrado:', !!token);
-      
       const response = await fetch('/api/centros-de-trabalho/setores-produtivos', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -58,19 +52,13 @@ export default function SetoresProdutivosPage() {
         }
       });
 
-      console.log('🔍 Response status:', response.status);
-      console.log('🔍 Response ok:', response.ok);
-
       if (response.ok) {
         const data = await response.json();
-        console.log('🔍 Dados recebidos:', data);
         setSetores(data);
       } else if (response.status === 401) {
         throw new Error('Sessão expirada. Faça login novamente.');
       } else {
         const errorText = await response.text();
-        console.error('❌ Erro ao buscar setores - Status:', response.status);
-        console.error('❌ Erro ao buscar setores - Response:', errorText);
         throw new Error(`Erro ${response.status}: ${errorText}`);
       }
     } catch (error: any) {
@@ -82,8 +70,6 @@ export default function SetoresProdutivosPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este setor?')) return;
-
     try {
       const token = localStorage.getItem('access_token');
       
@@ -97,7 +83,7 @@ export default function SetoresProdutivosPage() {
 
       if (response.ok) {
         toast.success('Setor excluído com sucesso');
-        fetchSetores();
+        setSetores(prev => prev.filter(s => s.id !== id));
       } else {
         throw new Error('Erro ao excluir setor');
       }
@@ -107,168 +93,220 @@ export default function SetoresProdutivosPage() {
     }
   };
 
-  const filteredSetores = setores.filter(setor =>
-    setor.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    setor.descricao?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filtered = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    return setores.filter(setor =>
+      setor.nome.toLowerCase().includes(term) ||
+      setor.descricao?.toLowerCase().includes(term)
+    );
+  }, [setores, searchTerm]);
+
+  const columns: ColumnDef<SetorProdutivo>[] = [
+    {
+      accessorKey: 'nome',
+      header: 'Nome',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <div 
+            className="w-3 h-3 rounded-full" 
+            style={{ backgroundColor: row.original.cor }}
+          />
+          <span className="font-medium">{row.original.nome}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'descricao',
+      header: 'Descrição',
+      cell: ({ row }) => (
+        <span className="text-sm text-gray-600">{row.original.descricao || '—'}</span>
+      ),
+    },
+    {
+      accessorKey: 'ativo',
+      header: 'Status',
+      cell: ({ row }) => (
+        <Badge variant={row.original.ativo ? 'default' : 'secondary'}>
+          {row.original.ativo ? 'Ativo' : 'Inativo'}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: 'ordem',
+      header: 'Ordem',
+      cell: ({ row }) => (
+        <span className="text-sm">{row.original.ordem}</span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: () => <div className="text-right w-full">Ações</div>,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-2">
+          <Link href={`/centros-de-trabalho/setores-produtivos/editar/${row.original.id}`}>
+            <Button variant="outline" size="sm">
+              <Edit className="h-4 w-4" />
+            </Button>
+          </Link>
+          <Button variant="outline" size="sm" onClick={() => setToDelete(row.original)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  const header = (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-4">
+        <Link href="/centros-de-trabalho">
+          <Button variant="outline" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
+          </Button>
+        </Link>
+        <div className="flex items-center gap-3">
+          <Building2 className="h-7 w-7" />
+          <div>
+            <h1 className="text-3xl font-bold">Setores Produtivos</h1>
+            <p className="text-gray-600 mt-1">Gerencie os setores produtivos da sua empresa</p>
+          </div>
+        </div>
+      </div>
+      <Link href="/centros-de-trabalho/setores-produtivos/novo">
+        <Button>
+          <Plus className="mr-2 h-4 w-4" />
+          Novo Setor
+        </Button>
+      </Link>
+    </div>
+  );
+
+  const toolbar = (
+    <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+      <div className="flex items-center gap-2 w-full sm:w-auto">
+        <Search className="h-4 w-4 text-gray-400" />
+        <Input
+          placeholder="Buscar por nome ou descrição..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full sm:w-64"
+        />
+      </div>
+      {!isMobile && (
+        <div className="flex items-center gap-2">
+          <Button
+            variant={viewMode === 'table' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('table')}
+          >
+            <List className="h-4 w-4 mr-2" />
+            Tabela
+          </Button>
+          <Button
+            variant={viewMode === 'cards' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('cards')}
+          >
+            <Grid3X3 className="h-4 w-4 mr-2" />
+            Cards
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
+  const table = <DataTable<SetorProdutivo, unknown> columns={columns} data={filtered} />;
+
+  const emptyState = (
+    <Card>
+      <CardContent className="flex flex-col items-center justify-center py-12">
+        <div className="text-center">
+          <h3 className="text-lg font-semibold mb-2">Nenhum setor cadastrado</h3>
+          <p className="text-gray-600 mb-4">Cadastre seu primeiro setor produtivo.</p>
+          <Link href="/centros-de-trabalho/setores-produtivos/novo">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Cadastrar Setor
+            </Button>
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
   );
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Setores Produtivos</h1>
-            <p className="text-gray-600">Carregando...</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map(i => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <div className="animate-pulse space-y-3">
-                  <div className="h-4 bg-gray-200 rounded w-3/4" />
-                  <div className="h-3 bg-gray-200 rounded w-1/2" />
-                  <div className="h-3 bg-gray-200 rounded w-1/4" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+      <div className="p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-32 bg-gray-200 rounded"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <IconBuildingFactory className="h-6 w-6" />
-            Setores Produtivos
-          </h1>
-          <p className="text-gray-600">
-            Gerencie os setores produtivos da sua empresa
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={fetchSetores}>
-            <IconRefresh className="h-4 w-4 mr-2" />
-            Atualizar
-          </Button>
-          <Button asChild>
-            <Link href="/centros-de-trabalho/setores-produtivos/novo">
-              <IconPlus className="h-4 w-4 mr-2" />
-              Novo Setor
-            </Link>
-          </Button>
-        </div>
-      </div>
-
-      {/* Filtros */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <IconSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Buscar setores..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Badge variant="secondary">
-              {filteredSetores.length} setor(es)
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Lista de Setores */}
-      {filteredSetores.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <IconBuildingFactory className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-600 mb-2">
-              {searchTerm ? 'Nenhum setor encontrado' : 'Nenhum setor cadastrado'}
-            </h3>
-            <p className="text-gray-500 mb-4">
-              {searchTerm 
-                ? 'Tente ajustar os termos de busca'
-                : 'Comece criando seu primeiro setor produtivo'
-              }
-            </p>
-            {!searchTerm && (
-              <Button asChild>
-                <Link href="/centros-de-trabalho/setores-produtivos/novo">
-                  <IconPlus className="h-4 w-4 mr-2" />
-                  Criar Primeiro Setor
-                </Link>
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredSetores.map((setor) => (
-            <Card key={setor.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <div 
-                      className="w-4 h-4 rounded-full" 
-                      style={{ backgroundColor: setor.cor }}
-                    />
-                    {setor.nome}
-                  </CardTitle>
-                  <Badge variant={setor.ativo ? 'default' : 'secondary'}>
-                    {setor.ativo ? 'Ativo' : 'Inativo'}
-                  </Badge>
-                </div>
-                {setor.descricao && (
-                  <CardDescription>{setor.descricao}</CardDescription>
-                )}
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* Informações do setor */}
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <IconClock className="h-4 w-4 text-gray-500" />
-                      <span className="text-gray-600">Ordem:</span>
+    <div className="p-6 space-y-6">
+      {header}
+      {toolbar}
+      {filtered.length ? (
+        viewMode === 'table' ? (
+          table
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map((setor) => (
+              <Card key={setor.id} className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2">
+                        <div 
+                          className="w-4 h-4 rounded-full" 
+                          style={{ backgroundColor: setor.cor }}
+                        />
+                        <span>{setor.nome}</span>
+                      </CardTitle>
+                      {setor.descricao && (
+                        <div className="text-xs text-gray-500 mt-1">{setor.descricao}</div>
+                      )}
+                    </div>
+                    <Badge variant={setor.ativo ? 'default' : 'secondary'}>
+                      {setor.ativo ? 'Ativo' : 'Inativo'}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span>Ordem:</span>
                       <span className="font-medium">{setor.ordem}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <IconUsers className="h-4 w-4 text-gray-500" />
-                      <span className="text-gray-600">Operadores:</span>
-                      <span className="font-medium">0</span>
+                    <div className="pt-3 border-t flex gap-2">
+                      <Link href={`/centros-de-trabalho/setores-produtivos/editar/${setor.id}`} className="flex-1">
+                        <Button variant="outline" size="sm" className="w-full">Editar</Button>
+                      </Link>
+                      <Button variant="outline" size="sm" onClick={() => setToDelete(setor)}>Excluir</Button>
                     </div>
                   </div>
-
-                  {/* Ações */}
-                  <div className="flex items-center gap-2 pt-2 border-t">
-                    <Button variant="outline" size="sm" asChild className="flex-1">
-                      <Link href={`/centros-de-trabalho/setores-produtivos/editar/${setor.id}`}>
-                        <IconEdit className="h-4 w-4 mr-1" />
-                        Editar
-                      </Link>
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleDelete(setor.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <IconTrash className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )
+      ) : (
+        emptyState
       )}
+
+      <ConfirmDialog
+        open={!!toDelete}
+        title="Excluir Setor Produtivo"
+        description={toDelete ? `Tem certeza que deseja excluir o setor "${toDelete.nome}"? Esta ação não pode ser desfeita.` : ''}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        onConfirm={() => { if (toDelete) { handleDelete(toDelete.id); setToDelete(null); } }}
+        onCancel={() => setToDelete(null)}
+      />
     </div>
   );
 }

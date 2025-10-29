@@ -17,6 +17,15 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 
+interface WorkflowTemplateSetor {
+  id: string;
+  setorId: string;
+  nomeSetor?: string;
+  ordem: number;
+  tempoEstimado?: number | null;
+  obrigatorio?: boolean;
+}
+
 interface WorkflowTemplate {
   id: string;
   nome: string;
@@ -26,6 +35,7 @@ interface WorkflowTemplate {
   sequencial: boolean;
   criado_em: string;
   atualizado_em: string;
+  setores?: WorkflowTemplateSetor[];
 }
 
 export default function WorkflowsPage() {
@@ -194,8 +204,10 @@ export default function WorkflowsPage() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <div className="text-sm font-medium text-gray-500">Etapas</div>
-                  <div className="text-lg font-semibold">{workflow.etapas?.length || 0}</div>
+                  <div className="text-sm font-medium text-gray-500">Setores</div>
+                  <div className="text-lg font-semibold">
+                    {workflow.setores?.length ?? workflow.etapas?.length ?? 0}
+                  </div>
                 </div>
                 <div>
                   <div className="text-sm font-medium text-gray-500">Tipo</div>
@@ -217,6 +229,31 @@ export default function WorkflowsPage() {
                 </div>
               </div>
             </CardContent>
+            {workflow.setores && workflow.setores.length > 0 && (
+              <div className="px-6 pb-6">
+                <div className="text-xs uppercase font-medium text-gray-500 mb-2">
+                  Sequência
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {workflow.setores
+                    .slice()
+                    .sort((a, b) => a.ordem - b.ordem)
+                    .map((setor) => (
+                      <span
+                        key={setor.id}
+                        className="rounded-full border px-3 py-1 text-xs bg-gray-50"
+                      >
+                        {setor.nomeSetor || 'Setor'}{' '}
+                        <span className="text-gray-500">
+                          {setor.tempoEstimado
+                            ? `• ${setor.tempoEstimado} min`
+                            : null}
+                        </span>
+                      </span>
+                    ))}
+                </div>
+              </div>
+            )}
           </Card>
         ))}
       </div>

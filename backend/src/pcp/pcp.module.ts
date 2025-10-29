@@ -9,6 +9,7 @@ import { ApontamentoController } from './controllers/apontamento.controller';
 import { NotificacoesController } from './controllers/notificacoes.controller';
 import { PCPKanbanController } from './controllers/pcp-kanban.controller';
 import { WorkflowService } from './services/workflow.service';
+import { WorkflowAssignmentService } from './services/workflow-assignment.service';
 import { EtapaService } from './services/etapa.service';
 import { ApontamentoService } from './services/apontamento.service';
 import { OSPCPIntegrationService } from './services/os-pcp-integration.service';
@@ -28,6 +29,7 @@ import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-est
   ],
   providers: [
     WorkflowService,
+    WorkflowAssignmentService,
     EtapaService,
     ApontamentoService,
     OSPCPIntegrationService,
@@ -37,6 +39,7 @@ import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-est
   ],
   exports: [
     WorkflowService,
+    WorkflowAssignmentService,
     EtapaService,
     ApontamentoService,
     OSPCPIntegrationService,
