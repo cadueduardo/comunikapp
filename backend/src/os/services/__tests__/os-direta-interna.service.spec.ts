@@ -4,6 +4,10 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { DocumentCodeService, TipoOS } from '../../../documentos/document-code.service';
 import { ValidacaoEstoqueService } from '../../../orcamentos-v2/services/validacao-estoque.service';
 import { AlcadasOrcamentoService } from '../alcadas-orcamento.service';
+import { EventosAutomaticosService } from '../eventos-automaticos.service';
+import { OSApprovalPermissionsService } from '../os-approval-permissions.service';
+import { OSValidacoesService } from '../os-validacoes.service';
+import { WorkflowAssignmentService } from '../../../pcp/services/workflow-assignment.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { TipoOS as TipoOSInterface } from '../../interfaces/os-direta-interna.interface';
 
@@ -58,6 +62,24 @@ describe('OSService - OS Direta/Interna', () => {
     })
   };
 
+  const mockEventosAutomaticosService = {
+    notificarMudancaStatusOS: jest.fn().mockResolvedValue(undefined),
+    notificarOSLiberadaParaPCP: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockOSApprovalPermissionsService = {
+    podeAprovarTecnica: jest.fn().mockResolvedValue({ pode: true }),
+  };
+
+  const mockOSValidacoesService = {
+    validarOS: jest.fn().mockResolvedValue({ valida: true, acoes: [], correcoes_necessarias: [], alertas: [] }),
+    aplicarAcoesAutomaticas: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockWorkflowAssignmentService = {
+    atribuirWorkflow: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -78,6 +100,10 @@ describe('OSService - OS Direta/Interna', () => {
           provide: AlcadasOrcamentoService,
           useValue: mockAlcadasOrcamentoService,
         },
+        { provide: EventosAutomaticosService, useValue: mockEventosAutomaticosService },
+        { provide: OSApprovalPermissionsService, useValue: mockOSApprovalPermissionsService },
+        { provide: OSValidacoesService, useValue: mockOSValidacoesService },
+        { provide: WorkflowAssignmentService, useValue: mockWorkflowAssignmentService },
       ],
     }).compile();
 

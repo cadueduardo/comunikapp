@@ -98,7 +98,10 @@ export class WorkflowTemplateController {
     const lojaId = user.loja_id;
 
     const templates = await this.prisma.workflowOS.findMany({
-      where: { loja_id: lojaId },
+      where: { 
+        loja_id: lojaId,
+        ativo: true, // Apenas workflows ativos (exclusão lógica oculta os inativos)
+      },
       orderBy: { criado_em: 'desc' },
       include: this.workflowInclude,
     });
@@ -234,26 +237,96 @@ export class WorkflowTemplateController {
     return this.mapTemplate(resultado);
   }
 
+  @Post('limpar-inativos')
+  @ApiOperation({ summary: 'Limpar workflows inativos sem instâncias vinculadas' })
+  @ApiResponse({ status: 200, description: 'Workflows limpos com sucesso' })
+  async limparInativos(@Request() req: any) {
+    const user = req['user'] || req.user;
+    const lojaId = user.loja_id;
+
+    // Buscar workflows inativos
+    const workflowsInativos = await this.prisma.workflowOS.findMany({
+      where: { 
+        loja_id: lojaId,
+        ativo: false,
+      },
+      select: { id: true, nome: true },
+    });
+
+    const deletados: string[] = [];
+    const mantidos: { nome: string; instancias: number }[] = [];
+
+    for (const workflow of workflowsInativos) {
+      const instanciasCount = await this.prisma.workflowInstancia.count({
+        where: { workflow_id: workflow.id },
+      });
+
+      if (instanciasCount === 0) {
+        // Sem instâncias, pode deletar fisicamente
+        await this.prisma.workflowOS.delete({ where: { id: workflow.id } });
+        deletados.push(workflow.nome);
+      } else {
+        // Ainda tem instâncias, manter
+        mantidos.push({ nome: workflow.nome, instancias: instanciasCount });
+      }
+    }
+
+    return {
+      message: `Limpeza concluída. ${deletados.length} workflow(s) excluído(s), ${mantidos.length} mantido(s).`,
+      deletados,
+      mantidos,
+    };
+  }
+
   @Delete(':id')
-  @ApiOperation({ summary: 'Deletar template de workflow' })
+  @ApiOperation({ summary: 'Deletar template de workflow (exclusão lógica se houver instâncias ativas)' })
   @ApiResponse({ status: 200, description: 'Template deletado com sucesso' })
   @ApiResponse({ status: 404, description: 'Template não encontrado' })
   async deletarTemplate(@Param('id') id: string, @Request() req: any) {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
 
-    const template = await this.prisma.workflowOS.findFirst({
+    let template = await this.prisma.workflowOS.findFirst({
       where: { id, loja_id: lojaId },
     });
 
+    // Fallback: permitir passar o nome no lugar do id
     if (!template) {
-      throw new BadRequestException('Template não encontrado');
+      template = await this.prisma.workflowOS.findFirst({
+        where: { nome: id, loja_id: lojaId },
+      });
+      
+      if (!template) {
+        throw new BadRequestException('Template não encontrado');
+      }
+      id = template.id; // Normalizar para o id real
     }
 
-    await this.prisma.workflowOS.delete({
-      where: { id },
+    // Verificar se há instâncias utilizando este template
+    const instanciasCount = await this.prisma.workflowInstancia.count({
+      where: { workflow_id: id },
     });
 
-    return { message: 'Template deletado com sucesso' };
+    if (instanciasCount > 0) {
+      // Se houver instâncias, fazer exclusão lógica (marcar como inativo)
+      // O workflow some do frontend mas continua funcionando para instâncias existentes
+      await this.prisma.workflowOS.update({
+        where: { id },
+        data: { ativo: false },
+      });
+
+      return { 
+        message: 'Workflow desativado com sucesso. Ele permanecerá disponível para as instâncias existentes.',
+        softDelete: true,
+      };
+    }
+
+    // Se não houver instâncias, fazer exclusão física
+    await this.prisma.workflowOS.delete({ where: { id } });
+
+    return { 
+      message: 'Workflow excluído com sucesso',
+      softDelete: false,
+    };
   }
 }

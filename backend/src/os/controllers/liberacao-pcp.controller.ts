@@ -61,17 +61,22 @@ export class LiberacaoPCPController {
   }
 
   @Get('liberadas-para-pcp')
-@Get('liberadas-para-pcp')
   @ApiOperation({ summary: 'Listar OSs liberadas para PCP' })
   @ApiResponse({ status: 200, description: 'Lista de OSs liberadas retornada com sucesso' })
   async listarOSsLiberadas(@Request() req: any) {
+    console.log('🚀 [DEBUG] INÍCIO DO ENDPOINT liberadas-para-pcp');
+    
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
+
+    console.log('🔍 [DEBUG] Buscando OSs liberadas para loja:', lojaId);
 
     const [ossLiberadas, ossEmWorkflow] = await Promise.all([
       this.osService.findByStatus(lojaId, StatusOS.LIBERADA_PARA_PCP),
       this.osService.findByStatus(lojaId, StatusOS.EM_WORKFLOW),
     ]);
+
+    console.log('🔍 [DEBUG] OSs encontradas - LIBERADA_PARA_PCP:', ossLiberadas.length, 'EM_WORKFLOW:', ossEmWorkflow.length);
 
     const ossCandidatas = [...ossLiberadas, ...ossEmWorkflow];
 
@@ -79,10 +84,13 @@ export class LiberacaoPCPController {
       ossCandidatas.map(async (os) => {
         const produtosInfo = await this.contarProdutosLiberados(os.id);
 
-        if (
-          os.status === StatusOS.EM_WORKFLOW &&
-          produtosInfo.liberados_sem_workflow === 0
-        ) {
+        console.log('🔍 [DEBUG] OS', os.id, '- Status:', os.status, '- Produtos liberados:', produtosInfo.produtos_liberados_count, '/', produtosInfo.total_produtos, '- Pendentes workflow:', produtosInfo.liberados_sem_workflow);
+
+        // A OS deve continuar aparecendo enquanto houver itens liberados para PCP,
+        // independente de ter workflow atribuído ou não
+        // Só remover se não houver NENHUM item liberado
+        if (produtosInfo.produtos_liberados_count === 0) {
+          console.log('🔍 [DEBUG] OS', os.id, 'REMOVIDA - Nenhum produto liberado');
           return null;
         }
 

@@ -14,6 +14,7 @@ import { EventosAutomaticosService } from './eventos-automaticos.service';
 import { OSValidacoesService } from './os-validacoes.service';
 import { WorkflowAssignmentService } from '../../pcp/services/workflow-assignment.service';
 import { CreateOSDto } from '../dto/create-os.dto';
+import { CorrecaoMateriaisHelper } from '../helpers/correcao-materiais.helper';
 import { UpdateOSDto, AvancarEtapaDto } from '../dto/update-os.dto';
 import {
   OrdemServicoData,
@@ -86,7 +87,15 @@ export class OSService {
         statusInicial = StatusOS.AGUARDANDO_APROVACAO_ORCAMENTARIA;
       }
 
-      // 5. Criar OS
+      // 5. Preparar insumos calculados com correção inteligente (quando houver)
+      const insumosCorrigidos = Array.isArray(createOSDto.insumos_calculados)
+        ? CorrecaoMateriaisHelper.corrigirInsumosCalculados(
+            createOSDto.insumos_calculados as any,
+            Number(createOSDto.quantidade || 1),
+          )
+        : null;
+
+      // 6. Criar OS
       const os = await this.prisma.ordemServico.create({
         data: {
           numero,
@@ -101,8 +110,8 @@ export class OSService {
             : null,
           // NOTA: Os insumos calculados devem vir já processados pelo Motor de Cálculo V2
           // que aplica corretamente a multiplicação pela quantidade do produto
-          insumos_calculados: createOSDto.insumos_calculados
-            ? JSON.stringify(createOSDto.insumos_calculados)
+          insumos_calculados: insumosCorrigidos
+            ? JSON.stringify(insumosCorrigidos)
             : null,
           data_prazo: createOSDto.data_prazo ? new Date(createOSDto.data_prazo) : null,
           responsavel_id: createOSDto.responsavel_id,
@@ -113,7 +122,7 @@ export class OSService {
         },
       });
 
-      // 6. Registrar movimentacao inicial
+      // 7. Registrar movimentacao inicial
       await this.adicionarMovimentacao(
         os.id,
         TipoMovimentacaoOS.CRIACAO,
@@ -123,7 +132,7 @@ export class OSService {
         `OS criada no sistema - Status: ${statusInicial}`,
       );
 
-      // 7. Executar validações automáticas
+      // 8. Executar validações automáticas
       try {
         const resultadoValidacoes = await this.osValidacoesService.validarOS(os.id, lojaId);
         
@@ -763,6 +772,18 @@ export class OSService {
   }
 
   // ===== MÉTODOS AUXILIARES =====
+
+  // Wrapper privado para manter compatibilidade com testes existentes
+  // Aplica correção de materiais usando o helper centralizado
+  private corrigirInsumosCalculados(
+    insumos: any[],
+    quantidadeProduto: number,
+  ): any[] {
+    return CorrecaoMateriaisHelper.corrigirInsumosCalculados(
+      insumos as any,
+      Number(quantidadeProduto || 1),
+    ) as any[];
+  }
 
   private async executarValidacaoEstoque(lojaId: string, createOSDto: CreateOSDto): Promise<ValidacaoEstoqueOSResultado> {
     const resumoPadrao: ValidacaoEstoqueOSResultado = {

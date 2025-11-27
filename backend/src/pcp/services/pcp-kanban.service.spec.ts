@@ -15,7 +15,7 @@ const { KanbanMapper } = jest.requireMock('../mappers/kanban.mapper');
 
 describe('PCPKanbanService', () => {
   let service: PCPKanbanService;
-  let prisma: jest.Mocked<PrismaService>;
+  let prisma: any;
 
   beforeEach(async () => {
     prisma = {
@@ -25,8 +25,13 @@ describe('PCPKanbanService', () => {
       },
       workflowInstanciaSetor: {
         findMany: jest.fn(),
+        findFirst: jest.fn(),
+        update: jest.fn(),
         updateMany: jest.fn(),
         count: jest.fn(),
+      },
+      workflowInstancia: {
+        update: jest.fn(),
       },
       workflowSetor: {
         count: jest.fn(),
@@ -90,5 +95,412 @@ describe('PCPKanbanService', () => {
     });
     expect(KanbanMapper.mapearInstanciaParaKanban).toHaveBeenCalled();
     expect(resultado).toEqual([{ id: 'instancia-1' }]);
+  });
+
+  describe('iniciarProducao', () => {
+    it('deve iniciar produção de um item e atualizar etapa', async () => {
+      const etapa = {
+        id: 'etapa-1',
+        item_os_id: 'item-1',
+        setor_id: 'setor-1',
+        workflow_instancia_id: 'instancia-1',
+        status: 'PENDENTE',
+        ordem: 0,
+      };
+
+      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(etapa as any);
+      prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({ ...etapa, status: 'EM_ANDAMENTO' } as any);
+      prisma.workflowInstancia.update.mockResolvedValueOnce({ id: 'instancia-1' } as any);
+      prisma.itemOS.findUnique.mockResolvedValueOnce({
+        id: 'item-1',
+        os_id: 'os-1',
+        os: { id: 'os-1' },
+      } as any);
+      prisma.apontamento.create.mockResolvedValueOnce({ id: 'apontamento-1' } as any);
+
+      await service.iniciarProducao('item-1', 'operador-1', 'Observações');
+
+      expect(prisma.workflowInstanciaSetor.findFirst).toHaveBeenCalledWith({
+        where: {
+          item_os_id: 'item-1',
+          status: 'PENDENTE',
+        },
+      });
+
+      expect(prisma.workflowInstanciaSetor.update).toHaveBeenCalledWith({
+        where: { id: 'etapa-1' },
+        data: expect.objectContaining({
+          status: 'EM_ANDAMENTO',
+          operador_id: 'operador-1',
+          data_inicio: expect.any(Date),
+          observacoes: 'Observações',
+        }),
+      });
+
+      expect(prisma.workflowInstancia.update).toHaveBeenCalledWith({
+        where: { id: 'instancia-1' },
+        data: {
+          etapa_atual: 'setor-1',
+          atualizado_em: expect.any(Date),
+        },
+      });
+
+      expect(prisma.apontamento.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          os_id: 'os-1',
+          tipo: 'INICIO',
+          usuario_id: 'operador-1',
+          observacoes: 'Observações',
+        }),
+      });
+    });
+
+    it('deve lançar erro quando não há etapa pendente', async () => {
+      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(null as any);
+
+      await expect(
+        service.iniciarProducao('item-1', 'operador-1'),
+      ).rejects.toThrow('Etapa nao disponivel para inicio');
+    });
+  });
+
+  describe('concluirEtapa', () => {
+    it('deve concluir etapa e liberar próximo grupo quando todos concluem', async () => {
+      const etapaAtual = {
+        id: 'etapa-1',
+        item_os_id: 'item-1',
+        setor_id: 'setor-1',
+        workflow_instancia_id: 'instancia-1',
+        ordem: 0,
+        status: 'EM_ANDAMENTO',
+      };
+
+      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(etapaAtual as any);
+      prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({
+        ...etapaAtual,
+        status: 'CONCLUIDA',
+      } as any);
+      prisma.itemOS.findUnique.mockResolvedValueOnce({
+        id: 'item-1',
+        os_id: 'os-1',
+        os: { id: 'os-1' },
+      } as any);
+      prisma.apontamento.create.mockResolvedValueOnce({ id: 'apontamento-1' } as any);
+
+      // Simular que não há mais pendentes no grupo atual
+      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(null as any);
+
+      // Simular que existe próximo grupo
+      const proximoGrupo = {
+        id: 'etapa-2',
+        workflow_instancia_id: 'instancia-1',
+        ordem: 1,
+        status: 'AGUARDANDO',
+        setor_id: 'setor-2',
+      };
+      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(proximoGrupo as any);
+      prisma.workflowInstanciaSetor.updateMany.mockResolvedValueOnce({ count: 2 } as any);
+      prisma.workflowInstancia.update.mockResolvedValueOnce({ id: 'instancia-1' } as any);
+
+      await service.concluirEtapa('item-1', 'operador-1', 'Concluído', 100);
+
+      expect(prisma.workflowInstanciaSetor.update).toHaveBeenCalledWith({
+        where: { id: 'etapa-1' },
+        data: expect.objectContaining({
+          status: 'CONCLUIDA',
+          data_conclusao: expect.any(Date),
+          observacoes: 'Concluído',
+        }),
+      });
+
+      expect(prisma.apontamento.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          os_id: 'os-1',
+          tipo: 'CONCLUSAO',
+          usuario_id: 'operador-1',
+          quantidade_produzida: 100,
+        }),
+      });
+
+      // Deve liberar próximo grupo
+      expect(prisma.workflowInstanciaSetor.updateMany).toHaveBeenCalledWith({
+        where: {
+          workflow_instancia_id: 'instancia-1',
+          ordem: 1,
+          status: 'AGUARDANDO',
+        },
+        data: {
+          status: 'PENDENTE',
+          atualizado_em: expect.any(Date),
+        },
+      });
+    });
+
+    it('deve concluir workflow quando não há próximo grupo', async () => {
+      const etapaAtual = {
+        id: 'etapa-1',
+        item_os_id: 'item-1',
+        setor_id: 'setor-1',
+        workflow_instancia_id: 'instancia-1',
+        ordem: 1,
+        status: 'EM_ANDAMENTO',
+      };
+
+      prisma.workflowInstanciaSetor.findFirst
+        .mockResolvedValueOnce(etapaAtual as any) // etapa atual em andamento
+        .mockResolvedValueOnce(null as any) // não há pendentes no grupo atual
+        .mockResolvedValueOnce(null as any); // não há próximo grupo
+
+      prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({
+        ...etapaAtual,
+        status: 'CONCLUIDA',
+      } as any);
+      prisma.itemOS.findUnique.mockResolvedValueOnce({
+        id: 'item-1',
+        os_id: 'os-1',
+        os: { id: 'os-1' },
+      } as any);
+      prisma.apontamento.create.mockResolvedValueOnce({ id: 'apontamento-1' } as any);
+      prisma.workflowInstancia.update.mockResolvedValueOnce({ id: 'instancia-1' } as any);
+
+      await service.concluirEtapa('item-1', 'operador-1');
+
+      // Deve marcar workflow como concluído
+      expect(prisma.workflowInstancia.update).toHaveBeenCalledWith({
+        where: { id: 'instancia-1' },
+        data: {
+          status: 'CONCLUIDO',
+          data_fim: expect.any(Date),
+          etapa_atual: null,
+          atualizado_em: expect.any(Date),
+        },
+      });
+    });
+
+    it('deve manter próximo grupo como AGUARDANDO se ainda há pendentes no grupo atual', async () => {
+      const etapaAtual = {
+        id: 'etapa-1',
+        item_os_id: 'item-1',
+        setor_id: 'setor-1',
+        workflow_instancia_id: 'instancia-1',
+        ordem: 0,
+        status: 'EM_ANDAMENTO',
+      };
+
+      prisma.workflowInstanciaSetor.findFirst
+        .mockResolvedValueOnce(etapaAtual as any) // etapa atual em andamento - primeira busca
+        .mockResolvedValueOnce({ id: 'etapa-outro-item', ordem: 0, status: 'PENDENTE' } as any); // ainda há pendentes - dentro de liberarProximoGrupo
+
+      prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({
+        ...etapaAtual,
+        status: 'CONCLUIDA',
+      } as any);
+      prisma.itemOS.findUnique.mockResolvedValueOnce({
+        id: 'item-1',
+        os_id: 'os-1',
+        os: { id: 'os-1' },
+      } as any);
+      prisma.apontamento.create.mockResolvedValueOnce({ id: 'apontamento-1' } as any);
+
+      await service.concluirEtapa('item-1', 'operador-1');
+
+      // Não deve liberar próximo grupo (updateMany não chamado) nem concluir workflow
+      expect(prisma.workflowInstanciaSetor.updateMany).not.toHaveBeenCalled();
+      expect(prisma.workflowInstancia.update).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar erro quando não há etapa em andamento', async () => {
+      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(null as any);
+
+      await expect(
+        service.concluirEtapa('item-1', 'operador-1'),
+      ).rejects.toThrow('Nenhuma etapa em andamento encontrada');
+    });
+
+    it('deve liberar próximo grupo apenas quando todos os itens do grupo atual concluem', async () => {
+      // Cenário: workflow com 3 produtos, todos na mesma ordem 0
+      const etapaItem1 = {
+        id: 'etapa-item1',
+        item_os_id: 'item-1',
+        workflow_instancia_id: 'instancia-1',
+        ordem: 0,
+        status: 'EM_ANDAMENTO',
+      };
+
+      prisma.workflowInstanciaSetor.findFirst
+        .mockResolvedValueOnce(etapaItem1 as any) // etapa atual item-1
+        .mockResolvedValueOnce({ id: 'etapa-item2', ordem: 0, status: 'EM_ANDAMENTO' } as any); // ainda há outro item em andamento no grupo 0
+
+      prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({
+        ...etapaItem1,
+        status: 'CONCLUIDA',
+      } as any);
+      prisma.itemOS.findUnique.mockResolvedValueOnce({
+        id: 'item-1',
+        os_id: 'os-1',
+        os: { id: 'os-1' },
+      } as any);
+      prisma.apontamento.create.mockResolvedValueOnce({ id: 'apontamento-1' } as any);
+
+      await service.concluirEtapa('item-1', 'operador-1');
+
+      // Não deve liberar próximo grupo ainda (item-2 ainda em andamento)
+      expect(prisma.workflowInstanciaSetor.updateMany).not.toHaveBeenCalled();
+      expect(prisma.workflowInstancia.update).not.toHaveBeenCalled();
+    });
+
+    it('deve liberar próximo grupo quando o último item do grupo conclui', async () => {
+      const etapaItem3 = {
+        id: 'etapa-item3',
+        item_os_id: 'item-3',
+        workflow_instancia_id: 'instancia-1',
+        ordem: 0,
+        status: 'EM_ANDAMENTO',
+      };
+
+      prisma.workflowInstanciaSetor.findFirst
+        .mockResolvedValueOnce(etapaItem3 as any) // etapa atual item-3
+        .mockResolvedValueOnce(null as any); // não há mais pendentes no grupo 0
+
+      const proximoGrupo = {
+        id: 'etapa-proximo',
+        workflow_instancia_id: 'instancia-1',
+        ordem: 1,
+        status: 'AGUARDANDO',
+        setor_id: 'setor-2',
+      };
+      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(proximoGrupo as any);
+
+      prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({
+        ...etapaItem3,
+        status: 'CONCLUIDA',
+      } as any);
+      prisma.itemOS.findUnique.mockResolvedValueOnce({
+        id: 'item-3',
+        os_id: 'os-1',
+        os: { id: 'os-1' },
+      } as any);
+      prisma.apontamento.create.mockResolvedValueOnce({ id: 'apontamento-1' } as any);
+      prisma.workflowInstanciaSetor.updateMany.mockResolvedValueOnce({ count: 3 } as any); // 3 itens liberados para ordem 1
+      prisma.workflowInstancia.update.mockResolvedValueOnce({ id: 'instancia-1' } as any);
+
+      await service.concluirEtapa('item-3', 'operador-1');
+
+      // Deve liberar próximo grupo (ordem 1) porque todos da ordem 0 concluíram
+      expect(prisma.workflowInstanciaSetor.updateMany).toHaveBeenCalledWith({
+        where: {
+          workflow_instancia_id: 'instancia-1',
+          ordem: 1,
+          status: 'AGUARDANDO',
+        },
+        data: {
+          status: 'PENDENTE',
+          atualizado_em: expect.any(Date),
+        },
+      });
+
+      expect(prisma.workflowInstancia.update).toHaveBeenCalledWith({
+        where: { id: 'instancia-1' },
+        data: {
+          etapa_atual: 'setor-2',
+          atualizado_em: expect.any(Date),
+        },
+      });
+    });
+
+    it('deve concluir workflow quando não há próximo grupo e todos os últimos itens concluem', async () => {
+      const etapaFinal = {
+        id: 'etapa-final',
+        item_os_id: 'item-1',
+        workflow_instancia_id: 'instancia-1',
+        ordem: 2, // última ordem
+        status: 'EM_ANDAMENTO',
+        setor_id: 'setor-final',
+      };
+
+      prisma.workflowInstanciaSetor.findFirst
+        .mockResolvedValueOnce(etapaFinal as any) // etapa atual
+        .mockResolvedValueOnce(null as any) // não há mais pendentes no grupo 2
+        .mockResolvedValueOnce(null as any); // não há próximo grupo
+
+      prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({
+        ...etapaFinal,
+        status: 'CONCLUIDA',
+      } as any);
+      prisma.itemOS.findUnique.mockResolvedValueOnce({
+        id: 'item-1',
+        os_id: 'os-1',
+        os: { id: 'os-1' },
+      } as any);
+      prisma.apontamento.create.mockResolvedValueOnce({ id: 'apontamento-1' } as any);
+      prisma.workflowInstancia.update.mockResolvedValueOnce({ id: 'instancia-1' } as any);
+
+      await service.concluirEtapa('item-1', 'operador-1');
+
+      // Deve marcar workflow como concluído
+      expect(prisma.workflowInstancia.update).toHaveBeenCalledWith({
+        where: { id: 'instancia-1' },
+        data: {
+          status: 'CONCLUIDO',
+          data_fim: expect.any(Date),
+          etapa_atual: null,
+          atualizado_em: expect.any(Date),
+        },
+      });
+    });
+
+    it('deve manter status de itens em ordens diferentes quando apenas um grupo conclui', async () => {
+      // Cenário: ordem 0 tem 2 itens, ordem 1 tem 2 itens
+      // Quando ordem 0 conclui, ordem 1 deve ser liberada
+      // Mas ordem 1 não deve mudar status de itens se algum já estava em outro status
+      const etapaOrdem0Item = {
+        id: 'etapa-ordem0',
+        item_os_id: 'item-ordem0',
+        workflow_instancia_id: 'instancia-1',
+        ordem: 0,
+        status: 'EM_ANDAMENTO',
+      };
+
+      prisma.workflowInstanciaSetor.findFirst
+        .mockResolvedValueOnce(etapaOrdem0Item as any)
+        .mockResolvedValueOnce(null as any); // não há mais pendentes na ordem 0
+
+      const proximoGrupo = {
+        id: 'etapa-ordem1',
+        workflow_instancia_id: 'instancia-1',
+        ordem: 1,
+        status: 'AGUARDANDO',
+        setor_id: 'setor-ordem1',
+      };
+      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(proximoGrupo as any);
+
+      prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({
+        ...etapaOrdem0Item,
+        status: 'CONCLUIDA',
+      } as any);
+      prisma.itemOS.findUnique.mockResolvedValueOnce({
+        id: 'item-ordem0',
+        os_id: 'os-1',
+        os: { id: 'os-1' },
+      } as any);
+      prisma.apontamento.create.mockResolvedValueOnce({ id: 'apontamento-1' } as any);
+      prisma.workflowInstanciaSetor.updateMany.mockResolvedValueOnce({ count: 2 } as any);
+      prisma.workflowInstancia.update.mockResolvedValueOnce({ id: 'instancia-1' } as any);
+
+      await service.concluirEtapa('item-ordem0', 'operador-1');
+
+      // Deve atualizar apenas itens AGUARDANDO na ordem 1 para PENDENTE
+      expect(prisma.workflowInstanciaSetor.updateMany).toHaveBeenCalledWith({
+        where: {
+          workflow_instancia_id: 'instancia-1',
+          ordem: 1,
+          status: 'AGUARDANDO',
+        },
+        data: {
+          status: 'PENDENTE',
+          atualizado_em: expect.any(Date),
+        },
+      });
+    });
   });
 });

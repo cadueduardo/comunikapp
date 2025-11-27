@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ArteLinkAprovacao, ArteStatus } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
@@ -55,10 +55,14 @@ export interface AprovarArteDto {
   comentario?: string;
   ip_address?: string;
   user_agent?: string;
+  versao_id?: string; // Permite especificar versão específica para aprovação
+  produto_id?: string; // ID do produto para contexto
 }
 
 @Injectable()
 export class ArteLinkAprovacaoService {
+  private readonly logger = new Logger(ArteLinkAprovacaoService.name);
+
   constructor(
     private prisma: PrismaService,
     private notificacaoService: ArteNotificacaoService
@@ -203,13 +207,14 @@ export class ArteLinkAprovacaoService {
       throw new Error('Link de aprovação não encontrado');
     }
 
-    if (!link.ativo) {
-      throw new Error('Link de aprovação inativo');
-    }
-
-    if (link.expira_em < new Date()) {
+    // Link público permite visualização mesmo após aprovações
+    // Só verifica expiração se houver data de expiração configurada
+    if (link.expira_em && link.expira_em < new Date()) {
       throw new Error('Link de aprovação expirado');
     }
+
+    // Não verificar link.ativo aqui - o link pode estar marcado como inativo
+    // mas ainda deve permitir visualização de artes já aprovadas e aprovar outras pendentes
 
     // Buscar todas as versões da mesma OS (todos os produtos/serviços)
     console.log('🔍 [getVersaoByToken] Buscando versões para:', {
@@ -308,59 +313,290 @@ export class ArteLinkAprovacaoService {
    * Processa aprovação ou rejeição da arte
    */
   async processarAprovacao(dto: AprovarArteDto) {
-    const { token_publico, aprovado, comentario, ip_address, user_agent } = dto;
+    const { token_publico, aprovado, comentario, ip_address, user_agent, versao_id } = dto;
 
-    // Buscar link
-    const link = await this.prisma.arteLinkAprovacao.findUnique({
-      where: { token_publico },
-      include: {
-        versao: {
-          include: {
-            autor: true,
-            os: {
-              include: {
-                cliente: true,
+    let link;
+
+    // Se versao_id foi fornecido, buscar link ativo para aquela versão específica OU qualquer link da mesma OS
+    // O link público é compartilhado para todas as artes da mesma OS
+    if (versao_id) {
+      this.logger.log(`🔍 Buscando link para versão específica: ${versao_id}`);
+      
+      // Primeiro, buscar versão para obter os_id
+      const versaoSolicitada = await this.prisma.arteVersao.findUnique({
+        where: { id: versao_id },
+        select: { os_id: true, loja_id: true },
+      });
+
+      if (!versaoSolicitada) {
+        throw new Error('Versão não encontrada');
+      }
+
+      // Buscar link para a versão especificada OU qualquer link da mesma OS
+      // Não filtrar por ativo - o link único da OS sempre permite acesso
+      link = await this.prisma.arteLinkAprovacao.findFirst({
+        where: {
+          OR: [
+            { versao_id },
+            {
+              versao: {
+                os_id: versaoSolicitada.os_id,
+              },
+            },
+          ],
+          expira_em: {
+            gt: new Date(),
+          },
+        },
+        include: {
+          versao: {
+            include: {
+              autor: true,
+              os: {
+                include: {
+                  cliente: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      });
+
+      if (!link) {
+        // Se não encontrou link ativo para a versão, tentar buscar pelo token como fallback
+        this.logger.warn(`⚠️ Link ativo não encontrado para versão ${versao_id}, tentando pelo token`);
+        link = await this.prisma.arteLinkAprovacao.findUnique({
+          where: { token_publico },
+          include: {
+            versao: {
+              include: {
+                autor: true,
+                os: {
+                  include: {
+                    cliente: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        // Se encontrou link pelo token mas não é da versão correta, buscar link correto pela OS
+        if (link && link.versao_id !== versao_id) {
+          this.logger.log(`🔍 Link do token não corresponde à versão solicitada, buscando link correto`);
+          const versaoSolicitada = await this.prisma.arteVersao.findUnique({
+            where: { id: versao_id },
+            select: { os_id: true, loja_id: true },
+          });
+
+          if (versaoSolicitada && versaoSolicitada.os_id === link.versao.os_id) {
+            // Buscar link para a versão correta (não filtrar por ativo)
+            link = await this.prisma.arteLinkAprovacao.findFirst({
+              where: {
+                versao_id,
+                expira_em: {
+                  gt: new Date(),
+                },
+              },
+              include: {
+                versao: {
+                  include: {
+                    autor: true,
+                    os: {
+                      include: {
+                        cliente: true,
+                      },
+                    },
+                  },
+                },
+              },
+            });
+          }
+        }
+      }
+    } else {
+      // Buscar link pelo token (comportamento original)
+      link = await this.prisma.arteLinkAprovacao.findUnique({
+        where: { token_publico },
+        include: {
+          versao: {
+            include: {
+              autor: true,
+              os: {
+                include: {
+                  cliente: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
 
     if (!link) {
-      throw new Error('Link de aprovação não encontrado');
+      // Se versao_id foi fornecido mas não encontrou link, criar um novo link para aquela versão
+      if (versao_id) {
+        this.logger.log(`📝 Criando novo link para versão ${versao_id} (link não encontrado)`);
+        
+        // Verificar se a versão existe e pertence à mesma OS do token original
+        const versaoSolicitada = await this.prisma.arteVersao.findUnique({
+          where: { id: versao_id },
+          include: {
+            os: true,
+          },
+        });
+
+        if (!versaoSolicitada) {
+          throw new Error('Versão não encontrada');
+        }
+
+        // Verificar se já existe link ativo para esta versão OU qualquer link da mesma OS
+        const linkExistente = await this.prisma.arteLinkAprovacao.findFirst({
+          where: {
+            OR: [
+              { versao_id },
+              {
+                versao: {
+                  os_id: versaoSolicitada.os_id,
+                },
+              },
+            ],
+            expira_em: { gt: new Date() },
+          },
+        });
+
+        if (linkExistente) {
+          link = linkExistente;
+          // Recarregar com includes
+          link = await this.prisma.arteLinkAprovacao.findUnique({
+            where: { id: linkExistente.id },
+            include: {
+              versao: {
+                include: {
+                  autor: true,
+                  os: {
+                    include: {
+                      cliente: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+        } else {
+          // Criar novo link para esta versão
+          const tokenOriginal = await this.prisma.arteLinkAprovacao.findUnique({
+            where: { token_publico },
+            select: { versao: { select: { os_id: true } } },
+          });
+
+          if (!tokenOriginal || tokenOriginal.versao.os_id !== versaoSolicitada.os_id) {
+            throw new Error('Versão não pertence à mesma OS do token fornecido');
+          }
+
+          // Criar novo link ativo para a versão solicitada
+          const novoToken = this.generatePublicToken();
+          const expira_em = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 dias
+
+          link = await this.prisma.arteLinkAprovacao.create({
+            data: {
+              versao_id,
+              token_publico: novoToken,
+              expira_em,
+              loja_id: versaoSolicitada.loja_id,
+              ativo: true,
+            },
+            include: {
+              versao: {
+                include: {
+                  autor: true,
+                  os: {
+                    include: {
+                      cliente: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+
+          this.logger.log(`✅ Novo link criado para versão ${versao_id}`);
+        }
+      } else {
+        throw new Error('Link de aprovação não encontrado');
+      }
     }
 
-    if (!link.ativo) {
-      throw new Error('Link de aprovação inativo');
+    // Validar se o link encontrado corresponde à versão solicitada (se foi especificada)
+    if (versao_id && link.versao_id !== versao_id) {
+      // Se não corresponde, buscar qualquer link da mesma OS
+      const versaoSolicitada = await this.prisma.arteVersao.findUnique({
+        where: { id: versao_id },
+        select: { os_id: true },
+      });
+
+      if (versaoSolicitada && versaoSolicitada.os_id === link.versao.os_id) {
+        // Links da mesma OS - permitir usar este link para aprovar a versão solicitada
+        this.logger.log(`✅ Link da mesma OS, permitindo aprovação da versão ${versao_id}`);
+        // Atualizar link.versao_id temporariamente só para a aprovação
+        // Mas precisamos buscar o link correto ou criar um novo
+      } else {
+        throw new Error(`Link de aprovação não corresponde à versão solicitada`);
+      }
     }
 
-    if (link.expira_em < new Date()) {
+    // Para processo de aprovação: verificar apenas expiração
+    // Link público nunca fica verdadeiramente inativo - sempre permite visualização
+    // e aprovação de artes pendentes da mesma OS
+    if (link.expira_em && link.expira_em < new Date()) {
       throw new Error('Link de aprovação expirado');
     }
 
-    if (link.aprovado) {
-      throw new Error('Arte já foi aprovada');
+    // Se versao_id foi fornecido, verificar se essa versão específica já foi aprovada
+    // Se não foi fornecido, usar a versão do link encontrado
+    const versaoIdParaVerificar = versao_id || link.versao_id;
+    
+    const versao = await this.prisma.arteVersao.findUnique({
+      where: { id: versaoIdParaVerificar },
+      select: { aprovado_por_cliente: true, status: true },
+    });
+
+    if (!versao) {
+      throw new Error('Versão de arte não encontrada');
     }
 
-    // Atualizar link
+    if (versao.aprovado_por_cliente) {
+      throw new Error('Esta versão de arte já foi aprovada. Você pode visualizá-la, mas não pode aprová-la novamente.');
+    }
+
+    // Remover validação do link.aprovado já que agora verificamos pela versão
+    // if (link.aprovado) {
+    //   throw new Error('Arte já foi aprovada');
+    // }
+
+    // Atualizar link - NUNCA desativar automaticamente
+    // O link é compartilhado para todas as artes da OS e deve permanecer ativo
+    // para permitir visualização e aprovação de outras versões
     await this.prisma.arteLinkAprovacao.update({
       where: { id: link.id },
       data: {
-        aprovado,
-        data_aprovacao: new Date(),
+        aprovado: link.aprovado || aprovado, // Manter true se já estava aprovado
+        data_aprovacao: link.data_aprovacao || new Date(),
         ip_aprovacao: ip_address,
         user_agent,
         comentario_cliente: comentario,
-        ativo: aprovado ? false : true, // Desativar apenas se aprovado, manter ativo para revisões
+        // SEMPRE manter ativo - link público não expira automaticamente após aprovações
+        // Permite visualizar artes aprovadas e aprovar outras pendentes
+        ativo: true,
       },
     });
 
-    // Atualizar status da versão
+    // Atualizar status da versão (usar versao_id se fornecido, senão usar do link)
+    const versaoIdParaAtualizar = versao_id || link.versao_id;
     const novoStatus = aprovado ? ArteStatus.APROVADA : ArteStatus.REVISAO_SOLICITADA;
     
     await this.prisma.arteVersao.update({
-      where: { id: link.versao_id },
+      where: { id: versaoIdParaAtualizar },
       data: {
         status: novoStatus,
         aprovado_por_cliente: aprovado,
@@ -372,7 +608,7 @@ export class ArteLinkAprovacaoService {
     if (comentario) {
       await this.prisma.arteComentario.create({
         data: {
-          versao_id: link.versao_id,
+          versao_id: versaoIdParaAtualizar,
           usuario_id: 'system', // ID especial para comentários do cliente
           comentario,
           tipo: 'CLIENTE',
@@ -387,7 +623,7 @@ export class ArteLinkAprovacaoService {
         await this.notificacaoService.notificarArteAprovada({
           tipo: 'ARTE_APROVADA',
           os_id: link.versao.os_id,
-          versao_id: link.versao_id,
+          versao_id: versaoIdParaAtualizar,
           destinatarios: [link.versao.autor.email],
           dados: {},
         });
@@ -395,7 +631,7 @@ export class ArteLinkAprovacaoService {
         await this.notificacaoService.notificarArteRejeitada({
           tipo: 'ARTE_REJEITADA',
           os_id: link.versao.os_id,
-          versao_id: link.versao_id,
+          versao_id: versaoIdParaAtualizar,
           destinatarios: [link.versao.autor.email],
           dados: {
             comentario_cliente: comentario,

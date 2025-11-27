@@ -3,6 +3,10 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { DocumentCodeService } from '../../../documentos/document-code.service';
 import { ValidacaoEstoqueService } from '../../../orcamentos-v2/services/validacao-estoque.service';
 import { AlcadasOrcamentoService } from '../alcadas-orcamento.service';
+import { EventosAutomaticosService } from '../eventos-automaticos.service';
+import { OSApprovalPermissionsService } from '../os-approval-permissions.service';
+import { OSValidacoesService } from '../os-validacoes.service';
+import { WorkflowAssignmentService } from '../../../pcp/services/workflow-assignment.service';
 import { OSService } from '../os.service';
 import { CorrecaoMateriaisHelper } from '../../helpers/correcao-materiais.helper';
 import { TipoOS } from '../../../documentos/document-code.service';
@@ -18,6 +22,9 @@ describe('OSService - Correção de Materiais', () => {
       findMany: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+    },
+    movimentacaoOS: {
+      create: jest.fn(),
     },
     loja: {
       findUnique: jest.fn().mockResolvedValue({ id: 'loja-123', nome: 'Loja Teste' }),
@@ -36,16 +43,33 @@ describe('OSService - Correção de Materiais', () => {
   };
 
   const mockValidacaoEstoqueService = {
-    validarInsumosOS: jest.fn().mockResolvedValue({
-      materiaisDisponiveis: true,
+    validarProdutoEstoque: jest.fn().mockResolvedValue({
       alertas: [],
       recomendacoes: [],
-      detalhes: [],
+      estoque_disponivel: [],
     }),
   };
 
   const mockAlcadasOrcamentoService = {
     validarAlcadas: jest.fn().mockResolvedValue({ aprovado: true }),
+  };
+
+  const mockEventosAutomaticosService = {
+    notificarMudancaStatusOS: jest.fn().mockResolvedValue(undefined),
+    notificarOSLiberadaParaPCP: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockOSApprovalPermissionsService = {
+    podeAprovarTecnica: jest.fn().mockResolvedValue({ pode: true }),
+  };
+
+  const mockOSValidacoesService = {
+    validarOS: jest.fn().mockResolvedValue({ valida: true, acoes: [], correcoes_necessarias: [], alertas: [] }),
+    aplicarAcoesAutomaticas: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockWorkflowAssignmentService = {
+    atribuirWorkflow: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(async () => {
@@ -56,6 +80,10 @@ describe('OSService - Correção de Materiais', () => {
         { provide: DocumentCodeService, useValue: mockDocumentCodeService },
         { provide: ValidacaoEstoqueService, useValue: mockValidacaoEstoqueService },
         { provide: AlcadasOrcamentoService, useValue: mockAlcadasOrcamentoService },
+        { provide: EventosAutomaticosService, useValue: mockEventosAutomaticosService },
+        { provide: OSApprovalPermissionsService, useValue: mockOSApprovalPermissionsService },
+        { provide: OSValidacoesService, useValue: mockOSValidacoesService },
+        { provide: WorkflowAssignmentService, useValue: mockWorkflowAssignmentService },
       ],
     }).compile();
 

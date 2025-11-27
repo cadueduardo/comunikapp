@@ -4,6 +4,7 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { OSModule } from '../os.module';
 import { DocumentCodeService } from '../../documentos/document-code.service';
 import { OSService } from '../services/os.service';
@@ -15,9 +16,12 @@ describe('Modulo OS - Testes de Isolamento', () => {
   let workflowService: WorkflowService;
 
   beforeEach(async () => {
+    process.env.JWT_SECRET = 'test-secret';
     module = await Test.createTestingModule({
-      imports: [OSModule],
+      imports: [ConfigModule.forRoot({ isGlobal: true }), OSModule],
     })
+      .overrideProvider(ConfigService)
+      .useValue({ get: jest.fn().mockReturnValue('test-secret') })
       .overrideProvider(DocumentCodeService)
       .useValue({
         gerarCodigoOS: jest.fn().mockResolvedValue('OS-2025-001'),
