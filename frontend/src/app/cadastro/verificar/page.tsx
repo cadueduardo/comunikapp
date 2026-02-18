@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { MailCheck, XCircle } from 'lucide-react';
 import { lojasApi } from '@/lib/api-client';
 
-export default function VerifyPage() {
+function VerifyContent() {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,4 +102,12 @@ export default function VerifyPage() {
       </div>
     </div>
   );
-} 
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <VerifyContent />
+    </Suspense>
+  );
+}

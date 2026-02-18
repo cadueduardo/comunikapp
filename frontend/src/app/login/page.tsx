@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,7 +20,7 @@ const GoogleIcon = () => (
     </svg>
 );
 
-export default function LoginPage() {
+function LoginContent() {
     const [formData, setFormData] = useState({
         email: "",
         password: ""
@@ -154,4 +154,12 @@ export default function LoginPage() {
             </main>
         </div>
     );
-} 
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen w-full bg-white" />}>
+            <LoginContent />
+        </Suspense>
+    );
+}
