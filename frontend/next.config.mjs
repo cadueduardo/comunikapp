@@ -7,13 +7,15 @@ const nextConfig = {
         ignoreBuildErrors: true,
     },
     env: {
-        BACKEND_URL: process.env.BACKEND_URL || 'http://localhost:4000',
+        BACKEND_URL: process.env.BACKEND_URL || 'http://127.0.0.1:4001',
     },
     async rewrites() {
         return [
             {
                 source: '/api/:path*',
-                destination: 'http://localhost:4000/:path*',
+                destination: process.env.BACKEND_URL
+                    ? `${process.env.BACKEND_URL}/:path*`
+                    : 'http://127.0.0.1:4001/:path*',
             },
         ];
     },
@@ -27,8 +29,14 @@ const nextConfig = {
             },
             {
                 protocol: 'http',
+                hostname: '127.0.0.1',
+                port: '4001',
+                pathname: '/uploads/**',
+            },
+            {
+                protocol: 'http',
                 hostname: 'localhost',
-                port: '4000',
+                port: '4001',
                 pathname: '/uploads/**',
             },
         ],
