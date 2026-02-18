@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:4000';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/$/, '');
 
 // Função para obter o token do localStorage
 const getAuthToken = () => {
@@ -69,7 +69,7 @@ export const apiRequest = async (
     
     // Verificar se é um erro de rede
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new Error('Não foi possível conectar ao servidor. Verifique se o backend está rodando em http://localhost:4000');
+      throw new Error('Não foi possível conectar ao servidor. Verifique a conectividade com a API.');
     }
     
     // Verificar se é um erro de CORS

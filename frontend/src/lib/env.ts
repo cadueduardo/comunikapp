@@ -1,7 +1,7 @@
 // Configuração de ambiente para o frontend
 export const ENV_CONFIG = {
   // URL da API - pode ser configurada por variável de ambiente
-  API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
+  API_URL: process.env.NEXT_PUBLIC_API_URL || '/api',
   
   // Nome da aplicação
   APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'Comunikapp',
@@ -29,7 +29,6 @@ export const ENV_CONFIG = {
 export const getEnvConfig = (key: keyof typeof ENV_CONFIG) => {
   return ENV_CONFIG[key];
 };
-
 
 
 
