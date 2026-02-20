@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "@/contexts/UserContext";
+import { SentryProvider } from "@/components/providers/SentryProvider";
 import { Toaster } from "@/components/ui/sonner"; // Importando o Toaster
 
 const inter = Inter({ 
@@ -23,10 +24,12 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={inter.className}>
-        <UserProvider>
-          {children}
-          <Toaster richColors /> {/* Adicionando o componente Toaster */}
-        </UserProvider>
+        <SentryProvider>
+          <UserProvider>
+            {children}
+            <Toaster richColors /> {/* Adicionando o componente Toaster */}
+          </UserProvider>
+        </SentryProvider>
       </body>
     </html>
   );
