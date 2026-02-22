@@ -11,6 +11,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Check } from "lucide-react";
+import Link from "next/link";
 import Header from "@/components/header";
 
 export default function HomePage() {
@@ -30,9 +31,11 @@ export default function HomePage() {
           <p className="max-w-2xl text-base sm:text-lg text-neutral-300">
             A plataforma modular para sua empresa de comunicação visual crescer. Otimize orçamentos, produção e finanças em um só lugar.
           </p>
-          <Button size="lg" className="bg-white text-black hover:bg-neutral-200 rounded-full px-8 py-6 text-base font-semibold">
-            Inicie seu teste gratuito de 30 dias
-          </Button>
+          <Link href="/cadastro">
+            <Button size="lg" className="bg-white text-black hover:bg-neutral-200 rounded-full px-8 py-6 text-base font-semibold">
+              Inicie seu teste gratuito de 30 dias
+            </Button>
+          </Link>
         </div>
 
         {/* Modules Section */}
@@ -246,8 +249,10 @@ const PricingCard = ({ plan, price, description, features, isPopular = false }: 
                 </li>
             ))}
         </ul>
-        <Button className={`w-full mt-8 text-base py-6 ${isPopular ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-white text-black hover:bg-neutral-200'}`}>
-            Começar Agora
-        </Button>
+        <Link href="/cadastro">
+            <Button className={`w-full mt-8 text-base py-6 ${isPopular ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-white text-black hover:bg-neutral-200'}`}>
+                Começar Agora
+            </Button>
+        </Link>
     </div>
 );

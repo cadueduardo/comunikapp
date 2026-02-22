@@ -48,6 +48,16 @@ const Header = () => {
                 )}
             >
                 <div className="text-xl font-bold pl-4 text-white">Comunikapp</div>
+                {/* Mobile: Cadastrar e Login sempre visíveis */}
+                <nav className="flex md:hidden items-center gap-2">
+                    <Link href="/login">
+                        <Button variant="ghost" size={scrolled ? "sm" : "default"}>Login</Button>
+                    </Link>
+                    <Link href="/cadastro">
+                        <Button size={scrolled ? "sm" : "default"} className="bg-white text-black hover:bg-neutral-200">Cadastrar</Button>
+                    </Link>
+                </nav>
+                {/* Desktop: nav completa */}
                 <nav className="hidden md:flex items-center space-x-2">
                     {navItems.map((item) => (
                          <Link key={item.name} href={item.href} className="text-neutral-300 hover:text-white px-3 py-1 text-sm">
