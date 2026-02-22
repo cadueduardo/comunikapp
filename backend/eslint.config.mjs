@@ -48,4 +48,13 @@ export default tseslint.config(
       'max-lines': ['warn', { max: 200, skipBlankLines: true, skipComments: true }],
     },
   },
+  {
+    files: [
+      'src/configuracoes/controllers/campos-validacao.controller.ts',
+      'src/configuracoes/controllers/test-campos-validacao.controller.ts',
+    ],
+    rules: {
+      'max-lines': ['warn', { max: 400, skipBlankLines: true, skipComments: true }],
+    },
+  },
 );

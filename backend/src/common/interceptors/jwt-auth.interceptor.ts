@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { JwtService } from '@nestjs/jwt';
+import { JwtPayload } from '../../auth/auth.service';
 
 @Injectable()
 export class JwtAuthInterceptor implements NestInterceptor {
@@ -38,7 +39,7 @@ export class JwtAuthInterceptor implements NestInterceptor {
 
     try {
       // Validar token JWT
-      const payload = this.jwtService.verify(token);
+      const payload = this.jwtService.verify<JwtPayload>(token);
 
       // Adicionar informações do usuário ao request
       request.user = {

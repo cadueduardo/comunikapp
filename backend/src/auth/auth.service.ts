@@ -18,6 +18,11 @@ export type AuthenticatedUser = Awaited<
   ReturnType<AuthService['validateUser']>
 >;
 
+/** Request com user autenticado (para uso em controllers). */
+export interface RequestWithUser {
+  user: AuthenticatedUser;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -25,14 +30,14 @@ export class AuthService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async generateToken(user: {
+  generateToken(user: {
     id: string;
     email: string;
     loja_id: string;
     funcao: string;
     nome_completo: string;
     loja?: loja;
-  }): Promise<string> {
+  }): string {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
