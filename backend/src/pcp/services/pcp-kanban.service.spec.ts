@@ -65,7 +65,9 @@ describe('PCPKanbanService', () => {
     const resultado = await service.obterKanbanGeral('loja-1');
 
     expect(prisma.ordemServico.findMany).toHaveBeenCalled();
-    expect(KanbanMapper.mapearOSParaKanban).toHaveBeenCalledWith({ id: 'os-1' });
+    expect(KanbanMapper.mapearOSParaKanban).toHaveBeenCalledWith({
+      id: 'os-1',
+    });
     expect(KanbanMapper.calcularEstatisticas).toHaveBeenCalled();
     expect(resultado.cards).toEqual([{ id: 'card-1' }]);
     expect(resultado.stats).toEqual({ total: 1 });
@@ -108,15 +110,24 @@ describe('PCPKanbanService', () => {
         ordem: 0,
       };
 
-      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(etapa as any);
-      prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({ ...etapa, status: 'EM_ANDAMENTO' } as any);
-      prisma.workflowInstancia.update.mockResolvedValueOnce({ id: 'instancia-1' } as any);
+      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(
+        etapa as any,
+      );
+      prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({
+        ...etapa,
+        status: 'EM_ANDAMENTO',
+      } as any);
+      prisma.workflowInstancia.update.mockResolvedValueOnce({
+        id: 'instancia-1',
+      } as any);
       prisma.itemOS.findUnique.mockResolvedValueOnce({
         id: 'item-1',
         os_id: 'os-1',
         os: { id: 'os-1' },
       } as any);
-      prisma.apontamento.create.mockResolvedValueOnce({ id: 'apontamento-1' } as any);
+      prisma.apontamento.create.mockResolvedValueOnce({
+        id: 'apontamento-1',
+      } as any);
 
       await service.iniciarProducao('item-1', 'operador-1', 'Observações');
 
@@ -156,7 +167,9 @@ describe('PCPKanbanService', () => {
     });
 
     it('deve lançar erro quando não há etapa pendente', async () => {
-      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(null as any);
+      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(
+        null as any,
+      );
 
       await expect(
         service.iniciarProducao('item-1', 'operador-1'),
@@ -175,7 +188,9 @@ describe('PCPKanbanService', () => {
         status: 'EM_ANDAMENTO',
       };
 
-      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(etapaAtual as any);
+      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(
+        etapaAtual as any,
+      );
       prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({
         ...etapaAtual,
         status: 'CONCLUIDA',
@@ -185,10 +200,14 @@ describe('PCPKanbanService', () => {
         os_id: 'os-1',
         os: { id: 'os-1' },
       } as any);
-      prisma.apontamento.create.mockResolvedValueOnce({ id: 'apontamento-1' } as any);
+      prisma.apontamento.create.mockResolvedValueOnce({
+        id: 'apontamento-1',
+      } as any);
 
       // Simular que não há mais pendentes no grupo atual
-      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(null as any);
+      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(
+        null as any,
+      );
 
       // Simular que existe próximo grupo
       const proximoGrupo = {
@@ -198,9 +217,15 @@ describe('PCPKanbanService', () => {
         status: 'AGUARDANDO',
         setor_id: 'setor-2',
       };
-      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(proximoGrupo as any);
-      prisma.workflowInstanciaSetor.updateMany.mockResolvedValueOnce({ count: 2 } as any);
-      prisma.workflowInstancia.update.mockResolvedValueOnce({ id: 'instancia-1' } as any);
+      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(
+        proximoGrupo as any,
+      );
+      prisma.workflowInstanciaSetor.updateMany.mockResolvedValueOnce({
+        count: 2,
+      } as any);
+      prisma.workflowInstancia.update.mockResolvedValueOnce({
+        id: 'instancia-1',
+      } as any);
 
       await service.concluirEtapa('item-1', 'operador-1', 'Concluído', 100);
 
@@ -260,8 +285,12 @@ describe('PCPKanbanService', () => {
         os_id: 'os-1',
         os: { id: 'os-1' },
       } as any);
-      prisma.apontamento.create.mockResolvedValueOnce({ id: 'apontamento-1' } as any);
-      prisma.workflowInstancia.update.mockResolvedValueOnce({ id: 'instancia-1' } as any);
+      prisma.apontamento.create.mockResolvedValueOnce({
+        id: 'apontamento-1',
+      } as any);
+      prisma.workflowInstancia.update.mockResolvedValueOnce({
+        id: 'instancia-1',
+      } as any);
 
       await service.concluirEtapa('item-1', 'operador-1');
 
@@ -289,7 +318,11 @@ describe('PCPKanbanService', () => {
 
       prisma.workflowInstanciaSetor.findFirst
         .mockResolvedValueOnce(etapaAtual as any) // etapa atual em andamento - primeira busca
-        .mockResolvedValueOnce({ id: 'etapa-outro-item', ordem: 0, status: 'PENDENTE' } as any); // ainda há pendentes - dentro de liberarProximoGrupo
+        .mockResolvedValueOnce({
+          id: 'etapa-outro-item',
+          ordem: 0,
+          status: 'PENDENTE',
+        } as any); // ainda há pendentes - dentro de liberarProximoGrupo
 
       prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({
         ...etapaAtual,
@@ -300,7 +333,9 @@ describe('PCPKanbanService', () => {
         os_id: 'os-1',
         os: { id: 'os-1' },
       } as any);
-      prisma.apontamento.create.mockResolvedValueOnce({ id: 'apontamento-1' } as any);
+      prisma.apontamento.create.mockResolvedValueOnce({
+        id: 'apontamento-1',
+      } as any);
 
       await service.concluirEtapa('item-1', 'operador-1');
 
@@ -310,7 +345,9 @@ describe('PCPKanbanService', () => {
     });
 
     it('deve lançar erro quando não há etapa em andamento', async () => {
-      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(null as any);
+      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(
+        null as any,
+      );
 
       await expect(
         service.concluirEtapa('item-1', 'operador-1'),
@@ -329,7 +366,11 @@ describe('PCPKanbanService', () => {
 
       prisma.workflowInstanciaSetor.findFirst
         .mockResolvedValueOnce(etapaItem1 as any) // etapa atual item-1
-        .mockResolvedValueOnce({ id: 'etapa-item2', ordem: 0, status: 'EM_ANDAMENTO' } as any); // ainda há outro item em andamento no grupo 0
+        .mockResolvedValueOnce({
+          id: 'etapa-item2',
+          ordem: 0,
+          status: 'EM_ANDAMENTO',
+        } as any); // ainda há outro item em andamento no grupo 0
 
       prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({
         ...etapaItem1,
@@ -340,7 +381,9 @@ describe('PCPKanbanService', () => {
         os_id: 'os-1',
         os: { id: 'os-1' },
       } as any);
-      prisma.apontamento.create.mockResolvedValueOnce({ id: 'apontamento-1' } as any);
+      prisma.apontamento.create.mockResolvedValueOnce({
+        id: 'apontamento-1',
+      } as any);
 
       await service.concluirEtapa('item-1', 'operador-1');
 
@@ -369,7 +412,9 @@ describe('PCPKanbanService', () => {
         status: 'AGUARDANDO',
         setor_id: 'setor-2',
       };
-      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(proximoGrupo as any);
+      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(
+        proximoGrupo as any,
+      );
 
       prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({
         ...etapaItem3,
@@ -380,9 +425,15 @@ describe('PCPKanbanService', () => {
         os_id: 'os-1',
         os: { id: 'os-1' },
       } as any);
-      prisma.apontamento.create.mockResolvedValueOnce({ id: 'apontamento-1' } as any);
-      prisma.workflowInstanciaSetor.updateMany.mockResolvedValueOnce({ count: 3 } as any); // 3 itens liberados para ordem 1
-      prisma.workflowInstancia.update.mockResolvedValueOnce({ id: 'instancia-1' } as any);
+      prisma.apontamento.create.mockResolvedValueOnce({
+        id: 'apontamento-1',
+      } as any);
+      prisma.workflowInstanciaSetor.updateMany.mockResolvedValueOnce({
+        count: 3,
+      } as any); // 3 itens liberados para ordem 1
+      prisma.workflowInstancia.update.mockResolvedValueOnce({
+        id: 'instancia-1',
+      } as any);
 
       await service.concluirEtapa('item-3', 'operador-1');
 
@@ -432,8 +483,12 @@ describe('PCPKanbanService', () => {
         os_id: 'os-1',
         os: { id: 'os-1' },
       } as any);
-      prisma.apontamento.create.mockResolvedValueOnce({ id: 'apontamento-1' } as any);
-      prisma.workflowInstancia.update.mockResolvedValueOnce({ id: 'instancia-1' } as any);
+      prisma.apontamento.create.mockResolvedValueOnce({
+        id: 'apontamento-1',
+      } as any);
+      prisma.workflowInstancia.update.mockResolvedValueOnce({
+        id: 'instancia-1',
+      } as any);
 
       await service.concluirEtapa('item-1', 'operador-1');
 
@@ -472,7 +527,9 @@ describe('PCPKanbanService', () => {
         status: 'AGUARDANDO',
         setor_id: 'setor-ordem1',
       };
-      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(proximoGrupo as any);
+      prisma.workflowInstanciaSetor.findFirst.mockResolvedValueOnce(
+        proximoGrupo as any,
+      );
 
       prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({
         ...etapaOrdem0Item,
@@ -483,9 +540,15 @@ describe('PCPKanbanService', () => {
         os_id: 'os-1',
         os: { id: 'os-1' },
       } as any);
-      prisma.apontamento.create.mockResolvedValueOnce({ id: 'apontamento-1' } as any);
-      prisma.workflowInstanciaSetor.updateMany.mockResolvedValueOnce({ count: 2 } as any);
-      prisma.workflowInstancia.update.mockResolvedValueOnce({ id: 'instancia-1' } as any);
+      prisma.apontamento.create.mockResolvedValueOnce({
+        id: 'apontamento-1',
+      } as any);
+      prisma.workflowInstanciaSetor.updateMany.mockResolvedValueOnce({
+        count: 2,
+      } as any);
+      prisma.workflowInstancia.update.mockResolvedValueOnce({
+        id: 'instancia-1',
+      } as any);
 
       await service.concluirEtapa('item-ordem0', 'operador-1');
 

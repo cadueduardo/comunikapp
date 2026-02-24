@@ -32,7 +32,7 @@ import { ArteWebSocketGateway } from './gateways/arte-websocket.gateway';
     ArteLinkAprovacaoController,
     ArteNotificacaoController,
     ArteMensagemController,
-    ArteMensagemPublicController
+    ArteMensagemPublicController,
   ],
   providers: [
     ArteVersaoService,
@@ -41,7 +41,7 @@ import { ArteWebSocketGateway } from './gateways/arte-websocket.gateway';
     ArteLinkAprovacaoService,
     ArteNotificacaoService,
     ArteMensagemService,
-    ArteWebSocketGateway
+    ArteWebSocketGateway,
   ],
   exports: [
     ArteVersaoService,
@@ -50,7 +50,7 @@ import { ArteWebSocketGateway } from './gateways/arte-websocket.gateway';
     ArteLinkAprovacaoService,
     ArteNotificacaoService,
     ArteMensagemService,
-    ArteWebSocketGateway
-  ]
+    ArteWebSocketGateway,
+  ],
 })
 export class ArteAprovacaoModule {}

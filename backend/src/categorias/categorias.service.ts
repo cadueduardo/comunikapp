@@ -25,7 +25,7 @@ export class CategoriasService {
     if (categoriaExistente) {
       throw new BadRequestException(
         `Já existe uma categoria com o nome "${createCategoriaDto.nome}" cadastrada. ` +
-        'Por favor, use um nome diferente ou edite a categoria existente.'
+          'Por favor, use um nome diferente ou edite a categoria existente.',
       );
     }
 
@@ -57,7 +57,7 @@ export class CategoriasService {
 
   async update(id: string, updateCategoriaDto: UpdateCategoriaDto, loja: loja) {
     await this.findOne(id, loja);
-    
+
     // Verificar se já existe outra categoria com o mesmo nome na mesma loja
     const categoriaExistente = await this.prisma.categoria.findFirst({
       where: {
@@ -70,7 +70,7 @@ export class CategoriasService {
     if (categoriaExistente) {
       throw new BadRequestException(
         `Já existe uma categoria com o nome "${updateCategoriaDto.nome}" cadastrada. ` +
-        'Por favor, use um nome diferente.'
+          'Por favor, use um nome diferente.',
       );
     }
 

@@ -1,4 +1,11 @@
-import { IsString, IsOptional, IsUUID, IsBoolean, IsEnum, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsUUID,
+  IsBoolean,
+  IsEnum,
+  IsNotEmpty,
+} from 'class-validator';
 import { AutorTipo } from '@prisma/client';
 
 export class CreateMensagemDto {

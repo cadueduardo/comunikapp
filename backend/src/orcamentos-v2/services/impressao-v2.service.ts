@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { 
+import {
   OrcamentoCompleto,
   ProdutoOrcamento,
   ItemInsumo,
@@ -14,7 +14,7 @@ import {
 /**
  * Serviço de Impressão V2 para Orçamentos
  * Implementa sistema de geração de PDFs e relatórios
- * 
+ *
  * ✅ ARQUIVO ≤ 400 LINHAS (CONFORME PREMISSAS)
  * ✅ SISTEMA DE IMPRESSÃO COMPLETO
  * ✅ MÚLTIPLOS FORMATOS E TEMPLATES
@@ -23,9 +23,7 @@ import {
 export class ImpressaoV2Service {
   private readonly logger = new Logger(ImpressaoV2Service.name);
 
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Gera PDF do orçamento
@@ -45,24 +43,35 @@ export class ImpressaoV2Service {
     tamanho: number;
     mimeType: string;
   }> {
-    this.logger.log(`📄 Gerando PDF do orçamento ${orcamentoId} com template ${template}`);
+    this.logger.log(
+      `📄 Gerando PDF do orçamento ${orcamentoId} com template ${template}`,
+    );
 
     try {
       // Buscar orçamento completo
       const orcamento = await this.buscarOrcamentoCompleto(orcamentoId);
 
       // Preparar dados para impressão
-      const dadosImpressao = await this.prepararDadosImpressao(orcamento, template, opcoes);
+      const dadosImpressao = await this.prepararDadosImpressao(
+        orcamento,
+        template,
+        opcoes,
+      );
 
       // Gerar PDF baseado no template
-      const pdfBuffer = await this.gerarPDFPorTemplate(dadosImpressao, template);
+      const pdfBuffer = await this.gerarPDFPorTemplate(
+        dadosImpressao,
+        template,
+      );
 
       // Preparar resposta
       const nomeArquivo = this.gerarNomeArquivo(orcamento, template);
       const tamanho = pdfBuffer.length;
       const mimeType = 'application/pdf';
 
-      this.logger.log(`✅ PDF gerado com sucesso: ${nomeArquivo} (${tamanho} bytes)`);
+      this.logger.log(
+        `✅ PDF gerado com sucesso: ${nomeArquivo} (${tamanho} bytes)`,
+      );
 
       return {
         buffer: pdfBuffer,
@@ -70,7 +79,6 @@ export class ImpressaoV2Service {
         tamanho,
         mimeType,
       };
-
     } catch (error) {
       this.logger.error(`❌ Erro ao gerar PDF: ${error.message}`);
       throw error;
@@ -89,7 +97,9 @@ export class ImpressaoV2Service {
     tamanho: number;
     mimeType: string;
   }> {
-    this.logger.log(`📊 Gerando relatório executivo do orçamento ${orcamentoId} em ${formato}`);
+    this.logger.log(
+      `📊 Gerando relatório executivo do orçamento ${orcamentoId} em ${formato}`,
+    );
 
     try {
       // Buscar orçamento com dados resumidos
@@ -100,26 +110,35 @@ export class ImpressaoV2Service {
 
       // Gerar relatório no formato solicitado
       let resultado: any;
-      
+
       switch (formato) {
         case 'pdf':
           resultado = await this.gerarRelatorioPDF(dadosRelatorio, 'executivo');
           break;
         case 'excel':
-          resultado = await this.gerarRelatorioExcel(dadosRelatorio, 'executivo');
+          resultado = await this.gerarRelatorioExcel(
+            dadosRelatorio,
+            'executivo',
+          );
           break;
         case 'html':
-          resultado = await this.gerarRelatorioHTML(dadosRelatorio, 'executivo');
+          resultado = await this.gerarRelatorioHTML(
+            dadosRelatorio,
+            'executivo',
+          );
           break;
         default:
           throw new Error(`Formato não suportado: ${formato}`);
       }
 
-      this.logger.log(`✅ Relatório executivo gerado com sucesso em ${formato}`);
+      this.logger.log(
+        `✅ Relatório executivo gerado com sucesso em ${formato}`,
+      );
       return resultado;
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao gerar relatório executivo: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao gerar relatório executivo: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -137,18 +156,23 @@ export class ImpressaoV2Service {
     tamanho: number;
     mimeType: string;
   }> {
-    this.logger.log(`💰 Gerando relatório de custos do orçamento ${orcamentoId} em ${formato}`);
+    this.logger.log(
+      `💰 Gerando relatório de custos do orçamento ${orcamentoId} em ${formato}`,
+    );
 
     try {
       // Buscar orçamento com dados de custos
       const orcamento = await this.buscarOrcamentoComCustos(orcamentoId);
 
       // Preparar dados de custos
-      const dadosCustos = this.prepararDadosRelatorioCustos(orcamento, nivelDetalhamento);
+      const dadosCustos = this.prepararDadosRelatorioCustos(
+        orcamento,
+        nivelDetalhamento,
+      );
 
       // Gerar relatório no formato solicitado
       let resultado: any;
-      
+
       switch (formato) {
         case 'pdf':
           resultado = await this.gerarRelatorioPDF(dadosCustos, 'custos');
@@ -163,11 +187,14 @@ export class ImpressaoV2Service {
           throw new Error(`Formato não suportado: ${formato}`);
       }
 
-      this.logger.log(`✅ Relatório de custos gerado com sucesso em ${formato}`);
+      this.logger.log(
+        `✅ Relatório de custos gerado com sucesso em ${formato}`,
+      );
       return resultado;
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao gerar relatório de custos: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao gerar relatório de custos: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -190,24 +217,35 @@ export class ImpressaoV2Service {
     tamanho: number;
     mimeType: string;
   }> {
-    this.logger.log(`📋 Gerando proposta comercial do orçamento ${orcamentoId}`);
+    this.logger.log(
+      `📋 Gerando proposta comercial do orçamento ${orcamentoId}`,
+    );
 
     try {
       // Buscar orçamento com dados comerciais
       const orcamento = await this.buscarOrcamentoComercial(orcamentoId);
 
       // Preparar dados da proposta
-      const dadosProposta = this.prepararDadosPropostaComercial(orcamento, template, opcoes);
+      const dadosProposta = this.prepararDadosPropostaComercial(
+        orcamento,
+        template,
+        opcoes,
+      );
 
       // Gerar proposta no template solicitado
-      const pdfBuffer = await this.gerarPropostaPorTemplate(dadosProposta, template);
+      const pdfBuffer = await this.gerarPropostaPorTemplate(
+        dadosProposta,
+        template,
+      );
 
       // Preparar resposta
       const nomeArquivo = this.gerarNomeArquivoProposta(orcamento, template);
       const tamanho = pdfBuffer.length;
       const mimeType = 'application/pdf';
 
-      this.logger.log(`✅ Proposta comercial gerada com sucesso: ${nomeArquivo}`);
+      this.logger.log(
+        `✅ Proposta comercial gerada com sucesso: ${nomeArquivo}`,
+      );
 
       return {
         buffer: pdfBuffer,
@@ -215,9 +253,10 @@ export class ImpressaoV2Service {
         tamanho,
         mimeType,
       };
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao gerar proposta comercial: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao gerar proposta comercial: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -240,18 +279,24 @@ export class ImpressaoV2Service {
     tamanho: number;
     mimeType: string;
   }> {
-    this.logger.log(`🏷️ Gerando etiquetas ${tipo} do orçamento ${orcamentoId} em ${formato}`);
+    this.logger.log(
+      `🏷️ Gerando etiquetas ${tipo} do orçamento ${orcamentoId} em ${formato}`,
+    );
 
     try {
       // Buscar dados para etiquetas
       const dadosEtiquetas = await this.buscarDadosEtiquetas(orcamentoId, tipo);
 
       // Preparar dados das etiquetas
-      const dadosPreparados = this.prepararDadosEtiquetas(dadosEtiquetas, tipo, opcoes);
+      const dadosPreparados = this.prepararDadosEtiquetas(
+        dadosEtiquetas,
+        tipo,
+        opcoes,
+      );
 
       // Gerar etiquetas no formato solicitado
       let resultado: any;
-      
+
       if (formato === 'pdf') {
         resultado = await this.gerarEtiquetasPDF(dadosPreparados, tipo, opcoes);
       } else if (formato === 'zpl') {
@@ -262,7 +307,6 @@ export class ImpressaoV2Service {
 
       this.logger.log(`✅ Etiquetas geradas com sucesso em ${formato}`);
       return resultado;
-
     } catch (error) {
       this.logger.error(`❌ Erro ao gerar etiquetas: ${error.message}`);
       throw error;
@@ -286,27 +330,41 @@ export class ImpressaoV2Service {
     tamanho: number;
     mimeType: string;
   }> {
-    this.logger.log(`📈 Gerando relatório de análise de preços do orçamento ${orcamentoId}`);
+    this.logger.log(
+      `📈 Gerando relatório de análise de preços do orçamento ${orcamentoId}`,
+    );
 
     try {
       // Buscar dados para análise de preços
       const dadosAnalise = await this.buscarDadosAnalisePrecos(orcamentoId);
 
       // Preparar dados da análise
-      const dadosPreparados = this.prepararDadosAnalisePrecos(dadosAnalise, opcoes);
+      const dadosPreparados = this.prepararDadosAnalisePrecos(
+        dadosAnalise,
+        opcoes,
+      );
 
       // Gerar relatório no formato solicitado
       let resultado: any;
-      
+
       switch (formato) {
         case 'pdf':
-          resultado = await this.gerarRelatorioPDF(dadosPreparados, 'analise-precos');
+          resultado = await this.gerarRelatorioPDF(
+            dadosPreparados,
+            'analise-precos',
+          );
           break;
         case 'excel':
-          resultado = await this.gerarRelatorioExcel(dadosPreparados, 'analise-precos');
+          resultado = await this.gerarRelatorioExcel(
+            dadosPreparados,
+            'analise-precos',
+          );
           break;
         case 'html':
-          resultado = await this.gerarRelatorioHTML(dadosPreparados, 'analise-precos');
+          resultado = await this.gerarRelatorioHTML(
+            dadosPreparados,
+            'analise-precos',
+          );
           break;
         default:
           throw new Error(`Formato não suportado: ${formato}`);
@@ -314,9 +372,10 @@ export class ImpressaoV2Service {
 
       this.logger.log(`✅ Relatório de análise de preços gerado com sucesso`);
       return resultado;
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao gerar relatório de análise: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao gerar relatório de análise: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -430,7 +489,10 @@ export class ImpressaoV2Service {
     return orcamento;
   }
 
-  private async buscarDadosEtiquetas(orcamentoId: string, tipo: string): Promise<any[]> {
+  private async buscarDadosEtiquetas(
+    orcamentoId: string,
+    tipo: string,
+  ): Promise<any[]> {
     switch (tipo) {
       case 'produtos':
         return await this.prisma.produtoOrcamento.findMany({
@@ -442,11 +504,11 @@ export class ImpressaoV2Service {
             preco_unitario: true,
           },
         });
-      
+
       case 'insumos':
         return await this.prisma.itemInsumo.findMany({
-          where: { 
-            produto: { orcamento_id: orcamentoId } 
+          where: {
+            produto: { orcamento_id: orcamentoId },
           },
           include: {
             insumo: true,
@@ -455,11 +517,11 @@ export class ImpressaoV2Service {
             },
           },
         });
-      
+
       case 'maquinas':
         return await this.prisma.itemMaquina.findMany({
-          where: { 
-            produto: { orcamento_id: orcamentoId } 
+          where: {
+            produto: { orcamento_id: orcamentoId },
           },
           include: {
             maquina: true,
@@ -468,7 +530,7 @@ export class ImpressaoV2Service {
             },
           },
         });
-      
+
       default:
         throw new Error(`Tipo de etiqueta não suportado: ${tipo}`);
     }
@@ -499,7 +561,11 @@ export class ImpressaoV2Service {
     return orcamento;
   }
 
-  private async prepararDadosImpressao(orcamento: any, template: string, opcoes?: any): Promise<any> {
+  private async prepararDadosImpressao(
+    orcamento: any,
+    template: string,
+    opcoes?: any,
+  ): Promise<any> {
     // Preparar dados para impressão baseado no template
     const dadosBase = {
       orcamento: {
@@ -529,11 +595,11 @@ export class ImpressaoV2Service {
           custos_indiretos: produto.custos_indiretos || [],
         }));
         break;
-      
+
       case 'executivo':
         // Manter apenas dados resumidos
         break;
-      
+
       default:
         // Template padrão
         break;
@@ -554,7 +620,9 @@ export class ImpressaoV2Service {
       },
       produtos: orcamento.produtos || [],
       graficos: {
-        distribuicao_produtos: this.calcularDistribuicaoProdutos(orcamento.produtos),
+        distribuicao_produtos: this.calcularDistribuicaoProdutos(
+          orcamento.produtos,
+        ),
         evolucao_custos: this.calcularEvolucaoCustos(orcamento),
       },
     };
@@ -591,7 +659,11 @@ export class ImpressaoV2Service {
     return dados;
   }
 
-  private prepararDadosPropostaComercial(orcamento: any, template: string, opcoes?: any): any {
+  private prepararDadosPropostaComercial(
+    orcamento: any,
+    template: string,
+    opcoes?: any,
+  ): any {
     return {
       orcamento: {
         titulo: orcamento.titulo,
@@ -607,8 +679,12 @@ export class ImpressaoV2Service {
     };
   }
 
-  private prepararDadosEtiquetas(dados: any[], tipo: string, opcoes?: any): any[] {
-    return dados.map(item => ({
+  private prepararDadosEtiquetas(
+    dados: any[],
+    tipo: string,
+    opcoes?: any,
+  ): any[] {
+    return dados.map((item) => ({
       ...item,
       tipo,
       tamanho: opcoes?.tamanho || 'medio',
@@ -625,16 +701,25 @@ export class ImpressaoV2Service {
       },
       produtos: dados.produtos || [],
       analise: {
-        comparativo: opcoes?.incluirComparativo ? this.gerarComparativoPrecos(dados) : null,
-        tendencias: opcoes?.incluirTendencias ? this.gerarTendenciasPrecos(dados) : null,
-        recomendacoes: opcoes?.incluirRecomendacoes ? this.gerarRecomendacoesPrecos(dados) : null,
+        comparativo: opcoes?.incluirComparativo
+          ? this.gerarComparativoPrecos(dados)
+          : null,
+        tendencias: opcoes?.incluirTendencias
+          ? this.gerarTendenciasPrecos(dados)
+          : null,
+        recomendacoes: opcoes?.incluirRecomendacoes
+          ? this.gerarRecomendacoesPrecos(dados)
+          : null,
       },
     };
   }
 
   // Métodos de geração de documentos (implementações mock)
 
-  private async gerarPDFPorTemplate(dados: any, template: string): Promise<Buffer> {
+  private async gerarPDFPorTemplate(
+    dados: any,
+    template: string,
+  ): Promise<Buffer> {
     // TODO: Implementar geração real de PDF
     // Por enquanto, retornar buffer mock
     const conteudo = `PDF do orçamento ${dados.orcamento.id} - Template: ${template}`;
@@ -645,7 +730,7 @@ export class ImpressaoV2Service {
     // TODO: Implementar geração real de PDF
     const conteudo = `Relatório ${tipo} - ${JSON.stringify(dados.resumo)}`;
     const buffer = Buffer.from(conteudo, 'utf-8');
-    
+
     return {
       buffer,
       nomeArquivo: `relatorio-${tipo}-${Date.now()}.pdf`,
@@ -658,12 +743,13 @@ export class ImpressaoV2Service {
     // TODO: Implementar geração real de Excel
     const conteudo = `Relatório ${tipo} Excel - ${JSON.stringify(dados.resumo)}`;
     const buffer = Buffer.from(conteudo, 'utf-8');
-    
+
     return {
       buffer,
       nomeArquivo: `relatorio-${tipo}-${Date.now()}.xlsx`,
       tamanho: buffer.length,
-      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      mimeType:
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     };
   }
 
@@ -671,7 +757,7 @@ export class ImpressaoV2Service {
     // TODO: Implementar geração real de HTML
     const conteudo = `<html><body><h1>Relatório ${tipo}</h1><pre>${JSON.stringify(dados.resumo, null, 2)}</pre></body></html>`;
     const buffer = Buffer.from(conteudo, 'utf-8');
-    
+
     return {
       buffer,
       nomeArquivo: `relatorio-${tipo}-${Date.now()}.html`,
@@ -684,7 +770,7 @@ export class ImpressaoV2Service {
     // TODO: Implementar geração real de CSV
     const conteudo = `Tipo,Valor\n${tipo},${dados.resumo.custo_total}`;
     const buffer = Buffer.from(conteudo, 'utf-8');
-    
+
     return {
       buffer,
       nomeArquivo: `relatorio-${tipo}-${Date.now()}.csv`,
@@ -693,17 +779,24 @@ export class ImpressaoV2Service {
     };
   }
 
-  private async gerarPropostaPorTemplate(dados: any, template: string): Promise<Buffer> {
+  private async gerarPropostaPorTemplate(
+    dados: any,
+    template: string,
+  ): Promise<Buffer> {
     // TODO: Implementar geração real de proposta
     const conteudo = `Proposta comercial - ${dados.orcamento.titulo} - Template: ${template}`;
     return Buffer.from(conteudo, 'utf-8');
   }
 
-  private async gerarEtiquetasPDF(dados: any[], tipo: string, opcoes?: any): Promise<any> {
+  private async gerarEtiquetasPDF(
+    dados: any[],
+    tipo: string,
+    opcoes?: any,
+  ): Promise<any> {
     // TODO: Implementar geração real de etiquetas PDF
     const conteudo = `Etiquetas ${tipo} - ${dados.length} itens`;
     const buffer = Buffer.from(conteudo, 'utf-8');
-    
+
     return {
       buffer,
       nomeArquivo: `etiquetas-${tipo}-${Date.now()}.pdf`,
@@ -712,11 +805,15 @@ export class ImpressaoV2Service {
     };
   }
 
-  private async gerarEtiquetasZPL(dados: any[], tipo: string, opcoes?: any): Promise<any> {
+  private async gerarEtiquetasZPL(
+    dados: any[],
+    tipo: string,
+    opcoes?: any,
+  ): Promise<any> {
     // TODO: Implementar geração real de etiquetas ZPL
     const conteudo = `^XA^FO50,50^A0N,50,50^FD${tipo}^FS^XZ`;
     const buffer = Buffer.from(conteudo, 'utf-8');
-    
+
     return {
       buffer,
       nomeArquivo: `etiquetas-${tipo}-${Date.now()}.zpl`,
@@ -729,13 +826,13 @@ export class ImpressaoV2Service {
 
   private calcularDistribuicaoProdutos(produtos: any[]): any {
     if (!produtos || produtos.length === 0) return {};
-    
+
     const distribuicao: any = {};
-    produtos.forEach(produto => {
+    produtos.forEach((produto) => {
       const categoria = produto.categoria || 'Sem categoria';
       distribuicao[categoria] = (distribuicao[categoria] || 0) + 1;
     });
-    
+
     return distribuicao;
   }
 
@@ -753,24 +850,30 @@ export class ImpressaoV2Service {
 
   private calcularCustoProduto(produto: any): number {
     let custoTotal = 0;
-    
+
     if (produto.insumos) {
-      custoTotal += produto.insumos.reduce((total: number, insumo: any) => 
-        total + (insumo.custo_unitario * insumo.quantidade), 0);
+      custoTotal += produto.insumos.reduce(
+        (total: number, insumo: any) =>
+          total + insumo.custo_unitario * insumo.quantidade,
+        0,
+      );
     }
-    
+
     if (produto.maquinas) {
-      custoTotal += produto.maquinas.reduce((total: number, maquina: any) => 
-        total + (maquina.custo_hora * maquina.horas_utilizadas), 0);
+      custoTotal += produto.maquinas.reduce(
+        (total: number, maquina: any) =>
+          total + maquina.custo_hora * maquina.horas_utilizadas,
+        0,
+      );
     }
-    
+
     return custoTotal;
   }
 
   private calcularMargemProduto(produto: any): number {
     const custo = this.calcularCustoProduto(produto);
     const valor = produto.valor_total || 0;
-    
+
     if (custo === 0) return 0;
     return ((valor - custo) / custo) * 100;
   }
@@ -816,13 +919,15 @@ export class ImpressaoV2Service {
 
   private gerarNomeArquivo(orcamento: any, template: string): string {
     const data = new Date().toISOString().split('T')[0];
-    const titulo = orcamento.titulo?.replace(/[^a-zA-Z0-9]/g, '_') || 'orcamento';
+    const titulo =
+      orcamento.titulo?.replace(/[^a-zA-Z0-9]/g, '_') || 'orcamento';
     return `orcamento_${titulo}_${template}_${data}.pdf`;
   }
 
   private gerarNomeArquivoProposta(orcamento: any, template: string): string {
     const data = new Date().toISOString().split('T')[0];
-    const titulo = orcamento.titulo?.replace(/[^a-zA-Z0-9]/g, '_') || 'proposta';
+    const titulo =
+      orcamento.titulo?.replace(/[^a-zA-Z0-9]/g, '_') || 'proposta';
     return `proposta_${titulo}_${template}_${data}.pdf`;
   }
 }

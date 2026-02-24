@@ -14,7 +14,7 @@ export class ClientesService {
         ...createClienteDto,
         atualizado_em: new Date(),
         loja: {
-          connect: { id: lojaId }
+          connect: { id: lojaId },
         },
       },
     });

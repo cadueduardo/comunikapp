@@ -24,7 +24,9 @@ export class ExecucaoRegraService {
     dados_execucao?: Record<string, any>;
     tempo_execucao: number;
   }): Promise<ExecucaoRegra> {
-    this.logger.debug(`Registrando execução da regra ${dados.regra_id} para OS ${dados.os_id}`);
+    this.logger.debug(
+      `Registrando execução da regra ${dados.regra_id} para OS ${dados.os_id}`,
+    );
 
     const execucao = await this.prisma.execucaoRegra.create({
       data: {
@@ -53,19 +55,19 @@ export class ExecucaoRegraService {
     limit?: number;
   }) {
     const where: any = {};
-    
+
     if (filtros.regra_id) {
       where.regra_id = filtros.regra_id;
     }
-    
+
     if (filtros.os_id) {
       where.os_id = filtros.os_id;
     }
-    
+
     if (filtros.resultado) {
       where.resultado = filtros.resultado;
     }
-    
+
     if (filtros.data_inicio || filtros.data_fim) {
       where.criado_em = {};
       if (filtros.data_inicio) {
@@ -81,24 +83,24 @@ export class ExecucaoRegraService {
         where,
         include: {
           regra: {
-            select: { 
-              nome: true, 
+            select: {
+              nome: true,
               categoria: true,
-              tipo: true
-            }
+              tipo: true,
+            },
           },
           os: {
-            select: { 
+            select: {
               numero: true,
-              nome_servico: true
-            }
-          }
+              nome_servico: true,
+            },
+          },
         },
         orderBy: { criado_em: 'desc' },
         skip: ((filtros.page || 1) - 1) * (filtros.limit || 20),
-        take: filtros.limit || 20
+        take: filtros.limit || 20,
       }),
-      this.prisma.execucaoRegra.count({ where })
+      this.prisma.execucaoRegra.count({ where }),
     ]);
 
     return {
@@ -106,7 +108,7 @@ export class ExecucaoRegraService {
       total,
       page: filtros.page || 1,
       limit: filtros.limit || 20,
-      totalPages: Math.ceil(total / (filtros.limit || 20))
+      totalPages: Math.ceil(total / (filtros.limit || 20)),
     };
   }
 
@@ -119,11 +121,11 @@ export class ExecucaoRegraService {
     data_fim?: Date;
   }) {
     const where: any = {};
-    
+
     if (filtros.regra_id) {
       where.regra_id = filtros.regra_id;
     }
-    
+
     if (filtros.data_inicio || filtros.data_fim) {
       where.criado_em = {};
       if (filtros.data_inicio) {
@@ -138,52 +140,56 @@ export class ExecucaoRegraService {
       totalExecucoes,
       execucoesPorResultado,
       tempoMedioExecucao,
-      regrasMaisExecutadas
+      regrasMaisExecutadas,
     ] = await Promise.all([
       this.prisma.execucaoRegra.count({ where }),
       this.prisma.execucaoRegra.groupBy({
         by: ['resultado'],
         where,
-        _count: { id: true }
+        _count: { id: true },
       }),
       this.prisma.execucaoRegra.aggregate({
         where,
-        _avg: { tempo_execucao: true }
+        _avg: { tempo_execucao: true },
       }),
       this.prisma.execucaoRegra.groupBy({
         by: ['regra_id'],
         where,
         _count: { id: true },
         orderBy: { _count: { id: 'desc' } },
-        take: 5
-      })
+        take: 5,
+      }),
     ]);
 
     // Buscar nomes das regras mais executadas
-    const regrasIds = regrasMaisExecutadas.map(r => r.regra_id);
+    const regrasIds = regrasMaisExecutadas.map((r) => r.regra_id);
     const regras = await this.prisma.regraValidacao.findMany({
       where: { id: { in: regrasIds } },
-      select: { id: true, nome: true, categoria: true }
+      select: { id: true, nome: true, categoria: true },
     });
 
-    const regrasComNomes = regrasMaisExecutadas.map(regra => {
-      const regraInfo = regras.find(r => r.id === regra.regra_id);
+    const regrasComNomes = regrasMaisExecutadas.map((regra) => {
+      const regraInfo = regras.find((r) => r.id === regra.regra_id);
       return {
         regra_id: regra.regra_id,
         regra_nome: regraInfo?.nome || 'Regra não encontrada',
         categoria: regraInfo?.categoria || 'DESCONHECIDA',
-        execucoes: regra._count.id
+        execucoes: regra._count.id,
       };
     });
 
     return {
       total_execucoes: totalExecucoes,
-      execucoes_por_resultado: execucoesPorResultado.reduce((acc, item) => {
-        acc[item.resultado] = item._count.id;
-        return acc;
-      }, {} as Record<string, number>),
-      tempo_medio_execucao: Math.round((tempoMedioExecucao._avg.tempo_execucao || 0) * 100) / 100,
-      regras_mais_executadas: regrasComNomes
+      execucoes_por_resultado: execucoesPorResultado.reduce(
+        (acc, item) => {
+          acc[item.resultado] = item._count.id;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
+      tempo_medio_execucao:
+        Math.round((tempoMedioExecucao._avg.tempo_execucao || 0) * 100) / 100,
+      regras_mais_executadas: regrasComNomes,
     };
   }
 
@@ -191,15 +197,17 @@ export class ExecucaoRegraService {
    * Limpar execuções antigas (manutenção)
    */
   async limparExecucoesAntigas(diasParaManter: number = 90): Promise<number> {
-    this.logger.log(`Limpando execuções mais antigas que ${diasParaManter} dias`);
+    this.logger.log(
+      `Limpando execuções mais antigas que ${diasParaManter} dias`,
+    );
 
     const dataLimite = new Date();
     dataLimite.setDate(dataLimite.getDate() - diasParaManter);
 
     const resultado = await this.prisma.execucaoRegra.deleteMany({
       where: {
-        criado_em: { lt: dataLimite }
-      }
+        criado_em: { lt: dataLimite },
+      },
     });
 
     this.logger.log(`${resultado.count} execuções antigas removidas`);
@@ -214,14 +222,14 @@ export class ExecucaoRegraService {
       where: { os_id: osId },
       include: {
         regra: {
-          select: { 
-            nome: true, 
+          select: {
+            nome: true,
             categoria: true,
-            tipo: true
-          }
-        }
+            tipo: true,
+          },
+        },
       },
-      orderBy: { criado_em: 'desc' }
+      orderBy: { criado_em: 'desc' },
     });
   }
 
@@ -233,18 +241,14 @@ export class ExecucaoRegraService {
       where: { regra_id: regraId },
       include: {
         os: {
-          select: { 
+          select: {
             numero: true,
-            nome_servico: true
-          }
-        }
+            nome_servico: true,
+          },
+        },
       },
       orderBy: { criado_em: 'desc' },
-      take: limit
+      take: limit,
     });
   }
 }
-
-
-
-

@@ -93,7 +93,7 @@ describe('Modulo OS - Testes de Isolamento', () => {
         atualizado_em: new Date(),
       } as any;
 
-      jest.spyOn(workflowService, 'findOne').mockResolvedValue(workflowMock as any);
+      jest.spyOn(workflowService, 'findOne').mockResolvedValue(workflowMock);
 
       const validacao = await workflowService.validarTransicaoWorkflow(
         'test-workflow',

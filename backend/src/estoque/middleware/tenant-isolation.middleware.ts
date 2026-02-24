@@ -67,7 +67,8 @@ export class TenantIsolationMiddleware implements NestMiddleware {
         logger.debug('🔍 Validando token JWT...');
         logger.debug(`🔑 Token recebido: ${token.substring(0, 50)}...`);
 
-        const secret = this.configService.get('JWT_SECRET') || 'your-secret-key';
+        const secret =
+          this.configService.get('JWT_SECRET') || 'your-secret-key';
         logger.debug(`🔐 Secret usado: ${secret}`);
 
         const payload = this.jwtService.verify(token, {
@@ -84,7 +85,7 @@ export class TenantIsolationMiddleware implements NestMiddleware {
           .filter(Boolean);
 
         // Fallback seguro: usar loja do payload quando header não vier (evita 400 no dev)
-        const payloadLojaId = (payload as any)?.loja_id || (payload as any)?.lojaId;
+        const payloadLojaId = payload?.loja_id || payload?.lojaId;
         const lojaId = headerLojaId || payloadLojaId;
         if (!lojaId) {
           logger.error('❌ LojaId ausente (header e payload)');
@@ -104,8 +105,13 @@ export class TenantIsolationMiddleware implements NestMiddleware {
 
         // 6. MAPEAMENTO DE FUNÇÃO PARA ROLES E VALIDAÇÃO DE PERMISSÕES
         // Fallback: mapear função quando header de roles não vier
-        const rolesSource = headerRoles && headerRoles.length > 0 ? headerRoles : this.mapearFuncaoParaRoles(funcao);
-        const normalizedUserRoles = rolesSource.map((r) => r.trim().toLowerCase());
+        const rolesSource =
+          headerRoles && headerRoles.length > 0
+            ? headerRoles
+            : this.mapearFuncaoParaRoles(funcao);
+        const normalizedUserRoles = rolesSource.map((r) =>
+          r.trim().toLowerCase(),
+        );
         const allowedRoles = this.configService
           .get('ESTOQUE_ALLOWED_ROLES', 'ADMINISTRADOR,FINANCEIRO,ESTOQUE')
           .split(',')
@@ -134,7 +140,7 @@ export class TenantIsolationMiddleware implements NestMiddleware {
 
         next();
       } catch (jwtError) {
-        logger.error(`❌ Erro na validação do JWT: ${(jwtError as any).message}`);
+        logger.error(`❌ Erro na validação do JWT: ${jwtError.message}`);
         if (
           jwtError instanceof UnauthorizedException ||
           jwtError instanceof BadRequestException

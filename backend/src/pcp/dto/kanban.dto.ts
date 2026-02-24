@@ -1,4 +1,13 @@
-import { IsString, IsOptional, IsEnum, IsInt, IsDateString, Min, Max, Length } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsInt,
+  IsDateString,
+  Min,
+  Max,
+  Length,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export enum StatusSetorProdutivo {
@@ -6,7 +15,7 @@ export enum StatusSetorProdutivo {
   EM_ANDAMENTO = 'EM_ANDAMENTO',
   CONCLUIDA = 'CONCLUIDA',
   PAUSADA = 'PAUSADA',
-  CANCELADA = 'CANCELADA'
+  CANCELADA = 'CANCELADA',
 }
 
 export enum TipoApontamento {
@@ -14,7 +23,7 @@ export enum TipoApontamento {
   PAUSA = 'PAUSA',
   RETOMADA = 'RETOMADA',
   CONCLUSAO = 'CONCLUSAO',
-  REFUGO = 'REFUGO'
+  REFUGO = 'REFUGO',
 }
 
 export class IniciarProducaoDto {

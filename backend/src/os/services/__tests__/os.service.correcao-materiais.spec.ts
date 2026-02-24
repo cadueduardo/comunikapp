@@ -27,13 +27,19 @@ describe('OSService - Correção de Materiais', () => {
       create: jest.fn(),
     },
     loja: {
-      findUnique: jest.fn().mockResolvedValue({ id: 'loja-123', nome: 'Loja Teste' }),
+      findUnique: jest
+        .fn()
+        .mockResolvedValue({ id: 'loja-123', nome: 'Loja Teste' }),
     },
     cliente: {
-      findUnique: jest.fn().mockResolvedValue({ id: 'cliente-123', nome: 'Cliente Teste' }),
+      findUnique: jest
+        .fn()
+        .mockResolvedValue({ id: 'cliente-123', nome: 'Cliente Teste' }),
     },
     usuario: {
-      findUnique: jest.fn().mockResolvedValue({ id: 'usuario-123', nome: 'Usuário Teste' }),
+      findUnique: jest
+        .fn()
+        .mockResolvedValue({ id: 'usuario-123', nome: 'Usuário Teste' }),
     },
     $queryRaw: jest.fn(),
   };
@@ -64,7 +70,12 @@ describe('OSService - Correção de Materiais', () => {
   };
 
   const mockOSValidacoesService = {
-    validarOS: jest.fn().mockResolvedValue({ valida: true, acoes: [], correcoes_necessarias: [], alertas: [] }),
+    validarOS: jest.fn().mockResolvedValue({
+      valida: true,
+      acoes: [],
+      correcoes_necessarias: [],
+      alertas: [],
+    }),
     aplicarAcoesAutomaticas: jest.fn().mockResolvedValue(undefined),
   };
 
@@ -78,12 +89,27 @@ describe('OSService - Correção de Materiais', () => {
         OSService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: DocumentCodeService, useValue: mockDocumentCodeService },
-        { provide: ValidacaoEstoqueService, useValue: mockValidacaoEstoqueService },
-        { provide: AlcadasOrcamentoService, useValue: mockAlcadasOrcamentoService },
-        { provide: EventosAutomaticosService, useValue: mockEventosAutomaticosService },
-        { provide: OSApprovalPermissionsService, useValue: mockOSApprovalPermissionsService },
+        {
+          provide: ValidacaoEstoqueService,
+          useValue: mockValidacaoEstoqueService,
+        },
+        {
+          provide: AlcadasOrcamentoService,
+          useValue: mockAlcadasOrcamentoService,
+        },
+        {
+          provide: EventosAutomaticosService,
+          useValue: mockEventosAutomaticosService,
+        },
+        {
+          provide: OSApprovalPermissionsService,
+          useValue: mockOSApprovalPermissionsService,
+        },
         { provide: OSValidacoesService, useValue: mockOSValidacoesService },
-        { provide: WorkflowAssignmentService, useValue: mockWorkflowAssignmentService },
+        {
+          provide: WorkflowAssignmentService,
+          useValue: mockWorkflowAssignmentService,
+        },
       ],
     }).compile();
 
@@ -107,7 +133,7 @@ describe('OSService - Correção de Materiais', () => {
           {
             insumo_id: 'lona',
             nome: 'Bobina Lona Impressão Digital',
-            quantidade_necessaria: 27.00,
+            quantidade_necessaria: 27.0,
             unidade: 'm²',
             custo_unitario: 10.14,
             custo_total: 273.78,
@@ -119,7 +145,7 @@ describe('OSService - Correção de Materiais', () => {
             quantidade_necessaria: 90,
             unidade: 'cm',
             custo_unitario: 70.91,
-            custo_total: 6381.90,
+            custo_total: 6381.9,
             disponivel_estoque: true,
           },
           {
@@ -146,7 +172,7 @@ describe('OSService - Correção de Materiais', () => {
           {
             insumo_id: 'lona',
             nome: 'Bobina Lona Impressão Digital',
-            quantidade_necessaria: 27.00,
+            quantidade_necessaria: 27.0,
             unidade: 'm²',
             custo_unitario: 10.14,
             custo_total: 273.78,
@@ -158,7 +184,7 @@ describe('OSService - Correção de Materiais', () => {
             quantidade_necessaria: 90,
             unidade: 'cm',
             custo_unitario: 70.91,
-            custo_total: 6381.90,
+            custo_total: 6381.9,
             disponivel_estoque: true,
           },
           {
@@ -180,24 +206,31 @@ describe('OSService - Correção de Materiais', () => {
       expect(mockPrismaService.ordemServico.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           quantidade: 25,
-          insumos_calculados: expect.stringContaining('"quantidade_necessaria":2250'), // 90 * 25
+          insumos_calculados: expect.stringContaining(
+            '"quantidade_necessaria":2250',
+          ), // 90 * 25
         }),
       });
 
       // Verificar se os materiais m² não foram alterados
-      const insumosSalvos = JSON.parse(mockPrismaService.ordemServico.create.mock.calls[0][0].data.insumos_calculados);
+      const insumosSalvos = JSON.parse(
+        mockPrismaService.ordemServico.create.mock.calls[0][0].data
+          .insumos_calculados,
+      );
       const lona = insumosSalvos.find((i: any) => i.insumo_id === 'lona');
-      expect(lona.quantidade_necessaria).toBe(27.00); // Não multiplicado (m²)
+      expect(lona.quantidade_necessaria).toBe(27.0); // Não multiplicado (m²)
 
       // Verificar se os materiais cm foram multiplicados
       const cabo = insumosSalvos.find((i: any) => i.insumo_id === 'cabo');
       expect(cabo.quantidade_necessaria).toBe(2250); // 90 * 25
-      expect(cabo.custo_total).toBe(159547.50); // 2250 * 70.91
+      expect(cabo.custo_total).toBe(159547.5); // 2250 * 70.91
 
       // Verificar se os materiais unidades foram multiplicados
-      const ponteira = insumosSalvos.find((i: any) => i.insumo_id === 'ponteira');
+      const ponteira = insumosSalvos.find(
+        (i: any) => i.insumo_id === 'ponteira',
+      );
       expect(ponteira.quantidade_necessaria).toBe(50); // 2 * 25
-      expect(ponteira.custo_total).toBe(6.50); // 50 * 0.13
+      expect(ponteira.custo_total).toBe(6.5); // 50 * 0.13
     });
 
     it('deve manter insumos originais em caso de erro na correção', async () => {
@@ -256,7 +289,10 @@ describe('OSService - Correção de Materiais', () => {
       const quantidadeProduto = 3;
 
       // Usar reflexão para acessar método privado
-      const resultado = (service as any).corrigirInsumosCalculados(insumos, quantidadeProduto);
+      const resultado = (service as any).corrigirInsumosCalculados(
+        insumos,
+        quantidadeProduto,
+      );
 
       // Verificar correção
       expect(resultado[0].quantidade_necessaria).toBe(10); // m² não multiplicado

@@ -5,26 +5,26 @@
 
 export enum TipoOS {
   COMERCIAL = 'COMERCIAL',
-  INTERNA = 'INTERNA'
+  INTERNA = 'INTERNA',
 }
 
 export enum OrigemOS {
   ORCAMENTO = 'ORCAMENTO',
   DIRETA = 'DIRETA',
-  INTERNA = 'INTERNA'
+  INTERNA = 'INTERNA',
 }
 
 export enum PrioridadeOS {
   URGENTE = 'URGENTE',
   ALTA = 'ALTA',
   NORMAL = 'NORMAL',
-  BAIXA = 'BAIXA'
+  BAIXA = 'BAIXA',
 }
 
 export enum StatusAprovacao {
   PENDENTE = 'PENDENTE',
   APROVADA = 'APROVADA',
-  REJEITADA = 'REJEITADA'
+  REJEITADA = 'REJEITADA',
 }
 
 /**
@@ -79,7 +79,7 @@ export interface OrdemServicoCompleta {
   observacoes?: string;
   criado_em: Date;
   atualizado_em: Date;
-  
+
   // Campos específicos do produto/serviço
   nome_servico: string;
   descricao?: string;
@@ -87,26 +87,26 @@ export interface OrdemServicoCompleta {
   parametros_tecnicos?: string;
   insumos_calculados?: string;
   materiais_disponivel: boolean;
-  
+
   // Campos de aprovação técnica
   aprovacao_tecnica_status?: StatusAprovacao;
   aprovacao_tecnica_por?: string;
   aprovacao_tecnica_em?: Date;
   aprovacao_tecnica_obs?: string;
-  
+
   // Campos de agendamento de instalação
   data_instalacao_agendada?: Date;
   observacoes_instalacao?: string;
-  
+
   // Novos campos para diferenciação
   tipo_os: TipoOS;
   origem_os?: OrigemOS;
   prioridade: PrioridadeOS;
-  
+
   // Campos específicos por tipo
   campos_interna?: CamposOSInterna;
   campos_comercial?: CamposOSComercial;
-  
+
   // Campos de controle
   controle: CamposControleOS;
 }
@@ -125,11 +125,11 @@ export interface CreateOSDiretaDto {
   prioridade?: PrioridadeOS;
   observacoes?: string;
   responsavel_id?: string;
-  
+
   // Campos específicos comerciais
   valor_orcado?: number;
   data_entrega_cliente?: Date;
-  
+
   // Campos de controle
   criado_por?: string;
 }
@@ -149,7 +149,7 @@ export interface CreateOSInternaDto {
   prioridade?: PrioridadeOS;
   observacoes?: string;
   responsavel_id?: string;
-  
+
   // Campos de controle
   criado_por?: string;
 }
@@ -165,20 +165,20 @@ export interface UpdateOSDto {
   parametros_tecnicos?: string;
   insumos_calculados?: string;
   materiais_disponivel?: boolean;
-  
+
   // Campos de aprovação técnica
   aprovacao_tecnica_status?: StatusAprovacao;
   aprovacao_tecnica_por?: string;
   aprovacao_tecnica_obs?: string;
-  
+
   // Campos de agendamento
   data_instalacao_agendada?: Date;
   observacoes_instalacao?: string;
-  
+
   // Campos específicos por tipo
   campos_interna?: Partial<CamposOSInterna>;
   campos_comercial?: Partial<CamposOSComercial>;
-  
+
   // Campos de controle
   modificado_por?: string;
   motivo_modificacao?: string;

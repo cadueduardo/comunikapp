@@ -1,23 +1,23 @@
-import { 
-  Controller, 
-  Post, 
-  Get, 
-  Put, 
-  Delete, 
-  Body, 
-  Param, 
-  Query, 
+import {
+  Controller,
+  Post,
+  Get,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
   UseGuards,
   HttpStatus,
   HttpCode,
   Res,
 } from '@nestjs/common';
-import { 
-  ApiTags, 
-  ApiOperation, 
-  ApiResponse, 
-  ApiParam, 
-  ApiQuery, 
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
   ApiBody,
   ApiBearerAuth,
 } from '@nestjs/swagger';
@@ -31,7 +31,7 @@ import { ImpressaoV2Service } from '../services/impressao-v2.service';
 /**
  * Controller de Impressão V2 para Orçamentos
  * Endpoints para geração de PDFs e relatórios
- * 
+ *
  * ✅ ARQUIVO ≤ 200 LINHAS (CONFORME PREMISSAS)
  * ✅ ENDPOINTS DE IMPRESSÃO COMPLETOS
  * ✅ MÚLTIPLOS FORMATOS
@@ -41,9 +41,7 @@ import { ImpressaoV2Service } from '../services/impressao-v2.service';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class ImpressaoV2Controller {
-  constructor(
-    private readonly impressaoV2Service: ImpressaoV2Service,
-  ) {}
+  constructor(private readonly impressaoV2Service: ImpressaoV2Service) {}
 
   /**
    * Gera PDF do orçamento
@@ -60,18 +58,24 @@ export class ImpressaoV2Controller {
     schema: {
       type: 'object',
       properties: {
-        template: { 
-          type: 'string', 
+        template: {
+          type: 'string',
           enum: ['padrao', 'executivo', 'detalhado'],
-          description: 'Template do PDF' 
+          description: 'Template do PDF',
         },
-        incluir_detalhes: { type: 'boolean', description: 'Incluir detalhes completos' },
+        incluir_detalhes: {
+          type: 'boolean',
+          description: 'Incluir detalhes completos',
+        },
         incluir_imagens: { type: 'boolean', description: 'Incluir imagens' },
-        incluir_assinaturas: { type: 'boolean', description: 'Incluir assinaturas' },
-        idioma: { 
-          type: 'string', 
+        incluir_assinaturas: {
+          type: 'boolean',
+          description: 'Incluir assinaturas',
+        },
+        idioma: {
+          type: 'string',
           enum: ['pt-BR', 'en', 'es'],
-          description: 'Idioma do PDF' 
+          description: 'Idioma do PDF',
         },
       },
     },
@@ -90,7 +94,8 @@ export class ImpressaoV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async gerarPDF(
     @Param('orcamentoId') orcamentoId: string,
-    @Body() opcoes: {
+    @Body()
+    opcoes: {
       template?: 'padrao' | 'executivo' | 'detalhado';
       incluirDetalhes?: boolean;
       incluirImagens?: boolean;
@@ -139,10 +144,10 @@ export class ImpressaoV2Controller {
     schema: {
       type: 'object',
       properties: {
-        formato: { 
-          type: 'string', 
+        formato: {
+          type: 'string',
           enum: ['pdf', 'excel', 'html'],
-          description: 'Formato do relatório' 
+          description: 'Formato do relatório',
         },
       },
     },
@@ -152,7 +157,9 @@ export class ImpressaoV2Controller {
     description: 'Relatório gerado com sucesso',
     content: {
       'application/pdf': { schema: { type: 'string', format: 'binary' } },
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { schema: { type: 'string', format: 'binary' } },
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+        schema: { type: 'string', format: 'binary' },
+      },
       'text/html': { schema: { type: 'string' } },
     },
   })
@@ -198,15 +205,15 @@ export class ImpressaoV2Controller {
     schema: {
       type: 'object',
       properties: {
-        formato: { 
-          type: 'string', 
+        formato: {
+          type: 'string',
           enum: ['pdf', 'excel', 'csv'],
-          description: 'Formato do relatório' 
+          description: 'Formato do relatório',
         },
-        nivel_detalhamento: { 
-          type: 'string', 
+        nivel_detalhamento: {
+          type: 'string',
           enum: ['resumido', 'detalhado', 'completo'],
-          description: 'Nível de detalhamento' 
+          description: 'Nível de detalhamento',
         },
       },
     },
@@ -216,7 +223,9 @@ export class ImpressaoV2Controller {
     description: 'Relatório gerado com sucesso',
     content: {
       'application/pdf': { schema: { type: 'string', format: 'binary' } },
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { schema: { type: 'string', format: 'binary' } },
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+        schema: { type: 'string', format: 'binary' },
+      },
       'text/csv': { schema: { type: 'string' } },
     },
   })
@@ -225,7 +234,8 @@ export class ImpressaoV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async gerarRelatorioCustos(
     @Param('orcamentoId') orcamentoId: string,
-    @Body() dados: {
+    @Body()
+    dados: {
       formato: 'pdf' | 'excel' | 'csv';
       nivelDetalhamento?: 'resumido' | 'detalhado' | 'completo';
     },
@@ -266,18 +276,27 @@ export class ImpressaoV2Controller {
     schema: {
       type: 'object',
       properties: {
-        template: { 
-          type: 'string', 
+        template: {
+          type: 'string',
           enum: ['padrao', 'premium', 'personalizado'],
-          description: 'Template da proposta' 
+          description: 'Template da proposta',
         },
-        incluir_termos: { type: 'boolean', description: 'Incluir termos e condições' },
-        incluir_condicoes: { type: 'boolean', description: 'Incluir condições comerciais' },
-        incluir_garantias: { type: 'boolean', description: 'Incluir garantias' },
-        idioma: { 
-          type: 'string', 
+        incluir_termos: {
+          type: 'boolean',
+          description: 'Incluir termos e condições',
+        },
+        incluir_condicoes: {
+          type: 'boolean',
+          description: 'Incluir condições comerciais',
+        },
+        incluir_garantias: {
+          type: 'boolean',
+          description: 'Incluir garantias',
+        },
+        idioma: {
+          type: 'string',
           enum: ['pt-BR', 'en', 'es'],
-          description: 'Idioma da proposta' 
+          description: 'Idioma da proposta',
         },
       },
     },
@@ -296,7 +315,8 @@ export class ImpressaoV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async gerarPropostaComercial(
     @Param('orcamentoId') orcamentoId: string,
-    @Body() opcoes: {
+    @Body()
+    opcoes: {
       template?: 'padrao' | 'premium' | 'personalizado';
       incluirTermos?: boolean;
       incluirCondicoes?: boolean;
@@ -346,23 +366,26 @@ export class ImpressaoV2Controller {
       type: 'object',
       required: ['tipo'],
       properties: {
-        tipo: { 
-          type: 'string', 
+        tipo: {
+          type: 'string',
           enum: ['produtos', 'insumos', 'maquinas'],
-          description: 'Tipo de etiquetas' 
+          description: 'Tipo de etiquetas',
         },
-        formato: { 
-          type: 'string', 
+        formato: {
+          type: 'string',
           enum: ['pdf', 'zpl'],
-          description: 'Formato das etiquetas' 
+          description: 'Formato das etiquetas',
         },
-        tamanho: { 
-          type: 'string', 
+        tamanho: {
+          type: 'string',
           enum: ['pequeno', 'medio', 'grande'],
-          description: 'Tamanho das etiquetas' 
+          description: 'Tamanho das etiquetas',
         },
         quantidade: { type: 'number', description: 'Quantidade de etiquetas' },
-        incluir_codigo_barras: { type: 'boolean', description: 'Incluir código de barras' },
+        incluir_codigo_barras: {
+          type: 'boolean',
+          description: 'Incluir código de barras',
+        },
       },
     },
   })
@@ -379,7 +402,8 @@ export class ImpressaoV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async gerarEtiquetas(
     @Param('orcamentoId') orcamentoId: string,
-    @Body() dados: {
+    @Body()
+    dados: {
       tipo: 'produtos' | 'insumos' | 'maquinas';
       formato?: 'pdf' | 'zpl';
       tamanho?: 'pequeno' | 'medio' | 'grande';
@@ -428,14 +452,23 @@ export class ImpressaoV2Controller {
     schema: {
       type: 'object',
       properties: {
-        formato: { 
-          type: 'string', 
+        formato: {
+          type: 'string',
           enum: ['pdf', 'excel', 'html'],
-          description: 'Formato do relatório' 
+          description: 'Formato do relatório',
         },
-        incluir_comparativo: { type: 'boolean', description: 'Incluir análise comparativa' },
-        incluir_tendencias: { type: 'boolean', description: 'Incluir análise de tendências' },
-        incluir_recomendacoes: { type: 'boolean', description: 'Incluir recomendações' },
+        incluir_comparativo: {
+          type: 'boolean',
+          description: 'Incluir análise comparativa',
+        },
+        incluir_tendencias: {
+          type: 'boolean',
+          description: 'Incluir análise de tendências',
+        },
+        incluir_recomendacoes: {
+          type: 'boolean',
+          description: 'Incluir recomendações',
+        },
       },
     },
   })
@@ -444,7 +477,9 @@ export class ImpressaoV2Controller {
     description: 'Relatório gerado com sucesso',
     content: {
       'application/pdf': { schema: { type: 'string', format: 'binary' } },
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { schema: { type: 'string', format: 'binary' } },
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+        schema: { type: 'string', format: 'binary' },
+      },
       'text/html': { schema: { type: 'string' } },
     },
   })
@@ -453,7 +488,8 @@ export class ImpressaoV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async gerarRelatorioAnalisePrecos(
     @Param('orcamentoId') orcamentoId: string,
-    @Body() opcoes: {
+    @Body()
+    opcoes: {
       formato: 'pdf' | 'excel' | 'html';
       incluirComparativo?: boolean;
       incluirTendencias?: boolean;
@@ -463,15 +499,16 @@ export class ImpressaoV2Controller {
     @User() usuario: any,
   ) {
     try {
-      const resultado = await this.impressaoV2Service.gerarRelatorioAnalisePrecos(
-        orcamentoId,
-        opcoes.formato,
-        {
-          incluirComparativo: opcoes.incluirComparativo,
-          incluirTendencias: opcoes.incluirTendencias,
-          incluirRecomendacoes: opcoes.incluirRecomendacoes,
-        },
-      );
+      const resultado =
+        await this.impressaoV2Service.gerarRelatorioAnalisePrecos(
+          orcamentoId,
+          opcoes.formato,
+          {
+            incluirComparativo: opcoes.incluirComparativo,
+            incluirTendencias: opcoes.incluirTendencias,
+            incluirRecomendacoes: opcoes.incluirRecomendacoes,
+          },
+        );
 
       res.set({
         'Content-Type': resultado.mimeType,

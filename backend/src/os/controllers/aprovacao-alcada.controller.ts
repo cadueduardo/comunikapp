@@ -10,8 +10,18 @@ import {
   HttpStatus,
   HttpException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam } from '@nestjs/swagger';
-import { AprovacaoAlcadaService, NivelAlcada } from '../services/aprovacao-alcada.service';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiParam,
+} from '@nestjs/swagger';
+import {
+  AprovacaoAlcadaService,
+  NivelAlcada,
+} from '../services/aprovacao-alcada.service';
 import { OSPermissionsGuard } from '../guards/os-permissions.guard';
 
 interface AprovarOSRequest {
@@ -32,12 +42,17 @@ interface EstatisticasQuery {
 @Controller('os/aprovacao-alcada')
 @UseGuards(OSPermissionsGuard)
 export class AprovacaoAlcadaController {
-  constructor(private readonly aprovacaoAlcadaService: AprovacaoAlcadaService) {}
+  constructor(
+    private readonly aprovacaoAlcadaService: AprovacaoAlcadaService,
+  ) {}
 
   @Post(':id/aprovar')
   @ApiOperation({ summary: 'Aprovar OS Interna por alçada' })
   @ApiResponse({ status: 200, description: 'OS aprovada com sucesso.' })
-  @ApiResponse({ status: 400, description: 'Erro na validação ou permissões insuficientes.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Erro na validação ou permissões insuficientes.',
+  })
   @ApiResponse({ status: 404, description: 'OS não encontrada.' })
   @ApiParam({ name: 'id', description: 'ID da OS Interna' })
   async aprovarOSInterna(
@@ -78,7 +93,10 @@ export class AprovacaoAlcadaController {
   @Post(':id/rejeitar')
   @ApiOperation({ summary: 'Rejeitar OS Interna por alçada' })
   @ApiResponse({ status: 200, description: 'OS rejeitada com sucesso.' })
-  @ApiResponse({ status: 400, description: 'Erro na validação ou permissões insuficientes.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Erro na validação ou permissões insuficientes.',
+  })
   @ApiResponse({ status: 404, description: 'OS não encontrada.' })
   @ApiParam({ name: 'id', description: 'ID da OS Interna' })
   async rejeitarOSInterna(
@@ -116,10 +134,25 @@ export class AprovacaoAlcadaController {
   }
 
   @Get('pendentes')
-  @ApiOperation({ summary: 'Listar OS Internas pendentes de aprovação por alçada' })
-  @ApiResponse({ status: 200, description: 'Lista de OS pendentes de aprovação.' })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Número da página' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Limite por página' })
+  @ApiOperation({
+    summary: 'Listar OS Internas pendentes de aprovação por alçada',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de OS pendentes de aprovação.',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Número da página',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Limite por página',
+  })
   async listarOSPendentesAprovacao(
     @Request() req: any,
     @Query('page') page: string = '1',
@@ -130,12 +163,13 @@ export class AprovacaoAlcadaController {
       const lojaId = user.loja_id;
       const aprovadorCargo = user.funcao || 'USUARIO';
 
-      const resultado = await this.aprovacaoAlcadaService.listarOSPendentesAprovacao(
-        lojaId,
-        aprovadorCargo,
-        parseInt(page),
-        parseInt(limit),
-      );
+      const resultado =
+        await this.aprovacaoAlcadaService.listarOSPendentesAprovacao(
+          lojaId,
+          aprovadorCargo,
+          parseInt(page),
+          parseInt(limit),
+        );
 
       return {
         success: true,
@@ -161,8 +195,18 @@ export class AprovacaoAlcadaController {
   @Get('estatisticas')
   @ApiOperation({ summary: 'Obter estatísticas de aprovação por alçada' })
   @ApiResponse({ status: 200, description: 'Estatísticas de aprovação.' })
-  @ApiQuery({ name: 'periodoInicio', required: false, type: String, description: 'Data de início (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'periodoFim', required: false, type: String, description: 'Data de fim (YYYY-MM-DD)' })
+  @ApiQuery({
+    name: 'periodoInicio',
+    required: false,
+    type: String,
+    description: 'Data de início (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'periodoFim',
+    required: false,
+    type: String,
+    description: 'Data de fim (YYYY-MM-DD)',
+  })
   async obterEstatisticasAprovacao(
     @Request() req: any,
     @Query() query: EstatisticasQuery,
@@ -171,14 +215,19 @@ export class AprovacaoAlcadaController {
       const user = req['user'] || req.user;
       const lojaId = user.loja_id;
 
-      const periodoInicio = query.periodoInicio ? new Date(query.periodoInicio) : undefined;
-      const periodoFim = query.periodoFim ? new Date(query.periodoFim) : undefined;
+      const periodoInicio = query.periodoInicio
+        ? new Date(query.periodoInicio)
+        : undefined;
+      const periodoFim = query.periodoFim
+        ? new Date(query.periodoFim)
+        : undefined;
 
-      const estatisticas = await this.aprovacaoAlcadaService.obterEstatisticasAprovacao(
-        lojaId,
-        periodoInicio,
-        periodoFim,
-      );
+      const estatisticas =
+        await this.aprovacaoAlcadaService.obterEstatisticasAprovacao(
+          lojaId,
+          periodoInicio,
+          periodoFim,
+        );
 
       return {
         success: true,
@@ -200,8 +249,13 @@ export class AprovacaoAlcadaController {
   }
 
   @Get('validar/:osId')
-  @ApiOperation({ summary: 'Validar aprovação por alçada para uma OS específica' })
-  @ApiResponse({ status: 200, description: 'Resultado da validação de alçada.' })
+  @ApiOperation({
+    summary: 'Validar aprovação por alçada para uma OS específica',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Resultado da validação de alçada.',
+  })
   @ApiResponse({ status: 404, description: 'OS não encontrada.' })
   @ApiParam({ name: 'osId', description: 'ID da OS Interna' })
   async validarAprovacaoAlcada(
@@ -213,7 +267,9 @@ export class AprovacaoAlcadaController {
       const lojaId = user.loja_id;
 
       // Buscar dados da OS
-      const os = await this.aprovacaoAlcadaService['prisma'].ordemServico.findUnique({
+      const os = await this.aprovacaoAlcadaService[
+        'prisma'
+      ].ordemServico.findUnique({
         where: { id: osId },
         select: {
           id: true,
@@ -230,16 +286,20 @@ export class AprovacaoAlcadaController {
       }
 
       if (os.tipo_os !== 'INTERNA') {
-        throw new HttpException('Validação de alçada só é válida para OS Interna', HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          'Validação de alçada só é válida para OS Interna',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       const valorEstimado = Number(os.valor_orcado || 0);
-      const validacao = await this.aprovacaoAlcadaService.validarAprovacaoAlcada(
-        valorEstimado,
-        os.centro_custo || '',
-        os.departamento_solicitante || '',
-        os.loja_id,
-      );
+      const validacao =
+        await this.aprovacaoAlcadaService.validarAprovacaoAlcada(
+          valorEstimado,
+          os.centro_custo || '',
+          os.departamento_solicitante || '',
+          os.loja_id,
+        );
 
       return {
         success: true,

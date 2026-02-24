@@ -1,5 +1,19 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
-import { PerfisAcessoService, CreatePerfilAcessoDto, UpdatePerfilAcessoDto } from './perfis-acesso.service';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import {
+  PerfisAcessoService,
+  CreatePerfilAcessoDto,
+  UpdatePerfilAcessoDto,
+} from './perfis-acesso.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('usuarios/perfis')
@@ -8,10 +22,7 @@ export class PerfisAcessoController {
   constructor(private readonly perfisService: PerfisAcessoService) {}
 
   @Post()
-  async criar(
-    @Body() dto: CreatePerfilAcessoDto,
-    @Request() req: any
-  ) {
+  async criar(@Body() dto: CreatePerfilAcessoDto, @Request() req: any) {
     const lojaId = req.user?.loja_id;
     if (!lojaId) {
       throw new Error('Loja ID não encontrado');
@@ -29,10 +40,7 @@ export class PerfisAcessoController {
   }
 
   @Get(':id')
-  async obter(
-    @Param('id') id: string,
-    @Request() req: any
-  ) {
+  async obter(@Param('id') id: string, @Request() req: any) {
     const lojaId = req.user?.loja_id;
     if (!lojaId) {
       throw new Error('Loja ID não encontrado');
@@ -44,7 +52,7 @@ export class PerfisAcessoController {
   async atualizar(
     @Param('id') id: string,
     @Body() dto: UpdatePerfilAcessoDto,
-    @Request() req: any
+    @Request() req: any,
   ) {
     const lojaId = req.user?.loja_id;
     if (!lojaId) {
@@ -54,10 +62,7 @@ export class PerfisAcessoController {
   }
 
   @Delete(':id')
-  async excluir(
-    @Param('id') id: string,
-    @Request() req: any
-  ) {
+  async excluir(@Param('id') id: string, @Request() req: any) {
     const lojaId = req.user?.loja_id;
     if (!lojaId) {
       throw new Error('Loja ID não encontrado');
@@ -69,7 +74,7 @@ export class PerfisAcessoController {
   async associarUsuario(
     @Param('id') perfilId: string,
     @Param('usuarioId') usuarioId: string,
-    @Request() req: any
+    @Request() req: any,
   ) {
     const lojaId = req.user?.loja_id;
     if (!lojaId) {
@@ -82,7 +87,7 @@ export class PerfisAcessoController {
   async desassociarUsuario(
     @Param('id') perfilId: string,
     @Param('usuarioId') usuarioId: string,
-    @Request() req: any
+    @Request() req: any,
   ) {
     const lojaId = req.user?.loja_id;
     if (!lojaId) {

@@ -12,15 +12,15 @@ function serializeBigInt(obj: any): any {
   if (obj === null || obj === undefined) {
     return obj;
   }
-  
+
   if (typeof obj === 'bigint') {
     return obj.toString();
   }
-  
+
   if (Array.isArray(obj)) {
     return obj.map(serializeBigInt);
   }
-  
+
   if (typeof obj === 'object') {
     const serialized: any = {};
     for (const key in obj) {
@@ -30,7 +30,7 @@ function serializeBigInt(obj: any): any {
     }
     return serialized;
   }
-  
+
   return obj;
 }
 
@@ -65,15 +65,17 @@ export class ArteLinkAprovacaoService {
 
   constructor(
     private prisma: PrismaService,
-    private notificacaoService: ArteNotificacaoService
+    private notificacaoService: ArteNotificacaoService,
   ) {}
 
   /**
    * Cria um novo link de aprovação para uma versão
    */
-  async createLinkAprovacao(dto: CreateLinkAprovacaoDto): Promise<LinkAprovacaoResponse> {
+  async createLinkAprovacao(
+    dto: CreateLinkAprovacaoDto,
+  ): Promise<LinkAprovacaoResponse> {
     const { versao_id, loja_id } = dto;
-    
+
     // Verificar se a versão existe e pertence à loja
     const versao = await this.prisma.arteVersao.findFirst({
       where: {
@@ -115,9 +117,10 @@ export class ArteLinkAprovacaoService {
 
     // Gerar token público único
     const token_publico = this.generatePublicToken();
-    
+
     // Definir data de expiração (padrão: 7 dias)
-    const expira_em = dto.expira_em || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const expira_em =
+      dto.expira_em || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     // Criar novo link
     const link = await this.prisma.arteLinkAprovacao.create({
@@ -148,12 +151,15 @@ export class ArteLinkAprovacaoService {
         },
       });
     } catch (error) {
-      console.error('❌ Erro ao enviar notificação de aprovação solicitada:', error);
+      console.error(
+        '❌ Erro ao enviar notificação de aprovação solicitada:',
+        error,
+      );
       // Não falhar a operação principal por causa da notificação
     }
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    
+
     return {
       id: link.id,
       token_publico: link.token_publico,
@@ -219,7 +225,7 @@ export class ArteLinkAprovacaoService {
     // Buscar todas as versões da mesma OS (todos os produtos/serviços)
     console.log('🔍 [getVersaoByToken] Buscando versões para:', {
       os_id: link.versao.os_id,
-      loja_id: link.versao.loja_id
+      loja_id: link.versao.loja_id,
     });
 
     const todasVersoes = await this.prisma.arteVersao.findMany({
@@ -227,14 +233,14 @@ export class ArteLinkAprovacaoService {
         os_id: link.versao.os_id,
         // Removido filtro por servico_id para buscar TODAS as versões da OS
         loja_id: link.versao.loja_id,
-        deletado: false
+        deletado: false,
       },
       include: {
         autor: {
           select: {
             id: true,
-            nome_completo: true
-          }
+            nome_completo: true,
+          },
         },
         arquivos: true,
         comentarios: {
@@ -242,46 +248,48 @@ export class ArteLinkAprovacaoService {
             usuario: {
               select: {
                 id: true,
-                nome_completo: true
-              }
-            }
+                nome_completo: true,
+              },
+            },
           },
           orderBy: {
-            data_comentario: 'desc'
-          }
-        }
+            data_comentario: 'desc',
+          },
+        },
       },
       orderBy: {
-        data_criacao: 'desc'
-      }
+        data_criacao: 'desc',
+      },
     });
 
     console.log('📋 [getVersaoByToken] Encontradas versões:', {
       quantidade: todasVersoes.length,
-      versoes: todasVersoes.map(v => ({
+      versoes: todasVersoes.map((v) => ({
         id: v.id,
         versao: v.versao,
         servico_id: v.servico_id,
         status: v.status,
-        data_criacao: v.data_criacao
-      }))
+        data_criacao: v.data_criacao,
+      })),
     });
 
     // Buscar produtos da OS para estruturar os dados corretamente
     const produtos = await this.prisma.itemOS.findMany({
       where: {
-        os_id: link.versao.os_id
+        os_id: link.versao.os_id,
       },
       select: {
         id: true,
         produto_servico: true,
-        quantidade: true
-      }
+        quantidade: true,
+      },
     });
 
     // Estruturar produtos com suas versões mais recentes
-    const produtosComVersoes = produtos.map(produto => {
-      const versaoProduto = todasVersoes.find(v => v.servico_id === produto.id);
+    const produtosComVersoes = produtos.map((produto) => {
+      const versaoProduto = todasVersoes.find(
+        (v) => v.servico_id === produto.id,
+      );
       return {
         id: produto.id,
         nome: produto.produto_servico,
@@ -291,8 +299,8 @@ export class ArteLinkAprovacaoService {
           status: link.versao.status,
           data_criacao: link.versao.data_criacao,
           autor: link.versao.autor,
-          arquivos: link.versao.arquivos
-        }
+          arquivos: link.versao.arquivos,
+        },
       };
     });
 
@@ -313,7 +321,14 @@ export class ArteLinkAprovacaoService {
    * Processa aprovação ou rejeição da arte
    */
   async processarAprovacao(dto: AprovarArteDto) {
-    const { token_publico, aprovado, comentario, ip_address, user_agent, versao_id } = dto;
+    const {
+      token_publico,
+      aprovado,
+      comentario,
+      ip_address,
+      user_agent,
+      versao_id,
+    } = dto;
 
     let link;
 
@@ -321,7 +336,7 @@ export class ArteLinkAprovacaoService {
     // O link público é compartilhado para todas as artes da mesma OS
     if (versao_id) {
       this.logger.log(`🔍 Buscando link para versão específica: ${versao_id}`);
-      
+
       // Primeiro, buscar versão para obter os_id
       const versaoSolicitada = await this.prisma.arteVersao.findUnique({
         where: { id: versao_id },
@@ -364,7 +379,9 @@ export class ArteLinkAprovacaoService {
 
       if (!link) {
         // Se não encontrou link ativo para a versão, tentar buscar pelo token como fallback
-        this.logger.warn(`⚠️ Link ativo não encontrado para versão ${versao_id}, tentando pelo token`);
+        this.logger.warn(
+          `⚠️ Link ativo não encontrado para versão ${versao_id}, tentando pelo token`,
+        );
         link = await this.prisma.arteLinkAprovacao.findUnique({
           where: { token_publico },
           include: {
@@ -383,13 +400,18 @@ export class ArteLinkAprovacaoService {
 
         // Se encontrou link pelo token mas não é da versão correta, buscar link correto pela OS
         if (link && link.versao_id !== versao_id) {
-          this.logger.log(`🔍 Link do token não corresponde à versão solicitada, buscando link correto`);
+          this.logger.log(
+            `🔍 Link do token não corresponde à versão solicitada, buscando link correto`,
+          );
           const versaoSolicitada = await this.prisma.arteVersao.findUnique({
             where: { id: versao_id },
             select: { os_id: true, loja_id: true },
           });
 
-          if (versaoSolicitada && versaoSolicitada.os_id === link.versao.os_id) {
+          if (
+            versaoSolicitada &&
+            versaoSolicitada.os_id === link.versao.os_id
+          ) {
             // Buscar link para a versão correta (não filtrar por ativo)
             link = await this.prisma.arteLinkAprovacao.findFirst({
               where: {
@@ -436,8 +458,10 @@ export class ArteLinkAprovacaoService {
     if (!link) {
       // Se versao_id foi fornecido mas não encontrou link, criar um novo link para aquela versão
       if (versao_id) {
-        this.logger.log(`📝 Criando novo link para versão ${versao_id} (link não encontrado)`);
-        
+        this.logger.log(
+          `📝 Criando novo link para versão ${versao_id} (link não encontrado)`,
+        );
+
         // Verificar se a versão existe e pertence à mesma OS do token original
         const versaoSolicitada = await this.prisma.arteVersao.findUnique({
           where: { id: versao_id },
@@ -490,8 +514,13 @@ export class ArteLinkAprovacaoService {
             select: { versao: { select: { os_id: true } } },
           });
 
-          if (!tokenOriginal || tokenOriginal.versao.os_id !== versaoSolicitada.os_id) {
-            throw new Error('Versão não pertence à mesma OS do token fornecido');
+          if (
+            !tokenOriginal ||
+            tokenOriginal.versao.os_id !== versaoSolicitada.os_id
+          ) {
+            throw new Error(
+              'Versão não pertence à mesma OS do token fornecido',
+            );
           }
 
           // Criar novo link ativo para a versão solicitada
@@ -537,11 +566,15 @@ export class ArteLinkAprovacaoService {
 
       if (versaoSolicitada && versaoSolicitada.os_id === link.versao.os_id) {
         // Links da mesma OS - permitir usar este link para aprovar a versão solicitada
-        this.logger.log(`✅ Link da mesma OS, permitindo aprovação da versão ${versao_id}`);
+        this.logger.log(
+          `✅ Link da mesma OS, permitindo aprovação da versão ${versao_id}`,
+        );
         // Atualizar link.versao_id temporariamente só para a aprovação
         // Mas precisamos buscar o link correto ou criar um novo
       } else {
-        throw new Error(`Link de aprovação não corresponde à versão solicitada`);
+        throw new Error(
+          `Link de aprovação não corresponde à versão solicitada`,
+        );
       }
     }
 
@@ -555,7 +588,7 @@ export class ArteLinkAprovacaoService {
     // Se versao_id foi fornecido, verificar se essa versão específica já foi aprovada
     // Se não foi fornecido, usar a versão do link encontrado
     const versaoIdParaVerificar = versao_id || link.versao_id;
-    
+
     const versao = await this.prisma.arteVersao.findUnique({
       where: { id: versaoIdParaVerificar },
       select: { aprovado_por_cliente: true, status: true },
@@ -566,7 +599,9 @@ export class ArteLinkAprovacaoService {
     }
 
     if (versao.aprovado_por_cliente) {
-      throw new Error('Esta versão de arte já foi aprovada. Você pode visualizá-la, mas não pode aprová-la novamente.');
+      throw new Error(
+        'Esta versão de arte já foi aprovada. Você pode visualizá-la, mas não pode aprová-la novamente.',
+      );
     }
 
     // Remover validação do link.aprovado já que agora verificamos pela versão
@@ -593,8 +628,10 @@ export class ArteLinkAprovacaoService {
 
     // Atualizar status da versão (usar versao_id se fornecido, senão usar do link)
     const versaoIdParaAtualizar = versao_id || link.versao_id;
-    const novoStatus = aprovado ? ArteStatus.APROVADA : ArteStatus.REVISAO_SOLICITADA;
-    
+    const novoStatus = aprovado
+      ? ArteStatus.APROVADA
+      : ArteStatus.REVISAO_SOLICITADA;
+
     await this.prisma.arteVersao.update({
       where: { id: versaoIdParaAtualizar },
       data: {
@@ -639,15 +676,18 @@ export class ArteLinkAprovacaoService {
         });
       }
     } catch (error) {
-      console.error('❌ Erro ao enviar notificação de aprovação/rejeição:', error);
+      console.error(
+        '❌ Erro ao enviar notificação de aprovação/rejeição:',
+        error,
+      );
       // Não falhar a operação principal por causa da notificação
     }
 
     return {
       sucesso: true,
       status: novoStatus,
-      mensagem: aprovado 
-        ? 'Arte aprovada com sucesso!' 
+      mensagem: aprovado
+        ? 'Arte aprovada com sucesso!'
         : 'Solicitação de alteração enviada!',
     };
   }
@@ -685,7 +725,7 @@ export class ArteLinkAprovacaoService {
     const uuid = uuidv4();
     const timestamp = Date.now().toString(36);
     const random = crypto.randomBytes(8).toString('hex');
-    
+
     return `${uuid}-${timestamp}-${random}`;
   }
 

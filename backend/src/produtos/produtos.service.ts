@@ -8,7 +8,10 @@ import { MotorCalculoV2Service } from '../motor-calculo-v2/services/motor-calcul
 import { CreateProdutoDto } from './dto/create-produto.dto';
 import { UpdateProdutoDto } from './dto/update-produto.dto';
 import { CalcularProdutoDto } from './dto/calcular-produto.dto';
-import { DTOCalculo, ResultadoCalculo } from '../motor-calculo-v2/interfaces/calculo.interface';
+import {
+  DTOCalculo,
+  ResultadoCalculo,
+} from '../motor-calculo-v2/interfaces/calculo.interface';
 
 @Injectable()
 export class ProdutosService {
@@ -195,7 +198,7 @@ export class ProdutosService {
             // IMPORTANTE: Usar o custo_total já calculado e salvo no banco
             // Não recalcular incorretamente
             const custoTotal = Number(item.custo_total) || 0;
-            
+
             // Calcular custo unitário baseado no total e quantidade
             const custoUnitario = quantidade > 0 ? custoTotal / quantidade : 0;
 
@@ -253,7 +256,10 @@ export class ProdutosService {
             horas_producao: Number(produto.horas_producao) || 0,
             // IMPORTANTE: Usar área do produto se quantidade_padrao for null
             // Para produtos como banners, a área é a quantidade real
-            quantidade_produto: Number(produto.quantidade_padrao) || Number(produto.area_produto) || 1,
+            quantidade_produto:
+              Number(produto.quantidade_padrao) ||
+              Number(produto.area_produto) ||
+              1,
             itens: itensComCustosRecalculados.map((item) => ({
               insumo_id: item.insumo_id,
               quantidade: Number(item.quantidade) || 0,
@@ -295,15 +301,19 @@ export class ProdutosService {
           console.log(`🔍 Salvando valor calculado para ${produto.nome}:`, {
             valor_anterior: (produto as any).valor_calculado,
             valor_novo: calculo.custos.preco_final,
-            diferenca: Number((produto as any).valor_calculado) - Number(calculo.custos.preco_final)
+            diferenca:
+              Number((produto as any).valor_calculado) -
+              Number(calculo.custos.preco_final),
           });
-          
+
           await this.prisma.templateProduto.update({
             where: { id: produto.id },
             data: { valor_calculado: calculo.custos.preco_final } as any,
           });
-          
-          console.log(`✅ Valor salvo no banco: R$ ${calculo.custos.preco_final}`);
+
+          console.log(
+            `✅ Valor salvo no banco: R$ ${calculo.custos.preco_final}`,
+          );
 
           return {
             ...produto,
@@ -540,10 +550,7 @@ export class ProdutosService {
   }
 
   // Método auxiliar para calcular produto usando motor V2
-  private async calcularProdutoV2(
-    dtoParaOrcamento: any,
-    lojaId: string,
-  ) {
+  private async calcularProdutoV2(dtoParaOrcamento: any, lojaId: string) {
     try {
       // Preparar DTO para o motor V2
       const dtoCalculo: DTOCalculo = {
@@ -564,24 +571,26 @@ export class ProdutosService {
               fornecedor: '',
               estoque_disponivel: 0,
             })),
-            maquinas: dtoParaOrcamento.maquinas?.map((m: any) => ({
-              id: m.maquina_id,
-              nome: '',
-              tipo: '',
-              custo_hora: 0,
-              tempo_setup: 0,
-              eficiencia: 1,
-              disponivel: true,
-            })) || [],
-            funcoes: dtoParaOrcamento.funcoes?.map((f: any) => ({
-              id: f.funcao_id,
-              nome: '',
-              categoria: '',
-              custo_hora: 0,
-              tempo_estimado: 0,
-              nivel_experiencia: 'INTERMEDIARIO',
-              disponivel: true,
-            })) || [],
+            maquinas:
+              dtoParaOrcamento.maquinas?.map((m: any) => ({
+                id: m.maquina_id,
+                nome: '',
+                tipo: '',
+                custo_hora: 0,
+                tempo_setup: 0,
+                eficiencia: 1,
+                disponivel: true,
+              })) || [],
+            funcoes:
+              dtoParaOrcamento.funcoes?.map((f: any) => ({
+                id: f.funcao_id,
+                nome: '',
+                categoria: '',
+                custo_hora: 0,
+                tempo_estimado: 0,
+                nivel_experiencia: 'INTERMEDIARIO',
+                disponivel: true,
+              })) || [],
             servicos_manuais: [],
             custos_indiretos: [],
           },
@@ -599,7 +608,8 @@ export class ProdutosService {
       };
 
       // Executar cálculo via motor V2
-      const resultado = await this.motorCalculoV2Service.executarCalculo(dtoCalculo);
+      const resultado =
+        await this.motorCalculoV2Service.executarCalculo(dtoCalculo);
 
       // Converter resultado para formato esperado pelo módulo de produtos
       // O resultado do motor V2 precisa ser adaptado para o formato antigo

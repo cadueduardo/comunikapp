@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { UsuariosService } from './usuarios.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModuleActivationGuard } from '../common/guards/module-activation.guard';
@@ -37,9 +45,13 @@ export class UsuariosController {
   }
 
   @Post('definir-senha')
-  async definirSenha(@Body() body: { email: string; codigo: string; senha: string }) {
-    return this.usuariosService.definirSenhaInicial(body.email, body.codigo, body.senha);
+  async definirSenha(
+    @Body() body: { email: string; codigo: string; senha: string },
+  ) {
+    return this.usuariosService.definirSenhaInicial(
+      body.email,
+      body.codigo,
+      body.senha,
+    );
   }
 }
-
-

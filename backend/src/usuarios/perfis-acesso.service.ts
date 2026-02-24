@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface CreatePerfilAcessoDto {
@@ -29,11 +33,13 @@ export class PerfisAcessoService {
   async criar(lojaId: string, dto: CreatePerfilAcessoDto) {
     // Verificar se já existe perfil com mesmo nome na loja
     const exists = await this.prisma.perfil_acesso.findFirst({
-      where: { loja_id: lojaId, nome: dto.nome }
+      where: { loja_id: lojaId, nome: dto.nome },
     });
-    
+
     if (exists) {
-      throw new BadRequestException('Já existe um perfil com este nome na loja');
+      throw new BadRequestException(
+        'Já existe um perfil com este nome na loja',
+      );
     }
 
     // Criar perfil
@@ -44,7 +50,7 @@ export class PerfisAcessoService {
         descricao: dto.descricao,
         ativo: dto.ativo ?? true,
         sistema: dto.sistema ?? false,
-      }
+      },
     });
 
     // Criar permissões se fornecidas
@@ -61,10 +67,10 @@ export class PerfisAcessoService {
       include: {
         permissoes: true,
         _count: {
-          select: { usuarios: true }
-        }
+          select: { usuarios: true },
+        },
       },
-      orderBy: { nome: 'asc' }
+      orderBy: { nome: 'asc' },
     });
   }
 
@@ -76,11 +82,16 @@ export class PerfisAcessoService {
         usuarios: {
           include: {
             usuario: {
-              select: { id: true, nome_completo: true, email: true, status: true }
-            }
-          }
-        }
-      }
+              select: {
+                id: true,
+                nome_completo: true,
+                email: true,
+                status: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!perfil) {
@@ -93,7 +104,7 @@ export class PerfisAcessoService {
   async atualizar(id: string, lojaId: string, dto: UpdatePerfilAcessoDto) {
     // Verificar se perfil existe
     const perfil = await this.prisma.perfil_acesso.findFirst({
-      where: { id, loja_id: lojaId }
+      where: { id, loja_id: lojaId },
     });
 
     if (!perfil) {
@@ -107,11 +118,13 @@ export class PerfisAcessoService {
     // Verificar nome único se alterado
     if (dto.nome && dto.nome !== perfil.nome) {
       const exists = await this.prisma.perfil_acesso.findFirst({
-        where: { loja_id: lojaId, nome: dto.nome, id: { not: id } }
+        where: { loja_id: lojaId, nome: dto.nome, id: { not: id } },
       });
-      
+
       if (exists) {
-        throw new BadRequestException('Já existe um perfil com este nome na loja');
+        throw new BadRequestException(
+          'Já existe um perfil com este nome na loja',
+        );
       }
     }
 
@@ -122,7 +135,7 @@ export class PerfisAcessoService {
         nome: dto.nome,
         descricao: dto.descricao,
         ativo: dto.ativo,
-      }
+      },
     });
 
     // Atualizar permissões se fornecidas
@@ -137,7 +150,7 @@ export class PerfisAcessoService {
     // Verificar se perfil existe
     const perfil = await this.prisma.perfil_acesso.findFirst({
       where: { id, loja_id: lojaId },
-      include: { _count: { select: { usuarios: true } } }
+      include: { _count: { select: { usuarios: true } } },
     });
 
     if (!perfil) {
@@ -149,17 +162,19 @@ export class PerfisAcessoService {
     }
 
     if (perfil._count.usuarios > 0) {
-      throw new BadRequestException('Não é possível excluir perfil com usuários associados');
+      throw new BadRequestException(
+        'Não é possível excluir perfil com usuários associados',
+      );
     }
 
     // Excluir permissões primeiro
     await this.prisma.perfil_permissao.deleteMany({
-      where: { perfil_id: id }
+      where: { perfil_id: id },
     });
 
     // Excluir perfil
     await this.prisma.perfil_acesso.delete({
-      where: { id }
+      where: { id },
     });
 
     return { message: 'Perfil excluído com sucesso' };
@@ -169,11 +184,11 @@ export class PerfisAcessoService {
     // Verificar se perfil e usuário existem na mesma loja
     const [perfil, usuario] = await Promise.all([
       this.prisma.perfil_acesso.findFirst({
-        where: { id: perfilId, loja_id: lojaId }
+        where: { id: perfilId, loja_id: lojaId },
       }),
       this.prisma.usuario.findFirst({
-        where: { id: usuarioId, loja_id: lojaId }
-      })
+        where: { id: usuarioId, loja_id: lojaId },
+      }),
     ]);
 
     if (!perfil) {
@@ -186,7 +201,7 @@ export class PerfisAcessoService {
 
     // Verificar se associação já existe
     const exists = await this.prisma.usuario_perfil.findFirst({
-      where: { usuario_id: usuarioId, perfil_id: perfilId }
+      where: { usuario_id: usuarioId, perfil_id: perfilId },
     });
 
     if (exists) {
@@ -197,18 +212,22 @@ export class PerfisAcessoService {
     return this.prisma.usuario_perfil.create({
       data: {
         usuario_id: usuarioId,
-        perfil_id: perfilId
-      }
+        perfil_id: perfilId,
+      },
     });
   }
 
-  async desassociarUsuario(perfilId: string, usuarioId: string, lojaId: string) {
+  async desassociarUsuario(
+    perfilId: string,
+    usuarioId: string,
+    lojaId: string,
+  ) {
     // Verificar se associação existe
     const associacao = await this.prisma.usuario_perfil.findFirst({
       where: { usuario_id: usuarioId, perfil_id: perfilId },
       include: {
-        perfil: { select: { loja_id: true, sistema: true } }
-      }
+        perfil: { select: { loja_id: true, sistema: true } },
+      },
     });
 
     if (!associacao) {
@@ -220,7 +239,9 @@ export class PerfisAcessoService {
     }
 
     if (associacao.perfil.sistema) {
-      throw new BadRequestException('Não é possível desassociar usuário de perfil do sistema');
+      throw new BadRequestException(
+        'Não é possível desassociar usuário de perfil do sistema',
+      );
     }
 
     // Remover associação usando where com ambos os campos
@@ -228,32 +249,38 @@ export class PerfisAcessoService {
       where: {
         usuario_id_perfil_id: {
           usuario_id: usuarioId,
-          perfil_id: perfilId
-        }
-      }
+          perfil_id: perfilId,
+        },
+      },
     });
 
     return { message: 'Usuário desassociado do perfil com sucesso' };
   }
 
-  private async criarPermissoes(perfilId: string, permissoes: CreatePermissaoDto[]) {
-    const data = permissoes.map(p => ({
+  private async criarPermissoes(
+    perfilId: string,
+    permissoes: CreatePermissaoDto[],
+  ) {
+    const data = permissoes.map((p) => ({
       perfil_id: perfilId,
       modulo: p.modulo,
       acao: p.acao,
-      permitido: p.permitido
+      permitido: p.permitido,
     }));
 
     return this.prisma.perfil_permissao.createMany({
       data,
-      skipDuplicates: true
+      skipDuplicates: true,
     });
   }
 
-  private async atualizarPermissoes(perfilId: string, permissoes: CreatePermissaoDto[]) {
+  private async atualizarPermissoes(
+    perfilId: string,
+    permissoes: CreatePermissaoDto[],
+  ) {
     // Remover permissões existentes
     await this.prisma.perfil_permissao.deleteMany({
-      where: { perfil_id: perfilId }
+      where: { perfil_id: perfilId },
     });
 
     // Criar novas permissões

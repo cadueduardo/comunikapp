@@ -30,7 +30,9 @@ export class EventProducerService {
     };
 
     await this.publicarEvento(evento);
-    this.logger.log(`📢 Evento publicado: calculo_iniciado para contexto ${contexto.id}`);
+    this.logger.log(
+      `📢 Evento publicado: calculo_iniciado para contexto ${contexto.id}`,
+    );
   }
 
   /**
@@ -61,7 +63,9 @@ export class EventProducerService {
     };
 
     await this.publicarEvento(evento);
-    this.logger.log(`📢 Evento publicado: validacao (${sucesso ? 'sucesso' : 'falha'}) para contexto ${contexto.id}`);
+    this.logger.log(
+      `📢 Evento publicado: validacao (${sucesso ? 'sucesso' : 'falha'}) para contexto ${contexto.id}`,
+    );
   }
 
   /**
@@ -89,7 +93,9 @@ export class EventProducerService {
     };
 
     await this.publicarEvento(evento);
-    this.logger.log(`📢 Evento publicado: estagio_executado (${nomeEstagio}) para contexto ${contexto.id}`);
+    this.logger.log(
+      `📢 Evento publicado: estagio_executado (${nomeEstagio}) para contexto ${contexto.id}`,
+    );
   }
 
   /**
@@ -118,7 +124,9 @@ export class EventProducerService {
     };
 
     await this.publicarEvento(evento);
-    this.logger.log(`📢 Evento publicado: calculo_concluido para contexto ${contexto.id} em ${tempoExecucao}ms`);
+    this.logger.log(
+      `📢 Evento publicado: calculo_concluido para contexto ${contexto.id} em ${tempoExecucao}ms`,
+    );
   }
 
   /**
@@ -140,7 +148,9 @@ export class EventProducerService {
     };
 
     await this.publicarEvento(evento);
-    this.logger.error(`📢 Evento publicado: erro para contexto ${contexto.id} - ${erro}`);
+    this.logger.error(
+      `📢 Evento publicado: erro para contexto ${contexto.id} - ${erro}`,
+    );
   }
 
   /**
@@ -158,9 +168,10 @@ export class EventProducerService {
         eventos_por_tipo: {},
         ultimo_evento: null,
       };
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao obter estatísticas de eventos: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao obter estatísticas de eventos: ${error.message}`,
+      );
       return {
         total_eventos: 0,
         eventos_por_tipo: {},
@@ -176,18 +187,19 @@ export class EventProducerService {
   private async publicarEvento(evento: EventoCalculo): Promise<void> {
     try {
       // Log estruturado do evento
-      this.logger.log(`📡 [${evento.tipo}] ${JSON.stringify({
-        id: evento.id,
-        contexto_id: evento.contexto.id,
-        loja_id: evento.contexto.lojaId,
-        timestamp: evento.timestamp,
-        dados: evento.dados,
-      })}`);
+      this.logger.log(
+        `📡 [${evento.tipo}] ${JSON.stringify({
+          id: evento.id,
+          contexto_id: evento.contexto.id,
+          loja_id: evento.contexto.lojaId,
+          timestamp: evento.timestamp,
+          dados: evento.dados,
+        })}`,
+      );
 
       // TODO: Implementar publicação real (WebSocket, Redis, etc.)
       // await this.websocketGateway.broadcast(evento);
       // await this.redisPublisher.publish('calculo_eventos', evento);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao publicar evento: ${error.message}`);
       // Não propagar erro para não quebrar o cálculo

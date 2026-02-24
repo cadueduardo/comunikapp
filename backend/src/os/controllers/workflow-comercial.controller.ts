@@ -1,5 +1,19 @@
-import { Controller, Post, Patch, Param, Body, UseGuards, Request, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { OSService } from '../services/os.service';
 import { StatusOS } from '../interfaces/os.interfaces';
@@ -12,14 +26,22 @@ export class WorkflowComercialController {
   constructor(private readonly osService: OSService) {}
 
   @Patch(':id/transicionar-estado')
-  @ApiOperation({ summary: 'Transicionar OS para próximo estado do workflow comercial' })
+  @ApiOperation({
+    summary: 'Transicionar OS para próximo estado do workflow comercial',
+  })
   @ApiResponse({ status: 200, description: 'OS transicionada com sucesso' })
-  @ApiResponse({ status: 400, description: 'Transição inválida ou dados incorretos' })
-  @ApiResponse({ status: 403, description: 'Usuário sem permissão para transição' })
+  @ApiResponse({
+    status: 400,
+    description: 'Transição inválida ou dados incorretos',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Usuário sem permissão para transição',
+  })
   async transicionarEstado(
     @Param('id') osId: string,
     @Body() body: { novo_status: StatusOS; observacoes?: string },
-    @Request() req: any
+    @Request() req: any,
   ) {
     const user = req['user'] || req.user;
     const usuarioId = user.id;
@@ -28,31 +50,39 @@ export class WorkflowComercialController {
       osId,
       body.novo_status,
       usuarioId,
-      body.observacoes
+      body.observacoes,
     );
   }
 
   @Patch(':id/aprovar-tecnica')
   @ApiOperation({ summary: 'Aprovar OS técnica (workflow comercial)' })
   @ApiResponse({ status: 200, description: 'OS aprovada tecnicamente' })
-  @ApiResponse({ status: 400, description: 'OS não é comercial ou dados inválidos' })
-  @ApiResponse({ status: 403, description: 'Usuário sem permissão de produção' })
+  @ApiResponse({
+    status: 400,
+    description: 'OS não é comercial ou dados inválidos',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Usuário sem permissão de produção',
+  })
   async aprovarTecnica(
     @Param('id') osId: string,
     @Body() body: { aprovado: boolean; observacoes?: string },
-    @Request() req: any
+    @Request() req: any,
   ) {
     console.log('🔍 Debug - req object:', req);
     console.log('🔍 Debug - req.user:', req.user);
     console.log('🔍 Debug - req["user"]:', req['user']);
-    
+
     const user = req.user;
-    
+
     if (!user || !user.id) {
       console.log('🔍 Debug - User ou ID não encontrado');
-      throw new BadRequestException('Usuário não autenticado ou ID não encontrado');
+      throw new BadRequestException(
+        'Usuário não autenticado ou ID não encontrado',
+      );
     }
-    
+
     const usuarioId = user.id;
     console.log('🔍 Debug - UsuarioId final:', usuarioId);
 
@@ -60,18 +90,21 @@ export class WorkflowComercialController {
       osId,
       usuarioId,
       body.aprovado,
-      body.observacoes
+      body.observacoes,
     );
   }
 
   @Post(':id/iniciar-producao')
   @ApiOperation({ summary: 'Iniciar produção da OS (após aprovação técnica)' })
   @ApiResponse({ status: 200, description: 'Produção iniciada com sucesso' })
-  @ApiResponse({ status: 400, description: 'OS não está aprovada tecnicamente' })
+  @ApiResponse({
+    status: 400,
+    description: 'OS não está aprovada tecnicamente',
+  })
   async iniciarProducao(
     @Param('id') osId: string,
     @Body() body: { observacoes?: string },
-    @Request() req: any
+    @Request() req: any,
   ) {
     const user = req['user'] || req.user;
     const usuarioId = user.id;
@@ -80,7 +113,7 @@ export class WorkflowComercialController {
       osId,
       StatusOS.PRODUCAO,
       usuarioId,
-      body.observacoes || 'Produção iniciada'
+      body.observacoes || 'Produção iniciada',
     );
   }
 
@@ -91,7 +124,7 @@ export class WorkflowComercialController {
   async finalizarProducao(
     @Param('id') osId: string,
     @Body() body: { observacoes?: string },
-    @Request() req: any
+    @Request() req: any,
   ) {
     const user = req['user'] || req.user;
     const usuarioId = user.id;
@@ -100,7 +133,7 @@ export class WorkflowComercialController {
       osId,
       StatusOS.ACABAMENTO,
       usuarioId,
-      body.observacoes || 'Produção finalizada'
+      body.observacoes || 'Produção finalizada',
     );
   }
 
@@ -111,7 +144,7 @@ export class WorkflowComercialController {
   async finalizarOS(
     @Param('id') osId: string,
     @Body() body: { observacoes?: string },
-    @Request() req: any
+    @Request() req: any,
   ) {
     const user = req['user'] || req.user;
     const usuarioId = user.id;
@@ -120,8 +153,7 @@ export class WorkflowComercialController {
       osId,
       StatusOS.FINALIZADA,
       usuarioId,
-      body.observacoes || 'OS finalizada'
+      body.observacoes || 'OS finalizada',
     );
   }
 }
-

@@ -16,7 +16,7 @@ interface GerarCodigoParams {
 
 export enum TipoOS {
   COMERCIAL = 'COMERCIAL',
-  INTERNA = 'INTERNA'
+  INTERNA = 'INTERNA',
 }
 
 @Injectable()
@@ -66,7 +66,11 @@ export class DocumentCodeService {
   /**
    * Gera código para OS baseado no tipo (Comercial ou Interna)
    */
-  async gerarCodigoOSPorTipo(lojaId: string, tipoOS: TipoOS, ano?: number): Promise<string> {
+  async gerarCodigoOSPorTipo(
+    lojaId: string,
+    tipoOS: TipoOS,
+    ano?: number,
+  ): Promise<string> {
     if (tipoOS === TipoOS.COMERCIAL) {
       return this.gerarCodigoOSComercial(lojaId, ano);
     } else if (tipoOS === TipoOS.INTERNA) {
@@ -129,7 +133,11 @@ export class DocumentCodeService {
   /**
    * Valida se um código de OS é válido
    */
-  validarCodigoOS(codigo: string): { valido: boolean; tipo?: TipoOS; erro?: string } {
+  validarCodigoOS(codigo: string): {
+    valido: boolean;
+    tipo?: TipoOS;
+    erro?: string;
+  } {
     // Regex para OS Comercial: OS-AAAA-NNN
     const regexOSComercial = /^OS-\d{4}-\d{3}$/;
     // Regex para OS Interna: OSI-AAAA-NNN
@@ -140,9 +148,9 @@ export class DocumentCodeService {
     } else if (regexOSInterna.test(codigo)) {
       return { valido: true, tipo: TipoOS.INTERNA };
     } else {
-      return { 
-        valido: false, 
-        erro: 'Formato inválido. Use OS-AAAA-NNN para comercial ou OSI-AAAA-NNN para interna' 
+      return {
+        valido: false,
+        erro: 'Formato inválido. Use OS-AAAA-NNN para comercial ou OSI-AAAA-NNN para interna',
       };
     }
   }
@@ -150,14 +158,16 @@ export class DocumentCodeService {
   /**
    * Extrai informações de um código de OS
    */
-  extrairInformacoesCodigo(codigo: string): { tipo: TipoOS; ano: number; numero: number } | null {
+  extrairInformacoesCodigo(
+    codigo: string,
+  ): { tipo: TipoOS; ano: number; numero: number } | null {
     const validacao = this.validarCodigoOS(codigo);
     if (!validacao.valido) {
       return null;
     }
 
     const partes = codigo.split('-');
-    const tipo = validacao.tipo!;
+    const tipo = validacao.tipo;
     const ano = parseInt(partes[1], 10);
     const numero = parseInt(partes[2], 10);
 
@@ -167,14 +177,20 @@ export class DocumentCodeService {
   /**
    * Verifica se um código já existe no banco
    */
-  async verificarCodigoExistente(codigo: string, lojaId: string): Promise<boolean> {
+  async verificarCodigoExistente(
+    codigo: string,
+    lojaId: string,
+  ): Promise<boolean> {
     const informacoes = this.extrairInformacoesCodigo(codigo);
     if (!informacoes) {
       return false;
     }
 
-    const tipoDocumento = informacoes.tipo === TipoOS.COMERCIAL ? DOCUMENTO_OS : DOCUMENTO_OS_INTERNA;
-    
+    const tipoDocumento =
+      informacoes.tipo === TipoOS.COMERCIAL
+        ? DOCUMENTO_OS
+        : DOCUMENTO_OS_INTERNA;
+
     const sequence = await this.prisma.document_sequence.findUnique({
       where: {
         loja_id_tipo_ano: {
@@ -191,7 +207,10 @@ export class DocumentCodeService {
   /**
    * Obtém estatísticas de numeração por tipo
    */
-  async obterEstatisticasNumeracao(lojaId: string, ano?: number): Promise<{
+  async obterEstatisticasNumeracao(
+    lojaId: string,
+    ano?: number,
+  ): Promise<{
     comercial: { total: number; ultimoNumero: number };
     interna: { total: number; ultimoNumero: number };
   }> {
@@ -233,9 +252,14 @@ export class DocumentCodeService {
   /**
    * Obtém próximo número disponível para um tipo específico
    */
-  async obterProximoNumero(lojaId: string, tipoOS: TipoOS, ano?: number): Promise<number> {
+  async obterProximoNumero(
+    lojaId: string,
+    tipoOS: TipoOS,
+    ano?: number,
+  ): Promise<number> {
     const anoReferencia = ano ?? new Date().getFullYear();
-    const tipoDocumento = tipoOS === TipoOS.COMERCIAL ? DOCUMENTO_OS : DOCUMENTO_OS_INTERNA;
+    const tipoDocumento =
+      tipoOS === TipoOS.COMERCIAL ? DOCUMENTO_OS : DOCUMENTO_OS_INTERNA;
 
     const sequence = await this.prisma.document_sequence.findUnique({
       where: {
@@ -250,5 +274,3 @@ export class DocumentCodeService {
     return (sequence?.ultimo_numero || 0) + 1;
   }
 }
-
-

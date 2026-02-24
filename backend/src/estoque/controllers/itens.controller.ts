@@ -29,7 +29,11 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { GetLoja } from '../../auth/decorators';
 import { loja } from '@prisma/client';
 import { Logger } from '@nestjs/common';
-import { itemCriadoExample, listarItensExample, itemDetalheExample } from '../swagger/itens.examples';
+import {
+  itemCriadoExample,
+  listarItensExample,
+  itemDetalheExample,
+} from '../swagger/itens.examples';
 
 @ApiTags('Estoque - Itens')
 @ApiBearerAuth()
@@ -46,7 +50,11 @@ export class ItensController {
     summary: 'Criar item de estoque',
     description: 'Cria novo item vinculado a insumo e localização',
   })
-  @ApiResponse({ status: HttpStatus.CREATED, description: 'Item criado com sucesso', schema: { example: itemCriadoExample } })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Item criado com sucesso',
+    schema: { example: itemCriadoExample },
+  })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
     description: 'Dados inválidos ou item já existe na localização',
@@ -61,7 +69,11 @@ export class ItensController {
     summary: 'Listar itens de estoque',
     description: 'Lista itens com filtros avançados e paginação',
   })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Lista de itens retornada com sucesso', schema: { example: listarItensExample } })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Lista de itens retornada com sucesso',
+    schema: { example: listarItensExample },
+  })
   @Get()
   async listar(@Query() query: QueryItensEstoqueDto, @GetLoja() loja: loja) {
     const context = { lojaId: loja.id };
@@ -75,7 +87,7 @@ export class ItensController {
       this.logger.debug('Itens listados com sucesso');
       return result;
     } catch (error) {
-      this.logger.warn(`Erro ao listar itens: ${(error as any)?.message}`);
+      this.logger.warn(`Erro ao listar itens: ${error?.message}`);
       throw error;
     }
   }
@@ -98,7 +110,7 @@ export class ItensController {
       this.logger.debug('Dashboard obtido com sucesso');
       return result;
     } catch (error) {
-      this.logger.warn(`Erro ao obter dashboard: ${(error as any)?.message}`);
+      this.logger.warn(`Erro ao obter dashboard: ${error?.message}`);
       throw error;
     }
   }
@@ -129,7 +141,11 @@ export class ItensController {
     summary: 'Buscar item de estoque por ID',
     description: 'Retorna detalhes completos de um item específico',
   })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Item encontrado com sucesso', schema: { example: itemDetalheExample } })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Item encontrado com sucesso',
+    schema: { example: itemDetalheExample },
+  })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
     description: 'Item não encontrado',

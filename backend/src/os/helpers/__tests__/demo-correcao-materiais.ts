@@ -3,14 +3,17 @@
  * Execute com: npx ts-node src/os/helpers/__tests__/demo-correcao-materiais.ts
  */
 
-import { CorrecaoMateriaisHelper, InsumoCalculado } from '../correcao-materiais.helper';
+import {
+  CorrecaoMateriaisHelper,
+  InsumoCalculado,
+} from '../correcao-materiais.helper';
 
 // Dados do exemplo do usuário (25 banners)
 const insumosExemplo: InsumoCalculado[] = [
   {
     insumo_id: 'lona',
     nome: 'Bobina Lona Impressão Digital',
-    quantidade_necessaria: 27.00,
+    quantidade_necessaria: 27.0,
     unidade: 'm²',
     custo_unitario: 10.14,
     custo_total: 273.78,
@@ -22,7 +25,7 @@ const insumosExemplo: InsumoCalculado[] = [
     quantidade_necessaria: 90,
     unidade: 'cm',
     custo_unitario: 70.91,
-    custo_total: 6381.90,
+    custo_total: 6381.9,
     disponivel_estoque: true,
   },
   {
@@ -31,7 +34,7 @@ const insumosExemplo: InsumoCalculado[] = [
     quantidade_necessaria: 120,
     unidade: 'cm',
     custo_unitario: 0.01,
-    custo_total: 1.20,
+    custo_total: 1.2,
     disponivel_estoque: true,
   },
   {
@@ -69,9 +72,11 @@ function demonstrarCorrecao() {
 
   console.log('📋 DADOS ORIGINAIS (25 banners):');
   console.log('--------------------------------');
-  insumosExemplo.forEach(insumo => {
+  insumosExemplo.forEach((insumo) => {
     console.log(`• ${insumo.nome}`);
-    console.log(`  Quantidade: ${formatarQuantidade(insumo.quantidade_necessaria, insumo.unidade)}`);
+    console.log(
+      `  Quantidade: ${formatarQuantidade(insumo.quantidade_necessaria, insumo.unidade)}`,
+    );
     console.log(`  Custo unitário: ${formatarMoeda(insumo.custo_unitario)}`);
     console.log(`  Custo total: ${formatarMoeda(insumo.custo_total)}`);
     console.log('');
@@ -81,48 +86,65 @@ function demonstrarCorrecao() {
 
   const insumosCorrigidos = CorrecaoMateriaisHelper.corrigirInsumosCalculados(
     insumosExemplo,
-    25 // quantidade do produto
+    25, // quantidade do produto
   );
 
   console.log('✅ RESULTADO APÓS CORREÇÃO:');
   console.log('----------------------------');
-  insumosCorrigidos.forEach(insumo => {
-    const original = insumosExemplo.find(i => i.insumo_id === insumo.insumo_id);
-    const mudou = original && (
-      original.quantidade_necessaria !== insumo.quantidade_necessaria ||
-      original.custo_total !== insumo.custo_total
+  insumosCorrigidos.forEach((insumo) => {
+    const original = insumosExemplo.find(
+      (i) => i.insumo_id === insumo.insumo_id,
     );
+    const mudou =
+      original &&
+      (original.quantidade_necessaria !== insumo.quantidade_necessaria ||
+        original.custo_total !== insumo.custo_total);
 
     console.log(`• ${insumo.nome}`);
-    console.log(`  Quantidade: ${formatarQuantidade(insumo.quantidade_necessaria, insumo.unidade)} ${mudou ? '🔧' : '✅'}`);
+    console.log(
+      `  Quantidade: ${formatarQuantidade(insumo.quantidade_necessaria, insumo.unidade)} ${mudou ? '🔧' : '✅'}`,
+    );
     console.log(`  Custo unitário: ${formatarMoeda(insumo.custo_unitario)}`);
-    console.log(`  Custo total: ${formatarMoeda(insumo.custo_total)} ${mudou ? '🔧' : '✅'}`);
-    
+    console.log(
+      `  Custo total: ${formatarMoeda(insumo.custo_total)} ${mudou ? '🔧' : '✅'}`,
+    );
+
     if (mudou) {
-      const diferencaQuantidade = insumo.quantidade_necessaria - original!.quantidade_necessaria;
-      const diferencaCusto = insumo.custo_total - original!.custo_total;
-      console.log(`  📈 Diferença: +${formatarQuantidade(diferencaQuantidade, insumo.unidade)} / +${formatarMoeda(diferencaCusto)}`);
+      const diferencaQuantidade =
+        insumo.quantidade_necessaria - original.quantidade_necessaria;
+      const diferencaCusto = insumo.custo_total - original.custo_total;
+      console.log(
+        `  📈 Diferença: +${formatarQuantidade(diferencaQuantidade, insumo.unidade)} / +${formatarMoeda(diferencaCusto)}`,
+      );
     }
     console.log('');
   });
 
   // Calcular totais
-  const totalOriginal = insumosExemplo.reduce((acc, insumo) => acc + insumo.custo_total, 0);
-  const totalCorrigido = insumosCorrigidos.reduce((acc, insumo) => acc + insumo.custo_total, 0);
+  const totalOriginal = insumosExemplo.reduce(
+    (acc, insumo) => acc + insumo.custo_total,
+    0,
+  );
+  const totalCorrigido = insumosCorrigidos.reduce(
+    (acc, insumo) => acc + insumo.custo_total,
+    0,
+  );
   const diferencaTotal = totalCorrigido - totalOriginal;
 
   console.log('💰 RESUMO FINANCEIRO:');
   console.log('---------------------');
   console.log(`Custo total original: ${formatarMoeda(totalOriginal)}`);
   console.log(`Custo total corrigido: ${formatarMoeda(totalCorrigido)}`);
-  console.log(`Diferença: ${formatarMoeda(diferencaTotal)} ${diferencaTotal > 0 ? '📈' : '📉'}`);
+  console.log(
+    `Diferença: ${formatarMoeda(diferencaTotal)} ${diferencaTotal > 0 ? '📈' : '📉'}`,
+  );
   console.log('');
 
   // Validar correção
   const validacao = CorrecaoMateriaisHelper.validarCorrecao(
     insumosExemplo,
     insumosCorrigidos,
-    25
+    25,
   );
 
   console.log('🔍 VALIDAÇÃO:');
@@ -131,32 +153,19 @@ function demonstrarCorrecao() {
     console.log('✅ Correção aplicada com sucesso!');
   } else {
     console.log('❌ Problemas encontrados:');
-    validacao.erros.forEach(erro => console.log(`  • ${erro}`));
+    validacao.erros.forEach((erro) => console.log(`  • ${erro}`));
   }
   console.log('');
 
   console.log('🎉 CORREÇÃO CONCLUÍDA!');
   console.log('=======================');
-  console.log('Agora os materiais estão calculados corretamente para 25 unidades do produto.');
-  console.log('O Preview V2 e a OS mostrarão os valores corretos automaticamente.');
+  console.log(
+    'Agora os materiais estão calculados corretamente para 25 unidades do produto.',
+  );
+  console.log(
+    'O Preview V2 e a OS mostrarão os valores corretos automaticamente.',
+  );
 }
 
 // Executar demonstração
 demonstrarCorrecao();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

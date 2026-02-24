@@ -43,11 +43,13 @@ describe('WorkflowAssignmentService', () => {
   });
 
   it('deve lançar erro quando OS não for encontrada', async () => {
-    (prisma.ordemServico.findFirst as jest.Mock).mockResolvedValueOnce(null as any);
-
-    await expect(service.sugerirWorkflow('os-1', 'loja-1')).rejects.toBeInstanceOf(
-      NotFoundException,
+    (prisma.ordemServico.findFirst as jest.Mock).mockResolvedValueOnce(
+      null as any,
     );
+
+    await expect(
+      service.sugerirWorkflow('os-1', 'loja-1'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('deve retornar null quando não há categorias cadastradas', async () => {
@@ -85,13 +87,17 @@ describe('WorkflowAssignmentService', () => {
       ],
     } as any);
 
-    (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(null as any);
+    (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(
+      null as any,
+    );
     (prisma.workflowInstancia.create as jest.Mock).mockResolvedValueOnce({
       id: 'instancia-1',
       os_id: 'os-1',
       workflow_id: 'workflow-1',
     } as any);
-    (prisma.workflowInstanciaSetor.createMany as jest.Mock).mockResolvedValueOnce({ count: 2 } as any);
+    (
+      prisma.workflowInstanciaSetor.createMany as jest.Mock
+    ).mockResolvedValueOnce({ count: 2 } as any);
 
     const resultado = await service.atribuirWorkflow('loja-1', {
       osId: 'os-1',
@@ -100,7 +106,7 @@ describe('WorkflowAssignmentService', () => {
 
     expect(prisma.workflowInstancia.create).toHaveBeenCalled();
     expect(prisma.workflowInstanciaSetor.createMany).toHaveBeenCalled();
-    expect((prisma.ordemServico.update as jest.Mock)).toHaveBeenCalledWith(
+    expect(prisma.ordemServico.update as jest.Mock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'os-1' },
       }),
@@ -118,8 +124,16 @@ describe('WorkflowAssignmentService', () => {
       insumos_calculados: '[]',
       orcamento: null,
       itens: [
-        { id: 'item-1', status_liberacao_pcp: 'LIBERADO', produto_servico: 'Produto 1' },
-        { id: 'item-2', status_liberacao_pcp: 'LIBERADO', produto_servico: 'Produto 2' },
+        {
+          id: 'item-1',
+          status_liberacao_pcp: 'LIBERADO',
+          produto_servico: 'Produto 1',
+        },
+        {
+          id: 'item-2',
+          status_liberacao_pcp: 'LIBERADO',
+          produto_servico: 'Produto 2',
+        },
       ],
     } as any);
 
@@ -134,7 +148,10 @@ describe('WorkflowAssignmentService', () => {
     } as any);
 
     (prisma.workflowInstancia.findUnique as jest.Mock)
-      .mockResolvedValueOnce({ id: 'instancia-1', workflow_id: 'workflow-1' } as any) // verificação inicial
+      .mockResolvedValueOnce({
+        id: 'instancia-1',
+        workflow_id: 'workflow-1',
+      } as any) // verificação inicial
       .mockResolvedValueOnce({
         id: 'instancia-1',
         status: 'ATIVO',
@@ -142,13 +159,19 @@ describe('WorkflowAssignmentService', () => {
         data_inicio: new Date(),
       } as any);
 
-    (prisma.workflowInstanciaSetor.findFirst as jest.Mock).mockResolvedValueOnce(null as any);
-    (prisma.workflowInstanciaSetor.findMany as jest.Mock).mockResolvedValueOnce([
-      { item_os_id: 'item-1' },
-    ] as any);
+    (
+      prisma.workflowInstanciaSetor.findFirst as jest.Mock
+    ).mockResolvedValueOnce(null as any);
+    (prisma.workflowInstanciaSetor.findMany as jest.Mock).mockResolvedValueOnce(
+      [{ item_os_id: 'item-1' }] as any,
+    );
 
-    (prisma.workflowInstanciaSetor.createMany as jest.Mock).mockResolvedValueOnce({ count: 2 } as any);
-    (prisma.workflowInstancia.update as jest.Mock).mockResolvedValueOnce({ id: 'instancia-1' } as any);
+    (
+      prisma.workflowInstanciaSetor.createMany as jest.Mock
+    ).mockResolvedValueOnce({ count: 2 } as any);
+    (prisma.workflowInstancia.update as jest.Mock).mockResolvedValueOnce({
+      id: 'instancia-1',
+    } as any);
 
     const resultado = await service.atribuirWorkflow('loja-1', {
       osId: 'os-1',
@@ -162,7 +185,9 @@ describe('WorkflowAssignmentService', () => {
         expect.objectContaining({ item_os_id: 'item-2', setor_id: 'setor-2' }),
       ]),
     });
-    expect(resultado.mensagem).toContain('Workflow vinculado a 1 novo produto.');
+    expect(resultado.mensagem).toContain(
+      'Workflow vinculado a 1 novo produto.',
+    );
     expect(prisma.workflowInstancia.update).toHaveBeenCalled();
   });
 
@@ -175,7 +200,11 @@ describe('WorkflowAssignmentService', () => {
       insumos_calculados: '[]',
       orcamento: null,
       itens: [
-        { id: 'item-1', status_liberacao_pcp: 'LIBERADO', produto_servico: 'Produto 1' },
+        {
+          id: 'item-1',
+          status_liberacao_pcp: 'LIBERADO',
+          produto_servico: 'Produto 1',
+        },
       ],
     } as any);
 
@@ -185,8 +214,11 @@ describe('WorkflowAssignmentService', () => {
       workflow_setores: [{ setor_id: 'setor-1', ordem: 0 }],
     } as any);
 
-      (prisma.workflowInstancia.findUnique as jest.Mock)
-      .mockResolvedValueOnce({ id: 'instancia-1', workflow_id: 'workflow-1' } as any)
+    (prisma.workflowInstancia.findUnique as jest.Mock)
+      .mockResolvedValueOnce({
+        id: 'instancia-1',
+        workflow_id: 'workflow-1',
+      } as any)
       .mockResolvedValueOnce({
         id: 'instancia-1',
         status: 'ATIVO',
@@ -194,10 +226,12 @@ describe('WorkflowAssignmentService', () => {
         data_inicio: new Date(),
       } as any);
 
-    (prisma.workflowInstanciaSetor.findFirst as jest.Mock).mockResolvedValueOnce(null as any);
-    (prisma.workflowInstanciaSetor.findMany as jest.Mock).mockResolvedValueOnce([
-      { item_os_id: 'item-1' },
-    ] as any);
+    (
+      prisma.workflowInstanciaSetor.findFirst as jest.Mock
+    ).mockResolvedValueOnce(null as any);
+    (prisma.workflowInstanciaSetor.findMany as jest.Mock).mockResolvedValueOnce(
+      [{ item_os_id: 'item-1' }] as any,
+    );
 
     const resultado = await service.atribuirWorkflow('loja-1', {
       osId: 'os-1',
@@ -206,7 +240,9 @@ describe('WorkflowAssignmentService', () => {
     });
 
     expect(prisma.workflowInstanciaSetor.createMany).not.toHaveBeenCalled();
-    expect(resultado.mensagem).toContain('Os produtos selecionados ja possuem workflow ativo.');
+    expect(resultado.mensagem).toContain(
+      'Os produtos selecionados ja possuem workflow ativo.',
+    );
   });
 
   it('deve lançar erro quando não encontra workflow e nenhuma categoria casar', async () => {
@@ -226,7 +262,9 @@ describe('WorkflowAssignmentService', () => {
       .mockResolvedValueOnce(osCompleta as any); // segunda chamada em sugerirWorkflow
 
     (prisma.workflowCategoria.findMany as jest.Mock).mockResolvedValueOnce([]);
-    (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(null as any);
+    (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(
+      null as any,
+    );
 
     await expect(
       service.atribuirWorkflow('loja-1', { osId: 'os-1' }),
@@ -283,7 +321,13 @@ describe('WorkflowAssignmentService', () => {
       insumos_calculados: '[]',
       nome_servico: 'Cartão',
       orcamento: null,
-      itens: [{ id: 'item-1', status_liberacao_pcp: 'LIBERADO', produto_servico: 'Produto' }],
+      itens: [
+        {
+          id: 'item-1',
+          status_liberacao_pcp: 'LIBERADO',
+          produto_servico: 'Produto',
+        },
+      ],
     };
 
     // carregarContextoOS é chamado primeiro em atribuirWorkflow, depois em sugerirWorkflow
@@ -305,15 +349,21 @@ describe('WorkflowAssignmentService', () => {
       workflow_setores: [{ setor_id: 'setor-1', ordem: 0 }],
     } as any);
 
-    (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(null as any);
+    (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(
+      null as any,
+    );
     (prisma.workflowInstancia.create as jest.Mock).mockResolvedValueOnce({
       id: 'instancia-auto',
       os_id: 'os-1',
       workflow_id: 'workflow-auto',
     } as any);
-    (prisma.workflowInstanciaSetor.createMany as jest.Mock).mockResolvedValueOnce({ count: 1 } as any);
+    (
+      prisma.workflowInstanciaSetor.createMany as jest.Mock
+    ).mockResolvedValueOnce({ count: 1 } as any);
 
-    const resultado = await service.atribuirWorkflow('loja-1', { osId: 'os-1' });
+    const resultado = await service.atribuirWorkflow('loja-1', {
+      osId: 'os-1',
+    });
 
     expect(resultado.workflowId).toBe('workflow-auto');
     expect(resultado.categoriaId).toBe('cat-1');
@@ -329,8 +379,16 @@ describe('WorkflowAssignmentService', () => {
       insumos_calculados: '[]',
       orcamento: null,
       itens: [
-        { id: 'item-1', status_liberacao_pcp: 'LIBERADO', produto_servico: 'Produto 1' },
-        { id: 'item-2', status_liberacao_pcp: 'PENDENTE', produto_servico: 'Produto 2' },
+        {
+          id: 'item-1',
+          status_liberacao_pcp: 'LIBERADO',
+          produto_servico: 'Produto 1',
+        },
+        {
+          id: 'item-2',
+          status_liberacao_pcp: 'PENDENTE',
+          produto_servico: 'Produto 2',
+        },
       ],
     } as any);
 
@@ -339,7 +397,9 @@ describe('WorkflowAssignmentService', () => {
       id: 'workflow-1',
       workflow_setores: [{ setor_id: 'setor-1', ordem: 0 }],
     } as any);
-    (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(null as any);
+    (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(
+      null as any,
+    );
 
     await expect(
       service.atribuirWorkflow('loja-1', {
@@ -358,7 +418,13 @@ describe('WorkflowAssignmentService', () => {
       prioridade: 'ALTA',
       insumos_calculados: '[]',
       orcamento: null,
-      itens: [{ id: 'item-1', status_liberacao_pcp: 'LIBERADO', produto_servico: 'Produto 1' }],
+      itens: [
+        {
+          id: 'item-1',
+          status_liberacao_pcp: 'LIBERADO',
+          produto_servico: 'Produto 1',
+        },
+      ],
     } as any);
 
     (prisma.workflowCategoria.findMany as jest.Mock).mockResolvedValueOnce([]);
@@ -366,7 +432,9 @@ describe('WorkflowAssignmentService', () => {
       id: 'workflow-1',
       workflow_setores: [{ setor_id: 'setor-1', ordem: 0 }],
     } as any);
-    (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(null as any);
+    (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(
+      null as any,
+    );
 
     await expect(
       service.atribuirWorkflow('loja-1', {
@@ -385,7 +453,13 @@ describe('WorkflowAssignmentService', () => {
       prioridade: 'ALTA',
       insumos_calculados: '[]',
       orcamento: null,
-      itens: [{ id: 'item-1', status_liberacao_pcp: 'LIBERADO', produto_servico: 'Produto 1' }],
+      itens: [
+        {
+          id: 'item-1',
+          status_liberacao_pcp: 'LIBERADO',
+          produto_servico: 'Produto 1',
+        },
+      ],
     } as any);
 
     (prisma.workflowCategoria.findMany as jest.Mock).mockResolvedValueOnce([]);
@@ -400,14 +474,20 @@ describe('WorkflowAssignmentService', () => {
       workflow_id: 'workflow-antigo',
     } as any);
 
-    (prisma.workflowInstanciaSetor.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 2 } as any);
-    (prisma.workflowInstancia.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 1 } as any);
+    (
+      prisma.workflowInstanciaSetor.deleteMany as jest.Mock
+    ).mockResolvedValueOnce({ count: 2 } as any);
+    (prisma.workflowInstancia.deleteMany as jest.Mock).mockResolvedValueOnce({
+      count: 1,
+    } as any);
     (prisma.workflowInstancia.create as jest.Mock).mockResolvedValueOnce({
       id: 'instancia-nova',
       os_id: 'os-1',
       workflow_id: 'workflow-novo',
     } as any);
-    (prisma.workflowInstanciaSetor.createMany as jest.Mock).mockResolvedValueOnce({ count: 1 } as any);
+    (
+      prisma.workflowInstanciaSetor.createMany as jest.Mock
+    ).mockResolvedValueOnce({ count: 1 } as any);
 
     const resultado = await service.atribuirWorkflow('loja-1', {
       osId: 'os-1',
@@ -457,9 +537,21 @@ describe('WorkflowAssignmentService', () => {
       insumos_calculados: '[]',
       orcamento: null,
       itens: [
-        { id: 'item-1', status_liberacao_pcp: 'LIBERADO', produto_servico: 'Produto 1' },
-        { id: 'item-2', status_liberacao_pcp: 'LIBERADO', produto_servico: 'Produto 2' },
-        { id: 'item-3', status_liberacao_pcp: 'PENDENTE', produto_servico: 'Produto 3' },
+        {
+          id: 'item-1',
+          status_liberacao_pcp: 'LIBERADO',
+          produto_servico: 'Produto 1',
+        },
+        {
+          id: 'item-2',
+          status_liberacao_pcp: 'LIBERADO',
+          produto_servico: 'Produto 2',
+        },
+        {
+          id: 'item-3',
+          status_liberacao_pcp: 'PENDENTE',
+          produto_servico: 'Produto 3',
+        },
       ],
     } as any);
 
@@ -470,13 +562,17 @@ describe('WorkflowAssignmentService', () => {
       workflow_setores: [{ setor_id: 'setor-1', ordem: 0 }],
     } as any);
 
-    (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(null as any);
+    (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(
+      null as any,
+    );
     (prisma.workflowInstancia.create as jest.Mock).mockResolvedValueOnce({
       id: 'instancia-1',
       os_id: 'os-1',
       workflow_id: 'workflow-1',
     } as any);
-    (prisma.workflowInstanciaSetor.createMany as jest.Mock).mockResolvedValueOnce({ count: 2 } as any);
+    (
+      prisma.workflowInstanciaSetor.createMany as jest.Mock
+    ).mockResolvedValueOnce({ count: 2 } as any);
 
     await service.atribuirWorkflow('loja-1', {
       osId: 'os-1',
@@ -502,30 +598,66 @@ describe('WorkflowAssignmentService', () => {
         insumos_calculados: '[]',
         orcamento: null,
         itens: [
-          { id: 'item-1', status_liberacao_pcp: 'LIBERADO', produto_servico: 'Produto 1', quantidade: 10 },
-          { id: 'item-2', status_liberacao_pcp: 'LIBERADO', produto_servico: 'Produto 2', quantidade: 20 },
-          { id: 'item-3', status_liberacao_pcp: 'LIBERADO', produto_servico: 'Produto 3', quantidade: 15 },
+          {
+            id: 'item-1',
+            status_liberacao_pcp: 'LIBERADO',
+            produto_servico: 'Produto 1',
+            quantidade: 10,
+          },
+          {
+            id: 'item-2',
+            status_liberacao_pcp: 'LIBERADO',
+            produto_servico: 'Produto 2',
+            quantidade: 20,
+          },
+          {
+            id: 'item-3',
+            status_liberacao_pcp: 'LIBERADO',
+            produto_servico: 'Produto 3',
+            quantidade: 15,
+          },
         ],
       } as any);
 
-      (prisma.workflowCategoria.findMany as jest.Mock).mockResolvedValueOnce([]);
+      (prisma.workflowCategoria.findMany as jest.Mock).mockResolvedValueOnce(
+        [],
+      );
 
       (prisma.workflowOS.findUnique as jest.Mock).mockResolvedValueOnce({
         id: 'workflow-1',
         workflow_setores: [
-          { setor_id: 'setor-1', ordem: 0, tempo_estimado: 60, obrigatorio: true },
-          { setor_id: 'setor-2', ordem: 1, tempo_estimado: 120, obrigatorio: true },
-          { setor_id: 'setor-3', ordem: 2, tempo_estimado: 30, obrigatorio: false },
+          {
+            setor_id: 'setor-1',
+            ordem: 0,
+            tempo_estimado: 60,
+            obrigatorio: true,
+          },
+          {
+            setor_id: 'setor-2',
+            ordem: 1,
+            tempo_estimado: 120,
+            obrigatorio: true,
+          },
+          {
+            setor_id: 'setor-3',
+            ordem: 2,
+            tempo_estimado: 30,
+            obrigatorio: false,
+          },
         ],
       } as any);
 
-      (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(null as any);
+      (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(
+        null as any,
+      );
       (prisma.workflowInstancia.create as jest.Mock).mockResolvedValueOnce({
         id: 'instancia-1',
         os_id: 'os-1',
         workflow_id: 'workflow-1',
       } as any);
-      (prisma.workflowInstanciaSetor.createMany as jest.Mock).mockResolvedValueOnce({ count: 9 } as any); // 3 itens x 3 setores
+      (
+        prisma.workflowInstanciaSetor.createMany as jest.Mock
+      ).mockResolvedValueOnce({ count: 9 } as any); // 3 itens x 3 setores
 
       const resultado = await service.atribuirWorkflow('loja-1', {
         osId: 'os-1',
@@ -535,10 +667,30 @@ describe('WorkflowAssignmentService', () => {
       expect(prisma.workflowInstancia.create).toHaveBeenCalled();
       expect(prisma.workflowInstanciaSetor.createMany).toHaveBeenCalledWith({
         data: expect.arrayContaining([
-          expect.objectContaining({ item_os_id: 'item-1', setor_id: 'setor-1', ordem: 0, status: 'PENDENTE' }),
-          expect.objectContaining({ item_os_id: 'item-1', setor_id: 'setor-2', ordem: 1, status: 'AGUARDANDO' }),
-          expect.objectContaining({ item_os_id: 'item-2', setor_id: 'setor-1', ordem: 0, status: 'PENDENTE' }),
-          expect.objectContaining({ item_os_id: 'item-3', setor_id: 'setor-1', ordem: 0, status: 'PENDENTE' }),
+          expect.objectContaining({
+            item_os_id: 'item-1',
+            setor_id: 'setor-1',
+            ordem: 0,
+            status: 'PENDENTE',
+          }),
+          expect.objectContaining({
+            item_os_id: 'item-1',
+            setor_id: 'setor-2',
+            ordem: 1,
+            status: 'AGUARDANDO',
+          }),
+          expect.objectContaining({
+            item_os_id: 'item-2',
+            setor_id: 'setor-1',
+            ordem: 0,
+            status: 'PENDENTE',
+          }),
+          expect.objectContaining({
+            item_os_id: 'item-3',
+            setor_id: 'setor-1',
+            ordem: 0,
+            status: 'PENDENTE',
+          }),
         ]),
       });
       expect(resultado.mensagem).toContain('manual');
@@ -554,12 +706,22 @@ describe('WorkflowAssignmentService', () => {
         insumos_calculados: '[]',
         orcamento: null,
         itens: [
-          { id: 'item-1', status_liberacao_pcp: 'LIBERADO', produto_servico: 'Produto 1' },
-          { id: 'item-2', status_liberacao_pcp: 'LIBERADO', produto_servico: 'Produto 2' },
+          {
+            id: 'item-1',
+            status_liberacao_pcp: 'LIBERADO',
+            produto_servico: 'Produto 1',
+          },
+          {
+            id: 'item-2',
+            status_liberacao_pcp: 'LIBERADO',
+            produto_servico: 'Produto 2',
+          },
         ],
       } as any);
 
-      (prisma.workflowCategoria.findMany as jest.Mock).mockResolvedValueOnce([]);
+      (prisma.workflowCategoria.findMany as jest.Mock).mockResolvedValueOnce(
+        [],
+      );
       (prisma.workflowOS.findUnique as jest.Mock).mockResolvedValueOnce({
         id: 'workflow-1',
         workflow_setores: [
@@ -570,7 +732,10 @@ describe('WorkflowAssignmentService', () => {
 
       // Instância já existe com item-1
       (prisma.workflowInstancia.findUnique as jest.Mock)
-        .mockResolvedValueOnce({ id: 'instancia-1', workflow_id: 'workflow-1' } as any) // verificação inicial
+        .mockResolvedValueOnce({
+          id: 'instancia-1',
+          workflow_id: 'workflow-1',
+        } as any) // verificação inicial
         .mockResolvedValueOnce({
           id: 'instancia-1',
           status: 'ATIVO',
@@ -579,13 +744,21 @@ describe('WorkflowAssignmentService', () => {
         } as any); // busca completa para adicionarItensNaInstancia
 
       // Verificações para adicionarItensNaInstancia
-      (prisma.workflowInstanciaSetor.findFirst as jest.Mock).mockResolvedValueOnce(null as any); // não possui escopo geral
-      (prisma.workflowInstanciaSetor.findMany as jest.Mock).mockResolvedValueOnce([
+      (
+        prisma.workflowInstanciaSetor.findFirst as jest.Mock
+      ).mockResolvedValueOnce(null as any); // não possui escopo geral
+      (
+        prisma.workflowInstanciaSetor.findMany as jest.Mock
+      ).mockResolvedValueOnce([
         { item_os_id: 'item-1' }, // item-1 já tem workflow
       ] as any);
-      
-      (prisma.workflowInstanciaSetor.createMany as jest.Mock).mockResolvedValueOnce({ count: 2 } as any);
-      (prisma.workflowInstancia.update as jest.Mock).mockResolvedValueOnce({ id: 'instancia-1' } as any);
+
+      (
+        prisma.workflowInstanciaSetor.createMany as jest.Mock
+      ).mockResolvedValueOnce({ count: 2 } as any);
+      (prisma.workflowInstancia.update as jest.Mock).mockResolvedValueOnce({
+        id: 'instancia-1',
+      } as any);
 
       const resultado = await service.atribuirWorkflow('loja-1', {
         osId: 'os-1',
@@ -593,20 +766,22 @@ describe('WorkflowAssignmentService', () => {
         itemOsIds: ['item-2'],
       });
 
-      expect(resultado.mensagem).toContain('Workflow vinculado a 1 novo produto.');
+      expect(resultado.mensagem).toContain(
+        'Workflow vinculado a 1 novo produto.',
+      );
       expect(prisma.workflowInstanciaSetor.createMany).toHaveBeenCalledWith({
         data: expect.arrayContaining([
-          expect.objectContaining({ 
-            item_os_id: 'item-2', 
-            setor_id: 'setor-1', 
-            ordem: 0, 
-            status: 'PENDENTE' 
+          expect.objectContaining({
+            item_os_id: 'item-2',
+            setor_id: 'setor-1',
+            ordem: 0,
+            status: 'PENDENTE',
           }),
-          expect.objectContaining({ 
-            item_os_id: 'item-2', 
-            setor_id: 'setor-2', 
-            ordem: 1, 
-            status: 'AGUARDANDO' 
+          expect.objectContaining({
+            item_os_id: 'item-2',
+            setor_id: 'setor-2',
+            ordem: 1,
+            status: 'AGUARDANDO',
           }),
         ]),
       });
@@ -621,11 +796,17 @@ describe('WorkflowAssignmentService', () => {
         insumos_calculados: '[]',
         orcamento: null,
         itens: [
-          { id: 'item-1', status_liberacao_pcp: 'LIBERADO', produto_servico: 'Produto 1' },
+          {
+            id: 'item-1',
+            status_liberacao_pcp: 'LIBERADO',
+            produto_servico: 'Produto 1',
+          },
         ],
       } as any);
 
-      (prisma.workflowCategoria.findMany as jest.Mock).mockResolvedValueOnce([]);
+      (prisma.workflowCategoria.findMany as jest.Mock).mockResolvedValueOnce(
+        [],
+      );
       (prisma.workflowOS.findUnique as jest.Mock).mockResolvedValueOnce({
         id: 'workflow-1',
         workflow_setores: [
@@ -635,13 +816,17 @@ describe('WorkflowAssignmentService', () => {
         ],
       } as any);
 
-      (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(null as any);
+      (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(
+        null as any,
+      );
       (prisma.workflowInstancia.create as jest.Mock).mockResolvedValueOnce({
         id: 'instancia-1',
         os_id: 'os-1',
         workflow_id: 'workflow-1',
       } as any);
-      (prisma.workflowInstanciaSetor.createMany as jest.Mock).mockResolvedValueOnce({ count: 3 } as any);
+      (
+        prisma.workflowInstanciaSetor.createMany as jest.Mock
+      ).mockResolvedValueOnce({ count: 3 } as any);
 
       await service.atribuirWorkflow('loja-1', {
         osId: 'os-1',
@@ -651,9 +836,21 @@ describe('WorkflowAssignmentService', () => {
 
       expect(prisma.workflowInstanciaSetor.createMany).toHaveBeenCalledWith({
         data: expect.arrayContaining([
-          expect.objectContaining({ item_os_id: 'item-1', ordem: 0, status: 'PENDENTE' }),
-          expect.objectContaining({ item_os_id: 'item-1', ordem: 1, status: 'AGUARDANDO' }),
-          expect.objectContaining({ item_os_id: 'item-1', ordem: 2, status: 'AGUARDANDO' }),
+          expect.objectContaining({
+            item_os_id: 'item-1',
+            ordem: 0,
+            status: 'PENDENTE',
+          }),
+          expect.objectContaining({
+            item_os_id: 'item-1',
+            ordem: 1,
+            status: 'AGUARDANDO',
+          }),
+          expect.objectContaining({
+            item_os_id: 'item-1',
+            ordem: 2,
+            status: 'AGUARDANDO',
+          }),
         ]),
       });
     });
@@ -667,17 +864,29 @@ describe('WorkflowAssignmentService', () => {
         insumos_calculados: '[]',
         orcamento: null,
         itens: [
-          { id: 'item-1', status_liberacao_pcp: 'PENDENTE', produto_servico: 'Produto 1' },
-          { id: 'item-2', status_liberacao_pcp: 'PENDENTE', produto_servico: 'Produto 2' },
+          {
+            id: 'item-1',
+            status_liberacao_pcp: 'PENDENTE',
+            produto_servico: 'Produto 1',
+          },
+          {
+            id: 'item-2',
+            status_liberacao_pcp: 'PENDENTE',
+            produto_servico: 'Produto 2',
+          },
         ],
       } as any);
 
-      (prisma.workflowCategoria.findMany as jest.Mock).mockResolvedValueOnce([]);
+      (prisma.workflowCategoria.findMany as jest.Mock).mockResolvedValueOnce(
+        [],
+      );
       (prisma.workflowOS.findUnique as jest.Mock).mockResolvedValueOnce({
         id: 'workflow-1',
         workflow_setores: [{ setor_id: 'setor-1', ordem: 0 }],
       } as any);
-      (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(null as any);
+      (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce(
+        null as any,
+      );
 
       await expect(
         service.atribuirWorkflow('loja-1', {

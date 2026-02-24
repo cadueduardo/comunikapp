@@ -1,5 +1,18 @@
-import { Controller, Get, Post, Param, Body, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { OSService } from '../services/os.service';
 import { WorkflowService } from '../../pcp/services/workflow.service';
@@ -14,12 +27,15 @@ export class LiberacaoPCPController {
   constructor(
     private readonly osService: OSService,
     private readonly workflowService: WorkflowService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
   ) {}
 
   @Get('workflows-disponiveis')
   @ApiOperation({ summary: 'Listar workflows disponíveis para OSs' })
-  @ApiResponse({ status: 200, description: 'Lista de workflows disponíveis retornada com sucesso' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de workflows disponíveis retornada com sucesso',
+  })
   async listarWorkflowsDisponiveis(@Request() req: any) {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
@@ -29,7 +45,7 @@ export class LiberacaoPCPController {
       const workflows = await this.prisma.workflowOS.findMany({
         where: {
           loja_id: lojaId,
-          ativo: true
+          ativo: true,
         },
         select: {
           id: true,
@@ -37,22 +53,22 @@ export class LiberacaoPCPController {
           descricao: true,
           etapas: true,
           sequencial: true,
-          criado_em: true
+          criado_em: true,
         },
         orderBy: {
-          nome: 'asc'
-        }
+          nome: 'asc',
+        },
       });
 
       return {
-        workflows: workflows.map(workflow => ({
+        workflows: workflows.map((workflow) => ({
           id: workflow.id,
           nome: workflow.nome,
           descricao: workflow.descricao,
           etapas: JSON.parse(workflow.etapas),
           sequencial: workflow.sequencial,
-          criado_em: workflow.criado_em
-        }))
+          criado_em: workflow.criado_em,
+        })),
       };
     } catch (error) {
       console.error('Erro ao buscar workflows disponíveis:', error);
@@ -62,10 +78,13 @@ export class LiberacaoPCPController {
 
   @Get('liberadas-para-pcp')
   @ApiOperation({ summary: 'Listar OSs liberadas para PCP' })
-  @ApiResponse({ status: 200, description: 'Lista de OSs liberadas retornada com sucesso' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de OSs liberadas retornada com sucesso',
+  })
   async listarOSsLiberadas(@Request() req: any) {
     console.log('🚀 [DEBUG] INÍCIO DO ENDPOINT liberadas-para-pcp');
-    
+
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
 
@@ -76,7 +95,12 @@ export class LiberacaoPCPController {
       this.osService.findByStatus(lojaId, StatusOS.EM_WORKFLOW),
     ]);
 
-    console.log('🔍 [DEBUG] OSs encontradas - LIBERADA_PARA_PCP:', ossLiberadas.length, 'EM_WORKFLOW:', ossEmWorkflow.length);
+    console.log(
+      '🔍 [DEBUG] OSs encontradas - LIBERADA_PARA_PCP:',
+      ossLiberadas.length,
+      'EM_WORKFLOW:',
+      ossEmWorkflow.length,
+    );
 
     const ossCandidatas = [...ossLiberadas, ...ossEmWorkflow];
 
@@ -84,13 +108,28 @@ export class LiberacaoPCPController {
       ossCandidatas.map(async (os) => {
         const produtosInfo = await this.contarProdutosLiberados(os.id);
 
-        console.log('🔍 [DEBUG] OS', os.id, '- Status:', os.status, '- Produtos liberados:', produtosInfo.produtos_liberados_count, '/', produtosInfo.total_produtos, '- Pendentes workflow:', produtosInfo.liberados_sem_workflow);
+        console.log(
+          '🔍 [DEBUG] OS',
+          os.id,
+          '- Status:',
+          os.status,
+          '- Produtos liberados:',
+          produtosInfo.produtos_liberados_count,
+          '/',
+          produtosInfo.total_produtos,
+          '- Pendentes workflow:',
+          produtosInfo.liberados_sem_workflow,
+        );
 
         // A OS deve continuar aparecendo enquanto houver itens liberados para PCP,
         // independente de ter workflow atribuído ou não
         // Só remover se não houver NENHUM item liberado
         if (produtosInfo.produtos_liberados_count === 0) {
-          console.log('🔍 [DEBUG] OS', os.id, 'REMOVIDA - Nenhum produto liberado');
+          console.log(
+            '🔍 [DEBUG] OS',
+            os.id,
+            'REMOVIDA - Nenhum produto liberado',
+          );
           return null;
         }
 
@@ -117,8 +156,8 @@ export class LiberacaoPCPController {
       }),
     );
 
-    return ossComStatusWorkflow.filter(
-      (os): os is NonNullable<typeof os> => Boolean(os),
+    return ossComStatusWorkflow.filter((os): os is NonNullable<typeof os> =>
+      Boolean(os),
     );
   }
 
@@ -134,7 +173,7 @@ export class LiberacaoPCPController {
       where: { id: osId },
       include: { itens: true },
     });
-    
+
     if (!os || !os.itens) {
       return {
         produtos_liberados_count: 0,
@@ -148,7 +187,8 @@ export class LiberacaoPCPController {
 
     const total_produtos = os.itens.length;
     const itensLiberados = os.itens.filter(
-      (item: any) => (item.status_liberacao_pcp ?? '').toUpperCase() === 'LIBERADO',
+      (item: any) =>
+        (item.status_liberacao_pcp ?? '').toUpperCase() === 'LIBERADO',
     );
     const produtos_liberados_count = itensLiberados.length;
 
@@ -194,12 +234,15 @@ export class LiberacaoPCPController {
   @Post(':id/liberar-para-pcp')
   @ApiOperation({ summary: 'Liberar OS para PCP' })
   @ApiResponse({ status: 200, description: 'OS liberada para PCP com sucesso' })
-  @ApiResponse({ status: 400, description: 'OS não pode ser liberada para PCP' })
+  @ApiResponse({
+    status: 400,
+    description: 'OS não pode ser liberada para PCP',
+  })
   @ApiResponse({ status: 404, description: 'OS não encontrada' })
   async liberarParaPCP(
     @Param('id') osId: string,
     @Body() body: { workflow_id: string },
-    @Request() req: any
+    @Request() req: any,
   ) {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
@@ -214,16 +257,18 @@ export class LiberacaoPCPController {
     const statusValidosParaLiberacao = [
       StatusOS.APROVADA_TECNICA,
       StatusOS.APROVADA_ORCAMENTARIA,
-      StatusOS.FILA
+      StatusOS.FILA,
     ];
 
-    if (!statusValidosParaLiberacao.includes(os.status as StatusOS)) {
-      throw new Error(`OS não pode ser liberada para PCP no status atual: ${os.status}`);
+    if (!statusValidosParaLiberacao.includes(os.status)) {
+      throw new Error(
+        `OS não pode ser liberada para PCP no status atual: ${os.status}`,
+      );
     }
 
     // Atualizar status da OS para LIBERADA_PARA_PCP
     await this.osService.atualizarStatus(osId, {
-      status: StatusOS.LIBERADA_PARA_PCP
+      status: StatusOS.LIBERADA_PARA_PCP,
     });
 
     // Criar instância do workflow se workflow_id foi fornecido
@@ -231,14 +276,16 @@ export class LiberacaoPCPController {
       try {
         await this.workflowService.criarInstancia({
           os_id: osId,
-          workflow_id: body.workflow_id
+          workflow_id: body.workflow_id,
         });
       } catch (error) {
         // Se falhar ao criar workflow, reverter status da OS
         await this.osService.atualizarStatus(osId, {
-          status: os.status as StatusOS
+          status: os.status,
         });
-        throw new Error(`Erro ao criar instância do workflow: ${error.message}`);
+        throw new Error(
+          `Erro ao criar instância do workflow: ${error.message}`,
+        );
       }
     }
 
@@ -246,7 +293,7 @@ export class LiberacaoPCPController {
       message: 'OS liberada para PCP com sucesso',
       os_id: osId,
       status: StatusOS.LIBERADA_PARA_PCP,
-      workflow_instanciado: !!body.workflow_id
+      workflow_instanciado: !!body.workflow_id,
     };
   }
 
@@ -265,8 +312,13 @@ export class LiberacaoPCPController {
     }
 
     // Verificar se OS está em status válido para retirada
-    if (os.status !== StatusOS.LIBERADA_PARA_PCP && os.status !== StatusOS.EM_WORKFLOW) {
-      throw new Error(`OS não pode ser retirada do PCP no status atual: ${os.status}`);
+    if (
+      os.status !== StatusOS.LIBERADA_PARA_PCP &&
+      os.status !== StatusOS.EM_WORKFLOW
+    ) {
+      throw new Error(
+        `OS não pode ser retirada do PCP no status atual: ${os.status}`,
+      );
     }
 
     // Remover instância do workflow se existir
@@ -282,22 +334,26 @@ export class LiberacaoPCPController {
 
     // Atualizar status da OS para FILA
     await this.osService.atualizarStatus(osId, {
-      status: StatusOS.FILA
+      status: StatusOS.FILA,
     });
 
     return {
       message: 'OS retirada do PCP com sucesso',
       os_id: osId,
-      status: StatusOS.FILA
+      status: StatusOS.FILA,
     };
   }
 
   private calcularProgresso(workflow: any): number {
     if (!workflow?.etapas) return 0;
-    
+
     const totalEtapas = workflow.etapas.length;
-    const etapasConcluidas = workflow.etapas.filter((etapa: any) => etapa.status === 'CONCLUIDA').length;
-    
-    return totalEtapas > 0 ? Math.round((etapasConcluidas / totalEtapas) * 100) : 0;
+    const etapasConcluidas = workflow.etapas.filter(
+      (etapa: any) => etapa.status === 'CONCLUIDA',
+    ).length;
+
+    return totalEtapas > 0
+      ? Math.round((etapasConcluidas / totalEtapas) * 100)
+      : 0;
   }
 }

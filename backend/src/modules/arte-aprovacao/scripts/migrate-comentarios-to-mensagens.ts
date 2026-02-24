@@ -1,8 +1,8 @@
 /**
  * Script de Migração: ArteComentario -> ArteMensagem
- * 
+ *
  * Este script migra os comentários antigos para o novo sistema de mensagens
- * 
+ *
  * Uso: npm run migrate:arte-comentarios
  */
 
@@ -26,7 +26,9 @@ async function migrateComentariosToMensagens() {
       },
     });
 
-    console.log(`📊 Encontrados ${comentarios.length} comentários para migrar\n`);
+    console.log(
+      `📊 Encontrados ${comentarios.length} comentários para migrar\n`,
+    );
 
     if (comentarios.length === 0) {
       console.log('✅ Nenhum comentário para migrar. Concluído!');
@@ -74,10 +76,15 @@ async function migrateComentariosToMensagens() {
         });
 
         migrados++;
-        console.log(`✅ Migrado: ${comentario.id} - ${comentario.comentario.substring(0, 50)}...`);
+        console.log(
+          `✅ Migrado: ${comentario.id} - ${comentario.comentario.substring(0, 50)}...`,
+        );
       } catch (error) {
         erros++;
-        console.error(`❌ Erro ao migrar comentário ${comentario.id}:`, error.message);
+        console.error(
+          `❌ Erro ao migrar comentário ${comentario.id}:`,
+          error.message,
+        );
       }
     }
 
@@ -88,10 +95,16 @@ async function migrateComentariosToMensagens() {
 
     if (erros === 0) {
       console.log('\n🎉 Migração concluída com sucesso!');
-      console.log('\n⚠️  IMPORTANTE: Faça backup da tabela ArteComentario antes de excluí-la!');
-      console.log('   Comando SQL para backup: CREATE TABLE ArteComentario_backup AS SELECT * FROM ArteComentario;');
+      console.log(
+        '\n⚠️  IMPORTANTE: Faça backup da tabela ArteComentario antes de excluí-la!',
+      );
+      console.log(
+        '   Comando SQL para backup: CREATE TABLE ArteComentario_backup AS SELECT * FROM ArteComentario;',
+      );
     } else {
-      console.log('\n⚠️  Migração concluída com erros. Verifique os logs acima.');
+      console.log(
+        '\n⚠️  Migração concluída com erros. Verifique os logs acima.',
+      );
     }
   } catch (error) {
     console.error('\n❌ Erro fatal na migração:', error);
@@ -111,4 +124,3 @@ migrateComentariosToMensagens()
     console.error('\n❌ Erro fatal:', error);
     process.exit(1);
   });
-

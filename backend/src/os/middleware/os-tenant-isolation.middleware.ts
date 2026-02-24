@@ -3,7 +3,12 @@
  * Conforme premissas: isolamento obrigatorio por lojaId
  */
 
-import { Injectable, NestMiddleware, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NestMiddleware,
+  UnauthorizedException,
+  Logger,
+} from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 
 interface AuthenticatedRequest extends Request {
@@ -36,7 +41,9 @@ export class OSTenantIsolationMiddleware implements NestMiddleware {
       if (!lojaId) {
         const userId = user.sub || user.id;
         this.logger.warn(`Usuario ${userId} sem loja_id definida`);
-        throw new UnauthorizedException('Loja ID obrigatorio para acesso ao modulo OS');
+        throw new UnauthorizedException(
+          'Loja ID obrigatorio para acesso ao modulo OS',
+        );
       }
 
       // 3. Adicionar lojaId ao request para uso nos services

@@ -4,4 +4,3 @@ export enum PrioridadeOrcamento {
   ALTA = 'alta',
   URGENTE = 'urgente',
 }
-

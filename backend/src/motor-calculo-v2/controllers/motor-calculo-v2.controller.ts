@@ -26,7 +26,7 @@ import { DTOCalculo } from '../interfaces/calculo.interface';
 /**
  * Controller do Motor de Cálculo V2
  * API REST para cálculos e integrações
- * 
+ *
  * ✅ ARQUIVO ≤ 200 LINHAS (CONFORME PREMISSAS)
  * ✅ ENDPOINTS COMPLETOS DE CÁLCULO
  * ✅ DOCUMENTAÇÃO SWAGGER
@@ -36,17 +36,16 @@ import { DTOCalculo } from '../interfaces/calculo.interface';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class MotorCalculoV2Controller {
-  constructor(
-    private readonly motorCalculoV2Service: MotorCalculoV2Service,
-  ) {}
+  constructor(private readonly motorCalculoV2Service: MotorCalculoV2Service) {}
 
   /**
    * Executa cálculo completo
    */
   @Post('calcular')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Executar cálculo completo via Motor V2',
-    description: 'Executa cálculo completo de orçamento usando o motor V2 com pipeline de estágios',
+    description:
+      'Executa cálculo completo de orçamento usando o motor V2 com pipeline de estágios',
   })
   @ApiBody({
     description: 'Dados para cálculo',
@@ -64,8 +63,8 @@ export class MotorCalculoV2Controller {
       },
     },
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Cálculo executado com sucesso',
     schema: {
       type: 'object',
@@ -81,10 +80,7 @@ export class MotorCalculoV2Controller {
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   @HttpCode(HttpStatus.OK)
-  async executarCalculo(
-    @Body() dto: DTOCalculo,
-    @CurrentUser() usuario: any,
-  ) {
+  async executarCalculo(@Body() dto: DTOCalculo, @CurrentUser() usuario: any) {
     try {
       // Adicionar loja_id do usuário
       const dtoComLoja = {
@@ -92,7 +88,8 @@ export class MotorCalculoV2Controller {
         lojaId: usuario.loja_id,
       };
 
-      const resultado = await this.motorCalculoV2Service.executarCalculo(dtoComLoja);
+      const resultado =
+        await this.motorCalculoV2Service.executarCalculo(dtoComLoja);
 
       return {
         success: true,
@@ -109,7 +106,7 @@ export class MotorCalculoV2Controller {
    * Executa cálculo simplificado
    */
   @Post('calcular/simplificado')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Executar cálculo simplificado',
     description: 'Executa cálculo simplificado (apenas regras básicas)',
   })
@@ -124,7 +121,10 @@ export class MotorCalculoV2Controller {
         lojaId: usuario.loja_id,
       };
 
-      const resultado = await this.motorCalculoV2Service.executarCalculoSimplificado(dtoComLoja);
+      const resultado =
+        await this.motorCalculoV2Service.executarCalculoSimplificado(
+          dtoComLoja,
+        );
 
       return {
         success: true,
@@ -141,7 +141,7 @@ export class MotorCalculoV2Controller {
    * Executa cálculo em modo preview
    */
   @Post('preview')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Executar cálculo preview',
     description: 'Executa cálculo em modo preview (sem persistir)',
   })
@@ -156,7 +156,8 @@ export class MotorCalculoV2Controller {
         lojaId: usuario.loja_id,
       };
 
-      const resultado = await this.motorCalculoV2Service.executarCalculoPreview(dtoComLoja);
+      const resultado =
+        await this.motorCalculoV2Service.executarCalculoPreview(dtoComLoja);
 
       return {
         success: true,
@@ -173,22 +174,20 @@ export class MotorCalculoV2Controller {
    * Valida contexto sem executar cálculo
    */
   @Post('validar')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Validar contexto de cálculo',
     description: 'Valida dados de entrada sem executar o cálculo',
   })
   @HttpCode(HttpStatus.OK)
-  async validarContexto(
-    @Body() dto: DTOCalculo,
-    @CurrentUser() usuario: any,
-  ) {
+  async validarContexto(@Body() dto: DTOCalculo, @CurrentUser() usuario: any) {
     try {
       const dtoComLoja = {
         ...dto,
         lojaId: usuario.loja_id,
       };
 
-      const resultado = await this.motorCalculoV2Service.validarContexto(dtoComLoja);
+      const resultado =
+        await this.motorCalculoV2Service.validarContexto(dtoComLoja);
 
       return {
         success: resultado.valido,
@@ -209,13 +208,15 @@ export class MotorCalculoV2Controller {
    * Obtém estatísticas do motor
    */
   @Get('estatisticas')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Obter estatísticas do motor',
     description: 'Retorna estatísticas de uso e performance do motor V2',
   })
   async obterEstatisticas(@CurrentUser() usuario: any) {
     try {
-      const estatisticas = await this.motorCalculoV2Service.obterEstatisticas(usuario.loja_id);
+      const estatisticas = await this.motorCalculoV2Service.obterEstatisticas(
+        usuario.loja_id,
+      );
 
       return {
         success: true,
@@ -232,12 +233,12 @@ export class MotorCalculoV2Controller {
    * Health check do motor
    */
   @Get('health')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Health check do motor',
     description: 'Verifica saúde dos serviços do motor V2',
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Status de saúde dos serviços',
   })
   async healthCheck() {

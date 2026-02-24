@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OSService } from '../os.service';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { DocumentCodeService, TipoOS } from '../../../documentos/document-code.service';
+import {
+  DocumentCodeService,
+  TipoOS,
+} from '../../../documentos/document-code.service';
 import { ValidacaoEstoqueService } from '../../../orcamentos-v2/services/validacao-estoque.service';
 import { AlcadasOrcamentoService } from '../alcadas-orcamento.service';
 import { EventosAutomaticosService } from '../eventos-automaticos.service';
@@ -50,16 +53,22 @@ describe('OSService - OS Direta/Interna', () => {
       orcamento_disponivel: 10000,
       orcamento_reservado: 2000,
       orcamento_livre: 8000,
-      pode_aprovar: true
+      pode_aprovar: true,
     }),
     reservarOrcamento: jest.fn().mockResolvedValue({ sucesso: true }),
     liberarOrcamento: jest.fn().mockResolvedValue({ sucesso: true }),
     identificarAprovadorNecessario: jest.fn().mockResolvedValue('GERENTE'),
-    processarAprovacaoAutomatica: jest.fn().mockResolvedValue({ aprovada_automaticamente: true }),
+    processarAprovacaoAutomatica: jest
+      .fn()
+      .mockResolvedValue({ aprovada_automaticamente: true }),
     obterRelatorioConsumoDepartamento: jest.fn().mockResolvedValue({
       departamentos: [],
-      total_geral: { orcamento_total: 0, orcamento_utilizado: 0, orcamento_disponivel: 0 }
-    })
+      total_geral: {
+        orcamento_total: 0,
+        orcamento_utilizado: 0,
+        orcamento_disponivel: 0,
+      },
+    }),
   };
 
   const mockEventosAutomaticosService = {
@@ -72,7 +81,12 @@ describe('OSService - OS Direta/Interna', () => {
   };
 
   const mockOSValidacoesService = {
-    validarOS: jest.fn().mockResolvedValue({ valida: true, acoes: [], correcoes_necessarias: [], alertas: [] }),
+    validarOS: jest.fn().mockResolvedValue({
+      valida: true,
+      acoes: [],
+      correcoes_necessarias: [],
+      alertas: [],
+    }),
     aplicarAcoesAutomaticas: jest.fn().mockResolvedValue(undefined),
   };
 
@@ -100,10 +114,19 @@ describe('OSService - OS Direta/Interna', () => {
           provide: AlcadasOrcamentoService,
           useValue: mockAlcadasOrcamentoService,
         },
-        { provide: EventosAutomaticosService, useValue: mockEventosAutomaticosService },
-        { provide: OSApprovalPermissionsService, useValue: mockOSApprovalPermissionsService },
+        {
+          provide: EventosAutomaticosService,
+          useValue: mockEventosAutomaticosService,
+        },
+        {
+          provide: OSApprovalPermissionsService,
+          useValue: mockOSApprovalPermissionsService,
+        },
         { provide: OSValidacoesService, useValue: mockOSValidacoesService },
-        { provide: WorkflowAssignmentService, useValue: mockWorkflowAssignmentService },
+        {
+          provide: WorkflowAssignmentService,
+          useValue: mockWorkflowAssignmentService,
+        },
       ],
     }).compile();
 
@@ -114,7 +137,7 @@ describe('OSService - OS Direta/Interna', () => {
     mockPrismaService.cliente.findUnique.mockResolvedValue({
       id: 'cliente-001',
       nome: 'Cliente Teste',
-      loja_id: 'loja-001'
+      loja_id: 'loja-001',
     });
   });
 
@@ -130,23 +153,31 @@ describe('OSService - OS Direta/Interna', () => {
       cliente_id: 'cliente-001',
       nome_servico: 'Banner Teste',
       quantidade: 10,
-      valor_orcado: 1000
+      valor_orcado: 1000,
     };
 
     beforeEach(() => {
-      mockDocumentCodeService.gerarCodigoOSComercial.mockResolvedValue('OS-2025-001');
+      mockDocumentCodeService.gerarCodigoOSComercial.mockResolvedValue(
+        'OS-2025-001',
+      );
       mockPrismaService.ordemServico.create.mockResolvedValue({
         id: 'os-001',
         numero: 'OS-2025-001',
         tipo_os: TipoOS.COMERCIAL,
-        ...dadosComercial
+        ...dadosComercial,
       });
     });
 
     it('deve criar OS Comercial com sucesso', async () => {
-      const resultado = await service.criarOSComercial(lojaId, dadosComercial as any, usuarioId);
+      const resultado = await service.criarOSComercial(
+        lojaId,
+        dadosComercial as any,
+        usuarioId,
+      );
 
-      expect(mockDocumentCodeService.gerarCodigoOSComercial).toHaveBeenCalledWith(lojaId);
+      expect(
+        mockDocumentCodeService.gerarCodigoOSComercial,
+      ).toHaveBeenCalledWith(lojaId);
       expect(mockPrismaService.ordemServico.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           tipo_os: TipoOS.COMERCIAL,
@@ -156,21 +187,28 @@ describe('OSService - OS Direta/Interna', () => {
           versao: 1,
           materiais_disponivel: false,
           status: 'FILA',
-          data_abertura: expect.any(Date)
-        })
+          data_abertura: expect.any(Date),
+        }),
       });
       expect(resultado.numero).toBe('OS-2025-001');
     });
 
     it('deve garantir que tipo_os seja COMERCIAL', async () => {
-      const dadosComercialForcado = { ...dadosComercial, tipo_os: TipoOS.INTERNA };
-      
-      await service.criarOSComercial(lojaId, dadosComercialForcado as any, usuarioId);
+      const dadosComercialForcado = {
+        ...dadosComercial,
+        tipo_os: TipoOS.INTERNA,
+      };
+
+      await service.criarOSComercial(
+        lojaId,
+        dadosComercialForcado as any,
+        usuarioId,
+      );
 
       expect(mockPrismaService.ordemServico.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          tipo_os: TipoOS.COMERCIAL
-        })
+          tipo_os: TipoOS.COMERCIAL,
+        }),
       });
     });
   });
@@ -183,23 +221,31 @@ describe('OSService - OS Direta/Interna', () => {
       departamento_solicitante: 'TI',
       centro_custo: 'CC-001',
       nome_servico: 'Banner Interno',
-      quantidade: 5
+      quantidade: 5,
     };
 
     beforeEach(() => {
-      mockDocumentCodeService.gerarCodigoOSInterna.mockResolvedValue('OSI-2025-001');
+      mockDocumentCodeService.gerarCodigoOSInterna.mockResolvedValue(
+        'OSI-2025-001',
+      );
       mockPrismaService.ordemServico.create.mockResolvedValue({
         id: 'os-002',
         numero: 'OSI-2025-001',
         tipo_os: TipoOS.INTERNA,
-        ...dadosInterna
+        ...dadosInterna,
       });
     });
 
     it('deve criar OS Interna com sucesso', async () => {
-      const resultado = await service.criarOSInterna(lojaId, dadosInterna as any, usuarioId);
+      const resultado = await service.criarOSInterna(
+        lojaId,
+        dadosInterna as any,
+        usuarioId,
+      );
 
-      expect(mockDocumentCodeService.gerarCodigoOSInterna).toHaveBeenCalledWith(lojaId);
+      expect(mockDocumentCodeService.gerarCodigoOSInterna).toHaveBeenCalledWith(
+        lojaId,
+      );
       expect(mockPrismaService.ordemServico.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           tipo_os: TipoOS.INTERNA,
@@ -210,21 +256,28 @@ describe('OSService - OS Direta/Interna', () => {
           materiais_disponivel: false,
           status: 'FILA',
           data_abertura: expect.any(Date),
-          aprovacao_gerencial: 'PENDENTE'
-        })
+          aprovacao_gerencial: 'PENDENTE',
+        }),
       });
       expect(resultado.numero).toBe('OSI-2025-001');
     });
 
     it('deve garantir que tipo_os seja INTERNA', async () => {
-      const dadosInternaForcado = { ...dadosInterna, tipo_os: TipoOS.COMERCIAL };
-      
-      await service.criarOSInterna(lojaId, dadosInternaForcado as any, usuarioId);
+      const dadosInternaForcado = {
+        ...dadosInterna,
+        tipo_os: TipoOS.COMERCIAL,
+      };
+
+      await service.criarOSInterna(
+        lojaId,
+        dadosInternaForcado as any,
+        usuarioId,
+      );
 
       expect(mockPrismaService.ordemServico.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          tipo_os: TipoOS.INTERNA
-        })
+          tipo_os: TipoOS.INTERNA,
+        }),
       });
     });
   });
@@ -239,24 +292,29 @@ describe('OSService - OS Direta/Interna', () => {
         numero: 'OS-2025-001',
         tipo_os: TipoOS.COMERCIAL,
         status: 'AGUARDANDO_APROVACAO_TECNICA',
-        aprovacao_tecnica_status: 'PENDENTE'
+        aprovacao_tecnica_status: 'PENDENTE',
       };
 
       mockPrismaService.ordemServico.findUnique.mockResolvedValue(osComercial);
       mockPrismaService.usuario.findUnique.mockResolvedValue({
         id: usuarioId,
-        funcao: 'PRODUCAO'
+        funcao: 'PRODUCAO',
       });
       mockPrismaService.ordemServico.update.mockResolvedValue({
         ...osComercial,
         aprovacao_tecnica_status: 'APROVADA',
         aprovacao_tecnica_por: usuarioId,
         aprovacao_tecnica_em: expect.any(Date),
-        versao: 2
+        versao: 2,
       });
       mockPrismaService.movimentacaoOS.create.mockResolvedValue({});
 
-      const resultado = await service.aprovarOSTecnica(osId, usuarioId, true, 'Aprovado');
+      const resultado = await service.aprovarOSTecnica(
+        osId,
+        usuarioId,
+        true,
+        'Aprovado',
+      );
 
       expect(mockPrismaService.ordemServico.update).toHaveBeenCalledWith({
         where: { id: osId },
@@ -266,8 +324,8 @@ describe('OSService - OS Direta/Interna', () => {
           aprovacao_tecnica_obs: 'Aprovado',
           modificado_por: usuarioId,
           motivo_modificacao: 'Aprovação técnica aprovada',
-          versao: { increment: 1 }
-        })
+          versao: { increment: 1 },
+        }),
       });
       expect(resultado.aprovacao_tecnica_status).toBe('APROVADA');
     });
@@ -278,21 +336,26 @@ describe('OSService - OS Direta/Interna', () => {
         numero: 'OS-2025-001',
         tipo_os: TipoOS.COMERCIAL,
         status: 'AGUARDANDO_APROVACAO_TECNICA',
-        aprovacao_tecnica_status: 'PENDENTE'
+        aprovacao_tecnica_status: 'PENDENTE',
       };
 
       mockPrismaService.ordemServico.findUnique.mockResolvedValue(osComercial);
       mockPrismaService.usuario.findUnique.mockResolvedValue({
         id: usuarioId,
-        funcao: 'PRODUCAO'
+        funcao: 'PRODUCAO',
       });
       mockPrismaService.ordemServico.update.mockResolvedValue({
         ...osComercial,
-        aprovacao_tecnica_status: 'REJEITADA'
+        aprovacao_tecnica_status: 'REJEITADA',
       });
       mockPrismaService.movimentacaoOS.create.mockResolvedValue({});
 
-      const resultado = await service.aprovarOSTecnica(osId, usuarioId, false, 'Rejeitado');
+      const resultado = await service.aprovarOSTecnica(
+        osId,
+        usuarioId,
+        false,
+        'Rejeitado',
+      );
 
       expect(resultado.aprovacao_tecnica_status).toBe('REJEITADA');
     });
@@ -300,21 +363,23 @@ describe('OSService - OS Direta/Interna', () => {
     it('deve lançar erro se OS não for encontrada', async () => {
       mockPrismaService.ordemServico.findUnique.mockResolvedValue(null);
 
-      await expect(service.aprovarOSTecnica(osId, usuarioId, true))
-        .rejects.toThrow(NotFoundException);
+      await expect(
+        service.aprovarOSTecnica(osId, usuarioId, true),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('deve lançar erro se OS não for comercial', async () => {
       const osInterna = {
         id: osId,
         numero: 'OSI-2025-001',
-        tipo_os: TipoOS.INTERNA
+        tipo_os: TipoOS.INTERNA,
       };
 
       mockPrismaService.ordemServico.findUnique.mockResolvedValue(osInterna);
 
-      await expect(service.aprovarOSTecnica(osId, usuarioId, true))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.aprovarOSTecnica(osId, usuarioId, true),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -327,7 +392,7 @@ describe('OSService - OS Direta/Interna', () => {
         id: osId,
         numero: 'OSI-2025-001',
         tipo_os: TipoOS.INTERNA,
-        aprovacao_gerencial: 'PENDENTE'
+        aprovacao_gerencial: 'PENDENTE',
       };
 
       mockPrismaService.ordemServico.findUnique.mockResolvedValue(osInterna);
@@ -336,10 +401,15 @@ describe('OSService - OS Direta/Interna', () => {
         aprovacao_gerencial: 'APROVADA',
         aprovacao_gerencial_por: usuarioId,
         aprovacao_gerencial_em: expect.any(Date),
-        versao: 2
+        versao: 2,
       });
 
-      const resultado = await service.aprovarOSGerencial(osId, usuarioId, true, 'Aprovado');
+      const resultado = await service.aprovarOSGerencial(
+        osId,
+        usuarioId,
+        true,
+        'Aprovado',
+      );
 
       expect(mockPrismaService.ordemServico.update).toHaveBeenCalledWith({
         where: { id: osId },
@@ -349,8 +419,8 @@ describe('OSService - OS Direta/Interna', () => {
           aprovacao_gerencial_obs: 'Aprovado',
           modificado_por: usuarioId,
           motivo_modificacao: 'Aprovação gerencial aprovada',
-          versao: { increment: 1 }
-        })
+          versao: { increment: 1 },
+        }),
       });
       expect(resultado.aprovacao_gerencial).toBe('APROVADA');
     });
@@ -359,13 +429,14 @@ describe('OSService - OS Direta/Interna', () => {
       const osComercial = {
         id: osId,
         numero: 'OS-2025-001',
-        tipo_os: TipoOS.COMERCIAL
+        tipo_os: TipoOS.COMERCIAL,
       };
 
       mockPrismaService.ordemServico.findUnique.mockResolvedValue(osComercial);
 
-      await expect(service.aprovarOSGerencial(osId, usuarioId, true))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.aprovarOSGerencial(osId, usuarioId, true),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -378,7 +449,7 @@ describe('OSService - OS Direta/Interna', () => {
       const osComercial = {
         id: osId,
         numero: 'OS-2025-001',
-        tipo_os: TipoOS.COMERCIAL
+        tipo_os: TipoOS.COMERCIAL,
       };
 
       mockPrismaService.ordemServico.findUnique.mockResolvedValue(osComercial);
@@ -386,14 +457,14 @@ describe('OSService - OS Direta/Interna', () => {
         ...osComercial,
         data_instalacao_agendada: dataInstalacao,
         observacoes_instalacao: 'Instalação agendada',
-        versao: 2
+        versao: 2,
       });
 
       const resultado = await service.agendarInstalacao(
-        osId, 
-        dataInstalacao, 
-        'Instalação agendada', 
-        usuarioId
+        osId,
+        dataInstalacao,
+        'Instalação agendada',
+        usuarioId,
       );
 
       expect(mockPrismaService.ordemServico.update).toHaveBeenCalledWith({
@@ -403,8 +474,8 @@ describe('OSService - OS Direta/Interna', () => {
           observacoes_instalacao: 'Instalação agendada',
           modificado_por: usuarioId,
           motivo_modificacao: 'Agendamento de instalação',
-          versao: { increment: 1 }
-        })
+          versao: { increment: 1 },
+        }),
       });
       expect(resultado.data_instalacao_agendada).toEqual(dataInstalacao);
     });
@@ -413,13 +484,14 @@ describe('OSService - OS Direta/Interna', () => {
       const osInterna = {
         id: osId,
         numero: 'OSI-2025-001',
-        tipo_os: TipoOS.INTERNA
+        tipo_os: TipoOS.INTERNA,
       };
 
       mockPrismaService.ordemServico.findUnique.mockResolvedValue(osInterna);
 
-      await expect(service.agendarInstalacao(osId, dataInstalacao, undefined, usuarioId))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.agendarInstalacao(osId, dataInstalacao, undefined, usuarioId),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -429,20 +501,25 @@ describe('OSService - OS Direta/Interna', () => {
     it('deve listar OS comerciais', async () => {
       const osComerciais = [
         { id: 'os-001', tipo_os: TipoOS.COMERCIAL, status: 'FILA' },
-        { id: 'os-002', tipo_os: TipoOS.COMERCIAL, status: 'PRODUCAO' }
+        { id: 'os-002', tipo_os: TipoOS.COMERCIAL, status: 'PRODUCAO' },
       ];
 
       mockPrismaService.ordemServico.findMany.mockResolvedValue(osComerciais);
       mockPrismaService.ordemServico.count.mockResolvedValue(2);
 
-      const resultado = await service.listarOSPorTipo(lojaId, TipoOS.COMERCIAL, 1, 10);
+      const resultado = await service.listarOSPorTipo(
+        lojaId,
+        TipoOS.COMERCIAL,
+        1,
+        10,
+      );
 
       expect(mockPrismaService.ordemServico.findMany).toHaveBeenCalledWith({
         where: { loja_id: lojaId, tipo_os: TipoOS.COMERCIAL },
         skip: 0,
         take: 10,
         orderBy: { data_abertura: 'desc' },
-        include: { cliente: true, orcamento: true, loja: true }
+        include: { cliente: true, orcamento: true, loja: true },
       });
       expect(resultado.total).toBe(2);
       expect(resultado.data).toHaveLength(2);
@@ -455,15 +532,15 @@ describe('OSService - OS Direta/Interna', () => {
       await service.listarOSPorTipo(lojaId, TipoOS.COMERCIAL, 1, 10, 'FILA');
 
       expect(mockPrismaService.ordemServico.findMany).toHaveBeenCalledWith({
-        where: { 
-          loja_id: lojaId, 
+        where: {
+          loja_id: lojaId,
           tipo_os: TipoOS.COMERCIAL,
-          status: 'FILA'
+          status: 'FILA',
         },
         skip: 0,
         take: 10,
         orderBy: { data_abertura: 'desc' },
-        include: { cliente: true, orcamento: true, loja: true }
+        include: { cliente: true, orcamento: true, loja: true },
       });
     });
   });
@@ -475,12 +552,9 @@ describe('OSService - OS Direta/Interna', () => {
       const osComercial = [
         { status: 'FILA' },
         { status: 'PRODUCAO' },
-        { status: 'FILA' }
-      ];
-      const osInterna = [
         { status: 'FILA' },
-        { status: 'PRODUCAO' }
       ];
+      const osInterna = [{ status: 'FILA' }, { status: 'PRODUCAO' }];
 
       mockPrismaService.ordemServico.findMany
         .mockResolvedValueOnce(osComercial)
@@ -506,10 +580,10 @@ describe('OSService - OS Direta/Interna', () => {
         where: expect.objectContaining({
           data_abertura: expect.objectContaining({
             gte: new Date(anoAtual, 0, 1),
-            lte: new Date(anoAtual, 11, 31, 23, 59, 59)
-          })
+            lte: new Date(anoAtual, 11, 31, 23, 59, 59),
+          }),
         }),
-        select: { status: true }
+        select: { status: true },
       });
     });
   });

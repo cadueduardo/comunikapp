@@ -49,7 +49,9 @@ describe('ItensController', () => {
 
     controller = module.get<ItensController>(ItensController);
     estoqueService = module.get<ItensEstoqueService>(ItensEstoqueService);
-    dashboardService = module.get<DashboardEstoqueService>(DashboardEstoqueService);
+    dashboardService = module.get<DashboardEstoqueService>(
+      DashboardEstoqueService,
+    );
   });
 
   afterEach(() => {
@@ -85,7 +87,9 @@ describe('ItensController', () => {
 
       mockEstoqueService.criarItemEstoque.mockResolvedValue(expectedResult);
 
-      const result = await controller.criar(createDto as any, { id: 'loja-123' } as any);
+      const result = await controller.criar(createDto, {
+        id: 'loja-123',
+      } as any);
 
       expect(result).toEqual(expectedResult);
       expect(mockEstoqueService.criarItemEstoque).toHaveBeenCalledWith(
@@ -107,9 +111,9 @@ describe('ItensController', () => {
         new BadRequestException('Dados inválidos'),
       );
 
-      await expect(controller.criar(createDto as any, { id: 'loja-123' } as any)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        controller.criar(createDto, { id: 'loja-123' } as any),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -150,7 +154,10 @@ describe('ItensController', () => {
 
       mockEstoqueService.listarItensEstoque.mockResolvedValue(expectedResult);
 
-      const result = await controller.listar(query as any, { id: 'loja-123' } as any);
+      const result = await controller.listar(
+        query as any,
+        { id: 'loja-123' } as any,
+      );
 
       expect(result).toEqual(expectedResult);
       expect(mockEstoqueService.listarItensEstoque).toHaveBeenCalledWith(
@@ -176,7 +183,10 @@ describe('ItensController', () => {
 
       mockEstoqueService.listarItensEstoque.mockResolvedValue(expectedResult);
 
-      const result = await controller.listar(query as any, { id: 'loja-123' } as any);
+      const result = await controller.listar(
+        query as any,
+        { id: 'loja-123' } as any,
+      );
 
       expect(result).toEqual(expectedResult);
       expect(result.data).toHaveLength(0);
@@ -207,7 +217,9 @@ describe('ItensController', () => {
         expectedResult,
       );
 
-      const result = await controller.buscarPorId(itemId, { id: 'loja-123' } as any);
+      const result = await controller.buscarPorId(itemId, {
+        id: 'loja-123',
+      } as any);
 
       expect(result).toEqual(expectedResult);
       expect(mockEstoqueService.buscarItemEstoquePorId).toHaveBeenCalledWith(
@@ -225,9 +237,9 @@ describe('ItensController', () => {
         new NotFoundException('Item não encontrado'),
       );
 
-      await expect(controller.buscarPorId(itemId, { id: 'loja-123' } as any)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        controller.buscarPorId(itemId, { id: 'loja-123' } as any),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -258,7 +270,11 @@ describe('ItensController', () => {
 
       mockEstoqueService.atualizarItemEstoque.mockResolvedValue(expectedResult);
 
-      const result = await controller.atualizar(itemId, updateDto as any, { id: 'loja-123' } as any);
+      const result = await controller.atualizar(
+        itemId,
+        updateDto as any,
+        { id: 'loja-123' } as any,
+      );
 
       expect(result).toEqual(expectedResult);
       expect(mockEstoqueService.atualizarItemEstoque).toHaveBeenCalledWith(
@@ -280,7 +296,11 @@ describe('ItensController', () => {
       );
 
       await expect(
-        controller.atualizar(itemId, updateDto as any, { id: 'loja-123' } as any),
+        controller.atualizar(
+          itemId,
+          updateDto as any,
+          { id: 'loja-123' } as any,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -305,7 +325,9 @@ describe('ItensController', () => {
 
       mockEstoqueService.excluirItemEstoque.mockResolvedValue(expectedResult);
 
-      const result = await controller.excluir(itemId, { id: 'loja-123' } as any);
+      const result = await controller.excluir(itemId, {
+        id: 'loja-123',
+      } as any);
 
       expect(result).toEqual(expectedResult);
       expect(mockEstoqueService.excluirItemEstoque).toHaveBeenCalledWith(
@@ -324,9 +346,9 @@ describe('ItensController', () => {
         new NotFoundException('Item não encontrado'),
       );
 
-      await expect(controller.excluir(itemId, mockRequest as any)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        controller.excluir(itemId, mockRequest as any),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

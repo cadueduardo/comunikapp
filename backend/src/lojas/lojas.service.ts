@@ -147,47 +147,72 @@ export class LojasService {
     const { nome_loja, nome_responsavel, email, telefone, cnpj, cpf, senha } =
       createOnboardingDto;
 
-    const salt = await bcrypt.genSalt();
-    const hashedPassword = await bcrypt.hash(senha, salt);
+    try {
+      const salt = await bcrypt.genSalt();
+      const hashedPassword = await bcrypt.hash(senha, salt);
 
-    const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expirationDate = new Date();
-    expirationDate.setMinutes(expirationDate.getMinutes() + 15);
+      const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expirationDate = new Date();
+      expirationDate.setMinutes(expirationDate.getMinutes() + 15);
 
-    return this.prisma.$transaction(async (tx) => {
-      const loja = await tx.loja.create({
-        data: {
-          id: Math.random().toString(36).substr(2, 9), // Gerar ID único
-          nome: nome_loja,
-          email,
-          telefone,
-          cpf: cpf || undefined,
-          cnpj: cnpj || undefined,
-          atualizado_em: new Date(),
-        },
+      return await this.prisma.$transaction(async (tx) => {
+        const loja = await tx.loja.create({
+          data: {
+            id: Math.random().toString(36).substr(2, 9), // Gerar ID único
+            nome: nome_loja,
+            email,
+            telefone,
+            cpf: cpf || undefined,
+            cnpj: cnpj || undefined,
+            atualizado_em: new Date(),
+          },
+        });
+
+        const usuario = await tx.usuario.create({
+          data: {
+            id: Math.random().toString(36).substr(2, 9), // Gerar ID único
+            nome_completo: nome_responsavel,
+            email,
+            telefone: telefone,
+            senha: hashedPassword,
+            funcao: usuario_funcao.ADMINISTRADOR,
+            loja_id: loja.id,
+            codigo_verificacao_email: emailCode,
+            codigo_verificacao_email_expiracao: expirationDate,
+            atualizado_em: new Date(),
+          },
+        });
+
+        await this.mailService.sendVerificationEmail(usuario.email, emailCode);
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { senha: _, ...result } = usuario;
+        return result;
       });
-
-      const usuario = await tx.usuario.create({
-        data: {
-          id: Math.random().toString(36).substr(2, 9), // Gerar ID único
-          nome_completo: nome_responsavel,
-          email,
-          telefone: telefone,
-          senha: hashedPassword,
-          funcao: usuario_funcao.ADMINISTRADOR,
-          loja_id: loja.id,
-          codigo_verificacao_email: emailCode,
-          codigo_verificacao_email_expiracao: expirationDate,
-          atualizado_em: new Date(),
-        },
-      });
-
-      await this.mailService.sendVerificationEmail(usuario.email, emailCode);
-
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { senha: _, ...result } = usuario;
-      return result;
-    });
+    } catch (err: unknown) {
+      // Prisma: violação de unique (ex.: e-mail já cadastrado)
+      if (err && typeof err === 'object' && 'code' in err && err.code === 'P2002') {
+        throw new BadRequestException(
+          'Este e-mail já está cadastrado. Use outro e-mail ou faça login.',
+        );
+      }
+      // Prisma: outros erros de validação/banco
+      if (err && typeof err === 'object' && 'code' in err) {
+        throw new BadRequestException(
+          'Não foi possível criar a conta. Verifique os dados (nome, e-mail, telefone, documento e senha) e tente novamente.',
+        );
+      }
+      // Erro no envio do e-mail (ex.: serviço indisponível)
+      if (err instanceof BadRequestException) {
+        throw err;
+      }
+      // Log para diagnóstico (ex.: erro de e-mail, encoding, etc.)
+      console.error('[LojasService.create] Erro ao criar conta:', err);
+      // Mensagem amigável para qualquer outro erro (ex.: senha com caractere que quebra fluxo)
+      throw new BadRequestException(
+        'Não foi possível criar a conta. Verifique a senha (mínimo 6 caracteres; evite aspas ou caracteres que possam causar erro). Se o problema continuar, tente outra senha.',
+      );
+    }
   }
 
   async verifyEmail({ email, codigo }: VerifyEmailDto) {

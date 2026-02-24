@@ -4,7 +4,12 @@
  * Funcionalidades: CRUD instâncias, controle de etapas, apontamentos
  */
 
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EstoqueApontamentoService } from './estoque-apontamento.service';
 import {
@@ -32,7 +37,7 @@ export class WorkflowInstanciaService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly estoqueApontamentoService: EstoqueApontamentoService
+    private readonly estoqueApontamentoService: EstoqueApontamentoService,
   ) {}
 
   // ===== CRUD WORKFLOW INSTÂNCIA =====
@@ -40,10 +45,12 @@ export class WorkflowInstanciaService {
   async criarInstancia(
     lojaId: string,
     createDto: CreateWorkflowInstanciaDto,
-    usuarioId: string
+    usuarioId: string,
   ): Promise<WorkflowInstanciaData> {
     try {
-      this.logger.log(`Criando instância de workflow para OS ${createDto.os_id}`);
+      this.logger.log(
+        `Criando instância de workflow para OS ${createDto.os_id}`,
+      );
 
       // 1. Verificar se OS existe e pertence à loja
       const os = await this.prisma.ordemServico.findFirst({
@@ -58,12 +65,16 @@ export class WorkflowInstanciaService {
       }
 
       // 2. Verificar se já existe instância para esta OS
-      const instanciaExistente = await this.prisma.workflowInstancia.findUnique({
-        where: { os_id: createDto.os_id },
-      });
+      const instanciaExistente = await this.prisma.workflowInstancia.findUnique(
+        {
+          where: { os_id: createDto.os_id },
+        },
+      );
 
       if (instanciaExistente) {
-        throw new BadRequestException('Já existe instância de workflow para esta OS');
+        throw new BadRequestException(
+          'Já existe instância de workflow para esta OS',
+        );
       }
 
       // 3. Verificar se workflow existe e está ativo
@@ -76,7 +87,9 @@ export class WorkflowInstanciaService {
       });
 
       if (!workflow) {
-        throw new NotFoundException(`Workflow ${createDto.workflow_id} não encontrado ou inativo`);
+        throw new NotFoundException(
+          `Workflow ${createDto.workflow_id} não encontrado ou inativo`,
+        );
       }
 
       // 4. Criar instância
@@ -122,18 +135,25 @@ export class WorkflowInstanciaService {
         etapasCriadas.push(etapaInstancia);
       }
 
-      this.logger.log(`[OK] Instância de workflow criada - ID: ${instancia.id}`);
+      this.logger.log(
+        `[OK] Instância de workflow criada - ID: ${instancia.id}`,
+      );
       return {
         ...instancia,
         etapas: etapasCriadas,
       } as unknown as WorkflowInstanciaData;
     } catch (error) {
-      this.logger.error(`Erro ao criar instância de workflow: ${error.message}`);
+      this.logger.error(
+        `Erro ao criar instância de workflow: ${error.message}`,
+      );
       throw error;
     }
   }
 
-  async buscarInstanciaPorOS(osId: string, lojaId: string): Promise<WorkflowInstanciaData> {
+  async buscarInstanciaPorOS(
+    osId: string,
+    lojaId: string,
+  ): Promise<WorkflowInstanciaData> {
     const instancia = await this.prisma.workflowInstancia.findFirst({
       where: {
         os_id: osId,
@@ -152,7 +172,9 @@ export class WorkflowInstanciaService {
     });
 
     if (!instancia) {
-      throw new NotFoundException(`Instância de workflow não encontrada para OS ${osId}`);
+      throw new NotFoundException(
+        `Instância de workflow não encontrada para OS ${osId}`,
+      );
     }
 
     return instancia as unknown as WorkflowInstanciaData;
@@ -161,7 +183,7 @@ export class WorkflowInstanciaService {
   async atualizarInstancia(
     instanciaId: string,
     updateDto: UpdateWorkflowInstanciaDto,
-    usuarioId: string
+    usuarioId: string,
   ): Promise<WorkflowInstanciaData> {
     try {
       const instancia = await this.prisma.workflowInstancia.update({
@@ -182,10 +204,14 @@ export class WorkflowInstanciaService {
         },
       });
 
-      this.logger.log(`[OK] Instância de workflow atualizada - ID: ${instanciaId}`);
+      this.logger.log(
+        `[OK] Instância de workflow atualizada - ID: ${instanciaId}`,
+      );
       return instancia as unknown as WorkflowInstanciaData;
     } catch (error) {
-      this.logger.error(`Erro ao atualizar instância de workflow: ${error.message}`);
+      this.logger.error(
+        `Erro ao atualizar instância de workflow: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -196,7 +222,7 @@ export class WorkflowInstanciaService {
     instanciaId: string,
     etapaId: string,
     usuarioId: string,
-    observacoes?: string
+    observacoes?: string,
   ): Promise<EtapaInstanciaData> {
     try {
       // 1. Buscar etapa atual
@@ -212,17 +238,19 @@ export class WorkflowInstanciaService {
       }
 
       // 2. Verificar se todos os checklists obrigatórios foram concluídos
-      const checklistsPendentes = await this.prisma.checklistInstancia.findMany({
-        where: {
-          etapa_instancia_id: etapaId,
-          obrigatorio: true,
-          concluido: false,
+      const checklistsPendentes = await this.prisma.checklistInstancia.findMany(
+        {
+          where: {
+            etapa_instancia_id: etapaId,
+            obrigatorio: true,
+            concluido: false,
+          },
         },
-      });
+      );
 
       if (checklistsPendentes.length > 0) {
         throw new BadRequestException(
-          `Etapa não pode ser concluída. ${checklistsPendentes.length} checklists obrigatórios pendentes`
+          `Etapa não pode ser concluída. ${checklistsPendentes.length} checklists obrigatórios pendentes`,
         );
       }
 
@@ -310,7 +338,7 @@ export class WorkflowInstanciaService {
   async criarApontamento(
     lojaId: string,
     createDto: CreateApontamentoDto,
-    usuarioId: string
+    usuarioId: string,
   ): Promise<ApontamentoData> {
     try {
       // 1. Verificar se OS existe e pertence à loja
@@ -329,18 +357,19 @@ export class WorkflowInstanciaService {
       let resultadoEstoque = null;
       if (this.deveProcessarEstoque(createDto.tipo)) {
         try {
-          resultadoEstoque = await this.estoqueApontamentoService.processarOperacaoEstoque(
-            createDto.os_id,
-            createDto.tipo,
-            createDto.quantidade_produzida,
-            createDto.quantidade_refugo,
-            createDto.observacoes
-          );
+          resultadoEstoque =
+            await this.estoqueApontamentoService.processarOperacaoEstoque(
+              createDto.os_id,
+              createDto.tipo,
+              createDto.quantidade_produzida,
+              createDto.quantidade_refugo,
+              createDto.observacoes,
+            );
 
           // Adicionar alertas de estoque às observações
           if (resultadoEstoque.alertas.length > 0) {
             const alertasTexto = resultadoEstoque.alertas.join('; ');
-            createDto.observacoes = createDto.observacoes 
+            createDto.observacoes = createDto.observacoes
               ? `${createDto.observacoes} | Alertas: ${alertasTexto}`
               : `Alertas: ${alertasTexto}`;
           }
@@ -348,11 +377,13 @@ export class WorkflowInstanciaService {
           // Se houve erros críticos, não criar o apontamento
           if (!resultadoEstoque.sucesso && resultadoEstoque.erros.length > 0) {
             throw new BadRequestException(
-              `Erro ao processar estoque: ${resultadoEstoque.erros.join('; ')}`
+              `Erro ao processar estoque: ${resultadoEstoque.erros.join('; ')}`,
             );
           }
         } catch (error) {
-          this.logger.warn(`Erro ao processar estoque para apontamento: ${error.message}`);
+          this.logger.warn(
+            `Erro ao processar estoque para apontamento: ${error.message}`,
+          );
           // Continua criando o apontamento mesmo com erro de estoque
         }
       }
@@ -374,12 +405,12 @@ export class WorkflowInstanciaService {
       });
 
       this.logger.log(`[OK] Apontamento criado - ID: ${apontamento.id}`);
-      
+
       // 4. Log do resultado do estoque
       if (resultadoEstoque) {
         this.logger.log(
           `Operações de estoque: ${resultadoEstoque.operacoes_realizadas.length} realizadas, ` +
-          `${resultadoEstoque.erros.length} erros, ${resultadoEstoque.alertas.length} alertas`
+            `${resultadoEstoque.erros.length} erros, ${resultadoEstoque.alertas.length} alertas`,
         );
       }
 
@@ -394,14 +425,13 @@ export class WorkflowInstanciaService {
    * Determina se o tipo de apontamento deve processar operações de estoque
    */
   private deveProcessarEstoque(tipo: string): boolean {
-    return [
-      'INICIO',
-      'CONCLUSAO', 
-      'REFUGO'
-    ].includes(tipo);
+    return ['INICIO', 'CONCLUSAO', 'REFUGO'].includes(tipo);
   }
 
-  async listarApontamentosOS(osId: string, lojaId: string): Promise<ApontamentoData[]> {
+  async listarApontamentosOS(
+    osId: string,
+    lojaId: string,
+  ): Promise<ApontamentoData[]> {
     const apontamentos = await this.prisma.apontamento.findMany({
       where: {
         os_id: osId,
@@ -421,7 +451,7 @@ export class WorkflowInstanciaService {
   async atualizarChecklist(
     checklistId: string,
     updateDto: UpdateChecklistInstanciaDto,
-    usuarioId: string
+    usuarioId: string,
   ): Promise<ChecklistInstanciaData> {
     try {
       const checklist = await this.prisma.checklistInstancia.update({
@@ -444,7 +474,9 @@ export class WorkflowInstanciaService {
 
   // ===== ESTATÍSTICAS =====
 
-  async obterEstatisticasWorkflow(lojaId: string): Promise<EstatisticasWorkflow> {
+  async obterEstatisticasWorkflow(
+    lojaId: string,
+  ): Promise<EstatisticasWorkflow> {
     const [
       totalInstancias,
       instanciasAtivas,
@@ -486,12 +518,14 @@ export class WorkflowInstanciaService {
       },
     });
 
-    const tempoMedioExecucao = instanciasComTempo.length > 0
-      ? instanciasComTempo.reduce((acc, instancia) => {
-          const tempo = instancia.data_fim!.getTime() - instancia.data_inicio.getTime();
-          return acc + (tempo / (1000 * 60)); // Converter para minutos
-        }, 0) / instanciasComTempo.length
-      : 0;
+    const tempoMedioExecucao =
+      instanciasComTempo.length > 0
+        ? instanciasComTempo.reduce((acc, instancia) => {
+            const tempo =
+              instancia.data_fim.getTime() - instancia.data_inicio.getTime();
+            return acc + tempo / (1000 * 60); // Converter para minutos
+          }, 0) / instanciasComTempo.length
+        : 0;
 
     return {
       total_instancias: totalInstancias,
@@ -503,55 +537,57 @@ export class WorkflowInstanciaService {
     };
   }
 
-  async obterEstatisticasApontamento(lojaId: string): Promise<EstatisticasApontamento> {
+  async obterEstatisticasApontamento(
+    lojaId: string,
+  ): Promise<EstatisticasApontamento> {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
 
-    const [
-      totalApontamentos,
-      apontamentosHoje,
-      apontamentosComTempo,
-    ] = await Promise.all([
-      this.prisma.apontamento.count({
-        where: { os: { loja_id: lojaId } },
-      }),
-      this.prisma.apontamento.count({
-        where: {
-          os: { loja_id: lojaId },
-          data_apontamento: { gte: hoje },
-        },
-      }),
-      this.prisma.apontamento.findMany({
-        where: {
-          os: { loja_id: lojaId },
-          tempo_gasto: { not: null },
-        },
-        select: {
-          tempo_gasto: true,
-          quantidade_produzida: true,
-          quantidade_refugo: true,
-        },
-      }),
-    ]);
+    const [totalApontamentos, apontamentosHoje, apontamentosComTempo] =
+      await Promise.all([
+        this.prisma.apontamento.count({
+          where: { os: { loja_id: lojaId } },
+        }),
+        this.prisma.apontamento.count({
+          where: {
+            os: { loja_id: lojaId },
+            data_apontamento: { gte: hoje },
+          },
+        }),
+        this.prisma.apontamento.findMany({
+          where: {
+            os: { loja_id: lojaId },
+            tempo_gasto: { not: null },
+          },
+          select: {
+            tempo_gasto: true,
+            quantidade_produzida: true,
+            quantidade_refugo: true,
+          },
+        }),
+      ]);
 
     const tempoTotalProducao = apontamentosComTempo.reduce(
       (acc, ap) => acc + (ap.tempo_gasto || 0),
-      0
+      0,
     );
 
     const quantidadeTotalProduzida = apontamentosComTempo.reduce(
       (acc, ap) => acc + Number(ap.quantidade_produzida || 0),
-      0
+      0,
     );
 
     const quantidadeTotalRefugo = apontamentosComTempo.reduce(
       (acc, ap) => acc + Number(ap.quantidade_refugo || 0),
-      0
+      0,
     );
 
-    const eficiencia = quantidadeTotalProduzida > 0
-      ? ((quantidadeTotalProduzida - quantidadeTotalRefugo) / quantidadeTotalProduzida) * 100
-      : 0;
+    const eficiencia =
+      quantidadeTotalProduzida > 0
+        ? ((quantidadeTotalProduzida - quantidadeTotalRefugo) /
+            quantidadeTotalProduzida) *
+          100
+        : 0;
 
     return {
       total_apontamentos: totalApontamentos,

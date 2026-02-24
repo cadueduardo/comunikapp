@@ -5,7 +5,7 @@ import { ArteStatus } from '@prisma/client';
 export class CreateArteVersaoDto {
   @ApiProperty({
     description: 'ID da Ordem de Serviço',
-    example: 'cmgcbwu3x0002jazo4uotdi8i'
+    example: 'cmgcbwu3x0002jazo4uotdi8i',
   })
   @IsString()
   @IsNotEmpty()
@@ -14,7 +14,7 @@ export class CreateArteVersaoDto {
   @ApiProperty({
     description: 'ID do serviço específico (opcional)',
     example: 'cmgjtbm770001japkfygbyztr',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString()
@@ -22,7 +22,7 @@ export class CreateArteVersaoDto {
 
   @ApiProperty({
     description: 'Versão da arte',
-    example: 'v1'
+    example: 'v1',
   })
   @IsString()
   @IsNotEmpty()
@@ -31,7 +31,7 @@ export class CreateArteVersaoDto {
   @ApiProperty({
     description: 'Status da arte',
     enum: ArteStatus,
-    example: ArteStatus.RASCUNHO
+    example: ArteStatus.RASCUNHO,
   })
   @IsEnum(ArteStatus)
   status: ArteStatus;
@@ -39,7 +39,7 @@ export class CreateArteVersaoDto {
   @ApiProperty({
     description: 'Descrição da versão',
     example: 'Primeira versão da arte para fachada',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString()
@@ -48,10 +48,9 @@ export class CreateArteVersaoDto {
   @ApiProperty({
     description: 'Observações adicionais',
     example: 'Aguardando feedback do cliente',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString()
   observacoes?: string;
 }
-

@@ -4,10 +4,19 @@
  * Funcionalidades: CRUD básico, numeração automática, validações
  */
 
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OSApprovalPermissionsService } from './os-approval-permissions.service';
-import { DocumentCodeService, TipoOS } from '../../documentos/document-code.service';
+import {
+  DocumentCodeService,
+  TipoOS,
+} from '../../documentos/document-code.service';
 import { ValidacaoEstoqueService } from '../../orcamentos-v2/services/validacao-estoque.service';
 import { AlcadasOrcamentoService } from './alcadas-orcamento.service';
 import { EventosAutomaticosService } from './eventos-automaticos.service';
@@ -25,7 +34,11 @@ import {
   EstoqueValidacaoDetalhe,
   InsumoCalculado,
 } from '../interfaces/os.interfaces';
-import { TipoOS as TipoOSInterface, OrigemOS, PrioridadeOS } from '../interfaces/os-direta-interna.interface';
+import {
+  TipoOS as TipoOSInterface,
+  OrigemOS,
+  PrioridadeOS,
+} from '../interfaces/os-direta-interna.interface';
 
 interface OSProdutoValidacao {
   id: string;
@@ -49,7 +62,7 @@ interface ValidacaoEstoqueOSResultado {
 }
 @Injectable()
 export class OSService {
-  private readonly logger = new Logger(OSService.name)
+  private readonly logger = new Logger(OSService.name);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -64,7 +77,10 @@ export class OSService {
 
   // ===== CRUD BÁSICO =====
 
-  async create(lojaId: string, createOSDto: CreateOSDto): Promise<OrdemServicoData> {
+  async create(
+    lojaId: string,
+    createOSDto: CreateOSDto,
+  ): Promise<OrdemServicoData> {
     try {
       this.logger.log(`Criando nova OS para loja ${lojaId}`);
 
@@ -75,7 +91,10 @@ export class OSService {
       await this.validarDadosOS(lojaId, createOSDto);
 
       // 3. Validar disponibilidade de estoque (sem bloquear criacao)
-      const validacaoEstoque = await this.executarValidacaoEstoque(lojaId, createOSDto);
+      const validacaoEstoque = await this.executarValidacaoEstoque(
+        lojaId,
+        createOSDto,
+      );
 
       // 4. Determinar status inicial baseado no tipo de OS
       let statusInicial = StatusOS.FILA;
@@ -113,7 +132,9 @@ export class OSService {
           insumos_calculados: insumosCorrigidos
             ? JSON.stringify(insumosCorrigidos)
             : null,
-          data_prazo: createOSDto.data_prazo ? new Date(createOSDto.data_prazo) : null,
+          data_prazo: createOSDto.data_prazo
+            ? new Date(createOSDto.data_prazo)
+            : null,
           responsavel_id: createOSDto.responsavel_id,
           observacoes: createOSDto.observacoes,
           status: statusInicial,
@@ -134,20 +155,29 @@ export class OSService {
 
       // 8. Executar validações automáticas
       try {
-        const resultadoValidacoes = await this.osValidacoesService.validarOS(os.id, lojaId);
-        
+        const resultadoValidacoes = await this.osValidacoesService.validarOS(
+          os.id,
+          lojaId,
+        );
+
         // Aplicar ações automáticas se necessário
         if (resultadoValidacoes.acoes.length > 0) {
-          await this.osValidacoesService.aplicarAcoesAutomaticas(os.id, resultadoValidacoes);
+          await this.osValidacoesService.aplicarAcoesAutomaticas(
+            os.id,
+            resultadoValidacoes,
+          );
         }
 
         this.logger.log(`Validações automáticas executadas para OS ${os.id}:`, {
           valida: resultadoValidacoes.valida,
           correcoes: resultadoValidacoes.correcoes_necessarias.length,
-          alertas: resultadoValidacoes.alertas.length
+          alertas: resultadoValidacoes.alertas.length,
         });
       } catch (error) {
-        this.logger.error(`Erro ao executar validações automáticas para OS ${os.id}:`, error);
+        this.logger.error(
+          `Erro ao executar validações automáticas para OS ${os.id}:`,
+          error,
+        );
         // Não falha a criação da OS por erro nas validações
       }
 
@@ -204,7 +234,7 @@ export class OSService {
         }),
       ]);
 
-      const data = ordens.map(os => this.formatarOrdemServico(os));
+      const data = ordens.map((os) => this.formatarOrdemServico(os));
 
       return {
         data,
@@ -241,24 +271,24 @@ export class OSService {
                       insumo: {
                         include: {
                           categoria: true,
-                          tipoMaterial: true
-                        }
-                      }
-                    }
+                          tipoMaterial: true,
+                        },
+                      },
+                    },
                   },
                   maquinas: {
                     include: {
-                      maquina: true
-                    }
+                      maquina: true,
+                    },
                   },
                   funcoes: {
                     include: {
-                      funcao: true
-                    }
-                  }
-                }
-              }
-            }
+                      funcao: true,
+                    },
+                  },
+                },
+              },
+            },
           },
           itens: true,
           movimentacoes: {
@@ -281,7 +311,10 @@ export class OSService {
     }
   }
 
-  async findByStatus(lojaId: string, status: StatusOS): Promise<OrdemServicoData[]> {
+  async findByStatus(
+    lojaId: string,
+    status: StatusOS,
+  ): Promise<OrdemServicoData[]> {
     try {
       const oss = await this.prisma.ordemServico.findMany({
         where: { loja_id: lojaId, status },
@@ -296,26 +329,30 @@ export class OSService {
           },
           orcamento: {
             include: {
-              produtos: true
-            }
-          }
+              produtos: true,
+            },
+          },
         },
-        orderBy: { criado_em: 'desc' }
+        orderBy: { criado_em: 'desc' },
       });
 
-      return oss.map(os => this.formatarOrdemServico(os));
+      return oss.map((os) => this.formatarOrdemServico(os));
     } catch (error) {
       this.logger.error('Erro ao buscar OSs por status:', error);
       throw error;
     }
   }
 
-  async atualizarStatus(id: string, dados: { status: StatusOS }, usuarioId?: string): Promise<OrdemServicoData> {
+  async atualizarStatus(
+    id: string,
+    dados: { status: StatusOS },
+    usuarioId?: string,
+  ): Promise<OrdemServicoData> {
     try {
       // Buscar OS atual para obter status anterior
       const osAtual = await this.prisma.ordemServico.findUnique({
         where: { id },
-        select: { status: true, loja_id: true }
+        select: { status: true, loja_id: true },
       });
 
       if (!osAtual) {
@@ -326,7 +363,7 @@ export class OSService {
         where: { id },
         data: {
           status: dados.status,
-          atualizado_em: new Date()
+          atualizado_em: new Date(),
         },
         include: {
           cliente: {
@@ -339,10 +376,10 @@ export class OSService {
           },
           orcamento: {
             include: {
-              produtos: true
-            }
-          }
-        }
+              produtos: true,
+            },
+          },
+        },
       });
 
       // Notificar mudança de status via eventos automáticos
@@ -351,7 +388,7 @@ export class OSService {
         osAtual.status,
         dados.status,
         osAtual.loja_id,
-        usuarioId
+        usuarioId,
       );
 
       // Notificar liberação para PCP
@@ -360,14 +397,17 @@ export class OSService {
           id,
           osAtual.loja_id,
           undefined, // workflowId será definido posteriormente
-          usuarioId
+          usuarioId,
         );
 
         try {
-          await this.workflowAssignmentService.atribuirWorkflow(osAtual.loja_id, {
-            osId: id,
-            usuarioId,
-          });
+          await this.workflowAssignmentService.atribuirWorkflow(
+            osAtual.loja_id,
+            {
+              osId: id,
+              usuarioId,
+            },
+          );
         } catch (error) {
           this.logger.warn(
             `Falha ao atribuir workflow automaticamente para OS ${id}: ${error instanceof Error ? error.message : error}`,
@@ -394,16 +434,24 @@ export class OSService {
 
       // Preparar dados para atualização
       const dadosAtualizacao: any = {};
-      
-      if (updateOSDto.nome_servico) dadosAtualizacao.nome_servico = updateOSDto.nome_servico;
-      if (updateOSDto.descricao) dadosAtualizacao.descricao = updateOSDto.descricao;
-      if (updateOSDto.quantidade) dadosAtualizacao.quantidade = updateOSDto.quantidade;
-      if (updateOSDto.data_prazo) dadosAtualizacao.data_prazo = new Date(updateOSDto.data_prazo);
-      if (updateOSDto.responsavel_id) dadosAtualizacao.responsavel_id = updateOSDto.responsavel_id;
-      if (updateOSDto.observacoes) dadosAtualizacao.observacoes = updateOSDto.observacoes;
-      
+
+      if (updateOSDto.nome_servico)
+        dadosAtualizacao.nome_servico = updateOSDto.nome_servico;
+      if (updateOSDto.descricao)
+        dadosAtualizacao.descricao = updateOSDto.descricao;
+      if (updateOSDto.quantidade)
+        dadosAtualizacao.quantidade = updateOSDto.quantidade;
+      if (updateOSDto.data_prazo)
+        dadosAtualizacao.data_prazo = new Date(updateOSDto.data_prazo);
+      if (updateOSDto.responsavel_id)
+        dadosAtualizacao.responsavel_id = updateOSDto.responsavel_id;
+      if (updateOSDto.observacoes)
+        dadosAtualizacao.observacoes = updateOSDto.observacoes;
+
       if (updateOSDto.parametros_tecnicos) {
-        dadosAtualizacao.parametros_tecnicos = JSON.stringify(updateOSDto.parametros_tecnicos);
+        dadosAtualizacao.parametros_tecnicos = JSON.stringify(
+          updateOSDto.parametros_tecnicos,
+        );
       }
 
       // Atualizar OS
@@ -424,20 +472,32 @@ export class OSService {
 
       // Executar validações automáticas após atualização
       try {
-        const resultadoValidacoes = await this.osValidacoesService.validarOS(id, lojaId);
-        
+        const resultadoValidacoes = await this.osValidacoesService.validarOS(
+          id,
+          lojaId,
+        );
+
         // Aplicar ações automáticas se necessário
         if (resultadoValidacoes.acoes.length > 0) {
-          await this.osValidacoesService.aplicarAcoesAutomaticas(id, resultadoValidacoes);
+          await this.osValidacoesService.aplicarAcoesAutomaticas(
+            id,
+            resultadoValidacoes,
+          );
         }
 
-        this.logger.log(`Validações automáticas executadas para OS ${id} após atualização:`, {
-          valida: resultadoValidacoes.valida,
-          correcoes: resultadoValidacoes.correcoes_necessarias.length,
-          alertas: resultadoValidacoes.alertas.length
-        });
+        this.logger.log(
+          `Validações automáticas executadas para OS ${id} após atualização:`,
+          {
+            valida: resultadoValidacoes.valida,
+            correcoes: resultadoValidacoes.correcoes_necessarias.length,
+            alertas: resultadoValidacoes.alertas.length,
+          },
+        );
       } catch (error) {
-        this.logger.error(`Erro ao executar validações automáticas para OS ${id}:`, error);
+        this.logger.error(
+          `Erro ao executar validações automáticas para OS ${id}:`,
+          error,
+        );
         // Não falha a atualização da OS por erro nas validações
       }
 
@@ -518,7 +578,9 @@ export class OSService {
         `Etapa avançada para ${nova_etapa}`,
       );
 
-      this.logger.log(`[OK] OS #${os.numero} avançou de ${os.status} para ${nova_etapa}`);
+      this.logger.log(
+        `[OK] OS #${os.numero} avançou de ${os.status} para ${nova_etapa}`,
+      );
       return this.formatarOrdemServico(osAtualizada);
     } catch (error) {
       this.logger.error(`Erro ao avançar etapa da OS ${id}:`, error);
@@ -530,7 +592,10 @@ export class OSService {
     try {
       return await this.documentCodeService.gerarCodigoOS(lojaId);
     } catch (error) {
-      this.logger.error('Erro ao gerar numero da OS via DocumentCodeService:', error);
+      this.logger.error(
+        'Erro ao gerar numero da OS via DocumentCodeService:',
+        error,
+      );
       throw error;
     }
   }
@@ -540,16 +605,21 @@ export class OSService {
   /**
    * Criar OS Comercial com validações específicas
    */
-  async criarOSComercial(lojaId: string, dados: CreateOSDto, usuarioId: string): Promise<OrdemServicoData> {
+  async criarOSComercial(
+    lojaId: string,
+    dados: CreateOSDto,
+    usuarioId: string,
+  ): Promise<OrdemServicoData> {
     // Garantir que é OS Comercial
     const dadosComercial = { ...dados, tipo_os: TipoOS.COMERCIAL };
-    
+
     // Gerar código específico para OS Comercial
-    const codigo = await this.documentCodeService.gerarCodigoOSComercial(lojaId);
-    
+    const codigo =
+      await this.documentCodeService.gerarCodigoOSComercial(lojaId);
+
     // Validar dados específicos de OS Comercial
     await this.validarOSComercial(lojaId, dadosComercial);
-    
+
     // Criar OS com dados comerciais
     const os = await this.prisma.ordemServico.create({
       data: {
@@ -571,16 +641,20 @@ export class OSService {
   /**
    * Criar OS Interna com validações específicas
    */
-  async criarOSInterna(lojaId: string, dados: CreateOSDto, usuarioId: string): Promise<OrdemServicoData> {
+  async criarOSInterna(
+    lojaId: string,
+    dados: CreateOSDto,
+    usuarioId: string,
+  ): Promise<OrdemServicoData> {
     // Garantir que é OS Interna
     const dadosInterna = { ...dados, tipo_os: TipoOS.INTERNA };
-    
+
     // Gerar código específico para OS Interna
     const codigo = await this.documentCodeService.gerarCodigoOSInterna(lojaId);
-    
+
     // Validar dados específicos de OS Interna
     await this.validarOSInterna(lojaId, dadosInterna);
-    
+
     // Criar OS com dados internos
     const os = await this.prisma.ordemServico.create({
       data: {
@@ -600,18 +674,17 @@ export class OSService {
     return os as OrdemServicoData;
   }
 
-
   /**
    * Aprovar OS Gerencial (para OS Interna)
    */
   async aprovarOSGerencial(
-    osId: string, 
-    usuarioId: string, 
-    aprovado: boolean, 
-    observacoes?: string
+    osId: string,
+    usuarioId: string,
+    aprovado: boolean,
+    observacoes?: string,
   ): Promise<OrdemServicoData> {
     const os = await this.prisma.ordemServico.findUnique({
-      where: { id: osId }
+      where: { id: osId },
     });
 
     if (!os) {
@@ -619,11 +692,13 @@ export class OSService {
     }
 
     if (os.tipo_os !== TipoOS.INTERNA) {
-      throw new BadRequestException('Aprovação gerencial só se aplica a OS Interna');
+      throw new BadRequestException(
+        'Aprovação gerencial só se aplica a OS Interna',
+      );
     }
 
     const statusAprovacao = aprovado ? 'APROVADA' : 'REJEITADA';
-    
+
     const osAtualizada = await this.prisma.ordemServico.update({
       where: { id: osId },
       data: {
@@ -633,11 +708,13 @@ export class OSService {
         aprovacao_gerencial_obs: observacoes,
         modificado_por: usuarioId,
         motivo_modificacao: `Aprovação gerencial ${statusAprovacao.toLowerCase()}`,
-        versao: { increment: 1 }
-      }
+        versao: { increment: 1 },
+      },
     });
 
-    this.logger.log(`OS ${os.numero} aprovada gerencialmente: ${statusAprovacao}`);
+    this.logger.log(
+      `OS ${os.numero} aprovada gerencialmente: ${statusAprovacao}`,
+    );
     return osAtualizada as OrdemServicoData;
   }
 
@@ -648,10 +725,10 @@ export class OSService {
     osId: string,
     dataInstalacao: Date,
     observacoes?: string,
-    usuarioId?: string
+    usuarioId?: string,
   ): Promise<OrdemServicoData> {
     const os = await this.prisma.ordemServico.findUnique({
-      where: { id: osId }
+      where: { id: osId },
     });
 
     if (!os) {
@@ -659,7 +736,9 @@ export class OSService {
     }
 
     if (os.tipo_os !== TipoOS.COMERCIAL) {
-      throw new BadRequestException('Agendamento de instalação só se aplica a OS Comercial');
+      throw new BadRequestException(
+        'Agendamento de instalação só se aplica a OS Comercial',
+      );
     }
 
     const osAtualizada = await this.prisma.ordemServico.update({
@@ -669,11 +748,13 @@ export class OSService {
         observacoes_instalacao: observacoes,
         modificado_por: usuarioId,
         motivo_modificacao: 'Agendamento de instalação',
-        versao: { increment: 1 }
-      }
+        versao: { increment: 1 },
+      },
     });
 
-    this.logger.log(`Instalação agendada para OS ${os.numero}: ${dataInstalacao.toISOString()}`);
+    this.logger.log(
+      `Instalação agendada para OS ${os.numero}: ${dataInstalacao.toISOString()}`,
+    );
     return osAtualizada as OrdemServicoData;
   }
 
@@ -685,13 +766,13 @@ export class OSService {
     tipoOS: TipoOS,
     page: number = 1,
     limit: number = 10,
-    status?: string
+    status?: string,
   ): Promise<PaginatedResponse<OrdemServicoData>> {
     const skip = (page - 1) * limit;
-    
+
     const where: any = {
       loja_id: lojaId,
-      tipo_os: tipoOS
+      tipo_os: tipoOS,
     };
 
     if (status) {
@@ -708,9 +789,9 @@ export class OSService {
           cliente: true,
           orcamento: true,
           loja: true,
-        }
+        },
       }),
-      this.prisma.ordemServico.count({ where })
+      this.prisma.ordemServico.count({ where }),
     ]);
 
     return {
@@ -718,14 +799,17 @@ export class OSService {
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     };
   }
 
   /**
    * Obter estatísticas por tipo de OS
    */
-  async obterEstatisticasPorTipo(lojaId: string, ano?: number): Promise<{
+  async obterEstatisticasPorTipo(
+    lojaId: string,
+    ano?: number,
+  ): Promise<{
     comercial: { total: number; porStatus: { [key: string]: number } };
     interna: { total: number; porStatus: { [key: string]: number } };
   }> {
@@ -737,19 +821,19 @@ export class OSService {
       loja_id: lojaId,
       data_abertura: {
         gte: inicioAno,
-        lte: fimAno
-      }
+        lte: fimAno,
+      },
     };
 
     const [osComercial, osInterna] = await Promise.all([
       this.prisma.ordemServico.findMany({
         where: { ...where, tipo_os: TipoOS.COMERCIAL },
-        select: { status: true }
+        select: { status: true },
       }),
       this.prisma.ordemServico.findMany({
         where: { ...where, tipo_os: TipoOS.INTERNA },
-        select: { status: true }
-      })
+        select: { status: true },
+      }),
     ]);
 
     const contarPorStatus = (os: any[]) => {
@@ -762,12 +846,12 @@ export class OSService {
     return {
       comercial: {
         total: osComercial.length,
-        porStatus: contarPorStatus(osComercial)
+        porStatus: contarPorStatus(osComercial),
       },
       interna: {
         total: osInterna.length,
-        porStatus: contarPorStatus(osInterna)
-      }
+        porStatus: contarPorStatus(osInterna),
+      },
     };
   }
 
@@ -785,7 +869,10 @@ export class OSService {
     ) as any[];
   }
 
-  private async executarValidacaoEstoque(lojaId: string, createOSDto: CreateOSDto): Promise<ValidacaoEstoqueOSResultado> {
+  private async executarValidacaoEstoque(
+    lojaId: string,
+    createOSDto: CreateOSDto,
+  ): Promise<ValidacaoEstoqueOSResultado> {
     const resumoPadrao: ValidacaoEstoqueOSResultado = {
       materiaisDisponiveis: true,
       alertasEstoque: [],
@@ -799,29 +886,43 @@ export class OSService {
     }
 
     try {
-      const resultado = await this.validacaoEstoqueService.validarProdutoEstoque(produto, lojaId);
+      const resultado =
+        await this.validacaoEstoqueService.validarProdutoEstoque(
+          produto,
+          lojaId,
+        );
       const alertas = Array.isArray(resultado.alertas) ? resultado.alertas : [];
-      const recomendacoes = Array.isArray(resultado.recomendacoes) ? resultado.recomendacoes : [];
-      const detalhesBrutos = Array.isArray(resultado.estoque_disponivel) ? resultado.estoque_disponivel : [];
+      const recomendacoes = Array.isArray(resultado.recomendacoes)
+        ? resultado.recomendacoes
+        : [];
+      const detalhesBrutos = Array.isArray(resultado.estoque_disponivel)
+        ? resultado.estoque_disponivel
+        : [];
 
       return {
         materiaisDisponiveis: alertas.length === 0,
         alertasEstoque: alertas,
         recomendacoesEstoque: recomendacoes,
-        detalhesEstoque: detalhesBrutos.map(item => this.mapearDetalheEstoque(item, produto)),
+        detalhesEstoque: detalhesBrutos.map((item) =>
+          this.mapearDetalheEstoque(item, produto),
+        ),
       };
     } catch (error) {
       this.logger.error('Erro ao validar estoque da OS:', error);
       return {
         materiaisDisponiveis: false,
         alertasEstoque: [`Erro ao validar estoque: ${error.message}`],
-        recomendacoesEstoque: ['Verifique a disponibilidade no modulo de estoque.'],
+        recomendacoesEstoque: [
+          'Verifique a disponibilidade no modulo de estoque.',
+        ],
         detalhesEstoque: [],
       };
     }
   }
 
-  private prepararProdutoValidacaoEstoque(createOSDto: CreateOSDto): OSProdutoValidacao | null {
+  private prepararProdutoValidacaoEstoque(
+    createOSDto: CreateOSDto,
+  ): OSProdutoValidacao | null {
     const insumosOrigem = Array.isArray(createOSDto.insumos_calculados)
       ? createOSDto.insumos_calculados
       : [];
@@ -831,23 +932,28 @@ export class OSService {
     }
 
     const quantidadeBruta = Number(createOSDto.quantidade);
-    const quantidade = Number.isFinite(quantidadeBruta) && quantidadeBruta > 0 ? quantidadeBruta : 1;
+    const quantidade =
+      Number.isFinite(quantidadeBruta) && quantidadeBruta > 0
+        ? quantidadeBruta
+        : 1;
 
     const insumos = insumosOrigem
-      .filter(item => item && item.insumo_id)
-      .map(item => {
+      .filter((item) => item && item.insumo_id)
+      .map((item) => {
         const totalNecessario = Number(item.quantidade_necessaria) || 0;
-        const quantidadePorUnidade = quantidade > 0 ? totalNecessario / quantidade : totalNecessario;
+        const quantidadePorUnidade =
+          quantidade > 0 ? totalNecessario / quantidade : totalNecessario;
 
         return {
           insumo_id: item.insumo_id,
-          quantidade: quantidadePorUnidade > 0 ? quantidadePorUnidade : totalNecessario,
+          quantidade:
+            quantidadePorUnidade > 0 ? quantidadePorUnidade : totalNecessario,
           unidade: item.unidade,
           nome: item.nome,
           quantidade_total: totalNecessario,
         };
       })
-      .filter(item => item.quantidade > 0);
+      .filter((item) => item.quantidade > 0);
 
     if (insumos.length === 0) {
       return null;
@@ -862,8 +968,13 @@ export class OSService {
     };
   }
 
-  private mapearDetalheEstoque(item: any, produto: OSProdutoValidacao): EstoqueValidacaoDetalhe {
-    const referencia = produto.insumos.find(entrada => entrada.insumo_id === item?.insumo_id);
+  private mapearDetalheEstoque(
+    item: any,
+    produto: OSProdutoValidacao,
+  ): EstoqueValidacaoDetalhe {
+    const referencia = produto.insumos.find(
+      (entrada) => entrada.insumo_id === item?.insumo_id,
+    );
 
     return {
       insumo_id: item?.insumo_id ?? referencia?.insumo_id ?? 'desconhecido',
@@ -872,9 +983,17 @@ export class OSService {
       fornecedor: item?.fornecedor,
       estoque_atual: this.parseOptionalNumber(item?.estoque_atual),
       estoque_minimo: this.parseOptionalNumber(item?.estoque_minimo),
-      quantidade_necessaria: this.calcularQuantidadeNecessaria(item, referencia, produto),
-      quantidade_disponivel: this.parseOptionalNumber(item?.quantidade_disponivel),
-      percentual_disponivel: this.parseOptionalNumber(item?.percentual_disponivel),
+      quantidade_necessaria: this.calcularQuantidadeNecessaria(
+        item,
+        referencia,
+        produto,
+      ),
+      quantidade_disponivel: this.parseOptionalNumber(
+        item?.quantidade_disponivel,
+      ),
+      percentual_disponivel: this.parseOptionalNumber(
+        item?.percentual_disponivel,
+      ),
       unidade: item?.unidade ?? referencia?.unidade,
       alerta_estoque: Boolean(item?.alerta_estoque),
       alerta_estoque_minimo: Boolean(item?.alerta_estoque_minimo),
@@ -887,13 +1006,18 @@ export class OSService {
     referencia: OSProdutoValidacao['insumos'][number] | undefined,
     produto: OSProdutoValidacao,
   ): number | undefined {
-    const valorInformado = this.parseOptionalNumber(item?.quantidade_necessaria);
+    const valorInformado = this.parseOptionalNumber(
+      item?.quantidade_necessaria,
+    );
     if (typeof valorInformado === 'number') {
       return valorInformado;
     }
 
     const quantidadeTotalReferencia = referencia?.quantidade_total;
-    if (typeof quantidadeTotalReferencia === 'number' && Number.isFinite(quantidadeTotalReferencia)) {
+    if (
+      typeof quantidadeTotalReferencia === 'number' &&
+      Number.isFinite(quantidadeTotalReferencia)
+    ) {
       return quantidadeTotalReferencia;
     }
 
@@ -914,10 +1038,13 @@ export class OSService {
 
   // ===== M�TODOS AUXILIARES =====
 
-  private async validarDadosOS(lojaId: string, dados: CreateOSDto): Promise<void> {
+  private async validarDadosOS(
+    lojaId: string,
+    dados: CreateOSDto,
+  ): Promise<void> {
     // Validações básicas comuns
     await this.validarDadosBasicos(lojaId, dados);
-    
+
     // Validações condicionais por tipo de OS
     if (dados.tipo_os === TipoOS.COMERCIAL) {
       await this.validarOSComercial(lojaId, dados);
@@ -931,10 +1058,13 @@ export class OSService {
   /**
    * Validações básicas aplicáveis a todos os tipos de OS
    */
-  private async validarDadosBasicos(lojaId: string, dados: CreateOSDto): Promise<void> {
+  private async validarDadosBasicos(
+    lojaId: string,
+    dados: CreateOSDto,
+  ): Promise<void> {
     // Validar loja
     const loja = await this.prisma.loja.findUnique({
-      where: { id: lojaId }
+      where: { id: lojaId },
     });
     if (!loja) {
       throw new BadRequestException(`Loja ${lojaId} não encontrada`);
@@ -958,10 +1088,12 @@ export class OSService {
     // Validar responsável se informado
     if (dados.responsavel_id) {
       const responsavel = await this.prisma.usuario.findUnique({
-        where: { id: dados.responsavel_id }
+        where: { id: dados.responsavel_id },
       });
       if (!responsavel) {
-        throw new BadRequestException(`Responsável ${dados.responsavel_id} não encontrado`);
+        throw new BadRequestException(
+          `Responsável ${dados.responsavel_id} não encontrado`,
+        );
       }
     }
   }
@@ -969,7 +1101,10 @@ export class OSService {
   /**
    * Validações específicas para OS Comercial
    */
-  private async validarOSComercial(lojaId: string, dados: CreateOSDto): Promise<void> {
+  private async validarOSComercial(
+    lojaId: string,
+    dados: CreateOSDto,
+  ): Promise<void> {
     // Cliente é obrigatório para OS Comercial
     if (!dados.cliente_id) {
       throw new BadRequestException('Cliente é obrigatório para OS Comercial');
@@ -977,33 +1112,43 @@ export class OSService {
 
     // Validar se cliente existe e pertence à loja
     const cliente = await this.prisma.cliente.findUnique({
-      where: { id: dados.cliente_id }
+      where: { id: dados.cliente_id },
     });
     if (!cliente) {
-      throw new BadRequestException(`Cliente ${dados.cliente_id} não encontrado`);
+      throw new BadRequestException(
+        `Cliente ${dados.cliente_id} não encontrado`,
+      );
     }
 
     // Validar orçamento se informado
     if (dados.orcamento_id) {
       const orcamento = await this.prisma.orcamento.findUnique({
         where: { id: dados.orcamento_id },
-        include: { produtos: true }
+        include: { produtos: true },
       });
-      
+
       if (!orcamento) {
-        throw new BadRequestException(`Orçamento ${dados.orcamento_id} não encontrado`);
+        throw new BadRequestException(
+          `Orçamento ${dados.orcamento_id} não encontrado`,
+        );
       }
 
       if (orcamento.loja_id !== lojaId) {
-        throw new BadRequestException('Orçamento não pertence à loja informada');
+        throw new BadRequestException(
+          'Orçamento não pertence à loja informada',
+        );
       }
 
       if (orcamento.status_aprovacao !== 'APROVADO') {
-        throw new BadRequestException('Orçamento deve estar aprovado para gerar OS');
+        throw new BadRequestException(
+          'Orçamento deve estar aprovado para gerar OS',
+        );
       }
 
       if (!orcamento.produtos || orcamento.produtos.length === 0) {
-        throw new BadRequestException('Orçamento deve ter pelo menos um produto');
+        throw new BadRequestException(
+          'Orçamento deve ter pelo menos um produto',
+        );
       }
     }
 
@@ -1013,10 +1158,14 @@ export class OSService {
     }
 
     if (dados.satisfacao_cliente !== undefined) {
-      if (!Number.isInteger(dados.satisfacao_cliente) || 
-          dados.satisfacao_cliente < 1 || 
-          dados.satisfacao_cliente > 5) {
-        throw new BadRequestException('Satisfação do cliente deve ser um número inteiro entre 1 e 5');
+      if (
+        !Number.isInteger(dados.satisfacao_cliente) ||
+        dados.satisfacao_cliente < 1 ||
+        dados.satisfacao_cliente > 5
+      ) {
+        throw new BadRequestException(
+          'Satisfação do cliente deve ser um número inteiro entre 1 e 5',
+        );
       }
     }
   }
@@ -1024,31 +1173,47 @@ export class OSService {
   /**
    * Validações específicas para OS Interna
    */
-  private async validarOSInterna(lojaId: string, dados: CreateOSDto): Promise<void> {
+  private async validarOSInterna(
+    lojaId: string,
+    dados: CreateOSDto,
+  ): Promise<void> {
     // Departamento solicitante é obrigatório para OS Interna
-    if (!dados.departamento_solicitante || dados.departamento_solicitante.trim() === '') {
-      throw new BadRequestException('Departamento solicitante é obrigatório para OS Interna');
+    if (
+      !dados.departamento_solicitante ||
+      dados.departamento_solicitante.trim() === ''
+    ) {
+      throw new BadRequestException(
+        'Departamento solicitante é obrigatório para OS Interna',
+      );
     }
 
     // Centro de custo é obrigatório para OS Interna
     if (!dados.centro_custo || dados.centro_custo.trim() === '') {
-      throw new BadRequestException('Centro de custo é obrigatório para OS Interna');
+      throw new BadRequestException(
+        'Centro de custo é obrigatório para OS Interna',
+      );
     }
 
     // Validar formato do centro de custo
     const regexCentroCusto = /^[A-Z]{2,4}-[A-Z0-9-]+$/;
     if (!regexCentroCusto.test(dados.centro_custo)) {
-      throw new BadRequestException('Centro de custo deve ter formato válido (ex: CC-001, DEP-2024-001)');
+      throw new BadRequestException(
+        'Centro de custo deve ter formato válido (ex: CC-001, DEP-2024-001)',
+      );
     }
 
     // Cliente não deve ser informado para OS Interna
     if (dados.cliente_id) {
-      throw new BadRequestException('Cliente não deve ser informado para OS Interna');
+      throw new BadRequestException(
+        'Cliente não deve ser informado para OS Interna',
+      );
     }
 
     // Orçamento não deve ser informado para OS Interna
     if (dados.orcamento_id) {
-      throw new BadRequestException('Orçamento não deve ser informado para OS Interna');
+      throw new BadRequestException(
+        'Orçamento não deve ser informado para OS Interna',
+      );
     }
 
     // Validar campos específicos de OS Interna
@@ -1057,7 +1222,9 @@ export class OSService {
     }
 
     if (dados.satisfacao_cliente !== undefined) {
-      throw new BadRequestException('Satisfação do cliente não se aplica a OS Interna');
+      throw new BadRequestException(
+        'Satisfação do cliente não se aplica a OS Interna',
+      );
     }
   }
 
@@ -1065,23 +1232,31 @@ export class OSService {
     etapaAtual: string,
     novaEtapa: string,
     os?: any,
-    usuarioId?: string
+    usuarioId?: string,
   ): Promise<{ valida: boolean; motivo?: string }> {
-    
     // Transições válidas por etapa
     const transicoesValidas = {
-      'FILA': ['AGUARDANDO_APROVACAO_TECNICA', 'AGUARDANDO_APROVACAO_ORCAMENTARIA', 'CANCELADA', 'PAUSADA'],
-      'AGUARDANDO_APROVACAO_TECNICA': ['APROVADA_TECNICA', 'REJEITADA', 'FILA'],
-      'APROVADA_TECNICA': ['PRODUCAO', 'FILA'],
-      'AGUARDANDO_APROVACAO_ORCAMENTARIA': ['APROVADA_ORCAMENTARIA', 'REJEITADA', 'FILA'],
-      'APROVADA_ORCAMENTARIA': ['PRODUCAO', 'FILA'],
-      'REJEITADA': ['FILA', 'CANCELADA'],
-      'PRODUCAO': ['ACABAMENTO', 'PAUSADA', 'AGUARDANDO_MATERIAL'],
-      'ACABAMENTO': ['FINALIZADA', 'PRODUCAO'], // Pode voltar para produção
-      'PAUSADA': ['FILA', 'PRODUCAO', 'ACABAMENTO'], // Pode retomar qualquer etapa
-      'AGUARDANDO_MATERIAL': ['FILA', 'PRODUCAO'], // Quando material chegar
-      'FINALIZADA': [], // Estado final
-      'CANCELADA': [], // Estado final
+      FILA: [
+        'AGUARDANDO_APROVACAO_TECNICA',
+        'AGUARDANDO_APROVACAO_ORCAMENTARIA',
+        'CANCELADA',
+        'PAUSADA',
+      ],
+      AGUARDANDO_APROVACAO_TECNICA: ['APROVADA_TECNICA', 'REJEITADA', 'FILA'],
+      APROVADA_TECNICA: ['PRODUCAO', 'FILA'],
+      AGUARDANDO_APROVACAO_ORCAMENTARIA: [
+        'APROVADA_ORCAMENTARIA',
+        'REJEITADA',
+        'FILA',
+      ],
+      APROVADA_ORCAMENTARIA: ['PRODUCAO', 'FILA'],
+      REJEITADA: ['FILA', 'CANCELADA'],
+      PRODUCAO: ['ACABAMENTO', 'PAUSADA', 'AGUARDANDO_MATERIAL'],
+      ACABAMENTO: ['FINALIZADA', 'PRODUCAO'], // Pode voltar para produção
+      PAUSADA: ['FILA', 'PRODUCAO', 'ACABAMENTO'], // Pode retomar qualquer etapa
+      AGUARDANDO_MATERIAL: ['FILA', 'PRODUCAO'], // Quando material chegar
+      FINALIZADA: [], // Estado final
+      CANCELADA: [], // Estado final
     };
 
     const transicoesPermitidas = transicoesValidas[etapaAtual] || [];
@@ -1090,16 +1265,26 @@ export class OSService {
     if (!valida) {
       return {
         valida: false,
-        motivo: `Transição de ${etapaAtual} para ${novaEtapa} não é permitida`
+        motivo: `Transição de ${etapaAtual} para ${novaEtapa} não é permitida`,
       };
     }
 
     // Validações condicionais por tipo de OS se os dados estiverem disponíveis
     if (os && usuarioId) {
       if (os.tipo_os === TipoOS.COMERCIAL) {
-        return await this.validarTransicaoOSComercial(os, etapaAtual, novaEtapa, usuarioId);
+        return await this.validarTransicaoOSComercial(
+          os,
+          etapaAtual,
+          novaEtapa,
+          usuarioId,
+        );
       } else if (os.tipo_os === TipoOS.INTERNA) {
-        return await this.validarTransicaoOSInterna(os, etapaAtual, novaEtapa, usuarioId);
+        return await this.validarTransicaoOSInterna(
+          os,
+          etapaAtual,
+          novaEtapa,
+          usuarioId,
+        );
       }
     }
 
@@ -1113,9 +1298,8 @@ export class OSService {
     os: any,
     etapaAtual: string,
     novaEtapa: string,
-    usuarioId: string
+    usuarioId: string,
   ): Promise<{ valida: boolean; motivo?: string }> {
-    
     // Transição para AGUARDANDO_APROVACAO_TECNICA
     if (novaEtapa === 'AGUARDANDO_APROVACAO_TECNICA') {
       // Validar se estoque está disponível
@@ -1123,7 +1307,7 @@ export class OSService {
       if (!estoqueOk) {
         return {
           valida: false,
-          motivo: 'Estoque insuficiente para aprovação técnica'
+          motivo: 'Estoque insuficiente para aprovação técnica',
         };
       }
 
@@ -1132,7 +1316,7 @@ export class OSService {
       if (!arteOk) {
         return {
           valida: false,
-          motivo: 'Arte deve estar anexada para aprovação técnica'
+          motivo: 'Arte deve estar anexada para aprovação técnica',
         };
       }
 
@@ -1141,7 +1325,7 @@ export class OSService {
       if (!especificacoesOk) {
         return {
           valida: false,
-          motivo: 'Especificações técnicas devem estar completas'
+          motivo: 'Especificações técnicas devem estar completas',
         };
       }
     }
@@ -1149,25 +1333,28 @@ export class OSService {
     // Transição para APROVADA_TECNICA
     if (novaEtapa === 'APROVADA_TECNICA') {
       const usuario = await this.prisma.usuario.findUnique({
-        where: { id: usuarioId }
+        where: { id: usuarioId },
       });
-      
+
       if (!usuario) {
         return {
           valida: false,
-          motivo: 'Usuário não encontrado'
+          motivo: 'Usuário não encontrado',
         };
       }
 
-      const permissaoAprovacao = await this.osApprovalPermissionsService.podeAprovarTecnica(
-        usuarioId, 
-        usuario.loja_id
-      );
+      const permissaoAprovacao =
+        await this.osApprovalPermissionsService.podeAprovarTecnica(
+          usuarioId,
+          usuario.loja_id,
+        );
 
       if (!permissaoAprovacao.pode) {
         return {
           valida: false,
-          motivo: permissaoAprovacao.motivo || 'Usuário não tem permissão para aprovar tecnicamente'
+          motivo:
+            permissaoAprovacao.motivo ||
+            'Usuário não tem permissão para aprovar tecnicamente',
         };
       }
     }
@@ -1177,7 +1364,8 @@ export class OSService {
       if (os.aprovacao_tecnica_status !== 'APROVADA') {
         return {
           valida: false,
-          motivo: 'OS Comercial deve ter aprovação técnica antes de iniciar produção'
+          motivo:
+            'OS Comercial deve ter aprovação técnica antes de iniciar produção',
         };
       }
     }
@@ -1187,7 +1375,7 @@ export class OSService {
       if (!os.materiais_disponivel) {
         return {
           valida: false,
-          motivo: 'Materiais devem estar disponíveis para finalizar OS'
+          motivo: 'Materiais devem estar disponíveis para finalizar OS',
         };
       }
     }
@@ -1202,17 +1390,19 @@ export class OSService {
     os: any,
     etapaAtual: string,
     novaEtapa: string,
-    usuarioId: string
+    usuarioId: string,
   ): Promise<{ valida: boolean; motivo?: string }> {
-    
     // Transição para AGUARDANDO_APROVACAO_ORCAMENTARIA
     if (novaEtapa === 'AGUARDANDO_APROVACAO_ORCAMENTARIA') {
       // Validar se centro de custo está disponível
-      const centroCustoOk = await this.validarCentroCustoDisponivel(os.centro_custo, os.loja_id);
+      const centroCustoOk = await this.validarCentroCustoDisponivel(
+        os.centro_custo,
+        os.loja_id,
+      );
       if (!centroCustoOk) {
         return {
           valida: false,
-          motivo: 'Centro de custo não disponível ou inválido'
+          motivo: 'Centro de custo não disponível ou inválido',
         };
       }
 
@@ -1221,16 +1411,20 @@ export class OSService {
       if (!justificativaOk) {
         return {
           valida: false,
-          motivo: 'Justificativa deve estar preenchida para OS interna'
+          motivo: 'Justificativa deve estar preenchida para OS interna',
         };
       }
 
       // Validar se alçada é adequada
-      const alcadaOk = await this.validarAlcadaAdequada(os.valor_orcado, os.centro_custo, os.loja_id);
+      const alcadaOk = await this.validarAlcadaAdequada(
+        os.valor_orcado,
+        os.centro_custo,
+        os.loja_id,
+      );
       if (!alcadaOk) {
         return {
           valida: false,
-          motivo: 'Valor excede a alçada permitida para o centro de custo'
+          motivo: 'Valor excede a alçada permitida para o centro de custo',
         };
       }
     }
@@ -1239,23 +1433,26 @@ export class OSService {
     if (novaEtapa === 'APROVADA_ORCAMENTARIA') {
       // Verificar se usuário tem permissão para aprovar
       const usuario = await this.prisma.usuario.findUnique({
-        where: { id: usuarioId }
+        where: { id: usuarioId },
       });
-      
+
       if (!usuario) {
         return {
           valida: false,
-          motivo: 'Usuário não encontrado'
+          motivo: 'Usuário não encontrado',
         };
       }
 
       // Validar alçada do usuário
       const valorEstimado = Number(os.valor_orcado || 0);
-      const alcadaPermitida = await this.validarAlcadaUsuario(usuario.funcao, valorEstimado);
+      const alcadaPermitida = await this.validarAlcadaUsuario(
+        usuario.funcao,
+        valorEstimado,
+      );
       if (!alcadaPermitida) {
         return {
           valida: false,
-          motivo: 'Usuário não tem alçada suficiente para aprovar este valor'
+          motivo: 'Usuário não tem alçada suficiente para aprovar este valor',
         };
       }
     }
@@ -1265,7 +1462,8 @@ export class OSService {
       if (os.aprovacao_gerencial !== 'APROVADA') {
         return {
           valida: false,
-          motivo: 'OS Interna deve ter aprovação orçamentária antes de iniciar produção'
+          motivo:
+            'OS Interna deve ter aprovação orçamentária antes de iniciar produção',
         };
       }
     }
@@ -1300,11 +1498,16 @@ export class OSService {
 
   private formatarOrdemServico(
     os: any,
-    extras?: Partial<Pick<OrdemServicoData, 'alertas_estoque' | 'recomendacoes_estoque' | 'detalhes_estoque'>>,
+    extras?: Partial<
+      Pick<
+        OrdemServicoData,
+        'alertas_estoque' | 'recomendacoes_estoque' | 'detalhes_estoque'
+      >
+    >,
   ): OrdemServicoData {
     // Processar produtos do orçamento
     const produtos = os.orcamento?.produtos || [];
-    const produtosFormatados = produtos.map(produto => ({
+    const produtosFormatados = produtos.map((produto) => ({
       id: produto.id,
       nome: produto.nome,
       descricao: produto.descricao,
@@ -1316,99 +1519,113 @@ export class OSService {
       area_produto: produto.area_produto,
       observacoes: produto.observacoes,
       // Materiais por produto - usar dados exatos do orçamento via insumos_calculados
-      materiais: produto.insumos?.map(itemInsumo => {
-        // Buscar material correspondente nos insumos_calculados (dados do orçamento)
-        let insumosCalculados = [];
-        try {
-          if (os.insumos_calculados) {
-            if (typeof os.insumos_calculados === 'string') {
-              insumosCalculados = JSON.parse(os.insumos_calculados);
-            } else if (Array.isArray(os.insumos_calculados)) {
-              insumosCalculados = os.insumos_calculados;
+      materiais:
+        produto.insumos?.map((itemInsumo) => {
+          // Buscar material correspondente nos insumos_calculados (dados do orçamento)
+          let insumosCalculados = [];
+          try {
+            if (os.insumos_calculados) {
+              if (typeof os.insumos_calculados === 'string') {
+                insumosCalculados = JSON.parse(os.insumos_calculados);
+              } else if (Array.isArray(os.insumos_calculados)) {
+                insumosCalculados = os.insumos_calculados;
+              }
             }
+          } catch (error) {
+            this.logger.warn(
+              `Erro ao processar insumos_calculados para OS ${os.id}:`,
+              error,
+            );
+            insumosCalculados = [];
           }
-        } catch (error) {
-          this.logger.warn(`Erro ao processar insumos_calculados para OS ${os.id}:`, error);
-          insumosCalculados = [];
-        }
-        
-        // Garantir que insumosCalculados é um array
-        if (!Array.isArray(insumosCalculados)) {
-          insumosCalculados = [];
-        }
-        
-        const insumoCalculado = insumosCalculados.find((ic: any) => 
-          ic.insumo_id === itemInsumo.insumo.id && ic.produto_nome === produto.nome
-        );
-        
-        // Usar dados do orçamento quando disponível, fallback para dados da OS
-        let quantidadeFinal = itemInsumo.quantidade;
-        let unidadeFinal = itemInsumo.unidade;
-        
-        // Se tem dados do orçamento, aplicar lógica inteligente
-        let displayFinal = `${quantidadeFinal} ${unidadeFinal}`;
-        if (insumoCalculado) {
-          const quantidadeInteligente = this.calcularQuantidadeInteligente(insumoCalculado, produto);
-          quantidadeFinal = quantidadeInteligente.quantidade;
-          unidadeFinal = quantidadeInteligente.unidade;
-          displayFinal = quantidadeInteligente.display;
-        }
-        
-        return {
-          id: itemInsumo.insumo.id,
-          nome: itemInsumo.insumo.nome,
-          // USAR QUANTIDADE INTELIGENTE CALCULADA
-          quantidade: quantidadeFinal,
-          unidade: unidadeFinal,
-          display: displayFinal,
-          categoria: itemInsumo.insumo.categoria?.nome || 'Sem categoria',
-          tipo_material: itemInsumo.insumo.tipoMaterial?.nome || null,
-          parametros_consumo: insumoCalculado?.parametros_consumo || 
-            (itemInsumo.insumo.parametros_consumo ? 
-            (typeof itemInsumo.insumo.parametros_consumo === 'string' ? 
-              JSON.parse(itemInsumo.insumo.parametros_consumo) : 
-                itemInsumo.insumo.parametros_consumo) : null),
-          // Adicionar informações de rastreabilidade
-          origem: insumoCalculado?.origem || 'os',
-          orcamento_id: insumoCalculado?.orcamento_id || os.orcamento_id,
-          data_calculo: insumoCalculado?.data_calculo,
-          custo_unitario: insumoCalculado?.custo_unitario || itemInsumo.custo_unitario,
-          custo_total: insumoCalculado?.custo_total || itemInsumo.custo_total,
-          // Informações de estoque
-          disponivel_estoque: insumoCalculado?.disponivel_estoque ?? true,
-          quantidade_disponivel: insumoCalculado?.quantidade_disponivel,
-          localizacao_estoque: insumoCalculado?.localizacao_estoque
-        };
-      }) || [],
+
+          // Garantir que insumosCalculados é um array
+          if (!Array.isArray(insumosCalculados)) {
+            insumosCalculados = [];
+          }
+
+          const insumoCalculado = insumosCalculados.find(
+            (ic: any) =>
+              ic.insumo_id === itemInsumo.insumo.id &&
+              ic.produto_nome === produto.nome,
+          );
+
+          // Usar dados do orçamento quando disponível, fallback para dados da OS
+          let quantidadeFinal = itemInsumo.quantidade;
+          let unidadeFinal = itemInsumo.unidade;
+
+          // Se tem dados do orçamento, aplicar lógica inteligente
+          let displayFinal = `${quantidadeFinal} ${unidadeFinal}`;
+          if (insumoCalculado) {
+            const quantidadeInteligente = this.calcularQuantidadeInteligente(
+              insumoCalculado,
+              produto,
+            );
+            quantidadeFinal = quantidadeInteligente.quantidade;
+            unidadeFinal = quantidadeInteligente.unidade;
+            displayFinal = quantidadeInteligente.display;
+          }
+
+          return {
+            id: itemInsumo.insumo.id,
+            nome: itemInsumo.insumo.nome,
+            // USAR QUANTIDADE INTELIGENTE CALCULADA
+            quantidade: quantidadeFinal,
+            unidade: unidadeFinal,
+            display: displayFinal,
+            categoria: itemInsumo.insumo.categoria?.nome || 'Sem categoria',
+            tipo_material: itemInsumo.insumo.tipoMaterial?.nome || null,
+            parametros_consumo:
+              insumoCalculado?.parametros_consumo ||
+              (itemInsumo.insumo.parametros_consumo
+                ? typeof itemInsumo.insumo.parametros_consumo === 'string'
+                  ? JSON.parse(itemInsumo.insumo.parametros_consumo)
+                  : itemInsumo.insumo.parametros_consumo
+                : null),
+            // Adicionar informações de rastreabilidade
+            origem: insumoCalculado?.origem || 'os',
+            orcamento_id: insumoCalculado?.orcamento_id || os.orcamento_id,
+            data_calculo: insumoCalculado?.data_calculo,
+            custo_unitario:
+              insumoCalculado?.custo_unitario || itemInsumo.custo_unitario,
+            custo_total: insumoCalculado?.custo_total || itemInsumo.custo_total,
+            // Informações de estoque
+            disponivel_estoque: insumoCalculado?.disponivel_estoque ?? true,
+            quantidade_disponivel: insumoCalculado?.quantidade_disponivel,
+            localizacao_estoque: insumoCalculado?.localizacao_estoque,
+          };
+        }) || [],
       // Máquinas por produto
-      maquinas: produto.maquinas?.map(itemMaquina => ({
-        id: itemMaquina.maquina.id,
-        nome: itemMaquina.maquina.nome,
-        horas_uso: itemMaquina.horas_uso,
-        custo_hora: itemMaquina.custo_hora,
-        custo_total: itemMaquina.custo_total
-      })) || [],
+      maquinas:
+        produto.maquinas?.map((itemMaquina) => ({
+          id: itemMaquina.maquina.id,
+          nome: itemMaquina.maquina.nome,
+          horas_uso: itemMaquina.horas_uso,
+          custo_hora: itemMaquina.custo_hora,
+          custo_total: itemMaquina.custo_total,
+        })) || [],
       // Funções por produto
-      funcoes: produto.funcoes?.map(itemFuncao => ({
-        id: itemFuncao.funcao.id,
-        nome: itemFuncao.funcao.nome,
-        horas_uso: itemFuncao.horas_uso,
-        custo_hora: itemFuncao.custo_hora,
-        custo_total: itemFuncao.custo_total
-      })) || []
+      funcoes:
+        produto.funcoes?.map((itemFuncao) => ({
+          id: itemFuncao.funcao.id,
+          nome: itemFuncao.funcao.nome,
+          horas_uso: itemFuncao.horas_uso,
+          custo_hora: itemFuncao.custo_hora,
+          custo_total: itemFuncao.custo_total,
+        })) || [],
     }));
 
     // Consolidar materiais por tipo (para Materiais Principais)
     const materiaisConsolidados = new Map();
-    produtosFormatados.forEach(produto => {
-      produto.materiais.forEach(material => {
+    produtosFormatados.forEach((produto) => {
+      produto.materiais.forEach((material) => {
         if (materiaisConsolidados.has(material.id)) {
           const existente = materiaisConsolidados.get(material.id);
           existente.quantidade_total += material.quantidade;
           existente.produtos.push({
             nome: produto.nome,
             quantidade: produto.quantidade,
-            quantidade_material: material.quantidade
+            quantidade_material: material.quantidade,
           });
         } else {
           materiaisConsolidados.set(material.id, {
@@ -1420,11 +1637,13 @@ export class OSService {
             tipo_material: material.tipo_material,
             logica_consumo: material.logica_consumo,
             parametros_consumo: material.parametros_consumo,
-            produtos: [{
-              nome: produto.nome,
-              quantidade: produto.quantidade,
-              quantidade_material: material.quantidade // Já é a quantidade calculada correta
-            }]
+            produtos: [
+              {
+                nome: produto.nome,
+                quantidade: produto.quantidade,
+                quantidade_material: material.quantidade, // Já é a quantidade calculada correta
+              },
+            ],
           });
         }
       });
@@ -1458,7 +1677,10 @@ export class OSService {
           }
           return [];
         } catch (error) {
-          this.logger.warn(`Erro ao processar insumos_calculados para OS ${os.id}:`, error);
+          this.logger.warn(
+            `Erro ao processar insumos_calculados para OS ${os.id}:`,
+            error,
+          );
           return [];
         }
       })(),
@@ -1469,12 +1691,14 @@ export class OSService {
       aprovacao_tecnica_obs: os.aprovacao_tecnica_obs,
       criado_em: os.criado_em,
       atualizado_em: os.atualizado_em,
-      cliente: os.cliente ? {
-        id: os.cliente.id,
-        nome: os.cliente.nome,
-        email: os.cliente.email,
-        telefone: os.cliente.telefone,
-      } : null,
+      cliente: os.cliente
+        ? {
+            id: os.cliente.id,
+            nome: os.cliente.nome,
+            email: os.cliente.email,
+            telefone: os.cliente.telefone,
+          }
+        : null,
       // Campo para compatibilidade com Grid
       cliente_nome: os.cliente?.nome || null,
       // Novos campos estruturados
@@ -1486,7 +1710,9 @@ export class OSService {
       if (Object.prototype.hasOwnProperty.call(extras, 'alertas_estoque')) {
         data.alertas_estoque = extras.alertas_estoque;
       }
-      if (Object.prototype.hasOwnProperty.call(extras, 'recomendacoes_estoque')) {
+      if (
+        Object.prototype.hasOwnProperty.call(extras, 'recomendacoes_estoque')
+      ) {
         data.recomendacoes_estoque = extras.recomendacoes_estoque;
       }
       if (Object.prototype.hasOwnProperty.call(extras, 'detalhes_estoque')) {
@@ -1499,7 +1725,10 @@ export class OSService {
 
   // ===== MÉTODOS DE CONSULTA =====
 
-  async buscarPorStatus(lojaId: string, status: StatusOS): Promise<OrdemServicoData[]> {
+  async buscarPorStatus(
+    lojaId: string,
+    status: StatusOS,
+  ): Promise<OrdemServicoData[]> {
     try {
       const ordens = await this.prisma.ordemServico.findMany({
         where: { loja_id: lojaId, status },
@@ -1512,27 +1741,33 @@ export class OSService {
         },
       });
 
-      return ordens.map(os => this.formatarOrdemServico(os));
+      return ordens.map((os) => this.formatarOrdemServico(os));
     } catch (error) {
       this.logger.error(`Erro ao buscar OS por status ${status}:`, error);
       throw error;
     }
   }
 
-  async buscarPorResponsavel(lojaId: string, responsavelId: string): Promise<OrdemServicoData[]> {
+  async buscarPorResponsavel(
+    lojaId: string,
+    responsavelId: string,
+  ): Promise<OrdemServicoData[]> {
     try {
       const ordens = await this.prisma.ordemServico.findMany({
-        where: { 
-          loja_id: lojaId, 
+        where: {
+          loja_id: lojaId,
           responsavel_id: responsavelId,
           status: { not: StatusOS.FINALIZADA }, // Apenas OS ativas
         },
         orderBy: { criado_em: 'desc' },
       });
 
-      return ordens.map(os => this.formatarOrdemServico(os));
+      return ordens.map((os) => this.formatarOrdemServico(os));
     } catch (error) {
-      this.logger.error(`Erro ao buscar OS por responsável ${responsavelId}:`, error);
+      this.logger.error(
+        `Erro ao buscar OS por responsável ${responsavelId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -1551,8 +1786,8 @@ export class OSService {
       const [total, porStatus, prazoVencendo, atrasadas] = await Promise.all([
         // Total de OS ativas
         this.prisma.ordemServico.count({
-          where: { 
-            loja_id: lojaId, 
+          where: {
+            loja_id: lojaId,
             status: { notIn: [StatusOS.FINALIZADA, StatusOS.CANCELADA] },
           },
         }),
@@ -1584,10 +1819,13 @@ export class OSService {
       ]);
 
       // Formatar estatísticas por status
-      const statusStats = porStatus.reduce((acc, item) => {
-        acc[item.status] = item._count.status;
-        return acc;
-      }, {} as Record<string, number>);
+      const statusStats = porStatus.reduce(
+        (acc, item) => {
+          acc[item.status] = item._count.status;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
 
       return {
         total,
@@ -1610,11 +1848,11 @@ export class OSService {
     osId: string,
     novoStatus: StatusOS,
     usuarioId: string,
-    observacoes?: string
+    observacoes?: string,
   ): Promise<OrdemServicoData> {
     try {
       const os = await this.prisma.ordemServico.findUnique({
-        where: { id: osId }
+        where: { id: osId },
       });
 
       if (!os) {
@@ -1626,7 +1864,7 @@ export class OSService {
         os.status,
         novoStatus,
         os,
-        usuarioId
+        usuarioId,
       );
 
       if (!validacao.valida) {
@@ -1640,8 +1878,8 @@ export class OSService {
           status: novoStatus,
           modificado_por: usuarioId,
           motivo_modificacao: observacoes || `Transição para ${novoStatus}`,
-          versao: { increment: 1 }
-        }
+          versao: { increment: 1 },
+        },
       });
 
       // Registrar movimentação
@@ -1651,10 +1889,12 @@ export class OSService {
         os.status,
         novoStatus,
         usuarioId,
-        observacoes || `OS transicionada para ${novoStatus}`
+        observacoes || `OS transicionada para ${novoStatus}`,
       );
 
-      this.logger.log(`OS ${os.numero} transicionada de ${os.status} para ${novoStatus}`);
+      this.logger.log(
+        `OS ${os.numero} transicionada de ${os.status} para ${novoStatus}`,
+      );
       return this.formatarOrdemServico(osAtualizada);
     } catch (error) {
       this.logger.error(`Erro ao transicionar OS ${osId}:`, error);
@@ -1669,11 +1909,11 @@ export class OSService {
     osId: string,
     usuarioId: string,
     aprovado: boolean,
-    observacoes?: string
+    observacoes?: string,
   ): Promise<OrdemServicoData> {
     try {
       const os = await this.prisma.ordemServico.findUnique({
-        where: { id: osId }
+        where: { id: osId },
       });
 
       if (!os) {
@@ -1681,16 +1921,20 @@ export class OSService {
       }
 
       if (os.tipo_os !== TipoOS.INTERNA) {
-        throw new BadRequestException('Aprovação orçamentária só se aplica a OS Interna');
+        throw new BadRequestException(
+          'Aprovação orçamentária só se aplica a OS Interna',
+        );
       }
 
       if (os.status !== StatusOS.AGUARDANDO_APROVACAO_ORCAMENTARIA) {
-        throw new BadRequestException('OS não está aguardando aprovação orçamentária');
+        throw new BadRequestException(
+          'OS não está aguardando aprovação orçamentária',
+        );
       }
 
       // Verificar permissões do usuário
       const usuario = await this.prisma.usuario.findUnique({
-        where: { id: usuarioId }
+        where: { id: usuarioId },
       });
 
       if (!usuario) {
@@ -1699,43 +1943,56 @@ export class OSService {
 
       // Validar alçada do usuário usando o sistema de alçadas
       const valorEstimado = Number(os.valor_orcado || 0);
-      const validacaoAlcada = await this.alcadasOrcamentoService.podeAprovarAutomaticamente(
-        usuario.funcao,
-        valorEstimado
-      );
-      
+      const validacaoAlcada =
+        await this.alcadasOrcamentoService.podeAprovarAutomaticamente(
+          usuario.funcao,
+          valorEstimado,
+        );
+
       if (!validacaoAlcada.pode) {
-        throw new ForbiddenException(validacaoAlcada.motivo || 'Usuário não tem alçada suficiente para aprovar este valor');
+        throw new ForbiddenException(
+          validacaoAlcada.motivo ||
+            'Usuário não tem alçada suficiente para aprovar este valor',
+        );
       }
 
       // Validar orçamento disponível no centro de custo
-      const validacaoOrcamento = await this.alcadasOrcamentoService.validarOrcamentoDisponivel(
-        os.centro_custo,
-        valorEstimado,
-        os.loja_id
-      );
-      
-      if (!validacaoOrcamento.pode_aprovar) {
-        throw new BadRequestException(validacaoOrcamento.motivo_rejeicao || 'Orçamento insuficiente no centro de custo');
-      }
-
-      const statusAprovacao = aprovado ? 'APROVADA' : 'REJEITADA';
-      const novoStatus = aprovado ? StatusOS.APROVADA_ORCAMENTARIA : StatusOS.REJEITADA;
-      
-      // Se aprovada, reservar orçamento
-      if (aprovado) {
-        const reservaOrcamento = await this.alcadasOrcamentoService.reservarOrcamento(
+      const validacaoOrcamento =
+        await this.alcadasOrcamentoService.validarOrcamentoDisponivel(
           os.centro_custo,
           valorEstimado,
           os.loja_id,
-          osId
         );
-        
+
+      if (!validacaoOrcamento.pode_aprovar) {
+        throw new BadRequestException(
+          validacaoOrcamento.motivo_rejeicao ||
+            'Orçamento insuficiente no centro de custo',
+        );
+      }
+
+      const statusAprovacao = aprovado ? 'APROVADA' : 'REJEITADA';
+      const novoStatus = aprovado
+        ? StatusOS.APROVADA_ORCAMENTARIA
+        : StatusOS.REJEITADA;
+
+      // Se aprovada, reservar orçamento
+      if (aprovado) {
+        const reservaOrcamento =
+          await this.alcadasOrcamentoService.reservarOrcamento(
+            os.centro_custo,
+            valorEstimado,
+            os.loja_id,
+            osId,
+          );
+
         if (!reservaOrcamento.sucesso) {
-          throw new BadRequestException(reservaOrcamento.motivo || 'Erro ao reservar orçamento');
+          throw new BadRequestException(
+            reservaOrcamento.motivo || 'Erro ao reservar orçamento',
+          );
         }
       }
-      
+
       const osAtualizada = await this.prisma.ordemServico.update({
         where: { id: osId },
         data: {
@@ -1746,8 +2003,8 @@ export class OSService {
           aprovacao_gerencial_obs: observacoes,
           modificado_por: usuarioId,
           motivo_modificacao: `Aprovação orçamentária ${statusAprovacao.toLowerCase()}`,
-          versao: { increment: 1 }
-        }
+          versao: { increment: 1 },
+        },
       });
 
       // Registrar movimentação
@@ -1757,10 +2014,13 @@ export class OSService {
         StatusOS.AGUARDANDO_APROVACAO_ORCAMENTARIA,
         novoStatus,
         usuarioId,
-        observacoes || `Aprovação orçamentária ${statusAprovacao.toLowerCase()}`
+        observacoes ||
+          `Aprovação orçamentária ${statusAprovacao.toLowerCase()}`,
       );
 
-      this.logger.log(`OS ${os.numero} aprovada orçamentariamente: ${statusAprovacao}`);
+      this.logger.log(
+        `OS ${os.numero} aprovada orçamentariamente: ${statusAprovacao}`,
+      );
       return this.formatarOrdemServico(osAtualizada);
     } catch (error) {
       this.logger.error(`Erro ao aprovar OS orçamentária ${osId}:`, error);
@@ -1775,11 +2035,11 @@ export class OSService {
     osId: string,
     usuarioId: string,
     aprovado: boolean,
-    observacoes?: string
+    observacoes?: string,
   ): Promise<OrdemServicoData> {
     try {
       const os = await this.prisma.ordemServico.findUnique({
-        where: { id: osId }
+        where: { id: osId },
       });
 
       if (!os) {
@@ -1787,38 +2047,48 @@ export class OSService {
       }
 
       if (os.tipo_os !== TipoOS.COMERCIAL) {
-        throw new BadRequestException('Aprovação técnica só se aplica a OS Comercial');
+        throw new BadRequestException(
+          'Aprovação técnica só se aplica a OS Comercial',
+        );
       }
 
       if (os.status !== StatusOS.AGUARDANDO_APROVACAO_TECNICA) {
-        throw new BadRequestException('OS não está aguardando aprovação técnica');
+        throw new BadRequestException(
+          'OS não está aguardando aprovação técnica',
+        );
       }
 
       // Verificar permissões do usuário usando sistema centralizado
       if (!usuarioId) {
         throw new BadRequestException('ID do usuário é obrigatório');
       }
-      
+
       const usuario = await this.prisma.usuario.findUnique({
-        where: { id: usuarioId }
+        where: { id: usuarioId },
       });
 
       if (!usuario) {
         throw new BadRequestException('Usuário não encontrado');
       }
 
-      const permissaoAprovacao = await this.osApprovalPermissionsService.podeAprovarTecnica(
-        usuarioId, 
-        usuario.loja_id
-      );
+      const permissaoAprovacao =
+        await this.osApprovalPermissionsService.podeAprovarTecnica(
+          usuarioId,
+          usuario.loja_id,
+        );
 
       if (!permissaoAprovacao.pode) {
-        throw new ForbiddenException(permissaoAprovacao.motivo || 'Usuário não tem permissão para aprovar tecnicamente');
+        throw new ForbiddenException(
+          permissaoAprovacao.motivo ||
+            'Usuário não tem permissão para aprovar tecnicamente',
+        );
       }
 
       const statusAprovacao = aprovado ? 'APROVADA' : 'REJEITADA';
-      const novoStatus = aprovado ? StatusOS.APROVADA_TECNICA : StatusOS.REJEITADA;
-      
+      const novoStatus = aprovado
+        ? StatusOS.APROVADA_TECNICA
+        : StatusOS.REJEITADA;
+
       const osAtualizada = await this.prisma.ordemServico.update({
         where: { id: osId },
         data: {
@@ -1829,8 +2099,8 @@ export class OSService {
           aprovacao_tecnica_obs: observacoes,
           modificado_por: usuarioId,
           motivo_modificacao: `Aprovação técnica ${statusAprovacao.toLowerCase()}`,
-          versao: { increment: 1 }
-        }
+          versao: { increment: 1 },
+        },
       });
 
       // Registrar movimentação
@@ -1840,10 +2110,12 @@ export class OSService {
         StatusOS.AGUARDANDO_APROVACAO_TECNICA,
         novoStatus,
         usuarioId,
-        observacoes || `Aprovação técnica ${statusAprovacao.toLowerCase()}`
+        observacoes || `Aprovação técnica ${statusAprovacao.toLowerCase()}`,
       );
 
-      this.logger.log(`OS ${os.numero} aprovada tecnicamente: ${statusAprovacao}`);
+      this.logger.log(
+        `OS ${os.numero} aprovada tecnicamente: ${statusAprovacao}`,
+      );
       return this.formatarOrdemServico(osAtualizada);
     } catch (error) {
       this.logger.error(`Erro ao aprovar OS técnica ${osId}:`, error);
@@ -1856,7 +2128,10 @@ export class OSService {
   /**
    * Valida se centro de custo está disponível
    */
-  private async validarCentroCustoDisponivel(centroCusto: string, lojaId: string): Promise<boolean> {
+  private async validarCentroCustoDisponivel(
+    centroCusto: string,
+    lojaId: string,
+  ): Promise<boolean> {
     try {
       // TODO: Implementar validação real de centro de custo
       // Por enquanto, retorna true para não bloquear o desenvolvimento
@@ -1873,7 +2148,7 @@ export class OSService {
   private async validarJustificativaPreenchida(osId: string): Promise<boolean> {
     try {
       const os = await this.prisma.ordemServico.findUnique({
-        where: { id: osId }
+        where: { id: osId },
       });
 
       if (!os) {
@@ -1891,15 +2166,19 @@ export class OSService {
   /**
    * Valida se alçada é adequada para o valor
    */
-  private async validarAlcadaAdequada(valorOrcado: number, centroCusto: string, lojaId: string): Promise<boolean> {
+  private async validarAlcadaAdequada(
+    valorOrcado: number,
+    centroCusto: string,
+    lojaId: string,
+  ): Promise<boolean> {
     try {
       const valor = Number(valorOrcado || 0);
-      
+
       // Definir limites de alçada
       const limitesAlcada = {
-        'GERENTE': 2000,
-        'DIRETOR': 10000,
-        'SUPERVISOR': 500
+        GERENTE: 2000,
+        DIRETOR: 10000,
+        SUPERVISOR: 500,
       };
 
       // TODO: Implementar validação real baseada no centro de custo
@@ -1914,13 +2193,16 @@ export class OSService {
   /**
    * Valida se usuário tem alçada suficiente para aprovar valor
    */
-  private async validarAlcadaUsuario(funcaoUsuario: string, valorEstimado: number): Promise<boolean> {
+  private async validarAlcadaUsuario(
+    funcaoUsuario: string,
+    valorEstimado: number,
+  ): Promise<boolean> {
     try {
       const limitesAlcada = {
-        'SUPERVISOR': 500,
-        'GERENTE': 2000,
-        'DIRETOR': 10000,
-        'ADMIN': 50000
+        SUPERVISOR: 500,
+        GERENTE: 2000,
+        DIRETOR: 10000,
+        ADMIN: 50000,
       };
 
       const limiteUsuario = limitesAlcada[funcaoUsuario] || 0;
@@ -1939,7 +2221,7 @@ export class OSService {
   private async validarEstoqueDisponivel(osId: string): Promise<boolean> {
     try {
       const os = await this.prisma.ordemServico.findUnique({
-        where: { id: osId }
+        where: { id: osId },
       });
 
       if (!os) {
@@ -1961,7 +2243,7 @@ export class OSService {
   private async validarArteAnexada(osId: string): Promise<boolean> {
     try {
       const os = await this.prisma.ordemServico.findUnique({
-        where: { id: osId }
+        where: { id: osId },
       });
 
       if (!os) {
@@ -1983,7 +2265,7 @@ export class OSService {
   private async validarEspecificacoesCompletas(osId: string): Promise<boolean> {
     try {
       const os = await this.prisma.ordemServico.findUnique({
-        where: { id: osId }
+        where: { id: osId },
       });
 
       if (!os) {
@@ -1995,7 +2277,7 @@ export class OSService {
         'nome_servico',
         'descricao',
         'quantidade',
-        'parametros_tecnicos'
+        'parametros_tecnicos',
       ];
 
       for (const campo of camposObrigatorios) {
@@ -2027,38 +2309,43 @@ export class OSService {
     usuarioId: string,
   ): Promise<OrdemServicoData> {
     try {
-      this.logger.log(`Criando OS a partir do orçamento ${dadosOrcamento.orcamento_id}`);
+      this.logger.log(
+        `Criando OS a partir do orçamento ${dadosOrcamento.orcamento_id}`,
+      );
 
       // 1. Buscar orçamento completo com produtos e insumos
       const orcamentoCompleto = await this.prisma.orcamento.findUnique({
-        where: { 
+        where: {
           id: dadosOrcamento.orcamento_id,
-          loja_id: lojaId 
+          loja_id: lojaId,
         },
         include: {
           produtos: {
             include: {
               insumos: {
-                include: { 
+                include: {
                   insumo: {
                     include: {
                       categoria: true,
-                      tipoMaterial: true
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+                      tipoMaterial: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!orcamentoCompleto) {
-        throw new Error(`Orçamento ${dadosOrcamento.orcamento_id} não encontrado`);
+        throw new Error(
+          `Orçamento ${dadosOrcamento.orcamento_id} não encontrado`,
+        );
       }
 
       // 2. Extrair materiais exatos do orçamento
-      const materiaisOrcamento = this.extrairMateriaisDoOrcamento(orcamentoCompleto);
+      const materiaisOrcamento =
+        this.extrairMateriaisDoOrcamento(orcamentoCompleto);
 
       const createDto: CreateOSDto = {
         tipo_os: TipoOS.COMERCIAL, // OS criada a partir de orçamento é sempre comercial
@@ -2081,7 +2368,9 @@ export class OSService {
 
       const os = await this.create(lojaId, createDto);
 
-      this.logger.log(`[OK] OS #${os.numero} criada automaticamente do orçamento com ${materiaisOrcamento.length} materiais`);
+      this.logger.log(
+        `[OK] OS #${os.numero} criada automaticamente do orçamento com ${materiaisOrcamento.length} materiais`,
+      );
       return os;
     } catch (error) {
       this.logger.error('Erro ao criar OS de orçamento:', error);
@@ -2094,15 +2383,29 @@ export class OSService {
    */
   private calcularQuantidadeInteligente(
     insumoCalculado: InsumoCalculado,
-    produto: any
-  ): { quantidade: number; unidade: string; display: string; [key: string]: any } {
-    const { logica_consumo, parametros_consumo, quantidade_necessaria, unidade, nome } = insumoCalculado;
+    produto: any,
+  ): {
+    quantidade: number;
+    unidade: string;
+    display: string;
+    [key: string]: any;
+  } {
+    const {
+      logica_consumo,
+      parametros_consumo,
+      quantidade_necessaria,
+      unidade,
+      nome,
+    } = insumoCalculado;
     const quantidadeProdutos = parseFloat(produto.quantidade || '1');
-    
+
     // Lógica específica para bobinas (área em m² + unidades físicas)
-    if (nome?.toLowerCase().includes('bobina') && nome?.toLowerCase().includes('lona')) {
+    if (
+      nome?.toLowerCase().includes('bobina') &&
+      nome?.toLowerCase().includes('lona')
+    ) {
       // Para bobinas, calcular área em m² e unidades físicas necessárias
-      
+
       // Extrair dimensões da bobina do nome (ex: 1,40x50m)
       let areaPorBobina = 70; // Default 70m²
       const match = nome.match(/(\d+[,.]?\d*)\s*[x×]\s*(\d+[,.]?\d*)\s*m/i);
@@ -2111,138 +2414,182 @@ export class OSService {
         const altura = parseFloat(match[2].replace(',', '.'));
         areaPorBobina = largura * altura;
       }
-      
+
       // Calcular quantas bobinas são necessárias
-      const bobinasNecessarias = Math.ceil(quantidade_necessaria / areaPorBobina);
-      
+      const bobinasNecessarias = Math.ceil(
+        quantidade_necessaria / areaPorBobina,
+      );
+
       // Retornar informações completas para validação de estoque
       return {
-        quantidade: bobinasNecessarias, 
+        quantidade: bobinasNecessarias,
         unidade: 'UNID',
         display: `${quantidade_necessaria} M2 - ${bobinasNecessarias} UNID - BOBINA`,
         // Informações adicionais para validação
         bobinas_necessarias: bobinasNecessarias,
         area_por_bobina: areaPorBobina,
-        area_total: quantidade_necessaria
+        area_total: quantidade_necessaria,
       };
     }
-    
+
     // Lógica específica para madeira (unidades físicas)
-    if (nome?.toLowerCase().includes('madeira') || nome?.toLowerCase().includes('cabo')) {
+    if (
+      nome?.toLowerCase().includes('madeira') ||
+      nome?.toLowerCase().includes('cabo')
+    ) {
       // Para madeira, calcular unidades físicas necessárias
       // REGRA: Cada banner precisa de uma unidade completa de madeira
       // Se a sobra não é suficiente para outro banner, não considerar otimização
-      
+
       const cmPorBanner = 100; // 100cm por banner
       const cmDisponivel = 105; // Madeira de 105cm (ou 104cm)
       const sobra = cmDisponivel - cmPorBanner; // 4-5cm de sobra
-      
+
       // Se a sobra é menor que o tamanho do banner, não pode ser aproveitada
       if (sobra < cmPorBanner) {
         // Cada banner precisa de uma unidade completa
-      const unidadesNecessarias = quantidadeProdutos;
-      return { quantidade: unidadesNecessarias, unidade: 'UNID', display: `${unidadesNecessarias} UNID` };
+        const unidadesNecessarias = quantidadeProdutos;
+        return {
+          quantidade: unidadesNecessarias,
+          unidade: 'UNID',
+          display: `${unidadesNecessarias} UNID`,
+        };
       } else {
         // Se a sobra é suficiente para outro banner, pode otimizar
-        const unidadesNecessarias = Math.ceil((cmPorBanner * quantidadeProdutos) / cmDisponivel);
-        return { quantidade: unidadesNecessarias, unidade: 'UNID', display: `${unidadesNecessarias} UNID` };
+        const unidadesNecessarias = Math.ceil(
+          (cmPorBanner * quantidadeProdutos) / cmDisponivel,
+        );
+        return {
+          quantidade: unidadesNecessarias,
+          unidade: 'UNID',
+          display: `${unidadesNecessarias} UNID`,
+        };
       }
     }
-    
+
     // Lógica específica para cordão (unidades físicas de tubos)
-    if (nome?.toLowerCase().includes('cordao') || nome?.toLowerCase().includes('cordão')) {
+    if (
+      nome?.toLowerCase().includes('cordao') ||
+      nome?.toLowerCase().includes('cordão')
+    ) {
       // Para cordão, calcular unidades físicas de tubos necessárias
       // Cordão vem em tubos (ex: 205m por tubo)
-      
+
       // Extrair metros por tubo do nome do produto
       let metrosPorTubo = 205; // Default
-      const match = nome.match(/(\d+)\s*m\s+branco/i) || nome.match(/(\d+)\s*m\s*$/i); // Procura por "205 M Branco" ou "205 M" no final
+      const match =
+        nome.match(/(\d+)\s*m\s+branco/i) || nome.match(/(\d+)\s*m\s*$/i); // Procura por "205 M Branco" ou "205 M" no final
       if (match) {
         metrosPorTubo = parseInt(match[1]);
       }
-      
+
       // Calcular metros necessários (ex: 12m por banner)
       const metrosPorBanner = 12; // Assumindo 12m por banner
       const metrosTotaisNecessarios = metrosPorBanner * quantidadeProdutos;
-      
+
       // Calcular quantos tubos são necessários
-      const tubosNecessarios = Math.ceil(metrosTotaisNecessarios / metrosPorTubo);
-      
+      const tubosNecessarios = Math.ceil(
+        metrosTotaisNecessarios / metrosPorTubo,
+      );
+
       // Retornar informações completas para validação de estoque
-      return { 
-        quantidade: tubosNecessarios, 
+      return {
+        quantidade: tubosNecessarios,
         unidade: 'UNID',
         display: `${metrosTotaisNecessarios}M - ${tubosNecessarios} UNID - ROLO`,
         // Informações adicionais para validação
         metros_necessarios: metrosTotaisNecessarios,
         metros_por_tubo: metrosPorTubo,
-        metros_por_banner: metrosPorBanner
+        metros_por_banner: metrosPorBanner,
       };
     }
-    
+
     // Lógica específica para ponteiras (unidades)
     if (nome?.toLowerCase().includes('ponteira')) {
       // Para ponteiras, calcular unidades necessárias
       // Exemplo: 2 ponteiras por banner
       const ponteirasPorBanner = 2;
       const unidadesNecessarias = ponteirasPorBanner * quantidadeProdutos;
-      
-      return { quantidade: unidadesNecessarias, unidade: 'UNID', display: `${unidadesNecessarias} UNID` };
+
+      return {
+        quantidade: unidadesNecessarias,
+        unidade: 'UNID',
+        display: `${unidadesNecessarias} UNID`,
+      };
     }
-    
+
     // Lógica específica para ilhos (unidades) - IGUAL AO PREVIEW V2
     if (nome?.toLowerCase().includes('ilho')) {
       // Usar a mesma lógica do preview V2: cálculo por perímetro e espaçamento
       const larguraProduto = parseFloat(produto.largura?.toString() || '0');
       const alturaProduto = parseFloat(produto.altura?.toString() || '0');
-      
+
       if (larguraProduto > 0 && alturaProduto > 0) {
         // Cálculo igual ao preview V2
         const perimetro = 2 * (larguraProduto + alturaProduto);
         const espacamento = 15; // cm entre ilhós (mesmo do preview V2)
         const quantidadeUnitaria = Math.ceil(perimetro / espacamento);
         const unidadesNecessarias = quantidadeUnitaria * quantidadeProdutos;
-        
-        return { 
-          quantidade: unidadesNecessarias, 
-          unidade: 'UNID', 
+
+        return {
+          quantidade: unidadesNecessarias,
+          unidade: 'UNID',
           display: `${unidadesNecessarias} UNID`,
           perimetro: perimetro,
           espacamento: espacamento,
-          quantidade_unitaria: quantidadeUnitaria
+          quantidade_unitaria: quantidadeUnitaria,
         };
       } else {
         // CORREÇÃO: Usar quantidade original do orçamento se disponível
         // Isso garante que a OS use o mesmo cálculo do preview V2
-        if (quantidade_necessaria > 0 && quantidade_necessaria !== (4 * quantidadeProdutos)) {
+        if (
+          quantidade_necessaria > 0 &&
+          quantidade_necessaria !== 4 * quantidadeProdutos
+        ) {
           // Se a quantidade original não é 4×produtos, usar ela (vem do preview V2)
-          return { 
-            quantidade: quantidade_necessaria, 
-            unidade: 'UNID', 
+          return {
+            quantidade: quantidade_necessaria,
+            unidade: 'UNID',
             display: `${quantidade_necessaria} UNID`,
-            origem: 'preview_v2'
+            origem: 'preview_v2',
           };
         } else {
           // Fallback: 4 ilhós por banner (lógica antiga)
           const ilhosPorBanner = 4;
           const unidadesNecessarias = ilhosPorBanner * quantidadeProdutos;
-          
-          return { quantidade: unidadesNecessarias, unidade: 'UNID', display: `${unidadesNecessarias} UNID` };
+
+          return {
+            quantidade: unidadesNecessarias,
+            unidade: 'UNID',
+            display: `${unidadesNecessarias} UNID`,
+          };
         }
       }
     }
 
     // Lógica genérica baseada na lógica de consumo
     if (logica_consumo === 'area') {
-      return { quantidade: quantidade_necessaria, unidade: 'M2', display: `${quantidade_necessaria} M2` };
+      return {
+        quantidade: quantidade_necessaria,
+        unidade: 'M2',
+        display: `${quantidade_necessaria} M2`,
+      };
     }
-    
+
     if (logica_consumo === 'linear' || logica_consumo === 'quantidade_fixa') {
-      return { quantidade: quantidade_necessaria, unidade: 'UNID', display: `${quantidade_necessaria} UNID` };
+      return {
+        quantidade: quantidade_necessaria,
+        unidade: 'UNID',
+        display: `${quantidade_necessaria} UNID`,
+      };
     }
 
     // Fallback: retorna quantidade original
-    return { quantidade: quantidade_necessaria, unidade, display: `${quantidade_necessaria} ${unidade}` };
+    return {
+      quantidade: quantidade_necessaria,
+      unidade,
+      display: `${quantidade_necessaria} ${unidade}`,
+    };
   }
 
   /**
@@ -2256,13 +2603,13 @@ export class OSService {
       return materiais;
     }
 
-    orcamento.produtos.forEach(produto => {
+    orcamento.produtos.forEach((produto) => {
       if (!produto.insumos || !Array.isArray(produto.insumos)) {
         this.logger.warn(`Produto ${produto.nome} sem insumos válidos`);
         return;
       }
 
-      produto.insumos.forEach(itemInsumo => {
+      produto.insumos.forEach((itemInsumo) => {
         if (!itemInsumo.insumo) {
           this.logger.warn(`ItemInsumo ${itemInsumo.id} sem insumo associado`);
           return;
@@ -2271,42 +2618,46 @@ export class OSService {
         // Usar dados exatos do orçamento
         // Aplicar lógica inteligente para calcular display
         const quantidade_base = parseFloat(itemInsumo.quantidade || '0');
-        const unidade = itemInsumo.unidade || itemInsumo.insumo.unidade_uso || 'un';
+        const unidade =
+          itemInsumo.unidade || itemInsumo.insumo.unidade_uso || 'un';
         const quantidadeProdutos = parseFloat(produto.quantidade || '1');
         const nome = itemInsumo.insumo.nome;
-        
+
         // Verificar se precisa multiplicar pela quantidade do produto
         // IMPORTANTE: Para materiais calculados por área, a quantidade no orçamento
         // já representa o TOTAL de m² necessários, não por unidade
         const logica_consumo = itemInsumo.insumo.logica_consumo || 'area';
         const unidade_uso = itemInsumo.insumo.unidade_uso?.toLowerCase() || '';
-        
+
         // Determinar se precisa multiplicar pela quantidade do produto
         // Para materiais por m², a quantidade já é o total, NÃO multiplicar
         // Para materiais por unidade (bobina, rolo), pode precisar multiplicar
-        const precisaMultiplicar = 
+        const precisaMultiplicar =
           (unidade_uso.includes('un') || unidade_uso.includes('unidade')) &&
-          !unidade_uso.includes('m2') && 
+          !unidade_uso.includes('m2') &&
           !unidade_uso.includes('m²') &&
           logica_consumo !== 'area';
-        
+
         // Calcular quantidade necessária total
-        const quantidade_necessaria = precisaMultiplicar 
-          ? quantidade_base * quantidadeProdutos 
+        const quantidade_necessaria = precisaMultiplicar
+          ? quantidade_base * quantidadeProdutos
           : quantidade_base;
-        
+
         this.logger.debug(`Calculando quantidade para ${nome}:`, {
           quantidade_base,
           quantidadeProdutos,
           precisaMultiplicar,
           quantidade_necessaria,
           logica_consumo,
-          unidade_uso
+          unidade_uso,
         });
-        
+
         // Calcular display baseado no tipo de material
         let display = `${quantidade_necessaria} ${unidade}`;
-        if (nome?.toLowerCase().includes('bobina') && nome?.toLowerCase().includes('lona')) {
+        if (
+          nome?.toLowerCase().includes('bobina') &&
+          nome?.toLowerCase().includes('lona')
+        ) {
           // Para bobinas, mostrar área + unidades físicas
           let areaPorBobina = 70; // Default
           const match = nome.match(/(\d+[,.]?\d*)\s*[x×]\s*(\d+[,.]?\d*)\s*m/i);
@@ -2315,18 +2666,26 @@ export class OSService {
             const altura = parseFloat(match[2].replace(',', '.'));
             areaPorBobina = largura * altura;
           }
-          const bobinasNecessarias = Math.ceil(quantidade_necessaria / areaPorBobina);
+          const bobinasNecessarias = Math.ceil(
+            quantidade_necessaria / areaPorBobina,
+          );
           display = `${quantidade_necessaria} M2 - ${bobinasNecessarias} UNID - BOBINA`;
-        } else if (nome?.toLowerCase().includes('cordao') || nome?.toLowerCase().includes('cordão')) {
+        } else if (
+          nome?.toLowerCase().includes('cordao') ||
+          nome?.toLowerCase().includes('cordão')
+        ) {
           // Para cordão, mostrar metros + unidades físicas
           let metrosPorTubo = 205;
-          const match = nome.match(/(\d+)\s*m\s+branco/i) || nome.match(/(\d+)\s*m\s*$/i);
+          const match =
+            nome.match(/(\d+)\s*m\s+branco/i) || nome.match(/(\d+)\s*m\s*$/i);
           if (match) {
             metrosPorTubo = parseInt(match[1]);
           }
           const metrosPorBanner = 12;
           const metrosTotaisNecessarios = metrosPorBanner * quantidadeProdutos;
-          const tubosNecessarios = Math.ceil(metrosTotaisNecessarios / metrosPorTubo);
+          const tubosNecessarios = Math.ceil(
+            metrosTotaisNecessarios / metrosPorTubo,
+          );
           display = `${metrosTotaisNecessarios}M - ${tubosNecessarios} UNID - ROLO`;
         }
 
@@ -2340,21 +2699,24 @@ export class OSService {
           custo_total: parseFloat(itemInsumo.custo_total || '0'),
           produto_nome: produto.nome || 'Produto sem nome',
           logica_consumo: itemInsumo.insumo.logica_consumo || 'area',
-          parametros_consumo: itemInsumo.insumo.parametros_consumo ? 
-            (typeof itemInsumo.insumo.parametros_consumo === 'string' ? 
-              JSON.parse(itemInsumo.insumo.parametros_consumo) : 
-              itemInsumo.insumo.parametros_consumo) : null,
+          parametros_consumo: itemInsumo.insumo.parametros_consumo
+            ? typeof itemInsumo.insumo.parametros_consumo === 'string'
+              ? JSON.parse(itemInsumo.insumo.parametros_consumo)
+              : itemInsumo.insumo.parametros_consumo
+            : null,
           origem: 'orcamento',
           orcamento_id: orcamento.id,
           data_calculo: orcamento.data_ultimo_calculo || orcamento.criado_em,
           disponivel_estoque: true, // TODO: Implementar validação real de estoque
           quantidade_disponivel: quantidade_necessaria,
-          localizacao_estoque: 'A1-B2' // TODO: Implementar localização real
+          localizacao_estoque: 'A1-B2', // TODO: Implementar localização real
         });
       });
     });
 
-    this.logger.log(`Extraídos ${materiais.length} materiais do orçamento ${orcamento.id}`);
+    this.logger.log(
+      `Extraídos ${materiais.length} materiais do orçamento ${orcamento.id}`,
+    );
     return materiais;
   }
 
@@ -2369,19 +2731,19 @@ export class OSService {
     try {
       const os = await this.prisma.ordemServico.findUnique({
         where: { id: osId },
-        include: { 
+        include: {
           orcamento: {
             include: {
               produtos: {
                 include: {
                   insumos: {
-                    include: { insumo: true }
-                  }
-                }
-              }
-            }
-          }
-        }
+                    include: { insumo: true },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!os) {
@@ -2392,7 +2754,9 @@ export class OSService {
         return {
           sincronizada: true,
           diferencas: [],
-          alertas: ['OS sem orçamento vinculado - não há sincronização necessária']
+          alertas: [
+            'OS sem orçamento vinculado - não há sincronização necessária',
+          ],
         };
       }
 
@@ -2407,11 +2771,14 @@ export class OSService {
           }
         }
       } catch (error) {
-        this.logger.warn(`Erro ao processar insumos_calculados da OS ${osId}:`, error);
+        this.logger.warn(
+          `Erro ao processar insumos_calculados da OS ${osId}:`,
+          error,
+        );
         return {
           sincronizada: false,
           diferencas: [],
-          alertas: ['Erro ao processar materiais da OS']
+          alertas: ['Erro ao processar materiais da OS'],
         };
       }
 
@@ -2424,8 +2791,10 @@ export class OSService {
 
       // Verificar se todos os materiais da OS existem no orçamento
       for (const materialOS of materiaisOS) {
-        const materialOrcamento = materiaisOrcamento.find(m => 
-          m.insumo_id === materialOS.insumo_id && m.produto_nome === materialOS.produto_nome
+        const materialOrcamento = materiaisOrcamento.find(
+          (m) =>
+            m.insumo_id === materialOS.insumo_id &&
+            m.produto_nome === materialOS.produto_nome,
         );
 
         if (!materialOrcamento) {
@@ -2433,40 +2802,52 @@ export class OSService {
             tipo: 'material_nao_encontrado',
             insumo_id: materialOS.insumo_id,
             produto_nome: materialOS.produto_nome,
-            mensagem: 'Material da OS não encontrado no orçamento'
+            mensagem: 'Material da OS não encontrado no orçamento',
           });
           continue;
         }
 
         // Comparar quantidades
-        if (materialOS.quantidade_necessaria !== materialOrcamento.quantidade_necessaria) {
+        if (
+          materialOS.quantidade_necessaria !==
+          materialOrcamento.quantidade_necessaria
+        ) {
           diferencas.push({
             tipo: 'quantidade_diferente',
             insumo_id: materialOS.insumo_id,
             produto_nome: materialOS.produto_nome,
             quantidade_os: materialOS.quantidade_necessaria,
             quantidade_orcamento: materialOrcamento.quantidade_necessaria,
-            diferenca: materialOS.quantidade_necessaria - materialOrcamento.quantidade_necessaria
+            diferenca:
+              materialOS.quantidade_necessaria -
+              materialOrcamento.quantidade_necessaria,
           });
         }
 
         // Comparar custos
-        if (Math.abs(materialOS.custo_unitario - materialOrcamento.custo_unitario) > 0.01) {
+        if (
+          Math.abs(
+            materialOS.custo_unitario - materialOrcamento.custo_unitario,
+          ) > 0.01
+        ) {
           diferencas.push({
             tipo: 'custo_diferente',
             insumo_id: materialOS.insumo_id,
             produto_nome: materialOS.produto_nome,
             custo_os: materialOS.custo_unitario,
             custo_orcamento: materialOrcamento.custo_unitario,
-            diferenca: materialOS.custo_unitario - materialOrcamento.custo_unitario
+            diferenca:
+              materialOS.custo_unitario - materialOrcamento.custo_unitario,
           });
         }
       }
 
       // Verificar se todos os materiais do orçamento existem na OS
       for (const materialOrcamento of materiaisOrcamento) {
-        const materialOS = materiaisOS.find(m => 
-          m.insumo_id === materialOrcamento.insumo_id && m.produto_nome === materialOrcamento.produto_nome
+        const materialOS = materiaisOS.find(
+          (m) =>
+            m.insumo_id === materialOrcamento.insumo_id &&
+            m.produto_nome === materialOrcamento.produto_nome,
         );
 
         if (!materialOS) {
@@ -2474,32 +2855,35 @@ export class OSService {
             tipo: 'material_faltando',
             insumo_id: materialOrcamento.insumo_id,
             produto_nome: materialOrcamento.produto_nome,
-            mensagem: 'Material do orçamento não encontrado na OS'
+            mensagem: 'Material do orçamento não encontrado na OS',
           });
         }
       }
 
       // Gerar alertas baseados nas diferenças
       if (diferencas.length > 0) {
-        alertas.push(`Encontradas ${diferencas.length} diferenças entre OS e orçamento`);
-        
-        const tiposDiferentes = [...new Set(diferencas.map(d => d.tipo))];
-        tiposDiferentes.forEach(tipo => {
-          const count = diferencas.filter(d => d.tipo === tipo).length;
+        alertas.push(
+          `Encontradas ${diferencas.length} diferenças entre OS e orçamento`,
+        );
+
+        const tiposDiferentes = [...new Set(diferencas.map((d) => d.tipo))];
+        tiposDiferentes.forEach((tipo) => {
+          const count = diferencas.filter((d) => d.tipo === tipo).length;
           alertas.push(`${count} ${tipo.replace('_', ' ')}`);
         });
       }
 
       const sincronizada = diferencas.length === 0;
 
-      this.logger.log(`Validação de sincronização OS ${osId}: ${sincronizada ? 'SINCRONIZADA' : 'DESINCRONIZADA'} (${diferencas.length} diferenças)`);
+      this.logger.log(
+        `Validação de sincronização OS ${osId}: ${sincronizada ? 'SINCRONIZADA' : 'DESINCRONIZADA'} (${diferencas.length} diferenças)`,
+      );
 
       return {
         sincronizada,
         diferencas,
-        alertas
+        alertas,
       };
-
     } catch (error) {
       this.logger.error(`Erro ao validar sincronização OS ${osId}:`, error);
       throw error;
@@ -2509,7 +2893,10 @@ export class OSService {
   /**
    * Sincroniza OS com o orçamento (re-extrai materiais exatos)
    */
-  async sincronizarComOrcamento(osId: string, lojaId: string): Promise<{
+  async sincronizarComOrcamento(
+    osId: string,
+    lojaId: string,
+  ): Promise<{
     sucesso: boolean;
     materiais: InsumoCalculado[];
     diferencas: any[];
@@ -2519,30 +2906,30 @@ export class OSService {
       this.logger.log(`Iniciando sincronização da OS ${osId} com orçamento`);
 
       const os = await this.prisma.ordemServico.findUnique({
-        where: { 
+        where: {
           id: osId,
-          loja_id: lojaId 
+          loja_id: lojaId,
         },
-        include: { 
+        include: {
           orcamento: {
             include: {
               produtos: {
                 include: {
                   insumos: {
-                    include: { 
+                    include: {
                       insumo: {
                         include: {
                           categoria: true,
-                          tipoMaterial: true
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+                          tipoMaterial: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!os) {
@@ -2557,21 +2944,25 @@ export class OSService {
       const validacao = await this.validarSincronizacaoOSOrcamento(osId);
 
       // Re-extrair materiais do orçamento
-      const materiaisAtualizados = this.extrairMateriaisDoOrcamento(os.orcamento);
+      const materiaisAtualizados = this.extrairMateriaisDoOrcamento(
+        os.orcamento,
+      );
 
       // Atualizar OS com materiais exatos do orçamento
       await this.prisma.ordemServico.update({
         where: { id: osId },
         data: {
           insumos_calculados: JSON.stringify(materiaisAtualizados),
-          atualizado_em: new Date()
-        }
+          atualizado_em: new Date(),
+        },
       });
 
       // Validar sincronização após a atualização
       const validacaoPos = await this.validarSincronizacaoOSOrcamento(osId);
 
-      this.logger.log(`Sincronização concluída: OS ${osId} atualizada com ${materiaisAtualizados.length} materiais`);
+      this.logger.log(
+        `Sincronização concluída: OS ${osId} atualizada com ${materiaisAtualizados.length} materiais`,
+      );
 
       return {
         sucesso: true,
@@ -2580,16 +2971,14 @@ export class OSService {
         alertas: [
           `OS sincronizada com orçamento ${os.orcamento_id}`,
           `Atualizados ${materiaisAtualizados.length} materiais`,
-          ...validacaoPos.alertas
-        ]
+          ...validacaoPos.alertas,
+        ],
       };
-
     } catch (error) {
       this.logger.error(`Erro ao sincronizar OS ${osId}:`, error);
       throw error;
     }
   }
-
 
   // ===== HEALTH CHECK =====
 
@@ -2597,7 +2986,7 @@ export class OSService {
     try {
       // Verificar conexão com banco
       await this.prisma.$queryRaw`SELECT 1`;
-      
+
       return {
         status: 'OK',
         timestamp: new Date().toISOString(),
@@ -2610,5 +2999,4 @@ export class OSService {
       };
     }
   }
-
 }

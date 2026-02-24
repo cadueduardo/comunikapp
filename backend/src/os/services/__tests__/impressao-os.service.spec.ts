@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ImpressaoOSService, ConfiguracaoImpressao } from '../impressao-os.service';
+import {
+  ImpressaoOSService,
+  ConfiguracaoImpressao,
+} from '../impressao-os.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import TransformacaoDadosHelper from '../../helpers/transformacao-dados.helper';
 
@@ -60,7 +63,7 @@ describe('ImpressaoOSService', () => {
         incluirLogo: true,
         incluirDetalhesTecnicos: true,
         formato: 'html',
-        versao: 'simples'
+        versao: 'simples',
       };
 
       const mockOS = {
@@ -77,7 +80,7 @@ describe('ImpressaoOSService', () => {
           nome: 'Loja Teste',
           endereco: 'Rua Teste, 123',
           cidade: 'São Paulo',
-          estado: 'SP'
+          estado: 'SP',
         },
         cliente: {
           nome: 'Cliente Teste',
@@ -87,7 +90,7 @@ describe('ImpressaoOSService', () => {
           endereco: 'Rua Cliente, 456',
           cidade: 'São Paulo',
           estado: 'SP',
-          cep: '01234567'
+          cep: '01234567',
         },
         orcamento: {
           id: 'orc-123',
@@ -103,9 +106,9 @@ describe('ImpressaoOSService', () => {
                   observacoes: 'Material principal',
                   insumo: {
                     nome: 'Adesivo Vinil',
-                    unidade_uso: 'm²'
-                  }
-                }
+                    unidade_uso: 'm²',
+                  },
+                },
               ],
               maquinas: [
                 {
@@ -113,9 +116,9 @@ describe('ImpressaoOSService', () => {
                   tempo_horas: 4,
                   maquina: {
                     nome: 'Impressora Digital',
-                    tipo: 'Digital'
-                  }
-                }
+                    tipo: 'Digital',
+                  },
+                },
               ],
               funcoes: [],
               servicos_manuais: [
@@ -123,14 +126,14 @@ describe('ImpressaoOSService', () => {
                   id: 'serv-123',
                   servico: {
                     nome: 'Laminação',
-                    categorias: ['acabamento']
-                  }
-                }
+                    categorias: ['acabamento'],
+                  },
+                },
               ],
-              custos_indiretos: []
-            }
-          ]
-        }
+              custos_indiretos: [],
+            },
+          ],
+        },
       };
 
       mockPrismaService.ordemServico.findUnique.mockResolvedValue(mockOS);
@@ -140,18 +143,35 @@ describe('ImpressaoOSService', () => {
       QRCode.toDataURL.mockResolvedValue('data:image/png;base64,mock-qr-code');
 
       // Mock do TransformacaoDadosHelper
-      const mockTransformacaoDadosHelper = TransformacaoDadosHelper as jest.Mocked<typeof TransformacaoDadosHelper>;
+      const mockTransformacaoDadosHelper =
+        TransformacaoDadosHelper as jest.Mocked<
+          typeof TransformacaoDadosHelper
+        >;
       mockTransformacaoDadosHelper.transformarDadosCompletos.mockReturnValue({
         prazoProducaoDias: 2,
         dataEntregaCalculada: new Date('2025-01-15'),
         materiaisPrincipais: [
-          { nome: 'Adesivo Vinil', quantidade: 5, unidade: 'm²', custo_total: 150.00 }
+          {
+            nome: 'Adesivo Vinil',
+            quantidade: 5,
+            unidade: 'm²',
+            custo_total: 150.0,
+          },
         ],
-        tipoImpressao: { tipo: 'Digital', maquina: 'Impressora Digital', confianca: 0.9 },
+        tipoImpressao: {
+          tipo: 'Digital',
+          maquina: 'Impressora Digital',
+          confianca: 0.9,
+        },
         acabamentos: [
-          { nome: 'Laminação', descricao: 'Laminação fosca', categoria: 'acabamento', custo_total: 25.00 }
+          {
+            nome: 'Laminação',
+            descricao: 'Laminação fosca',
+            categoria: 'acabamento',
+            custo_total: 25.0,
+          },
         ],
-        instalacaoNecessaria: false
+        instalacaoNecessaria: false,
       });
 
       const resultado = await service.gerarDadosImpressao(osId, config);
@@ -160,11 +180,13 @@ describe('ImpressaoOSService', () => {
       expect(resultado.os).toEqual(mockOS);
       expect(resultado.cliente).toEqual(mockOS.cliente);
       expect(resultado.loja).toEqual(mockOS.loja);
-      expect(resultado.qrCodeDataUrl).toBe('data:image/png;base64,mock-qr-code');
+      expect(resultado.qrCodeDataUrl).toBe(
+        'data:image/png;base64,mock-qr-code',
+      );
       expect(resultado.dadosTransformados).toBeDefined();
       expect(mockPrismaService.ordemServico.findUnique).toHaveBeenCalledWith({
         where: { id: osId },
-        include: expect.any(Object)
+        include: expect.any(Object),
       });
     });
 
@@ -175,13 +197,14 @@ describe('ImpressaoOSService', () => {
         incluirLogo: false,
         incluirDetalhesTecnicos: false,
         formato: 'html',
-        versao: 'simples'
+        versao: 'simples',
       };
 
       mockPrismaService.ordemServico.findUnique.mockResolvedValue(null);
 
-      await expect(service.gerarDadosImpressao(osId, config))
-        .rejects.toThrow('OS os-inexistente não encontrada');
+      await expect(service.gerarDadosImpressao(osId, config)).rejects.toThrow(
+        'OS os-inexistente não encontrada',
+      );
     });
 
     it('deve funcionar sem QR Code quando configurado', async () => {
@@ -191,7 +214,7 @@ describe('ImpressaoOSService', () => {
         incluirLogo: true,
         incluirDetalhesTecnicos: true,
         formato: 'html',
-        versao: 'simples'
+        versao: 'simples',
       };
 
       const mockOS = {
@@ -200,7 +223,7 @@ describe('ImpressaoOSService', () => {
         data_abertura: new Date('2024-01-01'),
         loja: { nome: 'Loja Teste' },
         cliente: { nome: 'Cliente Teste' },
-        orcamento: null
+        orcamento: null,
       };
 
       mockPrismaService.ordemServico.findUnique.mockResolvedValue(mockOS);
@@ -225,7 +248,7 @@ describe('ImpressaoOSService', () => {
           aprovacao_tecnica_status: 'PENDENTE',
           aprovacao_tecnica_por: null,
           aprovacao_tecnica_em: null,
-          data_instalacao_agendada: null
+          data_instalacao_agendada: null,
         },
         cliente: {
           nome: 'Cliente Teste',
@@ -235,13 +258,13 @@ describe('ImpressaoOSService', () => {
           endereco: 'Rua Teste, 123',
           cidade: 'São Paulo',
           estado: 'SP',
-          cep: '01234567'
+          cep: '01234567',
         },
         loja: {
           nome: 'Loja Teste',
           endereco: 'Rua Loja, 456',
           cidade: 'São Paulo',
-          estado: 'SP'
+          estado: 'SP',
         },
         orcamento: null,
         produtos: [],
@@ -250,15 +273,13 @@ describe('ImpressaoOSService', () => {
         servicosManuais: [],
         dadosTransformados: {
           materiaisPrincipais: [
-            { nome: 'Material 1', quantidade: 10, unidade: 'm²' }
+            { nome: 'Material 1', quantidade: 10, unidade: 'm²' },
           ],
           tipoImpressao: { tipo: 'Digital' },
-          acabamentos: [
-            { nome: 'Acabamento 1' }
-          ],
-          instalacaoNecessaria: false
+          acabamentos: [{ nome: 'Acabamento 1' }],
+          instalacaoNecessaria: false,
         },
-        qrCodeDataUrl: 'data:image/png;base64,mock-qr'
+        qrCodeDataUrl: 'data:image/png;base64,mock-qr',
       };
 
       const config: ConfiguracaoImpressao = {
@@ -266,7 +287,7 @@ describe('ImpressaoOSService', () => {
         incluirLogo: true,
         incluirDetalhesTecnicos: true,
         formato: 'html',
-        versao: 'simples'
+        versao: 'simples',
       };
 
       // Mock do fs.readFileSync para retornar template inline
@@ -298,7 +319,7 @@ describe('ImpressaoOSService', () => {
           aprovacao_tecnica_status: 'APROVADA',
           aprovacao_tecnica_por: 'João Silva',
           aprovacao_tecnica_em: new Date('2024-01-02T10:00:00Z'),
-          data_instalacao_agendada: new Date('2024-01-15T10:00:00Z')
+          data_instalacao_agendada: new Date('2024-01-15T10:00:00Z'),
         },
         cliente: {
           nome: 'Cliente Teste',
@@ -308,43 +329,41 @@ describe('ImpressaoOSService', () => {
           endereco: 'Rua Teste, 123',
           cidade: 'São Paulo',
           estado: 'SP',
-          cep: '01234567'
+          cep: '01234567',
         },
         loja: {
           nome: 'Loja Teste',
           endereco: 'Rua Loja, 456',
           cidade: 'São Paulo',
-          estado: 'SP'
+          estado: 'SP',
         },
         orcamento: null,
         produtos: [
           {
             largura: 100,
             altura: 200,
-            profundidade: 50
-          }
+            profundidade: 50,
+          },
         ],
         insumos: [
           {
             insumo: { nome: 'Material 1' },
             quantidade: 10,
             unidade: 'm²',
-            observacoes: 'Observação teste'
-          }
+            observacoes: 'Observação teste',
+          },
         ],
         maquinas: [],
         servicosManuais: [],
         dadosTransformados: {
           materiaisPrincipais: [
-            { nome: 'Material 1', quantidade: 10, unidade: 'm²' }
+            { nome: 'Material 1', quantidade: 10, unidade: 'm²' },
           ],
           tipoImpressao: { tipo: 'Digital' },
-          acabamentos: [
-            { nome: 'Acabamento 1' }
-          ],
-          instalacaoNecessaria: true
+          acabamentos: [{ nome: 'Acabamento 1' }],
+          instalacaoNecessaria: true,
         },
-        qrCodeDataUrl: ''
+        qrCodeDataUrl: '',
       };
 
       const config: ConfiguracaoImpressao = {
@@ -352,7 +371,7 @@ describe('ImpressaoOSService', () => {
         incluirLogo: true,
         incluirDetalhesTecnicos: true,
         formato: 'html',
-        versao: 'simples'
+        versao: 'simples',
       };
 
       const fs = require('fs');
@@ -364,25 +383,25 @@ describe('ImpressaoOSService', () => {
 
       // Verificar formatação de data
       expect(html).toContain('01/01/2024');
-      
+
       // Verificar formatação de endereço
       expect(html).toContain('Rua Teste, 123, São Paulo, SP, 01234567');
-      
+
       // Verificar formatação de dimensões
       expect(html).toContain('L: 100cm x A: 200cm x P: 50cm');
-      
+
       // Verificar formatação de materiais
       expect(html).toContain('Material 1 (10 m²)');
-      
+
       // Verificar formatação de acabamentos
       expect(html).toContain('Acabamento 1');
-      
+
       // Verificar instalação
       expect(html).toContain('Sim');
-      
+
       // Verificar aprovação técnica
       expect(html).toContain('aprovada');
-      
+
       // Verificar agendamento
       expect(html).toContain('15/01/2024');
     });
@@ -404,9 +423,9 @@ describe('ImpressaoOSService', () => {
           margin: 1,
           color: {
             dark: '#000000',
-            light: '#FFFFFF'
-          }
-        })
+            light: '#FFFFFF',
+          },
+        }),
       );
     });
 

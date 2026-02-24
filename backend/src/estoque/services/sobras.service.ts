@@ -315,7 +315,9 @@ export class SobrasService {
         Prisma.sql` s.quantidade > 0 `,
       ];
       if (filtros.material) {
-        conditions.push(Prisma.sql` s.material LIKE ${'%' + filtros.material + '%'} `);
+        conditions.push(
+          Prisma.sql` s.material LIKE ${'%' + filtros.material + '%'} `,
+        );
       }
       if (filtros.cor) {
         conditions.push(Prisma.sql` s.cor LIKE ${'%' + filtros.cor + '%'} `);

@@ -1,4 +1,10 @@
-import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 import { usuario_funcao } from '@prisma/client';
 
 export class CreateUsuarioDto {
@@ -24,5 +30,3 @@ export class CreateUsuarioDto {
   @MinLength(8)
   senha?: string;
 }
-
-

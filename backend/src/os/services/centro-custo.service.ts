@@ -83,13 +83,16 @@ export class CentroCustoService {
     centroCusto: string,
     valorSolicitado: number,
     lojaId: string,
-    excluirReservas?: string[]
+    excluirReservas?: string[],
   ): Promise<ValidacaoOrcamentoResult> {
     try {
       // TODO: Implementar validação real com banco de dados
       // Por enquanto, simular dados para desenvolvimento
-      const centroCustoInfo = await this.obterInfoCentroCusto(centroCusto, lojaId);
-      
+      const centroCustoInfo = await this.obterInfoCentroCusto(
+        centroCusto,
+        lojaId,
+      );
+
       if (!centroCustoInfo) {
         return {
           centro_custo: centroCusto,
@@ -98,14 +101,17 @@ export class CentroCustoService {
           orcamento_livre: 0,
           pode_aprovar: false,
           motivo_rejeicao: 'Centro de custo não encontrado',
-          alertas: []
+          alertas: [],
         };
       }
 
       const orcamentoLivre = centroCustoInfo.orcamento_livre;
       const podeAprovar = valorSolicitado <= orcamentoLivre;
-      
-      const alertas = this.gerarAlertasOrcamento(centroCustoInfo, valorSolicitado);
+
+      const alertas = this.gerarAlertasOrcamento(
+        centroCustoInfo,
+        valorSolicitado,
+      );
 
       return {
         centro_custo: centroCusto,
@@ -113,8 +119,10 @@ export class CentroCustoService {
         orcamento_reservado: centroCustoInfo.orcamento_reservado,
         orcamento_livre: orcamentoLivre,
         pode_aprovar: podeAprovar,
-        motivo_rejeicao: podeAprovar ? undefined : 'Orçamento insuficiente no centro de custo',
-        alertas
+        motivo_rejeicao: podeAprovar
+          ? undefined
+          : 'Orçamento insuficiente no centro de custo',
+        alertas,
       };
     } catch (error) {
       this.logger.error('Erro ao validar orçamento:', error);
@@ -125,7 +133,7 @@ export class CentroCustoService {
         orcamento_livre: 0,
         pode_aprovar: false,
         motivo_rejeicao: 'Erro interno na validação de orçamento',
-        alertas: []
+        alertas: [],
       };
     }
   }
@@ -133,7 +141,10 @@ export class CentroCustoService {
   /**
    * Obtém informações do centro de custo
    */
-  private async obterInfoCentroCusto(centroCusto: string, lojaId: string): Promise<CentroCustoInfo | null> {
+  private async obterInfoCentroCusto(
+    centroCusto: string,
+    lojaId: string,
+  ): Promise<CentroCustoInfo | null> {
     try {
       // TODO: Implementar consulta real ao banco de dados
       // Por enquanto, retornar dados simulados
@@ -148,7 +159,7 @@ export class CentroCustoService {
         orcamento_reservado: 2000,
         orcamento_livre: 5000,
         percentual_utilizado: 30,
-        status: 'ATIVO'
+        status: 'ATIVO',
       };
     } catch (error) {
       this.logger.error('Erro ao obter info do centro de custo:', error);
@@ -159,21 +170,27 @@ export class CentroCustoService {
   /**
    * Gera alertas baseados no uso do orçamento
    */
-  private gerarAlertasOrcamento(centroCusto: CentroCustoInfo, valorSolicitado: number): Array<{
+  private gerarAlertasOrcamento(
+    centroCusto: CentroCustoInfo,
+    valorSolicitado: number,
+  ): Array<{
     tipo: 'LIMITE_PROXIMO' | 'LIMITE_ATINGIDO' | 'ORCAMENTO_INSUFICIENTE';
     mensagem: string;
     percentual?: number;
   }> {
     const alertas = [];
     const percentualAtual = centroCusto.percentual_utilizado;
-    const percentualAposSolicitacao = ((centroCusto.orcamento_utilizado + valorSolicitado) / centroCusto.orcamento_total) * 100;
+    const percentualAposSolicitacao =
+      ((centroCusto.orcamento_utilizado + valorSolicitado) /
+        centroCusto.orcamento_total) *
+      100;
 
     // Alerta de limite próximo (80%)
     if (percentualAposSolicitacao >= 80 && percentualAposSolicitacao < 95) {
       alertas.push({
         tipo: 'LIMITE_PROXIMO',
         mensagem: `Centro de custo ${centroCusto.codigo} próximo do limite (${percentualAposSolicitacao.toFixed(1)}% utilizado)`,
-        percentual: percentualAposSolicitacao
+        percentual: percentualAposSolicitacao,
       });
     }
 
@@ -182,7 +199,7 @@ export class CentroCustoService {
       alertas.push({
         tipo: 'LIMITE_ATINGIDO',
         mensagem: `Centro de custo ${centroCusto.codigo} próximo do esgotamento (${percentualAposSolicitacao.toFixed(1)}% utilizado)`,
-        percentual: percentualAposSolicitacao
+        percentual: percentualAposSolicitacao,
       });
     }
 
@@ -190,7 +207,7 @@ export class CentroCustoService {
     if (valorSolicitado > centroCusto.orcamento_livre) {
       alertas.push({
         tipo: 'ORCAMENTO_INSUFICIENTE',
-        mensagem: `Valor solicitado (R$ ${valorSolicitado}) excede orçamento livre (R$ ${centroCusto.orcamento_livre})`
+        mensagem: `Valor solicitado (R$ ${valorSolicitado}) excede orçamento livre (R$ ${centroCusto.orcamento_livre})`,
       });
     }
 
@@ -208,32 +225,38 @@ export class CentroCustoService {
     lojaId: string,
     osId: string,
     usuarioId: string,
-    observacoes?: string
+    observacoes?: string,
   ): Promise<ReservaOrcamentoResult> {
     try {
       // Validar se orçamento está disponível
-      const validacao = await this.validarOrcamentoDisponivel(centroCusto, valor, lojaId);
-      
+      const validacao = await this.validarOrcamentoDisponivel(
+        centroCusto,
+        valor,
+        lojaId,
+      );
+
       if (!validacao.pode_aprovar) {
         return {
           sucesso: false,
           valor_reservado: 0,
           data_reserva: new Date(),
-          motivo_rejeicao: validacao.motivo_rejeicao
+          motivo_rejeicao: validacao.motivo_rejeicao,
         };
       }
 
       // TODO: Implementar reserva real no banco de dados
       const reservaId = `reserva-${Date.now()}`;
-      
-      this.logger.log(`Reservando R$ ${valor} no centro de custo ${centroCusto} para OS ${osId}`);
-      
+
+      this.logger.log(
+        `Reservando R$ ${valor} no centro de custo ${centroCusto} para OS ${osId}`,
+      );
+
       // Simular reserva bem-sucedida
       return {
         sucesso: true,
         reserva_id: reservaId,
         valor_reservado: valor,
-        data_reserva: new Date()
+        data_reserva: new Date(),
       };
     } catch (error) {
       this.logger.error('Erro ao reservar orçamento:', error);
@@ -241,7 +264,7 @@ export class CentroCustoService {
         sucesso: false,
         valor_reservado: 0,
         data_reserva: new Date(),
-        motivo_rejeicao: 'Erro interno na reserva de orçamento'
+        motivo_rejeicao: 'Erro interno na reserva de orçamento',
       };
     }
   }
@@ -256,18 +279,20 @@ export class CentroCustoService {
     lojaId: string,
     osId: string,
     usuarioId: string,
-    motivo?: string
+    motivo?: string,
   ): Promise<{ sucesso: boolean; motivo?: string }> {
     try {
       // TODO: Implementar liberação real no banco de dados
-      this.logger.log(`Liberando R$ ${valor} do centro de custo ${centroCusto} para OS ${osId} - Motivo: ${motivo || 'Liberação automática'}`);
-      
+      this.logger.log(
+        `Liberando R$ ${valor} do centro de custo ${centroCusto} para OS ${osId} - Motivo: ${motivo || 'Liberação automática'}`,
+      );
+
       return { sucesso: true };
     } catch (error) {
       this.logger.error('Erro ao liberar orçamento:', error);
       return {
         sucesso: false,
-        motivo: 'Erro interno na liberação de orçamento'
+        motivo: 'Erro interno na liberação de orçamento',
       };
     }
   }
@@ -281,7 +306,7 @@ export class CentroCustoService {
     lojaId: string,
     departamento?: string,
     periodoInicio?: Date,
-    periodoFim?: Date
+    periodoFim?: Date,
   ): Promise<RelatorioConsumoDepartamento[]> {
     try {
       // TODO: Implementar relatório real com banco de dados
@@ -298,17 +323,17 @@ export class CentroCustoService {
               orcamento_reservado: 2000,
               orcamento_livre: 5000,
               percentual_utilizado: 30,
-              status: 'ATIVO'
-            }
+              status: 'ATIVO',
+            },
           ],
           total_departamento: {
             orcamento_total: 10000,
             orcamento_utilizado: 3000,
             orcamento_reservado: 2000,
             orcamento_livre: 5000,
-            percentual_utilizado: 30
-          }
-        }
+            percentual_utilizado: 30,
+          },
+        },
       ];
 
       return relatorios;
@@ -324,7 +349,7 @@ export class CentroCustoService {
   async obterRelatorioConsolidado(
     lojaId: string,
     periodoInicio?: Date,
-    periodoFim?: Date
+    periodoFim?: Date,
   ): Promise<{
     departamentos: RelatorioConsumoDepartamento[];
     total_geral: {
@@ -336,29 +361,44 @@ export class CentroCustoService {
     };
   }> {
     try {
-      const relatorios = await this.obterRelatorioConsumoDepartamento(lojaId, undefined, periodoInicio, periodoFim);
-      
-      const totalGeral = relatorios.reduce((acc, dept) => ({
-        orcamento_total: acc.orcamento_total + dept.total_departamento.orcamento_total,
-        orcamento_utilizado: acc.orcamento_utilizado + dept.total_departamento.orcamento_utilizado,
-        orcamento_reservado: acc.orcamento_reservado + dept.total_departamento.orcamento_reservado,
-        orcamento_livre: acc.orcamento_livre + dept.total_departamento.orcamento_livre,
-        percentual_utilizado: 0 // Será calculado abaixo
-      }), {
-        orcamento_total: 0,
-        orcamento_utilizado: 0,
-        orcamento_reservado: 0,
-        orcamento_livre: 0,
-        percentual_utilizado: 0
-      });
+      const relatorios = await this.obterRelatorioConsumoDepartamento(
+        lojaId,
+        undefined,
+        periodoInicio,
+        periodoFim,
+      );
 
-      totalGeral.percentual_utilizado = totalGeral.orcamento_total > 0 
-        ? (totalGeral.orcamento_utilizado / totalGeral.orcamento_total) * 100 
-        : 0;
+      const totalGeral = relatorios.reduce(
+        (acc, dept) => ({
+          orcamento_total:
+            acc.orcamento_total + dept.total_departamento.orcamento_total,
+          orcamento_utilizado:
+            acc.orcamento_utilizado +
+            dept.total_departamento.orcamento_utilizado,
+          orcamento_reservado:
+            acc.orcamento_reservado +
+            dept.total_departamento.orcamento_reservado,
+          orcamento_livre:
+            acc.orcamento_livre + dept.total_departamento.orcamento_livre,
+          percentual_utilizado: 0, // Será calculado abaixo
+        }),
+        {
+          orcamento_total: 0,
+          orcamento_utilizado: 0,
+          orcamento_reservado: 0,
+          orcamento_livre: 0,
+          percentual_utilizado: 0,
+        },
+      );
+
+      totalGeral.percentual_utilizado =
+        totalGeral.orcamento_total > 0
+          ? (totalGeral.orcamento_utilizado / totalGeral.orcamento_total) * 100
+          : 0;
 
       return {
         departamentos: relatorios,
-        total_geral: totalGeral
+        total_geral: totalGeral,
       };
     } catch (error) {
       this.logger.error('Erro ao obter relatório consolidado:', error);
@@ -374,7 +414,7 @@ export class CentroCustoService {
   async obterAlertasLimiteGastos(
     lojaId: string,
     departamento?: string,
-    apenasCriticos?: boolean
+    apenasCriticos?: boolean,
   ): Promise<AlertaLimiteGastos[]> {
     try {
       // TODO: Implementar alertas reais com banco de dados
@@ -387,15 +427,16 @@ export class CentroCustoService {
           valor_restante: 1500,
           mensagem: 'Centro de custo CC001 próximo do limite (85% utilizado)',
           prioridade: 'MEDIA',
-          data_alerta: new Date()
-        }
+          data_alerta: new Date(),
+        },
       ];
 
       // Filtrar apenas críticos se solicitado
       if (apenasCriticos) {
-        return alertas.filter(alerta => 
-          alerta.tipo_alerta === 'LIMITE_ATINGIDO' || 
-          alerta.tipo_alerta === 'ORCAMENTO_ESGOTADO'
+        return alertas.filter(
+          (alerta) =>
+            alerta.tipo_alerta === 'LIMITE_ATINGIDO' ||
+            alerta.tipo_alerta === 'ORCAMENTO_ESGOTADO',
         );
       }
 
@@ -411,12 +452,12 @@ export class CentroCustoService {
    */
   async enviarAlertasLimiteGastos(
     lojaId: string,
-    alertas: AlertaLimiteGastos[]
+    alertas: AlertaLimiteGastos[],
   ): Promise<void> {
     try {
       for (const alerta of alertas) {
         this.logger.warn(`ALERTA ${alerta.prioridade}: ${alerta.mensagem}`);
-        
+
         // TODO: Implementar envio real de notificações (email, push, etc.)
         // Por enquanto, apenas log
       }
@@ -446,8 +487,8 @@ export class CentroCustoService {
           orcamento_reservado: 2000,
           orcamento_livre: 5000,
           percentual_utilizado: 30,
-          status: 'ATIVO'
-        }
+          status: 'ATIVO',
+        },
       ];
     } catch (error) {
       this.logger.error('Erro ao listar centros de custo:', error);
@@ -462,15 +503,17 @@ export class CentroCustoService {
     centroCusto: string,
     lojaId: string,
     periodoInicio?: Date,
-    periodoFim?: Date
-  ): Promise<Array<{
-    data: Date;
-    tipo: 'RESERVA' | 'LIBERACAO' | 'APROVACAO' | 'REJEICAO';
-    valor: number;
-    os_id?: string;
-    usuario_id: string;
-    observacoes?: string;
-  }>> {
+    periodoFim?: Date,
+  ): Promise<
+    Array<{
+      data: Date;
+      tipo: 'RESERVA' | 'LIBERACAO' | 'APROVACAO' | 'REJEICAO';
+      valor: number;
+      os_id?: string;
+      usuario_id: string;
+      observacoes?: string;
+    }>
+  > {
     try {
       // TODO: Implementar histórico real com banco de dados
       // Por enquanto, retornar dados simulados
@@ -481,8 +524,8 @@ export class CentroCustoService {
           valor: 1000,
           os_id: 'os-001',
           usuario_id: 'user-001',
-          observacoes: 'Reserva para OS de teste'
-        }
+          observacoes: 'Reserva para OS de teste',
+        },
       ];
     } catch (error) {
       this.logger.error('Erro ao obter histórico:', error);
@@ -490,20 +533,3 @@ export class CentroCustoService {
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

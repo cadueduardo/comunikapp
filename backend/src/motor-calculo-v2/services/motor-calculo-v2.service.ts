@@ -9,7 +9,7 @@ import {
   ResultadoCalculo,
   ResultadoRegras,
   DTOCalculo,
-  ResultadoCalculoSimplificado
+  ResultadoCalculoSimplificado,
 } from '../interfaces/calculo.interface';
 
 @Injectable()
@@ -40,10 +40,12 @@ export class MotorCalculoV2Service {
       await this.eventProducer.eventoCalculoIniciado(contexto);
 
       // 3. Integrar inputs existentes
-      const contextoIntegrado = await this.inputIntegration.integrarInputs(contexto);
+      const contextoIntegrado =
+        await this.inputIntegration.integrarInputs(contexto);
 
       // 4. Validar inputs
-      const validacaoInputs = await this.inputIntegration.validarInputs(contextoIntegrado);
+      const validacaoInputs =
+        await this.inputIntegration.validarInputs(contextoIntegrado);
       if (!validacaoInputs.valido) {
         const erro = `Inputs inválidos: ${validacaoInputs.erros.join(', ')}`;
         await this.eventProducer.eventoErro(contextoIntegrado, erro);
@@ -51,13 +53,14 @@ export class MotorCalculoV2Service {
       }
 
       // 5. Aplicar regras de negócio
-      const resultadoRegras = await this.businessRulesEngine.aplicarRegras(contextoIntegrado);
+      const resultadoRegras =
+        await this.businessRulesEngine.aplicarRegras(contextoIntegrado);
 
       // Produzir evento de validação
       await this.eventProducer.eventoValidacao(
         contextoIntegrado,
         resultadoRegras,
-        resultadoRegras.resultado_validacao
+        resultadoRegras.resultado_validacao,
       );
 
       if (!resultadoRegras.resultado_validacao) {
@@ -67,25 +70,36 @@ export class MotorCalculoV2Service {
       }
 
       // 6. Executar pipeline de estágios
-      const resultado = await this.pipelineExecutor.executarPipeline(contextoIntegrado, true);
+      const resultado = await this.pipelineExecutor.executarPipeline(
+        contextoIntegrado,
+        true,
+      );
 
       // 7. Produzir evento de conclusão
       const tempoTotal = Date.now() - startTime;
-      await this.eventProducer.eventoCalculoConcluido(contextoIntegrado, resultado, tempoTotal);
+      await this.eventProducer.eventoCalculoConcluido(
+        contextoIntegrado,
+        resultado,
+        tempoTotal,
+      );
 
       this.logger.log(`✅ Cálculo V2 concluído em ${tempoTotal}ms`);
       return resultado;
-
     } catch (error) {
       const tempoTotal = Date.now() - startTime;
-      this.logger.error(`❌ Erro no cálculo V2 após ${tempoTotal}ms: ${error.message}`, error.stack);
+      this.logger.error(
+        `❌ Erro no cálculo V2 após ${tempoTotal}ms: ${error.message}`,
+        error.stack,
+      );
 
       // Produzir evento de erro
       try {
         const contexto = await this.criarContextoCalculo(dto);
         await this.eventProducer.eventoErro(contexto, error.message);
       } catch (eventError) {
-        this.logger.warn(`⚠️ Erro ao produzir evento de erro: ${eventError.message}`);
+        this.logger.warn(
+          `⚠️ Erro ao produzir evento de erro: ${eventError.message}`,
+        );
       }
 
       throw error;
@@ -95,19 +109,25 @@ export class MotorCalculoV2Service {
   /**
    * Executa cálculo simplificado (apenas regras)
    */
-  async executarCalculoSimplificado(dto: DTOCalculo): Promise<ResultadoCalculoSimplificado> {
+  async executarCalculoSimplificado(
+    dto: DTOCalculo,
+  ): Promise<ResultadoCalculoSimplificado> {
     const startTime = Date.now();
-    this.logger.log(`⚡ Executando cálculo simplificado para loja ${dto.lojaId}`);
+    this.logger.log(
+      `⚡ Executando cálculo simplificado para loja ${dto.lojaId}`,
+    );
 
     try {
       // 1. Criar contexto básico
       const contexto = await this.criarContextoCalculo(dto);
 
       // 2. Integrar inputs básicos
-      const contextoIntegrado = await this.inputIntegration.integrarInputs(contexto);
+      const contextoIntegrado =
+        await this.inputIntegration.integrarInputs(contexto);
 
       // 3. Aplicar apenas regras de negócio
-      const resultadoRegras = await this.businessRulesEngine.aplicarRegras(contextoIntegrado);
+      const resultadoRegras =
+        await this.businessRulesEngine.aplicarRegras(contextoIntegrado);
 
       const tempoTotal = Date.now() - startTime;
       this.logger.log(`✅ Cálculo simplificado concluído em ${tempoTotal}ms`);
@@ -128,10 +148,11 @@ export class MotorCalculoV2Service {
           tempo_execucao_ms: tempoTotal,
         },
       };
-
     } catch (error) {
       const tempoTotal = Date.now() - startTime;
-      this.logger.error(`❌ Erro no cálculo simplificado após ${tempoTotal}ms: ${error.message}`);
+      this.logger.error(
+        `❌ Erro no cálculo simplificado após ${tempoTotal}ms: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -162,13 +183,16 @@ export class MotorCalculoV2Service {
       const contexto = await this.criarContextoCalculo(dto);
 
       // 2. Integrar inputs
-      const contextoIntegrado = await this.inputIntegration.integrarInputs(contexto);
+      const contextoIntegrado =
+        await this.inputIntegration.integrarInputs(contexto);
 
       // 3. Validar inputs
-      const validacaoInputs = await this.inputIntegration.validarInputs(contextoIntegrado);
+      const validacaoInputs =
+        await this.inputIntegration.validarInputs(contextoIntegrado);
 
       // 4. Validar regras básicas
-      const resultadoRegras = await this.businessRulesEngine.aplicarRegras(contextoIntegrado);
+      const resultadoRegras =
+        await this.businessRulesEngine.aplicarRegras(contextoIntegrado);
 
       const erros = [...validacaoInputs.erros, ...resultadoRegras.erros];
       const avisos = [...validacaoInputs.avisos, ...resultadoRegras.avisos];
@@ -179,7 +203,6 @@ export class MotorCalculoV2Service {
         avisos,
         contexto: contextoIntegrado,
       };
-
     } catch (error) {
       this.logger.error(`❌ Erro na validação: ${error.message}`);
       return {
@@ -204,13 +227,16 @@ export class MotorCalculoV2Service {
   }> {
     try {
       // Estatísticas das regras
-      const estatisticasRegras = await this.businessRulesEngine.obterEstatisticasRegras(lojaId);
+      const estatisticasRegras =
+        await this.businessRulesEngine.obterEstatisticasRegras(lojaId);
 
       // Estatísticas dos inputs
-      const estatisticasInputs = await this.inputIntegration.obterEstatisticasInputs(lojaId);
+      const estatisticasInputs =
+        await this.inputIntegration.obterEstatisticasInputs(lojaId);
 
       // Estatísticas dos eventos
-      const estatisticasEventos = await this.eventProducer.obterEstatisticasEventos(lojaId);
+      const estatisticasEventos =
+        await this.eventProducer.obterEstatisticasEventos(lojaId);
 
       return {
         motor_ativo: true,
@@ -221,7 +247,6 @@ export class MotorCalculoV2Service {
         estatisticas_inputs: estatisticasInputs,
         estatisticas_eventos: estatisticasEventos,
       };
-
     } catch (error) {
       this.logger.error(`❌ Erro ao obter estatísticas: ${error.message}`);
       return {
@@ -239,7 +264,9 @@ export class MotorCalculoV2Service {
   /**
    * Cria contexto de cálculo a partir do DTO
    */
-  private async criarContextoCalculo(dto: DTOCalculo): Promise<ContextoCalculo> {
+  private async criarContextoCalculo(
+    dto: DTOCalculo,
+  ): Promise<ContextoCalculo> {
     const contexto: ContextoCalculo = {
       id: this.gerarIdCalculo(),
       lojaId: dto.lojaId,
@@ -338,7 +365,6 @@ export class MotorCalculoV2Service {
         servicos,
         detalhes,
       };
-
     } catch (error) {
       this.logger.error(`❌ Erro no health check: ${error.message}`);
       return {
@@ -356,8 +382,10 @@ export class MotorCalculoV2Service {
    * Usado pela integração existente
    */
   async calcularOrcamento(dados: any, lojaId: string): Promise<any> {
-    this.logger.log(`🔄 Calculando orçamento via compatibilidade V2 para loja ${lojaId}`);
-    
+    this.logger.log(
+      `🔄 Calculando orçamento via compatibilidade V2 para loja ${lojaId}`,
+    );
+
     try {
       // Transformar dados para formato DTO
       const dto: DTOCalculo = {
@@ -377,9 +405,8 @@ export class MotorCalculoV2Service {
 
       // Executar cálculo
       const resultado = await this.executarCalculo(dto);
-      
+
       return resultado;
-      
     } catch (error) {
       this.logger.error(`❌ Erro na compatibilidade V2: ${error.message}`);
       throw error;
@@ -392,7 +419,7 @@ export class MotorCalculoV2Service {
    */
   async calcularProduto(produto: any, lojaId: string): Promise<any> {
     this.logger.log(`🔧 Calculando produto individual para loja ${lojaId}`);
-    
+
     try {
       const dto: DTOCalculo = {
         lojaId,
@@ -410,13 +437,12 @@ export class MotorCalculoV2Service {
       };
 
       const resultado = await this.executarCalculoSimplificado(dto);
-      
+
       return {
         produto: resultado,
         custos: resultado.resumo,
         alertas: [],
       };
-      
     } catch (error) {
       this.logger.error(`❌ Erro no cálculo de produto: ${error.message}`);
       throw error;

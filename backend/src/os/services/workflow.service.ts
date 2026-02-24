@@ -4,7 +4,12 @@
  * Funcionalidades: CRUD workflows, validacao de etapas, configuracao por loja
  */
 
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateWorkflowDto, UpdateWorkflowDto } from '../dto/workflow.dto';
 import { WorkflowData, EtapaWorkflow } from '../interfaces/os.interfaces';
@@ -17,9 +22,14 @@ export class WorkflowService {
 
   // ===== CRUD DE WORKFLOWS =====
 
-  async create(lojaId: string, createWorkflowDto: CreateWorkflowDto): Promise<WorkflowData> {
+  async create(
+    lojaId: string,
+    createWorkflowDto: CreateWorkflowDto,
+  ): Promise<WorkflowData> {
     try {
-      this.logger.log(`Criando workflow "${createWorkflowDto.nome}" para loja ${lojaId}`);
+      this.logger.log(
+        `Criando workflow "${createWorkflowDto.nome}" para loja ${lojaId}`,
+      );
 
       // Validar se ja existe workflow com mesmo nome
       const workflowExistente = await this.prisma.workflowOS.findFirst({
@@ -27,7 +37,9 @@ export class WorkflowService {
       });
 
       if (workflowExistente) {
-        throw new BadRequestException(`Ja existe um workflow com o nome "${createWorkflowDto.nome}"`);
+        throw new BadRequestException(
+          `Ja existe um workflow com o nome "${createWorkflowDto.nome}"`,
+        );
       }
 
       // Validar etapas
@@ -56,14 +68,14 @@ export class WorkflowService {
   async findAll(lojaId: string, ativos = true): Promise<WorkflowData[]> {
     try {
       const workflows = await this.prisma.workflowOS.findMany({
-        where: { 
+        where: {
           loja_id: lojaId,
-          ...(ativos && { ativo: true })
+          ...(ativos && { ativo: true }),
         },
         orderBy: { criado_em: 'desc' },
       });
 
-      return workflows.map(workflow => this.formatarWorkflow(workflow));
+      return workflows.map((workflow) => this.formatarWorkflow(workflow));
     } catch (error) {
       this.logger.error('Erro ao listar workflows:', error);
       throw error;
@@ -87,7 +99,11 @@ export class WorkflowService {
     }
   }
 
-  async update(id: string, lojaId: string, updateWorkflowDto: UpdateWorkflowDto): Promise<WorkflowData> {
+  async update(
+    id: string,
+    lojaId: string,
+    updateWorkflowDto: UpdateWorkflowDto,
+  ): Promise<WorkflowData> {
     try {
       const workflowExistente = await this.prisma.workflowOS.findFirst({
         where: { id, loja_id: lojaId },
@@ -106,7 +122,9 @@ export class WorkflowService {
         where: { id },
         data: {
           ...updateWorkflowDto,
-          ...(updateWorkflowDto.etapas && { etapas: JSON.stringify(updateWorkflowDto.etapas) }),
+          ...(updateWorkflowDto.etapas && {
+            etapas: JSON.stringify(updateWorkflowDto.etapas),
+          }),
         },
       });
 
@@ -209,15 +227,21 @@ export class WorkflowService {
       const etapas = workflow.etapas;
 
       // Verificar se as etapas existem
-      const etapaOrigemExiste = etapas.find(e => e.nome === etapaOrigem);
-      const etapaDestinoExiste = etapas.find(e => e.nome === etapaDestino);
+      const etapaOrigemExiste = etapas.find((e) => e.nome === etapaOrigem);
+      const etapaDestinoExiste = etapas.find((e) => e.nome === etapaDestino);
 
       if (!etapaOrigemExiste) {
-        return { valida: false, motivo: `Etapa origem "${etapaOrigem}" nao existe no workflow` };
+        return {
+          valida: false,
+          motivo: `Etapa origem "${etapaOrigem}" nao existe no workflow`,
+        };
       }
 
       if (!etapaDestinoExiste) {
-        return { valida: false, motivo: `Etapa destino "${etapaDestino}" nao existe no workflow` };
+        return {
+          valida: false,
+          motivo: `Etapa destino "${etapaDestino}" nao existe no workflow`,
+        };
       }
 
       // Verificar se e sequencial
@@ -226,9 +250,9 @@ export class WorkflowService {
         const ordemDestino = etapaDestinoExiste.ordem;
 
         if (ordemDestino !== ordemOrigem + 1) {
-          return { 
-            valida: false, 
-            motivo: `Workflow e sequencial. So e possivel avancar para a proxima etapa` 
+          return {
+            valida: false,
+            motivo: `Workflow e sequencial. So e possivel avancar para a proxima etapa`,
           };
         }
       }
@@ -248,16 +272,18 @@ export class WorkflowService {
     }
 
     // Verificar se todas as etapas tem ordem unica
-    const ordens = etapas.map(e => e.ordem);
+    const ordens = etapas.map((e) => e.ordem);
     const ordensUnicas = new Set(ordens);
     if (ordens.length !== ordensUnicas.size) {
       throw new BadRequestException('Etapas devem ter ordens unicas');
     }
 
     // Verificar se pelo menos uma etapa e obrigatoria
-    const temObrigatoria = etapas.some(e => e.obrigatoria);
+    const temObrigatoria = etapas.some((e) => e.obrigatoria);
     if (!temObrigatoria) {
-      throw new BadRequestException('Workflow deve ter pelo menos uma etapa obrigatoria');
+      throw new BadRequestException(
+        'Workflow deve ter pelo menos uma etapa obrigatoria',
+      );
     }
   }
 

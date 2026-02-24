@@ -1,6 +1,18 @@
-import { Controller, Get, Post, Put, Param, Body, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
-import { NotificacoesPCPService, NotificacaoPCP } from '../services/notificacoes-pcp.service';
+import {
+  NotificacoesPCPService,
+  NotificacaoPCP,
+} from '../services/notificacoes-pcp.service';
 
 @Controller('pcp/notificacoes')
 @UseGuards(JwtAuthGuard)
@@ -8,7 +20,9 @@ export class NotificacoesController {
   constructor(private notificacoesService: NotificacoesPCPService) {}
 
   @Get()
-  async buscarNotificacoesPendentes(@Request() req: any): Promise<NotificacaoPCP[]> {
+  async buscarNotificacoesPendentes(
+    @Request() req: any,
+  ): Promise<NotificacaoPCP[]> {
     const usuarioId = req.user?.id;
     if (!usuarioId) {
       throw new Error('Usuário não autenticado');
@@ -20,7 +34,7 @@ export class NotificacoesController {
   @Put(':id/marcar-lida')
   async marcarComoLida(
     @Param('id') id: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<{ success: boolean }> {
     const usuarioId = req.user?.id;
     if (!usuarioId) {
@@ -34,18 +48,21 @@ export class NotificacoesController {
   @Post('verificar-atrasos')
   async verificarAtrasos(): Promise<{ message: string; verificadas: number }> {
     await this.notificacoesService.verificarAtrasos();
-    return { 
+    return {
       message: 'Verificação de atrasos concluída',
-      verificadas: 0 // TODO: Retornar número real de verificações
+      verificadas: 0, // TODO: Retornar número real de verificações
     };
   }
 
   @Post('verificar-sla-critico')
-  async verificarSLACritico(): Promise<{ message: string; verificadas: number }> {
+  async verificarSLACritico(): Promise<{
+    message: string;
+    verificadas: number;
+  }> {
     await this.notificacoesService.verificarSLACritico();
-    return { 
+    return {
       message: 'Verificação de SLA crítico concluída',
-      verificadas: 0 // TODO: Retornar número real de verificações
+      verificadas: 0, // TODO: Retornar número real de verificações
     };
   }
 }

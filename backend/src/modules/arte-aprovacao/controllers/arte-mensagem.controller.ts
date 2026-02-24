@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 import { ArteMensagemService } from '../services/arte-mensagem.service';
 import { CreateMensagemDto, UpdateMensagemDto } from '../dto/mensagem.dto';
@@ -15,7 +25,7 @@ export class ArteMensagemController {
   async criarMensagem(@Body() dto: CreateMensagemDto, @Request() req) {
     const usuarioId = req.user.id;
     const lojaId = req.user.loja_id;
-    
+
     return this.mensagemService.criarMensagem({
       ...dto,
       usuario_id: usuarioId,
@@ -30,7 +40,7 @@ export class ArteMensagemController {
   async listarMensagensProduto(
     @Param('osId') osId: string,
     @Param('produtoId') produtoId: string,
-    @Request() req
+    @Request() req,
   ) {
     const lojaId = req.user.loja_id;
     return this.mensagemService.listarMensagensProduto(osId, produtoId, lojaId);
@@ -52,11 +62,11 @@ export class ArteMensagemController {
   async atualizarMensagem(
     @Param('id') id: string,
     @Body() dto: UpdateMensagemDto,
-    @Request() req
+    @Request() req,
   ) {
     const usuarioId = req.user.id;
     const lojaId = req.user.loja_id;
-    
+
     return this.mensagemService.atualizarMensagem(id, dto, usuarioId, lojaId);
   }
 
@@ -67,7 +77,7 @@ export class ArteMensagemController {
   async deletarMensagem(@Param('id') id: string, @Request() req) {
     const usuarioId = req.user.id;
     const lojaId = req.user.loja_id;
-    
+
     return this.mensagemService.deletarMensagem(id, usuarioId, lojaId);
   }
 
@@ -75,11 +85,18 @@ export class ArteMensagemController {
    * Marcar mensagens específicas como lidas
    */
   @Post('marcar-lidas')
-  async marcarMensagensLidas(@Body() dto: { mensagemIds: string[] }, @Request() req) {
+  async marcarMensagensLidas(
+    @Body() dto: { mensagemIds: string[] },
+    @Request() req,
+  ) {
     const usuarioId = req.user.id;
     const lojaId = req.user.loja_id;
-    
-    return this.mensagemService.marcarMensagensLidas(dto.mensagemIds, usuarioId, lojaId);
+
+    return this.mensagemService.marcarMensagensLidas(
+      dto.mensagemIds,
+      usuarioId,
+      lojaId,
+    );
   }
 
   /**
@@ -87,16 +104,16 @@ export class ArteMensagemController {
    */
   @Post('marcar-lidas-produto')
   async marcarMensagensLidasPorProduto(
-    @Body() dto: { os_id: string; produto_id: string; versao_id?: string }, 
-    @Request() req
+    @Body() dto: { os_id: string; produto_id: string; versao_id?: string },
+    @Request() req,
   ) {
     const lojaId = req.user.loja_id;
-    
+
     return this.mensagemService.marcarMensagensLidasPorProduto(
-      dto.os_id, 
-      dto.produto_id, 
-      dto.versao_id || null, 
-      lojaId
+      dto.os_id,
+      dto.produto_id,
+      dto.versao_id || null,
+      lojaId,
     );
   }
 
@@ -115,7 +132,7 @@ export class ArteMensagemController {
   @Get('versao/:versaoId')
   async listarMensagensVersao(
     @Param('versaoId') versaoId: string,
-    @Request() req
+    @Request() req,
   ) {
     const lojaId = req.user.loja_id;
     return this.mensagemService.listarMensagensVersao(versaoId, lojaId);
@@ -124,7 +141,7 @@ export class ArteMensagemController {
   @Get('os/:osId/ultimas-por-produto')
   async buscarUltimasMensagensPorProduto(
     @Param('osId') osId: string,
-    @Request() req
+    @Request() req,
   ) {
     const lojaId = req.user.loja_id;
     return this.mensagemService.buscarUltimasMensagensPorProduto(osId, lojaId);

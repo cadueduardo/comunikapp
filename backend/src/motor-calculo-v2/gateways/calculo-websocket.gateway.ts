@@ -24,16 +24,19 @@ import { DTOCalculo, EventoCalculo } from '../interfaces/calculo.interface';
   },
   namespace: '/calculo-v2',
 })
-export class CalculoWebSocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class CalculoWebSocketGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(CalculoWebSocketGateway.name);
-  private readonly clientesConectados = new Map<string, { socket: Socket; lojaId: string; usuarioId: string }>();
+  private readonly clientesConectados = new Map<
+    string,
+    { socket: Socket; lojaId: string; usuarioId: string }
+  >();
 
-  constructor(
-    private readonly motorCalculoV2Service: MotorCalculoV2Service,
-  ) {}
+  constructor(private readonly motorCalculoV2Service: MotorCalculoV2Service) {}
 
   /**
    * Cliente conectado
@@ -45,7 +48,9 @@ export class CalculoWebSocketGateway implements OnGatewayConnection, OnGatewayDi
       const usuarioId = client.handshake.query.usuarioId as string;
 
       if (!lojaId || !usuarioId) {
-        this.logger.warn(`⚠️ Cliente ${client.id} conectou sem lojaId/usuarioId`);
+        this.logger.warn(
+          `⚠️ Cliente ${client.id} conectou sem lojaId/usuarioId`,
+        );
         client.disconnect();
         return;
       }
@@ -64,7 +69,6 @@ export class CalculoWebSocketGateway implements OnGatewayConnection, OnGatewayDi
         timestamp: new Date(),
         versao_motor: '2.0.0',
       });
-
     } catch (error) {
       this.logger.error(`❌ Erro na conexão: ${error.message}`);
       client.disconnect();
@@ -77,7 +81,9 @@ export class CalculoWebSocketGateway implements OnGatewayConnection, OnGatewayDi
   handleDisconnect(client: Socket) {
     const clienteInfo = this.clientesConectados.get(client.id);
     if (clienteInfo) {
-      this.logger.log(`🔌 Cliente desconectado: ${client.id} (Loja: ${clienteInfo.lojaId})`);
+      this.logger.log(
+        `🔌 Cliente desconectado: ${client.id} (Loja: ${clienteInfo.lojaId})`,
+      );
       this.clientesConectados.delete(client.id);
     }
   }
@@ -111,7 +117,8 @@ export class CalculoWebSocketGateway implements OnGatewayConnection, OnGatewayDi
         lojaId: clienteInfo.lojaId,
       };
 
-      const resultado = await this.motorCalculoV2Service.executarCalculoPreview(dtoComLoja);
+      const resultado =
+        await this.motorCalculoV2Service.executarCalculoPreview(dtoComLoja);
 
       // Emitir resultado
       client.emit('calculo_concluido', {
@@ -120,10 +127,11 @@ export class CalculoWebSocketGateway implements OnGatewayConnection, OnGatewayDi
       });
 
       this.logger.log(`✅ Preview enviado para ${client.id}`);
-
     } catch (error) {
-      this.logger.error(`❌ Erro no preview para ${client.id}: ${error.message}`);
-      
+      this.logger.error(
+        `❌ Erro no preview para ${client.id}: ${error.message}`,
+      );
+
       client.emit('erro', {
         timestamp: new Date(),
         message: error.message,
@@ -152,7 +160,8 @@ export class CalculoWebSocketGateway implements OnGatewayConnection, OnGatewayDi
         lojaId: clienteInfo.lojaId,
       };
 
-      const validacao = await this.motorCalculoV2Service.validarContexto(dtoComLoja);
+      const validacao =
+        await this.motorCalculoV2Service.validarContexto(dtoComLoja);
 
       client.emit('validacao_resultado', {
         timestamp: new Date(),
@@ -160,7 +169,6 @@ export class CalculoWebSocketGateway implements OnGatewayConnection, OnGatewayDi
         erros: validacao.erros,
         avisos: validacao.avisos,
       });
-
     } catch (error) {
       client.emit('erro', {
         timestamp: new Date(),
@@ -182,13 +190,14 @@ export class CalculoWebSocketGateway implements OnGatewayConnection, OnGatewayDi
     }
 
     try {
-      const estatisticas = await this.motorCalculoV2Service.obterEstatisticas(clienteInfo.lojaId);
+      const estatisticas = await this.motorCalculoV2Service.obterEstatisticas(
+        clienteInfo.lojaId,
+      );
 
       client.emit('estatisticas', {
         timestamp: new Date(),
         estatisticas,
       });
-
     } catch (error) {
       client.emit('erro', {
         timestamp: new Date(),
@@ -203,8 +212,9 @@ export class CalculoWebSocketGateway implements OnGatewayConnection, OnGatewayDi
    */
   async broadcastEvento(evento: EventoCalculo) {
     try {
-      const clientesDaLoja = Array.from(this.clientesConectados.values())
-        .filter(cliente => cliente.lojaId === evento.contexto.lojaId);
+      const clientesDaLoja = Array.from(
+        this.clientesConectados.values(),
+      ).filter((cliente) => cliente.lojaId === evento.contexto.lojaId);
 
       for (const cliente of clientesDaLoja) {
         cliente.socket.emit('evento_calculo', {
@@ -213,8 +223,9 @@ export class CalculoWebSocketGateway implements OnGatewayConnection, OnGatewayDi
         });
       }
 
-      this.logger.log(`📡 Evento ${evento.tipo} enviado para ${clientesDaLoja.length} clientes da loja ${evento.contexto.lojaId}`);
-
+      this.logger.log(
+        `📡 Evento ${evento.tipo} enviado para ${clientesDaLoja.length} clientes da loja ${evento.contexto.lojaId}`,
+      );
     } catch (error) {
       this.logger.error(`❌ Erro no broadcast: ${error.message}`);
     }
@@ -225,7 +236,7 @@ export class CalculoWebSocketGateway implements OnGatewayConnection, OnGatewayDi
    */
   getEstatisticasConexoes() {
     const conexoesPorLoja = new Map<string, number>();
-    
+
     for (const cliente of this.clientesConectados.values()) {
       const count = conexoesPorLoja.get(cliente.lojaId) || 0;
       conexoesPorLoja.set(cliente.lojaId, count + 1);

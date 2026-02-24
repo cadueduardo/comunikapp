@@ -4,7 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 /**
  * Serviço de Auto-Complete para Insumos V2
  * Implementa busca inteligente e filtros para insumos
- * 
+ *
  * ✅ ARQUIVO ≤ 400 LINHAS (CONFORME PREMISSAS)
  * ✅ BUSCA INTELIGENTE E FILTROS AVANÇADOS
  * ✅ INTEGRAÇÃO COM SISTEMA DE INSUMOS EXISTENTE
@@ -13,9 +13,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class InsumosAutocompleteService {
   private readonly logger = new Logger(InsumosAutocompleteService.name);
 
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Busca insumos para auto-complete
@@ -46,10 +44,7 @@ export class InsumosAutocompleteService {
             fornecedor: true,
             tipoMaterial: true,
           },
-          orderBy: [
-            { nome: 'asc' },
-            { categoria: { nome: 'asc' } },
-          ],
+          orderBy: [{ nome: 'asc' }, { categoria: { nome: 'asc' } }],
           take: limit,
         }),
         this.prisma.insumo.count({ where }),
@@ -67,9 +62,10 @@ export class InsumosAutocompleteService {
         categorias,
       };
 
-      this.logger.log(`✅ Busca concluída: ${insumosProcessados.length} insumos encontrados`);
+      this.logger.log(
+        `✅ Busca concluída: ${insumosProcessados.length} insumos encontrados`,
+      );
       return resultado;
-
     } catch (error) {
       this.logger.error(`❌ Erro ao buscar insumos: ${error.message}`);
       throw error;
@@ -125,9 +121,10 @@ export class InsumosAutocompleteService {
         total,
         categoria,
       };
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao buscar insumos por categoria: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao buscar insumos por categoria: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -181,9 +178,10 @@ export class InsumosAutocompleteService {
         total,
         fornecedor,
       };
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao buscar insumos por fornecedor: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao buscar insumos por fornecedor: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -200,7 +198,9 @@ export class InsumosAutocompleteService {
     total: number;
     alertas: string[];
   }> {
-    this.logger.log(`🔍 Buscando insumos com estoque baixo (${percentualMinimo}%)`);
+    this.logger.log(
+      `🔍 Buscando insumos com estoque baixo (${percentualMinimo}%)`,
+    );
 
     try {
       // Buscar insumos com estoque baixo
@@ -225,9 +225,11 @@ export class InsumosAutocompleteService {
       });
 
       // Filtrar por percentual mínimo
-      const insumosFiltrados = insumos.filter(insumo => {
-        if (insumo.estoque_atual == null || insumo.estoque_minimo == null) return false;
-        const percentualAtual = (Number(insumo.estoque_atual) / Number(insumo.estoque_minimo)) * 100;
+      const insumosFiltrados = insumos.filter((insumo) => {
+        if (insumo.estoque_atual == null || insumo.estoque_minimo == null)
+          return false;
+        const percentualAtual =
+          (Number(insumo.estoque_atual) / Number(insumo.estoque_minimo)) * 100;
         return percentualAtual <= percentualMinimo;
       });
 
@@ -239,9 +241,10 @@ export class InsumosAutocompleteService {
         total: insumosProcessados.length,
         alertas,
       };
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao buscar insumos com estoque baixo: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao buscar insumos com estoque baixo: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -292,7 +295,7 @@ export class InsumosAutocompleteService {
 
       // Buscar informações completas dos insumos
       const insumoIds = (insumosRecentes as any[]).map((item: any) => item.id);
-      
+
       if (insumoIds.length === 0) {
         return { insumos: [], total: 0 };
       }
@@ -309,9 +312,9 @@ export class InsumosAutocompleteService {
       });
 
       // Ordenar conforme a ordem original
-      const insumosOrdenados = insumoIds.map(id => 
-        insumosCompletos.find(insumo => insumo.id === id)
-      ).filter(Boolean);
+      const insumosOrdenados = insumoIds
+        .map((id) => insumosCompletos.find((insumo) => insumo.id === id))
+        .filter(Boolean);
 
       const insumosProcessados = this.processarInsumos(insumosOrdenados);
 
@@ -319,7 +322,6 @@ export class InsumosAutocompleteService {
         insumos: insumosProcessados,
         total: insumosProcessados.length,
       };
-
     } catch (error) {
       this.logger.error(`❌ Erro ao buscar insumos recentes: ${error.message}`);
       throw error;
@@ -361,14 +363,13 @@ export class InsumosAutocompleteService {
       });
 
       const sugestoesUnicas = new Set<string>();
-      
-      sugestoes.forEach(insumo => {
+
+      sugestoes.forEach((insumo) => {
         if (insumo.nome) sugestoesUnicas.add(insumo.nome);
         if (insumo.codigo) sugestoesUnicas.add(insumo.codigo);
       });
 
       return Array.from(sugestoesUnicas).slice(0, limit);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao buscar sugestões: ${error.message}`);
       return [];
@@ -377,7 +378,11 @@ export class InsumosAutocompleteService {
 
   // Métodos privados auxiliares
 
-  private construirFiltrosBusca(busca: string, categoriaId?: string, lojaId?: string): any {
+  private construirFiltrosBusca(
+    busca: string,
+    categoriaId?: string,
+    lojaId?: string,
+  ): any {
     const where: any = {
       ativo: true,
     };
@@ -392,7 +397,7 @@ export class InsumosAutocompleteService {
 
     if (busca && busca.trim().length > 0) {
       const termoBusca = busca.trim();
-      
+
       where.OR = [
         { nome: { contains: termoBusca } },
         { descricao: { contains: termoBusca } },
@@ -407,7 +412,7 @@ export class InsumosAutocompleteService {
   }
 
   private processarInsumos(insumos: any[]): any[] {
-    return insumos.map(insumo => ({
+    return insumos.map((insumo) => ({
       id: insumo.id,
       nome: insumo.nome,
       descricao: insumo.descricao,
@@ -419,41 +424,56 @@ export class InsumosAutocompleteService {
       ativo: insumo.ativo,
       data_criacao: insumo.data_criacao,
       data_atualizacao: insumo.data_atualizacao,
-      
+
       // Relacionamentos
-      categoria: insumo.categoria ? {
-        id: insumo.categoria.id,
-        nome: insumo.categoria.nome,
-        descricao: insumo.categoria.descricao,
-      } : null,
-      
-      fornecedor: insumo.fornecedor ? {
-        id: insumo.fornecedor.id,
-        nome: insumo.fornecedor.nome,
-        ativo: insumo.fornecedor.ativo,
-      } : null,
-      
-      tipo_material: insumo.tipoMaterial ? {
-        id: insumo.tipoMaterial.id,
-        nome: insumo.tipoMaterial.nome,
-        descricao: insumo.tipoMaterial.descricao,
-      } : null,
-      
+      categoria: insumo.categoria
+        ? {
+            id: insumo.categoria.id,
+            nome: insumo.categoria.nome,
+            descricao: insumo.categoria.descricao,
+          }
+        : null,
+
+      fornecedor: insumo.fornecedor
+        ? {
+            id: insumo.fornecedor.id,
+            nome: insumo.fornecedor.nome,
+            ativo: insumo.fornecedor.ativo,
+          }
+        : null,
+
+      tipo_material: insumo.tipoMaterial
+        ? {
+            id: insumo.tipoMaterial.id,
+            nome: insumo.tipoMaterial.nome,
+            descricao: insumo.tipoMaterial.descricao,
+          }
+        : null,
+
       // Campos calculados
-      estoque_status: this.calcularStatusEstoque(insumo.estoque_atual, insumo.estoque_minimo),
+      estoque_status: this.calcularStatusEstoque(
+        insumo.estoque_atual,
+        insumo.estoque_minimo,
+      ),
       preco_formatado: this.formatarPreco(insumo.preco_unitario),
-      estoque_formatado: this.formatarEstoque(insumo.estoque_atual, insumo.unidade),
+      estoque_formatado: this.formatarEstoque(
+        insumo.estoque_atual,
+        insumo.unidade,
+      ),
     }));
   }
 
-  private calcularStatusEstoque(estoqueAtual?: number, estoqueMinimo?: number): string {
+  private calcularStatusEstoque(
+    estoqueAtual?: number,
+    estoqueMinimo?: number,
+  ): string {
     if (!estoqueAtual && estoqueAtual !== 0) return 'sem_estoque';
     if (!estoqueMinimo) return 'sem_minimo';
-    
+
     if (estoqueAtual <= 0) return 'sem_estoque';
     if (estoqueAtual <= estoqueMinimo) return 'estoque_baixo';
     if (estoqueAtual <= estoqueMinimo * 1.5) return 'estoque_reduzido';
-    
+
     return 'estoque_ok';
   }
 
@@ -475,18 +495,18 @@ export class InsumosAutocompleteService {
     if (!busca || insumos.length === 0) return [];
 
     const sugestoes = new Set<string>();
-    
-    insumos.forEach(insumo => {
+
+    insumos.forEach((insumo) => {
       // Sugestões baseadas no nome
       if (insumo.nome.toLowerCase().includes(busca.toLowerCase())) {
         sugestoes.add(insumo.nome);
       }
-      
+
       // Sugestões baseadas na categoria
       if (insumo.categoria?.nome.toLowerCase().includes(busca.toLowerCase())) {
         sugestoes.add(insumo.categoria.nome);
       }
-      
+
       // Sugestões baseadas no fornecedor
       if (insumo.fornecedor?.nome.toLowerCase().includes(busca.toLowerCase())) {
         sugestoes.add(insumo.fornecedor.nome);
@@ -510,11 +530,10 @@ export class InsumosAutocompleteService {
         orderBy: { nome: 'asc' },
       });
 
-      return categorias.map(categoria => ({
+      return categorias.map((categoria) => ({
         id: categoria.id,
         nome: categoria.nome,
       }));
-
     } catch (error) {
       this.logger.error(`❌ Erro ao buscar categorias: ${error.message}`);
       return [];
@@ -524,9 +543,15 @@ export class InsumosAutocompleteService {
   private gerarAlertasEstoque(insumos: any[]): string[] {
     const alertas: string[] = [];
 
-    const semEstoque = insumos.filter(i => i.estoque_status === 'sem_estoque');
-    const estoqueBaixo = insumos.filter(i => i.estoque_status === 'estoque_baixo');
-    const estoqueReduzido = insumos.filter(i => i.estoque_status === 'estoque_reduzido');
+    const semEstoque = insumos.filter(
+      (i) => i.estoque_status === 'sem_estoque',
+    );
+    const estoqueBaixo = insumos.filter(
+      (i) => i.estoque_status === 'estoque_baixo',
+    );
+    const estoqueReduzido = insumos.filter(
+      (i) => i.estoque_status === 'estoque_reduzido',
+    );
 
     if (semEstoque.length > 0) {
       alertas.push(`⚠️ ${semEstoque.length} insumos sem estoque`);

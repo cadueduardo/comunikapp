@@ -15,7 +15,13 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+} from '@nestjs/swagger';
 import { WorkflowInstanciaService } from '../services/workflow-instancia.service';
 import { OSPermissionsGuard } from '../guards/os-permissions.guard';
 import {
@@ -37,16 +43,24 @@ import {
 @Controller('os/workflow')
 @UseGuards(OSPermissionsGuard)
 export class WorkflowInstanciaController {
-  constructor(private readonly workflowInstanciaService: WorkflowInstanciaService) {}
+  constructor(
+    private readonly workflowInstanciaService: WorkflowInstanciaService,
+  ) {}
 
   @Post('instancia')
   @ApiOperation({ summary: 'Criar instância de workflow para OS' })
-  @ApiResponse({ status: 201, description: 'Instância de workflow criada com sucesso' })
-  @ApiResponse({ status: 400, description: 'Dados inválidos ou OS já possui workflow' })
+  @ApiResponse({
+    status: 201,
+    description: 'Instância de workflow criada com sucesso',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Dados inválidos ou OS já possui workflow',
+  })
   @ApiResponse({ status: 404, description: 'OS ou workflow não encontrado' })
   async criarInstancia(
     @Body() createDto: CreateWorkflowInstanciaDto,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<WorkflowInstanciaResponse> {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
@@ -55,7 +69,7 @@ export class WorkflowInstanciaController {
     const instancia = await this.workflowInstanciaService.criarInstancia(
       lojaId,
       createDto,
-      usuarioId
+      usuarioId,
     );
 
     return this.formatarWorkflowInstanciaResponse(instancia);
@@ -68,12 +82,15 @@ export class WorkflowInstanciaController {
   @ApiParam({ name: 'osId', description: 'ID da OS' })
   async buscarInstanciaPorOS(
     @Param('osId') osId: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<WorkflowInstanciaResponse> {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
 
-    const instancia = await this.workflowInstanciaService.buscarInstanciaPorOS(osId, lojaId);
+    const instancia = await this.workflowInstanciaService.buscarInstanciaPorOS(
+      osId,
+      lojaId,
+    );
     return this.formatarWorkflowInstanciaResponse(instancia);
   }
 
@@ -85,7 +102,7 @@ export class WorkflowInstanciaController {
   async atualizarInstancia(
     @Param('instanciaId') instanciaId: string,
     @Body() updateDto: UpdateWorkflowInstanciaDto,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<WorkflowInstanciaResponse> {
     const user = req['user'] || req.user;
     const usuarioId = user.id;
@@ -93,7 +110,7 @@ export class WorkflowInstanciaController {
     const instancia = await this.workflowInstanciaService.atualizarInstancia(
       instanciaId,
       updateDto,
-      usuarioId
+      usuarioId,
     );
 
     return this.formatarWorkflowInstanciaResponse(instancia);
@@ -102,13 +119,16 @@ export class WorkflowInstanciaController {
   @Patch('etapa/:etapaId/avancar')
   @ApiOperation({ summary: 'Avançar para próxima etapa do workflow' })
   @ApiResponse({ status: 200, description: 'Etapa avançada com sucesso' })
-  @ApiResponse({ status: 400, description: 'Checklists obrigatórios pendentes' })
+  @ApiResponse({
+    status: 400,
+    description: 'Checklists obrigatórios pendentes',
+  })
   @ApiResponse({ status: 404, description: 'Etapa não encontrada' })
   @ApiParam({ name: 'etapaId', description: 'ID da etapa' })
   async avancarEtapa(
     @Param('etapaId') etapaId: string,
     @Body() body: { instanciaId: string; observacoes?: string },
-    @Request() req: any
+    @Request() req: any,
   ): Promise<EtapaInstanciaResponse> {
     const user = req['user'] || req.user;
     const usuarioId = user.id;
@@ -117,7 +137,7 @@ export class WorkflowInstanciaController {
       body.instanciaId,
       etapaId,
       usuarioId,
-      body.observacoes
+      body.observacoes,
     );
 
     return this.formatarEtapaInstanciaResponse(etapa);
@@ -129,7 +149,7 @@ export class WorkflowInstanciaController {
   @ApiResponse({ status: 404, description: 'Etapa não encontrada' })
   @ApiParam({ name: 'etapaId', description: 'ID da etapa' })
   async buscarEtapa(
-    @Param('etapaId') etapaId: string
+    @Param('etapaId') etapaId: string,
   ): Promise<EtapaInstanciaResponse> {
     const etapa = await this.workflowInstanciaService.buscarEtapa(etapaId);
     return this.formatarEtapaInstanciaResponse(etapa);
@@ -142,7 +162,7 @@ export class WorkflowInstanciaController {
   @ApiResponse({ status: 404, description: 'OS não encontrada' })
   async criarApontamento(
     @Body() createDto: CreateApontamentoDto,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<ApontamentoResponse> {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
@@ -155,7 +175,7 @@ export class WorkflowInstanciaController {
     const apontamento = await this.workflowInstanciaService.criarApontamento(
       lojaId,
       createDto,
-      usuarioId
+      usuarioId,
     );
 
     return this.formatarApontamentoResponse(apontamento);
@@ -167,13 +187,14 @@ export class WorkflowInstanciaController {
   @ApiParam({ name: 'osId', description: 'ID da OS' })
   async listarApontamentosOS(
     @Param('osId') osId: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<ApontamentoResponse[]> {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
 
-    const apontamentos = await this.workflowInstanciaService.listarApontamentosOS(osId, lojaId);
-    return apontamentos.map(ap => this.formatarApontamentoResponse(ap));
+    const apontamentos =
+      await this.workflowInstanciaService.listarApontamentosOS(osId, lojaId);
+    return apontamentos.map((ap) => this.formatarApontamentoResponse(ap));
   }
 
   @Patch('checklist/:checklistId')
@@ -184,7 +205,7 @@ export class WorkflowInstanciaController {
   async atualizarChecklist(
     @Param('checklistId') checklistId: string,
     @Body() updateDto: UpdateChecklistInstanciaDto,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<ChecklistInstanciaResponse> {
     const user = req['user'] || req.user;
     const usuarioId = user.id;
@@ -192,7 +213,7 @@ export class WorkflowInstanciaController {
     const checklist = await this.workflowInstanciaService.atualizarChecklist(
       checklistId,
       updateDto,
-      usuarioId
+      usuarioId,
     );
 
     return this.formatarChecklistInstanciaResponse(checklist);
@@ -202,29 +223,35 @@ export class WorkflowInstanciaController {
   @ApiOperation({ summary: 'Obter estatísticas de workflow' })
   @ApiResponse({ status: 200, description: 'Estatísticas de workflow' })
   async obterEstatisticasWorkflow(
-    @Request() req: any
+    @Request() req: any,
   ): Promise<EstatisticasWorkflow> {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
 
-    return await this.workflowInstanciaService.obterEstatisticasWorkflow(lojaId);
+    return await this.workflowInstanciaService.obterEstatisticasWorkflow(
+      lojaId,
+    );
   }
 
   @Get('estatisticas/apontamento')
   @ApiOperation({ summary: 'Obter estatísticas de apontamento' })
   @ApiResponse({ status: 200, description: 'Estatísticas de apontamento' })
   async obterEstatisticasApontamento(
-    @Request() req: any
+    @Request() req: any,
   ): Promise<EstatisticasApontamento> {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
 
-    return await this.workflowInstanciaService.obterEstatisticasApontamento(lojaId);
+    return await this.workflowInstanciaService.obterEstatisticasApontamento(
+      lojaId,
+    );
   }
 
   // ===== MÉTODOS AUXILIARES =====
 
-  private formatarWorkflowInstanciaResponse(instancia: any): WorkflowInstanciaResponse {
+  private formatarWorkflowInstanciaResponse(
+    instancia: any,
+  ): WorkflowInstanciaResponse {
     return {
       id: instancia.id,
       os_id: instancia.os_id,
@@ -235,12 +262,16 @@ export class WorkflowInstanciaController {
       data_fim: instancia.data_fim?.toISOString(),
       criado_em: instancia.criado_em.toISOString(),
       atualizado_em: instancia.atualizado_em.toISOString(),
-      workflow: instancia.workflow ? {
-        id: instancia.workflow.id,
-        nome: instancia.workflow.nome,
-        descricao: instancia.workflow.descricao,
-      } : undefined,
-      etapas: instancia.etapas?.map(etapa => this.formatarEtapaInstanciaResponse(etapa)),
+      workflow: instancia.workflow
+        ? {
+            id: instancia.workflow.id,
+            nome: instancia.workflow.nome,
+            descricao: instancia.workflow.descricao,
+          }
+        : undefined,
+      etapas: instancia.etapas?.map((etapa) =>
+        this.formatarEtapaInstanciaResponse(etapa),
+      ),
     };
   }
 
@@ -259,12 +290,18 @@ export class WorkflowInstanciaController {
       observacoes: etapa.observacoes,
       criado_em: etapa.criado_em.toISOString(),
       atualizado_em: etapa.atualizado_em.toISOString(),
-      checklists: etapa.checklists?.map(checklist => this.formatarChecklistInstanciaResponse(checklist)),
-      apontamentos: etapa.apontamentos?.map(apontamento => this.formatarApontamentoResponse(apontamento)),
+      checklists: etapa.checklists?.map((checklist) =>
+        this.formatarChecklistInstanciaResponse(checklist),
+      ),
+      apontamentos: etapa.apontamentos?.map((apontamento) =>
+        this.formatarApontamentoResponse(apontamento),
+      ),
     };
   }
 
-  private formatarChecklistInstanciaResponse(checklist: any): ChecklistInstanciaResponse {
+  private formatarChecklistInstanciaResponse(
+    checklist: any,
+  ): ChecklistInstanciaResponse {
     return {
       id: checklist.id,
       etapa_instancia_id: checklist.etapa_instancia_id,
@@ -289,8 +326,12 @@ export class WorkflowInstanciaController {
       data_apontamento: apontamento.data_apontamento.toISOString(),
       usuario_id: apontamento.usuario_id,
       observacoes: apontamento.observacoes,
-      quantidade_produzida: apontamento.quantidade_produzida ? Number(apontamento.quantidade_produzida) : undefined,
-      quantidade_refugo: apontamento.quantidade_refugo ? Number(apontamento.quantidade_refugo) : undefined,
+      quantidade_produzida: apontamento.quantidade_produzida
+        ? Number(apontamento.quantidade_produzida)
+        : undefined,
+      quantidade_refugo: apontamento.quantidade_refugo
+        ? Number(apontamento.quantidade_refugo)
+        : undefined,
       tempo_gasto: apontamento.tempo_gasto,
       ip_origem: apontamento.ip_origem,
       user_agent: apontamento.user_agent,

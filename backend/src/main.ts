@@ -65,7 +65,7 @@ async function bootstrap() {
       max: 1000,
       standardHeaders: true,
       legacyHeaders: false,
-      skip: (req: any) => (req as any).method === 'OPTIONS',
+      skip: (req: any) => req.method === 'OPTIONS',
     }) as any,
   );
 

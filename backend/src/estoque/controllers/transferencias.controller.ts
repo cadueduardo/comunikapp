@@ -97,10 +97,8 @@ export class TransferenciasController {
 
     try {
       const context = { lojaId: loja.id };
-      const transferencias = await this.transferenciasService.listarTransferencias(
-        context,
-        query,
-      );
+      const transferencias =
+        await this.transferenciasService.listarTransferencias(context, query);
 
       return {
         success: true,
@@ -124,10 +122,8 @@ export class TransferenciasController {
 
     try {
       const context = { lojaId: loja.id };
-      const transferencia = await this.transferenciasService.buscarTransferenciaPorId(
-        context,
-        id,
-      );
+      const transferencia =
+        await this.transferenciasService.buscarTransferenciaPorId(context, id);
 
       return {
         success: true,

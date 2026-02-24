@@ -232,11 +232,9 @@ describe('LocalizacoesController', () => {
 
       mockEstoqueService.atualizarLocalizacao.mockResolvedValue(expectedResult);
 
-      const result = await controller.atualizar(
-        locationId,
-        updateDto,
-        { id: 'loja-123' } as any,
-      );
+      const result = await controller.atualizar(locationId, updateDto, {
+        id: 'loja-123',
+      } as any);
 
       expect(result).toEqual(expectedResult);
       expect(mockEstoqueService.atualizarLocalizacao).toHaveBeenCalledWith(
@@ -279,7 +277,9 @@ describe('LocalizacoesController', () => {
 
       mockEstoqueService.atualizarLocalizacao.mockResolvedValue(expectedResult);
 
-      const result = await controller.desativar(locationId, { id: 'loja-123' } as any);
+      const result = await controller.desativar(locationId, {
+        id: 'loja-123',
+      } as any);
 
       expect(result).toEqual(expectedResult);
       expect(result).toHaveProperty('ativo', false);

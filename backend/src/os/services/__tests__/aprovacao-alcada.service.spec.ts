@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AprovacaoAlcadaService, NivelAlcada } from '../aprovacao-alcada.service';
+import {
+  AprovacaoAlcadaService,
+  NivelAlcada,
+} from '../aprovacao-alcada.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { StatusAprovacao } from '../../interfaces/os-direta-interna.interface';
 
@@ -44,9 +47,15 @@ describe('AprovacaoAlcadaService', () => {
     });
 
     it('deve retornar GERENTE_DEPARTAMENTO para valores entre R$ 500 e R$ 2000', () => {
-      expect(service.determinarNivelAlcada(501)).toBe(NivelAlcada.GERENTE_DEPARTAMENTO);
-      expect(service.determinarNivelAlcada(1500)).toBe(NivelAlcada.GERENTE_DEPARTAMENTO);
-      expect(service.determinarNivelAlcada(2000)).toBe(NivelAlcada.GERENTE_DEPARTAMENTO);
+      expect(service.determinarNivelAlcada(501)).toBe(
+        NivelAlcada.GERENTE_DEPARTAMENTO,
+      );
+      expect(service.determinarNivelAlcada(1500)).toBe(
+        NivelAlcada.GERENTE_DEPARTAMENTO,
+      );
+      expect(service.determinarNivelAlcada(2000)).toBe(
+        NivelAlcada.GERENTE_DEPARTAMENTO,
+      );
     });
 
     it('deve retornar DIRETORIA para valores acima de R$ 2000', () => {
@@ -104,7 +113,9 @@ describe('AprovacaoAlcadaService', () => {
 
     it('deve bloquear aprovação quando orçamento insuficiente', async () => {
       // Mock para retornar orçamento insuficiente
-      jest.spyOn(service as any, 'verificarOrcamentoDisponivel').mockResolvedValue(100);
+      jest
+        .spyOn(service as any, 'verificarOrcamentoDisponivel')
+        .mockResolvedValue(100);
 
       const resultado = await service.validarAprovacaoAlcada(
         5000,
@@ -131,11 +142,19 @@ describe('AprovacaoAlcadaService', () => {
 
     beforeEach(() => {
       mockPrismaService.ordemServico.findUnique.mockResolvedValue(mockOS);
-      mockPrismaService.ordemServico.update.mockResolvedValue({ ...mockOS, status: 'APROVADA_ORCAMENTARIA' });
+      mockPrismaService.ordemServico.update.mockResolvedValue({
+        ...mockOS,
+        status: 'APROVADA_ORCAMENTARIA',
+      });
     });
 
     it('deve aprovar OS interna com sucesso', async () => {
-      await service.aprovarOSInterna('os-001', 'user-001', 'GERENTE_MARKETING', 'Aprovado');
+      await service.aprovarOSInterna(
+        'os-001',
+        'user-001',
+        'GERENTE_MARKETING',
+        'Aprovado',
+      );
 
       expect(mockPrismaService.ordemServico.findUnique).toHaveBeenCalledWith({
         where: { id: 'os-001' },
@@ -164,7 +183,12 @@ describe('AprovacaoAlcadaService', () => {
       });
 
       await expect(
-        service.aprovarOSInterna('os-001', 'user-001', 'GERENTE_MARKETING', 'Aprovado'),
+        service.aprovarOSInterna(
+          'os-001',
+          'user-001',
+          'GERENTE_MARKETING',
+          'Aprovado',
+        ),
       ).rejects.toThrow('Aprovação por alçada só é válida para OS Interna');
     });
 
@@ -172,7 +196,12 @@ describe('AprovacaoAlcadaService', () => {
       mockPrismaService.ordemServico.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.aprovarOSInterna('os-001', 'user-001', 'GERENTE_MARKETING', 'Aprovado'),
+        service.aprovarOSInterna(
+          'os-001',
+          'user-001',
+          'GERENTE_MARKETING',
+          'Aprovado',
+        ),
       ).rejects.toThrow('OS não encontrada');
     });
   });
@@ -189,11 +218,18 @@ describe('AprovacaoAlcadaService', () => {
 
     beforeEach(() => {
       mockPrismaService.ordemServico.findUnique.mockResolvedValue(mockOS);
-      mockPrismaService.ordemServico.update.mockResolvedValue({ ...mockOS, status: 'REJEITADA_ORCAMENTARIA' });
+      mockPrismaService.ordemServico.update.mockResolvedValue({
+        ...mockOS,
+        status: 'REJEITADA_ORCAMENTARIA',
+      });
     });
 
     it('deve rejeitar OS interna com sucesso', async () => {
-      await service.rejeitarOSInterna('os-001', 'user-001', 'Orçamento insuficiente');
+      await service.rejeitarOSInterna(
+        'os-001',
+        'user-001',
+        'Orçamento insuficiente',
+      );
 
       expect(mockPrismaService.ordemServico.update).toHaveBeenCalledWith({
         where: { id: 'os-001' },
@@ -236,7 +272,9 @@ describe('AprovacaoAlcadaService', () => {
     ];
 
     beforeEach(() => {
-      mockPrismaService.ordemServico.findMany.mockResolvedValue(mockOSPendentes);
+      mockPrismaService.ordemServico.findMany.mockResolvedValue(
+        mockOSPendentes,
+      );
       mockPrismaService.ordemServico.count.mockResolvedValue(2);
     });
 
@@ -269,7 +307,9 @@ describe('AprovacaoAlcadaService', () => {
         },
       ];
 
-      mockPrismaService.ordemServico.findMany.mockResolvedValue(mockOSPendentesFiltradas);
+      mockPrismaService.ordemServico.findMany.mockResolvedValue(
+        mockOSPendentesFiltradas,
+      );
       mockPrismaService.ordemServico.count.mockResolvedValue(1);
 
       const resultado = await service.listarOSPendentesAprovacao(
@@ -336,7 +376,7 @@ describe('AprovacaoAlcadaService', () => {
             quantidade: 1,
             valorTotal: 500,
           }),
-        ])
+        ]),
       );
     });
 

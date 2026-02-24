@@ -1,23 +1,23 @@
-import { 
-  Controller, 
-  Post, 
-  Get, 
-  Put, 
-  Delete, 
-  Body, 
-  Param, 
-  Query, 
+import {
+  Controller,
+  Post,
+  Get,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
   UseGuards,
   HttpStatus,
   HttpCode,
   Request,
 } from '@nestjs/common';
-import { 
-  ApiTags, 
-  ApiOperation, 
-  ApiResponse, 
-  ApiParam, 
-  ApiQuery, 
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
   ApiBody,
   ApiBearerAuth,
 } from '@nestjs/swagger';
@@ -30,7 +30,7 @@ import { ChatV2Service } from '../services/chat-v2.service';
 /**
  * Controller de Chat V2 para Orçamentos
  * Endpoints para sistema de chat e negociação
- * 
+ *
  * ✅ ARQUIVO ≤ 200 LINHAS (CONFORME PREMISSAS)
  * ✅ ENDPOINTS DE CHAT COMPLETOS
  * ✅ SISTEMA DE NEGOCIAÇÃO
@@ -40,9 +40,7 @@ import { ChatV2Service } from '../services/chat-v2.service';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class ChatV2Controller {
-  constructor(
-    private readonly chatV2Service: ChatV2Service,
-  ) {}
+  constructor(private readonly chatV2Service: ChatV2Service) {}
 
   /**
    * Envia mensagem no chat do orçamento
@@ -61,8 +59,15 @@ export class ChatV2Controller {
       required: ['conteudo'],
       properties: {
         conteudo: { type: 'string', description: 'Conteúdo da mensagem' },
-        tipo: { type: 'string', enum: ['texto', 'sistema', 'notificacao', 'arquivo'] },
-        anexos: { type: 'array', items: { type: 'string' }, description: 'URLs dos anexos' },
+        tipo: {
+          type: 'string',
+          enum: ['texto', 'sistema', 'notificacao', 'arquivo'],
+        },
+        anexos: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'URLs dos anexos',
+        },
       },
     },
   })
@@ -86,7 +91,8 @@ export class ChatV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async enviarMensagem(
     @Param('orcamentoId') orcamentoId: string,
-    @Body() dados: {
+    @Body()
+    dados: {
       conteudo: string;
       tipo?: string;
       anexos?: string[];
@@ -124,8 +130,16 @@ export class ChatV2Controller {
     description: 'Busca mensagens do chat do orçamento',
   })
   @ApiParam({ name: 'orcamentoId', description: 'ID do orçamento' })
-  @ApiQuery({ name: 'pagina', required: false, description: 'Número da página' })
-  @ApiQuery({ name: 'por_pagina', required: false, description: 'Itens por página' })
+  @ApiQuery({
+    name: 'pagina',
+    required: false,
+    description: 'Número da página',
+  })
+  @ApiQuery({
+    name: 'por_pagina',
+    required: false,
+    description: 'Itens por página',
+  })
   @ApiResponse({
     status: 200,
     description: 'Mensagens encontradas',
@@ -199,7 +213,10 @@ export class ChatV2Controller {
     @Request() req: any,
   ) {
     try {
-      await this.chatV2Service.marcarMensagensComoLidas(orcamentoId, req.user.id);
+      await this.chatV2Service.marcarMensagensComoLidas(
+        orcamentoId,
+        req.user.id,
+      );
 
       return {
         success: true,
@@ -257,7 +274,8 @@ export class ChatV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async enviarArquivo(
     @Param('orcamentoId') orcamentoId: string,
-    @Body() dados: {
+    @Body()
+    dados: {
       nome_arquivo: string;
       url_arquivo: string;
       tamanho: number;
@@ -319,7 +337,8 @@ export class ChatV2Controller {
     @Request() req: any,
   ) {
     try {
-      const estatisticas = await this.chatV2Service.buscarEstatisticasChat(orcamentoId);
+      const estatisticas =
+        await this.chatV2Service.buscarEstatisticasChat(orcamentoId);
 
       return {
         success: true,
@@ -343,8 +362,16 @@ export class ChatV2Controller {
     description: 'Retorna histórico de negociação do orçamento',
   })
   @ApiParam({ name: 'orcamentoId', description: 'ID do orçamento' })
-  @ApiQuery({ name: 'data_inicio', required: false, description: 'Data de início (ISO)' })
-  @ApiQuery({ name: 'data_fim', required: false, description: 'Data de fim (ISO)' })
+  @ApiQuery({
+    name: 'data_inicio',
+    required: false,
+    description: 'Data de início (ISO)',
+  })
+  @ApiQuery({
+    name: 'data_fim',
+    required: false,
+    description: 'Data de fim (ISO)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Histórico encontrado',

@@ -16,7 +16,11 @@ export class NotificacoesController {
   ) {
     const limitNumber = limit ? parseInt(limit) : 50;
     const offsetNumber = offset ? parseInt(offset) : 0;
-    return this.notificacoesService.buscarNotificacoes(lojaId, limitNumber, offsetNumber);
+    return this.notificacoesService.buscarNotificacoes(
+      lojaId,
+      limitNumber,
+      offsetNumber,
+    );
   }
 
   @Get('nao-visualizadas')

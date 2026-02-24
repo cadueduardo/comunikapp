@@ -13,9 +13,15 @@ import {
   BadRequestException,
   Res,
   StreamableFile,
-  SetMetadata
+  SetMetadata,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiConsumes,
+} from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { createReadStream, existsSync } from 'fs';
@@ -36,7 +42,7 @@ export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 export class ArteArquivoController {
   constructor(
     private readonly arteArquivoService: ArteArquivoService,
-    private readonly thumbnailService: ArteThumbnailService
+    private readonly thumbnailService: ArteThumbnailService,
   ) {}
 
   @Get()
@@ -44,19 +50,22 @@ export class ArteArquivoController {
   @ApiResponse({
     status: 200,
     description: 'Lista de arquivos',
-    type: [ArteArquivoResponseDto]
+    type: [ArteArquivoResponseDto],
   })
   @ApiResponse({ status: 404, description: 'Versão não encontrada' })
   async findByVersao(
     @Param('versaoId') versaoId: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<ArteArquivoResponseDto[]> {
     console.log('📁 [Controller] Listando arquivos da versão:', {
       versaoId,
-      lojaId: req.user.loja_id
+      lojaId: req.user.loja_id,
     });
 
-    return this.arteArquivoService.findArquivosByVersao(versaoId, req.user.loja_id);
+    return this.arteArquivoService.findArquivosByVersao(
+      versaoId,
+      req.user.loja_id,
+    );
   }
 
   @Post('upload')
@@ -66,21 +75,21 @@ export class ArteArquivoController {
   @ApiResponse({
     status: 201,
     description: 'Arquivo enviado com sucesso',
-    type: ArteArquivoResponseDto
+    type: ArteArquivoResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Arquivo inválido' })
   @ApiResponse({ status: 404, description: 'Versão não encontrada' })
   async uploadArquivo(
     @Param('versaoId') versaoId: string,
     @UploadedFile() arquivo: Express.Multer.File,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<ArteArquivoResponseDto> {
     console.log('📤 [Controller] Upload de arquivo:', {
       versaoId,
       nomeArquivo: arquivo?.originalname,
       tamanho: arquivo?.size,
       path: arquivo?.path,
-      lojaId: req.user.loja_id
+      lojaId: req.user.loja_id,
     });
 
     if (!arquivo) {
@@ -90,10 +99,12 @@ export class ArteArquivoController {
     // Gerar thumbnail se for imagem
     let thumbnailPath: string | null = null;
     let thumbnailFilename: string | undefined = undefined;
-    
+
     if (this.thumbnailService.isImage(arquivo.path)) {
-      thumbnailPath = await this.thumbnailService.generateThumbnail(arquivo.path);
-      
+      thumbnailPath = await this.thumbnailService.generateThumbnail(
+        arquivo.path,
+      );
+
       if (thumbnailPath) {
         // Extrair apenas o nome do arquivo do thumbnail
         const parts = thumbnailPath.split(/[/\\]/);
@@ -108,15 +119,18 @@ export class ArteArquivoController {
       tipo_arquivo: arquivo.mimetype.split('/')[1] || 'unknown',
       tamanho: BigInt(arquivo.size),
       url_arquivo: `/api/arte-aprovacao/versoes/${versaoId}/arquivos/download/${arquivo.filename}`,
-      url_thumbnail: thumbnailFilename 
+      url_thumbnail: thumbnailFilename
         ? `/uploads/arte/${versaoId}/${thumbnailFilename}`
         : undefined,
       storage_provider: 'local',
-      storage_path: arquivo.path
+      storage_path: arquivo.path,
     };
 
-
-    return this.arteArquivoService.addArquivo(versaoId, arquivoData, req.user.loja_id);
+    return this.arteArquivoService.addArquivo(
+      versaoId,
+      arquivoData,
+      req.user.loja_id,
+    );
   }
 
   @Get(':arquivoId')
@@ -124,18 +138,18 @@ export class ArteArquivoController {
   @ApiResponse({
     status: 200,
     description: 'Arquivo encontrado',
-    type: ArteArquivoResponseDto
+    type: ArteArquivoResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Arquivo não encontrado' })
   async findOne(
     @Param('versaoId') versaoId: string,
     @Param('arquivoId') arquivoId: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<ArteArquivoResponseDto> {
     console.log('🔍 [Controller] Buscando arquivo:', {
       versaoId,
       arquivoId,
-      lojaId: req.user.loja_id
+      lojaId: req.user.loja_id,
     });
 
     return this.arteArquivoService.findArquivoById(arquivoId, req.user.loja_id);
@@ -143,21 +157,23 @@ export class ArteArquivoController {
 
   @Get('public/download/:filename')
   @Public()
-  @ApiOperation({ summary: 'Download público de arquivo (para links de aprovação)' })
+  @ApiOperation({
+    summary: 'Download público de arquivo (para links de aprovação)',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Arquivo para download'
+    description: 'Arquivo para download',
   })
   @ApiResponse({ status: 404, description: 'Arquivo não encontrado' })
   async downloadArquivoPublico(
     @Param('versaoId') versaoId: string,
     @Param('filename') filename: string,
-    @Res({ passthrough: true }) res: Response
+    @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     console.log('📥 [Controller] Download público de arquivo:', {
       versaoId,
       filename,
-      cwd: process.cwd()
+      cwd: process.cwd(),
     });
 
     const filePath = join(process.cwd(), 'uploads', 'arte', versaoId, filename);
@@ -170,21 +186,21 @@ export class ArteArquivoController {
     }
 
     const file = createReadStream(filePath);
-    
+
     // Detectar tipo de arquivo
     const ext = filename.split('.').pop()?.toLowerCase();
     const mimeTypes: Record<string, string> = {
-      'jpg': 'image/jpeg',
-      'jpeg': 'image/jpeg',
-      'png': 'image/png',
-      'pdf': 'application/pdf',
-      'ai': 'application/postscript',
-      'psd': 'image/vnd.adobe.photoshop',
-      'eps': 'application/postscript',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      pdf: 'application/pdf',
+      ai: 'application/postscript',
+      psd: 'image/vnd.adobe.photoshop',
+      eps: 'application/postscript',
     };
-    
+
     const contentType = mimeTypes[ext || ''] || 'application/octet-stream';
-    
+
     // Definir headers para preview inline
     res.set({
       'Content-Type': contentType,
@@ -199,17 +215,17 @@ export class ArteArquivoController {
   @ApiOperation({ summary: 'Download de arquivo' })
   @ApiResponse({
     status: 200,
-    description: 'Arquivo para download'
+    description: 'Arquivo para download',
   })
   @ApiResponse({ status: 404, description: 'Arquivo não encontrado' })
   async downloadArquivo(
     @Param('versaoId') versaoId: string,
     @Param('filename') filename: string,
-    @Res({ passthrough: true }) res: Response
+    @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     console.log('📥 [Controller] Download de arquivo:', {
       versaoId,
-      filename
+      filename,
     });
 
     const filePath = join(process.cwd(), 'uploads', 'arte', versaoId, filename);
@@ -219,21 +235,21 @@ export class ArteArquivoController {
     }
 
     const file = createReadStream(filePath);
-    
+
     // Detectar tipo de arquivo
     const ext = filename.split('.').pop()?.toLowerCase();
     const mimeTypes: Record<string, string> = {
-      'jpg': 'image/jpeg',
-      'jpeg': 'image/jpeg',
-      'png': 'image/png',
-      'pdf': 'application/pdf',
-      'ai': 'application/postscript',
-      'psd': 'image/vnd.adobe.photoshop',
-      'eps': 'application/postscript',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      pdf: 'application/pdf',
+      ai: 'application/postscript',
+      psd: 'image/vnd.adobe.photoshop',
+      eps: 'application/postscript',
     };
-    
+
     const contentType = mimeTypes[ext || ''] || 'application/octet-stream';
-    
+
     // Definir headers para preview inline
     res.set({
       'Content-Type': contentType,
@@ -252,24 +268,27 @@ export class ArteArquivoController {
     schema: {
       type: 'object',
       properties: {
-        url: { type: 'string', example: 'https://storage.com/arquivo.pdf' }
-      }
-    }
+        url: { type: 'string', example: 'https://storage.com/arquivo.pdf' },
+      },
+    },
   })
   @ApiResponse({ status: 404, description: 'Arquivo não encontrado' })
   async generatePublicUrl(
     @Param('versaoId') versaoId: string,
     @Param('arquivoId') arquivoId: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<{ url: string }> {
     console.log('🔗 [Controller] Gerando URL pública:', {
       versaoId,
       arquivoId,
-      lojaId: req.user.loja_id
+      lojaId: req.user.loja_id,
     });
 
-    const url = await this.arteArquivoService.generatePublicUrl(arquivoId, req.user.loja_id);
-    
+    const url = await this.arteArquivoService.generatePublicUrl(
+      arquivoId,
+      req.user.loja_id,
+    );
+
     return { url };
   }
 
@@ -281,12 +300,12 @@ export class ArteArquivoController {
   async remove(
     @Param('versaoId') versaoId: string,
     @Param('arquivoId') arquivoId: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<void> {
     console.log('🗑️ [Controller] Removendo arquivo:', {
       versaoId,
       arquivoId,
-      lojaId: req.user.loja_id
+      lojaId: req.user.loja_id,
     });
 
     return this.arteArquivoService.removeArquivo(arquivoId, req.user.loja_id);

@@ -19,4 +19,3 @@ export class CreateMensagemPublicoDto {
   @IsString()
   autor_email?: string;
 }
-

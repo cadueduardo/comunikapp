@@ -2,7 +2,16 @@
  * DTOs para Regras de Validação
  */
 
-import { IsString, IsOptional, IsBoolean, IsNumber, IsEnum, IsObject, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsNumber,
+  IsEnum,
+  IsObject,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -11,11 +20,35 @@ export class CondicaoRegraDto {
   @IsString()
   campo: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Operador de comparação',
-    enum: ['equals', 'greater_than', 'greater_than_or_equal', 'less_than', 'less_than_or_equal', 'contains', 'not_equals', 'in', 'not_in', 'is_null', 'is_not_null']
+    enum: [
+      'equals',
+      'greater_than',
+      'greater_than_or_equal',
+      'less_than',
+      'less_than_or_equal',
+      'contains',
+      'not_equals',
+      'in',
+      'not_in',
+      'is_null',
+      'is_not_null',
+    ],
   })
-  @IsEnum(['equals', 'greater_than', 'greater_than_or_equal', 'less_than', 'less_than_or_equal', 'contains', 'not_equals', 'in', 'not_in', 'is_null', 'is_not_null'])
+  @IsEnum([
+    'equals',
+    'greater_than',
+    'greater_than_or_equal',
+    'less_than',
+    'less_than_or_equal',
+    'contains',
+    'not_equals',
+    'in',
+    'not_in',
+    'is_null',
+    'is_not_null',
+  ])
   operador: string;
 
   @ApiProperty({ description: 'Valor para comparação' })
@@ -38,9 +71,9 @@ export class CondicaoRegraDto {
 }
 
 export class AcaoRegraDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Tipo de ação',
-    enum: ['bloquear', 'notificar', 'aprovar', 'corrigir', 'alertar']
+    enum: ['bloquear', 'notificar', 'aprovar', 'corrigir', 'alertar'],
   })
   @IsEnum(['bloquear', 'notificar', 'aprovar', 'corrigir', 'alertar'])
   tipo: string;
@@ -77,18 +110,34 @@ export class CreateRegraValidacaoDto {
   @IsString()
   descricao?: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Tipo da regra',
-    enum: ['VALIDACAO', 'ALERTA', 'CORRECAO', 'APROVACAO']
+    enum: ['VALIDACAO', 'ALERTA', 'CORRECAO', 'APROVACAO'],
   })
   @IsEnum(['VALIDACAO', 'ALERTA', 'CORRECAO', 'APROVACAO'])
   tipo: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Categoria da regra',
-    enum: ['ESTOQUE', 'ARTE', 'DADOS', 'PRAZO', 'FINANCEIRO', 'TECNICO', 'COMERCIAL']
+    enum: [
+      'ESTOQUE',
+      'ARTE',
+      'DADOS',
+      'PRAZO',
+      'FINANCEIRO',
+      'TECNICO',
+      'COMERCIAL',
+    ],
   })
-  @IsEnum(['ESTOQUE', 'ARTE', 'DADOS', 'PRAZO', 'FINANCEIRO', 'TECNICO', 'COMERCIAL'])
+  @IsEnum([
+    'ESTOQUE',
+    'ARTE',
+    'DADOS',
+    'PRAZO',
+    'FINANCEIRO',
+    'TECNICO',
+    'COMERCIAL',
+  ])
   categoria: string;
 
   @ApiPropertyOptional({ description: 'Regra ativa', default: true })
@@ -133,20 +182,36 @@ export class UpdateRegraValidacaoDto {
   @IsString()
   descricao?: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Tipo da regra',
-    enum: ['VALIDACAO', 'ALERTA', 'CORRECAO', 'APROVACAO']
+    enum: ['VALIDACAO', 'ALERTA', 'CORRECAO', 'APROVACAO'],
   })
   @IsOptional()
   @IsEnum(['VALIDACAO', 'ALERTA', 'CORRECAO', 'APROVACAO'])
   tipo?: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Categoria da regra',
-    enum: ['ESTOQUE', 'ARTE', 'DADOS', 'PRAZO', 'FINANCEIRO', 'TECNICO', 'COMERCIAL']
+    enum: [
+      'ESTOQUE',
+      'ARTE',
+      'DADOS',
+      'PRAZO',
+      'FINANCEIRO',
+      'TECNICO',
+      'COMERCIAL',
+    ],
   })
   @IsOptional()
-  @IsEnum(['ESTOQUE', 'ARTE', 'DADOS', 'PRAZO', 'FINANCEIRO', 'TECNICO', 'COMERCIAL'])
+  @IsEnum([
+    'ESTOQUE',
+    'ARTE',
+    'DADOS',
+    'PRAZO',
+    'FINANCEIRO',
+    'TECNICO',
+    'COMERCIAL',
+  ])
   categoria?: string;
 
   @ApiPropertyOptional({ description: 'Regra ativa' })
@@ -222,7 +287,10 @@ export class ExecutarValidacaoDto {
   @IsString({ each: true })
   regra_ids?: string[];
 
-  @ApiPropertyOptional({ description: 'Modo teste (não aplica ações)', default: false })
+  @ApiPropertyOptional({
+    description: 'Modo teste (não aplica ações)',
+    default: false,
+  })
   @IsOptional()
   @IsBoolean()
   modo_teste?: boolean = false;
@@ -238,7 +306,3 @@ export class TestarRegraDto {
   @IsBoolean()
   modo_teste?: boolean = true;
 }
-
-
-
-

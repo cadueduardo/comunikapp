@@ -1,20 +1,26 @@
-import { 
-  Controller, 
-  Post, 
-  Get, 
-  Body, 
-  Param, 
-  Request, 
-  HttpException, 
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  Request,
+  HttpException,
   HttpStatus,
-  UseGuards 
+  UseGuards,
 } from '@nestjs/common';
-import { ArteLinkAprovacaoService, CreateLinkAprovacaoDto, AprovarArteDto } from '../services/arte-link-aprovacao.service';
+import {
+  ArteLinkAprovacaoService,
+  CreateLinkAprovacaoDto,
+  AprovarArteDto,
+} from '../services/arte-link-aprovacao.service';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 
 @Controller('arte-aprovacao/links')
 export class ArteLinkAprovacaoController {
-  constructor(private readonly linkAprovacaoService: ArteLinkAprovacaoService) {}
+  constructor(
+    private readonly linkAprovacaoService: ArteLinkAprovacaoService,
+  ) {}
 
   /**
    * Cria um novo link de aprovação para uma versão
@@ -24,7 +30,7 @@ export class ArteLinkAprovacaoController {
   async createLink(@Body() dto: CreateLinkAprovacaoDto, @Request() req) {
     try {
       const loja_id = req.user.loja_id;
-      
+
       const link = await this.linkAprovacaoService.createLinkAprovacao({
         ...dto,
         loja_id,
@@ -53,7 +59,7 @@ export class ArteLinkAprovacaoController {
   async getVersaoByToken(@Param('token') token: string) {
     try {
       const data = await this.linkAprovacaoService.getVersaoByToken(token);
-      
+
       return {
         success: true,
         data: {
@@ -125,11 +131,17 @@ export class ArteLinkAprovacaoController {
    */
   @UseGuards(JwtAuthGuard)
   @Get('versao/:versao_id')
-  async listarLinksVersao(@Param('versao_id') versao_id: string, @Request() req) {
+  async listarLinksVersao(
+    @Param('versao_id') versao_id: string,
+    @Request() req,
+  ) {
     try {
       const loja_id = req.user.loja_id;
-      
-      const links = await this.linkAprovacaoService.listarLinksVersao(versao_id, loja_id);
+
+      const links = await this.linkAprovacaoService.listarLinksVersao(
+        versao_id,
+        loja_id,
+      );
 
       return {
         success: true,
@@ -155,7 +167,7 @@ export class ArteLinkAprovacaoController {
   async desativarLink(@Param('link_id') link_id: string, @Request() req) {
     try {
       const loja_id = req.user.loja_id;
-      
+
       await this.linkAprovacaoService.desativarLink(link_id, loja_id);
 
       return {

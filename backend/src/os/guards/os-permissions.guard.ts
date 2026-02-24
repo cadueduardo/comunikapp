@@ -3,7 +3,13 @@
  * Validacao granular por etapa e acao
  */
 
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 interface AuthenticatedRequest {
@@ -82,17 +88,17 @@ export class OSPermissionsGuard implements CanActivate {
   private extrairAcao(context: ExecutionContext): string {
     const handler = context.getHandler().name;
     const controller = context.getClass().name;
-    
+
     // Mapear metodos para acoes
     const acoes = {
-      'create': 'CRIAR',
-      'findAll': 'VISUALIZAR',
-      'findOne': 'VISUALIZAR',
-      'update': 'EDITAR',
-      'remove': 'EXCLUIR',
-      'avancarEtapa': 'AVANCAR_ETAPA',
-      'criarWorkflow': 'GERENCIAR_WORKFLOWS',
-      'updateWorkflow': 'GERENCIAR_WORKFLOWS',
+      create: 'CRIAR',
+      findAll: 'VISUALIZAR',
+      findOne: 'VISUALIZAR',
+      update: 'EDITAR',
+      remove: 'EXCLUIR',
+      avancarEtapa: 'AVANCAR_ETAPA',
+      criarWorkflow: 'GERENCIAR_WORKFLOWS',
+      updateWorkflow: 'GERENCIAR_WORKFLOWS',
     };
 
     return acoes[handler] || 'VISUALIZAR';
@@ -104,25 +110,19 @@ export class OSPermissionsGuard implements CanActivate {
     etapa?: string,
     userId?: string,
   ): Promise<{ permitido: boolean; motivo?: string }> {
-    
     // Regras basicas por funcao (conforme enum usuario_funcao)
     const permissoesPorFuncao = {
-      'ADMINISTRADOR': ['*'], // Todas as permissoes
-      'PRODUCAO': [
+      ADMINISTRADOR: ['*'], // Todas as permissoes
+      PRODUCAO: [
         'VISUALIZAR',
         'CRIAR',
         'EDITAR',
         'AVANCAR_ETAPA',
         'FINALIZAR_OS',
       ],
-      'VENDAS': [
-        'VISUALIZAR',
-        'CRIAR',
-      ],
-      'FINANCEIRO': [
-        'VISUALIZAR',
-      ],
-      'ESTOQUE': [
+      VENDAS: ['VISUALIZAR', 'CRIAR'],
+      FINANCEIRO: ['VISUALIZAR'],
+      ESTOQUE: [
         'VISUALIZAR',
         'AVANCAR_ETAPA', // Para etapas relacionadas ao estoque
       ],
@@ -153,16 +153,15 @@ export class OSPermissionsGuard implements CanActivate {
     funcao: string,
     etapa: string,
   ): Promise<{ permitido: boolean; motivo?: string }> {
-    
     // Regras especificas por etapa
     const regrasEtapa = {
-      'FILA': ['ADMINISTRADOR', 'PRODUCAO', 'VENDAS'],
-      'PRODUCAO': ['ADMINISTRADOR', 'PRODUCAO'],
-      'ACABAMENTO': ['ADMINISTRADOR', 'PRODUCAO'],
-      'FINALIZADA': ['ADMINISTRADOR', 'PRODUCAO'],
-      'CANCELADA': ['ADMINISTRADOR'],
-      'AGUARDANDO_MATERIAL': ['ADMINISTRADOR', 'PRODUCAO', 'ESTOQUE'],
-      'PAUSADA': ['ADMINISTRADOR', 'PRODUCAO'],
+      FILA: ['ADMINISTRADOR', 'PRODUCAO', 'VENDAS'],
+      PRODUCAO: ['ADMINISTRADOR', 'PRODUCAO'],
+      ACABAMENTO: ['ADMINISTRADOR', 'PRODUCAO'],
+      FINALIZADA: ['ADMINISTRADOR', 'PRODUCAO'],
+      CANCELADA: ['ADMINISTRADOR'],
+      AGUARDANDO_MATERIAL: ['ADMINISTRADOR', 'PRODUCAO', 'ESTOQUE'],
+      PAUSADA: ['ADMINISTRADOR', 'PRODUCAO'],
     };
 
     const funcoesPermitidas = regrasEtapa[etapa] || [];
@@ -170,8 +169,8 @@ export class OSPermissionsGuard implements CanActivate {
 
     return {
       permitido: podeAvancar,
-      motivo: podeAvancar 
-        ? undefined 
+      motivo: podeAvancar
+        ? undefined
         : `Funcao ${funcao} nao pode avancar para etapa ${etapa}`,
     };
   }

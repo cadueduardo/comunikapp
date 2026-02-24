@@ -25,7 +25,7 @@ import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-est
     EtapaController,
     ApontamentoController,
     NotificacoesController,
-    PCPKanbanController
+    PCPKanbanController,
   ],
   providers: [
     WorkflowService,
@@ -35,7 +35,7 @@ import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-est
     OSPCPIntegrationService,
     NotificacoesPCPService,
     PCPKanbanService,
-    ValidacaoEstoqueService
+    ValidacaoEstoqueService,
   ],
   exports: [
     WorkflowService,
@@ -45,7 +45,7 @@ import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-est
     OSPCPIntegrationService,
     NotificacoesPCPService,
     PCPKanbanService,
-    ValidacaoEstoqueService
-  ]
+    ValidacaoEstoqueService,
+  ],
 })
 export class PCPModule {}

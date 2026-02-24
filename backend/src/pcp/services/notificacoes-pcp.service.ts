@@ -3,7 +3,12 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 export interface NotificacaoPCP {
   id: string;
-  tipo: 'ETAPA_ATRASADA' | 'ETAPA_CONCLUIDA' | 'WORKFLOW_PAUSADO' | 'APONTAMENTO_REFUGO' | 'SLA_CRITICO';
+  tipo:
+    | 'ETAPA_ATRASADA'
+    | 'ETAPA_CONCLUIDA'
+    | 'WORKFLOW_PAUSADO'
+    | 'APONTAMENTO_REFUGO'
+    | 'SLA_CRITICO';
   os_id: string;
   etapa_instancia_id?: string;
   usuario_id: string;
@@ -33,41 +38,50 @@ export class NotificacoesPCPService {
   // Templates de notificação multi-tenant
   private getTemplates(): Record<string, TemplateNotificacao> {
     return {
-      'ETAPA_ATRASADA': {
+      ETAPA_ATRASADA: {
         tipo: 'ETAPA_ATRASADA',
         titulo: 'Etapa Atrasada - OS {numero}',
-        mensagem: 'A etapa "{etapa_nome}" da OS {numero} está atrasada há {dias_atraso} dias. Responsável: {responsavel_nome}',
+        mensagem:
+          'A etapa "{etapa_nome}" da OS {numero} está atrasada há {dias_atraso} dias. Responsável: {responsavel_nome}',
         prioridade: 'ALTA',
-        template_vars: ['numero', 'etapa_nome', 'dias_atraso', 'responsavel_nome']
+        template_vars: [
+          'numero',
+          'etapa_nome',
+          'dias_atraso',
+          'responsavel_nome',
+        ],
       },
-      'ETAPA_CONCLUIDA': {
+      ETAPA_CONCLUIDA: {
         tipo: 'ETAPA_CONCLUIDA',
         titulo: 'Etapa Concluída - OS {numero}',
-        mensagem: 'A etapa "{etapa_nome}" da OS {numero} foi concluída por {responsavel_nome}',
+        mensagem:
+          'A etapa "{etapa_nome}" da OS {numero} foi concluída por {responsavel_nome}',
         prioridade: 'MEDIA',
-        template_vars: ['numero', 'etapa_nome', 'responsavel_nome']
+        template_vars: ['numero', 'etapa_nome', 'responsavel_nome'],
       },
-      'WORKFLOW_PAUSADO': {
+      WORKFLOW_PAUSADO: {
         tipo: 'WORKFLOW_PAUSADO',
         titulo: 'Workflow Pausado - OS {numero}',
         mensagem: 'O workflow da OS {numero} foi pausado. Motivo: {motivo}',
         prioridade: 'ALTA',
-        template_vars: ['numero', 'motivo']
+        template_vars: ['numero', 'motivo'],
       },
-      'APONTAMENTO_REFUGO': {
+      APONTAMENTO_REFUGO: {
         tipo: 'APONTAMENTO_REFUGO',
         titulo: 'Refugo Registrado - OS {numero}',
-        mensagem: 'Foi registrado refugo na OS {numero}: {quantidade_refugo} unidades. Observações: {observacoes}',
+        mensagem:
+          'Foi registrado refugo na OS {numero}: {quantidade_refugo} unidades. Observações: {observacoes}',
         prioridade: 'ALTA',
-        template_vars: ['numero', 'quantidade_refugo', 'observacoes']
+        template_vars: ['numero', 'quantidade_refugo', 'observacoes'],
       },
-      'SLA_CRITICO': {
+      SLA_CRITICO: {
         tipo: 'SLA_CRITICO',
         titulo: 'SLA Crítico - OS {numero}',
-        mensagem: 'A OS {numero} está com SLA crítico. Prazo: {data_prazo}, Dias restantes: {dias_restantes}',
+        mensagem:
+          'A OS {numero} está com SLA crítico. Prazo: {data_prazo}, Dias restantes: {dias_restantes}',
         prioridade: 'CRITICA',
-        template_vars: ['numero', 'data_prazo', 'dias_restantes']
-      }
+        template_vars: ['numero', 'data_prazo', 'dias_restantes'],
+      },
     };
   }
 
@@ -76,7 +90,7 @@ export class NotificacoesPCPService {
     osId: string,
     usuarioId: string,
     metadata: Record<string, any> = {},
-    etapaInstanciaId?: string
+    etapaInstanciaId?: string,
   ): Promise<NotificacaoPCP> {
     const template = this.getTemplates()[tipo];
     if (!template) {
@@ -87,8 +101,8 @@ export class NotificacoesPCPService {
     const os = await this.prisma.ordemServico.findUnique({
       where: { id: osId },
       include: {
-        cliente: true
-      }
+        cliente: true,
+      },
     });
 
     if (!os) {
@@ -99,7 +113,7 @@ export class NotificacoesPCPService {
     let etapa = null;
     if (etapaInstanciaId) {
       etapa = await this.prisma.etapaInstancia.findUnique({
-        where: { id: etapaInstanciaId }
+        where: { id: etapaInstanciaId },
       });
     }
 
@@ -107,14 +121,14 @@ export class NotificacoesPCPService {
     const titulo = this.preencherTemplate(template.titulo, {
       numero: os.numero,
       etapa_nome: etapa?.etapa_nome || 'N/A',
-      ...metadata
+      ...metadata,
     });
 
     const mensagem = this.preencherTemplate(template.mensagem, {
       numero: os.numero,
       etapa_nome: etapa?.etapa_nome || 'N/A',
       responsavel_nome: metadata.responsavel_nome || 'Sistema',
-      ...metadata
+      ...metadata,
     });
 
     // Criar notificação no banco (usando tabela existente)
@@ -131,15 +145,17 @@ export class NotificacoesPCPService {
           etapa_instancia_id: etapaInstanciaId,
           usuario_id: usuarioId,
           prioridade: template.prioridade,
-          metadata: metadata
-        })
-      }
+          metadata: metadata,
+        }),
+      },
     });
 
     this.logger.log(`Notificação criada: ${tipo} para OS ${osId}`);
 
-    const dadosExtras = notificacao.dados_extras ? JSON.parse(notificacao.dados_extras) : {};
-    
+    const dadosExtras = notificacao.dados_extras
+      ? JSON.parse(notificacao.dados_extras)
+      : {};
+
     return {
       id: notificacao.id,
       tipo: notificacao.tipo as any,
@@ -152,40 +168,49 @@ export class NotificacoesPCPService {
       lida: notificacao.visualizada,
       data_criacao: notificacao.criado_em,
       data_leitura: notificacao.visualizada ? notificacao.criado_em : undefined,
-      metadata: dadosExtras.metadata
+      metadata: dadosExtras.metadata,
     };
   }
 
-  async marcarComoLida(notificacaoId: string, usuarioId: string): Promise<void> {
+  async marcarComoLida(
+    notificacaoId: string,
+    usuarioId: string,
+  ): Promise<void> {
     await this.prisma.notificacao.update({
-      where: { 
-        id: notificacaoId
+      where: {
+        id: notificacaoId,
       },
       data: {
-        visualizada: true
-      }
+        visualizada: true,
+      },
     });
 
-    this.logger.log(`Notificação ${notificacaoId} marcada como lida pelo usuário ${usuarioId}`);
+    this.logger.log(
+      `Notificação ${notificacaoId} marcada como lida pelo usuário ${usuarioId}`,
+    );
   }
 
-  async buscarNotificacoesPendentes(usuarioId: string): Promise<NotificacaoPCP[]> {
+  async buscarNotificacoesPendentes(
+    usuarioId: string,
+  ): Promise<NotificacaoPCP[]> {
     const notificacoes = await this.prisma.notificacao.findMany({
       where: {
         visualizada: false,
         dados_extras: {
-          contains: `"usuario_id":"${usuarioId}"`
-        }
+          contains: `"usuario_id":"${usuarioId}"`,
+        },
       },
       orderBy: {
-        criado_em: 'desc'
+        criado_em: 'desc',
       },
-      take: 50 // Limitar a 50 notificações
+      take: 50, // Limitar a 50 notificações
     });
 
-    return notificacoes.map(notificacao => {
-      const dadosExtras = notificacao.dados_extras ? JSON.parse(notificacao.dados_extras) : {};
-      
+    return notificacoes.map((notificacao) => {
+      const dadosExtras = notificacao.dados_extras
+        ? JSON.parse(notificacao.dados_extras)
+        : {};
+
       return {
         id: notificacao.id,
         tipo: notificacao.tipo as any,
@@ -197,8 +222,10 @@ export class NotificacoesPCPService {
         prioridade: dadosExtras.prioridade || 'MEDIA',
         lida: notificacao.visualizada,
         data_criacao: notificacao.criado_em,
-        data_leitura: notificacao.visualizada ? notificacao.criado_em : undefined,
-        metadata: dadosExtras.metadata
+        data_leitura: notificacao.visualizada
+          ? notificacao.criado_em
+          : undefined,
+        metadata: dadosExtras.metadata,
       };
     });
   }
@@ -211,21 +238,21 @@ export class NotificacoesPCPService {
       where: {
         status: 'EM_ANDAMENTO',
         data_fim: {
-          lt: new Date() // Data fim menor que hoje
-        }
+          lt: new Date(), // Data fim menor que hoje
+        },
       },
       include: {
         workflow_instancia: {
           include: {
-            os: true
-          }
-        }
-      }
+            os: true,
+          },
+        },
+      },
     });
 
     for (const etapa of etapasAtrasadas) {
       const diasAtraso = Math.ceil(
-        (Date.now() - etapa.data_fim!.getTime()) / (1000 * 60 * 60 * 24)
+        (Date.now() - etapa.data_fim.getTime()) / (1000 * 60 * 60 * 24),
       );
 
       await this.criarNotificacao(
@@ -235,9 +262,9 @@ export class NotificacoesPCPService {
         {
           etapa_nome: etapa.etapa_nome,
           dias_atraso: diasAtraso,
-          responsavel_nome: etapa.responsavel_id || 'Não definido'
+          responsavel_nome: etapa.responsavel_id || 'Não definido',
         },
-        etapa.id
+        etapa.id,
       );
     }
 
@@ -249,47 +276,48 @@ export class NotificacoesPCPService {
 
     // Buscar OS com prazo próximo (3 dias ou menos)
     const hoje = new Date();
-    const prazoCritico = new Date(hoje.getTime() + (3 * 24 * 60 * 60 * 1000));
+    const prazoCritico = new Date(hoje.getTime() + 3 * 24 * 60 * 60 * 1000);
 
     const osCriticas = await this.prisma.ordemServico.findMany({
       where: {
         status: {
-          in: ['FILA', 'PRODUCAO', 'ACABAMENTO']
+          in: ['FILA', 'PRODUCAO', 'ACABAMENTO'],
         },
         data_prazo: {
-          lte: prazoCritico
-        }
+          lte: prazoCritico,
+        },
       },
       include: {
         // TODO: Incluir relacionamento com responsável quando estiver disponível
-      }
+      },
     });
 
     for (const os of osCriticas) {
       const diasRestantes = Math.ceil(
-        (os.data_prazo!.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
+        (os.data_prazo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24),
       );
 
-      await this.criarNotificacao(
-        'SLA_CRITICO',
-        os.id,
-        os.responsavel_id,
-        {
-          data_prazo: os.data_prazo!.toLocaleDateString('pt-BR'),
-          dias_restantes: diasRestantes
-        }
-      );
+      await this.criarNotificacao('SLA_CRITICO', os.id, os.responsavel_id, {
+        data_prazo: os.data_prazo.toLocaleDateString('pt-BR'),
+        dias_restantes: diasRestantes,
+      });
     }
 
     this.logger.log(`${osCriticas.length} OS com SLA crítico verificadas`);
   }
 
-  private preencherTemplate(template: string, dados: Record<string, any>): string {
+  private preencherTemplate(
+    template: string,
+    dados: Record<string, any>,
+  ): string {
     let resultado = template;
-    
+
     for (const [chave, valor] of Object.entries(dados)) {
       const placeholder = `{${chave}}`;
-      resultado = resultado.replace(new RegExp(placeholder, 'g'), String(valor || 'N/A'));
+      resultado = resultado.replace(
+        new RegExp(placeholder, 'g'),
+        String(valor || 'N/A'),
+      );
     }
 
     return resultado;
@@ -299,7 +327,7 @@ export class NotificacoesPCPService {
   async enviarWebhook(tipo: string, dados: any): Promise<void> {
     // TODO: Implementar envio de webhook para sistemas externos
     // Ex: Slack, Teams, WhatsApp Business API, etc.
-    
+
     this.logger.log(`Webhook enviado: ${tipo}`, dados);
   }
 }

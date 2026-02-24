@@ -17,7 +17,7 @@ export interface WorkflowInstanciaData {
   data_fim?: Date;
   criado_em: Date;
   atualizado_em: Date;
-  
+
   // Relacionamentos
   workflow?: WorkflowData;
   etapas?: EtapaInstanciaData[];
@@ -37,7 +37,7 @@ export interface EtapaInstanciaData {
   observacoes?: string;
   criado_em: Date;
   atualizado_em: Date;
-  
+
   // Relacionamentos
   workflow_instancia?: WorkflowInstanciaData;
   checklists?: ChecklistInstanciaData[];
@@ -56,7 +56,7 @@ export interface ChecklistInstanciaData {
   ordem: number;
   criado_em: Date;
   atualizado_em: Date;
-  
+
   // Relacionamentos
   etapa_instancia?: EtapaInstanciaData;
 }
@@ -75,7 +75,7 @@ export interface ApontamentoData {
   ip_origem?: string;
   user_agent?: string;
   criado_em: Date;
-  
+
   // Relacionamentos
   os?: any; // OrdemServicoData
   etapa_instancia?: EtapaInstanciaData;
@@ -87,7 +87,7 @@ export enum StatusWorkflowInstancia {
   ATIVO = 'ATIVO',
   PAUSADO = 'PAUSADO',
   CONCLUIDO = 'CONCLUIDO',
-  CANCELADO = 'CANCELADO'
+  CANCELADO = 'CANCELADO',
 }
 
 export enum StatusEtapaInstancia {
@@ -95,7 +95,7 @@ export enum StatusEtapaInstancia {
   EM_ANDAMENTO = 'EM_ANDAMENTO',
   CONCLUIDA = 'CONCLUIDA',
   PAUSADA = 'PAUSADA',
-  CANCELADA = 'CANCELADA'
+  CANCELADA = 'CANCELADA',
 }
 
 export enum TipoApontamento {
@@ -103,7 +103,7 @@ export enum TipoApontamento {
   PAUSA = 'PAUSA',
   RETOMADA = 'RETOMADA',
   CONCLUSAO = 'CONCLUSAO',
-  REFUGO = 'REFUGO'
+  REFUGO = 'REFUGO',
 }
 
 // ===== DTOs PARA CRIAÇÃO =====
@@ -178,7 +178,7 @@ export interface WorkflowInstanciaResponse {
   data_fim?: string; // ISO string
   criado_em: string; // ISO string
   atualizado_em: string; // ISO string
-  
+
   // Relacionamentos opcionais
   workflow?: {
     id: string;
@@ -202,7 +202,7 @@ export interface EtapaInstanciaResponse {
   observacoes?: string;
   criado_em: string; // ISO string
   atualizado_em: string; // ISO string
-  
+
   // Relacionamentos opcionais
   checklists?: ChecklistInstanciaResponse[];
   apontamentos?: ApontamentoResponse[];

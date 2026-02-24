@@ -31,7 +31,7 @@ export class EstoqueApontamentoService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly validacaoEstoqueService: ValidacaoEstoqueService
+    private readonly validacaoEstoqueService: ValidacaoEstoqueService,
   ) {}
 
   /**
@@ -42,10 +42,12 @@ export class EstoqueApontamentoService {
     tipoApontamento: TipoApontamento,
     quantidadeProduzida?: number,
     quantidadeRefugo?: number,
-    observacoes?: string
+    observacoes?: string,
   ): Promise<ResultadoOperacaoEstoque> {
     try {
-      this.logger.log(`Processando operação de estoque para OS ${osId} - Tipo: ${tipoApontamento}`);
+      this.logger.log(
+        `Processando operação de estoque para OS ${osId} - Tipo: ${tipoApontamento}`,
+      );
 
       // 1. Buscar OS e insumos necessários
       const os = await this.prisma.ordemServico.findUnique({
@@ -61,9 +63,11 @@ export class EstoqueApontamentoService {
 
       // 2. Extrair insumos dos itens da OS
       const insumosNecessarios = await this.extrairInsumosOS(os);
-      
+
       if (insumosNecessarios.length === 0) {
-        this.logger.warn(`OS ${osId} não possui insumos para processar estoque`);
+        this.logger.warn(
+          `OS ${osId} não possui insumos para processar estoque`,
+        );
         return {
           sucesso: true,
           operacoes_realizadas: [],
@@ -77,7 +81,7 @@ export class EstoqueApontamentoService {
         tipoApontamento,
         insumosNecessarios,
         quantidadeProduzida,
-        quantidadeRefugo
+        quantidadeRefugo,
       );
 
       // 4. Executar operações de estoque
@@ -86,7 +90,9 @@ export class EstoqueApontamentoService {
       this.logger.log(`[OK] Operações de estoque processadas para OS ${osId}`);
       return resultado;
     } catch (error) {
-      this.logger.error(`Erro ao processar operação de estoque: ${error.message}`);
+      this.logger.error(
+        `Erro ao processar operação de estoque: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -94,12 +100,14 @@ export class EstoqueApontamentoService {
   /**
    * Extrai insumos necessários dos itens da OS
    */
-  private async extrairInsumosOS(os: any): Promise<Array<{
-    insumo_id: string;
-    quantidade: number;
-    unidade: string;
-    nome: string;
-  }>> {
+  private async extrairInsumosOS(os: any): Promise<
+    Array<{
+      insumo_id: string;
+      quantidade: number;
+      unidade: string;
+      nome: string;
+    }>
+  > {
     const insumos: Array<{
       insumo_id: string;
       quantidade: number;
@@ -126,7 +134,9 @@ export class EstoqueApontamentoService {
             });
           }
         } catch (error) {
-          this.logger.warn(`Erro ao processar insumos do item ${item.id}: ${error.message}`);
+          this.logger.warn(
+            `Erro ao processar insumos do item ${item.id}: ${error.message}`,
+          );
         }
       }
     }
@@ -146,7 +156,7 @@ export class EstoqueApontamentoService {
       nome: string;
     }>,
     quantidadeProduzida?: number,
-    quantidadeRefugo?: number
+    quantidadeRefugo?: number,
   ): OperacaoEstoque[] {
     const operacoes: OperacaoEstoque[] = [];
 
@@ -183,7 +193,8 @@ export class EstoqueApontamentoService {
         // Baixar insumos adicionais para refugo
         if (quantidadeRefugo && quantidadeRefugo > 0) {
           for (const insumo of insumosNecessarios) {
-            const quantidadeRefugoInsumo = (insumo.quantidade * quantidadeRefugo) / 100; // Percentual
+            const quantidadeRefugoInsumo =
+              (insumo.quantidade * quantidadeRefugo) / 100; // Percentual
             operacoes.push({
               insumo_id: insumo.insumo_id,
               quantidade: quantidadeRefugoInsumo,
@@ -205,7 +216,9 @@ export class EstoqueApontamentoService {
         break;
 
       default:
-        this.logger.warn(`Tipo de apontamento não reconhecido: ${tipoApontamento}`);
+        this.logger.warn(
+          `Tipo de apontamento não reconhecido: ${tipoApontamento}`,
+        );
     }
 
     return operacoes;
@@ -216,7 +229,7 @@ export class EstoqueApontamentoService {
    */
   private async executarOperacoesEstoque(
     operacoes: OperacaoEstoque[],
-    osId: string
+    osId: string,
   ): Promise<ResultadoOperacaoEstoque> {
     const operacoesRealizadas: OperacaoEstoque[] = [];
     const erros: string[] = [];
@@ -232,12 +245,12 @@ export class EstoqueApontamentoService {
           const validacao = await this.validarDisponibilidadeEstoque(
             operacao.insumo_id,
             operacao.quantidade,
-            operacao.unidade
+            operacao.unidade,
           );
 
           if (!validacao.disponivel) {
             erros.push(
-              `Insumo ${operacao.insumo_id} não disponível: ${validacao.motivo}`
+              `Insumo ${operacao.insumo_id} não disponível: ${validacao.motivo}`,
             );
             continue;
           }
@@ -252,7 +265,7 @@ export class EstoqueApontamentoService {
         operacoesRealizadas.push(operacao);
 
         this.logger.log(
-          `[OK] Operação de estoque executada: ${operacao.tipo} - ${operacao.quantidade} ${operacao.unidade} do insumo ${operacao.insumo_id}`
+          `[OK] Operação de estoque executada: ${operacao.tipo} - ${operacao.quantidade} ${operacao.unidade} do insumo ${operacao.insumo_id}`,
         );
       } catch (error) {
         const erro = `Erro ao executar operação de estoque para insumo ${operacao.insumo_id}: ${error.message}`;
@@ -275,7 +288,7 @@ export class EstoqueApontamentoService {
   private async validarDisponibilidadeEstoque(
     insumoId: string,
     quantidade: number,
-    unidade: string
+    unidade: string,
   ): Promise<{
     disponivel: boolean;
     motivo?: string;
@@ -301,10 +314,12 @@ export class EstoqueApontamentoService {
       }
 
       // Converter quantidade se necessário
-      let quantidadeNecessaria = quantidade;
+      const quantidadeNecessaria = quantidade;
       if (unidade !== estoque.unidade_compra) {
         // TODO: Implementar conversão de unidades
-        this.logger.warn(`Conversão de unidades não implementada: ${unidade} -> ${estoque.unidade_compra}`);
+        this.logger.warn(
+          `Conversão de unidades não implementada: ${unidade} -> ${estoque.unidade_compra}`,
+        );
       }
 
       const estoqueAtual = Number(estoque.estoque_atual || 0);
@@ -328,7 +343,9 @@ export class EstoqueApontamentoService {
 
       return { disponivel: true };
     } catch (error) {
-      this.logger.error(`Erro ao validar disponibilidade de estoque: ${error.message}`);
+      this.logger.error(
+        `Erro ao validar disponibilidade de estoque: ${error.message}`,
+      );
       return {
         disponivel: false,
         motivo: `Erro na validação: ${error.message}`,
@@ -339,11 +356,15 @@ export class EstoqueApontamentoService {
   /**
    * Executa uma operação individual de estoque
    */
-  private async executarOperacaoIndividual(operacao: OperacaoEstoque): Promise<void> {
+  private async executarOperacaoIndividual(
+    operacao: OperacaoEstoque,
+  ): Promise<void> {
     // TODO: Implementar operações reais de estoque
     // Por enquanto, apenas registra no log
-    this.logger.log(`Executando operação de estoque: ${JSON.stringify(operacao)}`);
-    
+    this.logger.log(
+      `Executando operação de estoque: ${JSON.stringify(operacao)}`,
+    );
+
     // Em uma implementação real, aqui seria:
     // 1. Atualizar estoque_atual do insumo
     // 2. Registrar movimentação de estoque
@@ -354,14 +375,16 @@ export class EstoqueApontamentoService {
   /**
    * Libera reservas de estoque (usado quando OS é cancelada)
    */
-  async liberarReservasEstoque(osId: string): Promise<ResultadoOperacaoEstoque> {
+  async liberarReservasEstoque(
+    osId: string,
+  ): Promise<ResultadoOperacaoEstoque> {
     try {
       this.logger.log(`Liberando reservas de estoque para OS ${osId}`);
 
       // Buscar reservas ativas da OS
       const reservas = await this.buscarReservasAtivas(osId);
-      
-      const operacoes: OperacaoEstoque[] = reservas.map(reserva => ({
+
+      const operacoes: OperacaoEstoque[] = reservas.map((reserva) => ({
         insumo_id: reserva.insumo_id,
         quantidade: reserva.quantidade,
         unidade: reserva.unidade,
@@ -371,11 +394,13 @@ export class EstoqueApontamentoService {
       }));
 
       const resultado = await this.executarOperacoesEstoque(operacoes, osId);
-      
+
       this.logger.log(`[OK] Reservas de estoque liberadas para OS ${osId}`);
       return resultado;
     } catch (error) {
-      this.logger.error(`Erro ao liberar reservas de estoque: ${error.message}`);
+      this.logger.error(
+        `Erro ao liberar reservas de estoque: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -383,11 +408,13 @@ export class EstoqueApontamentoService {
   /**
    * Busca reservas ativas de uma OS
    */
-  private async buscarReservasAtivas(osId: string): Promise<Array<{
-    insumo_id: string;
-    quantidade: number;
-    unidade: string;
-  }>> {
+  private async buscarReservasAtivas(osId: string): Promise<
+    Array<{
+      insumo_id: string;
+      quantidade: number;
+      unidade: string;
+    }>
+  > {
     // TODO: Implementar busca de reservas ativas
     // Por enquanto, retorna array vazio
     return [];

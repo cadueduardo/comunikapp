@@ -1,6 +1,15 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { OSCardKanban, KanbanStats, StatusSetorProdutivo } from '../entities/pcp.entities';
+import {
+  OSCardKanban,
+  KanbanStats,
+  StatusSetorProdutivo,
+} from '../entities/pcp.entities';
 import { KanbanQueryDto } from '../dto/kanban.dto';
 import { KanbanMapper } from '../mappers/kanban.mapper';
 import { SetoresProdutivosService } from '../../configuracoes/services/centros-de-trabalho/setores-produtivos.service';
@@ -11,13 +20,16 @@ export class PCPKanbanService {
 
   constructor(
     private prisma: PrismaService,
-    private setoresProdutivosService: SetoresProdutivosService
+    private setoresProdutivosService: SetoresProdutivosService,
   ) {}
 
   /**
    * Obtém dados do kanban geral para uma loja
    */
-  async obterKanbanGeral(lojaId: string, filtros?: KanbanQueryDto): Promise<{
+  async obterKanbanGeral(
+    lojaId: string,
+    filtros?: KanbanQueryDto,
+  ): Promise<{
     cards: OSCardKanban[];
     stats: KanbanStats;
   }> {
@@ -29,9 +41,9 @@ export class PCPKanbanService {
         where: {
           loja_id: lojaId,
           status: {
-            in: ['LIBERADA_PARA_PCP', 'EM_WORKFLOW', 'FINALIZADA']
+            in: ['LIBERADA_PARA_PCP', 'EM_WORKFLOW', 'FINALIZADA'],
           },
-          ...this.aplicarFiltros(filtros)
+          ...this.aplicarFiltros(filtros),
         },
         include: {
           cliente: true,
@@ -39,23 +51,27 @@ export class PCPKanbanService {
             include: {
               workflow: true,
               etapas: {
-                where: { status: 'EM_ANDAMENTO' }
-              }
-            }
+                where: { status: 'EM_ANDAMENTO' },
+              },
+            },
           },
-          itens: true
+          itens: true,
         },
-        orderBy: { data_prazo: 'asc' }
+        orderBy: { data_prazo: 'asc' },
       });
 
       // Converter para formato do kanban
-      const cards: OSCardKanban[] = osLiberadas.map(os => KanbanMapper.mapearOSParaKanban(os));
-      
+      const cards: OSCardKanban[] = osLiberadas.map((os) =>
+        KanbanMapper.mapearOSParaKanban(os),
+      );
+
       // Calcular estatísticas
       const stats = KanbanMapper.calcularEstatisticas(cards);
 
-      this.logger.log(`Kanban obtido: ${cards.length} OSs, ${stats.total} total`);
-      
+      this.logger.log(
+        `Kanban obtido: ${cards.length} OSs, ${stats.total} total`,
+      );
+
       return { cards, stats };
     } catch (error) {
       this.logger.error(`Erro ao obter kanban geral:`, error);
@@ -66,54 +82,56 @@ export class PCPKanbanService {
   /**
    * Obtém fila de um setor específico
    */
-  async obterFilaSetor(setorId: string, operadorId?: string): Promise<OSCardKanban[]> {
+  async obterFilaSetor(
+    setorId: string,
+    operadorId?: string,
+  ): Promise<OSCardKanban[]> {
     try {
       this.logger.log(`Obtendo fila do setor ${setorId}`);
 
       // Buscar instâncias de workflow do setor
-      const instanciasSetor = await this.prisma.workflowInstanciaSetor.findMany({
-        where: {
-          setor_id: setorId,
-          status: {
-            in: ['PENDENTE', 'EM_ANDAMENTO']
+      const instanciasSetor = await this.prisma.workflowInstanciaSetor.findMany(
+        {
+          where: {
+            setor_id: setorId,
+            status: {
+              in: ['PENDENTE', 'EM_ANDAMENTO'],
+            },
+            ...(operadorId && { operador_id: operadorId }),
           },
-          ...(operadorId && { operador_id: operadorId })
-        },
-        include: {
-          item_os: {
-            include: {
-              os: {
-                include: {
-                  cliente: true
-                }
-              }
-            }
+          include: {
+            item_os: {
+              include: {
+                os: {
+                  include: {
+                    cliente: true,
+                  },
+                },
+              },
+            },
+            setor: true,
+            operador: true,
+            workflow_instancia: {
+              include: {
+                os: {
+                  include: {
+                    cliente: true,
+                  },
+                },
+              },
+            },
           },
-          setor: true,
-          operador: true,
-          workflow_instancia: {
-            include: {
-              os: {
-                include: {
-                  cliente: true
-                }
-              }
-            }
-          }
+          orderBy: [{ criado_em: 'asc' }, { ordem: 'asc' }],
         },
-        orderBy: [
-          { criado_em: 'asc' },
-          { ordem: 'asc' }
-        ]
-      });
+      );
 
       // Converter para formato do kanban
-      const cards: OSCardKanban[] = instanciasSetor.map(instancia => 
-        KanbanMapper.mapearInstanciaParaKanban(instancia)
+      const cards: OSCardKanban[] = instanciasSetor.map((instancia) =>
+        KanbanMapper.mapearInstanciaParaKanban(instancia),
       );
 
       this.logger.log(`Fila do setor obtida: ${cards.length} itens`);
-      
+
       return cards;
     } catch (error) {
       this.logger.error(`Erro ao obter fila do setor:`, error);
@@ -149,19 +167,27 @@ export class PCPKanbanService {
   /**
    * Inicia produção de um item
    */
-  async iniciarProducao(itemOsId: string, operadorId: string, observacoes?: string): Promise<void> {
+  async iniciarProducao(
+    itemOsId: string,
+    operadorId: string,
+    observacoes?: string,
+  ): Promise<void> {
     try {
-      this.logger.log(`Iniciando producao do item ${itemOsId} pelo operador ${operadorId}`);
+      this.logger.log(
+        `Iniciando producao do item ${itemOsId} pelo operador ${operadorId}`,
+      );
 
       const etapa = await this.prisma.workflowInstanciaSetor.findFirst({
         where: {
           item_os_id: itemOsId,
-          status: 'PENDENTE'
-        }
+          status: 'PENDENTE',
+        },
       });
 
       if (!etapa) {
-        throw new BadRequestException('Etapa nao disponivel para inicio (aguardando liberacao ou ja iniciada).');
+        throw new BadRequestException(
+          'Etapa nao disponivel para inicio (aguardando liberacao ou ja iniciada).',
+        );
       }
 
       await this.prisma.workflowInstanciaSetor.update({
@@ -171,21 +197,21 @@ export class PCPKanbanService {
           operador_id: operadorId,
           data_inicio: new Date(),
           observacoes,
-          atualizado_em: new Date()
-        }
+          atualizado_em: new Date(),
+        },
       });
 
       await this.prisma.workflowInstancia.update({
         where: { id: etapa.workflow_instancia_id },
         data: {
           etapa_atual: etapa.setor_id,
-          atualizado_em: new Date()
-        }
+          atualizado_em: new Date(),
+        },
       });
 
       const itemOS = await this.prisma.itemOS.findUnique({
         where: { id: itemOsId },
-        include: { os: true }
+        include: { os: true },
       });
 
       if (itemOS) {
@@ -195,8 +221,8 @@ export class PCPKanbanService {
             tipo: 'INICIO',
             data_apontamento: new Date(),
             usuario_id: operadorId,
-            observacoes
-          }
+            observacoes,
+          },
         });
       }
 
@@ -210,19 +236,26 @@ export class PCPKanbanService {
   /**
    * Conclui etapa de produção
    */
-  async concluirEtapa(itemOsId: string, operadorId: string, observacoes?: string, quantidadeProduzida?: number): Promise<void> {
+  async concluirEtapa(
+    itemOsId: string,
+    operadorId: string,
+    observacoes?: string,
+    quantidadeProduzida?: number,
+  ): Promise<void> {
     try {
       this.logger.log(`Concluindo etapa do item ${itemOsId}`);
 
       const etapaAtual = await this.prisma.workflowInstanciaSetor.findFirst({
         where: {
           item_os_id: itemOsId,
-          status: 'EM_ANDAMENTO'
-        }
+          status: 'EM_ANDAMENTO',
+        },
       });
 
       if (!etapaAtual) {
-        throw new BadRequestException('Nenhuma etapa em andamento encontrada para este item.');
+        throw new BadRequestException(
+          'Nenhuma etapa em andamento encontrada para este item.',
+        );
       }
 
       await this.prisma.workflowInstanciaSetor.update({
@@ -231,13 +264,13 @@ export class PCPKanbanService {
           status: 'CONCLUIDA',
           data_conclusao: new Date(),
           observacoes: observacoes,
-          atualizado_em: new Date()
-        }
+          atualizado_em: new Date(),
+        },
       });
 
       const itemOS = await this.prisma.itemOS.findUnique({
         where: { id: itemOsId },
-        include: { os: true }
+        include: { os: true },
       });
 
       if (itemOS) {
@@ -248,14 +281,14 @@ export class PCPKanbanService {
             data_apontamento: new Date(),
             usuario_id: operadorId,
             observacoes: observacoes,
-            quantidade_produzida: quantidadeProduzida
-          }
+            quantidade_produzida: quantidadeProduzida,
+          },
         });
       }
 
       await this.liberarProximoGrupo(
         etapaAtual.workflow_instancia_id,
-        etapaAtual.ordem ?? 0
+        etapaAtual.ordem ?? 0,
       );
 
       this.logger.log(`Etapa concluida com sucesso`);
@@ -265,17 +298,21 @@ export class PCPKanbanService {
     }
   }
 
-
-  private async liberarProximoGrupo(workflowInstanciaId: string, ordemAtual: number) {
-    const pendentesNoGrupo = await this.prisma.workflowInstanciaSetor.findFirst({
-      where: {
-        workflow_instancia_id: workflowInstanciaId,
-        ordem: ordemAtual,
-        status: {
-          in: ['PENDENTE', 'EM_ANDAMENTO']
-        }
-      }
-    });
+  private async liberarProximoGrupo(
+    workflowInstanciaId: string,
+    ordemAtual: number,
+  ) {
+    const pendentesNoGrupo = await this.prisma.workflowInstanciaSetor.findFirst(
+      {
+        where: {
+          workflow_instancia_id: workflowInstanciaId,
+          ordem: ordemAtual,
+          status: {
+            in: ['PENDENTE', 'EM_ANDAMENTO'],
+          },
+        },
+      },
+    );
 
     if (pendentesNoGrupo) {
       return;
@@ -285,11 +322,11 @@ export class PCPKanbanService {
       where: {
         workflow_instancia_id: workflowInstanciaId,
         ordem: { gt: ordemAtual },
-        status: 'AGUARDANDO'
+        status: 'AGUARDANDO',
       },
       orderBy: {
-        ordem: 'asc'
-      }
+        ordem: 'asc',
+      },
     });
 
     if (!proximoGrupo) {
@@ -299,8 +336,8 @@ export class PCPKanbanService {
           status: 'CONCLUIDO',
           data_fim: new Date(),
           etapa_atual: null,
-          atualizado_em: new Date()
-        }
+          atualizado_em: new Date(),
+        },
       });
       return;
     }
@@ -309,23 +346,22 @@ export class PCPKanbanService {
       where: {
         workflow_instancia_id: workflowInstanciaId,
         ordem: proximoGrupo.ordem,
-        status: 'AGUARDANDO'
+        status: 'AGUARDANDO',
       },
       data: {
         status: 'PENDENTE',
-        atualizado_em: new Date()
-      }
+        atualizado_em: new Date(),
+      },
     });
 
     await this.prisma.workflowInstancia.update({
       where: { id: workflowInstanciaId },
       data: {
         etapa_atual: proximoGrupo.setor_id,
-        atualizado_em: new Date()
-      }
+        atualizado_em: new Date(),
+      },
     });
   }
-
 
   /**
    * Aplica filtros na query
@@ -340,14 +376,19 @@ export class PCPKanbanService {
     }
 
     if (filtros.dataInicio) {
-      where.data_prazo = { ...where.data_prazo, gte: new Date(filtros.dataInicio) };
+      where.data_prazo = {
+        ...where.data_prazo,
+        gte: new Date(filtros.dataInicio),
+      };
     }
 
     if (filtros.dataFim) {
-      where.data_prazo = { ...where.data_prazo, lte: new Date(filtros.dataFim) };
+      where.data_prazo = {
+        ...where.data_prazo,
+        lte: new Date(filtros.dataFim),
+      };
     }
 
     return where;
   }
-
 }

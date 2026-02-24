@@ -57,11 +57,14 @@ export class AprovacaoAlcadaService {
     const configuracao = this.configuracoesAlcada.find(
       (config) =>
         valorEstimado >= config.valorMinimo &&
-        (config.valorMaximo === undefined || valorEstimado <= config.valorMaximo),
+        (config.valorMaximo === undefined ||
+          valorEstimado <= config.valorMaximo),
     );
 
     if (!configuracao) {
-      throw new Error(`Valor ${valorEstimado} não se enquadra em nenhuma alçada configurada`);
+      throw new Error(
+        `Valor ${valorEstimado} não se enquadra em nenhuma alçada configurada`,
+      );
     }
 
     return configuracao.nivel;
@@ -79,13 +82,16 @@ export class AprovacaoAlcadaService {
     try {
       // 1. Determinar nível de alçada necessário
       const nivelRequerido = this.determinarNivelAlcada(valorEstimado);
-      
+
       // 2. Verificar orçamento disponível no centro de custo
-      const orcamentoDisponivel = await this.verificarOrcamentoDisponivel(centroCusto, lojaId);
-      
+      const orcamentoDisponivel = await this.verificarOrcamentoDisponivel(
+        centroCusto,
+        lojaId,
+      );
+
       // 3. Verificar se há orçamento suficiente
       const podeAprovar = orcamentoDisponivel >= valorEstimado;
-      
+
       // 4. Determinar aprovador necessário
       const aprovadorRequerido = this.determinarAprovadorRequerido(
         nivelRequerido,
@@ -141,7 +147,12 @@ export class AprovacaoAlcadaService {
         os.loja_id,
       );
 
-      if (!this.validarPermissaoAprovador(aprovadorCargo, validacao.nivelRequerido)) {
+      if (
+        !this.validarPermissaoAprovador(
+          aprovadorCargo,
+          validacao.nivelRequerido,
+        )
+      ) {
         throw new Error('Usuário não tem permissão para aprovar esta OS');
       }
 
@@ -161,10 +172,19 @@ export class AprovacaoAlcadaService {
       });
 
       // 4. Reservar orçamento no centro de custo
-      await this.reservarOrcamento(validacao.centroCusto, valorEstimado, os.loja_id);
+      await this.reservarOrcamento(
+        validacao.centroCusto,
+        valorEstimado,
+        os.loja_id,
+      );
 
       // 5. Registrar log de aprovação
-      await this.registrarLogAprovacao(osId, aprovadorId, 'APROVADA', observacoes);
+      await this.registrarLogAprovacao(
+        osId,
+        aprovadorId,
+        'APROVADA',
+        observacoes,
+      );
     } catch (error) {
       throw new Error(`Erro ao aprovar OS interna: ${error.message}`);
     }
@@ -208,7 +228,12 @@ export class AprovacaoAlcadaService {
       });
 
       // 3. Registrar log de rejeição
-      await this.registrarLogAprovacao(osId, aprovadorId, 'REJEITADA', motivoRejeicao);
+      await this.registrarLogAprovacao(
+        osId,
+        aprovadorId,
+        'REJEITADA',
+        motivoRejeicao,
+      );
     } catch (error) {
       throw new Error(`Erro ao rejeitar OS interna: ${error.message}`);
     }
@@ -247,7 +272,7 @@ export class AprovacaoAlcadaService {
       for (const os of osPendentes) {
         const valorEstimado = Number(os.valor_orcado || 0);
         const nivelRequerido = this.determinarNivelAlcada(valorEstimado);
-        
+
         if (this.validarPermissaoAprovador(aprovadorCargo, nivelRequerido)) {
           osFiltradas.push(os);
         }
@@ -277,7 +302,11 @@ export class AprovacaoAlcadaService {
   /**
    * Obtém estatísticas de aprovação por alçada
    */
-  async obterEstatisticasAprovacao(lojaId: string, periodoInicio?: Date, periodoFim?: Date) {
+  async obterEstatisticasAprovacao(
+    lojaId: string,
+    periodoInicio?: Date,
+    periodoFim?: Date,
+  ) {
     try {
       const whereClause: any = {
         loja_id: lojaId,
@@ -301,15 +330,18 @@ export class AprovacaoAlcadaService {
       });
 
       // Agregar manualmente
-      const estatisticas = osInternas.reduce((acc, os) => {
-        const status = os.aprovacao_gerencial || 'PENDENTE';
-        if (!acc[status]) {
-          acc[status] = { quantidade: 0, valorTotal: 0 };
-        }
-        acc[status].quantidade += 1;
-        acc[status].valorTotal += Number(os.valor_orcado || 0);
-        return acc;
-      }, {} as Record<string, { quantidade: number; valorTotal: number }>);
+      const estatisticas = osInternas.reduce(
+        (acc, os) => {
+          const status = os.aprovacao_gerencial || 'PENDENTE';
+          if (!acc[status]) {
+            acc[status] = { quantidade: 0, valorTotal: 0 };
+          }
+          acc[status].quantidade += 1;
+          acc[status].valorTotal += Number(os.valor_orcado || 0);
+          return acc;
+        },
+        {} as Record<string, { quantidade: number; valorTotal: number }>,
+      );
 
       return Object.entries(estatisticas).map(([status, data]) => ({
         status,
@@ -323,7 +355,10 @@ export class AprovacaoAlcadaService {
 
   // Métodos privados auxiliares
 
-  private async verificarOrcamentoDisponivel(centroCusto: string, lojaId: string): Promise<number> {
+  private async verificarOrcamentoDisponivel(
+    centroCusto: string,
+    lojaId: string,
+  ): Promise<number> {
     // TODO: Implementar verificação real de orçamento disponível
     // Por enquanto, retorna um valor simulado
     return 10000; // R$ 10.000,00 simulado
@@ -345,12 +380,17 @@ export class AprovacaoAlcadaService {
     }
   }
 
-  private validarPermissaoAprovador(cargoAprovador: string, nivelRequerido: NivelAlcada): boolean {
+  private validarPermissaoAprovador(
+    cargoAprovador: string,
+    nivelRequerido: NivelAlcada,
+  ): boolean {
     switch (nivelRequerido) {
       case NivelAlcada.AUTOMATICA:
         return true; // Sistema aprova automaticamente
       case NivelAlcada.GERENTE_DEPARTAMENTO:
-        return cargoAprovador.includes('GERENTE') || cargoAprovador === 'DIRETORIA';
+        return (
+          cargoAprovador.includes('GERENTE') || cargoAprovador === 'DIRETORIA'
+        );
       case NivelAlcada.DIRETORIA:
         return cargoAprovador === 'DIRETORIA';
       default:
@@ -358,10 +398,16 @@ export class AprovacaoAlcadaService {
     }
   }
 
-  private async reservarOrcamento(centroCusto: string, valor: number, lojaId: string): Promise<void> {
+  private async reservarOrcamento(
+    centroCusto: string,
+    valor: number,
+    lojaId: string,
+  ): Promise<void> {
     // TODO: Implementar reserva real de orçamento
     // Por enquanto, apenas registra o log
-    console.log(`Reservando R$ ${valor} no centro de custo ${centroCusto} da loja ${lojaId}`);
+    console.log(
+      `Reservando R$ ${valor} no centro de custo ${centroCusto} da loja ${lojaId}`,
+    );
   }
 
   private async registrarLogAprovacao(
@@ -371,6 +417,8 @@ export class AprovacaoAlcadaService {
     observacoes?: string,
   ): Promise<void> {
     // TODO: Implementar sistema de logs
-    console.log(`OS ${osId} ${acao} por ${aprovadorId}: ${observacoes || 'Sem observações'}`);
+    console.log(
+      `OS ${osId} ${acao} por ${aprovadorId}: ${observacoes || 'Sem observações'}`,
+    );
   }
 }

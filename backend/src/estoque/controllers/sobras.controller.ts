@@ -38,8 +38,13 @@ export class SobrasController {
   @ApiResponse({ status: 201, description: 'Sobra criada com sucesso' })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
   async criarSobra(@Req() req: EstoqueRequest, @Body() data: any) {
-    const context = { lojaId: req.estoque.lojaId, usuarioId: req.estoque.usuarioId };
-    return withLogReturn(this.logger, 'Erro ao criar sobra', () => this.sobrasService.criarSobra(context, data));
+    const context = {
+      lojaId: req.estoque.lojaId,
+      usuarioId: req.estoque.usuarioId,
+    };
+    return withLogReturn(this.logger, 'Erro ao criar sobra', () =>
+      this.sobrasService.criarSobra(context, data),
+    );
   }
 
   @Get()
@@ -60,8 +65,13 @@ export class SobrasController {
   })
   @ApiQuery({ name: 'cor', required: false, description: 'Filtrar por cor' })
   async listarSobras(@Req() req: EstoqueRequest, @Query() query: any) {
-    const context = { lojaId: req.estoque.lojaId, usuarioId: req.estoque.usuarioId };
-    return withLogReturn(this.logger, 'Erro ao listar sobras', () => this.sobrasService.listarSobras(context, query));
+    const context = {
+      lojaId: req.estoque.lojaId,
+      usuarioId: req.estoque.usuarioId,
+    };
+    return withLogReturn(this.logger, 'Erro ao listar sobras', () =>
+      this.sobrasService.listarSobras(context, query),
+    );
   }
 
   @Get(':id')
@@ -70,7 +80,10 @@ export class SobrasController {
   @ApiResponse({ status: 404, description: 'Sobra não encontrada' })
   @ApiParam({ name: 'id', description: 'ID da sobra' })
   async buscarSobra(@Req() req: EstoqueRequest, @Param('id') id: string) {
-    const context = { lojaId: req.estoque.lojaId, usuarioId: req.estoque.usuarioId };
+    const context = {
+      lojaId: req.estoque.lojaId,
+      usuarioId: req.estoque.usuarioId,
+    };
     return withLogReturn(this.logger, 'Erro ao buscar sobra', async () => {
       const sobra = await this.sobrasService.buscarSobraPorId(context, id);
       return sobra;
@@ -87,8 +100,13 @@ export class SobrasController {
     @Param('id') id: string,
     @Body() data: any,
   ) {
-    const context = { lojaId: req.estoque.lojaId, usuarioId: req.estoque.usuarioId };
-    return withLogReturn(this.logger, 'Erro ao atualizar sobra', () => this.sobrasService.atualizarSobra(context, id, data));
+    const context = {
+      lojaId: req.estoque.lojaId,
+      usuarioId: req.estoque.usuarioId,
+    };
+    return withLogReturn(this.logger, 'Erro ao atualizar sobra', () =>
+      this.sobrasService.atualizarSobra(context, id, data),
+    );
   }
 
   @Delete(':id')
@@ -97,8 +115,13 @@ export class SobrasController {
   @ApiResponse({ status: 404, description: 'Sobra não encontrada' })
   @ApiParam({ name: 'id', description: 'ID da sobra' })
   async excluirSobra(@Req() req: EstoqueRequest, @Param('id') id: string) {
-    const context = { lojaId: req.estoque.lojaId, usuarioId: req.estoque.usuarioId };
-    return withLogReturn(this.logger, 'Erro ao excluir sobra', () => this.sobrasService.excluirSobra(context, id));
+    const context = {
+      lojaId: req.estoque.lojaId,
+      usuarioId: req.estoque.usuarioId,
+    };
+    return withLogReturn(this.logger, 'Erro ao excluir sobra', () =>
+      this.sobrasService.excluirSobra(context, id),
+    );
   }
 
   @Post(':id/aproveitamento')
@@ -114,8 +137,13 @@ export class SobrasController {
     @Param('id') id: string,
     @Body() data: any,
   ) {
-    const context = { lojaId: req.estoque.lojaId, usuarioId: req.estoque.usuarioId };
-    return withLogReturn(this.logger, 'Erro ao registrar aproveitamento', () => this.sobrasService.registrarAproveitamento(context, id, data));
+    const context = {
+      lojaId: req.estoque.lojaId,
+      usuarioId: req.estoque.usuarioId,
+    };
+    return withLogReturn(this.logger, 'Erro ao registrar aproveitamento', () =>
+      this.sobrasService.registrarAproveitamento(context, id, data),
+    );
   }
 
   @Get('sugestoes/buscar')
@@ -138,15 +166,25 @@ export class SobrasController {
     description: 'Área máxima em m²',
   })
   async buscarSugestoes(@Req() req: EstoqueRequest, @Query() query: any) {
-    const context = { lojaId: req.estoque.lojaId, usuarioId: req.estoque.usuarioId };
-    return withLogReturn(this.logger, 'Erro ao buscar sugestões', () => this.sobrasService.buscarSugestoesSobras(context, query));
+    const context = {
+      lojaId: req.estoque.lojaId,
+      usuarioId: req.estoque.usuarioId,
+    };
+    return withLogReturn(this.logger, 'Erro ao buscar sugestões', () =>
+      this.sobrasService.buscarSugestoesSobras(context, query),
+    );
   }
 
   @Get('metricas/economia')
   @ApiOperation({ summary: 'Calcular métricas de economia' })
   @ApiResponse({ status: 200, description: 'Métricas calculadas com sucesso' })
   async calcularMetricas(@Req() req: EstoqueRequest) {
-    const context = { lojaId: req.estoque.lojaId, usuarioId: req.estoque.usuarioId };
-    return withLogReturn(this.logger, 'Erro ao calcular métricas', () => this.sobrasService.calcularMetricasEconomia(context));
+    const context = {
+      lojaId: req.estoque.lojaId,
+      usuarioId: req.estoque.usuarioId,
+    };
+    return withLogReturn(this.logger, 'Erro ao calcular métricas', () =>
+      this.sobrasService.calcularMetricasEconomia(context),
+    );
   }
 }

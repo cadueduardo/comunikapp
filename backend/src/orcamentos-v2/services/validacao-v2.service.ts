@@ -1,16 +1,16 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { 
-  OrcamentoStatus, 
-  OrcamentoTipo, 
+import {
+  OrcamentoStatus,
+  OrcamentoTipo,
   PrioridadeOrcamento,
-  OrcamentoCompleto 
+  OrcamentoCompleto,
 } from '../interfaces/orcamento.interface';
 
 /**
  * Serviço de Validação V2 para Orçamentos
  * Implementa todas as validações necessárias
- * 
+ *
  * ✅ ARQUIVO ≤ 400 LINHAS (CONFORME PREMISSAS)
  * ✅ VALIDAÇÕES ROBUSTAS E COMPLETAS
  * ✅ INTEGRAÇÃO COM SISTEMA EXISTENTE
@@ -19,15 +19,15 @@ import {
 export class ValidacaoV2Service {
   private readonly logger = new Logger(ValidacaoV2Service.name);
 
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Valida dados para criação de orçamento
    */
   async validarDadosCriacao(dados: any, lojaId: string): Promise<void> {
-    this.logger.log(`✅ Validando dados para criação de orçamento na loja ${lojaId}`);
+    this.logger.log(
+      `✅ Validando dados para criação de orçamento na loja ${lojaId}`,
+    );
 
     // 1. Validações básicas
     this.validarCamposObrigatorios(dados);
@@ -50,10 +50,12 @@ export class ValidacaoV2Service {
    * Valida dados para atualização de orçamento
    */
   async validarDadosAtualizacao(
-    dados: any, 
+    dados: any,
     orcamentoExistente: OrcamentoCompleto,
   ): Promise<void> {
-    this.logger.log(`✅ Validando dados para atualização do orçamento ${orcamentoExistente.id}`);
+    this.logger.log(
+      `✅ Validando dados para atualização do orçamento ${orcamentoExistente.id}`,
+    );
 
     // 1. Validações básicas
     this.validarCamposObrigatorios(dados, false);
@@ -68,7 +70,10 @@ export class ValidacaoV2Service {
       await this.validarProdutos(dados.produtos, orcamentoExistente.loja_id);
     }
     if (dados.configuracoes) {
-      await this.validarConfiguracoes(dados.configuracoes, orcamentoExistente.loja_id);
+      await this.validarConfiguracoes(
+        dados.configuracoes,
+        orcamentoExistente.loja_id,
+      );
     }
 
     // 3. Validações de integridade
@@ -98,20 +103,28 @@ export class ValidacaoV2Service {
 
     // Verificar se pode ser removido
     if (orcamento.status === OrcamentoStatus.APROVADO) {
-      throw new BadRequestException('Não é possível remover orçamento aprovado');
+      throw new BadRequestException(
+        'Não é possível remover orçamento aprovado',
+      );
     }
 
     if (orcamento.status === OrcamentoStatus.EM_EXECUCAO) {
-      throw new BadRequestException('Não é possível remover orçamento em execução');
+      throw new BadRequestException(
+        'Não é possível remover orçamento em execução',
+      );
     }
 
     if (orcamento.status === OrcamentoStatus.CONCLUIDO) {
-      throw new BadRequestException('Não é possível remover orçamento concluído');
+      throw new BadRequestException(
+        'Não é possível remover orçamento concluído',
+      );
     }
 
     // Verificar se tem histórico significativo
     if (orcamento.historico.length > 1) {
-      throw new BadRequestException('Não é possível remover orçamento com histórico significativo');
+      throw new BadRequestException(
+        'Não é possível remover orçamento com histórico significativo',
+      );
     }
 
     this.logger.log(`✅ Remoção do orçamento validada com sucesso`);
@@ -125,15 +138,17 @@ export class ValidacaoV2Service {
     novoStatus: OrcamentoStatus,
     orcamento: OrcamentoCompleto,
   ): Promise<void> {
-    this.logger.log(`✅ Validando transição de status de ${statusAtual} para ${novoStatus}`);
+    this.logger.log(
+      `✅ Validando transição de status de ${statusAtual} para ${novoStatus}`,
+    );
 
     // Verificar se a transição é válida
     const transicoesValidas = this.obterTransicoesValidas(statusAtual);
-    
+
     if (!transicoesValidas.includes(novoStatus)) {
       throw new BadRequestException(
         `Transição de status inválida: ${statusAtual} → ${novoStatus}. ` +
-        `Status válidos: ${transicoesValidas.join(', ')}`
+          `Status válidos: ${transicoesValidas.join(', ')}`,
       );
     }
 
@@ -147,14 +162,16 @@ export class ValidacaoV2Service {
 
   private validarCamposObrigatorios(dados: any, criacao: boolean = true): void {
     const camposObrigatorios = ['titulo', 'cliente_id'];
-    
+
     if (criacao) {
       camposObrigatorios.push('produtos');
     }
 
     for (const campo of camposObrigatorios) {
       if (!dados[campo]) {
-        throw new BadRequestException(`Campo obrigatório não informado: ${campo}`);
+        throw new BadRequestException(
+          `Campo obrigatório não informado: ${campo}`,
+        );
       }
     }
   }
@@ -174,30 +191,55 @@ export class ValidacaoV2Service {
     }
 
     if (dados.tipo && !Object.values(OrcamentoTipo).includes(dados.tipo)) {
-      throw new BadRequestException(`Tipo inválido. Use: ${Object.values(OrcamentoTipo).join(', ')}`);
+      throw new BadRequestException(
+        `Tipo inválido. Use: ${Object.values(OrcamentoTipo).join(', ')}`,
+      );
     }
 
-    if (dados.prioridade && !Object.values(PrioridadeOrcamento).includes(dados.prioridade)) {
-      throw new BadRequestException(`Prioridade inválida. Use: ${Object.values(PrioridadeOrcamento).join(', ')}`);
+    if (
+      dados.prioridade &&
+      !Object.values(PrioridadeOrcamento).includes(dados.prioridade)
+    ) {
+      throw new BadRequestException(
+        `Prioridade inválida. Use: ${Object.values(PrioridadeOrcamento).join(', ')}`,
+      );
     }
 
-    if (dados.status && !Object.values(OrcamentoStatus).includes(dados.status)) {
-      throw new BadRequestException(`Status inválido. Use: ${Object.values(OrcamentoStatus).join(', ')}`);
+    if (
+      dados.status &&
+      !Object.values(OrcamentoStatus).includes(dados.status)
+    ) {
+      throw new BadRequestException(
+        `Status inválido. Use: ${Object.values(OrcamentoStatus).join(', ')}`,
+      );
     }
   }
 
   private validarValores(dados: any): void {
     // Validar valores numéricos
-    if (dados.quantidade && (typeof dados.quantidade !== 'number' || dados.quantidade <= 0)) {
+    if (
+      dados.quantidade &&
+      (typeof dados.quantidade !== 'number' || dados.quantidade <= 0)
+    ) {
       throw new BadRequestException('Quantidade deve ser um número positivo');
     }
 
-    if (dados.preco_unitario && (typeof dados.preco_unitario !== 'number' || dados.preco_unitario < 0)) {
-      throw new BadRequestException('Preço unitário deve ser um número não negativo');
+    if (
+      dados.preco_unitario &&
+      (typeof dados.preco_unitario !== 'number' || dados.preco_unitario < 0)
+    ) {
+      throw new BadRequestException(
+        'Preço unitário deve ser um número não negativo',
+      );
     }
 
-    if (dados.margem_lucro && (typeof dados.margem_lucro !== 'number' || dados.margem_lucro < 0)) {
-      throw new BadRequestException('Margem de lucro deve ser um número não negativo');
+    if (
+      dados.margem_lucro &&
+      (typeof dados.margem_lucro !== 'number' || dados.margem_lucro < 0)
+    ) {
+      throw new BadRequestException(
+        'Margem de lucro deve ser um número não negativo',
+      );
     }
 
     // Validar strings
@@ -210,31 +252,45 @@ export class ValidacaoV2Service {
     }
 
     if (dados.descricao && dados.descricao.trim().length > 1000) {
-      throw new BadRequestException('Descrição deve ter no máximo 1000 caracteres');
+      throw new BadRequestException(
+        'Descrição deve ter no máximo 1000 caracteres',
+      );
     }
   }
 
-  private async validarCliente(clienteId: string, lojaId: string): Promise<void> {
+  private async validarCliente(
+    clienteId: string,
+    lojaId: string,
+  ): Promise<void> {
     const cliente = await this.prisma.cliente.findFirst({
       where: { id: clienteId, loja_id: lojaId },
     });
 
     if (!cliente) {
-      throw new BadRequestException('Cliente não encontrado ou não pertence à loja');
+      throw new BadRequestException(
+        'Cliente não encontrado ou não pertence à loja',
+      );
     }
 
     if (!cliente.ativo) {
-      throw new BadRequestException('Cliente inativo não pode receber orçamentos');
+      throw new BadRequestException(
+        'Cliente inativo não pode receber orçamentos',
+      );
     }
   }
 
-  private async validarProdutos(produtos: any[], lojaId: string): Promise<void> {
+  private async validarProdutos(
+    produtos: any[],
+    lojaId: string,
+  ): Promise<void> {
     if (!Array.isArray(produtos) || produtos.length === 0) {
       throw new BadRequestException('Orçamento deve ter pelo menos um produto');
     }
 
     if (produtos.length > 100) {
-      throw new BadRequestException('Orçamento não pode ter mais de 100 produtos');
+      throw new BadRequestException(
+        'Orçamento não pode ter mais de 100 produtos',
+      );
     }
 
     produtos.forEach((produto, index) => this.validarProduto(produto, index));
@@ -249,10 +305,16 @@ export class ValidacaoV2Service {
   private validarProduto(produto: any, indice: number): void {
     const nome = produto.nome_servico || produto.nome;
     if (!nome || typeof nome !== 'string' || nome.trim().length === 0) {
-      throw new BadRequestException(`Produto ${indice + 1} deve ter um nome válido`);
+      throw new BadRequestException(
+        `Produto ${indice + 1} deve ter um nome válido`,
+      );
     }
 
-    if (!produto.quantidade || typeof produto.quantidade !== 'number' || produto.quantidade <= 0) {
+    if (
+      !produto.quantidade ||
+      typeof produto.quantidade !== 'number' ||
+      produto.quantidade <= 0
+    ) {
       throw new BadRequestException('Produto deve ter quantidade válida');
     }
 
@@ -261,7 +323,10 @@ export class ValidacaoV2Service {
     }
   }
 
-  private async validarInsumosProduto(insumos: any[], lojaId: string): Promise<void> {
+  private async validarInsumosProduto(
+    insumos: any[],
+    lojaId: string,
+  ): Promise<void> {
     if (!insumos || !Array.isArray(insumos)) return;
 
     for (const insumo of insumos) {
@@ -274,16 +339,23 @@ export class ValidacaoV2Service {
       });
 
       if (!insumoExistente) {
-        throw new BadRequestException(`Insumo ${insumo.insumo_id} não encontrado`);
+        throw new BadRequestException(
+          `Insumo ${insumo.insumo_id} não encontrado`,
+        );
       }
 
       if (!insumoExistente.ativo) {
-        throw new BadRequestException(`Insumo ${insumo.insumo_id} está inativo`);
+        throw new BadRequestException(
+          `Insumo ${insumo.insumo_id} está inativo`,
+        );
       }
     }
   }
 
-  private async validarMaquinasProduto(maquinas: any[], lojaId: string): Promise<void> {
+  private async validarMaquinasProduto(
+    maquinas: any[],
+    lojaId: string,
+  ): Promise<void> {
     if (!maquinas || !Array.isArray(maquinas)) return;
 
     for (const maquina of maquinas) {
@@ -296,16 +368,23 @@ export class ValidacaoV2Service {
       });
 
       if (!maquinaExistente) {
-        throw new BadRequestException(`Máquina ${maquina.maquina_id} não encontrada`);
+        throw new BadRequestException(
+          `Máquina ${maquina.maquina_id} não encontrada`,
+        );
       }
 
       if (!maquinaExistente.ativo) {
-        throw new BadRequestException(`Máquina ${maquina.maquina_id} está inativa`);
+        throw new BadRequestException(
+          `Máquina ${maquina.maquina_id} está inativa`,
+        );
       }
     }
   }
 
-  private async validarFuncoesProduto(funcoes: any[], lojaId: string): Promise<void> {
+  private async validarFuncoesProduto(
+    funcoes: any[],
+    lojaId: string,
+  ): Promise<void> {
     if (!funcoes || !Array.isArray(funcoes)) return;
 
     for (const funcao of funcoes) {
@@ -318,16 +397,23 @@ export class ValidacaoV2Service {
       });
 
       if (!funcaoExistente) {
-        throw new BadRequestException(`Função ${funcao.funcao_id} não encontrada`);
+        throw new BadRequestException(
+          `Função ${funcao.funcao_id} não encontrada`,
+        );
       }
 
       if (!funcaoExistente.ativo) {
-        throw new BadRequestException(`Função ${funcao.funcao_id} está inativa`);
+        throw new BadRequestException(
+          `Função ${funcao.funcao_id} está inativa`,
+        );
       }
     }
   }
 
-  private async validarConfiguracoes(configuracoes: any, lojaId: string): Promise<void> {
+  private async validarConfiguracoes(
+    configuracoes: any,
+    lojaId: string,
+  ): Promise<void> {
     if (!configuracoes) return;
 
     // Validar configurações da loja
@@ -341,15 +427,25 @@ export class ValidacaoV2Service {
 
     // Validar margem de lucro
     if (configuracoes.margem_lucro !== undefined) {
-      if (typeof configuracoes.margem_lucro !== 'number' || configuracoes.margem_lucro < 0) {
-        throw new BadRequestException('Margem de lucro deve ser um número não negativo');
+      if (
+        typeof configuracoes.margem_lucro !== 'number' ||
+        configuracoes.margem_lucro < 0
+      ) {
+        throw new BadRequestException(
+          'Margem de lucro deve ser um número não negativo',
+        );
       }
     }
 
     // Validar impostos
     if (configuracoes.impostos !== undefined) {
-      if (typeof configuracoes.impostos !== 'number' || configuracoes.impostos < 0) {
-        throw new BadRequestException('Impostos devem ser um número não negativo');
+      if (
+        typeof configuracoes.impostos !== 'number' ||
+        configuracoes.impostos < 0
+      ) {
+        throw new BadRequestException(
+          'Impostos devem ser um número não negativo',
+        );
       }
     }
   }
@@ -361,7 +457,9 @@ export class ValidacaoV2Service {
         if (produto.insumos && produto.insumos.length > 0) {
           for (const insumo of produto.insumos) {
             if (insumo.quantidade <= 0) {
-              throw new BadRequestException('Quantidade de insumo deve ser positiva');
+              throw new BadRequestException(
+                'Quantidade de insumo deve ser positiva',
+              );
             }
           }
         }
@@ -369,7 +467,9 @@ export class ValidacaoV2Service {
         if (produto.maquinas && produto.maquinas.length > 0) {
           for (const maquina of produto.maquinas) {
             if (maquina.tempo_horas <= 0) {
-              throw new BadRequestException('Tempo de máquina deve ser positivo');
+              throw new BadRequestException(
+                'Tempo de máquina deve ser positivo',
+              );
             }
           }
         }
@@ -377,7 +477,9 @@ export class ValidacaoV2Service {
         if (produto.funcoes && produto.funcoes.length > 0) {
           for (const funcao of produto.funcoes) {
             if (funcao.tempo_horas <= 0) {
-              throw new BadRequestException('Tempo de função deve ser positivo');
+              throw new BadRequestException(
+                'Tempo de função deve ser positivo',
+              );
             }
           }
         }
@@ -387,10 +489,16 @@ export class ValidacaoV2Service {
 
   private validarRegrasNegocio(dados: any): void {
     // Regras de negócio específicas
-    if (dados.tipo === OrcamentoTipo.SERVICO && dados.produtos && dados.produtos.length > 0) {
+    if (
+      dados.tipo === OrcamentoTipo.SERVICO &&
+      dados.produtos &&
+      dados.produtos.length > 0
+    ) {
       for (const produto of dados.produtos) {
         if (produto.insumos && produto.insumos.length > 0) {
-          throw new BadRequestException('Orçamento de serviço não pode ter insumos');
+          throw new BadRequestException(
+            'Orçamento de serviço não pode ter insumos',
+          );
         }
       }
     }
@@ -399,35 +507,50 @@ export class ValidacaoV2Service {
       if (dados.data_validade) {
         const dataValidade = new Date(dados.data_validade);
         const hoje = new Date();
-        const diferencaDias = Math.ceil((dataValidade.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-        
+        const diferencaDias = Math.ceil(
+          (dataValidade.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24),
+        );
+
         if (diferencaDias > 7) {
-          throw new BadRequestException('Orçamento urgente deve ter validade máxima de 7 dias');
+          throw new BadRequestException(
+            'Orçamento urgente deve ter validade máxima de 7 dias',
+          );
         }
       }
     }
   }
 
-  private validarPermissoesAtualizacao(dados: any, orcamento: OrcamentoCompleto): void {
+  private validarPermissoesAtualizacao(
+    dados: any,
+    orcamento: OrcamentoCompleto,
+  ): void {
     // Verificar se pode alterar campos específicos baseado no status atual
     if (orcamento.status === OrcamentoStatus.APROVADO) {
       if (dados.produtos || dados.quantidades || dados.configuracoes) {
-        throw new BadRequestException('Não é possível alterar produtos, quantidades ou configurações de orçamento aprovado');
+        throw new BadRequestException(
+          'Não é possível alterar produtos, quantidades ou configurações de orçamento aprovado',
+        );
       }
     }
 
     if (orcamento.status === OrcamentoStatus.EM_EXECUCAO) {
       if (dados.produtos || dados.quantidades || dados.configuracoes) {
-        throw new BadRequestException('Não é possível alterar produtos, quantidades ou configurações de orçamento em execução');
+        throw new BadRequestException(
+          'Não é possível alterar produtos, quantidades ou configurações de orçamento em execução',
+        );
       }
     }
 
     if (orcamento.status === OrcamentoStatus.CONCLUIDO) {
-      throw new BadRequestException('Não é possível alterar orçamento concluído');
+      throw new BadRequestException(
+        'Não é possível alterar orçamento concluído',
+      );
     }
   }
 
-  private obterTransicoesValidas(statusAtual: OrcamentoStatus): OrcamentoStatus[] {
+  private obterTransicoesValidas(
+    statusAtual: OrcamentoStatus,
+  ): OrcamentoStatus[] {
     const transicoes: Record<OrcamentoStatus, OrcamentoStatus[]> = {
       [OrcamentoStatus.RASCUNHO]: [
         OrcamentoStatus.EM_ANALISE,
@@ -452,15 +575,16 @@ export class ValidacaoV2Service {
         OrcamentoStatus.CANCELADO,
       ],
       [OrcamentoStatus.CONCLUIDO]: [],
-      [OrcamentoStatus.CANCELADO]: [
-        OrcamentoStatus.RASCUNHO,
-      ],
+      [OrcamentoStatus.CANCELADO]: [OrcamentoStatus.RASCUNHO],
     };
 
     return transicoes[statusAtual] || [];
   }
 
-  private async validarStatusEspecifico(novoStatus: OrcamentoStatus, orcamento: OrcamentoCompleto): Promise<void> {
+  private async validarStatusEspecifico(
+    novoStatus: OrcamentoStatus,
+    orcamento: OrcamentoCompleto,
+  ): Promise<void> {
     switch (novoStatus) {
       case OrcamentoStatus.APROVADO:
         await this.validarAprovacao(orcamento);
@@ -477,23 +601,33 @@ export class ValidacaoV2Service {
   private async validarAprovacao(orcamento: OrcamentoCompleto): Promise<void> {
     // Verificar se tem produtos
     if (!orcamento.produtos || orcamento.produtos.length === 0) {
-      throw new BadRequestException('Orçamento deve ter produtos para ser aprovado');
+      throw new BadRequestException(
+        'Orçamento deve ter produtos para ser aprovado',
+      );
     }
 
     // Verificar se tem custos calculados
     if (!orcamento.custos || !orcamento.custos.custo_total) {
-      throw new BadRequestException('Orçamento deve ter custos calculados para ser aprovado');
+      throw new BadRequestException(
+        'Orçamento deve ter custos calculados para ser aprovado',
+      );
     }
 
     // Verificar se tem cliente válido
     if (!orcamento.cliente || !orcamento.cliente.id) {
-      throw new BadRequestException('Orçamento deve ter cliente válido para ser aprovado');
+      throw new BadRequestException(
+        'Orçamento deve ter cliente válido para ser aprovado',
+      );
     }
   }
 
-  private async validarInicioExecucao(orcamento: OrcamentoCompleto): Promise<void> {
+  private async validarInicioExecucao(
+    orcamento: OrcamentoCompleto,
+  ): Promise<void> {
     if (orcamento.status !== OrcamentoStatus.APROVADO) {
-      throw new BadRequestException('Apenas orçamentos aprovados podem iniciar execução');
+      throw new BadRequestException(
+        'Apenas orçamentos aprovados podem iniciar execução',
+      );
     }
 
     // Verificar se tem aprovações necessárias
@@ -505,13 +639,17 @@ export class ValidacaoV2Service {
     });
 
     if (aprovacoesNecessarias === 0) {
-      throw new BadRequestException('Orçamento deve ter aprovações para iniciar execução');
+      throw new BadRequestException(
+        'Orçamento deve ter aprovações para iniciar execução',
+      );
     }
   }
 
   private async validarConclusao(orcamento: OrcamentoCompleto): Promise<void> {
     if (orcamento.status !== OrcamentoStatus.EM_EXECUCAO) {
-      throw new BadRequestException('Apenas orçamentos em execução podem ser concluídos');
+      throw new BadRequestException(
+        'Apenas orçamentos em execução podem ser concluídos',
+      );
     }
 
     // Verificar se todos os produtos foram executados

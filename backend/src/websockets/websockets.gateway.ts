@@ -182,7 +182,7 @@ export class WebsocketsGateway
       // TODO: Integrar com motor V2 quando estiver funcionando
       setTimeout(() => {
         const resultadoCalculado = this.calcularPreviewRealtime(data);
-        
+
         client.emit('preview_calculo_atualizado', {
           timestamp: new Date().toISOString(),
           resultado: resultadoCalculado,
@@ -190,7 +190,6 @@ export class WebsocketsGateway
           tempo_execucao_ms: 150,
         });
       }, 100);
-
     } catch (error) {
       this.logger.error(`❌ Erro no preview V2: ${error.message}`);
       client.emit('preview_calculo_erro', {
@@ -204,9 +203,11 @@ export class WebsocketsGateway
   async handleJoinPreviewSession(client: Socket, sessionId: string) {
     await client.join(`preview_${sessionId}`);
     client.data.previewSessionId = sessionId;
-    
-    this.logger.log(`Cliente ${client.id} entrou na sessão de preview ${sessionId}`);
-    
+
+    this.logger.log(
+      `Cliente ${client.id} entrou na sessão de preview ${sessionId}`,
+    );
+
     client.emit('preview_session_joined', {
       sessionId,
       timestamp: new Date().toISOString(),
@@ -217,8 +218,10 @@ export class WebsocketsGateway
   async handleLeavePreviewSession(client: Socket, sessionId: string) {
     await client.leave(`preview_${sessionId}`);
     delete client.data.previewSessionId;
-    
-    this.logger.log(`Cliente ${client.id} saiu da sessão de preview ${sessionId}`);
+
+    this.logger.log(
+      `Cliente ${client.id} saiu da sessão de preview ${sessionId}`,
+    );
   }
 
   // Método auxiliar para cálculo de preview (temporário)
@@ -241,25 +244,37 @@ export class WebsocketsGateway
 
       // Calcular cada produto
       const produtos = itensFormulario.map((item: any, index: number) => {
-        const quantidade = Number(item.quantidade_produto?.replace(',', '.')) || 1;
-        
+        const quantidade =
+          Number(item.quantidade_produto?.replace(',', '.')) || 1;
+
         // Calcular custos básicos
-        const custoMateriais = (item.materiais || []).reduce((acc: number, mat: any) => {
-          const qtd = Number(mat.quantidade?.replace(',', '.')) || 0;
-          return acc + (qtd * 15); // Custo médio estimado
-        }, 0);
+        const custoMateriais = (item.materiais || []).reduce(
+          (acc: number, mat: any) => {
+            const qtd = Number(mat.quantidade?.replace(',', '.')) || 0;
+            return acc + qtd * 15; // Custo médio estimado
+          },
+          0,
+        );
 
-        const custoMaquinas = (item.maquinas || []).reduce((acc: number, maq: any) => {
-          const horas = Number(maq.horas_utilizadas?.replace(',', '.')) || 0;
-          return acc + (horas * 50); // Custo médio por hora
-        }, 0);
+        const custoMaquinas = (item.maquinas || []).reduce(
+          (acc: number, maq: any) => {
+            const horas = Number(maq.horas_utilizadas?.replace(',', '.')) || 0;
+            return acc + horas * 50; // Custo médio por hora
+          },
+          0,
+        );
 
-        const custoFuncoes = (item.funcoes || []).reduce((acc: number, func: any) => {
-          const horas = Number(func.horas_trabalhadas?.replace(',', '.')) || 0;
-          return acc + (horas * 35); // Custo médio por hora
-        }, 0);
+        const custoFuncoes = (item.funcoes || []).reduce(
+          (acc: number, func: any) => {
+            const horas =
+              Number(func.horas_trabalhadas?.replace(',', '.')) || 0;
+            return acc + horas * 35; // Custo médio por hora
+          },
+          0,
+        );
 
-        const custoTotalProducao = custoMateriais + custoMaquinas + custoFuncoes;
+        const custoTotalProducao =
+          custoMateriais + custoMaquinas + custoFuncoes;
         const margemLucro = custoTotalProducao * 0.3; // 30% padrão
         const impostos = (custoTotalProducao + margemLucro) * 0.18; // 18% padrão
         const precoFinal = custoTotalProducao + margemLucro + impostos;
@@ -275,16 +290,24 @@ export class WebsocketsGateway
       });
 
       // Resumo geral
-      const totalCustoProducao = produtos.reduce((acc, p) => acc + p.custo_total_producao, 0);
-      const precoFinalTotal = produtos.reduce((acc, p) => acc + p.preco_total, 0);
+      const totalCustoProducao = produtos.reduce(
+        (acc, p) => acc + p.custo_total_producao,
+        0,
+      );
+      const precoFinalTotal = produtos.reduce(
+        (acc, p) => acc + p.preco_total,
+        0,
+      );
 
       return {
         resumo: {
           total_produtos: produtos.length,
           total_custo_producao: totalCustoProducao,
           preco_final: precoFinalTotal,
-          margem_lucro_percentual: Number(configuracoes?.margem_lucro_customizada) || 30,
-          impostos_percentual: Number(configuracoes?.impostos_customizados) || 18,
+          margem_lucro_percentual:
+            Number(configuracoes?.margem_lucro_customizada) || 30,
+          impostos_percentual:
+            Number(configuracoes?.impostos_customizados) || 18,
         },
         produtos: produtos,
         metadata: {
@@ -293,7 +316,6 @@ export class WebsocketsGateway
           tempo_execucao_ms: 150,
         },
       };
-
     } catch (error) {
       this.logger.error(`❌ Erro no cálculo preview: ${error.message}`);
       return {

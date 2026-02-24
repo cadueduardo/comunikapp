@@ -16,7 +16,7 @@ export class CustosIndiretosService {
         valor_mensal: createCustoIndiretoDto.valor_mensal,
         observacoes: createCustoIndiretoDto.descricao,
         loja: {
-          connect: { id: loja.id }
+          connect: { id: loja.id },
         },
         atualizado_em: new Date(),
       },
@@ -26,7 +26,7 @@ export class CustosIndiretosService {
   async findAll(loja: loja) {
     return this.prisma.custoindireto.findMany({
       where: {
-        loja: { id: loja.id }
+        loja: { id: loja.id },
       },
       orderBy: {
         criado_em: 'desc',
@@ -38,7 +38,7 @@ export class CustosIndiretosService {
     const custoIndireto = await this.prisma.custoindireto.findFirst({
       where: {
         id,
-        loja: { id: loja.id }
+        loja: { id: loja.id },
       },
     });
 

@@ -15,8 +15,15 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      return NextResponse.json(error, { status: response.status });
+      try {
+        const error = await response.json();
+        return NextResponse.json(error, { status: response.status });
+      } catch {
+        return NextResponse.json(
+          { message: 'Não foi possível criar a conta. Tente novamente.' },
+          { status: response.status }
+        );
+      }
     }
 
     const data = await response.json();
@@ -24,7 +31,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Erro ao criar loja:', error);
     return NextResponse.json(
-      { message: 'Erro interno do servidor' },
+      { message: 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.' },
       { status: 500 }
     );
   }

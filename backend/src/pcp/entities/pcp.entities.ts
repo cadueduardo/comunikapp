@@ -30,7 +30,7 @@ export enum StatusSetorProdutivo {
   EM_ANDAMENTO = 'EM_ANDAMENTO',
   CONCLUIDA = 'CONCLUIDA',
   PAUSADA = 'PAUSADA',
-  CANCELADA = 'CANCELADA'
+  CANCELADA = 'CANCELADA',
 }
 
 export enum TipoApontamento {
@@ -38,7 +38,7 @@ export enum TipoApontamento {
   PAUSA = 'PAUSA',
   RETOMADA = 'RETOMADA',
   CONCLUSAO = 'CONCLUSAO',
-  REFUGO = 'REFUGO'
+  REFUGO = 'REFUGO',
 }
 
 // Interfaces para integração com sistema existente
@@ -67,4 +67,3 @@ export interface KanbanStats {
   criticas: number;
   por_setor: Record<string, number>;
 }
-

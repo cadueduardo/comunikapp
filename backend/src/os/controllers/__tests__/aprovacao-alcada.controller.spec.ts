@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { AprovacaoAlcadaController } from '../aprovacao-alcada.controller';
-import { AprovacaoAlcadaService, NivelAlcada } from '../../services/aprovacao-alcada.service';
+import {
+  AprovacaoAlcadaService,
+  NivelAlcada,
+} from '../../services/aprovacao-alcada.service';
 import { OSPermissionsGuard } from '../../guards/os-permissions.guard';
 
 describe('AprovacaoAlcadaController', () => {
@@ -34,7 +37,9 @@ describe('AprovacaoAlcadaController', () => {
       .useValue(mockOSPermissionsGuard)
       .compile();
 
-    controller = module.get<AprovacaoAlcadaController>(AprovacaoAlcadaController);
+    controller = module.get<AprovacaoAlcadaController>(
+      AprovacaoAlcadaController,
+    );
     service = module.get<AprovacaoAlcadaService>(AprovacaoAlcadaService);
   });
 
@@ -58,7 +63,11 @@ describe('AprovacaoAlcadaController', () => {
     it('deve aprovar OS interna com sucesso', async () => {
       mockAprovacaoAlcadaService.aprovarOSInterna.mockResolvedValue(undefined);
 
-      const resultado = await controller.aprovarOSInterna('os-001', mockBody, mockRequest);
+      const resultado = await controller.aprovarOSInterna(
+        'os-001',
+        mockBody,
+        mockRequest,
+      );
 
       expect(resultado).toEqual({
         success: true,
@@ -78,7 +87,9 @@ describe('AprovacaoAlcadaController', () => {
 
     it('deve lançar exceção quando serviço falha', async () => {
       const errorMessage = 'OS não encontrada';
-      mockAprovacaoAlcadaService.aprovarOSInterna.mockRejectedValue(new Error(errorMessage));
+      mockAprovacaoAlcadaService.aprovarOSInterna.mockRejectedValue(
+        new Error(errorMessage),
+      );
 
       await expect(
         controller.aprovarOSInterna('os-001', mockBody, mockRequest),
@@ -113,7 +124,11 @@ describe('AprovacaoAlcadaController', () => {
     it('deve rejeitar OS interna com sucesso', async () => {
       mockAprovacaoAlcadaService.rejeitarOSInterna.mockResolvedValue(undefined);
 
-      const resultado = await controller.rejeitarOSInterna('os-001', mockBody, mockRequest);
+      const resultado = await controller.rejeitarOSInterna(
+        'os-001',
+        mockBody,
+        mockRequest,
+      );
 
       expect(resultado).toEqual({
         success: true,
@@ -133,7 +148,9 @@ describe('AprovacaoAlcadaController', () => {
 
     it('deve lançar exceção quando serviço falha', async () => {
       const errorMessage = 'OS não encontrada';
-      mockAprovacaoAlcadaService.rejeitarOSInterna.mockRejectedValue(new Error(errorMessage));
+      mockAprovacaoAlcadaService.rejeitarOSInterna.mockRejectedValue(
+        new Error(errorMessage),
+      );
 
       await expect(
         controller.rejeitarOSInterna('os-001', mockBody, mockRequest),
@@ -168,9 +185,15 @@ describe('AprovacaoAlcadaController', () => {
     };
 
     it('deve listar OS pendentes com sucesso', async () => {
-      mockAprovacaoAlcadaService.listarOSPendentesAprovacao.mockResolvedValue(mockOSPendentes);
+      mockAprovacaoAlcadaService.listarOSPendentesAprovacao.mockResolvedValue(
+        mockOSPendentes,
+      );
 
-      const resultado = await controller.listarOSPendentesAprovacao(mockRequest, '1', '10');
+      const resultado = await controller.listarOSPendentesAprovacao(
+        mockRequest,
+        '1',
+        '10',
+      );
 
       expect(resultado).toEqual({
         success: true,
@@ -192,7 +215,9 @@ describe('AprovacaoAlcadaController', () => {
     });
 
     it('deve usar valores padrão para paginação', async () => {
-      mockAprovacaoAlcadaService.listarOSPendentesAprovacao.mockResolvedValue(mockOSPendentes);
+      mockAprovacaoAlcadaService.listarOSPendentesAprovacao.mockResolvedValue(
+        mockOSPendentes,
+      );
 
       await controller.listarOSPendentesAprovacao(mockRequest);
 
@@ -206,7 +231,9 @@ describe('AprovacaoAlcadaController', () => {
 
     it('deve lançar exceção quando serviço falha', async () => {
       const errorMessage = 'Erro interno do servidor';
-      mockAprovacaoAlcadaService.listarOSPendentesAprovacao.mockRejectedValue(new Error(errorMessage));
+      mockAprovacaoAlcadaService.listarOSPendentesAprovacao.mockRejectedValue(
+        new Error(errorMessage),
+      );
 
       await expect(
         controller.listarOSPendentesAprovacao(mockRequest),
@@ -237,9 +264,14 @@ describe('AprovacaoAlcadaController', () => {
     ];
 
     it('deve obter estatísticas com sucesso', async () => {
-      mockAprovacaoAlcadaService.obterEstatisticasAprovacao.mockResolvedValue(mockEstatisticas);
+      mockAprovacaoAlcadaService.obterEstatisticasAprovacao.mockResolvedValue(
+        mockEstatisticas,
+      );
 
-      const resultado = await controller.obterEstatisticasAprovacao(mockRequest, {});
+      const resultado = await controller.obterEstatisticasAprovacao(
+        mockRequest,
+        {},
+      );
 
       expect(resultado).toEqual({
         success: true,
@@ -250,18 +282,27 @@ describe('AprovacaoAlcadaController', () => {
         },
       });
 
-      expect(service.obterEstatisticasAprovacao).toHaveBeenCalledWith('loja-001', undefined, undefined);
+      expect(service.obterEstatisticasAprovacao).toHaveBeenCalledWith(
+        'loja-001',
+        undefined,
+        undefined,
+      );
     });
 
     it('deve obter estatísticas com período específico', async () => {
-      mockAprovacaoAlcadaService.obterEstatisticasAprovacao.mockResolvedValue(mockEstatisticas);
+      mockAprovacaoAlcadaService.obterEstatisticasAprovacao.mockResolvedValue(
+        mockEstatisticas,
+      );
 
       const query = {
         periodoInicio: '2025-01-01',
         periodoFim: '2025-01-31',
       };
 
-      const resultado = await controller.obterEstatisticasAprovacao(mockRequest, query);
+      const resultado = await controller.obterEstatisticasAprovacao(
+        mockRequest,
+        query,
+      );
 
       expect(resultado.periodo.inicio).toBe('2025-01-01T00:00:00.000Z');
       expect(resultado.periodo.fim).toBe('2025-01-31T00:00:00.000Z');
@@ -317,7 +358,10 @@ describe('AprovacaoAlcadaController', () => {
         validarAprovacaoAlcada: jest.fn().mockResolvedValue(mockValidacao),
       };
 
-      const resultado = await controller.validarAprovacaoAlcada('os-001', mockRequest);
+      const resultado = await controller.validarAprovacaoAlcada(
+        'os-001',
+        mockRequest,
+      );
 
       expect(resultado).toEqual({
         success: true,

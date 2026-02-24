@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { 
+import {
   OrcamentoCompleto,
   OrcamentoBase,
   OrcamentoStatus,
@@ -11,7 +11,7 @@ import {
 /**
  * Repositório de Orçamentos V2
  * Implementa operações de banco de dados para orçamentos
- * 
+ *
  * ✅ ARQUIVO ≤ 400 LINHAS (CONFORME PREMISSAS)
  * ✅ OPERAÇÕES CRUD COMPLETAS
  * ✅ QUERIES OTIMIZADAS E PAGINAÇÃO
@@ -20,14 +20,14 @@ import {
 export class OrcamentosV2Repository {
   private readonly logger = new Logger(OrcamentosV2Repository.name);
 
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Cria novo orçamento
    */
-  async criar(dados: Omit<OrcamentoBase, 'id' | 'data_criacao' | 'data_atualizacao'>): Promise<OrcamentoCompleto> {
+  async criar(
+    dados: Omit<OrcamentoBase, 'id' | 'data_criacao' | 'data_atualizacao'>,
+  ): Promise<OrcamentoCompleto> {
     this.logger.log(`💾 Criando orçamento: ${dados.titulo}`);
 
     try {
@@ -61,7 +61,6 @@ export class OrcamentosV2Repository {
 
       this.logger.log(`✅ Orçamento criado com sucesso: ${orcamento.id}`);
       return this.transformarOrcamento(orcamento);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao criar orçamento: ${error.message}`);
       throw error;
@@ -104,7 +103,6 @@ export class OrcamentosV2Repository {
 
       this.logger.log(`✅ Orçamento encontrado: ${id}`);
       return this.transformarOrcamento(orcamento);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao buscar orçamento: ${error.message}`);
       throw error;
@@ -114,28 +112,33 @@ export class OrcamentosV2Repository {
   /**
    * Lista orçamentos com filtros e paginação
    */
-  async listar(filtros: {
-    status?: OrcamentoStatus[];
-    tipo?: OrcamentoTipo[];
-    prioridade?: PrioridadeOrcamento[];
-    cliente_id?: string;
-    responsavel_id?: string;
-    data_inicio?: Date;
-    data_fim?: Date;
-    valor_min?: number;
-    valor_max?: number;
-    busca?: string;
-  }, paginacao: {
-    pagina: number;
-    por_pagina: number;
-  }): Promise<{
+  async listar(
+    filtros: {
+      status?: OrcamentoStatus[];
+      tipo?: OrcamentoTipo[];
+      prioridade?: PrioridadeOrcamento[];
+      cliente_id?: string;
+      responsavel_id?: string;
+      data_inicio?: Date;
+      data_fim?: Date;
+      valor_min?: number;
+      valor_max?: number;
+      busca?: string;
+    },
+    paginacao: {
+      pagina: number;
+      por_pagina: number;
+    },
+  ): Promise<{
     orcamentos: OrcamentoCompleto[];
     total: number;
     pagina: number;
     por_pagina: number;
     total_paginas: number;
   }> {
-    this.logger.log(`📋 Listando orçamentos com filtros: ${JSON.stringify(filtros)}`);
+    this.logger.log(
+      `📋 Listando orçamentos com filtros: ${JSON.stringify(filtros)}`,
+    );
 
     try {
       // Construir filtros WHERE
@@ -173,9 +176,13 @@ export class OrcamentosV2Repository {
       const totalPaginas = Math.ceil(total / take);
 
       // Transformar orçamentos
-      const orcamentosTransformados = orcamentos.map(orc => this.transformarOrcamento(orc));
+      const orcamentosTransformados = orcamentos.map((orc) =>
+        this.transformarOrcamento(orc),
+      );
 
-      this.logger.log(`✅ ${orcamentos.length} orçamentos encontrados de ${total} total`);
+      this.logger.log(
+        `✅ ${orcamentos.length} orçamentos encontrados de ${total} total`,
+      );
 
       return {
         orcamentos: orcamentosTransformados,
@@ -184,7 +191,6 @@ export class OrcamentosV2Repository {
         por_pagina: take,
         total_paginas: totalPaginas,
       };
-
     } catch (error) {
       this.logger.error(`❌ Erro ao listar orçamentos: ${error.message}`);
       throw error;
@@ -196,7 +202,9 @@ export class OrcamentosV2Repository {
    */
   async atualizar(
     id: string,
-    dados: Partial<Omit<OrcamentoBase, 'id' | 'data_criacao' | 'data_atualizacao'>>,
+    dados: Partial<
+      Omit<OrcamentoBase, 'id' | 'data_criacao' | 'data_atualizacao'>
+    >,
   ): Promise<OrcamentoCompleto> {
     this.logger.log(`✏️ Atualizando orçamento: ${id}`);
 
@@ -231,7 +239,6 @@ export class OrcamentosV2Repository {
 
       this.logger.log(`✅ Orçamento atualizado com sucesso: ${id}`);
       return this.transformarOrcamento(orcamento);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao atualizar orçamento: ${error.message}`);
       throw error;
@@ -254,7 +261,6 @@ export class OrcamentosV2Repository {
       });
 
       this.logger.log(`✅ Orçamento removido com sucesso: ${id}`);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao remover orçamento: ${error.message}`);
       throw error;
@@ -264,8 +270,14 @@ export class OrcamentosV2Repository {
   /**
    * Altera status do orçamento
    */
-  async alterarStatus(id: string, novoStatus: OrcamentoStatus, observacao?: string): Promise<OrcamentoCompleto> {
-    this.logger.log(`🔄 Alterando status do orçamento ${id} para: ${novoStatus}`);
+  async alterarStatus(
+    id: string,
+    novoStatus: OrcamentoStatus,
+    observacao?: string,
+  ): Promise<OrcamentoCompleto> {
+    this.logger.log(
+      `🔄 Alterando status do orçamento ${id} para: ${novoStatus}`,
+    );
 
     try {
       const orcamento = await this.prisma.orcamento.update({
@@ -305,7 +317,6 @@ export class OrcamentosV2Repository {
 
       this.logger.log(`✅ Status alterado com sucesso: ${id} -> ${novoStatus}`);
       return this.transformarOrcamento(orcamento);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao alterar status: ${error.message}`);
       throw error;
@@ -315,7 +326,10 @@ export class OrcamentosV2Repository {
   /**
    * Busca orçamentos por cliente
    */
-  async buscarPorCliente(clienteId: string, ativos: boolean = true): Promise<OrcamentoCompleto[]> {
+  async buscarPorCliente(
+    clienteId: string,
+    ativos: boolean = true,
+  ): Promise<OrcamentoCompleto[]> {
     this.logger.log(`🔍 Buscando orçamentos do cliente: ${clienteId}`);
 
     try {
@@ -340,11 +354,14 @@ export class OrcamentosV2Repository {
         orderBy: { data_criacao: 'desc' },
       });
 
-      this.logger.log(`✅ ${orcamentos.length} orçamentos encontrados para o cliente`);
-      return orcamentos.map(orc => this.transformarOrcamento(orc));
-
+      this.logger.log(
+        `✅ ${orcamentos.length} orçamentos encontrados para o cliente`,
+      );
+      return orcamentos.map((orc) => this.transformarOrcamento(orc));
     } catch (error) {
-      this.logger.error(`❌ Erro ao buscar orçamentos por cliente: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao buscar orçamentos por cliente: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -352,7 +369,10 @@ export class OrcamentosV2Repository {
   /**
    * Busca orçamentos por responsável
    */
-  async buscarPorResponsavel(responsavelId: string, ativos: boolean = true): Promise<OrcamentoCompleto[]> {
+  async buscarPorResponsavel(
+    responsavelId: string,
+    ativos: boolean = true,
+  ): Promise<OrcamentoCompleto[]> {
     this.logger.log(`🔍 Buscando orçamentos do responsável: ${responsavelId}`);
 
     try {
@@ -377,11 +397,14 @@ export class OrcamentosV2Repository {
         orderBy: { data_criacao: 'desc' },
       });
 
-      this.logger.log(`✅ ${orcamentos.length} orçamentos encontrados para o responsável`);
-      return orcamentos.map(orc => this.transformarOrcamento(orc));
-
+      this.logger.log(
+        `✅ ${orcamentos.length} orçamentos encontrados para o responsável`,
+      );
+      return orcamentos.map((orc) => this.transformarOrcamento(orc));
     } catch (error) {
-      this.logger.error(`❌ Erro ao buscar orçamentos por responsável: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao buscar orçamentos por responsável: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -437,7 +460,6 @@ export class OrcamentosV2Repository {
         valor_medio: Number(valorMedio._avg.valor_total) || 0,
         orcamentos_por_mes: orcamentosPorMes,
       };
-
     } catch (error) {
       this.logger.error(`❌ Erro ao buscar estatísticas: ${error.message}`);
       throw error;
@@ -492,7 +514,9 @@ export class OrcamentosV2Repository {
     return where;
   }
 
-  private async buscarOrcamentosPorStatus(where: any): Promise<Record<string, number>> {
+  private async buscarOrcamentosPorStatus(
+    where: any,
+  ): Promise<Record<string, number>> {
     const resultado = await (this.prisma.orcamento as any).groupBy({
       by: ['status'],
       where,
@@ -500,14 +524,16 @@ export class OrcamentosV2Repository {
     });
 
     const distribuicao: Record<string, number> = {};
-    resultado.forEach(item => {
+    resultado.forEach((item) => {
       distribuicao[item.status] = item._count.status;
     });
 
     return distribuicao;
   }
 
-  private async buscarOrcamentosPorTipo(where: any): Promise<Record<string, number>> {
+  private async buscarOrcamentosPorTipo(
+    where: any,
+  ): Promise<Record<string, number>> {
     const resultado = await (this.prisma.orcamento as any).groupBy({
       by: ['tipo_orcamento'],
       where,
@@ -522,7 +548,9 @@ export class OrcamentosV2Repository {
     return distribuicao;
   }
 
-  private async buscarOrcamentosPorMes(where: any): Promise<Record<string, number>> {
+  private async buscarOrcamentosPorMes(
+    where: any,
+  ): Promise<Record<string, number>> {
     const resultado = await (this.prisma.orcamento as any).groupBy({
       by: ['data_criacao'],
       where,
@@ -530,7 +558,7 @@ export class OrcamentosV2Repository {
     });
 
     const distribuicao: Record<string, number> = {};
-    resultado.forEach(item => {
+    resultado.forEach((item) => {
       const mes = new Date(item.data_criacao).toISOString().slice(0, 7); // YYYY-MM
       distribuicao[mes] = (distribuicao[mes] || 0) + item._count.data_criacao;
     });
@@ -550,12 +578,18 @@ export class OrcamentosV2Repository {
           acao: dados?.acao || tipo || 'ATUALIZACAO',
           tipo,
           descricao: dados?.descricao,
-          dados_anteriores: dados?.dados_anteriores ? JSON.stringify(dados.dados_anteriores) : undefined,
-          dados_novos: dados?.dados_novos ? JSON.stringify(dados.dados_novos) : undefined,
+          dados_anteriores: dados?.dados_anteriores
+            ? JSON.stringify(dados.dados_anteriores)
+            : undefined,
+          dados_novos: dados?.dados_novos
+            ? JSON.stringify(dados.dados_novos)
+            : undefined,
         },
       });
     } catch (error) {
-      this.logger.error(`❌ Erro ao criar registro histórico: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao criar registro histórico: ${error.message}`,
+      );
     }
   }
 
@@ -582,13 +616,26 @@ export class OrcamentosV2Repository {
       cliente: orcamento.cliente,
       produtos: orcamento.produtos || [],
       custos: (() => {
-        try { return orcamento.custos_calculados ? JSON.parse(orcamento.custos_calculados) : {} } catch { return {} }
+        try {
+          return orcamento.custos_calculados
+            ? JSON.parse(orcamento.custos_calculados)
+            : {};
+        } catch {
+          return {};
+        }
       })(),
       configuracoes: (() => {
-        try { return orcamento.configuracao_calculo ? JSON.parse(orcamento.configuracao_calculo) : {} } catch { return {} }
+        try {
+          return orcamento.configuracao_calculo
+            ? JSON.parse(orcamento.configuracao_calculo)
+            : {};
+        } catch {
+          return {};
+        }
       })(),
       versoes: orcamento.versoes || [],
-      historicoOrcamento: orcamento.historicoOrcamento || orcamento.historico || [],
+      historicoOrcamento:
+        orcamento.historicoOrcamento || orcamento.historico || [],
       aprovacoes: orcamento.aprovacoes || [],
       linksPublicos: orcamento.linksPublicos || [],
       mensagensChat: orcamento.mensagensChat || [],

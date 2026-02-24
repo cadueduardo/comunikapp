@@ -7,4 +7,3 @@ export enum OrcamentoStatus {
   CONCLUIDO = 'concluido',
   CANCELADO = 'cancelado',
 }
-

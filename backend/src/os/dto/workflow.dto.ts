@@ -1,4 +1,12 @@
-import { IsString, IsOptional, IsBoolean, IsArray, IsObject, IsNumber, Min } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsArray,
+  IsObject,
+  IsNumber,
+  Min,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 
@@ -19,7 +27,8 @@ export class CreateWorkflowDto {
   descricao?: string;
 
   @ApiProperty({
-    description: 'Se o workflow e sequencial (true) ou permite etapas paralelas (false)',
+    description:
+      'Se o workflow e sequencial (true) ou permite etapas paralelas (false)',
     example: true,
   })
   @IsBoolean()
@@ -154,11 +163,20 @@ export class ChecklistItemDto {
 export class AcaoAutomaticaDto {
   @ApiProperty({
     description: 'Tipo da acao automatica',
-    enum: ['NOTIFICAR', 'RESERVAR_ESTOQUE', 'BAIXAR_ESTOQUE', 'ATRIBUIR_RESPONSAVEL'],
+    enum: [
+      'NOTIFICAR',
+      'RESERVAR_ESTOQUE',
+      'BAIXAR_ESTOQUE',
+      'ATRIBUIR_RESPONSAVEL',
+    ],
     example: 'BAIXAR_ESTOQUE',
   })
   @IsString()
-  tipo: 'NOTIFICAR' | 'RESERVAR_ESTOQUE' | 'BAIXAR_ESTOQUE' | 'ATRIBUIR_RESPONSAVEL';
+  tipo:
+    | 'NOTIFICAR'
+    | 'RESERVAR_ESTOQUE'
+    | 'BAIXAR_ESTOQUE'
+    | 'ATRIBUIR_RESPONSAVEL';
 
   @ApiProperty({
     description: 'Configuracao especifica da acao (JSON)',

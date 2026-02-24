@@ -1,4 +1,13 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsHexColor, Min, Max, Length } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsInt,
+  IsHexColor,
+  Min,
+  Max,
+  Length,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateSetorProdutivoDto {
@@ -69,4 +78,3 @@ export class SetorProdutivoQueryDto {
   @IsString()
   search?: string;
 }
-

@@ -46,11 +46,7 @@ export class CustosIndiretosController {
     @Body() updateCustoIndiretoDto: UpdateCustoIndiretoDto,
     @GetLoja() loja: loja,
   ) {
-    return this.custosIndiretosService.update(
-      id,
-      updateCustoIndiretoDto,
-      loja,
-    );
+    return this.custosIndiretosService.update(id, updateCustoIndiretoDto, loja);
   }
 
   @Delete(':id')

@@ -188,7 +188,7 @@ export class NotificacoesService {
       'Nova mensagem na aprovação de arte',
       `${autorNome} enviou uma mensagem sobre ${produtoNome} na OS #${os.numero}`,
       null, // Não usar orcamento_id para arte
-      { 
+      {
         os_id: osId,
         produto_nome: produtoNome,
         versao_id: versaoId,

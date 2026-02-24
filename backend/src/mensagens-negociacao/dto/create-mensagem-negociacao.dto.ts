@@ -39,11 +39,3 @@ export class CreateMensagemNegociacaoDto {
   @IsString()
   observacoes?: string;
 }
-
-
-
-
-
-
-
-

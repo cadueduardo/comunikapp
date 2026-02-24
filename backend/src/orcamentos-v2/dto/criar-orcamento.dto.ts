@@ -1,10 +1,10 @@
-import { 
-  IsString, 
-  IsOptional, 
-  IsNumber, 
-  IsEnum, 
-  IsArray, 
-  IsDateString, 
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsEnum,
+  IsArray,
+  IsDateString,
   IsUUID,
   MinLength,
   MaxLength,
@@ -36,7 +36,8 @@ export class CriarOrcamentoDto {
 
   @ApiPropertyOptional({
     description: 'Descrição detalhada do orçamento',
-    example: 'Reforma completa da cozinha incluindo móveis, eletrodomésticos e acabamentos',
+    example:
+      'Reforma completa da cozinha incluindo móveis, eletrodomésticos e acabamentos',
     maxLength: 1000,
   })
   @IsOptional()
@@ -93,7 +94,7 @@ export class CriarOrcamentoDto {
 
   @ApiPropertyOptional({
     description: 'Valor total estimado',
-    example: 15000.00,
+    example: 15000.0,
     minimum: 0,
   })
   @IsOptional()
@@ -199,7 +200,7 @@ export class ProdutoOrcamentoDto {
 
   @ApiPropertyOptional({
     description: 'Valor unitário',
-    example: 1200.00,
+    example: 1200.0,
     minimum: 0,
   })
   @IsOptional()

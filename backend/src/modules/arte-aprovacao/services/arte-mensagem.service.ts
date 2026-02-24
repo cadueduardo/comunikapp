@@ -1,4 +1,10 @@
-﻿import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+﻿import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ArteNotificacaoService } from './arte-notificacao.service';
 import { ArteWebSocketGateway } from '../gateways/arte-websocket.gateway';
@@ -46,8 +52,9 @@ export class ArteMensagemService {
         const idAttr =
           fullMatch.match(/data-(?:id|mention-id)="([^"]*)"/i)?.[1] ?? '';
         const labelAttr =
-          fullMatch.match(/data-(?:label|mention-label)="([^"]*)"/i)?.[1]?.trim() ??
-          '';
+          fullMatch
+            .match(/data-(?:label|mention-label)="([^"]*)"/i)?.[1]
+            ?.trim() ?? '';
 
         const plainText = innerHtml
           .replace(/<[^>]+>/g, '')
@@ -147,7 +154,9 @@ export class ArteMensagemService {
   /**
    * Criar nova mensagem
    */
-  async criarMensagem(data: CreateMensagemDto & { usuario_id?: string | null; loja_id: string }) {
+  async criarMensagem(
+    data: CreateMensagemDto & { usuario_id?: string | null; loja_id: string },
+  ) {
     try {
       // Verificar se a OS existe e pertence ├á loja
       const os = await this.prisma.ordemServico.findFirst({
@@ -193,7 +202,9 @@ export class ArteMensagemService {
       }
 
       // Processar men├º├Áes na mensagem
-      const { mensagemProcessada, versoesMencionadas } = this.processarMencoes(data.mensagem);
+      const { mensagemProcessada, versoesMencionadas } = this.processarMencoes(
+        data.mensagem,
+      );
 
       // Criar mensagem
       const mensagem = await this.prisma.arteMensagem.create({
@@ -239,7 +250,7 @@ export class ArteMensagemService {
       }
 
       // Enviar notifica├º├Áes
-      await this.enviarNotificacoesMensagem(mensagem, data.autor_tipo as AutorTipo);
+      await this.enviarNotificacoesMensagem(mensagem, data.autor_tipo);
 
       return mensagem;
     } catch (error) {
@@ -251,7 +262,11 @@ export class ArteMensagemService {
   /**
    * Listar mensagens de um produto
    */
-  async listarMensagensProduto(osId: string, produtoId: string, lojaId: string) {
+  async listarMensagensProduto(
+    osId: string,
+    produtoId: string,
+    lojaId: string,
+  ) {
     return this.prisma.arteMensagem.findMany({
       where: {
         os_id: osId,
@@ -269,7 +284,7 @@ export class ArteMensagemService {
    */
   async listarMensagensVersao(versaoId: string, lojaId: string) {
     // Log removido para reduzir spam no console
-    
+
     const mensagens = await this.prisma.arteMensagem.findMany({
       where: {
         versao_id: versaoId,
@@ -279,7 +294,7 @@ export class ArteMensagemService {
         created_at: 'asc',
       },
     });
-    
+
     // Log removido para reduzir spam no console
     return mensagens;
   }
@@ -293,17 +308,19 @@ export class ArteMensagemService {
         os_id: osId,
         loja_id: lojaId,
       },
-      orderBy: [
-        { produto_id: 'asc' },
-        { created_at: 'asc' },
-      ],
+      orderBy: [{ produto_id: 'asc' }, { created_at: 'asc' }],
     });
   }
 
   /**
    * Atualizar mensagem
    */
-  async atualizarMensagem(id: string, dto: UpdateMensagemDto, usuarioId: string, lojaId: string) {
+  async atualizarMensagem(
+    id: string,
+    dto: UpdateMensagemDto,
+    usuarioId: string,
+    lojaId: string,
+  ) {
     // Verificar se a mensagem existe e pertence ao usu├írio/loja
     const mensagemExistente = await this.prisma.arteMensagem.findFirst({
       where: {
@@ -356,7 +373,11 @@ export class ArteMensagemService {
   /**
    * Marcar mensagens como lidas
    */
-  async marcarMensagensLidas(mensagemIds: string[], usuarioId: string, lojaId: string) {
+  async marcarMensagensLidas(
+    mensagemIds: string[],
+    usuarioId: string,
+    lojaId: string,
+  ) {
     return this.prisma.arteMensagem.updateMany({
       where: {
         id: { in: mensagemIds },
@@ -371,9 +392,16 @@ export class ArteMensagemService {
   /**
    * Marcar todas as mensagens de um produto/vers├úo como lidas
    */
-  async marcarMensagensLidasPorProduto(osId: string, produtoId: string, versaoId: string | null, lojaId: string) {
-    this.logger.log(`🔄 [marcarMensagensLidasPorProduto] Marcando mensagens como lidas para OS: ${osId}, Produto: ${produtoId}, Versão: ${versaoId}`);
-    
+  async marcarMensagensLidasPorProduto(
+    osId: string,
+    produtoId: string,
+    versaoId: string | null,
+    lojaId: string,
+  ) {
+    this.logger.log(
+      `🔄 [marcarMensagensLidasPorProduto] Marcando mensagens como lidas para OS: ${osId}, Produto: ${produtoId}, Versão: ${versaoId}`,
+    );
+
     const whereClause: any = {
       os_id: osId,
       produto_id: produtoId,
@@ -394,8 +422,10 @@ export class ArteMensagemService {
       },
     });
 
-    this.logger.log(`✅ [marcarMensagensLidasPorProduto] ${result.count} mensagens marcadas como lidas`);
-    
+    this.logger.log(
+      `✅ [marcarMensagensLidasPorProduto] ${result.count} mensagens marcadas como lidas`,
+    );
+
     return result;
   }
 
@@ -404,8 +434,10 @@ export class ArteMensagemService {
    */
   async contarMensagensNaoLidas(osId: string, lojaId: string) {
     try {
-      this.logger.log(`🔄 [contarMensagensNaoLidas] Buscando mensagens não lidas para OS: ${osId}, Loja: ${lojaId}`);
-      
+      this.logger.log(
+        `🔄 [contarMensagensNaoLidas] Buscando mensagens não lidas para OS: ${osId}, Loja: ${lojaId}`,
+      );
+
       const mensagensNaoLidas = await this.prisma.arteMensagem.groupBy({
         by: ['versao_id'],
         where: {
@@ -419,11 +451,16 @@ export class ArteMensagemService {
           id: true,
         },
       });
-      
-      this.logger.log(`📊 [contarMensagensNaoLidas] Mensagens não lidas encontradas:`, mensagensNaoLidas);
+
+      this.logger.log(
+        `📊 [contarMensagensNaoLidas] Mensagens não lidas encontradas:`,
+        mensagensNaoLidas,
+      );
 
       // Buscar dados das vers├Áes
-      const versaoIds = mensagensNaoLidas.map(m => m.versao_id).filter(Boolean);
+      const versaoIds = mensagensNaoLidas
+        .map((m) => m.versao_id)
+        .filter(Boolean);
       const versoes = await this.prisma.arteVersao.findMany({
         where: {
           id: { in: versaoIds },
@@ -437,16 +474,20 @@ export class ArteMensagemService {
         },
       });
 
-      const resultado = mensagensNaoLidas.map(mensagem => {
-        const versao = versoes.find(v => v.id === mensagem.versao_id);
+      const resultado = mensagensNaoLidas.map((mensagem) => {
+        const versao = versoes.find((v) => v.id === mensagem.versao_id);
         return {
           produto_id: mensagem.versao_id, // Usar versao_id como produto_id para compatibilidade
-          produto_nome: versao?.descricao || `Vers├úo ${versao?.versao || 'N/A'}`,
+          produto_nome:
+            versao?.descricao || `Vers├úo ${versao?.versao || 'N/A'}`,
           mensagens_nao_lidas: mensagem._count.id,
         };
       });
-      
-      this.logger.log(`✅ [contarMensagensNaoLidas] Resultado final:`, resultado);
+
+      this.logger.log(
+        `✅ [contarMensagensNaoLidas] Resultado final:`,
+        resultado,
+      );
       return resultado;
     } catch (error) {
       this.logger.error('ÔØî Erro ao contar mensagens n├úo lidas:', error);
@@ -471,7 +512,7 @@ export class ArteMensagemService {
 
     // Agrupar por produto e pegar a ├║ltima mensagem de cada
     const mensagensPorProduto = new Map();
-    
+
     for (const mensagem of mensagens) {
       if (!mensagensPorProduto.has(mensagem.produto_id)) {
         mensagensPorProduto.set(mensagem.produto_id, mensagem);
@@ -483,16 +524,16 @@ export class ArteMensagemService {
     const os = await this.prisma.ordemServico.findFirst({
       where: {
         id: osId,
-        loja_id: lojaId
+        loja_id: lojaId,
       },
       include: {
         itens: true,
         orcamento: {
           include: {
-            produtos: true
-          }
-        }
-      }
+            produtos: true,
+          },
+        },
+      },
     });
 
     if (!os) {
@@ -500,11 +541,11 @@ export class ArteMensagemService {
     }
 
     // Combinar produtos: ItemOS migrados + produtos do or├ºamento n├úo migrados
-    let produtos = [];
+    const produtos = [];
 
     // 1. Buscar produtos j├í migrados para ItemOS
     if (os.itens && os.itens.length > 0) {
-      const produtosItemOS = os.itens.map(item => ({
+      const produtosItemOS = os.itens.map((item) => ({
         item_id: item.id,
         produto_id: item.id, // Para ItemOS, usar o mesmo ID
         produto_servico: item.produto_servico,
@@ -515,7 +556,7 @@ export class ArteMensagemService {
         dias_restantes: null,
         is_retroativo: false,
         mensagem: 'Prazo n├úo definido',
-        excede_prazo_final: false
+        excede_prazo_final: false,
       }));
       produtos.push(...produtosItemOS);
     }
@@ -523,8 +564,13 @@ export class ArteMensagemService {
     // 2. Buscar produtos do or├ºamento que ainda n├úo foram migrados
     if (os.orcamento?.produtos && os.orcamento.produtos.length > 0) {
       const produtosOrcamento = os.orcamento.produtos
-        .filter(produto => !os.itens.some(item => item.produto_servico === produto.nome_servico))
-        .map(produto => ({
+        .filter(
+          (produto) =>
+            !os.itens.some(
+              (item) => item.produto_servico === produto.nome_servico,
+            ),
+        )
+        .map((produto) => ({
           item_id: produto.id,
           produto_id: produto.id,
           produto_servico: produto.nome_servico || produto.nome || 'Produto',
@@ -535,52 +581,78 @@ export class ArteMensagemService {
           dias_restantes: null,
           is_retroativo: false,
           mensagem: 'Prazo n├úo definido',
-          excede_prazo_final: false
+          excede_prazo_final: false,
         }));
       produtos.push(...produtosOrcamento);
     }
 
-    console.log('­ƒöì [buscarUltimasMensagensPorProduto] Produtos da API status-produtos:', produtos);
+    console.log(
+      '­ƒöì [buscarUltimasMensagensPorProduto] Produtos da API status-produtos:',
+      produtos,
+    );
 
     // Formatar resposta
-    const resultado = Array.from(mensagensPorProduto.values()).map(mensagem => {
-      // Buscar o produto pelo ID da mensagem
-      let produto = produtos.find(p => p.item_id === mensagem.produto_id || p.produto_id === mensagem.produto_id);
-      
-      // Ô£à FALLBACK: Se n├úo encontrou o produto espec├¡fico e h├í apenas um produto na OS, usar esse
-      if (!produto && produtos.length === 1) {
-        produto = produtos[0];
-        console.log('­ƒöì [buscarUltimasMensagensPorProduto] Usando produto ├║nico da OS como fallback:', produto);
-      }
-      
-      console.log('­ƒöì [buscarUltimasMensagensPorProduto] Processando mensagem:', {
-        mensagem_id: mensagem.id,
-        produto_id: mensagem.produto_id,
-        produto_encontrado: produto,
-        produto_nome_final: produto?.produto_servico || 'Produto n├úo encontrado',
-        produtos_disponiveis: produtos.length
-      });
-      
-      return {
-        id: mensagem.id,
-        produto_id: produto?.item_id || produto?.produto_id || mensagem.produto_id, // Ô£à RETORNAR ID CORRETO DO PRODUTO
-        produto_nome: produto?.produto_servico || 'Produto n├úo encontrado', // Ô£à USAR produto_servico
-        autor_nome: mensagem.autor_nome,
-        autor_tipo: mensagem.autor_tipo,
-        mensagem: mensagem.mensagem,
-        created_at: mensagem.created_at,
-        versao_id: mensagem.versao_id,
-      };
-    }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    
-    console.log('­ƒöì [buscarUltimasMensagensPorProduto] Resultado final:', resultado);
+    const resultado = Array.from(mensagensPorProduto.values())
+      .map((mensagem) => {
+        // Buscar o produto pelo ID da mensagem
+        let produto = produtos.find(
+          (p) =>
+            p.item_id === mensagem.produto_id ||
+            p.produto_id === mensagem.produto_id,
+        );
+
+        // Ô£à FALLBACK: Se n├úo encontrou o produto espec├¡fico e h├í apenas um produto na OS, usar esse
+        if (!produto && produtos.length === 1) {
+          produto = produtos[0];
+          console.log(
+            '­ƒöì [buscarUltimasMensagensPorProduto] Usando produto ├║nico da OS como fallback:',
+            produto,
+          );
+        }
+
+        console.log(
+          '­ƒöì [buscarUltimasMensagensPorProduto] Processando mensagem:',
+          {
+            mensagem_id: mensagem.id,
+            produto_id: mensagem.produto_id,
+            produto_encontrado: produto,
+            produto_nome_final:
+              produto?.produto_servico || 'Produto n├úo encontrado',
+            produtos_disponiveis: produtos.length,
+          },
+        );
+
+        return {
+          id: mensagem.id,
+          produto_id:
+            produto?.item_id || produto?.produto_id || mensagem.produto_id, // Ô£à RETORNAR ID CORRETO DO PRODUTO
+          produto_nome: produto?.produto_servico || 'Produto n├úo encontrado', // Ô£à USAR produto_servico
+          autor_nome: mensagem.autor_nome,
+          autor_tipo: mensagem.autor_tipo,
+          mensagem: mensagem.mensagem,
+          created_at: mensagem.created_at,
+          versao_id: mensagem.versao_id,
+        };
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+
+    console.log(
+      '­ƒöì [buscarUltimasMensagensPorProduto] Resultado final:',
+      resultado,
+    );
     return resultado;
   }
 
   /**
    * Enviar notifica├º├Áes para nova mensagem
    */
-  private async enviarNotificacoesMensagem(mensagem: any, autorTipo: AutorTipo) {
+  private async enviarNotificacoesMensagem(
+    mensagem: any,
+    autorTipo: AutorTipo,
+  ) {
     try {
       if (autorTipo === AutorTipo.EQUIPE) {
         // Notificar cliente por email
@@ -671,7 +743,9 @@ export class ArteMensagemService {
         },
       });
 
-      this.logger.log(`Notifica├º├úo criada: ${data.tipo} para OS ${data.os_id}`);
+      this.logger.log(
+        `Notifica├º├úo criada: ${data.tipo} para OS ${data.os_id}`,
+      );
     } catch (error) {
       this.logger.error('Erro ao criar notifica├º├úo no sistema:', error);
     }

@@ -1,19 +1,29 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { WorkflowInstanciaData, CreateWorkflowInstanciaDto, UpdateWorkflowInstanciaDto } from '../interfaces/pcp.interfaces';
+import {
+  WorkflowInstanciaData,
+  CreateWorkflowInstanciaDto,
+  UpdateWorkflowInstanciaDto,
+} from '../interfaces/pcp.interfaces';
 import { OSPCPIntegrationService } from './os-pcp-integration.service';
 
 @Injectable()
 export class WorkflowService {
   constructor(
     private prisma: PrismaService,
-    private osPCPIntegration: OSPCPIntegrationService
+    private osPCPIntegration: OSPCPIntegrationService,
   ) {}
 
-  async criarInstancia(dto: CreateWorkflowInstanciaDto): Promise<WorkflowInstanciaData> {
+  async criarInstancia(
+    dto: CreateWorkflowInstanciaDto,
+  ): Promise<WorkflowInstanciaData> {
     // Verificar se OS existe
     const os = await this.prisma.ordemServico.findUnique({
-      where: { id: dto.os_id }
+      where: { id: dto.os_id },
     });
 
     if (!os) {
@@ -22,16 +32,18 @@ export class WorkflowService {
 
     // Verificar se já existe instância para esta OS
     const instanciaExistente = await this.prisma.workflowInstancia.findUnique({
-      where: { os_id: dto.os_id }
+      where: { os_id: dto.os_id },
     });
 
     if (instanciaExistente) {
-      throw new BadRequestException('Já existe uma instância de workflow para esta OS');
+      throw new BadRequestException(
+        'Já existe uma instância de workflow para esta OS',
+      );
     }
 
     // Verificar se workflow existe
     const workflow = await this.prisma.workflowOS.findUnique({
-      where: { id: dto.workflow_id }
+      where: { id: dto.workflow_id },
     });
 
     if (!workflow) {
@@ -45,18 +57,21 @@ export class WorkflowService {
         workflow_id: dto.workflow_id,
         status: 'ATIVO',
         etapa_atual: dto.etapa_atual,
-        data_inicio: new Date()
+        data_inicio: new Date(),
       },
       include: {
         workflow: true,
         etapas: {
-          orderBy: { ordem: 'asc' }
-        }
-      }
+          orderBy: { ordem: 'asc' },
+        },
+      },
     });
 
     // Notificar módulo OS sobre criação da instância
-    await this.osPCPIntegration.notificarInstanciaCriada(dto.os_id, instancia.id);
+    await this.osPCPIntegration.notificarInstanciaCriada(
+      dto.os_id,
+      instancia.id,
+    );
 
     return this.converterParaInterface(instancia);
   }
@@ -70,22 +85,25 @@ export class WorkflowService {
           orderBy: { ordem: 'asc' },
           include: {
             checklists: {
-              orderBy: { ordem: 'asc' }
+              orderBy: { ordem: 'asc' },
             },
             apontamentos: {
-              orderBy: { data_apontamento: 'desc' }
-            }
-          }
-        }
-      }
+              orderBy: { data_apontamento: 'desc' },
+            },
+          },
+        },
+      },
     });
 
     return instancia ? this.converterParaInterface(instancia) : null;
   }
 
-  async atualizarStatus(id: string, dto: UpdateWorkflowInstanciaDto): Promise<WorkflowInstanciaData> {
+  async atualizarStatus(
+    id: string,
+    dto: UpdateWorkflowInstanciaDto,
+  ): Promise<WorkflowInstanciaData> {
     const instancia = await this.prisma.workflowInstancia.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!instancia) {
@@ -96,18 +114,21 @@ export class WorkflowService {
       where: { id },
       data: {
         ...dto,
-        atualizado_em: new Date()
+        atualizado_em: new Date(),
       },
       include: {
         workflow: true,
         etapas: {
-          orderBy: { ordem: 'asc' }
-        }
-      }
+          orderBy: { ordem: 'asc' },
+        },
+      },
     });
 
     // Notificar módulo OS sobre mudança de status
-    await this.osPCPIntegration.notificarStatusAlterado(instancia.os_id, dto.status);
+    await this.osPCPIntegration.notificarStatusAlterado(
+      instancia.os_id,
+      dto.status,
+    );
 
     return this.converterParaInterface(instanciaAtualizada);
   }
@@ -120,23 +141,25 @@ export class WorkflowService {
   }): Promise<WorkflowInstanciaData[]> {
     const instancias = await this.prisma.workflowInstancia.findMany({
       where: {
-        ...filtros
+        ...filtros,
       },
       include: {
         workflow: true,
         etapas: {
-          orderBy: { ordem: 'asc' }
-        }
+          orderBy: { ordem: 'asc' },
+        },
       },
-      orderBy: { data_inicio: 'desc' }
+      orderBy: { data_inicio: 'desc' },
     });
 
-    return instancias.map(instancia => this.converterParaInterface(instancia));
+    return instancias.map((instancia) =>
+      this.converterParaInterface(instancia),
+    );
   }
 
   async deletarInstancia(id: string): Promise<void> {
     const instancia = await this.prisma.workflowInstancia.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!instancia) {
@@ -147,7 +170,7 @@ export class WorkflowService {
     await this.osPCPIntegration.notificarInstanciaRemovida(instancia.os_id);
 
     await this.prisma.workflowInstancia.delete({
-      where: { id }
+      where: { id },
     });
   }
 
@@ -163,7 +186,7 @@ export class WorkflowService {
       criado_em: instancia.criado_em,
       atualizado_em: instancia.atualizado_em,
       workflow: instancia.workflow,
-      etapas: instancia.etapas?.map(etapa => ({
+      etapas: instancia.etapas?.map((etapa) => ({
         id: etapa.id,
         workflow_instancia_id: etapa.workflow_instancia_id,
         etapa_nome: etapa.etapa_nome,
@@ -177,7 +200,7 @@ export class WorkflowService {
         observacoes: etapa.observacoes,
         criado_em: etapa.criado_em,
         atualizado_em: etapa.atualizado_em,
-        checklists: etapa.checklists?.map(checklist => ({
+        checklists: etapa.checklists?.map((checklist) => ({
           id: checklist.id,
           etapa_instancia_id: checklist.etapa_instancia_id,
           item_descricao: checklist.item_descricao,
@@ -188,9 +211,9 @@ export class WorkflowService {
           observacoes: checklist.observacoes,
           ordem: checklist.ordem,
           criado_em: checklist.criado_em,
-          atualizado_em: checklist.atualizado_em
+          atualizado_em: checklist.atualizado_em,
         })),
-        apontamentos: etapa.apontamentos?.map(apontamento => ({
+        apontamentos: etapa.apontamentos?.map((apontamento) => ({
           id: apontamento.id,
           os_id: apontamento.os_id,
           etapa_instancia_id: apontamento.etapa_instancia_id,
@@ -203,9 +226,9 @@ export class WorkflowService {
           tempo_gasto: apontamento.tempo_gasto,
           ip_origem: apontamento.ip_origem,
           user_agent: apontamento.user_agent,
-          criado_em: apontamento.criado_em
-        }))
-      }))
+          criado_em: apontamento.criado_em,
+        })),
+      })),
     };
   }
 }

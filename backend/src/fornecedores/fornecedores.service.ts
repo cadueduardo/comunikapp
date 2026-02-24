@@ -24,7 +24,7 @@ export class FornecedoresService {
     if (fornecedorExistente) {
       throw new BadRequestException(
         `Já existe um fornecedor com o nome "${createFornecedoreDto.nome}" cadastrado. ` +
-        'Por favor, use um nome diferente ou edite o fornecedor existente.'
+          'Por favor, use um nome diferente ou edite o fornecedor existente.',
       );
     }
 
@@ -60,7 +60,7 @@ export class FornecedoresService {
     loja: loja,
   ) {
     await this.findOne(id, loja);
-    
+
     // Verificar se já existe outro fornecedor com o mesmo nome na mesma loja
     const fornecedorExistente = await this.prisma.fornecedor.findFirst({
       where: {
@@ -73,7 +73,7 @@ export class FornecedoresService {
     if (fornecedorExistente) {
       throw new BadRequestException(
         `Já existe um fornecedor com o nome "${updateFornecedoreDto.nome}" cadastrado. ` +
-        'Por favor, use um nome diferente.'
+          'Por favor, use um nome diferente.',
       );
     }
 

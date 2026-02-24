@@ -16,7 +16,12 @@ import {
   Request,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { WorkflowService } from '../services/workflow.service';
 import { OSPermissionsGuard } from '../guards/os-permissions.guard';
@@ -48,7 +53,10 @@ export class WorkflowController {
     @Body() createWorkflowDto: CreateWorkflowDto,
     @Request() req: AuthenticatedRequest,
   ) {
-    const workflow = await this.workflowService.create(req.lojaId, createWorkflowDto);
+    const workflow = await this.workflowService.create(
+      req.lojaId,
+      createWorkflowDto,
+    );
     return {
       success: true,
       data: workflow,
@@ -59,7 +67,10 @@ export class WorkflowController {
 
   @Post('padrao')
   @ApiOperation({ summary: 'Criar workflow padrao para a loja' })
-  @ApiResponse({ status: 201, description: 'Workflow padrao criado com sucesso' })
+  @ApiResponse({
+    status: 201,
+    description: 'Workflow padrao criado com sucesso',
+  })
   async criarPadrao(@Request() req: AuthenticatedRequest) {
     const workflow = await this.workflowService.criarWorkflowPadrao(req.lojaId);
     return {
@@ -81,7 +92,7 @@ export class WorkflowController {
       req.lojaId,
       ativos === 'true',
     );
-    
+
     return {
       success: true,
       data: workflows,
@@ -92,10 +103,7 @@ export class WorkflowController {
   @Get(':id')
   @ApiOperation({ summary: 'Obter workflow por ID' })
   @ApiResponse({ status: 200, description: 'Workflow retornado com sucesso' })
-  async findOne(
-    @Param('id') id: string,
-    @Request() req: AuthenticatedRequest,
-  ) {
+  async findOne(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     const workflow = await this.workflowService.findOne(id, req.lojaId);
     return {
       success: true,
@@ -112,7 +120,11 @@ export class WorkflowController {
     @Body() updateWorkflowDto: UpdateWorkflowDto,
     @Request() req: AuthenticatedRequest,
   ) {
-    const workflow = await this.workflowService.update(id, req.lojaId, updateWorkflowDto);
+    const workflow = await this.workflowService.update(
+      id,
+      req.lojaId,
+      updateWorkflowDto,
+    );
     return {
       success: true,
       data: workflow,
@@ -124,10 +136,7 @@ export class WorkflowController {
   @Delete(':id')
   @ApiOperation({ summary: 'Desativar workflow' })
   @ApiResponse({ status: 200, description: 'Workflow desativado com sucesso' })
-  async remove(
-    @Param('id') id: string,
-    @Request() req: AuthenticatedRequest,
-  ) {
+  async remove(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     await this.workflowService.remove(id, req.lojaId);
     return {
       success: true,
@@ -150,7 +159,7 @@ export class WorkflowController {
       body.etapa_origem,
       body.etapa_destino,
     );
-    
+
     return {
       success: true,
       data: validacao,

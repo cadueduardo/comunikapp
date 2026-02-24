@@ -13,12 +13,12 @@ export class TestValidacoesController {
     try {
       const regras = await this.prisma.regraValidacao.findMany({
         where: { ativo: true },
-        orderBy: { prioridade: 'asc' }
+        orderBy: { prioridade: 'asc' },
       });
 
       return {
         success: true,
-        data: regras.map(regra => ({
+        data: regras.map((regra) => ({
           id: regra.id,
           nome: regra.nome,
           descricao: regra.descricao,
@@ -28,14 +28,14 @@ export class TestValidacoesController {
           prioridade: regra.prioridade,
           _count: { execucoes: 0 },
           criado_em: regra.criado_em.toISOString(),
-          atualizado_em: regra.atualizado_em.toISOString()
+          atualizado_em: regra.atualizado_em.toISOString(),
         })),
-        total: regras.length
+        total: regras.length,
       };
     } catch (error) {
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -48,15 +48,15 @@ export class TestValidacoesController {
         where: { id },
         include: {
           loja: {
-            select: { nome: true }
-          }
-        }
+            select: { nome: true },
+          },
+        },
       });
 
       if (!regra) {
         return {
           success: false,
-          error: 'Regra não encontrada'
+          error: 'Regra não encontrada',
         };
       }
 
@@ -74,13 +74,13 @@ export class TestValidacoesController {
           condicoes: regra.condicoes,
           acoes: regra.acoes,
           criado_em: regra.criado_em.toISOString(),
-          atualizado_em: regra.atualizado_em.toISOString()
-        }
+          atualizado_em: regra.atualizado_em.toISOString(),
+        },
       };
     } catch (error) {
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -101,8 +101,8 @@ export class TestValidacoesController {
           loja_id: body.loja_id || null,
           condicoes: body.condicoes,
           acoes: body.acoes,
-          atualizado_em: new Date()
-        }
+          atualizado_em: new Date(),
+        },
       });
 
       return {
@@ -119,13 +119,13 @@ export class TestValidacoesController {
           condicoes: regra.condicoes,
           acoes: regra.acoes,
           criado_em: regra.criado_em.toISOString(),
-          atualizado_em: regra.atualizado_em.toISOString()
-        }
+          atualizado_em: regra.atualizado_em.toISOString(),
+        },
       };
     } catch (error) {
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -135,17 +135,17 @@ export class TestValidacoesController {
   async deletarRegra(@Param('id') id: string) {
     try {
       await this.prisma.regraValidacao.delete({
-        where: { id }
+        where: { id },
       });
 
       return {
         success: true,
-        message: 'Regra deletada com sucesso'
+        message: 'Regra deletada com sucesso',
       };
     } catch (error) {
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -157,23 +157,19 @@ export class TestValidacoesController {
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      const [
-        totalRegras,
-        regrasAtivas,
-        execucoesHoje,
-        regrasPorCategoria
-      ] = await Promise.all([
-        this.prisma.regraValidacao.count(),
-        this.prisma.regraValidacao.count({ where: { ativo: true } }),
-        this.prisma.execucaoRegra.count({
-          where: { criado_em: { gte: hoje } }
-        }),
-        this.prisma.regraValidacao.groupBy({
-          by: ['categoria'],
-          where: { ativo: true },
-          _count: { id: true }
-        })
-      ]);
+      const [totalRegras, regrasAtivas, execucoesHoje, regrasPorCategoria] =
+        await Promise.all([
+          this.prisma.regraValidacao.count(),
+          this.prisma.regraValidacao.count({ where: { ativo: true } }),
+          this.prisma.execucaoRegra.count({
+            where: { criado_em: { gte: hoje } },
+          }),
+          this.prisma.regraValidacao.groupBy({
+            by: ['categoria'],
+            where: { ativo: true },
+            _count: { id: true },
+          }),
+        ]);
 
       return {
         success: true,
@@ -181,17 +177,17 @@ export class TestValidacoesController {
         regrasAtivas,
         execucoesHoje,
         taxaSucesso: 100,
-        regrasPorCategoria: regrasPorCategoria.map(item => ({
+        regrasPorCategoria: regrasPorCategoria.map((item) => ({
           categoria: item.categoria,
           total: item._count.id,
-          ativas: item._count.id
+          ativas: item._count.id,
         })),
-        execucoesRecentes: []
+        execucoesRecentes: [],
       };
     } catch (error) {
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }

@@ -59,14 +59,14 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     ValidacaoV2Service,
     TransformacaoV2Service,
     NotificacaoV2Service,
-    
+
     // Services especializados
     ChatV2Service,
     LinksV2Service,
     ImpressaoV2Service,
     ValidacaoEstoqueService,
     InsumosAutocompleteService,
-    
+
     // Repositories
     OrcamentosV2Repository,
     ProdutosV2Repository,
@@ -85,9 +85,3 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
   ],
 })
 export class OrcamentosV2Module {}
-
-
-
-
-
-

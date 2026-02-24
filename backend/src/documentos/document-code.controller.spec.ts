@@ -37,12 +37,14 @@ describe('DocumentCodeController', () => {
 
   describe('gerarCodigoOS', () => {
     it('deve gerar código para OS Comercial', async () => {
-      mockDocumentCodeService.gerarCodigoOSPorTipo.mockResolvedValue('OS-2025-001');
+      mockDocumentCodeService.gerarCodigoOSPorTipo.mockResolvedValue(
+        'OS-2025-001',
+      );
 
       const resultado = await controller.gerarCodigoOS({
         lojaId: 'loja-001',
         tipoOS: TipoOS.COMERCIAL,
-        ano: 2025
+        ano: 2025,
       });
 
       expect(resultado).toEqual({
@@ -50,18 +52,24 @@ describe('DocumentCodeController', () => {
         codigo: 'OS-2025-001',
         tipo: TipoOS.COMERCIAL,
         lojaId: 'loja-001',
-        ano: 2025
+        ano: 2025,
       });
-      expect(mockDocumentCodeService.gerarCodigoOSPorTipo).toHaveBeenCalledWith('loja-001', TipoOS.COMERCIAL, 2025);
+      expect(mockDocumentCodeService.gerarCodigoOSPorTipo).toHaveBeenCalledWith(
+        'loja-001',
+        TipoOS.COMERCIAL,
+        2025,
+      );
     });
 
     it('deve gerar código para OS Interna', async () => {
-      mockDocumentCodeService.gerarCodigoOSPorTipo.mockResolvedValue('OSI-2025-001');
+      mockDocumentCodeService.gerarCodigoOSPorTipo.mockResolvedValue(
+        'OSI-2025-001',
+      );
 
       const resultado = await controller.gerarCodigoOS({
         lojaId: 'loja-001',
         tipoOS: TipoOS.INTERNA,
-        ano: 2025
+        ano: 2025,
       });
 
       expect(resultado).toEqual({
@@ -69,33 +77,39 @@ describe('DocumentCodeController', () => {
         codigo: 'OSI-2025-001',
         tipo: TipoOS.INTERNA,
         lojaId: 'loja-001',
-        ano: 2025
+        ano: 2025,
       });
     });
 
     it('deve usar ano atual quando não fornecido', async () => {
-      mockDocumentCodeService.gerarCodigoOSPorTipo.mockResolvedValue('OS-2025-001');
+      mockDocumentCodeService.gerarCodigoOSPorTipo.mockResolvedValue(
+        'OS-2025-001',
+      );
 
       const resultado = await controller.gerarCodigoOS({
         lojaId: 'loja-001',
-        tipoOS: TipoOS.COMERCIAL
+        tipoOS: TipoOS.COMERCIAL,
       });
 
       expect(resultado.ano).toBe(new Date().getFullYear());
     });
 
     it('deve lançar erro quando lojaId está ausente', async () => {
-      await expect(controller.gerarCodigoOS({
-        lojaId: '',
-        tipoOS: TipoOS.COMERCIAL
-      })).rejects.toThrow(HttpException);
+      await expect(
+        controller.gerarCodigoOS({
+          lojaId: '',
+          tipoOS: TipoOS.COMERCIAL,
+        }),
+      ).rejects.toThrow(HttpException);
     });
 
     it('deve lançar erro quando tipoOS é inválido', async () => {
-      await expect(controller.gerarCodigoOS({
-        lojaId: 'loja-001',
-        tipoOS: 'INVALIDO' as TipoOS
-      })).rejects.toThrow(HttpException);
+      await expect(
+        controller.gerarCodigoOS({
+          lojaId: 'loja-001',
+          tipoOS: 'INVALIDO' as TipoOS,
+        }),
+      ).rejects.toThrow(HttpException);
     });
   });
 
@@ -103,7 +117,7 @@ describe('DocumentCodeController', () => {
     it('deve validar código válido', async () => {
       mockDocumentCodeService.validarCodigoOS.mockReturnValue({
         valido: true,
-        tipo: TipoOS.COMERCIAL
+        tipo: TipoOS.COMERCIAL,
       });
 
       const resultado = await controller.validarCodigoOS('OS-2025-001');
@@ -113,14 +127,14 @@ describe('DocumentCodeController', () => {
         codigo: 'OS-2025-001',
         valido: true,
         tipo: TipoOS.COMERCIAL,
-        erro: undefined
+        erro: undefined,
       });
     });
 
     it('deve validar código inválido', async () => {
       mockDocumentCodeService.validarCodigoOS.mockReturnValue({
         valido: false,
-        erro: 'Formato inválido'
+        erro: 'Formato inválido',
       });
 
       const resultado = await controller.validarCodigoOS('INVALIDO');
@@ -130,7 +144,7 @@ describe('DocumentCodeController', () => {
         codigo: 'INVALIDO',
         valido: false,
         tipo: undefined,
-        erro: 'Formato inválido'
+        erro: 'Formato inválido',
       });
     });
   });
@@ -140,7 +154,7 @@ describe('DocumentCodeController', () => {
       mockDocumentCodeService.extrairInformacoesCodigo.mockReturnValue({
         tipo: TipoOS.COMERCIAL,
         ano: 2025,
-        numero: 1
+        numero: 1,
       });
 
       const resultado = await controller.obterInformacoesCodigo('OS-2025-001');
@@ -151,16 +165,17 @@ describe('DocumentCodeController', () => {
         informacoes: {
           tipo: TipoOS.COMERCIAL,
           ano: 2025,
-          numero: 1
-        }
+          numero: 1,
+        },
       });
     });
 
     it('deve lançar erro para código inválido', async () => {
       mockDocumentCodeService.extrairInformacoesCodigo.mockReturnValue(null);
 
-      await expect(controller.obterInformacoesCodigo('INVALIDO'))
-        .rejects.toThrow(HttpException);
+      await expect(
+        controller.obterInformacoesCodigo('INVALIDO'),
+      ).rejects.toThrow(HttpException);
     });
   });
 
@@ -168,26 +183,32 @@ describe('DocumentCodeController', () => {
     it('deve verificar se código existe', async () => {
       mockDocumentCodeService.verificarCodigoExistente.mockResolvedValue(true);
 
-      const resultado = await controller.verificarCodigoExistente('OS-2025-001', 'loja-001');
+      const resultado = await controller.verificarCodigoExistente(
+        'OS-2025-001',
+        'loja-001',
+      );
 
       expect(resultado).toEqual({
         sucesso: true,
         codigo: 'OS-2025-001',
         lojaId: 'loja-001',
-        existe: true
+        existe: true,
       });
     });
 
     it('deve verificar se código não existe', async () => {
       mockDocumentCodeService.verificarCodigoExistente.mockResolvedValue(false);
 
-      const resultado = await controller.verificarCodigoExistente('OS-2025-999', 'loja-001');
+      const resultado = await controller.verificarCodigoExistente(
+        'OS-2025-999',
+        'loja-001',
+      );
 
       expect(resultado).toEqual({
         sucesso: true,
         codigo: 'OS-2025-999',
         lojaId: 'loja-001',
-        existe: false
+        existe: false,
       });
     });
   });
@@ -196,7 +217,7 @@ describe('DocumentCodeController', () => {
     it('deve retornar estatísticas de numeração', async () => {
       mockDocumentCodeService.obterEstatisticasNumeracao.mockResolvedValue({
         comercial: { total: 10, ultimoNumero: 10 },
-        interna: { total: 5, ultimoNumero: 5 }
+        interna: { total: 5, ultimoNumero: 5 },
       });
 
       const resultado = await controller.obterEstatisticas('loja-001', 2025);
@@ -207,15 +228,15 @@ describe('DocumentCodeController', () => {
         ano: 2025,
         estatisticas: {
           comercial: { total: 10, ultimoNumero: 10 },
-          interna: { total: 5, ultimoNumero: 5 }
-        }
+          interna: { total: 5, ultimoNumero: 5 },
+        },
       });
     });
 
     it('deve usar ano atual quando não fornecido', async () => {
       mockDocumentCodeService.obterEstatisticasNumeracao.mockResolvedValue({
         comercial: { total: 0, ultimoNumero: 0 },
-        interna: { total: 0, ultimoNumero: 0 }
+        interna: { total: 0, ultimoNumero: 0 },
       });
 
       const resultado = await controller.obterEstatisticas('loja-001');
@@ -228,34 +249,43 @@ describe('DocumentCodeController', () => {
     it('deve retornar próximo número para OS Comercial', async () => {
       mockDocumentCodeService.obterProximoNumero.mockResolvedValue(6);
 
-      const resultado = await controller.obterProximoNumero('loja-001', 'COMERCIAL', 2025);
+      const resultado = await controller.obterProximoNumero(
+        'loja-001',
+        'COMERCIAL',
+        2025,
+      );
 
       expect(resultado).toEqual({
         sucesso: true,
         lojaId: 'loja-001',
         tipoOS: 'COMERCIAL',
         ano: 2025,
-        proximoNumero: 6
+        proximoNumero: 6,
       });
     });
 
     it('deve retornar próximo número para OS Interna', async () => {
       mockDocumentCodeService.obterProximoNumero.mockResolvedValue(3);
 
-      const resultado = await controller.obterProximoNumero('loja-001', 'INTERNA', 2025);
+      const resultado = await controller.obterProximoNumero(
+        'loja-001',
+        'INTERNA',
+        2025,
+      );
 
       expect(resultado).toEqual({
         sucesso: true,
         lojaId: 'loja-001',
         tipoOS: 'INTERNA',
         ano: 2025,
-        proximoNumero: 3
+        proximoNumero: 3,
       });
     });
 
     it('deve lançar erro para tipoOS inválido', async () => {
-      await expect(controller.obterProximoNumero('loja-001', 'INVALIDO', 2025))
-        .rejects.toThrow(HttpException);
+      await expect(
+        controller.obterProximoNumero('loja-001', 'INVALIDO', 2025),
+      ).rejects.toThrow(HttpException);
     });
   });
 
@@ -270,15 +300,15 @@ describe('DocumentCodeController', () => {
             valor: TipoOS.COMERCIAL,
             label: 'Comercial',
             prefixo: 'OS',
-            formato: 'OS-AAAA-NNN'
+            formato: 'OS-AAAA-NNN',
           },
           {
             valor: TipoOS.INTERNA,
             label: 'Interna',
             prefixo: 'OSI',
-            formato: 'OSI-AAAA-NNN'
-          }
-        ]
+            formato: 'OSI-AAAA-NNN',
+          },
+        ],
       });
     });
   });

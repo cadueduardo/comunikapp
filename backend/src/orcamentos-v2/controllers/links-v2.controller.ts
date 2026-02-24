@@ -1,22 +1,22 @@
-import { 
-  Controller, 
-  Post, 
-  Get, 
-  Put, 
-  Delete, 
-  Body, 
-  Param, 
-  Query, 
+import {
+  Controller,
+  Post,
+  Get,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
   UseGuards,
   HttpStatus,
   HttpCode,
 } from '@nestjs/common';
-import { 
-  ApiTags, 
-  ApiOperation, 
-  ApiResponse, 
-  ApiParam, 
-  ApiQuery, 
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
   ApiBody,
   ApiBearerAuth,
 } from '@nestjs/swagger';
@@ -29,7 +29,7 @@ import { LinksV2Service } from '../services/links-v2.service';
 /**
  * Controller de Links V2 para Orçamentos
  * Endpoints para links públicos e compartilhamento
- * 
+ *
  * ✅ ARQUIVO ≤ 200 LINHAS (CONFORME PREMISSAS)
  * ✅ ENDPOINTS DE LINKS COMPLETOS
  * ✅ SISTEMA DE COMPARTILHAMENTO
@@ -39,9 +39,7 @@ import { LinksV2Service } from '../services/links-v2.service';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class LinksV2Controller {
-  constructor(
-    private readonly linksV2Service: LinksV2Service,
-  ) {}
+  constructor(private readonly linksV2Service: LinksV2Service) {}
 
   /**
    * Cria link público para orçamento
@@ -59,13 +57,19 @@ export class LinksV2Controller {
       type: 'object',
       required: ['permissoes'],
       properties: {
-        permissoes: { 
-          type: 'array', 
-          items: { type: 'string' }, 
-          description: 'Permissões do link' 
+        permissoes: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Permissões do link',
         },
-        data_expiracao: { type: 'string', description: 'Data de expiração (ISO)' },
-        max_visualizacoes: { type: 'number', description: 'Máximo de visualizações' },
+        data_expiracao: {
+          type: 'string',
+          description: 'Data de expiração (ISO)',
+        },
+        max_visualizacoes: {
+          type: 'number',
+          description: 'Máximo de visualizações',
+        },
         senha: { type: 'string', description: 'Senha de acesso (opcional)' },
       },
     },
@@ -91,7 +95,8 @@ export class LinksV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async criarLinkPublico(
     @Param('orcamentoId') orcamentoId: string,
-    @Body() dados: {
+    @Body()
+    dados: {
       permissoes: string[];
       data_expiracao?: string;
       max_visualizacoes?: number;
@@ -161,7 +166,10 @@ export class LinksV2Controller {
     @User() usuario: any,
   ) {
     try {
-      const links = await this.linksV2Service.listarLinksPublicos(orcamentoId, usuario.id);
+      const links = await this.linksV2Service.listarLinksPublicos(
+        orcamentoId,
+        usuario.id,
+      );
 
       return {
         success: true,
@@ -217,7 +225,8 @@ export class LinksV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async atualizarLinkPublico(
     @Param('linkId') linkId: string,
-    @Body() dados: {
+    @Body()
+    dados: {
       permissoes?: string[];
       data_expiracao?: string;
       max_visualizacoes?: number;
@@ -232,7 +241,9 @@ export class LinksV2Controller {
         usuario.id,
         {
           permissoes: dados.permissoes as any,
-          dataExpiracao: dados.data_expiracao ? new Date(dados.data_expiracao) : undefined,
+          dataExpiracao: dados.data_expiracao
+            ? new Date(dados.data_expiracao)
+            : undefined,
           maxVisualizacoes: dados.max_visualizacoes,
           senha: dados.senha,
           ativo: dados.ativo,
@@ -329,7 +340,10 @@ export class LinksV2Controller {
     @User() usuario: any,
   ) {
     try {
-      const estatisticas = await this.linksV2Service.buscarEstatisticasLinks(orcamentoId, usuario.id);
+      const estatisticas = await this.linksV2Service.buscarEstatisticasLinks(
+        orcamentoId,
+        usuario.id,
+      );
 
       return {
         success: true,
@@ -353,8 +367,16 @@ export class LinksV2Controller {
     description: 'Retorna histórico de acessos de um link público',
   })
   @ApiParam({ name: 'linkId', description: 'ID do link público' })
-  @ApiQuery({ name: 'pagina', required: false, description: 'Número da página' })
-  @ApiQuery({ name: 'por_pagina', required: false, description: 'Itens por página' })
+  @ApiQuery({
+    name: 'pagina',
+    required: false,
+    description: 'Número da página',
+  })
+  @ApiQuery({
+    name: 'por_pagina',
+    required: false,
+    description: 'Itens por página',
+  })
   @ApiResponse({
     status: 200,
     description: 'Histórico encontrado',
@@ -406,7 +428,11 @@ export class LinksV2Controller {
     description: 'Acessa orçamento através de link público',
   })
   @ApiParam({ name: 'token', description: 'Token do link público' })
-  @ApiQuery({ name: 'senha', required: false, description: 'Senha do link (se aplicável)' })
+  @ApiQuery({
+    name: 'senha',
+    required: false,
+    description: 'Senha do link (se aplicável)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Orçamento acessado com sucesso',

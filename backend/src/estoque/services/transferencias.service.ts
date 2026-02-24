@@ -14,24 +14,43 @@ export class TransferenciasService {
 
   async criarTransferencia(context: IEstoqueContext, data: any) {
     if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
-    this.logger.debug(`🔄 [TransferenciasService] criarTransferencia loja=${context.lojaId}`);
+    this.logger.debug(
+      `🔄 [TransferenciasService] criarTransferencia loja=${context.lojaId}`,
+    );
 
-    const { itemId, localizacaoOrigemId, localizacaoDestinoId, quantidade, observacoes } = data;
+    const {
+      itemId,
+      localizacaoOrigemId,
+      localizacaoDestinoId,
+      quantidade,
+      observacoes,
+    } = data;
 
-         const itemOrigem = await this.prisma.$queryRaw`
+    const itemOrigem = await this.prisma.$queryRaw`
        SELECT id, quantidadeAtual, codigo, nome, localizacaoId FROM estoque_itens WHERE id = ${itemId} AND lojaId = ${context.lojaId}
      `;
-    if (!(itemOrigem as any[])?.[0]) throw new BadRequestException('Item de estoque não encontrado');
+    if (!(itemOrigem as any[])?.[0])
+      throw new BadRequestException('Item de estoque não encontrado');
     const item = (itemOrigem as any[])[0];
-    if (item.localizacaoId !== localizacaoOrigemId) throw new BadRequestException('Item não está na localização de origem especificada');
-    if (Number(item.quantidadeAtual) < Number(quantidade)) throw new BadRequestException('Quantidade insuficiente para transferência');
+    if (item.localizacaoId !== localizacaoOrigemId)
+      throw new BadRequestException(
+        'Item não está na localização de origem especificada',
+      );
+    if (Number(item.quantidadeAtual) < Number(quantidade))
+      throw new BadRequestException(
+        'Quantidade insuficiente para transferência',
+      );
 
     const localizacaoDestino = await this.prisma.$queryRaw`
       SELECT id, codigo FROM estoque_localizacoes WHERE id = ${localizacaoDestinoId} AND lojaId = ${context.lojaId}
     `;
-    if (!(localizacaoDestino as any[])?.[0]) throw new BadRequestException('Localização de destino não encontrada');
+    if (!(localizacaoDestino as any[])?.[0])
+      throw new BadRequestException('Localização de destino não encontrada');
 
-    if (Number(item.quantidadeAtual) !== Number(quantidade)) throw new BadRequestException('No modelo atual de itens, só é possível transferir a quantidade total do item.');
+    if (Number(item.quantidadeAtual) !== Number(quantidade))
+      throw new BadRequestException(
+        'No modelo atual de itens, só é possível transferir a quantidade total do item.',
+      );
 
     // Criar registro na tabela de transferências
     const transferenciaId = `transf-${Date.now()}`;
@@ -93,39 +112,49 @@ export class TransferenciasService {
          AND m1.tipo = 'SAIDA'
     `;
 
-    return (transferenciaDb as any[])?.[0] || {
-      id: `transf-${Date.now()}`,
-      itemId,
-      dataTransferencia: new Date(),
-      quantidade: Number(quantidade),
-      itemCodigo: item.codigo,
-      itemNome: item.nome,
-      localizacaoOrigemId,
-      localizacaoOrigemCodigo: (await this.prisma.$queryRaw`SELECT codigo FROM estoque_localizacoes WHERE id = ${localizacaoOrigemId} AND lojaId = ${context.lojaId} LIMIT 1`)?.[0]?.codigo || '',
-      localizacaoDestinoId,
-      localizacaoDestinoCodigo: (localizacaoDestino as any[])?.[0]?.codigo || '',
-      observacoes: observacoes || null,
-      status: 'CONCLUIDA',
-    } as any;
+    return (
+      (transferenciaDb as any[])?.[0] ||
+      ({
+        id: `transf-${Date.now()}`,
+        itemId,
+        dataTransferencia: new Date(),
+        quantidade: Number(quantidade),
+        itemCodigo: item.codigo,
+        itemNome: item.nome,
+        localizacaoOrigemId,
+        localizacaoOrigemCodigo:
+          (
+            await this.prisma
+              .$queryRaw`SELECT codigo FROM estoque_localizacoes WHERE id = ${localizacaoOrigemId} AND lojaId = ${context.lojaId} LIMIT 1`
+          )?.[0]?.codigo || '',
+        localizacaoDestinoId,
+        localizacaoDestinoCodigo:
+          (localizacaoDestino as any[])?.[0]?.codigo || '',
+        observacoes: observacoes || null,
+        status: 'CONCLUIDA',
+      } as any)
+    );
   }
 
   async listarTransferencias(context: IEstoqueContext, query: any = {}) {
     if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
-    this.logger.debug(`🔄 [TransferenciasService] listarTransferencias loja=${context.lojaId}`);
+    this.logger.debug(
+      `🔄 [TransferenciasService] listarTransferencias loja=${context.lojaId}`,
+    );
 
     const filters: string[] = [`t.lojaId = ?`];
     const whereParams: any[] = [context.lojaId];
-    
+
     if (query.itemId) {
       filters.push(`t.estoqueId = ?`);
       whereParams.push(String(query.itemId));
     }
-    
+
     if (query.status) {
       filters.push(`t.status = ?`);
       whereParams.push(String(query.status));
     }
-    
+
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (query.dataInicio && dateRegex.test(query.dataInicio)) {
       filters.push(`DATE(t.dataTransferencia) >= ?`);
@@ -135,8 +164,9 @@ export class TransferenciasService {
       filters.push(`DATE(t.dataTransferencia) <= ?`);
       whereParams.push(query.dataFim);
     }
-    
-    const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
+
+    const whereClause =
+      filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
 
     const sql = `
       SELECT 
@@ -159,15 +189,20 @@ export class TransferenciasService {
       ${whereClause}
       ORDER BY t.dataTransferencia DESC
     `;
-    
-    const transferencias = await this.prisma.$queryRawUnsafe(sql, ...whereParams);
+
+    const transferencias = await this.prisma.$queryRawUnsafe(
+      sql,
+      ...whereParams,
+    );
     return transferencias;
   }
 
   async buscarTransferenciaPorId(context: IEstoqueContext, id: string) {
     if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
-    this.logger.debug(`🔄 [TransferenciasService] buscarTransferenciaPorId id=${id} loja=${context.lojaId}`);
-    
+    this.logger.debug(
+      `🔄 [TransferenciasService] buscarTransferenciaPorId id=${id} loja=${context.lojaId}`,
+    );
+
     const rows: any[] = await this.prisma.$queryRaw`
       SELECT 
         t.id,
@@ -193,7 +228,9 @@ export class TransferenciasService {
 
   async listarHistoricoPorItem(context: IEstoqueContext, itemId: string) {
     if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
-    this.logger.debug(`🔄 [TransferenciasService] listarHistoricoPorItem itemId=${itemId} loja=${context.lojaId}`);
+    this.logger.debug(
+      `🔄 [TransferenciasService] listarHistoricoPorItem itemId=${itemId} loja=${context.lojaId}`,
+    );
     const rows: any[] = await this.prisma.$queryRaw`
       SELECT 
         m1.id as movimentacaoSaidaId,
@@ -213,5 +250,3 @@ export class TransferenciasService {
     return rows;
   }
 }
-
-

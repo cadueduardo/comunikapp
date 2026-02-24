@@ -4,7 +4,18 @@
 
 export interface CondicaoRegra {
   campo: string;
-  operador: 'equals' | 'greater_than' | 'greater_than_or_equal' | 'less_than' | 'less_than_or_equal' | 'contains' | 'not_equals' | 'in' | 'not_in' | 'is_null' | 'is_not_null';
+  operador:
+    | 'equals'
+    | 'greater_than'
+    | 'greater_than_or_equal'
+    | 'less_than'
+    | 'less_than_or_equal'
+    | 'contains'
+    | 'not_equals'
+    | 'in'
+    | 'not_in'
+    | 'is_null'
+    | 'is_not_null';
   valor: any;
   mensagem_erro?: string;
   mensagem_alerta?: string;
@@ -24,7 +35,14 @@ export interface RegraValidacao {
   nome: string;
   descricao?: string;
   tipo: 'VALIDACAO' | 'ALERTA' | 'CORRECAO' | 'APROVACAO';
-  categoria: 'ESTOQUE' | 'ARTE' | 'DADOS' | 'PRAZO' | 'FINANCEIRO' | 'TECNICO' | 'COMERCIAL';
+  categoria:
+    | 'ESTOQUE'
+    | 'ARTE'
+    | 'DADOS'
+    | 'PRAZO'
+    | 'FINANCEIRO'
+    | 'TECNICO'
+    | 'COMERCIAL';
   ativo: boolean;
   prioridade: number;
   loja_id?: string;
@@ -83,12 +101,3 @@ export interface FiltrosRegras {
   page?: number;
   limit?: number;
 }
-
-
-
-
-
-
-
-
-

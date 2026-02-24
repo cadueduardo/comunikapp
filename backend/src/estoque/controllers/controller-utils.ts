@@ -17,7 +17,10 @@ export async function withLog<T>(
   action: string,
   successMessage: string,
   fn: () => Promise<T | void>,
-): Promise<{ success: true; message: string } | { success: true; data: T; message: string }> {
+): Promise<
+  | { success: true; message: string }
+  | { success: true; data: T; message: string }
+> {
   try {
     const result = await fn();
     if (typeof result === 'undefined') {
@@ -42,5 +45,3 @@ export async function withLogReturn<T>(
     throw error;
   }
 }
-
-

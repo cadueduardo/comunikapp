@@ -212,7 +212,10 @@ export interface EstagioCalculo {
   ordem: number;
   ativo: boolean;
   configuracao: ConfiguracaoEstagio;
-  executar(contexto: ContextoCalculo, resultado: any): Promise<ResultadoEstagio>;
+  executar(
+    contexto: ContextoCalculo,
+    resultado: any,
+  ): Promise<ResultadoEstagio>;
   validar(contexto: ContextoCalculo): Promise<ValidationResult>;
 }
 

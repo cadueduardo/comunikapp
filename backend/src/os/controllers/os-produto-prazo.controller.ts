@@ -3,11 +3,32 @@
  * Expõe endpoints para definir, consultar e liberar produtos para PCP
  */
 
-import { Controller, Post, Put, Get, Param, Body, Request, UseGuards, HttpException, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiBody, ApiResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Put,
+  Get,
+  Param,
+  Body,
+  Request,
+  UseGuards,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiParam,
+  ApiBody,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { OSProdutoPrazoService } from '../services/os-produto-prazo.service';
-import { DefinirPrazoProdutoDTO, LiberarProdutoPCPDTO } from '../dto/os-produto-prazo.dto';
+import {
+  DefinirPrazoProdutoDTO,
+  LiberarProdutoPCPDTO,
+} from '../dto/os-produto-prazo.dto';
 
 @ApiTags('OS - Gerenciamento de Prazo de Produtos')
 @ApiBearerAuth()
@@ -22,12 +43,15 @@ export class OSProdutoPrazoController {
   @ApiParam({ name: 'itemId', description: 'ID do produto/item' })
   @ApiBody({ type: DefinirPrazoProdutoDTO })
   @ApiResponse({ status: 200, description: 'Prazo definido com sucesso' })
-  @ApiResponse({ status: 400, description: 'Prazo inválido ou excede prazo final da OS' })
+  @ApiResponse({
+    status: 400,
+    description: 'Prazo inválido ou excede prazo final da OS',
+  })
   async definirPrazoProduto(
     @Param('osId') osId: string,
     @Param('itemId') itemId: string,
     @Body() definirPrazoDTO: DefinirPrazoProdutoDTO,
-    @Request() req: any
+    @Request() req: any,
   ) {
     try {
       const lojaId = req.user.loja_id;
@@ -41,28 +65,30 @@ export class OSProdutoPrazoController {
         lojaId,
         usuarioId,
         dataPrazo: new Date(definirPrazoDTO.data_prazo_produto),
-        dataInicio: definirPrazoDTO.data_inicio_producao ? new Date(definirPrazoDTO.data_inicio_producao) : undefined,
+        dataInicio: definirPrazoDTO.data_inicio_producao
+          ? new Date(definirPrazoDTO.data_inicio_producao)
+          : undefined,
         prioridade: definirPrazoDTO.prioridade_produto,
         ordemProducao: definirPrazoDTO.ordem_producao,
         motivo: definirPrazoDTO.motivo,
         ipOrigem,
         userAgent,
-        confirmarRetroativa: definirPrazoDTO.confirmar_retroativa || false
+        confirmarRetroativa: definirPrazoDTO.confirmar_retroativa || false,
       });
 
       return {
         success: true,
         message: 'Prazo do produto definido com sucesso',
-        data: resultado
+        data: resultado,
       };
     } catch (error) {
       throw new HttpException(
         {
           success: false,
           message: error.message || 'Erro ao definir prazo do produto',
-          error: error.name || 'InternalServerError'
+          error: error.name || 'InternalServerError',
         },
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -75,24 +101,29 @@ export class OSProdutoPrazoController {
   async consultarStatusPrazoProduto(
     @Param('osId') osId: string,
     @Param('itemId') itemId: string,
-    @Request() req: any
+    @Request() req: any,
   ) {
     try {
       const lojaId = req.user.loja_id;
-      const status = await this.osProdutoPrazoService.consultarStatusPrazoProduto(itemId, osId, lojaId);
-      
+      const status =
+        await this.osProdutoPrazoService.consultarStatusPrazoProduto(
+          itemId,
+          osId,
+          lojaId,
+        );
+
       return {
         success: true,
-        data: status
+        data: status,
       };
     } catch (error) {
       throw new HttpException(
         {
           success: false,
           message: error.message || 'Erro ao consultar status do prazo',
-          error: error.name || 'InternalServerError'
+          error: error.name || 'InternalServerError',
         },
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -101,42 +132,42 @@ export class OSProdutoPrazoController {
   @ApiOperation({ summary: 'Validar prazo de um produto' })
   @ApiParam({ name: 'osId', description: 'ID da OS' })
   @ApiParam({ name: 'itemId', description: 'ID do produto/item' })
-  @ApiBody({ 
-    schema: { 
-      type: 'object', 
-      properties: { 
-        data_prazo: { type: 'string', format: 'date-time' } 
-      } 
-    } 
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        data_prazo: { type: 'string', format: 'date-time' },
+      },
+    },
   })
   @ApiResponse({ status: 200, description: 'Validação realizada' })
   async validarPrazoProduto(
     @Param('osId') osId: string,
     @Param('itemId') itemId: string,
     @Body() body: { data_prazo: string },
-    @Request() req: any
+    @Request() req: any,
   ) {
     try {
       const lojaId = req.user.loja_id;
       const validacao = await this.osProdutoPrazoService.validarPrazoProduto(
-        itemId, 
-        osId, 
-        lojaId, 
-        new Date(body.data_prazo)
+        itemId,
+        osId,
+        lojaId,
+        new Date(body.data_prazo),
       );
-      
+
       return {
         success: true,
-        data: validacao
+        data: validacao,
       };
     } catch (error) {
       throw new HttpException(
         {
           success: false,
           message: error.message || 'Erro ao validar prazo',
-          error: error.name || 'InternalServerError'
+          error: error.name || 'InternalServerError',
         },
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -152,7 +183,7 @@ export class OSProdutoPrazoController {
     @Param('osId') osId: string,
     @Param('itemId') itemId: string,
     @Body() liberarDTO: LiberarProdutoPCPDTO,
-    @Request() req: any
+    @Request() req: any,
   ) {
     try {
       const lojaId = req.user.loja_id;
@@ -163,22 +194,22 @@ export class OSProdutoPrazoController {
         osId,
         lojaId,
         usuarioId,
-        liberarDTO.motivo
+        liberarDTO.motivo,
       );
 
       return {
         success: true,
         message: 'Produto liberado para PCP com sucesso',
-        data: resultado
+        data: resultado,
       };
     } catch (error) {
       throw new HttpException(
         {
           success: false,
           message: error.message || 'Erro ao liberar produto para PCP',
-          error: error.name || 'InternalServerError'
+          error: error.name || 'InternalServerError',
         },
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -186,31 +217,34 @@ export class OSProdutoPrazoController {
   @Get(':osId/status-produtos')
   @ApiOperation({ summary: 'Consultar status de todos os produtos de uma OS' })
   @ApiParam({ name: 'osId', description: 'ID da OS' })
-  @ApiResponse({ status: 200, description: 'Status de todos os produtos consultado' })
+  @ApiResponse({
+    status: 200,
+    description: 'Status de todos os produtos consultado',
+  })
   async consultarStatusProdutosOS(
     @Param('osId') osId: string,
-    @Request() req: any
+    @Request() req: any,
   ) {
     try {
       const lojaId = req.user.loja_id;
-      const status = await this.osProdutoPrazoService.consultarStatusProdutosOS(osId, lojaId);
-      
+      const status = await this.osProdutoPrazoService.consultarStatusProdutosOS(
+        osId,
+        lojaId,
+      );
+
       return {
         success: true,
-        data: status
+        data: status,
       };
     } catch (error) {
       throw new HttpException(
         {
           success: false,
           message: error.message || 'Erro ao consultar status dos produtos',
-          error: error.name || 'InternalServerError'
+          error: error.name || 'InternalServerError',
         },
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 }
-
-
-

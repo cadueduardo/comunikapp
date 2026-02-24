@@ -10,21 +10,18 @@ async function buildErrorMessage(response: Response): Promise<string> {
       return baseMessage;
     }
 
-    if (typeof data === 'string') {
-      return `${baseMessage} - ${data}`;
-    }
-
     const message = data.message || data.error || data.title;
 
     if (!message) {
       return baseMessage;
     }
 
-    if (Array.isArray(message)) {
-      return `${baseMessage} - ${message.join(' | ')}`;
+    const text = Array.isArray(message) ? message.join(' | ') : String(message);
+    // Em erros 4xx, priorizar a mensagem da API (ex.: validação) em vez do prefixo técnico
+    if (response.status >= 400 && response.status < 500 && text) {
+      return text;
     }
-
-    return `${baseMessage} - ${message}`;
+    return `${baseMessage} - ${text}`;
   } catch (error) {
     return baseMessage;
   }

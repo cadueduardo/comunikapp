@@ -8,18 +8,21 @@ export class OSApprovalPermissionsService {
   /**
    * Verifica se o usuário pode aprovar tecnicamente uma OS
    */
-  async podeAprovarTecnica(usuarioId: string, lojaId: string): Promise<{
+  async podeAprovarTecnica(
+    usuarioId: string,
+    lojaId: string,
+  ): Promise<{
     pode: boolean;
     motivo?: string;
   }> {
     try {
       // Buscar usuário com seus perfis e permissões
       const usuario = await this.prisma.usuario.findFirst({
-        where: { 
-          id: usuarioId, 
+        where: {
+          id: usuarioId,
           loja_id: lojaId,
           status: 'ATIVO',
-          ativo: true
+          ativo: true,
         },
         include: {
           perfis: {
@@ -30,20 +33,20 @@ export class OSApprovalPermissionsService {
                     where: {
                       modulo: 'OS',
                       acao: 'APROVAR_TECNICA',
-                      permitido: true
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+                      permitido: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!usuario) {
         return {
           pode: false,
-          motivo: 'Usuário não encontrado ou inativo'
+          motivo: 'Usuário não encontrado ou inativo',
         };
       }
 
@@ -53,8 +56,8 @@ export class OSApprovalPermissionsService {
       }
 
       // Verificar se tem permissão específica via perfil
-      const temPermissaoPerfil = usuario.perfis.some(up => 
-        up.perfil.ativo && up.perfil.permissoes.length > 0
+      const temPermissaoPerfil = usuario.perfis.some(
+        (up) => up.perfil.ativo && up.perfil.permissoes.length > 0,
       );
 
       if (temPermissaoPerfil) {
@@ -68,14 +71,13 @@ export class OSApprovalPermissionsService {
 
       return {
         pode: false,
-        motivo: 'Usuário não tem permissão para aprovar tecnicamente'
+        motivo: 'Usuário não tem permissão para aprovar tecnicamente',
       };
-
     } catch (error) {
       console.error('Erro ao verificar permissão de aprovação técnica:', error);
       return {
         pode: false,
-        motivo: 'Erro interno ao verificar permissões'
+        motivo: 'Erro interno ao verificar permissões',
       };
     }
   }
@@ -83,17 +85,20 @@ export class OSApprovalPermissionsService {
   /**
    * Verifica se o usuário pode aprovar orçamentariamente uma OS
    */
-  async podeAprovarOrcamentaria(usuarioId: string, lojaId: string): Promise<{
+  async podeAprovarOrcamentaria(
+    usuarioId: string,
+    lojaId: string,
+  ): Promise<{
     pode: boolean;
     motivo?: string;
   }> {
     try {
       const usuario = await this.prisma.usuario.findFirst({
-        where: { 
-          id: usuarioId, 
+        where: {
+          id: usuarioId,
           loja_id: lojaId,
           status: 'ATIVO',
-          ativo: true
+          ativo: true,
         },
         include: {
           perfis: {
@@ -104,20 +109,20 @@ export class OSApprovalPermissionsService {
                     where: {
                       modulo: 'OS',
                       acao: 'APROVAR_ORCAMENTARIA',
-                      permitido: true
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+                      permitido: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!usuario) {
         return {
           pode: false,
-          motivo: 'Usuário não encontrado ou inativo'
+          motivo: 'Usuário não encontrado ou inativo',
         };
       }
 
@@ -127,8 +132,8 @@ export class OSApprovalPermissionsService {
       }
 
       // Verificar permissão via perfil
-      const temPermissaoPerfil = usuario.perfis.some(up => 
-        up.perfil.ativo && up.perfil.permissoes.length > 0
+      const temPermissaoPerfil = usuario.perfis.some(
+        (up) => up.perfil.ativo && up.perfil.permissoes.length > 0,
       );
 
       if (temPermissaoPerfil) {
@@ -137,14 +142,16 @@ export class OSApprovalPermissionsService {
 
       return {
         pode: false,
-        motivo: 'Usuário não tem permissão para aprovar orçamentariamente'
+        motivo: 'Usuário não tem permissão para aprovar orçamentariamente',
       };
-
     } catch (error) {
-      console.error('Erro ao verificar permissão de aprovação orçamentária:', error);
+      console.error(
+        'Erro ao verificar permissão de aprovação orçamentária:',
+        error,
+      );
       return {
         pode: false,
-        motivo: 'Erro interno ao verificar permissões'
+        motivo: 'Erro interno ao verificar permissões',
       };
     }
   }
@@ -152,17 +159,20 @@ export class OSApprovalPermissionsService {
   /**
    * Verifica se o usuário pode aprovar gerencialmente uma OS
    */
-  async podeAprovarGerencial(usuarioId: string, lojaId: string): Promise<{
+  async podeAprovarGerencial(
+    usuarioId: string,
+    lojaId: string,
+  ): Promise<{
     pode: boolean;
     motivo?: string;
   }> {
     try {
       const usuario = await this.prisma.usuario.findFirst({
-        where: { 
-          id: usuarioId, 
+        where: {
+          id: usuarioId,
           loja_id: lojaId,
           status: 'ATIVO',
-          ativo: true
+          ativo: true,
         },
         include: {
           perfis: {
@@ -173,20 +183,20 @@ export class OSApprovalPermissionsService {
                     where: {
                       modulo: 'OS',
                       acao: 'APROVAR_GERENCIAL',
-                      permitido: true
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+                      permitido: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!usuario) {
         return {
           pode: false,
-          motivo: 'Usuário não encontrado ou inativo'
+          motivo: 'Usuário não encontrado ou inativo',
         };
       }
 
@@ -196,8 +206,8 @@ export class OSApprovalPermissionsService {
       }
 
       // Verificar permissão via perfil
-      const temPermissaoPerfil = usuario.perfis.some(up => 
-        up.perfil.ativo && up.perfil.permissoes.length > 0
+      const temPermissaoPerfil = usuario.perfis.some(
+        (up) => up.perfil.ativo && up.perfil.permissoes.length > 0,
       );
 
       if (temPermissaoPerfil) {
@@ -206,20 +216,17 @@ export class OSApprovalPermissionsService {
 
       return {
         pode: false,
-        motivo: 'Usuário não tem permissão para aprovar gerencialmente'
+        motivo: 'Usuário não tem permissão para aprovar gerencialmente',
       };
-
     } catch (error) {
-      console.error('Erro ao verificar permissão de aprovação gerencial:', error);
+      console.error(
+        'Erro ao verificar permissão de aprovação gerencial:',
+        error,
+      );
       return {
         pode: false,
-        motivo: 'Erro interno ao verificar permissões'
+        motivo: 'Erro interno ao verificar permissões',
       };
     }
   }
 }
-
-
-
-
-

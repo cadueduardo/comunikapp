@@ -27,7 +27,7 @@ export interface OrdemServicoData {
   alertas_estoque?: string[];
   recomendacoes_estoque?: string[];
   detalhes_estoque?: EstoqueValidacaoDetalhe[];
-  
+
   // Novos campos para OS Direta/Interna
   tipo_os?: string;
   origem_os?: string;
@@ -55,7 +55,7 @@ export interface OrdemServicoData {
   aprovacao_tecnica_obs?: string;
   data_instalacao_agendada?: Date;
   observacoes_instalacao?: string;
-  
+
   // Novos campos estruturados para frontend
   cliente?: {
     id: string;
@@ -207,7 +207,11 @@ export interface ChecklistItem {
 }
 
 export interface AcaoAutomatica {
-  tipo: 'NOTIFICAR' | 'RESERVAR_ESTOQUE' | 'BAIXAR_ESTOQUE' | 'ATRIBUIR_RESPONSAVEL';
+  tipo:
+    | 'NOTIFICAR'
+    | 'RESERVAR_ESTOQUE'
+    | 'BAIXAR_ESTOQUE'
+    | 'ATRIBUIR_RESPONSAVEL';
   configuracao: any; // JSON especifico por tipo
 }
 

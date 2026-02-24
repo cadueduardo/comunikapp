@@ -22,8 +22,9 @@ export class ArteMensagemPublicController {
       this.logger.log(`Nova mensagem com token recebida: ${token}`);
 
       // Validar token de aprovação
-      const linkAprovacao = await this.linkAprovacaoService.getVersaoByToken(token);
-      
+      const linkAprovacao =
+        await this.linkAprovacaoService.getVersaoByToken(token);
+
       if (!linkAprovacao) {
         throw new Error('Token de aprovação inválido ou expirado');
       }
@@ -52,21 +53,28 @@ export class ArteMensagemPublicController {
         versao_id: versaoId,
         mensagem: dto.mensagem,
         autor_tipo: 'CLIENTE' as AutorTipo,
-        autor_nome: dto.autor_nome || linkAprovacao.versao.os.cliente.nome || 'Cliente',
-        autor_email: dto.autor_email || linkAprovacao.versao.os.cliente.email || '',
+        autor_nome:
+          dto.autor_nome || linkAprovacao.versao.os.cliente.nome || 'Cliente',
+        autor_email:
+          dto.autor_email || linkAprovacao.versao.os.cliente.email || '',
         lida: false,
         loja_id: linkAprovacao.versao.loja_id,
         usuario_id: null as any, // Cliente público não tem usuario_id
       };
 
-      this.logger.log(`📝 Criando mensagem pública com dados: ${JSON.stringify({
-        ...dadosMensagem,
-        mensagem: dadosMensagem.mensagem.substring(0, 50) + '...'
-      })}`);
+      this.logger.log(
+        `📝 Criando mensagem pública com dados: ${JSON.stringify({
+          ...dadosMensagem,
+          mensagem: dadosMensagem.mensagem.substring(0, 50) + '...',
+        })}`,
+      );
 
-      const mensagemCriada = await this.mensagemService.criarMensagem(dadosMensagem);
+      const mensagemCriada =
+        await this.mensagemService.criarMensagem(dadosMensagem);
 
-      this.logger.log(`✅ Mensagem com token criada com sucesso: ${mensagemCriada.id}`);
+      this.logger.log(
+        `✅ Mensagem com token criada com sucesso: ${mensagemCriada.id}`,
+      );
 
       return {
         success: true,
@@ -95,13 +103,18 @@ export class ArteMensagemPublicController {
     @Param('versaoId') versaoId: string,
   ) {
     try {
-      this.logger.log(`Listando mensagens públicas para token: ${token}, versão: ${versaoId}`);
+      this.logger.log(
+        `Listando mensagens públicas para token: ${token}, versão: ${versaoId}`,
+      );
 
       // Validar token de aprovação
-      const linkAprovacao = await this.linkAprovacaoService.getVersaoByToken(token);
-      
-      this.logger.log(`Link de aprovação encontrado: ${JSON.stringify({ id: linkAprovacao?.id, ativo: linkAprovacao?.ativo, versao_id: linkAprovacao?.versao_id })}`);
-      
+      const linkAprovacao =
+        await this.linkAprovacaoService.getVersaoByToken(token);
+
+      this.logger.log(
+        `Link de aprovação encontrado: ${JSON.stringify({ id: linkAprovacao?.id, ativo: linkAprovacao?.ativo, versao_id: linkAprovacao?.versao_id })}`,
+      );
+
       if (!linkAprovacao) {
         throw new Error('Token de aprovação inválido ou expirado');
       }
@@ -112,9 +125,14 @@ export class ArteMensagemPublicController {
       // }
 
       // Buscar mensagens da versão específica
-      const mensagens = await this.mensagemService.listarMensagensVersao(versaoId, linkAprovacao.versao.loja_id);
+      const mensagens = await this.mensagemService.listarMensagensVersao(
+        versaoId,
+        linkAprovacao.versao.loja_id,
+      );
 
-      this.logger.log(`Encontradas ${mensagens.length} mensagens para versão ${versaoId}`);
+      this.logger.log(
+        `Encontradas ${mensagens.length} mensagens para versão ${versaoId}`,
+      );
 
       return {
         success: true,

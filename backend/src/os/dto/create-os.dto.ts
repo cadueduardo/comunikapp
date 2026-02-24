@@ -1,7 +1,21 @@
-import { IsString, IsOptional, IsNumber, IsDateString, IsBoolean, IsObject, Min, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsDateString,
+  IsBoolean,
+  IsObject,
+  Min,
+  IsEnum,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { TipoOS, OrigemOS, PrioridadeOS, StatusAprovacao } from '../interfaces/os-direta-interna.interface';
+import {
+  TipoOS,
+  OrigemOS,
+  PrioridadeOS,
+  StatusAprovacao,
+} from '../interfaces/os-direta-interna.interface';
 
 export class CreateOSDto {
   @ApiProperty({
@@ -129,20 +143,22 @@ export class CreateOSDto {
         nome: 'Lona 440g',
         quantidade_necessaria: 6.5,
         unidade: 'm2',
-        custo_unitario: 15.50,
+        custo_unitario: 15.5,
         custo_total: 100.75,
       },
     ],
   })
   @IsOptional()
-  insumos_calculados?: string | Array<{
-    insumo_id: string;
-    nome: string;
-    quantidade_necessaria: number;
-    unidade: string;
-    custo_unitario: number;
-    custo_total: number;
-  }>;
+  insumos_calculados?:
+    | string
+    | Array<{
+        insumo_id: string;
+        nome: string;
+        quantidade_necessaria: number;
+        unidade: string;
+        custo_unitario: number;
+        custo_total: number;
+      }>;
 
   // Campos específicos de OS Interna
   @ApiPropertyOptional({
@@ -206,7 +222,7 @@ export class CreateOSDto {
   // Campos específicos de OS Comercial
   @ApiPropertyOptional({
     description: 'Valor orçado (para OS Comercial)',
-    example: 1500.00,
+    example: 1500.0,
   })
   @IsOptional()
   @IsNumber()
@@ -215,7 +231,7 @@ export class CreateOSDto {
 
   @ApiPropertyOptional({
     description: 'Valor realizado (para OS Comercial)',
-    example: 1450.00,
+    example: 1450.0,
   })
   @IsOptional()
   @IsNumber()

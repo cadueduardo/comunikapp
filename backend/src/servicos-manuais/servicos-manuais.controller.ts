@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { ServicosManuaisService } from './servicos-manuais.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { GetLoja } from '../auth/decorators';
@@ -34,34 +43,3 @@ export class ServicosManuaisController {
     return this.service.remove(id, loja);
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

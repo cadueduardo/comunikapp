@@ -71,9 +71,9 @@ describe('SetoresProdutivosService', () => {
   it('deve lançar erro quando setor não for encontrado', async () => {
     prisma.setorProdutivo.findFirst.mockResolvedValueOnce(null);
 
-    await expect(service.obterPorId('setor-1', 'loja-1')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.obterPorId('setor-1', 'loja-1'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('não deve permitir criar setor duplicado', async () => {
@@ -82,7 +82,12 @@ describe('SetoresProdutivosService', () => {
     } as any);
 
     await expect(
-      service.criar('loja-1', { nome: 'Impressão', cor: '#000', ativo: true, ordem: 1 }),
+      service.criar('loja-1', {
+        nome: 'Impressão',
+        cor: '#000',
+        ativo: true,
+        ordem: 1,
+      }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 

@@ -5,7 +5,7 @@ import { OrcamentoCompleto } from '../interfaces/orcamento.interface';
 /**
  * Serviço de Validação de Estoque V2 para Orçamentos
  * Implementa validações de estoque APENAS como alertas (não bloqueia)
- * 
+ *
  * ✅ ARQUIVO ≤ 400 LINHAS (CONFORME PREMISSAS)
  * ✅ APENAS ALERTAS - NÃO BLOQUEIA ORÇAMENTOS
  * ✅ INTEGRAÇÃO COM SISTEMA DE ESTOQUE EXISTENTE
@@ -14,9 +14,7 @@ import { OrcamentoCompleto } from '../interfaces/orcamento.interface';
 export class ValidacaoEstoqueService {
   private readonly logger = new Logger(ValidacaoEstoqueService.name);
 
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Valida estoque do orçamento (apenas alertas)
@@ -64,7 +62,10 @@ export class ValidacaoEstoqueService {
       }
 
       // Gerar alertas gerais se necessário
-      const alertasGerais = this.gerarAlertasGerais(orcamento, produtosComProblemas);
+      const alertasGerais = this.gerarAlertasGerais(
+        orcamento,
+        produtosComProblemas,
+      );
       alertas.push(...alertasGerais);
 
       // Gerar recomendações gerais
@@ -82,12 +83,13 @@ export class ValidacaoEstoqueService {
         estoque_disponivel: estoqueDisponivel,
       };
 
-      this.logger.log(`✅ Validação de estoque concluída: ${alertas.length} alertas, ${recomendacoes.length} recomendações`);
+      this.logger.log(
+        `✅ Validação de estoque concluída: ${alertas.length} alertas, ${recomendacoes.length} recomendações`,
+      );
       return resultado;
-
     } catch (error) {
       this.logger.error(`❌ Erro ao validar estoque: ${error.message}`);
-      
+
       // Em caso de erro, retornar resultado básico sem bloquear
       return {
         valido: true, // Sempre válido
@@ -171,9 +173,10 @@ export class ValidacaoEstoqueService {
           }
         }
       }
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao validar produto ${produto.id}: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao validar produto ${produto.id}: ${error.message}`,
+      );
       alertas.push(`Erro ao validar produto ${produto.nome}: ${error.message}`);
     }
 
@@ -223,55 +226,61 @@ export class ValidacaoEstoqueService {
 
       // Calcular quantidade total necessária
       const quantidadeNecessaria = insumo.quantidade * quantidadeProduto;
-      
+
       // Buscar estoque atual
-      const estoqueAtual = await this.buscarEstoqueInsumo(insumo.insumo_id, lojaId);
-      
+      const estoqueAtual = await this.buscarEstoqueInsumo(
+        insumo.insumo_id,
+        lojaId,
+      );
+
       // Calcular disponibilidade
       const disponivel = estoqueAtual - quantidadeNecessaria;
-      const percentualDisponivel = estoqueAtual > 0 ? (disponivel / estoqueAtual) * 100 : 0;
+      const percentualDisponivel =
+        estoqueAtual > 0 ? (disponivel / estoqueAtual) * 100 : 0;
 
       // Gerar alertas baseados na disponibilidade
       if (disponivel < 0) {
         alertas.push(
           `Estoque insuficiente para ${insumoInfo.nome}: ` +
-          `necessário ${quantidadeNecessaria} ${insumo.unidade}, ` +
-          `disponível ${estoqueAtual} ${insumo.unidade}`
+            `necessário ${quantidadeNecessaria} ${insumo.unidade}, ` +
+            `disponível ${estoqueAtual} ${insumo.unidade}`,
         );
-      } else if (disponivel < estoqueAtual * 0.1) { // Menos de 10% disponível
+      } else if (disponivel < estoqueAtual * 0.1) {
+        // Menos de 10% disponível
         alertas.push(
           `Estoque baixo para ${insumoInfo.nome}: ` +
-          `apenas ${disponivel} ${insumo.unidade} disponível após o orçamento`
+            `apenas ${disponivel} ${insumo.unidade} disponível após o orçamento`,
         );
-      } else if (disponivel < estoqueAtual * 0.3) { // Menos de 30% disponível
+      } else if (disponivel < estoqueAtual * 0.3) {
+        // Menos de 30% disponível
         alertas.push(
           `Estoque reduzido para ${insumoInfo.nome}: ` +
-          `${disponivel} ${insumo.unidade} disponível após o orçamento`
+            `${disponivel} ${insumo.unidade} disponível após o orçamento`,
         );
       }
 
       // Gerar recomendações
       if (disponivel < 0) {
         recomendacoes.push(
-          `Considerar compra de ${Math.abs(disponivel)} ${insumo.unidade} de ${insumoInfo.nome}`
+          `Considerar compra de ${Math.abs(disponivel)} ${insumo.unidade} de ${insumoInfo.nome}`,
         );
       } else if (disponivel < estoqueAtual * 0.2) {
         recomendacoes.push(
-          `Monitorar estoque de ${insumoInfo.nome} - estoque baixo após orçamento`
+          `Monitorar estoque de ${insumoInfo.nome} - estoque baixo após orçamento`,
         );
       }
 
       // Verificar estoque mínimo
       if (insumoInfo.estoque_minimo && disponivel < insumoInfo.estoque_minimo) {
         alertas.push(
-          `Estoque de ${insumoInfo.nome} ficará abaixo do mínimo (${insumoInfo.estoque_minimo} ${insumo.unidade})`
+          `Estoque de ${insumoInfo.nome} ficará abaixo do mínimo (${insumoInfo.estoque_minimo} ${insumo.unidade})`,
         );
       }
 
       // Verificar fornecedor
       if (insumoInfo.fornecedor && !insumoInfo.fornecedor.ativo) {
         alertas.push(
-          `Fornecedor de ${insumoInfo.nome} está inativo - verificar disponibilidade`
+          `Fornecedor de ${insumoInfo.nome} está inativo - verificar disponibilidade`,
         );
       }
 
@@ -288,7 +297,8 @@ export class ValidacaoEstoqueService {
         unidade: insumo.unidade,
         alerta_estoque: disponivel < 0 || disponivel < estoqueAtual * 0.1,
         alerta_estoque_minimo: disponivel < (insumoInfo.estoque_minimo || 0),
-        alerta_fornecedor: insumoInfo.fornecedor && !insumoInfo.fornecedor.ativo,
+        alerta_fornecedor:
+          insumoInfo.fornecedor && !insumoInfo.fornecedor.ativo,
       };
 
       return {
@@ -296,11 +306,12 @@ export class ValidacaoEstoqueService {
         recomendacoes,
         estoque_info: estoqueInfo,
       };
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao validar insumo ${insumo.insumo_id}: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao validar insumo ${insumo.insumo_id}: ${error.message}`,
+      );
       alertas.push(`Erro ao validar estoque do insumo: ${error.message}`);
-      
+
       return {
         alertas,
         recomendacoes,
@@ -346,19 +357,22 @@ export class ValidacaoEstoqueService {
       // Verificar se o tempo solicitado é razoável
       if (maquina.tempo_horas > 24) {
         alertas.push(
-          `Tempo de máquina muito alto para ${maquinaInfo.nome}: ${maquina.tempo_horas} horas`
+          `Tempo de máquina muito alto para ${maquinaInfo.nome}: ${maquina.tempo_horas} horas`,
         );
         recomendacoes.push(
-          `Verificar se o tempo de ${maquina.tempo_horas} horas está correto`
+          `Verificar se o tempo de ${maquina.tempo_horas} horas está correto`,
         );
       }
 
       // Verificar se há conflitos de agendamento (futuro)
       // TODO: Implementar verificação de agendamento quando sistema estiver disponível
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao validar máquina ${maquina.maquina_id}: ${error.message}`);
-      alertas.push(`Erro ao validar disponibilidade da máquina: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao validar máquina ${maquina.maquina_id}: ${error.message}`,
+      );
+      alertas.push(
+        `Erro ao validar disponibilidade da máquina: ${error.message}`,
+      );
     }
 
     return { alertas, recomendacoes };
@@ -395,19 +409,22 @@ export class ValidacaoEstoqueService {
       // Verificar se o tempo solicitado é razoável
       if (funcao.tempo_horas > 40) {
         alertas.push(
-          `Tempo de função muito alto para ${funcaoInfo.nome}: ${funcao.tempo_horas} horas`
+          `Tempo de função muito alto para ${funcaoInfo.nome}: ${funcao.tempo_horas} horas`,
         );
         recomendacoes.push(
-          `Verificar se o tempo de ${funcao.tempo_horas} horas está correto`
+          `Verificar se o tempo de ${funcao.tempo_horas} horas está correto`,
         );
       }
 
       // Verificar se há conflitos de agendamento (futuro)
       // TODO: Implementar verificação de agendamento quando sistema estiver disponível
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao validar função ${funcao.funcao_id}: ${error.message}`);
-      alertas.push(`Erro ao validar disponibilidade da função: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao validar função ${funcao.funcao_id}: ${error.message}`,
+      );
+      alertas.push(
+        `Erro ao validar disponibilidade da função: ${error.message}`,
+      );
     }
 
     return { alertas, recomendacoes };
@@ -416,7 +433,10 @@ export class ValidacaoEstoqueService {
   /**
    * Busca estoque atual de um insumo
    */
-  private async buscarEstoqueInsumo(insumoId: string, lojaId: string): Promise<number> {
+  private async buscarEstoqueInsumo(
+    insumoId: string,
+    lojaId: string,
+  ): Promise<number> {
     try {
       // Buscar estoque na tabela de estoque
       const estoque = await this.prisma.estoque.findFirst({
@@ -436,9 +456,10 @@ export class ValidacaoEstoqueService {
       });
 
       return Number(insumo?.estoque_atual) || 0;
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao buscar estoque do insumo ${insumoId}: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao buscar estoque do insumo ${insumoId}: ${error.message}`,
+      );
       return 0;
     }
   }
@@ -455,24 +476,35 @@ export class ValidacaoEstoqueService {
     // Alertas baseados no número de produtos com problemas
     if (produtosComProblemas.length > 0) {
       if (produtosComProblemas.length === orcamento.produtos.length) {
-        alertas.push('⚠️ TODOS os produtos do orçamento têm problemas de estoque');
-      } else if (produtosComProblemas.length > orcamento.produtos.length * 0.5) {
+        alertas.push(
+          '⚠️ TODOS os produtos do orçamento têm problemas de estoque',
+        );
+      } else if (
+        produtosComProblemas.length >
+        orcamento.produtos.length * 0.5
+      ) {
         alertas.push('⚠️ MAIS DA METADE dos produtos têm problemas de estoque');
       } else {
-        alertas.push(`⚠️ ${produtosComProblemas.length} produtos têm problemas de estoque`);
+        alertas.push(
+          `⚠️ ${produtosComProblemas.length} produtos têm problemas de estoque`,
+        );
       }
     }
 
     // Alertas baseados no valor do orçamento
     if (orcamento.custos?.preco_final) {
       if (orcamento.custos.preco_final > 10000) {
-        alertas.push('💰 Orçamento de alto valor - verificar disponibilidade de estoque com antecedência');
+        alertas.push(
+          '💰 Orçamento de alto valor - verificar disponibilidade de estoque com antecedência',
+        );
       }
     }
 
     // Alertas baseados na prioridade
     if (orcamento.prioridade === 'urgente') {
-      alertas.push('🚨 Orçamento URGENTE - verificar disponibilidade imediata de estoque');
+      alertas.push(
+        '🚨 Orçamento URGENTE - verificar disponibilidade imediata de estoque',
+      );
     }
 
     return alertas;
@@ -489,21 +521,33 @@ export class ValidacaoEstoqueService {
 
     // Recomendações baseadas nos problemas encontrados
     if (produtosComProblemas.length > 0) {
-      recomendacoes.push('📋 Revisar lista de produtos com problemas de estoque');
-      recomendacoes.push('🔄 Considerar alternativas para produtos sem estoque');
-      recomendacoes.push('📞 Contatar fornecedores para produtos com estoque baixo');
+      recomendacoes.push(
+        '📋 Revisar lista de produtos com problemas de estoque',
+      );
+      recomendacoes.push(
+        '🔄 Considerar alternativas para produtos sem estoque',
+      );
+      recomendacoes.push(
+        '📞 Contatar fornecedores para produtos com estoque baixo',
+      );
     }
 
     // Recomendações baseadas no tipo de orçamento
     if (orcamento.tipo === 'produto') {
-      recomendacoes.push('📦 Orçamento de produto - verificar disponibilidade de todos os insumos');
+      recomendacoes.push(
+        '📦 Orçamento de produto - verificar disponibilidade de todos os insumos',
+      );
     } else if (orcamento.tipo === 'servico') {
-      recomendacoes.push('🔧 Orçamento de serviço - verificar disponibilidade de máquinas e funções');
+      recomendacoes.push(
+        '🔧 Orçamento de serviço - verificar disponibilidade de máquinas e funções',
+      );
     }
 
     // Recomendações baseadas no status
     if (orcamento.status === 'rascunho') {
-      recomendacoes.push('✏️ Orçamento em rascunho - resolver problemas de estoque antes de finalizar');
+      recomendacoes.push(
+        '✏️ Orçamento em rascunho - resolver problemas de estoque antes de finalizar',
+      );
     }
 
     return recomendacoes;

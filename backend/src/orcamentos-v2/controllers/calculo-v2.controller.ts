@@ -1,23 +1,23 @@
-import { 
-  Controller, 
-  Post, 
-  Get, 
-  Put, 
-  Delete, 
-  Body, 
-  Param, 
-  Query, 
+import {
+  Controller,
+  Post,
+  Get,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
   UseGuards,
   HttpStatus,
   HttpCode,
   Request,
 } from '@nestjs/common';
-import { 
-  ApiTags, 
-  ApiOperation, 
-  ApiResponse, 
-  ApiParam, 
-  ApiQuery, 
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
   ApiBody,
   ApiBearerAuth,
 } from '@nestjs/swagger';
@@ -31,7 +31,7 @@ import { OrcamentosV2Service } from '../services/orcamentos-v2.service';
 /**
  * Controller de Cálculo V2 para Orçamentos
  * Endpoints para cálculos e integração com Motor de Cálculo V2
- * 
+ *
  * ✅ ARQUIVO ≤ 200 LINHAS (CONFORME PREMISSAS)
  * ✅ ENDPOINTS DE CÁLCULO COMPLETOS
  * ✅ INTEGRAÇÃO COM MOTOR V2
@@ -54,16 +54,26 @@ export class CalculoV2Controller {
   @Roles('orcamentos.calcular')
   @ApiOperation({
     summary: 'Calcula orçamento completo',
-    description: 'Executa cálculo completo do orçamento usando Motor de Cálculo V2',
+    description:
+      'Executa cálculo completo do orçamento usando Motor de Cálculo V2',
   })
   @ApiParam({ name: 'id', description: 'ID do orçamento' })
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        forcar_recalculo: { type: 'boolean', description: 'Forçar recálculo mesmo sem mudanças' },
-        incluir_detalhes: { type: 'boolean', description: 'Incluir detalhes do cálculo' },
-        validar_estoque: { type: 'boolean', description: 'Validar disponibilidade de estoque' },
+        forcar_recalculo: {
+          type: 'boolean',
+          description: 'Forçar recálculo mesmo sem mudanças',
+        },
+        incluir_detalhes: {
+          type: 'boolean',
+          description: 'Incluir detalhes do cálculo',
+        },
+        validar_estoque: {
+          type: 'boolean',
+          description: 'Validar disponibilidade de estoque',
+        },
       },
     },
   })
@@ -87,7 +97,8 @@ export class CalculoV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async calcularOrcamento(
     @Param('id') orcamentoId: string,
-    @Body() opcoes: {
+    @Body()
+    opcoes: {
       forcar_recalculo?: boolean;
       incluir_detalhes?: boolean;
       validar_estoque?: boolean;
@@ -96,11 +107,15 @@ export class CalculoV2Controller {
   ) {
     try {
       const { loja_id } = req.user;
-      const orcamento = await this.orcamentosV2Service.buscarOrcamento(orcamentoId, loja_id);
-      const resultado = await this.integracaoMotorService.calcularOrcamentoCompleto(
-        orcamento,
+      const orcamento = await this.orcamentosV2Service.buscarOrcamento(
+        orcamentoId,
         loja_id,
       );
+      const resultado =
+        await this.integracaoMotorService.calcularOrcamentoCompleto(
+          orcamento,
+          loja_id,
+        );
 
       return {
         success: true,
@@ -129,8 +144,14 @@ export class CalculoV2Controller {
     schema: {
       type: 'object',
       properties: {
-        incluir_detalhes: { type: 'boolean', description: 'Incluir detalhes do cálculo' },
-        validar_estoque: { type: 'boolean', description: 'Validar disponibilidade de estoque' },
+        incluir_detalhes: {
+          type: 'boolean',
+          description: 'Incluir detalhes do cálculo',
+        },
+        validar_estoque: {
+          type: 'boolean',
+          description: 'Validar disponibilidade de estoque',
+        },
       },
     },
   })
@@ -155,7 +176,8 @@ export class CalculoV2Controller {
   async calcularProduto(
     @Param('orcamentoId') orcamentoId: string,
     @Param('produtoId') produtoId: string,
-    @Body() opcoes: {
+    @Body()
+    opcoes: {
       incluir_detalhes?: boolean;
       validar_estoque?: boolean;
     },
@@ -163,8 +185,13 @@ export class CalculoV2Controller {
   ) {
     try {
       const { loja_id } = req.user;
-      const orcamento = await this.orcamentosV2Service.buscarOrcamento(orcamentoId, loja_id);
-      const produto = (orcamento.produtos || []).find((p: any) => p.id === produtoId);
+      const orcamento = await this.orcamentosV2Service.buscarOrcamento(
+        orcamentoId,
+        loja_id,
+      );
+      const produto = (orcamento.produtos || []).find(
+        (p: any) => p.id === produtoId,
+      );
       if (!produto) {
         throw new Error('Produto não encontrado');
       }
@@ -217,8 +244,14 @@ export class CalculoV2Controller {
   ) {
     try {
       const { loja_id } = req.user;
-      const orcamento = await this.orcamentosV2Service.buscarOrcamento(orcamentoId, loja_id);
-      const resultado = await this.integracaoMotorService.validarOrcamento(orcamento, loja_id);
+      const orcamento = await this.orcamentosV2Service.buscarOrcamento(
+        orcamentoId,
+        loja_id,
+      );
+      const resultado = await this.integracaoMotorService.validarOrcamento(
+        orcamento,
+        loja_id,
+      );
 
       return {
         success: true,
@@ -259,7 +292,8 @@ export class CalculoV2Controller {
   async buscarConfiguracoesLoja(@Request() req: any) {
     try {
       const { loja_id } = req.user;
-      const configuracoes = await this.integracaoMotorService.obterConfiguracoesLoja(loja_id);
+      const configuracoes =
+        await this.integracaoMotorService.obterConfiguracoesLoja(loja_id);
 
       return {
         success: true,
@@ -317,7 +351,8 @@ export class CalculoV2Controller {
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async calcularOrcamentosLote(
-    @Body() dados: {
+    @Body()
+    dados: {
       orcamentos: { id: string; opcoes?: any }[];
       opcoes_globais?: any;
     },
@@ -325,10 +360,11 @@ export class CalculoV2Controller {
   ) {
     try {
       const { loja_id } = req.user;
-      const resultado = await this.integracaoMotorService.calcularOrcamentosEmLote(
-        dados.orcamentos,
-        loja_id,
-      );
+      const resultado =
+        await this.integracaoMotorService.calcularOrcamentosEmLote(
+          dados.orcamentos,
+          loja_id,
+        );
 
       return {
         success: true,
@@ -351,7 +387,11 @@ export class CalculoV2Controller {
     summary: 'Estatísticas do motor',
     description: 'Retorna estatísticas de performance do Motor de Cálculo V2',
   })
-  @ApiQuery({ name: 'periodo', required: false, description: 'Período das estatísticas (dias)' })
+  @ApiQuery({
+    name: 'periodo',
+    required: false,
+    description: 'Período das estatísticas (dias)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Estatísticas encontradas',
@@ -374,7 +414,10 @@ export class CalculoV2Controller {
     @Query('periodo') periodo?: number,
   ) {
     try {
-      const estatisticas = await this.integracaoMotorService.obterEstatisticasMotor(usuario.loja_id);
+      const estatisticas =
+        await this.integracaoMotorService.obterEstatisticasMotor(
+          usuario.loja_id,
+        );
 
       return {
         success: true,
@@ -402,8 +445,14 @@ export class CalculoV2Controller {
     schema: {
       type: 'object',
       properties: {
-        alteracoes: { type: 'object', description: 'Alterações a serem simuladas' },
-        incluir_comparativo: { type: 'boolean', description: 'Incluir comparação com original' },
+        alteracoes: {
+          type: 'object',
+          description: 'Alterações a serem simuladas',
+        },
+        incluir_comparativo: {
+          type: 'boolean',
+          description: 'Incluir comparação com original',
+        },
       },
     },
   })
@@ -427,7 +476,8 @@ export class CalculoV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async simularAlteracoes(
     @Param('id') orcamentoId: string,
-    @Body() dados: {
+    @Body()
+    dados: {
       alteracoes: any;
       incluir_comparativo?: boolean;
     },

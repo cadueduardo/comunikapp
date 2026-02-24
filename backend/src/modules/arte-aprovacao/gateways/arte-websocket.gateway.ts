@@ -50,7 +50,7 @@ export class ArteWebSocketGateway
       try {
         // Tentar validar token (JWT normal ou token de aprovação)
         const payload = this.jwtService.verify(token);
-        
+
         if (payload.sub) {
           // Token JWT normal (usuário logado)
           const user = await this.prisma.usuario.findUnique({
@@ -83,7 +83,9 @@ export class ArteWebSocketGateway
           );
         }
       } catch (error) {
-        this.logger.warn(`Token inválido para cliente ${client.id}: ${error.message}`);
+        this.logger.warn(
+          `Token inválido para cliente ${client.id}: ${error.message}`,
+        );
       }
     } else {
       this.logger.log(`Cliente público conectado sem token: ${client.id}`);
@@ -137,7 +139,10 @@ export class ArteWebSocketGateway
           },
         });
 
-        if (!linkAprovacao || linkAprovacao.versao.servico_id !== versao.servico_id) {
+        if (
+          !linkAprovacao ||
+          linkAprovacao.versao.servico_id !== versao.servico_id
+        ) {
           client.emit('error', { message: 'Token inválido para esta versão' });
           return;
         }
@@ -169,13 +174,11 @@ export class ArteWebSocketGateway
     @MessageBody() data: { versaoId: string },
   ) {
     const { versaoId } = data;
-    
+
     await client.leave(`arte_versao_${versaoId}`);
     delete client.data.versaoId;
 
-    this.logger.log(
-      `Cliente ${client.id} saiu da sala da versão ${versaoId}`,
-    );
+    this.logger.log(`Cliente ${client.id} saiu da sala da versão ${versaoId}`);
 
     // Notificar outros clientes na sala
     client.to(`arte_versao_${versaoId}`).emit('user_left_arte', {
@@ -191,7 +194,7 @@ export class ArteWebSocketGateway
     @MessageBody() data: { versaoId: string; isTyping: boolean },
   ) {
     const { versaoId, isTyping } = data;
-    
+
     // Verificar se o cliente está na sala da versão
     if (!client.rooms.has(`arte_versao_${versaoId}`)) {
       client.emit('error', { message: 'Você não está nesta sala' });
@@ -223,7 +226,7 @@ export class ArteWebSocketGateway
       // Marcar mensagem como lida no banco
       await this.prisma.arteMensagem.update({
         where: { id: mensagemId },
-        data: { 
+        data: {
           lida: true,
           data_leitura: new Date(),
         },
@@ -247,7 +250,7 @@ export class ArteWebSocketGateway
 
   @SubscribeMessage('ping_arte')
   handlePingArte(@ConnectedSocket() client: Socket) {
-    client.emit('pong_arte', { 
+    client.emit('pong_arte', {
       timestamp: new Date().toISOString(),
       tipo: client.data.tipo,
     });
@@ -276,7 +279,11 @@ export class ArteWebSocketGateway
    * Método público para emitir atualização de contadores
    * Será chamado quando mensagens forem marcadas como lidas
    */
-  async emitirContadorAtualizado(versaoId: string, produtoId: string, dadosContador: any) {
+  async emitirContadorAtualizado(
+    versaoId: string,
+    produtoId: string,
+    dadosContador: any,
+  ) {
     try {
       this.server.to(`arte_versao_${versaoId}`).emit('contador_atualizado', {
         produtoId,

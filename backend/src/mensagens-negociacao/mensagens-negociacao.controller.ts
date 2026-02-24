@@ -85,15 +85,27 @@ export class MensagensNegociacaoController {
   @UseInterceptors(FileInterceptor('arquivo'))
   async createPublico(
     @Param('orcamentoId') orcamentoId: string,
-    @Body(new ValidationPipe({ skipMissingProperties: true, whitelist: false, forbidNonWhitelisted: false })) body: any, // Desabilitar validação para este endpoint
+    @Body(
+      new ValidationPipe({
+        skipMissingProperties: true,
+        whitelist: false,
+        forbidNonWhitelisted: false,
+      }),
+    )
+    body: any, // Desabilitar validação para este endpoint
     @UploadedFile() file?: Express.Multer.File,
   ) {
     console.log('🔍 Controller publico - OrcamentoId:', orcamentoId);
-    console.log('🔍 Controller publico - Body recebido:', JSON.stringify(body, null, 2));
+    console.log(
+      '🔍 Controller publico - Body recebido:',
+      JSON.stringify(body, null, 2),
+    );
     console.log('🔍 Controller publico - Body keys:', Object.keys(body));
     console.log(
       '🔍 Controller publico - File recebido:',
-      file ? `${file.originalname} (${file.size} bytes, ${file.mimetype})` : 'nenhum',
+      file
+        ? `${file.originalname} (${file.size} bytes, ${file.mimetype})`
+        : 'nenhum',
     );
 
     // Criar DTO manualmente a partir do body
@@ -104,15 +116,22 @@ export class MensagensNegociacaoController {
       autor_email: body.autor_email || '',
     };
 
-    console.log('🔍 Controller publico - DTO criado:', JSON.stringify(dto, null, 2));
+    console.log(
+      '🔍 Controller publico - DTO criado:',
+      JSON.stringify(dto, null, 2),
+    );
 
     try {
-      const result = await this.mensagensNegociacaoService.createPublicoComAnexo(
-        orcamentoId,
-        dto,
-        file,
+      const result =
+        await this.mensagensNegociacaoService.createPublicoComAnexo(
+          orcamentoId,
+          dto,
+          file,
+        );
+      console.log(
+        '✅ Controller publico - Mensagem criada com sucesso:',
+        result.id,
       );
-      console.log('✅ Controller publico - Mensagem criada com sucesso:', result.id);
       return result;
     } catch (error) {
       console.error('❌ Controller publico - Erro ao criar mensagem:', error);
@@ -127,7 +146,14 @@ export class MensagensNegociacaoController {
   @UseGuards(JwtAuthGuard)
   async create(
     @Param('orcamentoId') orcamentoId: string,
-    @Body(new ValidationPipe({ skipMissingProperties: true, whitelist: false, forbidNonWhitelisted: false })) dto: CreateMensagemNegociacaoDto,
+    @Body(
+      new ValidationPipe({
+        skipMissingProperties: true,
+        whitelist: false,
+        forbidNonWhitelisted: false,
+      }),
+    )
+    dto: CreateMensagemNegociacaoDto,
     @CurrentLojaId() lojaId: string,
   ) {
     return this.mensagensNegociacaoService.create(orcamentoId, dto, lojaId);

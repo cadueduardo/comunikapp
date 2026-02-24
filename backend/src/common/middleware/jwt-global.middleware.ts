@@ -14,8 +14,10 @@ export class JwtGlobalMiddleware implements NestMiddleware {
   constructor(private readonly jwtService: JwtService) {}
 
   use(req: Request, res: Response, next: NextFunction) {
-    this.logger.debug(`🔒 Middleware JWT executado para: ${req.method} ${req.path}`);
-    
+    this.logger.debug(
+      `🔒 Middleware JWT executado para: ${req.method} ${req.path}`,
+    );
+
     // Lista de rotas que não precisam de autenticação
     const publicRoutes = [
       '/api/lojas/login',
@@ -44,16 +46,20 @@ export class JwtGlobalMiddleware implements NestMiddleware {
 
     // Verificar rotas públicas específicas do orçamento V2
     // Suporta tanto /orcamentos-v2 quanto /api/orcamentos-v2
-    if ((req.path.includes('/orcamentos-v2/') || req.path.includes('/api/orcamentos-v2/')) && (
-      req.path.includes('/publico') || 
-      req.path.includes('/reenviar-codigo')
-    )) {
+    if (
+      (req.path.includes('/orcamentos-v2/') ||
+        req.path.includes('/api/orcamentos-v2/')) &&
+      (req.path.includes('/publico') || req.path.includes('/reenviar-codigo'))
+    ) {
       this.logger.debug(`✅ Rota pública do orçamento V2: ${req.path}`);
       return next();
     }
 
     // Verificar rotas públicas de download de arquivos de arte
-    if (req.path.includes('/arte-aprovacao/versoes/') && req.path.includes('/arquivos/public/download/')) {
+    if (
+      req.path.includes('/arte-aprovacao/versoes/') &&
+      req.path.includes('/arquivos/public/download/')
+    ) {
       // this.logger.debug(`✅ Rota pública de download de arte: ${req.path}`);
       return next();
     }
@@ -63,7 +69,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
     // Extrair token do header Authorization
     const authHeader = req.headers.authorization;
     // this.logger.debug(`📋 Header Authorization: ${authHeader ? 'Presente' : 'Ausente'}`);
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       this.logger.warn(`❌ Token não fornecido para rota: ${req.path}`);
       throw new UnauthorizedException('Token de autenticação não fornecido');
@@ -76,7 +82,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
       // Validar token JWT
       // this.logger.debug('🔍 Validando token JWT...');
       const payload = this.jwtService.verify(token);
-              // this.logger.debug(`✅ Token válido para usuário: ${payload.sub} (${payload.email})`);
+      // this.logger.debug(`✅ Token válido para usuário: ${payload.sub} (${payload.email})`);
 
       // Adicionar informações do usuário ao request
       req['user'] = {
@@ -91,7 +97,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
         },
       };
 
-              // this.logger.debug(`👤 Usuário autenticado: ${payload.nome_completo} (Loja: ${payload.loja_id})`);
+      // this.logger.debug(`👤 Usuário autenticado: ${payload.nome_completo} (Loja: ${payload.loja_id})`);
       next();
     } catch (error) {
       this.logger.error(`❌ Erro na validação JWT: ${error.message}`);

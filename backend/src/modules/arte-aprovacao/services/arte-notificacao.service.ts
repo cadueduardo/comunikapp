@@ -10,7 +10,14 @@ export interface NotificacaoEmailDto {
 }
 
 export interface NotificacaoArteDto {
-  tipo: 'NOVA_VERSAO' | 'APROVACAO_SOLICITADA' | 'ARTE_APROVADA' | 'ARTE_REJEITADA' | 'COMENTARIO_ADICIONADO' | 'NOVA_MENSAGEM_CLIENTE' | 'NOVA_MENSAGEM_EQUIPE';
+  tipo:
+    | 'NOVA_VERSAO'
+    | 'APROVACAO_SOLICITADA'
+    | 'ARTE_APROVADA'
+    | 'ARTE_REJEITADA'
+    | 'COMENTARIO_ADICIONADO'
+    | 'NOVA_MENSAGEM_CLIENTE'
+    | 'NOVA_MENSAGEM_EQUIPE';
   os_id: string;
   versao_id?: string;
   destinatarios: string[];
@@ -34,8 +41,10 @@ export class ArteNotificacaoService {
           pass: 'tq3cnQcJFmW2YpCUSF',
         },
       });
-      
-      console.log('📧 [ArteNotificacaoService] Configurado ETHEREAL EMAIL para testes');
+
+      console.log(
+        '📧 [ArteNotificacaoService] Configurado ETHEREAL EMAIL para testes',
+      );
     } else {
       // Usar configuração SMTP de produção
       this.transporter = nodemailer.createTransport({
@@ -47,7 +56,7 @@ export class ArteNotificacaoService {
           pass: process.env.SMTP_PASS,
         },
       });
-      
+
       console.log('📧 [ArteNotificacaoService] Configurado SMTP de produção');
     }
   }
@@ -329,7 +338,10 @@ export class ArteNotificacaoService {
   /**
    * Gera HTML do template de email
    */
-  private gerarTemplateHTML(template: string, dados: Record<string, any>): string {
+  private gerarTemplateHTML(
+    template: string,
+    dados: Record<string, any>,
+  ): string {
     const baseStyles = `
       <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
@@ -469,12 +481,16 @@ export class ArteNotificacaoService {
                   <p><strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
                 </div>
 
-                ${dados.comentario_cliente ? `
+                ${
+                  dados.comentario_cliente
+                    ? `
                   <div class="info-box" style="border-left-color: #dc2626;">
                     <h3>💬 Comentário do Cliente</h3>
                     <p>"${dados.comentario_cliente}"</p>
                   </div>
-                ` : ''}
+                `
+                    : ''
+                }
 
                 <p>🔄 Por favor, revise os comentários e crie uma nova versão da arte.</p>
                 

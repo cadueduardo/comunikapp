@@ -13,5 +13,3 @@ import { MailModule } from '../mail/mail.module';
   exports: [UsuariosService, PerfisAcessoService],
 })
 export class UsuariosModule {}
-
-

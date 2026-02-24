@@ -1,11 +1,14 @@
-import { CorrecaoMateriaisHelper, InsumoCalculado } from '../correcao-materiais.helper';
+import {
+  CorrecaoMateriaisHelper,
+  InsumoCalculado,
+} from '../correcao-materiais.helper';
 
 describe('CorrecaoMateriaisHelper', () => {
   const insumosExemplo: InsumoCalculado[] = [
     {
       insumo_id: 'lona',
       nome: 'Bobina Lona Impressão Digital',
-      quantidade_necessaria: 27.00,
+      quantidade_necessaria: 27.0,
       unidade: 'm²',
       custo_unitario: 10.14,
       custo_total: 273.78,
@@ -17,7 +20,7 @@ describe('CorrecaoMateriaisHelper', () => {
       quantidade_necessaria: 90,
       unidade: 'cm',
       custo_unitario: 70.91,
-      custo_total: 6381.90,
+      custo_total: 6381.9,
       disponivel_estoque: true,
     },
     {
@@ -26,7 +29,7 @@ describe('CorrecaoMateriaisHelper', () => {
       quantidade_necessaria: 120,
       unidade: 'cm',
       custo_unitario: 0.01,
-      custo_total: 1.20,
+      custo_total: 1.2,
       disponivel_estoque: true,
     },
     {
@@ -45,11 +48,11 @@ describe('CorrecaoMateriaisHelper', () => {
       const quantidadeProduto = 25;
       const resultado = CorrecaoMateriaisHelper.corrigirInsumosCalculados(
         insumosExemplo,
-        quantidadeProduto
+        quantidadeProduto,
       );
 
-      const lona = resultado.find(i => i.insumo_id === 'lona');
-      expect(lona?.quantidade_necessaria).toBe(27.00);
+      const lona = resultado.find((i) => i.insumo_id === 'lona');
+      expect(lona?.quantidade_necessaria).toBe(27.0);
       expect(lona?.custo_total).toBe(273.78);
     });
 
@@ -57,39 +60,42 @@ describe('CorrecaoMateriaisHelper', () => {
       const quantidadeProduto = 25;
       const resultado = CorrecaoMateriaisHelper.corrigirInsumosCalculados(
         insumosExemplo,
-        quantidadeProduto
+        quantidadeProduto,
       );
 
-      const cabo = resultado.find(i => i.insumo_id === 'cabo');
+      const cabo = resultado.find((i) => i.insumo_id === 'cabo');
       expect(cabo?.quantidade_necessaria).toBe(2250); // 90 * 25
-      expect(cabo?.custo_total).toBe(159547.50); // 2250 * 70.91
+      expect(cabo?.custo_total).toBe(159547.5); // 2250 * 70.91
 
-      const corda = resultado.find(i => i.insumo_id === 'corda');
+      const corda = resultado.find((i) => i.insumo_id === 'corda');
       expect(corda?.quantidade_necessaria).toBe(3000); // 120 * 25
-      expect(corda?.custo_total).toBe(30.00); // 3000 * 0.01
+      expect(corda?.custo_total).toBe(30.0); // 3000 * 0.01
     });
 
     it('deve multiplicar materiais unidades pela quantidade do produto', () => {
       const quantidadeProduto = 25;
       const resultado = CorrecaoMateriaisHelper.corrigirInsumosCalculados(
         insumosExemplo,
-        quantidadeProduto
+        quantidadeProduto,
       );
 
-      const ponteira = resultado.find(i => i.insumo_id === 'ponteira');
+      const ponteira = resultado.find((i) => i.insumo_id === 'ponteira');
       expect(ponteira?.quantidade_necessaria).toBe(50); // 2 * 25
-      expect(ponteira?.custo_total).toBe(6.50); // 50 * 0.13
+      expect(ponteira?.custo_total).toBe(6.5); // 50 * 0.13
     });
 
     it('deve retornar array vazio para entrada vazia', () => {
-      const resultado = CorrecaoMateriaisHelper.corrigirInsumosCalculados([], 25);
+      const resultado = CorrecaoMateriaisHelper.corrigirInsumosCalculados(
+        [],
+        25,
+      );
       expect(resultado).toEqual([]);
     });
 
     it('deve retornar insumos originais para quantidade zero', () => {
       const resultado = CorrecaoMateriaisHelper.corrigirInsumosCalculados(
         insumosExemplo,
-        0
+        0,
       );
       expect(resultado).toEqual(insumosExemplo);
     });
@@ -97,7 +103,7 @@ describe('CorrecaoMateriaisHelper', () => {
     it('deve retornar insumos originais para quantidade negativa', () => {
       const resultado = CorrecaoMateriaisHelper.corrigirInsumosCalculados(
         insumosExemplo,
-        -5
+        -5,
       );
       expect(resultado).toEqual(insumosExemplo);
     });
@@ -106,15 +112,16 @@ describe('CorrecaoMateriaisHelper', () => {
   describe('validarCorrecao', () => {
     it('deve validar correção bem-sucedida', () => {
       const quantidadeProduto = 25;
-      const insumosCorrigidos = CorrecaoMateriaisHelper.corrigirInsumosCalculados(
-        insumosExemplo,
-        quantidadeProduto
-      );
+      const insumosCorrigidos =
+        CorrecaoMateriaisHelper.corrigirInsumosCalculados(
+          insumosExemplo,
+          quantidadeProduto,
+        );
 
       const validacao = CorrecaoMateriaisHelper.validarCorrecao(
         insumosExemplo,
         insumosCorrigidos,
-        quantidadeProduto
+        quantidadeProduto,
       );
 
       expect(validacao.valido).toBe(true);
@@ -123,10 +130,11 @@ describe('CorrecaoMateriaisHelper', () => {
 
     it('deve detectar quantidade incorreta', () => {
       const quantidadeProduto = 25;
-      const insumosCorrigidos = CorrecaoMateriaisHelper.corrigirInsumosCalculados(
-        insumosExemplo,
-        quantidadeProduto
-      );
+      const insumosCorrigidos =
+        CorrecaoMateriaisHelper.corrigirInsumosCalculados(
+          insumosExemplo,
+          quantidadeProduto,
+        );
 
       // Simular erro alterando um valor
       insumosCorrigidos[1].quantidade_necessaria = 1000; // Deveria ser 2250
@@ -134,7 +142,7 @@ describe('CorrecaoMateriaisHelper', () => {
       const validacao = CorrecaoMateriaisHelper.validarCorrecao(
         insumosExemplo,
         insumosCorrigidos,
-        quantidadeProduto
+        quantidadeProduto,
       );
 
       expect(validacao.valido).toBe(false);
@@ -144,10 +152,11 @@ describe('CorrecaoMateriaisHelper', () => {
 
     it('deve detectar custo total incorreto', () => {
       const quantidadeProduto = 25;
-      const insumosCorrigidos = CorrecaoMateriaisHelper.corrigirInsumosCalculados(
-        insumosExemplo,
-        quantidadeProduto
-      );
+      const insumosCorrigidos =
+        CorrecaoMateriaisHelper.corrigirInsumosCalculados(
+          insumosExemplo,
+          quantidadeProduto,
+        );
 
       // Simular erro alterando um custo
       insumosCorrigidos[1].custo_total = 100000; // Deveria ser 159547.50
@@ -155,7 +164,7 @@ describe('CorrecaoMateriaisHelper', () => {
       const validacao = CorrecaoMateriaisHelper.validarCorrecao(
         insumosExemplo,
         insumosCorrigidos,
-        quantidadeProduto
+        quantidadeProduto,
       );
 
       expect(validacao.valido).toBe(false);
@@ -167,8 +176,8 @@ describe('CorrecaoMateriaisHelper', () => {
   describe('deveAplicarMultiplicacao', () => {
     it('deve identificar unidades que precisam de multiplicação', () => {
       const unidadesParaMultiplicar = ['cm', 'm', 'unidades', 'kg', 'litros'];
-      
-      unidadesParaMultiplicar.forEach(unidade => {
+
+      unidadesParaMultiplicar.forEach((unidade) => {
         // Teste indireto através da correção
         const insumo = {
           insumo_id: 'test',
@@ -180,15 +189,18 @@ describe('CorrecaoMateriaisHelper', () => {
           disponivel_estoque: true,
         };
 
-        const resultado = CorrecaoMateriaisHelper.corrigirInsumosCalculados([insumo], 5);
+        const resultado = CorrecaoMateriaisHelper.corrigirInsumosCalculados(
+          [insumo],
+          5,
+        );
         expect(resultado[0].quantidade_necessaria).toBe(50); // 10 * 5
       });
     });
 
     it('deve identificar unidades que NÃO precisam de multiplicação', () => {
       const unidadesSemMultiplicacao = ['m²', 'm2', 'metro quadrado'];
-      
-      unidadesSemMultiplicacao.forEach(unidade => {
+
+      unidadesSemMultiplicacao.forEach((unidade) => {
         // Teste indireto através da correção
         const insumo = {
           insumo_id: 'test',
@@ -200,26 +212,12 @@ describe('CorrecaoMateriaisHelper', () => {
           disponivel_estoque: true,
         };
 
-        const resultado = CorrecaoMateriaisHelper.corrigirInsumosCalculados([insumo], 5);
+        const resultado = CorrecaoMateriaisHelper.corrigirInsumosCalculados(
+          [insumo],
+          5,
+        );
         expect(resultado[0].quantidade_necessaria).toBe(10); // Não multiplicado
       });
     });
   });
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

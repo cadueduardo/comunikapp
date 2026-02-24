@@ -1,8 +1,26 @@
-import { BadRequestException, Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Req } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { WorkflowService } from '../services/workflow.service';
-import { CreateWorkflowInstanciaDto, UpdateWorkflowInstanciaDto } from '../interfaces/pcp.interfaces';
-import { WorkflowAssignmentService, WorkflowSuggestion } from '../services/workflow-assignment.service';
+import {
+  CreateWorkflowInstanciaDto,
+  UpdateWorkflowInstanciaDto,
+} from '../interfaces/pcp.interfaces';
+import {
+  WorkflowAssignmentService,
+  WorkflowSuggestion,
+} from '../services/workflow-assignment.service';
 import { AssignWorkflowDto } from '../dto/workflow-assignment.dto';
 
 @Controller('pcp/workflows')
@@ -45,16 +63,21 @@ export class WorkflowController {
   }
 
   @Get()
-  async listarInstancias(@Query() filtros: {
-    status?: string;
-    workflow_id?: string;
-    data_inicio?: string;
-    data_fim?: string;
-  }) {
+  async listarInstancias(
+    @Query()
+    filtros: {
+      status?: string;
+      workflow_id?: string;
+      data_inicio?: string;
+      data_fim?: string;
+    },
+  ) {
     const filtrosProcessados = {
       ...filtros,
-      data_inicio: filtros.data_inicio ? new Date(filtros.data_inicio) : undefined,
-      data_fim: filtros.data_fim ? new Date(filtros.data_fim) : undefined
+      data_inicio: filtros.data_inicio
+        ? new Date(filtros.data_inicio)
+        : undefined,
+      data_fim: filtros.data_fim ? new Date(filtros.data_fim) : undefined,
     };
 
     return this.workflowService.listarInstancias(filtrosProcessados);
@@ -63,7 +86,7 @@ export class WorkflowController {
   @Put(':id')
   async atualizarStatus(
     @Param('id') id: string,
-    @Body() dto: UpdateWorkflowInstanciaDto
+    @Body() dto: UpdateWorkflowInstanciaDto,
   ) {
     return this.workflowService.atualizarStatus(id, dto);
   }
@@ -80,16 +103,20 @@ export class WorkflowController {
     return {
       status: instancia?.status || 'NAO_INICIADO',
       etapa_atual: instancia?.etapa_atual,
-      progresso: this.calcularProgresso(instancia)
+      progresso: this.calcularProgresso(instancia),
     };
   }
 
   private calcularProgresso(instancia: any): number {
     if (!instancia?.etapas) return 0;
-    
+
     const totalEtapas = instancia.etapas.length;
-    const etapasConcluidas = instancia.etapas.filter(etapa => etapa.status === 'CONCLUIDA').length;
-    
-    return totalEtapas > 0 ? Math.round((etapasConcluidas / totalEtapas) * 100) : 0;
+    const etapasConcluidas = instancia.etapas.filter(
+      (etapa) => etapa.status === 'CONCLUIDA',
+    ).length;
+
+    return totalEtapas > 0
+      ? Math.round((etapasConcluidas / totalEtapas) * 100)
+      : 0;
   }
 }

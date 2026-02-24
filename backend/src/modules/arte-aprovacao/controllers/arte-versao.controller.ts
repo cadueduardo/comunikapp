@@ -9,13 +9,21 @@ import {
   UseGuards,
   Request,
   HttpCode,
-  HttpStatus
+  HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { ArteVersaoService } from '../services/arte-versao.service';
 import { CreateArteVersaoDto } from '../dto/create-arte-versao.dto';
 import { UpdateArteVersaoDto } from '../dto/update-arte-versao.dto';
-import { ArteVersaoResponseDto, ArteVersaoListResponseDto } from '../dto/arte-response.dto';
+import {
+  ArteVersaoResponseDto,
+  ArteVersaoListResponseDto,
+} from '../dto/arte-response.dto';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 
 @ApiTags('Arte & Aprovação - Versões')
@@ -30,26 +38,26 @@ export class ArteVersaoController {
   @ApiResponse({
     status: 201,
     description: 'Versão criada com sucesso',
-    type: ArteVersaoResponseDto
+    type: ArteVersaoResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
   @ApiResponse({ status: 404, description: 'OS não encontrada' })
   @ApiResponse({ status: 403, description: 'Versão já existe' })
   async create(
     @Body() createDto: CreateArteVersaoDto,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<ArteVersaoResponseDto> {
     console.log('🎨 [Controller] Criando versão:', {
       osId: createDto.os_id,
       versao: createDto.versao,
       usuarioId: req.user.id,
-      lojaId: req.user.loja_id
+      lojaId: req.user.loja_id,
     });
 
     return this.arteVersaoService.createVersao(
       createDto,
       req.user.id,
-      req.user.loja_id
+      req.user.loja_id,
     );
   }
 
@@ -58,16 +66,16 @@ export class ArteVersaoController {
   @ApiResponse({
     status: 200,
     description: 'Lista de versões',
-    type: [ArteVersaoResponseDto]
+    type: [ArteVersaoResponseDto],
   })
   @ApiResponse({ status: 404, description: 'OS não encontrada' })
   async findByOS(
     @Param('osId') osId: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<ArteVersaoResponseDto[]> {
     console.log('📋 [Controller] Listando versões da OS:', {
       osId,
-      lojaId: req.user.loja_id
+      lojaId: req.user.loja_id,
     });
 
     return this.arteVersaoService.findVersoesByOS(osId, req.user.loja_id);
@@ -78,19 +86,22 @@ export class ArteVersaoController {
   @ApiResponse({
     status: 200,
     description: 'Lista de versões do produto',
-    type: [ArteVersaoResponseDto]
+    type: [ArteVersaoResponseDto],
   })
   @ApiResponse({ status: 404, description: 'Produto não encontrado' })
   async findByProduto(
     @Param('produtoId') produtoId: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<ArteVersaoResponseDto[]> {
     console.log('📋 [Controller] Listando versões do produto:', {
       produtoId,
-      lojaId: req.user.loja_id
+      lojaId: req.user.loja_id,
     });
 
-    return this.arteVersaoService.findVersoesByProduto(produtoId, req.user.loja_id);
+    return this.arteVersaoService.findVersoesByProduto(
+      produtoId,
+      req.user.loja_id,
+    );
   }
 
   @Get(':id')
@@ -98,16 +109,16 @@ export class ArteVersaoController {
   @ApiResponse({
     status: 200,
     description: 'Versão encontrada',
-    type: ArteVersaoResponseDto
+    type: ArteVersaoResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Versão não encontrada' })
   async findOne(
     @Param('id') id: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<ArteVersaoResponseDto> {
     console.log('🔍 [Controller] Buscando versão:', {
       id,
-      lojaId: req.user.loja_id
+      lojaId: req.user.loja_id,
     });
 
     return this.arteVersaoService.findVersaoById(id, req.user.loja_id);
@@ -118,14 +129,14 @@ export class ArteVersaoController {
   @ApiResponse({
     status: 200,
     description: 'Versão atualizada com sucesso',
-    type: ArteVersaoResponseDto
+    type: ArteVersaoResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
   @ApiResponse({ status: 404, description: 'Versão não encontrada' })
   async update(
     @Param('id') id: string,
     @Body() updateDto: UpdateArteVersaoDto,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<ArteVersaoResponseDto> {
     console.log('✏️ [Controller] PUT /arte-aprovacao/versoes/:id chamado:', {
       id,
@@ -135,7 +146,7 @@ export class ArteVersaoController {
       user: req.user,
       headers: req.headers,
       method: req.method,
-      url: req.url
+      url: req.url,
     });
 
     try {
@@ -144,7 +155,11 @@ export class ArteVersaoController {
         throw new Error('Usuário não autenticado');
       }
 
-      const result = await this.arteVersaoService.updateVersao(id, updateDto, req.user.loja_id);
+      const result = await this.arteVersaoService.updateVersao(
+        id,
+        updateDto,
+        req.user.loja_id,
+      );
       console.log('✅ [Controller] Versão atualizada com sucesso:', result.id);
       return result;
     } catch (error) {
@@ -158,17 +173,18 @@ export class ArteVersaoController {
   @ApiOperation({ summary: 'Remover versão (soft delete)' })
   @ApiResponse({ status: 204, description: 'Versão removida com sucesso' })
   @ApiResponse({ status: 404, description: 'Versão não encontrada' })
-  async remove(
-    @Param('id') id: string,
-    @Request() req: any
-  ): Promise<void> {
+  async remove(@Param('id') id: string, @Request() req: any): Promise<void> {
     console.log('🗑️ [Controller] Removendo versão:', {
       id,
       usuarioId: req.user.id,
-      lojaId: req.user.loja_id
+      lojaId: req.user.loja_id,
     });
 
-    return this.arteVersaoService.removeVersao(id, req.user.loja_id, req.user.id);
+    return this.arteVersaoService.removeVersao(
+      id,
+      req.user.loja_id,
+      req.user.id,
+    );
   }
 
   @Post(':id/restore')
@@ -176,16 +192,16 @@ export class ArteVersaoController {
   @ApiResponse({
     status: 200,
     description: 'Versão restaurada com sucesso',
-    type: ArteVersaoResponseDto
+    type: ArteVersaoResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Versão não encontrada' })
   async restore(
     @Param('id') id: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<ArteVersaoResponseDto> {
     console.log('♻️ [Controller] Restaurando versão:', {
       id,
-      lojaId: req.user.loja_id
+      lojaId: req.user.loja_id,
     });
 
     return this.arteVersaoService.restoreVersao(id, req.user.loja_id);
@@ -196,15 +212,19 @@ export class ArteVersaoController {
   @ApiResponse({ status: 200, description: 'Versão aprovada com sucesso' })
   async aprovarVersao(
     @Param('id') id: string,
-    @Request() req
+    @Request() req,
   ): Promise<ArteVersaoResponseDto> {
     const usuarioId = req.user.id;
     const lojaId = req.user.loja_id;
-    
-    return this.arteVersaoService.updateVersao(id, {
-      status: 'APROVADA' as any,
-      aprovado_por_cliente: true,
-    }, lojaId);
+
+    return this.arteVersaoService.updateVersao(
+      id,
+      {
+        status: 'APROVADA' as any,
+        aprovado_por_cliente: true,
+      },
+      lojaId,
+    );
   }
 
   @Post(':id/rejeitar')
@@ -212,15 +232,19 @@ export class ArteVersaoController {
   @ApiResponse({ status: 200, description: 'Versão rejeitada com sucesso' })
   async rejeitarVersao(
     @Param('id') id: string,
-    @Request() req
+    @Request() req,
   ): Promise<ArteVersaoResponseDto> {
     const usuarioId = req.user.id;
     const lojaId = req.user.loja_id;
-    
-    return this.arteVersaoService.updateVersao(id, {
-      status: 'REVISAO_SOLICITADA' as any,
-      aprovado_por_cliente: false,
-    }, lojaId);
+
+    return this.arteVersaoService.updateVersao(
+      id,
+      {
+        status: 'REVISAO_SOLICITADA' as any,
+        aprovado_por_cliente: false,
+      },
+      lojaId,
+    );
   }
 
   @Post('aprovar-multiplas')
@@ -228,7 +252,7 @@ export class ArteVersaoController {
   @ApiResponse({ status: 200, description: 'Versões aprovadas com sucesso' })
   async aprovarMultiplasVersoes(
     @Body() dto: { versaoIds: string[] },
-    @Request() req
+    @Request() req,
   ): Promise<{ aprovadas: number; erros: string[] }> {
     const usuarioId = req.user.id;
     const lojaId = req.user.loja_id;
@@ -237,10 +261,14 @@ export class ArteVersaoController {
 
     for (const versaoId of dto.versaoIds) {
       try {
-        await this.arteVersaoService.updateVersao(versaoId, {
-          status: 'APROVADA' as any,
-          aprovado_por_cliente: true,
-        }, lojaId);
+        await this.arteVersaoService.updateVersao(
+          versaoId,
+          {
+            status: 'APROVADA' as any,
+            aprovado_por_cliente: true,
+          },
+          lojaId,
+        );
         aprovadas++;
       } catch (error) {
         erros.push(`Erro ao aprovar versão ${versaoId}: ${error.message}`);
@@ -251,19 +279,25 @@ export class ArteVersaoController {
   }
 
   @Post(':id/liberar-para-pcp')
-  @ApiOperation({ summary: 'Liberar arte para PCP após verificação do designer' })
+  @ApiOperation({
+    summary: 'Liberar arte para PCP após verificação do designer',
+  })
   @ApiResponse({ status: 200, description: 'Arte liberada com sucesso' })
   @ApiResponse({ status: 400, description: 'Arte não pode ser liberada' })
   async liberarParaPCP(
     @Param('id') id: string,
-    @Request() req
+    @Request() req,
   ): Promise<ArteVersaoResponseDto> {
     console.log('🎨 [Controller] Liberando arte para PCP:', {
       id,
       usuarioId: req.user.id,
-      lojaId: req.user.loja_id
+      lojaId: req.user.loja_id,
     });
 
-    return this.arteVersaoService.liberarParaPCP(id, req.user.id, req.user.loja_id);
+    return this.arteVersaoService.liberarParaPCP(
+      id,
+      req.user.id,
+      req.user.loja_id,
+    );
   }
 }

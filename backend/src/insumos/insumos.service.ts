@@ -18,11 +18,27 @@ export class InsumosService {
   private readonly UNIDADES_COMPRA = [
     { value: 'UNID', label: 'UNIDADE', exemplo: 'Peças avulsas, parafusos' },
     { value: 'M', label: 'METRO', exemplo: 'Cabos, perfis lineares' },
-    { value: 'M2', label: 'METRO QUADRADO', exemplo: 'Bobinas de lona, chapas' },
-    { value: 'M3', label: 'METRO CÚBICO', exemplo: 'Volumes de espuma, blocos' },
+    {
+      value: 'M2',
+      label: 'METRO QUADRADO',
+      exemplo: 'Bobinas de lona, chapas',
+    },
+    {
+      value: 'M3',
+      label: 'METRO CÚBICO',
+      exemplo: 'Volumes de espuma, blocos',
+    },
     { value: 'CM', label: 'CENTÍMETRO', exemplo: 'Cordões, fitas' },
-    { value: 'CM2', label: 'CENTÍMETRO QUADRADO', exemplo: 'Peças recortadas pequenas' },
-    { value: 'KG', label: 'QUILOGRAMA', exemplo: 'Tintas em pó, materiais a granel' },
+    {
+      value: 'CM2',
+      label: 'CENTÍMETRO QUADRADO',
+      exemplo: 'Peças recortadas pequenas',
+    },
+    {
+      value: 'KG',
+      label: 'QUILOGRAMA',
+      exemplo: 'Tintas em pó, materiais a granel',
+    },
     { value: 'GRAMAS', label: 'GRAMAS', exemplo: 'Pigmentos, reagentes' },
     { value: 'LITRO', label: 'LITRO', exemplo: 'Tintas líquidas, solventes' },
     { value: 'ML', label: 'MILILITRO', exemplo: 'Toner, colas líquidas' },
@@ -102,10 +118,7 @@ export class InsumosService {
     return found.value;
   }
 
-  private getPrimeiroCampo(
-    linha: any,
-    chaves: string[],
-  ): any {
+  private getPrimeiroCampo(linha: any, chaves: string[]): any {
     for (const chave of chaves) {
       if (linha && Object.prototype.hasOwnProperty.call(linha, chave)) {
         return linha[chave];
@@ -121,17 +134,17 @@ export class InsumosService {
     obrigatorio = true,
   ): any {
     const valor = this.getPrimeiroCampo(linha, chaves);
-    if ((valor === undefined || valor === null || valor === '') && obrigatorio) {
+    if (
+      (valor === undefined || valor === null || valor === '') &&
+      obrigatorio
+    ) {
       throw new BadRequestException(`Campo "${label}" é obrigatório.`);
     }
     return valor;
   }
 
   private sanitizarTexto(valor: string): string {
-    return valor
-      ?.toString()
-      .replace(/\s+/g, ' ')
-      .trim();
+    return valor?.toString().replace(/\s+/g, ' ').trim();
   }
 
   private toNullableString(valor: any): string | null {
@@ -142,7 +155,11 @@ export class InsumosService {
     return texto === '' ? null : texto;
   }
 
-  private parseDecimal(valor: any, campo: string, obrigatorio = false): number | null {
+  private parseDecimal(
+    valor: any,
+    campo: string,
+    obrigatorio = false,
+  ): number | null {
     if (valor === undefined || valor === null || valor === '') {
       if (obrigatorio) {
         throw new BadRequestException(`Campo "${campo}" é obrigatório.`);
@@ -174,7 +191,9 @@ export class InsumosService {
     const numero = Number(normalizado);
 
     if (Number.isNaN(numero)) {
-      throw new BadRequestException(`Campo "${campo}" deve ser numérico. Valor recebido: "${textoOriginal}".`);
+      throw new BadRequestException(
+        `Campo "${campo}" deve ser numérico. Valor recebido: "${textoOriginal}".`,
+      );
     }
 
     return numero;
@@ -280,10 +299,7 @@ export class InsumosService {
     const categoriaExistente = await this.prisma.categoria.findFirst({
       where: {
         loja_id: loja.id,
-        OR: [
-          { id: textoSanitizado },
-          { nome: textoSanitizado },
-        ],
+        OR: [{ id: textoSanitizado }, { nome: textoSanitizado }],
       },
     });
 
@@ -302,14 +318,12 @@ export class InsumosService {
       return categoriaExistente.id;
     }
 
-    const categoriaInsumoExistente = await this.prisma.categoriaInsumo.findFirst({
-      where: {
-        OR: [
-          { id: textoSanitizado },
-          { nome: textoSanitizado },
-        ],
-      },
-    });
+    const categoriaInsumoExistente =
+      await this.prisma.categoriaInsumo.findFirst({
+        where: {
+          OR: [{ id: textoSanitizado }, { nome: textoSanitizado }],
+        },
+      });
 
     if (categoriaInsumoExistente) {
       await this.prisma.categoria.upsert({
@@ -427,7 +441,7 @@ export class InsumosService {
         const categoriaOutraLoja = await this.prisma.categoria.findUnique({
           where: { id: createInsumoDto.categoriaId },
         });
-        
+
         console.error('❌ Categoria não encontrada:', {
           categoriaId: createInsumoDto.categoriaId,
           loja_id: loja.id,
@@ -472,7 +486,12 @@ export class InsumosService {
     }
 
     // Remover campos que não existem no modelo Prisma e campos vazios de FK
-    const { tipo_material_id, categoriaId, fornecedorId, ...dataWithoutExtraFields } = createInsumoDto;
+    const {
+      tipo_material_id,
+      categoriaId,
+      fornecedorId,
+      ...dataWithoutExtraFields
+    } = createInsumoDto;
 
     // Converter parametros_consumo para string JSON se for objeto
     const quantidadeCalculada = this.calcularQuantidadeTotal({
@@ -497,10 +516,13 @@ export class InsumosService {
           console.warn('⚠️ Detectada string corrompida no create, ignorando');
           parametrosConsumoProcessado = null;
         } else {
-          parametrosConsumoProcessado = dataWithoutExtraFields.parametros_consumo;
+          parametrosConsumoProcessado =
+            dataWithoutExtraFields.parametros_consumo;
         }
       } else {
-        parametrosConsumoProcessado = JSON.stringify(dataWithoutExtraFields.parametros_consumo);
+        parametrosConsumoProcessado = JSON.stringify(
+          dataWithoutExtraFields.parametros_consumo,
+        );
       }
     }
 
@@ -508,7 +530,8 @@ export class InsumosService {
       ...dataWithoutExtraFields,
       parametros_consumo: parametrosConsumoProcessado,
       loja_id: loja.id,
-      ...(tipo_material_id && tipo_material_id !== '' && { tipoMaterialId: tipo_material_id }),
+      ...(tipo_material_id &&
+        tipo_material_id !== '' && { tipoMaterialId: tipo_material_id }),
       ...(categoriaId && categoriaId !== '' && { categoriaId }),
       ...(fornecedorId && fornecedorId !== '' && { fornecedorId }),
       ativo: createInsumoDto.ativo ?? true,
@@ -524,9 +547,9 @@ export class InsumosService {
     const insumo = await this.prisma.insumo.create({
       data: dataForPrisma,
       include: {
-      categoria: true,
-      fornecedor: true,
-      tipoMaterial: true,
+        categoria: true,
+        fornecedor: true,
+        tipoMaterial: true,
       },
     });
 
@@ -568,27 +591,46 @@ export class InsumosService {
       };
 
       // Processar parametros_consumo se existir
-      if (resultado.parametros_consumo && typeof resultado.parametros_consumo === 'string') {
+      if (
+        resultado.parametros_consumo &&
+        typeof resultado.parametros_consumo === 'string'
+      ) {
         try {
           // Verificar se é uma string corrompida
           if (resultado.parametros_consumo.includes('\\\\\\"')) {
-            console.warn('⚠️ Detectada string corrompida no findAll, limpando parametros_consumo');
+            console.warn(
+              '⚠️ Detectada string corrompida no findAll, limpando parametros_consumo',
+            );
             resultado.parametros_consumo = null;
           } else {
-            resultado.parametros_consumo = JSON.parse(resultado.parametros_consumo);
+            resultado.parametros_consumo = JSON.parse(
+              resultado.parametros_consumo,
+            );
           }
         } catch (e) {
-          console.warn('⚠️ Erro ao parsear parametros_consumo no findAll:', e.message);
+          console.warn(
+            '⚠️ Erro ao parsear parametros_consumo no findAll:',
+            e.message,
+          );
           resultado.parametros_consumo = null;
         }
       }
 
       // Processar tipoMaterial.parametros_padrao se existir
-      if (resultado.tipoMaterial && resultado.tipoMaterial.parametros_padrao && typeof resultado.tipoMaterial.parametros_padrao === 'string') {
+      if (
+        resultado.tipoMaterial &&
+        resultado.tipoMaterial.parametros_padrao &&
+        typeof resultado.tipoMaterial.parametros_padrao === 'string'
+      ) {
         try {
-          resultado.tipoMaterial.parametros_padrao = JSON.parse(resultado.tipoMaterial.parametros_padrao);
+          resultado.tipoMaterial.parametros_padrao = JSON.parse(
+            resultado.tipoMaterial.parametros_padrao,
+          );
         } catch (e) {
-          console.warn('⚠️ Erro ao parsear tipoMaterial.parametros_padrao no findAll:', e.message);
+          console.warn(
+            '⚠️ Erro ao parsear tipoMaterial.parametros_padrao no findAll:',
+            e.message,
+          );
           resultado.tipoMaterial.parametros_padrao = null;
         }
       }
@@ -629,14 +671,21 @@ export class InsumosService {
     };
 
     // Processar parametros_consumo para evitar problemas de serialização
-    if (resultado.parametros_consumo && typeof resultado.parametros_consumo === 'string') {
+    if (
+      resultado.parametros_consumo &&
+      typeof resultado.parametros_consumo === 'string'
+    ) {
       try {
         // Verificar se é uma string corrompida
         if (resultado.parametros_consumo.includes('\\\\\\"')) {
-          console.warn('⚠️ Detectada string corrompida, limpando parametros_consumo');
+          console.warn(
+            '⚠️ Detectada string corrompida, limpando parametros_consumo',
+          );
           resultado.parametros_consumo = null;
         } else {
-          resultado.parametros_consumo = JSON.parse(resultado.parametros_consumo);
+          resultado.parametros_consumo = JSON.parse(
+            resultado.parametros_consumo,
+          );
         }
       } catch (e) {
         console.warn('⚠️ Erro ao parsear parametros_consumo:', e.message);
@@ -655,8 +704,8 @@ export class InsumosService {
         nome: resultado.nome,
         logica_consumo: resultado.logica_consumo,
         tipoMaterialId: resultado.tipoMaterialId,
-        parametros_consumo: resultado.parametros_consumo
-      }
+        parametros_consumo: resultado.parametros_consumo,
+      },
     });
 
     return resultado;
@@ -702,7 +751,7 @@ export class InsumosService {
     console.log('🔍 InsumosService.update - Dados recebidos:', {
       logica_consumo: updateInsumoDto.logica_consumo,
       tipo_material_id: tipo_material_id,
-      parametros_consumo: updateInsumoDto.parametros_consumo
+      parametros_consumo: updateInsumoDto.parametros_consumo,
     });
 
     // Converter parametros_consumo para string JSON se for objeto
@@ -714,23 +763,27 @@ export class InsumosService {
           console.warn('⚠️ Detectada string corrompida no update, ignorando');
           parametrosConsumoProcessado = null;
         } else {
-          parametrosConsumoProcessado = dataWithoutExtraFields.parametros_consumo;
+          parametrosConsumoProcessado =
+            dataWithoutExtraFields.parametros_consumo;
         }
       } else {
-        parametrosConsumoProcessado = JSON.stringify(dataWithoutExtraFields.parametros_consumo);
+        parametrosConsumoProcessado = JSON.stringify(
+          dataWithoutExtraFields.parametros_consumo,
+        );
       }
     }
 
     const dataForPrisma = {
       ...dataWithoutExtraFields,
       parametros_consumo: parametrosConsumoProcessado,
-      ...(tipo_material_id && tipo_material_id !== '' && { tipoMaterialId: tipo_material_id }),
+      ...(tipo_material_id &&
+        tipo_material_id !== '' && { tipoMaterialId: tipo_material_id }),
     };
 
     console.log('🔍 InsumosService.update - Dados para Prisma:', {
       logica_consumo: dataForPrisma.logica_consumo,
       tipoMaterialId: dataForPrisma.tipoMaterialId,
-      parametros_consumo: dataForPrisma.parametros_consumo
+      parametros_consumo: dataForPrisma.parametros_consumo,
     });
 
     const insumo = await this.prisma.insumo.update({
@@ -755,17 +808,27 @@ export class InsumosService {
     };
 
     // Processar parametros_consumo para evitar problemas de serialização
-    if (resultado.parametros_consumo && typeof resultado.parametros_consumo === 'string') {
+    if (
+      resultado.parametros_consumo &&
+      typeof resultado.parametros_consumo === 'string'
+    ) {
       try {
         // Verificar se é uma string corrompida
         if (resultado.parametros_consumo.includes('\\\\\\"')) {
-          console.warn('⚠️ Detectada string corrompida no update, limpando parametros_consumo');
+          console.warn(
+            '⚠️ Detectada string corrompida no update, limpando parametros_consumo',
+          );
           resultado.parametros_consumo = null;
         } else {
-          resultado.parametros_consumo = JSON.parse(resultado.parametros_consumo);
+          resultado.parametros_consumo = JSON.parse(
+            resultado.parametros_consumo,
+          );
         }
       } catch (e) {
-        console.warn('⚠️ Erro ao parsear parametros_consumo no update:', e.message);
+        console.warn(
+          '⚠️ Erro ao parsear parametros_consumo no update:',
+          e.message,
+        );
         resultado.parametros_consumo = null;
       }
     }
@@ -821,7 +884,10 @@ export class InsumosService {
       throw new BadRequestException('Planilha vazia ou inválida.');
     }
 
-    const resultados: { sucesso: number; erros: { linha: number; motivo: string }[] } = {
+    const resultados: {
+      sucesso: number;
+      erros: { linha: number; motivo: string }[];
+    } = {
       sucesso: 0,
       erros: [],
     };
@@ -848,7 +914,8 @@ export class InsumosService {
           '\u270F\uFE0F Importação de insumos - categoria resolvida',
           JSON.stringify({
             linha: i + 2,
-            valorCategoria: linha['Categoria (ID ou nome exato) *'] ?? linha.categoriaId,
+            valorCategoria:
+              linha['Categoria (ID ou nome exato) *'] ?? linha.categoriaId,
             categoriaId,
             loja: loja.id,
           }),
@@ -883,15 +950,16 @@ export class InsumosService {
           'Unidade de uso',
         );
 
-        const fatorConversao = this.parseDecimal(
-          this.obterValor(
-            linha,
-            ['Fator de conversão *', 'fator_conversao'],
+        const fatorConversao =
+          this.parseDecimal(
+            this.obterValor(
+              linha,
+              ['Fator de conversão *', 'fator_conversao'],
+              'Fator de conversão',
+            ),
             'Fator de conversão',
-          ),
-          'Fator de conversão',
-          true,
-        ) ?? 1;
+            true,
+          ) ?? 1;
 
         const unidadeDimensao = this.toNullableString(
           this.obterValor(
@@ -921,7 +989,12 @@ export class InsumosService {
         );
 
         const tipoCalculoNormalizado = tipoCalculo
-          ? this.resolveOption(tipoCalculo, this.TIPOS_CALCULO, 'Tipo de cálculo', false)
+          ? this.resolveOption(
+              tipoCalculo,
+              this.TIPOS_CALCULO,
+              'Tipo de cálculo',
+              false,
+            )
           : null;
 
         const quantidadeInformada = this.parseDecimal(
@@ -949,15 +1022,16 @@ export class InsumosService {
           'Altura',
         );
 
-        const custoTotal = this.parseDecimal(
-          this.obterValor(
-            linha,
-            ['Custo total (R$) *', 'custo_unitario'],
+        const custoTotal =
+          this.parseDecimal(
+            this.obterValor(
+              linha,
+              ['Custo total (R$) *', 'custo_unitario'],
+              'Custo total (R$)',
+            ),
             'Custo total (R$)',
-          ),
-          'Custo total (R$)',
-          true,
-        ) ?? 0;
+            true,
+          ) ?? 0;
 
         const quantidadeDimensionada = this.parseDecimal(
           this.obterValor(
@@ -1027,9 +1101,10 @@ export class InsumosService {
         let parametrosConsumo: any = null;
         if (parametrosConsumoValor) {
           try {
-            parametrosConsumo = typeof parametrosConsumoValor === 'string'
-              ? JSON.parse(parametrosConsumoValor)
-              : parametrosConsumoValor;
+            parametrosConsumo =
+              typeof parametrosConsumoValor === 'string'
+                ? JSON.parse(parametrosConsumoValor)
+                : parametrosConsumoValor;
           } catch (error) {
             throw new BadRequestException(
               'Campo parametros_consumo inválido. Use JSON válido.',
@@ -1052,7 +1127,8 @@ export class InsumosService {
           altura: altura ?? undefined,
           descricao_tecnica: descricaoTecnica ?? undefined,
           codigo_interno: codigoInterno ?? undefined,
-          estoque_minimo: estoqueMinimo !== null ? Math.round(estoqueMinimo) : undefined,
+          estoque_minimo:
+            estoqueMinimo !== null ? Math.round(estoqueMinimo) : undefined,
           tipo_material_id: tipoMaterialValor ?? undefined,
           parametros_consumo: parametrosConsumo ?? undefined,
         } as CreateInsumoDto;
@@ -1063,7 +1139,10 @@ export class InsumosService {
           );
         }
 
-        if (dto.quantidade_compra > 0 && !Number.isFinite(dto.quantidade_compra)) {
+        if (
+          dto.quantidade_compra > 0 &&
+          !Number.isFinite(dto.quantidade_compra)
+        ) {
           throw new BadRequestException(
             'Quantidade total calculada inválida. Verifique os valores informados.',
           );
@@ -1072,14 +1151,19 @@ export class InsumosService {
         await this.create(dto, loja);
         resultados.sucesso += 1;
       } catch (err: any) {
-        resultados.erros.push({ linha: i + 2, motivo: err?.message || 'Erro desconhecido' });
+        resultados.erros.push({
+          linha: i + 2,
+          motivo: err?.message || 'Erro desconhecido',
+        });
       }
     }
 
     return resultados;
   }
 
-  async gerarTemplateImportacao(loja: loja): Promise<{ buffer: Buffer; filename: string }> {
+  async gerarTemplateImportacao(
+    loja: loja,
+  ): Promise<{ buffer: Buffer; filename: string }> {
     const headers = [
       'Nome do insumo *',
       'Categoria (ID ou nome exato) *',
@@ -1100,88 +1184,103 @@ export class InsumosService {
       'Parâmetros de consumo (JSON)',
     ];
 
-    const exemplo = [{
-      'Nome do insumo *': 'Lona Front 440g',
-      'Categoria (ID ou nome exato) *': 'Lonas e Frontlight',
-      'Fornecedor (ID ou nome exato) *': 'Fornecedor Teste',
-      'Unidade de compra *': 'BOBINA',
-      'Quantidade total *': 50,
-      'Custo total (R$) *': 280.5,
-      'Unidade de uso *': 'M2',
-      'Fator de conversão *': 1,
-      'Unidade das dimensões': 'M',
-      'Tipo de cálculo': 'ÁREA (Largura × Altura)',
-      'Largura': 1.6,
-      'Altura / Comprimento': 30,
-      'Descrição técnica': 'Bobina de lona front 440g com 1,60m x 30m',
-      'Código interno': 'LONA-440G',
-      'Estoque mínimo': 2,
-      'Tipo de material (ID ou nome)': '',
-      'Parâmetros de consumo (JSON)': '',
-    }];
+    const exemplo = [
+      {
+        'Nome do insumo *': 'Lona Front 440g',
+        'Categoria (ID ou nome exato) *': 'Lonas e Frontlight',
+        'Fornecedor (ID ou nome exato) *': 'Fornecedor Teste',
+        'Unidade de compra *': 'BOBINA',
+        'Quantidade total *': 50,
+        'Custo total (R$) *': 280.5,
+        'Unidade de uso *': 'M2',
+        'Fator de conversão *': 1,
+        'Unidade das dimensões': 'M',
+        'Tipo de cálculo': 'ÁREA (Largura × Altura)',
+        Largura: 1.6,
+        'Altura / Comprimento': 30,
+        'Descrição técnica': 'Bobina de lona front 440g com 1,60m x 30m',
+        'Código interno': 'LONA-440G',
+        'Estoque mínimo': 2,
+        'Tipo de material (ID ou nome)': '',
+        'Parâmetros de consumo (JSON)': '',
+      },
+    ];
 
     const wsTemplate = XLSX.utils.json_to_sheet(exemplo, { header: headers });
 
     const explicacoes: Record<string, string>[] = [
       {
         Campo: 'Nome do insumo *',
-        "Como preencher": 'Nome amigável do insumo. Ex: Lona Front 440g',
+        'Como preencher': 'Nome amigável do insumo. Ex: Lona Front 440g',
       },
       {
         Campo: 'Categoria (ID ou nome exato) *',
-        "Como preencher": 'Use o ID ou o nome exatamente igual cadastrado. Veja a tabela de categorias abaixo.',
+        'Como preencher':
+          'Use o ID ou o nome exatamente igual cadastrado. Veja a tabela de categorias abaixo.',
       },
       {
         Campo: 'Fornecedor (ID ou nome exato) *',
-        "Como preencher": 'Use o ID ou o nome exatamente igual cadastrado. Veja a tabela de fornecedores abaixo.',
+        'Como preencher':
+          'Use o ID ou o nome exatamente igual cadastrado. Veja a tabela de fornecedores abaixo.',
       },
       {
         Campo: 'Unidade de compra *',
-        "Como preencher": 'Como você compra esse insumo. Ex: BOBINA, ROLO, LITRO. Veja opções abaixo.',
+        'Como preencher':
+          'Como você compra esse insumo. Ex: BOBINA, ROLO, LITRO. Veja opções abaixo.',
       },
       {
         Campo: 'Quantidade total *',
-        "Como preencher": 'Quantidade total equivalente à unidade de compra (ex: 50 para bobina 1,60x30 = 50 m²).',
+        'Como preencher':
+          'Quantidade total equivalente à unidade de compra (ex: 50 para bobina 1,60x30 = 50 m²).',
       },
       {
         Campo: 'Custo total (R$) *',
-        "Como preencher": 'Preço total pago na unidade de compra (não unitário).',
+        'Como preencher':
+          'Preço total pago na unidade de compra (não unitário).',
       },
       {
         Campo: 'Unidade de uso *',
-        "Como preencher": 'Como o insumo é consumido nos produtos. Ex: M2, M, UNIDADE. Veja opções abaixo.',
+        'Como preencher':
+          'Como o insumo é consumido nos produtos. Ex: M2, M, UNIDADE. Veja opções abaixo.',
       },
       {
         Campo: 'Fator de conversão *',
-        "Como preencher": 'Normalmente 1.0. Use outro valor apenas se a unidade de compra for diferente da unidade de uso.',
+        'Como preencher':
+          'Normalmente 1.0. Use outro valor apenas se a unidade de compra for diferente da unidade de uso.',
       },
       {
         Campo: 'Unidade das dimensões',
-        "Como preencher": 'Unidade usada nas colunas Largura/Altura. Ex: M, CM. Use se quiser cálculo automático.',
+        'Como preencher':
+          'Unidade usada nas colunas Largura/Altura. Ex: M, CM. Use se quiser cálculo automático.',
       },
       {
         Campo: 'Tipo de cálculo',
-        "Como preencher": 'Forma de cálculo automático: Área, Linear, Quantidade, Peso, Volume. Veja opções.',
+        'Como preencher':
+          'Forma de cálculo automático: Área, Linear, Quantidade, Peso, Volume. Veja opções.',
       },
       {
         Campo: 'Largura / Altura / Comprimento',
-        "Como preencher": 'Informe dimensões para cálculo automático. Ex: largura 1.6 e comprimento 30 (metros).',
+        'Como preencher':
+          'Informe dimensões para cálculo automático. Ex: largura 1.6 e comprimento 30 (metros).',
       },
       {
         Campo: 'Descrição técnica / Código interno',
-        "Como preencher": 'Campos opcionais para descrição detalhada e código interno legados.',
+        'Como preencher':
+          'Campos opcionais para descrição detalhada e código interno legados.',
       },
       {
         Campo: 'Estoque mínimo',
-        "Como preencher": 'Quantidade mínima desejada para alertas.',
+        'Como preencher': 'Quantidade mínima desejada para alertas.',
       },
       {
         Campo: 'Tipo de material (ID ou nome)',
-        "Como preencher": 'Obrigatório apenas se Tipo de cálculo = PERSONALIZADO.',
+        'Como preencher':
+          'Obrigatório apenas se Tipo de cálculo = PERSONALIZADO.',
       },
       {
         Campo: 'Parâmetros de consumo (JSON)',
-        "Como preencher": 'Use JSON apenas para lógica personalizada. Ex: {"tipo":"quantidade_fixa","valor":2}',
+        'Como preencher':
+          'Use JSON apenas para lógica personalizada. Ex: {"tipo":"quantidade_fixa","valor":2}',
       },
     ];
 
@@ -1231,10 +1330,10 @@ export class InsumosService {
     });
 
     const wsCategorias = XLSX.utils.json_to_sheet(
-      categoriasLoja.map((cat) => ({ ID: cat.id, Nome: cat.nome }))
+      categoriasLoja.map((cat) => ({ ID: cat.id, Nome: cat.nome })),
     );
     const wsFornecedores = XLSX.utils.json_to_sheet(
-      fornecedoresLoja.map((forn) => ({ ID: forn.id, Nome: forn.nome }))
+      fornecedoresLoja.map((forn) => ({ ID: forn.id, Nome: forn.nome })),
     );
 
     const wb = XLSX.utils.book_new();

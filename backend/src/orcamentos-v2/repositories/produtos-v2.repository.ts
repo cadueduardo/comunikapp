@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { 
+import {
   ProdutoOrcamento,
   ItemInsumo,
   ItemMaquina,
@@ -12,7 +12,7 @@ import {
 /**
  * Repositório de Produtos V2
  * Implementa operações de banco de dados para produtos de orçamentos
- * 
+ *
  * ✅ ARQUIVO ≤ 400 LINHAS (CONFORME PREMISSAS)
  * ✅ OPERAÇÕES CRUD COMPLETAS PARA PRODUTOS
  * ✅ GESTÃO DE ITENS E COMPONENTES
@@ -21,21 +21,35 @@ import {
 export class ProdutosV2Repository {
   private readonly logger = new Logger(ProdutosV2Repository.name);
 
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Cria novo produto no orçamento
    */
   async criarProduto(
     orcamentoId: string,
-    dados: Omit<ProdutoOrcamento, 'id' | 'orcamento_id' | 'data_criacao' | 'data_atualizacao'>,
+    dados: Omit<
+      ProdutoOrcamento,
+      'id' | 'orcamento_id' | 'data_criacao' | 'data_atualizacao'
+    >,
   ): Promise<ProdutoOrcamento> {
-    this.logger.log(`💾 Criando produto no orçamento ${orcamentoId}: ${dados.nome}`);
+    this.logger.log(
+      `💾 Criando produto no orçamento ${orcamentoId}: ${dados.nome}`,
+    );
 
     try {
-      const { insumos, maquinas, funcoes, servicos_manuais, custos_indiretos, nome, unidade, preco_unitario, preco_total, ...rest } = dados as any;
+      const {
+        insumos,
+        maquinas,
+        funcoes,
+        servicos_manuais,
+        custos_indiretos,
+        nome,
+        unidade,
+        preco_unitario,
+        preco_total,
+        ...rest
+      } = dados as any;
       const produto = await this.prisma.produtoOrcamento.create({
         data: {
           orcamento: { connect: { id: orcamentoId } },
@@ -64,7 +78,6 @@ export class ProdutosV2Repository {
 
       this.logger.log(`✅ Produto criado com sucesso: ${produto.id}`);
       return this.transformarProduto(produto);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao criar produto: ${error.message}`);
       throw error;
@@ -96,7 +109,6 @@ export class ProdutosV2Repository {
 
       this.logger.log(`✅ Produto encontrado: ${id}`);
       return this.transformarProduto(produto);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao buscar produto: ${error.message}`);
       throw error;
@@ -129,8 +141,7 @@ export class ProdutosV2Repository {
       });
 
       this.logger.log(`✅ ${produtos.length} produtos encontrados`);
-      return produtos.map(prod => this.transformarProduto(prod));
-
+      return produtos.map((prod) => this.transformarProduto(prod));
     } catch (error) {
       this.logger.error(`❌ Erro ao listar produtos: ${error.message}`);
       throw error;
@@ -142,24 +153,48 @@ export class ProdutosV2Repository {
    */
   async atualizarProduto(
     id: string,
-    dados: Partial<Omit<ProdutoOrcamento, 'id' | 'orcamento_id' | 'data_criacao' | 'data_atualizacao'>>,
+    dados: Partial<
+      Omit<
+        ProdutoOrcamento,
+        'id' | 'orcamento_id' | 'data_criacao' | 'data_atualizacao'
+      >
+    >,
   ): Promise<ProdutoOrcamento> {
     this.logger.log(`✏️ Atualizando produto: ${id}`);
 
     try {
-      const { insumos, maquinas, funcoes, servicos_manuais, custos_indiretos, nome, unidade, preco_unitario, preco_total, ...rest } = dados as any;
+      const {
+        insumos,
+        maquinas,
+        funcoes,
+        servicos_manuais,
+        custos_indiretos,
+        nome,
+        unidade,
+        preco_unitario,
+        preco_total,
+        ...rest
+      } = dados as any;
       const produto = await this.prisma.produtoOrcamento.update({
         where: { id },
         data: {
           ...(nome !== undefined ? { nome_servico: nome } : {}),
-          ...(rest.descricao !== undefined ? { descricao: rest.descricao } : {}),
-          ...(rest.quantidade !== undefined ? { quantidade: rest.quantidade } : {}),
+          ...(rest.descricao !== undefined
+            ? { descricao: rest.descricao }
+            : {}),
+          ...(rest.quantidade !== undefined
+            ? { quantidade: rest.quantidade }
+            : {}),
           ...(unidade !== undefined ? { unidade_medida: unidade } : {}),
           ...(preco_unitario !== undefined ? { preco_unitario } : {}),
           ...(preco_total !== undefined ? { preco_total } : {}),
-          ...(rest.margem_lucro !== undefined ? { margem_lucro: rest.margem_lucro } : {}),
+          ...(rest.margem_lucro !== undefined
+            ? { margem_lucro: rest.margem_lucro }
+            : {}),
           ...(rest.impostos !== undefined ? { impostos: rest.impostos } : {}),
-          ...(rest.observacoes !== undefined ? { observacoes: rest.observacoes } : {}),
+          ...(rest.observacoes !== undefined
+            ? { observacoes: rest.observacoes }
+            : {}),
           data_atualizacao: new Date(),
         },
         include: {
@@ -173,7 +208,6 @@ export class ProdutosV2Repository {
 
       this.logger.log(`✅ Produto atualizado com sucesso: ${id}`);
       return this.transformarProduto(produto);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao atualizar produto: ${error.message}`);
       throw error;
@@ -196,7 +230,6 @@ export class ProdutosV2Repository {
       });
 
       this.logger.log(`✅ Produto removido com sucesso: ${id}`);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao remover produto: ${error.message}`);
       throw error;
@@ -210,7 +243,9 @@ export class ProdutosV2Repository {
     produtoId: string,
     dados: Omit<ItemInsumo, 'id' | 'produto_id' | 'data_criacao'>,
   ): Promise<ItemInsumo> {
-    this.logger.log(`➕ Adicionando insumo ao produto ${produtoId}: ${dados.insumo_id}`);
+    this.logger.log(
+      `➕ Adicionando insumo ao produto ${produtoId}: ${dados.insumo_id}`,
+    );
 
     try {
       const itemInsumo = await this.prisma.itemInsumo.create({
@@ -226,7 +261,6 @@ export class ProdutosV2Repository {
 
       this.logger.log(`✅ Insumo adicionado com sucesso: ${itemInsumo.id}`);
       return this.transformarItemInsumo(itemInsumo);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao adicionar insumo: ${error.message}`);
       throw error;
@@ -245,7 +279,6 @@ export class ProdutosV2Repository {
       });
 
       this.logger.log(`✅ Insumo removido com sucesso: ${itemInsumoId}`);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao remover insumo: ${error.message}`);
       throw error;
@@ -259,7 +292,9 @@ export class ProdutosV2Repository {
     produtoId: string,
     dados: Omit<ItemMaquina, 'id' | 'produto_id' | 'data_criacao'>,
   ): Promise<ItemMaquina> {
-    this.logger.log(`🔧 Adicionando máquina ao produto ${produtoId}: ${dados.maquina_id}`);
+    this.logger.log(
+      `🔧 Adicionando máquina ao produto ${produtoId}: ${dados.maquina_id}`,
+    );
 
     try {
       const itemMaquina = await this.prisma.itemMaquina.create({
@@ -275,7 +310,6 @@ export class ProdutosV2Repository {
 
       this.logger.log(`✅ Máquina adicionada com sucesso: ${itemMaquina.id}`);
       return this.transformarItemMaquina(itemMaquina);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao adicionar máquina: ${error.message}`);
       throw error;
@@ -294,7 +328,6 @@ export class ProdutosV2Repository {
       });
 
       this.logger.log(`✅ Máquina removida com sucesso: ${itemMaquinaId}`);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao remover máquina: ${error.message}`);
       throw error;
@@ -308,7 +341,9 @@ export class ProdutosV2Repository {
     produtoId: string,
     dados: Omit<ItemFuncao, 'id' | 'produto_id' | 'data_criacao'>,
   ): Promise<ItemFuncao> {
-    this.logger.log(`👷 Adicionando função ao produto ${produtoId}: ${dados.funcao_id}`);
+    this.logger.log(
+      `👷 Adicionando função ao produto ${produtoId}: ${dados.funcao_id}`,
+    );
 
     try {
       const itemFuncao = await this.prisma.itemFuncao.create({
@@ -324,7 +359,6 @@ export class ProdutosV2Repository {
 
       this.logger.log(`✅ Função adicionada com sucesso: ${itemFuncao.id}`);
       return this.transformarItemFuncao(itemFuncao);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao adicionar função: ${error.message}`);
       throw error;
@@ -343,7 +377,6 @@ export class ProdutosV2Repository {
       });
 
       this.logger.log(`✅ Função removida com sucesso: ${itemFuncaoId}`);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao remover função: ${error.message}`);
       throw error;
@@ -368,11 +401,14 @@ export class ProdutosV2Repository {
         },
       });
 
-      this.logger.log(`✅ Serviço manual adicionado com sucesso: ${itemServico.id}`);
+      this.logger.log(
+        `✅ Serviço manual adicionado com sucesso: ${itemServico.id}`,
+      );
       return this.transformarItemServicoManual(itemServico);
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao adicionar serviço manual: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao adicionar serviço manual: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -388,8 +424,9 @@ export class ProdutosV2Repository {
         where: { id: itemServicoId },
       });
 
-      this.logger.log(`✅ Serviço manual removido com sucesso: ${itemServicoId}`);
-
+      this.logger.log(
+        `✅ Serviço manual removido com sucesso: ${itemServicoId}`,
+      );
     } catch (error) {
       this.logger.error(`❌ Erro ao remover serviço manual: ${error.message}`);
       throw error;
@@ -414,11 +451,14 @@ export class ProdutosV2Repository {
         },
       });
 
-      this.logger.log(`✅ Custo indireto adicionado com sucesso: ${itemCusto.id}`);
+      this.logger.log(
+        `✅ Custo indireto adicionado com sucesso: ${itemCusto.id}`,
+      );
       return this.transformarItemCustoIndireto(itemCusto);
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao adicionar custo indireto: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao adicionar custo indireto: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -435,7 +475,6 @@ export class ProdutosV2Repository {
       });
 
       this.logger.log(`✅ Custo indireto removido com sucesso: ${itemCustoId}`);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao remover custo indireto: ${error.message}`);
       throw error;
@@ -454,19 +493,18 @@ export class ProdutosV2Repository {
     try {
       // Atualizar ordem de todos os produtos em uma transação
       await this.prisma.$transaction(
-        novaOrdem.map(item => 
+        novaOrdem.map((item) =>
           this.prisma.produtoOrcamento.update({
             where: { id: item.id },
-            data: { 
+            data: {
               ordem: item.ordem,
               data_atualizacao: new Date(),
             },
-          })
-        )
+          }),
+        ),
       );
 
       this.logger.log(`✅ Produtos reordenados com sucesso`);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao reordenar produtos: ${error.message}`);
       throw error;
@@ -485,7 +523,9 @@ export class ProdutosV2Repository {
     produtos_com_maquinas: number;
     produtos_com_funcoes: number;
   }> {
-    this.logger.log(`📊 Buscando estatísticas dos produtos do orçamento: ${orcamentoId}`);
+    this.logger.log(
+      `📊 Buscando estatísticas dos produtos do orçamento: ${orcamentoId}`,
+    );
 
     try {
       const [
@@ -498,42 +538,42 @@ export class ProdutosV2Repository {
         produtosComFuncoes,
       ] = await Promise.all([
         this.prisma.produtoOrcamento.count({
-          where: { 
+          where: {
             orcamento_id: orcamentoId,
             ativo: true,
           },
         }),
         this.buscarProdutosPorCategoria(orcamentoId),
         this.prisma.produtoOrcamento.aggregate({
-          where: { 
+          where: {
             orcamento_id: orcamentoId,
             ativo: true,
           },
           _sum: { preco_total: true },
         }),
         this.prisma.produtoOrcamento.aggregate({
-          where: { 
+          where: {
             orcamento_id: orcamentoId,
             ativo: true,
           },
           _avg: { preco_total: true },
         }),
         this.prisma.produtoOrcamento.count({
-          where: { 
+          where: {
             orcamento_id: orcamentoId,
             ativo: true,
             insumos: { some: {} },
           },
         }),
         this.prisma.produtoOrcamento.count({
-          where: { 
+          where: {
             orcamento_id: orcamentoId,
             ativo: true,
             maquinas: { some: {} },
           },
         }),
         this.prisma.produtoOrcamento.count({
-          where: { 
+          where: {
             orcamento_id: orcamentoId,
             ativo: true,
             funcoes: { some: {} },
@@ -550,7 +590,6 @@ export class ProdutosV2Repository {
         produtos_com_maquinas: produtosComMaquinas,
         produtos_com_funcoes: produtosComFuncoes,
       };
-
     } catch (error) {
       this.logger.error(`❌ Erro ao buscar estatísticas: ${error.message}`);
       throw error;
@@ -559,10 +598,12 @@ export class ProdutosV2Repository {
 
   // Métodos privados auxiliares
 
-  private async buscarProdutosPorCategoria(orcamentoId: string): Promise<Record<string, number>> {
+  private async buscarProdutosPorCategoria(
+    orcamentoId: string,
+  ): Promise<Record<string, number>> {
     const resultado = await this.prisma.produtoOrcamento.groupBy({
       by: ['categoria'],
-      where: { 
+      where: {
         orcamento_id: orcamentoId,
         ativo: true,
       },
@@ -570,7 +611,7 @@ export class ProdutosV2Repository {
     });
 
     const distribuicao: Record<string, number> = {};
-    resultado.forEach(item => {
+    resultado.forEach((item) => {
       const categoria = item.categoria || 'Sem categoria';
       distribuicao[categoria] = item._count.categoria;
     });
@@ -605,7 +646,9 @@ export class ProdutosV2Repository {
       unidade: item.unidade,
       preco_unitario: Number(item.preco_unitario),
       preco_total: Number(item.preco_total),
-      estoque_disponivel: item.estoque_disponivel ? Number(item.estoque_disponivel) : undefined,
+      estoque_disponivel: item.estoque_disponivel
+        ? Number(item.estoque_disponivel)
+        : undefined,
       alerta_estoque: item.alerta_estoque,
     };
   }

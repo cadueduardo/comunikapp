@@ -1,11 +1,17 @@
-import { IsString, IsOptional, IsNumber, IsUUID, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsUUID,
+  IsEnum,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum FuncaoTipoCalculo {
   ACOMPANHA_MAQUINA = 'ACOMPANHA_MAQUINA',
   POR_M2 = 'POR_M2',
   POR_UNIDADE = 'POR_UNIDADE',
-  MANUAL = 'MANUAL'
+  MANUAL = 'MANUAL',
 }
 
 export class CreateFuncaoDto {

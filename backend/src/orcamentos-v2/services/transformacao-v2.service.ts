@@ -1,16 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { 
-  OrcamentoCompleto, 
+import {
+  OrcamentoCompleto,
   OrcamentoBase,
   OrcamentoStatus,
   OrcamentoTipo,
-  PrioridadeOrcamento 
+  PrioridadeOrcamento,
 } from '../interfaces/orcamento.interface';
 
 /**
  * Serviço de Transformação V2 para Orçamentos
  * Responsável por transformar dados entre diferentes formatos
- * 
+ *
  * ✅ ARQUIVO ≤ 400 LINHAS (CONFORME PREMISSAS)
  * ✅ TRANSFORMAÇÕES ROBUSTAS E COMPLETAS
  * ✅ INTEGRAÇÃO COM INTERFACES DEFINIDAS
@@ -22,15 +22,12 @@ export class TransformacaoV2Service {
   /**
    * Prepara dados para criação de orçamento
    */
-  prepararDadosCriacao(
-    dados: any,
-    lojaId: string,
-    usuarioId: string,
-  ): any {
+  prepararDadosCriacao(dados: any, lojaId: string, usuarioId: string): any {
     this.logger.log(`🔄 Preparando dados para criação de orçamento`);
 
     const tituloBase = dados.titulo || 'Orçamento sem título';
-    const tipoOrcamento = dados.tipo_orcamento || dados.tipo || OrcamentoTipo.PRODUTO_SERVICO;
+    const tipoOrcamento =
+      dados.tipo_orcamento || dados.tipo || OrcamentoTipo.PRODUTO_SERVICO;
 
     const dadosPreparados = {
       ...dados,
@@ -63,24 +60,29 @@ export class TransformacaoV2Service {
     // Preparar produtos se existirem
     if (dados.produtos && Array.isArray(dados.produtos)) {
       dadosPreparados.produtos = {
-        create: dados.produtos.map((produto, index) => this.prepararProdutoCriacao(produto, index)),
+        create: dados.produtos.map((produto, index) =>
+          this.prepararProdutoCriacao(produto, index),
+        ),
       };
     }
 
     // Preparar configurações se existirem
     if (dados.configuracoes) {
-      dadosPreparados.configuracoes = this.prepararConfiguracoes(dados.configuracoes);
+      dadosPreparados.configuracoes = this.prepararConfiguracoes(
+        dados.configuracoes,
+      );
     }
 
     // Preparar tags se existirem
     if (dados.tags && Array.isArray(dados.tags)) {
-      dadosPreparados.tags = dados.tags.filter(tag => typeof tag === 'string' && tag.trim().length > 0);
+      dadosPreparados.tags = dados.tags.filter(
+        (tag) => typeof tag === 'string' && tag.trim().length > 0,
+      );
     }
 
     this.logger.log(`✅ Dados preparados para criação`);
     return dadosPreparados;
   }
-
 
   /**
    * Prepara dados para atualização de orçamento
@@ -89,7 +91,9 @@ export class TransformacaoV2Service {
     dados: any,
     orcamentoExistente: OrcamentoCompleto,
   ): any {
-    this.logger.log(`🔄 Preparando dados para atualização do orçamento ${orcamentoExistente.id}`);
+    this.logger.log(
+      `🔄 Preparando dados para atualização do orçamento ${orcamentoExistente.id}`,
+    );
 
     const dadosPreparados: any = {
       ...dados,
@@ -111,12 +115,16 @@ export class TransformacaoV2Service {
 
     // Preparar configurações se existirem
     if (dados.configuracoes) {
-      dadosPreparados.configuracoes = this.prepararConfiguracoes(dados.configuracoes);
+      dadosPreparados.configuracoes = this.prepararConfiguracoes(
+        dados.configuracoes,
+      );
     }
 
     // Preparar tags se existirem
     if (dados.tags && Array.isArray(dados.tags)) {
-      dadosPreparados.tags = dados.tags.filter(tag => typeof tag === 'string' && tag.trim().length > 0);
+      dadosPreparados.tags = dados.tags.filter(
+        (tag) => typeof tag === 'string' && tag.trim().length > 0,
+      );
     }
 
     // Remover campos que não devem ser atualizados
@@ -135,7 +143,7 @@ export class TransformacaoV2Service {
    */
   transformarParaInterface(dados: any): OrcamentoCompleto {
     this.logger.log(`🔄 Transformando dados do banco para interface`);
-    
+
     // Debug: verificar dados do banco
     this.logger.log(`🔍 Debug - Dados do banco:`, {
       id: dados.id,
@@ -143,7 +151,7 @@ export class TransformacaoV2Service {
       custo_total: dados.custo_total,
       margem_lucro: dados.margem_lucro,
       impostos: dados.impostos,
-      criado_em: dados.criado_em
+      criado_em: dados.criado_em,
     });
 
     const orcamento: OrcamentoCompleto = {
@@ -165,14 +173,14 @@ export class TransformacaoV2Service {
       prioridade: dados.prioridade,
       responsavel_id: dados.responsavel_id,
       ativo: dados.ativo,
-      
+
       // Campos do produto principal
       largura_produto: dados.largura_produto,
       altura_produto: dados.altura_produto,
       area_produto: dados.area_produto,
       quantidade_produto: dados.quantidade_produto,
       unidade_medida_produto: dados.unidade_medida_produto,
-      
+
       // Dados relacionados
       cliente: this.transformarCliente(dados.cliente),
       produtos: this.transformarProdutos(dados.produtos),
@@ -193,9 +201,9 @@ export class TransformacaoV2Service {
       custo_total: orcamento.custos?.custo_total,
       margem_lucro: orcamento.custos?.margem_lucro,
       impostos: orcamento.custos?.impostos,
-      data_criacao: orcamento.data_criacao
+      data_criacao: orcamento.data_criacao,
     });
-    
+
     this.logger.log(`✅ Dados transformados para interface`);
     return orcamento;
   }
@@ -213,7 +221,7 @@ export class TransformacaoV2Service {
       cliente_id: dados.cliente_id,
       loja_id: dados.loja_id,
       status: dados.status,
-      tipo_orcamento: (dados.tipo_orcamento || dados.tipo) as OrcamentoTipo,
+      tipo_orcamento: dados.tipo_orcamento || dados.tipo,
       tipo: undefined,
       data_criacao: dados.data_criacao,
       data_atualizacao: dados.data_atualizacao,
@@ -256,7 +264,11 @@ export class TransformacaoV2Service {
   // Métodos privados de transformação
 
   private prepararProdutoCriacao(produto: any, index: number): any {
-    const nomeProduto = (produto.nome_servico || produto.nome || `Produto ${index + 1}`).toString();
+    const nomeProduto = (
+      produto.nome_servico ||
+      produto.nome ||
+      `Produto ${index + 1}`
+    ).toString();
     const toNumber = (valor: any, precision?: number): number => {
       const numero = typeof valor === 'number' ? valor : Number(valor);
       if (!Number.isFinite(numero)) {
@@ -267,14 +279,14 @@ export class TransformacaoV2Service {
       }
       return numero;
     };
-    
+
     this.logger.log(`🔍 Preparando produto ${index + 1} - Medidas recebidas:`, {
       nome: produto.nome_servico || produto.nome,
       largura: produto.largura,
       altura: produto.altura,
-      area: produto.area_produto || produto.area
+      area: produto.area_produto || produto.area,
     });
-    
+
     const produtoPreparado: any = {
       nome_servico: nomeProduto,
       nome: nomeProduto,
@@ -300,9 +312,13 @@ export class TransformacaoV2Service {
           .filter((insumo: any) => insumo?.insumo_id)
           .map((insumo: any) => {
             const quantidade = toNumber(insumo.quantidade, 3);
-            const precoUnitario = toNumber(insumo.preco_unitario ?? insumo.custo_unitario);
+            const precoUnitario = toNumber(
+              insumo.preco_unitario ?? insumo.custo_unitario,
+            );
             const precoTotal = toNumber(
-              insumo.preco_total ?? insumo.custo_total ?? quantidade * precoUnitario,
+              insumo.preco_total ??
+                insumo.custo_total ??
+                quantidade * precoUnitario,
             );
 
             return {
@@ -321,9 +337,16 @@ export class TransformacaoV2Service {
         create: produto.maquinas
           .filter((maquina: any) => maquina?.maquina_id)
           .map((maquina: any) => {
-            const tempoHoras = toNumber(maquina.tempo_horas ?? maquina.horas_utilizadas, 3);
-            const custoHora = toNumber(maquina.custo_hora ?? maquina.custo_por_hora);
-            const custoTotal = toNumber(maquina.custo_total ?? tempoHoras * custoHora);
+            const tempoHoras = toNumber(
+              maquina.tempo_horas ?? maquina.horas_utilizadas,
+              3,
+            );
+            const custoHora = toNumber(
+              maquina.custo_hora ?? maquina.custo_por_hora,
+            );
+            const custoTotal = toNumber(
+              maquina.custo_total ?? tempoHoras * custoHora,
+            );
 
             return {
               maquina_id: maquina.maquina_id,
@@ -340,9 +363,16 @@ export class TransformacaoV2Service {
         create: produto.funcoes
           .filter((funcao: any) => funcao?.funcao_id)
           .map((funcao: any) => {
-            const tempoHoras = toNumber(funcao.tempo_horas ?? funcao.horas_trabalhadas, 3);
-            const custoHora = toNumber(funcao.custo_hora ?? funcao.custo_por_hora ?? funcao.valor_hora);
-            const custoTotal = toNumber(funcao.custo_total ?? tempoHoras * custoHora);
+            const tempoHoras = toNumber(
+              funcao.tempo_horas ?? funcao.horas_trabalhadas,
+              3,
+            );
+            const custoHora = toNumber(
+              funcao.custo_hora ?? funcao.custo_por_hora ?? funcao.valor_hora,
+            );
+            const custoTotal = toNumber(
+              funcao.custo_total ?? tempoHoras * custoHora,
+            );
 
             return {
               funcao_id: funcao.funcao_id,
@@ -359,9 +389,16 @@ export class TransformacaoV2Service {
         create: produto.servicos_manuais
           .filter((servico: any) => servico?.servico_id)
           .map((servico: any) => {
-            const tempoHoras = toNumber(servico.tempo_horas ?? servico.horas_trabalhadas, 3);
-            const custoHora = toNumber(servico.custo_hora ?? servico.custo_por_hora);
-            const custoTotal = toNumber(servico.custo_total ?? tempoHoras * custoHora);
+            const tempoHoras = toNumber(
+              servico.tempo_horas ?? servico.horas_trabalhadas,
+              3,
+            );
+            const custoHora = toNumber(
+              servico.custo_hora ?? servico.custo_por_hora,
+            );
+            const custoTotal = toNumber(
+              servico.custo_total ?? tempoHoras * custoHora,
+            );
 
             return {
               servico_id: servico.servico_id,
@@ -394,7 +431,9 @@ export class TransformacaoV2Service {
     // Estratégia: remover todos e recriar
     return {
       deleteMany: {},
-      create: produtosNovos.map((produto, index) => this.prepararProdutoCriacao(produto, index)),
+      create: produtosNovos.map((produto, index) =>
+        this.prepararProdutoCriacao(produto, index),
+      ),
     };
   }
 
@@ -423,43 +462,61 @@ export class TransformacaoV2Service {
       return numero;
     };
 
-    return produtos.map(produto => ({
+    return produtos.map((produto) => ({
       id: produto.id,
       nome: produto.nome,
       descricao: produto.descricao,
       quantidade: produto.quantidade,
       unidade: produto.unidade,
-      
-      insumos: produto.insumos?.map(insumo => ({
-        insumo_id: insumo.insumo_id,
-        quantidade: toNumber(insumo.quantidade, 3),
-        unidade: insumo.unidade || insumo.unidade_consumo,
-        preco_unitario: toNumber(insumo.preco_unitario ?? insumo.custo_unitario),
-      })) || [],
-      
-      maquinas: produto.maquinas?.map(maquina => ({
-        maquina_id: maquina.maquina_id,
-        tempo_horas: toNumber(maquina.tempo_horas ?? maquina.horas_utilizadas, 3),
-        custo_hora: toNumber(maquina.custo_hora ?? maquina.custo_por_hora),
-      })) || [],
-      
-      funcoes: produto.funcoes?.map(funcao => ({
-        funcao_id: funcao.funcao_id,
-        tempo_horas: toNumber(funcao.tempo_horas ?? funcao.horas_trabalhadas, 3),
-        custo_hora: toNumber(funcao.custo_hora ?? funcao.custo_por_hora ?? funcao.valor_hora),
-      })) || [],
-      
-      servicos_manuais: produto.servicos_manuais?.map(servico => ({
-        servico_id: servico.servico_id,
-        tempo_horas: toNumber(servico.tempo_horas ?? servico.horas_trabalhadas, 3),
-        custo_hora: toNumber(servico.custo_hora ?? servico.custo_por_hora),
-      })) || [],
-      
-      custos_indiretos: produto.custos_indiretos?.map(custo => ({
-        custo_id: custo.custo_id,
-        percentual: toNumber(custo.percentual),
-        valor_fixo: toNumber(custo.valor_fixo),
-      })) || [],
+
+      insumos:
+        produto.insumos?.map((insumo) => ({
+          insumo_id: insumo.insumo_id,
+          quantidade: toNumber(insumo.quantidade, 3),
+          unidade: insumo.unidade || insumo.unidade_consumo,
+          preco_unitario: toNumber(
+            insumo.preco_unitario ?? insumo.custo_unitario,
+          ),
+        })) || [],
+
+      maquinas:
+        produto.maquinas?.map((maquina) => ({
+          maquina_id: maquina.maquina_id,
+          tempo_horas: toNumber(
+            maquina.tempo_horas ?? maquina.horas_utilizadas,
+            3,
+          ),
+          custo_hora: toNumber(maquina.custo_hora ?? maquina.custo_por_hora),
+        })) || [],
+
+      funcoes:
+        produto.funcoes?.map((funcao) => ({
+          funcao_id: funcao.funcao_id,
+          tempo_horas: toNumber(
+            funcao.tempo_horas ?? funcao.horas_trabalhadas,
+            3,
+          ),
+          custo_hora: toNumber(
+            funcao.custo_hora ?? funcao.custo_por_hora ?? funcao.valor_hora,
+          ),
+        })) || [],
+
+      servicos_manuais:
+        produto.servicos_manuais?.map((servico) => ({
+          servico_id: servico.servico_id,
+          tempo_horas: toNumber(
+            servico.tempo_horas ?? servico.horas_trabalhadas,
+            3,
+          ),
+          custo_hora: toNumber(servico.custo_hora ?? servico.custo_por_hora),
+        })) || [],
+
+      custos_indiretos:
+        produto.custos_indiretos?.map((custo) => ({
+          custo_id: custo.custo_id,
+          percentual: toNumber(custo.percentual),
+          valor_fixo: toNumber(custo.valor_fixo),
+        })) || [],
     }));
   }
 
@@ -479,7 +536,7 @@ export class TransformacaoV2Service {
   private transformarProdutos(produtos: any[]): any[] {
     if (!produtos || !Array.isArray(produtos)) return [];
 
-    return produtos.map(produto => ({
+    return produtos.map((produto) => ({
       id: produto.id,
       nome: produto.nome,
       descricao: produto.descricao,
@@ -493,52 +550,57 @@ export class TransformacaoV2Service {
       margem_lucro: produto.margem_lucro || 0,
       impostos: produto.impostos || 0,
       observacoes: produto.observacoes,
-      
-      insumos: produto.insumos?.map(insumo => ({
-        id: insumo.id, // ID do relacionamento ItemInsumo
-        insumo_id: insumo.insumo_id, // ID real do insumo no banco
-        nome: insumo.nome,
-        quantidade: insumo.quantidade,
-        unidade: insumo.unidade,
-        preco_unitario: insumo.preco_unitario || 0,
-        preco_total: insumo.preco_total || 0,
-        estoque_disponivel: insumo.estoque_disponivel,
-        alerta_estoque: insumo.alerta_estoque || false,
-      })) || [],
-      
-      maquinas: produto.maquinas?.map(maquina => ({
-        id: maquina.id, // ID do relacionamento ItemMaquina
-        maquina_id: maquina.maquina_id, // ID real da máquina no banco
-        nome: maquina.nome,
-        tempo_horas: maquina.tempo_horas,
-        custo_hora: maquina.custo_hora || 0,
-        custo_total: maquina.custo_total || 0,
-      })) || [],
-      
-      funcoes: produto.funcoes?.map(funcao => ({
-        id: funcao.id, // ID do relacionamento ItemFuncao
-        funcao_id: funcao.funcao_id, // ID real da função no banco
-        nome: funcao.nome,
-        tempo_horas: funcao.tempo_horas,
-        custo_hora: funcao.custo_hora || 0,
-        custo_total: funcao.custo_total || 0,
-      })) || [],
-      
-      servicos_manuais: produto.servicos_manuais?.map(servico => ({
-        id: servico.id, // ID do relacionamento ItemServicoManual
-        servico_id: servico.servico_id, // ID real do serviço no banco
-        nome: servico.nome,
-        tempo_horas: servico.tempo_horas,
-        custo_hora: servico.custo_hora || 0,
-        custo_total: servico.custo_total || 0,
-      })) || [],
-      
-      custos_indiretos: produto.custos_indiretos?.map(custo => ({
-        custo_id: custo.custo_id,
-        percentual: custo.percentual,
-        valor_fixo: custo.valor_fixo || 0,
-        custo_total: custo.custo_total || 0,
-      })) || [],
+
+      insumos:
+        produto.insumos?.map((insumo) => ({
+          id: insumo.id, // ID do relacionamento ItemInsumo
+          insumo_id: insumo.insumo_id, // ID real do insumo no banco
+          nome: insumo.nome,
+          quantidade: insumo.quantidade,
+          unidade: insumo.unidade,
+          preco_unitario: insumo.preco_unitario || 0,
+          preco_total: insumo.preco_total || 0,
+          estoque_disponivel: insumo.estoque_disponivel,
+          alerta_estoque: insumo.alerta_estoque || false,
+        })) || [],
+
+      maquinas:
+        produto.maquinas?.map((maquina) => ({
+          id: maquina.id, // ID do relacionamento ItemMaquina
+          maquina_id: maquina.maquina_id, // ID real da máquina no banco
+          nome: maquina.nome,
+          tempo_horas: maquina.tempo_horas,
+          custo_hora: maquina.custo_hora || 0,
+          custo_total: maquina.custo_total || 0,
+        })) || [],
+
+      funcoes:
+        produto.funcoes?.map((funcao) => ({
+          id: funcao.id, // ID do relacionamento ItemFuncao
+          funcao_id: funcao.funcao_id, // ID real da função no banco
+          nome: funcao.nome,
+          tempo_horas: funcao.tempo_horas,
+          custo_hora: funcao.custo_hora || 0,
+          custo_total: funcao.custo_total || 0,
+        })) || [],
+
+      servicos_manuais:
+        produto.servicos_manuais?.map((servico) => ({
+          id: servico.id, // ID do relacionamento ItemServicoManual
+          servico_id: servico.servico_id, // ID real do serviço no banco
+          nome: servico.nome,
+          tempo_horas: servico.tempo_horas,
+          custo_hora: servico.custo_hora || 0,
+          custo_total: servico.custo_total || 0,
+        })) || [],
+
+      custos_indiretos:
+        produto.custos_indiretos?.map((custo) => ({
+          custo_id: custo.custo_id,
+          percentual: custo.percentual,
+          valor_fixo: custo.valor_fixo || 0,
+          custo_total: custo.custo_total || 0,
+        })) || [],
     }));
   }
 
@@ -549,7 +611,7 @@ export class TransformacaoV2Service {
       custos_diretos: {
         insumos: dados.custo_material || 0,
         maquinas: 0, // Será calculado pelos produtos
-        funcoes: 0,  // Será calculado pelos produtos
+        funcoes: 0, // Será calculado pelos produtos
         servicos_manuais: 0, // Será calculado pelos produtos
         subtotal: dados.custo_material || 0,
       },
@@ -578,7 +640,7 @@ export class TransformacaoV2Service {
   private transformarVersoes(versoes: any[]): any[] {
     if (!versoes || !Array.isArray(versoes)) return [];
 
-    return versoes.map(versao => ({
+    return versoes.map((versao) => ({
       numero: versao.numero,
       data_criacao: versao.data_criacao,
       responsavel_id: versao.responsavel_id,
@@ -591,7 +653,7 @@ export class TransformacaoV2Service {
   private transformarHistorico(historico: any[]): any[] {
     if (!historico || !Array.isArray(historico)) return [];
 
-    return historico.map(item => ({
+    return historico.map((item) => ({
       id: item.id,
       data: item.data,
       tipo: item.tipo,
@@ -606,7 +668,7 @@ export class TransformacaoV2Service {
   private transformarAprovacoes(aprovacoes: any[]): any[] {
     if (!aprovacoes || !Array.isArray(aprovacoes)) return [];
 
-    return aprovacoes.map(aprovacao => ({
+    return aprovacoes.map((aprovacao) => ({
       id: aprovacao.id,
       nivel: aprovacao.nivel,
       responsavel_id: aprovacao.responsavel_id,
@@ -620,7 +682,7 @@ export class TransformacaoV2Service {
   private transformarLinks(links: any[]): any[] {
     if (!links || !Array.isArray(links)) return [];
 
-    return links.map(link => ({
+    return links.map((link) => ({
       id: link.id,
       codigo: link.codigo,
       url: link.url,
@@ -635,7 +697,7 @@ export class TransformacaoV2Service {
   private transformarMensagens(mensagens: any[]): any[] {
     if (!mensagens || !Array.isArray(mensagens)) return [];
 
-    return mensagens.map(mensagem => ({
+    return mensagens.map((mensagem) => ({
       id: mensagem.id,
       usuario_id: mensagem.usuario_id,
       tipo: mensagem.tipo,
@@ -649,7 +711,7 @@ export class TransformacaoV2Service {
   private transformarAnexos(anexos: any[]): any[] {
     if (!anexos || !Array.isArray(anexos)) return [];
 
-    return anexos.map(anexo => ({
+    return anexos.map((anexo) => ({
       id: anexo.id,
       nome: anexo.nome,
       tipo: anexo.tipo,

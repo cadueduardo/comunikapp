@@ -5,13 +5,16 @@
 
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { 
-  CreateRegraValidacaoDto, 
-  UpdateRegraValidacaoDto, 
+import {
+  CreateRegraValidacaoDto,
+  UpdateRegraValidacaoDto,
   ListarRegrasDto,
-  TestarRegraDto
+  TestarRegraDto,
 } from '../dto/regra-validacao.dto';
-import { RegraValidacao, FiltrosRegras } from '../interfaces/validacao.interface';
+import {
+  RegraValidacao,
+  FiltrosRegras,
+} from '../interfaces/validacao.interface';
 
 @Injectable()
 export class RegrasValidacaoService {
@@ -49,22 +52,22 @@ export class RegrasValidacaoService {
    */
   async listar(filtros: ListarRegrasDto) {
     const where: any = {};
-    
+
     if (filtros.loja_id) {
       where.OR = [
         { loja_id: filtros.loja_id },
-        { loja_id: null } // Regras globais
+        { loja_id: null }, // Regras globais
       ];
     }
-    
+
     if (filtros.categoria) {
       where.categoria = filtros.categoria;
     }
-    
+
     if (filtros.ativo !== undefined) {
       where.ativo = filtros.ativo;
     }
-    
+
     if (filtros.busca) {
       where.OR = [
         { nome: { contains: filtros.busca, mode: 'insensitive' } },
@@ -77,17 +80,14 @@ export class RegrasValidacaoService {
         where,
         include: {
           _count: {
-            select: { execucoes: true }
-          }
+            select: { execucoes: true },
+          },
         },
-        orderBy: [
-          { prioridade: 'asc' },
-          { nome: 'asc' }
-        ],
+        orderBy: [{ prioridade: 'asc' }, { nome: 'asc' }],
         skip: ((filtros.page || 1) - 1) * (filtros.limit || 10),
-        take: filtros.limit || 10
+        take: filtros.limit || 10,
       }),
-      this.prisma.regraValidacao.count({ where })
+      this.prisma.regraValidacao.count({ where }),
     ]);
 
     return {
@@ -95,7 +95,7 @@ export class RegrasValidacaoService {
       total,
       page: filtros.page || 1,
       limit: filtros.limit || 10,
-      totalPages: Math.ceil(total / (filtros.limit || 10))
+      totalPages: Math.ceil(total / (filtros.limit || 10)),
     };
   }
 
@@ -107,7 +107,7 @@ export class RegrasValidacaoService {
       where: { id },
       include: {
         loja: {
-          select: { nome: true }
+          select: { nome: true },
         },
         execucoes: {
           take: 10,
@@ -116,10 +116,10 @@ export class RegrasValidacaoService {
             id: true,
             resultado: true,
             mensagem: true,
-            criado_em: true
-          }
-        }
-      }
+            criado_em: true,
+          },
+        },
+      },
     });
 
     if (!regra) {
@@ -132,7 +132,11 @@ export class RegrasValidacaoService {
   /**
    * Atualizar regra
    */
-  async atualizar(id: string, dto: UpdateRegraValidacaoDto, usuarioId: string): Promise<any> {
+  async atualizar(
+    id: string,
+    dto: UpdateRegraValidacaoDto,
+    usuarioId: string,
+  ): Promise<any> {
     this.logger.log(`Atualizando regra: ${id}`);
 
     const updateData: any = {
@@ -178,7 +182,7 @@ export class RegrasValidacaoService {
     this.logger.log(`Duplicando regra: ${id}`);
 
     const regraOriginal = await this.obter(id);
-    
+
     const regraDuplicada = await this.prisma.regraValidacao.create({
       data: {
         nome: `${regraOriginal.nome} (Cópia)`,
@@ -205,15 +209,15 @@ export class RegrasValidacaoService {
     this.logger.log(`Testando regra: ${id}`);
 
     const regra = await this.obter(id);
-    
+
     // Simular execução da regra
     const campo = this.obterValorCampo(dto.dados_os, regra.condicoes.campo);
     const valor = this.calcularValor(regra.condicoes.valor, dto.dados_os);
-    
+
     const condicaoAtendida = this.avaliarCondicao(
       campo,
       regra.condicoes.operador,
-      valor
+      valor,
     );
 
     return {
@@ -226,10 +230,10 @@ export class RegrasValidacaoService {
       operador: regra.condicoes.operador,
       condicao_atendida: condicaoAtendida,
       resultado: condicaoAtendida ? 'SUCESSO' : 'ERRO',
-      mensagem: condicaoAtendida 
-        ? 'Regra atendida' 
+      mensagem: condicaoAtendida
+        ? 'Regra atendida'
         : regra.condicoes.mensagem_erro || 'Regra não atendida',
-      acao: condicaoAtendida ? null : regra.acoes
+      acao: condicaoAtendida ? null : regra.acoes,
     };
   }
 
@@ -241,8 +245,8 @@ export class RegrasValidacaoService {
       ativo: true,
       OR: [
         { loja_id: lojaId },
-        { loja_id: null } // Regras globais
-      ]
+        { loja_id: null }, // Regras globais
+      ],
     };
 
     if (regraIds?.length) {
@@ -251,7 +255,7 @@ export class RegrasValidacaoService {
 
     const regras = await this.prisma.regraValidacao.findMany({
       where,
-      orderBy: { prioridade: 'asc' }
+      orderBy: { prioridade: 'asc' },
     });
 
     return regras;
@@ -266,9 +270,14 @@ export class RegrasValidacaoService {
       { id: 'ARTE', nome: 'Arte', cor: '#8b5cf6', icone: 'image' },
       { id: 'DADOS', nome: 'Dados', cor: '#06b6d4', icone: 'database' },
       { id: 'PRAZO', nome: 'Prazo', cor: '#f59e0b', icone: 'clock' },
-      { id: 'FINANCEIRO', nome: 'Financeiro', cor: '#10b981', icone: 'dollar-sign' },
+      {
+        id: 'FINANCEIRO',
+        nome: 'Financeiro',
+        cor: '#10b981',
+        icone: 'dollar-sign',
+      },
       { id: 'TECNICO', nome: 'Técnico', cor: '#6366f1', icone: 'settings' },
-      { id: 'COMERCIAL', nome: 'Comercial', cor: '#ec4899', icone: 'users' }
+      { id: 'COMERCIAL', nome: 'Comercial', cor: '#ec4899', icone: 'users' },
     ];
   }
 
@@ -276,12 +285,12 @@ export class RegrasValidacaoService {
   private obterValorCampo(os: any, campo: string): any {
     const campos = campo.split('.');
     let valor = os;
-    
+
     for (const c of campos) {
       valor = valor?.[c];
       if (valor === undefined) break;
     }
-    
+
     return valor;
   }
 
@@ -289,28 +298,40 @@ export class RegrasValidacaoService {
     if (typeof expressao === 'number' || typeof expressao === 'boolean') {
       return expressao;
     }
-    
+
     if (typeof expressao === 'string') {
       return this.avaliarExpressao(expressao, os);
     }
-    
+
     return expressao;
   }
 
   private avaliarCondicao(campo: any, operador: string, valor: any): boolean {
     switch (operador) {
-      case 'equals': return campo === valor;
-      case 'greater_than': return campo > valor;
-      case 'greater_than_or_equal': return campo >= valor;
-      case 'less_than': return campo < valor;
-      case 'less_than_or_equal': return campo <= valor;
-      case 'contains': return campo?.includes(valor);
-      case 'not_equals': return campo !== valor;
-      case 'in': return Array.isArray(valor) && valor.includes(campo);
-      case 'not_in': return Array.isArray(valor) && !valor.includes(campo);
-      case 'is_null': return campo === null || campo === undefined;
-      case 'is_not_null': return campo !== null && campo !== undefined;
-      default: return false;
+      case 'equals':
+        return campo === valor;
+      case 'greater_than':
+        return campo > valor;
+      case 'greater_than_or_equal':
+        return campo >= valor;
+      case 'less_than':
+        return campo < valor;
+      case 'less_than_or_equal':
+        return campo <= valor;
+      case 'contains':
+        return campo?.includes(valor);
+      case 'not_equals':
+        return campo !== valor;
+      case 'in':
+        return Array.isArray(valor) && valor.includes(campo);
+      case 'not_in':
+        return Array.isArray(valor) && !valor.includes(campo);
+      case 'is_null':
+        return campo === null || campo === undefined;
+      case 'is_not_null':
+        return campo !== null && campo !== undefined;
+      default:
+        return false;
     }
   }
 
@@ -318,14 +339,14 @@ export class RegrasValidacaoService {
     try {
       let expr = expressao;
       const campos = expressao.match(/\w+(?:\.\w+)*/g) || [];
-      
+
       for (const campo of campos) {
         const valor = this.obterValorCampo(os, campo);
         if (valor !== undefined) {
           expr = expr.replace(new RegExp(campo, 'g'), valor);
         }
       }
-      
+
       return eval(expr);
     } catch (error) {
       this.logger.error(`Erro ao avaliar expressão ${expressao}:`, error);

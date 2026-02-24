@@ -1,20 +1,38 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { OrdemServicoData, EstoqueValidacaoDetalhe, ParametrosTecnicos, InsumoCalculado, StatusOS } from '../interfaces/os.interfaces';
+import {
+  OrdemServicoData,
+  EstoqueValidacaoDetalhe,
+  ParametrosTecnicos,
+  InsumoCalculado,
+  StatusOS,
+} from '../interfaces/os.interfaces';
 
 export class OrdemServicoResponseDto implements OrdemServicoData {
   @ApiProperty({ description: 'ID interno da OS', example: 'cuid_os_123' })
   id!: string;
 
-  @ApiProperty({ description: 'N�mero rastre�vel da OS', example: 'OS-2025-001' })
+  @ApiProperty({
+    description: 'N�mero rastre�vel da OS',
+    example: 'OS-2025-001',
+  })
   numero!: string;
 
-  @ApiProperty({ description: 'ID da loja propriet�ria da OS', example: 'cuid_loja_123' })
+  @ApiProperty({
+    description: 'ID da loja propriet�ria da OS',
+    example: 'cuid_loja_123',
+  })
   loja_id!: string;
 
-  @ApiProperty({ description: 'ID do cliente vinculado', example: 'cuid_cliente_123' })
+  @ApiProperty({
+    description: 'ID do cliente vinculado',
+    example: 'cuid_cliente_123',
+  })
   cliente_id!: string;
 
-  @ApiPropertyOptional({ description: 'ID do or�amento de origem', example: 'cuid_orc_123' })
+  @ApiPropertyOptional({
+    description: 'ID do or�amento de origem',
+    example: 'cuid_orc_123',
+  })
   orcamento_id?: string;
 
   @ApiProperty({ description: 'Data de abertura da OS' })
@@ -35,7 +53,9 @@ export class OrdemServicoResponseDto implements OrdemServicoData {
   @ApiProperty({ description: 'Nome do servi�o/produto solicitado' })
   nome_servico!: string;
 
-  @ApiPropertyOptional({ description: 'Descri��o detalhada do servi�o/produto' })
+  @ApiPropertyOptional({
+    description: 'Descri��o detalhada do servi�o/produto',
+  })
   descricao?: string;
 
   @ApiProperty({ description: 'Quantidade solicitada', example: 2 })
@@ -56,10 +76,16 @@ export class OrdemServicoResponseDto implements OrdemServicoData {
   @ApiProperty({ description: 'Data da �ltima atualiza��o no banco' })
   atualizado_em!: Date;
 
-  @ApiPropertyOptional({ description: 'Alertas retornados pela valida��o de estoque', type: [String] })
+  @ApiPropertyOptional({
+    description: 'Alertas retornados pela valida��o de estoque',
+    type: [String],
+  })
   alertas_estoque?: string[];
 
-  @ApiPropertyOptional({ description: 'Recomenda��es retornadas pela valida��o de estoque', type: [String] })
+  @ApiPropertyOptional({
+    description: 'Recomenda��es retornadas pela valida��o de estoque',
+    type: [String],
+  })
   recomendacoes_estoque?: string[];
 
   @ApiPropertyOptional({
@@ -72,13 +98,19 @@ export class OrdemServicoResponseDto implements OrdemServicoData {
   @ApiPropertyOptional({ description: 'Tipo da OS (COMERCIAL ou INTERNA)' })
   tipo_os?: string;
 
-  @ApiPropertyOptional({ description: 'Origem da OS (ORCAMENTO, DIRETA, INTERNA)' })
+  @ApiPropertyOptional({
+    description: 'Origem da OS (ORCAMENTO, DIRETA, INTERNA)',
+  })
   origem_os?: string;
 
-  @ApiPropertyOptional({ description: 'Prioridade da OS (URGENTE, ALTA, NORMAL, BAIXA)' })
+  @ApiPropertyOptional({
+    description: 'Prioridade da OS (URGENTE, ALTA, NORMAL, BAIXA)',
+  })
   prioridade?: string;
 
-  @ApiPropertyOptional({ description: 'Departamento solicitante (para OS Interna)' })
+  @ApiPropertyOptional({
+    description: 'Departamento solicitante (para OS Interna)',
+  })
   departamento_solicitante?: string;
 
   @ApiPropertyOptional({ description: 'Centro de custo (para OS Interna)' })
@@ -87,7 +119,9 @@ export class OrdemServicoResponseDto implements OrdemServicoData {
   @ApiPropertyOptional({ description: 'Projeto interno (para OS Interna)' })
   projeto_interno?: string;
 
-  @ApiPropertyOptional({ description: 'Status de aprovação gerencial (para OS Interna)' })
+  @ApiPropertyOptional({
+    description: 'Status de aprovação gerencial (para OS Interna)',
+  })
   aprovacao_gerencial?: string;
 
   @ApiPropertyOptional({ description: 'Usuário que aprovou gerencialmente' })
@@ -105,7 +139,9 @@ export class OrdemServicoResponseDto implements OrdemServicoData {
   @ApiPropertyOptional({ description: 'Valor realizado (para OS Comercial)' })
   valor_realizado?: number;
 
-  @ApiPropertyOptional({ description: 'Margem de lucro real (para OS Comercial)' })
+  @ApiPropertyOptional({
+    description: 'Margem de lucro real (para OS Comercial)',
+  })
   margem_lucro_real?: number;
 
   @ApiPropertyOptional({ description: 'Data de entrega ao cliente' })
@@ -129,7 +165,9 @@ export class OrdemServicoResponseDto implements OrdemServicoData {
   @ApiPropertyOptional({ description: 'Versão da OS' })
   versao?: number;
 
-  @ApiPropertyOptional({ description: 'Status de aprovação técnica (para OS Comercial)' })
+  @ApiPropertyOptional({
+    description: 'Status de aprovação técnica (para OS Comercial)',
+  })
   aprovacao_tecnica_status?: string;
 
   @ApiPropertyOptional({ description: 'Usuário que aprovou tecnicamente' })
@@ -159,7 +197,10 @@ export class OrdemServicoResponseDto implements OrdemServicoData {
   @ApiPropertyOptional({ description: 'Produtos do orçamento', type: [Object] })
   produtos?: any[];
 
-  @ApiPropertyOptional({ description: 'Materiais consolidados por tipo', type: [Object] })
+  @ApiPropertyOptional({
+    description: 'Materiais consolidados por tipo',
+    type: [Object],
+  })
   materiais_consolidados?: any[];
 
   static fromDomain(data: OrdemServicoData): OrdemServicoResponseDto {
@@ -170,7 +211,10 @@ export class OrdemServicoResponseDto implements OrdemServicoData {
 }
 
 class OrdemServicoEstoqueDetalheDto implements EstoqueValidacaoDetalhe {
-  @ApiProperty({ description: 'ID do insumo analisado', example: 'cuid_insumo_123' })
+  @ApiProperty({
+    description: 'ID do insumo analisado',
+    example: 'cuid_insumo_123',
+  })
   insumo_id!: string;
 
   @ApiPropertyOptional({ description: 'Nome do insumo' })
@@ -185,28 +229,46 @@ class OrdemServicoEstoqueDetalheDto implements EstoqueValidacaoDetalhe {
   @ApiPropertyOptional({ description: 'Estoque atual dispon�vel', example: 15 })
   estoque_atual?: number;
 
-  @ApiPropertyOptional({ description: 'Estoque m�nimo configurado', example: 5 })
+  @ApiPropertyOptional({
+    description: 'Estoque m�nimo configurado',
+    example: 5,
+  })
   estoque_minimo?: number;
 
-  @ApiPropertyOptional({ description: 'Quantidade necess�ria para a OS', example: 12 })
+  @ApiPropertyOptional({
+    description: 'Quantidade necess�ria para a OS',
+    example: 12,
+  })
   quantidade_necessaria?: number;
 
-  @ApiPropertyOptional({ description: 'Quantidade dispon�vel ap�s reservar para a OS', example: 3 })
+  @ApiPropertyOptional({
+    description: 'Quantidade dispon�vel ap�s reservar para a OS',
+    example: 3,
+  })
   quantidade_disponivel?: number;
 
-  @ApiPropertyOptional({ description: 'Percentual dispon�vel em rela��o ao estoque atual', example: 25 })
+  @ApiPropertyOptional({
+    description: 'Percentual dispon�vel em rela��o ao estoque atual',
+    example: 25,
+  })
   percentual_disponivel?: number;
 
-  @ApiPropertyOptional({ description: 'Unidade de medida do insumo', example: 'm2' })
+  @ApiPropertyOptional({
+    description: 'Unidade de medida do insumo',
+    example: 'm2',
+  })
   unidade?: string;
 
-  @ApiPropertyOptional({ description: 'Indica se h� alerta de estoque insuficiente' })
+  @ApiPropertyOptional({
+    description: 'Indica se h� alerta de estoque insuficiente',
+  })
   alerta_estoque?: boolean;
 
-  @ApiPropertyOptional({ description: 'Indica se ficar� abaixo do estoque m�nimo' })
+  @ApiPropertyOptional({
+    description: 'Indica se ficar� abaixo do estoque m�nimo',
+  })
   alerta_estoque_minimo?: boolean;
 
   @ApiPropertyOptional({ description: 'Indica se o fornecedor est� inativo' })
   alerta_fornecedor?: boolean;
 }
-

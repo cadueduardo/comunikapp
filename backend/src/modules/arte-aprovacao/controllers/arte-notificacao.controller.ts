@@ -1,14 +1,17 @@
-import { 
-  Controller, 
-  Post, 
-  Body, 
-  Request, 
-  HttpException, 
+import {
+  Controller,
+  Post,
+  Body,
+  Request,
+  HttpException,
   HttpStatus,
   UseGuards,
-  Get 
+  Get,
 } from '@nestjs/common';
-import { ArteNotificacaoService, NotificacaoArteDto } from '../services/arte-notificacao.service';
+import {
+  ArteNotificacaoService,
+  NotificacaoArteDto,
+} from '../services/arte-notificacao.service';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 
 @Controller('arte-aprovacao/notificacoes')
@@ -44,7 +47,10 @@ export class ArteNotificacaoController {
    */
   @UseGuards(JwtAuthGuard)
   @Post('aprovacao-solicitada')
-  async notificarAprovacaoSolicitada(@Body() dto: NotificacaoArteDto, @Request() req) {
+  async notificarAprovacaoSolicitada(
+    @Body() dto: NotificacaoArteDto,
+    @Request() req,
+  ) {
     try {
       await this.notificacaoService.notificarAprovacaoSolicitada(dto);
 
@@ -92,7 +98,10 @@ export class ArteNotificacaoController {
    */
   @UseGuards(JwtAuthGuard)
   @Post('arte-rejeitada')
-  async notificarArteRejeitada(@Body() dto: NotificacaoArteDto, @Request() req) {
+  async notificarArteRejeitada(
+    @Body() dto: NotificacaoArteDto,
+    @Request() req,
+  ) {
     try {
       await this.notificacaoService.notificarArteRejeitada(dto);
 
@@ -116,7 +125,10 @@ export class ArteNotificacaoController {
    */
   @UseGuards(JwtAuthGuard)
   @Post('comentario-adicionado')
-  async notificarComentarioAdicionado(@Body() dto: NotificacaoArteDto, @Request() req) {
+  async notificarComentarioAdicionado(
+    @Body() dto: NotificacaoArteDto,
+    @Request() req,
+  ) {
     try {
       await this.notificacaoService.notificarComentarioAdicionado(dto);
 
@@ -165,14 +177,21 @@ export class ArteNotificacaoController {
    */
   @UseGuards(JwtAuthGuard)
   @Post('testar-email')
-  async enviarEmailTeste(@Body() body: { destinatario: string }, @Request() req) {
+  async enviarEmailTeste(
+    @Body() body: { destinatario: string },
+    @Request() req,
+  ) {
     try {
-      const sucesso = await this.notificacaoService.enviarEmailTeste(body.destinatario);
+      const sucesso = await this.notificacaoService.enviarEmailTeste(
+        body.destinatario,
+      );
 
       return {
         success: true,
         data: { email_enviado: sucesso },
-        message: sucesso ? 'Email de teste enviado com sucesso' : 'Erro ao enviar email de teste',
+        message: sucesso
+          ? 'Email de teste enviado com sucesso'
+          : 'Erro ao enviar email de teste',
       };
     } catch (error) {
       throw new HttpException(

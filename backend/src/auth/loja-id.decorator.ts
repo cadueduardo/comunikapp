@@ -6,4 +6,3 @@ export const LojaId = createParamDecorator(
     return request.user?.loja_id;
   },
 );
-

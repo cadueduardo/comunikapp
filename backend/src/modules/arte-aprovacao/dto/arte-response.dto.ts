@@ -93,10 +93,15 @@ export class ArteVersaoResponseDto {
   @ApiProperty({ description: 'Aprovado pelo cliente' })
   aprovado_por_cliente: boolean;
 
-  @ApiProperty({ description: 'Liberado para PCP após verificação do designer' })
+  @ApiProperty({
+    description: 'Liberado para PCP após verificação do designer',
+  })
   liberado_para_pcp: boolean;
 
-  @ApiProperty({ description: 'Data em que foi liberado para PCP', required: false })
+  @ApiProperty({
+    description: 'Data em que foi liberado para PCP',
+    required: false,
+  })
   liberado_em?: Date;
 
   @ApiProperty({ description: 'ID do designer que liberou', required: false })
@@ -105,18 +110,26 @@ export class ArteVersaoResponseDto {
   @ApiProperty({ description: 'Nome do designer que liberou', required: false })
   liberador_nome?: string;
 
-  @ApiProperty({ description: 'Arquivos da versão', type: [ArteArquivoResponseDto] })
+  @ApiProperty({
+    description: 'Arquivos da versão',
+    type: [ArteArquivoResponseDto],
+  })
   arquivos: ArteArquivoResponseDto[];
 
-  @ApiProperty({ description: 'Comentários da versão', type: [ArteComentarioResponseDto] })
+  @ApiProperty({
+    description: 'Comentários da versão',
+    type: [ArteComentarioResponseDto],
+  })
   comentarios: ArteComentarioResponseDto[];
 }
 
 export class ArteVersaoListResponseDto {
-  @ApiProperty({ description: 'Lista de versões', type: [ArteVersaoResponseDto] })
+  @ApiProperty({
+    description: 'Lista de versões',
+    type: [ArteVersaoResponseDto],
+  })
   versoes: ArteVersaoResponseDto[];
 
   @ApiProperty({ description: 'Total de versões' })
   total: number;
 }
-

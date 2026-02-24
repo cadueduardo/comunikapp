@@ -49,7 +49,10 @@ export class MaquinasController {
     @Body() updateMaquinaDto: UpdateMaquinaDto,
     @GetLoja() loja: loja,
   ) {
-    console.log('🔧 [MaquinasController] Dados recebidos para update:', updateMaquinaDto);
+    console.log(
+      '🔧 [MaquinasController] Dados recebidos para update:',
+      updateMaquinaDto,
+    );
     console.log('🔧 [MaquinasController] ID da máquina:', id);
     console.log('🔧 [MaquinasController] Loja:', loja.id);
     return this.maquinasService.update(id, updateMaquinaDto, loja);

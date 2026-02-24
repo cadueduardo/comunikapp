@@ -15,7 +15,12 @@ import {
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { OSService } from '../services/os.service';
 import { OrdemServicoResponseDto } from '../dto/os-response.dto';
 import { CreateOSDto } from '../dto/create-os.dto';
@@ -33,12 +38,19 @@ export class OSDiretaInternaController {
   @ApiOperation({ summary: 'Criar OS Comercial' })
   @ApiResponse({ status: 201, description: 'OS Comercial criada com sucesso' })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
-  async criarOSComercial(@Body() createOSDto: CreateOSDto, @Request() req: any) {
+  async criarOSComercial(
+    @Body() createOSDto: CreateOSDto,
+    @Request() req: any,
+  ) {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
     const usuarioId = user.id;
 
-    const resultado = await this.osService.criarOSComercial(lojaId, createOSDto, usuarioId);
+    const resultado = await this.osService.criarOSComercial(
+      lojaId,
+      createOSDto,
+      usuarioId,
+    );
     return OrdemServicoResponseDto.fromDomain(resultado);
   }
 
@@ -51,7 +63,11 @@ export class OSDiretaInternaController {
     const lojaId = user.loja_id;
     const usuarioId = user.id;
 
-    const resultado = await this.osService.criarOSInterna(lojaId, createOSDto, usuarioId);
+    const resultado = await this.osService.criarOSInterna(
+      lojaId,
+      createOSDto,
+      usuarioId,
+    );
     return OrdemServicoResponseDto.fromDomain(resultado);
   }
 
@@ -72,12 +88,14 @@ export class OSDiretaInternaController {
       TipoOS.COMERCIAL,
       parseInt(page),
       parseInt(limit),
-      status
+      status,
     );
 
     return {
       ...resultado,
-      data: resultado.data.map(item => OrdemServicoResponseDto.fromDomain(item)),
+      data: resultado.data.map((item) =>
+        OrdemServicoResponseDto.fromDomain(item),
+      ),
     };
   }
 
@@ -98,35 +116,47 @@ export class OSDiretaInternaController {
       TipoOS.INTERNA,
       parseInt(page),
       parseInt(limit),
-      status
+      status,
     );
 
     return {
       ...resultado,
-      data: resultado.data.map(item => OrdemServicoResponseDto.fromDomain(item)),
+      data: resultado.data.map((item) =>
+        OrdemServicoResponseDto.fromDomain(item),
+      ),
     };
   }
 
   @Patch(':id/aprovar-tecnica')
   @ApiOperation({ summary: 'Aprovar OS Técnica (OS Comercial)' })
   @ApiResponse({ status: 200, description: 'OS aprovada tecnicamente' })
-  @ApiResponse({ status: 400, description: 'OS não é comercial ou dados inválidos' })
+  @ApiResponse({
+    status: 400,
+    description: 'OS não é comercial ou dados inválidos',
+  })
   async aprovarOSTecnica(
     @Param('id') osId: string,
     @Body() body: { aprovado: boolean; observacoes?: string },
-    @Request() req: any
+    @Request() req: any,
   ) {
     console.log('🔍 Debug - OSDiretaInternaController - req.user:', req.user);
-    console.log('🔍 Debug - OSDiretaInternaController - req["user"]:', req['user']);
-    
+    console.log(
+      '🔍 Debug - OSDiretaInternaController - req["user"]:',
+      req['user'],
+    );
+
     const user = req['user'] || req.user;
     console.log('🔍 Debug - OSDiretaInternaController - user:', user);
-    
+
     if (!user || (!user.id && !user.sub)) {
-      console.log('🔍 Debug - OSDiretaInternaController - User ou ID não encontrado');
-      throw new BadRequestException('Usuário não autenticado ou ID não encontrado');
+      console.log(
+        '🔍 Debug - OSDiretaInternaController - User ou ID não encontrado',
+      );
+      throw new BadRequestException(
+        'Usuário não autenticado ou ID não encontrado',
+      );
     }
-    
+
     const usuarioId = user.sub || user.id;
     console.log('🔍 Debug - OSDiretaInternaController - UsuarioId:', usuarioId);
 
@@ -134,7 +164,7 @@ export class OSDiretaInternaController {
       osId,
       usuarioId,
       body.aprovado,
-      body.observacoes
+      body.observacoes,
     );
 
     return OrdemServicoResponseDto.fromDomain(resultado);
@@ -143,11 +173,14 @@ export class OSDiretaInternaController {
   @Patch(':id/aprovar-gerencial')
   @ApiOperation({ summary: 'Aprovar OS Gerencial (OS Interna)' })
   @ApiResponse({ status: 200, description: 'OS aprovada gerencialmente' })
-  @ApiResponse({ status: 400, description: 'OS não é interna ou dados inválidos' })
+  @ApiResponse({
+    status: 400,
+    description: 'OS não é interna ou dados inválidos',
+  })
   async aprovarOSGerencial(
     @Param('id') osId: string,
     @Body() body: { aprovado: boolean; observacoes?: string },
-    @Request() req: any
+    @Request() req: any,
   ) {
     const user = req['user'] || req.user;
     const usuarioId = user.id;
@@ -156,7 +189,7 @@ export class OSDiretaInternaController {
       osId,
       usuarioId,
       body.aprovado,
-      body.observacoes
+      body.observacoes,
     );
 
     return OrdemServicoResponseDto.fromDomain(resultado);
@@ -165,11 +198,14 @@ export class OSDiretaInternaController {
   @Patch(':id/agendar-instalacao')
   @ApiOperation({ summary: 'Agendar instalação (OS Comercial)' })
   @ApiResponse({ status: 200, description: 'Instalação agendada' })
-  @ApiResponse({ status: 400, description: 'OS não é comercial ou dados inválidos' })
+  @ApiResponse({
+    status: 400,
+    description: 'OS não é comercial ou dados inválidos',
+  })
   async agendarInstalacao(
     @Param('id') osId: string,
     @Body() body: { dataInstalacao: string; observacoes?: string },
-    @Request() req: any
+    @Request() req: any,
   ) {
     const user = req['user'] || req.user;
     const usuarioId = user.id;
@@ -178,7 +214,7 @@ export class OSDiretaInternaController {
       osId,
       new Date(body.dataInstalacao),
       body.observacoes,
-      usuarioId
+      usuarioId,
     );
 
     return OrdemServicoResponseDto.fromDomain(resultado);
@@ -189,24 +225,29 @@ export class OSDiretaInternaController {
   @ApiResponse({ status: 200, description: 'Estatísticas por tipo retornadas' })
   async obterEstatisticasPorTipo(
     @Request() req: any,
-    @Query('ano') ano?: string
+    @Query('ano') ano?: string,
   ) {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
 
     const anoReferencia = ano ? parseInt(ano) : undefined;
-    const resultado = await this.osService.obterEstatisticasPorTipo(lojaId, anoReferencia);
+    const resultado = await this.osService.obterEstatisticasPorTipo(
+      lojaId,
+      anoReferencia,
+    );
 
     return {
       sucesso: true,
       lojaId,
       ano: anoReferencia || new Date().getFullYear(),
-      estatisticas: resultado
+      estatisticas: resultado,
     };
   }
 
   @Get('pendentes/aprovacao-tecnica')
-  @ApiOperation({ summary: 'Listar OS Comerciais pendentes de aprovação técnica' })
+  @ApiOperation({
+    summary: 'Listar OS Comerciais pendentes de aprovação técnica',
+  })
   @ApiResponse({ status: 200, description: 'Lista de OS pendentes retornada' })
   async listarOSPendentesAprovacaoTecnica(
     @Request() req: any,
@@ -222,23 +263,27 @@ export class OSDiretaInternaController {
       TipoOS.COMERCIAL,
       parseInt(page),
       parseInt(limit),
-      'FILA' // Status inicial
+      'FILA', // Status inicial
     );
 
     // Filtrar apenas as que estão pendentes de aprovação técnica
-    const osPendentes = resultado.data.filter(os => 
-      os.aprovacao_tecnica_status === 'PENDENTE' || !os.aprovacao_tecnica_status
+    const osPendentes = resultado.data.filter(
+      (os) =>
+        os.aprovacao_tecnica_status === 'PENDENTE' ||
+        !os.aprovacao_tecnica_status,
     );
 
     return {
       ...resultado,
-      data: osPendentes.map(item => OrdemServicoResponseDto.fromDomain(item)),
-      total: osPendentes.length
+      data: osPendentes.map((item) => OrdemServicoResponseDto.fromDomain(item)),
+      total: osPendentes.length,
     };
   }
 
   @Get('pendentes/aprovacao-gerencial')
-  @ApiOperation({ summary: 'Listar OS Internas pendentes de aprovação gerencial' })
+  @ApiOperation({
+    summary: 'Listar OS Internas pendentes de aprovação gerencial',
+  })
   @ApiResponse({ status: 200, description: 'Lista de OS pendentes retornada' })
   async listarOSPendentesAprovacaoGerencial(
     @Request() req: any,
@@ -254,24 +299,27 @@ export class OSDiretaInternaController {
       TipoOS.INTERNA,
       parseInt(page),
       parseInt(limit),
-      'FILA' // Status inicial
+      'FILA', // Status inicial
     );
 
     // Filtrar apenas as que estão pendentes de aprovação gerencial
-    const osPendentes = resultado.data.filter(os => 
-      os.aprovacao_gerencial === 'PENDENTE' || !os.aprovacao_gerencial
+    const osPendentes = resultado.data.filter(
+      (os) => os.aprovacao_gerencial === 'PENDENTE' || !os.aprovacao_gerencial,
     );
 
     return {
       ...resultado,
-      data: osPendentes.map(item => OrdemServicoResponseDto.fromDomain(item)),
-      total: osPendentes.length
+      data: osPendentes.map((item) => OrdemServicoResponseDto.fromDomain(item)),
+      total: osPendentes.length,
     };
   }
 
   @Get('instalacoes/agendadas')
   @ApiOperation({ summary: 'Listar instalações agendadas (OS Comerciais)' })
-  @ApiResponse({ status: 200, description: 'Lista de instalações agendadas retornada' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de instalações agendadas retornada',
+  })
   async listarInstalacoesAgendadas(
     @Request() req: any,
     @Query('page') page: string = '1',
@@ -287,26 +335,30 @@ export class OSDiretaInternaController {
       lojaId,
       TipoOS.COMERCIAL,
       parseInt(page),
-      parseInt(limit)
+      parseInt(limit),
     );
 
     // Filtrar apenas as que têm instalação agendada
-    let osComInstalacao = resultado.data.filter(os => os.data_instalacao_agendada);
+    let osComInstalacao = resultado.data.filter(
+      (os) => os.data_instalacao_agendada,
+    );
 
     // Filtrar por período se especificado
     if (dataInicio && dataFim) {
       const inicio = new Date(dataInicio);
       const fim = new Date(dataFim);
-      osComInstalacao = osComInstalacao.filter(os => {
-        const dataInstalacao = new Date(os.data_instalacao_agendada!);
+      osComInstalacao = osComInstalacao.filter((os) => {
+        const dataInstalacao = new Date(os.data_instalacao_agendada);
         return dataInstalacao >= inicio && dataInstalacao <= fim;
       });
     }
 
     return {
       ...resultado,
-      data: osComInstalacao.map(item => OrdemServicoResponseDto.fromDomain(item)),
-      total: osComInstalacao.length
+      data: osComInstalacao.map((item) =>
+        OrdemServicoResponseDto.fromDomain(item),
+      ),
+      total: osComInstalacao.length,
     };
   }
 
@@ -314,10 +366,7 @@ export class OSDiretaInternaController {
   @ApiOperation({ summary: 'Validar sincronização OS-Orçamento' })
   @ApiResponse({ status: 200, description: 'Validação realizada com sucesso' })
   @ApiResponse({ status: 404, description: 'OS não encontrada' })
-  async validarSincronizacao(
-    @Param('id') osId: string,
-    @Request() req: any
-  ) {
+  async validarSincronizacao(@Param('id') osId: string, @Request() req: any) {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
 
@@ -326,12 +375,15 @@ export class OSDiretaInternaController {
 
   @Patch(':id/sincronizar-orcamento')
   @ApiOperation({ summary: 'Sincronizar OS com orçamento' })
-  @ApiResponse({ status: 200, description: 'Sincronização realizada com sucesso' })
+  @ApiResponse({
+    status: 200,
+    description: 'Sincronização realizada com sucesso',
+  })
   @ApiResponse({ status: 404, description: 'OS não encontrada' })
   @ApiResponse({ status: 400, description: 'OS sem orçamento vinculado' })
   async sincronizarComOrcamento(
     @Param('id') osId: string,
-    @Request() req: any
+    @Request() req: any,
   ) {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;

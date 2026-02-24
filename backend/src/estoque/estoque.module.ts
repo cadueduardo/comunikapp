@@ -45,7 +45,7 @@ import { RelatoriosEstoqueService } from './services/relatorios-estoque.service'
       useFactory: (config: ConfigService) => ({
         secret:
           process.env.NODE_ENV === 'production'
-            ? (config.get<string>('JWT_SECRET') as string)
+            ? config.get<string>('JWT_SECRET')
             : config.get<string>('JWT_SECRET') || 'your-secret-key',
         signOptions: { expiresIn: '24h' },
       }),
@@ -99,11 +99,13 @@ export class EstoqueModule implements NestModule {
 
   configure(consumer: MiddlewareConsumer) {
     // Aplica um middleware de contexto (correlationId) antes do isolamento de tenant
-    consumer.apply(RequestContextMiddleware, TenantIsolationMiddleware).forRoutes(
-      // Rotas com prefixo explícito 'api/estoque/*'
-      { path: 'api/estoque/*rest', method: RequestMethod.ALL },
-      // Rotas sem prefixo global (ex.: 'estoque/sobras')
-      { path: 'estoque/*rest', method: RequestMethod.ALL },
-    );
+    consumer
+      .apply(RequestContextMiddleware, TenantIsolationMiddleware)
+      .forRoutes(
+        // Rotas com prefixo explícito 'api/estoque/*'
+        { path: 'api/estoque/*rest', method: RequestMethod.ALL },
+        // Rotas sem prefixo global (ex.: 'estoque/sobras')
+        { path: 'estoque/*rest', method: RequestMethod.ALL },
+      );
   }
 }

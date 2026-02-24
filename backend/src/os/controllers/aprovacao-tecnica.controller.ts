@@ -1,7 +1,18 @@
-import { Controller, Post, Get, Param, Body, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { AprovacaoTecnicaService } from '../services/aprovacao-tecnica.service';
-import { AprovarTecnicaDto, AgendarInstalacaoDto } from '../dto/aprovacao-tecnica.dto';
+import {
+  AprovarTecnicaDto,
+  AgendarInstalacaoDto,
+} from '../dto/aprovacao-tecnica.dto';
 
 @Controller('os')
 @UseGuards(JwtAuthGuard)
@@ -17,7 +28,7 @@ export class AprovacaoTecnicaController {
   async aprovarTecnica(
     @Param('id') id: string,
     @Body() dto: AprovarTecnicaDto,
-    @Request() req: any
+    @Request() req: any,
   ) {
     const usuarioId = req.user?.id;
     if (!usuarioId) {
@@ -30,7 +41,7 @@ export class AprovacaoTecnicaController {
   @Post(':id/agendar-instalacao')
   async agendarInstalacao(
     @Param('id') id: string,
-    @Body() dto: AgendarInstalacaoDto
+    @Body() dto: AgendarInstalacaoDto,
   ) {
     return this.aprovacaoTecnicaService.agendarInstalacao(id, dto);
   }

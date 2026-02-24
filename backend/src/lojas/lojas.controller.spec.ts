@@ -13,9 +13,18 @@ describe('LojasController', () => {
       controllers: [LojasController],
       providers: [
         LojasService,
-        { provide: PrismaService, useValue: { loja: { findMany: jest.fn(), findUnique: jest.fn() } } },
-        { provide: MailService, useValue: { sendVerificationEmail: jest.fn() } },
-        { provide: AuthService, useValue: { generateToken: jest.fn().mockResolvedValue('token') } },
+        {
+          provide: PrismaService,
+          useValue: { loja: { findMany: jest.fn(), findUnique: jest.fn() } },
+        },
+        {
+          provide: MailService,
+          useValue: { sendVerificationEmail: jest.fn() },
+        },
+        {
+          provide: AuthService,
+          useValue: { generateToken: jest.fn().mockResolvedValue('token') },
+        },
       ],
     }).compile();
 

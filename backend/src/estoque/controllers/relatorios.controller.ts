@@ -33,9 +33,8 @@ export class RelatoriosController {
 
     try {
       const context = { lojaId: loja.id };
-      const relatorio = await this.relatoriosService.relatorioEstoqueBaixo(
-        context,
-      );
+      const relatorio =
+        await this.relatoriosService.relatorioEstoqueBaixo(context);
 
       return {
         success: true,
@@ -63,9 +62,8 @@ export class RelatoriosController {
 
     try {
       const context = { lojaId: loja.id };
-      const relatorio = await this.relatoriosService.relatorioVencimento(
-        context,
-      );
+      const relatorio =
+        await this.relatoriosService.relatorioVencimento(context);
 
       return {
         success: true,

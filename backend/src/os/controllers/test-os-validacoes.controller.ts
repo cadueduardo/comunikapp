@@ -21,12 +21,3 @@ export class TestOSValidacoesController {
     return await this.osValidacoesService.obterHistoricoValidacoes(osId);
   }
 }
-
-
-
-
-
-
-
-
-

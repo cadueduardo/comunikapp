@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateArteVersaoDto } from '../dto/create-arte-versao.dto';
 import { UpdateArteVersaoDto } from '../dto/update-arte-versao.dto';
@@ -15,21 +19,21 @@ export class ArteVersaoService {
   async createVersao(
     createDto: CreateArteVersaoDto,
     usuarioId: string,
-    lojaId: string
+    lojaId: string,
   ): Promise<ArteVersaoResponseDto> {
     console.log('🎨 Criando nova versão de arte:', {
       osId: createDto.os_id,
       versao: createDto.versao,
       autorId: usuarioId,
-      lojaId
+      lojaId,
     });
 
     // Verificar se a OS existe e pertence à loja
     const os = await this.prisma.ordemServico.findFirst({
       where: {
         id: createDto.os_id,
-        loja_id: lojaId
-      }
+        loja_id: lojaId,
+      },
     });
 
     if (!os) {
@@ -43,12 +47,14 @@ export class ArteVersaoService {
         versao: createDto.versao,
         servico_id: createDto.servico_id || null, // Importante: considerar null se não tiver servico_id
         loja_id: lojaId,
-        deletado: false // Não considerar versões deletadas
-      }
+        deletado: false, // Não considerar versões deletadas
+      },
     });
 
     if (versaoExistente) {
-      throw new ForbiddenException(`Versão ${createDto.versao} já existe para este produto/serviço`);
+      throw new ForbiddenException(
+        `Versão ${createDto.versao} já existe para este produto/serviço`,
+      );
     }
 
     // Criar a versão
@@ -61,20 +67,20 @@ export class ArteVersaoService {
         autor_id: usuarioId,
         descricao: createDto.descricao,
         observacoes: createDto.observacoes,
-        loja_id: lojaId
+        loja_id: lojaId,
       },
       include: {
         autor: {
           select: {
             id: true,
-            nome_completo: true
-          }
+            nome_completo: true,
+          },
         },
         aprovador: {
           select: {
             id: true,
-            nome_completo: true
-          }
+            nome_completo: true,
+          },
         },
         arquivos: true,
         comentarios: {
@@ -82,15 +88,15 @@ export class ArteVersaoService {
             usuario: {
               select: {
                 id: true,
-                nome_completo: true
-              }
-            }
+                nome_completo: true,
+              },
+            },
           },
           orderBy: {
-            data_comentario: 'desc'
-          }
-        }
-      }
+            data_comentario: 'desc',
+          },
+        },
+      },
     });
 
     console.log('✅ Versão criada com sucesso:', versao.id);
@@ -101,7 +107,10 @@ export class ArteVersaoService {
   /**
    * Lista todas as versões de uma OS
    */
-  async findVersoesByOS(osId: string, lojaId: string): Promise<ArteVersaoResponseDto[]> {
+  async findVersoesByOS(
+    osId: string,
+    lojaId: string,
+  ): Promise<ArteVersaoResponseDto[]> {
     try {
       console.log('🔍 Buscando versões da OS:', { osId, lojaId });
 
@@ -109,20 +118,20 @@ export class ArteVersaoService {
         where: {
           os_id: osId,
           loja_id: lojaId,
-          deletado: false // Não mostrar versões deletadas
+          deletado: false, // Não mostrar versões deletadas
         },
         include: {
           autor: {
             select: {
               id: true,
-              nome_completo: true
-            }
+              nome_completo: true,
+            },
           },
           aprovador: {
             select: {
               id: true,
-              nome_completo: true
-            }
+              nome_completo: true,
+            },
           },
           arquivos: true,
           comentarios: {
@@ -130,23 +139,23 @@ export class ArteVersaoService {
               usuario: {
                 select: {
                   id: true,
-                  nome_completo: true
-                }
-              }
+                  nome_completo: true,
+                },
+              },
             },
             orderBy: {
-              data_comentario: 'desc'
-            }
-          }
+              data_comentario: 'desc',
+            },
+          },
         },
         orderBy: {
-          data_criacao: 'desc'
-        }
+          data_criacao: 'desc',
+        },
       });
 
       console.log(`📋 Encontradas ${versoes.length} versões`);
 
-      return versoes.map(versao => this.formatVersaoResponse(versao));
+      return versoes.map((versao) => this.formatVersaoResponse(versao));
     } catch (error) {
       console.error('❌ Erro ao buscar versões:', error);
       throw error;
@@ -156,7 +165,10 @@ export class ArteVersaoService {
   /**
    * Lista todas as versões de um produto específico
    */
-  async findVersoesByProduto(produtoId: string, lojaId: string): Promise<ArteVersaoResponseDto[]> {
+  async findVersoesByProduto(
+    produtoId: string,
+    lojaId: string,
+  ): Promise<ArteVersaoResponseDto[]> {
     try {
       console.log('🔍 Buscando versões do produto:', { produtoId, lojaId });
 
@@ -164,20 +176,20 @@ export class ArteVersaoService {
         where: {
           servico_id: produtoId,
           loja_id: lojaId,
-          deletado: false // Não mostrar versões deletadas
+          deletado: false, // Não mostrar versões deletadas
         },
         include: {
           autor: {
             select: {
               id: true,
-              nome_completo: true
-            }
+              nome_completo: true,
+            },
           },
           aprovador: {
             select: {
               id: true,
-              nome_completo: true
-            }
+              nome_completo: true,
+            },
           },
           arquivos: true,
           comentarios: {
@@ -185,23 +197,25 @@ export class ArteVersaoService {
               usuario: {
                 select: {
                   id: true,
-                  nome_completo: true
-                }
-              }
+                  nome_completo: true,
+                },
+              },
             },
             orderBy: {
-              data_comentario: 'desc'
-            }
-          }
+              data_comentario: 'desc',
+            },
+          },
         },
         orderBy: {
-          data_criacao: 'desc'
-        }
+          data_criacao: 'desc',
+        },
       });
 
-      console.log(`📋 Encontradas ${versoes.length} versões para o produto ${produtoId}`);
+      console.log(
+        `📋 Encontradas ${versoes.length} versões para o produto ${produtoId}`,
+      );
 
-      return versoes.map(versao => this.formatVersaoResponse(versao));
+      return versoes.map((versao) => this.formatVersaoResponse(versao));
     } catch (error) {
       console.error('❌ Erro ao buscar versões do produto:', error);
       throw error;
@@ -211,26 +225,29 @@ export class ArteVersaoService {
   /**
    * Busca uma versão específica
    */
-  async findVersaoById(versaoId: string, lojaId: string): Promise<ArteVersaoResponseDto> {
+  async findVersaoById(
+    versaoId: string,
+    lojaId: string,
+  ): Promise<ArteVersaoResponseDto> {
     console.log('🔍 Buscando versão:', { versaoId, lojaId });
 
     const versao = await this.prisma.arteVersao.findFirst({
       where: {
         id: versaoId,
-        loja_id: lojaId
+        loja_id: lojaId,
       },
       include: {
         autor: {
           select: {
             id: true,
-            nome_completo: true
-          }
+            nome_completo: true,
+          },
         },
         aprovador: {
           select: {
             id: true,
-            nome_completo: true
-          }
+            nome_completo: true,
+          },
         },
         arquivos: true,
         comentarios: {
@@ -238,15 +255,15 @@ export class ArteVersaoService {
             usuario: {
               select: {
                 id: true,
-                nome_completo: true
-              }
-            }
+                nome_completo: true,
+              },
+            },
           },
           orderBy: {
-            data_comentario: 'desc'
-          }
-        }
-      }
+            data_comentario: 'desc',
+          },
+        },
+      },
     });
 
     if (!versao) {
@@ -262,7 +279,7 @@ export class ArteVersaoService {
   async updateVersao(
     versaoId: string,
     updateDto: UpdateArteVersaoDto,
-    lojaId: string
+    lojaId: string,
   ): Promise<ArteVersaoResponseDto> {
     console.log('✏️ Atualizando versão:', { versaoId, updateDto, lojaId });
 
@@ -270,8 +287,8 @@ export class ArteVersaoService {
     const versaoExistente = await this.prisma.arteVersao.findFirst({
       where: {
         id: versaoId,
-        loja_id: lojaId
-      }
+        loja_id: lojaId,
+      },
     });
 
     if (!versaoExistente) {
@@ -281,27 +298,27 @@ export class ArteVersaoService {
     // Atualizar a versão
     const versao = await this.prisma.arteVersao.update({
       where: {
-        id: versaoId
+        id: versaoId,
       },
       data: {
         ...updateDto,
         // Se mudou para APROVADA, registrar data de aprovação
         ...(updateDto.status === ArteStatus.APROVADA && {
-          data_aprovacao: new Date()
-        })
+          data_aprovacao: new Date(),
+        }),
       },
       include: {
         autor: {
           select: {
             id: true,
-            nome_completo: true
-          }
+            nome_completo: true,
+          },
         },
         aprovador: {
           select: {
             id: true,
-            nome_completo: true
-          }
+            nome_completo: true,
+          },
         },
         arquivos: true,
         comentarios: {
@@ -309,15 +326,15 @@ export class ArteVersaoService {
             usuario: {
               select: {
                 id: true,
-                nome_completo: true
-              }
-            }
+                nome_completo: true,
+              },
+            },
           },
           orderBy: {
-            data_comentario: 'desc'
-          }
-        }
-      }
+            data_comentario: 'desc',
+          },
+        },
+      },
     });
 
     console.log('✅ Versão atualizada com sucesso');
@@ -328,16 +345,24 @@ export class ArteVersaoService {
   /**
    * Remove uma versão (Soft Delete)
    */
-  async removeVersao(versaoId: string, lojaId: string, usuarioId: string): Promise<void> {
-    console.log('🗑️ Removendo versão (soft delete):', { versaoId, lojaId, usuarioId });
+  async removeVersao(
+    versaoId: string,
+    lojaId: string,
+    usuarioId: string,
+  ): Promise<void> {
+    console.log('🗑️ Removendo versão (soft delete):', {
+      versaoId,
+      lojaId,
+      usuarioId,
+    });
 
     // Verificar se a versão existe
     const versaoExistente = await this.prisma.arteVersao.findFirst({
       where: {
         id: versaoId,
         loja_id: lojaId,
-        deletado: false
-      }
+        deletado: false,
+      },
     });
 
     if (!versaoExistente) {
@@ -347,13 +372,13 @@ export class ArteVersaoService {
     // Soft Delete - marcar como deletado
     await this.prisma.arteVersao.update({
       where: {
-        id: versaoId
+        id: versaoId,
       },
       data: {
         deletado: true,
         data_exclusao: new Date(),
-        excluido_por: usuarioId
-      }
+        excluido_por: usuarioId,
+      },
     });
 
     console.log('✅ Versão marcada como deletada (soft delete)');
@@ -362,7 +387,10 @@ export class ArteVersaoService {
   /**
    * Restaura uma versão deletada
    */
-  async restoreVersao(versaoId: string, lojaId: string): Promise<ArteVersaoResponseDto> {
+  async restoreVersao(
+    versaoId: string,
+    lojaId: string,
+  ): Promise<ArteVersaoResponseDto> {
     console.log('♻️ Restaurando versão:', { versaoId, lojaId });
 
     // Verificar se a versão existe e está deletada
@@ -370,8 +398,8 @@ export class ArteVersaoService {
       where: {
         id: versaoId,
         loja_id: lojaId,
-        deletado: true
-      }
+        deletado: true,
+      },
     });
 
     if (!versaoExistente) {
@@ -381,25 +409,25 @@ export class ArteVersaoService {
     // Restaurar versão
     const versao = await this.prisma.arteVersao.update({
       where: {
-        id: versaoId
+        id: versaoId,
       },
       data: {
         deletado: false,
         data_exclusao: null,
-        excluido_por: null
+        excluido_por: null,
       },
       include: {
         autor: {
           select: {
             id: true,
-            nome_completo: true
-          }
+            nome_completo: true,
+          },
         },
         aprovador: {
           select: {
             id: true,
-            nome_completo: true
-          }
+            nome_completo: true,
+          },
         },
         arquivos: true,
         comentarios: {
@@ -407,15 +435,15 @@ export class ArteVersaoService {
             usuario: {
               select: {
                 id: true,
-                nome_completo: true
-              }
-            }
+                nome_completo: true,
+              },
+            },
           },
           orderBy: {
-            data_comentario: 'desc'
-          }
-        }
-      }
+            data_comentario: 'desc',
+          },
+        },
+      },
     });
 
     console.log('✅ Versão restaurada com sucesso');
@@ -429,12 +457,12 @@ export class ArteVersaoService {
   async liberarParaPCP(
     versaoId: string,
     usuarioId: string,
-    lojaId: string
+    lojaId: string,
   ): Promise<ArteVersaoResponseDto> {
     console.log('🎨 Liberando arte para PCP:', {
       versaoId,
       usuarioId,
-      lojaId
+      lojaId,
     });
 
     // Buscar a versão
@@ -442,26 +470,26 @@ export class ArteVersaoService {
       where: {
         id: versaoId,
         loja_id: lojaId,
-        deletado: false
+        deletado: false,
       },
       include: {
         autor: {
           select: {
             id: true,
-            nome_completo: true
-          }
+            nome_completo: true,
+          },
         },
         aprovador: {
           select: {
             id: true,
-            nome_completo: true
-          }
+            nome_completo: true,
+          },
         },
         liberador: {
           select: {
             id: true,
-            nome_completo: true
-          }
+            nome_completo: true,
+          },
         },
         arquivos: true,
         comentarios: {
@@ -469,12 +497,12 @@ export class ArteVersaoService {
             usuario: {
               select: {
                 id: true,
-                nome_completo: true
-              }
-            }
-          }
-        }
-      }
+                nome_completo: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!versao) {
@@ -493,8 +521,13 @@ export class ArteVersaoService {
 
     // Verificar se há arquivos
     const versaoComArquivos = versao as any;
-    if (!versaoComArquivos.arquivos || versaoComArquivos.arquivos.length === 0) {
-      throw new ForbiddenException('Arte não possui arquivos. Adicione arquivos antes de liberar.');
+    if (
+      !versaoComArquivos.arquivos ||
+      versaoComArquivos.arquivos.length === 0
+    ) {
+      throw new ForbiddenException(
+        'Arte não possui arquivos. Adicione arquivos antes de liberar.',
+      );
     }
 
     // Liberar para PCP
@@ -503,26 +536,26 @@ export class ArteVersaoService {
       data: {
         liberado_para_pcp: true,
         liberado_em: new Date(),
-        liberado_por: usuarioId
+        liberado_por: usuarioId,
       },
       include: {
         autor: {
           select: {
             id: true,
-            nome_completo: true
-          }
+            nome_completo: true,
+          },
         },
         aprovador: {
           select: {
             id: true,
-            nome_completo: true
-          }
+            nome_completo: true,
+          },
         },
         liberador: {
           select: {
             id: true,
-            nome_completo: true
-          }
+            nome_completo: true,
+          },
         },
         arquivos: true,
         comentarios: {
@@ -530,12 +563,12 @@ export class ArteVersaoService {
             usuario: {
               select: {
                 id: true,
-                nome_completo: true
-              }
-            }
-          }
-        }
-      }
+                nome_completo: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     console.log('✅ Arte liberada para PCP com sucesso');
@@ -575,7 +608,7 @@ export class ArteVersaoService {
         url_arquivo: arquivo.url_arquivo,
         url_thumbnail: arquivo.url_thumbnail,
         storage_provider: arquivo.storage_provider,
-        data_upload: arquivo.data_upload
+        data_upload: arquivo.data_upload,
       })),
       comentarios: versao.comentarios.map((comentario: any) => ({
         id: comentario.id,
@@ -583,8 +616,8 @@ export class ArteVersaoService {
         usuario_nome: comentario.usuario.nome_completo,
         comentario: comentario.comentario,
         tipo: comentario.tipo,
-        data_comentario: comentario.data_comentario
-      }))
+        data_comentario: comentario.data_comentario,
+      })),
     };
   }
 }

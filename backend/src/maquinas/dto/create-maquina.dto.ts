@@ -102,7 +102,7 @@ export class CreateMaquinaDto {
 
   @IsString()
   @IsIn(TIPOS_MAQUINAS_VALIDOS, {
-    message: `Tipo deve ser um dos valores válidos: ${TIPOS_MAQUINAS_VALIDOS.join(', ')}`
+    message: `Tipo deve ser um dos valores válidos: ${TIPOS_MAQUINAS_VALIDOS.join(', ')}`,
   })
   tipo: string;
 
@@ -112,9 +112,12 @@ export class CreateMaquinaDto {
     }
     return value;
   })
-  @IsNumber({}, {
-    message: 'Custo por hora deve ser um número válido'
-  })
+  @IsNumber(
+    {},
+    {
+      message: 'Custo por hora deve ser um número válido',
+    },
+  )
   custo_hora: number;
 
   @IsString()

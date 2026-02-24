@@ -359,16 +359,20 @@ export class PipelineExecutorService {
     const percentualMargem = contexto.configuracoes.margem_lucro_padrao || 30;
     const percentualImpostos = contexto.configuracoes.impostos_padrao || 18;
     const percentualComissao = contexto.configuracoes.comissao_padrao || 5;
-    
+
     // Fórmula correta: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
     // Isso garante que a margem de lucro seja aplicada APÓS impostos e comissão
     const percentualMargemDecimal = percentualMargem / 100;
     const percentualImpostosDecimal = percentualImpostos / 100;
     const percentualComissaoDecimal = percentualComissao / 100;
-    const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
-    
+    const divisor =
+      1 -
+      percentualImpostosDecimal -
+      percentualComissaoDecimal -
+      percentualMargemDecimal;
+
     const precoFinal = divisor > 0 ? custoTotal / divisor : custoTotal;
-    
+
     // Calcular valores para exibição
     const impostosValor = precoFinal * percentualImpostosDecimal;
     const comissaoValor = precoFinal * percentualComissaoDecimal;
@@ -483,10 +487,7 @@ export class PipelineExecutorService {
     };
   }
 
-  private processarContextoComercial(
-    configuracoes: any,
-    dados: any,
-  ): any {
+  private processarContextoComercial(configuracoes: any, dados: any): any {
     return {
       margem_lucro_aplicada:
         dados.percentual_aplicado || configuracoes.margem_lucro_padrao,

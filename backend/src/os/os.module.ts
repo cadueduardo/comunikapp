@@ -81,7 +81,7 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
       useFactory: (config: ConfigService) => ({
         secret:
           process.env.NODE_ENV === 'production'
-            ? (config.get<string>('JWT_SECRET') as string)
+            ? config.get<string>('JWT_SECRET')
             : config.get<string>('JWT_SECRET') || 'your-secret-key',
         signOptions: { expiresIn: '24h' },
       }),

@@ -31,17 +31,18 @@ export class InsumosController {
 
   @Post('importar')
   @UseInterceptors(FileInterceptor('file'))
-  importar(
-    @UploadedFile() file: Express.Multer.File,
-    @GetLoja() loja: loja,
-  ) {
+  importar(@UploadedFile() file: Express.Multer.File, @GetLoja() loja: loja) {
     return this.insumosService.importarExcel(file, loja);
   }
 
   @Get('template')
   async baixarTemplate(@GetLoja() loja: loja, @Res() res: any) {
-    const { buffer, filename } = await this.insumosService.gerarTemplateImportacao(loja);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    const { buffer, filename } =
+      await this.insumosService.gerarTemplateImportacao(loja);
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
     res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
     return res.send(buffer);
   }

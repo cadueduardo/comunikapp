@@ -32,9 +32,11 @@ export class ServicosManuaisService {
     if (dto.setup_min !== undefined) {
       payload.setup_min = this.toNumber(dto.setup_min);
     }
-    
+
     if (dto.categorias !== undefined) {
-      payload.categorias = dto.categorias ? JSON.stringify(dto.categorias) : null;
+      payload.categorias = dto.categorias
+        ? JSON.stringify(dto.categorias)
+        : null;
     }
 
     return this.prisma.servico_manual.create({ data: payload });
@@ -47,20 +49,26 @@ export class ServicosManuaisService {
     });
 
     // Parse das categorias JSON para objetos
-    return servicos.map(servico => ({
+    return servicos.map((servico) => ({
       ...servico,
-      categorias: (servico as any).categorias ? JSON.parse((servico as any).categorias) : null
+      categorias: (servico as any).categorias
+        ? JSON.parse((servico as any).categorias)
+        : null,
     }));
   }
 
   async findOne(id: string, lojaCtx: loja) {
-    const servico = await this.prisma.servico_manual.findFirst({ where: { id, loja_id: lojaCtx.id } });
+    const servico = await this.prisma.servico_manual.findFirst({
+      where: { id, loja_id: lojaCtx.id },
+    });
     if (!servico) return null;
-    
+
     // Parse das categorias JSON para objeto
     return {
       ...servico,
-      categorias: (servico as any).categorias ? JSON.parse((servico as any).categorias) : null
+      categorias: (servico as any).categorias
+        ? JSON.parse((servico as any).categorias)
+        : null,
     };
   }
 
@@ -80,21 +88,21 @@ export class ServicosManuaisService {
     if (dto.setup_min !== undefined) {
       data.setup_min = this.toNumber(dto.setup_min);
     }
-    
+
     if (dto.categorias !== undefined) {
       data.categorias = dto.categorias ? JSON.stringify(dto.categorias) : null;
     }
 
-    return this.prisma.servico_manual.update({ where: { id }, data, });
+    return this.prisma.servico_manual.update({ where: { id }, data });
   }
 
   async remove(id: string, lojaCtx: loja) {
     // Garantir que pertence à loja
-    const exists = await this.prisma.servico_manual.findFirst({ where: { id, loja_id: lojaCtx.id } });
+    const exists = await this.prisma.servico_manual.findFirst({
+      where: { id, loja_id: lojaCtx.id },
+    });
     if (!exists) return { ok: true };
     await this.prisma.servico_manual.delete({ where: { id } });
     return { ok: true };
   }
 }
-
-

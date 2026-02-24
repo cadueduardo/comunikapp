@@ -259,7 +259,9 @@ describe('TenantIsolationMiddleware', () => {
 
       expect(mockNext).toHaveBeenCalled();
       expect(mockRequest.estoque).toEqual(
-        expect.objectContaining({ roles: expect.arrayContaining(['ADMINISTRADOR']) }),
+        expect.objectContaining({
+          roles: expect.arrayContaining(['ADMINISTRADOR']),
+        }),
       );
     });
   });
@@ -297,8 +299,10 @@ describe('TenantIsolationMiddleware', () => {
       };
 
       // Override mock to remove loja_id from payload
-      const jwt = (middleware as any).jwtService as any;
-      jest.spyOn(jwt, 'verify').mockReturnValueOnce({ sub: 'user-456', funcao: 'ADMINISTRADOR' });
+      const jwt = (middleware as any).jwtService;
+      jest
+        .spyOn(jwt, 'verify')
+        .mockReturnValueOnce({ sub: 'user-456', funcao: 'ADMINISTRADOR' });
 
       middleware.use(mockRequest, mockResponse, mockNext);
 

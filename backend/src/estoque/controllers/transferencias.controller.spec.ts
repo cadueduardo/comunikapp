@@ -26,7 +26,9 @@ describe('TransferenciasController', () => {
     }).compile();
 
     controller = module.get<TransferenciasController>(TransferenciasController);
-    transferenciasService = module.get<TransferenciasService>(TransferenciasService);
+    transferenciasService = module.get<TransferenciasService>(
+      TransferenciasService,
+    );
   });
 
   afterEach(() => {
@@ -46,13 +48,20 @@ describe('TransferenciasController', () => {
         localizacaoDestinoId: 'loc-2',
         quantidade: 3,
       } as any;
-      const expected = { id: 'tr-1', ...body } as any;
+      const expected = { id: 'tr-1', ...body };
       mockTransferenciasService.criarTransferencia.mockResolvedValue(expected);
 
       const res = await controller.criarTransferencia(loja, body);
 
-      expect(res).toEqual({ success: true, data: expected, message: 'Transferência criada com sucesso' });
-      expect(mockTransferenciasService.criarTransferencia).toHaveBeenCalledWith({ lojaId: loja.id }, body);
+      expect(res).toEqual({
+        success: true,
+        data: expected,
+        message: 'Transferência criada com sucesso',
+      });
+      expect(mockTransferenciasService.criarTransferencia).toHaveBeenCalledWith(
+        { lojaId: loja.id },
+        body,
+      );
     });
   });
 
@@ -61,12 +70,20 @@ describe('TransferenciasController', () => {
       const loja = { id: 'loja-123' } as any;
       const query = { page: 1, limit: 10 } as any;
       const expected = { data: [], total: 0, page: 1, limit: 10 };
-      mockTransferenciasService.listarTransferencias.mockResolvedValue(expected);
+      mockTransferenciasService.listarTransferencias.mockResolvedValue(
+        expected,
+      );
 
       const res = await controller.listarTransferencias(loja, query);
 
-      expect(res).toEqual({ success: true, data: expected, message: 'Transferências listadas com sucesso' });
-      expect(mockTransferenciasService.listarTransferencias).toHaveBeenCalledWith({ lojaId: loja.id }, query);
+      expect(res).toEqual({
+        success: true,
+        data: expected,
+        message: 'Transferências listadas com sucesso',
+      });
+      expect(
+        mockTransferenciasService.listarTransferencias,
+      ).toHaveBeenCalledWith({ lojaId: loja.id }, query);
     });
   });
 
@@ -75,12 +92,20 @@ describe('TransferenciasController', () => {
       const loja = { id: 'loja-123' } as any;
       const id = 'tr-1';
       const expected = { id } as any;
-      mockTransferenciasService.buscarTransferenciaPorId.mockResolvedValue(expected);
+      mockTransferenciasService.buscarTransferenciaPorId.mockResolvedValue(
+        expected,
+      );
 
       const res = await controller.buscarTransferencia(loja, id);
 
-      expect(res).toEqual({ success: true, data: expected, message: 'Transferência encontrada com sucesso' });
-      expect(mockTransferenciasService.buscarTransferenciaPorId).toHaveBeenCalledWith({ lojaId: loja.id }, id);
+      expect(res).toEqual({
+        success: true,
+        data: expected,
+        message: 'Transferência encontrada com sucesso',
+      });
+      expect(
+        mockTransferenciasService.buscarTransferenciaPorId,
+      ).toHaveBeenCalledWith({ lojaId: loja.id }, id);
     });
   });
 
@@ -89,14 +114,20 @@ describe('TransferenciasController', () => {
       const loja = { id: 'loja-123' } as any;
       const itemId = 'item-1';
       const expected = { data: [] } as any;
-      mockTransferenciasService.listarHistoricoPorItem.mockResolvedValue(expected);
+      mockTransferenciasService.listarHistoricoPorItem.mockResolvedValue(
+        expected,
+      );
 
       const res = await controller.historicoTransferenciasItem(loja, itemId);
 
-      expect(res).toEqual({ success: true, data: expected, message: 'Histórico de transferências retornado com sucesso' });
-      expect(mockTransferenciasService.listarHistoricoPorItem).toHaveBeenCalledWith({ lojaId: loja.id }, itemId);
+      expect(res).toEqual({
+        success: true,
+        data: expected,
+        message: 'Histórico de transferências retornado com sucesso',
+      });
+      expect(
+        mockTransferenciasService.listarHistoricoPorItem,
+      ).toHaveBeenCalledWith({ lojaId: loja.id }, itemId);
     });
   });
 });
-
-

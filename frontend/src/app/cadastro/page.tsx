@@ -202,6 +202,9 @@ export default function CadastroPage() {
                             <div className="grid gap-2">
                                 <Label htmlFor="password">Senha</Label>
                                 <Input id="password" type="password" value={formData.password} onChange={handleChange} required disabled={loading} />
+                                <p className="text-xs text-muted-foreground">
+                                    Mínimo 6 caracteres. Use letras, números ou símbolos. Se aparecer erro ao criar a conta, tente uma senha sem aspas ou caracteres especiais.
+                                </p>
                             </div>
                             <Button type="submit" className="w-full" disabled={loading}>
                                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

@@ -14,17 +14,17 @@ export class FuncoesService {
 
   async create(data: CreateFuncaoDto, loja: loja) {
     const { maquina_id, ...dataWithoutMaquinaId } = data;
-    
+
     return this.prisma.funcao.create({
       data: {
         ...dataWithoutMaquinaId,
         loja: {
-          connect: { id: loja.id }
+          connect: { id: loja.id },
         },
         ...(maquina_id && {
           maquina: {
-            connect: { id: maquina_id }
-          }
+            connect: { id: maquina_id },
+          },
         }),
         atualizado_em: new Date(),
       },

@@ -11,9 +11,28 @@ describe('LojasService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LojasService,
-        { provide: PrismaService, useValue: { usuario: { findUnique: jest.fn() }, loja: { findUnique: jest.fn() }, $transaction: jest.fn(async (fn: any) => await fn({ loja: { create: jest.fn() }, usuario: { create: jest.fn() } })) } },
-        { provide: MailService, useValue: { sendVerificationEmail: jest.fn() } },
-        { provide: AuthService, useValue: { generateToken: jest.fn().mockResolvedValue('token') } },
+        {
+          provide: PrismaService,
+          useValue: {
+            usuario: { findUnique: jest.fn() },
+            loja: { findUnique: jest.fn() },
+            $transaction: jest.fn(
+              async (fn: any) =>
+                await fn({
+                  loja: { create: jest.fn() },
+                  usuario: { create: jest.fn() },
+                }),
+            ),
+          },
+        },
+        {
+          provide: MailService,
+          useValue: { sendVerificationEmail: jest.fn() },
+        },
+        {
+          provide: AuthService,
+          useValue: { generateToken: jest.fn().mockResolvedValue('token') },
+        },
       ],
     }).compile();
 

@@ -17,7 +17,12 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { Public } from '../../auth/decorators';
 import { OrcamentosV2Service } from '../services/orcamentos-v2.service';
 import { IntegracaoMotorService } from '../services/integracao-motor.service';
@@ -31,7 +36,7 @@ import { UserRole } from '../../auth/enums/user-role.enum';
 /**
  * Controller Principal de Orçamentos V2
  * Implementa todos os endpoints CRUD usando motor de cálculo V2
- * 
+ *
  * ✅ ARQUIVO ≤ 200 LINHAS (CONFORME PREMISSAS)
  * ✅ INTEGRAÇÃO COMPLETA COM MOTOR FUNCIONANDO
  * ✅ ENDPOINTS DOCUMENTADOS COM SWAGGER
@@ -70,10 +75,7 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 201, description: 'Orçamento criado com sucesso' })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
-  async criarOrcamento(
-    @Body() dados: any,
-    @Request() req: any,
-  ) {
+  async criarOrcamento(@Body() dados: any, @Request() req: any) {
     const { loja_id, user_id } = req.user;
     return await this.orcamentosService.criarOrcamento(dados, loja_id, user_id);
   }
@@ -92,7 +94,11 @@ export class OrcamentosV2Controller {
     const { loja_id } = req.user;
     const limitNumber = limit ? parseInt(limit) : 50;
     const offsetNumber = offset ? parseInt(offset) : 0;
-    return this.notificacoesService.buscarNotificacoes(loja_id, limitNumber, offsetNumber);
+    return this.notificacoesService.buscarNotificacoes(
+      loja_id,
+      limitNumber,
+      offsetNumber,
+    );
   }
 
   /**
@@ -101,7 +107,10 @@ export class OrcamentosV2Controller {
   @Get('notificacoes/nao-visualizadas')
   @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
   @ApiOperation({ summary: 'Listar notificações não visualizadas' })
-  @ApiResponse({ status: 200, description: 'Lista de notificações não visualizadas' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de notificações não visualizadas',
+  })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async buscarNaoVisualizadas(@Request() req: any) {
     const { loja_id } = req.user;
@@ -114,7 +123,10 @@ export class OrcamentosV2Controller {
   @Get('notificacoes/nao-visualizadas/count')
   @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
   @ApiOperation({ summary: 'Contar notificações não visualizadas' })
-  @ApiResponse({ status: 200, description: 'Contador de notificações não visualizadas' })
+  @ApiResponse({
+    status: 200,
+    description: 'Contador de notificações não visualizadas',
+  })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async contarNaoVisualizadas(@Request() req: any) {
     const { loja_id } = req.user;
@@ -128,13 +140,13 @@ export class OrcamentosV2Controller {
   @Patch('notificacoes/:id/visualizar')
   @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
   @ApiOperation({ summary: 'Marcar notificação como visualizada' })
-  @ApiResponse({ status: 200, description: 'Notificação marcada como visualizada' })
+  @ApiResponse({
+    status: 200,
+    description: 'Notificação marcada como visualizada',
+  })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   @ApiResponse({ status: 404, description: 'Notificação não encontrada' })
-  async marcarComoVisualizada(
-    @Param('id') id: string,
-    @Request() req: any,
-  ) {
+  async marcarComoVisualizada(@Param('id') id: string, @Request() req: any) {
     const { loja_id } = req.user;
     await this.notificacoesService.marcarComoVisualizada(id, loja_id);
     return { message: 'Notificação marcada como visualizada' };
@@ -146,7 +158,10 @@ export class OrcamentosV2Controller {
   @Patch('notificacoes/visualizar-todas')
   @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
   @ApiOperation({ summary: 'Marcar todas as notificações como visualizadas' })
-  @ApiResponse({ status: 200, description: 'Todas as notificações foram marcadas como visualizadas' })
+  @ApiResponse({
+    status: 200,
+    description: 'Todas as notificações foram marcadas como visualizadas',
+  })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async marcarTodasComoVisualizadas(@Request() req: any) {
     const { loja_id } = req.user;
@@ -166,10 +181,7 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 204, description: 'Notificação deletada com sucesso' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   @ApiResponse({ status: 404, description: 'Notificação não encontrada' })
-  async deletarNotificacao(
-    @Param('id') id: string,
-    @Request() req: any,
-  ) {
+  async deletarNotificacao(@Param('id') id: string, @Request() req: any) {
     const { loja_id } = req.user;
     await this.notificacoesService.deletarNotificacao(id, loja_id);
   }
@@ -183,10 +195,7 @@ export class OrcamentosV2Controller {
   @ApiOperation({ summary: 'Buscar mensagens do chat (autenticado)' })
   @ApiResponse({ status: 200, description: 'Mensagens encontradas' })
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
-  async buscarMensagensChat(
-    @Param('id') id: string,
-    @Request() req: any,
-  ) {
+  async buscarMensagensChat(@Param('id') id: string, @Request() req: any) {
     const { loja_id } = req.user;
     return await this.orcamentosService.buscarMensagensChatLegado(id, loja_id);
   }
@@ -204,12 +213,27 @@ export class OrcamentosV2Controller {
   async enviarMensagemChat(
     @Param('id') id: string,
     @Request() req: any,
-    @Body(new ValidationPipe({ skipMissingProperties: true, whitelist: false, forbidNonWhitelisted: false })) body: any,
+    @Body(
+      new ValidationPipe({
+        skipMissingProperties: true,
+        whitelist: false,
+        forbidNonWhitelisted: false,
+      }),
+    )
+    body: any,
     @UploadedFile() file?: Express.Multer.File,
   ) {
     console.log('🔍 Controller V2 autenticado - OrcamentoId:', id);
-    console.log('🔍 Controller V2 autenticado - Body recebido:', JSON.stringify(body, null, 2));
-    console.log('🔍 Controller V2 autenticado - File recebido:', file ? `${file.originalname} (${file.size} bytes, ${file.mimetype})` : 'nenhum');
+    console.log(
+      '🔍 Controller V2 autenticado - Body recebido:',
+      JSON.stringify(body, null, 2),
+    );
+    console.log(
+      '🔍 Controller V2 autenticado - File recebido:',
+      file
+        ? `${file.originalname} (${file.size} bytes, ${file.mimetype})`
+        : 'nenhum',
+    );
 
     const { loja_id } = req.user;
 
@@ -220,7 +244,12 @@ export class OrcamentosV2Controller {
       anexos: file ? [file.originalname] : undefined,
     };
 
-    return await this.orcamentosService.enviarMensagemChatLegado(id, dados, loja_id, file);
+    return await this.orcamentosService.enviarMensagemChatLegado(
+      id,
+      dados,
+      loja_id,
+      file,
+    );
   }
 
   /**
@@ -236,7 +265,11 @@ export class OrcamentosV2Controller {
     @Request() req: any,
   ) {
     const { usuario_id } = req.user;
-    return await this.orcamentosService.marcarMensagemVisualizada(id, mensagemId, usuario_id);
+    return await this.orcamentosService.marcarMensagemVisualizada(
+      id,
+      mensagemId,
+      usuario_id,
+    );
   }
 
   // ===== ENDPOINTS PÚBLICOS V2 =====
@@ -252,7 +285,6 @@ export class OrcamentosV2Controller {
     return await this.orcamentosService.buscarOrcamentoPublico(id);
   }
 
-
   /**
    * Processar ação do cliente público
    */
@@ -263,7 +295,14 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   async processarAcaoClientePublico(
     @Param('id') id: string,
-    @Body() dados: { acao: 'APROVAR' | 'REJEITAR' | 'NEGOCIAR'; observacoes?: string; codigo_aprovacao?: string; cliente_nome?: string; cliente_email?: string },
+    @Body()
+    dados: {
+      acao: 'APROVAR' | 'REJEITAR' | 'NEGOCIAR';
+      observacoes?: string;
+      codigo_aprovacao?: string;
+      cliente_nome?: string;
+      cliente_email?: string;
+    },
   ) {
     return await this.orcamentosService.processarAcaoClientePublico(id, dados);
   }
@@ -291,12 +330,27 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   async enviarMensagemChatPublico(
     @Param('id') id: string,
-    @Body(new ValidationPipe({ skipMissingProperties: true, whitelist: false, forbidNonWhitelisted: false })) body: any,
+    @Body(
+      new ValidationPipe({
+        skipMissingProperties: true,
+        whitelist: false,
+        forbidNonWhitelisted: false,
+      }),
+    )
+    body: any,
     @UploadedFile() file?: Express.Multer.File,
   ) {
     console.log('🔍 Controller V2 público - OrcamentoId:', id);
-    console.log('🔍 Controller V2 público - Body recebido:', JSON.stringify(body, null, 2));
-    console.log('🔍 Controller V2 público - File recebido:', file ? `${file.originalname} (${file.size} bytes, ${file.mimetype})` : 'nenhum');
+    console.log(
+      '🔍 Controller V2 público - Body recebido:',
+      JSON.stringify(body, null, 2),
+    );
+    console.log(
+      '🔍 Controller V2 público - File recebido:',
+      file
+        ? `${file.originalname} (${file.size} bytes, ${file.mimetype})`
+        : 'nenhum',
+    );
 
     // Criar DTO manualmente a partir do body
     const dados = {
@@ -306,7 +360,11 @@ export class OrcamentosV2Controller {
       autor_email: body.autor_email || '',
     };
 
-    return await this.orcamentosService.enviarMensagemPublicaLegadoComAnexo(id, dados, file);
+    return await this.orcamentosService.enviarMensagemPublicaLegadoComAnexo(
+      id,
+      dados,
+      file,
+    );
   }
 
   /**
@@ -321,7 +379,10 @@ export class OrcamentosV2Controller {
     @Param('id') id: string,
     @Param('mensagemId') mensagemId: string,
   ) {
-    return await this.orcamentosService.marcarMensagemVisualizadaPublica(id, mensagemId);
+    return await this.orcamentosService.marcarMensagemVisualizadaPublica(
+      id,
+      mensagemId,
+    );
   }
 
   /**
@@ -333,17 +394,14 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 200, description: 'Orçamento encontrado' })
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
-  async buscarOrcamento(
-    @Param('id') id: string,
-    @Request() req: any,
-  ) {
+  async buscarOrcamento(@Param('id') id: string, @Request() req: any) {
     console.log('🔍 Debug - req.user:', req.user);
     console.log('🔍 Debug - req.headers:', req.headers);
-    
+
     if (!req.user) {
       throw new Error('Usuário não autenticado');
     }
-    
+
     const { loja_id } = req.user;
     return await this.orcamentosService.buscarOrcamento(id, loja_id);
   }
@@ -362,7 +420,11 @@ export class OrcamentosV2Controller {
     @Request() req: any,
   ) {
     const { loja_id } = req.user;
-    return await this.orcamentosService.listarOrcamentos(loja_id, filtros, paginacao);
+    return await this.orcamentosService.listarOrcamentos(
+      loja_id,
+      filtros,
+      paginacao,
+    );
   }
 
   /**
@@ -380,9 +442,18 @@ export class OrcamentosV2Controller {
     @Body() dados: any,
     @Request() req: any,
   ) {
-    console.log('🔥 CONTROLLER PUT /orcamentos-v2/:id CHAMADO!', { id, dadosKeys: Object.keys(dados), userLojaId: req.user?.loja_id });
+    console.log('🔥 CONTROLLER PUT /orcamentos-v2/:id CHAMADO!', {
+      id,
+      dadosKeys: Object.keys(dados),
+      userLojaId: req.user?.loja_id,
+    });
     const { loja_id, user_id } = req.user;
-    return await this.orcamentosService.atualizarOrcamento(id, dados, loja_id, user_id);
+    return await this.orcamentosService.atualizarOrcamento(
+      id,
+      dados,
+      loja_id,
+      user_id,
+    );
   }
 
   /**
@@ -401,7 +472,12 @@ export class OrcamentosV2Controller {
     @Body() body: { motivo?: string },
   ) {
     const { loja_id, user_id } = req.user;
-    await this.orcamentosService.removerOrcamento(id, loja_id, user_id, body.motivo);
+    await this.orcamentosService.removerOrcamento(
+      id,
+      loja_id,
+      user_id,
+      body.motivo,
+    );
   }
 
   /**
@@ -438,13 +514,10 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 200, description: 'Cálculo realizado com sucesso' })
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
-  async calcularOrcamento(
-    @Param('id') id: string,
-    @Request() req: any,
-  ) {
+  async calcularOrcamento(@Param('id') id: string, @Request() req: any) {
     const { loja_id } = req.user;
     const orcamento = await this.orcamentosService.buscarOrcamento(id, loja_id);
-    
+
     return await this.integracaoMotor.calcularOrcamentoCompleto(
       orcamento,
       loja_id,
@@ -460,14 +533,14 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 200, description: 'Validação realizada' })
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
-  async validarEstoque(
-    @Param('id') id: string,
-    @Request() req: any,
-  ) {
+  async validarEstoque(@Param('id') id: string, @Request() req: any) {
     const { loja_id } = req.user;
     const orcamento = await this.orcamentosService.buscarOrcamento(id, loja_id);
-    
-    return await this.validacaoEstoque.validarEstoqueOrcamento(orcamento, loja_id);
+
+    return await this.validacaoEstoque.validarEstoqueOrcamento(
+      orcamento,
+      loja_id,
+    );
   }
 
   /**
@@ -484,7 +557,11 @@ export class OrcamentosV2Controller {
     @Query('categoria_id') categoriaId?: string,
   ) {
     const { loja_id } = req.user;
-    return await this.insumosAutocomplete.buscarInsumos(busca, categoriaId, loja_id);
+    return await this.insumosAutocomplete.buscarInsumos(
+      busca,
+      categoriaId,
+      loja_id,
+    );
   }
 
   /**
@@ -509,10 +586,7 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 200, description: 'Orçamento enviado com sucesso' })
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
-  async enviarOrcamento(
-    @Param('id') id: string,
-    @Request() req: any,
-  ) {
+  async enviarOrcamento(@Param('id') id: string, @Request() req: any) {
     const { loja_id, user_id } = req.user;
     return await this.orcamentosService.enviarOrcamento(id, loja_id, user_id);
   }
@@ -532,13 +606,17 @@ export class OrcamentosV2Controller {
     @Request() req: any,
   ) {
     const { loja_id, user_id } = req.user;
-    const orcamentoOriginal = await this.orcamentosService.buscarOrcamento(id, loja_id);
-    
+    const orcamentoOriginal = await this.orcamentosService.buscarOrcamento(
+      id,
+      loja_id,
+    );
+
     // Preparar dados para duplicação
     const dadosDuplicacao = {
       ...orcamentoOriginal,
       titulo: dados.titulo || `${orcamentoOriginal.titulo} (Cópia)`,
-      descricao: dados.descricao || `Cópia do orçamento ${orcamentoOriginal.titulo}`,
+      descricao:
+        dados.descricao || `Cópia do orçamento ${orcamentoOriginal.titulo}`,
       status: 'rascunho' as any,
       produtos: orcamentoOriginal.produtos,
     };
@@ -554,7 +632,11 @@ export class OrcamentosV2Controller {
     delete (dadosDuplicacao as any).mensagensChat;
     delete dadosDuplicacao.anexos;
 
-    return await this.orcamentosService.criarOrcamento(dadosDuplicacao, loja_id, user_id);
+    return await this.orcamentosService.criarOrcamento(
+      dadosDuplicacao,
+      loja_id,
+      user_id,
+    );
   }
 
   /**
@@ -574,11 +656,13 @@ export class OrcamentosV2Controller {
   ) {
     const { loja_id } = req.user;
     const orcamento = await this.orcamentosService.buscarOrcamento(id, loja_id);
-    
+
     // Validar formato
     const formatosSuportados = ['pdf', 'excel', 'csv'];
     if (!formatosSuportados.includes(formato.toLowerCase())) {
-      throw new Error(`Formato não suportado. Use: ${formatosSuportados.join(', ')}`);
+      throw new Error(
+        `Formato não suportado. Use: ${formatosSuportados.join(', ')}`,
+      );
     }
 
     // TODO: Implementar exportação real
@@ -589,6 +673,4 @@ export class OrcamentosV2Controller {
       timestamp: new Date(),
     };
   }
-
-
 }

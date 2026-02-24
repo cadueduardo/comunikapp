@@ -31,5 +31,3 @@ describe('DashboardEstoqueService', () => {
     expect(result).toHaveProperty('estatisticas');
   });
 });
-
-

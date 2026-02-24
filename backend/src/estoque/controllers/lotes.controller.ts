@@ -12,7 +12,14 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { QueryLotesDto } from '../dto/query-lotes.dto';
 import { LotesService } from '../services/lotes.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
@@ -35,8 +42,11 @@ export class LotesController {
   async criarLote(@GetLoja() loja: loja, @Body() data: any) {
     this.logger.log(`📦 Criando lote para loja: ${loja.id}`);
     const context = { lojaId: loja.id };
-    return withLog(this.logger, 'Erro ao criar lote', 'Lote criado com sucesso', () =>
-      this.lotesService.criarLote(context, data),
+    return withLog(
+      this.logger,
+      'Erro ao criar lote',
+      'Lote criado com sucesso',
+      () => this.lotesService.criarLote(context, data),
     );
   }
 
@@ -59,8 +69,11 @@ export class LotesController {
   async listarLotes(@GetLoja() loja: loja, @Query() query: QueryLotesDto) {
     this.logger.log(`📦 Listando lotes para loja: ${loja.id}`);
     const context = { lojaId: loja.id };
-    return withLog(this.logger, 'Erro ao listar lotes', 'Lotes listados com sucesso', () =>
-      this.lotesService.listarLotes(context, query),
+    return withLog(
+      this.logger,
+      'Erro ao listar lotes',
+      'Lotes listados com sucesso',
+      () => this.lotesService.listarLotes(context, query),
     );
   }
 
@@ -71,11 +84,16 @@ export class LotesController {
   async buscarLote(@GetLoja() loja: loja, @Param('id') id: string) {
     this.logger.log(`📦 Buscando lote ${id} para loja: ${loja.id}`);
     const context = { lojaId: loja.id };
-    return withLog(this.logger, 'Erro ao buscar lote', 'Lote encontrado com sucesso', async () => {
-      const lote = await this.lotesService.buscarLotePorId(context, id);
-      if (!lote) throw new NotFoundException('Lote não encontrado');
-      return lote;
-    });
+    return withLog(
+      this.logger,
+      'Erro ao buscar lote',
+      'Lote encontrado com sucesso',
+      async () => {
+        const lote = await this.lotesService.buscarLotePorId(context, id);
+        if (!lote) throw new NotFoundException('Lote não encontrado');
+        return lote;
+      },
+    );
   }
 
   @Put(':id')
@@ -89,8 +107,11 @@ export class LotesController {
   ) {
     this.logger.log(`📦 Atualizando lote ${id} para loja: ${loja.id}`);
     const context = { lojaId: loja.id };
-    return withLog(this.logger, 'Erro ao atualizar lote', 'Lote atualizado com sucesso', () =>
-      this.lotesService.atualizarLote(context, id, data),
+    return withLog(
+      this.logger,
+      'Erro ao atualizar lote',
+      'Lote atualizado com sucesso',
+      () => this.lotesService.atualizarLote(context, id, data),
     );
   }
 
@@ -101,10 +122,15 @@ export class LotesController {
   async excluirLote(@GetLoja() loja: loja, @Param('id') id: string) {
     this.logger.log(`📦 Excluindo lote ${id} para loja: ${loja.id}`);
     const context = { lojaId: loja.id };
-    return withLog(this.logger, 'Erro ao excluir lote', 'Lote excluído com sucesso', async () => {
-      await this.lotesService.excluirLote(context, id);
-      return undefined as any;
-    });
+    return withLog(
+      this.logger,
+      'Erro ao excluir lote',
+      'Lote excluído com sucesso',
+      async () => {
+        await this.lotesService.excluirLote(context, id);
+        return undefined as any;
+      },
+    );
   }
 
   @Get('vencimento/proximos')
@@ -122,11 +148,16 @@ export class LotesController {
     @GetLoja() loja: loja,
     @Query('dias') dias: string = '30',
   ) {
-    this.logger.log(`📦 Buscando lotes próximos do vencimento para loja: ${loja.id}`);
+    this.logger.log(
+      `📦 Buscando lotes próximos do vencimento para loja: ${loja.id}`,
+    );
     const context = { lojaId: loja.id };
     const diasNum = parseInt(dias) || 30;
-    return withLog(this.logger, 'Erro ao buscar lotes próximos do vencimento', 'Lotes próximos do vencimento retornados com sucesso', () =>
-      this.lotesService.lotesProximosVencimento(context, diasNum),
+    return withLog(
+      this.logger,
+      'Erro ao buscar lotes próximos do vencimento',
+      'Lotes próximos do vencimento retornados com sucesso',
+      () => this.lotesService.lotesProximosVencimento(context, diasNum),
     );
   }
 
@@ -144,8 +175,11 @@ export class LotesController {
       throw new BadRequestException('Quantidade deve ser maior que zero');
     }
     const context = { lojaId: loja.id };
-    return withLog(this.logger, 'Erro ao consumir lote', 'Quantidade consumida com sucesso', () =>
-      this.lotesService.consumirLote(context, id, data.quantidade),
+    return withLog(
+      this.logger,
+      'Erro ao consumir lote',
+      'Quantidade consumida com sucesso',
+      () => this.lotesService.consumirLote(context, id, data.quantidade),
     );
   }
 }

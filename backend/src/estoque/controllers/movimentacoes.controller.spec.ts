@@ -34,7 +34,8 @@ describe('MovimentacoesController', () => {
     }).compile();
 
     controller = module.get<MovimentacoesController>(MovimentacoesController);
-    movimentacoesService = module.get<MovimentacoesService>(MovimentacoesService);
+    movimentacoesService =
+      module.get<MovimentacoesService>(MovimentacoesService);
   });
 
   afterEach(() => {
@@ -69,7 +70,9 @@ describe('MovimentacoesController', () => {
         dataMovimentacao: new Date(),
       } as any;
 
-      mockMovimentacoesService.criarMovimentacao.mockResolvedValue(expectedResult);
+      mockMovimentacoesService.criarMovimentacao.mockResolvedValue(
+        expectedResult,
+      );
 
       const loja = { id: 'loja-123' } as any;
       const result = await controller.criar(createDto, loja);

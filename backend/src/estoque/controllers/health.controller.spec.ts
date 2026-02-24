@@ -6,14 +6,14 @@ describe('HealthController', () => {
   let controller: HealthController;
   let prisma: PrismaService;
 
-  const prismaMock = { $queryRawUnsafe: jest.fn().mockResolvedValue([{ ok: 1 }]) } as any;
+  const prismaMock = {
+    $queryRawUnsafe: jest.fn().mockResolvedValue([{ ok: 1 }]),
+  } as any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [HealthController],
-      providers: [
-        { provide: PrismaService, useValue: prismaMock },
-      ],
+      providers: [{ provide: PrismaService, useValue: prismaMock }],
     }).compile();
 
     controller = module.get<HealthController>(HealthController);

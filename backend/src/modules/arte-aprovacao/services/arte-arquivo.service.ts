@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ArteArquivoResponseDto } from '../dto/arte-response.dto';
 
@@ -9,15 +13,18 @@ export class ArteArquivoService {
   /**
    * Lista todos os arquivos de uma versão
    */
-  async findArquivosByVersao(versaoId: string, lojaId: string): Promise<ArteArquivoResponseDto[]> {
+  async findArquivosByVersao(
+    versaoId: string,
+    lojaId: string,
+  ): Promise<ArteArquivoResponseDto[]> {
     console.log('📁 Buscando arquivos da versão:', { versaoId, lojaId });
 
     // Verificar se a versão existe e pertence à loja
     const versao = await this.prisma.arteVersao.findFirst({
       where: {
         id: versaoId,
-        loja_id: lojaId
-      }
+        loja_id: lojaId,
+      },
     });
 
     if (!versao) {
@@ -27,29 +34,32 @@ export class ArteArquivoService {
     const arquivos = await this.prisma.arteArquivo.findMany({
       where: {
         versao_id: versaoId,
-        loja_id: lojaId
+        loja_id: lojaId,
       },
       orderBy: {
-        data_upload: 'desc'
-      }
+        data_upload: 'desc',
+      },
     });
 
     console.log(`📋 Encontrados ${arquivos.length} arquivos`);
 
-    return arquivos.map(arquivo => this.formatArquivoResponse(arquivo));
+    return arquivos.map((arquivo) => this.formatArquivoResponse(arquivo));
   }
 
   /**
    * Busca um arquivo específico
    */
-  async findArquivoById(arquivoId: string, lojaId: string): Promise<ArteArquivoResponseDto> {
+  async findArquivoById(
+    arquivoId: string,
+    lojaId: string,
+  ): Promise<ArteArquivoResponseDto> {
     console.log('🔍 Buscando arquivo:', { arquivoId, lojaId });
 
     const arquivo = await this.prisma.arteArquivo.findFirst({
       where: {
         id: arquivoId,
-        loja_id: lojaId
-      }
+        loja_id: lojaId,
+      },
     });
 
     if (!arquivo) {
@@ -74,16 +84,20 @@ export class ArteArquivoService {
       storage_provider: string;
       storage_path: string;
     },
-    lojaId: string
+    lojaId: string,
   ): Promise<ArteArquivoResponseDto> {
-    console.log('📤 Adicionando arquivo à versão:', { versaoId, arquivoData, lojaId });
+    console.log('📤 Adicionando arquivo à versão:', {
+      versaoId,
+      arquivoData,
+      lojaId,
+    });
 
     // Verificar se a versão existe e pertence à loja
     const versao = await this.prisma.arteVersao.findFirst({
       where: {
         id: versaoId,
-        loja_id: lojaId
-      }
+        loja_id: lojaId,
+      },
     });
 
     if (!versao) {
@@ -93,17 +107,19 @@ export class ArteArquivoService {
     // Validar tipo de arquivo
     const tiposPermitidos = ['pdf', 'jpg', 'jpeg', 'png', 'ai', 'psd', 'eps'];
     const extensao = arquivoData.tipo_arquivo.toLowerCase();
-    
+
     if (!tiposPermitidos.includes(extensao)) {
       throw new BadRequestException(
-        `Tipo de arquivo não permitido. Tipos aceitos: ${tiposPermitidos.join(', ')}`
+        `Tipo de arquivo não permitido. Tipos aceitos: ${tiposPermitidos.join(', ')}`,
       );
     }
 
     // Validar tamanho (máximo 50MB)
     const maxSize = 50 * 1024 * 1024; // 50MB em bytes
     if (Number(arquivoData.tamanho) > maxSize) {
-      throw new BadRequestException('Arquivo muito grande. Tamanho máximo: 50MB');
+      throw new BadRequestException(
+        'Arquivo muito grande. Tamanho máximo: 50MB',
+      );
     }
 
     // Criar o arquivo
@@ -118,8 +134,8 @@ export class ArteArquivoService {
         url_thumbnail: arquivoData.url_thumbnail,
         storage_provider: arquivoData.storage_provider,
         storage_path: arquivoData.storage_path,
-        loja_id: lojaId
-      }
+        loja_id: lojaId,
+      },
     });
 
     console.log('✅ Arquivo adicionado com sucesso:', arquivo.id);
@@ -137,8 +153,8 @@ export class ArteArquivoService {
     const arquivoExistente = await this.prisma.arteArquivo.findFirst({
       where: {
         id: arquivoId,
-        loja_id: lojaId
-      }
+        loja_id: lojaId,
+      },
     });
 
     if (!arquivoExistente) {
@@ -151,8 +167,8 @@ export class ArteArquivoService {
     // Remover o arquivo
     await this.prisma.arteArquivo.delete({
       where: {
-        id: arquivoId
-      }
+        id: arquivoId,
+      },
     });
 
     console.log('✅ Arquivo removido com sucesso');
@@ -165,7 +181,7 @@ export class ArteArquivoService {
     console.log('🔗 Gerando URL pública:', { arquivoId, lojaId });
 
     const arquivo = await this.findArquivoById(arquivoId, lojaId);
-    
+
     // TODO: Implementar geração de URL temporária baseada no storage provider
     // Por enquanto, retorna a URL direta
     return arquivo.url_arquivo;
@@ -184,7 +200,7 @@ export class ArteArquivoService {
       url_arquivo: arquivo.url_arquivo,
       url_thumbnail: arquivo.url_thumbnail,
       storage_provider: arquivo.storage_provider,
-      data_upload: arquivo.data_upload
+      data_upload: arquivo.data_upload,
     };
   }
 }

@@ -9,34 +9,3 @@ import { PrismaModule } from '../prisma/prisma.module';
   providers: [ServicosManuaisService],
 })
 export class ServicosManuaisModule {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

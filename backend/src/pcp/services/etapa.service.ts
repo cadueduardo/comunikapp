@@ -1,6 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { EtapaInstanciaData, CreateEtapaInstanciaDto, UpdateEtapaInstanciaDto } from '../interfaces/pcp.interfaces';
+import {
+  EtapaInstanciaData,
+  CreateEtapaInstanciaDto,
+  UpdateEtapaInstanciaDto,
+} from '../interfaces/pcp.interfaces';
 
 @Injectable()
 export class EtapaService {
@@ -9,7 +17,7 @@ export class EtapaService {
   async criarEtapa(dto: CreateEtapaInstanciaDto): Promise<EtapaInstanciaData> {
     // Verificar se workflow_instancia existe
     const workflowInstancia = await this.prisma.workflowInstancia.findUnique({
-      where: { id: dto.workflow_instancia_id }
+      where: { id: dto.workflow_instancia_id },
     });
 
     if (!workflowInstancia) {
@@ -20,12 +28,14 @@ export class EtapaService {
     const etapaExistente = await this.prisma.etapaInstancia.findFirst({
       where: {
         workflow_instancia_id: dto.workflow_instancia_id,
-        ordem: dto.ordem
-      }
+        ordem: dto.ordem,
+      },
     });
 
     if (etapaExistente) {
-      throw new BadRequestException('Já existe uma etapa com esta ordem neste workflow');
+      throw new BadRequestException(
+        'Já existe uma etapa com esta ordem neste workflow',
+      );
     }
 
     const etapa = await this.prisma.etapaInstancia.create({
@@ -36,16 +46,16 @@ export class EtapaService {
         responsavel_id: dto.responsavel_id,
         tempo_estimado: dto.tempo_estimado,
         observacoes: dto.observacoes,
-        status: 'PENDENTE'
+        status: 'PENDENTE',
       },
       include: {
         checklists: {
-          orderBy: { ordem: 'asc' }
+          orderBy: { ordem: 'asc' },
         },
         apontamentos: {
-          orderBy: { data_apontamento: 'desc' }
-        }
-      }
+          orderBy: { data_apontamento: 'desc' },
+        },
+      },
     });
 
     return this.converterParaInterface(etapa);
@@ -56,37 +66,42 @@ export class EtapaService {
       where: { id },
       include: {
         checklists: {
-          orderBy: { ordem: 'asc' }
+          orderBy: { ordem: 'asc' },
         },
         apontamentos: {
-          orderBy: { data_apontamento: 'desc' }
-        }
-      }
+          orderBy: { data_apontamento: 'desc' },
+        },
+      },
     });
 
     return etapa ? this.converterParaInterface(etapa) : null;
   }
 
-  async buscarPorWorkflow(workflowInstanciaId: string): Promise<EtapaInstanciaData[]> {
+  async buscarPorWorkflow(
+    workflowInstanciaId: string,
+  ): Promise<EtapaInstanciaData[]> {
     const etapas = await this.prisma.etapaInstancia.findMany({
       where: { workflow_instancia_id: workflowInstanciaId },
       orderBy: { ordem: 'asc' },
       include: {
         checklists: {
-          orderBy: { ordem: 'asc' }
+          orderBy: { ordem: 'asc' },
         },
         apontamentos: {
-          orderBy: { data_apontamento: 'desc' }
-        }
-      }
+          orderBy: { data_apontamento: 'desc' },
+        },
+      },
     });
 
-    return etapas.map(etapa => this.converterParaInterface(etapa));
+    return etapas.map((etapa) => this.converterParaInterface(etapa));
   }
 
-  async atualizarEtapa(id: string, dto: UpdateEtapaInstanciaDto): Promise<EtapaInstanciaData> {
+  async atualizarEtapa(
+    id: string,
+    dto: UpdateEtapaInstanciaDto,
+  ): Promise<EtapaInstanciaData> {
     const etapa = await this.prisma.etapaInstancia.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!etapa) {
@@ -97,24 +112,27 @@ export class EtapaService {
       where: { id },
       data: {
         ...dto,
-        atualizado_em: new Date()
+        atualizado_em: new Date(),
       },
       include: {
         checklists: {
-          orderBy: { ordem: 'asc' }
+          orderBy: { ordem: 'asc' },
         },
         apontamentos: {
-          orderBy: { data_apontamento: 'desc' }
-        }
-      }
+          orderBy: { data_apontamento: 'desc' },
+        },
+      },
     });
 
     return this.converterParaInterface(etapaAtualizada);
   }
 
-  async iniciarEtapa(id: string, responsavelId: string): Promise<EtapaInstanciaData> {
+  async iniciarEtapa(
+    id: string,
+    responsavelId: string,
+  ): Promise<EtapaInstanciaData> {
     const etapa = await this.prisma.etapaInstancia.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!etapa) {
@@ -122,7 +140,9 @@ export class EtapaService {
     }
 
     if (etapa.status !== 'PENDENTE') {
-      throw new BadRequestException('Etapa não pode ser iniciada no status atual');
+      throw new BadRequestException(
+        'Etapa não pode ser iniciada no status atual',
+      );
     }
 
     const etapaAtualizada = await this.prisma.etapaInstancia.update({
@@ -131,25 +151,28 @@ export class EtapaService {
         status: 'EM_ANDAMENTO',
         data_inicio: new Date(),
         responsavel_id: responsavelId,
-        atualizado_em: new Date()
+        atualizado_em: new Date(),
       },
       include: {
         checklists: {
-          orderBy: { ordem: 'asc' }
+          orderBy: { ordem: 'asc' },
         },
         apontamentos: {
-          orderBy: { data_apontamento: 'desc' }
-        }
-      }
+          orderBy: { data_apontamento: 'desc' },
+        },
+      },
     });
 
     return this.converterParaInterface(etapaAtualizada);
   }
 
-  async concluirEtapa(id: string, observacoes?: string): Promise<EtapaInstanciaData> {
+  async concluirEtapa(
+    id: string,
+    observacoes?: string,
+  ): Promise<EtapaInstanciaData> {
     const etapa = await this.prisma.etapaInstancia.findUnique({
       where: { id },
-      include: { checklists: true }
+      include: { checklists: true },
     });
 
     if (!etapa) {
@@ -157,15 +180,23 @@ export class EtapaService {
     }
 
     if (etapa.status !== 'EM_ANDAMENTO') {
-      throw new BadRequestException('Etapa não pode ser concluída no status atual');
+      throw new BadRequestException(
+        'Etapa não pode ser concluída no status atual',
+      );
     }
 
     // Verificar se todos os checklists obrigatórios foram concluídos
-    const checklistsObrigatorios = etapa.checklists.filter(c => c.obrigatorio);
-    const checklistsConcluidos = checklistsObrigatorios.filter(c => c.concluido);
+    const checklistsObrigatorios = etapa.checklists.filter(
+      (c) => c.obrigatorio,
+    );
+    const checklistsConcluidos = checklistsObrigatorios.filter(
+      (c) => c.concluido,
+    );
 
     if (checklistsConcluidos.length !== checklistsObrigatorios.length) {
-      throw new BadRequestException('Todos os checklists obrigatórios devem ser concluídos');
+      throw new BadRequestException(
+        'Todos os checklists obrigatórios devem ser concluídos',
+      );
     }
 
     const etapaAtualizada = await this.prisma.etapaInstancia.update({
@@ -174,16 +205,16 @@ export class EtapaService {
         status: 'CONCLUIDA',
         data_fim: new Date(),
         observacoes: observacoes || etapa.observacoes,
-        atualizado_em: new Date()
+        atualizado_em: new Date(),
       },
       include: {
         checklists: {
-          orderBy: { ordem: 'asc' }
+          orderBy: { ordem: 'asc' },
         },
         apontamentos: {
-          orderBy: { data_apontamento: 'desc' }
-        }
-      }
+          orderBy: { data_apontamento: 'desc' },
+        },
+      },
     });
 
     return this.converterParaInterface(etapaAtualizada);
@@ -191,7 +222,7 @@ export class EtapaService {
 
   async deletarEtapa(id: string): Promise<void> {
     const etapa = await this.prisma.etapaInstancia.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!etapa) {
@@ -199,7 +230,7 @@ export class EtapaService {
     }
 
     await this.prisma.etapaInstancia.delete({
-      where: { id }
+      where: { id },
     });
   }
 
@@ -218,7 +249,7 @@ export class EtapaService {
       observacoes: etapa.observacoes,
       criado_em: etapa.criado_em,
       atualizado_em: etapa.atualizado_em,
-      checklists: etapa.checklists?.map(checklist => ({
+      checklists: etapa.checklists?.map((checklist) => ({
         id: checklist.id,
         etapa_instancia_id: checklist.etapa_instancia_id,
         item_descricao: checklist.item_descricao,
@@ -229,9 +260,9 @@ export class EtapaService {
         observacoes: checklist.observacoes,
         ordem: checklist.ordem,
         criado_em: checklist.criado_em,
-        atualizado_em: checklist.atualizado_em
+        atualizado_em: checklist.atualizado_em,
       })),
-      apontamentos: etapa.apontamentos?.map(apontamento => ({
+      apontamentos: etapa.apontamentos?.map((apontamento) => ({
         id: apontamento.id,
         os_id: apontamento.os_id,
         etapa_instancia_id: apontamento.etapa_instancia_id,
@@ -244,8 +275,8 @@ export class EtapaService {
         tempo_gasto: apontamento.tempo_gasto,
         ip_origem: apontamento.ip_origem,
         user_agent: apontamento.user_agent,
-        criado_em: apontamento.criado_em
-      }))
+        criado_em: apontamento.criado_em,
+      })),
     };
   }
 }

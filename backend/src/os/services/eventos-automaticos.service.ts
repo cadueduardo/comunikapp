@@ -8,21 +8,23 @@ export class EventosAutomaticosService {
 
   constructor(
     private readonly websocketsService: WebsocketsService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
    * Notifica mudança de status da OS via WebSocket
    */
   async notificarMudancaStatusOS(
-    osId: string, 
-    statusAnterior: string, 
-    statusNovo: string, 
+    osId: string,
+    statusAnterior: string,
+    statusNovo: string,
     lojaId: string,
-    usuarioId?: string
+    usuarioId?: string,
   ): Promise<void> {
     try {
-      this.logger.log(`📢 Notificando mudança de status OS ${osId}: ${statusAnterior} → ${statusNovo}`);
+      this.logger.log(
+        `📢 Notificando mudança de status OS ${osId}: ${statusAnterior} → ${statusNovo}`,
+      );
 
       const evento = {
         tipo: 'OS_STATUS_CHANGED',
@@ -31,17 +33,23 @@ export class EventosAutomaticosService {
         status_novo: statusNovo,
         usuario_id: usuarioId,
         timestamp: new Date().toISOString(),
-        loja_id: lojaId
+        loja_id: lojaId,
       };
 
       // Notificar toda a loja
-      await this.websocketsService.emitToLoja(lojaId, 'os_status_changed', evento);
+      await this.websocketsService.emitToLoja(
+        lojaId,
+        'os_status_changed',
+        evento,
+      );
 
       // Log no banco de dados
       await this.registrarLogEvento(evento);
-
     } catch (error) {
-      this.logger.error(`Erro ao notificar mudança de status OS ${osId}:`, error);
+      this.logger.error(
+        `Erro ao notificar mudança de status OS ${osId}:`,
+        error,
+      );
     }
   }
 
@@ -49,10 +57,10 @@ export class EventosAutomaticosService {
    * Notifica liberação de OS para PCP
    */
   async notificarOSLiberadaParaPCP(
-    osId: string, 
-    lojaId: string, 
+    osId: string,
+    lojaId: string,
     workflowId?: string,
-    usuarioId?: string
+    usuarioId?: string,
   ): Promise<void> {
     try {
       this.logger.log(`🚀 Notificando OS ${osId} liberada para PCP`);
@@ -63,17 +71,23 @@ export class EventosAutomaticosService {
         workflow_id: workflowId,
         usuario_id: usuarioId,
         timestamp: new Date().toISOString(),
-        loja_id: lojaId
+        loja_id: lojaId,
       };
 
       // Notificar toda a loja
-      await this.websocketsService.emitToLoja(lojaId, 'os_liberada_pcp', evento);
+      await this.websocketsService.emitToLoja(
+        lojaId,
+        'os_liberada_pcp',
+        evento,
+      );
 
       // Log no banco de dados
       await this.registrarLogEvento(evento);
-
     } catch (error) {
-      this.logger.error(`Erro ao notificar OS liberada para PCP ${osId}:`, error);
+      this.logger.error(
+        `Erro ao notificar OS liberada para PCP ${osId}:`,
+        error,
+      );
     }
   }
 
@@ -81,10 +95,10 @@ export class EventosAutomaticosService {
    * Notifica início de workflow PCP
    */
   async notificarInicioWorkflow(
-    osId: string, 
-    workflowInstanciaId: string, 
+    osId: string,
+    workflowInstanciaId: string,
     lojaId: string,
-    usuarioId?: string
+    usuarioId?: string,
   ): Promise<void> {
     try {
       this.logger.log(`⚙️ Notificando início de workflow para OS ${osId}`);
@@ -95,17 +109,23 @@ export class EventosAutomaticosService {
         workflow_instancia_id: workflowInstanciaId,
         usuario_id: usuarioId,
         timestamp: new Date().toISOString(),
-        loja_id: lojaId
+        loja_id: lojaId,
       };
 
       // Notificar toda a loja
-      await this.websocketsService.emitToLoja(lojaId, 'workflow_iniciado', evento);
+      await this.websocketsService.emitToLoja(
+        lojaId,
+        'workflow_iniciado',
+        evento,
+      );
 
       // Log no banco de dados
       await this.registrarLogEvento(evento);
-
     } catch (error) {
-      this.logger.error(`Erro ao notificar início de workflow ${workflowInstanciaId}:`, error);
+      this.logger.error(
+        `Erro ao notificar início de workflow ${workflowInstanciaId}:`,
+        error,
+      );
     }
   }
 
@@ -113,13 +133,15 @@ export class EventosAutomaticosService {
    * Notifica conclusão de etapa do workflow
    */
   async notificarEtapaConcluida(
-    osId: string, 
-    etapaNome: string, 
+    osId: string,
+    etapaNome: string,
     lojaId: string,
-    usuarioId?: string
+    usuarioId?: string,
   ): Promise<void> {
     try {
-      this.logger.log(`✅ Notificando etapa concluída: ${etapaNome} para OS ${osId}`);
+      this.logger.log(
+        `✅ Notificando etapa concluída: ${etapaNome} para OS ${osId}`,
+      );
 
       const evento = {
         tipo: 'ETAPA_CONCLUIDA',
@@ -127,17 +149,23 @@ export class EventosAutomaticosService {
         etapa_nome: etapaNome,
         usuario_id: usuarioId,
         timestamp: new Date().toISOString(),
-        loja_id: lojaId
+        loja_id: lojaId,
       };
 
       // Notificar toda a loja
-      await this.websocketsService.emitToLoja(lojaId, 'etapa_concluida', evento);
+      await this.websocketsService.emitToLoja(
+        lojaId,
+        'etapa_concluida',
+        evento,
+      );
 
       // Log no banco de dados
       await this.registrarLogEvento(evento);
-
     } catch (error) {
-      this.logger.error(`Erro ao notificar etapa concluída ${etapaNome}:`, error);
+      this.logger.error(
+        `Erro ao notificar etapa concluída ${etapaNome}:`,
+        error,
+      );
     }
   }
 
@@ -145,10 +173,10 @@ export class EventosAutomaticosService {
    * Notifica conclusão de workflow PCP
    */
   async notificarWorkflowConcluido(
-    osId: string, 
-    workflowInstanciaId: string, 
+    osId: string,
+    workflowInstanciaId: string,
     lojaId: string,
-    usuarioId?: string
+    usuarioId?: string,
   ): Promise<void> {
     try {
       this.logger.log(`🎉 Notificando workflow concluído para OS ${osId}`);
@@ -159,17 +187,23 @@ export class EventosAutomaticosService {
         workflow_instancia_id: workflowInstanciaId,
         usuario_id: usuarioId,
         timestamp: new Date().toISOString(),
-        loja_id: lojaId
+        loja_id: lojaId,
       };
 
       // Notificar toda a loja
-      await this.websocketsService.emitToLoja(lojaId, 'workflow_concluido', evento);
+      await this.websocketsService.emitToLoja(
+        lojaId,
+        'workflow_concluido',
+        evento,
+      );
 
       // Log no banco de dados
       await this.registrarLogEvento(evento);
-
     } catch (error) {
-      this.logger.error(`Erro ao notificar workflow concluído ${workflowInstanciaId}:`, error);
+      this.logger.error(
+        `Erro ao notificar workflow concluído ${workflowInstanciaId}:`,
+        error,
+      );
     }
   }
 
@@ -177,14 +211,16 @@ export class EventosAutomaticosService {
    * Notifica aprovação técnica
    */
   async notificarAprovacaoTecnica(
-    osId: string, 
-    aprovado: boolean, 
+    osId: string,
+    aprovado: boolean,
     lojaId: string,
     usuarioId?: string,
-    observacoes?: string
+    observacoes?: string,
   ): Promise<void> {
     try {
-      this.logger.log(`🔍 Notificando aprovação técnica OS ${osId}: ${aprovado ? 'APROVADA' : 'REJEITADA'}`);
+      this.logger.log(
+        `🔍 Notificando aprovação técnica OS ${osId}: ${aprovado ? 'APROVADA' : 'REJEITADA'}`,
+      );
 
       const evento = {
         tipo: 'APROVACAO_TECNICA',
@@ -193,17 +229,23 @@ export class EventosAutomaticosService {
         observacoes: observacoes,
         usuario_id: usuarioId,
         timestamp: new Date().toISOString(),
-        loja_id: lojaId
+        loja_id: lojaId,
       };
 
       // Notificar toda a loja
-      await this.websocketsService.emitToLoja(lojaId, 'aprovacao_tecnica', evento);
+      await this.websocketsService.emitToLoja(
+        lojaId,
+        'aprovacao_tecnica',
+        evento,
+      );
 
       // Log no banco de dados
       await this.registrarLogEvento(evento);
-
     } catch (error) {
-      this.logger.error(`Erro ao notificar aprovação técnica OS ${osId}:`, error);
+      this.logger.error(
+        `Erro ao notificar aprovação técnica OS ${osId}:`,
+        error,
+      );
     }
   }
 
@@ -211,13 +253,15 @@ export class EventosAutomaticosService {
    * Notifica alerta de prazo
    */
   async notificarAlertaPrazo(
-    osId: string, 
-    diasParaVencimento: number, 
+    osId: string,
+    diasParaVencimento: number,
     lojaId: string,
-    usuarioId?: string
+    usuarioId?: string,
   ): Promise<void> {
     try {
-      this.logger.log(`⚠️ Notificando alerta de prazo OS ${osId}: ${diasParaVencimento} dias`);
+      this.logger.log(
+        `⚠️ Notificando alerta de prazo OS ${osId}: ${diasParaVencimento} dias`,
+      );
 
       const evento = {
         tipo: 'ALERTA_PRAZO',
@@ -225,7 +269,7 @@ export class EventosAutomaticosService {
         dias_para_vencimento: diasParaVencimento,
         usuario_id: usuarioId,
         timestamp: new Date().toISOString(),
-        loja_id: lojaId
+        loja_id: lojaId,
       };
 
       // Notificar toda a loja
@@ -233,7 +277,6 @@ export class EventosAutomaticosService {
 
       // Log no banco de dados
       await this.registrarLogEvento(evento);
-
     } catch (error) {
       this.logger.error(`Erro ao notificar alerta de prazo OS ${osId}:`, error);
     }
@@ -264,47 +307,37 @@ export class EventosAutomaticosService {
         where: {
           data_prazo: {
             gte: new Date(),
-            lte: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 dias
+            lte: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 dias
           },
           status: {
-            in: ['LIBERADA_PARA_PCP', 'EM_WORKFLOW', 'PRODUCAO']
-          }
+            in: ['LIBERADA_PARA_PCP', 'EM_WORKFLOW', 'PRODUCAO'],
+          },
         },
         include: {
-          loja: true
-        }
+          loja: true,
+        },
       });
 
       for (const os of ossProximoVencimento) {
         const diasParaVencimento = Math.ceil(
-          (new Date(os.data_prazo).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+          (new Date(os.data_prazo).getTime() - new Date().getTime()) /
+            (1000 * 60 * 60 * 24),
         );
 
         if (diasParaVencimento <= 3 && diasParaVencimento > 0) {
           await this.notificarAlertaPrazo(
             os.id,
             diasParaVencimento,
-            os.loja_id
+            os.loja_id,
           );
         }
       }
 
-      this.logger.log(`✅ Processados ${ossProximoVencimento.length} eventos automáticos`);
-
+      this.logger.log(
+        `✅ Processados ${ossProximoVencimento.length} eventos automáticos`,
+      );
     } catch (error) {
       this.logger.error('Erro ao processar eventos automáticos:', error);
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-

@@ -51,26 +51,26 @@ export class CalculoMaterialUnidadeService {
 
   // Desperdício padrão por tipo de material (%)
   private readonly DESPERDICIO_PADRAO = {
-    'LONA_FRONT': 5,      // 5% para lonas frontlight
-    'LONA_BACK': 3,       // 3% para lonas backlight
-    'VINIL_ADESIVO': 8,   // 8% para vinil adesivo
-    'ACRILICO': 10,       // 10% para acrílico
-    'PAPEL': 15,          // 15% para papel
-    'TINTA': 5,           // 5% para tintas
-    'CORDAO': 2,          // 2% para cordões
-    'DEFAULT': 5           // 5% padrão
+    LONA_FRONT: 5, // 5% para lonas frontlight
+    LONA_BACK: 3, // 3% para lonas backlight
+    VINIL_ADESIVO: 8, // 8% para vinil adesivo
+    ACRILICO: 10, // 10% para acrílico
+    PAPEL: 15, // 15% para papel
+    TINTA: 5, // 5% para tintas
+    CORDAO: 2, // 2% para cordões
+    DEFAULT: 5, // 5% padrão
   };
 
   // Dimensões padrão de unidades de compra
   private readonly DIMENSOES_PADRAO = {
-    'LONA_FRONT': { largura: 1.60, comprimento: 30, area: 48 },
-    'LONA_BACK': { largura: 1.60, comprimento: 30, area: 48 },
-    'VINIL_ADESIVO': { largura: 1.37, comprimento: 50, area: 68.5 },
-    'ACRILICO': { largura: 1.22, comprimento: 2.44, area: 2.98 },
-    'PAPEL': { largura: 0.70, comprimento: 100, area: 70 },
-    'TINTA': { largura: 0, comprimento: 0, area: 0 }, // Unidade por litro
-    'CORDAO': { largura: 0, comprimento: 50, area: 0 }, // Unidade por metro
-    'DEFAULT': { largura: 1.0, comprimento: 1.0, area: 1.0 }
+    LONA_FRONT: { largura: 1.6, comprimento: 30, area: 48 },
+    LONA_BACK: { largura: 1.6, comprimento: 30, area: 48 },
+    VINIL_ADESIVO: { largura: 1.37, comprimento: 50, area: 68.5 },
+    ACRILICO: { largura: 1.22, comprimento: 2.44, area: 2.98 },
+    PAPEL: { largura: 0.7, comprimento: 100, area: 70 },
+    TINTA: { largura: 0, comprimento: 0, area: 0 }, // Unidade por litro
+    CORDAO: { largura: 0, comprimento: 50, area: 0 }, // Unidade por metro
+    DEFAULT: { largura: 1.0, comprimento: 1.0, area: 1.0 },
   };
 
   constructor(private readonly prisma: PrismaService) {}
@@ -94,16 +94,16 @@ export class CalculoMaterialUnidadeService {
                     include: {
                       insumo: {
                         include: {
-                          tipoMaterial: true
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+                          tipoMaterial: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!os) {
@@ -114,7 +114,7 @@ export class CalculoMaterialUnidadeService {
         throw new Error(`OS ${osId} não possui insumos calculados`);
       }
 
-      const insumosCalculados = JSON.parse(os.insumos_calculados as string);
+      const insumosCalculados = JSON.parse(os.insumos_calculados);
       const materiais: MaterialCalculado[] = [];
       const alertas: string[] = [];
       const recomendacoes: string[] = [];
@@ -126,15 +126,21 @@ export class CalculoMaterialUnidadeService {
 
         // Gerar alertas e recomendações
         if (!materialCalculado.estoque_suficiente) {
-          alertas.push(`Estoque insuficiente para ${materialCalculado.nome}: necessário ${materialCalculado.unidades_necessarias} unidades, disponível ${materialCalculado.estoque_disponivel}`);
+          alertas.push(
+            `Estoque insuficiente para ${materialCalculado.nome}: necessário ${materialCalculado.unidades_necessarias} unidades, disponível ${materialCalculado.estoque_disponivel}`,
+          );
         }
 
         if (materialCalculado.sobra_aproveitavel > 0) {
-          recomendacoes.push(`Sobra de ${materialCalculado.sobra_aproveitavel.toFixed(2)}m² de ${materialCalculado.nome} pode ser aproveitada para outros projetos`);
+          recomendacoes.push(
+            `Sobra de ${materialCalculado.sobra_aproveitavel.toFixed(2)}m² de ${materialCalculado.nome} pode ser aproveitada para outros projetos`,
+          );
         }
 
         if (materialCalculado.desperdicio_area > 0) {
-          recomendacoes.push(`Desperdício estimado de ${materialCalculado.desperdicio_area.toFixed(2)}m² (${materialCalculado.desperdicio_percentual}%) para ${materialCalculado.nome}`);
+          recomendacoes.push(
+            `Desperdício estimado de ${materialCalculado.desperdicio_area.toFixed(2)}m² (${materialCalculado.desperdicio_percentual}%) para ${materialCalculado.nome}`,
+          );
         }
       }
 
@@ -144,16 +150,15 @@ export class CalculoMaterialUnidadeService {
       this.logger.log(`Cálculo concluído para OS ${osId}:`, {
         total_materiais: resumo.total_materiais,
         custo_total: resumo.custo_total,
-        alertas: alertas.length
+        alertas: alertas.length,
       });
 
       return {
         materiais,
         resumo,
         alertas,
-        recomendacoes
+        recomendacoes,
       };
-
     } catch (error) {
       this.logger.error(`Erro ao calcular materiais para OS ${osId}:`, error);
       throw error;
@@ -166,16 +171,22 @@ export class CalculoMaterialUnidadeService {
   private async calcularMaterial(insumo: any): Promise<MaterialCalculado> {
     const tipoMaterial = insumo.insumo?.tipoMaterial?.nome || 'DEFAULT';
     const nome = insumo.nome || insumo.insumo?.nome || 'Material desconhecido';
-    const quantidadeNecessaria = parseFloat(insumo.quantidade_necessaria || '0');
+    const quantidadeNecessaria = parseFloat(
+      insumo.quantidade_necessaria || '0',
+    );
     const unidade = insumo.unidade || insumo.insumo?.unidade_uso || 'm²';
-    
+
     // Determinar tipo de material e dimensões
     const tipoMaterialKey = this.identificarTipoMaterial(tipoMaterial, nome);
-    const dimensoes = this.DIMENSOES_PADRAO[tipoMaterialKey] || this.DIMENSOES_PADRAO.DEFAULT;
-    const desperdicioPercentual = this.DESPERDICIO_PADRAO[tipoMaterialKey] || this.DESPERDICIO_PADRAO.DEFAULT;
+    const dimensoes =
+      this.DIMENSOES_PADRAO[tipoMaterialKey] || this.DIMENSOES_PADRAO.DEFAULT;
+    const desperdicioPercentual =
+      this.DESPERDICIO_PADRAO[tipoMaterialKey] ||
+      this.DESPERDICIO_PADRAO.DEFAULT;
 
     // Calcular desperdício
-    const desperdicioArea = (quantidadeNecessaria * desperdicioPercentual) / 100;
+    const desperdicioArea =
+      (quantidadeNecessaria * desperdicioPercentual) / 100;
     const areaTotalComDesperdicio = quantidadeNecessaria + desperdicioArea;
 
     // Calcular unidades necessárias
@@ -194,10 +205,15 @@ export class CalculoMaterialUnidadeService {
     }
 
     const areaTotalComprada = unidadesNecessarias * dimensoes.area;
-    const sobraAproveitavel = Math.max(0, areaTotalComprada - areaTotalComDesperdicio);
+    const sobraAproveitavel = Math.max(
+      0,
+      areaTotalComprada - areaTotalComDesperdicio,
+    );
 
     // Buscar estoque disponível
-    const estoqueDisponivel = await this.buscarEstoqueDisponivel(insumo.insumo_id);
+    const estoqueDisponivel = await this.buscarEstoqueDisponivel(
+      insumo.insumo_id,
+    );
 
     // Calcular custos
     const custoUnitario = parseFloat(insumo.custo_unitario || '0');
@@ -210,7 +226,7 @@ export class CalculoMaterialUnidadeService {
       unidadesNecessarias,
       sobraAproveitavel,
       desperdicioArea,
-      estoqueDisponivel
+      estoqueDisponivel,
     });
 
     return {
@@ -221,7 +237,7 @@ export class CalculoMaterialUnidadeService {
       dimensoes_compra: {
         largura: dimensoes.largura,
         comprimento: dimensoes.comprimento,
-        area_unidade: dimensoes.area
+        area_unidade: dimensoes.area,
       },
       quantidade_necessaria: quantidadeNecessaria,
       desperdicio_percentual: desperdicioPercentual,
@@ -234,7 +250,7 @@ export class CalculoMaterialUnidadeService {
       custo_total: custoTotal,
       estoque_disponivel: estoqueDisponivel,
       estoque_suficiente: estoqueDisponivel >= unidadesNecessarias,
-      sugestoes_otimizacao: sugestoes
+      sugestoes_otimizacao: sugestoes,
     };
   }
 
@@ -245,13 +261,19 @@ export class CalculoMaterialUnidadeService {
     const nomeLower = nome.toLowerCase();
     const tipoLower = tipoMaterial.toLowerCase();
 
-    if (nomeLower.includes('front') || nomeLower.includes('frontlight')) return 'LONA_FRONT';
-    if (nomeLower.includes('back') || nomeLower.includes('backlight')) return 'LONA_BACK';
-    if (nomeLower.includes('vinil') || nomeLower.includes('adesivo')) return 'VINIL_ADESIVO';
-    if (nomeLower.includes('acrilico') || nomeLower.includes('acrílico')) return 'ACRILICO';
+    if (nomeLower.includes('front') || nomeLower.includes('frontlight'))
+      return 'LONA_FRONT';
+    if (nomeLower.includes('back') || nomeLower.includes('backlight'))
+      return 'LONA_BACK';
+    if (nomeLower.includes('vinil') || nomeLower.includes('adesivo'))
+      return 'VINIL_ADESIVO';
+    if (nomeLower.includes('acrilico') || nomeLower.includes('acrílico'))
+      return 'ACRILICO';
     if (nomeLower.includes('papel')) return 'PAPEL';
-    if (nomeLower.includes('tinta') || nomeLower.includes('ink')) return 'TINTA';
-    if (nomeLower.includes('cordao') || nomeLower.includes('cordão')) return 'CORDAO';
+    if (nomeLower.includes('tinta') || nomeLower.includes('ink'))
+      return 'TINTA';
+    if (nomeLower.includes('cordao') || nomeLower.includes('cordão'))
+      return 'CORDAO';
 
     return 'DEFAULT';
   }
@@ -261,14 +283,14 @@ export class CalculoMaterialUnidadeService {
    */
   private obterUnidadeCompra(tipoMaterial: string): string {
     const unidades = {
-      'LONA_FRONT': 'bobina',
-      'LONA_BACK': 'bobina',
-      'VINIL_ADESIVO': 'rolo',
-      'ACRILICO': 'chapa',
-      'PAPEL': 'rolo',
-      'TINTA': 'litro',
-      'CORDAO': 'metro',
-      'DEFAULT': 'unidade'
+      LONA_FRONT: 'bobina',
+      LONA_BACK: 'bobina',
+      VINIL_ADESIVO: 'rolo',
+      ACRILICO: 'chapa',
+      PAPEL: 'rolo',
+      TINTA: 'litro',
+      CORDAO: 'metro',
+      DEFAULT: 'unidade',
     };
 
     return unidades[tipoMaterial] || 'unidade';
@@ -281,12 +303,15 @@ export class CalculoMaterialUnidadeService {
     try {
       const estoque = await this.prisma.estoque.findFirst({
         where: { insumo_id: insumoId },
-        select: { quantidade_atual: true }
+        select: { quantidade_atual: true },
       });
 
       return parseFloat(estoque?.quantidade_atual?.toString() || '0');
     } catch (error) {
-      this.logger.warn(`Erro ao buscar estoque para insumo ${insumoId}:`, error);
+      this.logger.warn(
+        `Erro ao buscar estoque para insumo ${insumoId}:`,
+        error,
+      );
       return 0;
     }
   }
@@ -305,19 +330,30 @@ export class CalculoMaterialUnidadeService {
     const sugestoes: string[] = [];
 
     if (params.sobraAproveitavel > 0) {
-      sugestoes.push(`Sobra de ${params.sobraAproveitavel.toFixed(2)}m² pode ser usada para banners menores`);
+      sugestoes.push(
+        `Sobra de ${params.sobraAproveitavel.toFixed(2)}m² pode ser usada para banners menores`,
+      );
     }
 
     if (params.desperdicioArea > 0) {
-      sugestoes.push(`Considere otimizar o layout para reduzir desperdício de ${params.desperdicioArea.toFixed(2)}m²`);
+      sugestoes.push(
+        `Considere otimizar o layout para reduzir desperdício de ${params.desperdicioArea.toFixed(2)}m²`,
+      );
     }
 
     if (params.estoqueDisponivel < params.unidadesNecessarias) {
-      sugestoes.push(`Necessário comprar ${params.unidadesNecessarias - params.estoqueDisponivel} unidades adicionais`);
+      sugestoes.push(
+        `Necessário comprar ${params.unidadesNecessarias - params.estoqueDisponivel} unidades adicionais`,
+      );
     }
 
-    if (params.tipoMaterial === 'LONA_FRONT' || params.tipoMaterial === 'LONA_BACK') {
-      sugestoes.push('Considere agrupar projetos para otimizar o uso de bobinas');
+    if (
+      params.tipoMaterial === 'LONA_FRONT' ||
+      params.tipoMaterial === 'LONA_BACK'
+    ) {
+      sugestoes.push(
+        'Considere agrupar projetos para otimizar o uso de bobinas',
+      );
     }
 
     return sugestoes;
@@ -336,11 +372,19 @@ export class CalculoMaterialUnidadeService {
   } {
     return {
       total_materiais: materiais.length,
-      materiais_suficientes: materiais.filter(m => m.estoque_suficiente).length,
-      materiais_insuficientes: materiais.filter(m => !m.estoque_suficiente).length,
+      materiais_suficientes: materiais.filter((m) => m.estoque_suficiente)
+        .length,
+      materiais_insuficientes: materiais.filter((m) => !m.estoque_suficiente)
+        .length,
       custo_total: materiais.reduce((sum, m) => sum + m.custo_total, 0),
-      desperdicio_total: materiais.reduce((sum, m) => sum + m.desperdicio_area, 0),
-      sobras_aproveitaveis: materiais.reduce((sum, m) => sum + m.sobra_aproveitavel, 0)
+      desperdicio_total: materiais.reduce(
+        (sum, m) => sum + m.desperdicio_area,
+        0,
+      ),
+      sobras_aproveitaveis: materiais.reduce(
+        (sum, m) => sum + m.sobra_aproveitavel,
+        0,
+      ),
     };
   }
 

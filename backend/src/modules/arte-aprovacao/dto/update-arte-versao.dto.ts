@@ -6,7 +6,7 @@ export class UpdateArteVersaoDto {
   @ApiProperty({
     description: 'Versão da arte',
     example: 'v2',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString()
@@ -16,7 +16,7 @@ export class UpdateArteVersaoDto {
     description: 'Status da arte',
     enum: ArteStatus,
     example: ArteStatus.ENVIADA_CLIENTE,
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsEnum(ArteStatus)
@@ -25,7 +25,7 @@ export class UpdateArteVersaoDto {
   @ApiProperty({
     description: 'Descrição da versão',
     example: 'Segunda versão com ajustes solicitados',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString()
@@ -34,7 +34,7 @@ export class UpdateArteVersaoDto {
   @ApiProperty({
     description: 'Observações adicionais',
     example: 'Enviado para aprovação do cliente',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString()
@@ -43,7 +43,7 @@ export class UpdateArteVersaoDto {
   @ApiProperty({
     description: 'Indica se foi aprovado pelo cliente',
     example: true,
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsBoolean()
@@ -52,7 +52,7 @@ export class UpdateArteVersaoDto {
   @ApiProperty({
     description: 'Indica se foi liberado para PCP',
     example: true,
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsBoolean()
@@ -61,7 +61,7 @@ export class UpdateArteVersaoDto {
   @ApiProperty({
     description: 'Data em que foi liberado para PCP',
     example: new Date(),
-    required: false
+    required: false,
   })
   @IsOptional()
   liberado_em?: Date;
@@ -69,10 +69,9 @@ export class UpdateArteVersaoDto {
   @ApiProperty({
     description: 'ID do usuário que liberou para PCP',
     example: 'user123',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString()
   liberado_por?: string;
 }
-

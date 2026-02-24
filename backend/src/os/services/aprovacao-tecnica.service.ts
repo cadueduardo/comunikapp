@@ -1,13 +1,22 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AprovarTecnicaDto, AgendarInstalacaoDto, AprovacaoTecnicaResponseDto } from '../dto/aprovacao-tecnica.dto';
+import {
+  AprovarTecnicaDto,
+  AgendarInstalacaoDto,
+  AprovacaoTecnicaResponseDto,
+} from '../dto/aprovacao-tecnica.dto';
 import { ValidacaoEstoqueService } from '../../orcamentos-v2/services/validacao-estoque.service';
 
 @Injectable()
 export class AprovacaoTecnicaService {
   constructor(
     private prisma: PrismaService,
-    private validacaoEstoque: ValidacaoEstoqueService
+    private validacaoEstoque: ValidacaoEstoqueService,
   ) {}
 
   async validarPreAprovacao(osId: string): Promise<{
@@ -23,10 +32,10 @@ export class AprovacaoTecnicaService {
         itens: true,
         orcamento: {
           include: {
-            produtos: true
-          }
-        }
-      }
+            produtos: true,
+          },
+        },
+      },
     });
 
     if (!os) {
@@ -77,8 +86,10 @@ export class AprovacaoTecnicaService {
     } else {
       const hoje = new Date();
       const prazo = new Date(os.data_prazo);
-      const diasRestantes = Math.ceil((prazo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-      
+      const diasRestantes = Math.ceil(
+        (prazo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
       if (diasRestantes < 1) {
         prazo_viavel = false;
         alertas.push('Prazo muito apertado (menos de 1 dia)');
@@ -92,13 +103,17 @@ export class AprovacaoTecnicaService {
       arte_anexada,
       dados_completos,
       prazo_viavel,
-      alertas
+      alertas,
     };
   }
 
-  async aprovarTecnica(osId: string, dto: AprovarTecnicaDto, usuarioId: string): Promise<AprovacaoTecnicaResponseDto> {
+  async aprovarTecnica(
+    osId: string,
+    dto: AprovarTecnicaDto,
+    usuarioId: string,
+  ): Promise<AprovacaoTecnicaResponseDto> {
     const os = await this.prisma.ordemServico.findUnique({
-      where: { id: osId }
+      where: { id: osId },
     });
 
     if (!os) {
@@ -111,7 +126,7 @@ export class AprovacaoTecnicaService {
 
     // Verificar permissões do usuário
     const usuario = await this.prisma.usuario.findUnique({
-      where: { id: usuarioId }
+      where: { id: usuarioId },
     });
 
     if (!usuario) {
@@ -125,16 +140,20 @@ export class AprovacaoTecnicaService {
     const validacoes = await this.validarPreAprovacao(osId);
 
     if (dto.aprovado && !validacoes.estoque_ok) {
-      throw new BadRequestException('Não é possível aprovar: estoque insuficiente');
+      throw new BadRequestException(
+        'Não é possível aprovar: estoque insuficiente',
+      );
     }
 
     if (dto.aprovado && !validacoes.dados_completos) {
-      throw new BadRequestException('Não é possível aprovar: dados incompletos');
+      throw new BadRequestException(
+        'Não é possível aprovar: dados incompletos',
+      );
     }
 
     // Atualizar OS com resultado da aprovação
     const statusNovo = dto.aprovado ? 'APROVADA_TECNICA' : 'REJEITADA';
-    
+
     const osAtualizada = await this.prisma.ordemServico.update({
       where: { id: osId },
       data: {
@@ -142,8 +161,8 @@ export class AprovacaoTecnicaService {
         aprovacao_tecnica_status: dto.aprovado ? 'APROVADA' : 'REJEITADA',
         aprovacao_tecnica_por: usuarioId,
         aprovacao_tecnica_em: new Date(),
-        aprovacao_tecnica_obs: dto.observacoes
-      }
+        aprovacao_tecnica_obs: dto.observacoes,
+      },
     });
 
     // TODO: Enviar notificação se rejeitada
@@ -161,13 +180,16 @@ export class AprovacaoTecnicaService {
       aprovacao_tecnica_obs: osAtualizada.aprovacao_tecnica_obs,
       data_instalacao_agendada: osAtualizada.data_instalacao_agendada,
       observacoes_instalacao: osAtualizada.observacoes_instalacao,
-      validacoes
+      validacoes,
     };
   }
 
-  async agendarInstalacao(osId: string, dto: AgendarInstalacaoDto): Promise<AprovacaoTecnicaResponseDto> {
+  async agendarInstalacao(
+    osId: string,
+    dto: AgendarInstalacaoDto,
+  ): Promise<AprovacaoTecnicaResponseDto> {
     const os = await this.prisma.ordemServico.findUnique({
-      where: { id: osId }
+      where: { id: osId },
     });
 
     if (!os) {
@@ -175,7 +197,9 @@ export class AprovacaoTecnicaService {
     }
 
     if (os.status !== 'APROVADA_TECNICA') {
-      throw new BadRequestException('OS deve estar aprovada tecnicamente para agendar instalação');
+      throw new BadRequestException(
+        'OS deve estar aprovada tecnicamente para agendar instalação',
+      );
     }
 
     // Verificar se há serviço de instalação
@@ -186,7 +210,7 @@ export class AprovacaoTecnicaService {
 
     const dataInstalacao = new Date(dto.data_instalacao);
     const hoje = new Date();
-    
+
     if (dataInstalacao <= hoje) {
       throw new BadRequestException('Data de instalação deve ser futura');
     }
@@ -196,8 +220,8 @@ export class AprovacaoTecnicaService {
       data: {
         data_instalacao_agendada: dataInstalacao,
         observacoes_instalacao: dto.observacoes,
-        status: 'INSTALACAO_AGENDADA'
-      }
+        status: 'INSTALACAO_AGENDADA',
+      },
     });
 
     return {
@@ -209,7 +233,7 @@ export class AprovacaoTecnicaService {
       aprovacao_tecnica_obs: osAtualizada.aprovacao_tecnica_obs,
       data_instalacao_agendada: osAtualizada.data_instalacao_agendada,
       observacoes_instalacao: osAtualizada.observacoes_instalacao,
-      validacoes: await this.validarPreAprovacao(osId)
+      validacoes: await this.validarPreAprovacao(osId),
     };
   }
 
@@ -221,7 +245,7 @@ export class AprovacaoTecnicaService {
 
   async getStatusAprovacao(osId: string): Promise<AprovacaoTecnicaResponseDto> {
     const os = await this.prisma.ordemServico.findUnique({
-      where: { id: osId }
+      where: { id: osId },
     });
 
     if (!os) {
@@ -239,7 +263,7 @@ export class AprovacaoTecnicaService {
       aprovacao_tecnica_obs: os.aprovacao_tecnica_obs,
       data_instalacao_agendada: os.data_instalacao_agendada,
       observacoes_instalacao: os.observacoes_instalacao,
-      validacoes
+      validacoes,
     };
   }
 }

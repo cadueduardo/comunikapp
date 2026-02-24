@@ -64,9 +64,7 @@ export class WorkflowTemplateController {
     };
   }
 
-  private mapSetoresInput(
-    setores?: WorkflowSetorTemplateData[],
-  ): {
+  private mapSetoresInput(setores?: WorkflowSetorTemplateData[]): {
     setor_id: string;
     ordem: number;
     tempo_estimado?: number | null;
@@ -82,7 +80,7 @@ export class WorkflowTemplateController {
       tempo_estimado:
         typeof setor.tempoEstimado === 'number'
           ? setor.tempoEstimado
-          : setor.tempoEstimado ?? null,
+          : (setor.tempoEstimado ?? null),
       obrigatorio: setor.obrigatorio ?? true,
     }));
   }
@@ -98,7 +96,7 @@ export class WorkflowTemplateController {
     const lojaId = user.loja_id;
 
     const templates = await this.prisma.workflowOS.findMany({
-      where: { 
+      where: {
         loja_id: lojaId,
         ativo: true, // Apenas workflows ativos (exclusão lógica oculta os inativos)
       },
@@ -193,9 +191,7 @@ export class WorkflowTemplateController {
       throw new BadRequestException('Template não encontrado');
     }
 
-    const setoresData = dto.setores
-      ? this.mapSetoresInput(dto.setores)
-      : null;
+    const setoresData = dto.setores ? this.mapSetoresInput(dto.setores) : null;
 
     const resultado = await this.prisma.$transaction(async (tx) => {
       await tx.workflowOS.update({
@@ -238,7 +234,9 @@ export class WorkflowTemplateController {
   }
 
   @Post('limpar-inativos')
-  @ApiOperation({ summary: 'Limpar workflows inativos sem instâncias vinculadas' })
+  @ApiOperation({
+    summary: 'Limpar workflows inativos sem instâncias vinculadas',
+  })
   @ApiResponse({ status: 200, description: 'Workflows limpos com sucesso' })
   async limparInativos(@Request() req: any) {
     const user = req['user'] || req.user;
@@ -246,7 +244,7 @@ export class WorkflowTemplateController {
 
     // Buscar workflows inativos
     const workflowsInativos = await this.prisma.workflowOS.findMany({
-      where: { 
+      where: {
         loja_id: lojaId,
         ativo: false,
       },
@@ -279,7 +277,10 @@ export class WorkflowTemplateController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Deletar template de workflow (exclusão lógica se houver instâncias ativas)' })
+  @ApiOperation({
+    summary:
+      'Deletar template de workflow (exclusão lógica se houver instâncias ativas)',
+  })
   @ApiResponse({ status: 200, description: 'Template deletado com sucesso' })
   @ApiResponse({ status: 404, description: 'Template não encontrado' })
   async deletarTemplate(@Param('id') id: string, @Request() req: any) {
@@ -295,7 +296,7 @@ export class WorkflowTemplateController {
       template = await this.prisma.workflowOS.findFirst({
         where: { nome: id, loja_id: lojaId },
       });
-      
+
       if (!template) {
         throw new BadRequestException('Template não encontrado');
       }
@@ -315,8 +316,9 @@ export class WorkflowTemplateController {
         data: { ativo: false },
       });
 
-      return { 
-        message: 'Workflow desativado com sucesso. Ele permanecerá disponível para as instâncias existentes.',
+      return {
+        message:
+          'Workflow desativado com sucesso. Ele permanecerá disponível para as instâncias existentes.',
         softDelete: true,
       };
     }
@@ -324,7 +326,7 @@ export class WorkflowTemplateController {
     // Se não houver instâncias, fazer exclusão física
     await this.prisma.workflowOS.delete({ where: { id } });
 
-    return { 
+    return {
       message: 'Workflow excluído com sucesso',
       softDelete: false,
     };

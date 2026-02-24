@@ -1,7 +1,20 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { EtapaService } from '../services/etapa.service';
-import { CreateEtapaInstanciaDto, UpdateEtapaInstanciaDto } from '../interfaces/pcp.interfaces';
+import {
+  CreateEtapaInstanciaDto,
+  UpdateEtapaInstanciaDto,
+} from '../interfaces/pcp.interfaces';
 
 @Controller('pcp/etapas')
 @UseGuards(JwtAuthGuard)
@@ -19,14 +32,16 @@ export class EtapaController {
   }
 
   @Get('workflow/:workflowInstanciaId')
-  async buscarPorWorkflow(@Param('workflowInstanciaId') workflowInstanciaId: string) {
+  async buscarPorWorkflow(
+    @Param('workflowInstanciaId') workflowInstanciaId: string,
+  ) {
     return this.etapaService.buscarPorWorkflow(workflowInstanciaId);
   }
 
   @Put(':id')
   async atualizarEtapa(
     @Param('id') id: string,
-    @Body() dto: UpdateEtapaInstanciaDto
+    @Body() dto: UpdateEtapaInstanciaDto,
   ) {
     return this.etapaService.atualizarEtapa(id, dto);
   }
@@ -34,7 +49,7 @@ export class EtapaController {
   @Put(':id/iniciar')
   async iniciarEtapa(
     @Param('id') id: string,
-    @Body() body: { responsavel_id: string }
+    @Body() body: { responsavel_id: string },
   ) {
     return this.etapaService.iniciarEtapa(id, body.responsavel_id);
   }
@@ -42,7 +57,7 @@ export class EtapaController {
   @Put(':id/concluir')
   async concluirEtapa(
     @Param('id') id: string,
-    @Body() body: { observacoes?: string }
+    @Body() body: { observacoes?: string },
   ) {
     return this.etapaService.concluirEtapa(id, body.observacoes);
   }
@@ -58,16 +73,20 @@ export class EtapaController {
     const etapa = await this.etapaService.buscarPorId(id);
     return {
       status: etapa?.status || 'NAO_ENCONTRADA',
-      progresso: this.calcularProgressoEtapa(etapa)
+      progresso: this.calcularProgressoEtapa(etapa),
     };
   }
 
   private calcularProgressoEtapa(etapa: any): number {
     if (!etapa?.checklists) return 0;
-    
+
     const totalChecklists = etapa.checklists.length;
-    const checklistsConcluidos = etapa.checklists.filter(c => c.concluido).length;
-    
-    return totalChecklists > 0 ? Math.round((checklistsConcluidos / totalChecklists) * 100) : 0;
+    const checklistsConcluidos = etapa.checklists.filter(
+      (c) => c.concluido,
+    ).length;
+
+    return totalChecklists > 0
+      ? Math.round((checklistsConcluidos / totalChecklists) * 100)
+      : 0;
   }
 }

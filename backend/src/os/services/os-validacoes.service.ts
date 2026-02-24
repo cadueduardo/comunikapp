@@ -39,11 +39,11 @@ export class OSValidacoesService {
 
     try {
       const resultado = await this.validacoesService.validarOS(osId, lojaId);
-      
+
       this.logger.log(`Validações concluídas para OS ${osId}:`, {
         valida: resultado.valida,
         correcoes: resultado.correcoes_necessarias.length,
-        alertas: resultado.alertas.length
+        alertas: resultado.alertas.length,
       });
 
       return resultado;
@@ -57,9 +57,9 @@ export class OSValidacoesService {
    * Executa validações específicas por categoria
    */
   async validarOSPorCategoria(
-    osId: string, 
-    lojaId: string, 
-    categoria: string
+    osId: string,
+    lojaId: string,
+    categoria: string,
   ): Promise<ResultadoValidacaoOS> {
     this.logger.log(`Validando OS ${osId} para categoria ${categoria}`);
 
@@ -68,16 +68,13 @@ export class OSValidacoesService {
       where: {
         ativo: true,
         categoria: categoria as any, // Cast para resolver problema de tipo
-        OR: [
-          { loja_id: lojaId },
-          { loja_id: null }
-        ]
+        OR: [{ loja_id: lojaId }, { loja_id: null }],
       },
-      select: { id: true }
+      select: { id: true },
     });
 
-    const regraIds = regras.map(r => r.id);
-    
+    const regraIds = regras.map((r) => r.id);
+
     return await this.validacoesService.validarOS(osId, lojaId, regraIds);
   }
 
@@ -85,8 +82,8 @@ export class OSValidacoesService {
    * Aplica ações automáticas baseadas nas validações
    */
   async aplicarAcoesAutomaticas(
-    osId: string, 
-    resultado: ResultadoValidacaoOS
+    osId: string,
+    resultado: ResultadoValidacaoOS,
   ): Promise<void> {
     this.logger.log(`Aplicando ações automáticas para OS ${osId}`);
 
@@ -132,8 +129,8 @@ export class OSValidacoesService {
       where: { id: osId },
       data: {
         status: acao.status_os || 'BLOQUEADA',
-        observacoes: `OS bloqueada por validação automática: ${acao.mensagem || 'Regra de validação não atendida'}`
-      }
+        observacoes: `OS bloqueada por validação automática: ${acao.mensagem || 'Regra de validação não atendida'}`,
+      },
     });
 
     this.logger.log(`OS ${osId} bloqueada por validação automática`);
@@ -147,8 +144,8 @@ export class OSValidacoesService {
       where: { id: osId },
       data: {
         status: acao.status_os || 'APROVADA',
-        observacoes: `OS aprovada automaticamente: ${acao.mensagem || 'Todas as validações atendidas'}`
-      }
+        observacoes: `OS aprovada automaticamente: ${acao.mensagem || 'Todas as validações atendidas'}`,
+      },
     });
 
     this.logger.log(`OS ${osId} aprovada automaticamente`);
@@ -177,8 +174,8 @@ export class OSValidacoesService {
     await this.prisma.ordemServico.update({
       where: { id: osId },
       data: {
-        observacoes: `ALERTA: ${acao.mensagem || 'Validação gerou alerta'}`
-      }
+        observacoes: `ALERTA: ${acao.mensagem || 'Validação gerou alerta'}`,
+      },
     });
 
     this.logger.log(`Alerta registrado para OS ${osId}`);
@@ -196,12 +193,12 @@ export class OSValidacoesService {
             id: true,
             nome: true,
             categoria: true,
-            tipo: true
-          }
-        }
+            tipo: true,
+          },
+        },
       },
       orderBy: { criado_em: 'desc' },
-      take: 50
+      take: 50,
     });
   }
 

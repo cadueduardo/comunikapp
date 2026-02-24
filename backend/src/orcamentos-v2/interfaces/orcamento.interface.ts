@@ -24,7 +24,7 @@ export interface OrcamentoBase {
   detalhamento_calculo?: any;
   alertas?: any[];
   data_ultimo_calculo?: Date;
-  
+
   // Campos do produto principal
   largura_produto?: number;
   altura_produto?: number;
@@ -36,29 +36,29 @@ export interface OrcamentoBase {
 export interface OrcamentoCompleto extends OrcamentoBase {
   // Dados do cliente
   cliente: ClienteInfo;
-  
+
   // Produtos e itens
   produtos: ProdutoOrcamento[];
-  
+
   // Custos calculados
   custos: CustosOrcamento;
-  
+
   // Configurações de cálculo
   configuracoes: ConfiguracaoCalculo;
-  
+
   // Histórico e versões
   versoes: VersaoOrcamento[];
   historicoOrcamento: HistoricoOrcamento[];
-  
+
   // Sistema de aprovação
   aprovacoes: AprovacaoOrcamento[];
-  
+
   // Links públicos
   linksPublicos: LinkPublico[];
-  
+
   // Chat e negociação
   mensagensChat: MensagemChat[];
-  
+
   // Arquivos e anexos
   anexos: AnexoOrcamento[];
 }

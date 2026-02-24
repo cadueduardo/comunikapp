@@ -1,7 +1,20 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { ApontamentoService } from '../services/apontamento.service';
-import { CreateApontamentoDto, UpdateApontamentoDto } from '../interfaces/pcp.interfaces';
+import {
+  CreateApontamentoDto,
+  UpdateApontamentoDto,
+} from '../interfaces/pcp.interfaces';
 
 @Controller('pcp/apontamentos')
 @UseGuards(JwtAuthGuard)
@@ -29,18 +42,23 @@ export class ApontamentoController {
   }
 
   @Get()
-  async listarApontamentos(@Query() filtros: {
-    os_id?: string;
-    etapa_instancia_id?: string;
-    tipo?: string;
-    usuario_id?: string;
-    data_inicio?: string;
-    data_fim?: string;
-  }) {
+  async listarApontamentos(
+    @Query()
+    filtros: {
+      os_id?: string;
+      etapa_instancia_id?: string;
+      tipo?: string;
+      usuario_id?: string;
+      data_inicio?: string;
+      data_fim?: string;
+    },
+  ) {
     const filtrosProcessados = {
       ...filtros,
-      data_inicio: filtros.data_inicio ? new Date(filtros.data_inicio) : undefined,
-      data_fim: filtros.data_fim ? new Date(filtros.data_fim) : undefined
+      data_inicio: filtros.data_inicio
+        ? new Date(filtros.data_inicio)
+        : undefined,
+      data_fim: filtros.data_fim ? new Date(filtros.data_fim) : undefined,
     };
 
     return this.apontamentoService.listarApontamentos(filtrosProcessados);
@@ -49,7 +67,7 @@ export class ApontamentoController {
   @Put(':id')
   async atualizarApontamento(
     @Param('id') id: string,
-    @Body() dto: UpdateApontamentoDto
+    @Body() dto: UpdateApontamentoDto,
   ) {
     return this.apontamentoService.atualizarApontamento(id, dto);
   }
@@ -63,14 +81,20 @@ export class ApontamentoController {
   @Get('os/:osId/resumo')
   async getResumoOS(@Param('osId') osId: string) {
     const apontamentos = await this.apontamentoService.buscarPorOS(osId);
-    
+
     const resumo = {
       total_apontamentos: apontamentos.length,
       por_tipo: this.agruparPorTipo(apontamentos),
       ultimo_apontamento: apontamentos[0] || null,
       tempo_total_gasto: this.calcularTempoTotal(apontamentos),
-      quantidade_total_produzida: this.calcularQuantidadeTotal(apontamentos, 'quantidade_produzida'),
-      quantidade_total_refugo: this.calcularQuantidadeTotal(apontamentos, 'quantidade_refugo')
+      quantidade_total_produzida: this.calcularQuantidadeTotal(
+        apontamentos,
+        'quantidade_produzida',
+      ),
+      quantidade_total_refugo: this.calcularQuantidadeTotal(
+        apontamentos,
+        'quantidade_refugo',
+      ),
     };
 
     return resumo;

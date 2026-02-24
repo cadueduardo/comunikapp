@@ -16,7 +16,12 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { OSService } from '../services/os.service';
 import { OrdemServicoResponseDto } from '../dto/os-response.dto';
 import { CreateOSDto } from '../dto/create-os.dto';
@@ -33,13 +38,17 @@ export class OSController {
 
   @Post()
   @ApiOperation({ summary: 'Criar nova ordem de serviço' })
-  @ApiResponse({ status: 201, description: 'OS criada com sucesso', type: OrdemServicoResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: 'OS criada com sucesso',
+    type: OrdemServicoResponseDto,
+  })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
   async criarOS(@Body() createOSDto: CreateOSDto, @Request() req: any) {
     const user = req['user'] || req.user;
     const loja_id = user.loja_id;
     const resultado = await this.osService.create(loja_id, createOSDto);
-      return OrdemServicoResponseDto.fromDomain(resultado);
+    return OrdemServicoResponseDto.fromDomain(resultado);
   }
 
   @Get()
@@ -64,7 +73,9 @@ export class OSController {
 
     return {
       ...resultado,
-      data: resultado.data.map(item => OrdemServicoResponseDto.fromDomain(item)),
+      data: resultado.data.map((item) =>
+        OrdemServicoResponseDto.fromDomain(item),
+      ),
     };
   }
 
@@ -77,16 +88,21 @@ export class OSController {
     return await this.osService.getEstatisticas(loja_id);
   }
 
-
   @Get('liberadas-para-pcp')
   @ApiOperation({ summary: 'Listar OSs liberadas para PCP' })
-  @ApiResponse({ status: 200, description: 'Lista de OSs liberadas retornada com sucesso' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de OSs liberadas retornada com sucesso',
+  })
   async listarOSsLiberadas(@Request() req: any) {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
 
     // Buscar OSs com status LIBERADA_PARA_PCP
-    const ossLiberadas = await this.osService.findByStatus(lojaId, StatusOS.LIBERADA_PARA_PCP);
+    const ossLiberadas = await this.osService.findByStatus(
+      lojaId,
+      StatusOS.LIBERADA_PARA_PCP,
+    );
 
     // Para cada OS, verificar se já tem workflow instanciado
     const ossComStatusWorkflow = await Promise.all(
@@ -98,17 +114,17 @@ export class OSController {
             ...os,
             workflow_instanciado: false, // Temporário
             workflow_status: null,
-            workflow_progresso: 0
+            workflow_progresso: 0,
           };
         } catch (error) {
           return {
             ...os,
             workflow_instanciado: false,
             workflow_status: null,
-            workflow_progresso: 0
+            workflow_progresso: 0,
           };
         }
-      })
+      }),
     );
 
     return ossComStatusWorkflow;
@@ -116,7 +132,11 @@ export class OSController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Obter OS por ID' })
-  @ApiResponse({ status: 200, description: 'OS encontrada', type: OrdemServicoResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'OS encontrada',
+    type: OrdemServicoResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'OS não encontrada' })
   async obterOS(@Param('id') id: string, @Request() req: any) {
     const user = req['user'] || req.user;
@@ -127,7 +147,11 @@ export class OSController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar OS' })
-  @ApiResponse({ status: 200, description: 'OS atualizada com sucesso', type: OrdemServicoResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'OS atualizada com sucesso',
+    type: OrdemServicoResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'OS não encontrada' })
   async atualizarOS(
     @Param('id') id: string,
@@ -137,7 +161,12 @@ export class OSController {
     const user = req['user'] || req.user;
     const loja_id = user.loja_id;
     const user_id = user.sub || user.id;
-    const resultado = await this.osService.update(id, loja_id, updateOSDto, user_id);
+    const resultado = await this.osService.update(
+      id,
+      loja_id,
+      updateOSDto,
+      user_id,
+    );
     return OrdemServicoResponseDto.fromDomain(resultado);
   }
 

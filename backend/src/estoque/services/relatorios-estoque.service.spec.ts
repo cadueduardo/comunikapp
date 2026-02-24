@@ -20,19 +20,23 @@ describe('RelatoriosEstoqueService', () => {
   });
 
   it('relatorioEstoqueBaixo deve retornar array', async () => {
-    const result = await service.relatorioEstoqueBaixo({ lojaId: 'loja-123' } as any);
+    const result = await service.relatorioEstoqueBaixo({
+      lojaId: 'loja-123',
+    } as any);
     expect(Array.isArray(result)).toBe(true);
   });
 
   it('relatorioVencimento deve retornar array', async () => {
-    const result = await service.relatorioVencimento({ lojaId: 'loja-123' } as any);
+    const result = await service.relatorioVencimento({
+      lojaId: 'loja-123',
+    } as any);
     expect(Array.isArray(result)).toBe(true);
   });
 
   it('relatorioOcupacao deve retornar array', async () => {
-    const result = await service.relatorioOcupacao({ lojaId: 'loja-123' } as any);
+    const result = await service.relatorioOcupacao({
+      lojaId: 'loja-123',
+    } as any);
     expect(Array.isArray(result)).toBe(true);
   });
 });
-
-

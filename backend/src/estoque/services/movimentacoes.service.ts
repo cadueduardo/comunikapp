@@ -14,18 +14,31 @@ export class MovimentacoesService {
 
   private async buscarItemEstoquePorId(context: IEstoqueContext, id: string) {
     const tableName = 'estoque_itens';
-    const colsResult: Array<{ COLUMN_NAME: string }> = await this.prisma.$queryRawUnsafe(
-      'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ',
-      tableName,
-    );
+    const colsResult: Array<{ COLUMN_NAME: string }> =
+      await this.prisma.$queryRawUnsafe(
+        'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ',
+        tableName,
+      );
     const existing = new Set(colsResult.map((r: any) => r.COLUMN_NAME));
-    const insumoCol = existing.has('insumoId') ? 'insumoId' : (existing.has('insumo_id') ? 'insumo_id' : null);
-    const unMedCol = existing.has('unidadeMedida') ? 'unidadeMedida' : (existing.has('unidade_medida') ? 'unidade_medida' : null);
-    const precoCol = existing.has('precoUnitario') ? 'precoUnitario' : (
-      existing.has('preco_unitario') ? 'preco_unitario' : (
-        existing.has('valorUnitario') ? 'valorUnitario' : (existing.has('valor_unitario') ? 'valor_unitario' : null)
-      )
-    );
+    const insumoCol = existing.has('insumoId')
+      ? 'insumoId'
+      : existing.has('insumo_id')
+        ? 'insumo_id'
+        : null;
+    const unMedCol = existing.has('unidadeMedida')
+      ? 'unidadeMedida'
+      : existing.has('unidade_medida')
+        ? 'unidade_medida'
+        : null;
+    const precoCol = existing.has('precoUnitario')
+      ? 'precoUnitario'
+      : existing.has('preco_unitario')
+        ? 'preco_unitario'
+        : existing.has('valorUnitario')
+          ? 'valorUnitario'
+          : existing.has('valor_unitario')
+            ? 'valor_unitario'
+            : null;
 
     const selectParts: string[] = [
       't.id AS id',
@@ -36,7 +49,9 @@ export class MovimentacoesService {
       't.quantidadeReservada AS quantidadeReservada',
       't.estoqueMinimo AS estoqueMinimo',
       't.estoqueMaximo AS estoqueMaximo',
-      unMedCol ? `COALESCE(t.${unMedCol}, '') AS unidadeCompra` : "'' AS unidadeCompra",
+      unMedCol
+        ? `COALESCE(t.${unMedCol}, '') AS unidadeCompra`
+        : "'' AS unidadeCompra",
       precoCol ? `t.${precoCol} AS valorUnitario` : '0 AS valorUnitario',
       't.dataUltimaMov AS dataUltimaMov',
       't.createdAt AS createdAt',
@@ -50,13 +65,18 @@ export class MovimentacoesService {
       "COALESCE(l.codigo, '') AS localizacaoCodigo",
     ];
 
-    const sql = `SELECT ${selectParts.join(', ')}\n` +
+    const sql =
+      `SELECT ${selectParts.join(', ')}\n` +
       `FROM ${tableName} t\n` +
       `LEFT JOIN estoque_localizacoes l ON l.id = t.localizacaoId\n` +
       `WHERE t.id = ? AND t.lojaId = ?\n` +
       `LIMIT 1`;
 
-    const items: any[] = await this.prisma.$queryRawUnsafe(sql, id, context.lojaId);
+    const items: any[] = await this.prisma.$queryRawUnsafe(
+      sql,
+      id,
+      context.lojaId,
+    );
     if (items.length === 0) {
       throw new Error('Item de estoque não encontrado');
     }
@@ -76,10 +96,16 @@ export class MovimentacoesService {
     if (!context?.lojaId) throw new BadRequestException('lojaId é obrigatório');
     this.logger.debug(`📦 Criando movimentação (svc) loja: ${context.lojaId}`);
 
-    const itemEstoque = await this.buscarItemEstoquePorId(context, data.estoqueId);
+    const itemEstoque = await this.buscarItemEstoquePorId(
+      context,
+      data.estoqueId,
+    );
     const id = 'mov-' + Date.now();
     const quantidadeAnterior = Number(itemEstoque?.quantidadeAtual || 0);
-    const delta = data.tipo === 'SAIDA' ? -Math.abs(Number(data.quantidade)) : Math.abs(Number(data.quantidade));
+    const delta =
+      data.tipo === 'SAIDA'
+        ? -Math.abs(Number(data.quantidade))
+        : Math.abs(Number(data.quantidade));
     const quantidadePosterior = quantidadeAnterior + delta;
 
     try {
@@ -100,7 +126,7 @@ export class MovimentacoesService {
             ${data.observacoes || null}
           )
         `;
-        
+
         // Atualizar a quantidade atual do item no estoque
         await this.prisma.$executeRaw`
           UPDATE estoque_itens 
@@ -141,14 +167,24 @@ export class MovimentacoesService {
     `;
     const hasTable = Number((tableCheck?.[0] as any)?.total || 0) > 0;
     if (!hasTable) {
-      return { data: [], total: 0, page: query.page || 1, limit: query.limit || 20 };
+      return {
+        data: [],
+        total: 0,
+        page: query.page || 1,
+        limit: query.limit || 20,
+      };
     }
     const filters: string[] = ['m.lojaId = ?'];
     const params: any[] = [context.lojaId];
-    if (query?.tipo) { filters.push('m.tipo = ?'); params.push(query.tipo); }
+    if (query?.tipo) {
+      filters.push('m.tipo = ?');
+      params.push(query.tipo);
+    }
     if (query?.search) {
       const like = `%${String(query.search)}%`;
-      filters.push('(i.nome LIKE ? OR m.documentoRef LIKE ? OR m.observacoes LIKE ? OR l.codigo LIKE ?)');
+      filters.push(
+        '(i.nome LIKE ? OR m.documentoRef LIKE ? OR m.observacoes LIKE ? OR l.codigo LIKE ?)',
+      );
       params.push(like, like, like, like);
     }
     const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
@@ -186,7 +222,12 @@ export class MovimentacoesService {
       ORDER BY m.dataMovimentacao DESC
       LIMIT ? OFFSET ?
     `;
-    const rows: any[] = await this.prisma.$queryRawUnsafe(selectSql, ...params, limit, offset);
+    const rows: any[] = await this.prisma.$queryRawUnsafe(
+      selectSql,
+      ...params,
+      limit,
+      offset,
+    );
     const dataMapped = rows.map((r: any) => ({
       id: r.id,
       estoqueId: r.estoqueId,
@@ -260,8 +301,10 @@ export class MovimentacoesService {
     await this.prisma.$executeRaw`
       DELETE FROM estoque_movimentacoes WHERE id = ${id} AND lojaId = ${context.lojaId}
     `;
-    return { message: 'Movimentação excluída com sucesso', id, deletedAt: new Date() };
+    return {
+      message: 'Movimentação excluída com sucesso',
+      id,
+      deletedAt: new Date(),
+    };
   }
 }
-
-

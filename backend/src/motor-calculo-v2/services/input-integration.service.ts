@@ -25,10 +25,12 @@ export class InputIntegrationService {
       const contextoComInsumos = await this.integrarInsumos(contexto);
 
       // 2. Enriquecer dados de máquinas
-      const contextoComMaquinas = await this.integrarMaquinas(contextoComInsumos);
+      const contextoComMaquinas =
+        await this.integrarMaquinas(contextoComInsumos);
 
       // 3. Enriquecer dados de funções
-      const contextoComFuncoes = await this.integrarFuncoes(contextoComMaquinas);
+      const contextoComFuncoes =
+        await this.integrarFuncoes(contextoComMaquinas);
 
       // 4. Atualizar metadata
       contextoComFuncoes.metadata.inputs_integrados = true;
@@ -38,9 +40,11 @@ export class InputIntegrationService {
       this.logger.log(`✅ Inputs integrados em ${tempoExecucao}ms`);
 
       return contextoComFuncoes;
-
     } catch (error) {
-      this.logger.error(`❌ Erro na integração de inputs: ${error.message}`, error.stack);
+      this.logger.error(
+        `❌ Erro na integração de inputs: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }
@@ -65,15 +69,23 @@ export class InputIntegrationService {
           erros.push(`Produto ${produto.nome}: nenhum insumo informado`);
         } else {
           for (const insumo of produto.insumos) {
-            if (!insumo.id || !insumo.preco_unitario || insumo.quantidade <= 0) {
-              erros.push(`Produto ${produto.nome}: insumo inválido (${insumo.nome || 'sem nome'})`);
+            if (
+              !insumo.id ||
+              !insumo.preco_unitario ||
+              insumo.quantidade <= 0
+            ) {
+              erros.push(
+                `Produto ${produto.nome}: insumo inválido (${insumo.nome || 'sem nome'})`,
+              );
             }
           }
         }
 
         // Validar quantidade do produto
         if (produto.quantidade <= 0) {
-          erros.push(`Produto ${produto.nome}: quantidade inválida (${produto.quantidade})`);
+          erros.push(
+            `Produto ${produto.nome}: quantidade inválida (${produto.quantidade})`,
+          );
         }
       }
 
@@ -81,10 +93,16 @@ export class InputIntegrationService {
       if (!contexto.configuracoes) {
         erros.push('Configurações não informadas');
       } else {
-        if (!contexto.configuracoes.margem_lucro_padrao || contexto.configuracoes.margem_lucro_padrao <= 0) {
+        if (
+          !contexto.configuracoes.margem_lucro_padrao ||
+          contexto.configuracoes.margem_lucro_padrao <= 0
+        ) {
           avisos.push('Margem de lucro não configurada - usando padrão (30%)');
         }
-        if (!contexto.configuracoes.impostos_padrao || contexto.configuracoes.impostos_padrao <= 0) {
+        if (
+          !contexto.configuracoes.impostos_padrao ||
+          contexto.configuracoes.impostos_padrao <= 0
+        ) {
           avisos.push('Impostos não configurados - usando padrão (18%)');
         }
       }
@@ -94,7 +112,6 @@ export class InputIntegrationService {
         erros,
         avisos,
       };
-
     } catch (error) {
       this.logger.error(`❌ Erro na validação de inputs: ${error.message}`);
       return {
@@ -128,9 +145,10 @@ export class InputIntegrationService {
         total_funcoes: funcoes,
         ultima_integracao: new Date(),
       };
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao obter estatísticas de inputs: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao obter estatísticas de inputs: ${error.message}`,
+      );
       return {
         total_insumos: 0,
         total_maquinas: 0,
@@ -145,7 +163,9 @@ export class InputIntegrationService {
   /**
    * Integra dados de insumos do banco
    */
-  private async integrarInsumos(contexto: ContextoCalculo): Promise<ContextoCalculo> {
+  private async integrarInsumos(
+    contexto: ContextoCalculo,
+  ): Promise<ContextoCalculo> {
     for (const produto of contexto.produtos) {
       for (const insumo of produto.insumos) {
         try {
@@ -168,14 +188,16 @@ export class InputIntegrationService {
             insumo.unidade = insumoBanco.unidade_uso;
             insumo.preco_unitario = Number(insumoBanco.custo_unitario);
             insumo.categoria = insumoBanco.categoria?.nome || 'Sem categoria';
-            insumo.fornecedor = insumoBanco.fornecedor?.nome || 'Sem fornecedor';
+            insumo.fornecedor =
+              insumoBanco.fornecedor?.nome || 'Sem fornecedor';
             insumo.estoque_disponivel = 0; // TODO: Integrar com estoque
           } else {
             this.logger.warn(`⚠️ Insumo não encontrado: ${insumo.id}`);
           }
-
         } catch (error) {
-          this.logger.error(`❌ Erro ao integrar insumo ${insumo.id}: ${error.message}`);
+          this.logger.error(
+            `❌ Erro ao integrar insumo ${insumo.id}: ${error.message}`,
+          );
         }
       }
     }
@@ -186,7 +208,9 @@ export class InputIntegrationService {
   /**
    * Integra dados de máquinas do banco
    */
-  private async integrarMaquinas(contexto: ContextoCalculo): Promise<ContextoCalculo> {
+  private async integrarMaquinas(
+    contexto: ContextoCalculo,
+  ): Promise<ContextoCalculo> {
     for (const produto of contexto.produtos) {
       for (const maquina of produto.maquinas) {
         try {
@@ -209,9 +233,10 @@ export class InputIntegrationService {
           } else {
             this.logger.warn(`⚠️ Máquina não encontrada: ${maquina.id}`);
           }
-
         } catch (error) {
-          this.logger.error(`❌ Erro ao integrar máquina ${maquina.id}: ${error.message}`);
+          this.logger.error(
+            `❌ Erro ao integrar máquina ${maquina.id}: ${error.message}`,
+          );
         }
       }
     }
@@ -222,7 +247,9 @@ export class InputIntegrationService {
   /**
    * Integra dados de funções do banco
    */
-  private async integrarFuncoes(contexto: ContextoCalculo): Promise<ContextoCalculo> {
+  private async integrarFuncoes(
+    contexto: ContextoCalculo,
+  ): Promise<ContextoCalculo> {
     for (const produto of contexto.produtos) {
       for (const funcao of produto.funcoes) {
         try {
@@ -248,9 +275,10 @@ export class InputIntegrationService {
           } else {
             this.logger.warn(`⚠️ Função não encontrada: ${funcao.id}`);
           }
-
         } catch (error) {
-          this.logger.error(`❌ Erro ao integrar função ${funcao.id}: ${error.message}`);
+          this.logger.error(
+            `❌ Erro ao integrar função ${funcao.id}: ${error.message}`,
+          );
         }
       }
     }
@@ -272,12 +300,13 @@ export class InputIntegrationService {
   private async publicarEvento(evento: EventoCalculo): Promise<void> {
     try {
       // Log estruturado
-      this.logger.log(`📡 [EVENT] ${evento.tipo} | Contexto: ${evento.contexto.id} | Loja: ${evento.contexto.lojaId}`);
+      this.logger.log(
+        `📡 [EVENT] ${evento.tipo} | Contexto: ${evento.contexto.id} | Loja: ${evento.contexto.lojaId}`,
+      );
 
       // TODO: Implementar publicação real
       // await this.websocketGateway.emitirEvento(evento);
       // await this.redisPublisher.publish('motor_eventos', evento);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao publicar evento: ${error.message}`);
       // Não propagar erro para não quebrar o cálculo

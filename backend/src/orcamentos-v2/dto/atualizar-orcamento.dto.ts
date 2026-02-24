@@ -1,10 +1,10 @@
-import { 
-  IsString, 
-  IsOptional, 
-  IsNumber, 
-  IsEnum, 
-  IsArray, 
-  IsDateString, 
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsEnum,
+  IsArray,
+  IsDateString,
   IsUUID,
   MinLength,
   MaxLength,
@@ -35,7 +35,8 @@ export class AtualizarOrcamentoDto {
 
   @ApiPropertyOptional({
     description: 'Descrição detalhada do orçamento',
-    example: 'Reforma completa da cozinha incluindo móveis, eletrodomésticos, acabamentos e iluminação',
+    example:
+      'Reforma completa da cozinha incluindo móveis, eletrodomésticos, acabamentos e iluminação',
     maxLength: 1000,
   })
   @IsOptional()
@@ -96,7 +97,7 @@ export class AtualizarOrcamentoDto {
 
   @ApiPropertyOptional({
     description: 'Valor total estimado',
-    example: 18000.00,
+    example: 18000.0,
     minimum: 0,
   })
   @IsOptional()
@@ -154,7 +155,7 @@ export class AtualizarOrcamentoDto {
 
   @ApiPropertyOptional({
     description: 'Custo total calculado',
-    example: 15000.00,
+    example: 15000.0,
     minimum: 0,
   })
   @IsOptional()
@@ -164,7 +165,7 @@ export class AtualizarOrcamentoDto {
 
   @ApiPropertyOptional({
     description: 'Margem de lucro calculada',
-    example: 4500.00,
+    example: 4500.0,
     minimum: 0,
   })
   @IsOptional()
@@ -174,7 +175,7 @@ export class AtualizarOrcamentoDto {
 
   @ApiPropertyOptional({
     description: 'Impostos calculados',
-    example: 3750.00,
+    example: 3750.0,
     minimum: 0,
   })
   @IsOptional()
@@ -294,7 +295,7 @@ export class FiltrosOrcamentoDto {
 
   @ApiPropertyOptional({
     description: 'Valor mínimo',
-    example: 1000.00,
+    example: 1000.0,
     minimum: 0,
   })
   @IsOptional()
@@ -304,7 +305,7 @@ export class FiltrosOrcamentoDto {
 
   @ApiPropertyOptional({
     description: 'Valor máximo',
-    example: 50000.00,
+    example: 50000.0,
     minimum: 0,
   })
   @IsOptional()

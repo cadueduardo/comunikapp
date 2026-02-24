@@ -37,7 +37,9 @@ export class MensagensNegociacaoService {
     // Validar tipo de mensagem
     const tiposValidos = ['CLIENTE', 'VENDEDOR', 'SISTEMA'];
     if (!tiposValidos.includes(dto.tipo)) {
-      throw new BadRequestException(`Tipo de mensagem inválido. Tipos permitidos: ${tiposValidos.join(', ')}`);
+      throw new BadRequestException(
+        `Tipo de mensagem inválido. Tipos permitidos: ${tiposValidos.join(', ')}`,
+      );
     }
 
     // Verificar se o orçamento existe
@@ -145,7 +147,9 @@ export class MensagensNegociacaoService {
     // Validar tipo de mensagem
     const tiposValidos = ['CLIENTE', 'VENDEDOR', 'SISTEMA'];
     if (!tiposValidos.includes(dto.tipo)) {
-      throw new BadRequestException(`Tipo de mensagem inválido. Tipos permitidos: ${tiposValidos.join(', ')}`);
+      throw new BadRequestException(
+        `Tipo de mensagem inválido. Tipos permitidos: ${tiposValidos.join(', ')}`,
+      );
     }
 
     // Verificar se o orçamento existe e pertence à loja

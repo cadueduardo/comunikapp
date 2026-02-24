@@ -3,8 +3,20 @@
  * Expõe endpoints para executar e consultar validações
  */
 
-import { Controller, Get, Post, Param, Request, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiParam,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { OSValidacoesService } from '../services/os-validacoes.service';
 
@@ -26,14 +38,21 @@ export class OSValidacoesController {
   @Post(':id/executar/:categoria')
   @ApiOperation({ summary: 'Executar validações de uma categoria específica' })
   @ApiParam({ name: 'id', description: 'ID da OS' })
-  @ApiParam({ name: 'categoria', description: 'Categoria das validações (ESTOQUE, ARTE, DADOS, etc.)' })
+  @ApiParam({
+    name: 'categoria',
+    description: 'Categoria das validações (ESTOQUE, ARTE, DADOS, etc.)',
+  })
   async executarValidacoesPorCategoria(
     @Param('id') osId: string,
     @Param('categoria') categoria: string,
-    @Request() req: any
+    @Request() req: any,
   ) {
     const lojaId = req.user.loja_id;
-    return await this.osValidacoesService.validarOSPorCategoria(osId, lojaId, categoria);
+    return await this.osValidacoesService.validarOSPorCategoria(
+      osId,
+      lojaId,
+      categoria,
+    );
   }
 
   @Get(':id/historico')
@@ -48,16 +67,10 @@ export class OSValidacoesController {
   @ApiParam({ name: 'id', description: 'ID da OS' })
   async podeAprovar(@Param('id') osId: string, @Request() req: any) {
     const lojaId = req.user.loja_id;
-    const podeAprovar = await this.osValidacoesService.podeAprovarOS(osId, lojaId);
+    const podeAprovar = await this.osValidacoesService.podeAprovarOS(
+      osId,
+      lojaId,
+    );
     return { pode_aprovar: podeAprovar };
   }
 }
-
-
-
-
-
-
-
-
-

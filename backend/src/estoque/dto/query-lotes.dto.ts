@@ -12,5 +12,3 @@ export class QueryLotesDto {
   @IsString()
   estoqueId?: string;
 }
-
-

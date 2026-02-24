@@ -115,8 +115,16 @@ describe('DocumentCodeService', () => {
       ultimo_numero: 5,
     });
 
-    const codigoComercial = await service.gerarCodigoOSPorTipo('loja-001', TipoOS.COMERCIAL, 2025);
-    const codigoInterna = await service.gerarCodigoOSPorTipo('loja-001', TipoOS.INTERNA, 2025);
+    const codigoComercial = await service.gerarCodigoOSPorTipo(
+      'loja-001',
+      TipoOS.COMERCIAL,
+      2025,
+    );
+    const codigoInterna = await service.gerarCodigoOSPorTipo(
+      'loja-001',
+      TipoOS.INTERNA,
+      2025,
+    );
 
     expect(codigoComercial).toBe('OS-2025-005');
     expect(codigoInterna).toBe('OSI-2025-005');
@@ -126,21 +134,21 @@ describe('DocumentCodeService', () => {
     // Códigos válidos
     expect(service.validarCodigoOS('OS-2025-001')).toEqual({
       valido: true,
-      tipo: TipoOS.COMERCIAL
+      tipo: TipoOS.COMERCIAL,
     });
     expect(service.validarCodigoOS('OSI-2025-001')).toEqual({
       valido: true,
-      tipo: TipoOS.INTERNA
+      tipo: TipoOS.INTERNA,
     });
 
     // Códigos inválidos
     expect(service.validarCodigoOS('OS-25-001')).toEqual({
       valido: false,
-      erro: 'Formato inválido. Use OS-AAAA-NNN para comercial ou OSI-AAAA-NNN para interna'
+      erro: 'Formato inválido. Use OS-AAAA-NNN para comercial ou OSI-AAAA-NNN para interna',
     });
     expect(service.validarCodigoOS('OSI-2025-1')).toEqual({
       valido: false,
-      erro: 'Formato inválido. Use OS-AAAA-NNN para comercial ou OSI-AAAA-NNN para interna'
+      erro: 'Formato inválido. Use OS-AAAA-NNN para comercial ou OSI-AAAA-NNN para interna',
     });
   });
 
@@ -152,48 +160,62 @@ describe('DocumentCodeService', () => {
     expect(infoComercial).toEqual({
       tipo: TipoOS.COMERCIAL,
       ano: 2025,
-      numero: 1
+      numero: 1,
     });
     expect(infoInterna).toEqual({
       tipo: TipoOS.INTERNA,
       ano: 2025,
-      numero: 1
+      numero: 1,
     });
     expect(infoInvalida).toBeNull();
   });
 
   it('deve verificar codigo existente', async () => {
     (prismaMock.document_sequence.findUnique as jest.Mock).mockResolvedValue({
-      ultimo_numero: 5
+      ultimo_numero: 5,
     });
 
-    const existe = await service.verificarCodigoExistente('OS-2025-003', 'loja-001');
+    const existe = await service.verificarCodigoExistente(
+      'OS-2025-003',
+      'loja-001',
+    );
     expect(existe).toBe(true);
 
-    const naoExiste = await service.verificarCodigoExistente('OS-2025-010', 'loja-001');
+    const naoExiste = await service.verificarCodigoExistente(
+      'OS-2025-010',
+      'loja-001',
+    );
     expect(naoExiste).toBe(false);
   });
 
   it('deve obter estatisticas de numeracao', async () => {
     (prismaMock.document_sequence.findUnique as jest.Mock)
       .mockResolvedValueOnce({ ultimo_numero: 10 }) // Comercial
-      .mockResolvedValueOnce({ ultimo_numero: 5 });  // Interna
+      .mockResolvedValueOnce({ ultimo_numero: 5 }); // Interna
 
     const stats = await service.obterEstatisticasNumeracao('loja-001', 2025);
 
     expect(stats).toEqual({
       comercial: { total: 10, ultimoNumero: 10 },
-      interna: { total: 5, ultimoNumero: 5 }
+      interna: { total: 5, ultimoNumero: 5 },
     });
   });
 
   it('deve obter proximo numero', async () => {
     (prismaMock.document_sequence.findUnique as jest.Mock).mockResolvedValue({
-      ultimo_numero: 5
+      ultimo_numero: 5,
     });
 
-    const proximoComercial = await service.obterProximoNumero('loja-001', TipoOS.COMERCIAL, 2025);
-    const proximoInterna = await service.obterProximoNumero('loja-001', TipoOS.INTERNA, 2025);
+    const proximoComercial = await service.obterProximoNumero(
+      'loja-001',
+      TipoOS.COMERCIAL,
+      2025,
+    );
+    const proximoInterna = await service.obterProximoNumero(
+      'loja-001',
+      TipoOS.INTERNA,
+      2025,
+    );
 
     expect(proximoComercial).toBe(6);
     expect(proximoInterna).toBe(6);

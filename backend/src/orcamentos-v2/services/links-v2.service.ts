@@ -1,16 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { 
-  LinkPublico, 
+import {
+  LinkPublico,
   PermissaoLink,
-  OrcamentoCompleto 
+  OrcamentoCompleto,
 } from '../interfaces/orcamento.interface';
 import { randomBytes } from 'crypto';
 
 /**
  * Serviço de Links V2 para Orçamentos
  * Implementa sistema de links públicos e compartilhamento
- * 
+ *
  * ✅ ARQUIVO ≤ 400 LINHAS (CONFORME PREMISSAS)
  * ✅ SISTEMA DE LINKS PÚBLICOS COMPLETO
  * ✅ CONTROLE DE PERMISSÕES E VALIDAÇÃO
@@ -19,9 +19,7 @@ import { randomBytes } from 'crypto';
 export class LinksV2Service {
   private readonly logger = new Logger(LinksV2Service.name);
 
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Cria link público para orçamento
@@ -65,7 +63,6 @@ export class LinksV2Service {
 
       this.logger.log(`✅ Link público criado com sucesso: ${linkPublico.id}`);
       return this.transformarLinkPublico(linkPublico);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao criar link público: ${error.message}`);
       throw error;
@@ -90,7 +87,7 @@ export class LinksV2Service {
     try {
       // Buscar link público
       const linkPublico = await this.prisma.linkPublico.findFirst({
-        where: { 
+        where: {
           token,
           ativo: true,
         },
@@ -102,12 +99,18 @@ export class LinksV2Service {
       }
 
       // Validar expiração
-      if (linkPublico.data_expiracao && linkPublico.data_expiracao < new Date()) {
+      if (
+        linkPublico.data_expiracao &&
+        linkPublico.data_expiracao < new Date()
+      ) {
         throw new Error('Link público expirado');
       }
 
       // Validar limite de visualizações
-      if (linkPublico.max_visualizacoes && linkPublico.visualizacoes >= linkPublico.max_visualizacoes) {
+      if (
+        linkPublico.max_visualizacoes &&
+        linkPublico.visualizacoes >= linkPublico.max_visualizacoes
+      ) {
         throw new Error('Limite de visualizações atingido');
       }
 
@@ -129,14 +132,17 @@ export class LinksV2Service {
       // Incrementar contador de visualizações
       await this.incrementarVisualizacoes(linkPublico.id);
 
-      this.logger.log(`✅ Link público acessado com sucesso: ${linkPublico.id}`);
-      
+      this.logger.log(
+        `✅ Link público acessado com sucesso: ${linkPublico.id}`,
+      );
+
       return {
         link: this.transformarLinkPublico(linkPublico),
         orcamento: null,
-        permissoes: linkPublico.permissoes ? JSON.parse(linkPublico.permissoes) : [],
+        permissoes: linkPublico.permissoes
+          ? JSON.parse(linkPublico.permissoes)
+          : [],
       };
-
     } catch (error) {
       this.logger.error(`❌ Erro ao acessar link público: ${error.message}`);
       throw error;
@@ -158,7 +164,7 @@ export class LinksV2Service {
 
       // Buscar links públicos
       const links = await this.prisma.linkPublico.findMany({
-        where: { 
+        where: {
           orcamento_id: orcamentoId,
           ativo: true,
         },
@@ -166,8 +172,7 @@ export class LinksV2Service {
         orderBy: { criado_em: 'desc' },
       });
 
-      return links.map(link => this.transformarLinkPublico(link));
-
+      return links.map((link) => this.transformarLinkPublico(link));
     } catch (error) {
       this.logger.error(`❌ Erro ao listar links públicos: ${error.message}`);
       throw error;
@@ -206,23 +211,25 @@ export class LinksV2Service {
 
       // Preparar dados para atualização
       const dadosAtualizacao: any = {};
-      
+
       if (dados.permissoes !== undefined) {
         dadosAtualizacao.permissoes = JSON.stringify(dados.permissoes);
       }
-      
+
       if (dados.dataExpiracao !== undefined) {
         dadosAtualizacao.data_expiracao = dados.dataExpiracao;
       }
-      
+
       if (dados.maxVisualizacoes !== undefined) {
         dadosAtualizacao.max_visualizacoes = dados.maxVisualizacoes;
       }
-      
+
       if (dados.senha !== undefined) {
-        dadosAtualizacao.senha = dados.senha ? await this.criptografarSenha(dados.senha) : null;
+        dadosAtualizacao.senha = dados.senha
+          ? await this.criptografarSenha(dados.senha)
+          : null;
       }
-      
+
       if (dados.ativo !== undefined) {
         dadosAtualizacao.ativo = dados.ativo;
       }
@@ -236,7 +243,6 @@ export class LinksV2Service {
 
       this.logger.log(`✅ Link público atualizado com sucesso: ${linkId}`);
       return this.transformarLinkPublico(linkAtualizado);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao atualizar link público: ${error.message}`);
       throw error;
@@ -246,10 +252,7 @@ export class LinksV2Service {
   /**
    * Remove link público
    */
-  async removerLinkPublico(
-    linkId: string,
-    usuarioId: string,
-  ): Promise<void> {
+  async removerLinkPublico(linkId: string, usuarioId: string): Promise<void> {
     this.logger.log(`🗑️ Removendo link público ${linkId}`);
 
     try {
@@ -273,7 +276,6 @@ export class LinksV2Service {
       });
 
       this.logger.log(`✅ Link público removido com sucesso: ${linkId}`);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao remover link público: ${error.message}`);
       throw error;
@@ -294,7 +296,9 @@ export class LinksV2Service {
     links_expirados: number;
     links_com_senha: number;
   }> {
-    this.logger.log(`📊 Buscando estatísticas de links do orçamento ${orcamentoId}`);
+    this.logger.log(
+      `📊 Buscando estatísticas de links do orçamento ${orcamentoId}`,
+    );
 
     try {
       // Validar permissões do usuário
@@ -313,7 +317,7 @@ export class LinksV2Service {
           where: { orcamento_id: orcamentoId },
         }),
         this.prisma.linkPublico.count({
-          where: { 
+          where: {
             orcamento_id: orcamentoId,
             ativo: true,
           },
@@ -345,7 +349,6 @@ export class LinksV2Service {
         links_expirados: linksExpirados,
         links_com_senha: linksComSenha,
       };
-
     } catch (error) {
       this.logger.error(`❌ Erro ao buscar estatísticas: ${error.message}`);
       throw error;
@@ -407,7 +410,6 @@ export class LinksV2Service {
         pagina,
         porPagina: take,
       };
-
     } catch (error) {
       this.logger.error(`❌ Erro ao buscar histórico: ${error.message}`);
       throw error;
@@ -432,7 +434,10 @@ export class LinksV2Service {
     return orcamento;
   }
 
-  private async validarPermissoesUsuario(orcamentoId: string, usuarioId: string): Promise<void> {
+  private async validarPermissoesUsuario(
+    orcamentoId: string,
+    usuarioId: string,
+  ): Promise<void> {
     // TODO: Implementar validação de permissões do usuário
     // Por enquanto, apenas verificar se o usuário existe
     const usuario = await this.prisma.usuario.findUnique({
@@ -491,13 +496,17 @@ export class LinksV2Service {
         },
       });
     } catch (error) {
-      this.logger.error(`❌ Erro ao incrementar visualizações: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao incrementar visualizações: ${error.message}`,
+      );
     }
   }
 
-  private async buscarLinksPorPermissao(orcamentoId: string): Promise<Record<string, number>> {
+  private async buscarLinksPorPermissao(
+    orcamentoId: string,
+  ): Promise<Record<string, number>> {
     const links = await this.prisma.linkPublico.findMany({
-      where: { 
+      where: {
         orcamento_id: orcamentoId,
         ativo: true,
       },
@@ -505,9 +514,11 @@ export class LinksV2Service {
     });
 
     const resultado: Record<string, number> = {};
-    
-    links.forEach(link => {
-      const permissoes = link.permissoes ? JSON.parse(link.permissoes as any) as string[] : [];
+
+    links.forEach((link) => {
+      const permissoes = link.permissoes
+        ? (JSON.parse(link.permissoes as any) as string[])
+        : [];
       permissoes.forEach((permissao: string) => {
         resultado[permissao] = (resultado[permissao] || 0) + 1;
       });

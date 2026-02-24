@@ -1,17 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { NotificacoesService, TipoNotificacao } from '../../notificacoes/notificacoes.service';
+import {
+  NotificacoesService,
+  TipoNotificacao,
+} from '../../notificacoes/notificacoes.service';
 import { MailService } from '../../mail/mail.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { 
-  OrcamentoCompleto, 
+import {
+  OrcamentoCompleto,
   OrcamentoStatus,
-  OrcamentoTipo 
+  OrcamentoTipo,
 } from '../interfaces/orcamento.interface';
 
 /**
  * Serviço de Notificação V2 para Orçamentos
  * Integra com sistema de notificações existente
- * 
+ *
  * ✅ ARQUIVO ≤ 400 LINHAS (CONFORME PREMISSAS)
  * ✅ INTEGRAÇÃO COM SISTEMA EXISTENTE
  * ✅ NOTIFICAÇÕES AUTOMÁTICAS E PERSONALIZADAS
@@ -29,10 +32,7 @@ export class NotificacaoV2Service {
   /**
    * Notifica criação de orçamento
    */
-  async notificarCriacao(
-    orcamento: any,
-    lojaId: string,
-  ): Promise<void> {
+  async notificarCriacao(orcamento: any, lojaId: string): Promise<void> {
     this.logger.log(`📢 Notificando criação do orçamento ${orcamento.id}`);
 
     try {
@@ -50,9 +50,10 @@ export class NotificacaoV2Service {
       }
 
       this.logger.log(`✅ Notificações de criação enviadas com sucesso`);
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao enviar notificações de criação: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao enviar notificações de criação: ${error.message}`,
+      );
       // Não falhar o processo principal por erro de notificação
     }
   }
@@ -60,10 +61,7 @@ export class NotificacaoV2Service {
   /**
    * Notifica atualização de orçamento
    */
-  async notificarAtualizacao(
-    orcamento: any,
-    lojaId: string,
-  ): Promise<void> {
+  async notificarAtualizacao(orcamento: any, lojaId: string): Promise<void> {
     this.logger.log(`📢 Notificando atualização do orçamento ${orcamento.id}`);
 
     try {
@@ -83,19 +81,17 @@ export class NotificacaoV2Service {
       }
 
       this.logger.log(`✅ Notificações de atualização enviadas com sucesso`);
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao enviar notificações de atualização: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao enviar notificações de atualização: ${error.message}`,
+      );
     }
   }
 
   /**
    * Notifica remoção de orçamento
    */
-  async notificarRemocao(
-    orcamentoId: string,
-    lojaId: string,
-  ): Promise<void> {
+  async notificarRemocao(orcamentoId: string, lojaId: string): Promise<void> {
     this.logger.log(`📢 Notificando remoção do orçamento ${orcamentoId}`);
 
     try {
@@ -106,9 +102,10 @@ export class NotificacaoV2Service {
       await this.notificarAdministradoresRemocao(orcamentoId, lojaId);
 
       this.logger.log(`✅ Notificações de remoção enviadas com sucesso`);
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao enviar notificações de remoção: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao enviar notificações de remoção: ${error.message}`,
+      );
     }
   }
 
@@ -121,7 +118,9 @@ export class NotificacaoV2Service {
     novoStatus: OrcamentoStatus,
     lojaId: string,
   ): Promise<void> {
-    this.logger.log(`📢 Notificando mudança de status: ${statusAnterior} → ${novoStatus}`);
+    this.logger.log(
+      `📢 Notificando mudança de status: ${statusAnterior} → ${novoStatus}`,
+    );
 
     try {
       // 1. Notificação para responsável
@@ -143,7 +142,10 @@ export class NotificacaoV2Service {
       );
 
       // 3. Notificação para cliente se status crítico
-      if (orcamento.cliente?.email && this.statusCriticoParaCliente(novoStatus)) {
+      if (
+        orcamento.cliente?.email &&
+        this.statusCriticoParaCliente(novoStatus)
+      ) {
         await this.notificarClienteMudancaStatus(
           orcamento,
           statusAnterior,
@@ -155,20 +157,20 @@ export class NotificacaoV2Service {
       // 4. Notificações específicas por status
       await this.notificarStatusEspecifico(orcamento, novoStatus, lojaId);
 
-      this.logger.log(`✅ Notificações de mudança de status enviadas com sucesso`);
-
+      this.logger.log(
+        `✅ Notificações de mudança de status enviadas com sucesso`,
+      );
     } catch (error) {
-      this.logger.error(`❌ Erro ao enviar notificações de mudança de status: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao enviar notificações de mudança de status: ${error.message}`,
+      );
     }
   }
 
   /**
    * Notifica aprovação de orçamento
    */
-  async notificarAprovacao(
-    orcamento: any,
-    lojaId: string,
-  ): Promise<void> {
+  async notificarAprovacao(orcamento: any, lojaId: string): Promise<void> {
     this.logger.log(`📢 Notificando aprovação do orçamento ${orcamento.id}`);
 
     try {
@@ -186,9 +188,10 @@ export class NotificacaoV2Service {
       await this.notificarEquipeExecucao(orcamento, lojaId);
 
       this.logger.log(`✅ Notificações de aprovação enviadas com sucesso`);
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao enviar notificações de aprovação: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao enviar notificações de aprovação: ${error.message}`,
+      );
     }
   }
 
@@ -217,15 +220,19 @@ export class NotificacaoV2Service {
       await this.notificarGerentesRejeicao(orcamento, motivo, lojaId);
 
       this.logger.log(`✅ Notificações de rejeição enviadas com sucesso`);
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao enviar notificações de rejeição: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao enviar notificações de rejeição: ${error.message}`,
+      );
     }
   }
 
   // Métodos privados de notificação
 
-  private async notificarResponsavelCriacao(orcamento: any, lojaId: string): Promise<void> {
+  private async notificarResponsavelCriacao(
+    orcamento: any,
+    lojaId: string,
+  ): Promise<void> {
     await this.notificacoesService.criarNotificacao(
       lojaId,
       TipoNotificacao.SISTEMA,
@@ -240,24 +247,29 @@ export class NotificacaoV2Service {
     );
   }
 
-  private async notificarGerentesCriacao(orcamento: any, lojaId: string): Promise<void> {
+  private async notificarGerentesCriacao(
+    orcamento: any,
+    lojaId: string,
+  ): Promise<void> {
     // Buscar nome do responsável
     let nomeResponsavel = 'Usuário do sistema';
-    
+
     if (orcamento.responsavel_id) {
       try {
         const usuario = await this.prisma.usuario.findUnique({
           where: { id: orcamento.responsavel_id },
           select: { nome: true },
         });
-        
+
         if (usuario?.nome) {
           nomeResponsavel = usuario.nome;
         } else {
           nomeResponsavel = orcamento.responsavel_id;
         }
       } catch (error) {
-        this.logger.warn(`Não foi possível buscar nome do responsável: ${error.message}`);
+        this.logger.warn(
+          `Não foi possível buscar nome do responsável: ${error.message}`,
+        );
         nomeResponsavel = orcamento.responsavel_id || 'Usuário do sistema';
       }
     }
@@ -276,7 +288,10 @@ export class NotificacaoV2Service {
     );
   }
 
-  private async notificarClienteCriacao(orcamento: any, lojaId: string): Promise<void> {
+  private async notificarClienteCriacao(
+    orcamento: any,
+    lojaId: string,
+  ): Promise<void> {
     const emailData = {
       to: orcamento.cliente.email,
       subject: 'Orçamento Criado - ComunikaApp',
@@ -286,7 +301,8 @@ export class NotificacaoV2Service {
         titulo_orcamento: orcamento.titulo,
         numero_orcamento: orcamento.id,
         data_criacao: orcamento.data_criacao,
-        valor_estimado: orcamento.custos_calculados?.preco_final || 'Em cálculo',
+        valor_estimado:
+          orcamento.custos_calculados?.preco_final || 'Em cálculo',
         responsavel: orcamento.responsavel_id,
       },
     };
@@ -296,7 +312,10 @@ export class NotificacaoV2Service {
     return;
   }
 
-  private async notificarResponsavelAtualizacao(orcamento: any, lojaId: string): Promise<void> {
+  private async notificarResponsavelAtualizacao(
+    orcamento: any,
+    lojaId: string,
+  ): Promise<void> {
     const notificacao = {
       tipo: TipoNotificacao.SISTEMA,
       titulo: 'Orçamento Atualizado',
@@ -323,7 +342,10 @@ export class NotificacaoV2Service {
     );
   }
 
-  private async notificarGerentesAtualizacao(orcamento: any, lojaId: string): Promise<void> {
+  private async notificarGerentesAtualizacao(
+    orcamento: any,
+    lojaId: string,
+  ): Promise<void> {
     const notificacao = {
       tipo: TipoNotificacao.SISTEMA,
       titulo: 'Orçamento Atualizado',
@@ -351,7 +373,10 @@ export class NotificacaoV2Service {
     );
   }
 
-  private async notificarClienteAtualizacao(orcamento: any, lojaId: string): Promise<void> {
+  private async notificarClienteAtualizacao(
+    orcamento: any,
+    lojaId: string,
+  ): Promise<void> {
     const emailData = {
       to: orcamento.cliente.email,
       subject: 'Orçamento Atualizado - ComunikaApp',
@@ -368,7 +393,10 @@ export class NotificacaoV2Service {
     return;
   }
 
-  private async notificarGerentesRemocao(orcamentoId: string, lojaId: string): Promise<void> {
+  private async notificarGerentesRemocao(
+    orcamentoId: string,
+    lojaId: string,
+  ): Promise<void> {
     const notificacao = {
       tipo: TipoNotificacao.SISTEMA,
       titulo: 'Orçamento Removido',
@@ -391,7 +419,10 @@ export class NotificacaoV2Service {
     );
   }
 
-  private async notificarAdministradoresRemocao(orcamentoId: string, lojaId: string): Promise<void> {
+  private async notificarAdministradoresRemocao(
+    orcamentoId: string,
+    lojaId: string,
+  ): Promise<void> {
     const notificacao = {
       tipo: TipoNotificacao.SISTEMA,
       titulo: 'Orçamento Removido - Ação Administrativa',
@@ -478,7 +509,12 @@ export class NotificacaoV2Service {
       'Status do Orçamento Alterado',
       `Status do orçamento "${orcamento.titulo}" foi alterado de ${statusAnterior} para ${novoStatus}.`,
       orcamento.id,
-      { responsavel: orcamento.responsavel_id, status_anterior: statusAnterior, novo_status: novoStatus, data_alteracao: new Date() },
+      {
+        responsavel: orcamento.responsavel_id,
+        status_anterior: statusAnterior,
+        novo_status: novoStatus,
+        data_alteracao: new Date(),
+      },
     );
   }
 
@@ -515,7 +551,11 @@ export class NotificacaoV2Service {
         await this.notificarAprovacao(orcamento, lojaId);
         break;
       case OrcamentoStatus.REJEITADO:
-        await this.notificarRejeicao(orcamento, 'Rejeitado pelo sistema', lojaId);
+        await this.notificarRejeicao(
+          orcamento,
+          'Rejeitado pelo sistema',
+          lojaId,
+        );
         break;
       case OrcamentoStatus.EM_EXECUCAO:
         await this.notificarInicioExecucao(orcamento, lojaId);
@@ -526,7 +566,10 @@ export class NotificacaoV2Service {
     }
   }
 
-  private async notificarResponsavelAprovacao(orcamento: any, lojaId: string): Promise<void> {
+  private async notificarResponsavelAprovacao(
+    orcamento: any,
+    lojaId: string,
+  ): Promise<void> {
     const notificacao = {
       tipo: TipoNotificacao.ORCAMENTO_APROVADO,
       titulo: 'Orçamento Aprovado',
@@ -551,7 +594,10 @@ export class NotificacaoV2Service {
     );
   }
 
-  private async notificarClienteAprovacao(orcamento: any, lojaId: string): Promise<void> {
+  private async notificarClienteAprovacao(
+    orcamento: any,
+    lojaId: string,
+  ): Promise<void> {
     const emailData = {
       to: orcamento.cliente.email,
       subject: 'Orçamento Aprovado - ComunikaApp',
@@ -569,7 +615,10 @@ export class NotificacaoV2Service {
     return;
   }
 
-  private async notificarEquipeExecucao(orcamento: any, lojaId: string): Promise<void> {
+  private async notificarEquipeExecucao(
+    orcamento: any,
+    lojaId: string,
+  ): Promise<void> {
     const notificacao = {
       tipo: TipoNotificacao.ORCAMENTO_APROVADO,
       titulo: 'Novo Orçamento Aprovado para Execução',
@@ -677,7 +726,10 @@ export class NotificacaoV2Service {
     );
   }
 
-  private async notificarInicioExecucao(orcamento: any, lojaId: string): Promise<void> {
+  private async notificarInicioExecucao(
+    orcamento: any,
+    lojaId: string,
+  ): Promise<void> {
     const notificacao = {
       tipo: TipoNotificacao.SISTEMA,
       titulo: 'Orçamento Iniciou Execução',
@@ -701,7 +753,10 @@ export class NotificacaoV2Service {
     );
   }
 
-  private async notificarConclusao(orcamento: any, lojaId: string): Promise<void> {
+  private async notificarConclusao(
+    orcamento: any,
+    lojaId: string,
+  ): Promise<void> {
     const notificacao = {
       tipo: TipoNotificacao.SISTEMA,
       titulo: 'Orçamento Concluído',
@@ -729,7 +784,11 @@ export class NotificacaoV2Service {
 
   private mudancasSignificativas(orcamento: any): boolean {
     // Verificar se houve mudanças significativas
-    return !!(orcamento.produtos || orcamento.quantidades || orcamento.configuracoes);
+    return !!(
+      orcamento.produtos ||
+      orcamento.quantidades ||
+      orcamento.configuracoes
+    );
   }
 
   private statusMudou(orcamento: any): boolean {

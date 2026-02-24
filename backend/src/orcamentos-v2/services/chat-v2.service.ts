@@ -1,15 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { 
-  MensagemChat, 
+import {
+  MensagemChat,
   TipoMensagem,
-  OrcamentoCompleto 
+  OrcamentoCompleto,
 } from '../interfaces/orcamento.interface';
 
 /**
  * Serviço de Chat V2 para Orçamentos
  * Implementa sistema de chat e negociação
- * 
+ *
  * ✅ ARQUIVO ≤ 400 LINHAS (CONFORME PREMISSAS)
  * ✅ SISTEMA DE CHAT COMPLETO E NEGOCIAÇÃO
  * ✅ INTEGRAÇÃO COM SISTEMA DE NOTIFICAÇÕES
@@ -18,9 +18,7 @@ import {
 export class ChatV2Service {
   private readonly logger = new Logger(ChatV2Service.name);
 
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Envia mensagem no chat do orçamento
@@ -60,7 +58,6 @@ export class ChatV2Service {
 
       this.logger.log(`✅ Mensagem enviada com sucesso: ${mensagem.id}`);
       return this.transformarMensagem(mensagem);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao enviar mensagem: ${error.message}`);
       throw error;
@@ -82,7 +79,9 @@ export class ChatV2Service {
     porPagina: number;
     nao_lidas: number;
   }> {
-    this.logger.log(`🔍 ChatV2Service: Buscando mensagens para orçamento ${orcamentoId}, usuário ${usuarioId}`);
+    this.logger.log(
+      `🔍 ChatV2Service: Buscando mensagens para orçamento ${orcamentoId}, usuário ${usuarioId}`,
+    );
 
     try {
       // Validar orçamento
@@ -116,9 +115,13 @@ export class ChatV2Service {
       // Marcar mensagens como lidas
       await this.marcarMensagensComoLidas(orcamentoId, usuarioId);
 
-      const mensagensProcessadas = mensagens.map(msg => this.transformarMensagem(msg));
+      const mensagensProcessadas = mensagens.map((msg) =>
+        this.transformarMensagem(msg),
+      );
 
-      this.logger.log(`📊 ChatV2Service: Retornando ${mensagensProcessadas.length} mensagens (total: ${total}, não lidas: ${naoLidas})`);
+      this.logger.log(
+        `📊 ChatV2Service: Retornando ${mensagensProcessadas.length} mensagens (total: ${total}, não lidas: ${naoLidas})`,
+      );
 
       return {
         mensagens: mensagensProcessadas,
@@ -127,7 +130,6 @@ export class ChatV2Service {
         porPagina: take,
         nao_lidas: naoLidas,
       };
-
     } catch (error) {
       this.logger.error(`❌ Erro ao buscar mensagens: ${error.message}`);
       throw error;
@@ -151,7 +153,9 @@ export class ChatV2Service {
         data: { lida: true },
       });
     } catch (error) {
-      this.logger.error(`❌ Erro ao marcar mensagens como lidas: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao marcar mensagens como lidas: ${error.message}`,
+      );
     }
   }
 
@@ -163,7 +167,9 @@ export class ChatV2Service {
     conteudo: string,
     dadosExtras?: any,
   ): Promise<MensagemChat> {
-    this.logger.log(`🤖 Enviando mensagem do sistema no orçamento ${orcamentoId}`);
+    this.logger.log(
+      `🤖 Enviando mensagem do sistema no orçamento ${orcamentoId}`,
+    );
 
     try {
       // Buscar usuário do sistema
@@ -186,9 +192,10 @@ export class ChatV2Service {
 
       this.logger.log(`✅ Mensagem do sistema enviada: ${mensagem.id}`);
       return this.transformarMensagem(mensagem);
-
     } catch (error) {
-      this.logger.error(`❌ Erro ao enviar mensagem do sistema: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao enviar mensagem do sistema: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -229,7 +236,6 @@ export class ChatV2Service {
 
       this.logger.log(`✅ Notificação enviada: ${mensagem.id}`);
       return this.transformarMensagem(mensagem);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao enviar notificação: ${error.message}`);
       throw error;
@@ -247,7 +253,9 @@ export class ChatV2Service {
     tamanho: number,
     tipoArquivo: string,
   ): Promise<MensagemChat> {
-    this.logger.log(`📎 Enviando arquivo no orçamento ${orcamentoId}: ${nomeArquivo}`);
+    this.logger.log(
+      `📎 Enviando arquivo no orçamento ${orcamentoId}: ${nomeArquivo}`,
+    );
 
     try {
       // Validar orçamento
@@ -275,7 +283,6 @@ export class ChatV2Service {
 
       this.logger.log(`✅ Arquivo enviado com sucesso: ${mensagem.id}`);
       return this.transformarMensagem(mensagem);
-
     } catch (error) {
       this.logger.error(`❌ Erro ao enviar arquivo: ${error.message}`);
       throw error;
@@ -285,16 +292,16 @@ export class ChatV2Service {
   /**
    * Busca estatísticas do chat
    */
-  async buscarEstatisticasChat(
-    orcamentoId: string,
-  ): Promise<{
+  async buscarEstatisticasChat(orcamentoId: string): Promise<{
     total_mensagens: number;
     mensagens_por_tipo: Record<string, number>;
     usuarios_ativos: string[];
     ultima_atividade: Date | null;
     tempo_medio_resposta: number | null;
   }> {
-    this.logger.log(`📊 Buscando estatísticas do chat do orçamento ${orcamentoId}`);
+    this.logger.log(
+      `📊 Buscando estatísticas do chat do orçamento ${orcamentoId}`,
+    );
 
     try {
       // Validar orçamento
@@ -324,7 +331,6 @@ export class ChatV2Service {
         ultima_atividade: ultimaAtividade,
         tempo_medio_resposta: tempoMedioResposta,
       };
-
     } catch (error) {
       this.logger.error(`❌ Erro ao buscar estatísticas: ${error.message}`);
       throw error;
@@ -348,7 +354,9 @@ export class ChatV2Service {
       status_negociacao: string;
     };
   }> {
-    this.logger.log(`📋 Buscando histórico de negociação do orçamento ${orcamentoId}`);
+    this.logger.log(
+      `📋 Buscando histórico de negociação do orçamento ${orcamentoId}`,
+    );
 
     try {
       // Validar orçamento
@@ -373,10 +381,9 @@ export class ChatV2Service {
       const historico = this.processarHistoricoNegociacao(mensagens);
 
       return {
-        mensagens: mensagens.map(msg => this.transformarMensagem(msg)),
+        mensagens: mensagens.map((msg) => this.transformarMensagem(msg)),
         resumo: historico,
       };
-
     } catch (error) {
       this.logger.error(`❌ Erro ao buscar histórico: ${error.message}`);
       throw error;
@@ -430,7 +437,10 @@ export class ChatV2Service {
     return usuarioSistema;
   }
 
-  private async processarMensagem(mensagem: any, orcamento: any): Promise<void> {
+  private async processarMensagem(
+    mensagem: any,
+    orcamento: any,
+  ): Promise<void> {
     // Processar mensagem baseada no tipo
     switch (mensagem.tipo) {
       case TipoMensagem.TEXTO:
@@ -448,7 +458,10 @@ export class ChatV2Service {
     }
   }
 
-  private async processarMensagemTexto(mensagem: any, orcamento: any): Promise<void> {
+  private async processarMensagemTexto(
+    mensagem: any,
+    orcamento: any,
+  ): Promise<void> {
     // Verificar se é uma proposta de negociação
     if (this.isPropostaNegociacao(mensagem.conteudo)) {
       await this.processarPropostaNegociacao(mensagem, orcamento);
@@ -463,53 +476,82 @@ export class ChatV2Service {
     await this.notificarNovaMensagemChat(orcamento, mensagem, 'vendedor');
   }
 
-  private async processarMensagemSistema(mensagem: any, orcamento: any): Promise<void> {
+  private async processarMensagemSistema(
+    mensagem: any,
+    orcamento: any,
+  ): Promise<void> {
     // Mensagens do sistema são processadas automaticamente
     this.logger.log(`🤖 Mensagem do sistema processada: ${mensagem.conteudo}`);
   }
 
-  private async processarMensagemNotificacao(mensagem: any, orcamento: any): Promise<void> {
+  private async processarMensagemNotificacao(
+    mensagem: any,
+    orcamento: any,
+  ): Promise<void> {
     // Notificações são processadas automaticamente
     this.logger.log(`🔔 Notificação processada: ${mensagem.conteudo}`);
   }
 
-  private async processarMensagemArquivo(mensagem: any, orcamento: any): Promise<void> {
+  private async processarMensagemArquivo(
+    mensagem: any,
+    orcamento: any,
+  ): Promise<void> {
     // Arquivos são processados automaticamente
     this.logger.log(`📎 Arquivo processado: ${mensagem.conteudo}`);
   }
 
   private isPropostaNegociacao(conteudo: string): boolean {
-    const palavrasChave = ['proposta', 'valor', 'preço', 'desconto', 'negociação'];
-    return palavrasChave.some(palavra => 
-      conteudo.toLowerCase().includes(palavra.toLowerCase())
+    const palavrasChave = [
+      'proposta',
+      'valor',
+      'preço',
+      'desconto',
+      'negociação',
+    ];
+    return palavrasChave.some((palavra) =>
+      conteudo.toLowerCase().includes(palavra.toLowerCase()),
     );
   }
 
   private isPergunta(conteudo: string): boolean {
-    return conteudo.includes('?') || 
-           conteudo.toLowerCase().startsWith('quando') ||
-           conteudo.toLowerCase().startsWith('como') ||
-           conteudo.toLowerCase().startsWith('onde') ||
-           conteudo.toLowerCase().startsWith('por que');
+    return (
+      conteudo.includes('?') ||
+      conteudo.toLowerCase().startsWith('quando') ||
+      conteudo.toLowerCase().startsWith('como') ||
+      conteudo.toLowerCase().startsWith('onde') ||
+      conteudo.toLowerCase().startsWith('por que')
+    );
   }
 
-  private async processarPropostaNegociacao(mensagem: any, orcamento: any): Promise<void> {
+  private async processarPropostaNegociacao(
+    mensagem: any,
+    orcamento: any,
+  ): Promise<void> {
     // Processar proposta de negociação
-    this.logger.log(`💰 Proposta de negociação detectada: ${mensagem.conteudo}`);
-    
+    this.logger.log(
+      `💰 Proposta de negociação detectada: ${mensagem.conteudo}`,
+    );
+
     // TODO: Implementar lógica de negociação automática
   }
 
-  private async processarPergunta(mensagem: any, orcamento: any): Promise<void> {
+  private async processarPergunta(
+    mensagem: any,
+    orcamento: any,
+  ): Promise<void> {
     // Processar pergunta
     this.logger.log(`❓ Pergunta detectada: ${mensagem.conteudo}`);
-    
+
     // TODO: Implementar sistema de respostas automáticas
   }
 
   private transformarMensagem(mensagem: any): MensagemChat {
     const anexos = (() => {
-      try { return mensagem.anexos ? JSON.parse(mensagem.anexos) : []; } catch { return []; }
+      try {
+        return mensagem.anexos ? JSON.parse(mensagem.anexos) : [];
+      } catch {
+        return [];
+      }
     })();
 
     return {
@@ -521,13 +563,17 @@ export class ChatV2Service {
       lida: mensagem.lida,
       anexos,
       // Mapear para compatibilidade com frontend
-      criado_em: mensagem.data_envio ? new Date(mensagem.data_envio).toISOString() : new Date().toISOString(),
+      criado_em: mensagem.data_envio
+        ? new Date(mensagem.data_envio).toISOString()
+        : new Date().toISOString(),
       mensagem: mensagem.conteudo,
       visualizada: mensagem.lida,
     } as any;
   }
 
-  private async buscarMensagensPorTipo(orcamentoId: string): Promise<Record<string, number>> {
+  private async buscarMensagensPorTipo(
+    orcamentoId: string,
+  ): Promise<Record<string, number>> {
     const mensagens = await this.prisma.mensagemChat.groupBy({
       by: ['tipo'],
       where: { orcamento_id: orcamentoId },
@@ -535,7 +581,7 @@ export class ChatV2Service {
     });
 
     const resultado: Record<string, number> = {};
-    mensagens.forEach(item => {
+    mensagens.forEach((item) => {
       resultado[item.tipo] = item._count.tipo;
     });
 
@@ -549,10 +595,12 @@ export class ChatV2Service {
       distinct: ['usuario_id'],
     });
 
-    return usuarios.map(u => u.usuario_id);
+    return usuarios.map((u) => u.usuario_id);
   }
 
-  private async buscarUltimaAtividade(orcamentoId: string): Promise<Date | null> {
+  private async buscarUltimaAtividade(
+    orcamentoId: string,
+  ): Promise<Date | null> {
     const ultimaMensagem = await this.prisma.mensagemChat.findFirst({
       where: { orcamento_id: orcamentoId },
       orderBy: { data_envio: 'desc' },
@@ -562,7 +610,9 @@ export class ChatV2Service {
     return ultimaMensagem?.data_envio || null;
   }
 
-  private async calcularTempoMedioResposta(orcamentoId: string): Promise<number | null> {
+  private async calcularTempoMedioResposta(
+    orcamentoId: string,
+  ): Promise<number | null> {
     // Buscar mensagens em sequência para calcular tempo médio de resposta
     const mensagens = await this.prisma.mensagemChat.findMany({
       where: { orcamento_id: orcamentoId },
@@ -581,7 +631,9 @@ export class ChatV2Service {
 
       // Se são usuários diferentes, calcular tempo de resposta
       if (mensagemAnterior.usuario_id !== mensagemAtual.usuario_id) {
-        const tempoResposta = mensagemAtual.data_envio.getTime() - mensagemAnterior.data_envio.getTime();
+        const tempoResposta =
+          mensagemAtual.data_envio.getTime() -
+          mensagemAnterior.data_envio.getTime();
         totalTempo += tempoResposta;
         contador++;
       }
@@ -594,15 +646,15 @@ export class ChatV2Service {
 
   private processarHistoricoNegociacao(mensagens: any[]): any {
     let totalPropostas = 0;
-    let totalContraPropostas = 0;
+    const totalContraPropostas = 0;
     let valorInicial: number | null = null;
     let valorFinal: number | null = null;
 
     // Processar mensagens para extrair informações de negociação
-    mensagens.forEach(mensagem => {
+    mensagens.forEach((mensagem) => {
       if (this.isPropostaNegociacao(mensagem.conteudo)) {
         totalPropostas++;
-        
+
         // Extrair valores se possível
         const valor = this.extrairValor(mensagem.conteudo);
         if (valor) {
@@ -617,7 +669,11 @@ export class ChatV2Service {
       total_contra_propostas: totalContraPropostas,
       valor_inicial: valorInicial,
       valor_final: valorFinal,
-      status_negociacao: this.determinarStatusNegociacao(totalPropostas, valorInicial, valorFinal),
+      status_negociacao: this.determinarStatusNegociacao(
+        totalPropostas,
+        valorInicial,
+        valorFinal,
+      ),
     };
   }
 
@@ -625,7 +681,7 @@ export class ChatV2Service {
     // Extrair valores monetários do texto
     const regex = /R\$\s*([\d.,]+)/;
     const match = conteudo.match(regex);
-    
+
     if (match) {
       const valorStr = match[1].replace('.', '').replace(',', '.');
       const valor = parseFloat(valorStr);
@@ -642,9 +698,11 @@ export class ChatV2Service {
   ): string {
     if (totalPropostas === 0) return 'sem_negociacao';
     if (totalPropostas === 1) return 'proposta_inicial';
-    if (valorInicial && valorFinal && valorFinal < valorInicial) return 'negociacao_em_andamento';
-    if (valorInicial && valorFinal && valorFinal >= valorInicial) return 'negociacao_concluida';
-    
+    if (valorInicial && valorFinal && valorFinal < valorInicial)
+      return 'negociacao_em_andamento';
+    if (valorInicial && valorFinal && valorFinal >= valorInicial)
+      return 'negociacao_concluida';
+
     return 'negociacao_em_andamento';
   }
 
@@ -657,7 +715,9 @@ export class ChatV2Service {
     tipoRemetente: 'cliente' | 'vendedor',
   ): Promise<void> {
     try {
-      this.logger.log(`📢 Notificando nova mensagem no chat do orçamento ${orcamento.id}`);
+      this.logger.log(
+        `📢 Notificando nova mensagem no chat do orçamento ${orcamento.id}`,
+      );
 
       // Buscar usuários da loja que devem receber notificação
       const usuariosLoja = await this.prisma.usuario.findMany({
@@ -675,9 +735,15 @@ export class ChatV2Service {
       });
 
       // Filtrar usuários relevantes (vendedores, gerentes, admins)
-      const usuariosRelevantes = usuariosLoja.filter(usuario => {
+      const usuariosRelevantes = usuariosLoja.filter((usuario) => {
         const funcaoLower = usuario.funcao?.toLowerCase();
-        return ['vendedor', 'gerente', 'admin', 'manager', 'administrador'].includes(funcaoLower);
+        return [
+          'vendedor',
+          'gerente',
+          'admin',
+          'manager',
+          'administrador',
+        ].includes(funcaoLower);
       });
 
       // Criar notificação para cada usuário relevante
@@ -686,12 +752,14 @@ export class ChatV2Service {
           await this.prisma.notificacao.create({
             data: {
               tipo: 'chat_mensagem',
-              titulo: tipoRemetente === 'cliente' 
-                ? 'Nova mensagem do cliente'
-                : 'Nova mensagem no chat',
-              mensagem: tipoRemetente === 'cliente'
-                ? `Cliente enviou mensagem no orçamento "${orcamento.titulo}": "${mensagem.conteudo.substring(0, 100)}${mensagem.conteudo.length > 100 ? '...' : ''}"`
-                : `Nova mensagem no orçamento "${orcamento.titulo}": "${mensagem.conteudo.substring(0, 100)}${mensagem.conteudo.length > 100 ? '...' : ''}"`,
+              titulo:
+                tipoRemetente === 'cliente'
+                  ? 'Nova mensagem do cliente'
+                  : 'Nova mensagem no chat',
+              mensagem:
+                tipoRemetente === 'cliente'
+                  ? `Cliente enviou mensagem no orçamento "${orcamento.titulo}": "${mensagem.conteudo.substring(0, 100)}${mensagem.conteudo.length > 100 ? '...' : ''}"`
+                  : `Nova mensagem no orçamento "${orcamento.titulo}": "${mensagem.conteudo.substring(0, 100)}${mensagem.conteudo.length > 100 ? '...' : ''}"`,
               orcamento_id: orcamento.id,
               loja_id: orcamento.loja_id,
               dados_extras: JSON.stringify({
@@ -705,15 +773,23 @@ export class ChatV2Service {
             },
           });
 
-          this.logger.log(`✅ Notificação criada para usuário ${usuario.nome_completo}`);
+          this.logger.log(
+            `✅ Notificação criada para usuário ${usuario.nome_completo}`,
+          );
         } catch (error) {
-          this.logger.error(`❌ Erro ao criar notificação para usuário ${usuario.id}: ${error.message}`);
+          this.logger.error(
+            `❌ Erro ao criar notificação para usuário ${usuario.id}: ${error.message}`,
+          );
         }
       }
 
-      this.logger.log(`📢 Notificações enviadas para ${usuariosRelevantes.length} usuários`);
+      this.logger.log(
+        `📢 Notificações enviadas para ${usuariosRelevantes.length} usuários`,
+      );
     } catch (error) {
-      this.logger.error(`❌ Erro ao notificar nova mensagem no chat: ${error.message}`);
+      this.logger.error(
+        `❌ Erro ao notificar nova mensagem no chat: ${error.message}`,
+      );
     }
   }
 }

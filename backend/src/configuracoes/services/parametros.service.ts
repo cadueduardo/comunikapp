@@ -18,18 +18,18 @@ export class ParametrosService {
    */
   async obterParametros() {
     this.logger.log('Obtendo parâmetros gerais');
-    
+
     // Placeholder - implementar conforme necessário
     return {
       sistema: {
         nome: 'ComunikApp',
         versao: '1.0.0',
-        ambiente: process.env.NODE_ENV || 'development'
+        ambiente: process.env.NODE_ENV || 'development',
       },
       validacoes: {
         ativo: true,
-        modo_teste: false
-      }
+        modo_teste: false,
+      },
     };
   }
 
@@ -39,19 +39,10 @@ export class ParametrosService {
    */
   async atualizarParametros(parametros: Record<string, any>) {
     this.logger.log('Atualizando parâmetros gerais');
-    
+
     // Placeholder - implementar conforme necessário
     this.logger.log('Parâmetros atualizados:', parametros);
-    
+
     return { sucesso: true };
   }
 }
-
-
-
-
-
-
-
-
-

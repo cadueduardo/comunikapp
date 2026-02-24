@@ -1,4 +1,10 @@
-import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 import { usuario_funcao, usuario_status } from '@prisma/client';
 
 export class UpdateUsuarioDto {
@@ -23,5 +29,3 @@ export class UpdateUsuarioDto {
   @IsEnum(usuario_status)
   status?: usuario_status;
 }
-
-

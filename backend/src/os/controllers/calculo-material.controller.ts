@@ -3,8 +3,20 @@
  * Expõe endpoints para calcular materiais por unidade de produção
  */
 
-import { Controller, Get, Post, Param, Request, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiParam,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { CalculoMaterialUnidadeService } from '../services/calculo-material-unidade.service';
 
@@ -13,7 +25,9 @@ import { CalculoMaterialUnidadeService } from '../services/calculo-material-unid
 @Controller('os/calculo-material')
 @UseGuards(JwtAuthGuard)
 export class CalculoMaterialController {
-  constructor(private readonly calculoMaterialService: CalculoMaterialUnidadeService) {}
+  constructor(
+    private readonly calculoMaterialService: CalculoMaterialUnidadeService,
+  ) {}
 
   @Get(':id')
   @ApiOperation({ summary: 'Calcular materiais necessários para uma OS' })
@@ -34,12 +48,3 @@ export class CalculoMaterialController {
     return await this.calculoMaterialService.getDimensoesPadrao();
   }
 }
-
-
-
-
-
-
-
-
-

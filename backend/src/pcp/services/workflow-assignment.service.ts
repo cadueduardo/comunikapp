@@ -169,8 +169,7 @@ export class WorkflowAssignmentService {
 
     const itensOS = os.itens ?? [];
     const itensLiberados = itensOS.filter(
-      (item) =>
-        (item.status_liberacao_pcp ?? '').toUpperCase() === 'LIBERADO',
+      (item) => (item.status_liberacao_pcp ?? '').toUpperCase() === 'LIBERADO',
     );
 
     let itensSelecionados: { id: string | null }[];
@@ -191,7 +190,9 @@ export class WorkflowAssignmentService {
       );
 
       if (naoLiberados.length) {
-        const nomes = naoLiberados.map((item) => item.produto_servico).join(', ');
+        const nomes = naoLiberados
+          .map((item) => item.produto_servico)
+          .join(', ');
         throw new BadRequestException(
           `Os seguintes produtos nao estao liberados para o PCP: ${nomes}`,
         );
@@ -290,11 +291,11 @@ export class WorkflowAssignmentService {
   }
 
   private async carregarContextoOS(osId: string, lojaId: string) {
-      const os = await this.prisma.ordemServico.findFirst({
-        where: { id: osId, loja_id: lojaId },
-        include: {
-          orcamento: {
-            include: {
+    const os = await this.prisma.ordemServico.findFirst({
+      where: { id: osId, loja_id: lojaId },
+      include: {
+        orcamento: {
+          include: {
             produtos: {
               include: {
                 insumos: {
@@ -307,20 +308,20 @@ export class WorkflowAssignmentService {
                   },
                 },
               },
-              },
-            },
-          },
-          itens: {
-            select: {
-              id: true,
-              produto_servico: true,
-              status_liberacao_pcp: true,
-              data_prazo_produto: true,
-              quantidade: true,
             },
           },
         },
-      });
+        itens: {
+          select: {
+            id: true,
+            produto_servico: true,
+            status_liberacao_pcp: true,
+            data_prazo_produto: true,
+            quantidade: true,
+          },
+        },
+      },
+    });
 
     if (!os) {
       throw new NotFoundException('Ordem de Serviço não encontrada.');
@@ -341,9 +342,7 @@ export class WorkflowAssignmentService {
       try {
         const parsed = JSON.parse(os.orcamento.tags);
         if (Array.isArray(parsed)) {
-          parsed.forEach((tag) =>
-            tags.add(String(tag).trim().toLowerCase()),
-          );
+          parsed.forEach((tag) => tags.add(String(tag).trim().toLowerCase()));
         }
       } catch {
         os.orcamento.tags
@@ -507,16 +506,15 @@ export class WorkflowAssignmentService {
         await tx.workflowInstancia.deleteMany({ where: { os_id: osId } });
       }
 
-      const setoresOrdenados =
-        (workflow.workflow_setores ?? []).slice().sort((a, b) => {
+      const setoresOrdenados = (workflow.workflow_setores ?? [])
+        .slice()
+        .sort((a, b) => {
           const aOrdem = a.ordem ?? 0;
           const bOrdem = b.ordem ?? 0;
           return aOrdem - bOrdem;
         });
       const menorOrdem =
-        setoresOrdenados.length > 0
-          ? setoresOrdenados[0].ordem ?? 0
-          : 0;
+        setoresOrdenados.length > 0 ? (setoresOrdenados[0].ordem ?? 0) : 0;
       const primeiroSetorPendende = setoresOrdenados.find(
         (setor) => (setor.ordem ?? 0) === menorOrdem,
       );
@@ -580,9 +578,7 @@ export class WorkflowAssignmentService {
   }> {
     const idsValidos = Array.from(
       new Set(
-        itens
-          .map((item) => item.id)
-          .filter((id): id is string => Boolean(id)),
+        itens.map((item) => item.id).filter((id): id is string => Boolean(id)),
       ),
     );
 
@@ -590,25 +586,27 @@ export class WorkflowAssignmentService {
       return { novosItens: [], ignorados: [] };
     }
 
-    const possuiEscopoGeral = await this.prisma.workflowInstanciaSetor.findFirst({
-      where: {
-        workflow_instancia_id: instanciaId,
-        item_os_id: null,
-      },
-      select: { id: true },
-    });
+    const possuiEscopoGeral =
+      await this.prisma.workflowInstanciaSetor.findFirst({
+        where: {
+          workflow_instancia_id: instanciaId,
+          item_os_id: null,
+        },
+        select: { id: true },
+      });
 
     if (possuiEscopoGeral) {
       return { novosItens: [], ignorados: idsValidos };
     }
 
-    const registrosExistentes = await this.prisma.workflowInstanciaSetor.findMany({
-      where: {
-        workflow_instancia_id: instanciaId,
-        item_os_id: { in: idsValidos },
-      },
-      select: { item_os_id: true },
-    });
+    const registrosExistentes =
+      await this.prisma.workflowInstanciaSetor.findMany({
+        where: {
+          workflow_instancia_id: instanciaId,
+          item_os_id: { in: idsValidos },
+        },
+        select: { item_os_id: true },
+      });
 
     const jaAssociados = new Set(
       registrosExistentes
@@ -619,8 +617,9 @@ export class WorkflowAssignmentService {
     const novosItens = idsValidos.filter((id) => !jaAssociados.has(id));
     const ignorados = idsValidos.filter((id) => jaAssociados.has(id));
 
-    const setoresOrdenados =
-      (workflow.workflow_setores ?? []).slice().sort((a, b) => {
+    const setoresOrdenados = (workflow.workflow_setores ?? [])
+      .slice()
+      .sort((a, b) => {
         const aOrdem = a.ordem ?? 0;
         const bOrdem = b.ordem ?? 0;
         return aOrdem - bOrdem;
@@ -631,7 +630,7 @@ export class WorkflowAssignmentService {
     }
 
     const menorOrdem =
-      setoresOrdenados.length > 0 ? setoresOrdenados[0].ordem ?? 0 : 0;
+      setoresOrdenados.length > 0 ? (setoresOrdenados[0].ordem ?? 0) : 0;
 
     const primeiroSetorPendende = setoresOrdenados.find(
       (setor) => (setor.ordem ?? 0) === menorOrdem,
@@ -643,8 +642,7 @@ export class WorkflowAssignmentService {
 
     setoresOrdenados.forEach((setor, index) => {
       const ordem = setor.ordem ?? index;
-      const statusInicial =
-        ordem === menorOrdem ? 'PENDENTE' : 'AGUARDANDO';
+      const statusInicial = ordem === menorOrdem ? 'PENDENTE' : 'AGUARDANDO';
 
       novosItens.forEach((itemId) => {
         registros.push({
@@ -720,12 +718,3 @@ export class WorkflowAssignmentService {
     return [];
   }
 }
-
-
-
-
-
-
-
-
-
