@@ -3,8 +3,9 @@
 # Uso: no VPS, dentro da pasta do projeto: ./scripts/deploy-vps.sh
 # Ou: bash /opt/comunikapp/scripts/deploy-vps.sh
 #
-# Variáveis (opcional): PROJECT_DIR, BRANCH, RESTART_CMD
+# Variáveis (opcional): PROJECT_DIR, BRANCH, RESTART_CMD, SKIP_BUILD_IF_NO_CHANGES
 # Ex.: BRANCH=feature/modulo-pcp-clean ./scripts/deploy-vps.sh
+# SKIP_BUILD_IF_NO_CHANGES=1 = quando já está em dia, só reinicia PM2 (não refaz build)
 
 set -e
 

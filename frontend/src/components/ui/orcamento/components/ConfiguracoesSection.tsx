@@ -56,8 +56,8 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
               <FormItem>
                 <FormLabel>Tipo de margem de lucro</FormLabel>
                 <Select
-                  onValueChange={field.onChange}
-                  value={field.value ?? ''}
+                  onValueChange={(v) => field.onChange(v === 'padrao_loja' ? '' : v)}
+                  value={field.value === '' || field.value == null ? 'padrao_loja' : field.value}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -65,7 +65,7 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">{padraoLojaLegend}</SelectItem>
+                    <SelectItem value="padrao_loja">{padraoLojaLegend}</SelectItem>
                     <SelectItem value="margem_por_dentro">Margem por dentro</SelectItem>
                     <SelectItem value="markup">Markup (por fora)</SelectItem>
                   </SelectContent>
