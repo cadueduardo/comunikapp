@@ -34,29 +34,71 @@ echo ""
 
 echo "[deploy-vps] 1/4 Git fetch e pull..."
 git fetch origin
+COMMIT_DEPOIS=""
 if git pull origin "${BRANCH}"; then
   COMMIT_DEPOIS="$(git rev-parse --short HEAD)"
   if [ "${COMMIT_ANTES}" = "${COMMIT_DEPOIS}" ]; then
-    echo "[deploy-vps] Nenhuma alteração nova (já em ${COMMIT_DEPOIS}). Build será refeito mesmo assim."
+    echo "[deploy-vps] Nenhuma alteração nova (já em ${COMMIT_DEPOIS})."
   else
     echo "[deploy-vps] Atualizado: ${COMMIT_ANTES} -> ${COMMIT_DEPOIS}"
   fi
 fi
-echo ""
+[ -z "${COMMIT_DEPOIS}" ] && COMMIT_DEPOIS="$(git rev-parse --short HEAD)"
 
-echo "[deploy-vps] 2/4 Backend e frontend: npm ci + build (em paralelo)..."
-(
-  cd "${ROOT_DIR}/backend" && npm ci && npm run build
-) &
-BACKEND_PID=$!
-(
-  cd "${ROOT_DIR}/frontend" && npm ci && npm run build
-) &
-FRONTEND_PID=$!
-wait $BACKEND_PID; BACKEND_EXIT=$?
-wait $FRONTEND_PID; FRONTEND_EXIT=$?
-if [ "$BACKEND_EXIT" -ne 0 ]; then echo "[deploy-vps] Backend build falhou (exit $BACKEND_EXIT)."; exit 1; fi
-if [ "$FRONTEND_EXIT" -ne 0 ]; then echo "[deploy-vps] Frontend build falhou (exit $FRONTEND_EXIT)."; exit 1; fi
+# Só construir o que mudou (deploy mais rápido quando só frontend ou só backend)
+CHANGED_FILES="$(git diff --name-only "${COMMIT_ANTES}" "${COMMIT_DEPOIS}" 2>/dev/null || true)"
+BUILD_BACKEND=1
+BUILD_FRONTEND=1
+if [ "${SKIP_BUILD_IF_NO_CHANGES}" = "1" ] && [ "${COMMIT_ANTES}" = "${COMMIT_DEPOIS}" ]; then
+  BUILD_BACKEND=0
+  BUILD_FRONTEND=0
+  echo "[deploy-vps] SKIP_BUILD_IF_NO_CHANGES=1: pulando builds, só restart."
+elif [ -n "${CHANGED_FILES}" ]; then
+  if echo "${CHANGED_FILES}" | grep -qE '^backend/'; then
+    : # backend mudou, manter BUILD_BACKEND=1
+  else
+    BUILD_BACKEND=0
+    echo "[deploy-vps] Apenas frontend alterado: build só do frontend."
+  fi
+  if echo "${CHANGED_FILES}" | grep -qE '^frontend/'; then
+    : # frontend mudou
+  else
+    BUILD_FRONTEND=0
+    echo "[deploy-vps] Apenas backend alterado: build só do backend."
+  fi
+fi
+
+BACKEND_DEPS_CHANGED=0
+FRONTEND_DEPS_CHANGED=0
+echo "${CHANGED_FILES}" | grep -qE '^backend/(package\.json|package-lock\.json)' && BACKEND_DEPS_CHANGED=1
+echo "${CHANGED_FILES}" | grep -qE '^frontend/(package\.json|package-lock\.json)' && FRONTEND_DEPS_CHANGED=1
+
+echo "[deploy-vps] 2/4 Build..."
+run_backend() {
+  [ "$BUILD_BACKEND" -eq 0 ] && return 0
+  cd "${ROOT_DIR}/backend"
+  if [ "$BACKEND_DEPS_CHANGED" -eq 1 ]; then npm ci && npm run build; else npm run build; fi
+}
+run_frontend() {
+  [ "$BUILD_FRONTEND" -eq 0 ] && return 0
+  cd "${ROOT_DIR}/frontend"
+  if [ "$FRONTEND_DEPS_CHANGED" -eq 1 ]; then npm ci && npm run build; else npm run build; fi
+}
+export ROOT_DIR BUILD_BACKEND BUILD_FRONTEND BACKEND_DEPS_CHANGED FRONTEND_DEPS_CHANGED
+if [ "$BUILD_BACKEND" -eq 1 ] && [ "$BUILD_FRONTEND" -eq 1 ]; then
+  ( run_backend ) & BPID=$!
+  ( run_frontend ) & FPID=$!
+  wait $BPID; BEXIT=$?
+  wait $FPID; FEXIT=$?
+elif [ "$BUILD_BACKEND" -eq 1 ]; then
+  ( run_backend ); BEXIT=$?; FEXIT=0
+elif [ "$BUILD_FRONTEND" -eq 1 ]; then
+  ( run_frontend ); FEXIT=$?; BEXIT=0
+else
+  BEXIT=0; FEXIT=0
+fi
+if [ "$BEXIT" -ne 0 ]; then echo "[deploy-vps] Backend build falhou (exit $BEXIT)."; exit 1; fi
+if [ "$FEXIT" -ne 0 ]; then echo "[deploy-vps] Frontend build falhou (exit $FEXIT)."; exit 1; fi
 echo ""
 
 echo "[deploy-vps] 3/4 Salvando lista do PM2..."
