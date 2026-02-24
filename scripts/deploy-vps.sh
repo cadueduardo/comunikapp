@@ -11,9 +11,9 @@ set -e
 # --- Configure aqui (ou exporte antes de rodar) ---
 # Pasta do projeto no VPS
 PROJECT_DIR="${PROJECT_DIR:-/opt/comunikapp}"
-# Branch para dar pull
-BRANCH="${BRANCH:-main}"
-# Reiniciar backend (id 1) e frontend (id 2) no PM2 (rodando como root no VPS)
+# Branch para dar pull (padrão: feature/modulo-pcp-clean; use BRANCH=main para outra)
+BRANCH="${BRANCH:-feature/modulo-pcp-clean}"
+# Reiniciar backend e frontend no PM2 (rodando como root no VPS)
 RESTART_CMD="${RESTART_CMD:-sudo pm2 restart comunikapp-backend comunikapp-frontend}"
 # --- Fim da configuração ---
 
@@ -27,33 +27,45 @@ cd "${ROOT_DIR}"
 echo "[deploy-vps] Projeto: Comunikapp"
 echo "[deploy-vps] Pasta: ${ROOT_DIR}"
 echo "[deploy-vps] Branch: ${BRANCH}"
+COMMIT_ANTES="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+echo "[deploy-vps] Commit atual: ${COMMIT_ANTES}"
 echo ""
 
-echo "[deploy-vps] 1/5 Git fetch e pull..."
+echo "[deploy-vps] 1/4 Git fetch e pull..."
 git fetch origin
-git pull origin "${BRANCH}"
+if git pull origin "${BRANCH}"; then
+  COMMIT_DEPOIS="$(git rev-parse --short HEAD)"
+  if [ "${COMMIT_ANTES}" = "${COMMIT_DEPOIS}" ]; then
+    echo "[deploy-vps] Nenhuma alteração nova (já em ${COMMIT_DEPOIS}). Build será refeito mesmo assim."
+  else
+    echo "[deploy-vps] Atualizado: ${COMMIT_ANTES} -> ${COMMIT_DEPOIS}"
+  fi
+fi
 echo ""
 
-echo "[deploy-vps] 2/5 Backend: npm ci e build..."
-cd "${ROOT_DIR}/backend"
-npm ci
-npm run build
-cd "${ROOT_DIR}"
+echo "[deploy-vps] 2/4 Backend e frontend: npm ci + build (em paralelo)..."
+(
+  cd "${ROOT_DIR}/backend" && npm ci && npm run build
+) &
+BACKEND_PID=$!
+(
+  cd "${ROOT_DIR}/frontend" && npm ci && npm run build
+) &
+FRONTEND_PID=$!
+wait $BACKEND_PID; BACKEND_EXIT=$?
+wait $FRONTEND_PID; FRONTEND_EXIT=$?
+if [ "$BACKEND_EXIT" -ne 0 ]; then echo "[deploy-vps] Backend build falhou (exit $BACKEND_EXIT)."; exit 1; fi
+if [ "$FRONTEND_EXIT" -ne 0 ]; then echo "[deploy-vps] Frontend build falhou (exit $FRONTEND_EXIT)."; exit 1; fi
 echo ""
 
-echo "[deploy-vps] 3/5 Frontend: npm ci e build..."
-cd "${ROOT_DIR}/frontend"
-npm ci
-npm run build
-cd "${ROOT_DIR}"
-echo ""
-
-echo "[deploy-vps] 4/5 Salvando lista do PM2..."
+echo "[deploy-vps] 3/4 Salvando lista do PM2..."
 sudo pm2 save 2>/dev/null || true
 echo ""
 
-echo "[deploy-vps] 5/5 Reiniciando app: ${RESTART_CMD}"
+echo "[deploy-vps] 4/4 Reiniciando app: ${RESTART_CMD}"
 eval "${RESTART_CMD}"
 echo ""
 
-echo "[deploy-vps] Deploy concluído."
+COMMIT_FINAL="$(git rev-parse --short HEAD)"
+echo "[deploy-vps] Deploy concluído. Commit em produção: ${COMMIT_FINAL}"
+echo "[deploy-vps] Se o site não refletir as mudanças, force atualização no navegador: Ctrl+Shift+R (ou Cmd+Shift+R no Mac)."

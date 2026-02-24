@@ -209,7 +209,7 @@ export function OrcamentoV2Form({
           altura_produto: '',
           unidade_medida_produto: '',
           area_produto: '',
-          materiais: [{ insumo_id: '', quantidade: '1' }],
+          materiais: [{ insumo_id: '', quantidade: '1', material_do_cliente: false }],
           maquinas: [{ maquina_id: '', horas_utilizadas: '1' }],
           funcoes: [{ funcao_id: '', horas_trabalhadas: '1' }],
           servicos: [{ servico_id: '', horas_trabalhadas: '1' }],
@@ -332,6 +332,7 @@ export function OrcamentoV2Form({
                     quantidadeProdutoNumero,
                   ),
                   unidade: ins.unidade || ins.unidade_consumo,
+                  material_do_cliente: Boolean(ins.material_do_cliente),
                 })),
                 maquinas: (produto.maquinas || []).map((maq: any) => ({
                   maquina_id: maq.maquina_id,
@@ -445,6 +446,7 @@ export function OrcamentoV2Form({
           unidade: (material as any)?.unidade || undefined,
           preco_unitario: 0,
           preco_total: 0,
+          material_do_cliente: Boolean((material as any)?.material_do_cliente),
         }))
         .filter((material) => material.quantidade > 0);
 

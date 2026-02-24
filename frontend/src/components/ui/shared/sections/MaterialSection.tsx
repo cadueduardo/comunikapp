@@ -11,6 +11,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -49,7 +50,7 @@ export function MaterialSection({
     // Recalcular automaticamente as quantidades de materiais quando as dimensões ou quantidade do produto mudarem
     const materiais = form.getValues(`itens_produto.${itemIndex}.materiais`) || [];
     
-    materiais.forEach((material: { insumo_id: string; quantidade: string }, materialIndex: number) => {
+    materiais.forEach((material: { insumo_id: string; quantidade: string; material_do_cliente?: boolean }, materialIndex: number) => {
       if (material.insumo_id) {
         const insumoSelecionado = insumos.find(insumo => insumo.id === material.insumo_id);
         if (insumoSelecionado) {
@@ -128,7 +129,7 @@ export function MaterialSection({
       const currentMaterials = form.getValues(`itens_produto.${itemIndex}.materiais`);
       const hasEmpty = currentMaterials.some((m: { insumo_id: string; quantidade: string }) => !m.insumo_id || !m.quantidade);
       if (!hasEmpty) {
-        const newMaterials = [...currentMaterials, { insumo_id: '', quantidade: '1' }];
+        const newMaterials = [...currentMaterials, { insumo_id: '', quantidade: '1', material_do_cliente: false }];
         form.setValue(`itens_produto.${itemIndex}.materiais`, newMaterials);
       }
     }
@@ -161,16 +162,17 @@ export function MaterialSection({
         </Button>
       </div>
       
-      {form.watch(`itens_produto.${itemIndex}.materiais`)?.map((material: { insumo_id: string; quantidade: string }, materialIndex: number) => {
+      {form.watch(`itens_produto.${itemIndex}.materiais`)?.map((material: { insumo_id: string; quantidade: string; material_do_cliente?: boolean }, materialIndex: number) => {
         const insumoSelecionado = insumos.find(insumo => insumo.id === material.insumo_id);
         const campoQuantidade = getCampoQuantidade(insumoSelecionado);
         const custoPorUnidade = insumoSelecionado ? calcularCustoPorUnidadeUso(insumoSelecionado) : 0;
         const quantidade = Number(String(material.quantidade).replace(',', '.')) || 0;
+        const materialDoCliente = Boolean(material.material_do_cliente);
         // Calcular custo considerando se a quantidade já inclui a multiplicação pelo produto
         // Se o material foi calculado automaticamente, a quantidade já considera a quantidade do produto
         // Se foi digitado manualmente, precisamos verificar se deve multiplicar
         const quantidadeProduto = Number(form.watch(`itens_produto.${itemIndex}.quantidade_produto`)) || 1;
-        const custoCalculado = custoPorUnidade * quantidade;
+        const custoCalculado = materialDoCliente ? 0 : custoPorUnidade * quantidade;
         
         // Obter dimensões do produto para materiais calculados por m²
         const larguraProduto = Number(form.watch(`itens_produto.${itemIndex}.largura_produto`)) || 0;
@@ -369,7 +371,7 @@ export function MaterialSection({
         
         return (
           <div key={materialIndex} className="space-y-4 mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_80px_auto_auto] gap-4 items-end">
               <FormField
                 control={form.control}
                 name={`itens_produto.${itemIndex}.materiais.${materialIndex}.insumo_id`}
@@ -494,7 +496,7 @@ export function MaterialSection({
                           placeholder={campoQuantidade.placeholder}
                           {...field}
                           readOnly={isAreaCalculated}
-                          className={isAreaCalculated ? "bg-muted" : ""}
+                          className={`max-w-[80px] ${isAreaCalculated ? "bg-muted" : ""}`}
                           onChange={(e) => {
                             if (!isAreaCalculated) {
                               // Permitir vírgula e ponto como separador decimal
@@ -509,8 +511,26 @@ export function MaterialSection({
                   );
                 }}
               />
+
+              <FormField
+                control={form.control}
+                name={`itens_produto.${itemIndex}.materiais.${materialIndex}.material_do_cliente`}
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-end space-x-2 space-y-0 pb-2">
+                    <FormControl>
+                      <Checkbox
+                        checked={Boolean(field.value)}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormLabel className="text-sm font-normal cursor-pointer whitespace-nowrap">
+                      Material do cliente
+                    </FormLabel>
+                  </FormItem>
+                )}
+              />
               
-              <div className="flex items-center justify-end">
+              <div className="flex items-center justify-end pb-2">
                 <Button
                   type="button"
                   variant="ghost"
@@ -550,15 +570,21 @@ export function MaterialSection({
             )}
             
             {/* Custo calculado */}
-            {insumoSelecionado && quantidade > 0 && custoCalculado > 0 && (
-              <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
+            {insumoSelecionado && quantidade > 0 && (
+              <div className={`text-xs p-2 rounded ${materialDoCliente ? 'text-amber-700 bg-amber-50' : 'text-green-600 bg-green-50'}`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <div>Custo: {formatCurrency(custoCalculado)} ({formatCurrency(custoPorUnidade)} por {insumoSelecionado.unidade_uso.toLowerCase()})</div>
-                    {gerarExplicacaoCalculo() && (
-                      <div className="text-green-700 mt-1 font-medium">
-                        {gerarExplicacaoCalculo()}
-                      </div>
+                    {materialDoCliente ? (
+                      <div>Material do cliente — custo zerado no orçamento</div>
+                    ) : (
+                      <>
+                        <div>Custo: {formatCurrency(custoCalculado)} ({formatCurrency(custoPorUnidade)} por {insumoSelecionado.unidade_uso.toLowerCase()})</div>
+                        {gerarExplicacaoCalculo() && (
+                          <div className="text-green-700 mt-1 font-medium">
+                            {gerarExplicacaoCalculo()}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

@@ -44,6 +44,7 @@ export const createFormSchema = (mode: 'novo' | 'editar' | 'template') => z.obje
         },
         'Quantidade deve ser um número válido maior que zero'
       ),
+      material_do_cliente: z.boolean().optional(),
     })).min(1, 'Adicione pelo menos um material'),
     // Máquinas utilizadas para este produto
     maquinas: z.array(z.object({

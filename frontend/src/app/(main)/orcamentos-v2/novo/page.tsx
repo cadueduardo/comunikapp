@@ -186,8 +186,9 @@ export default function NovoOrcamentoV2Page() {
               materiais: produto.insumos ? produto.insumos.map((insumo: any) => ({
                 insumo_id: insumo.insumo_id,
                 quantidade: String(insumo.quantidade || 1),
-                unidade: insumo.unidade || 'un'
-              })) : [{ insumo_id: '', quantidade: '1' }],
+                unidade: insumo.unidade || 'un',
+                material_do_cliente: Boolean(insumo.material_do_cliente),
+              })) : [{ insumo_id: '', quantidade: '1', material_do_cliente: false }],
               maquinas: produto.maquinas ? produto.maquinas.map((maquina: any) => ({
                 maquina_id: maquina.maquina_id,
                 horas_utilizadas: String(maquina.tempo_horas || 1)
@@ -210,7 +211,7 @@ export default function NovoOrcamentoV2Page() {
                 altura_produto: String(orcamentoData.altura_produto || ''),
                 unidade_medida_produto: orcamentoData.unidade_medida_produto || 'un',
                 area_produto: String(orcamentoData.area_produto || ''),
-                materiais: [{ insumo_id: '', quantidade: '1' }],
+                materiais: [{ insumo_id: '', quantidade: '1', material_do_cliente: false }],
                 maquinas: [{ maquina_id: '', horas_utilizadas: '1' }],
                 funcoes: [{ funcao_id: '', horas_trabalhadas: '1' }],
                 servicos: [{ servico_id: '', horas_trabalhadas: '1' }],

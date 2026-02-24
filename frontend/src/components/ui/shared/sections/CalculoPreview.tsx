@@ -107,6 +107,11 @@ export function CalculoPreview({
     );
   }
 
+  // Dados do formulário do item atual (usado em orçamento e em temDadosParaCalcular)
+  const materiaisForm = form.watch(`itens_produto.${itemIndex}.materiais`) || [];
+  const maquinasForm = form.watch(`itens_produto.${itemIndex}.maquinas`) || [];
+  const funcoesForm = form.watch(`itens_produto.${itemIndex}.funcoes`) || [];
+
   // Funções auxiliares para calcular custos por produto específico
   const calcularCustosMateriaisParaProduto = (produtoIndex: number) => {
     const materiais = form.watch(`itens_produto.${produtoIndex}.materiais`) || [];
@@ -120,13 +125,14 @@ export function CalculoPreview({
       unidade_medida: string;
     }> = [];
 
-    materiais.forEach((material: { insumo_id: string; quantidade: string }) => {
+    materiais.forEach((material: { insumo_id: string; quantidade: string; material_do_cliente?: boolean }) => {
       if (material.insumo_id && material.quantidade) {
         const insumo = insumos.find(i => i.id === material.insumo_id);
         if (insumo) {
           const quantidade = Number(String(material.quantidade).replace(',', '.')) || 0;
-          const custoPorUnidade = calcularCustoPorUnidadeUso(insumo);
-          const custoTotalItem = custoPorUnidade * quantidade;
+          const materialDoCliente = Boolean(material.material_do_cliente);
+          const custoPorUnidade = materialDoCliente ? 0 : calcularCustoPorUnidadeUso(insumo);
+          const custoTotalItem = materialDoCliente ? 0 : custoPorUnidade * quantidade;
           
           custoTotal += custoTotalItem;
           
@@ -134,7 +140,7 @@ export function CalculoPreview({
             insumo_id: insumo.id,
             nome_insumo: insumo.nome,
             quantidade,
-            custo_unitario: custoPorUnidade,
+            custo_unitario: materialDoCliente ? 0 : calcularCustoPorUnidadeUso(insumo),
             custo_total: custoTotalItem,
             unidade_medida: insumo.unidade_uso,
           });
@@ -269,13 +275,14 @@ export function CalculoPreview({
       unidade_medida: string;
     }> = [];
 
-    materiais.forEach((material: { insumo_id: string; quantidade: string }) => {
+    materiais.forEach((material: { insumo_id: string; quantidade: string; material_do_cliente?: boolean }) => {
       if (material.insumo_id && material.quantidade) {
         const insumo = insumos.find(i => i.id === material.insumo_id);
         if (insumo) {
           const quantidade = Number(String(material.quantidade).replace(',', '.')) || 0;
-          const custoPorUnidade = calcularCustoPorUnidadeUso(insumo);
-          const custoTotalItem = custoPorUnidade * quantidade;
+          const materialDoCliente = Boolean(material.material_do_cliente);
+          const custoPorUnidade = materialDoCliente ? 0 : calcularCustoPorUnidadeUso(insumo);
+          const custoTotalItem = materialDoCliente ? 0 : custoPorUnidade * quantidade;
           
           custoTotal += custoTotalItem;
           
@@ -283,7 +290,7 @@ export function CalculoPreview({
             insumo_id: insumo.id,
             nome_insumo: insumo.nome,
             quantidade,
-            custo_unitario: custoPorUnidade,
+            custo_unitario: materialDoCliente ? 0 : calcularCustoPorUnidadeUso(insumo),
             custo_total: custoTotalItem,
             unidade_medida: insumo.unidade_uso,
           });

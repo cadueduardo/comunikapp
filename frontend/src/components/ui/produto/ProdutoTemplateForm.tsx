@@ -125,8 +125,9 @@ export function ProdutoTemplateForm({
             ? initialData.itens.map(item => ({
                 insumo_id: String(item.insumo?.id || item.insumo_id || ''),
                 quantidade: String(item.quantidade || '1'),
+                material_do_cliente: Boolean((item as any).material_do_cliente),
               }))
-            : [{ insumo_id: '', quantidade: '1' }],
+            : [{ insumo_id: '', quantidade: '1', material_do_cliente: false }],
           maquinas: Array.isArray(initialData.maquinas) 
             ? initialData.maquinas.map((maquina: any) => ({
                 // IMPORTANTE: Os testes mostram que maquina_id está disponível
