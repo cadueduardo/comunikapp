@@ -21,6 +21,8 @@ interface Loja {
   margem_lucro_padrao?: string | null;
   impostos_padrao?: string | null;
   horas_produtivas_mensais?: number | null;
+  /** 'markup' | 'margem_por_dentro' — padrão da loja para tipo de margem */
+  tipo_margem_lucro?: string | null;
 }
 
 interface User {

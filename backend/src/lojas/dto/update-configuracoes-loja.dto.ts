@@ -29,4 +29,9 @@ export class UpdateConfiguracoesLojaDto {
   @IsString()
   @IsOptional()
   horas_produtivas_mensais?: string;
+
+  /** Tipo de aplicação da margem de lucro: 'markup' (por fora) ou 'margem_por_dentro' (por dentro). Padrão da loja. */
+  @IsString()
+  @IsOptional()
+  tipo_margem_lucro?: string;
 }

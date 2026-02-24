@@ -7,6 +7,7 @@ import { formatCurrency } from '@/lib/utils';
 import { Insumo, Maquina, Funcao } from '../types/common.types';
 import { calcularCustoPorUnidadeUso } from '../utils/calculo.utils';
 import { custosIndiretosApi } from '@/lib/api-client';
+import { useUser } from '@/contexts/UserContext';
 
 interface CalculoPreviewProps {
   variant?: 'orcamento' | 'produto';
@@ -59,6 +60,7 @@ export function CalculoPreview({
     return 0;
   };
   const form = useFormContext();
+  const { user } = useUser();
   const [custosIndiretos, setCustosIndiretos] = useState<CustoIndireto[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -576,18 +578,37 @@ export function CalculoPreview({
     const horasProducao = calcularHorasProducao();
     const { custoIndiretoTotal, custosIndiretosDetalhados } = calcularCustosIndiretos();
     const custoTotalComIndiretos = custoTotalProducao + custoIndiretoTotal;
-    
-    // Margem de lucro (padrão 30% ou customizada)
-    const margemLucroPercentual = margemLucroCustomizada ? 
-      Number(margemLucroCustomizada.replace(',', '.')) : 30;
-    const margemLucroValor = custoTotalComIndiretos * (margemLucroPercentual / 100);
-    const subtotalComLucro = custoTotalComIndiretos + margemLucroValor;
-    
-    // Impostos (padrão 18% ou customizada)
-    const impostosPercentual = impostosCustomizados ? 
-      Number(impostosCustomizados.replace(',', '.')) : 18;
-    const impostosValor = subtotalComLucro * (impostosPercentual / 100);
-    const precoFinal = subtotalComLucro + impostosValor;
+
+    const margemLucroPercentual = margemLucroCustomizada
+      ? Number(margemLucroCustomizada.replace(',', '.')) : 30;
+    const impostosPercentual = impostosCustomizados
+      ? Number(impostosCustomizados.replace(',', '.')) : 18;
+
+    const tipoMargemLucroRaw = form.watch('tipo_margem_lucro');
+    const tipoMargemLucroEfetivo =
+      (tipoMargemLucroRaw && tipoMargemLucroRaw !== '')
+        ? tipoMargemLucroRaw
+        : (user?.loja?.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro');
+
+    let precoFinal: number;
+    let margemLucroValor: number;
+    let subtotalComLucro: number;
+    let impostosValor: number;
+
+    if (tipoMargemLucroEfetivo === 'markup') {
+      margemLucroValor = custoTotalComIndiretos * (margemLucroPercentual / 100);
+      subtotalComLucro = custoTotalComIndiretos + margemLucroValor;
+      impostosValor = subtotalComLucro * (impostosPercentual / 100);
+      precoFinal = subtotalComLucro + impostosValor;
+    } else {
+      const percentualMargemDecimal = margemLucroPercentual / 100;
+      const percentualImpostosDecimal = impostosPercentual / 100;
+      const divisor = 1 - percentualMargemDecimal - percentualImpostosDecimal;
+      precoFinal = divisor > 0 ? custoTotalComIndiretos / divisor : custoTotalComIndiretos;
+      margemLucroValor = precoFinal * percentualMargemDecimal;
+      impostosValor = precoFinal * percentualImpostosDecimal;
+      subtotalComLucro = precoFinal - impostosValor;
+    }
     
     // Multiplicar pela quantidade (mesmo que o backend)
     const precoFinalTotal = precoFinal * quantidadeProduto;

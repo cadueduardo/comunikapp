@@ -299,6 +299,13 @@ export class LojasService {
       'impostos_padrao',
       'horas_produtivas_mensais',
     ];
+    // tipo_margem_lucro é string ('markup' | 'margem_por_dentro'), não numérico
+    if (data.tipo_margem_lucro !== undefined) {
+      const v = data.tipo_margem_lucro;
+      if (v !== 'markup' && v !== 'margem_por_dentro') {
+        data.tipo_margem_lucro = 'margem_por_dentro';
+      }
+    }
 
     for (const field of numericFields) {
       if (data[field] !== undefined) {

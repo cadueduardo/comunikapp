@@ -1,4 +1,4 @@
-﻿
+
 import { Insumo, Maquina, Funcao, ServicoManual } from '../types/common.types';
 import { calcularCustoPorUnidadeUso, calcularArea } from './calculo.utils';
 
@@ -681,6 +681,7 @@ export const calcularProdutosPreview = (
   margemPercentual: number,
   impostosPercentual: number,
   comissaoPercentual: number = 5, // Valor padrão se não fornecido
+  tipoMargemLucro: 'markup' | 'margem_por_dentro' = 'margem_por_dentro',
 ): ProdutosPreviewResultado => {
   let totalMateriais = 0;
   let totalMaquinas = 0;
@@ -711,14 +712,21 @@ export const calcularProdutosPreview = (
     const custoIndiretos = custoBase * (custosIndiretosPercentual / 100);
 
     const custoTotalProducao = custoBase + custoIndiretos;
-    
-    // Fórmula correta: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
+
     const percentualMargemDecimal = margemPercentual / 100;
     const percentualImpostosDecimal = impostosPercentual / 100;
     const percentualComissaoDecimal = comissaoPercentual / 100;
-    const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
-    
-    const precoTotal = divisor > 0 ? custoTotalProducao / divisor : custoTotalProducao;
+
+    let precoTotal: number;
+    if (tipoMargemLucro === 'markup') {
+      const divisorMarkup = 1 - percentualImpostosDecimal - percentualComissaoDecimal;
+      precoTotal = divisorMarkup > 0
+        ? (custoTotalProducao * (1 + percentualMargemDecimal)) / divisorMarkup
+        : custoTotalProducao * (1 + percentualMargemDecimal);
+    } else {
+      const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
+      precoTotal = divisor > 0 ? custoTotalProducao / divisor : custoTotalProducao;
+    }
     
     // Calcular valores para exibição
     const impostosValor = precoTotal * percentualImpostosDecimal;

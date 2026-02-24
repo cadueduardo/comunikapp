@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
@@ -364,6 +364,10 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     const margemPercentual = parsePercentual(formData?.margem_lucro_customizada, 30);
     const impostosPercentual = parsePercentual(formData?.impostos_customizados, 18);
     const comissaoPercentual = parsePercentual(formData?.comissao_percentual, 5);
+    const tipoMargemLucro =
+      (formData?.tipo_margem_lucro && formData.tipo_margem_lucro !== '')
+        ? (formData.tipo_margem_lucro as 'markup' | 'margem_por_dentro')
+        : 'margem_por_dentro';
 
     const previewCalculado = calcularProdutosPreview(
       itensFormulario,
@@ -371,6 +375,8 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       custosIndiretosPercentual,
       margemPercentual,
       impostosPercentual,
+      comissaoPercentual,
+      tipoMargemLucro,
     );
 
     const produtosPreview = previewCalculado.produtos;
@@ -404,26 +410,33 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     const totalCustoProducao =
       totalCustoMaterial + totalCustoMaquinaria + totalCustoFuncoes + totalCustoServicos + totalCustoIndireto;
 
-    // Fórmula correta: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
     const percentualMargemDecimal = margemPercentual / 100;
     const percentualImpostosDecimal = impostosPercentual / 100;
     const percentualComissaoDecimal = comissaoPercentual / 100;
-    const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
-    
-    const precoFinal = divisor > 0 ? totalCustoProducao / divisor : totalCustoProducao;
-    
-    // Calcular valores para exibição
+
+    let precoFinal: number;
+    let divisor: number;
+    if (tipoMargemLucro === 'markup') {
+      divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal;
+      precoFinal = divisor > 0
+        ? (totalCustoProducao * (1 + percentualMargemDecimal)) / divisor
+        : totalCustoProducao * (1 + percentualMargemDecimal);
+    } else {
+      divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
+      precoFinal = divisor > 0 ? totalCustoProducao / divisor : totalCustoProducao;
+    }
+
     const totalImpostos = precoFinal * percentualImpostosDecimal;
     const comissaoTotal = precoFinal * percentualComissaoDecimal;
     const totalMargemLucro = precoFinal * percentualMargemDecimal;
     const subtotalComLucro = precoFinal - totalImpostos - comissaoTotal;
 
-    // Calcular preços individuais por produto
     const produtosComPrecos = produtosNormalizados.map((produto) => {
       const custoBaseProduto = produto.custo_total_producao;
-      
-      // Aplicar mesma fórmula do total: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
-      const precoVendaProduto = divisor > 0 ? custoBaseProduto / divisor : custoBaseProduto;
+      const precoVendaProduto =
+        tipoMargemLucro === 'markup'
+          ? (divisor > 0 ? (custoBaseProduto * (1 + percentualMargemDecimal)) / divisor : custoBaseProduto * (1 + percentualMargemDecimal))
+          : (divisor > 0 ? custoBaseProduto / divisor : custoBaseProduto);
       
       // Calcular componentes individuais
       const margemLucroProduto = precoVendaProduto * percentualMargemDecimal;

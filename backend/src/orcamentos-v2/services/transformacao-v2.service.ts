@@ -113,11 +113,15 @@ export class TransformacaoV2Service {
       );
     }
 
-    // Preparar configurações se existirem
+    // Preparar configurações se existirem (persistir como configuracao_calculo JSON)
     if (dados.configuracoes) {
       dadosPreparados.configuracoes = this.prepararConfiguracoes(
         dados.configuracoes,
       );
+      dadosPreparados.configuracao_calculo = JSON.stringify(
+        dadosPreparados.configuracoes,
+      );
+      delete dadosPreparados.configuracoes;
     }
 
     // Preparar tags se existirem
@@ -438,7 +442,7 @@ export class TransformacaoV2Service {
   }
 
   private prepararConfiguracoes(configuracoes: any): any {
-    return {
+    const base = {
       margem_lucro_padrao: configuracoes.margem_lucro_padrao || 0,
       impostos_padrao: configuracoes.impostos_padrao || 0,
       custos_indiretos_padrao: configuracoes.custos_indiretos_padrao || 0,
@@ -446,6 +450,10 @@ export class TransformacaoV2Service {
       custos_indiretos_mensais: configuracoes.custos_indiretos_mensais,
       regras_especiais: configuracoes.regras_especiais || [],
     };
+    if (configuracoes.tipo_margem_lucro === 'markup' || configuracoes.tipo_margem_lucro === 'margem_por_dentro') {
+      (base as any).tipo_margem_lucro = configuracoes.tipo_margem_lucro;
+    }
+    return base;
   }
 
   private prepararProdutosParaMotor(produtos: any[]): any[] {
@@ -627,7 +635,7 @@ export class TransformacaoV2Service {
   private transformarConfiguracoes(configuracoes: any): any {
     if (!configuracoes) return null;
 
-    return {
+    const base = {
       margem_lucro_padrao: configuracoes.margem_lucro_padrao || 0,
       impostos_padrao: configuracoes.impostos_padrao || 0,
       custos_indiretos_padrao: configuracoes.custos_indiretos_padrao || 0,
@@ -635,6 +643,10 @@ export class TransformacaoV2Service {
       custos_indiretos_mensais: configuracoes.custos_indiretos_mensais,
       regras_especiais: configuracoes.regras_especiais || [],
     };
+    if (configuracoes.tipo_margem_lucro === 'markup' || configuracoes.tipo_margem_lucro === 'margem_por_dentro') {
+      (base as any).tipo_margem_lucro = configuracoes.tipo_margem_lucro;
+    }
+    return base;
   }
 
   private transformarVersoes(versoes: any[]): any[] {

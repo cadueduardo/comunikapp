@@ -29,6 +29,7 @@ import { PreviewCalculoV2 } from '../shared/sections';
 
 import { ProdutoSelectionModal } from '../../../app/(main)/produtos/components/produto-selection-modal';
 import { ChatFlutuante } from '@/components/ui/chat-flutuante';
+import { useUser } from '@/contexts/UserContext';
 
 const unidadesTotaisPreview = ['m²', 'm2', 'metro quadrado', 'metros quadrados'];
 const unidadesPorUnidadePreview = [
@@ -152,7 +153,8 @@ export function OrcamentoV2Form({
   const [showProdutoModal, setShowProdutoModal] = useState(false);
   const [selectedProdutoIndex, setSelectedProdutoIndex] = useState<number>(0);
   const { clientes, insumos, maquinas, funcoes, servicos } = useOrcamentoData();
-  
+  const { user } = useUser();
+
   // Hook para WebSocket - capturar dados calculados do preview
   const { resultadoOrcamento, isConnected } = useCalculoWebSocket();
   
@@ -167,10 +169,14 @@ export function OrcamentoV2Form({
         return null;
       }
 
-      const custosIndiretosPercentual = 15; // Valor padrão
+      const custosIndiretosPercentual = 15;
       const margemPercentual = parseFloat(formData?.margem_lucro_customizada || '30');
       const impostosPercentual = parseFloat(formData?.impostos_customizados || '18');
       const comissaoPercentual = parseFloat(formData?.comissao_percentual || '5');
+      const tipoMargemLucro =
+        (formData?.tipo_margem_lucro && formData.tipo_margem_lucro !== '')
+          ? (formData.tipo_margem_lucro as 'markup' | 'margem_por_dentro')
+          : (user?.loja?.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro');
 
       const previewCalculado = calcularProdutosPreview(
         itensFormulario,
@@ -178,6 +184,8 @@ export function OrcamentoV2Form({
         custosIndiretosPercentual,
         margemPercentual,
         impostosPercentual,
+        comissaoPercentual,
+        tipoMargemLucro,
       );
 
       return previewCalculado;
@@ -194,6 +202,7 @@ export function OrcamentoV2Form({
       titulo: '',
       margem_lucro_customizada: '30',
       impostos_customizados: '25',
+      tipo_margem_lucro: '',
       condicoes_comerciais: '',
       prazo_entrega: '10 a 15 dias úteis',
       forma_pagamento: '50% entrada, restante na entrega',
@@ -262,6 +271,7 @@ export function OrcamentoV2Form({
         titulo: String(initialData.titulo || ''),
         margem_lucro_customizada: String(initialData.margem_lucro_customizada || '30'),
         impostos_customizados: String(initialData.impostos_customizados || '25'),
+        tipo_margem_lucro: String(initialData.tipo_margem_lucro ?? initialData.configuracoes?.tipo_margem_lucro ?? ''),
         condicoes_comerciais: String(initialData.condicoes_comerciais || ''),
         prazo_entrega: String(initialData.prazo_entrega || '10 a 15 dias úteis'),
         forma_pagamento: String(initialData.forma_pagamento || '50% entrada, restante na entrega'),
@@ -792,10 +802,25 @@ export function OrcamentoV2Form({
         resumoPreview?.total_custo_producao ?? custoMaterial + custoMaoObra + custoIndiretos,
       );
 
-      const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
-      let precoFinal = fixDecimal(
-        resumoPreview?.preco_final ?? (divisor > 0 ? custoTotal / divisor : custoTotal),
-      );
+      const tipoMargemLucroEfetivo =
+        (data.tipo_margem_lucro && data.tipo_margem_lucro !== '')
+          ? data.tipo_margem_lucro
+          : (user?.loja?.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro');
+
+      let precoFinal: number;
+      if (resumoPreview?.preco_final != null && Number.isFinite(resumoPreview.preco_final)) {
+        precoFinal = fixDecimal(resumoPreview.preco_final);
+      } else if (tipoMargemLucroEfetivo === 'markup') {
+        const divisorMarkup = 1 - percentualImpostosDecimal - percentualComissaoDecimal;
+        precoFinal = fixDecimal(
+          divisorMarkup > 0
+            ? (custoTotal * (1 + percentualMargemDecimal)) / divisorMarkup
+            : custoTotal * (1 + percentualMargemDecimal),
+        );
+      } else {
+        const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
+        precoFinal = fixDecimal(divisor > 0 ? custoTotal / divisor : custoTotal);
+      }
       if (!Number.isFinite(precoFinal) || precoFinal <= 0) {
         precoFinal = fixDecimal(custoTotal);
       }
@@ -849,6 +874,7 @@ export function OrcamentoV2Form({
           ? primeiroProdutoTransformado.unidade
           : undefined,
         quantidade_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.quantidade : undefined,
+        configuracoes: { tipo_margem_lucro: tipoMargemLucroEfetivo },
       };
 
       return dadosTransformados;
@@ -974,20 +1000,29 @@ export function OrcamentoV2Form({
       comissaoPercentual
     });
     
-    // Fórmula: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
+    // Resolver tipo de margem: do orçamento ou padrão da loja
+    const tipoMargemLucroEfetivo =
+      (data.tipo_margem_lucro && data.tipo_margem_lucro !== '')
+        ? data.tipo_margem_lucro
+        : (user?.loja?.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro');
+
     const percentualMargemDecimal = margemPercentual / 100;
     const percentualImpostosDecimal = impostosPercentual / 100;
     const percentualComissaoDecimal = comissaoPercentual / 100;
-    const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
-    
-    console.log('🔍 Debug - Cálculo de percentuais:', {
-      percentualMargemDecimal,
-      percentualImpostosDecimal,
-      percentualComissaoDecimal,
-      divisor
-    });
-    
-    const precoFinal = divisor > 0 ? custoTotal / divisor : custoTotal;
+
+    let precoFinal: number;
+    if (tipoMargemLucroEfetivo === 'markup') {
+      // Markup: margem por fora sobre o custo. Preço = Custo*(1+margem) / (1 - impostos - comissão)
+      const divisorMarkup = 1 - percentualImpostosDecimal - percentualComissaoDecimal;
+      precoFinal = divisorMarkup > 0
+        ? (custoTotal * (1 + percentualMargemDecimal)) / divisorMarkup
+        : custoTotal * (1 + percentualMargemDecimal);
+    } else {
+      // Margem por dentro: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
+      const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
+      precoFinal = divisor > 0 ? custoTotal / divisor : custoTotal;
+    }
+
     const margemLucro = precoFinal * percentualMargemDecimal;
     const impostos = precoFinal * percentualImpostosDecimal;
     const comissao = precoFinal * percentualComissaoDecimal;
@@ -1175,6 +1210,7 @@ export function OrcamentoV2Form({
       area_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.area : undefined,
       unidade_medida_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.unidade : undefined,
       quantidade_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.quantidade : undefined,
+      configuracoes: { tipo_margem_lucro: tipoMargemLucroEfetivo },
     };
 
     // Log detalhado removido para limpar terminal

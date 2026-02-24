@@ -8,6 +8,8 @@ export const createFormSchema = (mode: 'novo' | 'editar' | 'template') => z.obje
   // Configurações globais
   margem_lucro_customizada: z.string().optional(),
   impostos_customizados: z.string().optional(),
+  /** 'markup' | 'margem_por_dentro' | '' (usar padrão da loja) */
+  tipo_margem_lucro: z.enum(['markup', 'margem_por_dentro', '']).optional(),
   condicoes_comerciais: z.string().optional(),
   // Configurações comerciais
   prazo_entrega: z.string().optional(),

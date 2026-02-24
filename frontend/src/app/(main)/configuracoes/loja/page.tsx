@@ -15,6 +15,13 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
@@ -30,6 +37,7 @@ const formSchema = z.object({
   margem_lucro_padrao: z.string().optional(),
   impostos_padrao: z.string().optional(),
   horas_produtivas_mensais: z.string().optional(),
+  tipo_margem_lucro: z.enum(['markup', 'margem_por_dentro']).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -47,6 +55,7 @@ export default function ConfiguracoesLojaPage() {
       margem_lucro_padrao: '',
       impostos_padrao: '',
       horas_produtivas_mensais: '',
+      tipo_margem_lucro: 'margem_por_dentro',
     },
   });
 
@@ -59,6 +68,7 @@ export default function ConfiguracoesLojaPage() {
         margem_lucro_padrao: formatCurrency(loja.margem_lucro_padrao, false, true),
         impostos_padrao: formatCurrency(loja.impostos_padrao, false, true),
         horas_produtivas_mensais: String(loja.horas_produtivas_mensais ?? 352),
+        tipo_margem_lucro: (loja.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro') as 'markup' | 'margem_por_dentro',
       };
       form.reset(initialValues);
     }
@@ -103,9 +113,8 @@ export default function ConfiguracoesLojaPage() {
       if (values.margem_lucro_padrao) payload.margem_lucro_padrao = String(parseCurrency(values.margem_lucro_padrao));
       if (values.impostos_padrao) payload.impostos_padrao = String(parseCurrency(values.impostos_padrao));
       if (values.horas_produtivas_mensais) payload.horas_produtivas_mensais = String(parseInt(values.horas_produtivas_mensais));
-      
+      if (values.tipo_margem_lucro) payload.tipo_margem_lucro = values.tipo_margem_lucro;
 
-      
       // Se tivermos uma nova URL do logo, adicione-a ao payload.
       if (newLogoUrl) {
         payload.logo_url = newLogoUrl;
@@ -203,7 +212,34 @@ export default function ConfiguracoesLojaPage() {
 
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Parâmetros de Negócio</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <FormField
+                control={form.control}
+                name="tipo_margem_lucro"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de margem de lucro (padrão)</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value ?? 'margem_por_dentro'}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="margem_por_dentro">Margem por dentro</SelectItem>
+                        <SelectItem value="markup">Markup (por fora)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Margem por dentro: % sobre o preço final. Markup: % sobre o custo.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="margem_lucro_padrao"

@@ -7,10 +7,19 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Settings } from 'lucide-react';
+import { useUser } from '@/contexts/UserContext';
 
 interface ConfiguracoesSectionProps {
   mode: 'novo' | 'editar' | 'template';
@@ -18,6 +27,11 @@ interface ConfiguracoesSectionProps {
 
 export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
   const form = useFormContext();
+  const { user } = useUser();
+  const padraoLojaLegend =
+    user?.loja?.tipo_margem_lucro === 'markup'
+      ? 'Padrão da loja: Markup (por fora)'
+      : 'Padrão da loja: Margem por dentro';
 
   // Não mostrar se for template (produto)
   if (mode === 'template') {
@@ -33,8 +47,36 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Margem de Lucro e Impostos */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Tipo de margem e percentuais */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormField
+            control={form.control}
+            name="tipo_margem_lucro"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tipo de margem de lucro</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value ?? ''}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Usar padrão da loja" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="">{padraoLojaLegend}</SelectItem>
+                    <SelectItem value="margem_por_dentro">Margem por dentro</SelectItem>
+                    <SelectItem value="markup">Markup (por fora)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  Por dentro: % sobre preço final. Markup: % sobre custo.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="margem_lucro_customizada"
@@ -56,7 +98,6 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
               </FormItem>
             )}
           />
-          
           <FormField
             control={form.control}
             name="impostos_customizados"
