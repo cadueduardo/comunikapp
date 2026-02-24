@@ -7,8 +7,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from '@/components/ui/form';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -54,7 +54,9 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
             name="tipo_margem_lucro"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Tipo de margem de lucro</FormLabel>
+                <InfoTooltip content="Por dentro: % sobre preço final. Markup: % sobre custo.">
+                  <FormLabel>Tipo de margem de lucro</FormLabel>
+                </InfoTooltip>
                 <Select
                   onValueChange={(v) => field.onChange(v === 'padrao_loja' ? '' : v)}
                   value={field.value === '' || field.value == null ? 'padrao_loja' : field.value}
@@ -70,9 +72,6 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
                     <SelectItem value="markup">Markup (por fora)</SelectItem>
                   </SelectContent>
                 </Select>
-                <FormDescription>
-                  Por dentro: % sobre preço final. Markup: % sobre custo.
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
