@@ -613,6 +613,10 @@ export function CalculoPreview({
       quantidade_produto: quantidadeProduto,
       horas_producao: horasProducao,
       custos_indiretos_detalhados: custosIndiretosDetalhados,
+      maquinas_detalhadas: maquinasDetalhadas,
+      funcoes_detalhadas: funcoesDetalhadas,
+      resumo_maquinas: resumoMaquinas,
+      resumo_funcoes: resumoFuncoes,
     };
   };
 
@@ -687,12 +691,6 @@ export function CalculoPreview({
   };
 
   const custosTotais = calcularCustosTotais();
-  // já extraído acima
-  // já extraído acima
-  
-  // Debug: Log dos arrays de máquinas e funções
-  console.log('🔍 Debug - CalculoPreview - maquinasDetalhadas:', maquinasDetalhadas);
-  console.log('🔍 Debug - CalculoPreview - funcoesDetalhadas:', funcoesDetalhadas);
 
   if (loading) {
     return (
@@ -873,11 +871,11 @@ export function CalculoPreview({
           </div>
           <div className="flex justify-between text-sm">
             <span>Máquinas:</span>
-            <span>{formatCurrency(custosIndividuais.custo_maquinaria * custosIndividuais.quantidade_produto)} ({resumoMaquinas.totalHoras.toFixed(2)}h)</span>
+            <span>{formatCurrency(custosIndividuais.custo_maquinaria * custosIndividuais.quantidade_produto)} ({(custosIndividuais.resumo_maquinas?.totalHoras ?? 0).toFixed(2)}h)</span>
           </div>
-          <div className="flex justify_between text-sm">
+          <div className="flex justify-between text-sm">
             <span>Mão de Obra:</span>
-            <span>{formatCurrency(custosIndividuais.custo_mao_obra * custosIndividuais.quantidade_produto)} ({resumoFuncoes.totalHoras.toFixed(2)}h)</span>
+            <span>{formatCurrency(custosIndividuais.custo_mao_obra * custosIndividuais.quantidade_produto)} ({(custosIndividuais.resumo_funcoes?.totalHoras ?? 0).toFixed(2)}h)</span>
           </div>
           <div className="flex justify-between text-sm">
             <span>Custos Indiretos:</span>
@@ -939,11 +937,11 @@ export function CalculoPreview({
       )}
 
       {/* Máquinas Utilizadas */}
-      {maquinasDetalhadas.length > 0 && (
+      {(custosIndividuais.maquinas_detalhadas?.length ?? 0) > 0 && (
         <div className="space-y-3">
           <h4 className="font-semibold">Máquinas</h4>
           <div className="space-y-2">
-            {maquinasDetalhadas.map((maquina, index) => (
+            {(custosIndividuais.maquinas_detalhadas ?? []).map((maquina: any, index: number) => (
               <div key={index} className="text-sm p-2 bg-muted rounded">
                 <div className="flex justify-between">
                   <span>{maquina.nome_maquina}</span>
@@ -959,11 +957,11 @@ export function CalculoPreview({
       )}
 
       {/* Funções Utilizadas */}
-      {funcoesDetalhadas.length > 0 && (
+      {(custosIndividuais.funcoes_detalhadas?.length ?? 0) > 0 && (
         <div className="space-y-3">
           <h4 className="font-semibold">Funções</h4>
           <div className="space-y-2">
-            {funcoesDetalhadas.map((funcao, index) => (
+            {(custosIndividuais.funcoes_detalhadas ?? []).map((funcao: any, index: number) => (
               <div key={index} className="text-sm p-2 bg-muted rounded">
                 <div className="flex justify-between">
                   <span>{funcao.nome_funcao}</span>
