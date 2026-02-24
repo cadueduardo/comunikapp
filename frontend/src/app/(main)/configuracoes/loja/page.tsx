@@ -13,6 +13,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -218,7 +219,9 @@ export default function ConfiguracoesLojaPage() {
                 name="tipo_margem_lucro"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo de margem de lucro (padrão)</FormLabel>
+                    <InfoTooltip content="Margem por dentro: % sobre o preço final. Markup: % sobre o custo.">
+                      <FormLabel>Tipo de margem de lucro (padrão)</FormLabel>
+                    </InfoTooltip>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value ?? 'margem_por_dentro'}
@@ -233,9 +236,6 @@ export default function ConfiguracoesLojaPage() {
                         <SelectItem value="markup">Markup (por fora)</SelectItem>
                       </SelectContent>
                     </Select>
-                    <FormDescription>
-                      Margem por dentro: % sobre o preço final. Markup: % sobre o custo.
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
