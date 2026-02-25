@@ -21,6 +21,7 @@ export default function NovoServicoManualCTPage() {
         custo_hora: Number(String(data.custo_hora).replace(/[^0-9,-]/g, '').replace(',', '.')),
         tipo_calculo: data.tipo_calculo,
         eficiencia_percent: data.eficiencia_percent ? Number(String(data.eficiencia_percent).replace(',', '.')) : undefined,
+        setor_id: data.setor_id && data.setor_id !== 'none' ? data.setor_id : undefined,
       };
 
       // Campos específicos por tipo

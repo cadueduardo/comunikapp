@@ -38,6 +38,7 @@ const formSchema = z.object({
   }),
   descricao: z.string().optional(),
   maquina_id: z.string().optional(),
+  setor_id: z.string().optional(),
   // Novos campos do CT
   tipo_calculo: z.enum(['ACOMPANHA_MAQUINA', 'POR_M2', 'POR_UNIDADE', 'MANUAL']).optional(),
   fator_acompanhamento: z.any().optional(),
@@ -56,6 +57,7 @@ interface FuncaoFormProps {
     custo_hora: number;
     descricao?: string;
     maquina_id?: string;
+    setor_id?: string | null;
     tipo_calculo?: 'ACOMPANHA_MAQUINA' | 'POR_M2' | 'POR_UNIDADE' | 'MANUAL';
     fator_acompanhamento?: number | string;
     horas_por_m2?: number | string;
@@ -70,18 +72,21 @@ interface Maquina {
   id: string;
   nome: string;
   tipo: string;
+  setor_id?: string | null;
 }
 
 export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormProps) {
   const [maquinas, setMaquinas] = useState<Maquina[]>([]);
+  const [setores, setSetores] = useState<Array<{ id: string; nome: string }>>([]);
 
   const form = useForm<FuncaoFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData || {
+    defaultValues: initialData ? { ...initialData, setor_id: initialData.setor_id || '' } : {
       nome: '',
       custo_hora: '',
       descricao: '',
       maquina_id: 'null',
+      setor_id: '',
       tipo_calculo: 'MANUAL',
       fator_acompanhamento: '',
       horas_por_m2: '',
@@ -96,6 +101,7 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
   const horasM2 = form.watch('horas_por_m2');
   const horasUn = form.watch('horas_por_unidade');
   const eficiencia = form.watch('eficiencia_percent');
+  const maquinaId = form.watch('maquina_id');
 
   useEffect(() => {
     if (tipo !== 'POR_M2') {
@@ -105,6 +111,18 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
       form.setValue('horas_por_unidade', '' as any);
     }
   }, [tipo]);
+
+  // Sugerir setor da máquina vinculada quando o usuário seleciona uma máquina (permitir override)
+  useEffect(() => {
+    if (maquinaId && maquinaId !== 'null' && maquinas.length > 0) {
+      const maquina = maquinas.find((m) => m.id === maquinaId);
+      if (maquina?.setor_id) {
+        form.setValue('setor_id', maquina.setor_id);
+      } else if (maquina && !maquina.setor_id) {
+        form.setValue('setor_id', '');
+      }
+    }
+  }, [maquinaId, maquinas]);
 
   const toNumber = (v: any): number => {
     if (v == null || v === '') return 0;
@@ -146,6 +164,10 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
 
   useEffect(() => {
     fetchMaquinas();
+    fetch('/api/centros-de-trabalho/setores-produtivos?ativo=true')
+      .then((r) => r.json())
+      .then((data) => setSetores(Array.isArray(data) ? data : []))
+      .catch(() => setSetores([]));
   }, []);
 
   const fetchMaquinas = async () => {
@@ -254,7 +276,36 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
                     </FormItem>
                   )}
                 />
-                
+
+                <FormField
+                  control={form.control}
+                  name="setor_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <InfoTooltip content="Setor ao qual a função pertence. Usado no rateio de custos indiretos por setor.">
+                        <FormLabel>Setor (Opcional)</FormLabel>
+                      </InfoTooltip>
+                      <Select value={field.value || 'none'} onValueChange={(v) => field.onChange(v === 'none' ? '' : v)}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Nenhum" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Nenhum</SelectItem>
+                          {setores.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Vincule esta função a um setor produtivo para rateio de custos indiretos.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="fator_acompanhamento"

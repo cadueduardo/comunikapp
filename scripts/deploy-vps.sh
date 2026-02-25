@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy do Comunikapp no VPS: pull, build (frontend + backend) e restart no PM2.
+# Deploy do Comunikapp no VPS: pull, build (frontend + backend), prisma migrate deploy e restart no PM2.
 # Uso: no VPS, dentro da pasta do projeto: ./scripts/deploy-vps.sh
 # Ou: bash /opt/comunikapp/scripts/deploy-vps.sh
 #
@@ -32,7 +32,7 @@ COMMIT_ANTES="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
 echo "[deploy-vps] Commit atual: ${COMMIT_ANTES}"
 echo ""
 
-echo "[deploy-vps] 1/4 Git fetch e pull..."
+echo "[deploy-vps] 1/5 Git fetch e pull..."
 git fetch origin
 COMMIT_DEPOIS=""
 if git pull origin "${BRANCH}"; then
@@ -73,7 +73,7 @@ FRONTEND_DEPS_CHANGED=0
 echo "${CHANGED_FILES}" | grep -qE '^backend/(package\.json|package-lock\.json)' && BACKEND_DEPS_CHANGED=1
 echo "${CHANGED_FILES}" | grep -qE '^frontend/(package\.json|package-lock\.json)' && FRONTEND_DEPS_CHANGED=1
 
-echo "[deploy-vps] 2/4 Build..."
+echo "[deploy-vps] 2/5 Build..."
 run_backend() {
   [ "$BUILD_BACKEND" -eq 0 ] && return 0
   cd "${ROOT_DIR}/backend"
@@ -101,11 +101,15 @@ if [ "$BEXIT" -ne 0 ]; then echo "[deploy-vps] Backend build falhou (exit $BEXIT
 if [ "$FEXIT" -ne 0 ]; then echo "[deploy-vps] Frontend build falhou (exit $FEXIT)."; exit 1; fi
 echo ""
 
-echo "[deploy-vps] 3/4 Salvando lista do PM2..."
+echo "[deploy-vps] 3/5 Prisma migrate deploy..."
+(cd "${ROOT_DIR}/backend" && npx prisma migrate deploy) || { echo "[deploy-vps] AVISO: prisma migrate deploy falhou. Verifique o banco."; exit 1; }
+echo ""
+
+echo "[deploy-vps] 4/5 Salvando lista do PM2..."
 sudo pm2 save 2>/dev/null || true
 echo ""
 
-echo "[deploy-vps] 4/4 Reiniciando app: ${RESTART_CMD}"
+echo "[deploy-vps] 5/5 Reiniciando app: ${RESTART_CMD}"
 eval "${RESTART_CMD}"
 echo ""
 

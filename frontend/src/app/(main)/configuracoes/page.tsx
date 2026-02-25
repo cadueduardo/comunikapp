@@ -7,7 +7,6 @@ import { ValidacoesAutomaticasCard } from '@/components/configuracoes/Validacoes
 import {
   Settings,
   Tag,
-  DollarSign,
   Truck,
   Users,
   Wrench,
@@ -48,13 +47,6 @@ export default function ConfiguracoesPage() {
       href: '/configuracoes/categorias',
       icone: Tag,
       cor: 'bg-blue-100 text-blue-600'
-    },
-    {
-      titulo: 'Custos Indiretos',
-      descricao: 'Configure custos indiretos e impostos',
-      href: '/configuracoes/custos-indiretos',
-      icone: DollarSign,
-      cor: 'bg-green-100 text-green-600'
     },
     {
       titulo: 'Fornecedores',

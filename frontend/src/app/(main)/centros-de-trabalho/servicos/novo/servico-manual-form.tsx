@@ -42,6 +42,7 @@ const formSchema = z.object({
     message: 'Informe um custo válido (pode ser 0 para preço base em outro lugar).',
   }),
   descricao: z.string().optional(),
+  setor_id: z.string().optional(),
   // Novos campos para ranges
   setup_min: z.string().optional(),
   categorias: z.array(z.object({
@@ -55,6 +56,7 @@ export type ServicoManualFormValues = z.infer<typeof formSchema>;
 
 export default function ServicoManualForm({ onSave, initialData, loading = false }: { onSave: (data: ServicoManualFormValues) => Promise<void>; initialData?: Partial<ServicoManualFormValues>; loading?: boolean; }) {
   const [categorias, setCategorias] = useState<Array<{nome: string; ate_m2: number; tempo_min: string}>>([]);
+  const [setores, setSetores] = useState<Array<{ id: string; nome: string }>>([]);
 
   const form = useForm<ServicoManualFormValues>({
     resolver: zodResolver(formSchema),
@@ -66,6 +68,7 @@ export default function ServicoManualForm({ onSave, initialData, loading = false
       eficiencia_percent: initialData?.eficiencia_percent || '',
       custo_hora: initialData?.custo_hora || '',
       descricao: initialData?.descricao || '',
+      setor_id: initialData?.setor_id || '',
       setup_min: initialData?.setup_min || '',
       categorias: initialData?.categorias || [],
     },
@@ -78,6 +81,13 @@ export default function ServicoManualForm({ onSave, initialData, loading = false
       form.setValue('categorias', initialData.categorias);
     }
   }, [initialData]);
+
+  useEffect(() => {
+    fetch('/api/centros-de-trabalho/setores-produtivos?ativo=true')
+      .then((r) => r.json())
+      .then((data) => setSetores(Array.isArray(data) ? data : []))
+      .catch(() => setSetores([]));
+  }, []);
 
   const tipo = form.watch('tipo_calculo');
   const custoHora = form.watch('custo_hora');
@@ -205,6 +215,35 @@ export default function ServicoManualForm({ onSave, initialData, loading = false
                     <FormMessage />
                   </FormItem>
                 )} />
+
+                <FormField
+                  control={form.control}
+                  name="setor_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <InfoTooltip content="Setor ao qual o serviço pertence. Usado no rateio de custos indiretos por setor.">
+                        <FormLabel>Setor (Opcional)</FormLabel>
+                      </InfoTooltip>
+                      <Select value={field.value || 'none'} onValueChange={(v) => field.onChange(v === 'none' ? '' : v)}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Nenhum" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Nenhum</SelectItem>
+                          {setores.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Vincule este serviço a um setor produtivo para rateio de custos indiretos.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

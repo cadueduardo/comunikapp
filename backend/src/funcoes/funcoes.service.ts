@@ -70,6 +70,8 @@ export class FuncoesService {
         horas_por_unidade: true,
         eficiencia_percent: true,
         setup_min: true,
+        maquina_id: true,
+        setor_id: true,
         maquina: {
           select: {
             id: true,

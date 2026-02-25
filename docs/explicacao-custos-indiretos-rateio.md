@@ -161,3 +161,37 @@ O custo indireto total do orçamento é a soma dos custos de cada setor.
 ### 7.3 Fallback
 
 - Se não houver setores configurados ou vínculos: o sistema usa o **rateio global** (comportamento padrão), com `horas_produtivas_mensais` da loja.
+
+### 7.4 Percentual rateio geral
+
+- Cada setor pode ter um **percentual fixo** dos custos gerais (ex.: Router 40%, Laser 35%).
+- Setores com percentual definido recebem essa fatia dos custos gerais.
+- O restante (100% − soma dos percentuais) é dividido entre setores **sem** percentual, proporcionalmente às horas produtivas mensais.
+- Se todos os setores têm percentual e a soma < 100%, o restante é distribuído por horas.
+
+### 7.5 Exemplo numérico com 2 setores
+
+**Configuração:**
+- Setor Router: 176 h/mês, percentual rateio geral 40%
+- Setor Laser: 176 h/mês, percentual rateio geral 35%
+- Custos gerais (aluguel, energia): R$ 5.000/mês
+- Custo específico Router (manutenção): R$ 500/mês
+
+**Orçamento:** 2 h no Router, 1 h no Laser
+
+**Cálculo:**
+
+1. **Custos específicos Router:** R$ 500 (vai todo para o Router)
+2. **Custos gerais (R$ 5.000):**
+   - Router (40%): R$ 5.000 × 0,40 = R$ 2.000
+   - Laser (35%): R$ 5.000 × 0,35 = R$ 1.750
+   - Restante (25%): distribuído por horas entre setores sem percentual — neste caso, não há; fica como reserva ou pode ser rateado por horas entre todos
+
+3. **Custo total por setor:**
+   - Router: R$ 500 + R$ 2.000 = R$ 2.500 → custo/hora = R$ 2.500 ÷ 176 ≈ R$ 14,20/h
+   - Laser: R$ 1.750 → custo/hora = R$ 1.750 ÷ 176 ≈ R$ 9,94/h
+
+4. **Custo indireto do orçamento:**
+   - Router: 2 h × R$ 14,20 ≈ R$ 28,40
+   - Laser: 1 h × R$ 9,94 ≈ R$ 9,94
+   - **Total: ≈ R$ 38,34**

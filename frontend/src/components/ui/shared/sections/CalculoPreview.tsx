@@ -953,7 +953,7 @@ export function CalculoPreview({
         </div>
       </div>
 
-      {/* Custos Indiretos Detalhados */}
+      {/* Custos Indiretos Detalhados — agrupados por setor quando há rateio por setor */}
       {custosIndividuais.custos_indiretos_detalhados.length > 0 && (
         <div className="space-y-3">
           <h4 className="font-semibold">Custos Indiretos</h4>
@@ -962,19 +962,61 @@ export function CalculoPreview({
               Rateio por setor ativo. Custos vinculados a setores são aplicados conforme as horas de cada setor.
             </p>
           )}
-          <div className="space-y-2">
-            {custosIndividuais.custos_indiretos_detalhados.map((custo: any, index: number) => (
-              <div key={index} className="text-sm p-2 bg-muted rounded">
-                <div className="flex justify-between">
-                  <span>{custo.nome}</span>
-                  <span>{formatCurrency(custo.valor_rateado)}</span>
+          {custosIndividuais.usa_rateio_por_setor ? (
+            (() => {
+              const porSetor = (custosIndividuais.custos_indiretos_detalhados as any[]).reduce(
+                (acc: Record<string, any[]>, custo: any) => {
+                  const chave = custo.setor_nome || 'Geral';
+                  if (!acc[chave]) acc[chave] = [];
+                  acc[chave].push(custo);
+                  return acc;
+                },
+                {},
+              );
+              const totalIndireto = (custosIndividuais.custos_indiretos_detalhados as any[]).reduce(
+                (s, c) => s + (c.valor_rateado || 0),
+                0,
+              );
+              return (
+                <div className="space-y-3">
+                  {Object.entries(porSetor).map(([setorNome, itens]) => (
+                    <div key={setorNome} className="border rounded-lg p-3 space-y-2">
+                      <div className="font-medium text-sm flex justify-between">
+                        <span>Setor {setorNome}</span>
+                        <span className="text-muted-foreground">
+                          {formatCurrency(itens.reduce((s: number, c: any) => s + (c.valor_rateado || 0), 0))}
+                        </span>
+                      </div>
+                      {itens.map((custo: any, idx: number) => (
+                        <div key={idx} className="text-sm pl-2 py-1 bg-muted/50 rounded flex justify-between">
+                          <span>{custo.nome}</span>
+                          <span>{formatCurrency(custo.valor_rateado)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                  <div className="flex justify-between font-semibold pt-2 border-t">
+                    <span>Total</span>
+                    <span>{formatCurrency(totalIndireto)}</span>
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {custo.categoria} • {custo.percentual_rateio.toFixed(1)}% rateado
+              );
+            })()
+          ) : (
+            <div className="space-y-2">
+              {custosIndividuais.custos_indiretos_detalhados.map((custo: any, index: number) => (
+                <div key={index} className="text-sm p-2 bg-muted rounded">
+                  <div className="flex justify-between">
+                    <span>{custo.nome}</span>
+                    <span>{formatCurrency(custo.valor_rateado)}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {custo.categoria} • {custo.percentual_rateio?.toFixed?.(1) ?? 0}% rateado
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

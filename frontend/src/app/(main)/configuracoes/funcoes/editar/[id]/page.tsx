@@ -13,6 +13,7 @@ interface Funcao {
   custo_hora: number | string;
   descricao?: string;
   maquina_id?: string;
+  setor_id?: string | null;
 }
 
 export default function EditarFuncaoPage({ params }: { params: Promise<{ id: string }> }) {
@@ -71,6 +72,7 @@ export default function EditarFuncaoPage({ params }: { params: Promise<{ id: str
         ...data,
         custo_hora: custo,
         maquina_id: data.maquina_id === 'null' ? null : data.maquina_id,
+        setor_id: data.setor_id && data.setor_id !== 'none' ? data.setor_id : null,
       }, token);
 
       toast.success('Função atualizada com sucesso!');
@@ -87,6 +89,7 @@ export default function EditarFuncaoPage({ params }: { params: Promise<{ id: str
     custo_hora: typeof funcao.custo_hora === 'string' ? parseFloat(funcao.custo_hora) : funcao.custo_hora,
     descricao: funcao.descricao || '',
     maquina_id: funcao.maquina_id || 'null',
+    setor_id: funcao.setor_id || '',
   } : undefined;
 
   if (loading) {

@@ -14,6 +14,7 @@ interface Funcao {
   custo_hora: number | string;
   descricao?: string;
   maquina_id?: string;
+  setor_id?: string | null;
   tipo_calculo?: 'ACOMPANHA_MAQUINA' | 'POR_M2' | 'POR_UNIDADE' | 'MANUAL';
   fator_acompanhamento?: number | string;
   horas_por_m2?: number | string;
@@ -58,6 +59,7 @@ export default function EditarFuncaoCTPage({ params }: { params: Promise<{ id: s
       // Transformar dados para o formato esperado pelo backend
       const transformedData = {
         ...data,
+        setor_id: data.setor_id && data.setor_id !== 'none' ? data.setor_id : undefined,
         // Converter valores de tempo mascarados para horas decimais
         horas_por_m2: data.horas_por_m2 ? parseTimeValue(data.horas_por_m2) : undefined,
         horas_por_unidade: data.horas_por_unidade ? parseTimeValue(data.horas_por_unidade) : undefined,
@@ -87,6 +89,7 @@ export default function EditarFuncaoCTPage({ params }: { params: Promise<{ id: s
     custo_hora: typeof registro.custo_hora === 'string' ? parseFloat(registro.custo_hora) : registro.custo_hora,
     descricao: registro.descricao || '',
     maquina_id: registro.maquina_id || 'null',
+    setor_id: registro.setor_id || '',
     tipo_calculo: registro.tipo_calculo || 'MANUAL',
     fator_acompanhamento: registro.fator_acompanhamento || '',
     // Converter horas decimais para HH:MM para exibição

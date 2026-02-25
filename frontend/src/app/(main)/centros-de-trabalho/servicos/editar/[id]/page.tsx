@@ -17,6 +17,7 @@ interface ServicoManual {
   eficiencia_percent?: number | string;
   custo_hora?: number | string;
   descricao?: string;
+  setor_id?: string | null;
   setup_min?: number | string;
   categorias?: Array<{nome: string; ate_m2: number; tempo_min: number}>;
 }
@@ -56,6 +57,7 @@ export default function EditarServicoManualCTPage({ params }: { params: Promise<
         custo_hora: Number(String(data.custo_hora).replace(/[^0-9,-]/g, '').replace(',', '.')),
         tipo_calculo: data.tipo_calculo,
         eficiencia_percent: data.eficiencia_percent ? Number(String(data.eficiencia_percent).replace(',', '.')) : undefined,
+        setor_id: data.setor_id && data.setor_id !== 'none' ? data.setor_id : undefined,
       };
 
       // Campos específicos por tipo
@@ -108,6 +110,7 @@ export default function EditarServicoManualCTPage({ params }: { params: Promise<
         onSave={handleSave} 
         initialData={{
           ...registro,
+          setor_id: registro.setor_id || '',
           // Converter setup_min de minutos para HH:MM
           setup_min: (() => {
             if (!registro.setup_min) return '';

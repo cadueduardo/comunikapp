@@ -38,6 +38,7 @@ export default function NovaFuncaoPage() {
         ...data,
         custo_hora: custo,
         maquina_id: data.maquina_id === 'null' ? null : data.maquina_id,
+        setor_id: data.setor_id && data.setor_id !== 'none' ? data.setor_id : null,
       };
 
       console.log('Dados sendo enviados:', requestData);

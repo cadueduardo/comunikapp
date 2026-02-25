@@ -23,6 +23,7 @@ export default function NovaFuncaoCTPage() {
         custo_hora: Number(String(data.custo_hora).replace(/[^0-9,-]/g, '').replace(',', '.')),
         descricao: data.descricao || undefined,
         maquina_id: data.maquina_id && data.maquina_id !== 'null' ? data.maquina_id : undefined,
+        setor_id: data.setor_id && data.setor_id !== 'none' ? data.setor_id : undefined,
         tipo_calculo: data.tipo_calculo || 'MANUAL',
       };
 

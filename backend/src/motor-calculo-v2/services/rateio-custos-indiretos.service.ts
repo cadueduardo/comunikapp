@@ -60,7 +60,11 @@ export class RateioCustosIndiretosService {
     // Fallback: sem setores configurados ou sem horas por setor -> rateio global
     const temSetoresConfigurados =
       setoresComHoras.length > 0 &&
-      setoresComHoras.some((s) => s.horas_produtivas_mensais != null);
+      setoresComHoras.some(
+        (s) =>
+          s.horas_produtivas_mensais != null ||
+          s.percentual_rateio_geral != null,
+      );
     const temHorasPorSetor = horasPorSetor.size > 0;
 
     if (!temSetoresConfigurados || !temHorasPorSetor) {
@@ -157,6 +161,30 @@ export class RateioCustosIndiretosService {
       0,
     );
 
+    // Percentual rateio geral: setores com percentual definido recebem essa fatia;
+    // o restante é dividido entre setores sem percentual (que aparecem no orçamento), por horas_produtivas_mensais.
+    const setorIdsNoOrcamento = new Set(horasPorSetor.keys());
+    const somaPercentuaisNoOrcamento = setores
+      .filter((s) => setorIdsNoOrcamento.has(s.id))
+      .filter(
+        (s) =>
+          s.percentual_rateio_geral != null &&
+          Number(s.percentual_rateio_geral) > 0,
+      )
+      .reduce((acc, s) => acc + Number(s.percentual_rateio_geral), 0);
+    const percentualEfetivo = Math.min(somaPercentuaisNoOrcamento, 100);
+    const restanteParaHoras =
+      (totalCustosGerais * (100 - percentualEfetivo)) / 100;
+
+    const totalHorasSemPercentual = setores
+      .filter((s) => setorIdsNoOrcamento.has(s.id))
+      .filter(
+        (s) =>
+          s.percentual_rateio_geral == null ||
+          Number(s.percentual_rateio_geral) <= 0,
+      )
+      .reduce((acc, s) => acc + (s.horas_produtivas_mensais ?? 0), 0);
+
     const detalhamentoPorSetor: Array<{
       setor_id: string | null;
       setor_nome: string;
@@ -173,6 +201,11 @@ export class RateioCustosIndiretosService {
       const setor = setores.find((s) => s.id === setorId);
       const horasProdutivasSetor =
         setor?.horas_produtivas_mensais ?? 0;
+      const percentualSetor =
+        setor?.percentual_rateio_geral != null
+          ? Number(setor.percentual_rateio_geral)
+          : null;
+
       const horasProdutivasEfetivas =
         horasProdutivasSetor > 0
           ? horasProdutivasSetor
@@ -186,10 +219,22 @@ export class RateioCustosIndiretosService {
             : horasProdutivasLoja;
 
       const custosEspecificos = custosPorSetor.get(setorId)?.valor ?? 0;
-      const parteGerais =
-        totalHorasSetores > 0 && totalCustosGerais > 0 && horasProdutivasSetor > 0
-          ? (totalCustosGerais * horasProdutivasSetor) / totalHorasSetores
-          : 0;
+
+      let parteGerais = 0;
+      if (totalCustosGerais > 0) {
+        if (percentualSetor != null && percentualSetor > 0) {
+          parteGerais =
+            (totalCustosGerais * Math.min(percentualSetor, 100)) / 100;
+        } else if (restanteParaHoras > 0) {
+          const divisor =
+            totalHorasSemPercentual > 0
+              ? totalHorasSemPercentual
+              : totalHorasSetores;
+          if (divisor > 0 && horasProdutivasSetor > 0) {
+            parteGerais = (restanteParaHoras * horasProdutivasSetor) / divisor;
+          }
+        }
+      }
 
       const custoTotalSetor = custosEspecificos + parteGerais;
       const custoPorHoraSetor =

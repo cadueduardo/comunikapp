@@ -241,7 +241,7 @@ Status Fase 6: [x] concluída — Build backend e frontend OK. Testes unitários
 ## Fase 7 — Documentação Final
 
 - [x] Atualizar `docs/explicacao-custos-indiretos-rateio.md` com seção "Rateio por Setor".
-- [ ] Incluir exemplo numérico com 2 setores (opcional, follow-up).
+- [x] Incluir exemplo numérico com 2 setores.
 - [x] Documentar fallback e critérios de compatibilidade.
 - [ ] Atualizar OpenAPI/Swagger (opcional, follow-up).
 
