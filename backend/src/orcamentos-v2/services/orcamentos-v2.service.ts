@@ -473,20 +473,70 @@ export class OrcamentosV2Service {
 
       // Verificar se os dados já tÃªm custos calculados corretamente
       const temCustosValidos =
-        dados.custo_material > 0 ||
-        dados.custo_mao_obra > 0 ||
-        dados.custo_total > 0;
+        (dados.preco_final > 0) ||
+        (dados.custo_material > 0) ||
+        (dados.custo_mao_obra > 0) ||
+        (dados.custo_total > 0);
 
-      if (precisaRecalcular) {
-        this.logger.log(`ðŸ”„ Iniciando recálculo para orçamento ${id}`);
-        const resultadoCalculo =
-          await this.integracaoMotor.calcularOrcamentoCompleto(
-            orcamentoAtualizado,
-            lojaId,
+      const sempreRecalcular = true;
+      if (sempreRecalcular || precisaRecalcular) {
+        this.logger.log(`ðŸ”„ Iniciando recalculo para orcamento ${id}`);
+        try {
+          const resultadoCalculo =
+            await this.integracaoMotor.calcularOrcamentoCompleto(
+              orcamentoAtualizado,
+              lojaId,
+            );
+
+          const custos = (resultadoCalculo?.custos || {}) as Record<string, unknown>;
+          const precoMotor = Number(custos.preco_final || custos.valor_total || 0);
+
+          if (precoMotor > 0) {
+            await this.atualizarCustosCalculados(id, resultadoCalculo);
+            this.logger.log(`Recalculo concluido para orcamento ${id}`);
+          } else if (temCustosValidos) {
+            this.logger.warn(
+              `Motor retornou 0, usando custos do frontend para orcamento ${id}`,
+            );
+            await this.prisma.orcamento.update({
+              where: { id },
+              data: {
+                preco_final: dados.preco_final || 0,
+                custo_total: dados.custo_total || 0,
+                margem_lucro: dados.margem_lucro || 0,
+                impostos: dados.impostos || 0,
+                custo_material: dados.custo_material || 0,
+                custo_mao_obra: dados.custo_mao_obra || 0,
+                custo_indireto: dados.custo_indireto || 0,
+                data_ultimo_calculo: new Date(),
+              },
+            });
+          } else {
+            this.logger.warn(
+              `Motor retornou 0 e frontend sem custos - valor existente mantido`,
+            );
+          }
+        } catch (erroMotor) {
+          this.logger.error(
+            `Erro no motor para orcamento ${id}: ${erroMotor?.message}`,
           );
-
-        await this.atualizarCustosCalculados(id, resultadoCalculo);
-        this.logger.log(`âœ… Recálculo concluído para orçamento ${id}`);
+          if (temCustosValidos) {
+            this.logger.log(`Usando custos do frontend como fallback`);
+            await this.prisma.orcamento.update({
+              where: { id },
+              data: {
+                preco_final: dados.preco_final || 0,
+                custo_total: dados.custo_total || 0,
+                margem_lucro: dados.margem_lucro || 0,
+                impostos: dados.impostos || 0,
+                custo_material: dados.custo_material || 0,
+                custo_mao_obra: dados.custo_mao_obra || 0,
+                custo_indireto: dados.custo_indireto || 0,
+                data_ultimo_calculo: new Date(),
+              },
+            });
+          }
+        }
       } else if (false && temCustosValidos) {
         this.logger.log(
           `ðŸ’° Usando custos calculados do frontend para orçamento ${id}: custo_total=${dados.custo_total}, preco_final=${dados.preco_final}`,

@@ -159,7 +159,7 @@ export class TransformacaoV2Service {
     }
 
     // Remover campos que não devem ser atualizados ou que causam erro no Prisma
-    // Custos só são atualizados pelo motor (atualizarCustosCalculados), nunca pelo frontend
+    // Custos: só atualizados pelo motor ou fallback explícito, nunca pelo spread do frontend
     const camposProibidos = [
       'id', 'loja_id', 'data_criacao', 'responsavel_id', 'tipo',
       'cliente', 'custos', 'itens_produto', 'historicoOrcamento', 'versoes',
