@@ -66,17 +66,44 @@ export class TransformacaoV2Service {
       };
     }
 
-    // Preparar configurações se existirem
+    // Preparar configurações: schema usa configuracao_calculo (String), não configuracoes
     if (dados.configuracoes) {
-      dadosPreparados.configuracoes = this.prepararConfiguracoes(
-        dados.configuracoes,
-      );
+      const configPreparada = this.prepararConfiguracoes(dados.configuracoes);
+      dadosPreparados.configuracao_calculo = JSON.stringify(configPreparada);
+      delete dadosPreparados.configuracoes;
     }
 
-    // Preparar tags se existirem
+    // Preparar tags: schema usa tags (String), converter array para JSON string
     if (dados.tags && Array.isArray(dados.tags)) {
-      dadosPreparados.tags = dados.tags.filter(
+      const tagsFiltradas = dados.tags.filter(
         (tag) => typeof tag === 'string' && tag.trim().length > 0,
+      );
+      dadosPreparados.tags =
+        tagsFiltradas.length > 0 ? JSON.stringify(tagsFiltradas) : null;
+    }
+
+    // Remover campos que não existem no schema ou causam erro no Prisma
+    const camposProibidos = [
+      'cliente',
+      'custos',
+      'itens_produto',
+      'historicoOrcamento',
+      'versoes',
+      'aprovacoes',
+      'linksPublicos',
+      'mensagensChat',
+      'anexos',
+      'resumo',
+    ];
+    camposProibidos.forEach((c) => delete dadosPreparados[c]);
+
+    // Garantir que campos JSON sejam strings (Prisma/MySQL)
+    if (
+      dadosPreparados.custos_calculados != null &&
+      typeof dadosPreparados.custos_calculados === 'object'
+    ) {
+      dadosPreparados.custos_calculados = JSON.stringify(
+        dadosPreparados.custos_calculados,
       );
     }
 

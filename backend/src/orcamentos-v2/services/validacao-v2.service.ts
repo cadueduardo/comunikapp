@@ -310,11 +310,11 @@ export class ValidacaoV2Service {
       );
     }
 
-    if (
-      !produto.quantidade ||
-      typeof produto.quantidade !== 'number' ||
-      produto.quantidade <= 0
-    ) {
+    const qtd =
+      typeof produto.quantidade === 'number'
+        ? produto.quantidade
+        : Number(produto.quantidade);
+    if (!Number.isFinite(qtd) || qtd <= 0) {
       throw new BadRequestException('Produto deve ter quantidade válida');
     }
 
