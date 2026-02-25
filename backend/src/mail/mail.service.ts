@@ -7,30 +7,41 @@ export class MailService implements OnModuleInit {
   private transporter: Transporter;
 
   async onModuleInit() {
-    const testAccount = await nodemailer.createTestAccount();
+    // Usar SMTP configurado quando SMTP_HOST estiver definido (produção)
+    // Caso contrário, usar Etheral para desenvolvimento/testes
+    if (process.env.SMTP_HOST) {
+      this.transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+      console.log('📧 [MailService] Configurado SMTP de produção:', process.env.SMTP_HOST);
+    } else {
+      const testAccount = await nodemailer.createTestAccount();
+      this.transporter = nodemailer.createTransport({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        secure: false,
+        auth: {
+          user: testAccount.user,
+          pass: testAccount.pass,
+        },
+      });
+      console.log('📧 [MailService] ETHEREAL EMAIL (desenvolvimento) - User:', testAccount.user);
+    }
+  }
 
-    console.log('📧 ==========================================');
-    console.log('📧 ETHEREAL EMAIL TEST ACCOUNT CRIADA!');
-    console.log('📧 ==========================================');
-    console.log('📧 User:', testAccount.user);
-    console.log('📧 Pass:', testAccount.pass);
-    console.log('📧 SMTP: smtp.ethereal.email:587');
-    console.log('📧 ==========================================');
-
-    this.transporter = nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass,
-      },
-    });
+  private getFromAddress(): string {
+    return process.env.SMTP_FROM || '"Comunikapp" <noreply@comunikapp.com>';
   }
 
   async sendVerificationEmail(to: string, code: string) {
     const mailOptions = {
-      from: '"Comunikapp" <noreply@comunikapp.com>',
+      from: this.getFromAddress(),
       to,
       subject: 'Seu Código de Verificação Comunikapp',
       html: `
@@ -45,7 +56,9 @@ export class MailService implements OnModuleInit {
 
     console.log('--- E-mail Sent ---');
     console.log('Message sent: %s', info.messageId);
-    console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+    if (!process.env.SMTP_HOST && nodemailer.getTestMessageUrl(info)) {
+      console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+    }
     console.log('Código de verificação para', to, ':', code);
     console.log('-------------------');
 
@@ -62,7 +75,7 @@ export class MailService implements OnModuleInit {
     linkPublico: string,
   ) {
     const mailOptions = {
-      from: '"Comunikapp" <noreply@comunikapp.com>',
+      from: this.getFromAddress(),
       to: emailCliente,
       subject: `Orçamento #${numeroOrcamento} - ${nomeServico}`,
       html: `
@@ -112,16 +125,10 @@ export class MailService implements OnModuleInit {
 
     const info = await this.transporter.sendMail(mailOptions);
 
-    console.log('📧 ==========================================');
-    console.log('📧 E-MAIL DE ORÇAMENTO ENVIADO COM SUCESSO!');
-    console.log('📧 ==========================================');
-    console.log('📧 Message ID: %s', info.messageId);
-    console.log('📧 Destinatário:', emailCliente);
-    console.log(
-      '📧 ETHEREAL PREVIEW (CLIQUE AQUI): %s',
-      nodemailer.getTestMessageUrl(info),
-    );
-    console.log('📧 ==========================================');
+    console.log('📧 E-MAIL DE ORÇAMENTO ENVIADO - Message ID:', info.messageId, '| Destinatário:', emailCliente);
+    if (!process.env.SMTP_HOST && nodemailer.getTestMessageUrl(info)) {
+      console.log('📧 Preview (Etheral):', nodemailer.getTestMessageUrl(info));
+    }
 
     return info;
   }
@@ -133,7 +140,7 @@ export class MailService implements OnModuleInit {
     precoFinal: number,
   ) {
     const mailOptions = {
-      from: '"Comunikapp" <noreply@comunikapp.com>',
+      from: this.getFromAddress(),
       to: emailLoja,
       subject: `Orçamento #${numeroOrcamento} Aprovado!`,
       html: `
@@ -178,11 +185,10 @@ export class MailService implements OnModuleInit {
 
     const info = await this.transporter.sendMail(mailOptions);
 
-    console.log('--- E-mail de Aprovação Enviado ---');
-    console.log('Message sent: %s', info.messageId);
-    console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
-    console.log('Notificação enviada para:', emailLoja);
-    console.log('-----------------------------------');
+    console.log('📧 E-mail de Aprovação enviado - Message ID:', info.messageId, '| Destinatário:', emailLoja);
+    if (!process.env.SMTP_HOST && nodemailer.getTestMessageUrl(info)) {
+      console.log('📧 Preview (Etheral):', nodemailer.getTestMessageUrl(info));
+    }
 
     return info;
   }

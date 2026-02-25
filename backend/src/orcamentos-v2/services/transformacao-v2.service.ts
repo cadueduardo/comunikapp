@@ -131,12 +131,22 @@ export class TransformacaoV2Service {
       );
     }
 
-    // Remover campos que não devem ser atualizados
-    delete dadosPreparados.id;
-    delete dadosPreparados.loja_id;
-    delete dadosPreparados.data_criacao;
-    delete dadosPreparados.responsavel_id;
-    delete dadosPreparados.tipo;
+    // Remover campos que não devem ser atualizados ou que causam erro no Prisma
+    const camposProibidos = [
+      'id', 'loja_id', 'data_criacao', 'responsavel_id', 'tipo',
+      'cliente', 'custos', 'itens_produto', 'historicoOrcamento', 'versoes',
+      'aprovacoes', 'linksPublicos', 'mensagensChat', 'anexos', 'numero',
+      'criado_em', 'atualizado_em',
+    ];
+    camposProibidos.forEach((campo) => delete dadosPreparados[campo]);
+
+    // Garantir que campos JSON sejam strings (Prisma/MySQL)
+    if (dadosPreparados.custos_calculados != null && typeof dadosPreparados.custos_calculados === 'object') {
+      dadosPreparados.custos_calculados = JSON.stringify(dadosPreparados.custos_calculados);
+    }
+    if (dadosPreparados.tags != null && Array.isArray(dadosPreparados.tags)) {
+      dadosPreparados.tags = JSON.stringify(dadosPreparados.tags);
+    }
 
     this.logger.log(`✅ Dados preparados para atualização`);
     return dadosPreparados;
@@ -294,8 +304,8 @@ export class TransformacaoV2Service {
     const produtoPreparado: any = {
       nome_servico: nomeProduto,
       nome: nomeProduto,
-      descricao: produto.descricao,
-      quantidade: produto.quantidade,
+      descricao: produto.descricao ?? '',
+      quantidade: Math.max(toNumber(produto.quantidade), 0.001),
       largura: produto.largura ?? null,
       altura: produto.altura ?? null,
       area_produto: produto.area_produto || produto.area || null,
