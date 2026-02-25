@@ -253,12 +253,21 @@ export class IntegracaoMotorService {
       lojaId: lojaId,
       produtos: this.prepararProdutosParaMotor(dadosOrcamento.produtos || []),
       configuracoes: {
-        margem_lucro: parseFloat(
-          dadosOrcamento.margem_lucro_customizada || '30',
+        // O pipeline do motor lê campos *_padrao.
+        margem_lucro_padrao: parseFloat(
+          dadosOrcamento.margem_lucro_customizada ??
+            dadosOrcamento.margem_lucro ??
+            '30',
         ),
-        impostos: parseFloat(dadosOrcamento.impostos_customizados || '25'),
-        comissao: parseFloat(dadosOrcamento.comissao_percentual || '0'),
-        custos_indiretos_percentual: 15,
+        impostos_padrao: parseFloat(
+          dadosOrcamento.impostos_customizados ??
+            dadosOrcamento.impostos ??
+            '25',
+        ),
+        comissao_padrao: parseFloat(
+          dadosOrcamento.comissao_percentual ?? '5',
+        ),
+        custos_indiretos_padrao: 15,
         incluir_detalhamento: true,
         incluir_validacoes: true,
       },

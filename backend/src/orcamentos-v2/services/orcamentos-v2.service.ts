@@ -324,6 +324,7 @@ export class OrcamentosV2Service {
             custo_total: true,
             margem_lucro: true,
             impostos: true,
+            comissao_percentual: true,
             quantidade_produto: true,
             unidade_medida_produto: true,
             largura_produto: true,

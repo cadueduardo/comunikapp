@@ -24,6 +24,7 @@ export interface OrcamentoBase {
   detalhamento_calculo?: any;
   alertas?: any[];
   data_ultimo_calculo?: Date;
+  comissao_percentual?: number;
 
   // Campos do produto principal
   largura_produto?: number;

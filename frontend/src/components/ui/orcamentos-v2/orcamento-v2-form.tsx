@@ -278,6 +278,7 @@ export function OrcamentoV2Form({
         titulo: String(initialData.titulo || ''),
         margem_lucro_customizada: String(initialData.margem_lucro_customizada || '30'),
         impostos_customizados: String(initialData.impostos_customizados || '25'),
+        comissao_percentual: String(initialData.comissao_percentual ?? '5'),
         tipo_margem_lucro: String(initialData.tipo_margem_lucro ?? initialData.configuracoes?.tipo_margem_lucro ?? ''),
         condicoes_comerciais: String(initialData.condicoes_comerciais || ''),
         prazo_entrega: String(initialData.prazo_entrega || '10 a 15 dias úteis'),

@@ -51,6 +51,7 @@ export class TransformacaoV2Service {
       margem_lucro: dados.margem_lucro ?? 0,
       impostos: dados.impostos ?? 0,
       preco_final: dados.preco_final ?? 0,
+      comissao_percentual: dados.comissao_percentual ?? 5,
       ativo: true,
     };
 
@@ -217,6 +218,10 @@ export class TransformacaoV2Service {
       prioridade: dados.prioridade,
       responsavel_id: dados.responsavel_id,
       ativo: dados.ativo,
+      comissao_percentual:
+        dados.comissao_percentual != null
+          ? Number(dados.comissao_percentual)
+          : undefined,
 
       // Campos do produto principal
       largura_produto: dados.largura_produto,
@@ -276,6 +281,7 @@ export class TransformacaoV2Service {
       responsavel_id: dados.responsavel_id,
       ativo: dados.ativo,
       custos_calculados: dados.custos,
+      comissao_percentual: (dados as any).comissao_percentual,
     };
     delete dadosBanco.tipo;
 
