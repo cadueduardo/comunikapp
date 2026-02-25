@@ -83,8 +83,16 @@ export default function EditarClientePage({ params }: { params: Promise<{ id: st
         return;
       }
       
+      // Campos permitidos no update (backend rejeita id, criado_em, loja_id, etc.)
+      const camposPermitidos = [
+        'nome', 'tipo_pessoa', 'documento', 'email', 'telefone', 'whatsapp',
+        'cep', 'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'estado',
+        'razao_social', 'nome_fantasia', 'inscricao_estadual', 'responsavel',
+        'cargo_responsavel', 'observacoes', 'status_cliente', 'origem', 'segmento',
+      ];
       const cleanData = Object.fromEntries(
-        Object.entries(formData).filter(([, v]) => v !== null && v !== '')
+        Object.entries(formData)
+          .filter(([k, v]) => camposPermitidos.includes(k) && v !== null && v !== '')
       );
 
       await clientesApi.update(clienteId, cleanData, token);
