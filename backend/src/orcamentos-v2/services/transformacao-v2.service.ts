@@ -368,6 +368,7 @@ export class TransformacaoV2Service {
               unidade: insumo.unidade || insumo.unidade_consumo || 'un',
               preco_unitario: precoUnitario,
               preco_total: precoTotal,
+              material_do_cliente: Boolean(insumo.material_do_cliente),
             };
           }),
       };
@@ -605,6 +606,7 @@ export class TransformacaoV2Service {
           unidade: insumo.unidade,
           preco_unitario: insumo.preco_unitario || 0,
           preco_total: insumo.preco_total || 0,
+          material_do_cliente: Boolean(insumo.material_do_cliente),
           estoque_disponivel: insumo.estoque_disponivel,
           alerta_estoque: insumo.alerta_estoque || false,
         })) || [],

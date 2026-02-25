@@ -697,6 +697,7 @@ model ItemInsumo {
   unidade               String
   preco_unitario        Decimal             @db.Decimal(10, 2)
   preco_total           Decimal             @db.Decimal(10, 2)
+  material_do_cliente   Boolean             @default(false)
   estoque_disponivel    Decimal?            @db.Decimal(10, 3)
   alerta_estoque        Boolean             @default(false)
   criado_em             DateTime            @default(now())

@@ -151,6 +151,7 @@ export function OrcamentoV2Form({
   const router = useRouter();
   const [loading] = useState(false);
   const [isEnviando, setIsEnviando] = useState(false);
+  const [isAtualizando, setIsAtualizando] = useState(false);
   const [showProdutoModal, setShowProdutoModal] = useState(false);
   const [selectedProdutoIndex, setSelectedProdutoIndex] = useState<number>(0);
   const { clientes, insumos, maquinas, funcoes, servicos } = useOrcamentoData();
@@ -1223,6 +1224,8 @@ export function OrcamentoV2Form({
   };
 
   const handleSubmit = async (data: FormValues) => {
+    if (isAtualizando) return;
+    setIsAtualizando(true);
     try {
       const token = localStorage.getItem('access_token');
       if (!token) {
@@ -1276,6 +1279,8 @@ export function OrcamentoV2Form({
       } else {
         toast.error('Erro ao salvar orçamento');
       }
+    } finally {
+      setIsAtualizando(false);
     }
   };
 
@@ -1627,11 +1632,11 @@ export function OrcamentoV2Form({
                             <Button
                               type="button"
                               onClick={() => handleSubmit(form.getValues())}
-                              disabled={loading}
+                              disabled={loading || isAtualizando}
                               className="flex items-center space-x-2"
                             >
                               <Save className="w-4 h-4" />
-                              <span>{loading ? 'Atualizando...' : 'Atualizar Orçamento'}</span>
+                              <span>{loading || isAtualizando ? 'Atualizando...' : 'Atualizar Orçamento'}</span>
                             </Button>
                           );
                         })()}
@@ -1750,11 +1755,11 @@ export function OrcamentoV2Form({
                     ) : (
                       <Button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || isAtualizando}
                         className="flex items-center space-x-2"
                       >
                         <Save className="w-4 h-4" />
-                        <span>{loading ? 'Atualizando...' : 'Atualizar Orçamento'}</span>
+                        <span>{loading || isAtualizando ? 'Atualizando...' : 'Atualizar Orçamento'}</span>
                       </Button>
                     );
                   })()}

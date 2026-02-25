@@ -11,16 +11,26 @@ export class MailService implements OnModuleInit {
     // Aceita SMTP_* ou MAIL_* (fallback para .env legado)
     const host = process.env.SMTP_HOST || process.env.MAIL_HOST;
     if (host) {
+      const port = parseInt(process.env.SMTP_PORT || process.env.MAIL_PORT || '587');
+      // Porta 465 = SSL direto (secure: true). Portas 587/25 = STARTTLS (secure: false)
+      const secure = port === 465 || (process.env.SMTP_SECURE || process.env.MAIL_SECURE) === 'true';
+
       this.transporter = nodemailer.createTransport({
         host,
-        port: parseInt(process.env.SMTP_PORT || process.env.MAIL_PORT || '587'),
-        secure: (process.env.SMTP_SECURE || process.env.MAIL_SECURE) === 'true',
+        port,
+        secure,
         auth: {
           user: process.env.SMTP_USER || process.env.MAIL_USER,
           pass: process.env.SMTP_PASS || process.env.MAIL_PASS,
         },
+        // Evita "Greeting never received" em servidores lentos ou com conexão instável
+        greetingTimeout: 10000,
+        connectionTimeout: 10000,
+        ...(process.env.MAIL_TLS_REJECT_UNAUTHORIZED === 'false' && {
+          tls: { rejectUnauthorized: false },
+        }),
       });
-      console.log('📧 [MailService] Configurado SMTP de produção:', host);
+      console.log('📧 [MailService] Configurado SMTP:', host, 'porta', port, 'secure:', secure);
     } else {
       const testAccount = await nodemailer.createTestAccount();
       this.transporter = nodemailer.createTransport({
