@@ -59,4 +59,9 @@ export class CreateFuncaoDto {
   @IsNumber()
   @Type(() => Number)
   setup_min?: number;
+
+  /** Setor produtivo ao qual a função pertence (para rateio de custos indiretos) */
+  @IsOptional()
+  @IsString()
+  setor_id?: string;
 }

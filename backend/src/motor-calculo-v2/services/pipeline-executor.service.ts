@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { RateioCustosIndiretosService } from './rateio-custos-indiretos.service';
 import {
   ContextoCalculo,
   ResultadoCalculo,
@@ -12,7 +13,10 @@ import {
 export class PipelineExecutorService {
   private readonly logger = new Logger(PipelineExecutorService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rateioCustosIndiretos: RateioCustosIndiretosService,
+  ) {}
 
   /**
    * Executa pipeline completo de estágios
@@ -328,21 +332,43 @@ export class PipelineExecutorService {
     const custoProducao =
       (resultado.custo_materiais || 0) + (resultado.custo_mao_obra || 0);
 
-    // Só aplicar custos indiretos quando houver itens cadastrados na loja
     const countCustosIndiretos = await this.prisma.custoindireto.count({
       where: { loja_id: contexto.lojaId, ativo: true },
     });
 
-    const percentualIndiretos =
-      countCustosIndiretos > 0
-        ? (contexto.configuracoes.custos_indiretos_padrao || 15)
-        : 0;
-    const custoIndiretos = custoProducao * (percentualIndiretos / 100);
+    let custoIndiretos = 0;
+    let percentualAplicado = 0;
+    let detalhamentoRateio: any[] = [];
+
+    if (countCustosIndiretos > 0) {
+      const horasPorSetor =
+        this.rateioCustosIndiretos.agruparHorasPorSetor(contexto.produtos);
+      const horasTotais =
+        this.rateioCustosIndiretos.somarHorasTotais(contexto.produtos);
+
+      const rateio = await this.rateioCustosIndiretos.calcularCustoIndireto(
+        contexto.lojaId,
+        horasPorSetor,
+        horasTotais,
+      );
+
+      custoIndiretos = rateio.custoIndiretoTotal;
+      detalhamentoRateio = rateio.detalhamentoPorSetor;
+
+      if (custoProducao > 0 && custoIndiretos > 0) {
+        percentualAplicado = (custoIndiretos / custoProducao) * 100;
+      }
+    } else {
+      percentualAplicado =
+        contexto.configuracoes?.custos_indiretos_padrao || 0;
+      custoIndiretos = custoProducao * (percentualAplicado / 100);
+    }
 
     const dados = {
       custo_indiretos: custoIndiretos,
-      percentual_aplicado: percentualIndiretos,
+      percentual_aplicado: percentualAplicado,
       base_calculo: custoProducao,
+      detalhamento_rateio_setor: detalhamentoRateio,
     };
 
     return {

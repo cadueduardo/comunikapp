@@ -13,4 +13,9 @@ export class CreateCustoIndiretoDto {
   @IsOptional()
   @IsString()
   descricao?: string; // Será mapeado para observacoes no serviço
+
+  /** Setor ao qual o custo pertence. Se vazio, custo geral (rateado entre setores) */
+  @IsOptional()
+  @IsString()
+  setor_id?: string;
 }

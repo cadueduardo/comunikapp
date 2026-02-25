@@ -5,6 +5,7 @@ import { BusinessRulesEngineService } from './services/business-rules-engine.ser
 import { PipelineExecutorService } from './services/pipeline-executor.service';
 import { EventProducerService } from './services/event-producer.service';
 import { InputIntegrationService } from './services/input-integration.service';
+import { RateioCustosIndiretosService } from './services/rateio-custos-indiretos.service';
 import { MotorCalculoV2Controller } from './controllers/motor-calculo-v2.controller';
 import { CalculoWebSocketGateway } from './gateways/calculo-websocket.gateway';
 
@@ -15,6 +16,7 @@ import { CalculoWebSocketGateway } from './gateways/calculo-websocket.gateway';
     MotorCalculoV2Service,
     BusinessRulesEngineService,
     PipelineExecutorService,
+    RateioCustosIndiretosService,
     EventProducerService,
     InputIntegrationService,
     CalculoWebSocketGateway,

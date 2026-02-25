@@ -134,3 +134,30 @@ Cada item (aluguel, energia, etc.) entra no total na proporção do seu valor me
 - **Sem custos cadastrados:** Se não houver nenhum custo indireto cadastrado, o sistema **não aplica** custos indiretos (valor = R$ 0,00).
 - **Horas produtivas:** O valor padrão é 352 horas/mês, mas pode ser configurado por loja (ex.: 2 × 176 h).
 - **Horas do orçamento:** São somadas as horas de máquinas, funções e serviços manuais de todos os produtos do orçamento.
+
+---
+
+## 7. Rateio por Setor (opcional)
+
+Quando a loja possui mais de um setor produtivo (ex.: Router, Laser), o sistema pode ratear custos indiretos **por setor**, para que orçamentos absorvam apenas os custos dos setores que utilizam.
+
+### 7.1 Como funciona
+
+- Cada **setor** tem suas próprias **horas produtivas mensais** (ex.: Router 176 h, Laser 176 h).
+- **Custos específicos** (setor_id preenchido): aplicados apenas às horas daquele setor.
+- **Custos gerais** (setor_id vazio): rateados entre setores por horas produtivas ou percentual fixo.
+- **Máquinas, funções e serviços** vinculados a setores: suas horas entram no cálculo do setor correspondente.
+
+### 7.2 Fórmula por setor
+
+Para cada setor utilizado no orçamento:
+
+```
+Custo Indireto do Setor = (Custos do Setor ÷ Horas Produtivas do Setor) × Horas do Orçamento no Setor
+```
+
+O custo indireto total do orçamento é a soma dos custos de cada setor.
+
+### 7.3 Fallback
+
+- Se não houver setores configurados ou vínculos: o sistema usa o **rateio global** (comportamento padrão), com `horas_produtivas_mensais` da loja.

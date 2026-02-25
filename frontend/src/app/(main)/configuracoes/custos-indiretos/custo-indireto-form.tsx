@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,6 +15,13 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { CustomCurrencyInput } from '@/components/ui/currency-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -30,6 +37,7 @@ const formSchema = z.object({
     message: 'O valor mensal deve ser maior que zero.',
   }),
   descricao: z.string().optional(),
+  setor_id: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -41,6 +49,7 @@ interface CustoIndiretoFormProps {
     categoria: string;
     valor_mensal: number;
     observacoes?: string;
+    setor_id?: string | null;
   };
 }
 
@@ -49,6 +58,8 @@ export default function CustoIndiretoForm({ custoIndireto }: CustoIndiretoFormPr
   const router = useRouter();
   const isEditing = !!custoIndireto;
 
+  const [setores, setSetores] = useState<Array<{ id: string; nome: string }>>([]);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -56,8 +67,18 @@ export default function CustoIndiretoForm({ custoIndireto }: CustoIndiretoFormPr
       categoria: custoIndireto?.categoria || '',
       valor_mensal: custoIndireto?.valor_mensal ? custoIndireto.valor_mensal : '',
       descricao: custoIndireto?.observacoes || '',
+      setor_id: custoIndireto?.setor_id || '',
     },
   });
+
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+    fetch('/api/centros-de-trabalho/setores-produtivos?ativo=true')
+      .then((r) => r.json())
+      .then((data) => setSetores(Array.isArray(data) ? data : []))
+      .catch(() => setSetores([]));
+  }, []);
 
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
@@ -71,6 +92,7 @@ export default function CustoIndiretoForm({ custoIndireto }: CustoIndiretoFormPr
       const requestData = {
         ...values,
         valor_mensal: parseFloat(String(values.valor_mensal).replace(/[^0-9,-]/g, '').replace(',', '.')),
+        setor_id: values.setor_id || undefined,
       };
 
       if (isEditing) {
@@ -153,6 +175,32 @@ export default function CustoIndiretoForm({ custoIndireto }: CustoIndiretoFormPr
                           value={field.value}
                         />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="setor_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Setor</FormLabel>
+                      <Select value={field.value || 'geral'} onValueChange={(v) => field.onChange(v === 'geral' ? '' : v)}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Geral (rateado entre setores)" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="geral">Geral (rateado entre setores)</SelectItem>
+                          {setores.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

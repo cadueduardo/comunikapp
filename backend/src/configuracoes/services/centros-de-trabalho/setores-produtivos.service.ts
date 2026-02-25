@@ -48,6 +48,8 @@ export class SetoresProdutivosService {
           cor: dto.cor || '#3B82F6',
           ativo: dto.ativo !== undefined ? dto.ativo : true,
           ordem: dto.ordem || 0,
+          horas_produtivas_mensais: dto.horas_produtivas_mensais ?? null,
+          percentual_rateio_geral: dto.percentual_rateio_geral ?? null,
         },
       });
 
@@ -144,6 +146,8 @@ export class SetoresProdutivosService {
           cor: dto.cor,
           ativo: dto.ativo,
           ordem: dto.ordem,
+          horas_produtivas_mensais: dto.horas_produtivas_mensais ?? undefined,
+          percentual_rateio_geral: dto.percentual_rateio_geral ?? undefined,
         },
       });
 

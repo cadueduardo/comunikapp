@@ -4,11 +4,12 @@ import {
   IsBoolean,
   IsInt,
   IsHexColor,
+  IsNumber,
   Min,
   Max,
   Length,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class CreateSetorProdutivoDto {
   @IsString()
@@ -36,6 +37,22 @@ export class CreateSetorProdutivoDto {
   @Max(999)
   @Transform(({ value }) => value ?? 0)
   ordem?: number;
+
+  /** Horas produtivas mensais deste setor (para rateio de custos indiretos) */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(9999)
+  @Type(() => Number)
+  horas_produtivas_mensais?: number;
+
+  /** Percentual fixo dos custos gerais que este setor absorve (0-100). Se não informado, rateio proporcional às horas. */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @Type(() => Number)
+  percentual_rateio_geral?: number;
 }
 
 export class UpdateSetorProdutivoDto {
@@ -62,6 +79,20 @@ export class UpdateSetorProdutivoDto {
   @Min(0)
   @Max(999)
   ordem?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(9999)
+  @Type(() => Number)
+  horas_produtivas_mensais?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @Type(() => Number)
+  percentual_rateio_geral?: number;
 }
 
 export class SetorProdutivoQueryDto {

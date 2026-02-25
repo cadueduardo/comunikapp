@@ -342,11 +342,14 @@ model custoindireto {
   regra_rateio  String   @default("PROPORCIONAL_TEMPO")
   observacoes   String?  @db.Text
   loja_id       String
+  setor_id      String?  // null = custo geral; preenchido = custo do setor
   loja          loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "CustoIndireto_loja_id_fkey")
+  setor         SetorProdutivo? @relation(fields: [setor_id], references: [id], onDelete: SetNull, map: "CustoIndireto_setor_id_fkey")
   itemCustoIndireto ItemCustoIndireto[]
 
   @@index([loja_id, categoria], map: "CustoIndireto_loja_id_categoria_idx")
   @@index([loja_id], map: "CustoIndireto_loja_id_idx")
+  @@index([setor_id], map: "CustoIndireto_setor_id_idx")
 }
 
 model fornecedor {
@@ -370,6 +373,7 @@ model funcao {
   descricao            String?                 @db.Text
   maquina_id           String?
   loja_id              String
+  setor_id             String?                 // Setor ao qual a função pertence
   ativo                Boolean                 @default(true) // Campo para V2
   tipo_calculo         funcao_tipo_calculo     @default(MANUAL)
   fator_acompanhamento Decimal?                @db.Decimal(10, 3)
@@ -379,6 +383,7 @@ model funcao {
   setup_min            Decimal?                @db.Decimal(10, 2)
   loja                 loja                    @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Funcao_loja_id_fkey")
   maquina              maquina?                @relation(fields: [maquina_id], references: [id], map: "Funcao_maquina_id_fkey")
+  setor                SetorProdutivo?        @relation(fields: [setor_id], references: [id], onDelete: SetNull, map: "Funcao_setor_id_fkey")
   funcoes_template     FuncaoTemplateProduto[]
   funcaoorcamento      funcaoorcamento[]
   historico_custos     HistoricoCustoFuncao[]
@@ -386,6 +391,7 @@ model funcao {
 
   @@index([loja_id], map: "Funcao_loja_id_idx")
   @@index([maquina_id], map: "Funcao_maquina_id_idx")
+  @@index([setor_id], map: "Funcao_setor_id_idx")
 }
 
 model funcaoorcamento {
@@ -472,9 +478,11 @@ model maquina {
   capacidade         String?
   observacoes        String?                  @db.Text
   loja_id            String
+  setor_id           String?                  // Setor ao qual a máquina pertence
   funcao             funcao[]
   historico_custos   HistoricoCustoMaquina[]
   loja               loja                     @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Maquina_loja_id_fkey")
+  setor              SetorProdutivo?          @relation(fields: [setor_id], references: [id], onDelete: SetNull, map: "Maquina_setor_id_fkey")
   maquinas_template  MaquinaTemplateProduto[]
   maquinaorcamento   maquinaorcamento[]
   itemMaquina        ItemMaquina[]
@@ -486,6 +494,7 @@ model maquina {
 
   @@index([loja_id], map: "Maquina_loja_id_idx")
   @@index([loja_id, tipo], map: "Maquina_loja_id_tipo_idx")
+  @@index([setor_id], map: "Maquina_setor_id_idx")
 }
 
 model maquinaorcamento {
@@ -964,6 +973,7 @@ model servico_manual {
   descricao          String?             @db.Text
   custo_hora         Decimal             @db.Decimal(10, 2)
   loja_id            String
+  setor_id           String?              // Setor ao qual o serviço pertence
   ativo              Boolean              @default(true) // Campo para V2
   tipo_calculo       funcao_tipo_calculo @default(MANUAL)
   horas_por_m2       Decimal?            @db.Decimal(10, 3)
@@ -972,11 +982,13 @@ model servico_manual {
   setup_min          Decimal?            @db.Decimal(10, 2)
   categorias         String?             @db.LongText
 
-  loja loja @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "ServicoManual_loja_id_fkey")
+  loja    loja             @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "ServicoManual_loja_id_fkey")
+  setor   SetorProdutivo?   @relation(fields: [setor_id], references: [id], onDelete: SetNull, map: "ServicoManual_setor_id_fkey")
   itemServicoManual ItemServicoManual[]
 
   @@unique([loja_id, nome])
   @@index([loja_id], map: "ServicoManual_loja_id_idx")
+  @@index([setor_id], map: "ServicoManual_setor_id_idx")
   @@map("servico_manual")
 }
 
@@ -1649,20 +1661,26 @@ enum TipoMovimentacaoOS {
 // ==========================================
 
 model SetorProdutivo {
-  id                 String    @id @default(cuid())
-  loja_id            String
-  nome               String
-  descricao          String?   @db.Text
-  cor                String    @default("#3B82F6") // Cor HEX para identificação visual
-  ativo              Boolean   @default(true)
-  ordem              Int       @default(0) // Ordem de exibição
-  criado_em          DateTime  @default(now())
-  atualizado_em      DateTime  @updatedAt
+  id                      String    @id @default(cuid())
+  loja_id                 String
+  nome                    String
+  descricao               String?   @db.Text
+  cor                     String    @default("#3B82F6") // Cor HEX para identificação visual
+  ativo                   Boolean   @default(true)
+  ordem                   Int       @default(0) // Ordem de exibição
+  horas_produtivas_mensais Int?     // Horas produtivas mensais deste setor (rateio)
+  percentual_rateio_geral Decimal?  @db.Decimal(5, 2) // % dos custos gerais (opcional)
+  criado_em               DateTime  @default(now())
+  atualizado_em           DateTime  @updatedAt
 
   // Relacionamentos
   loja               loja      @relation(fields: [loja_id], references: [id])
   workflow_setores   WorkflowSetor[]
   instancias_setor   WorkflowInstanciaSetor[]
+  maquinas           maquina[]
+  funcoes            funcao[]
+  servicos_manuais   servico_manual[]
+  custos_indiretos   custoindireto[]
 
   @@unique([loja_id, nome])
   @@index([loja_id, ativo])

@@ -19,6 +19,7 @@ export interface ProdutoCalculo {
   maquinas: MaquinaCalculo[];
   funcoes: FuncaoCalculo[];
   servicos_manuais: ServicoManualCalculo[];
+  servicos?: ServicoManualCalculo[]; // alias usado pelo integracao-motor
   custos_indiretos: CustoIndiretoCalculo[];
   metadata?: any;
 }
@@ -42,6 +43,9 @@ export interface MaquinaCalculo {
   tempo_setup: number;
   eficiencia: number;
   disponivel: boolean;
+  setor_id?: string;
+  horas_utilizadas?: number;
+  horas?: number;
 }
 
 export interface FuncaoCalculo {
@@ -52,12 +56,17 @@ export interface FuncaoCalculo {
   tempo_estimado: number;
   nivel_experiencia: string;
   disponivel: boolean;
+  setor_id?: string;
+  horas_trabalhadas?: number;
+  horas?: number;
 }
 
 export interface ServicoManualCalculo {
   id: string;
   horas: number;
   custo_por_hora: number;
+  setor_id?: string;
+  horas_trabalhadas?: number;
 }
 
 export interface CustoIndiretoCalculo {

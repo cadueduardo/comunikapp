@@ -13,22 +13,17 @@ export class FuncoesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(data: CreateFuncaoDto, loja: loja) {
-    const { maquina_id, ...dataWithoutMaquinaId } = data;
+    const { maquina_id, setor_id, ...dataWithoutMaquinaId } = data;
 
-    return this.prisma.funcao.create({
-      data: {
-        ...dataWithoutMaquinaId,
-        loja: {
-          connect: { id: loja.id },
-        },
-        ...(maquina_id && {
-          maquina: {
-            connect: { id: maquina_id },
-          },
-        }),
-        atualizado_em: new Date(),
-      },
-    });
+    const createData: any = {
+      ...dataWithoutMaquinaId,
+      loja: { connect: { id: loja.id } },
+      ...(maquina_id && { maquina: { connect: { id: maquina_id } } }),
+      atualizado_em: new Date(),
+    };
+    if (setor_id) createData.setor = { connect: { id: setor_id } };
+
+    return this.prisma.funcao.create({ data: createData });
   }
 
   async findAll(loja: loja) {
@@ -87,22 +82,29 @@ export class FuncoesService {
   }
 
   async update(id: string, data: UpdateFuncaoDto, loja: loja) {
-    const { maquina_id, ...dataWithoutMaquinaId } = data;
+    const { maquina_id, setor_id, ...dataWithoutMaquinaId } = data;
+
+    const updateData: any = {
+      ...dataWithoutMaquinaId,
+      ...(maquina_id !== undefined
+        ? {
+            maquina:
+              maquina_id === null
+                ? { disconnect: true }
+                : { connect: { id: maquina_id } },
+          }
+        : {}),
+      atualizado_em: new Date(),
+    };
+    if (setor_id !== undefined) {
+      updateData.setor = setor_id
+        ? { connect: { id: setor_id } }
+        : { disconnect: true };
+    }
 
     return this.prisma.funcao.update({
       where: { id },
-      data: {
-        ...dataWithoutMaquinaId,
-        ...(maquina_id !== undefined
-          ? {
-              maquina:
-                maquina_id === null
-                  ? { disconnect: true }
-                  : { connect: { id: maquina_id } },
-            }
-          : {}),
-        atualizado_em: new Date(),
-      },
+      data: updateData,
     });
   }
 

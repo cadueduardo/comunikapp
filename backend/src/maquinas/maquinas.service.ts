@@ -13,16 +13,15 @@ export class MaquinasService {
   constructor(private prisma: PrismaService) {}
 
   async create(createMaquinaDto: CreateMaquinaDto, loja: loja) {
-    return this.prisma.maquina.create({
-      data: {
-        ...createMaquinaDto,
-        loja: {
-          connect: { id: loja.id },
-        },
-        status: createMaquinaDto.status || 'ATIVA',
-        atualizado_em: new Date(),
-      },
-    });
+    const { setor_id, ...rest } = createMaquinaDto;
+    const data: any = {
+      ...rest,
+      loja: { connect: { id: loja.id } },
+      status: createMaquinaDto.status || 'ATIVA',
+      atualizado_em: new Date(),
+    };
+    if (setor_id) data.setor = { connect: { id: setor_id } };
+    return this.prisma.maquina.create({ data });
   }
 
   async findAll(loja: loja) {
@@ -56,17 +55,18 @@ export class MaquinasService {
   }
 
   async update(id: string, updateMaquinaDto: UpdateMaquinaDto, loja: loja) {
-    console.log('🔧 [MaquinasService] Iniciando update para máquina:', id);
-    console.log('🔧 [MaquinasService] Dados recebidos:', updateMaquinaDto);
-
     await this.findOne(id, loja); // Garante que a máquina existe e pertence à loja
 
-    const dataToUpdate = {
-      ...updateMaquinaDto,
+    const { setor_id, ...rest } = updateMaquinaDto;
+    const dataToUpdate: any = {
+      ...rest,
       atualizado_em: new Date(),
     };
-
-    console.log('🔧 [MaquinasService] Dados para atualização:', dataToUpdate);
+    if (setor_id !== undefined) {
+      dataToUpdate.setor = setor_id
+        ? { connect: { id: setor_id } }
+        : { disconnect: true };
+    }
 
     return this.prisma.maquina.update({
       where: { id },

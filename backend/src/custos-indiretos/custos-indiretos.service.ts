@@ -9,24 +9,27 @@ export class CustosIndiretosService {
   constructor(private prisma: PrismaService) {}
 
   async create(createCustoIndiretoDto: CreateCustoIndiretoDto, loja: loja) {
-    return this.prisma.custoindireto.create({
-      data: {
-        nome: createCustoIndiretoDto.nome,
-        categoria: createCustoIndiretoDto.categoria,
-        valor_mensal: createCustoIndiretoDto.valor_mensal,
-        observacoes: createCustoIndiretoDto.descricao,
-        loja: {
-          connect: { id: loja.id },
-        },
-        atualizado_em: new Date(),
-      },
-    });
+    const data: any = {
+      nome: createCustoIndiretoDto.nome,
+      categoria: createCustoIndiretoDto.categoria,
+      valor_mensal: createCustoIndiretoDto.valor_mensal,
+      observacoes: createCustoIndiretoDto.descricao,
+      loja: { connect: { id: loja.id } },
+      atualizado_em: new Date(),
+    };
+    if (createCustoIndiretoDto.setor_id) {
+      data.setor = { connect: { id: createCustoIndiretoDto.setor_id } };
+    }
+    return this.prisma.custoindireto.create({ data });
   }
 
   async findAll(loja: loja) {
     return this.prisma.custoindireto.findMany({
       where: {
         loja: { id: loja.id },
+      },
+      include: {
+        setor: { select: { id: true, nome: true } },
       },
       orderBy: {
         criado_em: 'desc',
@@ -65,6 +68,11 @@ export class CustosIndiretosService {
       updateData.valor_mensal = updateCustoIndiretoDto.valor_mensal;
     if (updateCustoIndiretoDto.descricao)
       updateData.observacoes = updateCustoIndiretoDto.descricao;
+    if (updateCustoIndiretoDto.setor_id !== undefined) {
+      updateData.setor = updateCustoIndiretoDto.setor_id
+        ? { connect: { id: updateCustoIndiretoDto.setor_id } }
+        : { disconnect: true };
+    }
 
     return this.prisma.custoindireto.update({
       where: { id },

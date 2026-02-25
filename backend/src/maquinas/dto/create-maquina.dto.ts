@@ -148,4 +148,9 @@ export class CreateMaquinaDto {
   @IsOptional()
   @IsIn(['M2_H', 'ML_H', 'MANUAL'])
   modo_producao?: 'M2_H' | 'ML_H' | 'MANUAL';
+
+  /** Setor produtivo ao qual a máquina pertence (para rateio de custos indiretos) */
+  @IsOptional()
+  @IsString()
+  setor_id?: string;
 }

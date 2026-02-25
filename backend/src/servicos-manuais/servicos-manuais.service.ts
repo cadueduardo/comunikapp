@@ -39,6 +39,10 @@ export class ServicosManuaisService {
         : null;
     }
 
+    if (dto.setor_id !== undefined) {
+      payload.setor_id = dto.setor_id || null;
+    }
+
     return this.prisma.servico_manual.create({ data: payload });
   }
 
@@ -91,6 +95,10 @@ export class ServicosManuaisService {
 
     if (dto.categorias !== undefined) {
       data.categorias = dto.categorias ? JSON.stringify(dto.categorias) : null;
+    }
+
+    if (dto.setor_id !== undefined) {
+      data.setor_id = dto.setor_id || null;
     }
 
     return this.prisma.servico_manual.update({ where: { id }, data });

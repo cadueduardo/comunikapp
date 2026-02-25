@@ -32,6 +32,8 @@ interface UpdateSetorDto {
   cor: string;
   ativo: boolean;
   ordem: number;
+  horas_produtivas_mensais?: number;
+  percentual_rateio_geral?: number;
 }
 
 export default function EditarSetorPage() {
@@ -94,7 +96,9 @@ export default function EditarSetorPage() {
           descricao: data.descricao || '',
           cor: data.cor,
           ativo: data.ativo,
-          ordem: data.ordem
+          ordem: data.ordem,
+          horas_produtivas_mensais: data.horas_produtivas_mensais ?? undefined,
+          percentual_rateio_geral: data.percentual_rateio_geral != null ? Number(data.percentual_rateio_geral) : undefined,
         });
       } else {
         const errorText = await response.text();
@@ -161,7 +165,7 @@ export default function EditarSetorPage() {
     }
   };
 
-  const handleInputChange = (field: keyof UpdateSetorDto, value: string | number | boolean) => {
+  const handleInputChange = (field: keyof UpdateSetorDto, value: string | number | boolean | undefined) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -308,6 +312,40 @@ export default function EditarSetorPage() {
               />
               <p className="text-sm text-gray-500">
                 Define a ordem de exibição no Kanban (1 = primeiro)
+              </p>
+            </div>
+
+            {/* Horas produtivas mensais (rateio) */}
+            <div className="space-y-2">
+              <Label htmlFor="horas_produtivas_mensais">Horas produtivas mensais</Label>
+              <Input
+                id="horas_produtivas_mensais"
+                type="number"
+                min="0"
+                value={formData.horas_produtivas_mensais ?? ''}
+                onChange={(e) => handleInputChange('horas_produtivas_mensais', e.target.value ? parseInt(e.target.value) : undefined)}
+                placeholder="Ex: 176"
+              />
+              <p className="text-sm text-gray-500">
+                Horas de produção mensais deste setor. Usado no rateio de custos indiretos.
+              </p>
+            </div>
+
+            {/* Percentual rateio geral */}
+            <div className="space-y-2">
+              <Label htmlFor="percentual_rateio_geral">Percentual rateio custos gerais (%)</Label>
+              <Input
+                id="percentual_rateio_geral"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={formData.percentual_rateio_geral ?? ''}
+                onChange={(e) => handleInputChange('percentual_rateio_geral', e.target.value ? parseFloat(e.target.value) : undefined)}
+                placeholder="Ex: 50"
+              />
+              <p className="text-sm text-gray-500">
+                Percentual fixo dos custos gerais que este setor absorve. Se vazio, rateio proporcional às horas.
               </p>
             </div>
 

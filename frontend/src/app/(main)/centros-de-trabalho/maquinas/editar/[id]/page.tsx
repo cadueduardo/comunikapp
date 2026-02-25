@@ -20,6 +20,7 @@ interface Maquina {
   velocidade_m2_h?: number | string;
   eficiencia_percent?: number | string;
   setup_min?: number | string;
+  setor_id?: string | null;
 }
 
 export default function EditarMaquinaCTPage({ params }: { params: Promise<{ id: string }> }) {
@@ -79,6 +80,7 @@ export default function EditarMaquinaCTPage({ params }: { params: Promise<{ id: 
         // Converter outros campos numéricos
         velocidade_m2_h: data.velocidade_m2_h ? Number(String(data.velocidade_m2_h).replace(',', '.')) : undefined,
         eficiencia_percent: data.eficiencia_percent ? Number(String(data.eficiencia_percent).replace(',', '.')) : undefined,
+        setor_id: data.setor_id || undefined,
       };
 
       await maquinasApi.update(id, transformedData, token);
@@ -104,6 +106,7 @@ export default function EditarMaquinaCTPage({ params }: { params: Promise<{ id: 
     eficiencia_percent: maquina.eficiencia_percent || '',
     // Converter setup_min de minutos para HH:MM
     setup_min: maquina.setup_min ? formatTimeDisplay(Number(maquina.setup_min) / 60) : '',
+    setor_id: maquina.setor_id || null,
   } : undefined;
 
   if (loading) {

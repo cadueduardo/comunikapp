@@ -26,7 +26,7 @@ import { CustomCurrencyInput } from '@/components/ui/currency-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Save, Check, ChevronsUpDown } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Command,
@@ -56,6 +56,7 @@ const formSchema = z.object({
   velocidade_m2_h: z.any().optional(),
   eficiencia_percent: z.any().optional(),
   setup_min: z.any().optional(),
+  setor_id: z.string().optional(),
 });
 
 export type MaquinaFormValues = z.infer<typeof formSchema>;
@@ -73,6 +74,7 @@ interface MaquinaFormProps {
     velocidade_m2_h?: number | string;
     eficiencia_percent?: number | string;
     setup_min?: number | string;
+    setor_id?: string | null;
   };
   loading?: boolean;
 }
@@ -179,9 +181,11 @@ function TipoMaquinaCombobox({ value, onValueChange }: { value: string; onValueC
 }
 
 export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFormProps) {
+  const [setores, setSetores] = useState<Array<{ id: string; nome: string }>>([]);
+
   const form = useForm<MaquinaFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData || {
+    defaultValues: initialData ? { ...initialData, setor_id: initialData.setor_id || '' } : {
       nome: '',
       tipo: '',
       custo_hora: '',
@@ -192,8 +196,16 @@ export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFor
       velocidade_m2_h: '',
       eficiencia_percent: '',
       setup_min: '',
+      setor_id: '',
     },
   });
+
+  useEffect(() => {
+    fetch('/api/centros-de-trabalho/setores-produtivos?ativo=true')
+      .then((r) => r.json())
+      .then((data) => setSetores(Array.isArray(data) ? data : []))
+      .catch(() => setSetores([]));
+  }, []);
 
   const onSubmit = async (values: MaquinaFormValues) => {
     await onSave(values);
@@ -344,6 +356,27 @@ export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFor
                     <FormControl>
                       <Input placeholder="Ex: 15" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="setor_id" render={({ field }) => (
+                  <FormItem>
+                    <InfoTooltip content="Setor ao qual a máquina pertence. Usado no rateio de custos indiretos por setor.">
+                      <FormLabel>Setor</FormLabel>
+                    </InfoTooltip>
+                    <Select value={field.value || 'none'} onValueChange={(v) => field.onChange(v === 'none' ? '' : v)}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Nenhum" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum</SelectItem>
+                        {setores.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )} />

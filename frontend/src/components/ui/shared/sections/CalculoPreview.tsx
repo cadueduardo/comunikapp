@@ -494,11 +494,12 @@ export function CalculoPreview({
   // Calcular custos indiretos usando a mesma lógica do backend
   const calcularCustosIndiretos = () => {
     if (custosIndiretos.length === 0) {
-      return { custoIndiretoTotal: 0, custosIndiretosDetalhados: [] };
+      return { custoIndiretoTotal: 0, custosIndiretosDetalhados: [], usaRateioPorSetor: false };
     }
 
-    // Usar horas produtivas padrão (mesmo valor do backend)
-    const horasProdutivasMes = 352;
+    // Usar horas produtivas da loja ou padrão (mesmo valor do backend)
+    const horasProdutivasMes = user?.loja?.horas_produtivas_mensais ?? 352;
+    const temCustosPorSetor = custosIndiretos.some((c: any) => c.setor_id);
     
     // Calcular total dos custos indiretos mensais
     const totalCustosIndiretosMensais = custosIndiretos.reduce((total, custo) => {
@@ -514,7 +515,7 @@ export function CalculoPreview({
     const custoIndiretoTotal = custoIndiretoPorHora * horasProducao;
 
     // Calcular custos indiretos detalhados (mesmo que o backend)
-    const custosIndiretosDetalhados = custosIndiretos.map(custo => {
+    const custosIndiretosDetalhados = custosIndiretos.map((custo: any) => {
       const valorRateado = (Number(custo.valor_mensal) / horasProdutivasMes) * horasProducao;
       const percentualRateio = (Number(custo.valor_mensal) / (totalCustosIndiretosMensais || 1)) * 100;
       
@@ -523,10 +524,16 @@ export function CalculoPreview({
         categoria: custo.categoria,
         valor_rateado: valorRateado,
         percentual_rateio: percentualRateio,
+        setor_nome: custo.setor?.nome,
       };
     });
 
-    return { custoIndiretoTotal, custosIndiretosDetalhados };
+    return {
+      custoIndiretoTotal,
+      custosIndiretosDetalhados,
+      horasProdutivasMes,
+      usaRateioPorSetor: temCustosPorSetor,
+    };
   };
 
   // Calcular custos totais
@@ -576,7 +583,7 @@ export function CalculoPreview({
     
     const custoTotalProducao = custoMaterial + custoMaquinaria + custoMaoObra;
     const horasProducao = calcularHorasProducao();
-    const { custoIndiretoTotal, custosIndiretosDetalhados } = calcularCustosIndiretos();
+    const { custoIndiretoTotal, custosIndiretosDetalhados, usaRateioPorSetor, horasProdutivasMes } = calcularCustosIndiretos();
     const custoTotalComIndiretos = custoTotalProducao + custoIndiretoTotal;
 
     const margemLucroPercentual = margemLucroCustomizada
@@ -641,6 +648,8 @@ export function CalculoPreview({
       quantidade_produto: quantidadeProduto,
       horas_producao: horasProducao,
       custos_indiretos_detalhados: custosIndiretosDetalhados,
+      usa_rateio_por_setor: usaRateioPorSetor,
+      horas_produtivas_mes: horasProdutivasMes,
       maquinas_detalhadas: maquinasDetalhadas,
       funcoes_detalhadas: funcoesDetalhadas,
       resumo_maquinas: resumoMaquinas,
@@ -948,6 +957,11 @@ export function CalculoPreview({
       {custosIndividuais.custos_indiretos_detalhados.length > 0 && (
         <div className="space-y-3">
           <h4 className="font-semibold">Custos Indiretos</h4>
+          {custosIndividuais.usa_rateio_por_setor && (
+            <p className="text-xs text-muted-foreground">
+              Rateio por setor ativo. Custos vinculados a setores são aplicados conforme as horas de cada setor.
+            </p>
+          )}
           <div className="space-y-2">
             {custosIndividuais.custos_indiretos_detalhados.map((custo: any, index: number) => (
               <div key={index} className="text-sm p-2 bg-muted rounded">

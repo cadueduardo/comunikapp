@@ -32,14 +32,18 @@ export class InputIntegrationService {
       const contextoComFuncoes =
         await this.integrarFuncoes(contextoComMaquinas);
 
-      // 4. Atualizar metadata
-      contextoComFuncoes.metadata.inputs_integrados = true;
-      contextoComFuncoes.metadata.timestamp_integracao = new Date();
+      // 4. Enriquecer dados de serviços manuais (setor_id para rateio)
+      const contextoComServicos =
+        await this.integrarServicosManuais(contextoComFuncoes);
+
+      // 5. Atualizar metadata
+      contextoComServicos.metadata.inputs_integrados = true;
+      contextoComServicos.metadata.timestamp_integracao = new Date();
 
       const tempoExecucao = Date.now() - startTime;
       this.logger.log(`✅ Inputs integrados em ${tempoExecucao}ms`);
 
-      return contextoComFuncoes;
+      return contextoComServicos;
     } catch (error) {
       this.logger.error(
         `❌ Erro na integração de inputs: ${error.message}`,
@@ -220,16 +224,24 @@ export class InputIntegrationService {
               id: maquina.id,
               loja_id: contexto.lojaId,
             },
+            select: {
+              nome: true,
+              tipo: true,
+              custo_hora: true,
+              status: true,
+              setor_id: true,
+            },
           });
 
           if (maquinaBanco) {
-            // Enriquecer dados da máquina
+            // Enriquecer dados da máquina (inclui setor_id para rateio por setor)
             maquina.nome = maquinaBanco.nome;
             maquina.tipo = maquinaBanco.tipo;
             maquina.custo_hora = Number(maquinaBanco.custo_hora);
             maquina.tempo_setup = 0; // TODO: Implementar setup
             maquina.eficiencia = 100; // TODO: Implementar eficiência
             maquina.disponivel = maquinaBanco.status === 'ATIVA';
+            maquina.setor_id = maquinaBanco.setor_id ?? undefined;
           } else {
             this.logger.warn(`⚠️ Máquina não encontrada: ${maquina.id}`);
           }
@@ -259,19 +271,22 @@ export class InputIntegrationService {
               id: funcao.id,
               loja_id: contexto.lojaId,
             },
-            include: {
-              maquina: true,
+            select: {
+              nome: true,
+              custo_hora: true,
+              setor_id: true,
             },
           });
 
           if (funcaoBanco) {
-            // Enriquecer dados da função
+            // Enriquecer dados da função (inclui setor_id para rateio por setor)
             funcao.nome = funcaoBanco.nome;
             funcao.categoria = 'Operacional'; // TODO: Implementar categorias
             funcao.custo_hora = Number(funcaoBanco.custo_hora);
             funcao.tempo_estimado = 1; // TODO: Implementar tempo estimado
             funcao.nivel_experiencia = 'Intermediário'; // TODO: Implementar níveis
             funcao.disponivel = true;
+            funcao.setor_id = funcaoBanco.setor_id ?? undefined;
           } else {
             this.logger.warn(`⚠️ Função não encontrada: ${funcao.id}`);
           }
@@ -283,6 +298,39 @@ export class InputIntegrationService {
       }
     }
 
+    return contexto;
+  }
+
+  /**
+   * Integra dados de serviços manuais do banco (setor_id para rateio por setor)
+   */
+  private async integrarServicosManuais(
+    contexto: ContextoCalculo,
+  ): Promise<ContextoCalculo> {
+    for (const produto of contexto.produtos) {
+      const servicos =
+        produto.servicos_manuais ||
+        (produto as any).servicos ||
+        [];
+      for (const servico of servicos) {
+        try {
+          const servicoBanco = await this.prisma.servico_manual.findFirst({
+            where: {
+              id: servico.id,
+              loja_id: contexto.lojaId,
+            },
+            select: { nome: true, custo_hora: true, setor_id: true },
+          });
+          if (servicoBanco) {
+            servico.setor_id = servicoBanco.setor_id ?? undefined;
+          }
+        } catch (error) {
+          this.logger.error(
+            `❌ Erro ao integrar serviço ${servico.id}: ${error.message}`,
+          );
+        }
+      }
+    }
     return contexto;
   }
 
