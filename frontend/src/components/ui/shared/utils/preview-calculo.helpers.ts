@@ -191,7 +191,7 @@ export interface MaterialPreview {
 }
 
 const calcularMateriais = (
-  materiais: Array<{ insumo_id: string; quantidade?: NumericLike }>,
+  materiais: Array<{ insumo_id: string; quantidade?: NumericLike; material_do_cliente?: boolean }>,
   insumos: Insumo[],
   quantidadeProduto?: number, // Nova parâmetro para quantidade do produto
 ): { itens: MaterialPreview[]; total: number } => {
@@ -207,6 +207,7 @@ const calcularMateriais = (
 
     const insumo = insumos.find((i) => i.id === material.insumo_id);
     const quantidadeOriginal = parseNumber(material?.quantidade);
+    const materialDoCliente = Boolean(material.material_do_cliente);
 
     if (quantidadeOriginal <= 0) {
       return acc;
@@ -225,8 +226,9 @@ const calcularMateriais = (
       ? quantidadeOriginal * quantidadeProduto 
       : quantidadeOriginal;
 
-    const custoUnitario = insumo ? calcularCustoPorUnidadeUso(insumo) : 0;
-    const custoTotal = quantidadeFinal * custoUnitario;
+    // Material do cliente: custo zerado no orçamento
+    const custoUnitario = materialDoCliente ? 0 : (insumo ? calcularCustoPorUnidadeUso(insumo) : 0);
+    const custoTotal = materialDoCliente ? 0 : quantidadeFinal * custoUnitario;
 
     // Log para debug de materiais personalizados
     if (insumo?.logica_consumo === 'custom' && insumo?.tipoMaterial) {
