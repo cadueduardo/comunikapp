@@ -7,19 +7,20 @@ export class MailService implements OnModuleInit {
   private transporter: Transporter;
 
   async onModuleInit() {
-    // Usar SMTP configurado quando SMTP_HOST estiver definido (produção)
-    // Caso contrário, usar Etheral para desenvolvimento/testes
-    if (process.env.SMTP_HOST) {
+    // Usar SMTP configurado quando SMTP_HOST ou MAIL_HOST estiver definido (produção)
+    // Aceita SMTP_* ou MAIL_* (fallback para .env legado)
+    const host = process.env.SMTP_HOST || process.env.MAIL_HOST;
+    if (host) {
       this.transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
+        host,
+        port: parseInt(process.env.SMTP_PORT || process.env.MAIL_PORT || '587'),
+        secure: (process.env.SMTP_SECURE || process.env.MAIL_SECURE) === 'true',
         auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
+          user: process.env.SMTP_USER || process.env.MAIL_USER,
+          pass: process.env.SMTP_PASS || process.env.MAIL_PASS,
         },
       });
-      console.log('📧 [MailService] Configurado SMTP de produção:', process.env.SMTP_HOST);
+      console.log('📧 [MailService] Configurado SMTP de produção:', host);
     } else {
       const testAccount = await nodemailer.createTestAccount();
       this.transporter = nodemailer.createTransport({
@@ -36,7 +37,12 @@ export class MailService implements OnModuleInit {
   }
 
   private getFromAddress(): string {
-    return process.env.SMTP_FROM || '"Comunikapp" <noreply@comunikapp.com>';
+    return process.env.SMTP_FROM || process.env.MAIL_FROM || '"Comunikapp" <noreply@comunikapp.com>';
+  }
+
+  /** Verifica se está usando SMTP real (não Etheral) */
+  private isSmtpConfigurado(): boolean {
+    return !!(process.env.SMTP_HOST || process.env.MAIL_HOST);
   }
 
   async sendVerificationEmail(to: string, code: string) {
@@ -56,7 +62,7 @@ export class MailService implements OnModuleInit {
 
     console.log('--- E-mail Sent ---');
     console.log('Message sent: %s', info.messageId);
-    if (!process.env.SMTP_HOST && nodemailer.getTestMessageUrl(info)) {
+    if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
       console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
     }
     console.log('Código de verificação para', to, ':', code);
@@ -126,7 +132,7 @@ export class MailService implements OnModuleInit {
     const info = await this.transporter.sendMail(mailOptions);
 
     console.log('📧 E-MAIL DE ORÇAMENTO ENVIADO - Message ID:', info.messageId, '| Destinatário:', emailCliente);
-    if (!process.env.SMTP_HOST && nodemailer.getTestMessageUrl(info)) {
+    if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
       console.log('📧 Preview (Etheral):', nodemailer.getTestMessageUrl(info));
     }
 
@@ -186,7 +192,7 @@ export class MailService implements OnModuleInit {
     const info = await this.transporter.sendMail(mailOptions);
 
     console.log('📧 E-mail de Aprovação enviado - Message ID:', info.messageId, '| Destinatário:', emailLoja);
-    if (!process.env.SMTP_HOST && nodemailer.getTestMessageUrl(info)) {
+    if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
       console.log('📧 Preview (Etheral):', nodemailer.getTestMessageUrl(info));
     }
 

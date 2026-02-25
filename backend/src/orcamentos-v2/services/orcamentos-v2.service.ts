@@ -1,4 +1,4 @@
-﻿import {
+import {
   Injectable,
   Logger,
   NotFoundException,
@@ -18,6 +18,7 @@ import { ValidacaoEstoqueService } from './validacao-estoque.service';
 import { DocumentCodeService } from '../../documentos/document-code.service';
 import { OSService } from '../../os/services/os.service';
 import { ChatV2Service } from './chat-v2.service';
+import { MailService } from '../../mail/mail.service';
 import {
   OrcamentoCompleto,
   OrcamentoBase,
@@ -50,6 +51,7 @@ export class OrcamentosV2Service {
     private readonly chatService: ChatV2Service,
     private readonly osService: OSService,
     private readonly documentCodeService: DocumentCodeService,
+    private readonly mailService: MailService,
   ) {}
 
   /**
@@ -1751,16 +1753,45 @@ export class OrcamentosV2Service {
       throw new NotFoundException('Orçamento não encontrado');
     }
 
-    // Alterar status para 'enviado'
-    await this.alterarStatus(id, 'enviado', lojaId, userId);
+    // Alterar status para 'enviado' (gera codigo_aprovacao se não existir)
+    const orcamentoAtualizado = await this.alterarStatus(
+      id,
+      'enviado',
+      lojaId,
+      userId,
+    );
 
-    // Notificar cliente (se configurado)
-    try {
-      // TODO: Implementar envio de email para o cliente
-      this.logger.log(`Orçamento ${id} enviado para o cliente`);
-    } catch (error) {
-      this.logger.error(
-        `Erro ao enviar notificação para cliente: ${error.message}`,
+    // Enviar email para o cliente (se tiver email)
+    if (orcamentoAtualizado.cliente?.email) {
+      try {
+        const frontendUrl =
+          process.env.FRONTEND_URL || 'https://comunikapp.com.br';
+        const linkPublico = `${frontendUrl}/orcamento-v2/${id}`;
+        const precoFinal = Number(orcamentoAtualizado.preco_final) || 0;
+        const codigoAprovacao =
+          orcamentoAtualizado.codigo_aprovacao || '';
+
+        await this.mailService.enviarOrcamentoCliente(
+          orcamentoAtualizado.cliente.email,
+          orcamentoAtualizado.cliente.nome || 'Cliente',
+          orcamentoAtualizado.numero,
+          orcamentoAtualizado.nome_servico || orcamentoAtualizado.titulo || 'Orçamento',
+          precoFinal,
+          codigoAprovacao,
+          linkPublico,
+        );
+        this.logger.log(
+          `📧 E-mail de orçamento enviado para ${orcamentoAtualizado.cliente.email}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Erro ao enviar e-mail para cliente: ${error.message}`,
+        );
+        // Não falha o envio do orçamento - apenas loga o erro
+      }
+    } else {
+      this.logger.warn(
+        `Orçamento ${id} sem e-mail do cliente - e-mail não enviado`,
       );
     }
 
