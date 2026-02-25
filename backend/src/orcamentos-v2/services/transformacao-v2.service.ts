@@ -72,6 +72,19 @@ export class TransformacaoV2Service {
       const configPreparada = this.prepararConfiguracoes(dados.configuracoes);
       dadosPreparados.configuracao_calculo = JSON.stringify(configPreparada);
       delete dadosPreparados.configuracoes;
+    } else if (
+      dados.margem_lucro_customizada != null ||
+      dados.impostos_customizados != null ||
+      dados.comissao_percentual != null ||
+      dados.tipo_margem_lucro
+    ) {
+      const configPreparada = this.prepararConfiguracoes({
+        margem_lucro_padrao: dados.margem_lucro_customizada,
+        impostos_padrao: dados.impostos_customizados,
+        comissao_padrao: dados.comissao_percentual,
+        tipo_margem_lucro: dados.tipo_margem_lucro,
+      });
+      dadosPreparados.configuracao_calculo = JSON.stringify(configPreparada);
     }
 
     // Preparar tags: schema usa tags (String), converter array para JSON string
@@ -150,6 +163,20 @@ export class TransformacaoV2Service {
         dadosPreparados.configuracoes,
       );
       delete dadosPreparados.configuracoes;
+    } else if (
+      dados.margem_lucro_customizada != null ||
+      dados.impostos_customizados != null ||
+      dados.comissao_percentual != null ||
+      dados.tipo_margem_lucro
+    ) {
+      dadosPreparados.configuracao_calculo = JSON.stringify(
+        this.prepararConfiguracoes({
+          margem_lucro_padrao: dados.margem_lucro_customizada,
+          impostos_padrao: dados.impostos_customizados,
+          comissao_padrao: dados.comissao_percentual,
+          tipo_margem_lucro: dados.tipo_margem_lucro,
+        }),
+      );
     }
 
     // Preparar tags se existirem
@@ -199,6 +226,18 @@ export class TransformacaoV2Service {
       criado_em: dados.criado_em,
     });
 
+    let configuracoesPersistidas = dados.configuracoes;
+    if (!configuracoesPersistidas && dados.configuracao_calculo) {
+      try {
+        configuracoesPersistidas =
+          typeof dados.configuracao_calculo === 'string'
+            ? JSON.parse(dados.configuracao_calculo)
+            : dados.configuracao_calculo;
+      } catch {
+        configuracoesPersistidas = null;
+      }
+    }
+
     const orcamento: OrcamentoCompleto = {
       id: dados.id,
       numero: dados.numero,
@@ -234,7 +273,7 @@ export class TransformacaoV2Service {
       cliente: this.transformarCliente(dados.cliente),
       produtos: this.transformarProdutos(dados.produtos),
       custos: this.transformarCustos(dados),
-      configuracoes: this.transformarConfiguracoes(dados.configuracoes),
+      configuracoes: this.transformarConfiguracoes(configuracoesPersistidas),
       versoes: this.transformarVersoes(dados.versoes),
       historicoOrcamento: this.transformarHistorico(dados.historicoOrcamento),
       aprovacoes: this.transformarAprovacoes(dados.aprovacoes),
@@ -490,8 +529,21 @@ export class TransformacaoV2Service {
 
   private prepararConfiguracoes(configuracoes: any): any {
     const base = {
-      margem_lucro_padrao: configuracoes.margem_lucro_padrao || 0,
-      impostos_padrao: configuracoes.impostos_padrao || 0,
+      margem_lucro_padrao: Number(
+        configuracoes.margem_lucro_padrao ??
+          configuracoes.margem_lucro_customizada ??
+          0,
+      ),
+      impostos_padrao: Number(
+        configuracoes.impostos_padrao ??
+          configuracoes.impostos_customizados ??
+          0,
+      ),
+      comissao_padrao: Number(
+        configuracoes.comissao_padrao ??
+          configuracoes.comissao_percentual ??
+          0,
+      ),
       custos_indiretos_padrao: configuracoes.custos_indiretos_padrao || 0,
       horas_produtivas_mensais: configuracoes.horas_produtivas_mensais || 0,
       custos_indiretos_mensais: configuracoes.custos_indiretos_mensais,
@@ -686,6 +738,7 @@ export class TransformacaoV2Service {
     const base = {
       margem_lucro_padrao: configuracoes.margem_lucro_padrao || 0,
       impostos_padrao: configuracoes.impostos_padrao || 0,
+      comissao_padrao: configuracoes.comissao_padrao || 0,
       custos_indiretos_padrao: configuracoes.custos_indiretos_padrao || 0,
       horas_produtivas_mensais: configuracoes.horas_produtivas_mensais || 0,
       custos_indiretos_mensais: configuracoes.custos_indiretos_mensais,

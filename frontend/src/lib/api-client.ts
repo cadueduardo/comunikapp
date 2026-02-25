@@ -38,7 +38,9 @@ export class ApiClient {
       const response = await fetch(url, {
         method: 'GET',
         headers,
-        cache: 'default', // Mudado de 'no-store' para 'default' para permitir cache
+        // Em orçamentos a consistência do dado exibido é crítica (preview/lista).
+        // Evita retornar valores antigos após salvar/atualizar.
+        cache: 'no-store',
       });
       
       if (!response.ok) {

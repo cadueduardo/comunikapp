@@ -150,6 +150,28 @@ export default function NovoOrcamentoV2Page() {
             produtos_length: orcamentoData.produtos?.length || 0
           });
 
+          const parsePercentual = (value: unknown, fallback: number): string => {
+            const n = Number(value);
+            return Number.isFinite(n) ? String(n) : String(fallback);
+          };
+
+          // Prioridade: campo explícito > configuração persistida > fallback padrão.
+          const margemPercentual = parsePercentual(
+            (orcamentoData as any).margem_lucro_customizada ??
+              (orcamentoData as any).configuracoes?.margem_lucro_padrao,
+            30,
+          );
+          const impostosPercentual = parsePercentual(
+            (orcamentoData as any).impostos_customizados ??
+              (orcamentoData as any).configuracoes?.impostos_padrao,
+            25,
+          );
+          const comissaoPercentual = parsePercentual(
+            (orcamentoData as any).comissao_percentual ??
+              (orcamentoData as any).configuracoes?.comissao_padrao,
+            5,
+          );
+
           const formData: any = {
             cliente_id: orcamentoData.cliente_id || '',
             titulo: orcamentoData.titulo || orcamentoData.nome_servico || '',
@@ -162,9 +184,9 @@ export default function NovoOrcamentoV2Page() {
             validade_proposta: orcamentoData.validade_proposta || '30 dias',
             atendente: orcamentoData.atendente || 'Equipe Comercial',
             // Campos que não existem no backend mas são necessários para o form
-            margem_lucro_customizada: '30',
-            impostos_customizados: '25',
-            comissao_percentual: '5',
+            margem_lucro_customizada: margemPercentual,
+            impostos_customizados: impostosPercentual,
+            comissao_percentual: comissaoPercentual,
             // Transformar produtos se existirem
             itens_produto: orcamentoData.produtos ? orcamentoData.produtos.map((produto: any, index: number) => {
               console.log(`🔍 Debug - Produto ${index}:`, {

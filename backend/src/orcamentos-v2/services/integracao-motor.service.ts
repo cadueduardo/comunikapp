@@ -248,25 +248,36 @@ export class IntegracaoMotorService {
         : null,
     });
 
+    const toNumber = (value: unknown): number | undefined => {
+      if (value == null) return undefined;
+      const n = Number(value);
+      return Number.isFinite(n) ? n : undefined;
+    };
+
+    // Percentuais do motor devem vir de campos de percentual/configuração.
+    // Não usar campos monetários (impostos, margem_lucro) como fallback.
+    const margemPercentual =
+      toNumber(dadosOrcamento.margem_lucro_customizada) ??
+      toNumber(dadosOrcamento.configuracoes?.margem_lucro_padrao) ??
+      30;
+    const impostosPercentual =
+      toNumber(dadosOrcamento.impostos_customizados) ??
+      toNumber(dadosOrcamento.configuracoes?.impostos_padrao) ??
+      25;
+    const comissaoPercentual =
+      toNumber(dadosOrcamento.comissao_percentual) ??
+      toNumber(dadosOrcamento.configuracoes?.comissao_padrao) ??
+      5;
+
     // Estrutura básica compatível com DTOCalculo
     const dadosMotor = {
       lojaId: lojaId,
       produtos: this.prepararProdutosParaMotor(dadosOrcamento.produtos || []),
       configuracoes: {
         // O pipeline do motor lê campos *_padrao.
-        margem_lucro_padrao: parseFloat(
-          dadosOrcamento.margem_lucro_customizada ??
-            dadosOrcamento.margem_lucro ??
-            '30',
-        ),
-        impostos_padrao: parseFloat(
-          dadosOrcamento.impostos_customizados ??
-            dadosOrcamento.impostos ??
-            '25',
-        ),
-        comissao_padrao: parseFloat(
-          dadosOrcamento.comissao_percentual ?? '5',
-        ),
+        margem_lucro_padrao: margemPercentual,
+        impostos_padrao: impostosPercentual,
+        comissao_padrao: comissaoPercentual,
         custos_indiretos_padrao: 15,
         incluir_detalhamento: true,
         incluir_validacoes: true,
