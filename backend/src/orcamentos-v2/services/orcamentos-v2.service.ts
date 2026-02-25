@@ -644,7 +644,23 @@ export class OrcamentosV2Service {
           const frontendUrl =
             process.env.FRONTEND_URL || 'https://comunikapp.com.br';
           const linkPublico = `${frontendUrl}/orcamento-v2/${id}`;
-          const precoFinal = Number(orc.preco_final) || 0;
+          const toNum = (v: unknown) => {
+            if (typeof v === 'number' && Number.isFinite(v)) return v;
+            if (v != null) {
+              const s = typeof v === 'object' && typeof (v as any).toString === 'function'
+                ? (v as any).toString() : String(v);
+              const n = parseFloat(s.replace(',', '.'));
+              if (Number.isFinite(n)) return n;
+            }
+            return 0;
+          };
+          const precoFinal =
+            toNum(dados.preco_final) ||
+            toNum(orc.preco_final) ||
+            toNum(orc.valor_total) ||
+            (Array.isArray(orc.produtos)
+              ? (orc.produtos as any[]).reduce((s, p) => s + toNum(p?.preco_total), 0)
+              : 0);
           const codigoAprovacao = String(orc.codigo_aprovacao ?? '');
           const nomeServico = String(
             orc.nome_servico ?? orc.titulo ?? 'Orçamento',

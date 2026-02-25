@@ -181,7 +181,7 @@ export class MailService implements OnModuleInit {
               <h3 style="margin: 0 0 10px 0; color: #333;">Resumo Atualizado</h3>
               <p><strong>Número:</strong> #${numeroOrcamento}</p>
               <p><strong>Serviço:</strong> ${nomeServico}</p>
-              <p><strong>Valor Total:</strong> R$ ${precoFinal.toFixed(2).replace('.', ',')}</p>
+              <p><strong>Valor Total:</strong> R$ ${(Number(precoFinal) || 0).toFixed(2).replace('.', ',')}</p>
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
