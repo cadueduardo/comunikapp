@@ -614,6 +614,9 @@ export function OrcamentoV2Form({
                   const unidadeMaterial =
                     material.unidade_consumo ||
                     produtoFormulario.materiais?.find((item) => item?.insumo_id === material.insumo_id)?.unidade;
+                  const materialDoCliente = produtoFormulario.materiais?.find(
+                    (item) => item?.insumo_id === material.insumo_id,
+                  )?.material_do_cliente;
 
                   return {
                     insumo_id: material.insumo_id,
@@ -621,6 +624,7 @@ export function OrcamentoV2Form({
                     unidade: unidadeMaterial,
                     preco_unitario: precoUnitario,
                     preco_total: precoTotalMaterial,
+                    material_do_cliente: Boolean(materialDoCliente),
                   };
                 })
             : undefined,

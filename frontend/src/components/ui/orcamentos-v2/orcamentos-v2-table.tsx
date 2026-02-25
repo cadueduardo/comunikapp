@@ -55,7 +55,7 @@ function resolveStatusConfig(orcamento: OrcamentoV2): StatusConfig {
       label: 'Aprovado',
       variant: 'default',
       className: 'text-xs bg-green-100 text-green-800 border-green-200 hover:bg-green-200 transition-colors',
-      href: viewHref,
+      href: editHref,
     };
   }
 
@@ -92,7 +92,7 @@ function resolveStatusConfig(orcamento: OrcamentoV2): StatusConfig {
         label: 'Enviado - Aprovado',
         variant: 'default',
         className: 'text-xs bg-green-100 text-green-800 border-green-200 hover:bg-green-200 transition-colors',
-        href: viewHref,
+        href: editHref,
       };
     }
 
