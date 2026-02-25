@@ -479,7 +479,7 @@ export class OrcamentosV2Service {
         (dados.custo_total > 0);
 
       const sempreRecalcular = true;
-      if (sempreRecalcular || precisaRecalcular) {
+      if (false && (sempreRecalcular || precisaRecalcular)) {
         this.logger.log(`ðŸ”„ Iniciando recalculo para orcamento ${id}`);
         try {
           const resultadoCalculo =
@@ -629,6 +629,59 @@ export class OrcamentosV2Service {
         this.logger.log(
           `âœ… Todos os produtos atualizados para orçamento ${id}`,
         );
+      }
+
+      // 5.2 Recalcular após persistir produtos, para usar dados atualizados
+      if (sempreRecalcular || precisaRecalcular) {
+        const orcamentoParaCalculo = await this.buscarOrcamento(id, lojaId);
+        this.logger.log(`Recalculando orcamento apos persistir produtos ${id}`);
+        const dadosCustosFallback = {
+          preco_final: dados.preco_final || 0,
+          custo_total: dados.custo_total || 0,
+          margem_lucro: dados.margem_lucro || 0,
+          impostos: dados.impostos || 0,
+          custo_material: dados.custo_material || 0,
+          custo_mao_obra: dados.custo_mao_obra || 0,
+          custo_indireto: dados.custo_indireto || 0,
+          data_ultimo_calculo: new Date(),
+        };
+
+        try {
+          const resultadoCalculo =
+            await this.integracaoMotor.calcularOrcamentoCompleto(
+              orcamentoParaCalculo,
+              lojaId,
+            );
+
+          const custos = (resultadoCalculo?.custos || {}) as Record<
+            string,
+            unknown
+          >;
+          const precoMotor = Number(custos.preco_final || custos.valor_total || 0);
+
+          if (precoMotor > 0) {
+            await this.atualizarCustosCalculados(id, resultadoCalculo);
+            this.logger.log(`Recalculo final concluido para orcamento ${id}`);
+          } else if (temCustosValidos) {
+            this.logger.warn(
+              `Motor retornou 0 apos persistencia, usando fallback frontend`,
+            );
+            await this.prisma.orcamento.update({
+              where: { id },
+              data: dadosCustosFallback,
+            });
+          }
+        } catch (erroMotor) {
+          this.logger.error(
+            `Erro no recalculo final do orcamento ${id}: ${erroMotor?.message}`,
+          );
+          if (temCustosValidos) {
+            await this.prisma.orcamento.update({
+              where: { id },
+              data: dadosCustosFallback,
+            });
+          }
+        }
       }
 
       // 6. Criar versão se mudanças significativas
