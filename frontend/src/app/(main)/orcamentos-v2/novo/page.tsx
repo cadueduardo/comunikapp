@@ -28,6 +28,7 @@ export default function NovoOrcamentoV2Page() {
   const [initialData, setInitialData] = useState<OrcamentoData | null>(null);
   const [orcamentoId, setOrcamentoId] = useState<string | null>(null);
   const [orcamentoStatus, setOrcamentoStatus] = useState<string | null>(null);
+  const [statusAprovacao, setStatusAprovacao] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Verificar se é edição baseado nos query parameters
@@ -223,6 +224,7 @@ export default function NovoOrcamentoV2Page() {
           setInitialData(formData);
           setOrcamentoId(editId);
           setOrcamentoStatus(orcamentoData.status as any);
+          setStatusAprovacao(orcamentoData.status_aprovacao ?? null);
           console.log('🔍 Debug - Page - Estados atualizados');
           
         } catch (err: unknown) {
@@ -305,6 +307,7 @@ export default function NovoOrcamentoV2Page() {
               orcamentoId={orcamentoId || undefined}
               showPreview={true}
               orcamentoStatus={orcamentoStatus || undefined}
+              statusAprovacao={statusAprovacao || undefined}
             />
           </div>
         </div>

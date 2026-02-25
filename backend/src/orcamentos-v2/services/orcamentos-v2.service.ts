@@ -442,6 +442,14 @@ export class OrcamentosV2Service {
       // 1. Verificar se existe
       const orcamentoExistente = await this.buscarOrcamento(id, lojaId);
 
+      // 1.1. Bloquear alterações em orçamento aprovado
+      const orcExistente = orcamentoExistente as unknown as { status?: string; status_aprovacao?: string };
+      if (orcExistente.status === 'aprovado' || orcExistente.status_aprovacao === 'APROVADO') {
+        throw new BadRequestException(
+          'Orçamento aprovado não pode ser alterado. Somente visualização permitida.',
+        );
+      }
+
       // 2. Validar dados de atualizaçÃ£o
       await this.validacaoService.validarDadosAtualizacao(
         dados,

@@ -138,6 +138,7 @@ interface OrcamentoFormProps {
   showPreview?: boolean;
   onSuccess?: () => void;
   orcamentoStatus?: string;
+  statusAprovacao?: string;
 }
 
 export function OrcamentoV2Form({ 
@@ -145,8 +146,12 @@ export function OrcamentoV2Form({
   initialData, 
   orcamentoId, 
   showPreview = false,
-  orcamentoStatus 
+  orcamentoStatus,
+  statusAprovacao,
 }: OrcamentoFormProps) {
+  const isAprovado = mode === 'editar' && (
+    orcamentoStatus === 'aprovado' || statusAprovacao === 'APROVADO'
+  );
   // Forçar hot reload - versão atualizada
   const router = useRouter();
   const [loading] = useState(false);
@@ -1530,6 +1535,12 @@ export function OrcamentoV2Form({
               {/* Formulário principal */}
               <div className="flex-1">
                 <div className="w-full bg-white rounded-lg shadow-sm border p-6 space-y-6">
+                  {isAprovado && (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm font-medium">
+                      Orçamento aprovado — somente visualização. Nenhuma alteração é permitida.
+                    </div>
+                  )}
+                  <div className={isAprovado ? 'pointer-events-none select-none opacity-95' : ''}>
                   {/* Seção de Cliente */}
                   <ClienteSection 
                     clientes={clientes} 
@@ -1557,6 +1568,7 @@ export function OrcamentoV2Form({
 
                   {/* Configurações Comerciais */}
                   <ConfiguracoesSection mode={mode} />
+                  </div>
 
                   {/* Botões de Ação */}
                   <div className="flex justify-end space-x-4">
@@ -1565,10 +1577,10 @@ export function OrcamentoV2Form({
                       variant="outline"
                       onClick={() => router.back()}
                     >
-                      Cancelar
+                      {isAprovado ? 'Voltar' : 'Cancelar'}
                     </Button>
                     
-                    {mode === 'template' && (
+                    {!isAprovado && mode === 'template' && (
                       <Button
                         type="button"
                         onClick={() => handleSubmit(form.getValues())}
@@ -1582,7 +1594,7 @@ export function OrcamentoV2Form({
                       </Button>
                     )}
                     
-                    {mode === 'novo' && (
+                    {!isAprovado && mode === 'novo' && (
                       <>
                         <Button
                           type="button"
@@ -1606,7 +1618,7 @@ export function OrcamentoV2Form({
                       </>
                     )}
                     
-                    {mode === 'editar' && (
+                    {!isAprovado && mode === 'editar' && (
                       <>
                         {(() => {
                           console.log('🔍 Debug - Status:', orcamentoStatus);
@@ -1660,6 +1672,12 @@ export function OrcamentoV2Form({
           ) : (
             /* Layout sem Preview - Formulário completo */
             <div className="w-full bg-white rounded-lg shadow-sm border p-6 space-y-6">
+              {isAprovado && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm font-medium">
+                  Orçamento aprovado — somente visualização. Nenhuma alteração é permitida.
+                </div>
+              )}
+              <div className={isAprovado ? 'pointer-events-none select-none opacity-95' : ''}>
               {/* Seção de Cliente */}
               <ClienteSection 
                 clientes={clientes} 
@@ -1682,6 +1700,7 @@ export function OrcamentoV2Form({
 
               {/* Configurações Comerciais */}
               <ConfiguracoesSection mode={mode} />
+              </div>
 
               {/* Botões de Ação */}
               <div className="flex justify-end space-x-4">
@@ -1690,10 +1709,10 @@ export function OrcamentoV2Form({
                 variant="outline"
                 onClick={() => router.back()}
               >
-                Cancelar
+                {isAprovado ? 'Voltar' : 'Cancelar'}
               </Button>
               
-              {mode === 'template' && (
+              {!isAprovado && mode === 'template' && (
                 <Button
                   type="submit"
                   disabled={loading}
@@ -1706,7 +1725,7 @@ export function OrcamentoV2Form({
                 </Button>
               )}
               
-              {mode === 'novo' && (
+              {!isAprovado && mode === 'novo' && (
                 <>
                   <Button
                     type="button"
@@ -1730,7 +1749,7 @@ export function OrcamentoV2Form({
                 </>
               )}
               
-              {mode === 'editar' && (
+              {!isAprovado && mode === 'editar' && (
                 <>
                   {(() => {
                     console.log('🔍 Debug - Status:', orcamentoStatus);
@@ -1783,8 +1802,8 @@ export function OrcamentoV2Form({
         />
       )}
 
-      {/* Chat Flutuante - mostrar para todos os status exceto rascunho */}
-      {orcamentoId && orcamentoStatus && orcamentoStatus !== 'rascunho' && (
+      {/* Chat Flutuante - mostrar para todos os status exceto rascunho e aprovado (aprovado = somente visualização) */}
+      {orcamentoId && orcamentoStatus && orcamentoStatus !== 'rascunho' && !isAprovado && (
         <ChatFlutuante 
           orcamentoId={orcamentoId}
           isPublic={false}
