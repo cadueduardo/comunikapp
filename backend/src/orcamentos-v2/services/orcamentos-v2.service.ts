@@ -115,53 +115,21 @@ export class OrcamentosV2Service {
         },
       });
 
-      // 4. Verificar se o frontend enviou custos calculados (mesma lógica da ediçÃ£o)
-      const temCustosValidos =
-        dados.custo_material > 0 ||
-        dados.custo_mao_obra > 0 ||
-        dados.custo_total > 0;
-
-      if (temCustosValidos) {
-        // Usar custos do frontend (mesma lógica da ediçÃ£o)
-        this.logger.log(
-          `ðŸ’° Usando custos calculados do frontend para novo orçamento: custo_total=${dados.custo_total}, preco_final=${dados.preco_final}`,
+      // 4. Sempre calcular via motor V2 (fonte da verdade para preco_final)
+      this.logger.log(
+          `ðŸ’° Calculando custos via motor V2 para novo orcamento: custo_total=${dados.custo_total}, preco_final=${dados.preco_final}`,
         );
 
-        const dadosParaSalvar = {
-          custo_material: dados.custo_material || 0,
-          custo_mao_obra: dados.custo_mao_obra || 0,
-          custo_indireto: dados.custo_indireto || 0,
-          custo_total: dados.custo_total || 0,
-          margem_lucro: dados.margem_lucro || 0,
-          impostos: dados.impostos || 0,
-          preco_final: dados.preco_final || 0,
-          data_ultimo_calculo: new Date(),
-        };
-
-        await this.prisma.orcamento.update({
-          where: { id: orcamentoCriado.id },
-          data: dadosParaSalvar,
-        });
-
-        this.logger.log(
-          `âœ… Custos do frontend salvos no banco para novo orçamento ${orcamentoCriado.id}`,
-        );
-      } else {
-        // Calcular via motor V2 (lógica atual)
-        this.logger.log(
-          `ðŸ”„ Calculando custos via motor V2 para novo orçamento ${orcamentoCriado.id}`,
-        );
         const resultadoCalculo =
           await this.integracaoMotor.calcularOrcamentoCompleto(
             orcamentoCriado,
             lojaId,
           );
 
-        await this.atualizarCustosCalculados(
-          orcamentoCriado.id,
-          resultadoCalculo,
-        );
-      }
+      await this.atualizarCustosCalculados(
+        orcamentoCriado.id,
+        resultadoCalculo,
+      );
 
       // 6. Criar histórico
       await this.criarHistorico(
@@ -509,7 +477,7 @@ export class OrcamentosV2Service {
         dados.custo_mao_obra > 0 ||
         dados.custo_total > 0;
 
-      if (precisaRecalcular && !temCustosValidos) {
+      if (precisaRecalcular) {
         this.logger.log(`ðŸ”„ Iniciando recálculo para orçamento ${id}`);
         const resultadoCalculo =
           await this.integracaoMotor.calcularOrcamentoCompleto(
@@ -519,7 +487,7 @@ export class OrcamentosV2Service {
 
         await this.atualizarCustosCalculados(id, resultadoCalculo);
         this.logger.log(`âœ… Recálculo concluído para orçamento ${id}`);
-      } else if (temCustosValidos) {
+      } else if (false && temCustosValidos) {
         this.logger.log(
           `ðŸ’° Usando custos calculados do frontend para orçamento ${id}: custo_total=${dados.custo_total}, preco_final=${dados.preco_final}`,
         );

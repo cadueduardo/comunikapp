@@ -281,15 +281,33 @@ export class IntegracaoMotorService {
     dadosOriginais: any,
     lojaId: string,
   ): any {
-    // Processar resultado do motor para formato do orçamento
+    // O motor retorna "resumo" (com preco_final), não "custos".
+    // Mapear resumo para custos para compatibilidade com atualizarCustosCalculados.
+    const custos =
+      resultadoMotor.custos ||
+      (resultadoMotor.resumo
+        ? {
+            preco_final: resultadoMotor.resumo.preco_final,
+            valor_total: resultadoMotor.resumo.preco_final,
+            custo_total:
+              resultadoMotor.resumo.custo_total_producao ||
+              (resultadoMotor.resumo.custo_total_materiais || 0) +
+                (resultadoMotor.resumo.custo_total_mao_obra || 0) +
+                (resultadoMotor.resumo.custo_total_maquinaria || 0) +
+                (resultadoMotor.resumo.custo_total_indiretos || 0),
+            margem_lucro: resultadoMotor.resumo.margem_lucro_total,
+            impostos: resultadoMotor.resumo.impostos_total,
+          }
+        : {});
+
     return {
       orcamento: {
         ...dadosOriginais,
-        custos_calculados: resultadoMotor.custos,
+        custos_calculados: custos,
         detalhamento: resultadoMotor.detalhamento,
         alertas: resultadoMotor.alertas || [],
       },
-      custos: resultadoMotor.custos,
+      custos,
       detalhamento: resultadoMotor.detalhamento,
       alertas: resultadoMotor.alertas || [],
     };
