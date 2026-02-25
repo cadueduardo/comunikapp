@@ -159,11 +159,14 @@ export class TransformacaoV2Service {
     }
 
     // Remover campos que não devem ser atualizados ou que causam erro no Prisma
+    // Custos só são atualizados pelo motor (atualizarCustosCalculados), nunca pelo frontend
     const camposProibidos = [
       'id', 'loja_id', 'data_criacao', 'responsavel_id', 'tipo',
       'cliente', 'custos', 'itens_produto', 'historicoOrcamento', 'versoes',
       'aprovacoes', 'linksPublicos', 'mensagensChat', 'anexos', 'numero',
       'criado_em', 'atualizado_em',
+      'preco_final', 'custo_total', 'margem_lucro', 'impostos',
+      'custo_material', 'custo_mao_obra', 'custo_indireto', 'data_ultimo_calculo',
     ];
     camposProibidos.forEach((campo) => delete dadosPreparados[campo]);
 
