@@ -627,8 +627,44 @@ export class OrcamentosV2Service {
         lojaId,
       );
 
+      const orcamentoFinal = await this.buscarOrcamento(id, lojaId);
+      const orc = orcamentoFinal as unknown as Record<string, unknown>;
+
+      // 9. Enviar e-mail ao cliente se orçamento já foi enviado (status enviado)
+      if (orc.status === 'enviado' && orcamentoFinal.cliente?.email) {
+        try {
+          const frontendUrl =
+            process.env.FRONTEND_URL || 'https://comunikapp.com.br';
+          const linkPublico = `${frontendUrl}/orcamento-v2/${id}`;
+          const precoFinal = Number(orc.preco_final) || 0;
+          const codigoAprovacao = String(orc.codigo_aprovacao ?? '');
+          const nomeServico = String(
+            orc.nome_servico ?? orc.titulo ?? 'Orçamento',
+          );
+
+          await this.mailService.enviarNotificacaoOrcamentoAtualizado(
+            orcamentoFinal.cliente.email,
+            orcamentoFinal.cliente.nome || 'Cliente',
+            orcamentoFinal.numero,
+            nomeServico,
+            precoFinal,
+            codigoAprovacao,
+            linkPublico,
+          );
+          this.logger.log(
+            `📧 E-mail de orçamento atualizado enviado para ${orcamentoFinal.cliente.email}`,
+          );
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          this.logger.error(
+            `Erro ao enviar e-mail de atualização para cliente: ${msg}`,
+          );
+          // Não falha a atualização - apenas loga o erro
+        }
+      }
+
       this.logger.log(`âœ… Orçamento atualizado com sucesso: ${id}`);
-      return await this.buscarOrcamento(id, lojaId);
+      return orcamentoFinal;
     } catch (error) {
       this.logger.error(`âŒ Erro ao atualizar orçamento: ${error.message}`);
       throw error;
@@ -1762,24 +1798,31 @@ export class OrcamentosV2Service {
     );
 
     // Enviar email para o cliente (se tiver email)
+    let emailEnviado = false;
+    let emailDestinatario: string | null = null;
+    let emailMotivo: string | null = null;
+
     if (orcamentoAtualizado.cliente?.email) {
       try {
         const frontendUrl =
           process.env.FRONTEND_URL || 'https://comunikapp.com.br';
         const linkPublico = `${frontendUrl}/orcamento-v2/${id}`;
         const precoFinal = Number(orcamentoAtualizado.preco_final) || 0;
-        const codigoAprovacao =
-          orcamentoAtualizado.codigo_aprovacao || '';
+        const codigoAprovacao = orcamentoAtualizado.codigo_aprovacao || '';
 
         await this.mailService.enviarOrcamentoCliente(
           orcamentoAtualizado.cliente.email,
           orcamentoAtualizado.cliente.nome || 'Cliente',
           orcamentoAtualizado.numero,
-          orcamentoAtualizado.nome_servico || orcamentoAtualizado.titulo || 'Orçamento',
+          orcamentoAtualizado.nome_servico ||
+            orcamentoAtualizado.titulo ||
+            'Orçamento',
           precoFinal,
           codigoAprovacao,
           linkPublico,
         );
+        emailEnviado = true;
+        emailDestinatario = orcamentoAtualizado.cliente.email;
         this.logger.log(
           `📧 E-mail de orçamento enviado para ${orcamentoAtualizado.cliente.email}`,
         );
@@ -1787,18 +1830,23 @@ export class OrcamentosV2Service {
         this.logger.error(
           `Erro ao enviar e-mail para cliente: ${error.message}`,
         );
+        emailMotivo = `Erro ao enviar: ${error.message}`;
         // Não falha o envio do orçamento - apenas loga o erro
       }
     } else {
       this.logger.warn(
         `Orçamento ${id} sem e-mail do cliente - e-mail não enviado`,
       );
+      emailMotivo = 'Cliente sem e-mail cadastrado';
     }
 
     return {
       success: true,
       message: 'Orçamento enviado com sucesso',
       orcamento_id: id,
+      email_enviado: emailEnviado,
+      email_destinatario: emailDestinatario,
+      email_motivo: emailMotivo,
     };
   }
 

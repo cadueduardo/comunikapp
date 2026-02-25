@@ -150,6 +150,7 @@ export function OrcamentoV2Form({
   // Forçar hot reload - versão atualizada
   const router = useRouter();
   const [loading] = useState(false);
+  const [isEnviando, setIsEnviando] = useState(false);
   const [showProdutoModal, setShowProdutoModal] = useState(false);
   const [selectedProdutoIndex, setSelectedProdutoIndex] = useState<number>(0);
   const { clientes, insumos, maquinas, funcoes, servicos } = useOrcamentoData();
@@ -1361,6 +1362,8 @@ export function OrcamentoV2Form({
   };
 
   const handleEnviar = async () => {
+    if (isEnviando) return;
+    setIsEnviando(true);
     try {
       const token = localStorage.getItem('access_token');
       if (!token) {
@@ -1401,15 +1404,26 @@ export function OrcamentoV2Form({
       console.log('🔍 Dados transformados para backend (enviar):', dadosTransformados);
       
       // Se for edição, usar enviar; se for criação, usar create
+      let resEnviar: { email_enviado?: boolean; email_destinatario?: string; email_motivo?: string } | undefined;
       if (mode === 'editar' && orcamentoId) {
-        await orcamentosApi.enviar(orcamentoId, token);
-        toast.success('Orçamento enviado com sucesso!');
+        resEnviar = await orcamentosApi.enviar(orcamentoId, token) as typeof resEnviar;
+        const msg = resEnviar?.email_enviado
+          ? `Orçamento enviado! E-mail enviado para ${resEnviar.email_destinatario || 'cliente'}.`
+          : resEnviar?.email_motivo
+            ? `Orçamento enviado. E-mail não enviado: ${resEnviar.email_motivo}`
+            : 'Orçamento enviado com sucesso!';
+        toast.success(msg);
       } else {
         // Para novo orçamento, criar e enviar
         const orcamentoCriado = await orcamentosApi.create(dadosTransformados, token);
         if (orcamentoCriado && (orcamentoCriado as { id?: string }).id) {
-          await orcamentosApi.enviar((orcamentoCriado as { id: string }).id, token);
-          toast.success('Orçamento criado e enviado com sucesso!');
+          resEnviar = await orcamentosApi.enviar((orcamentoCriado as { id: string }).id, token) as typeof resEnviar;
+          const msg = resEnviar?.email_enviado
+            ? `Orçamento criado e enviado! E-mail enviado para ${resEnviar.email_destinatario || 'cliente'}.`
+            : resEnviar?.email_motivo
+              ? `Orçamento criado e enviado. E-mail não enviado: ${resEnviar.email_motivo}`
+              : 'Orçamento criado e enviado com sucesso!';
+          toast.success(msg);
         } else {
           toast.success('Orçamento criado com sucesso!');
         }
@@ -1425,6 +1439,8 @@ export function OrcamentoV2Form({
       } else {
         toast.error('Erro ao enviar orçamento');
       }
+    } finally {
+      setIsEnviando(false);
     }
   };
 
@@ -1572,11 +1588,11 @@ export function OrcamentoV2Form({
                         <Button
                           type="button"
                           onClick={() => handleEnviar()}
-                          disabled={loading}
+                          disabled={loading || isEnviando}
                           className="flex items-center space-x-2"
                         >
                           <Save className="w-4 h-4" />
-                          <span>{loading ? 'Enviando...' : 'Enviar Orçamento'}</span>
+                          <span>{loading || isEnviando ? 'Enviando...' : 'Enviar Orçamento'}</span>
                         </Button>
                       </>
                     )}
@@ -1600,11 +1616,11 @@ export function OrcamentoV2Form({
                               <Button
                                 type="button"
                                 onClick={() => handleEnviar()}
-                                disabled={loading}
+                                disabled={loading || isEnviando}
                                 className="flex items-center space-x-2"
                               >
                                 <Save className="w-4 h-4" />
-                                <span>{loading ? 'Enviar para Cliente' : 'Enviar para Cliente'}</span>
+                                <span>{loading || isEnviando ? 'Enviando...' : 'Enviar para Cliente'}</span>
                               </Button>
                             </>
                           ) : (
@@ -1696,11 +1712,11 @@ export function OrcamentoV2Form({
                   <Button
                     type="button"
                     onClick={() => handleEnviar()}
-                    disabled={loading}
+                    disabled={loading || isEnviando}
                     className="flex items-center space-x-2"
                   >
                     <Save className="w-4 h-4" />
-                    <span>{loading ? 'Enviando...' : 'Enviar Orçamento'}</span>
+                    <span>{loading || isEnviando ? 'Enviando...' : 'Enviar Orçamento'}</span>
                   </Button>
                 </>
               )}
@@ -1724,11 +1740,11 @@ export function OrcamentoV2Form({
                         <Button
                           type="button"
                           onClick={() => handleEnviar()}
-                          disabled={loading}
+                          disabled={loading || isEnviando}
                           className="flex items-center space-x-2"
                         >
                           <Save className="w-4 h-4" />
-                          <span>{loading ? 'Enviar para Cliente' : 'Enviar para Cliente'}</span>
+                          <span>{loading || isEnviando ? 'Enviando...' : 'Enviar para Cliente'}</span>
                         </Button>
                       </>
                     ) : (

@@ -139,6 +139,82 @@ export class MailService implements OnModuleInit {
     return info;
   }
 
+  /**
+   * Notifica o cliente que o orçamento foi atualizado (alterações em itens, valores, etc.)
+   */
+  async enviarNotificacaoOrcamentoAtualizado(
+    emailCliente: string,
+    nomeCliente: string,
+    numeroOrcamento: string,
+    nomeServico: string,
+    precoFinal: number,
+    codigoAprovacao: string,
+    linkPublico: string,
+  ) {
+    const mailOptions = {
+      from: this.getFromAddress(),
+      to: emailCliente,
+      subject: `Orçamento #${numeroOrcamento} atualizado - ${nomeServico}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background-color: #e7f3ff; padding: 20px; text-align: center;">
+            <h1 style="color: #333; margin: 0;">Orçamento #${numeroOrcamento} Atualizado</h1>
+            <p style="color: #666; margin: 10px 0 0 0;">${nomeServico}</p>
+          </div>
+          
+          <div style="padding: 30px 20px;">
+            <h2 style="color: #333;">Olá, ${nomeCliente}!</h2>
+            
+            <p>O orçamento que você recebeu foi <strong>atualizado</strong>. Houve alterações que podem incluir itens, quantidades ou valores.</p>
+            
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin: 0 0 10px 0; color: #333;">Resumo Atualizado</h3>
+              <p><strong>Número:</strong> #${numeroOrcamento}</p>
+              <p><strong>Serviço:</strong> ${nomeServico}</p>
+              <p><strong>Valor Total:</strong> R$ ${precoFinal.toFixed(2).replace('.', ',')}</p>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${linkPublico}" 
+                 style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Visualizar Orçamento Atualizado
+              </a>
+            </div>
+            
+            <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <h4 style="margin: 0 0 10px 0; color: #856404;">Código de Aprovação</h4>
+              <p style="margin: 0; color: #856404;">
+                Para aprovar este orçamento, use o código: <strong>${codigoAprovacao}</strong>
+              </p>
+            </div>
+            
+            <p style="color: #666; font-size: 14px;">
+              Entre em contato conosco se tiver dúvidas sobre as alterações.
+            </p>
+          </div>
+          
+          <div style="background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 12px;">
+            <p>Este é um e-mail automático. Não responda a esta mensagem.</p>
+          </div>
+        </div>
+      `,
+    };
+
+    const info = await this.transporter.sendMail(mailOptions);
+
+    console.log(
+      '📧 E-MAIL DE ORÇAMENTO ATUALIZADO ENVIADO - Message ID:',
+      info.messageId,
+      '| Destinatário:',
+      emailCliente,
+    );
+    if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
+      console.log('📧 Preview (Etheral):', nodemailer.getTestMessageUrl(info));
+    }
+
+    return info;
+  }
+
   async enviarNotificacaoAprovacao(
     emailLoja: string,
     numeroOrcamento: string,
