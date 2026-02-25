@@ -711,7 +711,11 @@ export const calcularProdutosPreview = (
     const custoServicos = servicos.total;
 
     const custoBase = custoMateriais + custoMaquinas + custoFuncoes + custoServicos;
-    const custoIndiretos = custoBase * (custosIndiretosPercentual / 100);
+    // Só aplicar custos indiretos quando houver itens cadastrados
+    const temCustosIndiretosCadastrados = Array.isArray(datasets.custosIndiretos) && datasets.custosIndiretos.length > 0;
+    const custoIndiretos = temCustosIndiretosCadastrados
+      ? custoBase * (custosIndiretosPercentual / 100)
+      : 0;
 
     const custoTotalProducao = custoBase + custoIndiretos;
 

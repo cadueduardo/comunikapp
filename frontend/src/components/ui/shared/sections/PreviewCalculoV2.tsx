@@ -918,20 +918,11 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
           </div>
           <div>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm">
-                {(!data.custosIndiretos || data.custosIndiretos.length === 0)
-                  ? 'Total (rateio estimado sobre custo base)'
-                  : 'Total dos Custos Indiretos'}
-              </span>
+              <span className="text-sm">Total dos Custos Indiretos</span>
               <span className="font-semibold">
                 R$ {formatarValor(totalCustosIndiretos)}
               </span>
             </div>
-            {(!data.custosIndiretos || data.custosIndiretos.length === 0) && (
-              <p className="text-xs text-muted-foreground mb-2">
-                Sem custos indiretos cadastrados. O valor é um percentual padrão sobre o custo base. Cadastre em Centros de Trabalho → Custos Indiretos para detalhamento.
-              </p>
-            )}
             
             <Button
               variant="ghost"
