@@ -245,7 +245,10 @@ export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFor
   });
 
   useEffect(() => {
-    fetch('/api/centros-de-trabalho/setores-produtivos?ativo=true')
+    const token = localStorage.getItem('access_token');
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    fetch('/api/centros-de-trabalho/setores-produtivos?ativo=true', { headers })
       .then((r) => r.json())
       .then((data) => setSetores(Array.isArray(data) ? data : []))
       .catch(() => setSetores([]));
