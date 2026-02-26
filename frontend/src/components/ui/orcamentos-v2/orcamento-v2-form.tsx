@@ -886,6 +886,9 @@ export function OrcamentoV2Form({
           ? primeiroProdutoTransformado.unidade
           : undefined,
         quantidade_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.quantidade : undefined,
+        margem_lucro_customizada: margemPercentual,
+        impostos_customizados: impostosPercentual,
+        comissao_percentual: comissaoPercentual,
         configuracoes: { tipo_margem_lucro: tipoMargemLucroEfetivo },
       };
 
@@ -1222,6 +1225,9 @@ export function OrcamentoV2Form({
       area_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.area : undefined,
       unidade_medida_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.unidade : undefined,
       quantidade_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.quantidade : undefined,
+      margem_lucro_customizada: margemPercentual,
+      impostos_customizados: impostosPercentual,
+      comissao_percentual: comissaoPercentual,
       configuracoes: { tipo_margem_lucro: tipoMargemLucroEfetivo },
     };
 
