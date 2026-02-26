@@ -325,7 +325,12 @@ export class TransformacaoV2Service {
         Number(configuracoesPersistidas.impostos_padrao) > 0
           ? Number(configuracoesPersistidas.impostos_padrao)
           : undefined,
-      tipo_margem_lucro: configuracoesPersistidas?.tipo_margem_lucro ?? undefined,
+      tipo_margem_lucro: (() => {
+        const t = configuracoesPersistidas?.tipo_margem_lucro;
+        if (t == null || String(t).trim() === '') return undefined;
+        const normalized = String(t).trim().toLowerCase();
+        return normalized === 'markup' || normalized === 'margem_por_dentro' ? normalized : undefined;
+      })(),
       versoes: this.transformarVersoes(dados.versoes),
       historicoOrcamento: this.transformarHistorico(dados.historicoOrcamento),
       aprovacoes: this.transformarAprovacoes(dados.aprovacoes),
@@ -601,8 +606,11 @@ export class TransformacaoV2Service {
       custos_indiretos_mensais: configuracoes.custos_indiretos_mensais,
       regras_especiais: configuracoes.regras_especiais || [],
     };
-    if (configuracoes.tipo_margem_lucro === 'markup' || configuracoes.tipo_margem_lucro === 'margem_por_dentro') {
-      (base as any).tipo_margem_lucro = configuracoes.tipo_margem_lucro;
+    const tipoRaw = configuracoes.tipo_margem_lucro != null
+      ? String(configuracoes.tipo_margem_lucro).trim().toLowerCase()
+      : '';
+    if (tipoRaw === 'markup' || tipoRaw === 'margem_por_dentro') {
+      (base as any).tipo_margem_lucro = tipoRaw;
     }
     return base;
   }
@@ -766,21 +774,36 @@ export class TransformacaoV2Service {
 
   private transformarCustos(dados: any): any {
     if (!dados) return null;
-
+    const precoFinal =
+      Number(dados.preco_final) ||
+      Number(dados.valor_total) ||
+      (dados.custos_calculados && typeof dados.custos_calculados === 'object'
+        ? Number((dados.custos_calculados as any).preco_final ?? (dados.custos_calculados as any).valor_total)
+        : 0) ||
+      (typeof dados.custos_calculados === 'string'
+        ? (() => {
+            try {
+              const parsed = JSON.parse(dados.custos_calculados);
+              return Number(parsed?.preco_final ?? parsed?.valor_total) || 0;
+            } catch {
+              return 0;
+            }
+          })()
+        : 0);
     return {
       custos_diretos: {
         insumos: dados.custo_material || 0,
-        maquinas: 0, // Será calculado pelos produtos
-        funcoes: 0, // Será calculado pelos produtos
-        servicos_manuais: 0, // Será calculado pelos produtos
+        maquinas: 0,
+        funcoes: 0,
+        servicos_manuais: 0,
         subtotal: dados.custo_material || 0,
       },
       custos_indiretos: dados.custo_indireto || 0,
       impostos: dados.impostos || 0,
       margem_lucro: dados.margem_lucro || 0,
       custo_total: dados.custo_total || 0,
-      preco_final: dados.preco_final || 0,
-      lucro_estimado: (dados.preco_final || 0) - (dados.custo_total || 0),
+      preco_final: precoFinal,
+      lucro_estimado: precoFinal - (Number(dados.custo_total) || 0),
     };
   }
 
@@ -796,8 +819,11 @@ export class TransformacaoV2Service {
       custos_indiretos_mensais: configuracoes.custos_indiretos_mensais,
       regras_especiais: configuracoes.regras_especiais || [],
     };
-    if (configuracoes.tipo_margem_lucro === 'markup' || configuracoes.tipo_margem_lucro === 'margem_por_dentro') {
-      (base as any).tipo_margem_lucro = configuracoes.tipo_margem_lucro;
+    const tipoRaw = configuracoes.tipo_margem_lucro != null
+      ? String(configuracoes.tipo_margem_lucro).trim().toLowerCase()
+      : '';
+    if (tipoRaw === 'markup' || tipoRaw === 'margem_por_dentro') {
+      (base as any).tipo_margem_lucro = tipoRaw;
     }
     return base;
   }
