@@ -16,22 +16,101 @@ interface PreviewCalculoV2Props {
   dadosCarregados?: boolean;
 }
 
+type PreviewCustoIndireto = {
+  id: string;
+  nome: string;
+  categoria?: string | null;
+  valor_mensal: number;
+  valor_rateado?: number;
+  percentual_rateio?: number;
+  ativo?: boolean;
+};
+
+type PreviewMaterial = {
+  insumo_id?: string;
+  nome: string;
+  quantidade: number;
+  custo_unitario: number;
+  unidade_consumo?: string;
+};
+
+type PreviewMaquina = {
+  maquina_id?: string;
+  nome: string;
+  horas_utilizadas: number;
+  custo_por_hora: number;
+};
+
+type PreviewFuncao = {
+  funcao_id?: string;
+  servico_id?: string;
+  nome: string;
+  horas_trabalhadas: number;
+  custo_por_hora: number;
+};
+
+type PreviewProduto = {
+  id: string;
+  nome_servico: string;
+  descricao: string;
+  quantidade: number;
+  dimensoes: Record<string, unknown>;
+  materiais: PreviewMaterial[];
+  maquinas: PreviewMaquina[];
+  funcoes: PreviewFuncao[];
+  servicos: PreviewFuncao[];
+  custo_total_producao: number;
+  horas_producao: number;
+  custos_indiretos_rateados: number;
+  preco_unitario?: number;
+  preco_total?: number;
+  preco_venda_total?: number | string;
+  preco_venda_unitario?: number | string;
+  margem_lucro_produto?: number;
+  impostos_produto?: number;
+  comissao_produto?: number;
+};
+
+type PreviewData = {
+  resumo: {
+    total_produtos: number;
+    total_custo_material: number;
+    total_custo_maquinaria: number;
+    total_custo_mao_obra: number;
+    total_custo_indireto: number;
+    total_custo_producao: number;
+    total_margem_lucro: number;
+    total_impostos: number;
+    preco_final: number;
+    tempo_total_producao: number;
+    margem_lucro_percentual: number;
+    impostos_percentual: number;
+    comissao_percentual: number;
+    comissao_total: number;
+  };
+  produtos: PreviewProduto[];
+  custosIndiretos: PreviewCustoIndireto[];
+  custosIndiretosResumo?: {
+    totalMensal: number;
+    custoPorHora: number;
+    totalRateado: number;
+    itens: PreviewCustoIndireto[];
+  };
+  metadata: {
+    timestamp_calculo: Date;
+    versao_motor: string;
+    tempo_execucao_ms: number;
+    estagios_executados?: string[];
+  };
+};
+
 const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   dadosCarregados = true
 }) => {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [showIndirectCosts, setShowIndirectCosts] = useState(false);
-  const [formSnapshot, setFormSnapshot] = useState<any | null>(null);
-  
-  // Tentar obter contexto do formulario (se disponivel)
-  let form: any = null;
-  try {
-    form = useFormContext();
-    console.log('🔍 Debug - PreviewCalculoV2 - Contexto do formulário obtido:', !!form);
-  } catch (error) {
-    console.log('🔍 Debug - PreviewCalculoV2 - Erro ao obter contexto:', error);
-    // Formulario nao disponivel - usar dados mockados
-  }
+  const [formSnapshot, setFormSnapshot] = useState<Record<string, unknown> | null>(null);
+  const form = useFormContext<Record<string, unknown>>();
 
   useEffect(() => {
     if (!form) {
@@ -44,8 +123,8 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       console.warn('[PreviewCalculoV2] Nao foi possivel obter valores iniciais do formulario', error);
     }
 
-    const subscription = form.watch((values: any) => {
-      setFormSnapshot(values);
+    const subscription = form.watch((values) => {
+      setFormSnapshot(values as Record<string, unknown>);
     });
 
     return () => {
@@ -62,12 +141,11 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   const { 
     connectionStatus,
     isConnected,
-    executarCalculoOrcamento,
     resultadoOrcamento
   } = useCalculoWebSocket();
 
   // Dados mockados como fallback (mantendo estrutura original)
-  const mockData = {
+  const mockData: PreviewData = {
     resumo: {
       total_produtos: 3,
       total_custo_material: 5200.00,
@@ -197,16 +275,21 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   };
 
   // Formatar dimensoes
-  const formatarDimensoes = (dimensoes: any): string => {
-    if (dimensoes.unidade_medida === 'm') {
-      return `${dimensoes.largura}x${dimensoes.altura}m`;
+  const formatarDimensoes = (dimensoes: Record<string, unknown>): string => {
+    const unidade = typeof dimensoes.unidade_medida === 'string' ? dimensoes.unidade_medida : '';
+    const largura = typeof dimensoes.largura === 'number' || typeof dimensoes.largura === 'string' ? dimensoes.largura : 0;
+    const altura = typeof dimensoes.altura === 'number' || typeof dimensoes.altura === 'string' ? dimensoes.altura : 0;
+    if (unidade === 'm') {
+      return `${largura}x${altura}m`;
     }
-    return `${dimensoes.largura}x${dimensoes.altura}${dimensoes.unidade_medida}`;
+    return `${largura}x${altura}${unidade}`;
   };
 
   // Formatar consumo de material
-  const formatarConsumoMaterial = (material: any): string => {
-    return `${material.quantidade} ${material.unidade_consumo}`;
+  const formatarConsumoMaterial = (material: Record<string, unknown>): string => {
+    const quantidade = typeof material.quantidade === 'number' || typeof material.quantidade === 'string' ? material.quantidade : 0;
+    const unidade = typeof material.unidade_consumo === 'string' ? material.unidade_consumo : '';
+    return `${quantidade} ${unidade}`;
   };
 
   // Formatar horas
@@ -285,66 +368,6 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     return fallback;
   };
 
-  const criarEstadoVazio = (
-    margemPercentual: number,
-    impostosPercentual: number,
-    comissaoPercentual: number,
-    custosIndiretosPercentual: number,
-  ) => {
-    const itensIndiretos = (custosIndiretos || []).map((custo, index) => {
-      const valorMensal = Number(custo?.valor_mensal) || 0;
-      const nomeBase = typeof custo?.nome === 'string' && custo.nome.trim().length > 0 ? custo.nome : `Custo indireto ${index + 1}`;
-      const categoriaBase = typeof custo?.categoria === 'string' && custo.categoria.trim().length > 0 ? custo.categoria : 'Geral';
-
-      return {
-        id: custo?.id ? String(custo.id) : `custo_${index}`,
-        nome: nomeBase,
-        categoria: categoriaBase,
-        valor_mensal: valorMensal,
-        valor_rateado: 0,
-        percentual_rateio: 0,
-      };
-    });
-
-    const totalMensal = itensIndiretos.reduce((acc, item) => acc + item.valor_mensal, 0);
-    const itensComPercentual = itensIndiretos.map((item) => ({
-      ...item,
-      percentual_rateio: totalMensal > 0 ? (item.valor_mensal / totalMensal) * 100 : 0,
-    }));
-
-    return {
-      resumo: {
-        total_produtos: 0,
-        total_custo_material: 0,
-        total_custo_maquinaria: 0,
-        total_custo_mao_obra: 0,
-        total_custo_indireto: 0,
-        total_custo_producao: 0,
-        total_margem_lucro: 0,
-        total_impostos: 0,
-        preco_final: 0,
-        tempo_total_producao: 0,
-        margem_lucro_percentual: margemPercentual,
-        impostos_percentual: impostosPercentual,
-        comissao_percentual: comissaoPercentual,
-        comissao_total: 0,
-      },
-      produtos: [],
-      custosIndiretos: itensComPercentual,
-      custosIndiretosResumo: {
-        totalMensal,
-        custoPorHora: 0,
-        totalRateado: 0,
-        itens: itensComPercentual,
-      },
-      metadata: {
-        timestamp_calculo: new Date(),
-        versao_motor: 'preview-local',
-        tempo_execucao_ms: 0,
-        estagios_executados: [],
-      },
-    };
-  };
   const sanitizeDescricao = (descricao: unknown, fallback: string): string => {
     if (typeof descricao !== 'string') {
       return fallback.trim();
@@ -359,7 +382,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     return normalized.length > 0 ? normalized : fallback.trim();
   };
 
-  const montarPreviewFormulario = (formData: any) => {
+  const montarPreviewFormulario = (formData: Record<string, unknown>): PreviewData | null => {
     const itensFormulario = Array.isArray(formData?.itens_produto) ? formData.itens_produto : [];
     if (itensFormulario.length === 0) {
       return null;
@@ -435,7 +458,6 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     const totalImpostos = roundMoney(precoFinal * percentualImpostosDecimal);
     const comissaoTotal = roundMoney(precoFinal * percentualComissaoDecimal);
     const totalMargemLucro = roundMoney(precoFinal * percentualMargemDecimal);
-    const subtotalComLucro = roundMoney(precoFinal - totalImpostos - comissaoTotal);
 
     const produtosComPrecos = produtosNormalizados.map((produto) => {
       const custoBaseProduto = produto.custo_total_producao;
@@ -506,39 +528,10 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     return resultado;
   };
 
-  // Funcao para transformar dados do formulario para o motor V2
-  const transformarDadosParaMotor = () => {
-    if (!form) return null;
-
-    try {
-      const formData = formSnapshot ?? form.getValues();
-      const previewFormulario = montarPreviewFormulario(formData);
-
-      console.debug('[PreviewCalculoV2] Dados do formulario', {
-        possuiItens: Array.isArray(formData?.itens_produto) && formData.itens_produto.length > 0,
-        insumos: insumos.length,
-        maquinas: maquinas.length,
-        funcoes: funcoes.length,
-        servicos: servicos.length,
-      });
-
-      if (previewFormulario) {
-        console.debug('[PreviewCalculoV2] Dados processados', previewFormulario);
-        return previewFormulario;
-      }
-
-      console.debug('[PreviewCalculoV2] Nenhum dado calculado, usando mockData');
-      return mockData;
-    } catch (error) {
-      console.error('[PreviewCalculoV2] Erro ao processar dados reais', error);
-      return mockData;
-    }
-  };
-
   const processarDadosReais = () => {
     if (resultadoOrcamento?.resultado) {
       console.debug('[PreviewCalculoV2] Usando resultado do motor V2', resultadoOrcamento);
-      const resultadoMotor = resultadoOrcamento.resultado as any;
+      const resultadoMotor = resultadoOrcamento.resultado as Partial<PreviewData>;
 
       if (
         resultadoMotor &&
@@ -546,15 +539,18 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         resultadoMotor.resumo &&
         Array.isArray(resultadoMotor.produtos)
       ) {
-        const dadosProcessados = {
+        const metadataMotor = (resultadoMotor.metadata ?? {}) as Partial<PreviewData['metadata']>;
+        const dadosProcessados: PreviewData = {
+          ...mockData,
           ...resultadoMotor,
           metadata: {
-            ...(resultadoMotor.metadata || {}),
+            ...mockData.metadata,
+            ...metadataMotor,
             timestamp_calculo: new Date(),
             versao_motor:
-              resultadoOrcamento.versao_motor || resultadoMotor.metadata?.versao_motor || '2.0.0',
+              resultadoOrcamento.versao_motor || metadataMotor.versao_motor || '2.0.0',
             tempo_execucao_ms:
-              resultadoOrcamento.tempo_execucao_ms ?? resultadoMotor.metadata?.tempo_execucao_ms ?? 0,
+              resultadoOrcamento.tempo_execucao_ms ?? metadataMotor.tempo_execucao_ms ?? 0,
           },
         };
         
@@ -571,7 +567,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     }
 
     try {
-      const formData = formSnapshot ?? form.getValues();
+      const formData = (formSnapshot ?? form.getValues()) as Record<string, unknown>;
       const previewFormulario = montarPreviewFormulario(formData);
 
       if (previewFormulario) {
@@ -587,7 +583,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     }
   };
   // Usar dados reais se disponiveis, senao usar mockados
-  const data = (() => {
+  const data: PreviewData = (() => {
     console.debug('[PreviewCalculoV2] Estados', {
       form: !!form,
       dadosCarregados,
@@ -623,7 +619,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   // Calcular total dos custos indiretos
   const totalCustosIndiretos = typeof data?.custosIndiretosResumo?.totalRateado === 'number'
     ? data.custosIndiretosResumo.totalRateado
-    : data.custosIndiretos.reduce((total: number, custo: any) => {
+    : data.custosIndiretos.reduce((total: number, custo: PreviewCustoIndireto) => {
         if (typeof custo?.valor_rateado === 'number') {
           return total + custo.valor_rateado;
         }
@@ -699,7 +695,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             
             {/* Preços de venda por produto */}
             <div className="space-y-2 text-sm">
-              {data.produtos.map((produto: any) => (
+              {data.produtos.map((produto: PreviewProduto) => (
                 <div key={produto.id}>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-700 font-medium">
@@ -766,7 +762,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             <h3 className="text-base font-semibold">Produtos no Orcamento</h3>
           </div>
           <div className="space-y-3">
-            {data.produtos.map((produto: any, index: number) => (
+            {data.produtos.map((produto: PreviewProduto, index: number) => (
               <div key={produto.id}>
                 {index > 0 && <Separator className="my-3" />}
                 <div className="p-3">
@@ -823,7 +819,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                     <div>
                       <h5 className="text-xs font-medium mb-2">Materiais</h5>
                       <div className="space-y-1">
-                        {produto.materiais.map((material: any, idx: number) => (
+                        {produto.materiais.map((material: PreviewMaterial, idx: number) => (
                           <div key={idx} className="flex justify-between items-start text-xs">
                             <div className="flex-1 pr-2 min-w-0">
                               <div className="font-medium break-words">{material.nome}</div>
@@ -843,7 +839,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                     <div>
                       <h5 className="text-xs font-medium mb-2">Maquinas</h5>
                       <div className="space-y-1">
-                        {produto.maquinas.map((maquina: any, idx: number) => (
+                        {produto.maquinas.map((maquina: PreviewMaquina, idx: number) => (
                           <div key={idx} className="flex justify-between items-start text-xs">
                             <div className="flex-1 pr-2 min-w-0">
                               <div className="font-medium break-words">{maquina.nome}</div>
@@ -863,7 +859,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                     <div>
                       <h5 className="text-xs font-medium mb-2">Mao de Obra</h5>
                       <div className="space-y-1">
-                        {produto.funcoes.map((funcao: any, idx: number) => (
+                        {produto.funcoes.map((funcao: PreviewFuncao, idx: number) => (
                           <div key={idx} className="flex justify-between items-start text-xs">
                             <div className="flex-1 pr-2 min-w-0">
                               <div className="font-medium break-words">{funcao.nome}</div>
@@ -883,7 +879,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                     <div>
                       <h5 className="text-xs font-medium mb-2">Servicos Manuais</h5>
                       <div className="space-y-1">
-                        {produto.servicos.map((servico: any, idx: number) => (
+                        {produto.servicos.map((servico: PreviewFuncao, idx: number) => (
                           <div key={idx} className="flex justify-between items-start text-xs">
                             <div className="flex-1 pr-2 min-w-0">
                               <div className="font-medium break-words">{servico.nome}</div>
@@ -946,7 +942,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
               <div className="mt-3 space-y-2 border-t border-gray-100 pt-3">
                 {(!data.custosIndiretos || data.custosIndiretos.length === 0) ? (
                   <p className="text-xs text-muted-foreground">Nenhum custo indireto cadastrado.</p>
-                ) : data.custosIndiretos.map((custo: any) => (
+                ) : data.custosIndiretos.map((custo: PreviewCustoIndireto) => (
                   <div key={custo.id} className="flex justify-between items-start text-xs">
                     <div className="flex-1 pr-2 min-w-0">
                       <div className="break-words">{custo.nome}</div>
