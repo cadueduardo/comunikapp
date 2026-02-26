@@ -159,7 +159,7 @@ export function OrcamentoV2Form({
   const [isAtualizando, setIsAtualizando] = useState(false);
   const [showProdutoModal, setShowProdutoModal] = useState(false);
   const [selectedProdutoIndex, setSelectedProdutoIndex] = useState<number>(0);
-  const { clientes, insumos, maquinas, funcoes, servicos } = useOrcamentoData();
+  const { clientes, insumos, maquinas, funcoes, servicos, custosIndiretos } = useOrcamentoData();
   const { user } = useUser();
 
   // Hook para WebSocket - capturar dados calculados do preview
@@ -187,7 +187,7 @@ export function OrcamentoV2Form({
 
       const previewCalculado = calcularProdutosPreview(
         itensFormulario,
-        { insumos, maquinas, funcoes, servicos, custosIndiretos: [] },
+        { insumos, maquinas, funcoes, servicos, custosIndiretos: Array.isArray(custosIndiretos) ? custosIndiretos : [] },
         custosIndiretosPercentual,
         margemPercentual,
         impostosPercentual,
