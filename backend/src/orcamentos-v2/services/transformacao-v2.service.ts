@@ -187,7 +187,8 @@ export class TransformacaoV2Service {
     }
 
     // Remover campos que não devem ser atualizados ou que causam erro no Prisma
-    // Custos: só atualizados pelo motor ou fallback explícito, nunca pelo spread do frontend
+    // Custos: só atualizados pelo motor ou fallback explícito, nunca pelo spread do frontend.
+    // margem_lucro_customizada e impostos_customizados não existem no schema; vão em configuracao_calculo.
     const camposProibidos = [
       'id', 'loja_id', 'data_criacao', 'responsavel_id', 'tipo',
       'cliente', 'custos', 'itens_produto', 'historicoOrcamento', 'versoes',
@@ -195,6 +196,7 @@ export class TransformacaoV2Service {
       'criado_em', 'atualizado_em',
       'preco_final', 'custo_total', 'margem_lucro', 'impostos',
       'custo_material', 'custo_mao_obra', 'custo_indireto', 'data_ultimo_calculo',
+      'margem_lucro_customizada', 'impostos_customizados',
     ];
     camposProibidos.forEach((campo) => delete dadosPreparados[campo]);
 
