@@ -155,7 +155,12 @@ export class TransformacaoV2Service {
     }
 
     // Preparar configurações: priorizar payload, depois config existente do orçamento (para não perder tipo_margem_lucro).
-    const configExistente = orcamentoExistente?.configuracoes ?? {};
+    const configExistente: {
+      margem_lucro_padrao?: number;
+      impostos_padrao?: number;
+      comissao_padrao?: number;
+      tipo_margem_lucro?: string;
+    } = orcamentoExistente?.configuracoes ?? {};
     const configMerged = {
       ...configExistente,
       ...(dados.configuracoes || {}),
