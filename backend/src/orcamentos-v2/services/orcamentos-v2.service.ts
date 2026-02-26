@@ -496,10 +496,12 @@ export class OrcamentosV2Service {
         (toNumber(dados.preco_final) > 0 || toNumber(dados.custo_total) > 0);
 
       if (possuiCustosCalculadosNoPayload) {
+        const precoFinal = toNumber(dados.preco_final);
         await this.prisma.orcamento.update({
           where: { id },
           data: {
-            preco_final: toNumber(dados.preco_final),
+            preco_final: precoFinal,
+            valor_total: precoFinal,
             custo_total: toNumber(dados.custo_total),
             margem_lucro: toNumber(dados.margem_lucro),
             impostos: toNumber(dados.impostos),

@@ -154,30 +154,36 @@ export class TransformacaoV2Service {
       );
     }
 
-    // Preparar configurações se existirem (persistir como configuracao_calculo JSON)
-    if (dados.configuracoes) {
-      dadosPreparados.configuracoes = this.prepararConfiguracoes(
-        dados.configuracoes,
-      );
-      dadosPreparados.configuracao_calculo = JSON.stringify(
-        dadosPreparados.configuracoes,
-      );
-      delete dadosPreparados.configuracoes;
-    } else if (
+    // Preparar configurações: priorizar campos explícitos do payload (margem_lucro_customizada, etc.)
+    // para que o que o usuário alterou no form seja persistido mesmo quando também envia configuracoes: { tipo_margem_lucro }.
+    const configMerged = {
+      ...(dados.configuracoes || {}),
+      margem_lucro_padrao:
+        dados.margem_lucro_customizada != null
+          ? Number(dados.margem_lucro_customizada)
+          : dados.configuracoes?.margem_lucro_padrao,
+      impostos_padrao:
+        dados.impostos_customizados != null
+          ? Number(dados.impostos_customizados)
+          : dados.configuracoes?.impostos_padrao,
+      comissao_padrao:
+        dados.comissao_percentual != null
+          ? Number(dados.comissao_percentual)
+          : dados.configuracoes?.comissao_padrao,
+      tipo_margem_lucro:
+        dados.tipo_margem_lucro || dados.configuracoes?.tipo_margem_lucro,
+    };
+    // Persistir config só quando o payload trouxer percentuais explícitos (evita sobrescrever com 0 quando front envia só configuracoes: { tipo_margem_lucro })
+    const temPercentuaisNoPayload =
       dados.margem_lucro_customizada != null ||
       dados.impostos_customizados != null ||
-      dados.comissao_percentual != null ||
-      dados.tipo_margem_lucro
-    ) {
+      dados.comissao_percentual != null;
+    if (temPercentuaisNoPayload) {
       dadosPreparados.configuracao_calculo = JSON.stringify(
-        this.prepararConfiguracoes({
-          margem_lucro_padrao: dados.margem_lucro_customizada,
-          impostos_padrao: dados.impostos_customizados,
-          comissao_padrao: dados.comissao_percentual,
-          tipo_margem_lucro: dados.tipo_margem_lucro,
-        }),
+        this.prepararConfiguracoes(configMerged),
       );
     }
+    delete dadosPreparados.configuracoes;
 
     // Preparar tags se existirem
     if (dados.tags && Array.isArray(dados.tags)) {
