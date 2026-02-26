@@ -597,6 +597,7 @@ model orcamento {
   prazo_entrega          String?              @default("10 a 15 dias úteis")
   validade_proposta      String?              @default("30 dias")
   comissao_percentual    Decimal?             @db.Decimal(5, 2)
+  tipo_margem_lucro      String?              @db.VarChar(24) // 'markup' | 'margem_por_dentro' por orçamento
   
   // Campos V2
   titulo                 String?              // Título do orçamento

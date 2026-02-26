@@ -147,6 +147,8 @@ export interface CustosOrcamento {
 export interface ConfiguracaoCalculo {
   margem_lucro_padrao: number;
   impostos_padrao: number;
+  comissao_padrao?: number;
+  tipo_margem_lucro?: 'markup' | 'margem_por_dentro';
   custos_indiretos_padrao: number;
   horas_produtivas_mensais: number;
   custos_indiretos_mensais?: number;

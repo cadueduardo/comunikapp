@@ -137,6 +137,16 @@ export class TransformacaoV2Service {
         dados.tipo_margem_lucro ??
         configPayloadCreate.tipo_margem_lucro,
     };
+    const tipoMargemCreateRaw =
+      configMergedCreate.tipo_margem_lucro != null
+        ? String(configMergedCreate.tipo_margem_lucro).trim().toLowerCase()
+        : '';
+    const tipoMargemCreate =
+      tipoMargemCreateRaw === 'markup' ||
+      tipoMargemCreateRaw === 'margem_por_dentro'
+        ? tipoMargemCreateRaw
+        : undefined;
+    dadosPreparados.tipo_margem_lucro = tipoMargemCreate;
     const configuracaoCreate = this.prepararConfiguracoes(configMergedCreate);
     if (this.devePersistirConfiguracao(configuracaoCreate)) {
       dadosPreparados.configuracao_calculo = JSON.stringify(
@@ -155,7 +165,7 @@ export class TransformacaoV2Service {
     }
 
     // Remover campos que não existem no schema ou causam erro no Prisma
-    // margem_lucro_customizada/impostos_customizados/tipo_margem_lucro vão em configuracao_calculo; comissao_percentual é coluna do schema.
+    // margem_lucro_customizada/impostos_customizados vão em configuracao_calculo; tipo_margem_lucro também persiste em coluna própria.
     const camposProibidos = [
       'cliente',
       'custos',
@@ -169,7 +179,6 @@ export class TransformacaoV2Service {
       'resumo',
       'margem_lucro_customizada',
       'impostos_customizados',
-      'tipo_margem_lucro',
       'configuracoes',
     ];
     camposProibidos.forEach((c) => delete dadosPreparados[c]);
@@ -248,6 +257,18 @@ export class TransformacaoV2Service {
         configPayload.tipo_margem_lucro ??
         configExistente.tipo_margem_lucro,
     };
+    const tipoMargemUpdateRaw =
+      configMerged.tipo_margem_lucro != null
+        ? String(configMerged.tipo_margem_lucro).trim().toLowerCase()
+        : '';
+    const tipoMargemUpdate =
+      tipoMargemUpdateRaw === 'markup' ||
+      tipoMargemUpdateRaw === 'margem_por_dentro'
+        ? tipoMargemUpdateRaw
+        : undefined;
+    if (tipoMargemUpdate !== undefined) {
+      dadosPreparados.tipo_margem_lucro = tipoMargemUpdate;
+    }
     const configuracaoUpdate = this.prepararConfiguracoes(configMerged);
     if (this.devePersistirConfiguracao(configuracaoUpdate)) {
       dadosPreparados.configuracao_calculo = JSON.stringify(
@@ -273,7 +294,7 @@ export class TransformacaoV2Service {
       'criado_em', 'atualizado_em',
       'preco_final', 'custo_total', 'margem_lucro', 'impostos',
       'custo_material', 'custo_mao_obra', 'custo_indireto', 'data_ultimo_calculo',
-      'margem_lucro_customizada', 'impostos_customizados', 'tipo_margem_lucro',
+      'margem_lucro_customizada', 'impostos_customizados',
     ];
     camposProibidos.forEach((campo) => delete dadosPreparados[campo]);
 
@@ -358,7 +379,7 @@ export class TransformacaoV2Service {
           ? Number(configuracoesPersistidas.impostos_padrao)
           : undefined,
       tipo_margem_lucro: (() => {
-        const t = configuracoesPersistidas?.tipo_margem_lucro;
+        const t = dados.tipo_margem_lucro ?? configuracoesPersistidas?.tipo_margem_lucro;
         if (t == null || String(t).trim() === '') return undefined;
         const normalized = String(t).trim().toLowerCase();
         return normalized === 'markup' || normalized === 'margem_por_dentro' ? normalized : undefined;

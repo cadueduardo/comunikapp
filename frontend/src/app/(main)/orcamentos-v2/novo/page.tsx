@@ -161,13 +161,17 @@ export default function NovoOrcamentoV2Page() {
             if (!raw) return {};
             if (typeof raw === 'object') return raw as Record<string, unknown>;
             if (typeof raw !== 'string') return {};
-            try {
-              const parsed = JSON.parse(raw);
-              if (parsed && typeof parsed === 'object') {
-                return parsed as Record<string, unknown>;
+            let parsed: unknown = raw;
+            for (let i = 0; i < 2; i++) {
+              if (typeof parsed !== 'string') break;
+              try {
+                parsed = JSON.parse(parsed);
+              } catch {
+                return {};
               }
-            } catch {
-              return {};
+            }
+            if (parsed && typeof parsed === 'object') {
+              return parsed as Record<string, unknown>;
             }
             return {};
           };
