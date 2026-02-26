@@ -265,6 +265,11 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     return '0';
   };
 
+  const roundMoney = (value: number): number => {
+    if (!Number.isFinite(value)) return 0;
+    return Math.round((value + Number.EPSILON) * 100) / 100;
+  };
+
   const parsePercentual = (value: unknown, fallback: number): number => {
     if (typeof value === 'number' && Number.isFinite(value)) {
       return value;
@@ -425,11 +430,12 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
       precoFinal = divisor > 0 ? totalCustoProducao / divisor : totalCustoProducao;
     }
+    precoFinal = roundMoney(precoFinal);
 
-    const totalImpostos = precoFinal * percentualImpostosDecimal;
-    const comissaoTotal = precoFinal * percentualComissaoDecimal;
-    const totalMargemLucro = precoFinal * percentualMargemDecimal;
-    const subtotalComLucro = precoFinal - totalImpostos - comissaoTotal;
+    const totalImpostos = roundMoney(precoFinal * percentualImpostosDecimal);
+    const comissaoTotal = roundMoney(precoFinal * percentualComissaoDecimal);
+    const totalMargemLucro = roundMoney(precoFinal * percentualMargemDecimal);
+    const subtotalComLucro = roundMoney(precoFinal - totalImpostos - comissaoTotal);
 
     const produtosComPrecos = produtosNormalizados.map((produto) => {
       const custoBaseProduto = produto.custo_total_producao;
@@ -437,16 +443,17 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         tipoMargemLucro === 'markup'
           ? (divisor > 0 ? (custoBaseProduto * (1 + percentualMargemDecimal)) / divisor : custoBaseProduto * (1 + percentualMargemDecimal))
           : (divisor > 0 ? custoBaseProduto / divisor : custoBaseProduto);
+      const precoVendaArredondado = roundMoney(precoVendaProduto);
       
       // Calcular componentes individuais
-      const margemLucroProduto = precoVendaProduto * percentualMargemDecimal;
-      const impostosProduto = precoVendaProduto * percentualImpostosDecimal;
-      const comissaoProduto = precoVendaProduto * percentualComissaoDecimal;
+      const margemLucroProduto = roundMoney(precoVendaArredondado * percentualMargemDecimal);
+      const impostosProduto = roundMoney(precoVendaArredondado * percentualImpostosDecimal);
+      const comissaoProduto = roundMoney(precoVendaArredondado * percentualComissaoDecimal);
       
       return {
         ...produto,
-        preco_venda_unitario: precoVendaProduto / produto.quantidade,
-        preco_venda_total: precoVendaProduto,
+        preco_venda_unitario: roundMoney(precoVendaArredondado / Math.max(produto.quantidade, 1)),
+        preco_venda_total: precoVendaArredondado,
         margem_lucro_produto: margemLucroProduto,
         impostos_produto: impostosProduto,
         comissao_produto: comissaoProduto,
