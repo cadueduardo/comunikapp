@@ -51,6 +51,7 @@ export class TransformacaoV2Service {
       margem_lucro: dados.margem_lucro ?? 0,
       impostos: dados.impostos ?? 0,
       preco_final: dados.preco_final ?? 0,
+      valor_total: dados.preco_final ?? dados.valor_total ?? 0,
       comissao_percentual: dados.comissao_percentual ?? 5,
       ativo: true,
     };
@@ -67,25 +68,38 @@ export class TransformacaoV2Service {
       };
     }
 
-    // Preparar configurações: schema usa configuracao_calculo (String), não configuracoes
-    if (dados.configuracoes) {
-      const configPreparada = this.prepararConfiguracoes(dados.configuracoes);
-      dadosPreparados.configuracao_calculo = JSON.stringify(configPreparada);
-      delete dadosPreparados.configuracoes;
-    } else if (
+    // Preparar configurações: mesma lógica do update — priorizar top-level (margem_lucro_customizada, tipo_margem_lucro, etc.)
+    const configMergedCreate = {
+      ...(dados.configuracoes || {}),
+      margem_lucro_padrao:
+        dados.margem_lucro_customizada != null
+          ? Number(dados.margem_lucro_customizada)
+          : Number(dados.configuracoes?.margem_lucro_padrao ?? 0),
+      impostos_padrao:
+        dados.impostos_customizados != null
+          ? Number(dados.impostos_customizados)
+          : Number(dados.configuracoes?.impostos_padrao ?? 0),
+      comissao_padrao:
+        dados.comissao_percentual != null
+          ? Number(dados.comissao_percentual)
+          : Number(dados.configuracoes?.comissao_padrao ?? 0),
+      tipo_margem_lucro:
+        dados.tipo_margem_lucro ??
+        dados.configuracoes?.tipo_margem_lucro,
+    };
+    const temPercentuaisCreate =
       dados.margem_lucro_customizada != null ||
       dados.impostos_customizados != null ||
-      dados.comissao_percentual != null ||
-      dados.tipo_margem_lucro
-    ) {
-      const configPreparada = this.prepararConfiguracoes({
-        margem_lucro_padrao: dados.margem_lucro_customizada,
-        impostos_padrao: dados.impostos_customizados,
-        comissao_padrao: dados.comissao_percentual,
-        tipo_margem_lucro: dados.tipo_margem_lucro,
-      });
-      dadosPreparados.configuracao_calculo = JSON.stringify(configPreparada);
+      dados.comissao_percentual != null;
+    const temTipoMargemCreate =
+      (dados.tipo_margem_lucro ?? dados.configuracoes?.tipo_margem_lucro) != null &&
+      String(dados.tipo_margem_lucro ?? dados.configuracoes?.tipo_margem_lucro).trim() !== '';
+    if (temPercentuaisCreate || temTipoMargemCreate) {
+      dadosPreparados.configuracao_calculo = JSON.stringify(
+        this.prepararConfiguracoes(configMergedCreate),
+      );
     }
+    delete dadosPreparados.configuracoes;
 
     // Preparar tags: schema usa tags (String), converter array para JSON string
     if (dados.tags && Array.isArray(dados.tags)) {
