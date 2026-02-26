@@ -154,24 +154,27 @@ export class TransformacaoV2Service {
       );
     }
 
-    // Preparar configurações: priorizar campos explícitos do payload (margem_lucro_customizada, etc.)
-    // para que o que o usuário alterou no form seja persistido mesmo quando também envia configuracoes: { tipo_margem_lucro }.
+    // Preparar configurações: priorizar payload, depois config existente do orçamento (para não perder tipo_margem_lucro).
+    const configExistente = orcamentoExistente?.configuracoes ?? {};
     const configMerged = {
+      ...configExistente,
       ...(dados.configuracoes || {}),
       margem_lucro_padrao:
         dados.margem_lucro_customizada != null
           ? Number(dados.margem_lucro_customizada)
-          : dados.configuracoes?.margem_lucro_padrao,
+          : dados.configuracoes?.margem_lucro_padrao ?? configExistente.margem_lucro_padrao,
       impostos_padrao:
         dados.impostos_customizados != null
           ? Number(dados.impostos_customizados)
-          : dados.configuracoes?.impostos_padrao,
+          : dados.configuracoes?.impostos_padrao ?? configExistente.impostos_padrao,
       comissao_padrao:
         dados.comissao_percentual != null
           ? Number(dados.comissao_percentual)
-          : dados.configuracoes?.comissao_padrao,
+          : dados.configuracoes?.comissao_padrao ?? configExistente.comissao_padrao,
       tipo_margem_lucro:
-        dados.tipo_margem_lucro || dados.configuracoes?.tipo_margem_lucro,
+        dados.tipo_margem_lucro ??
+        dados.configuracoes?.tipo_margem_lucro ??
+        configExistente.tipo_margem_lucro,
     };
     // Persistir config quando o payload trouxer percentuais ou tipo de margem (para não perder tipo_margem_lucro ao salvar)
     const temPercentuaisNoPayload =
