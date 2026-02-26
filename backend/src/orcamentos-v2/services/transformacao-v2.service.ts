@@ -97,7 +97,7 @@ export class TransformacaoV2Service {
     }
 
     // Remover campos que não existem no schema ou causam erro no Prisma
-    // margem/impostos/comissão/tipo_margem vão em configuracao_calculo, não como colunas
+    // margem_lucro_customizada/impostos_customizados/tipo_margem_lucro vão em configuracao_calculo; comissao_percentual é coluna do schema.
     const camposProibidos = [
       'cliente',
       'custos',
@@ -111,7 +111,6 @@ export class TransformacaoV2Service {
       'resumo',
       'margem_lucro_customizada',
       'impostos_customizados',
-      'comissao_percentual',
       'tipo_margem_lucro',
       'configuracoes',
     ];
