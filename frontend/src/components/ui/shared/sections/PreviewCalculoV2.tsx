@@ -969,6 +969,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
 
         {/* Informacoes de Sistema */}
         <div className="text-xs text-gray-500 text-center p-2 bg-gray-50 rounded">
+          <div className="mb-1 font-medium text-gray-600">
+            Valor estimado (pequenas variações de centavos são normais)
+          </div>
           <div>Ultima atualizacao: {data.metadata.timestamp_calculo.toLocaleTimeString('pt-BR')}</div>
           <div className="mt-1">Versao do calculo: {data.metadata.versao_motor}</div>
           <div className="mt-1">Tempo de execucao: {data.metadata.tempo_execucao_ms}ms</div>
