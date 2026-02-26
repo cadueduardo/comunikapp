@@ -16,6 +16,10 @@ async function bootstrap() {
   process.env.TZ = process.env.TZ || 'America/Sao_Paulo';
   const app = await NestFactory.create(AppModule);
 
+  // Trust proxy: necessário para express-rate-limit atrás de nginx/reverse proxy (evita ERR_ERL_UNEXPECTED_X_FORWARDED_FOR)
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.set('trust proxy', 1);
+
   // CORS deve ser habilitado o mais cedo possível
   app.enableCors({
     origin: [
