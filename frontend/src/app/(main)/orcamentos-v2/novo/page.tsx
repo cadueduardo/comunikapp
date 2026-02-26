@@ -13,6 +13,7 @@ interface OrcamentoData extends Record<string, unknown> {
   quantidade_produto: string;
   margem_lucro_customizada: string;
   impostos_customizados: string;
+  tipo_margem_lucro: 'markup' | 'margem_por_dentro' | '';
   condicoes_comerciais: string;
   prazo_entrega: string;
   forma_pagamento: string;
@@ -173,6 +174,18 @@ export default function NovoOrcamentoV2Page() {
               (orcamentoData as any).configuracoes?.comissao_padrao,
             5,
           );
+          const tipoMargemRaw = (
+            (orcamentoData as any).tipo_margem_lucro ??
+            (orcamentoData as any).configuracoes?.tipo_margem_lucro ??
+            ''
+          )
+            .toString()
+            .trim()
+            .toLowerCase();
+          const tipoMargemLucro: 'markup' | 'margem_por_dentro' | '' =
+            tipoMargemRaw === 'markup' || tipoMargemRaw === 'margem_por_dentro'
+              ? (tipoMargemRaw as 'markup' | 'margem_por_dentro')
+              : '';
 
           const formData: any = {
             cliente_id: orcamentoData.cliente_id || '',
@@ -189,6 +202,7 @@ export default function NovoOrcamentoV2Page() {
             margem_lucro_customizada: margemPercentual,
             impostos_customizados: impostosPercentual,
             comissao_percentual: comissaoPercentual,
+            tipo_margem_lucro: tipoMargemLucro,
             // Transformar produtos se existirem
             itens_produto: orcamentoData.produtos ? orcamentoData.produtos.map((produto: any, index: number) => {
               console.log(`🔍 Debug - Produto ${index}:`, {

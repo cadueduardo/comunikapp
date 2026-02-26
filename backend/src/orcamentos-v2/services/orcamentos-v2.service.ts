@@ -115,6 +115,15 @@ export class OrcamentosV2Service {
         },
       });
 
+      const toNumber = (value: unknown): number => {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : 0;
+      };
+      const possuiCustosCalculadosNoPayload =
+        dados.preco_final != null &&
+        dados.custo_total != null &&
+        (toNumber(dados.preco_final) > 0 || toNumber(dados.custo_total) > 0);
+
       // 4. Sempre calcular via motor V2 (fonte da verdade para preco_final)
       this.logger.log(
           `ðŸ’° Calculando custos via motor V2 para novo orcamento: custo_total=${dados.custo_total}, preco_final=${dados.preco_final}`,
@@ -145,6 +154,28 @@ export class OrcamentosV2Service {
         orcamentoCriado.id,
         resultadoCalculo,
       );
+
+      // Hotfix determinístico:
+      // Na criação, quando o frontend já enviou custos do preview,
+      // persistimos esses valores como fonte da verdade para manter
+      // a listagem em sincronia com o que foi visto no formulário.
+      if (possuiCustosCalculadosNoPayload) {
+        const precoFinal = toNumber(dados.preco_final);
+        await this.prisma.orcamento.update({
+          where: { id: orcamentoCriado.id },
+          data: {
+            preco_final: precoFinal,
+            valor_total: precoFinal,
+            custo_total: toNumber(dados.custo_total),
+            margem_lucro: toNumber(dados.margem_lucro),
+            impostos: toNumber(dados.impostos),
+            custo_material: toNumber(dados.custo_material),
+            custo_mao_obra: toNumber(dados.custo_mao_obra),
+            custo_indireto: toNumber(dados.custo_indireto),
+            data_ultimo_calculo: new Date(),
+          },
+        });
+      }
 
       // 6. Criar histórico
       await this.criarHistorico(
