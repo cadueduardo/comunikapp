@@ -157,26 +157,41 @@ export default function NovoOrcamentoV2Page() {
             if (!Number.isFinite(n) || n <= 0) return String(fallback);
             return String(n);
           };
+          const parseConfig = (raw: unknown): Record<string, unknown> => {
+            if (!raw) return {};
+            if (typeof raw === 'object') return raw as Record<string, unknown>;
+            if (typeof raw !== 'string') return {};
+            try {
+              const parsed = JSON.parse(raw);
+              if (parsed && typeof parsed === 'object') {
+                return parsed as Record<string, unknown>;
+              }
+            } catch {
+              return {};
+            }
+            return {};
+          };
+          const config = parseConfig((orcamentoData as any).configuracoes);
 
           // Prioridade: campo explícito > configuração persistida > fallback padrão.
           const margemPercentual = parsePercentual(
             (orcamentoData as any).margem_lucro_customizada ??
-              (orcamentoData as any).configuracoes?.margem_lucro_padrao,
+              config.margem_lucro_padrao,
             30,
           );
           const impostosPercentual = parsePercentual(
             (orcamentoData as any).impostos_customizados ??
-              (orcamentoData as any).configuracoes?.impostos_padrao,
+              config.impostos_padrao,
             25,
           );
           const comissaoPercentual = parsePercentual(
             (orcamentoData as any).comissao_percentual ??
-              (orcamentoData as any).configuracoes?.comissao_padrao,
+              config.comissao_padrao,
             5,
           );
           const tipoMargemRaw = (
             (orcamentoData as any).tipo_margem_lucro ??
-            (orcamentoData as any).configuracoes?.tipo_margem_lucro ??
+            config.tipo_margem_lucro ??
             ''
           )
             .toString()

@@ -19,6 +19,54 @@ import {
 export class TransformacaoV2Service {
   private readonly logger = new Logger(TransformacaoV2Service.name);
 
+  private parseConfiguracaoCalculo(raw: unknown): Record<string, any> | null {
+    if (raw == null) return null;
+
+    let parsed: unknown = raw;
+    // Protege contra casos antigos com JSON serializado mais de uma vez.
+    for (let i = 0; i < 2; i++) {
+      if (typeof parsed !== 'string') break;
+      const texto = parsed.trim();
+      if (!texto) return null;
+      try {
+        parsed = JSON.parse(texto);
+      } catch {
+        return null;
+      }
+    }
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+
+    return parsed as Record<string, any>;
+  }
+
+  private devePersistirConfiguracao(config: Record<string, any> | null): boolean {
+    if (!config) return false;
+
+    const numeroValido = (value: unknown): boolean =>
+      typeof value === 'number' && Number.isFinite(value) && value > 0;
+
+    const tipoRaw =
+      config.tipo_margem_lucro != null
+        ? String(config.tipo_margem_lucro).trim().toLowerCase()
+        : '';
+    const temTipoValido =
+      tipoRaw === 'markup' || tipoRaw === 'margem_por_dentro';
+
+    return (
+      temTipoValido ||
+      numeroValido(config.margem_lucro_padrao) ||
+      numeroValido(config.impostos_padrao) ||
+      numeroValido(config.comissao_padrao) ||
+      numeroValido(config.custos_indiretos_padrao) ||
+      numeroValido(config.horas_produtivas_mensais) ||
+      numeroValido(config.custos_indiretos_mensais) ||
+      (Array.isArray(config.regras_especiais) && config.regras_especiais.length > 0)
+    );
+  }
+
   /**
    * Prepara dados para criação de orçamento
    */
@@ -69,34 +117,30 @@ export class TransformacaoV2Service {
     }
 
     // Preparar configurações: mesma lógica do update — priorizar top-level (margem_lucro_customizada, tipo_margem_lucro, etc.)
+    const configPayloadCreate =
+      this.parseConfiguracaoCalculo(dados.configuracoes) ?? {};
     const configMergedCreate = {
-      ...(dados.configuracoes || {}),
+      ...configPayloadCreate,
       margem_lucro_padrao:
         dados.margem_lucro_customizada != null
           ? Number(dados.margem_lucro_customizada)
-          : Number(dados.configuracoes?.margem_lucro_padrao ?? 0),
+          : Number(configPayloadCreate.margem_lucro_padrao ?? 0),
       impostos_padrao:
         dados.impostos_customizados != null
           ? Number(dados.impostos_customizados)
-          : Number(dados.configuracoes?.impostos_padrao ?? 0),
+          : Number(configPayloadCreate.impostos_padrao ?? 0),
       comissao_padrao:
         dados.comissao_percentual != null
           ? Number(dados.comissao_percentual)
-          : Number(dados.configuracoes?.comissao_padrao ?? 0),
+          : Number(configPayloadCreate.comissao_padrao ?? 0),
       tipo_margem_lucro:
         dados.tipo_margem_lucro ??
-        dados.configuracoes?.tipo_margem_lucro,
+        configPayloadCreate.tipo_margem_lucro,
     };
-    const temPercentuaisCreate =
-      dados.margem_lucro_customizada != null ||
-      dados.impostos_customizados != null ||
-      dados.comissao_percentual != null;
-    const temTipoMargemCreate =
-      (dados.tipo_margem_lucro ?? dados.configuracoes?.tipo_margem_lucro) != null &&
-      String(dados.tipo_margem_lucro ?? dados.configuracoes?.tipo_margem_lucro).trim() !== '';
-    if (temPercentuaisCreate || temTipoMargemCreate) {
+    const configuracaoCreate = this.prepararConfiguracoes(configMergedCreate);
+    if (this.devePersistirConfiguracao(configuracaoCreate)) {
       dadosPreparados.configuracao_calculo = JSON.stringify(
-        this.prepararConfiguracoes(configMergedCreate),
+        configuracaoCreate,
       );
     }
     delete dadosPreparados.configuracoes;
@@ -174,44 +218,40 @@ export class TransformacaoV2Service {
     }
 
     // Preparar configurações: priorizar payload, depois config existente do orçamento (para não perder tipo_margem_lucro).
+    const configExistenteParsed = this.parseConfiguracaoCalculo(
+      orcamentoExistente?.configuracoes,
+    );
     const configExistente: {
       margem_lucro_padrao?: number;
       impostos_padrao?: number;
       comissao_padrao?: number;
       tipo_margem_lucro?: string;
-    } = orcamentoExistente?.configuracoes ?? {};
+    } = configExistenteParsed ?? {};
+    const configPayload = this.parseConfiguracaoCalculo(dados.configuracoes) ?? {};
     const configMerged = {
       ...configExistente,
-      ...(dados.configuracoes || {}),
+      ...configPayload,
       margem_lucro_padrao:
         dados.margem_lucro_customizada != null
           ? Number(dados.margem_lucro_customizada)
-          : dados.configuracoes?.margem_lucro_padrao ?? configExistente.margem_lucro_padrao,
+          : configPayload.margem_lucro_padrao ?? configExistente.margem_lucro_padrao,
       impostos_padrao:
         dados.impostos_customizados != null
           ? Number(dados.impostos_customizados)
-          : dados.configuracoes?.impostos_padrao ?? configExistente.impostos_padrao,
+          : configPayload.impostos_padrao ?? configExistente.impostos_padrao,
       comissao_padrao:
         dados.comissao_percentual != null
           ? Number(dados.comissao_percentual)
-          : dados.configuracoes?.comissao_padrao ?? configExistente.comissao_padrao,
+          : configPayload.comissao_padrao ?? configExistente.comissao_padrao,
       tipo_margem_lucro:
         dados.tipo_margem_lucro ??
-        dados.configuracoes?.tipo_margem_lucro ??
+        configPayload.tipo_margem_lucro ??
         configExistente.tipo_margem_lucro,
     };
-    // Persistir config quando o payload trouxer percentuais ou tipo de margem (para não perder tipo_margem_lucro ao salvar)
-    const temPercentuaisNoPayload =
-      dados.margem_lucro_customizada != null ||
-      dados.impostos_customizados != null ||
-      dados.comissao_percentual != null;
-    const tipoMargemPayload =
-      dados.tipo_margem_lucro ?? dados.configuracoes?.tipo_margem_lucro;
-    const temTipoMargemNoPayload =
-      tipoMargemPayload != null && String(tipoMargemPayload).trim() !== '';
-    if (temPercentuaisNoPayload || temTipoMargemNoPayload) {
+    const configuracaoUpdate = this.prepararConfiguracoes(configMerged);
+    if (this.devePersistirConfiguracao(configuracaoUpdate)) {
       dadosPreparados.configuracao_calculo = JSON.stringify(
-        this.prepararConfiguracoes(configMerged),
+        configuracaoUpdate,
       );
     }
     delete dadosPreparados.configuracoes;
@@ -265,17 +305,9 @@ export class TransformacaoV2Service {
       criado_em: dados.criado_em,
     });
 
-    let configuracoesPersistidas = dados.configuracoes;
-    if (!configuracoesPersistidas && dados.configuracao_calculo) {
-      try {
-        configuracoesPersistidas =
-          typeof dados.configuracao_calculo === 'string'
-            ? JSON.parse(dados.configuracao_calculo)
-            : dados.configuracao_calculo;
-      } catch {
-        configuracoesPersistidas = null;
-      }
-    }
+    const configuracoesPersistidas =
+      this.parseConfiguracaoCalculo(dados.configuracoes) ??
+      this.parseConfiguracaoCalculo(dados.configuracao_calculo);
 
     const orcamento: OrcamentoCompleto = {
       id: dados.id,
