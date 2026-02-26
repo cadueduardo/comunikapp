@@ -120,9 +120,24 @@ export class OrcamentosV2Service {
           `ðŸ’° Calculando custos via motor V2 para novo orcamento: custo_total=${dados.custo_total}, preco_final=${dados.preco_final}`,
         );
 
+        const orcamentoParaMotor = {
+          ...orcamentoCriado,
+          margem_lucro_customizada: dados.margem_lucro_customizada,
+          impostos_customizados: dados.impostos_customizados,
+          comissao_percentual: dados.comissao_percentual,
+          tipo_margem_lucro:
+            dados.tipo_margem_lucro ?? dados.configuracoes?.tipo_margem_lucro,
+          configuracoes: {
+            margem_lucro_padrao: Number(dados.margem_lucro_customizada) || undefined,
+            impostos_padrao: Number(dados.impostos_customizados) || undefined,
+            comissao_padrao: Number(dados.comissao_percentual) || undefined,
+            tipo_margem_lucro:
+              dados.tipo_margem_lucro ?? dados.configuracoes?.tipo_margem_lucro,
+          },
+        };
         const resultadoCalculo =
           await this.integracaoMotor.calcularOrcamentoCompleto(
-            orcamentoCriado,
+            orcamentoParaMotor,
             lojaId,
           );
 

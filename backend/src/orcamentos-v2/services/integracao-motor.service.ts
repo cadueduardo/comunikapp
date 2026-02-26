@@ -279,19 +279,36 @@ export class IntegracaoMotorService {
       toNumber(config?.comissao_padrao) ??
       5;
 
+    const tipoMargemRaw =
+      dadosOrcamento.tipo_margem_lucro ??
+      config?.tipo_margem_lucro;
+    const tipoMargem =
+      tipoMargemRaw != null && String(tipoMargemRaw).trim() !== ''
+        ? String(tipoMargemRaw).trim().toLowerCase()
+        : undefined;
+    const tipoMargemLucro =
+      tipoMargem === 'markup' || tipoMargem === 'margem_por_dentro'
+        ? tipoMargem
+        : undefined;
+
     // Estrutura básica compatível com DTOCalculo
+    const configuracoesMotor: Record<string, unknown> = {
+      margem_lucro_padrao: margemPercentual,
+      impostos_padrao: impostosPercentual,
+      comissao_padrao: comissaoPercentual,
+      custos_indiretos_padrao:
+        toNumber(config?.custos_indiretos_padrao) ?? 15,
+      incluir_detalhamento: true,
+      incluir_validacoes: true,
+    };
+    if (tipoMargemLucro) {
+      configuracoesMotor.tipo_margem_lucro = tipoMargemLucro;
+    }
+
     const dadosMotor = {
       lojaId: lojaId,
       produtos: this.prepararProdutosParaMotor(dadosOrcamento.produtos || []),
-      configuracoes: {
-        // O pipeline do motor lê campos *_padrao.
-        margem_lucro_padrao: margemPercentual,
-        impostos_padrao: impostosPercentual,
-        comissao_padrao: comissaoPercentual,
-        custos_indiretos_padrao: 15,
-        incluir_detalhamento: true,
-        incluir_validacoes: true,
-      },
+      configuracoes: configuracoesMotor,
       metadata: {
         orcamento_id: dadosOrcamento.id,
         usuario_id: 'sistema',
