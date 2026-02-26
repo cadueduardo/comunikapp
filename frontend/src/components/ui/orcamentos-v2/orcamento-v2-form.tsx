@@ -445,7 +445,8 @@ export function OrcamentoV2Form({
       if (!Number.isFinite(numero)) {
         return 0;
       }
-      return Number(numero.toFixed(precision));
+      const fator = 10 ** precision;
+      return Math.round((numero + Number.EPSILON) * fator) / fator;
     };
 
     const vazioParaUndefined = <T,>(lista: T[] | undefined): T[] | undefined =>
