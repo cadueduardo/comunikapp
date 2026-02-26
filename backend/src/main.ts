@@ -21,13 +21,18 @@ async function bootstrap() {
   expressApp.set('trust proxy', 1);
 
   // CORS deve ser habilitado o mais cedo possível
+  const productionOrigins = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  if (process.env.NODE_ENV === 'production' && productionOrigins.length === 0) {
+    productionOrigins.push('https://comunikapp.com.br', 'https://www.comunikapp.com.br');
+  }
   app.enableCors({
     origin: [
       'http://localhost:3000',
       'http://127.0.0.1:3000',
-      ...(process.env.NODE_ENV === 'production'
-        ? (process.env.CORS_ORIGINS || '').split(',').filter(Boolean)
-        : []),
+      ...(process.env.NODE_ENV === 'production' ? productionOrigins : []),
     ],
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
