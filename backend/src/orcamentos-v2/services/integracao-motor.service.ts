@@ -254,19 +254,29 @@ export class IntegracaoMotorService {
       return Number.isFinite(n) ? n : undefined;
     };
 
+    // Obter configurações: podem vir como objeto (API) ou como JSON em configuracao_calculo (Prisma)
+    let config = dadosOrcamento.configuracoes;
+    if (!config && typeof dadosOrcamento.configuracao_calculo === 'string') {
+      try {
+        config = JSON.parse(dadosOrcamento.configuracao_calculo);
+      } catch {
+        config = {};
+      }
+    }
+
     // Percentuais do motor devem vir de campos de percentual/configuração.
     // Não usar campos monetários (impostos, margem_lucro) como fallback.
     const margemPercentual =
       toNumber(dadosOrcamento.margem_lucro_customizada) ??
-      toNumber(dadosOrcamento.configuracoes?.margem_lucro_padrao) ??
+      toNumber(config?.margem_lucro_padrao) ??
       30;
     const impostosPercentual =
       toNumber(dadosOrcamento.impostos_customizados) ??
-      toNumber(dadosOrcamento.configuracoes?.impostos_padrao) ??
+      toNumber(config?.impostos_padrao) ??
       25;
     const comissaoPercentual =
       toNumber(dadosOrcamento.comissao_percentual) ??
-      toNumber(dadosOrcamento.configuracoes?.comissao_padrao) ??
+      toNumber(config?.comissao_padrao) ??
       5;
 
     // Estrutura básica compatível com DTOCalculo
@@ -414,74 +424,48 @@ export class IntegracaoMotorService {
       area: parseFloat(produto.area || '0'),
       unidade_medida: produto.unidade_medida || 'un',
 
-      // Insumos - usar insumo_id (ID real do insumo no banco)
-      insumos: (produto.insumos || []).map((insumo: any) => {
-        // Debug: verificar estrutura do insumo
-        this.logger.log(`🔍 Debug - Insumo recebido:`, {
-          insumo_id: insumo.insumo_id,
-          id: insumo.id,
-          nome: insumo.nome,
-        });
+      // Insumos - usar insumo_id (ID real do insumo no banco). Prisma: preco_unitario; API: custo_unitario
+      insumos: (produto.insumos || []).map((insumo: any) => ({
+        id: insumo.insumo_id,
+        nome: insumo.nome || 'Insumo sem nome',
+        quantidade: parseFloat(insumo.quantidade || '0'),
+        custo_unitario: parseFloat(
+          insumo.custo_unitario ?? insumo.preco_unitario ?? '0',
+        ),
+      })),
 
-        return {
-          id: insumo.insumo_id, // SEMPRE usar insumo_id (ID real do insumo no banco)
-          nome: insumo.nome || 'Insumo sem nome',
-          quantidade: parseFloat(insumo.quantidade || '0'),
-          custo_unitario: parseFloat(insumo.custo_unitario || '0'),
-        };
-      }),
+      // Máquinas - Prisma usa tempo_horas; motor espera horas_utilizadas
+      maquinas: (produto.maquinas || []).map((maquina: any) => ({
+        id: maquina.maquina_id,
+        nome: maquina.nome || 'Máquina sem nome',
+        horas_utilizadas: parseFloat(
+          maquina.horas_utilizadas ?? maquina.tempo_horas ?? '0',
+        ),
+        custo_hora: parseFloat(maquina.custo_hora || '0'),
+      })),
 
-      // Máquinas - usar maquina_id (ID real da máquina no banco)
-      maquinas: (produto.maquinas || []).map((maquina: any) => {
-        // Debug: verificar estrutura da máquina
-        this.logger.log(`🔍 Debug - Máquina recebida:`, {
-          maquina_id: maquina.maquina_id,
-          id: maquina.id,
-          nome: maquina.nome,
-        });
+      // Funções - Prisma usa tempo_horas; motor espera horas_trabalhadas e valor_hora (ou custo_hora)
+      funcoes: (produto.funcoes || []).map((funcao: any) => ({
+        id: funcao.funcao_id,
+        nome: funcao.nome || 'Função sem nome',
+        horas_trabalhadas: parseFloat(
+          funcao.horas_trabalhadas ?? funcao.tempo_horas ?? '0',
+        ),
+        valor_hora: parseFloat(
+          funcao.valor_hora ?? funcao.custo_hora ?? '0',
+        ),
+      })),
 
-        return {
-          id: maquina.maquina_id, // SEMPRE usar maquina_id (ID real da máquina no banco)
-          nome: maquina.nome || 'Máquina sem nome',
-          horas_utilizadas: parseFloat(maquina.horas_utilizadas || '0'),
-          custo_hora: parseFloat(maquina.custo_hora || '0'),
-        };
-      }),
-
-      // Funções - usar funcao_id (ID real da função no banco)
-      funcoes: (produto.funcoes || []).map((funcao: any) => {
-        // Debug: verificar estrutura da função
-        this.logger.log(`🔍 Debug - Função recebida:`, {
-          funcao_id: funcao.funcao_id,
-          id: funcao.id,
-          nome: funcao.nome,
-        });
-
-        return {
-          id: funcao.funcao_id, // SEMPRE usar funcao_id (ID real da função no banco)
-          nome: funcao.nome || 'Função sem nome',
-          horas_trabalhadas: parseFloat(funcao.horas_trabalhadas || '0'),
-          valor_hora: parseFloat(funcao.valor_hora || '0'),
-        };
-      }),
-
-      // Serviços manuais - usar servico_id (ID real do serviço no banco)
+      // Serviços manuais - Prisma usa tempo_horas e custo_hora
       servicos: (produto.servicos_manuais || produto.servicos || []).map(
-        (servico: any) => {
-          // Debug: verificar estrutura do serviço
-          this.logger.log(`🔍 Debug - Serviço recebido:`, {
-            servico_id: servico.servico_id,
-            id: servico.id,
-            nome: servico.nome,
-          });
-
-          return {
-            id: servico.servico_id, // SEMPRE usar servico_id (ID real do serviço no banco)
-            nome: servico.nome || 'Serviço sem nome',
-            horas_trabalhadas: parseFloat(servico.horas_trabalhadas || '0'),
-            valor_hora: parseFloat(servico.valor_hora || '0'),
-          };
-        },
+        (servico: any) => ({
+          id: servico.servico_id,
+          nome: servico.nome || 'Serviço sem nome',
+          horas_trabalhadas: parseFloat(
+            servico.horas_trabalhadas ?? servico.tempo_horas ?? '0',
+          ),
+          valor_hora: parseFloat(servico.valor_hora ?? servico.custo_hora ?? '0'),
+        }),
       ),
     }));
   }

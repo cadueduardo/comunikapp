@@ -325,6 +325,7 @@ export class OrcamentosV2Service {
             margem_lucro: true,
             impostos: true,
             comissao_percentual: true,
+            configuracao_calculo: true,
             quantidade_produto: true,
             unidade_medida_produto: true,
             largura_produto: true,
@@ -866,8 +867,9 @@ export class OrcamentosV2Service {
     await this.prisma.orcamento.update({
       where: { id: orcamentoId },
       data: {
-        // Campos principais do orçamento
+        // Campos principais do orçamento (valor_total = preco_final para listagem/relatórios)
         preco_final: preco_final,
+        valor_total: preco_final,
         custo_total: custo_total,
         margem_lucro: margem_lucro,
         impostos: impostos,

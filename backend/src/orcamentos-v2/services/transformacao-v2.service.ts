@@ -274,6 +274,16 @@ export class TransformacaoV2Service {
       produtos: this.transformarProdutos(dados.produtos),
       custos: this.transformarCustos(dados),
       configuracoes: this.transformarConfiguracoes(configuracoesPersistidas),
+      // Campos que o formulário de edição espera no top level (evita zerar margem/impostos ao abrir)
+      margem_lucro_customizada:
+        configuracoesPersistidas?.margem_lucro_padrao != null
+          ? Number(configuracoesPersistidas.margem_lucro_padrao)
+          : undefined,
+      impostos_customizados:
+        configuracoesPersistidas?.impostos_padrao != null
+          ? Number(configuracoesPersistidas.impostos_padrao)
+          : undefined,
+      tipo_margem_lucro: configuracoesPersistidas?.tipo_margem_lucro ?? undefined,
       versoes: this.transformarVersoes(dados.versoes),
       historicoOrcamento: this.transformarHistorico(dados.historicoOrcamento),
       aprovacoes: this.transformarAprovacoes(dados.aprovacoes),
