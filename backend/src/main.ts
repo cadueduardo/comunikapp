@@ -20,39 +20,42 @@ async function bootstrap() {
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.set('trust proxy', 1);
 
-  // CORS: sempre permitir localhost + origens de produção (comunikapp.com.br) e CORS_ORIGINS
-  const envOrigins = (process.env.CORS_ORIGINS || '')
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
-  const defaultProduction = [
-    'https://comunikapp.com.br',
-    'https://www.comunikapp.com.br',
-  ];
-  const corsOrigins = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    ...defaultProduction,
-    ...envOrigins,
-  ];
-  app.enableCors({
-    origin: corsOrigins,
-    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Accept',
-      'Authorization',
-      'x-loja-id',
-      'x-user-roles',
-      'x-internal-token',
-      'Cache-Control',
-      'Pragma',
-    ],
-    exposedHeaders: ['Content-Length'],
-    credentials: true,
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
-  });
+  // CORS: se CORS_VIA_PROXY=true (ex.: atrás do Nginx na VPS), não envia headers CORS aqui
+  // para evitar valor duplicado; o proxy envia os headers.
+  if (process.env.CORS_VIA_PROXY !== 'true') {
+    const envOrigins = (process.env.CORS_ORIGINS || '')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean);
+    const defaultProduction = [
+      'https://comunikapp.com.br',
+      'https://www.comunikapp.com.br',
+    ];
+    const corsOrigins = [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      ...defaultProduction,
+      ...envOrigins,
+    ];
+    app.enableCors({
+      origin: corsOrigins,
+      methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+      allowedHeaders: [
+        'Content-Type',
+        'Accept',
+        'Authorization',
+        'x-loja-id',
+        'x-user-roles',
+        'x-internal-token',
+        'Cache-Control',
+        'Pragma',
+      ],
+      exposedHeaders: ['Content-Length'],
+      credentials: true,
+      preflightContinue: false,
+      optionsSuccessStatus: 204,
+    });
+  }
 
   // Níveis de log por ambiente
   const isProd = process.env.NODE_ENV === 'production';
