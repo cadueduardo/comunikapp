@@ -47,6 +47,11 @@ export interface OrcamentoCompleto extends OrcamentoBase {
   // Configurações de cálculo
   configuracoes: ConfiguracaoCalculo;
 
+  // Campos expostos para o formulário de edição (vêm de configuracoes)
+  margem_lucro_customizada?: number;
+  impostos_customizados?: number;
+  tipo_margem_lucro?: string;
+
   // Histórico e versões
   versoes: VersaoOrcamento[];
   historicoOrcamento: HistoricoOrcamento[];
