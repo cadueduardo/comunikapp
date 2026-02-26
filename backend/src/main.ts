@@ -20,20 +20,23 @@ async function bootstrap() {
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.set('trust proxy', 1);
 
-  // CORS deve ser habilitado o mais cedo possível
-  const productionOrigins = (process.env.CORS_ORIGINS || '')
+  // CORS: sempre permitir localhost + origens de produção (comunikapp.com.br) e CORS_ORIGINS
+  const envOrigins = (process.env.CORS_ORIGINS || '')
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);
-  if (process.env.NODE_ENV === 'production' && productionOrigins.length === 0) {
-    productionOrigins.push('https://comunikapp.com.br', 'https://www.comunikapp.com.br');
-  }
+  const defaultProduction = [
+    'https://comunikapp.com.br',
+    'https://www.comunikapp.com.br',
+  ];
+  const corsOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    ...defaultProduction,
+    ...envOrigins,
+  ];
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      ...(process.env.NODE_ENV === 'production' ? productionOrigins : []),
-    ],
+    origin: corsOrigins,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
