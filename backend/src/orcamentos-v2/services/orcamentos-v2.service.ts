@@ -479,7 +479,36 @@ export class OrcamentosV2Service {
         (dados.custo_mao_obra > 0) ||
         (dados.custo_total > 0);
 
-      const sempreRecalcular = true;
+      const sempreRecalcular = false;
+
+      const toNumber = (value: unknown): number => {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : 0;
+      };
+
+      // Hotfix determinístico:
+      // Se o frontend enviar custos já calculados no preview, persistir esses valores
+      // como fonte da verdade para manter listagem e preview em sincronia.
+      const possuiCustosCalculadosNoPayload =
+        dados.preco_final != null &&
+        dados.custo_total != null &&
+        (toNumber(dados.preco_final) > 0 || toNumber(dados.custo_total) > 0);
+
+      if (possuiCustosCalculadosNoPayload) {
+        await this.prisma.orcamento.update({
+          where: { id },
+          data: {
+            preco_final: toNumber(dados.preco_final),
+            custo_total: toNumber(dados.custo_total),
+            margem_lucro: toNumber(dados.margem_lucro),
+            impostos: toNumber(dados.impostos),
+            custo_material: toNumber(dados.custo_material),
+            custo_mao_obra: toNumber(dados.custo_mao_obra),
+            custo_indireto: toNumber(dados.custo_indireto),
+            data_ultimo_calculo: new Date(),
+          },
+        });
+      }
       if (false && (sempreRecalcular || precisaRecalcular)) {
         this.logger.log(`ðŸ”„ Iniciando recalculo para orcamento ${id}`);
         try {
@@ -591,6 +620,7 @@ export class OrcamentosV2Service {
 
       // 5.1. Atualizar produtos se fornecidos
       if (
+        false &&
         dados.produtos &&
         Array.isArray(dados.produtos) &&
         dados.produtos.length > 0
@@ -633,7 +663,7 @@ export class OrcamentosV2Service {
       }
 
       // 5.2 Recalcular após persistir produtos, para usar dados atualizados
-      if (sempreRecalcular || precisaRecalcular) {
+      if (!possuiCustosCalculadosNoPayload && (sempreRecalcular || precisaRecalcular)) {
         const orcamentoParaCalculo = await this.buscarOrcamento(id, lojaId);
         this.logger.log(`Recalculando orcamento apos persistir produtos ${id}`);
         const dadosCustosFallback = {
