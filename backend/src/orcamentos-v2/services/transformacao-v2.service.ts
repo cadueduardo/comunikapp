@@ -173,12 +173,16 @@ export class TransformacaoV2Service {
       tipo_margem_lucro:
         dados.tipo_margem_lucro || dados.configuracoes?.tipo_margem_lucro,
     };
-    // Persistir config só quando o payload trouxer percentuais explícitos (evita sobrescrever com 0 quando front envia só configuracoes: { tipo_margem_lucro })
+    // Persistir config quando o payload trouxer percentuais ou tipo de margem (para não perder tipo_margem_lucro ao salvar)
     const temPercentuaisNoPayload =
       dados.margem_lucro_customizada != null ||
       dados.impostos_customizados != null ||
       dados.comissao_percentual != null;
-    if (temPercentuaisNoPayload) {
+    const tipoMargemPayload =
+      dados.tipo_margem_lucro ?? dados.configuracoes?.tipo_margem_lucro;
+    const temTipoMargemNoPayload =
+      tipoMargemPayload != null && String(tipoMargemPayload).trim() !== '';
+    if (temPercentuaisNoPayload || temTipoMargemNoPayload) {
       dadosPreparados.configuracao_calculo = JSON.stringify(
         this.prepararConfiguracoes(configMerged),
       );
@@ -202,7 +206,7 @@ export class TransformacaoV2Service {
       'criado_em', 'atualizado_em',
       'preco_final', 'custo_total', 'margem_lucro', 'impostos',
       'custo_material', 'custo_mao_obra', 'custo_indireto', 'data_ultimo_calculo',
-      'margem_lucro_customizada', 'impostos_customizados',
+      'margem_lucro_customizada', 'impostos_customizados', 'tipo_margem_lucro',
     ];
     camposProibidos.forEach((campo) => delete dadosPreparados[campo]);
 
