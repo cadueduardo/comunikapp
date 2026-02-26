@@ -70,6 +70,8 @@ async function bootstrap() {
       standardHeaders: true,
       legacyHeaders: false,
       skip: (req: any) => req.method === 'OPTIONS',
+      // Atrás de nginx: desativa validação estrita do X-Forwarded-For (trust proxy já configurado acima)
+      validate: { xForwardedForHeader: false },
     }) as any,
   );
 
