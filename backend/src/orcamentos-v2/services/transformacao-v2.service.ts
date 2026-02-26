@@ -97,6 +97,7 @@ export class TransformacaoV2Service {
     }
 
     // Remover campos que não existem no schema ou causam erro no Prisma
+    // margem/impostos/comissão/tipo_margem vão em configuracao_calculo, não como colunas
     const camposProibidos = [
       'cliente',
       'custos',
@@ -108,6 +109,11 @@ export class TransformacaoV2Service {
       'mensagensChat',
       'anexos',
       'resumo',
+      'margem_lucro_customizada',
+      'impostos_customizados',
+      'comissao_percentual',
+      'tipo_margem_lucro',
+      'configuracoes',
     ];
     camposProibidos.forEach((c) => delete dadosPreparados[c]);
 

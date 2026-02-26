@@ -889,6 +889,7 @@ export function OrcamentoV2Form({
         margem_lucro_customizada: margemPercentual,
         impostos_customizados: impostosPercentual,
         comissao_percentual: comissaoPercentual,
+        tipo_margem_lucro: tipoMargemLucroEfetivo,
         configuracoes: { tipo_margem_lucro: tipoMargemLucroEfetivo },
       };
 
@@ -1228,6 +1229,7 @@ export function OrcamentoV2Form({
       margem_lucro_customizada: margemPercentual,
       impostos_customizados: impostosPercentual,
       comissao_percentual: comissaoPercentual,
+      tipo_margem_lucro: tipoMargemLucroEfetivo,
       configuracoes: { tipo_margem_lucro: tipoMargemLucroEfetivo },
     };
 
