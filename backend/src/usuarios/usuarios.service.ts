@@ -68,9 +68,21 @@ export class UsuariosService {
 
     const created = await this.prisma.usuario.create({ data });
     if (!dto.senha) {
+      const loja = await this.prisma.loja.findUnique({
+        where: { id: lojaId },
+        select: { nome: true },
+      });
+      const activationLink = `${
+        process.env.FRONTEND_URL || 'https://comunikapp.com.br'
+      }/primeiro-acesso?email=${encodeURIComponent(created.email)}`;
       await this.mail.sendVerificationEmail(
         created.email,
         created.codigo_verificacao_email,
+        {
+          mode: 'convite',
+          activationLink,
+          lojaNome: loja?.nome || undefined,
+        },
       );
     }
     return { id: created.id };
@@ -105,7 +117,13 @@ export class UsuariosService {
       },
     });
 
-    await this.mail.sendVerificationEmail(email, code);
+    const activationLink = `${
+      process.env.FRONTEND_URL || 'https://comunikapp.com.br'
+    }/primeiro-acesso?email=${encodeURIComponent(email)}`;
+    await this.mail.sendVerificationEmail(email, code, {
+      mode: 'convite',
+      activationLink,
+    });
     return { message: 'Codigo reenviado' };
   }
 

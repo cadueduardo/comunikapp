@@ -133,6 +133,12 @@ function LoginContent() {
                                 Cadastre-se grátis
                             </Link>
                         </div>
+                        <div className="text-center text-sm">
+                            Foi convidado pela sua empresa?{' '}
+                            <Link href="/primeiro-acesso" className="underline">
+                                Ativar primeiro acesso
+                            </Link>
+                        </div>
                     </div>
                 </div>
                 <div className="hidden bg-muted lg:flex items-center justify-center relative overflow-hidden">

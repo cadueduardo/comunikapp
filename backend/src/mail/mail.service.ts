@@ -55,16 +55,68 @@ export class MailService implements OnModuleInit {
     return !!(process.env.SMTP_HOST || process.env.MAIL_HOST);
   }
 
-  async sendVerificationEmail(to: string, code: string) {
+  async sendVerificationEmail(
+    to: string,
+    code: string,
+    options?: {
+      mode?: 'cadastro' | 'convite';
+      activationLink?: string;
+      lojaNome?: string;
+    },
+  ) {
+    const mode = options?.mode || 'cadastro';
+    const activationLink =
+      options?.activationLink ||
+      `${process.env.FRONTEND_URL || 'https://comunikapp.com.br'}/primeiro-acesso?email=${encodeURIComponent(to)}`;
+
+    const subject =
+      mode === 'convite'
+        ? 'Você foi convidado para acessar o Comunikapp'
+        : 'Seu Código de Verificação Comunikapp';
+
+    const titulo =
+      mode === 'convite' ? 'Você recebeu um convite para o Comunikapp' : 'Bem-vindo ao Comunikapp!';
+
+    const textoAbertura =
+      mode === 'convite'
+        ? `A empresa ${
+            options?.lojaNome || 'da sua equipe'
+          } criou um acesso para você no Comunikapp.`
+        : 'Obrigado por se cadastrar. Use o código abaixo para verificar seu e-mail:';
+
+    const instrucoes =
+      mode === 'convite'
+        ? `
+          <ol style="padding-left: 20px;">
+            <li>Clique em <strong>Definir minha senha</strong>.</li>
+            <li>Informe este código de verificação.</li>
+            <li>Defina sua senha e faça login.</li>
+          </ol>
+        `
+        : '<p>Use o código abaixo para verificar seu e-mail:</p>';
+
     const mailOptions = {
       from: this.getFromAddress(),
       to,
-      subject: 'Seu Código de Verificação Comunikapp',
+      subject,
       html: `
-        <h1>Bem-vindo ao Comunikapp!</h1>
-        <p>Obrigado por se cadastrar. Use o código abaixo para verificar seu e-mail:</p>
-        <h2><strong>${code}</strong></h2>
-        <p>Este código expira em 15 minutos.</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1>${titulo}</h1>
+          <p>${textoAbertura}</p>
+          ${instrucoes}
+          <div style="margin: 24px 0;">
+            <a href="${activationLink}"
+              style="background-color: #0f172a; color: #ffffff; padding: 12px 20px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              Definir minha senha
+            </a>
+          </div>
+          <p style="margin-bottom: 6px;">Código de verificação:</p>
+          <h2 style="margin-top: 0;"><strong>${code}</strong></h2>
+          <p>Este código expira em 15 minutos.</p>
+          <p style="color: #666; font-size: 12px;">
+            Se você não esperava este convite, pode ignorar este e-mail.
+          </p>
+        </div>
       `,
     };
 
