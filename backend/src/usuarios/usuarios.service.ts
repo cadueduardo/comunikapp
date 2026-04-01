@@ -18,8 +18,9 @@ export class UsuariosService {
     private readonly mail: MailService,
   ) {}
 
-  async listar() {
+  async listar(lojaId: string) {
     return this.prisma.usuario.findMany({
+      where: { loja_id: lojaId },
       select: {
         id: true,
         nome_completo: true,
@@ -31,20 +32,22 @@ export class UsuariosService {
     });
   }
 
-  async obter(id: string) {
-    const user = await this.prisma.usuario.findUnique({ where: { id } });
+  async obter(id: string, lojaId: string) {
+    const user = await this.prisma.usuario.findFirst({
+      where: { id, loja_id: lojaId },
+    });
     if (!user) throw new NotFoundException('Usuario nao encontrado');
     return user;
   }
 
-  async criar(dto: CreateUsuarioDto) {
+  async criar(lojaId: string, dto: CreateUsuarioDto) {
     const exists = await this.prisma.usuario.findFirst({
-      where: { email: dto.email, loja_id: dto.loja_id },
+      where: { email: dto.email, loja_id: lojaId },
     });
     if (exists)
       throw new BadRequestException('E-mail ja cadastrado para esta loja');
 
-    const data: any = { ...dto };
+    const data: any = { ...dto, loja_id: lojaId };
     if (dto.senha) {
       const salt = await bcrypt.genSalt();
       data.senha = await bcrypt.hash(dto.senha, salt);
@@ -73,7 +76,14 @@ export class UsuariosService {
     return { id: created.id };
   }
 
-  async atualizar(id: string, dto: UpdateUsuarioDto) {
+  async atualizar(id: string, lojaId: string, dto: UpdateUsuarioDto) {
+    const user = await this.prisma.usuario.findFirst({
+      where: { id, loja_id: lojaId },
+      select: { id: true },
+    });
+    if (!user) {
+      throw new NotFoundException('Usuario nao encontrado');
+    }
     return this.prisma.usuario.update({ where: { id }, data: dto as any });
   }
 

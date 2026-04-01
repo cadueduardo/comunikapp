@@ -1,0 +1,39 @@
+---
+description: Evitar regressao de CORS e 502 em deploy na VPS
+alwaysApply: true
+---
+
+# Deploy seguro: Nginx + PM2 + CORS (producao)
+
+Objetivo: evitar CORS duplicado, 502 Bad Gateway e inconsistencias de ambiente no backend.
+
+## Regras obrigatorias
+
+- Definir um unico responsavel por CORS em producao.
+- Se Nginx for o responsavel, bloquear headers CORS do upstream com `proxy_hide_header` no `location /`.
+- Nao concluir tarefa de login/API sem validar `OPTIONS` e `POST` com `curl` contendo `Origin`.
+- Sempre verificar processo e porta antes de diagnosticar app:
+  - `pm2 list`
+  - `pm2 env <id>`
+  - `ss -tlnp | grep <porta>`
+- Em reinicio/recreate de processo PM2, aplicar env explicita e persistir:
+  - `env ... pm2 start ...`
+  - `pm2 save`
+- Em alteracao de Nginx, sempre executar:
+  - `nginx -t`
+  - `systemctl reload nginx`
+- Nunca assumir que `dist/` esta atualizado; quando houver duvida, rebuild e reiniciar processo.
+
+## Checklist minimo de validacao (obrigatorio)
+
+1. `curl -i -X OPTIONS https://api... -H "Origin: https://comunikapp.com.br" ...`
+2. `curl -i -X POST https://api... -H "Origin: https://comunikapp.com.br" ...`
+3. Confirmar apenas 1 `Access-Control-Allow-Origin` na resposta publica.
+4. Confirmar que backend local responde algo de aplicacao (200/400/401), nunca 502:
+   - `curl -i http://127.0.0.1:<porta>/...`
+
+## Politica de execucao de comandos
+
+- Enviar comandos em blocos curtos, sem texto misturado na mesma linha.
+- Aguardar saida de cada comando antes do proximo passo.
+- Em caso de divergencia entre esperado e observado, parar e diagnosticar antes de continuar.

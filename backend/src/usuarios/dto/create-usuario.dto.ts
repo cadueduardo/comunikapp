@@ -22,9 +22,6 @@ export class CreateUsuarioDto {
   @IsEnum(usuario_funcao)
   funcao!: usuario_funcao;
 
-  @IsString()
-  loja_id!: string;
-
   @IsOptional()
   @IsString()
   @MinLength(8)

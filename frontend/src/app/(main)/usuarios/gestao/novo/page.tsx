@@ -5,28 +5,20 @@ import { Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useUser } from '@/contexts/UserContext';
 import { apiRequest } from '@/lib/api';
 import { toast } from 'sonner';
 
 export default function NovoUsuarioPage() {
-  const { user } = useUser();
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
-  const [funcao, setFuncao] = useState('VENDAS');
   const [definirSenha, setDefinirSenha] = useState(false);
   const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleCreate = async () => {
-    if (!nome || !email || !funcao) {
-      toast.error('Preencha nome, e-mail e função');
-      return;
-    }
-    const lojaId = (user as any)?.loja?.id || (user as any)?.loja_id;
-    if (!lojaId) {
-      toast.error('loja_id não encontrado');
+    if (!nome || !email) {
+      toast.error('Preencha nome e e-mail');
       return;
     }
     setLoading(true);
@@ -35,8 +27,7 @@ export default function NovoUsuarioPage() {
         nome_completo: nome,
         email,
         telefone: telefone || undefined,
-        funcao,
-        loja_id: lojaId,
+        funcao: 'ADMINISTRADOR',
       };
       if (definirSenha) {
         if (senha.length < 8) {
@@ -84,11 +75,10 @@ export default function NovoUsuarioPage() {
           </div>
           <div className="grid gap-1">
             <label className="text-sm">Função</label>
-            <select className="border rounded h-10 px-3 text-sm" value={funcao} onChange={(e) => setFuncao(e.target.value)}>
-              {['ADMINISTRADOR','FINANCEIRO','PRODUCAO','VENDAS','ESTOQUE'].map((f) => (
-                <option key={f} value={f}>{f}</option>
-              ))}
-            </select>
+            <Input value="ADMINISTRADOR" disabled />
+            <p className="text-xs text-muted-foreground">
+              Nesta fase inicial, todos os usuários criados terão perfil ADMINISTRADOR.
+            </p>
           </div>
           <div className="flex items-center gap-2 mt-1">
             <input id="definirSenha" type="checkbox" checked={definirSenha} onChange={(e) => setDefinirSenha(e.target.checked)} />

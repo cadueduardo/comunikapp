@@ -1,0 +1,14 @@
+---
+description: Sempre fazer commit e push após alterações no código
+alwaysApply: true
+---
+
+# Commit e push após atualizações
+
+Após aplicar alterações no código (correções, features, refatorações):
+
+1. **Sempre** executar `git add` nos arquivos alterados relevantes (não incluir artefatos de build como `tsconfig.build.tsbuildinfo` ou pastas temporárias como `tmp/` a menos que o usuário peça).
+2. **Sempre** fazer `git commit` com mensagem clara e descritiva (ex.: `fix(escopo): descrição` ou `feat(escopo): descrição`).
+3. **Sempre** fazer `git push` para o remoto.
+
+Não perguntar se o usuário quer fazer commit/push — assumir que sim e executar ao finalizar as mudanças.
