@@ -1,4 +1,11 @@
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/$/, '');
+const SESSION_EXPIRED_IGNORED_ENDPOINTS = new Set([
+  '/lojas/login',
+  '/lojas/verificar-email',
+  '/lojas',
+  '/usuarios/reenviar-codigo',
+  '/usuarios/definir-senha',
+]);
 
 export class AuthApiError extends Error {
   code?: string;
@@ -55,8 +62,14 @@ export const apiRequest = async (
       headers,
     });
 
-    // Em 401, acionar modal de reautenticação (sem redirecionar)
-    if (response.status === 401) {
+    // Em 401 de rota protegida com sessão existente, acionar modal de reautenticação.
+    // Rotas públicas (ex.: login) não devem abrir esse modal.
+    const shouldTriggerSessionExpired =
+      response.status === 401 &&
+      !!token &&
+      !SESSION_EXPIRED_IGNORED_ENDPOINTS.has(endpoint);
+
+    if (shouldTriggerSessionExpired) {
       if (typeof window !== 'undefined') {
         try {
           const event = new CustomEvent('session-expired', {

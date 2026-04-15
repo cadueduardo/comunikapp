@@ -31,9 +31,6 @@ export function TiptapEditor({
   mentions = [],
   editable = true,
 }: TiptapEditorProps) {
-  console.log('🔍 [TiptapEditor] Mentions recebidas:', mentions);
-  console.log('🔍 [TiptapEditor] Número de mentions:', mentions.length);
-  
   // Usar useRef para manter a referência atualizada das mentions
   const mentionsRef = useRef(mentions);
   mentionsRef.current = mentions;
@@ -54,20 +51,16 @@ export function TiptapEditor({
           items: ({ query }: { query: string }) => {
             // Usar mentionsRef.current para obter o valor mais recente
             const currentMentions = mentionsRef.current;
-            console.log('🔍 [TiptapEditor] Buscando menções com query:', query);
-            console.log('🔍 [TiptapEditor] Mentions disponíveis (ref):', currentMentions);
             const filtered = currentMentions
               .filter((item) =>
                 item.label.toLowerCase().includes(query.toLowerCase())
               )
               .slice(0, 10);
-            console.log('🔍 [TiptapEditor] Mentions filtradas:', filtered);
             return filtered;
           },
           command: ({ editor, range, props }: any) => {
             // Usa o sistema nativo do Tiptap para inserir menção
             const mentionText = props.label.replace('@', '');
-            console.log('Inserindo menção:', mentionText);
             editor
               .chain()
               .focus()
@@ -176,12 +169,10 @@ export function TiptapEditor({
             
             // Se não há espaço ou quebra de linha depois do @, é uma menção incompleta
             if ((spaceIndex === -1 || spaceIndex > 20) && (newlineIndex === -1 || newlineIndex > 20)) {
-              console.log('Menção incompleta detectada, não enviando mensagem');
               return false; // Deixa o Tiptap lidar com a menção
             }
           }
           
-          console.log('Enviando mensagem');
           event.preventDefault();
           onSubmit?.();
           return true;
