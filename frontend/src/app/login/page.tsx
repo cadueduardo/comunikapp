@@ -9,7 +9,17 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useUser } from '@/contexts/UserContext'; // Importar o useUser
 import { BackgroundBeamsWithCollision } from '@/components/ui/background-beams-with-collision';
-import { authAPI } from '@/lib/api';
+import { authAPI, AuthApiError } from '@/lib/api';
+
+declare global {
+    interface Window {
+        turnstile?: {
+            render: (container: string | HTMLElement, options: Record<string, unknown>) => string;
+            remove: (widgetId: string) => void;
+            reset: (widgetId: string) => void;
+        };
+    }
+}
 
 const GoogleIcon = () => (
     <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
@@ -29,14 +39,59 @@ function LoginContent() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [requiresCaptcha, setRequiresCaptcha] = useState(false);
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+    const [captchaWidgetId, setCaptchaWidgetId] = useState<string | null>(null);
+    const [captchaScriptLoaded, setCaptchaScriptLoaded] = useState(false);
     const { login } = useUser(); // Obter a função de login do contexto
     const searchParams = useSearchParams();
+    const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
     useEffect(() => {
         if (searchParams.get('verified') === 'true') {
             setSuccessMessage('Seu e-mail foi verificado com sucesso! Faça o login para continuar.');
         }
     }, [searchParams]);
+
+    useEffect(() => {
+        if (!requiresCaptcha || !turnstileSiteKey) {
+            return;
+        }
+
+        if (window.turnstile) {
+            setCaptchaScriptLoaded(true);
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        script.async = true;
+        script.defer = true;
+        script.onload = () => setCaptchaScriptLoaded(true);
+        document.body.appendChild(script);
+
+        return () => {
+            document.body.removeChild(script);
+        };
+    }, [requiresCaptcha, turnstileSiteKey]);
+
+    useEffect(() => {
+        if (!requiresCaptcha || !turnstileSiteKey || !captchaScriptLoaded || !window.turnstile) {
+            return;
+        }
+
+        if (captchaWidgetId) {
+            return;
+        }
+
+        const widgetId = window.turnstile.render('#turnstile-widget', {
+            sitekey: turnstileSiteKey,
+            callback: (token: string) => setCaptchaToken(token),
+            'expired-callback': () => setCaptchaToken(null),
+            'error-callback': () => setCaptchaToken(null),
+        });
+        setCaptchaWidgetId(widgetId);
+    }, [requiresCaptcha, turnstileSiteKey, captchaScriptLoaded, captchaWidgetId]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value } = e.target;
@@ -49,13 +104,37 @@ function LoginContent() {
         setError(null);
 
         try {
-            const responseData = await authAPI.login(formData.email, formData.password);
+            const responseData = await authAPI.login(
+                formData.email,
+                formData.password,
+                captchaToken || undefined
+            );
             const { access_token } = responseData;
             
             // Chama a função de login do contexto
             await login(access_token);
             
         } catch (err: unknown) {
+            if (err instanceof AuthApiError && err.code === 'CAPTCHA_REQUIRED') {
+                setRequiresCaptcha(true);
+                setError('Detectamos tentativas repetidas. Resolva o CAPTCHA para continuar.');
+                return;
+            }
+
+            if (err instanceof AuthApiError && err.code === 'CAPTCHA_INVALID') {
+                if (captchaWidgetId && window.turnstile) {
+                    window.turnstile.reset(captchaWidgetId);
+                }
+                setCaptchaToken(null);
+                setError('CAPTCHA inválido ou expirado. Tente novamente.');
+                return;
+            }
+
+            if (err instanceof AuthApiError && err.code === 'LOCKED_TEMPORARILY') {
+                setError(err.message || 'Muitas tentativas inválidas. Aguarde e tente novamente.');
+                return;
+            }
+
             if (err instanceof Error) {
                 setError(err.message);
             } else {
@@ -116,7 +195,24 @@ function LoginContent() {
                                 />
                             </div>
 
-                            <Button type="submit" className="w-full" disabled={loading}>
+                            {requiresCaptcha && (
+                                <div className="grid gap-2">
+                                    <Label>Verificação de segurança</Label>
+                                    {turnstileSiteKey ? (
+                                        <div id="turnstile-widget" className="min-h-[65px]" />
+                                    ) : (
+                                        <div className="text-sm text-amber-700 bg-amber-100 border border-amber-300 rounded px-3 py-2">
+                                            CAPTCHA não configurado no ambiente. Defina <code>NEXT_PUBLIC_TURNSTILE_SITE_KEY</code>.
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <Button
+                                type="submit"
+                                className="w-full"
+                                disabled={loading || (requiresCaptcha && turnstileSiteKey ? !captchaToken : false)}
+                            >
                                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                 {loading ? 'Entrando...' : 'Entrar'}
                             </Button>

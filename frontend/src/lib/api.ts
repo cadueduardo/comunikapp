@@ -1,5 +1,14 @@
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/$/, '');
 
+export class AuthApiError extends Error {
+  code?: string;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = 'AuthApiError';
+    this.code = code;
+  }
+}
+
 // Função para obter o token do localStorage
 const getAuthToken = () => {
   if (typeof window !== 'undefined') {
@@ -89,15 +98,18 @@ export const apiRequest = async (
 
 // Funções específicas para diferentes endpoints
 export const authAPI = {
-  login: async (email: string, password: string) => {
+  login: async (email: string, password: string, captchaToken?: string) => {
     const response = await apiRequest('/lojas/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, captchaToken }),
     });
     
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || 'Erro ao fazer login');
+      throw new AuthApiError(
+        errorData.message || 'Erro ao fazer login',
+        errorData.code,
+      );
     }
     
     return response.json();

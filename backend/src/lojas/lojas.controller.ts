@@ -26,6 +26,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public, CurrentUser, CurrentLojaId } from '../auth/decorators';
 import { AuthenticatedUser } from '../auth/auth.service';
 import { UpdateConfiguracoesLojaDto } from './dto/update-configuracoes-loja.dto';
+import { Request } from 'express';
 
 @Controller('lojas')
 export class LojasController {
@@ -39,8 +40,10 @@ export class LojasController {
 
   @Public()
   @Post('login')
-  login(@Body() loginDto: LoginDto) {
-    return this.lojasService.login(loginDto);
+  login(@Body() loginDto: LoginDto, @Req() req: Request) {
+    const clientIp = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim();
+    const userAgent = req.headers['user-agent']?.toString() || 'unknown';
+    return this.lojasService.login(loginDto, clientIp || req.ip, userAgent);
   }
 
   @Public()

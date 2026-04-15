@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { MailService } from '../mail/mail.service';
@@ -16,15 +17,159 @@ import { LoginDto } from './dto/login.dto';
 import { UpdateConfiguracoesLojaDto } from './dto/update-configuracoes-loja.dto';
 import { loja } from '@prisma/client';
 
+type LoginAttemptState = {
+  failedAttempts: number;
+  firstFailureAt: number;
+  lockUntil?: number;
+};
+
 @Injectable()
 export class LojasService {
+  private readonly logger = new Logger(LojasService.name);
+  private readonly loginAttempts = new Map<string, LoginAttemptState>();
+  private readonly loginAttemptWindowMs = 15 * 60 * 1000;
+  private readonly loginCaptchaThreshold = 5;
+  private readonly lockoutThreshold = 8;
+  private readonly lockoutBaseMs = 5 * 60 * 1000;
+  private readonly lockoutMaxMs = 60 * 60 * 1000;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
     private readonly authService: AuthService,
   ) {}
 
-  async login({ email, password }: LoginDto) {
+  private getLoginAttemptKey(email: string, ip: string) {
+    return `${email.trim().toLowerCase()}|${ip}`;
+  }
+
+  private getLoginAttemptState(key: string): LoginAttemptState {
+    const now = Date.now();
+    const existing = this.loginAttempts.get(key);
+
+    if (!existing || now - existing.firstFailureAt > this.loginAttemptWindowMs) {
+      const freshState: LoginAttemptState = {
+        failedAttempts: 0,
+        firstFailureAt: now,
+      };
+      this.loginAttempts.set(key, freshState);
+      return freshState;
+    }
+
+    return existing;
+  }
+
+  private registerLoginFailure(key: string) {
+    const state = this.getLoginAttemptState(key);
+    state.failedAttempts += 1;
+
+    if (state.failedAttempts >= this.lockoutThreshold) {
+      const lockoutLevel = state.failedAttempts - this.lockoutThreshold + 1;
+      const lockoutMs = Math.min(
+        this.lockoutBaseMs * lockoutLevel,
+        this.lockoutMaxMs,
+      );
+      state.lockUntil = Date.now() + lockoutMs;
+    }
+
+    this.loginAttempts.set(key, state);
+    return state;
+  }
+
+  private clearLoginFailure(key: string) {
+    this.loginAttempts.delete(key);
+  }
+
+  private requiresCaptcha(state: LoginAttemptState) {
+    return state.failedAttempts >= this.loginCaptchaThreshold;
+  }
+
+  private isTurnstileEnabled() {
+    return !!process.env.TURNSTILE_SECRET_KEY;
+  }
+
+  private getRemainingLockSeconds(state: LoginAttemptState) {
+    if (!state.lockUntil) return 0;
+    return Math.max(0, Math.ceil((state.lockUntil - Date.now()) / 1000));
+  }
+
+  private async validateTurnstileToken(captchaToken: string, ip: string) {
+    if (!this.isTurnstileEnabled()) return true;
+
+    const response = await fetch(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          secret: process.env.TURNSTILE_SECRET_KEY || '',
+          response: captchaToken,
+          remoteip: ip,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const data = (await response.json()) as { success?: boolean };
+    return data.success === true;
+  }
+
+  private sanitizeUserAgent(userAgent: string) {
+    return userAgent.length > 240
+      ? `${userAgent.slice(0, 240)}...`
+      : userAgent;
+  }
+
+  async login(
+    { email, password, captchaToken }: LoginDto,
+    ip = 'unknown',
+    userAgent = 'unknown',
+  ) {
+    const loginKey = this.getLoginAttemptKey(email, ip);
+    const attemptState = this.getLoginAttemptState(loginKey);
+    const turnstileEnabled = this.isTurnstileEnabled();
+    const ua = this.sanitizeUserAgent(userAgent);
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (attemptState.lockUntil && attemptState.lockUntil > Date.now()) {
+      const retryAfterSeconds = this.getRemainingLockSeconds(attemptState);
+      this.logger.warn(
+        `login_blocked lockout email=${normalizedEmail} ip=${ip} ua="${ua}" retryAfterSeconds=${retryAfterSeconds}`,
+      );
+      throw new UnauthorizedException({
+        message:
+          'Muitas tentativas inválidas. Aguarde alguns minutos e tente novamente.',
+        code: 'LOCKED_TEMPORARILY',
+        retryAfterSeconds,
+      });
+    }
+
+    if (turnstileEnabled && this.requiresCaptcha(attemptState)) {
+      if (!captchaToken) {
+        this.logger.warn(
+          `login_blocked captcha_required email=${normalizedEmail} ip=${ip} ua="${ua}" attempts=${attemptState.failedAttempts}`,
+        );
+        throw new UnauthorizedException({
+          message: 'Validação adicional obrigatória para continuar o login.',
+          code: 'CAPTCHA_REQUIRED',
+        });
+      }
+
+      const isCaptchaValid = await this.validateTurnstileToken(captchaToken, ip);
+      if (!isCaptchaValid) {
+        this.logger.warn(
+          `login_blocked captcha_invalid email=${normalizedEmail} ip=${ip} ua="${ua}" attempts=${attemptState.failedAttempts}`,
+        );
+        throw new UnauthorizedException({
+          message: 'Falha na validação do CAPTCHA. Tente novamente.',
+          code: 'CAPTCHA_INVALID',
+        });
+      }
+    }
+
     const usuario = await this.prisma.usuario.findUnique({
       where: { email },
       include: {
@@ -33,21 +178,37 @@ export class LojasService {
     });
 
     if (!usuario) {
+      const state = this.registerLoginFailure(loginKey);
+      this.logger.warn(
+        `login_failed user_not_found email=${normalizedEmail} ip=${ip} ua="${ua}" attempts=${state.failedAttempts}`,
+      );
       throw new UnauthorizedException('Credenciais inválidas.');
     }
 
     if (!usuario.email_verificado) {
+      const state = this.registerLoginFailure(loginKey);
+      this.logger.warn(
+        `login_failed email_not_verified email=${normalizedEmail} ip=${ip} ua="${ua}" attempts=${state.failedAttempts} userId=${usuario.id}`,
+      );
       throw new UnauthorizedException(
         'Email não verificado. Verifique sua caixa de entrada.',
       );
     }
 
     if (usuario.status !== usuario_status.ATIVO) {
+      const state = this.registerLoginFailure(loginKey);
+      this.logger.warn(
+        `login_failed user_inactive email=${normalizedEmail} ip=${ip} ua="${ua}" attempts=${state.failedAttempts} userId=${usuario.id}`,
+      );
       throw new UnauthorizedException('Conta não está ativa.');
     }
 
     const isPasswordValid = await bcrypt.compare(password, usuario.senha);
     if (!isPasswordValid) {
+      const state = this.registerLoginFailure(loginKey);
+      this.logger.warn(
+        `login_failed invalid_password email=${normalizedEmail} ip=${ip} ua="${ua}" attempts=${state.failedAttempts} userId=${usuario.id}`,
+      );
       throw new UnauthorizedException('Credenciais inválidas.');
     }
 
@@ -60,6 +221,11 @@ export class LojasService {
       funcao: usuario.funcao,
       nome_completo: usuario.nome_completo,
     });
+
+    this.clearLoginFailure(loginKey);
+    this.logger.log(
+      `login_success email=${normalizedEmail} ip=${ip} ua="${ua}" userId=${usuario.id} lojaId=${usuario.loja_id}`,
+    );
 
     return {
       access_token: token,
