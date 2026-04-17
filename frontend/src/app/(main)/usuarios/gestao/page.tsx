@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Users, Plus, RefreshCw, List, Grid3X3 } from 'lucide-react';
+import { Users, Plus, RefreshCw, List, Grid3X3, UserRound, Pencil, UserX } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { CrudPage } from '@/components/crud/CrudPage';
@@ -11,14 +11,19 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { apiRequest } from '@/lib/api';
-import { usuarioColumns, UsuarioRow } from '../columns';
+import { createUsuarioColumns, UsuarioRow } from '../columns';
 import { useIsMobile } from '@/hooks/use-media-query';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { toast } from 'sonner';
 
 export default function UsuariosGestaoPage() {
   const [data, setData] = useState<UsuarioRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [mostrarInativos, setMostrarInativos] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [usuarioParaDesativar, setUsuarioParaDesativar] = useState<UsuarioRow | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -51,14 +56,20 @@ export default function UsuariosGestaoPage() {
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
-    return data.filter(
+    const filteredBySearch = data.filter(
       (u) =>
         u.nome_completo.toLowerCase().includes(s) ||
         u.email.toLowerCase().includes(s) ||
         (u.funcao || '').toLowerCase().includes(s) ||
         (u.status || '').toLowerCase().includes(s),
     );
-  }, [data, search]);
+
+    if (mostrarInativos) {
+      return filteredBySearch;
+    }
+
+    return filteredBySearch.filter((u) => u.status !== 'INATIVO');
+  }, [data, search, mostrarInativos]);
 
   const getStatusBadge = (status: string) => {
     const variant = status === 'ATIVO' ? 'default' : 'secondary';
@@ -80,9 +91,53 @@ export default function UsuariosGestaoPage() {
     );
   };
 
+  const handleOpenDesativacao = (usuario: UsuarioRow) => {
+    setUsuarioParaDesativar(usuario);
+  };
+
+  const handleConfirmDesativacao = async () => {
+    if (!usuarioParaDesativar) return;
+
+    setRemovingId(usuarioParaDesativar.id);
+    try {
+      const res = await apiRequest(`/usuarios/${usuarioParaDesativar.id}/desativar`, {
+        method: 'PATCH',
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.message || 'Erro ao remover usuário do sistema');
+      }
+
+      setData((prev) =>
+        prev.map((u) =>
+          u.id === usuarioParaDesativar.id
+            ? { ...u, status: 'INATIVO' }
+            : u,
+        ),
+      );
+      toast.success('Usuário removido do sistema com sucesso');
+      setUsuarioParaDesativar(null);
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao remover usuário do sistema');
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
+  const columns = useMemo(
+    () =>
+      createUsuarioColumns({
+        onDesativar: handleOpenDesativacao,
+        removingId,
+      }),
+    [removingId],
+  );
+
   return (
-    <CrudPage
-      header={
+    <>
+      <CrudPage
+        header={
         <PageHeader
           title="Gestão de Usuários"
           backHref="/usuarios"
@@ -110,6 +165,14 @@ export default function UsuariosGestaoPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="max-w-sm"
           />
+          <Button
+            type="button"
+            size="sm"
+            variant={mostrarInativos ? 'default' : 'outline'}
+            onClick={() => setMostrarInativos((prev) => !prev)}
+          >
+            {mostrarInativos ? 'Ocultar inativos' : 'Mostrar inativos'}
+          </Button>
           {!isMobile && (
             <div className="flex items-center gap-2">
               <Button
@@ -160,15 +223,29 @@ export default function UsuariosGestaoPage() {
                   <div className="flex gap-2 mt-4">
                     <Button asChild size="sm" variant="outline" className="flex-1">
                       <Link href={`/usuarios/${usuario.id}`}>
-                        <Users className="w-4 h-4 mr-1" />
+                        <UserRound className="w-4 h-4 mr-1" />
                         Ver
                       </Link>
                     </Button>
                     <Button asChild size="sm" variant="outline" className="flex-1">
                       <Link href={`/usuarios/${usuario.id}/editar`}>
-                        <Users className="w-4 h-4 mr-1" />
+                        <Pencil className="w-4 h-4 mr-1" />
                         Editar
                       </Link>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="flex-1"
+                      disabled={usuario.status === 'INATIVO' || removingId === usuario.id}
+                      onClick={() => handleOpenDesativacao(usuario)}
+                    >
+                      <UserX className="w-4 h-4 mr-1" />
+                      {usuario.status === 'INATIVO'
+                        ? 'Inativo'
+                        : removingId === usuario.id
+                          ? 'Removendo...'
+                          : 'Remover'}
                     </Button>
                   </div>
                 </CardContent>
@@ -176,9 +253,26 @@ export default function UsuariosGestaoPage() {
             ))}
           </div>
         ) : (
-          <DataTable<UsuarioRow, any> columns={usuarioColumns} data={filtered} />
+          <DataTable<UsuarioRow, any> columns={columns} data={filtered} />
         )
       }
     />
+      <ConfirmDialog
+        open={!!usuarioParaDesativar}
+        title="Remover usuário do sistema"
+        description={
+          usuarioParaDesativar
+            ? `O usuário ${usuarioParaDesativar.nome_completo} será desativado e não poderá mais acessar o sistema. Deseja continuar?`
+            : 'Deseja continuar?'
+        }
+        confirmText="Remover do sistema"
+        cancelText="Cancelar"
+        loading={!!removingId}
+        onCancel={() => {
+          if (!removingId) setUsuarioParaDesativar(null);
+        }}
+        onConfirm={handleConfirmDesativacao}
+      />
+    </>
   );
 }

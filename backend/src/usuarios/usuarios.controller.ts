@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
@@ -22,11 +23,12 @@ export class UsuariosController {
   constructor(private readonly usuariosService: UsuariosService) {}
 
   private getUserFromRequest(req: any): {
+    id: string;
     loja_id: string;
     funcao?: string;
   } {
     const user = req?.user;
-    if (!user?.loja_id) {
+    if (!user?.id || !user?.loja_id) {
       throw new UnauthorizedException('Loja ID não encontrado no token');
     }
     return user;
@@ -72,6 +74,16 @@ export class UsuariosController {
   ) {
     const user = this.ensureAdmin(req);
     return this.usuariosService.atualizar(id, user.loja_id, dto);
+  }
+
+  @Patch(':id/desativar')
+  @UseGuards(JwtAuthGuard, ModuleActivationGuard)
+  async desativar(@Param('id') id: string, @Request() req: any) {
+    const user = this.ensureAdmin(req);
+    if (id === user.id) {
+      throw new BadRequestException('Nao e permitido desativar o proprio usuario');
+    }
+    return this.usuariosService.desativar(id, user.loja_id);
   }
 
   // Fluxo de convite/primeiro acesso (entradas public serão adicionadas na fase 2 com validação dedicada)

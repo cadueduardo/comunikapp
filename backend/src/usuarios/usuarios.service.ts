@@ -99,6 +99,52 @@ export class UsuariosService {
     return this.prisma.usuario.update({ where: { id }, data: dto as any });
   }
 
+  async desativar(id: string, lojaId: string) {
+    const usuario = await this.prisma.usuario.findFirst({
+      where: { id, loja_id: lojaId },
+      select: { id: true, funcao: true, status: true },
+    });
+
+    if (!usuario) {
+      throw new NotFoundException('Usuario nao encontrado');
+    }
+
+    if (usuario.status === usuario_status.INATIVO) {
+      return { id: usuario.id, status: usuario_status.INATIVO };
+    }
+
+    if (usuario.funcao === usuario_funcao.ADMINISTRADOR) {
+      const totalAdminsAtivos = await this.prisma.usuario.count({
+        where: {
+          loja_id: lojaId,
+          funcao: usuario_funcao.ADMINISTRADOR,
+          status: usuario_status.ATIVO,
+        },
+      });
+
+      if (totalAdminsAtivos <= 1) {
+        throw new BadRequestException(
+          'Nao e permitido desativar o ultimo administrador ativo da loja',
+        );
+      }
+    }
+
+    const updated = await this.prisma.usuario.update({
+      where: { id: usuario.id },
+      data: {
+        status: usuario_status.INATIVO,
+        ativo: false,
+      },
+      select: {
+        id: true,
+        status: true,
+        ativo: true,
+      },
+    });
+
+    return updated;
+  }
+
   async reenviarCodigo(email: string) {
     const usuario = await this.prisma.usuario.findUnique({ where: { email } });
     if (!usuario) throw new NotFoundException('Usuario nao encontrado');
