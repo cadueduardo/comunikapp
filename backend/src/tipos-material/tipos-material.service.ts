@@ -82,8 +82,6 @@ export class TiposMaterialService {
    * Método para criar ou corrigir o tipo de material "Ilhós"
    */
   async criarOuCorrigirTipoMaterialIlhos(loja: { id: string }) {
-    console.log('🔧 Criando ou corrigindo tipo de material para ilhós...');
-
     // Buscar tipos de material que contenham "ilhós" ou "ilhos" no nome
     const tiposExistentes = await this.prisma.tipomaterial.findMany({
       where: {
@@ -103,9 +101,6 @@ export class TiposMaterialService {
     };
 
     if (tiposExistentes.length === 0) {
-      // Criar novo tipo de material
-      console.log('📝 Criando novo tipo de material para ilhós...');
-
       const novoTipoMaterial = await this.prisma.tipomaterial.create({
         data: {
           nome: 'Ilhós',
@@ -120,16 +115,8 @@ export class TiposMaterialService {
         },
       });
 
-      console.log(
-        `✅ Tipo de material criado: ${novoTipoMaterial.nome} (ID: ${novoTipoMaterial.id})`,
-      );
       return novoTipoMaterial;
     } else {
-      // Corrigir tipos existentes
-      console.log(
-        `🔧 Corrigindo ${tiposExistentes.length} tipos de material existentes...`,
-      );
-
       for (const tipo of tiposExistentes) {
         let precisaCorrecao = false;
         let novosParametros = parametrosCorretos;
@@ -153,8 +140,6 @@ export class TiposMaterialService {
         }
 
         if (precisaCorrecao) {
-          console.log(`🔧 Corrigindo tipo: ${tipo.nome}`);
-
           await this.prisma.tipomaterial.update({
             where: { id: tipo.id },
             data: {
@@ -163,10 +148,6 @@ export class TiposMaterialService {
               atualizado_em: new Date(),
             },
           });
-
-          console.log(`✅ Tipo corrigido: ${tipo.nome}`);
-        } else {
-          console.log(`✅ Tipo já está correto: ${tipo.nome}`);
         }
       }
 

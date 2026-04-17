@@ -139,26 +139,15 @@ export class OSDiretaInternaController {
     @Body() body: { aprovado: boolean; observacoes?: string },
     @Request() req: any,
   ) {
-    console.log('🔍 Debug - OSDiretaInternaController - req.user:', req.user);
-    console.log(
-      '🔍 Debug - OSDiretaInternaController - req["user"]:',
-      req['user'],
-    );
-
     const user = req['user'] || req.user;
-    console.log('🔍 Debug - OSDiretaInternaController - user:', user);
 
     if (!user || (!user.id && !user.sub)) {
-      console.log(
-        '🔍 Debug - OSDiretaInternaController - User ou ID não encontrado',
-      );
       throw new BadRequestException(
         'Usuário não autenticado ou ID não encontrado',
       );
     }
 
     const usuarioId = user.sub || user.id;
-    console.log('🔍 Debug - OSDiretaInternaController - UsuarioId:', usuarioId);
 
     const resultado = await this.osService.aprovarOSTecnica(
       osId,

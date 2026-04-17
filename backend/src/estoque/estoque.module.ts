@@ -91,12 +91,6 @@ import { RelatoriosEstoqueService } from './services/relatorios-estoque.service'
   exports: [EstoqueAccessGuard, 'ESTOQUE_MODULE_CONFIG'],
 })
 export class EstoqueModule implements NestModule {
-  constructor() {
-    console.log(
-      '✅ EstoqueModule carregado - APIs REST ativas com JwtAuthGuard padrão',
-    );
-  }
-
   configure(consumer: MiddlewareConsumer) {
     // Aplica um middleware de contexto (correlationId) antes do isolamento de tenant
     consumer

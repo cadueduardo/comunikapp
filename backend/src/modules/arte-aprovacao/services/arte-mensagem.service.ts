@@ -586,11 +586,6 @@ export class ArteMensagemService {
       produtos.push(...produtosOrcamento);
     }
 
-    console.log(
-      '­ƒöì [buscarUltimasMensagensPorProduto] Produtos da API status-produtos:',
-      produtos,
-    );
-
     // Formatar resposta
     const resultado = Array.from(mensagensPorProduto.values())
       .map((mensagem) => {
@@ -604,23 +599,7 @@ export class ArteMensagemService {
         // Ô£à FALLBACK: Se n├úo encontrou o produto espec├¡fico e h├í apenas um produto na OS, usar esse
         if (!produto && produtos.length === 1) {
           produto = produtos[0];
-          console.log(
-            '­ƒöì [buscarUltimasMensagensPorProduto] Usando produto ├║nico da OS como fallback:',
-            produto,
-          );
         }
-
-        console.log(
-          '­ƒöì [buscarUltimasMensagensPorProduto] Processando mensagem:',
-          {
-            mensagem_id: mensagem.id,
-            produto_id: mensagem.produto_id,
-            produto_encontrado: produto,
-            produto_nome_final:
-              produto?.produto_servico || 'Produto n├úo encontrado',
-            produtos_disponiveis: produtos.length,
-          },
-        );
 
         return {
           id: mensagem.id,
@@ -639,10 +618,6 @@ export class ArteMensagemService {
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
 
-    console.log(
-      '­ƒöì [buscarUltimasMensagensPorProduto] Resultado final:',
-      resultado,
-    );
     return resultado;
   }
 

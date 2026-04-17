@@ -1,13 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import * as express from 'express';
 import { join } from 'path';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
+
   // Configurar codificação UTF-8 para caracteres especiais
   process.stdout.setEncoding('utf8');
   process.stderr.setEncoding('utf8');
@@ -99,7 +101,9 @@ async function bootstrap() {
 
   // Configurar serve de arquivos estáticos
   const uploadsPath = join(process.cwd(), 'uploads');
-  console.log('📁 Servindo arquivos estáticos de:', uploadsPath);
+  if (!isProd) {
+    logger.debug(`Uploads estáticos: ${uploadsPath}`);
+  }
   app.use('/uploads', express.static(uploadsPath));
 
   // Swagger OpenAPI
@@ -114,29 +118,18 @@ async function bootstrap() {
     swaggerOptions: { persistAuthorization: true },
   });
 
-  // Log de debug para identificar problema
   const port = process.env.PORT ?? 4000;
-  console.log('🚀 Tentando iniciar servidor na porta:', port);
-  console.log('🔧 Variáveis de ambiente:');
-  console.log('   - PORT:', process.env.PORT);
-  console.log('   - NODE_ENV:', process.env.NODE_ENV);
-  console.log(
-    '   - DATABASE_URL:',
-    process.env.DATABASE_URL ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
-  );
-  console.log(
-    '   - TIMEZONE:',
-    process.env.TZ,
-    '| Data atual:',
-    new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-  );
+  if (!isProd) {
+    logger.debug(
+      `Env: PORT=${process.env.PORT} NODE_ENV=${process.env.NODE_ENV} DATABASE_URL=${process.env.DATABASE_URL ? 'ok' : 'missing'} TZ=${process.env.TZ}`,
+    );
+  }
 
   try {
     await app.listen(port);
-    console.log('✅ Servidor iniciado com sucesso na porta:', port);
-    console.log('🌐 Acesse: http://localhost:' + port);
+    logger.log(`API escutando na porta ${port}`);
   } catch (error) {
-    console.error('❌ Erro ao iniciar servidor:', error);
+    logger.error('Falha ao iniciar o servidor', error as Error);
     process.exit(1);
   }
 }

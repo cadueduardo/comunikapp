@@ -1,9 +1,10 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { Transporter } from 'nodemailer';
 
 @Injectable()
 export class MailService implements OnModuleInit {
+  private readonly logger = new Logger(MailService.name);
   private transporter: Transporter;
 
   async onModuleInit() {
@@ -30,7 +31,9 @@ export class MailService implements OnModuleInit {
           tls: { rejectUnauthorized: false },
         }),
       });
-      console.log('📧 [MailService] Configurado SMTP:', host, 'porta', port, 'secure:', secure);
+      this.logger.log(
+        `SMTP configurado: ${host}:${port} (secure=${secure})`,
+      );
     } else {
       const testAccount = await nodemailer.createTestAccount();
       this.transporter = nodemailer.createTransport({
@@ -42,7 +45,9 @@ export class MailService implements OnModuleInit {
           pass: testAccount.pass,
         },
       });
-      console.log('📧 [MailService] ETHEREAL EMAIL (desenvolvimento) - User:', testAccount.user);
+      this.logger.warn(
+        `E-mail em modo teste (Ethereal); entrega real desativada. Conta: ${testAccount.user}`,
+      );
     }
   }
 
@@ -122,15 +127,22 @@ export class MailService implements OnModuleInit {
 
     const info = await this.transporter.sendMail(mailOptions);
 
-    console.log('--- E-mail Sent ---');
-    console.log('Message sent: %s', info.messageId);
+    this.logger.log(
+      `E-mail de verificação enviado messageId=${info.messageId} destino=${MailService.maskEmail(to)}`,
+    );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+      this.logger.debug(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
     }
-    console.log('Código de verificação para', to, ':', code);
-    console.log('-------------------');
 
     return info;
+  }
+
+  private static maskEmail(email: string): string {
+    const [user, domain] = email.split('@');
+    if (!domain) return '[invalid]';
+    const u =
+      user.length <= 2 ? `${user[0]}*` : `${user.slice(0, 2)}…${user.slice(-1)}`;
+    return `${u}@${domain}`;
   }
 
   async enviarOrcamentoCliente(
@@ -193,9 +205,11 @@ export class MailService implements OnModuleInit {
 
     const info = await this.transporter.sendMail(mailOptions);
 
-    console.log('📧 E-MAIL DE ORÇAMENTO ENVIADO - Message ID:', info.messageId, '| Destinatário:', emailCliente);
+    this.logger.log(
+      `Orçamento enviado messageId=${info.messageId} destino=${MailService.maskEmail(emailCliente)}`,
+    );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      console.log('📧 Preview (Etheral):', nodemailer.getTestMessageUrl(info));
+      this.logger.debug(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
     }
 
     return info;
@@ -264,14 +278,11 @@ export class MailService implements OnModuleInit {
 
     const info = await this.transporter.sendMail(mailOptions);
 
-    console.log(
-      '📧 E-MAIL DE ORÇAMENTO ATUALIZADO ENVIADO - Message ID:',
-      info.messageId,
-      '| Destinatário:',
-      emailCliente,
+    this.logger.log(
+      `Orçamento atualizado enviado messageId=${info.messageId} destino=${MailService.maskEmail(emailCliente)}`,
     );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      console.log('📧 Preview (Etheral):', nodemailer.getTestMessageUrl(info));
+      this.logger.debug(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
     }
 
     return info;
@@ -329,9 +340,11 @@ export class MailService implements OnModuleInit {
 
     const info = await this.transporter.sendMail(mailOptions);
 
-    console.log('📧 E-mail de Aprovação enviado - Message ID:', info.messageId, '| Destinatário:', emailLoja);
+    this.logger.log(
+      `Aprovação notificada messageId=${info.messageId} destino=${MailService.maskEmail(emailLoja)}`,
+    );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      console.log('📧 Preview (Etheral):', nodemailer.getTestMessageUrl(info));
+      this.logger.debug(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
     }
 
     return info;

@@ -23,8 +23,6 @@ export class MaquinasController {
 
   @Post()
   create(@Body() createMaquinaDto: CreateMaquinaDto, @GetLoja() loja: loja) {
-    console.log('Dados recebidos no controller:', createMaquinaDto);
-    console.log('Tipo de custo_hora:', typeof createMaquinaDto.custo_hora);
     return this.maquinasService.create(createMaquinaDto, loja);
   }
 
@@ -49,12 +47,6 @@ export class MaquinasController {
     @Body() updateMaquinaDto: UpdateMaquinaDto,
     @GetLoja() loja: loja,
   ) {
-    console.log(
-      '🔧 [MaquinasController] Dados recebidos para update:',
-      updateMaquinaDto,
-    );
-    console.log('🔧 [MaquinasController] ID da máquina:', id);
-    console.log('🔧 [MaquinasController] Loja:', loja.id);
     return this.maquinasService.update(id, updateMaquinaDto, loja);
   }
 

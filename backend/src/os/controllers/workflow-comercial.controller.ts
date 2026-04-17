@@ -70,21 +70,15 @@ export class WorkflowComercialController {
     @Body() body: { aprovado: boolean; observacoes?: string },
     @Request() req: any,
   ) {
-    console.log('🔍 Debug - req object:', req);
-    console.log('🔍 Debug - req.user:', req.user);
-    console.log('🔍 Debug - req["user"]:', req['user']);
-
     const user = req.user;
 
     if (!user || !user.id) {
-      console.log('🔍 Debug - User ou ID não encontrado');
       throw new BadRequestException(
         'Usuário não autenticado ou ID não encontrado',
       );
     }
 
     const usuarioId = user.id;
-    console.log('🔍 Debug - UsuarioId final:', usuarioId);
 
     return await this.osService.aprovarOSTecnica(
       osId,

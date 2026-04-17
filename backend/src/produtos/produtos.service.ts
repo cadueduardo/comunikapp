@@ -276,44 +276,18 @@ export class ProdutosService {
             impostos_customizados: undefined,
           };
 
-          // Calcular o valor usando o motor de cálculo V2
-          console.log(`🔍 Debug - Calculando produto ${produto.nome}:`, {
-            dtoParaOrcamento,
-            lojaId,
-          });
-
           const calculo = await this.calcularProdutoV2(
             dtoParaOrcamento,
             lojaId,
           );
 
-          console.log(`🔍 Debug - Resultado do cálculo para ${produto.nome}:`, {
-            preco_final: calculo.custos.preco_final,
-            custo_material: calculo.custos.custo_material,
-            custo_mao_obra: calculo.custos.custo_mao_obra,
-            custo_maquinaria: calculo.custos.custo_maquinaria,
-            custo_indireto: calculo.custos.custo_indireto,
-          });
-
           // IMPORTANTE: SEMPRE salvar o valor_calculado no banco de dados
           // Usar o preço final que inclui margem e impostos
           // Forçar atualização para garantir consistência
-          console.log(`🔍 Salvando valor calculado para ${produto.nome}:`, {
-            valor_anterior: (produto as any).valor_calculado,
-            valor_novo: calculo.custos.preco_final,
-            diferenca:
-              Number((produto as any).valor_calculado) -
-              Number(calculo.custos.preco_final),
-          });
-
           await this.prisma.templateProduto.update({
             where: { id: produto.id },
             data: { valor_calculado: calculo.custos.preco_final } as any,
           });
-
-          console.log(
-            `✅ Valor salvo no banco: R$ ${calculo.custos.preco_final}`,
-          );
 
           return {
             ...produto,

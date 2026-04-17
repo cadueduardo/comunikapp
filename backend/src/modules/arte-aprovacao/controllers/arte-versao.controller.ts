@@ -10,6 +10,7 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -31,6 +32,8 @@ import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 @Controller('arte-aprovacao/versoes')
 export class ArteVersaoController {
+  private readonly logger = new Logger(ArteVersaoController.name);
+
   constructor(private readonly arteVersaoService: ArteVersaoService) {}
 
   @Post()
@@ -47,13 +50,6 @@ export class ArteVersaoController {
     @Body() createDto: CreateArteVersaoDto,
     @Request() req: any,
   ): Promise<ArteVersaoResponseDto> {
-    console.log('🎨 [Controller] Criando versão:', {
-      osId: createDto.os_id,
-      versao: createDto.versao,
-      usuarioId: req.user.id,
-      lojaId: req.user.loja_id,
-    });
-
     return this.arteVersaoService.createVersao(
       createDto,
       req.user.id,
@@ -73,11 +69,6 @@ export class ArteVersaoController {
     @Param('osId') osId: string,
     @Request() req: any,
   ): Promise<ArteVersaoResponseDto[]> {
-    console.log('📋 [Controller] Listando versões da OS:', {
-      osId,
-      lojaId: req.user.loja_id,
-    });
-
     return this.arteVersaoService.findVersoesByOS(osId, req.user.loja_id);
   }
 
@@ -93,11 +84,6 @@ export class ArteVersaoController {
     @Param('produtoId') produtoId: string,
     @Request() req: any,
   ): Promise<ArteVersaoResponseDto[]> {
-    console.log('📋 [Controller] Listando versões do produto:', {
-      produtoId,
-      lojaId: req.user.loja_id,
-    });
-
     return this.arteVersaoService.findVersoesByProduto(
       produtoId,
       req.user.loja_id,
@@ -116,11 +102,6 @@ export class ArteVersaoController {
     @Param('id') id: string,
     @Request() req: any,
   ): Promise<ArteVersaoResponseDto> {
-    console.log('🔍 [Controller] Buscando versão:', {
-      id,
-      lojaId: req.user.loja_id,
-    });
-
     return this.arteVersaoService.findVersaoById(id, req.user.loja_id);
   }
 
@@ -138,20 +119,8 @@ export class ArteVersaoController {
     @Body() updateDto: UpdateArteVersaoDto,
     @Request() req: any,
   ): Promise<ArteVersaoResponseDto> {
-    console.log('✏️ [Controller] PUT /arte-aprovacao/versoes/:id chamado:', {
-      id,
-      updateDto,
-      lojaId: req.user?.loja_id,
-      userId: req.user?.id,
-      user: req.user,
-      headers: req.headers,
-      method: req.method,
-      url: req.url,
-    });
-
     try {
       if (!req.user) {
-        console.error('❌ [Controller] Usuário não autenticado');
         throw new Error('Usuário não autenticado');
       }
 
@@ -160,10 +129,9 @@ export class ArteVersaoController {
         updateDto,
         req.user.loja_id,
       );
-      console.log('✅ [Controller] Versão atualizada com sucesso:', result.id);
       return result;
     } catch (error) {
-      console.error('❌ [Controller] Erro ao atualizar versão:', error);
+      this.logger.error(`Falha ao atualizar versão ${id}`, error as Error);
       throw error;
     }
   }
@@ -174,12 +142,6 @@ export class ArteVersaoController {
   @ApiResponse({ status: 204, description: 'Versão removida com sucesso' })
   @ApiResponse({ status: 404, description: 'Versão não encontrada' })
   async remove(@Param('id') id: string, @Request() req: any): Promise<void> {
-    console.log('🗑️ [Controller] Removendo versão:', {
-      id,
-      usuarioId: req.user.id,
-      lojaId: req.user.loja_id,
-    });
-
     return this.arteVersaoService.removeVersao(
       id,
       req.user.loja_id,
@@ -199,11 +161,6 @@ export class ArteVersaoController {
     @Param('id') id: string,
     @Request() req: any,
   ): Promise<ArteVersaoResponseDto> {
-    console.log('♻️ [Controller] Restaurando versão:', {
-      id,
-      lojaId: req.user.loja_id,
-    });
-
     return this.arteVersaoService.restoreVersao(id, req.user.loja_id);
   }
 
@@ -288,12 +245,6 @@ export class ArteVersaoController {
     @Param('id') id: string,
     @Request() req,
   ): Promise<ArteVersaoResponseDto> {
-    console.log('🎨 [Controller] Liberando arte para PCP:', {
-      id,
-      usuarioId: req.user.id,
-      lojaId: req.user.loja_id,
-    });
-
     return this.arteVersaoService.liberarParaPCP(
       id,
       req.user.id,

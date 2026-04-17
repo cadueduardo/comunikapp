@@ -66,14 +66,6 @@ export class EstoqueAccessGuard implements CanActivate {
       );
     }
 
-    // 6. LOG DE ACESSO (AUDITORIA)
-    console.log(
-      `✅ Acesso autorizado ao estoque: ` +
-        `Usuário ${request.estoque.usuarioId} | ` +
-        `Loja ${request.estoque.lojaId} | ` +
-        `Roles ${userRoles.join(',')}`,
-    );
-
     return true;
   }
 }

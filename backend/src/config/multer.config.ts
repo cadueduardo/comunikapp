@@ -15,7 +15,6 @@ const uploadDir = join(process.cwd(), 'uploads', 'arte');
 // Garantir que o diretório existe
 if (!existsSync(uploadDir)) {
   mkdirSync(uploadDir, { recursive: true });
-  console.log('📁 Diretório de uploads criado:', uploadDir);
 }
 
 export const multerConfig = {

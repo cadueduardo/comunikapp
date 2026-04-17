@@ -166,10 +166,6 @@ export class AprovacaoTecnicaService {
     });
 
     // TODO: Enviar notificação se rejeitada
-    if (!dto.aprovado) {
-      // Notificar comercial sobre rejeição
-      console.log(`OS ${osId} rejeitada tecnicamente por ${usuarioId}`);
-    }
 
     return {
       id: osAtualizada.id,

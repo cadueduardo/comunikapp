@@ -95,20 +95,6 @@ export class MensagensNegociacaoController {
     body: any, // Desabilitar validação para este endpoint
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    console.log('🔍 Controller publico - OrcamentoId:', orcamentoId);
-    console.log(
-      '🔍 Controller publico - Body recebido:',
-      JSON.stringify(body, null, 2),
-    );
-    console.log('🔍 Controller publico - Body keys:', Object.keys(body));
-    console.log(
-      '🔍 Controller publico - File recebido:',
-      file
-        ? `${file.originalname} (${file.size} bytes, ${file.mimetype})`
-        : 'nenhum',
-    );
-
-    // Criar DTO manualmente a partir do body
     const dto: CreateMensagemNegociacaoDto = {
       mensagem: body.mensagem || '',
       tipo: body.tipo || 'CLIENTE',
@@ -116,27 +102,11 @@ export class MensagensNegociacaoController {
       autor_email: body.autor_email || '',
     };
 
-    console.log(
-      '🔍 Controller publico - DTO criado:',
-      JSON.stringify(dto, null, 2),
+    return this.mensagensNegociacaoService.createPublicoComAnexo(
+      orcamentoId,
+      dto,
+      file,
     );
-
-    try {
-      const result =
-        await this.mensagensNegociacaoService.createPublicoComAnexo(
-          orcamentoId,
-          dto,
-          file,
-        );
-      console.log(
-        '✅ Controller publico - Mensagem criada com sucesso:',
-        result.id,
-      );
-      return result;
-    } catch (error) {
-      console.error('❌ Controller publico - Erro ao criar mensagem:', error);
-      throw error;
-    }
   }
 
   /**

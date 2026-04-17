@@ -39,7 +39,7 @@ export class ArteWebSocketGateway
   }
 
   async handleConnection(client: Socket) {
-    this.logger.log(`Cliente conectado ao namespace arte: ${client.id}`);
+    this.logger.debug(`WS arte conectado socket=${client.id}`);
 
     // Extrair token do handshake
     const token =
@@ -68,8 +68,8 @@ export class ArteWebSocketGateway
             await client.join(`loja_${user.loja_id}`);
             await client.join(`user_${user.id}`);
 
-            this.logger.log(
-              `Designer autenticado conectado: ${user.email} (Loja: ${user.loja_id})`,
+            this.logger.debug(
+              `WS arte designer loja=${user.loja_id} socket=${client.id}`,
             );
           }
         } else if (payload.versao_id) {
@@ -78,8 +78,8 @@ export class ArteWebSocketGateway
           client.data.tipo = 'cliente';
           client.data.tokenAprovacao = token;
 
-          this.logger.log(
-            `Cliente público conectado: versão ${payload.versao_id}`,
+          this.logger.debug(
+            `WS arte cliente público versao=${payload.versao_id} socket=${client.id}`,
           );
         }
       } catch (error) {
@@ -88,12 +88,12 @@ export class ArteWebSocketGateway
         );
       }
     } else {
-      this.logger.log(`Cliente público conectado sem token: ${client.id}`);
+      this.logger.debug(`WS arte sem token socket=${client.id}`);
     }
   }
 
   handleDisconnect(client: Socket) {
-    this.logger.log(`Cliente desconectado do namespace arte: ${client.id}`);
+    this.logger.debug(`WS arte desconectado socket=${client.id}`);
   }
 
   @SubscribeMessage('join_arte_versao')
@@ -152,8 +152,8 @@ export class ArteWebSocketGateway
       await client.join(`arte_versao_${versaoId}`);
       client.data.versaoId = versaoId;
 
-      this.logger.log(
-        `Cliente ${client.id} entrou na sala da versão ${versaoId}`,
+      this.logger.debug(
+        `WS arte join versao=${versaoId} socket=${client.id}`,
       );
 
       // Notificar outros clientes na sala
@@ -178,7 +178,7 @@ export class ArteWebSocketGateway
     await client.leave(`arte_versao_${versaoId}`);
     delete client.data.versaoId;
 
-    this.logger.log(`Cliente ${client.id} saiu da sala da versão ${versaoId}`);
+    this.logger.debug(`WS arte leave versao=${versaoId} socket=${client.id}`);
 
     // Notificar outros clientes na sala
     client.to(`arte_versao_${versaoId}`).emit('user_left_arte', {
@@ -239,8 +239,8 @@ export class ArteWebSocketGateway
         timestamp: new Date().toISOString(),
       });
 
-      this.logger.log(
-        `Mensagem ${mensagemId} marcada como lida por ${client.data.tipo}`,
+      this.logger.debug(
+        `WS arte mensagem lida id=${mensagemId} tipo=${client.data.tipo}`,
       );
     } catch (error) {
       this.logger.error('Erro ao marcar mensagem como lida:', error);
@@ -267,9 +267,7 @@ export class ArteWebSocketGateway
         timestamp: new Date().toISOString(),
       });
 
-      this.logger.log(
-        `Nova mensagem emitida para sala arte_versao_${versaoId}`,
-      );
+      this.logger.debug(`WS arte emit nova_mensagem versao=${versaoId}`);
     } catch (error) {
       this.logger.error('Erro ao emitir nova mensagem:', error);
     }
@@ -291,9 +289,7 @@ export class ArteWebSocketGateway
         timestamp: new Date().toISOString(),
       });
 
-      this.logger.log(
-        `Contador atualizado emitido para sala arte_versao_${versaoId}`,
-      );
+      this.logger.debug(`WS arte emit contador versao=${versaoId}`);
     } catch (error) {
       this.logger.error('Erro ao emitir contador atualizado:', error);
     }

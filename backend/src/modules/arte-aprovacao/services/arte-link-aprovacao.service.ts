@@ -222,12 +222,6 @@ export class ArteLinkAprovacaoService {
     // Não verificar link.ativo aqui - o link pode estar marcado como inativo
     // mas ainda deve permitir visualização de artes já aprovadas e aprovar outras pendentes
 
-    // Buscar todas as versões da mesma OS (todos os produtos/serviços)
-    console.log('🔍 [getVersaoByToken] Buscando versões para:', {
-      os_id: link.versao.os_id,
-      loja_id: link.versao.loja_id,
-    });
-
     const todasVersoes = await this.prisma.arteVersao.findMany({
       where: {
         os_id: link.versao.os_id,
@@ -260,17 +254,6 @@ export class ArteLinkAprovacaoService {
       orderBy: {
         data_criacao: 'desc',
       },
-    });
-
-    console.log('📋 [getVersaoByToken] Encontradas versões:', {
-      quantidade: todasVersoes.length,
-      versoes: todasVersoes.map((v) => ({
-        id: v.id,
-        versao: v.versao,
-        servico_id: v.servico_id,
-        status: v.status,
-        data_criacao: v.data_criacao,
-      })),
     });
 
     // Buscar produtos da OS para estruturar os dados corretamente

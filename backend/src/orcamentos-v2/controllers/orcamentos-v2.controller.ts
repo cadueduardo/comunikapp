@@ -223,18 +223,6 @@ export class OrcamentosV2Controller {
     body: any,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    console.log('🔍 Controller V2 autenticado - OrcamentoId:', id);
-    console.log(
-      '🔍 Controller V2 autenticado - Body recebido:',
-      JSON.stringify(body, null, 2),
-    );
-    console.log(
-      '🔍 Controller V2 autenticado - File recebido:',
-      file
-        ? `${file.originalname} (${file.size} bytes, ${file.mimetype})`
-        : 'nenhum',
-    );
-
     const { loja_id } = req.user;
 
     // Criar DTO manualmente a partir do body
@@ -340,18 +328,6 @@ export class OrcamentosV2Controller {
     body: any,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    console.log('🔍 Controller V2 público - OrcamentoId:', id);
-    console.log(
-      '🔍 Controller V2 público - Body recebido:',
-      JSON.stringify(body, null, 2),
-    );
-    console.log(
-      '🔍 Controller V2 público - File recebido:',
-      file
-        ? `${file.originalname} (${file.size} bytes, ${file.mimetype})`
-        : 'nenhum',
-    );
-
     // Criar DTO manualmente a partir do body
     const dados = {
       mensagem: body.mensagem || '',
@@ -395,9 +371,6 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async buscarOrcamento(@Param('id') id: string, @Request() req: any) {
-    console.log('🔍 Debug - req.user:', req.user);
-    console.log('🔍 Debug - req.headers:', req.headers);
-
     if (!req.user) {
       throw new Error('Usuário não autenticado');
     }
@@ -442,11 +415,6 @@ export class OrcamentosV2Controller {
     @Body() dados: any,
     @Request() req: any,
   ) {
-    console.log('🔥 CONTROLLER PUT /orcamentos-v2/:id CHAMADO!', {
-      id,
-      dadosKeys: Object.keys(dados),
-      userLojaId: req.user?.loja_id,
-    });
     const { loja_id, user_id } = req.user;
     return await this.orcamentosService.atualizarOrcamento(
       id,
