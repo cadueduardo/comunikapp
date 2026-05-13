@@ -85,12 +85,15 @@ sudo -u comunikapp -H cp /opt/comunikapp/app/frontend/.env.production.example /o
 sudo -u comunikapp -H nano /opt/comunikapp/app/backend/.env
 sudo -u comunikapp -H nano /opt/comunikapp/app/frontend/.env.production
 
-# Validar a DATABASE_URL ANTES do deploy (deve responder "1"):
+# Validar a DATABASE_URL ANTES do deploy.
+# OBS.: no Prisma 6+, o `db execute` lê a URL do schema (que faz env("DATABASE_URL")),
+# então NÃO se passa --url; basta apontar o --schema.
 sudo -u comunikapp -H bash -lc '
   cd /opt/comunikapp/app/backend &&
   set -a && . ./.env && set +a &&
-  npx --yes prisma db execute --stdin <<< "SELECT 1;"
-' || echo "ERRO: DATABASE_URL incorreta - revise a senha do MySQL no .env"
+  echo "SELECT 1;" | npx --yes prisma db execute --schema=prisma/schema.prisma --stdin
+' && echo "OK: DATABASE_URL valida" \
+  || echo "ERRO: DATABASE_URL incorreta - revise a senha do MySQL no .env"
 
 # Permissões: só o dono lê
 sudo chown comunikapp:comunikapp /opt/comunikapp/app/backend/.env /opt/comunikapp/app/frontend/.env.production
