@@ -52,7 +52,15 @@ export class MailService implements OnModuleInit {
   }
 
   private getFromAddress(): string {
-    return process.env.SMTP_FROM || process.env.MAIL_FROM || '"Comunikapp" <noreply@comunikapp.com>';
+    // Preferência: SMTP_FROM ou MAIL_FROM explicitamente definidos no .env.
+    // Fallback: usar o próprio MAIL_USER autenticado, porque muitos provedores
+    // (Hostinger, Gmail, SES, etc.) rejeitam o envio quando o From não pertence
+    // à conta autenticada.
+    const explicit = process.env.SMTP_FROM || process.env.MAIL_FROM;
+    if (explicit) return explicit;
+    const authUser = process.env.SMTP_USER || process.env.MAIL_USER;
+    if (authUser) return `"ComunikApp" <${authUser}>`;
+    return '"ComunikApp" <naoresponder@comunikapp.com.br>';
   }
 
   /** Verifica se está usando SMTP real (não Etheral) */

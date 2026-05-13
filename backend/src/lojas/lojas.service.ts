@@ -351,8 +351,17 @@ export class LojasService {
 
         await this.mailService.sendVerificationEmail(usuario.email, emailCode);
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { senha: _, ...result } = usuario;
+        // SEGURANÇA: NUNCA retornar o código de verificação nem hash da senha na resposta.
+        // O código fica apenas no e-mail enviado e gravado no banco para conferência posterior.
+        const {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          senha: _senha,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          codigo_verificacao_email: _codigo,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          codigo_verificacao_email_expiracao: _codigoExp,
+          ...result
+        } = usuario;
         return result;
       });
     } catch (err: unknown) {
