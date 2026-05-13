@@ -1,23 +1,35 @@
 #!/usr/bin/env bash
 # Deploy do Comunikapp no VPS: pull, build (frontend + backend), prisma migrate deploy e restart no PM2.
-# Uso: no VPS, dentro da pasta do projeto: ./scripts/deploy-vps.sh
-# Ou: bash /opt/comunikapp/scripts/deploy-vps.sh
 #
-# Variáveis (opcional): PROJECT_DIR, BRANCH, RESTART_CMD, SKIP_BUILD_IF_NO_CHANGES
-# Ex.: BRANCH=main ./scripts/deploy-vps.sh
-# SKIP_BUILD_IF_NO_CHANGES=1 = quando já está em dia, só reinicia PM2 (não refaz build)
+# IMPORTANTE - segurança:
+#   - Este script NÃO deve ser executado como root.
+#   - O usuário esperado é "comunikapp" (ou outro usuário não-root dedicado).
+#   - O PM2 roda no contexto desse usuário (não use `sudo pm2`).
+#
+# Uso recomendado (na VPS):
+#   sudo -iu comunikapp
+#   cd /opt/comunikapp/app
+#   ./scripts/deploy-vps.sh
+#
+# Variáveis (opcional): PROJECT_DIR, BRANCH, SKIP_BUILD_IF_NO_CHANGES
+#   Ex.: BRANCH=main ./scripts/deploy-vps.sh
+#   SKIP_BUILD_IF_NO_CHANGES=1 = quando já está em dia, só reinicia PM2 (não refaz build)
 
-set -e
+set -euo pipefail
 
-# --- Configure aqui (ou exporte antes de rodar) ---
-# Pasta do projeto no VPS
-PROJECT_DIR="${PROJECT_DIR:-/opt/comunikapp}"
-# Branch para dar pull (padrão: feature/rateio-por-setor; use BRANCH=main para outra)
+# --- Guard de segurança: nunca rodar como root ---
+if [ "$(id -u)" = "0" ]; then
+  echo "[deploy-vps] ERRO: este script NÃO pode ser executado como root." >&2
+  echo "[deploy-vps] Mude para o usuário de aplicação. Ex.: 'sudo -iu comunikapp' e rode de novo." >&2
+  exit 1
+fi
+
+# --- Configuração (pode ser sobrescrita por env) ---
+PROJECT_DIR="${PROJECT_DIR:-/opt/comunikapp/app}"
 BRANCH="${BRANCH:-feature/rateio-por-setor}"
-# Reiniciar backend e frontend no PM2 (rodando como root no VPS)
-RESTART_CMD="${RESTART_CMD:-sudo pm2 restart comunikapp-backend comunikapp-frontend}"
-# --- Fim da configuração ---
+PM2_APPS=("comunikapp-backend" "comunikapp-frontend")
 
+# --- Resolver diretório do projeto ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 if [ -n "${PROJECT_DIR}" ] && [ -d "${PROJECT_DIR}" ]; then
@@ -25,17 +37,26 @@ if [ -n "${PROJECT_DIR}" ] && [ -d "${PROJECT_DIR}" ]; then
 fi
 
 cd "${ROOT_DIR}"
-echo "[deploy-vps] Projeto: Comunikapp"
-echo "[deploy-vps] Pasta: ${ROOT_DIR}"
-echo "[deploy-vps] Branch: ${BRANCH}"
+echo "[deploy-vps] Projeto:  Comunikapp"
+echo "[deploy-vps] Pasta:    ${ROOT_DIR}"
+echo "[deploy-vps] Usuário:  $(id -un) (uid=$(id -u))"
+echo "[deploy-vps] Branch:   ${BRANCH}"
+
 COMMIT_ANTES="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
 echo "[deploy-vps] Commit atual: ${COMMIT_ANTES}"
 echo ""
 
+# --- Pre-flight: PM2 disponível para o usuário atual ---
+if ! command -v pm2 >/dev/null 2>&1; then
+  echo "[deploy-vps] ERRO: 'pm2' não encontrado no PATH do usuário '$(id -un)'." >&2
+  echo "[deploy-vps] Instale com: npm i -g pm2  (como o próprio usuário de aplicação)." >&2
+  exit 1
+fi
+
 echo "[deploy-vps] 1/5 Git fetch e pull..."
 git fetch origin
 COMMIT_DEPOIS=""
-if git pull origin "${BRANCH}"; then
+if git pull --ff-only origin "${BRANCH}"; then
   COMMIT_DEPOIS="$(git rev-parse --short HEAD)"
   if [ "${COMMIT_ANTES}" = "${COMMIT_DEPOIS}" ]; then
     echo "[deploy-vps] Nenhuma alteração nova (já em ${COMMIT_DEPOIS})."
@@ -49,13 +70,13 @@ fi
 CHANGED_FILES="$(git diff --name-only "${COMMIT_ANTES}" "${COMMIT_DEPOIS}" 2>/dev/null || true)"
 BUILD_BACKEND=1
 BUILD_FRONTEND=1
-if [ "${SKIP_BUILD_IF_NO_CHANGES}" = "1" ] && [ "${COMMIT_ANTES}" = "${COMMIT_DEPOIS}" ]; then
+if [ "${SKIP_BUILD_IF_NO_CHANGES:-0}" = "1" ] && [ "${COMMIT_ANTES}" = "${COMMIT_DEPOIS}" ]; then
   BUILD_BACKEND=0
   BUILD_FRONTEND=0
   echo "[deploy-vps] SKIP_BUILD_IF_NO_CHANGES=1: pulando builds, só restart."
 elif [ -n "${CHANGED_FILES}" ]; then
   if echo "${CHANGED_FILES}" | grep -qE '^backend/'; then
-    : # backend mudou, manter BUILD_BACKEND=1
+    : # backend mudou
   else
     BUILD_BACKEND=0
     echo "[deploy-vps] Apenas frontend alterado: build só do frontend."
@@ -70,8 +91,8 @@ fi
 
 BACKEND_DEPS_CHANGED=0
 FRONTEND_DEPS_CHANGED=0
-echo "${CHANGED_FILES}" | grep -qE '^backend/(package\.json|package-lock\.json)' && BACKEND_DEPS_CHANGED=1
-echo "${CHANGED_FILES}" | grep -qE '^frontend/(package\.json|package-lock\.json)' && FRONTEND_DEPS_CHANGED=1
+echo "${CHANGED_FILES}" | grep -qE '^backend/(package\.json|package-lock\.json)' && BACKEND_DEPS_CHANGED=1 || true
+echo "${CHANGED_FILES}" | grep -qE '^frontend/(package\.json|package-lock\.json)' && FRONTEND_DEPS_CHANGED=1 || true
 
 echo "[deploy-vps] 2/5 Build..."
 run_backend() {
@@ -85,34 +106,44 @@ run_frontend() {
   if [ "$FRONTEND_DEPS_CHANGED" -eq 1 ]; then npm ci && npm run build; else npm run build; fi
 }
 export ROOT_DIR BUILD_BACKEND BUILD_FRONTEND BACKEND_DEPS_CHANGED FRONTEND_DEPS_CHANGED
+BEXIT=0
+FEXIT=0
 if [ "$BUILD_BACKEND" -eq 1 ] && [ "$BUILD_FRONTEND" -eq 1 ]; then
   ( run_backend ) & BPID=$!
   ( run_frontend ) & FPID=$!
-  wait $BPID; BEXIT=$?
-  wait $FPID; FEXIT=$?
+  wait $BPID || BEXIT=$?
+  wait $FPID || FEXIT=$?
 elif [ "$BUILD_BACKEND" -eq 1 ]; then
-  ( run_backend ); BEXIT=$?; FEXIT=0
+  ( run_backend ) || BEXIT=$?
 elif [ "$BUILD_FRONTEND" -eq 1 ]; then
-  ( run_frontend ); FEXIT=$?; BEXIT=0
-else
-  BEXIT=0; FEXIT=0
+  ( run_frontend ) || FEXIT=$?
 fi
 if [ "$BEXIT" -ne 0 ]; then echo "[deploy-vps] Backend build falhou (exit $BEXIT)."; exit 1; fi
 if [ "$FEXIT" -ne 0 ]; then echo "[deploy-vps] Frontend build falhou (exit $FEXIT)."; exit 1; fi
 echo ""
 
 echo "[deploy-vps] 3/5 Prisma migrate deploy..."
-(cd "${ROOT_DIR}/backend" && npx prisma migrate deploy) || { echo "[deploy-vps] AVISO: prisma migrate deploy falhou. Verifique o banco."; exit 1; }
+(
+  cd "${ROOT_DIR}/backend"
+  npx prisma migrate deploy
+) || { echo "[deploy-vps] ERRO: prisma migrate deploy falhou. Verifique o banco."; exit 1; }
 echo ""
 
-echo "[deploy-vps] 4/5 Salvando lista do PM2..."
-sudo pm2 save 2>/dev/null || true
+echo "[deploy-vps] 4/5 Reiniciando aplicações no PM2 (usuário $(id -un))..."
+# Se o ecosystem.config.js existir e os apps ainda não estiverem registrados, usa startOrReload.
+# Caso contrário, faz restart direto (mais rápido).
+if [ -f "${ROOT_DIR}/ecosystem.config.js" ]; then
+  pm2 startOrReload "${ROOT_DIR}/ecosystem.config.js" --update-env
+else
+  pm2 restart "${PM2_APPS[@]}" --update-env
+fi
+pm2 save
 echo ""
 
-echo "[deploy-vps] 5/5 Reiniciando app: ${RESTART_CMD}"
-eval "${RESTART_CMD}"
+echo "[deploy-vps] 5/5 Status final do PM2:"
+pm2 list
 echo ""
 
 COMMIT_FINAL="$(git rev-parse --short HEAD)"
 echo "[deploy-vps] Deploy concluído. Commit em produção: ${COMMIT_FINAL}"
-echo "[deploy-vps] Se o site não refletir as mudanças, force atualização no navegador: Ctrl+Shift+R (ou Cmd+Shift+R no Mac)."
+echo "[deploy-vps] Se o site não refletir, force atualização: Ctrl+Shift+R (Cmd+Shift+R no Mac)."

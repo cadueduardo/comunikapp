@@ -118,16 +118,21 @@ async function bootstrap() {
     swaggerOptions: { persistAuthorization: true },
   });
 
-  const port = process.env.PORT ?? 4000;
+  const port = Number(process.env.PORT ?? 4000);
+  // Em produção, escuta apenas em 127.0.0.1 por padrão (Nginx fica na frente).
+  // Em dev, escuta em 0.0.0.0 para permitir acesso de outros dispositivos da rede local.
+  const host =
+    process.env.HOST ?? (isProd ? '127.0.0.1' : '0.0.0.0');
+
   if (!isProd) {
     logger.debug(
-      `Env: PORT=${process.env.PORT} NODE_ENV=${process.env.NODE_ENV} DATABASE_URL=${process.env.DATABASE_URL ? 'ok' : 'missing'} TZ=${process.env.TZ}`,
+      `Env: PORT=${process.env.PORT} HOST=${host} NODE_ENV=${process.env.NODE_ENV} DATABASE_URL=${process.env.DATABASE_URL ? 'ok' : 'missing'} TZ=${process.env.TZ}`,
     );
   }
 
   try {
-    await app.listen(port);
-    logger.log(`API escutando na porta ${port}`);
+    await app.listen(port, host);
+    logger.log(`API escutando em ${host}:${port}`);
   } catch (error) {
     logger.error('Falha ao iniciar o servidor', error as Error);
     process.exit(1);
