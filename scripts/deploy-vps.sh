@@ -4,7 +4,7 @@
 # Ou: bash /opt/comunikapp/scripts/deploy-vps.sh
 #
 # Variáveis (opcional): PROJECT_DIR, BRANCH, RESTART_CMD, SKIP_BUILD_IF_NO_CHANGES
-# Ex.: BRANCH=feature/modulo-pcp-clean ./scripts/deploy-vps.sh
+# Ex.: BRANCH=main ./scripts/deploy-vps.sh
 # SKIP_BUILD_IF_NO_CHANGES=1 = quando já está em dia, só reinicia PM2 (não refaz build)
 
 set -e
@@ -12,8 +12,8 @@ set -e
 # --- Configure aqui (ou exporte antes de rodar) ---
 # Pasta do projeto no VPS
 PROJECT_DIR="${PROJECT_DIR:-/opt/comunikapp}"
-# Branch para dar pull (padrão: feature/modulo-pcp-clean; use BRANCH=main para outra)
-BRANCH="${BRANCH:-feature/modulo-pcp-clean}"
+# Branch para dar pull (padrão: feature/rateio-por-setor; use BRANCH=main para outra)
+BRANCH="${BRANCH:-feature/rateio-por-setor}"
 # Reiniciar backend e frontend no PM2 (rodando como root no VPS)
 RESTART_CMD="${RESTART_CMD:-sudo pm2 restart comunikapp-backend comunikapp-frontend}"
 # --- Fim da configuração ---
