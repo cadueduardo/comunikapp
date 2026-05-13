@@ -101,9 +101,10 @@ mysqldump \
   --set-gtid-purged=OFF \
   --default-character-set=utf8mb4 \
   "${DB_NAME}" 2>>"${LOG_FILE}" | gzip > "${DAILY_FILE}"
-DUMP_EXIT=${PIPESTATUS[0]}
-GZIP_EXIT=${PIPESTATUS[1]}
+PIPE_STATUSES=("${PIPESTATUS[@]}")
 set -e
+DUMP_EXIT="${PIPE_STATUSES[0]:-1}"
+GZIP_EXIT="${PIPE_STATUSES[1]:-1}"
 
 if [ "${DUMP_EXIT}" -ne 0 ] || [ "${GZIP_EXIT}" -ne 0 ]; then
   rm -f "${DAILY_FILE}"
