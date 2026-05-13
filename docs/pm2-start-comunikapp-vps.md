@@ -85,15 +85,10 @@ sudo -u comunikapp -H cp /opt/comunikapp/app/frontend/.env.production.example /o
 sudo -u comunikapp -H nano /opt/comunikapp/app/backend/.env
 sudo -u comunikapp -H nano /opt/comunikapp/app/frontend/.env.production
 
-# Validar a DATABASE_URL ANTES do deploy.
-# OBS.: no Prisma 6+, o `db execute` lê a URL do schema (que faz env("DATABASE_URL")),
-# então NÃO se passa --url; basta apontar o --schema.
-sudo -u comunikapp -H bash -lc '
-  cd /opt/comunikapp/app/backend &&
-  set -a && . ./.env && set +a &&
-  echo "SELECT 1;" | npx --yes prisma db execute --schema=prisma/schema.prisma --stdin
-' && echo "OK: DATABASE_URL valida" \
-  || echo "ERRO: DATABASE_URL incorreta - revise a senha do MySQL no .env"
+# Validação da DATABASE_URL: executada DEPOIS do `npm ci` (passo 4) para garantir
+# que o binário do Prisma usado é o da versão pinada no package.json (6.16.3),
+# e não a versão mais recente puxada pelo `npx --yes` do registry.
+# (Esse comando é repetido no passo 4 - aqui é só lembrete.)
 
 # Permissões: só o dono lê
 sudo chown comunikapp:comunikapp /opt/comunikapp/app/backend/.env /opt/comunikapp/app/frontend/.env.production
@@ -109,8 +104,17 @@ sudo -u comunikapp -H bash -lc '
   set -e
   cd /opt/comunikapp/app/backend
   npm ci
-  npx prisma generate
-  npx prisma migrate deploy
+
+  # Validar a DATABASE_URL ANTES de gerar/migrar.
+  # IMPORTANTE: usar ./node_modules/.bin/prisma (binário local pinado em 6.16.3),
+  # nunca "npx --yes prisma" - este último baixaria a versão mais recente do registry
+  # (Prisma 7+) que é incompatível com o schema.prisma deste projeto.
+  set -a && . ./.env && set +a
+  echo "SELECT 1;" | ./node_modules/.bin/prisma db execute \
+    --schema=prisma/schema.prisma --stdin
+
+  ./node_modules/.bin/prisma generate
+  ./node_modules/.bin/prisma migrate deploy
   npm run build
 
   cd /opt/comunikapp/app/frontend
@@ -118,6 +122,9 @@ sudo -u comunikapp -H bash -lc '
   npm run build
 '
 ```
+
+> Se o passo do `SELECT 1;` falhar, **pare** e revise a `DATABASE_URL` no
+> `backend/.env` (senha, host, porta e nome do banco) antes de continuar.
 
 ---
 
