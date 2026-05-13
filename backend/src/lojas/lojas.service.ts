@@ -356,6 +356,22 @@ export class LojasService {
         return result;
       });
     } catch (err: unknown) {
+      // Sempre loga o erro original ANTES de mascarar para o cliente.
+      // Isto facilita o diagnóstico em produção (PM2 logs / journalctl).
+      console.error(
+        '[LojasService.create] Erro ao criar conta. Detalhes do erro original:',
+        {
+          name: (err as { name?: string })?.name,
+          code: (err as { code?: string })?.code,
+          message: (err as { message?: string })?.message,
+          meta: (err as { meta?: unknown })?.meta,
+          stack:
+            process.env.NODE_ENV === 'production'
+              ? undefined
+              : (err as { stack?: string })?.stack,
+        },
+      );
+
       // Prisma: violação de unique (ex.: e-mail já cadastrado)
       if (err && typeof err === 'object' && 'code' in err && err.code === 'P2002') {
         throw new BadRequestException(
@@ -368,12 +384,10 @@ export class LojasService {
           'Não foi possível criar a conta. Verifique os dados (nome, e-mail, telefone, documento e senha) e tente novamente.',
         );
       }
-      // Erro no envio do e-mail (ex.: serviço indisponível)
+      // Erro lançado de dentro do fluxo (já com mensagem amigável)
       if (err instanceof BadRequestException) {
         throw err;
       }
-      // Log para diagnóstico (ex.: erro de e-mail, encoding, etc.)
-      console.error('[LojasService.create] Erro ao criar conta:', err);
       // Mensagem amigável para qualquer outro erro (ex.: senha com caractere que quebra fluxo)
       throw new BadRequestException(
         'Não foi possível criar a conta. Verifique a senha (mínimo 6 caracteres; evite aspas ou caracteres que possam causar erro). Se o problema continuar, tente outra senha.',
