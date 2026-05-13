@@ -11,16 +11,29 @@
 
 ## 0. Pré-requisitos (uma única vez, como root)
 
+> Se o usuário `comunikapp` **já existe** nesta VPS, pule o `adduser` e use apenas o `usermod`
+> abaixo para garantir o home/shell corretos.
+
+### 0.a) Criação OU ajuste do usuário
+
 ```bash
-# Usuário de aplicação - home em /opt/comunikapp (NÃO em /home/comunikapp)
+# Caso A - usuário NÃO existe ainda
 sudo adduser --system --group --home /opt/comunikapp --shell /bin/bash comunikapp
 
-# Pasta do projeto
+# Caso B - usuário JÁ existe (apenas garantir home=/opt/comunikapp e shell=/bin/bash)
+sudo usermod -d /opt/comunikapp -s /bin/bash comunikapp
+```
+
+> Não use `/home/comunikapp` nesta VPS — o home esperado é `/opt/comunikapp`.
+
+### 0.b) Pasta do projeto e PM2 startup
+
+```bash
 sudo mkdir -p /opt/comunikapp/app
 sudo chown -R comunikapp:comunikapp /opt/comunikapp
 
 # Habilitar PM2 startup via systemd para o usuário comunikapp.
-# Este comando deve ser rodado como root e gera uma linha para executar — execute-a.
+# Este comando deve ser rodado como root e gera uma linha para executar - execute-a.
 sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u comunikapp --hp /opt/comunikapp
 ```
 
@@ -63,12 +76,21 @@ sudo -u comunikapp -H bash -lc '
 sudo -u comunikapp -H cp /opt/comunikapp/app/backend/.env.production.example /opt/comunikapp/app/backend/.env
 sudo -u comunikapp -H cp /opt/comunikapp/app/frontend/.env.production.example /opt/comunikapp/app/frontend/.env.production
 
-# Editar e preencher os valores reais (JWT_SECRET, DATABASE_URL, MAIL_*, ESTOQUE_INTERNAL_API_TOKEN, etc.)
-# Sugestão para gerar segredos fortes:
-#   openssl rand -base64 48   (JWT_SECRET)
-#   openssl rand -hex 32      (tokens internos)
+# Editar e preencher os valores reais. ATENÇÃO ESPECIAL:
+#   - DATABASE_URL: usar EXATAMENTE a senha MySQL que você acabou de trocar
+#     (formato: mysql://usuario:SENHA_NOVA@127.0.0.1:3306/comunikapp)
+#   - JWT_SECRET: openssl rand -base64 48
+#   - ESTOQUE_INTERNAL_API_TOKEN: openssl rand -hex 32
+#   - MAIL_*: usar credenciais SMTP novas (revogar antigas)
 sudo -u comunikapp -H nano /opt/comunikapp/app/backend/.env
 sudo -u comunikapp -H nano /opt/comunikapp/app/frontend/.env.production
+
+# Validar a DATABASE_URL ANTES do deploy (deve responder "1"):
+sudo -u comunikapp -H bash -lc '
+  cd /opt/comunikapp/app/backend &&
+  set -a && . ./.env && set +a &&
+  npx --yes prisma db execute --stdin <<< "SELECT 1;"
+' || echo "ERRO: DATABASE_URL incorreta - revise a senha do MySQL no .env"
 
 # Permissões: só o dono lê
 sudo chown comunikapp:comunikapp /opt/comunikapp/app/backend/.env /opt/comunikapp/app/frontend/.env.production
