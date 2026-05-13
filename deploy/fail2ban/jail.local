@@ -1,0 +1,97 @@
+# =============================================================================
+# fail2ban - configuração canônica do ComunikApp
+# =============================================================================
+# Local na VPS: /etc/fail2ban/jail.local
+#
+# Instalação:
+#   sudo cp /opt/comunikapp/app/deploy/fail2ban/jail.local /etc/fail2ban/jail.local
+#   sudo systemctl restart fail2ban
+#   sudo fail2ban-client status
+# =============================================================================
+
+[DEFAULT]
+# -----------------------------------------------------------------------------
+# Allowlist de IPs que NUNCA são banidos.
+# - 127.0.0.1/8 e ::1: localhost (default fail2ban).
+# - 187.101.173.3: IP de admin/dev em 2026-05-13. RESIDENCIAL PODE MUDAR;
+#   atualizar aqui (e reload do fail2ban) sempre que o provedor renovar o IP.
+# -----------------------------------------------------------------------------
+ignoreip = 127.0.0.1/8 ::1 187.101.173.3
+
+# -----------------------------------------------------------------------------
+# Política de banimento progressivo.
+# Primeira reincidência: 1h. Cada reincidência multiplica por 4 até 7 dias.
+# -----------------------------------------------------------------------------
+bantime           = 1h
+bantime.increment = true
+bantime.factor    = 4
+bantime.maxtime   = 7d
+
+# Janela de detecção padrão (sobrescrita por jail quando necessário).
+findtime = 10m
+maxretry = 5
+
+# Ação padrão: bloqueia tudo do IP via iptables.
+banaction       = iptables-multiport
+banaction_allports = iptables-allports
+
+# -----------------------------------------------------------------------------
+# SSH
+# -----------------------------------------------------------------------------
+[sshd]
+enabled  = true
+port     = 22
+filter   = sshd
+backend  = systemd
+maxretry = 3
+findtime = 10m
+bantime  = 1h
+
+# -----------------------------------------------------------------------------
+# Nginx - tentativas de autenticação básica (HTTP 401)
+# -----------------------------------------------------------------------------
+[nginx-http-auth]
+enabled  = true
+port     = http,https
+filter   = nginx-http-auth
+logpath  = /var/log/nginx/error.log
+maxretry = 5
+findtime = 10m
+bantime  = 1h
+
+# -----------------------------------------------------------------------------
+# Nginx - requests obviamente maliciosos (HTTP 400/444)
+# -----------------------------------------------------------------------------
+[nginx-bad-request]
+enabled  = true
+port     = http,https
+filter   = nginx-bad-request
+logpath  = /var/log/nginx/access.log
+maxretry = 10
+findtime = 10m
+bantime  = 1h
+
+# -----------------------------------------------------------------------------
+# Nginx - scanners procurando URLs vulneráveis (/wp-admin, /.env, /admin, etc.)
+# Mais rígido: 2 tentativas e ban de 24h.
+# -----------------------------------------------------------------------------
+[nginx-botsearch]
+enabled  = true
+port     = http,https
+filter   = nginx-botsearch
+logpath  = /var/log/nginx/access.log
+maxretry = 2
+findtime = 10m
+bantime  = 24h
+
+# -----------------------------------------------------------------------------
+# Recidive: quem é banido várias vezes por qualquer jail vira ban estendido.
+# Útil contra atacantes persistentes que rotacionam pouco entre tentativas.
+# -----------------------------------------------------------------------------
+[recidive]
+enabled   = true
+logpath   = /var/log/fail2ban.log
+banaction = iptables-allports
+bantime   = 1w
+findtime  = 1d
+maxretry  = 3

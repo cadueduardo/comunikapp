@@ -1,2 +1,9 @@
 # Shell scripts: always LF (evita erro de \r no Linux)
 *.sh text eol=lf
+
+# Cron files: must be LF (Linux cron rejeita CRLF silenciosamente)
+deploy/cron/* text eol=lf
+
+# Nginx/fail2ban configs: precisam ser LF para o parser do Linux
+deploy/nginx/*.conf text eol=lf
+deploy/fail2ban/*.local text eol=lf

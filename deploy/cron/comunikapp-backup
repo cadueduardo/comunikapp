@@ -1,0 +1,23 @@
+# =============================================================================
+# Cron do ComunikApp - backup MySQL
+# =============================================================================
+# Instalação:
+#   sudo cp /opt/comunikapp/app/deploy/cron/comunikapp-backup \
+#           /etc/cron.d/comunikapp-backup
+#   sudo chmod 644 /etc/cron.d/comunikapp-backup
+#
+# Validar carregamento:
+#   sudo systemctl reload cron      # ou: sudo service cron reload
+#   sudo grep CRON /var/log/syslog | tail
+#
+# Logs do backup:
+#   tail -f /opt/comunikapp/backups/mysql/backup.log
+#   tail -f /opt/comunikapp/backups/mysql/cron.log
+# =============================================================================
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+
+# Backup diário do MySQL às 03:30 (hora local da VPS - America/Sao_Paulo).
+# Roda como o usuário 'comunikapp' (não-root), que tem ~/.my.cnf com chmod 600.
+30 3 * * * comunikapp /opt/comunikapp/app/scripts/backup-mysql.sh >> /opt/comunikapp/backups/mysql/cron.log 2>&1
