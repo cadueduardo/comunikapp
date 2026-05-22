@@ -21,29 +21,40 @@ export class JwtGlobalMiddleware implements NestMiddleware {
     // Lista de rotas que não precisam de autenticação
     const publicRoutes = [
       '/api/lojas/login',
-      '/api/lojas', // permitir cadastro (POST /api/lojas)
       '/api/lojas/health',
+      '/api/lojas/verificar-email',
       '/api/usuarios/reenviar-codigo',
       '/api/usuarios/definir-senha',
       '/lojas/login',
-      '/lojas', // permitir cadastro (POST /lojas)
       '/lojas/health',
+      '/lojas/verificar-email',
       '/usuarios/reenviar-codigo',
       '/usuarios/definir-senha',
       '/api/estoque/health',
-      '/test-validacoes', // Rotas de teste sem autenticação
-      '/test-campos-validacao', // Rotas de teste de campos sem autenticação
-      '/test-os-validacoes', // Rotas de teste de validações OS sem autenticação
-      '/debug', // Rotas de debug sem autenticação
-      '/debug/validacao-detalhada', // Rotas de debug de validações detalhadas sem autenticação
       '/favicon.ico',
       '/arte-aprovacao/links/public', // Rotas públicas de aprovação de arte
       '/arte-aprovacao/comentarios/public', // Rotas públicas de comentários
       '/arte-aprovacao/mensagens/publico', // Rotas públicas de mensagens
     ];
 
+    if (process.env.NODE_ENV !== 'production') {
+      publicRoutes.push(
+        '/test-validacoes',
+        '/test-campos-validacao',
+        '/test-os-validacoes',
+        '/debug',
+        '/debug/validacao-detalhada',
+      );
+    }
+
+    const isPublicOnboardingCreate =
+      req.method === 'POST' && (req.path === '/lojas' || req.path === '/api/lojas');
+
     // Verificar se a rota é pública
-    if (publicRoutes.some((route) => req.path.startsWith(route))) {
+    if (
+      isPublicOnboardingCreate ||
+      publicRoutes.some((route) => req.path === route || req.path.startsWith(`${route}/`))
+    ) {
       this.logger.debug(`✅ Rota pública: ${req.path}`);
       return next();
     }

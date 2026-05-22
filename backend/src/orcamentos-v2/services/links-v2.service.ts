@@ -6,6 +6,7 @@ import {
   OrcamentoCompleto,
 } from '../interfaces/orcamento.interface';
 import { randomBytes } from 'crypto';
+import * as bcrypt from 'bcrypt';
 
 /**
  * Serviço de Links V2 para Orçamentos
@@ -455,15 +456,11 @@ export class LinksV2Service {
   }
 
   private async criptografarSenha(senha: string): Promise<string> {
-    // TODO: Implementar criptografia de senha
-    // Por enquanto, retornar hash simples
-    return `hash_${senha}_${Date.now()}`;
+    return bcrypt.hash(senha, 12);
   }
 
   private async validarSenha(senha: string, hash: string): Promise<boolean> {
-    // TODO: Implementar validação de senha
-    // Por enquanto, validação simples
-    return hash.includes(senha);
+    return bcrypt.compare(senha, hash);
   }
 
   private async registrarAcesso(

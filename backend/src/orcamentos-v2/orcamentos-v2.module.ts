@@ -1,11 +1,13 @@
 ﻿import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificacoesModule } from '../notificacoes/notificacoes.module';
 import { MailModule } from '../mail/mail.module';
 import { DocumentosModule } from '../documentos/documentos.module';
 import { MotorCalculoV2Module } from '../motor-calculo-v2/motor-calculo-v2.module';
 import { OSModule } from '../os/os.module';
+import { getRequiredJwtSecret } from '../auth/jwt-secret';
 
 // Controllers
 import { OrcamentosV2Controller } from './controllers/orcamentos-v2.controller';
@@ -39,9 +41,13 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     DocumentosModule,
     MotorCalculoV2Module, // Integracao com motor ja funcionando
     OSModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'your-secret-key',
-      signOptions: { expiresIn: '24h' },
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        secret: getRequiredJwtSecret(configService),
+        signOptions: { expiresIn: '24h' },
+      }),
     }),
   ],
   controllers: [

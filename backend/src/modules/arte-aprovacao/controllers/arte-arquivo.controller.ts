@@ -25,7 +25,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { createReadStream, existsSync } from 'fs';
-import { join } from 'path';
+import { basename, join } from 'path';
 import { ArteArquivoService } from '../services/arte-arquivo.service';
 import { ArteThumbnailService } from '../services/arte-thumbnail.service';
 import { ArteArquivoResponseDto } from '../dto/arte-response.dto';
@@ -176,7 +176,12 @@ export class ArteArquivoController {
       cwd: process.cwd(),
     });
 
-    const filePath = join(process.cwd(), 'uploads', 'arte', versaoId, filename);
+    const safeFilename = basename(filename);
+    if (safeFilename !== filename) {
+      throw new BadRequestException('Nome de arquivo inválido');
+    }
+
+    const filePath = join(process.cwd(), 'uploads', 'arte', versaoId, safeFilename);
     console.log('📁 [Controller] Caminho completo do arquivo:', filePath);
     console.log('📁 [Controller] Arquivo existe?', existsSync(filePath));
 
@@ -188,7 +193,7 @@ export class ArteArquivoController {
     const file = createReadStream(filePath);
 
     // Detectar tipo de arquivo
-    const ext = filename.split('.').pop()?.toLowerCase();
+    const ext = safeFilename.split('.').pop()?.toLowerCase();
     const mimeTypes: Record<string, string> = {
       jpg: 'image/jpeg',
       jpeg: 'image/jpeg',
@@ -204,7 +209,7 @@ export class ArteArquivoController {
     // Definir headers para preview inline
     res.set({
       'Content-Type': contentType,
-      'Content-Disposition': `inline; filename="${filename}"`,
+      'Content-Disposition': `inline; filename="${safeFilename.replace(/["\r\n]/g, '_')}"`,
       'Cache-Control': 'public, max-age=31536000', // Cache por 1 ano
     });
 
@@ -228,7 +233,12 @@ export class ArteArquivoController {
       filename,
     });
 
-    const filePath = join(process.cwd(), 'uploads', 'arte', versaoId, filename);
+    const safeFilename = basename(filename);
+    if (safeFilename !== filename) {
+      throw new BadRequestException('Nome de arquivo inválido');
+    }
+
+    const filePath = join(process.cwd(), 'uploads', 'arte', versaoId, safeFilename);
 
     if (!existsSync(filePath)) {
       throw new BadRequestException('Arquivo não encontrado');
@@ -237,7 +247,7 @@ export class ArteArquivoController {
     const file = createReadStream(filePath);
 
     // Detectar tipo de arquivo
-    const ext = filename.split('.').pop()?.toLowerCase();
+    const ext = safeFilename.split('.').pop()?.toLowerCase();
     const mimeTypes: Record<string, string> = {
       jpg: 'image/jpeg',
       jpeg: 'image/jpeg',
@@ -253,7 +263,7 @@ export class ArteArquivoController {
     // Definir headers para preview inline
     res.set({
       'Content-Type': contentType,
-      'Content-Disposition': `inline; filename="${filename}"`,
+      'Content-Disposition': `inline; filename="${safeFilename.replace(/["\r\n]/g, '_')}"`,
       'Cache-Control': 'public, max-age=31536000', // Cache por 1 ano
     });
 

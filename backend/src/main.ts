@@ -104,7 +104,21 @@ async function bootstrap() {
   if (!isProd) {
     logger.debug(`Uploads estáticos: ${uploadsPath}`);
   }
-  app.use('/uploads', express.static(uploadsPath));
+  app.use(
+    '/uploads',
+    express.static(uploadsPath, {
+      dotfiles: 'deny',
+      index: false,
+      setHeaders: (res, filePath) => {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        if (filePath.toLowerCase().endsWith('.svg')) {
+          res.setHeader('Content-Disposition', 'attachment');
+          res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+        }
+      },
+    }),
+  );
 
   // Swagger OpenAPI
   const swaggerConfig = new DocumentBuilder()

@@ -28,6 +28,7 @@ import { AuthenticatedUser } from '../auth/auth.service';
 import { UpdateConfiguracoesLojaDto } from './dto/update-configuracoes-loja.dto';
 import { Request } from 'express';
 
+@UseGuards(JwtAuthGuard)
 @Controller('lojas')
 export class LojasController {
   constructor(private readonly lojasService: LojasService) {}
@@ -106,6 +107,33 @@ export class LojasController {
           cb(null, `${uniqueSuffix}${extension}`);
         },
       }),
+      limits: {
+        fileSize: 2 * 1024 * 1024,
+        files: 1,
+      },
+      fileFilter: (req, file, cb) => {
+        const allowedMimeTypes = new Set([
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+        ]);
+        const allowedExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp']);
+        const extension = extname(file.originalname).toLowerCase();
+
+        if (
+          allowedMimeTypes.has(file.mimetype) &&
+          allowedExtensions.has(extension)
+        ) {
+          return cb(null, true);
+        }
+
+        return cb(
+          new UnauthorizedException(
+            'Tipo de logo não permitido. Use JPG, PNG ou WEBP.',
+          ),
+          false,
+        );
+      },
     }),
   )
   uploadLogo(

@@ -19,6 +19,7 @@ import { WebsocketsModule } from '../websockets/websockets.module';
 import { PCPModule } from '../pcp/pcp.module';
 import { ConfiguracoesModule } from '../configuracoes/configuracoes.module';
 import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-estoque.service';
+import { getRequiredJwtSecret } from '../auth/jwt-secret';
 
 // Controllers (<= 200 linhas cada)
 import { OSController } from './controllers/os.controller';
@@ -79,10 +80,7 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret:
-          process.env.NODE_ENV === 'production'
-            ? config.get<string>('JWT_SECRET')
-            : config.get<string>('JWT_SECRET') || 'your-secret-key',
+        secret: getRequiredJwtSecret(config),
         signOptions: { expiresIn: '24h' },
       }),
     }),

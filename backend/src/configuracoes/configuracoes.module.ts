@@ -7,6 +7,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { getRequiredJwtSecret } from '../auth/jwt-secret';
 
 // Controllers
 import { ParametrosController } from './controllers/parametros.controller';
@@ -29,7 +30,7 @@ import { SetoresProdutivosService } from './services/centros-de-trabalho/setores
     PrismaModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'your-secret-key',
+        secret: getRequiredJwtSecret(configService),
         signOptions: { expiresIn: '24h' },
       }),
       inject: [ConfigService],

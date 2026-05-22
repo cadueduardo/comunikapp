@@ -42,6 +42,20 @@ echo "[deploy-vps] Pasta:    ${ROOT_DIR}"
 echo "[deploy-vps] Usuário:  $(id -un) (uid=$(id -u))"
 echo "[deploy-vps] Branch:   ${BRANCH}"
 
+BACKEND_ENV="${ROOT_DIR}/backend/.env"
+if [ ! -f "${BACKEND_ENV}" ]; then
+  echo "[deploy-vps] ERRO: backend/.env não encontrado. Crie o arquivo com segredos reais antes do deploy." >&2
+  exit 1
+fi
+if grep -Eq 'JWT_SECRET="?((your-secret-key)|(your-super-secret-jwt-key-change-this-in-production)|(sua-chave-secreta-aqui))"?' "${BACKEND_ENV}"; then
+  echo "[deploy-vps] ERRO: JWT_SECRET está usando placeholder inseguro em backend/.env." >&2
+  echo "[deploy-vps] Gere um segredo forte. Ex.: openssl rand -base64 48" >&2
+  exit 1
+fi
+if [ "$(stat -c '%a' "${BACKEND_ENV}" 2>/dev/null || echo 600)" != "600" ]; then
+  echo "[deploy-vps] AVISO: backend/.env deveria estar com permissão 600." >&2
+fi
+
 COMMIT_ANTES="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
 echo "[deploy-vps] Commit atual: ${COMMIT_ANTES}"
 echo ""

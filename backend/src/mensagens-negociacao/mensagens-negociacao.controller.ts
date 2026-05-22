@@ -82,7 +82,28 @@ export class MensagensNegociacaoController {
    */
   @Post('publico')
   @Public()
-  @UseInterceptors(FileInterceptor('arquivo'))
+  @UseInterceptors(
+    FileInterceptor('arquivo', {
+      limits: {
+        fileSize: 5 * 1024 * 1024,
+        files: 1,
+      },
+      fileFilter: (req, file, callback) => {
+        const tiposPermitidos = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+
+        if (!tiposPermitidos.includes(file.mimetype)) {
+          return callback(
+            new BadRequestException(
+              'Tipo de arquivo não permitido. Use apenas JPG, PNG ou PDF.',
+            ),
+            false,
+          );
+        }
+
+        callback(null, true);
+      },
+    }),
+  )
   async createPublico(
     @Param('orcamentoId') orcamentoId: string,
     @Body(

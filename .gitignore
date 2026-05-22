@@ -3,3 +3,23 @@ node_modules
 !README*.txt
 !SETUP*.txt
 test-output.txt
+
+# Environment and secrets
+.env
+.env.*
+.env-*
+.env_*
+*.env
+!.env.example
+!.env.*.example
+
+# Runtime/user data
+backend/uploads/
+uploads/
+tmp/
+*.sql
+*.dump
+*.bak
+
+# Local exports containing production data
+docs/comunikapp.json

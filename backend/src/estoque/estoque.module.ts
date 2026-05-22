@@ -34,6 +34,7 @@ import { TenantIsolationMiddleware } from './middleware/tenant-isolation.middlew
 import { RequestContextMiddleware } from './middleware/request-context.middleware';
 import { DashboardEstoqueService } from './services/dashboard-estoque.service';
 import { RelatoriosEstoqueService } from './services/relatorios-estoque.service';
+import { getRequiredJwtSecret } from '../auth/jwt-secret';
 
 @Global()
 @Module({
@@ -43,10 +44,7 @@ import { RelatoriosEstoqueService } from './services/relatorios-estoque.service'
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret:
-          process.env.NODE_ENV === 'production'
-            ? config.get<string>('JWT_SECRET')
-            : config.get<string>('JWT_SECRET') || 'your-secret-key',
+        secret: getRequiredJwtSecret(config),
         signOptions: { expiresIn: '24h' },
       }),
     }),

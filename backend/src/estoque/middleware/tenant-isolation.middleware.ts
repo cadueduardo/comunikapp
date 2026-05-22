@@ -14,6 +14,7 @@ import {
 import { Request, Response, NextFunction } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { getRequiredJwtSecret } from '../../auth/jwt-secret';
 
 export interface EstoqueRequest extends Request {
   estoque?: {
@@ -67,9 +68,7 @@ export class TenantIsolationMiddleware implements NestMiddleware {
         logger.debug('🔍 Validando token JWT...');
         logger.debug(`🔑 Token recebido: ${token.substring(0, 50)}...`);
 
-        const secret =
-          this.configService.get('JWT_SECRET') || 'your-secret-key';
-        logger.debug(`🔐 Secret usado: ${secret}`);
+        const secret = getRequiredJwtSecret(this.configService);
 
         const payload = this.jwtService.verify(token, {
           secret: secret,

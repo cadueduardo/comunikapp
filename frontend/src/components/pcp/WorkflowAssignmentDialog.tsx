@@ -618,7 +618,7 @@ export function WorkflowAssignmentDialog({
             ) : (
               <div className="flex items-center gap-3 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                 <IconAlertTriangle className="h-5 w-5 text-amber-500" />
-                Nenhum workflow disponivel. Cadastre um workflow em PCP -> Workflows.
+                Nenhum workflow disponivel. Cadastre um workflow em PCP &gt; Workflows.
               </div>
             )}
 

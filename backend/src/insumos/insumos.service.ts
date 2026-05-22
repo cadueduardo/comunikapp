@@ -9,11 +9,72 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateInsumoDto } from './dto/create-insumo.dto';
 import { UpdateInsumoDto } from './dto/update-insumo.dto';
 import { loja } from '@prisma/client';
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class InsumosService {
   constructor(private prisma: PrismaService) {}
+
+  private worksheetToObjects(worksheet: ExcelJS.Worksheet): Record<string, unknown>[] {
+    const headerRow = worksheet.getRow(1);
+    const headers = headerRow.values as ExcelJS.CellValue[];
+    const normalizedHeaders = headers
+      .slice(1)
+      .map((header) => String(header ?? '').trim());
+
+    const rows: Record<string, unknown>[] = [];
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+
+      const item: Record<string, unknown> = {};
+      let hasValue = false;
+
+      normalizedHeaders.forEach((header, index) => {
+        if (!header) return;
+        const cellValue = row.getCell(index + 1).value;
+        const value =
+          cellValue && typeof cellValue === 'object' && 'text' in cellValue
+            ? cellValue.text
+            : cellValue;
+        item[header] = value ?? null;
+        if (value !== null && value !== undefined && value !== '') {
+          hasValue = true;
+        }
+      });
+
+      if (hasValue) {
+        rows.push(item);
+      }
+    });
+
+    return rows;
+  }
+
+  private addJsonWorksheet(
+    workbook: ExcelJS.Workbook,
+    name: string,
+    rows: Record<string, unknown>[],
+    headers?: string[],
+  ) {
+    const columns =
+      headers ??
+      Array.from(
+        rows.reduce((keys, row) => {
+          Object.keys(row).forEach((key) => keys.add(key));
+          return keys;
+        }, new Set<string>()),
+      );
+
+    const worksheet = workbook.addWorksheet(name);
+    worksheet.addRow(columns);
+    rows.forEach((row) => {
+      worksheet.addRow(columns.map((column) => row[column] ?? null));
+    });
+    worksheet.columns.forEach((column) => {
+      column.width = Math.min(Math.max(String(column.header ?? '').length + 4, 16), 48);
+    });
+    return worksheet;
+  }
 
   private readonly UNIDADES_COMPRA = [
     { value: 'UNID', label: 'UNIDADE', exemplo: 'Peças avulsas, parafusos' },
@@ -875,10 +936,10 @@ export class InsumosService {
       throw new BadRequestException('Arquivo não enviado.');
     }
 
-    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: null });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(file.buffer as unknown as ExcelJS.Buffer);
+    const sheet = workbook.worksheets[0];
+    const rows = sheet ? this.worksheetToObjects(sheet) : [];
 
     if (!rows || rows.length === 0) {
       throw new BadRequestException('Planilha vazia ou inválida.');
@@ -1206,8 +1267,6 @@ export class InsumosService {
       },
     ];
 
-    const wsTemplate = XLSX.utils.json_to_sheet(exemplo, { header: headers });
-
     const explicacoes: Record<string, string>[] = [
       {
         Campo: 'Nome do insumo *',
@@ -1284,40 +1343,28 @@ export class InsumosService {
       },
     ];
 
-    const wsGuia = XLSX.utils.json_to_sheet(explicacoes);
-
     const unidadesCompra = this.UNIDADES_COMPRA.map((opcao) => ({
       Valor: opcao.value,
       Exibir: opcao.label,
       Exemplo: opcao.exemplo ?? '',
     }));
-    const wsUnidadesCompra = XLSX.utils.json_to_sheet(unidadesCompra);
-
     const unidadesUso = this.UNIDADES_USO.map((opcao) => ({
       Valor: opcao.value,
       Exibir: opcao.label,
       Exemplo: opcao.exemplo ?? '',
     }));
-    const wsUnidadesUso = XLSX.utils.json_to_sheet(unidadesUso);
-
     const unidadesDim = this.UNIDADES_DIMENSAO.map((opcao) => ({
       Valor: opcao.value,
       Exibir: opcao.label,
     }));
-    const wsUnidadesDimensao = XLSX.utils.json_to_sheet(unidadesDim);
-
     const tiposCalc = this.TIPOS_CALCULO.map((opcao) => ({
       Valor: opcao.value,
       Exibir: opcao.label,
     }));
-    const wsTiposCalculo = XLSX.utils.json_to_sheet(tiposCalc);
-
     const logicas = this.LOGICAS_CONSUMO.map((opcao) => ({
       Valor: opcao.value,
       Exibir: opcao.label,
     }));
-    const wsLogicas = XLSX.utils.json_to_sheet(logicas);
-
     const categoriasLoja = await this.prisma.categoria.findMany({
       where: { loja_id: loja.id },
       select: { id: true, nome: true },
@@ -1329,25 +1376,26 @@ export class InsumosService {
       orderBy: { nome: 'asc' },
     });
 
-    const wsCategorias = XLSX.utils.json_to_sheet(
+    const workbook = new ExcelJS.Workbook();
+    this.addJsonWorksheet(workbook, 'Importar_Insumos', exemplo, headers);
+    this.addJsonWorksheet(workbook, 'Guia_de_Preenchimento', explicacoes);
+    this.addJsonWorksheet(workbook, 'Unidade_Compra', unidadesCompra);
+    this.addJsonWorksheet(workbook, 'Unidade_Uso', unidadesUso);
+    this.addJsonWorksheet(workbook, 'Unidade_Dimensao', unidadesDim);
+    this.addJsonWorksheet(workbook, 'Tipos_Calculo', tiposCalc);
+    this.addJsonWorksheet(workbook, 'Logicas_Consumo', logicas);
+    this.addJsonWorksheet(
+      workbook,
+      'Categorias_da_Loja',
       categoriasLoja.map((cat) => ({ ID: cat.id, Nome: cat.nome })),
     );
-    const wsFornecedores = XLSX.utils.json_to_sheet(
+    this.addJsonWorksheet(
+      workbook,
+      'Fornecedores_da_Loja',
       fornecedoresLoja.map((forn) => ({ ID: forn.id, Nome: forn.nome })),
     );
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, wsTemplate, 'Importar_Insumos');
-    XLSX.utils.book_append_sheet(wb, wsGuia, 'Guia_de_Preenchimento');
-    XLSX.utils.book_append_sheet(wb, wsUnidadesCompra, 'Unidade_Compra');
-    XLSX.utils.book_append_sheet(wb, wsUnidadesUso, 'Unidade_Uso');
-    XLSX.utils.book_append_sheet(wb, wsUnidadesDimensao, 'Unidade_Dimensao');
-    XLSX.utils.book_append_sheet(wb, wsTiposCalculo, 'Tipos_Calculo');
-    XLSX.utils.book_append_sheet(wb, wsLogicas, 'Logicas_Consumo');
-    XLSX.utils.book_append_sheet(wb, wsCategorias, 'Categorias_da_Loja');
-    XLSX.utils.book_append_sheet(wb, wsFornecedores, 'Fornecedores_da_Loja');
-
-    const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
     return { buffer, filename: 'template-importacao-insumos.xlsx' };
   }
 
