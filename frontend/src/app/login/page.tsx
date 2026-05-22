@@ -43,6 +43,8 @@ function LoginContent() {
     const [captchaToken, setCaptchaToken] = useState<string | null>(null);
     const [captchaWidgetId, setCaptchaWidgetId] = useState<string | null>(null);
     const [captchaScriptLoaded, setCaptchaScriptLoaded] = useState(false);
+    const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
+    const [twoFactorCode, setTwoFactorCode] = useState('');
     const { login } = useUser(); // Obter a função de login do contexto
     const searchParams = useSearchParams();
     const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
@@ -104,11 +106,28 @@ function LoginContent() {
         setError(null);
 
         try {
+            if (twoFactorToken) {
+                const responseData = await authAPI.verifyTwoFactorLogin(
+                    twoFactorToken,
+                    twoFactorCode
+                );
+                await login(responseData.access_token);
+                return;
+            }
+
             const responseData = await authAPI.login(
                 formData.email,
                 formData.password,
                 captchaToken || undefined
             );
+
+            if (responseData.requiresTwoFactor && responseData.temporaryToken) {
+                setTwoFactorToken(responseData.temporaryToken);
+                setSuccessMessage(null);
+                setError(null);
+                return;
+            }
+
             const { access_token } = responseData;
             
             // Chama a função de login do contexto
@@ -195,6 +214,22 @@ function LoginContent() {
                                 />
                             </div>
 
+                            {twoFactorToken && (
+                                <div className="grid gap-2">
+                                    <Label htmlFor="twoFactorCode">Codigo do autenticador</Label>
+                                    <Input
+                                        id="twoFactorCode"
+                                        inputMode="numeric"
+                                        autoComplete="one-time-code"
+                                        maxLength={6}
+                                        value={twoFactorCode}
+                                        onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                        required
+                                        disabled={loading}
+                                    />
+                                </div>
+                            )}
+
                             {requiresCaptcha && (
                                 <div className="grid gap-2">
                                     <Label>Verificação de segurança</Label>
@@ -211,10 +246,14 @@ function LoginContent() {
                             <Button
                                 type="submit"
                                 className="w-full"
-                                disabled={loading || (requiresCaptcha && turnstileSiteKey ? !captchaToken : false)}
+                                disabled={
+                                    loading ||
+                                    (requiresCaptcha && turnstileSiteKey ? !captchaToken : false) ||
+                                    (twoFactorToken ? twoFactorCode.length !== 6 : false)
+                                }
                             >
                                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                {loading ? 'Entrando...' : 'Entrar'}
+                                {loading ? 'Entrando...' : twoFactorToken ? 'Verificar codigo' : 'Entrar'}
                             </Button>
                             
                             <Button variant="outline" className="w-full" type="button" disabled={loading}>

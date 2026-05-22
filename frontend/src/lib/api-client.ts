@@ -362,4 +362,9 @@ export const usuariosApi = {
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/usuarios', data, token),
   update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/usuarios/${id}`, data, token),
   delete: (id: string, token: string) => ApiClient.delete(`/usuarios/${id}`, token),
+  getTwoFactorStatus: (token: string) => ApiClient.get('/usuarios/2fa/status', token),
+  setupTwoFactor: (token: string) => ApiClient.post('/usuarios/2fa/setup', {}, token),
+  confirmTwoFactor: (code: string, token: string) => ApiClient.post('/usuarios/2fa/confirm', { code }, token),
+  disableTwoFactor: (password: string, code: string, token: string) =>
+    ApiClient.post('/usuarios/2fa/disable', { password, code }, token),
 };

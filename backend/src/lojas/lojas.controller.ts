@@ -22,6 +22,7 @@ import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateLojaDto } from './dto/update-loja.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { LoginDto } from './dto/login.dto';
+import { VerifyTwoFactorLoginDto } from './dto/verify-two-factor-login.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public, CurrentUser, CurrentLojaId } from '../auth/decorators';
 import { AuthenticatedUser } from '../auth/auth.service';
@@ -45,6 +46,21 @@ export class LojasController {
     const clientIp = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim();
     const userAgent = req.headers['user-agent']?.toString() || 'unknown';
     return this.lojasService.login(loginDto, clientIp || req.ip, userAgent);
+  }
+
+  @Public()
+  @Post('login/2fa')
+  verifyTwoFactorLogin(
+    @Body() dto: VerifyTwoFactorLoginDto,
+    @Req() req: Request,
+  ) {
+    const clientIp = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim();
+    const userAgent = req.headers['user-agent']?.toString() || 'unknown';
+    return this.lojasService.verifyTwoFactorLogin(
+      dto,
+      clientIp || req.ip,
+      userAgent,
+    );
   }
 
   @Public()

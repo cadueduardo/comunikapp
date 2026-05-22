@@ -17,10 +17,18 @@ import { ModuleActivationGuard } from '../common/guards/module-activation.guard'
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { Public } from '../auth/decorators';
+import { TwoFactorService } from '../auth/two-factor.service';
+import {
+  ConfirmTwoFactorDto,
+  DisableTwoFactorDto,
+} from './dto/two-factor.dto';
 
 @Controller('usuarios')
 export class UsuariosController {
-  constructor(private readonly usuariosService: UsuariosService) {}
+  constructor(
+    private readonly usuariosService: UsuariosService,
+    private readonly twoFactorService: TwoFactorService,
+  ) {}
 
   private getUserFromRequest(req: any): {
     id: string;
@@ -49,6 +57,40 @@ export class UsuariosController {
   async listar(@Request() req: any) {
     const user = this.getUserFromRequest(req);
     return this.usuariosService.listar(user.loja_id);
+  }
+
+  @Get('2fa/status')
+  @UseGuards(JwtAuthGuard)
+  async twoFactorStatus(@Request() req: any) {
+    const user = this.getUserFromRequest(req);
+    return this.twoFactorService.getStatus(user.id);
+  }
+
+  @Post('2fa/setup')
+  @UseGuards(JwtAuthGuard)
+  async setupTwoFactor(@Request() req: any) {
+    const user = this.getUserFromRequest(req);
+    return this.twoFactorService.createSetup(user.id);
+  }
+
+  @Post('2fa/confirm')
+  @UseGuards(JwtAuthGuard)
+  async confirmTwoFactor(
+    @Body() dto: ConfirmTwoFactorDto,
+    @Request() req: any,
+  ) {
+    const user = this.getUserFromRequest(req);
+    return this.twoFactorService.confirmSetup(user.id, dto.code);
+  }
+
+  @Post('2fa/disable')
+  @UseGuards(JwtAuthGuard)
+  async disableTwoFactor(
+    @Body() dto: DisableTwoFactorDto,
+    @Request() req: any,
+  ) {
+    const user = this.getUserFromRequest(req);
+    return this.twoFactorService.disable(user.id, dto.password, dto.code);
   }
 
   @Get(':id')
@@ -104,4 +146,5 @@ export class UsuariosController {
       body.senha,
     );
   }
+
 }

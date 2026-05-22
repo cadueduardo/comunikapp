@@ -1,6 +1,7 @@
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/$/, '');
 const SESSION_EXPIRED_IGNORED_ENDPOINTS = new Set([
   '/lojas/login',
+  '/lojas/login/2fa',
   '/lojas/verificar-email',
   '/lojas',
   '/usuarios/reenviar-codigo',
@@ -125,6 +126,23 @@ export const authAPI = {
       );
     }
     
+    return response.json();
+  },
+
+  verifyTwoFactorLogin: async (temporaryToken: string, code: string) => {
+    const response = await apiRequest('/lojas/login/2fa', {
+      method: 'POST',
+      body: JSON.stringify({ temporaryToken, code }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new AuthApiError(
+        errorData.message || 'Codigo 2FA invalido',
+        errorData.code,
+      );
+    }
+
     return response.json();
   },
 

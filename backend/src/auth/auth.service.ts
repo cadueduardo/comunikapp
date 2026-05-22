@@ -50,6 +50,25 @@ export class AuthService {
     return this.jwtService.sign(payload);
   }
 
+  generateTwoFactorChallengeToken(user: { id: string; email: string }): string {
+    return this.jwtService.sign(
+      {
+        sub: user.id,
+        email: user.email,
+        purpose: '2fa',
+      },
+      { expiresIn: '5m' },
+    );
+  }
+
+  verifyTwoFactorChallengeToken(token: string): { sub: string; email: string } {
+    const payload = this.jwtService.verify<{ sub: string; email: string; purpose?: string }>(token);
+    if (payload.purpose !== '2fa') {
+      throw new Error('Token de segundo fator invalido');
+    }
+    return { sub: payload.sub, email: payload.email };
+  }
+
   async validateUser(payload: JwtPayload) {
     // Removido o tipo de retorno para inferência
     const user = await this.prisma.usuario.findUnique({

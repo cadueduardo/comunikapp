@@ -1008,6 +1008,9 @@ model usuario {
   nome                               String?             // Campo para V2
   senha                              String?
   telefone                           String?
+  two_factor_enabled                 Boolean          @default(false)
+  two_factor_secret                  String?          @db.Text
+  two_factor_confirmed_at            DateTime?
   ativo                              Boolean          @default(true) // Campo para V2
   loja                               loja             @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Usuario_loja_id_fkey")
   perfis                             usuario_perfil[]

@@ -14,8 +14,10 @@ import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateLojaDto } from './dto/update-loja.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { LoginDto } from './dto/login.dto';
+import { VerifyTwoFactorLoginDto } from './dto/verify-two-factor-login.dto';
 import { UpdateConfiguracoesLojaDto } from './dto/update-configuracoes-loja.dto';
 import { loja } from '@prisma/client';
+import { TwoFactorService } from '../auth/two-factor.service';
 
 type LoginAttemptState = {
   failedAttempts: number;
@@ -37,6 +39,7 @@ export class LojasService {
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
     private readonly authService: AuthService,
+    private readonly twoFactorService: TwoFactorService,
   ) {}
 
   private getLoginAttemptKey(email: string, ip: string) {
@@ -212,6 +215,21 @@ export class LojasService {
       throw new UnauthorizedException('Credenciais inválidas.');
     }
 
+    if (usuario.two_factor_enabled && usuario.two_factor_secret) {
+      this.clearLoginFailure(loginKey);
+      this.logger.log(
+        `login_2fa_required email=${normalizedEmail} ip=${ip} ua="${ua}" userId=${usuario.id}`,
+      );
+      return {
+        requiresTwoFactor: true,
+        temporaryToken: this.authService.generateTwoFactorChallengeToken({
+          id: usuario.id,
+          email: usuario.email,
+        }),
+        message: 'Informe o codigo do autenticador para concluir o login.',
+      };
+    }
+
     // Gerar token JWT
     const token = await this.authService.generateToken({
       id: usuario.id,
@@ -225,6 +243,72 @@ export class LojasService {
     this.clearLoginFailure(loginKey);
     this.logger.log(
       `login_success email=${normalizedEmail} ip=${ip} ua="${ua}" userId=${usuario.id} lojaId=${usuario.loja_id}`,
+    );
+
+    return {
+      access_token: token,
+      user: {
+        id: usuario.id,
+        nome_completo: usuario.nome_completo,
+        email: usuario.email,
+        funcao: usuario.funcao,
+        loja_id: usuario.loja_id,
+      },
+      message: 'Login realizado com sucesso!',
+    };
+  }
+
+  async verifyTwoFactorLogin(
+    { temporaryToken, code }: VerifyTwoFactorLoginDto,
+    ip = 'unknown',
+    userAgent = 'unknown',
+  ) {
+    const ua = this.sanitizeUserAgent(userAgent);
+    let challenge: { sub: string; email: string };
+    try {
+      challenge = this.authService.verifyTwoFactorChallengeToken(temporaryToken);
+    } catch {
+      this.logger.warn(`login_2fa_failed invalid_temporary_token ip=${ip} ua="${ua}"`);
+      throw new UnauthorizedException('Sessao 2FA expirada ou invalida.');
+    }
+
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: challenge.sub },
+      include: { loja: true },
+    });
+
+    if (
+      !usuario ||
+      usuario.email !== challenge.email ||
+      usuario.status !== usuario_status.ATIVO ||
+      !usuario.email_verificado ||
+      !usuario.two_factor_enabled ||
+      !usuario.two_factor_secret
+    ) {
+      this.logger.warn(
+        `login_2fa_failed invalid_user email=${challenge.email} ip=${ip} ua="${ua}"`,
+      );
+      throw new UnauthorizedException('Sessao 2FA invalida.');
+    }
+
+    if (!this.twoFactorService.verifyCode(usuario.two_factor_secret, code)) {
+      this.logger.warn(
+        `login_2fa_failed invalid_code email=${usuario.email} ip=${ip} ua="${ua}" userId=${usuario.id}`,
+      );
+      throw new UnauthorizedException('Codigo 2FA invalido.');
+    }
+
+    const token = await this.authService.generateToken({
+      id: usuario.id,
+      email: usuario.email,
+      loja_id: usuario.loja_id,
+      loja: usuario.loja,
+      funcao: usuario.funcao,
+      nome_completo: usuario.nome_completo,
+    });
+
+    this.logger.log(
+      `login_success_2fa email=${usuario.email} ip=${ip} ua="${ua}" userId=${usuario.id} lojaId=${usuario.loja_id}`,
     );
 
     return {

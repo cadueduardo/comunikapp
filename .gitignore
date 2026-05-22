@@ -18,6 +18,7 @@ backend/uploads/
 uploads/
 tmp/
 *.sql
+!backend/prisma/migrations/**/*.sql
 *.dump
 *.bak
 
