@@ -1,7 +1,21 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000').replace(/\/$/, '');
+const resolveSocketBaseUrl = () => {
+  const configuredUrl = (process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+
+  if (!configuredUrl || configuredUrl === '/api') {
+    return '';
+  }
+
+  if (configuredUrl.endsWith('/api')) {
+    return configuredUrl.slice(0, -4);
+  }
+
+  return configuredUrl;
+};
+
+const SOCKET_BASE_URL = resolveSocketBaseUrl();
 
 interface UseArteWebSocketOptions {
   versaoId?: string;
@@ -81,7 +95,7 @@ export const useArteWebSocket = (
     shouldReconnectRef.current = true;
 
     // Conectar ao namespace /arte-aprovacao
-    const socket = io(`${API_BASE_URL}/arte-aprovacao`, {
+    const socket = io(`${SOCKET_BASE_URL}/arte-aprovacao`, {
       transports: ['websocket', 'polling'],
       timeout: 10000,
       forceNew: true,
