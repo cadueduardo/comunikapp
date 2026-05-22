@@ -6,13 +6,47 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BackgroundBeamsWithCollision } from "@/components/ui/background-beams-with-collision";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, XCircle } from "lucide-react";
+import { Eye, EyeOff, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import { lojasApi } from "@/lib/api-client";
 
 const GoogleIcon = () => (
     <svg className="w-5 h-5 mr-2" viewBox="0 0 533.5 544.3" xmlns="http://www.w3.org/2000/svg"><path d="M533.5 278.4c0-18.5-1.5-37.1-4.7-55.3H272.1v104.8h147c-6.1 33.8-25.7 63.7-54.4 82.7v68h87.7c51.5-47.4 81.1-117.4 81.1-200.2z" fill="#4285f4"/><path d="M272.1 544.3c73.4 0 135.3-24.1 180.4-65.7l-87.7-68c-24.4 16.6-55.9 26-92.6 26-71 0-131.2-47.9-152.8-112.3H28.9v70.1c46.2 91.9 140.3 149.9 243.2 149.9z" fill="#34a853"/><path d="M119.3 324.3c-11.4-33.8-11.4-70.4 0-104.2V150H28.9c-38.6 76.9-38.6 167.5 0 244.4l90.4-70.1z" fill="#fbbc04"/><path d="M272.1 107.7c38.8-.6 76.3 14 104.4 40.8l77.7-77.7C405 24.6 339.7-.8 272.1 0 169.2 0 75.1 58 28.9 150l90.4 70.1c21.5-64.5 81.8-112.4 152.8-112.4z" fill="#ea4335"/></svg>
 );
+
+const PASSWORD_LENGTH = 18;
+const PASSWORD_CHARSETS = [
+    "ABCDEFGHJKLMNPQRSTUVWXYZ",
+    "abcdefghijkmnopqrstuvwxyz",
+    "23456789",
+    "!@#$%*+-_=?."
+];
+const PASSWORD_CHARS = PASSWORD_CHARSETS.join("");
+
+const getRandomIndex = (max: number) => {
+    const randomValues = new Uint32Array(1);
+    crypto.getRandomValues(randomValues);
+    return randomValues[0] % max;
+};
+
+const shufflePassword = (chars: string[]) => {
+    for (let i = chars.length - 1; i > 0; i -= 1) {
+        const j = getRandomIndex(i + 1);
+        [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+
+    return chars.join("");
+};
+
+const generateStrongPassword = () => {
+    const chars = PASSWORD_CHARSETS.map(charset => charset[getRandomIndex(charset.length)]);
+
+    while (chars.length < PASSWORD_LENGTH) {
+        chars.push(PASSWORD_CHARS[getRandomIndex(PASSWORD_CHARS.length)]);
+    }
+
+    return shufflePassword(chars);
+};
 
 interface CadastroPayload {
     nome_loja: string;
@@ -42,6 +76,7 @@ export default function CadastroPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -61,6 +96,11 @@ export default function CadastroPage() {
     
     const handleTipoPessoaChange = (value: string) => {
         setTipoPessoa(value);
+    };
+
+    const handleGeneratePassword = () => {
+        setFormData(prev => ({ ...prev, password: generateStrongPassword() }));
+        setShowPassword(true);
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -200,10 +240,45 @@ export default function CadastroPage() {
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="password">Senha</Label>
-                                <Input id="password" type="password" value={formData.password} onChange={handleChange} required disabled={loading} />
+                                <div className="flex items-center justify-between gap-3">
+                                    <Label htmlFor="password">Senha</Label>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 gap-2 px-3 text-xs"
+                                        onClick={handleGeneratePassword}
+                                        disabled={loading}
+                                    >
+                                        <RefreshCw className="h-3.5 w-3.5" />
+                                        Gerar senha
+                                    </Button>
+                                </div>
+                                <div className="relative">
+                                    <Input
+                                        id="password"
+                                        type={showPassword ? "text" : "password"}
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        required
+                                        disabled={loading}
+                                        className="pr-11"
+                                        autoComplete="new-password"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2"
+                                        onClick={() => setShowPassword(prev => !prev)}
+                                        disabled={loading}
+                                        aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                                    >
+                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </Button>
+                                </div>
                                 <p className="text-xs text-muted-foreground">
-                                    Mínimo 6 caracteres. Use letras, números ou símbolos. Se aparecer erro ao criar a conta, tente uma senha sem aspas ou caracteres especiais.
+                                    Use uma senha forte e guarde em um gerenciador de senhas ou outro local seguro. Depois de criada, ela não será exibida novamente.
                                 </p>
                             </div>
                             <Button type="submit" className="w-full" disabled={loading}>
