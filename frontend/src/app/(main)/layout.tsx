@@ -1,6 +1,15 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Sidebar, SidebarBody } from '@/components/ui/sidebar';
 import {
   IconLayoutDashboard,
@@ -14,12 +23,14 @@ import {
   IconClipboardList,
   IconBuilding,
 } from '@tabler/icons-react';
+import { ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useUser } from '@/contexts/UserContext';
 import { MainHeader } from '@/components/ui/main-header';
+import { usuariosApi } from '@/lib/api-client';
 
 // Componente customizado para SidebarLink com Next.js Link
 const SidebarLink = ({
@@ -98,6 +109,7 @@ export default function DashboardLayout({
 }) {
   const { user, getFirstName, logout, loading } = useUser();
   const router = useRouter();
+  const [twoFactorReminderOpen, setTwoFactorReminderOpen] = useState(false);
 
   useEffect(() => {
     // Se o carregamento terminou e não há usuário, redireciona para o login.
@@ -106,6 +118,41 @@ export default function DashboardLayout({
       router.push('/login');
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    const loadTwoFactorStatus = async () => {
+      if (!user || typeof window === 'undefined') return;
+
+      const reminderKey = `comunikapp:2fa-reminder-seen:${user.id}`;
+      if (localStorage.getItem(reminderKey) === '1') return;
+
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      try {
+        const status = await usuariosApi.getTwoFactorStatus(token) as { enabled: boolean };
+        if (!status.enabled) {
+          setTwoFactorReminderOpen(true);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar status 2FA:', error);
+      }
+    };
+
+    loadTwoFactorStatus();
+  }, [user]);
+
+  const closeTwoFactorReminder = () => {
+    if (user && typeof window !== 'undefined') {
+      localStorage.setItem(`comunikapp:2fa-reminder-seen:${user.id}`, '1');
+    }
+    setTwoFactorReminderOpen(false);
+  };
+
+  const goToTwoFactorSettings = () => {
+    closeTwoFactorReminder();
+    router.push('/configuracoes?security=2fa#seguranca-2fa');
+  };
 
   // Enquanto estiver carregando, exibe uma tela de loading para evitar o "flicker"
   // ou redirecionamentos incorretos.
@@ -291,6 +338,27 @@ export default function DashboardLayout({
           {children}
         </div>
       </main>
+      <Dialog open={twoFactorReminderOpen} onOpenChange={(open) => !open && closeTwoFactorReminder()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <DialogTitle>Ative a segurança em dois fatores</DialogTitle>
+            <DialogDescription>
+              Proteja sua conta com um código temporário do Google Authenticator, Microsoft Authenticator ou 1Password. Mesmo que sua senha vaze, o acesso continua protegido.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeTwoFactorReminder}>
+              Fazer depois
+            </Button>
+            <Button onClick={goToTwoFactorSettings}>
+              Ativar 2FA
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-} 
+}

@@ -110,7 +110,7 @@ function TwoFactorSecurityCard() {
   };
 
   return (
-    <Card>
+    <Card id="seguranca-2fa">
       <CardHeader>
         <CardTitle>Autenticador em dois fatores</CardTitle>
         <CardDescription>

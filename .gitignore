@@ -3,6 +3,7 @@ node_modules
 !README*.txt
 !SETUP*.txt
 test-output.txt
+*.tsbuildinfo
 
 # Environment and secrets
 .env
