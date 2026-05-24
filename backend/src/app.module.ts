@@ -26,6 +26,7 @@ import { OSModule } from './os/os.module';
 import { PCPModule } from './pcp/pcp.module';
 import { ConfiguracoesModule } from './configuracoes/configuracoes.module';
 import { ArteAprovacaoModule } from './modules/arte-aprovacao/arte-aprovacao.module';
+import { HomeOperacionalModule } from './home-operacional/home-operacional.module';
 import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
 
 @Module({
@@ -60,6 +61,7 @@ import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
     PCPModule, // Módulo de PCP (Planejamento e Controle de Produção)
     ConfiguracoesModule, // Módulo de Configurações (inclui Centros de Trabalho)
     ArteAprovacaoModule, // Módulo de Arte & Aprovação
+    HomeOperacionalModule, // Módulo da Home operacional (Fase 1)
   ],
 })
 export class AppModule {

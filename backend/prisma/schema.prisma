@@ -12,8 +12,8 @@ model Insumo {
   loja_id            String
   nome               String
   descricao_tecnica  String?
-  descricao          String?                // Campo para V2
-  codigo             String?                // Campo para V2
+  descricao          String? // Campo para V2
+  codigo             String? // Campo para V2
   custo_unitario     Decimal                @db.Decimal(10, 2)
   estoque_minimo     Int?
   estoque_atual      Decimal?               @db.Decimal(10, 3) // Campo para V2
@@ -141,19 +141,19 @@ model OrcamentoLog {
 }
 
 model OrdemServicoLog {
-  id           String    @id @default(cuid())
+  id           String   @id @default(cuid())
   os_id        String
   tipo_acao    String
-  descricao    String    @db.Text
-  dados_extras String?   @db.LongText
+  descricao    String   @db.Text
+  dados_extras String?  @db.LongText
   ip_origem    String?
   user_agent   String?
-  criado_em    DateTime  @default(now())
+  criado_em    DateTime @default(now())
   usuario_id   String?
-  
+
   // Relacionamentos
-  os           OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
-  usuario      usuario?     @relation(fields: [usuario_id], references: [id])
+  os      OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  usuario usuario?     @relation(fields: [usuario_id], references: [id])
 
   @@index([os_id])
   @@index([tipo_acao])
@@ -163,22 +163,22 @@ model OrdemServicoLog {
 }
 
 model RegraValidacao {
-  id                String    @id @default(cuid())
-  loja_id           String
-  nome              String
-  descricao         String?   @db.Text
-  categoria         String
-  tipo              String    // BLOQUEIO, ALERTA, INFO
-  condicoes         String    @db.LongText // JSON com as condições
-  acoes             String?   @db.LongText // JSON com as ações
-  mensagem          String    @db.Text
-  ativo             Boolean   @default(true)
-  prioridade        Int       @default(0)
-  criado_em         DateTime  @default(now())
-  atualizado_em     DateTime  @updatedAt
-  
-  loja              loja              @relation(fields: [loja_id], references: [id])
-  execucoes         ExecucaoRegra[]
+  id            String   @id @default(cuid())
+  loja_id       String
+  nome          String
+  descricao     String?  @db.Text
+  categoria     String
+  tipo          String // BLOQUEIO, ALERTA, INFO
+  condicoes     String   @db.LongText // JSON com as condições
+  acoes         String?  @db.LongText // JSON com as ações
+  mensagem      String   @db.Text
+  ativo         Boolean  @default(true)
+  prioridade    Int      @default(0)
+  criado_em     DateTime @default(now())
+  atualizado_em DateTime @updatedAt
+
+  loja      loja            @relation(fields: [loja_id], references: [id])
+  execucoes ExecucaoRegra[]
 
   @@index([loja_id])
   @@index([categoria])
@@ -187,19 +187,19 @@ model RegraValidacao {
 }
 
 model ExecucaoRegra {
-  id                String    @id @default(cuid())
-  regra_id          String
-  os_id             String?
-  orcamento_id      String?
-  resultado         String    // SUCESSO, ERRO, ALERTA, BLOQUEIO
-  mensagem          String?   @db.Text
-  dados_execucao    String?   @db.LongText // JSON
-  tempo_execucao    Int?      // ms
-  criado_em         DateTime  @default(now())
-  
-  regra             RegraValidacao @relation(fields: [regra_id], references: [id], onDelete: Cascade)
-  os                OrdemServico?  @relation(fields: [os_id], references: [id])
-  orcamento         orcamento?     @relation(fields: [orcamento_id], references: [id])
+  id             String   @id @default(cuid())
+  regra_id       String
+  os_id          String?
+  orcamento_id   String?
+  resultado      String // SUCESSO, ERRO, ALERTA, BLOQUEIO
+  mensagem       String?  @db.Text
+  dados_execucao String?  @db.LongText // JSON
+  tempo_execucao Int? // ms
+  criado_em      DateTime @default(now())
+
+  regra     RegraValidacao @relation(fields: [regra_id], references: [id], onDelete: Cascade)
+  os        OrdemServico?  @relation(fields: [os_id], references: [id])
+  orcamento orcamento?     @relation(fields: [orcamento_id], references: [id])
 
   @@index([regra_id])
   @@index([os_id])
@@ -332,19 +332,19 @@ model cliente {
 }
 
 model custoindireto {
-  id            String   @id @default(cuid())
-  criado_em     DateTime @default(now())
-  atualizado_em DateTime
-  nome          String
-  valor_mensal  Decimal  @db.Decimal(10, 2)
-  categoria     String
-  ativo         Boolean  @default(true)
-  regra_rateio  String   @default("PROPORCIONAL_TEMPO")
-  observacoes   String?  @db.Text
-  loja_id       String
-  setor_id      String?  // null = custo geral; preenchido = custo do setor
-  loja          loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "CustoIndireto_loja_id_fkey")
-  setor         SetorProdutivo? @relation(fields: [setor_id], references: [id], onDelete: SetNull, map: "CustoIndireto_setor_id_fkey")
+  id                String              @id @default(cuid())
+  criado_em         DateTime            @default(now())
+  atualizado_em     DateTime
+  nome              String
+  valor_mensal      Decimal             @db.Decimal(10, 2)
+  categoria         String
+  ativo             Boolean             @default(true)
+  regra_rateio      String              @default("PROPORCIONAL_TEMPO")
+  observacoes       String?             @db.Text
+  loja_id           String
+  setor_id          String? // null = custo geral; preenchido = custo do setor
+  loja              loja                @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "CustoIndireto_loja_id_fkey")
+  setor             SetorProdutivo?     @relation(fields: [setor_id], references: [id], onDelete: SetNull, map: "CustoIndireto_setor_id_fkey")
   itemCustoIndireto ItemCustoIndireto[]
 
   @@index([loja_id, categoria], map: "CustoIndireto_loja_id_categoria_idx")
@@ -356,7 +356,7 @@ model fornecedor {
   id      String   @id @default(cuid())
   nome    String
   loja_id String
-  ativo   Boolean @default(true) // Campo para V2
+  ativo   Boolean  @default(true) // Campo para V2
   loja    loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Fornecedor_loja_id_fkey")
   insumos Insumo[]
 
@@ -373,7 +373,7 @@ model funcao {
   descricao            String?                 @db.Text
   maquina_id           String?
   loja_id              String
-  setor_id             String?                 // Setor ao qual a função pertence
+  setor_id             String? // Setor ao qual a função pertence
   ativo                Boolean                 @default(true) // Campo para V2
   tipo_calculo         funcao_tipo_calculo     @default(MANUAL)
   fator_acompanhamento Decimal?                @db.Decimal(10, 3)
@@ -383,7 +383,7 @@ model funcao {
   setup_min            Decimal?                @db.Decimal(10, 2)
   loja                 loja                    @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Funcao_loja_id_fkey")
   maquina              maquina?                @relation(fields: [maquina_id], references: [id], map: "Funcao_maquina_id_fkey")
-  setor                SetorProdutivo?        @relation(fields: [setor_id], references: [id], onDelete: SetNull, map: "Funcao_setor_id_fkey")
+  setor                SetorProdutivo?         @relation(fields: [setor_id], references: [id], onDelete: SetNull, map: "Funcao_setor_id_fkey")
   funcoes_template     FuncaoTemplateProduto[]
   funcaoorcamento      funcaoorcamento[]
   historico_custos     HistoricoCustoFuncao[]
@@ -422,48 +422,56 @@ model itemorcamento {
 }
 
 model loja {
-  id                       String            @id @default(cuid())
-  email                    String            @unique(map: "Loja_email_key")
-  status                   loja_status       @default(PENDENTE_VERIFICACAO)
-  assinatura_ativa         Boolean           @default(false)
+  id                       String      @id @default(cuid())
+  email                    String      @unique(map: "Loja_email_key")
+  status                   loja_status @default(PENDENTE_VERIFICACAO)
+  assinatura_ativa         Boolean     @default(false)
   atualizado_em            DateTime
-  cabecalho_orcamento      String?           @db.Text
-  cnpj                     String?           @unique(map: "Loja_cnpj_key")
-  cpf                      String?           @unique(map: "Loja_cpf_key")
-  criado_em                DateTime          @default(now())
-  custo_maodeobra_hora     Decimal?          @db.Decimal(10, 2)
-  custo_maquinaria_hora    Decimal?          @db.Decimal(10, 2)
-  custos_indiretos_mensais Decimal?          @db.Decimal(10, 2)
+  cabecalho_orcamento      String?     @db.Text
+  cnpj                     String?     @unique(map: "Loja_cnpj_key")
+  cpf                      String?     @unique(map: "Loja_cpf_key")
+  criado_em                DateTime    @default(now())
+  custo_maodeobra_hora     Decimal?    @db.Decimal(10, 2)
+  custo_maquinaria_hora    Decimal?    @db.Decimal(10, 2)
+  custos_indiretos_mensais Decimal?    @db.Decimal(10, 2)
   data_inicio_trial        DateTime?
-  impostos_padrao          Decimal?          @db.Decimal(5, 2)
+  impostos_padrao          Decimal?    @db.Decimal(5, 2)
   logo_url                 String?
-  margem_lucro_padrao      Decimal?          @db.Decimal(5, 2)
-  tipo_margem_lucro        String?           @db.VarChar(24) // 'markup' | 'margem_por_dentro'; padrão da loja
+  margem_lucro_padrao      Decimal?    @db.Decimal(5, 2)
+  tipo_margem_lucro        String?     @db.VarChar(24) // 'markup' | 'margem_por_dentro'; padrão da loja
   nome                     String
-  stripe_customer_id       String?           @unique(map: "Loja_stripe_customer_id_key")
+  stripe_customer_id       String?     @unique(map: "Loja_stripe_customer_id_key")
   telefone                 String
   trial_restante_dias      Int?
-  horas_produtivas_mensais Int?              @default(352)
-  categorias               Categoria[]
-  cliente                  cliente[]
-  custoindireto            custoindireto[]
-  fornecedor               fornecedor[]
-  funcao                   funcao[]
-  insumos                  Insumo[]
-  maquina                  maquina[]
-  notificacao              notificacao[]
-  orcamento                orcamento[]
-  perfis_acesso            perfil_acesso[]
-  template_produtos        TemplateProduto[]
-  tipomaterial             tipomaterial[]
-  usuario                  usuario[]
-  servico_manual           servico_manual[]
-  modo_impressao           modo_impressao[]
-  ordens_servico           OrdemServico[]
-  workflows_os             WorkflowOS[]
-  workflow_categorias      WorkflowCategoria[]
-  regras_validacao         RegraValidacao[]
-  setores_produtivos       SetorProdutivo[]
+  horas_produtivas_mensais Int?        @default(352)
+
+  // Condicao de pagamento padrao da loja (Home operacional / Fase 1)
+  // Tipo: 'ENTRADA_SALDO' | 'A_VISTA' | 'FATURADO_30'
+  condicao_pagamento_padrao_tipo        String?  @db.VarChar(32)
+  condicao_pagamento_padrao_entrada_pct Decimal? @db.Decimal(5, 2)
+  condicao_pagamento_padrao_descricao   String?  @db.VarChar(255)
+
+  categorias             Categoria[]
+  cliente                cliente[]
+  custoindireto          custoindireto[]
+  fornecedor             fornecedor[]
+  funcao                 funcao[]
+  insumos                Insumo[]
+  maquina                maquina[]
+  notificacao            notificacao[]
+  orcamento              orcamento[]
+  perfis_acesso          perfil_acesso[]
+  template_produtos      TemplateProduto[]
+  tipomaterial           tipomaterial[]
+  usuario                usuario[]
+  servico_manual         servico_manual[]
+  modo_impressao         modo_impressao[]
+  ordens_servico         OrdemServico[]
+  workflows_os           WorkflowOS[]
+  workflow_categorias    WorkflowCategoria[]
+  regras_validacao       RegraValidacao[]
+  setores_produtivos     SetorProdutivo[]
+  onboarding_operacional OnboardingOperacional[]
 }
 
 model maquina {
@@ -478,7 +486,7 @@ model maquina {
   capacidade         String?
   observacoes        String?                  @db.Text
   loja_id            String
-  setor_id           String?                  // Setor ao qual a máquina pertence
+  setor_id           String? // Setor ao qual a máquina pertence
   funcao             funcao[]
   historico_custos   HistoricoCustoMaquina[]
   loja               loja                     @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Maquina_loja_id_fkey")
@@ -567,87 +575,87 @@ model modo_impressao {
 }
 
 model orcamento {
-  id                     String               @id @default(cuid())
-  criado_em              DateTime             @default(now())
+  id                     String   @id @default(cuid())
+  criado_em              DateTime @default(now())
   atualizado_em          DateTime
   numero                 String
   nome_servico           String
-  descricao              String?              @db.Text
-  horas_producao         Decimal              @db.Decimal(10, 2)
-  custo_material         Decimal              @db.Decimal(10, 2)
-  custo_mao_obra         Decimal              @db.Decimal(10, 2)
-  custo_indireto         Decimal              @db.Decimal(10, 2)
-  custo_total            Decimal              @db.Decimal(10, 2)
-  margem_lucro           Decimal              @db.Decimal(10, 2)
-  impostos               Decimal              @db.Decimal(10, 2)
-  preco_final            Decimal              @db.Decimal(10, 2)
+  descricao              String?  @db.Text
+  horas_producao         Decimal  @db.Decimal(10, 2)
+  custo_material         Decimal  @db.Decimal(10, 2)
+  custo_mao_obra         Decimal  @db.Decimal(10, 2)
+  custo_indireto         Decimal  @db.Decimal(10, 2)
+  custo_total            Decimal  @db.Decimal(10, 2)
+  margem_lucro           Decimal  @db.Decimal(10, 2)
+  impostos               Decimal  @db.Decimal(10, 2)
+  preco_final            Decimal  @db.Decimal(10, 2)
   loja_id                String
   cliente_id             String?
-  altura_produto         Decimal?             @db.Decimal(10, 2)
-  area_produto           Decimal?             @db.Decimal(10, 2)
-  largura_produto        Decimal?             @db.Decimal(10, 2)
-  quantidade_produto     Decimal?             @db.Decimal(10, 2)
+  altura_produto         Decimal? @db.Decimal(10, 2)
+  area_produto           Decimal? @db.Decimal(10, 2)
+  largura_produto        Decimal? @db.Decimal(10, 2)
+  quantidade_produto     Decimal? @db.Decimal(10, 2)
   unidade_medida_produto String?
-  observacoes_cliente    String?              @db.Text
-  status_aprovacao       String?              @default("PENDENTE")
-  codigo_aprovacao       String?              @unique(map: "Orcamento_codigo_aprovacao_key")
-  status                 String?              @default("rascunho")
-  atendente              String?              @default("Equipe Comercial")
-  forma_pagamento        String?              @default("50% entrada, restante na entrega")
-  prazo_entrega          String?              @default("10 a 15 dias úteis")
-  validade_proposta      String?              @default("30 dias")
-  comissao_percentual    Decimal?             @db.Decimal(5, 2)
-  tipo_margem_lucro      String?              @db.VarChar(24) // 'markup' | 'margem_por_dentro' por orçamento
-  
+  observacoes_cliente    String?  @db.Text
+  status_aprovacao       String?  @default("PENDENTE")
+  codigo_aprovacao       String?  @unique(map: "Orcamento_codigo_aprovacao_key")
+  status                 String?  @default("rascunho")
+  atendente              String?  @default("Equipe Comercial")
+  forma_pagamento        String?  @default("50% entrada, restante na entrega")
+  prazo_entrega          String?  @default("10 a 15 dias úteis")
+  validade_proposta      String?  @default("30 dias")
+  comissao_percentual    Decimal? @db.Decimal(5, 2)
+  tipo_margem_lucro      String?  @db.VarChar(24) // 'markup' | 'margem_por_dentro' por orçamento
+
   // Campos V2
-  titulo                 String?              // Título do orçamento
-  responsavel_id         String?
-  prioridade             String?              @default("NORMAL")
-  tipo_orcamento         String?              @default("PRODUTO")
-  condicoes_comerciais   String?              @db.Text
-  observacoes_internas   String?              @db.Text
-  tags                   String?              @db.Text
-  data_limite            DateTime?
-  data_aprovacao         DateTime?
-  aprovado_por           String?
-  motivo_rejeicao        String?              @db.Text
-  custos_calculados      String?              @db.LongText // JSON com custos detalhados
-  configuracao_calculo   String?              @db.LongText // JSON com configurações
-  versao_atual           Int                  @default(1)
-  ativo                  Boolean              @default(true)
-  valor_total            Decimal?             @db.Decimal(10, 2)
-  data_criacao           DateTime             @default(now())
-  data_atualizacao       DateTime             @updatedAt
-  ordem                  Int                  @default(0)
-  categoria              String?
-  detalhamento_calculo   String?              @db.LongText // JSON com detalhamento
-  alertas                String?              @db.LongText // JSON com alertas
-  data_ultimo_calculo    DateTime?
-  
-  funcaoorcamento        funcaoorcamento[]
-  itemorcamento          itemorcamento[]
-  maquinaorcamento       maquinaorcamento[]
-  mensagemnegociacao     mensagemnegociacao[]
-  notificacao            notificacao[]
-  cliente                cliente?             @relation(fields: [cliente_id], references: [id], map: "Orcamento_cliente_id_fkey")
-  loja                   loja                 @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Orcamento_loja_id_fkey")
-  responsavel            usuario?             @relation(fields: [responsavel_id], references: [id])
-  historico              OrcamentoHistorico[]
-  logs                   OrcamentoLog[]
-  produtos               ProdutoOrcamento[]
-  historicoOrcamento     HistoricoOrcamento[]
-  versoes                VersaoOrcamento[]
-  mensagensChat          MensagemChat[]
-  linksPublicos          LinkPublico[]
-  aprovacoes             aprovacaoOrcamento[]
-  execucoes_regras       ExecucaoRegra[]
-  custos                 String?             @db.LongText // JSON com custos detalhados
-  ordens_servico         OrdemServico[]
-  
+  titulo               String? // Título do orçamento
+  responsavel_id       String?
+  prioridade           String?   @default("NORMAL")
+  tipo_orcamento       String?   @default("PRODUTO")
+  condicoes_comerciais String?   @db.Text
+  observacoes_internas String?   @db.Text
+  tags                 String?   @db.Text
+  data_limite          DateTime?
+  data_aprovacao       DateTime?
+  aprovado_por         String?
+  motivo_rejeicao      String?   @db.Text
+  custos_calculados    String?   @db.LongText // JSON com custos detalhados
+  configuracao_calculo String?   @db.LongText // JSON com configurações
+  versao_atual         Int       @default(1)
+  ativo                Boolean   @default(true)
+  valor_total          Decimal?  @db.Decimal(10, 2)
+  data_criacao         DateTime  @default(now())
+  data_atualizacao     DateTime  @updatedAt
+  ordem                Int       @default(0)
+  categoria            String?
+  detalhamento_calculo String?   @db.LongText // JSON com detalhamento
+  alertas              String?   @db.LongText // JSON com alertas
+  data_ultimo_calculo  DateTime?
+
+  funcaoorcamento    funcaoorcamento[]
+  itemorcamento      itemorcamento[]
+  maquinaorcamento   maquinaorcamento[]
+  mensagemnegociacao mensagemnegociacao[]
+  notificacao        notificacao[]
+  cliente            cliente?             @relation(fields: [cliente_id], references: [id], map: "Orcamento_cliente_id_fkey")
+  loja               loja                 @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Orcamento_loja_id_fkey")
+  responsavel        usuario?             @relation(fields: [responsavel_id], references: [id])
+  historico          OrcamentoHistorico[]
+  logs               OrcamentoLog[]
+  produtos           ProdutoOrcamento[]
+  historicoOrcamento HistoricoOrcamento[]
+  versoes            VersaoOrcamento[]
+  mensagensChat      MensagemChat[]
+  linksPublicos      LinkPublico[]
+  aprovacoes         aprovacaoOrcamento[]
+  execucoes_regras   ExecucaoRegra[]
+  custos             String?              @db.LongText // JSON com custos detalhados
+  ordens_servico     OrdemServico[]
+
   // Campos para soft delete
-  excluido_em            DateTime?
-  excluido_por           String?
-  motivo_exclusao        String?             @db.Text
+  excluido_em     DateTime?
+  excluido_por    String?
+  motivo_exclusao String?   @db.Text
 
   @@unique([loja_id, numero], map: "Orcamento_loja_id_numero_key")
   @@index([cliente_id], map: "Orcamento_cliente_id_fkey")
@@ -661,38 +669,38 @@ model orcamento {
 
 // Tabelas V2 para múltiplos produtos
 model ProdutoOrcamento {
-  id                    String              @id @default(cuid())
-  orcamento_id          String
-  nome_servico          String
-  descricao             String?             @db.Text
-  quantidade            Decimal             @db.Decimal(10, 3)
-  largura               Decimal?            @db.Decimal(10, 2)
-  altura                Decimal?            @db.Decimal(10, 2)
-  profundidade          Decimal?            @db.Decimal(10, 2) // Campo para produtos 3D (totens, letras caixa)
-  area_produto          Decimal?            @db.Decimal(10, 2)
-  unidade_medida        String?
-  custo_total_producao  Decimal             @db.Decimal(10, 2)
-  preco_unitario        Decimal             @db.Decimal(10, 2)
-  preco_total           Decimal             @db.Decimal(10, 2)
-  margem_lucro          Decimal             @db.Decimal(5, 2)
-  impostos              Decimal             @db.Decimal(5, 2)
-  observacoes           String?             @db.Text
-  ativo                 Boolean             @default(true)
-  criado_em             DateTime            @default(now())
-  atualizado_em         DateTime            @updatedAt
-  data_criacao          DateTime            @default(now())
-  data_atualizacao      DateTime            @updatedAt
-  ordem                 Int                 @default(0)
-  categoria             String?
-  nome                  String?             // Campo para V2
+  id                   String   @id @default(cuid())
+  orcamento_id         String
+  nome_servico         String
+  descricao            String?  @db.Text
+  quantidade           Decimal  @db.Decimal(10, 3)
+  largura              Decimal? @db.Decimal(10, 2)
+  altura               Decimal? @db.Decimal(10, 2)
+  profundidade         Decimal? @db.Decimal(10, 2) // Campo para produtos 3D (totens, letras caixa)
+  area_produto         Decimal? @db.Decimal(10, 2)
+  unidade_medida       String?
+  custo_total_producao Decimal  @db.Decimal(10, 2)
+  preco_unitario       Decimal  @db.Decimal(10, 2)
+  preco_total          Decimal  @db.Decimal(10, 2)
+  margem_lucro         Decimal  @db.Decimal(5, 2)
+  impostos             Decimal  @db.Decimal(5, 2)
+  observacoes          String?  @db.Text
+  ativo                Boolean  @default(true)
+  criado_em            DateTime @default(now())
+  atualizado_em        DateTime @updatedAt
+  data_criacao         DateTime @default(now())
+  data_atualizacao     DateTime @updatedAt
+  ordem                Int      @default(0)
+  categoria            String?
+  nome                 String? // Campo para V2
 
   // Relacionamentos
-  orcamento             orcamento           @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
-  insumos               ItemInsumo[]
-  maquinas              ItemMaquina[]
-  funcoes               ItemFuncao[]
-  servicos_manuais      ItemServicoManual[]
-  custos_indiretos      ItemCustoIndireto[]
+  orcamento        orcamento           @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  insumos          ItemInsumo[]
+  maquinas         ItemMaquina[]
+  funcoes          ItemFuncao[]
+  servicos_manuais ItemServicoManual[]
+  custos_indiretos ItemCustoIndireto[]
 
   @@index([orcamento_id])
   @@index([ativo])
@@ -700,96 +708,96 @@ model ProdutoOrcamento {
 }
 
 model ItemInsumo {
-  id                    String              @id @default(cuid())
-  produto_id            String
-  insumo_id             String
-  quantidade            Decimal             @db.Decimal(10, 3)
-  unidade               String
-  preco_unitario        Decimal             @db.Decimal(10, 2)
-  preco_total           Decimal             @db.Decimal(10, 2)
-  material_do_cliente   Boolean             @default(false)
-  estoque_disponivel    Decimal?            @db.Decimal(10, 3)
-  alerta_estoque        Boolean             @default(false)
-  criado_em             DateTime            @default(now())
-  data_criacao          DateTime            @default(now())
+  id                  String   @id @default(cuid())
+  produto_id          String
+  insumo_id           String
+  quantidade          Decimal  @db.Decimal(10, 3)
+  unidade             String
+  preco_unitario      Decimal  @db.Decimal(10, 2)
+  preco_total         Decimal  @db.Decimal(10, 2)
+  material_do_cliente Boolean  @default(false)
+  estoque_disponivel  Decimal? @db.Decimal(10, 3)
+  alerta_estoque      Boolean  @default(false)
+  criado_em           DateTime @default(now())
+  data_criacao        DateTime @default(now())
 
   // Relacionamentos
-  produto               ProdutoOrcamento    @relation(fields: [produto_id], references: [id], onDelete: Cascade)
-  insumo                Insumo              @relation(fields: [insumo_id], references: [id])
+  produto ProdutoOrcamento @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  insumo  Insumo           @relation(fields: [insumo_id], references: [id])
 
   @@index([produto_id])
   @@index([insumo_id])
 }
 
 model ItemMaquina {
-  id                    String              @id @default(cuid())
-  produto_id            String
-  maquina_id            String
-  tempo_horas           Decimal             @db.Decimal(10, 2)
-  custo_hora            Decimal             @db.Decimal(10, 2)
-  custo_total           Decimal             @db.Decimal(10, 2)
-  criado_em             DateTime            @default(now())
-  data_criacao          DateTime            @default(now())
+  id           String   @id @default(cuid())
+  produto_id   String
+  maquina_id   String
+  tempo_horas  Decimal  @db.Decimal(10, 2)
+  custo_hora   Decimal  @db.Decimal(10, 2)
+  custo_total  Decimal  @db.Decimal(10, 2)
+  criado_em    DateTime @default(now())
+  data_criacao DateTime @default(now())
 
   // Relacionamentos
-  produto               ProdutoOrcamento    @relation(fields: [produto_id], references: [id], onDelete: Cascade)
-  maquina               maquina             @relation(fields: [maquina_id], references: [id])
+  produto ProdutoOrcamento @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  maquina maquina          @relation(fields: [maquina_id], references: [id])
 
   @@index([produto_id])
   @@index([maquina_id])
 }
 
 model ItemFuncao {
-  id                    String              @id @default(cuid())
-  produto_id            String
-  funcao_id             String
-  tempo_horas           Decimal             @db.Decimal(10, 2)
-  custo_hora            Decimal             @db.Decimal(10, 2)
-  custo_total           Decimal             @db.Decimal(10, 2)
-  criado_em             DateTime            @default(now())
-  data_criacao          DateTime            @default(now())
+  id           String   @id @default(cuid())
+  produto_id   String
+  funcao_id    String
+  tempo_horas  Decimal  @db.Decimal(10, 2)
+  custo_hora   Decimal  @db.Decimal(10, 2)
+  custo_total  Decimal  @db.Decimal(10, 2)
+  criado_em    DateTime @default(now())
+  data_criacao DateTime @default(now())
 
   // Relacionamentos
-  produto               ProdutoOrcamento    @relation(fields: [produto_id], references: [id], onDelete: Cascade)
-  funcao                funcao              @relation(fields: [funcao_id], references: [id])
+  produto ProdutoOrcamento @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  funcao  funcao           @relation(fields: [funcao_id], references: [id])
 
   @@index([produto_id])
   @@index([funcao_id])
 }
 
 model ItemServicoManual {
-  id                    String              @id @default(cuid())
-  produto_id            String
-  servico_id            String
-  tempo_horas           Decimal             @db.Decimal(10, 2)
-  custo_hora            Decimal             @db.Decimal(10, 2)
-  custo_total           Decimal             @db.Decimal(10, 2)
-  criado_em             DateTime            @default(now())
-  data_criacao          DateTime            @default(now())
-  descricao             String?             @db.Text
+  id           String   @id @default(cuid())
+  produto_id   String
+  servico_id   String
+  tempo_horas  Decimal  @db.Decimal(10, 2)
+  custo_hora   Decimal  @db.Decimal(10, 2)
+  custo_total  Decimal  @db.Decimal(10, 2)
+  criado_em    DateTime @default(now())
+  data_criacao DateTime @default(now())
+  descricao    String?  @db.Text
 
   // Relacionamentos
-  produto               ProdutoOrcamento    @relation(fields: [produto_id], references: [id], onDelete: Cascade)
-  servico               servico_manual      @relation(fields: [servico_id], references: [id])
+  produto ProdutoOrcamento @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  servico servico_manual   @relation(fields: [servico_id], references: [id])
 
   @@index([produto_id])
   @@index([servico_id])
 }
 
 model ItemCustoIndireto {
-  id                    String              @id @default(cuid())
-  produto_id            String
-  custo_id              String
-  percentual            Decimal             @db.Decimal(5, 2)
-  valor_fixo            Decimal?            @db.Decimal(10, 2)
-  custo_total           Decimal             @db.Decimal(10, 2)
-  criado_em             DateTime            @default(now())
-  data_criacao          DateTime            @default(now())
-  descricao             String?             @db.Text
+  id           String   @id @default(cuid())
+  produto_id   String
+  custo_id     String
+  percentual   Decimal  @db.Decimal(5, 2)
+  valor_fixo   Decimal? @db.Decimal(10, 2)
+  custo_total  Decimal  @db.Decimal(10, 2)
+  criado_em    DateTime @default(now())
+  data_criacao DateTime @default(now())
+  descricao    String?  @db.Text
 
   // Relacionamentos
-  produto               ProdutoOrcamento    @relation(fields: [produto_id], references: [id], onDelete: Cascade)
-  custo                 custoindireto       @relation(fields: [custo_id], references: [id])
+  produto ProdutoOrcamento @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  custo   custoindireto    @relation(fields: [custo_id], references: [id])
 
   @@index([produto_id])
   @@index([custo_id])
@@ -797,39 +805,39 @@ model ItemCustoIndireto {
 
 // Tabelas de histórico e versão para V2
 model HistoricoOrcamento {
-  id                    String              @id @default(cuid())
-  orcamento_id          String
-  acao                  String              // CRIADO, ATUALIZADO, APROVADO, etc.
-  dados_anteriores      String?             @db.LongText // JSON
-  dados_novos           String?             @db.LongText // JSON
-  usuario_id            String?
-  observacoes           String?             @db.Text
-  data                  DateTime            @default(now())
-  tipo                  String?             // Campo para V2
-  numero                Int?                // Campo para V2
-  descricao             String?             @db.Text // Campo para V2
-  criado_em             DateTime            @default(now())
+  id               String   @id @default(cuid())
+  orcamento_id     String
+  acao             String // CRIADO, ATUALIZADO, APROVADO, etc.
+  dados_anteriores String?  @db.LongText // JSON
+  dados_novos      String?  @db.LongText // JSON
+  usuario_id       String?
+  observacoes      String?  @db.Text
+  data             DateTime @default(now())
+  tipo             String? // Campo para V2
+  numero           Int? // Campo para V2
+  descricao        String?  @db.Text // Campo para V2
+  criado_em        DateTime @default(now())
 
   // Relacionamentos
-  orcamento             orcamento           @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  orcamento orcamento @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
 
   @@index([orcamento_id])
   @@index([data])
 }
 
 model VersaoOrcamento {
-  id                    String              @id @default(cuid())
-  orcamento_id          String
-  versao                Int
-  dados_completos       String              @db.LongText // JSON com todos os dados da versão
-  motivo_alteracao      String?             @db.Text
-  usuario_id            String?
-  numero                Int?                // Campo para V2
-  responsavel_id        String?             // Campo para V2
-  criado_em             DateTime            @default(now())
+  id               String   @id @default(cuid())
+  orcamento_id     String
+  versao           Int
+  dados_completos  String   @db.LongText // JSON com todos os dados da versão
+  motivo_alteracao String?  @db.Text
+  usuario_id       String?
+  numero           Int? // Campo para V2
+  responsavel_id   String? // Campo para V2
+  criado_em        DateTime @default(now())
 
   // Relacionamentos
-  orcamento             orcamento           @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  orcamento orcamento @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
 
   @@unique([orcamento_id, versao])
   @@index([orcamento_id])
@@ -837,48 +845,48 @@ model VersaoOrcamento {
 
 // Tabelas de chat e links para V2
 model MensagemChat {
-  id                    String              @id @default(cuid())
-  orcamento_id          String
-  usuario_id            String?
-  tipo                  String              // SISTEMA, USUARIO, CLIENTE
-  conteudo              String              @db.Text
-  dados_extras          String?             @db.LongText // JSON
-  lida                  Boolean             @default(false)
-  data_leitura          DateTime?
-  criado_em             DateTime            @default(now())
-  anexos                String?             @db.LongText // JSON com anexos
-  data_envio            DateTime            @default(now()) // Campo para V2
-  usuario               String?             // Campo para V2
-  dados                 String?             @db.LongText // Campo para V2
+  id           String    @id @default(cuid())
+  orcamento_id String
+  usuario_id   String?
+  tipo         String // SISTEMA, USUARIO, CLIENTE
+  conteudo     String    @db.Text
+  dados_extras String?   @db.LongText // JSON
+  lida         Boolean   @default(false)
+  data_leitura DateTime?
+  criado_em    DateTime  @default(now())
+  anexos       String?   @db.LongText // JSON com anexos
+  data_envio   DateTime  @default(now()) // Campo para V2
+  usuario      String? // Campo para V2
+  dados        String?   @db.LongText // Campo para V2
 
   // Relacionamentos
-  orcamento             orcamento           @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  orcamento orcamento @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
 
   @@index([orcamento_id])
   @@index([criado_em])
 }
 
 model LinkPublico {
-  id                    String              @id @default(cuid())
-  orcamento_id          String
-  token                 String              @unique
-  expira_em             DateTime?
-  visualizacoes_max     Int?                // null = ilimitado
-  visualizacoes_atual   Int                 @default(0)
-  ativo                 Boolean             @default(true)
-  criado_em             DateTime            @default(now())
-  titulo                String?             // Campo para V2
-  permissoes            String?             @db.LongText // JSON com permissões
-  senha                 String?             // Campo para V2
-  data_expiracao        DateTime?           // Campo para V2
-  criado_por_usuario    String?             // Campo para V2
-  visualizacoes         Int?                // Campo para V2
-  max_visualizacoes     Int?                // Campo para V2
-  atualizado_em         DateTime            @updatedAt
+  id                  String    @id @default(cuid())
+  orcamento_id        String
+  token               String    @unique
+  expira_em           DateTime?
+  visualizacoes_max   Int? // null = ilimitado
+  visualizacoes_atual Int       @default(0)
+  ativo               Boolean   @default(true)
+  criado_em           DateTime  @default(now())
+  titulo              String? // Campo para V2
+  permissoes          String?   @db.LongText // JSON com permissões
+  senha               String? // Campo para V2
+  data_expiracao      DateTime? // Campo para V2
+  criado_por_usuario  String? // Campo para V2
+  visualizacoes       Int? // Campo para V2
+  max_visualizacoes   Int? // Campo para V2
+  atualizado_em       DateTime  @updatedAt
 
   // Relacionamentos
-  orcamento             orcamento           @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
-  acessos               AcessoLink[]
+  orcamento orcamento    @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  acessos   AcessoLink[]
 
   @@index([orcamento_id])
   @@index([token])
@@ -886,19 +894,19 @@ model LinkPublico {
 }
 
 model AcessoLink {
-  id                    String              @id @default(cuid())
-  link_id               String
-  ip                    String?
-  user_agent            String?
-  visualizacoes         Int                 @default(1)
-  primeiro_acesso       DateTime            @default(now())
-  ultimo_acesso         DateTime            @updatedAt
-  ip_acesso             String?             // Campo para V2
-  data_acesso           DateTime            @default(now()) // Campo para V2
-  data_criacao          DateTime            @default(now()) // Campo para V2
+  id              String   @id @default(cuid())
+  link_id         String
+  ip              String?
+  user_agent      String?
+  visualizacoes   Int      @default(1)
+  primeiro_acesso DateTime @default(now())
+  ultimo_acesso   DateTime @updatedAt
+  ip_acesso       String? // Campo para V2
+  data_acesso     DateTime @default(now()) // Campo para V2
+  data_criacao    DateTime @default(now()) // Campo para V2
 
   // Relacionamentos
-  link                  LinkPublico         @relation(fields: [link_id], references: [id], onDelete: Cascade)
+  link LinkPublico @relation(fields: [link_id], references: [id], onDelete: Cascade)
 
   @@index([link_id])
   @@index([primeiro_acesso])
@@ -906,46 +914,46 @@ model AcessoLink {
 
 // Tabelas adicionais para V2
 model estoque {
-  id                    String              @id @default(cuid())
-  insumo_id             String
-  quantidade            Decimal             @db.Decimal(10, 3)
-  tipo_movimentacao     String              // ENTRADA, SAIDA, AJUSTE
-  observacoes           String?             @db.Text
-  criado_em             DateTime            @default(now())
-  loja_id               String?             // Campo para V2
-  quantidade_atual      Decimal?            @db.Decimal(10, 3) // Campo para V2
+  id                String   @id @default(cuid())
+  insumo_id         String
+  quantidade        Decimal  @db.Decimal(10, 3)
+  tipo_movimentacao String // ENTRADA, SAIDA, AJUSTE
+  observacoes       String?  @db.Text
+  criado_em         DateTime @default(now())
+  loja_id           String? // Campo para V2
+  quantidade_atual  Decimal? @db.Decimal(10, 3) // Campo para V2
 
   // Relacionamentos
-  insumo                Insumo              @relation(fields: [insumo_id], references: [id], onDelete: Cascade)
+  insumo Insumo @relation(fields: [insumo_id], references: [id], onDelete: Cascade)
 
   @@index([insumo_id])
   @@index([criado_em])
 }
 
 model aprovacaoOrcamento {
-  id                    String              @id @default(cuid())
-  orcamento_id          String
-  aprovador_id          String?
-  status                String              // PENDENTE, APROVADO, REJEITADO
-  observacoes           String?             @db.Text
-  criado_em             DateTime            @default(now())
-  atualizado_em         DateTime            @updatedAt
-  usuario               String?             // Campo para V2
+  id            String   @id @default(cuid())
+  orcamento_id  String
+  aprovador_id  String?
+  status        String // PENDENTE, APROVADO, REJEITADO
+  observacoes   String?  @db.Text
+  criado_em     DateTime @default(now())
+  atualizado_em DateTime @updatedAt
+  usuario       String? // Campo para V2
 
   // Relacionamentos
-  orcamento             orcamento           @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  orcamento orcamento @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
 
   @@index([orcamento_id])
   @@index([status])
 }
 
 model categoriaInsumo {
-  id                    String              @id @default(cuid())
-  nome                  String
-  descricao             String?             @db.Text
-  ativo                 Boolean             @default(true)
-  criado_em             DateTime            @default(now())
-  atualizado_em         DateTime            @updatedAt
+  id            String   @id @default(cuid())
+  nome          String
+  descricao     String?  @db.Text
+  ativo         Boolean  @default(true)
+  criado_em     DateTime @default(now())
+  atualizado_em DateTime @updatedAt
 
   @@index([nome])
 }
@@ -974,8 +982,8 @@ model servico_manual {
   descricao          String?             @db.Text
   custo_hora         Decimal             @db.Decimal(10, 2)
   loja_id            String
-  setor_id           String?              // Setor ao qual o serviço pertence
-  ativo              Boolean              @default(true) // Campo para V2
+  setor_id           String? // Setor ao qual o serviço pertence
+  ativo              Boolean             @default(true) // Campo para V2
   tipo_calculo       funcao_tipo_calculo @default(MANUAL)
   horas_por_m2       Decimal?            @db.Decimal(10, 3)
   horas_por_unidade  Decimal?            @db.Decimal(10, 3)
@@ -983,8 +991,8 @@ model servico_manual {
   setup_min          Decimal?            @db.Decimal(10, 2)
   categorias         String?             @db.LongText
 
-  loja    loja             @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "ServicoManual_loja_id_fkey")
-  setor   SetorProdutivo?   @relation(fields: [setor_id], references: [id], onDelete: SetNull, map: "ServicoManual_setor_id_fkey")
+  loja              loja                @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "ServicoManual_loja_id_fkey")
+  setor             SetorProdutivo?     @relation(fields: [setor_id], references: [id], onDelete: SetNull, map: "ServicoManual_setor_id_fkey")
   itemServicoManual ItemServicoManual[]
 
   @@unique([loja_id, nome])
@@ -994,38 +1002,38 @@ model servico_manual {
 }
 
 model usuario {
-  id                                 String           @id @default(cuid())
-  email                              String           @unique(map: "Usuario_email_key")
-  status                             usuario_status   @default(PENDENTE_VERIFICACAO)
-  atualizado_em                      DateTime         @updatedAt
+  id                                 String            @id @default(cuid())
+  email                              String            @unique(map: "Usuario_email_key")
+  status                             usuario_status    @default(PENDENTE_VERIFICACAO)
+  atualizado_em                      DateTime          @updatedAt
   codigo_verificacao_email           String?
   codigo_verificacao_email_expiracao DateTime?
-  criado_em                          DateTime         @default(now())
-  email_verificado                   Boolean          @default(false)
-  funcao                             usuario_funcao   @default(VENDAS)
+  criado_em                          DateTime          @default(now())
+  email_verificado                   Boolean           @default(false)
+  funcao                             usuario_funcao    @default(VENDAS)
   loja_id                            String
   nome_completo                      String
-  nome                               String?             // Campo para V2
+  nome                               String? // Campo para V2
   senha                              String?
   telefone                           String?
-  two_factor_enabled                 Boolean          @default(false)
-  two_factor_secret                  String?          @db.Text
+  two_factor_enabled                 Boolean           @default(false)
+  two_factor_secret                  String?           @db.Text
   two_factor_confirmed_at            DateTime?
-  ativo                              Boolean          @default(true) // Campo para V2
-  loja                               loja             @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Usuario_loja_id_fkey")
+  ativo                              Boolean           @default(true) // Campo para V2
+  loja                               loja              @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Usuario_loja_id_fkey")
   perfis                             usuario_perfil[]
   orcamentos_responsavel             orcamento[]
   os_logs                            OrdemServicoLog[]
-  
+
   // Relacionamentos Arte & Aprovação
-  artes_autor                        ArteVersao[]     @relation("ArteAutor")
-  artes_aprovador                    ArteVersao[]     @relation("ArteAprovador")
-  artes_liberador                    ArteVersao[]     @relation("ArteLiberador")
-  artes_excluidor                    ArteVersao[]     @relation("ArteExcluidor")
-  comentarios_arte                   ArteComentario[]
-  
+  artes_autor      ArteVersao[]     @relation("ArteAutor")
+  artes_aprovador  ArteVersao[]     @relation("ArteAprovador")
+  artes_liberador  ArteVersao[]     @relation("ArteLiberador")
+  artes_excluidor  ArteVersao[]     @relation("ArteExcluidor")
+  comentarios_arte ArteComentario[]
+
   // Relacionamentos PCP
-  instancias_setor_operador          WorkflowInstanciaSetor[]
+  instancias_setor_operador WorkflowInstanciaSetor[]
 
   @@index([loja_id], map: "Usuario_loja_id_idx")
 }
@@ -1325,12 +1333,12 @@ enum funcao_tipo_calculo {
 }
 
 model document_sequence {
-  id           String   @id @default(cuid())
-  loja_id      String
-  tipo         String   // 'ORC', 'OS', 'NF'
-  ano          Int
-  ultimo_numero Int     @default(0)
-  criado_em    DateTime @default(now())
+  id            String   @id @default(cuid())
+  loja_id       String
+  tipo          String // 'ORC', 'OS', 'NF'
+  ano           Int
+  ultimo_numero Int      @default(0)
+  criado_em     DateTime @default(now())
   atualizado_em DateTime @updatedAt
 
   @@unique([loja_id, tipo, ano])
@@ -1341,69 +1349,69 @@ model document_sequence {
 // ===== MÓDULO OS (ORDENS DE SERVIÇO) =====
 
 model OrdemServico {
-  id                 String    @id @default(cuid())
-  numero             String    // Autonumeração sequencial
-  loja_id            String
-  cliente_id         String
-  orcamento_id       String?   // Opcional - vínculo com orçamento aprovado
-  data_abertura      DateTime  @default(now())
-  data_prazo         DateTime?
-  status             String    @default("FILA")
-  responsavel_id     String?
-  observacoes        String?   @db.Text
-  criado_em          DateTime  @default(now())
-  atualizado_em      DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  numero         String // Autonumeração sequencial
+  loja_id        String
+  cliente_id     String
+  orcamento_id   String? // Opcional - vínculo com orçamento aprovado
+  data_abertura  DateTime  @default(now())
+  data_prazo     DateTime?
+  status         String    @default("FILA")
+  responsavel_id String?
+  observacoes    String?   @db.Text
+  criado_em      DateTime  @default(now())
+  atualizado_em  DateTime  @updatedAt
 
   // Campos específicos do produto/serviço
-  nome_servico       String
-  descricao          String?   @db.Text
-  quantidade         Decimal   @db.Decimal(10, 2)
-  parametros_tecnicos String?  @db.LongText // JSON com medidas, cores, etc
-  insumos_calculados  String?  @db.LongText // JSON dos insumos necessários
+  nome_servico         String
+  descricao            String? @db.Text
+  quantidade           Decimal @db.Decimal(10, 2)
+  parametros_tecnicos  String? @db.LongText // JSON com medidas, cores, etc
+  insumos_calculados   String? @db.LongText // JSON dos insumos necessários
   materiais_disponivel Boolean @default(false)
 
   // Campos de aprovação técnica (checkpoint pre-produção)
-  aprovacao_tecnica_status String?  @default("PENDENTE") // PENDENTE, APROVADA, REJEITADA
-  aprovacao_tecnica_por    String?  // usuario_id do aprovador
+  aprovacao_tecnica_status String?   @default("PENDENTE") // PENDENTE, APROVADA, REJEITADA
+  aprovacao_tecnica_por    String? // usuario_id do aprovador
   aprovacao_tecnica_em     DateTime? // data da aprovação
-  aprovacao_tecnica_obs    String?  @db.Text // observações da aprovação
+  aprovacao_tecnica_obs    String?   @db.Text // observações da aprovação
 
   // Campos de agendamento de instalação
   data_instalacao_agendada DateTime? // data agendada para instalação (após contato com cliente)
-  observacoes_instalacao   String?  @db.Text // observações para coordenação de instalação externa
+  observacoes_instalacao   String?   @db.Text // observações para coordenação de instalação externa
 
   // Campos para diferenciação OS Direta vs Interna
-  tipo_os                  String   @default("COMERCIAL") // COMERCIAL, INTERNA
-  origem_os                String?  // ORCAMENTO, DIRETA, INTERNA
-  prioridade               String   @default("NORMAL") // URGENTE, ALTA, NORMAL, BAIXA
-  
+  tipo_os    String  @default("COMERCIAL") // COMERCIAL, INTERNA
+  origem_os  String? // ORCAMENTO, DIRETA, INTERNA
+  prioridade String  @default("NORMAL") // URGENTE, ALTA, NORMAL, BAIXA
+
   // Campos específicos para OS Interna
-  departamento_solicitante String?  // Departamento que solicitou a OS interna
-  centro_custo             String?  // Centro de custo para OS interna
-  projeto_interno          String?  // Projeto interno relacionado
-  aprovacao_gerencial      String?  @default("PENDENTE") // PENDENTE, APROVADA, REJEITADA
-  aprovacao_gerencial_por  String?  // usuario_id do aprovador gerencial
+  departamento_solicitante String? // Departamento que solicitou a OS interna
+  centro_custo             String? // Centro de custo para OS interna
+  projeto_interno          String? // Projeto interno relacionado
+  aprovacao_gerencial      String?   @default("PENDENTE") // PENDENTE, APROVADA, REJEITADA
+  aprovacao_gerencial_por  String? // usuario_id do aprovador gerencial
   aprovacao_gerencial_em   DateTime? // data da aprovação gerencial
-  aprovacao_gerencial_obs  String?  @db.Text // observações da aprovação gerencial
-  
+  aprovacao_gerencial_obs  String?   @db.Text // observações da aprovação gerencial
+
   // Campos específicos para OS Comercial
-  valor_orcado             Decimal? @db.Decimal(12, 2) // Valor do orçamento aprovado
-  valor_realizado          Decimal? @db.Decimal(12, 2) // Valor real gasto na produção
-  margem_lucro_real        Decimal? @db.Decimal(5, 2) // Margem de lucro real obtida
-  data_entrega_cliente     DateTime? // Data real de entrega ao cliente
-  satisfacao_cliente       Int?     // Nota de satisfação do cliente (1-5)
-  observacoes_cliente      String?  @db.Text // Observações do cliente sobre o serviço
-  
+  valor_orcado         Decimal?  @db.Decimal(12, 2) // Valor do orçamento aprovado
+  valor_realizado      Decimal?  @db.Decimal(12, 2) // Valor real gasto na produção
+  margem_lucro_real    Decimal?  @db.Decimal(5, 2) // Margem de lucro real obtida
+  data_entrega_cliente DateTime? // Data real de entrega ao cliente
+  satisfacao_cliente   Int? // Nota de satisfação do cliente (1-5)
+  observacoes_cliente  String?   @db.Text // Observações do cliente sobre o serviço
+
   // Campos de controle e auditoria
-  criado_por               String?  // usuario_id que criou a OS
-  modificado_por           String?  // usuario_id que fez a última modificação
-  motivo_modificacao       String?  @db.Text // Motivo da última modificação
-  versao                   Int      @default(1) // Controle de versão da OS
+  criado_por         String? // usuario_id que criou a OS
+  modificado_por     String? // usuario_id que fez a última modificação
+  motivo_modificacao String? @db.Text // Motivo da última modificação
+  versao             Int     @default(1) // Controle de versão da OS
 
   // Relacionamentos
-  loja               loja      @relation(fields: [loja_id], references: [id])
-  cliente            cliente   @relation(fields: [cliente_id], references: [id])
-  orcamento          orcamento? @relation(fields: [orcamento_id], references: [id])
+  loja      loja       @relation(fields: [loja_id], references: [id])
+  cliente   cliente    @relation(fields: [cliente_id], references: [id])
+  orcamento orcamento? @relation(fields: [orcamento_id], references: [id])
 
   // Relacionamentos internos do módulo
   itens              ItemOS[]
@@ -1413,10 +1421,10 @@ model OrdemServico {
   apontamentos       Apontamento[]
   logs               OrdemServicoLog[]
   execucoes_regras   ExecucaoRegra[]
-  
+
   // Relacionamentos Arte & Aprovação
-  artes_versoes      ArteVersao[]
-  artes_mensagens    ArteMensagem[]
+  artes_versoes   ArteVersao[]
+  artes_mensagens ArteMensagem[]
 
   @@unique([loja_id, numero])
   @@index([loja_id, status])
@@ -1441,31 +1449,31 @@ model OrdemServico {
 }
 
 model ItemOS {
-  id                 String    @id @default(cuid())
-  os_id              String
-  produto_servico    String
-  quantidade         Decimal   @db.Decimal(10, 2)
-  parametros_tecnicos String?  @db.LongText // JSON
-  insumos_necessarios String?  @db.LongText // JSON calculado
-  materiais_disponivel Boolean @default(false)
-  observacoes        String?   @db.Text
-  criado_em          DateTime  @default(now())
-  
-  // PRAZOS DO PRODUTO
-  data_inicio_producao   DateTime?  // Quando deve iniciar produção
-  data_prazo_produto     DateTime?  // Prazo específico deste produto
-  
-  // LIBERAÇÃO PCP
-  status_liberacao_pcp   String?    @default("PENDENTE") // PENDENTE, LIBERADO, EM_PRODUCAO, CONCLUIDO
-  liberado_pcp_por       String?    // usuario_id
-  liberado_pcp_em        DateTime?  // Data de liberação
-  
-  // PRIORIDADE E ORDEM
-  prioridade_produto     String?    @default("NORMAL") // URGENTE, ALTA, NORMAL, BAIXA
-  ordem_producao         Int?       // Ordem de produção (1, 2, 3...)
+  id                   String   @id @default(cuid())
+  os_id                String
+  produto_servico      String
+  quantidade           Decimal  @db.Decimal(10, 2)
+  parametros_tecnicos  String?  @db.LongText // JSON
+  insumos_necessarios  String?  @db.LongText // JSON calculado
+  materiais_disponivel Boolean  @default(false)
+  observacoes          String?  @db.Text
+  criado_em            DateTime @default(now())
 
-  os                 OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
-  instancias_setor   WorkflowInstanciaSetor[]
+  // PRAZOS DO PRODUTO
+  data_inicio_producao DateTime? // Quando deve iniciar produção
+  data_prazo_produto   DateTime? // Prazo específico deste produto
+
+  // LIBERAÇÃO PCP
+  status_liberacao_pcp String?   @default("PENDENTE") // PENDENTE, LIBERADO, EM_PRODUCAO, CONCLUIDO
+  liberado_pcp_por     String? // usuario_id
+  liberado_pcp_em      DateTime? // Data de liberação
+
+  // PRIORIDADE E ORDEM
+  prioridade_produto String? @default("NORMAL") // URGENTE, ALTA, NORMAL, BAIXA
+  ordem_producao     Int? // Ordem de produção (1, 2, 3...)
+
+  os               OrdemServico             @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  instancias_setor WorkflowInstanciaSetor[]
 
   @@index([os_id])
   @@index([status_liberacao_pcp])
@@ -1474,20 +1482,20 @@ model ItemOS {
 }
 
 model WorkflowOS {
-  id                 String    @id @default(cuid())
-  loja_id            String
-  nome               String
-  descricao          String?   @db.Text
-  etapas             String    @db.LongText // JSON das etapas configuráveis
-  ativo              Boolean   @default(true)
-  sequencial         Boolean   @default(true) // true = sequencial, false = paralelo
-  criado_em          DateTime  @default(now())
-  atualizado_em      DateTime  @updatedAt
+  id            String   @id @default(cuid())
+  loja_id       String
+  nome          String
+  descricao     String?  @db.Text
+  etapas        String   @db.LongText // JSON das etapas configuráveis
+  ativo         Boolean  @default(true)
+  sequencial    Boolean  @default(true) // true = sequencial, false = paralelo
+  criado_em     DateTime @default(now())
+  atualizado_em DateTime @updatedAt
 
-  loja               loja      @relation(fields: [loja_id], references: [id])
-  instancias         WorkflowInstancia[]
-  workflow_setores   WorkflowSetor[]
-  categorias         WorkflowCategoria[] @relation("WorkflowCategoriaWorkflow")
+  loja             loja                @relation(fields: [loja_id], references: [id])
+  instancias       WorkflowInstancia[]
+  workflow_setores WorkflowSetor[]
+  categorias       WorkflowCategoria[] @relation("WorkflowCategoriaWorkflow")
 
   @@unique([loja_id, nome])
   @@index([loja_id, ativo])
@@ -1495,18 +1503,18 @@ model WorkflowOS {
 }
 
 model MovimentacaoOS {
-  id                 String    @id @default(cuid())
-  os_id              String
-  etapa_anterior     String?
-  etapa_atual        String
-  usuario_id         String
-  data_movimentacao  DateTime  @default(now())
-  observacoes        String?   @db.Text
-  anexos             String?   @db.LongText // JSON de anexos
-  ip_origem          String?
-  user_agent         String?
+  id                String   @id @default(cuid())
+  os_id             String
+  etapa_anterior    String?
+  etapa_atual       String
+  usuario_id        String
+  data_movimentacao DateTime @default(now())
+  observacoes       String?  @db.Text
+  anexos            String?  @db.LongText // JSON de anexos
+  ip_origem         String?
+  user_agent        String?
 
-  os                 OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  os OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
 
   @@index([os_id])
   @@index([data_movimentacao])
@@ -1515,18 +1523,18 @@ model MovimentacaoOS {
 }
 
 model ChecklistOS {
-  id                 String    @id @default(cuid())
-  os_id              String
-  etapa              String
-  item_checklist     String
-  concluido          Boolean   @default(false)
-  usuario_id         String?
-  data_conclusao     DateTime?
-  observacoes        String?   @db.Text
-  obrigatório        Boolean   @default(true)
-  ordem              Int       @default(0)
+  id             String    @id @default(cuid())
+  os_id          String
+  etapa          String
+  item_checklist String
+  concluido      Boolean   @default(false)
+  usuario_id     String?
+  data_conclusao DateTime?
+  observacoes    String?   @db.Text
+  obrigatório   Boolean   @default(true)
+  ordem          Int       @default(0)
 
-  os                 OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  os OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
 
   @@index([os_id, etapa])
   @@index([concluido])
@@ -1536,21 +1544,21 @@ model ChecklistOS {
 // ===== ENTIDADES DE WORKFLOW PARA PCP =====
 
 model WorkflowInstancia {
-  id                 String    @id @default(cuid())
-  os_id              String    @unique
-  workflow_id        String
-  status             String    @default("ATIVO") // ATIVO, PAUSADO, CONCLUIDO, CANCELADO
-  etapa_atual        String?
-  data_inicio        DateTime  @default(now())
-  data_fim           DateTime?
-  criado_em          DateTime  @default(now())
-  atualizado_em      DateTime  @updatedAt
+  id            String    @id @default(cuid())
+  os_id         String    @unique
+  workflow_id   String
+  status        String    @default("ATIVO") // ATIVO, PAUSADO, CONCLUIDO, CANCELADO
+  etapa_atual   String?
+  data_inicio   DateTime  @default(now())
+  data_fim      DateTime?
+  criado_em     DateTime  @default(now())
+  atualizado_em DateTime  @updatedAt
 
   // Relacionamentos
-  os                 OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
-  workflow           WorkflowOS @relation(fields: [workflow_id], references: [id])
-  etapas             EtapaInstancia[]
-  instancias_setor   WorkflowInstanciaSetor[]
+  os               OrdemServico             @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  workflow         WorkflowOS               @relation(fields: [workflow_id], references: [id])
+  etapas           EtapaInstancia[]
+  instancias_setor WorkflowInstanciaSetor[]
 
   @@index([workflow_id])
   @@index([status])
@@ -1560,22 +1568,22 @@ model WorkflowInstancia {
 }
 
 model EtapaInstancia {
-  id                 String    @id @default(cuid())
+  id                    String    @id @default(cuid())
   workflow_instancia_id String
-  etapa_nome         String
-  ordem              Int
-  status             String    @default("PENDENTE") // PENDENTE, EM_ANDAMENTO, CONCLUIDA, PAUSADA, CANCELADA
-  data_inicio        DateTime?
-  data_fim           DateTime?
-  responsavel_id     String?
-  tempo_estimado     Int?      // em minutos
-  tempo_real         Int?      // em minutos
-  observacoes        String?   @db.Text
-  criado_em          DateTime  @default(now())
-  atualizado_em      DateTime  @updatedAt
+  etapa_nome            String
+  ordem                 Int
+  status                String    @default("PENDENTE") // PENDENTE, EM_ANDAMENTO, CONCLUIDA, PAUSADA, CANCELADA
+  data_inicio           DateTime?
+  data_fim              DateTime?
+  responsavel_id        String?
+  tempo_estimado        Int? // em minutos
+  tempo_real            Int? // em minutos
+  observacoes           String?   @db.Text
+  criado_em             DateTime  @default(now())
+  atualizado_em         DateTime  @updatedAt
 
   // Relacionamentos
-  workflow_instancia WorkflowInstancia @relation(fields: [workflow_instancia_id], references: [id], onDelete: Cascade)
+  workflow_instancia WorkflowInstancia    @relation(fields: [workflow_instancia_id], references: [id], onDelete: Cascade)
   checklists         ChecklistInstancia[]
   apontamentos       Apontamento[]
 
@@ -1601,7 +1609,7 @@ model ChecklistInstancia {
   atualizado_em      DateTime  @updatedAt
 
   // Relacionamentos
-  etapa_instancia    EtapaInstancia @relation(fields: [etapa_instancia_id], references: [id], onDelete: Cascade)
+  etapa_instancia EtapaInstancia @relation(fields: [etapa_instancia_id], references: [id], onDelete: Cascade)
 
   @@index([etapa_instancia_id])
   @@index([concluido])
@@ -1610,23 +1618,23 @@ model ChecklistInstancia {
 }
 
 model Apontamento {
-  id                 String    @id @default(cuid())
-  os_id              String
-  etapa_instancia_id String?
-  tipo               String    // INICIO, PAUSA, RETOMADA, CONCLUSAO, REFUGO
-  data_apontamento   DateTime  @default(now())
-  usuario_id         String
-  observacoes        String?   @db.Text
+  id                   String   @id @default(cuid())
+  os_id                String
+  etapa_instancia_id   String?
+  tipo                 String // INICIO, PAUSA, RETOMADA, CONCLUSAO, REFUGO
+  data_apontamento     DateTime @default(now())
+  usuario_id           String
+  observacoes          String?  @db.Text
   quantidade_produzida Decimal? @db.Decimal(10, 3)
-  quantidade_refugo  Decimal?  @db.Decimal(10, 3)
-  tempo_gasto        Int?      // em minutos
-  ip_origem          String?
-  user_agent         String?   @db.VarChar(500)
-  criado_em          DateTime  @default(now())
+  quantidade_refugo    Decimal? @db.Decimal(10, 3)
+  tempo_gasto          Int? // em minutos
+  ip_origem            String?
+  user_agent           String?  @db.VarChar(500)
+  criado_em            DateTime @default(now())
 
   // Relacionamentos
-  os                 OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
-  etapa_instancia    EtapaInstancia? @relation(fields: [etapa_instancia_id], references: [id])
+  os              OrdemServico    @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  etapa_instancia EtapaInstancia? @relation(fields: [etapa_instancia_id], references: [id])
 
   @@index([os_id])
   @@index([etapa_instancia_id])
@@ -1665,26 +1673,26 @@ enum TipoMovimentacaoOS {
 // ==========================================
 
 model SetorProdutivo {
-  id                      String    @id @default(cuid())
-  loja_id                 String
-  nome                    String
-  descricao               String?   @db.Text
-  cor                     String    @default("#3B82F6") // Cor HEX para identificação visual
-  ativo                   Boolean   @default(true)
-  ordem                   Int       @default(0) // Ordem de exibição
-  horas_produtivas_mensais Int?     // Horas produtivas mensais deste setor (rateio)
-  percentual_rateio_geral Decimal?  @db.Decimal(5, 2) // % dos custos gerais (opcional)
-  criado_em               DateTime  @default(now())
-  atualizado_em           DateTime  @updatedAt
+  id                       String   @id @default(cuid())
+  loja_id                  String
+  nome                     String
+  descricao                String?  @db.Text
+  cor                      String   @default("#3B82F6") // Cor HEX para identificação visual
+  ativo                    Boolean  @default(true)
+  ordem                    Int      @default(0) // Ordem de exibição
+  horas_produtivas_mensais Int? // Horas produtivas mensais deste setor (rateio)
+  percentual_rateio_geral  Decimal? @db.Decimal(5, 2) // % dos custos gerais (opcional)
+  criado_em                DateTime @default(now())
+  atualizado_em            DateTime @updatedAt
 
   // Relacionamentos
-  loja               loja      @relation(fields: [loja_id], references: [id])
-  workflow_setores   WorkflowSetor[]
-  instancias_setor   WorkflowInstanciaSetor[]
-  maquinas           maquina[]
-  funcoes            funcao[]
-  servicos_manuais   servico_manual[]
-  custos_indiretos   custoindireto[]
+  loja             loja                     @relation(fields: [loja_id], references: [id])
+  workflow_setores WorkflowSetor[]
+  instancias_setor WorkflowInstanciaSetor[]
+  maquinas         maquina[]
+  funcoes          funcao[]
+  servicos_manuais servico_manual[]
+  custos_indiretos custoindireto[]
 
   @@unique([loja_id, nome])
   @@index([loja_id, ativo])
@@ -1693,17 +1701,17 @@ model SetorProdutivo {
 }
 
 model WorkflowSetor {
-  id                 String    @id @default(cuid())
-  workflow_id        String
-  setor_id           String
-  ordem              Int       @default(0)
-  tempo_estimado     Int?      // em minutos
-  obrigatorio        Boolean   @default(true)
-  criado_em          DateTime  @default(now())
+  id             String   @id @default(cuid())
+  workflow_id    String
+  setor_id       String
+  ordem          Int      @default(0)
+  tempo_estimado Int? // em minutos
+  obrigatorio    Boolean  @default(true)
+  criado_em      DateTime @default(now())
 
   // Relacionamentos
-  workflow           WorkflowOS @relation(fields: [workflow_id], references: [id], onDelete: Cascade)
-  setor              SetorProdutivo @relation(fields: [setor_id], references: [id])
+  workflow WorkflowOS     @relation(fields: [workflow_id], references: [id], onDelete: Cascade)
+  setor    SetorProdutivo @relation(fields: [setor_id], references: [id])
 
   @@unique([workflow_id, setor_id])
   @@index([workflow_id])
@@ -1723,8 +1731,8 @@ model WorkflowCategoria {
   criado_em     DateTime @default(now())
   atualizado_em DateTime @updatedAt
 
-  loja     loja       @relation(fields: [loja_id], references: [id], onDelete: Cascade)
-  workflow WorkflowOS @relation("WorkflowCategoriaWorkflow", fields: [workflow_id], references: [id], onDelete: Cascade)
+  loja     loja                     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  workflow WorkflowOS               @relation("WorkflowCategoriaWorkflow", fields: [workflow_id], references: [id], onDelete: Cascade)
   regras   WorkflowCategoriaRegra[]
 
   @@unique([loja_id, nome])
@@ -1750,26 +1758,26 @@ model WorkflowCategoriaRegra {
 }
 
 model WorkflowInstanciaSetor {
-  id                 String    @id @default(cuid())
+  id                    String    @id @default(cuid())
   workflow_instancia_id String
-  setor_id           String
-  item_os_id         String?   // Opcional - pode ser por OS ou por item específico
-  status             String    @default("PENDENTE") // PENDENTE, EM_ANDAMENTO, CONCLUIDA, PAUSADA, CANCELADA
-  ordem              Int       @default(0)
-  data_inicio        DateTime?
-  data_conclusao     DateTime?
-  operador_id        String?
-  tempo_estimado     Int?      // em minutos
-  tempo_real         Int?      // em minutos
-  observacoes        String?   @db.Text
-  criado_em          DateTime  @default(now())
-  atualizado_em      DateTime  @updatedAt
+  setor_id              String
+  item_os_id            String? // Opcional - pode ser por OS ou por item específico
+  status                String    @default("PENDENTE") // PENDENTE, EM_ANDAMENTO, CONCLUIDA, PAUSADA, CANCELADA
+  ordem                 Int       @default(0)
+  data_inicio           DateTime?
+  data_conclusao        DateTime?
+  operador_id           String?
+  tempo_estimado        Int? // em minutos
+  tempo_real            Int? // em minutos
+  observacoes           String?   @db.Text
+  criado_em             DateTime  @default(now())
+  atualizado_em         DateTime  @updatedAt
 
   // Relacionamentos
   workflow_instancia WorkflowInstancia @relation(fields: [workflow_instancia_id], references: [id], onDelete: Cascade)
-  setor              SetorProdutivo @relation(fields: [setor_id], references: [id])
-  item_os            ItemOS? @relation(fields: [item_os_id], references: [id])
-  operador           usuario? @relation(fields: [operador_id], references: [id])
+  setor              SetorProdutivo    @relation(fields: [setor_id], references: [id])
+  item_os            ItemOS?           @relation(fields: [item_os_id], references: [id])
+  operador           usuario?          @relation(fields: [operador_id], references: [id])
 
   @@index([workflow_instancia_id])
   @@index([setor_id])
@@ -1784,132 +1792,132 @@ model WorkflowInstanciaSetor {
 // ==========================================
 
 model ArteVersao {
-  id                String   @id @default(cuid())
-  os_id             String
-  servico_id        String?  // Referência ao serviço específico
-  versao            String   // v1, v2, v3, etc.
-  status            ArteStatus
-  autor_id          String
-  descricao         String?
-  observacoes       String?
-  data_criacao      DateTime @default(now())
-  data_aprovacao    DateTime?
-  aprovado_por      String?
-  aprovado_por_cliente Boolean @default(false)
-  liberado_para_pcp    Boolean @default(false) // Liberação final do designer após aprovação do cliente
+  id                   String     @id @default(cuid())
+  os_id                String
+  servico_id           String? // Referência ao serviço específico
+  versao               String // v1, v2, v3, etc.
+  status               ArteStatus
+  autor_id             String
+  descricao            String?
+  observacoes          String?
+  data_criacao         DateTime   @default(now())
+  data_aprovacao       DateTime?
+  aprovado_por         String?
+  aprovado_por_cliente Boolean    @default(false)
+  liberado_para_pcp    Boolean    @default(false) // Liberação final do designer após aprovação do cliente
   liberado_em          DateTime? // Data em que o designer liberou para PCP
   liberado_por         String? // ID do designer que liberou
-  loja_id           String   // Multi-tenant
-  
+  loja_id              String // Multi-tenant
+
   // Soft Delete
-  deletado          Boolean  @default(false)
-  data_exclusao     DateTime?
-  excluido_por      String?
-  
+  deletado      Boolean   @default(false)
+  data_exclusao DateTime?
+  excluido_por  String?
+
   // Relacionamentos
-  os                OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
-  autor             usuario @relation("ArteAutor", fields: [autor_id], references: [id])
-  aprovador         usuario? @relation("ArteAprovador", fields: [aprovado_por], references: [id])
-  liberador         usuario? @relation("ArteLiberador", fields: [liberado_por], references: [id])
-  excluidor         usuario? @relation("ArteExcluidor", fields: [excluido_por], references: [id])
-  arquivos          ArteArquivo[]
-  comentarios       ArteComentario[]
-  links_aprovacao   ArteLinkAprovacao[]
-  mensagens         ArteMensagem[]
-  
-  @@map("arte_versoes")
+  os              OrdemServico        @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  autor           usuario             @relation("ArteAutor", fields: [autor_id], references: [id])
+  aprovador       usuario?            @relation("ArteAprovador", fields: [aprovado_por], references: [id])
+  liberador       usuario?            @relation("ArteLiberador", fields: [liberado_por], references: [id])
+  excluidor       usuario?            @relation("ArteExcluidor", fields: [excluido_por], references: [id])
+  arquivos        ArteArquivo[]
+  comentarios     ArteComentario[]
+  links_aprovacao ArteLinkAprovacao[]
+  mensagens       ArteMensagem[]
+
   @@index([os_id, loja_id])
   @@index([status, loja_id])
   @@index([autor_id, loja_id])
   @@index([deletado, loja_id])
+  @@map("arte_versoes")
 }
 
 model ArteArquivo {
-  id                String   @id @default(cuid())
-  versao_id         String
-  nome_arquivo      String
-  nome_original     String
-  tipo_arquivo      String   // pdf, jpg, png, ai, etc.
-  tamanho           BigInt
-  url_arquivo       String
-  url_thumbnail     String?  // Para preview
-  storage_provider  String   // google_drive, aws_s3, local
-  storage_path      String
-  data_upload       DateTime @default(now())
-  loja_id           String   // Multi-tenant
-  
+  id               String   @id @default(cuid())
+  versao_id        String
+  nome_arquivo     String
+  nome_original    String
+  tipo_arquivo     String // pdf, jpg, png, ai, etc.
+  tamanho          BigInt
+  url_arquivo      String
+  url_thumbnail    String? // Para preview
+  storage_provider String // google_drive, aws_s3, local
+  storage_path     String
+  data_upload      DateTime @default(now())
+  loja_id          String // Multi-tenant
+
   // Relacionamentos
-  versao            ArteVersao @relation(fields: [versao_id], references: [id], onDelete: Cascade)
-  
-  @@map("arte_arquivos")
+  versao ArteVersao @relation(fields: [versao_id], references: [id], onDelete: Cascade)
+
   @@index([versao_id, loja_id])
   @@index([tipo_arquivo, loja_id])
+  @@map("arte_arquivos")
 }
 
 model ArteComentario {
-  id                String   @id @default(cuid())
-  versao_id         String
-  usuario_id        String
-  comentario        String   @db.LongText
-  tipo              ComentarioTipo @default(INTERNO)
-  data_comentario   DateTime @default(now())
-  loja_id           String   // Multi-tenant
-  
+  id              String         @id @default(cuid())
+  versao_id       String
+  usuario_id      String
+  comentario      String         @db.LongText
+  tipo            ComentarioTipo @default(INTERNO)
+  data_comentario DateTime       @default(now())
+  loja_id         String // Multi-tenant
+
   // Relacionamentos
-  versao            ArteVersao @relation(fields: [versao_id], references: [id], onDelete: Cascade)
-  usuario           usuario @relation(fields: [usuario_id], references: [id])
-  
-  @@map("arte_comentarios")
+  versao  ArteVersao @relation(fields: [versao_id], references: [id], onDelete: Cascade)
+  usuario usuario    @relation(fields: [usuario_id], references: [id])
+
   @@index([versao_id, loja_id])
   @@index([usuario_id, loja_id])
+  @@map("arte_comentarios")
 }
 
 model ArteLinkAprovacao {
-  id                String   @id @default(cuid())
-  versao_id         String
-  token_publico     String   @unique
-  expira_em         DateTime
-  aprovado          Boolean  @default(false)
-  data_aprovacao    DateTime?
-  ip_aprovacao      String?
-  user_agent        String?
-  comentario_cliente String? @db.LongText
-  ativo             Boolean  @default(true)
-  loja_id           String   // Multi-tenant
-  
+  id                 String    @id @default(cuid())
+  versao_id          String
+  token_publico      String    @unique
+  expira_em          DateTime
+  aprovado           Boolean   @default(false)
+  data_aprovacao     DateTime?
+  ip_aprovacao       String?
+  user_agent         String?
+  comentario_cliente String?   @db.LongText
+  ativo              Boolean   @default(true)
+  loja_id            String // Multi-tenant
+
   // Relacionamentos
-  versao            ArteVersao @relation(fields: [versao_id], references: [id], onDelete: Cascade)
-  
-  @@map("arte_links_aprovacao")
+  versao ArteVersao @relation(fields: [versao_id], references: [id], onDelete: Cascade)
+
   @@index([token_publico])
   @@index([loja_id])
   @@index([expira_em])
+  @@map("arte_links_aprovacao")
 }
 
 model ArteMensagem {
-  id                String   @id @default(cuid())
-  os_id             String
-  produto_id        String   // ID do produto específico
-  versao_id         String?  // ID da versão (opcional)
-  mensagem          String   @db.LongText
-  autor_tipo        AutorTipo
-  autor_nome        String
-  autor_email       String?
-  lida              Boolean  @default(false)
-  data_leitura      DateTime?
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
-  loja_id           String   // Multi-tenant
-  
+  id           String    @id @default(cuid())
+  os_id        String
+  produto_id   String // ID do produto específico
+  versao_id    String? // ID da versão (opcional)
+  mensagem     String    @db.LongText
+  autor_tipo   AutorTipo
+  autor_nome   String
+  autor_email  String?
+  lida         Boolean   @default(false)
+  data_leitura DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  loja_id      String // Multi-tenant
+
   // Relacionamentos
-  os                OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
-  versao            ArteVersao? @relation(fields: [versao_id], references: [id], onDelete: SetNull)
-  
-  @@map("arte_mensagens")
+  os     OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  versao ArteVersao?  @relation(fields: [versao_id], references: [id], onDelete: SetNull)
+
   @@index([os_id, produto_id, loja_id])
   @@index([autor_tipo, loja_id])
   @@index([lida, loja_id])
   @@index([created_at, loja_id])
+  @@map("arte_mensagens")
 }
 
 enum ArteStatus {
@@ -1930,4 +1938,30 @@ enum ComentarioTipo {
 enum AutorTipo {
   CLIENTE
   EQUIPE
+}
+
+// ==========================================
+// MODULO HOME OPERACIONAL - Fase 1
+// ==========================================
+
+// Onboarding operacional por loja. Cada etapa do checklist e detectada
+// automaticamente por consulta ao banco; o usuario apenas marca como
+// "ignorada" ou reativa. Ver docs/fase-0-home-operacional/03-onboarding-etapas.md
+model OnboardingOperacional {
+  id            String    @id @default(cuid())
+  loja_id       String
+  step_id       String    @db.VarChar(64)
+  // 'pendente' | 'concluido' | 'ignorado' | 'atencao'
+  status        String    @default("pendente") @db.VarChar(16)
+  concluido_em  DateTime?
+  ignorado_em   DateTime?
+  criado_em     DateTime  @default(now())
+  atualizado_em DateTime  @updatedAt
+
+  loja loja @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+
+  @@unique([loja_id, step_id])
+  @@index([loja_id])
+  @@index([status])
+  @@map("onboarding_operacional")
 }
