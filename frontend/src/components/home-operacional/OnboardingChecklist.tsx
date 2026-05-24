@@ -70,9 +70,15 @@ export function OnboardingChecklist() {
 
   if (!resumo) return null;
 
-  // Se 100% concluído (apenas obrigatórias), nao exibir o card (a Home fica
-  // mais limpa). O usuario continua podendo aplicar configuracao via banner.
-  if (resumo.progresso_pct === 100 && resumo.etapas.every((e) => e.status !== 'pendente')) {
+  // O card some quando TODAS as etapas obrigatorias estao concluidas.
+  // Etapas opcionais pendentes nao mantem o card visivel para sempre,
+  // pois algumas dependem de modulos futuros (ex.: primeiro_recebimento
+  // depende da Fase 6/financeiro). O usuario ainda pode acessa-las via
+  // configuracoes ou marca-las como ignoradas.
+  const todasObrigatoriasConcluidas =
+    resumo.total_obrigatorias > 0 &&
+    resumo.obrigatorias_concluidas === resumo.total_obrigatorias;
+  if (todasObrigatoriasConcluidas) {
     return null;
   }
 
