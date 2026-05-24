@@ -199,103 +199,191 @@ Pasta `docs/fase-0-home-operacional/` com 10 documentos:
 - `frontend/src/components/orcamentos-v2/SimuladorPrecificacao.tsx` — standalone, usa as **mesmas fórmulas** do `PreviewCalculoV2` (`markup` vs `margem_por_dentro`).
 - `frontend/src/app/(main)/orcamentos-v2/simulador/page.tsx` — **página de andaime** que junta os três para teste manual. **Esta página deve sumir** depois que a integração no formulário grande estiver pronta (Sub-fase 2.F).
 
-**O que falta na Fase 2:** Sub-fase 2.F — integrar `QuickGeometryInput` e a estimativa de tempo dentro do formulário grande (`frontend/src/components/ui/orcamentos-v2/orcamento-v2-form.tsx`, ~1700 linhas), e decidir destino final do `SimuladorPrecificacao`.
+**O que falta na Fase 2:** Sub-fase 2.F — integrar `QuickGeometryInput` no formulário grande, adicionar botão "Estimar tempo" na `MaquinaSection`, adicionar campo `unidade_geometria` (novo), integrar `SimuladorPrecificacao` como modal dentro do formulário (mantendo a página `/orcamentos-v2/simulador` como ferramenta standalone).
 
 ---
 
 ## 5. Próximo passo: Sub-fase 2.F (detalhada)
 
-> **Objetivo:** trazer o `QuickGeometryInput` e a estimativa de tempo de máquina para dentro do formulário real de orçamento (`/orcamentos-v2/novo` e `/orcamentos-v2/novo?id=...`). Ao final, o usuário não digita mais área manualmente — ele digita largura/altura/unidade e o sistema preenche área e perímetro. Quando ele adiciona uma máquina ao produto, ganha um botão "Estimar tempo" que preenche `horas_utilizadas`.
+> **Objetivo:** trazer o `QuickGeometryInput` e a estimativa de tempo de máquina para dentro do formulário real de orçamento (`/orcamentos-v2/novo` e `/orcamentos-v2/novo?id=...`). Ao final, o usuário não digita mais área manualmente — ele digita largura/altura/unidade de geometria e o sistema preenche área e perímetro. Quando ele adiciona uma máquina ao produto, ganha um botão "Estimar tempo" que preenche `horas_utilizadas`. Adicionalmente, ele tem um botão "Simular preço" que abre o `SimuladorPrecificacao` em modal.
 
-### 5.1 Mapa do formulário
+### 5.1 Mapa do formulário (confirmado em 2026-05-24)
 
 - Página: `frontend/src/app/(main)/orcamentos-v2/novo/page.tsx` (carrega e transforma dados).
 - Componente principal: `frontend/src/components/ui/orcamentos-v2/orcamento-v2-form.tsx` (1692 linhas).
 - Schema Zod e tipos: `frontend/src/components/ui/orcamento/schemas/orcamento.schema.ts`.
-- Seção do produto (onde os campos `largura_produto`, `altura_produto`, `unidade_medida_produto`, `area_produto` vivem): provavelmente em `frontend/src/components/ui/orcamento/components/ProdutoSection.tsx` (confirme via `Grep largura_produto frontend/src/components/ui/orcamento`).
+- **Seção do produto (largura/altura/unidade/área):** `frontend/src/components/ui/orcamento/components/ProdutoSection.tsx`. Hoje calcula área via função local `calcularAreaAutomatica`.
+- **Seção das máquinas:** `frontend/src/components/ui/orcamento/components/MaquinaSection.tsx`. Já calcula automaticamente para `M2_H`. Tem stub para `ML_H` "como implementação pendente" — é exatamente aí que o `postEstimarTempoMaquina` entra para passar a calcular corte linear.
 - Preview: `frontend/src/components/ui/shared/sections/PreviewCalculoV2.tsx`.
 - Cálculo client-side: `frontend/src/components/ui/shared/utils/preview-calculo.helpers.ts` (função `calcularProdutosPreview`).
 
-### 5.2 Plano da Sub-fase 2.F em etapas
+> **Verificar antes de codar:** abrir `ProdutoSection.tsx` e ler `calcularAreaAutomatica` para confirmar em **qual unidade** a função interpreta `largura` e `altura` hoje. Hipótese atual: mm. Isso define o fallback do frontend para registros antigos sem `unidade_geometria`.
 
-> Faça uma etapa por commit. Não tente tudo de uma vez.
+### 5.2 Decisões já tomadas (NÃO reabrir)
 
-#### Etapa 2.F.1 — Mapear o ProdutoSection
+1. **`unidade_geometria` é campo separado**, dedicado à geometria (`mm | cm | m`). NÃO reaproveitar `unidade_medida_produto`, que continua sendo a **unidade comercial** do produto (`un`, `kg`, `m²`, etc.).
+2. **`unidade_geometria` é persistido no banco** (não só estado do formulário). Auditoria e propagação para `ItemOS` na Fase 3 dependem disso.
+3. **Default histórico:** registros antigos têm `unidade_geometria = NULL` no banco. Frontend interpreta `NULL` como `'mm'` e exibe aviso discreto "unidade não confirmada — assumindo mm" no QuickGeometryInput quando estiver editando um orçamento antigo. Ao salvar, grava a unidade real escolhida. **Sem backfill no banco**.
+4. **`SimuladorPrecificacao`** → modal acionado por botão "Simular preço" dentro do formulário (pré-preenchido com o custo total atual do produto/orçamento) **+ manter** a página `/orcamentos-v2/simulador` renomeada como "Ferramentas > Simulador de precificação".
+5. **Geometria atual é só `MANUAL`.** Anexos (`IMAGEM`, `DXF`) ficam para a Fase 7.
 
-1. Abra `orcamento-v2-form.tsx` e descubra qual componente renderiza os campos largura/altura/unidade do produto (busque `largura_produto` no arquivo).
-2. Identifique exatamente:
-   - Como o `react-hook-form` controla esses campos (`name="itens_produto.{index}.largura_produto"` provavelmente).
-   - Onde a área é calculada hoje (talvez em um `useEffect` que multiplica largura×altura).
-3. **Não codifique ainda.** Apenas mapeie e me diga o que encontrou (ou anote num comentário no doc).
+### 5.3 Plano da Sub-fase 2.F em etapas
 
-#### Etapa 2.F.2 — Adicionar `perimetro_produto` ao schema Zod e ao tipo do formulário
+> Faça uma etapa por commit. Não tente tudo de uma vez. Cada etapa marcada com `[BACKEND]`, `[FRONTEND]` ou `[FULLSTACK]`.
 
-Em `orcamento.schema.ts`:
+#### Etapa 2.F.1 — `[BACKEND]` Migration aditiva para `unidade_geometria`
 
-- Adicionar `perimetro_produto: z.string().optional()` ao schema do item.
-- Adicionar `geometria_origem: z.enum(['MANUAL', 'IMAGEM', 'DXF']).optional()`.
-- Adicionar `arquivo_geometria_url: z.string().optional()`.
+1. Editar `backend/prisma/schema.prisma`, adicionando ao model `ProdutoOrcamento`:
 
-Em `orcamento-v2-form.tsx`, atualizar os `defaultValues` e os mapeadores `onLoad`/`onSubmit` para incluir esses campos. Não esquecer dos lugares em `novo/page.tsx` que carregam o orçamento existente.
+   ```prisma
+   // Unidade original informada na geometria (mm | cm | m). NULL em registros
+   // anteriores à Fase 2.F. Frontend interpreta NULL como 'mm' (default
+   // histórico do projeto). Ver docs/HANDOFF-AGENTE-CONTINUACAO.md seção 5.2.
+   unidade_geometria String? @db.VarChar(4)
+   ```
 
-#### Etapa 2.F.3 — Substituir os 3 inputs (largura/altura/unidade) pelo `QuickGeometryInput`
+2. Criar `backend/prisma/migrations/AAAAMMDDHHMMSS_add_unidade_geometria/migration.sql`:
 
-Dentro do ProdutoSection:
+   ```sql
+   ALTER TABLE `ProdutoOrcamento` ADD COLUMN `unidade_geometria` VARCHAR(4) NULL;
+   ```
 
-1. Importar `QuickGeometryInput` de `@/components/orcamentos-v2/QuickGeometryInput`.
-2. Usar `useController` ou `Controller` do react-hook-form para integrar com os campos `largura_produto`, `altura_produto`, `unidade_medida_produto`.
-3. No callback `onChange(valor, calculada)`:
-   - `setValue('itens_produto.{index}.largura_produto', valor.largura)`.
-   - `setValue('itens_produto.{index}.altura_produto', valor.altura)`.
-   - `setValue('itens_produto.{index}.unidade_medida_produto', valor.unidade)`.
-   - `setValue('itens_produto.{index}.area_produto', String(calculada.area_m2))`.
-   - `setValue('itens_produto.{index}.perimetro_produto', String(calculada.perimetro_mm))`.
-   - `setValue('itens_produto.{index}.geometria_origem', 'MANUAL')`.
+   Use um timestamp **futuro** ao `20260524150000` (próxima sequência: `20260524160000` ou maior).
 
-**Cuidado:** o campo `unidade_medida_produto` hoje aceita também valores como `'un'`, `'m²'`, `'kg'`, etc., não só `mm | cm | m`. O `QuickGeometryInput` só lida com `mm | cm | m`. Decisão pendente: criar campo separado `unidade_geometria` (`mm | cm | m`) e manter `unidade_medida_produto` para a unidade comercial do produto, **ou** restringir o uso do QuickGeometryInput apenas a produtos retangulares.
+3. **NÃO** rodar `npx prisma migrate dev` (ver Armadilha 3.1). Use o fluxo seguro:
 
-> **Recomendação:** criar um campo novo `unidade_geometria` (`mm | cm | m`) e deixar `unidade_medida_produto` para uso comercial. Adicionar `unidade_geometria` ao schema da migration futura. Por ora, no formulário, manter os dois separados.
+   ```powershell
+   # Pedir usuário parar npm run dev primeiro
+   cd backend
+   npx prisma migrate deploy
+   npx prisma generate
+   npx prisma migrate status   # deve dizer "up to date"
+   ```
 
-#### Etapa 2.F.4 — Botão "Estimar tempo" na seção de máquinas do produto
+4. Confirmar diff zero:
 
-Dentro do bloco que renderiza cada `ItemMaquina` do produto:
+   ```powershell
+   npx prisma migrate diff --from-url "mysql://root@localhost:3306/comunikapp" --to-schema-datamodel prisma/schema.prisma --exit-code
+   ```
 
-1. Adicionar um botão pequeno ao lado do input `horas_utilizadas`.
-2. Ao clicar, chamar `postEstimarTempoMaquina({ maquina_id, quantidade, area_m2, perimetro_mm })` de `@/lib/estimativa-tempo-api`.
-3. Se `estimativa_possivel === true`, preencher `horas_utilizadas` com o `tempo_horas` retornado e mostrar um `toast.success` com detalhamento.
-4. Se `estimativa_possivel === false`, mostrar `toast.info` com a primeira mensagem do `detalhamento.mensagens` (ex.: "Máquina sem velocidade m²/h cadastrada. Informe o tempo manualmente.").
-5. **Importante:** o usuário deve poder sobrescrever o valor estimado livremente. A estimativa é sugestão, não imposição.
+#### Etapa 2.F.2 — `[BACKEND]` DTO + persistência dos campos novos no orçamento
 
-#### Etapa 2.F.5 — Salvar os campos novos no backend
+Os campos `perimetro_produto`, `geometria_origem`, `arquivo_geometria_url`, `arquivo_geometria_metadados` (já na Fase 2.A) e `unidade_geometria` (Fase 2.F.1) ainda **não chegam no `ProdutoOrcamento.create()`**. Hoje o DTO de criação/edição os ignora.
 
-Hoje o backend já aceita `perimetro_produto`, `geometria_origem`, `arquivo_geometria_url`, `arquivo_geometria_metadados` no schema, mas o DTO de criação/edição de orçamento pode estar ignorando esses campos.
+1. Localizar o DTO em `backend/src/orcamentos-v2/dto/`. Provavelmente é o DTO do item de produto dentro de `create-orcamento-v2.dto.ts` ou um arquivo separado `produto-orcamento.dto.ts`. Use `Grep largura_produto backend/src/orcamentos-v2/dto`.
+2. Adicionar os 5 campos novos como opcionais:
 
-1. Localizar o DTO em `backend/src/orcamentos-v2/dto/` (provavelmente `create-orcamento-v2.dto.ts` ou `produto-orcamento.dto.ts`).
-2. Adicionar os campos novos como opcionais.
-3. Localizar onde `ProdutoOrcamento.create()` ou `update()` é chamado em `orcamentos-v2.service.ts` e garantir que os campos sejam persistidos.
+   ```ts
+   @IsOptional() @IsNumberString() perimetro_produto?: string;
+   @IsOptional() @IsIn(['MANUAL', 'IMAGEM', 'DXF']) geometria_origem?: 'MANUAL' | 'IMAGEM' | 'DXF';
+   @IsOptional() @IsString() arquivo_geometria_url?: string;
+   @IsOptional() @IsString() arquivo_geometria_metadados?: string;
+   @IsOptional() @IsIn(['mm', 'cm', 'm']) unidade_geometria?: 'mm' | 'cm' | 'm';
+   ```
 
-#### Etapa 2.F.6 — Decidir destino final do `SimuladorPrecificacao`
+3. Localizar `ProdutoOrcamento.create()` e `ProdutoOrcamento.update()` em `backend/src/orcamentos-v2/services/orcamentos-v2.service.ts` (e `transformacao-v2.service.ts` se aplicável) e incluir os campos no objeto `data`.
 
-Opções (perguntar ao usuário antes):
+#### Etapa 2.F.3 — `[FRONTEND]` Schema Zod + tipo do formulário
 
-- **A.** Botão "Simular preço" dentro do formulário que abre o componente em modal pré-preenchido com o custo total atual.
-- **B.** Item separado no menu lateral em "Ferramentas".
-- **C.** Ambos.
-- **D.** Manter só na página `/orcamentos-v2/simulador` e renomeá-la.
+Em `frontend/src/components/ui/orcamento/schemas/orcamento.schema.ts`, adicionar ao schema do item de produto:
 
-**Recomendação:** A + manter a página `/orcamentos-v2/simulador` como atalho ("Ferramentas > Simulador de precificação").
+```ts
+perimetro_produto: z.string().optional(),
+geometria_origem: z.enum(['MANUAL', 'IMAGEM', 'DXF']).optional(),
+arquivo_geometria_url: z.string().optional(),
+unidade_geometria: z.enum(['mm', 'cm', 'm']).optional(),
+```
 
-#### Etapa 2.F.7 — Limpar página de andaime se for o caso
+Em `orcamento-v2-form.tsx` e em `novo/page.tsx`, atualizar:
+- `defaultValues` (tanto novo quanto reset).
+- Mapeador `onLoad` que transforma `orcamentoData.produtos` em `formData.itens_produto`.
+- Mapeador `onSubmit` que monta o payload para o backend.
 
-Se a decisão da 2.F.6 for trocar a página por modal, remover `frontend/src/app/(main)/orcamentos-v2/simulador/page.tsx`.
+#### Etapa 2.F.4 — `[FRONTEND]` Integrar `QuickGeometryInput` no `ProdutoSection`
 
-### 5.3 Critérios de aceite da Sub-fase 2.F
+1. Importar:
+   ```ts
+   import { QuickGeometryInput, GeometriaValor, GeometriaCalculada } from '@/components/orcamentos-v2/QuickGeometryInput';
+   ```
+2. Remover (ou esconder, conforme decisão visual) os 3 inputs separados de largura, altura e unidade de geometria. **Manter** o campo de `unidade_medida_produto` (unidade comercial).
+3. Para cada item de produto, construir o `valor` a partir do react-hook-form:
+   ```ts
+   const valor: GeometriaValor = {
+     largura: watch(`itens_produto.${index}.largura_produto`) || '',
+     altura: watch(`itens_produto.${index}.altura_produto`) || '',
+     unidade: (watch(`itens_produto.${index}.unidade_geometria`) as 'mm'|'cm'|'m') || 'mm',
+   };
+   ```
+4. No callback `onChange(valor, calc)`:
+   ```ts
+   setValue(`itens_produto.${index}.largura_produto`, valor.largura);
+   setValue(`itens_produto.${index}.altura_produto`, valor.altura);
+   setValue(`itens_produto.${index}.unidade_geometria`, valor.unidade);
+   setValue(`itens_produto.${index}.area_produto`, String(calc.area_m2));
+   setValue(`itens_produto.${index}.perimetro_produto`, String(calc.perimetro_mm));
+   setValue(`itens_produto.${index}.geometria_origem`, 'MANUAL');
+   ```
+5. Substituir a chamada interna a `calcularAreaAutomatica` pela área já calculada pelo `QuickGeometryInput` (evitar dupla fonte de verdade).
+6. Em modo edição, se `unidade_geometria` vier `undefined` da API, exibir mensagem discreta abaixo do componente: "Unidade não confirmada para este orçamento — assumindo mm. Confirme abaixo." (texto curto, sem alarme visual forte).
 
+#### Etapa 2.F.5 — `[FRONTEND]` Botão "Estimar tempo" na `MaquinaSection`
+
+Localizar o bloco que renderiza cada `ItemMaquina` do produto. Hoje já há cálculo automático para `M2_H` e um stub para `ML_H` "como implementação pendente". Substituir o stub:
+
+1. Adicionar botão pequeno (ícone + texto curto, ex.: `<Clock />` "Estimar") ao lado do input `horas_utilizadas`.
+2. Habilitar o botão **apenas** se o produto já tem `area_produto > 0` (para M2_H) ou `perimetro_produto > 0` (para ML_H).
+3. Ao clicar:
+   ```ts
+   import { postEstimarTempoMaquina } from '@/lib/estimativa-tempo-api';
+
+   const resultado = await postEstimarTempoMaquina({
+     maquina_id,
+     quantidade: Number(watch(`itens_produto.${index}.quantidade_produto`) || 1),
+     area_m2: Number(watch(`itens_produto.${index}.area_produto`)) || undefined,
+     perimetro_mm: Number(watch(`itens_produto.${index}.perimetro_produto`)) || undefined,
+   });
+   ```
+4. Se `resultado.estimativa_possivel === true`:
+   - `setValue(...horas_utilizadas, String(resultado.tempo_horas))`.
+   - `toast.success(\`Tempo estimado: \${resultado.tempo_horas}h (modo \${resultado.detalhamento.modo_producao})\`)`.
+5. Se `false`:
+   - `toast.info(resultado.detalhamento.mensagens[0] || 'Estimativa não disponível para esta máquina')`.
+6. **Importante:** o valor estimado é só sugestão. O input continua editável pelo usuário.
+
+#### Etapa 2.F.6 — `[FRONTEND]` `SimuladorPrecificacao` como modal no formulário
+
+1. Adicionar botão "Simular preço" na barra de ações do formulário (perto do botão "Salvar").
+2. Ao clicar, abrir um `Dialog` (`@/components/ui/dialog`) contendo o `<SimuladorPrecificacao />`.
+3. Passar como props os defaults pré-calculados do estado atual do formulário:
+   ```tsx
+   <SimuladorPrecificacao
+     custoInicial={preview.custoTotalProducao}
+     margemInicial={Number(watch('margem_lucro_customizada'))}
+     impostosInicial={Number(watch('impostos_customizados'))}
+     comissaoInicial={Number(watch('comissao_percentual'))}
+     tipoInicial={(watch('tipo_margem_lucro') as 'markup' | 'margem_por_dentro') || 'margem_por_dentro'}
+   />
+   ```
+4. **NÃO** sincronizar de volta automaticamente. O simulador é só "calculadora de cenário". Se o usuário gostar do resultado, ele ajusta os campos no formulário manualmente.
+
+#### Etapa 2.F.7 — `[FRONTEND]` Renomear página standalone para "Ferramentas"
+
+1. **Não remover** `/orcamentos-v2/simulador/page.tsx`.
+2. Trocar o título da página de "Simulador de orçamento (Fase 2)" para "Simulador de precificação". Remover o subtítulo "(Fase 2)".
+3. Opcional (se houver tempo): adicionar item no menu lateral em uma seção "Ferramentas" apontando para essa rota. Caso a sidebar não tenha essa seção, deixar para a Fase 8 (que já vai mexer em navegação).
+
+### 5.4 Critérios de aceite da Sub-fase 2.F
+
+- Migration `add_unidade_geometria` aplicada com sucesso, sem warnings, e `migrate status` reportando "up to date".
+- Cliente Prisma regenerado e tsc do backend passando.
 - Usuário cria um orçamento novo, digita largura 1000 / altura 500 / unidade mm e vê área 0,5 m² e perímetro 3 m calculados na hora.
-- Os campos `area_produto`, `perimetro_produto` e `geometria_origem='MANUAL'` chegam ao banco.
-- Usuário adiciona uma máquina, clica "Estimar tempo" e vê o campo de horas preenchido.
+- Os campos `area_produto`, `perimetro_produto`, `unidade_geometria='mm'` e `geometria_origem='MANUAL'` chegam ao banco.
+- Em modo edição de orçamento antigo (criado antes da migration), o sistema exibe aviso discreto sobre unidade não confirmada e funciona normalmente assumindo mm.
+- Usuário adiciona uma máquina, clica "Estimar tempo" e vê o campo de horas preenchido para M2_H **e** ML_H.
 - Usuário sobrescreve o valor estimado e o sistema aceita.
-- Em modo edição, os valores carregam corretamente da base.
+- Botão "Simular preço" abre modal pré-preenchido. Fechar o modal não muda nada no formulário.
+- Página `/orcamentos-v2/simulador` continua funcionando, apenas com título renomeado.
+- `unidade_medida_produto` (unidade comercial) **continua intocado** para produtos vendidos por `un`, `kg`, etc.
 
 ---
 
@@ -478,6 +566,11 @@ São **pré-existentes** e não fazem parte do escopo. Não tente arrumar sem o 
 | Compatibilidade material × máquina reaproveita `RegraValidacao` com `categoria='compatibilidade_material_maquina'`, não cria modelo novo.         | Sub-fase 2.C concluída (commit `5417de4`).              |
 | `velocidade_ml_h` é o campo padrão para corte linear (não `minutos_por_metro_corte` que o plano sugeria). Mantém consistência com `velocidade_m2_h`. | Decisão tomada na Sub-fase 2.A (commit `5417de4`).      |
 | Apenas a tabela `_prisma_migrations` controla migrations a partir de 24/05/2026. Baseline aplicado, `db push` não deve mais ser usado em PROD.   | Operação de baseline em 24/05/2026.                      |
+| `unidade_geometria` é campo separado em `ProdutoOrcamento` (`mm | cm | m`), NÃO reaproveita `unidade_medida_produto` (que continua sendo unidade comercial: `un`, `kg`, `m²`, etc.). | Decisão de produto em 2026-05-24, antes da Sub-fase 2.F. |
+| `unidade_geometria` é persistido no banco para auditoria e propagação futura para `ItemOS` (Fase 3). Não fica só no estado do formulário.        | Decisão de produto em 2026-05-24.                        |
+| Registros antigos têm `unidade_geometria = NULL`. **Sem backfill** no banco. Frontend interpreta `NULL` como `'mm'` e exibe aviso "unidade não confirmada — assumindo mm" no QuickGeometryInput. | Decisão de produto em 2026-05-24.                        |
+| `SimuladorPrecificacao` vira **modal acionado por botão "Simular preço"** dentro do formulário de orçamento. A página `/orcamentos-v2/simulador` é mantida e renomeada para "Simulador de precificação" como ferramenta standalone (futura entrada em "Ferramentas" no menu, possivelmente na Fase 8). | Decisão de produto em 2026-05-24.                        |
+| Geometria avançada na Fase 2 é só `MANUAL`. Anexos de `IMAGEM` e `DXF` ficam para a Fase 7.                                                       | Plano-mãe + escopo combinado.                            |
 
 ---
 
@@ -528,4 +621,5 @@ Não delete este arquivo. Ele é a memória viva do projeto entre sessões.
 
 ---
 
-**Última atualização:** 2026-05-24. Branch `feature/home-operacional-dashboard` em `169d909`.
+**Última atualização:** 2026-05-24 (handoff revisado com decisões de produto da Sub-fase 2.F: `unidade_geometria` separado, default histórico `mm` sem backfill, `SimuladorPrecificacao` como modal + página standalone, mapeamento confirmado de `ProdutoSection.tsx` e `MaquinaSection.tsx`).
+Branch `feature/home-operacional-dashboard`.

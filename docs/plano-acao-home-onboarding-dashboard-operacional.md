@@ -838,12 +838,13 @@ Critérios de aceite:
 
 > **[EM ANDAMENTO]** — Backend pronto em commit `5417de4` (geometria avançada em `ProdutoOrcamento`, `velocidade_ml_h` em `maquina`, módulo `estimativa-tempo`). Frontend standalone pronto em commit `169d909` (`QuickGeometryInput`, `SimuladorPrecificacao`, página `/orcamentos-v2/simulador` como andaime).
 >
-> **Pendente:** Sub-fase 2.F — integrar `QuickGeometryInput` e estimativa de tempo dentro do formulário grande (`orcamento-v2-form.tsx`), decidir destino final do `SimuladorPrecificacao`, atualizar DTOs do orçamento para persistir os campos novos. Ver detalhamento em `docs/HANDOFF-AGENTE-CONTINUACAO.md` seção 5.
+> **Pendente:** Sub-fase 2.F — integrar `QuickGeometryInput` em `ProdutoSection.tsx` (mantendo `unidade_medida_produto` comercial intacto e introduzindo novo campo `unidade_geometria`), botão "Estimar tempo" em `MaquinaSection.tsx`, `SimuladorPrecificacao` como modal no formulário, atualizar DTOs do orçamento, nova migration aditiva para `unidade_geometria`. **Todas as decisões de produto da 2.F estão registradas e detalhamento passo a passo em `docs/HANDOFF-AGENTE-CONTINUACAO.md` seção 5.**
 >
 > **Diferenças entre o plano original e o implementado:**
 > - O plano sugeria `minutos_por_metro_corte` no cadastro de máquina; implementei como `velocidade_ml_h` (m/h) para manter consistência com o `velocidade_m2_h` que já existia. O motor calcula da mesma forma.
 > - Entregáveis 2 (`onPaste` de imagem), 3 (upload de imagem) e 4 (preview de imagem) ficaram para a Fase 7 (DXF real / anexos). Geometria atual é só `MANUAL`.
 > - Entregáveis 7 (persistir imagem), 11 (aplicar regras no dropdown automaticamente) também na Fase 7 / Sub-fase 2.F.
+> - Decisão tardia (2026-05-24): `unidade_geometria` é campo **separado** de `unidade_medida_produto`, persistido no banco como `VARCHAR(4)` nullable. Registros antigos ficam NULL e o frontend interpreta como `mm` (default histórico do projeto), exibindo aviso discreto. Sem backfill no banco.
 
 Objetivo: trazer para o orçamento a dinâmica de imagem/manual que funcionou no HTML, ampliada com tempo de máquina e compatibilidade automáticos.
 
