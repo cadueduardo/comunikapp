@@ -1,5 +1,7 @@
 # Plano de Ação: Home, Onboarding e Evolução Operacional
 
+> **Status atual (atualizado em 2026-05-24):** Fases 0 e 1 concluídas, Fase 2 em andamento (backend + componentes standalone prontos; falta integrar no formulário grande). Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF antes de continuar.**
+
 ## Critério de sucesso
 
 O plano será considerado bem-sucedido quando uma empresa pequena conseguir entrar no Comunikapp, entender o que precisa configurar primeiro, criar seu primeiro orçamento com menos fricção, acompanhar produção e caixa pela Home, e ainda assim ter acesso aos módulos completos quando precisar de detalhe.
@@ -776,6 +778,8 @@ frontend/src/app/api/home-operacional/banner-estado/route.ts
 
 ### Fase 0: decisões, contratos, status e encoding
 
+> **[CONCLUÍDA em commit `66de457`]** — Todos os 10 documentos de decisão estão em `docs/fase-0-home-operacional/`. Ver índice em `docs/fase-0-home-operacional/README.md`.
+
 Objetivo: preparar base sem mexer ainda na experiência final. Esta fase é obrigatória; nenhuma fase posterior deve começar sem suas decisões registradas.
 
 Entregáveis:
@@ -804,6 +808,8 @@ Critérios de aceite:
 
 ### Fase 1: onboarding operacional mínimo
 
+> **[CONCLUÍDA em commits `71c4acf` (backend), `8537eba` (frontend), `dcb9f98` (fix de visibilidade do checklist)]** — Módulo `backend/src/home-operacional/`, componentes `frontend/src/components/home-operacional/` e `/dashboard` integrados. Tabela `onboarding_operacional` criada (migration `20260524110000_add_home_operacional`).
+
 Objetivo: orientar a primeira entrada da empresa no sistema.
 
 Entregáveis:
@@ -829,6 +835,15 @@ Critérios de aceite:
 - Banner aparece apenas quando há mensagem real de estado.
 
 ### Fase 2: cálculo rápido em Orçamentos V2
+
+> **[EM ANDAMENTO]** — Backend pronto em commit `5417de4` (geometria avançada em `ProdutoOrcamento`, `velocidade_ml_h` em `maquina`, módulo `estimativa-tempo`). Frontend standalone pronto em commit `169d909` (`QuickGeometryInput`, `SimuladorPrecificacao`, página `/orcamentos-v2/simulador` como andaime).
+>
+> **Pendente:** Sub-fase 2.F — integrar `QuickGeometryInput` e estimativa de tempo dentro do formulário grande (`orcamento-v2-form.tsx`), decidir destino final do `SimuladorPrecificacao`, atualizar DTOs do orçamento para persistir os campos novos. Ver detalhamento em `docs/HANDOFF-AGENTE-CONTINUACAO.md` seção 5.
+>
+> **Diferenças entre o plano original e o implementado:**
+> - O plano sugeria `minutos_por_metro_corte` no cadastro de máquina; implementei como `velocidade_ml_h` (m/h) para manter consistência com o `velocidade_m2_h` que já existia. O motor calcula da mesma forma.
+> - Entregáveis 2 (`onPaste` de imagem), 3 (upload de imagem) e 4 (preview de imagem) ficaram para a Fase 7 (DXF real / anexos). Geometria atual é só `MANUAL`.
+> - Entregáveis 7 (persistir imagem), 11 (aplicar regras no dropdown automaticamente) também na Fase 7 / Sub-fase 2.F.
 
 Objetivo: trazer para o orçamento a dinâmica de imagem/manual que funcionou no HTML, ampliada com tempo de máquina e compatibilidade automáticos.
 
