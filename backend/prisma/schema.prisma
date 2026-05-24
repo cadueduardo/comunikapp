@@ -497,6 +497,9 @@ model maquina {
   modo_producao      maquina_modo_producao    @default(M2_H)
   setup_min          Decimal?                 @db.Decimal(10, 2)
   velocidade_m2_h    Decimal?                 @db.Decimal(10, 2)
+  // Velocidade em metros lineares por hora, usada quando modo_producao = ML_H
+  // Tipico para router CNC, plotter de corte, laser etc. (Fase 2)
+  velocidade_ml_h    Decimal?                 @db.Decimal(10, 2)
   eficiencia_percent Decimal?                 @db.Decimal(5, 2)
   modos              modo_impressao[]
 
@@ -693,6 +696,15 @@ model ProdutoOrcamento {
   ordem                Int      @default(0)
   categoria            String?
   nome                 String? // Campo para V2
+
+  // Geometria avancada (Fase 2 - Home operacional)
+  // Ver docs/fase-0-home-operacional/04-campos-geometria.md
+  // Perimetro em milimetros (para estimativa de tempo de corte).
+  perimetro_produto           Decimal? @db.Decimal(10, 2)
+  // 'MANUAL' | 'IMAGEM' | 'DXF' (string controlada por codigo)
+  geometria_origem            String?  @db.VarChar(16)
+  arquivo_geometria_url       String?  @db.VarChar(512)
+  arquivo_geometria_metadados String?  @db.LongText // JSON
 
   // Relacionamentos
   orcamento        orcamento           @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)

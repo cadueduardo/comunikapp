@@ -141,6 +141,15 @@ export class CreateMaquinaDto {
   @IsNumber()
   velocidade_m2_h?: number;
 
+  /**
+   * Velocidade em metros lineares por hora.
+   * Usada quando modo_producao = ML_H (router CNC, plotter de corte, laser de corte).
+   * Fase 2 - Home operacional.
+   */
+  @IsOptional()
+  @IsNumber()
+  velocidade_ml_h?: number;
+
   @IsOptional()
   @IsNumber()
   eficiencia_percent?: number;
