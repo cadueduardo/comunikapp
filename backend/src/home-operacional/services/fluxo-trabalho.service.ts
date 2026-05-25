@@ -22,15 +22,15 @@ import {
  * Estado das colunas na primeira versao:
  * - `orcamentos`, `aprovados`, `revisao_tecnica`, `producao`, `prontos`:
  *   ativas com agregacoes reais.
- * - `a_receber`, `concluidos`: ficam com `status: 'aguardando_modulo'` e
- *   payload vazio ate a Fase 6 introduzir a entidade Cobranca. Decisao
- *   confirmada com o dono do projeto em 2026-05-25.
+ * - `a_receber`: OS finalizada cuja cobranca tem saldo aberto
+ *   (status em {PREVISTA, PARCIAL_PAGO, VENCIDO}). Implementado na Fase 6.E.
+ * - `concluidos`: OS finalizada cuja cobranca esta liquidada
+ *   (status = LIQUIDADO). Implementado na Fase 6.E.
  *
- * Sobre o criterio de "prontos": o contrato original diz
- * `status = FINALIZADA AND cobranca.status IN {PREVISTA_SALDO, PARCIAL_PAGO}`.
- * Enquanto Cobranca nao existe, simplifico para `status = FINALIZADA`,
- * que ainda devolve dado util e nao induz a Home a esconder OS finalizadas.
- * Quando a Fase 6 entrar, restringimos no mesmo lugar.
+ * Sobre o criterio de "prontos": permanece como
+ * `status = FINALIZADA AND (sem cobranca OR cobranca em aberto)` — quando a
+ * OS finalizada e quitada, ela sai de "prontos" e passa para "concluidos",
+ * mantendo o fluxo coerente.
  */
 @Injectable()
 export class FluxoTrabalhoService {
@@ -49,24 +49,17 @@ export class FluxoTrabalhoService {
       revisaoTecnicaColuna,
       producaoColuna,
       prontosColuna,
+      aReceberColuna,
+      concluidosColuna,
     ] = await Promise.all([
       this.montarColunaOrcamentos(lojaId),
       this.montarColunaAprovados(lojaId),
       this.montarColunaRevisaoTecnica(lojaId),
       this.montarColunaProducao(lojaId),
       this.montarColunaProntos(lojaId),
+      this.montarColunaAReceber(lojaId),
+      this.montarColunaConcluidos(lojaId),
     ]);
-
-    const aReceberColuna = this.montarColunaAguardandoModulo(
-      'a_receber',
-      'A receber',
-      'Aguardando módulo financeiro (Fase 6).',
-    );
-    const concluidosColuna = this.montarColunaAguardandoModulo(
-      'concluidos',
-      'Concluídos',
-      'Aguardando módulo financeiro (Fase 6).',
-    );
 
     return {
       colunas: [
@@ -286,13 +279,34 @@ export class FluxoTrabalhoService {
   }
 
   /**
-   * `prontos`: OS FINALIZADA. Quando Cobranca existir (Fase 6),
-   * restringimos para `cobranca.status IN {PREVISTA_SALDO, PARCIAL_PAGO}`.
+   * `prontos`: OS FINALIZADA SEM cobranca em aberto E SEM liquidacao.
+   *
+   * Regra detalhada (Fase 6.E):
+   * - Mostra OS finalizada cujo orcamento NAO tem cobranca registrada
+   *   (caso de lojas que aprovaram sem cobranca estruturada) OU
+   * - cuja cobranca esta em PREVISTA com saldo > 0 e ainda nao foi
+   *   movida para "a_receber" (transicao acontece tipicamente quando a OS
+   *   e finalizada).
+   *
+   * Para nao duplicar com `a_receber` e `concluidos`, excluimos OS cujo
+   * orcamento ja tem cobranca em PARCIAL_PAGO, VENCIDO ou LIQUIDADO.
    */
   private async montarColunaProntos(lojaId: string): Promise<ColunaFluxo> {
+    // OS finalizadas cujo orcamento_id esta em uma cobranca "ja classificada"
+    // (a_receber ou concluidos). Essas saem desta coluna.
+    const orcamentosClassificados = await this.prisma.cobranca.findMany({
+      where: {
+        loja_id: lojaId,
+        status: { in: ['PARCIAL_PAGO', 'VENCIDO', 'LIQUIDADO'] },
+      },
+      select: { orcamento_id: true },
+    });
+    const orcamentosFora = orcamentosClassificados.map((c) => c.orcamento_id);
+
     const where = {
       loja_id: lojaId,
       status: 'FINALIZADA',
+      orcamento_id: { notIn: orcamentosFora },
     };
 
     const [total, registros] = await Promise.all([
@@ -320,22 +334,154 @@ export class FluxoTrabalhoService {
     };
   }
 
-  // ============================================================
-  // Coluna placeholder (aguardando_modulo)
-  // ============================================================
+  /**
+   * `a_receber` (Fase 6.E): OS finalizada cuja cobranca tem saldo aberto.
+   *
+   * Regra: Cobranca com status em {PARCIAL_PAGO, VENCIDO} cujo orcamento tem
+   * pelo menos uma OS finalizada. Cards listam a OS para o usuario
+   * conseguir abrir auditoria direto.
+   */
+  private async montarColunaAReceber(lojaId: string): Promise<ColunaFluxo> {
+    const cobrancas = await this.prisma.cobranca.findMany({
+      where: {
+        loja_id: lojaId,
+        status: { in: ['PARCIAL_PAGO', 'VENCIDO'] },
+      },
+      select: {
+        id: true,
+        status: true,
+        valor_saldo: true,
+        atualizado_em: true,
+        orcamento: {
+          select: {
+            id: true,
+            numero: true,
+            titulo: true,
+            ordens_servico: {
+              where: { status: 'FINALIZADA' },
+              select: {
+                id: true,
+                numero: true,
+                status: true,
+                atualizado_em: true,
+              },
+              orderBy: { atualizado_em: 'desc' },
+              take: 1,
+            },
+          },
+        },
+        cliente: { select: { nome: true } },
+      },
+      orderBy: { atualizado_em: 'desc' },
+    });
 
-  private montarColunaAguardandoModulo(
-    id: ColunaFluxo['id'],
-    label: string,
-    aviso: string,
-  ): ColunaFluxo {
+    const validas = cobrancas.filter((c) => c.orcamento.ordens_servico.length > 0);
+    const total = validas.length;
+
+    const cards: CardFluxo[] = validas.slice(0, this.LIMITE_CARDS).map((c) => {
+      const osFin = c.orcamento.ordens_servico[0];
+      return {
+        id: c.id,
+        tipo: 'os',
+        titulo: osFin.numero?.toString().startsWith('OS')
+          ? String(osFin.numero)
+          : `OS ${osFin.numero}`,
+        subtitulo: c.cliente?.nome ?? 'Sem cliente vinculado',
+        status_label:
+          c.status === 'VENCIDO' ? 'Saldo vencido' : 'Saldo parcial',
+        valor: this.toNumberSeguro(c.valor_saldo),
+        atualizado_em: (c.atualizado_em ?? osFin.atualizado_em).toISOString(),
+        acoes: [
+          { id: 'abrir_os', label: 'Abrir OS', href: `/os/${osFin.id}` },
+          {
+            id: 'auditoria',
+            label: 'Auditoria',
+            href: `/financeiro/recebimentos?status=${c.status}`,
+          },
+        ],
+      };
+    });
+
     return {
-      id,
-      label,
-      total: 0,
-      cards: [],
-      status: 'aguardando_modulo',
-      aviso,
+      id: 'a_receber',
+      label: 'A receber',
+      total,
+      cards,
+      status: 'ativa',
+    };
+  }
+
+  /**
+   * `concluidos` (Fase 6.E): OS finalizada cuja cobranca esta LIQUIDADA.
+   *
+   * Regra: Cobranca com status LIQUIDADO cujo orcamento tem pelo menos uma OS
+   * finalizada. Cards mostram a OS resolvida (trabalho + caixa fechados).
+   */
+  private async montarColunaConcluidos(lojaId: string): Promise<ColunaFluxo> {
+    const cobrancas = await this.prisma.cobranca.findMany({
+      where: {
+        loja_id: lojaId,
+        status: 'LIQUIDADO',
+      },
+      select: {
+        id: true,
+        valor_total: true,
+        liquidado_em: true,
+        atualizado_em: true,
+        orcamento: {
+          select: {
+            id: true,
+            numero: true,
+            titulo: true,
+            ordens_servico: {
+              where: { status: 'FINALIZADA' },
+              select: {
+                id: true,
+                numero: true,
+                status: true,
+                atualizado_em: true,
+              },
+              orderBy: { atualizado_em: 'desc' },
+              take: 1,
+            },
+          },
+        },
+        cliente: { select: { nome: true } },
+      },
+      orderBy: { liquidado_em: 'desc' },
+    });
+
+    const validas = cobrancas.filter((c) => c.orcamento.ordens_servico.length > 0);
+    const total = validas.length;
+
+    const cards: CardFluxo[] = validas.slice(0, this.LIMITE_CARDS).map((c) => {
+      const osFin = c.orcamento.ordens_servico[0];
+      return {
+        id: c.id,
+        tipo: 'os',
+        titulo: osFin.numero?.toString().startsWith('OS')
+          ? String(osFin.numero)
+          : `OS ${osFin.numero}`,
+        subtitulo: c.cliente?.nome ?? 'Sem cliente vinculado',
+        status_label: 'Concluído',
+        valor: this.toNumberSeguro(c.valor_total),
+        atualizado_em: (
+          c.liquidado_em ??
+          c.atualizado_em ??
+          osFin.atualizado_em
+        ).toISOString(),
+        acoes: [
+          { id: 'abrir_os', label: 'Abrir OS', href: `/os/${osFin.id}` },
+        ],
+      };
+    });
+
+    return {
+      id: 'concluidos',
+      label: 'Concluídos',
+      total,
+      cards,
+      status: 'ativa',
     };
   }
 

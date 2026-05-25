@@ -1,6 +1,6 @@
 # Plano de Ação: Home, Onboarding e Evolução Operacional
 
-> **Status atual (atualizado em 2026-05-25, sessão da tarde 2):** Fases 0, 1, 2, 3, 4 e 5 concluídas. Próximo passo é a Fase 6 (Financeiro mínimo) — campos de condição de pagamento no orçamento, previsão de recebimento, bloco `ResumoFinanceiroSimples` na Home e eventos automáticos pelo avanço do trabalho. O desbloqueio da Fase 6 libera também as colunas `a_receber` / `concluidos` do fluxo (Fase 4) e o 7º alerta operacional (`trabalho_pronto_sem_recebimento`). Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF antes de continuar.**
+> **Status atual (atualizado em 2026-05-25, sessão da tarde 3):** Fases 0, 1, 2, 3, 4, 5 e 6 concluídas. A Fase 6 cobriu schema de cobrança/parcelas/recebimentos/logs (6.A), geração automática na aprovação (6.B), endpoint + bloco `ResumoFinanceiroSimples` na Home (6.C), tela `/financeiro/recebimentos` com filtros, ações e export CSV (6.D), cron job diário de vencimento + 7º alerta `trabalho_pronto_sem_recebimento` + ativação das colunas `a_receber`/`concluidos` no fluxo (6.E). Próximo passo é a Fase 7 (DXF real) ou a Fase 8 (ajustes mobile e navegação) — alinhar com o dono do projeto. Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF antes de continuar.**
 
 ## Critério de sucesso
 
@@ -950,9 +950,9 @@ Entregáveis:
 
 1. Estruturar condição de pagamento no orçamento (campos: `condicao_pagamento_tipo`, `percentual_entrada`, `valor_entrada`, `valor_saldo`, `vencimento_entrada`, `vencimento_saldo`, `status_recebimento`). **[OK — 6.A]**
 2. Gerar previsão de recebimento na aprovação. **[OK — 6.B (criação automática via `CobrancasService.criarCobrancaParaOrcamento`)]**
-3. Exibir entrada e saldo no orçamento, OS e Home. **[Parcial — Home tem `ResumoFinanceiroSimples`; valores no orçamento/OS ainda usam exibição existente.]**
+3. Exibir entrada e saldo no orçamento, OS e Home. **[Parcial — Home tem `ResumoFinanceiroSimples` + colunas `a_receber`/`concluidos` no fluxo (Fase 6.E); valores no orçamento/OS ainda usam exibição existente.]**
 4. Criar bloco `ResumoFinanceiroSimples` (apenas para perfis com permissão financeira). **[OK — 6.C]**
-5. Implementar eventos financeiros automáticos descritos na seção "Eventos financeiros automáticos pelo avanço do trabalho". **[Pendente — 6.E]**
+5. Implementar eventos financeiros automáticos descritos na seção "Eventos financeiros automáticos pelo avanço do trabalho". **[OK — 6.E (cron `@Cron 03:15` recategoriza vencidas + colunas `a_receber`/`concluidos` derivadas de cobrança + 7º alerta `trabalho_pronto_sem_recebimento`)]**
 6. Criar tela de **Auditoria de Recebimentos** com as colunas e ações descritas na seção correspondente. **[OK — 6.D (`/financeiro/recebimentos` com filtros, ações e export CSV)]**
 7. Registrar auditoria de toda transição financeira. **[OK — logs `CobrancaLog` cobrindo criação, recebimento, forçado, cancelamento e vencimento]**
 

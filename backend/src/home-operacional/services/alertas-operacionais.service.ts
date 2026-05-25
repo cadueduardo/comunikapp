@@ -50,6 +50,7 @@ export class AlertasOperacionaisService {
       this.detectarOSsLiberadasSemWorkflow(lojaId),
       this.detectarEstoqueAbaixoDoMinimo(lojaId),
       this.detectarOSsSemMateriais(lojaId),
+      this.detectarTrabalhoProntoSemRecebimento(lojaId), // Fase 6.E - 7o alerta
     ]);
 
     const alertas = blocos.flat();
@@ -380,6 +381,100 @@ export class AlertasOperacionaisService {
     } catch (error) {
       this.logger.warn(
         `detectarOSsSemMateriais falhou: ${this.descreverErro(error)}`,
+      );
+      return [];
+    }
+  }
+
+  /**
+   * 7o alerta (Fase 6.E): trabalho pronto sem recebimento.
+   *
+   * Definicao operacional (alinhada ao plano):
+   * - Existe uma OS com `status = FINALIZADA` AND
+   * - A cobranca associada ao orcamento dessa OS tem `valor_saldo > 0` AND
+   *   `status IN (PREVISTA, PARCIAL_PAGO, VENCIDO)`.
+   *
+   * Como funciona em SQL via Prisma:
+   * - Partimos das cobrancas com saldo aberto e status nao-terminal,
+   *   incluindo o orcamento e a OS associada (via relation `orcamento.os`).
+   * - Filtramos em memoria por OS finalizada (a relacao 1:N de OS pode ter
+   *   varias entradas; consideramos qualquer uma com status FINALIZADA).
+   *
+   * Nivel `atencao` - alinhado ao catalogo da Fase 0 (doc
+   * 02-contratos-home-operacional.md). O dono do projeto pode promover para
+   * `critico` se a operacao mostrar necessidade.
+   */
+  private async detectarTrabalhoProntoSemRecebimento(
+    lojaId: string,
+  ): Promise<Alerta[]> {
+    try {
+      const cobrancas = await this.prisma.cobranca.findMany({
+        where: {
+          loja_id: lojaId,
+          status: { in: ['PREVISTA', 'PARCIAL_PAGO', 'VENCIDO'] },
+          // valor_saldo > 0: Prisma com Decimal aceita .gt(0)
+          valor_saldo: { gt: 0 },
+        },
+        select: {
+          id: true,
+          status: true,
+          valor_saldo: true,
+          orcamento_id: true,
+          orcamento: {
+            select: {
+              id: true,
+              numero: true,
+              titulo: true,
+              ordens_servico: {
+                select: {
+                  id: true,
+                  numero: true,
+                  status: true,
+                  atualizado_em: true,
+                },
+              },
+            },
+          },
+          cliente: { select: { nome: true } },
+        },
+        take: 50,
+      });
+
+      const alertas: Alerta[] = [];
+      for (const cob of cobrancas) {
+        const osFinalizada = cob.orcamento.ordens_servico.find(
+          (o) => o.status === 'FINALIZADA',
+        );
+        if (!osFinalizada) continue;
+
+        const saldo = numeroSeguro(cob.valor_saldo);
+        const clienteNome = cob.cliente?.nome ?? 'Cliente nao informado';
+        const valorFormatado = saldo.toLocaleString('pt-BR', {
+          style: 'currency',
+          currency: 'BRL',
+        });
+
+        alertas.push({
+          id: `trabalho_pronto_sem_recebimento_${cob.id}`,
+          nivel: 'atencao',
+          titulo: `OS ${osFinalizada.numero} finalizada com saldo aberto`,
+          descricao: `Cliente: ${clienteNome} — ${valorFormatado} pendente de recebimento (cobranca ${cob.status}).`,
+          origem: 'financeiro',
+          criado_em: new Date(osFinalizada.atualizado_em).toISOString(),
+          acao: {
+            tipo: 'link',
+            label: 'Abrir auditoria',
+            href: `/financeiro/recebimentos?status=${cob.status}`,
+          },
+        });
+
+        if (alertas.length >= 20) break;
+      }
+
+      return alertas;
+    } catch (error) {
+      this.logger.warn(
+        `detectarTrabalhoProntoSemRecebimento falhou: ${this.descreverErro(error)}`,
       );
       return [];
     }

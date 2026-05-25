@@ -1,5 +1,6 @@
 import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { LojasModule } from './lojas/lojas.module';
@@ -36,6 +37,9 @@ import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    // ScheduleModule habilita @Cron / @Interval em todo o app.
+    // Usado no minimo pela Fase 6.E (job diario de vencimento de cobrancas).
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     LojasModule,

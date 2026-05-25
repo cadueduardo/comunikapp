@@ -8,7 +8,7 @@
  *   - os_liberada_sem_workflow (critico)
  *   - estoque_abaixo_minimo (atencao)
  *   - os_sem_materiais (critico)
- *   - trabalho_pronto_sem_recebimento (atencao) -- requer Fase 6 (placeholder).
+ *   - trabalho_pronto_sem_recebimento (atencao) -- implementado na Fase 6.E.
  *
  * Contrato em docs/fase-0-home-operacional/02-contratos-home-operacional.md
  * secao 6.
