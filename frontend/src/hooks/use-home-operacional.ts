@@ -5,10 +5,12 @@ import {
   AlertasResumo,
   BannerMensagem,
   FluxoResumo,
+  KpisResumo,
   OnboardingResumo,
   fetchAlertas,
   fetchBannerEstado,
   fetchFluxo,
+  fetchKpis,
   fetchOnboarding,
   patchOnboardingStep,
   postAplicarConfiguracaoRecomendada,
@@ -168,6 +170,44 @@ interface UseAlertasOperacionaisResult {
    * uma acao em outro modulo).
    */
   recarregar: (opcoes?: { forcar?: boolean }) => Promise<void>;
+}
+
+// ====================================================================
+// KPIs do dashboard
+// ====================================================================
+
+interface UseKpisDashboardResult {
+  resumo: KpisResumo | null;
+  loading: boolean;
+  erro: string | null;
+  recarregar: (opcoes?: { forcar?: boolean }) => Promise<void>;
+}
+
+export function useKpisDashboard(): UseKpisDashboardResult {
+  const [resumo, setResumo] = useState<KpisResumo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const recarregar = useCallback(async (opcoes?: { forcar?: boolean }) => {
+    setLoading(true);
+    setErro(null);
+    try {
+      const data = await fetchKpis({ refresh: opcoes?.forcar === true });
+      setResumo(data);
+    } catch (e) {
+      setErro(
+        e instanceof Error ? e.message : 'Falha ao carregar KPIs do dashboard',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void recarregar();
+  }, [recarregar]);
+
+  return { resumo, loading, erro, recarregar };
 }
 
 export function useAlertasOperacionais(): UseAlertasOperacionaisResult {

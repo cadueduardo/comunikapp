@@ -35,7 +35,10 @@ import {
 @Injectable()
 export class FluxoTrabalhoService {
   private readonly logger = new Logger(FluxoTrabalhoService.name);
-  private readonly LIMITE_CARDS = 5;
+  // 3 cards por coluna - manter o painel compacto e legivel em layout
+  // de 3 colunas × 2 linhas. O `total` continua refletindo a contagem
+  // real no banco, e o front mostra "+N no modulo" quando ha mais.
+  private readonly LIMITE_CARDS = 3;
 
   constructor(private readonly prisma: PrismaService) {}
 

@@ -13,26 +13,34 @@ import { useAlertasOperacionais } from '@/hooks/use-home-operacional';
 import { AlertaCard } from './AlertaCard';
 
 /**
- * Bloco "Alertas operacionais" da Home (Fase 5).
+ * Bloco "Alertas operacionais" da Home.
  *
- * Regras de exibicao (plano-mae secao "Bloco 3"):
- * - Ordenacao: critico -> atencao -> informativo (vem ordenado do back).
- * - Se nao houver nenhum alerta: mostrar um estado neutro discreto em
- *   vez de esconder por completo, para o usuario saber que o bloco esta
- *   funcionando (e nao foi um erro).
- * - O 7o alerta previsto (trabalho pronto sem recebimento ha mais de N
- *   dias) depende da Fase 6 (modulo financeiro). Hoje aparece uma nota
- *   discreta avisando que esse alerta sera habilitado em breve.
+ * Suporta duas variantes:
+ * - `default` (padrao em mobile/sm/md): bloco em largura completa, sem
+ *   altura maxima, todos os alertas visiveis em linha.
+ * - `sidebar` (lg+): coluna estreita com scroll interno e header
+ *   compacto com chips de contagem. Usado quando o componente ocupa a
+ *   coluna lateral fixa do dashboard.
+ *
+ * Hierarquia visual: critico (vermelho) -> atencao (ambar) -> info
+ * (zinco). Ordenacao ja vem do backend.
  */
-export function AlertasOperacionais() {
+export interface AlertasOperacionaisProps {
+  variant?: 'default' | 'sidebar';
+}
+
+export function AlertasOperacionais({
+  variant = 'default',
+}: AlertasOperacionaisProps = {}) {
   const { resumo, loading, erro, recarregar } = useAlertasOperacionais();
+  const ehSidebar = variant === 'sidebar';
 
   if (loading && !resumo) {
     return (
       <Card>
         <CardHeader className="pb-3">
-          <Skeleton className="h-5 w-48" />
-          <Skeleton className="h-4 w-72 mt-2" />
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-56 mt-2" />
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
@@ -70,15 +78,13 @@ export function AlertasOperacionais() {
   const semAlertas = resumo.total === 0;
 
   return (
-    <Card>
+    <Card className={ehSidebar ? 'lg:sticky lg:top-4' : ''}>
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
             <CardTitle className="text-base">Alertas operacionais</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              {semAlertas
-                ? 'Nada precisa de atenção agora.'
-                : descreverContagens(resumo.por_nivel)}
+            <p className="text-xs text-muted-foreground mt-1">
+              {semAlertas ? 'Nada precisa de atenção agora.' : 'Por nível:'}
             </p>
           </div>
           <Button
@@ -93,16 +99,45 @@ export function AlertasOperacionais() {
             />
           </Button>
         </div>
+
+        {!semAlertas && (
+          <div className="flex items-center gap-1.5 flex-wrap mt-2">
+            {resumo.por_nivel.critico > 0 && (
+              <ChipContagem
+                cor="red"
+                rotulo={`${resumo.por_nivel.critico} crítico${resumo.por_nivel.critico === 1 ? '' : 's'}`}
+              />
+            )}
+            {resumo.por_nivel.atencao > 0 && (
+              <ChipContagem
+                cor="amber"
+                rotulo={`${resumo.por_nivel.atencao} atenção`}
+              />
+            )}
+            {resumo.por_nivel.informativo > 0 && (
+              <ChipContagem
+                cor="zinc"
+                rotulo={`${resumo.por_nivel.informativo} info`}
+              />
+            )}
+          </div>
+        )}
       </CardHeader>
 
       <CardContent>
         {semAlertas ? (
           <div className="rounded-md border border-dashed bg-zinc-50 p-4 text-sm text-muted-foreground flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            Tudo em ordem. Os alertas aparecem aqui quando houver pendências.
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+            <span>Tudo em ordem por enquanto.</span>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div
+            className={
+              ehSidebar
+                ? 'space-y-2 max-h-[60vh] lg:max-h-[calc(100vh-22rem)] overflow-y-auto pr-1'
+                : 'space-y-2'
+            }
+          >
             {resumo.alertas.map((alerta) => (
               <AlertaCard
                 key={alerta.id}
@@ -113,11 +148,11 @@ export function AlertasOperacionais() {
           </div>
         )}
 
-        <div className="mt-3 flex items-start gap-2 text-[11px] text-muted-foreground">
+        <div className="mt-3 flex items-start gap-1.5 text-[10px] text-muted-foreground border-t pt-2">
           <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
           <span>
             O alerta &quot;trabalho pronto sem recebimento&quot; será
-            habilitado quando o módulo financeiro (Fase 6) for liberado.
+            habilitado com a Fase 6.
           </span>
         </div>
       </CardContent>
@@ -125,23 +160,23 @@ export function AlertasOperacionais() {
   );
 }
 
-function descreverContagens(porNivel: {
-  critico: number;
-  atencao: number;
-  informativo: number;
-}): string {
-  const partes: string[] = [];
-  if (porNivel.critico > 0) {
-    partes.push(`${porNivel.critico} crítico${porNivel.critico === 1 ? '' : 's'}`);
-  }
-  if (porNivel.atencao > 0) {
-    partes.push(`${porNivel.atencao} atenção${porNivel.atencao === 1 ? '' : ''}`);
-  }
-  if (porNivel.informativo > 0) {
-    partes.push(
-      `${porNivel.informativo} informativo${porNivel.informativo === 1 ? '' : 's'}`,
-    );
-  }
-  if (partes.length === 0) return 'Tudo em ordem.';
-  return partes.join(' · ');
+function ChipContagem({
+  cor,
+  rotulo,
+}: {
+  cor: 'red' | 'amber' | 'zinc';
+  rotulo: string;
+}) {
+  const classes: Record<typeof cor, string> = {
+    red: 'bg-red-100 text-red-700',
+    amber: 'bg-amber-100 text-amber-700',
+    zinc: 'bg-zinc-100 text-zinc-700',
+  };
+  return (
+    <span
+      className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${classes[cor]}`}
+    >
+      {rotulo}
+    </span>
+  );
 }

@@ -16,10 +16,12 @@ import { SystemStateService } from './services/system-state.service';
 import { FluxoTrabalhoService } from './services/fluxo-trabalho.service';
 import { HomeCacheService } from './services/home-cache.service';
 import { AlertasOperacionaisService } from './services/alertas-operacionais.service';
+import { KpiDashboardService } from './services/kpi-dashboard.service';
 import { AtualizarOnboardingStepDto } from './dto/atualizar-onboarding-step.dto';
 import { AplicarConfiguracaoRecomendadaDto } from './dto/aplicar-configuracao-recomendada.dto';
 import { FluxoResponseData } from './interfaces/fluxo.interface';
 import { AlertasResponseData } from './interfaces/alerta.interface';
+import { KpisResumo } from './interfaces/kpi.interface';
 
 /**
  * Controlador da Home operacional. Endpoints documentados em
@@ -39,6 +41,7 @@ export class HomeOperacionalController {
     private readonly fluxoTrabalhoService: FluxoTrabalhoService,
     private readonly homeCacheService: HomeCacheService,
     private readonly alertasOperacionaisService: AlertasOperacionaisService,
+    private readonly kpiDashboardService: KpiDashboardService,
   ) {}
 
   @Get('onboarding')
@@ -130,6 +133,36 @@ export class HomeOperacionalController {
     }
 
     const data = await this.alertasOperacionaisService.listar(lojaId);
+    this.homeCacheService.gravar(chave, data);
+    return this.envelope(data, { cache_hit: false });
+  }
+
+  /**
+   * GET /home-operacional/kpis
+   *
+   * 4 indicadores agregados exibidos no topo do dashboard:
+   * - Orçamentos abertos (count)
+   * - Total orçado no mês corrente (sum, moeda)
+   * - OS em produção (count)
+   * - Alertas críticos (count)
+   *
+   * Cache: 60s por `loja_id` (chave separada `kpis:<lojaId>`). Use
+   * `?refresh=1` para forçar recomputação.
+   */
+  @Get('kpis')
+  async kpis(
+    @CurrentLojaId() lojaId: string,
+    @Query('refresh') refresh?: string,
+  ) {
+    const chave = `kpis:${lojaId}`;
+    const bypass = refresh === '1' || refresh === 'true';
+
+    const cached = this.homeCacheService.obter<KpisResumo>(chave, bypass);
+    if (cached) {
+      return this.envelope(cached, { cache_hit: true });
+    }
+
+    const data = await this.kpiDashboardService.listar(lojaId);
     this.homeCacheService.gravar(chave, data);
     return this.envelope(data, { cache_hit: false });
   }

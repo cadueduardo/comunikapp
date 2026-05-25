@@ -257,3 +257,47 @@ export async function fetchAlertas(opcoes?: {
   });
   return unwrap<AlertasResumo>(r);
 }
+
+// ====================================================================
+// KPIs do dashboard (Fase 4/5 - melhoria visual)
+//
+// Mantenha sincronizado com:
+//   backend/src/home-operacional/interfaces/kpi.interface.ts
+// ====================================================================
+
+export type FormatoKPI = 'numero' | 'moeda';
+
+export type CorKPI = 'zinc' | 'blue' | 'amber' | 'emerald' | 'red';
+
+export type IconeKPI = 'orcamento' | 'dinheiro' | 'producao' | 'alerta';
+
+export interface KPI {
+  id:
+    | 'orcamentos_abertos'
+    | 'total_orcado_mes'
+    | 'os_em_producao'
+    | 'alertas_criticos';
+  label: string;
+  valor: number;
+  formato: FormatoKPI;
+  cor: CorKPI;
+  icone: IconeKPI;
+  hint?: string;
+  link?: { label: string; href: string };
+}
+
+export interface KpisResumo {
+  kpis: KPI[];
+  periodo_mes: {
+    inicio: string;
+    fim: string;
+  };
+}
+
+export async function fetchKpis(opcoes?: {
+  refresh?: boolean;
+}): Promise<KpisResumo> {
+  const qs = opcoes?.refresh ? '?refresh=1' : '';
+  const r = await apiRequest(`/home-operacional/kpis${qs}`, { method: 'GET' });
+  return unwrap<KpisResumo>(r);
+}

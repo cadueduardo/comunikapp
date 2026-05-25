@@ -8,6 +8,7 @@ import { SystemStateService } from './services/system-state.service';
 import { FluxoTrabalhoService } from './services/fluxo-trabalho.service';
 import { HomeCacheService } from './services/home-cache.service';
 import { AlertasOperacionaisService } from './services/alertas-operacionais.service';
+import { KpiDashboardService } from './services/kpi-dashboard.service';
 
 /**
  * Modulo da Home operacional.
@@ -35,6 +36,7 @@ import { AlertasOperacionaisService } from './services/alertas-operacionais.serv
     FluxoTrabalhoService,
     HomeCacheService,
     AlertasOperacionaisService,
+    KpiDashboardService,
   ],
   exports: [OnboardingService, HomeCacheService],
 })
