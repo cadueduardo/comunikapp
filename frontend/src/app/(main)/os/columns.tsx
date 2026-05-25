@@ -142,10 +142,20 @@ const formatDateTime = (dateString: string) => {
   });
 };
 
-// Status da OS em que ainda faz sentido aprovar tecnicamente.
-// Sincronizado com backend (os.service.aprovarOSTecnica) e
-// aprovacao-tecnica.service.aprovarTecnica.
-const STATUS_PERMITE_APROVACAO = new Set([
+// Status que BLOQUEIAM aprovacao tecnica (sincronizado com backend
+// os.service.aprovarOSTecnica e aprovacao-tecnica.service.aprovarTecnica).
+// Qualquer outro status permite aprovar - mas se nao for fluxo padrao,
+// a aprovacao e retroativa e nao retrocede o status operacional.
+const STATUS_BLOQUEIA_APROVACAO = new Set([
+  'FINALIZADA',
+  'CANCELADA',
+  'REJEITADA',
+  'APROVADA_TECNICA',
+]);
+
+// Status do fluxo padrao - usado para destacar quando a aprovacao
+// avancara o workflow vs quando sera apenas regularizacao retroativa.
+const STATUS_FLUXO_PADRAO = new Set([
   'AGUARDANDO_APROVACAO_TECNICA',
   'FILA',
 ]);
@@ -197,33 +207,38 @@ function AprovacaoCell({
     );
   }
 
-  // PENDENTE: so mostra botao se o status operacional ainda permite aprovar.
-  // Status como PRODUCAO/ACABAMENTO/FINALIZADA NAO devem reabrir aprovacao,
-  // mesmo que aprovacao_tecnica_status esteja PENDENTE em dados legados.
-  if (STATUS_PERMITE_APROVACAO.has(statusOs)) {
+  // PENDENTE: bloqueia apenas em status terminais (ja decididos ou cancelados).
+  // Para os demais (inclusive PRODUCAO, ACABAMENTO etc. em dados legados),
+  // permite aprovacao retroativa - o backend mantem o status operacional.
+  if (STATUS_BLOQUEIA_APROVACAO.has(statusOs)) {
     return (
-      <Button
-        size="sm"
+      <Badge
         variant="outline"
-        onClick={() => onAprovar(os)}
-        className="h-8"
+        className="bg-gray-50 text-gray-600 border-gray-200"
+        title="OS em status terminal - nao aprovavel"
       >
-        <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
-        Aprovar OS
-      </Button>
+        Pendente
+      </Badge>
     );
   }
 
-  // Caso atipico: aprovacao_tecnica_status = PENDENTE mas OS ja avancou.
-  // Mostra badge informativa para o usuario nao ficar bloqueado nem confuso.
+  const eFluxoPadrao = STATUS_FLUXO_PADRAO.has(statusOs);
+
   return (
-    <Badge
+    <Button
+      size="sm"
       variant="outline"
-      className="bg-gray-50 text-gray-600 border-gray-200"
-      title="OS ja avancou alem da etapa de aprovacao"
+      onClick={() => onAprovar(os)}
+      className="h-8"
+      title={
+        eFluxoPadrao
+          ? 'Aprovar e liberar para producao'
+          : 'OS ja avancou no operacional - aprovacao registrara a decisao sem alterar o status'
+      }
     >
-      Pendente
-    </Badge>
+      <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
+      Aprovar OS
+    </Button>
   );
 }
 

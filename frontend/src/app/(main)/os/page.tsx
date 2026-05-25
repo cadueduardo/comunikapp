@@ -281,6 +281,7 @@ export default function OSPage() {
       <AprovarOSModal
         osId={aprovarTarget?.id ?? null}
         osNumero={aprovarTarget?.numero ?? null}
+        osStatus={aprovarTarget?.status ?? null}
         open={aprovarModalOpen}
         onOpenChange={(open) => {
           setAprovarModalOpen(open);

@@ -387,10 +387,30 @@ Pasta `docs/fase-0-home-operacional/` com 10 documentos:
 Logo após o primeiro commit, ao testar pela UI o "Aprovar mesmo assim", apareceram 2 problemas:
 
 1. **Hydration error** `<div> cannot be a descendant of <p>`: era um `<p className="sr-only">` envolvendo um `Badge` no rodapé do `AprovarOSModal` — sobra do scaffolding. Removido.
-2. **PATCH 400 Bad Request** `OS não está aguardando aprovação técnica`: a OS estava em `status = 'FILA'` (criada por caminho antigo `criarOSComercial`, linha 781 de `os.service.ts`) com `aprovacao_tecnica_status = 'PENDENTE'`. **Os 2 campos são independentes** e o `OSService.aprovarOSTecnica` só aceitava `AGUARDANDO_APROVACAO_TECNICA`, travando OS legadas que ficaram com `FILA + PENDENTE`. Decisão: o gating real da aprovação técnica deve ser o campo `aprovacao_tecnica_status`, não o status operacional. Mudanças:
-   - `os.service.aprovarOSTecnica`: passa a aceitar `[AGUARDANDO_APROVACAO_TECNICA, FILA]`. Também checa que `aprovacao_tecnica_status = PENDENTE` para evitar reaprovação. Movimentação agora registra o status real anterior (não hardcoded).
-   - `aprovacao-tecnica.service.aprovarTecnica`: mesma tolerância de status.
-   - `columns.tsx` (`AprovacaoCell`): o botão "Aprovar OS" só aparece quando `status ∈ {AGUARDANDO_APROVACAO_TECNICA, FILA}`. Para OS já em produção/finalizada com `aprovacao_tecnica_status = PENDENTE` (dado inconsistente), mostra badge cinza "Pendente" sem ação.
+2. **PATCH 400 Bad Request** `OS não está aguardando aprovação técnica`: a OS estava em `status = 'FILA'` (criada por caminho antigo `criarOSComercial`, linha 781 de `os.service.ts`) com `aprovacao_tecnica_status = 'PENDENTE'`. **Os 2 campos são independentes** e o `OSService.aprovarOSTecnica` só aceitava `AGUARDANDO_APROVACAO_TECNICA`, travando OS legadas que ficaram com `FILA + PENDENTE`. Decisão: o gating real da aprovação técnica deve ser o campo `aprovacao_tecnica_status`, não o status operacional.
+
+**Hotfix 2 — aprovação retroativa de OS legadas (2026-05-25, sessão da tarde):**
+
+Após o primeiro hotfix, o usuário ainda viu várias OS na grid com badge cinza "Pendente" e apenas 1 OS com botão "Aprovar OS". Investigação: a maioria das OS antigas tinha avançado no workflow operacional (`PRODUCAO`, `ACABAMENTO`, `AGUARDANDO_MATERIAL`, etc.) sem nunca ter passado pelo checkpoint formal de aprovação técnica, ficando com `aprovacao_tecnica_status = PENDENTE` eternamente. O filtro estreito `[FILA, AGUARDANDO_APROVACAO_TECNICA]` impedia o usuário de regularizar.
+
+**Decisão de produto:** permitir aprovação retroativa. Quando uma OS já avançou no operacional mas nunca foi aprovada tecnicamente, o aprovador pode registrar a decisão **sem retroceder o status operacional**. Mudanças:
+
+- `os.service.aprovarOSTecnica` e `aprovacao-tecnica.service.aprovarTecnica`:
+  - Trocaram lista de status PERMITIDOS por lista de status BLOQUEADOS — apenas `[FINALIZADA, CANCELADA, REJEITADA, APROVADA_TECNICA]` impedem aprovação. Qualquer outro status (incluindo intermediários do workflow comercial) aceita.
+  - Quando o status atual está no fluxo padrão (`AGUARDANDO_APROVACAO_TECNICA` ou `FILA`), aprovação avança para `APROVADA_TECNICA` normalmente.
+  - Quando o status atual é outro (aprovação retroativa), `aprovacao_tecnica_status` muda para `APROVADA` mas o `status` operacional é MANTIDO. Motivo de modificação inclui o sufixo "(retroativa)".
+  - Movimentação registra o status real anterior (não hardcoded `AGUARDANDO_APROVACAO_TECNICA`).
+- `columns.tsx` (`AprovacaoCell`): mostra o botão "Aprovar OS" para qualquer status não-bloqueado. Tooltip dinâmico avisa quando a aprovação é retroativa.
+- `AprovarOSModal.tsx`: nova prop `osStatus`. Quando recebe um status fora do fluxo padrão, exibe alerta visual azul "Aprovação retroativa - A OS está atualmente em XXXXX. A aprovação será registrada mas o status não será alterado." e altera o texto da `DialogDescription` para refletir o cenário. A `observacoes` enviada também é diferenciada com sufixo "(retroativa)" para auditoria.
+
+**Conjuntos sincronizados frontend/backend:**
+
+```text
+STATUS_BLOQUEIA_APROVACAO = { FINALIZADA, CANCELADA, REJEITADA, APROVADA_TECNICA }
+STATUS_FLUXO_PADRAO       = { AGUARDANDO_APROVACAO_TECNICA, FILA }
+```
+
+Se forem alterados, atualizar nos 4 lugares: `os.service.ts`, `aprovacao-tecnica.service.ts`, `columns.tsx`, `AprovarOSModal.tsx`.
 
 ### 4.5 Atualização de 2026-05-25 (sessão da tarde) — Fixes urgentes do "Fechar pedido"
 

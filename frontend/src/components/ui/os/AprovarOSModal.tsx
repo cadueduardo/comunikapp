@@ -27,10 +27,20 @@ import { apiRequest } from '@/lib/api';
 interface AprovarOSModalProps {
   osId: string | null;
   osNumero?: string | null;
+  // Status atual da OS - usado para sinalizar se a aprovacao sera retroativa
+  // (OS ja avancou no operacional sem passar pelo checkpoint).
+  osStatus?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAprovado?: () => void;
 }
+
+// Status do fluxo padrao - aprovacao avanca o workflow para APROVADA_TECNICA.
+// Qualquer outro status permitido vira aprovacao retroativa.
+const STATUS_FLUXO_PADRAO = new Set([
+  'AGUARDANDO_APROVACAO_TECNICA',
+  'FILA',
+]);
 
 // Espelho do payload retornado por GET /os/:id/aprovacao-tecnica/status
 interface ValidacoesAprovacao {
@@ -84,10 +94,14 @@ function CritItem({
 export function AprovarOSModal({
   osId,
   osNumero,
+  osStatus,
   open,
   onOpenChange,
   onAprovado,
 }: AprovarOSModalProps) {
+  const statusUpper = (osStatus || '').toUpperCase();
+  const eAprovacaoRetroativa =
+    !!statusUpper && !STATUS_FLUXO_PADRAO.has(statusUpper);
   const [carregando, setCarregando] = useState(false);
   const [aprovando, setAprovando] = useState(false);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
@@ -158,7 +172,9 @@ export function AprovarOSModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           aprovado: true,
-          observacoes: 'Aprovada via grid de OS',
+          observacoes: eAprovacaoRetroativa
+            ? 'Aprovada via grid de OS (retroativa)'
+            : 'Aprovada via grid de OS',
         }),
       });
 
@@ -200,12 +216,26 @@ export function AprovarOSModal({
             Aprovar OS{osNumero ? ` #${osNumero}` : ''}
           </DialogTitle>
           <DialogDescription>
-            Esta acao aprova tecnicamente a OS e libera o avanco para producao.
-            Confira os criterios abaixo antes de prosseguir.
+            {eAprovacaoRetroativa
+              ? 'Esta OS ja avancou no operacional. Aprovar agora registra a decisao retroativamente, sem alterar o status atual.'
+              : 'Esta acao aprova tecnicamente a OS e libera o avanco para producao. Confira os criterios abaixo antes de prosseguir.'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 py-2">
+          {eAprovacaoRetroativa && osStatus && (
+            <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 mt-0.5 text-blue-600" />
+              <div>
+                <p className="font-medium">Aprovacao retroativa</p>
+                <p className="text-xs mt-0.5">
+                  A OS esta atualmente em <strong>{osStatus}</strong>. A
+                  aprovacao sera registrada mas o status nao sera alterado.
+                </p>
+              </div>
+            </div>
+          )}
+
           {carregando && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />

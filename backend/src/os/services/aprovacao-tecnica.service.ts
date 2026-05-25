@@ -138,17 +138,23 @@ export class AprovacaoTecnicaService {
       throw new NotFoundException('Ordem de Serviço não encontrada');
     }
 
-    // Aceita aprovacao tecnica enquanto a OS nao entrou em producao.
-    // FILA tambem e aceito porque caminhos antigos de criacao (criarOSComercial)
-    // usam FILA como status inicial; o gating real e via aprovacao_tecnica_status.
-    const statusPermitidos = ['AGUARDANDO_APROVACAO_TECNICA', 'FILA'];
-    if (!statusPermitidos.includes(os.status)) {
+    // Aceita aprovacao tecnica em qualquer status NAO-terminal. Suporta tanto
+    // o fluxo padrao quanto regularizacao retroativa de OS legadas.
+    const statusBloqueados = [
+      'FINALIZADA',
+      'CANCELADA',
+      'REJEITADA',
+      'APROVADA_TECNICA',
+    ];
+    if (statusBloqueados.includes(os.status)) {
       throw new BadRequestException(
         `OS em status "${os.status}" nao pode receber aprovacao tecnica`,
       );
     }
 
-    const aprovacaoAtual = (os.aprovacao_tecnica_status || 'PENDENTE').toUpperCase();
+    const aprovacaoAtual = (
+      os.aprovacao_tecnica_status || 'PENDENTE'
+    ).toUpperCase();
     if (aprovacaoAtual !== 'PENDENTE') {
       throw new BadRequestException(
         `OS ja possui decisao de aprovacao tecnica: ${aprovacaoAtual}`,
@@ -184,8 +190,21 @@ export class AprovacaoTecnicaService {
       );
     }
 
-    // Atualizar OS com resultado da aprovação
-    const statusNovo = dto.aprovado ? 'APROVADA_TECNICA' : 'REJEITADA';
+    // Decidir novo status:
+    // - Fluxo padrao (FILA / AGUARDANDO_APROVACAO_TECNICA): aprovacao avanca
+    //   o status para APROVADA_TECNICA.
+    // - Fluxo retroativo (qualquer outro status): aprovacao apenas registra
+    //   a decisao mas MANTEM o status operacional atual.
+    // - Rejeicao sempre marca status como REJEITADA.
+    const statusFluxoPadrao = ['AGUARDANDO_APROVACAO_TECNICA', 'FILA'];
+    const eFluxoPadrao = statusFluxoPadrao.includes(os.status);
+
+    let statusNovo: string;
+    if (dto.aprovado) {
+      statusNovo = eFluxoPadrao ? 'APROVADA_TECNICA' : os.status;
+    } else {
+      statusNovo = 'REJEITADA';
+    }
 
     const osAtualizada = await this.prisma.ordemServico.update({
       where: { id: osId },

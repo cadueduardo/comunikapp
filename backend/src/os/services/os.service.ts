@@ -2230,24 +2230,32 @@ export class OSService {
         );
       }
 
-      // Aceita aprovacao tecnica quando a OS ainda nao entrou em producao.
-      // Inclui FILA porque caminhos antigos de criacao (criarOSComercial) usam
-      // FILA como status inicial, embora aprovacao_tecnica_status fique PENDENTE
-      // por default do schema. Sem esse fallback, OS legadas ou criadas por
-      // fluxo direto nunca conseguiriam ser aprovadas pelo grid.
-      const statusPermitidos: string[] = [
-        StatusOS.AGUARDANDO_APROVACAO_TECNICA,
-        StatusOS.FILA,
+      // Aceita aprovacao tecnica em qualquer status NAO-terminal. Os terminais
+      // (FINALIZADA, CANCELADA, REJEITADA) e os que ja representam decisao
+      // (APROVADA_TECNICA) bloqueiam. Isso suporta dois cenarios reais:
+      //   a) Fluxo padrao: OS recem-criada (FILA / AGUARDANDO_APROVACAO_TECNICA)
+      //      → aprovacao avanca o workflow para APROVADA_TECNICA.
+      //   b) Regularizacao: OS legada que avancou no operacional sem passar
+      //      pelo checkpoint formal (status = PRODUCAO/ACABAMENTO/etc. com
+      //      aprovacao_tecnica_status = PENDENTE). Aprovacao retroativa apenas
+      //      registra a decisao no campo de aprovacao SEM retroceder o status.
+      const statusBloqueados: string[] = [
+        StatusOS.FINALIZADA,
+        StatusOS.CANCELADA,
+        StatusOS.REJEITADA,
+        StatusOS.APROVADA_TECNICA,
       ];
-      if (!statusPermitidos.includes(os.status)) {
+      if (statusBloqueados.includes(os.status)) {
         throw new BadRequestException(
           `OS em status "${os.status}" nao pode receber aprovacao tecnica`,
         );
       }
 
-      // Bloqueia revalidacao quando ja existe decisao registrada,
-      // a menos que o aprovacao_tecnica_status ainda esteja PENDENTE/null.
-      const aprovacaoAtual = (os.aprovacao_tecnica_status || 'PENDENTE').toUpperCase();
+      // Bloqueia revalidacao quando ja existe decisao registrada no campo
+      // de aprovacao tecnica (independente do status operacional).
+      const aprovacaoAtual = (
+        os.aprovacao_tecnica_status || 'PENDENTE'
+      ).toUpperCase();
       if (aprovacaoAtual !== 'PENDENTE') {
         throw new BadRequestException(
           `OS ja possui decisao de aprovacao tecnica: ${aprovacaoAtual}`,
@@ -2281,9 +2289,32 @@ export class OSService {
       }
 
       const statusAprovacao = aprovado ? 'APROVADA' : 'REJEITADA';
-      const novoStatus = aprovado
-        ? StatusOS.APROVADA_TECNICA
-        : StatusOS.REJEITADA;
+
+      // Status que representam o ciclo padrao de aprovacao - nestes casos o
+      // status operacional AVANCA junto com a aprovacao. Em qualquer outro
+      // status (ex.: PRODUCAO, ACABAMENTO), aprovar e retroativo: registra a
+      // decisao mas MANTEM o status operacional atual para nao retroceder o
+      // workflow.
+      const statusFluxoPadrao: string[] = [
+        StatusOS.AGUARDANDO_APROVACAO_TECNICA,
+        StatusOS.FILA,
+      ];
+      const eFluxoPadrao = statusFluxoPadrao.includes(os.status);
+
+      let novoStatus: StatusOS;
+      if (aprovado) {
+        novoStatus = eFluxoPadrao
+          ? StatusOS.APROVADA_TECNICA
+          : (os.status as StatusOS); // retroativo: mantem status atual
+      } else {
+        novoStatus = StatusOS.REJEITADA; // rejeicao sempre marca status
+      }
+
+      const motivoModificacao = aprovado
+        ? eFluxoPadrao
+          ? 'Aprovação técnica aprovada'
+          : 'Aprovação técnica aprovada (retroativa)'
+        : 'Aprovação técnica rejeitada';
 
       const osAtualizada = await this.prisma.ordemServico.update({
         where: { id: osId },
@@ -2294,20 +2325,21 @@ export class OSService {
           aprovacao_tecnica_em: new Date(),
           aprovacao_tecnica_obs: observacoes,
           modificado_por: usuarioId,
-          motivo_modificacao: `Aprovação técnica ${statusAprovacao.toLowerCase()}`,
+          motivo_modificacao: motivoModificacao,
           versao: { increment: 1 },
         },
       });
 
-      // Registrar movimentacao com o status real anterior (pode ser FILA ou
-      // AGUARDANDO_APROVACAO_TECNICA dependendo do caminho de criacao da OS)
+      // Registrar movimentacao com o status real anterior (pode ser FILA,
+      // AGUARDANDO_APROVACAO_TECNICA ou qualquer status intermediario quando
+      // for aprovacao retroativa)
       await this.adicionarMovimentacao(
         osId,
         TipoMovimentacaoOS.APROVACAO_TECNICA,
         os.status as StatusOS,
         novoStatus,
         usuarioId,
-        observacoes || `Aprovação técnica ${statusAprovacao.toLowerCase()}`,
+        observacoes || motivoModificacao,
       );
 
       this.logger.log(
