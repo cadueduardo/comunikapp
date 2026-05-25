@@ -14,7 +14,10 @@ const nextConfig = {
         ignoreBuildErrors: true,
     },
     env: {
-        BACKEND_URL: process.env.BACKEND_URL || 'http://127.0.0.1:4001',
+        // Fallback alinhado com o backend em dev (backend/src/main.ts default = 4000).
+        // Em producao, BACKEND_URL e sempre definido via frontend/.env.production
+        // (apontando para 127.0.0.1:4001 ou para o dominio publico).
+        BACKEND_URL: process.env.BACKEND_URL || 'http://127.0.0.1:4000',
     },
     async rewrites() {
         return [
@@ -22,7 +25,7 @@ const nextConfig = {
                 source: '/api/:path*',
                 destination: process.env.BACKEND_URL
                     ? `${process.env.BACKEND_URL}/:path*`
-                    : 'http://127.0.0.1:4001/:path*',
+                    : 'http://127.0.0.1:4000/:path*',
             },
         ];
     },
@@ -34,6 +37,21 @@ const nextConfig = {
                 port: '',
                 pathname: '/**',
             },
+            // Em dev o backend serve uploads na porta 4000.
+            {
+                protocol: 'http',
+                hostname: '127.0.0.1',
+                port: '4000',
+                pathname: '/uploads/**',
+            },
+            {
+                protocol: 'http',
+                hostname: 'localhost',
+                port: '4000',
+                pathname: '/uploads/**',
+            },
+            // Mantemos 4001 tambem para nao quebrar producao local (PM2/Nginx)
+            // que segue a convencao do .env.production.example.
             {
                 protocol: 'http',
                 hostname: '127.0.0.1',
