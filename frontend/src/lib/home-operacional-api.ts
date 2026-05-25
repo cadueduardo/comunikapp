@@ -194,3 +194,66 @@ export async function fetchFluxo(opcoes?: {
   const r = await apiRequest(`/home-operacional/fluxo${qs}`, { method: 'GET' });
   return unwrap<FluxoResumo>(r);
 }
+
+// ====================================================================
+// Alertas operacionais (Fase 5)
+//
+// Mantenha sincronizado com:
+//   backend/src/home-operacional/interfaces/alerta.interface.ts
+// ====================================================================
+
+export type NivelAlerta = 'critico' | 'atencao' | 'informativo';
+
+export type OrigemAlerta =
+  | 'orcamentos'
+  | 'os'
+  | 'estoque'
+  | 'financeiro'
+  | 'pcp';
+
+export interface AcaoAlertaLink {
+  tipo: 'link';
+  label: string;
+  href: string;
+}
+
+export interface AcaoAlertaEndpoint {
+  tipo: 'endpoint';
+  label: string;
+  metodo: 'POST' | 'PATCH' | 'GET';
+  endpoint: string;
+}
+
+export type AcaoAlerta = AcaoAlertaLink | AcaoAlertaEndpoint;
+
+export interface Alerta {
+  id: string;
+  nivel: NivelAlerta;
+  titulo: string;
+  descricao?: string;
+  origem: OrigemAlerta;
+  criado_em: string;
+  acao?: AcaoAlerta;
+}
+
+export interface AlertasPorNivel {
+  critico: number;
+  atencao: number;
+  informativo: number;
+}
+
+export interface AlertasResumo {
+  total: number;
+  por_nivel: AlertasPorNivel;
+  alertas: Alerta[];
+}
+
+export async function fetchAlertas(opcoes?: {
+  refresh?: boolean;
+}): Promise<AlertasResumo> {
+  const qs = opcoes?.refresh ? '?refresh=1' : '';
+  const r = await apiRequest(`/home-operacional/alertas${qs}`, {
+    method: 'GET',
+  });
+  return unwrap<AlertasResumo>(r);
+}

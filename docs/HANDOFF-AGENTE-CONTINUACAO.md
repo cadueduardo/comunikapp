@@ -10,11 +10,13 @@
 
 ## 1. Estado atual em uma frase
 
-Em 2026-05-25, a **Fase 4 foi concluída**: o endpoint `GET /home-operacional/fluxo` agrega orçamentos V2 / OS em 5 colunas funcionais (`orcamentos`, `aprovados`, `revisao_tecnica`, `producao`, `prontos`) e devolve `a_receber` / `concluidos` em estado `aguardando_modulo` até a Fase 6. `HomeCacheService` cuida do TTL de 60s por `loja_id` e expõe `invalidar(...)` para os módulos downstream. Frontend tem `FluxoTrabalho` + `CardTrabalho` integrados em `/dashboard`.
+Em 2026-05-25 (sessão da tarde), a **Fase 5 foi concluída**: o endpoint `GET /home-operacional/alertas` agrega 6 detectores independentes em uma única resposta classificada por nível (`critico | atencao | informativo`) e o frontend exibe `AlertasOperacionais` no `/dashboard` logo após o `FluxoTrabalho`. O 7º alerta previsto (trabalho pronto sem recebimento há mais de N dias) depende da Fase 6 (módulo financeiro) e aparece hoje como nota discreta no rodapé do bloco.
+
+Antes disso, a **Fase 4 foi concluída**: o endpoint `GET /home-operacional/fluxo` agrega orçamentos V2 / OS em 5 colunas funcionais (`orcamentos`, `aprovados`, `revisao_tecnica`, `producao`, `prontos`) e devolve `a_receber` / `concluidos` em estado `aguardando_modulo` até a Fase 6. `HomeCacheService` cuida do TTL de 60s por `loja_id` e expõe `invalidar(...)` para os módulos downstream. Frontend tem `FluxoTrabalho` + `CardTrabalho` integrados em `/dashboard`.
 
 Também foi entregue a **UX de aprovação da OS direto no grid** (`/os`): nova coluna "Aprovação" com badge contextual (Aprovada / Rejeitada) ou botão "Aprovar OS" para `PENDENTE`; coluna "Ações" migrou para dropdown "..." (Visualizar / Editar / Imprimir / Excluir). O modal `AprovarOSModal` lista os critérios (`dados_completos`, `arte_anexada`, `estoque_ok`, `prazo_viavel`) e só bloqueia aprovação quando `dados_completos = false`. Arte ausente e estoque vão para `alertas` mas **não bloqueiam** — suportam OS recorrente que não passa pelo ciclo de arte.
 
-Próximo passo é **Fase 5 (Alertas operacionais)** — endpoint `GET /home-operacional/alertas` + componente `AlertasOperacionais`. Em paralelo, é hora de validar pela UI (1) o fluxo "Aprovar e gerar OS" introduzido na Fase 3, (2) a Home com a nova Fase 4 e (3) a nova UX de aprovação no grid de OS.
+Próximo passo é **Fase 6 (Financeiro mínimo)** — campos de condição de pagamento no orçamento + previsão de recebimento + bloco `ResumoFinanceiroSimples` na Home. A Fase 6 está pré-quebrada em sub-fases 6.A a 6.E no plano-mãe; o desbloqueio dela libera também (1) as colunas `a_receber` e `concluidos` do fluxo de trabalho e (2) o 7º alerta operacional.
 
 ---
 
@@ -411,6 +413,64 @@ STATUS_FLUXO_PADRAO       = { AGUARDANDO_APROVACAO_TECNICA, FILA }
 ```
 
 Se forem alterados, atualizar nos 4 lugares: `os.service.ts`, `aprovacao-tecnica.service.ts`, `columns.tsx`, `AprovarOSModal.tsx`.
+
+### 4.9 Fase 5 concluída — Alertas operacionais (2026-05-25, sessão da tarde 2)
+
+**Escopo entregue:** `GET /home-operacional/alertas` + componente `AlertasOperacionais` no `/dashboard`. Reutiliza o `HomeCacheService` (TTL de 60s, bypass via `?refresh=1`). Resposta segue contrato da Fase 0 (`docs/fase-0-home-operacional/02-contratos-home-operacional.md` seção 6).
+
+**6 detectores implementados** (cada um isolado em try/catch — uma falha não derruba os outros). Limiares hardcoded conforme decisão de produto desta sessão:
+
+| Detector                              | Nível    | Origem      | Regra                                                                                       |
+| ------------------------------------- | -------- | ----------- | ------------------------------------------------------------------------------------------- |
+| `orcamento_parado_<id>`               | atencao  | orcamentos  | `orcamento.status ∈ {rascunho, em_analise}` AND `atualizado_em < hoje - 5 dias`             |
+| `orcamento_aprovado_sem_os_<id>`      | atencao  | orcamentos  | `orcamento.status = 'aprovado'` AND `atualizado_em < hoje - 1 dia` AND não tem OS vinculada |
+| `os_aguardando_aprovacao_tecnica_<id>`| atencao  | os          | `aprovacao_tecnica_status = 'PENDENTE'` AND `status ∉ STATUS_OS_IGNORAR_APROVACAO`          |
+| `os_liberada_sem_workflow_<id>`       | critico  | pcp         | `status ∈ STATUS_OS_LIBERADA` AND `workflow_instancia IS NULL`                              |
+| `estoque_abaixo_minimo_<id>`          | atencao  | estoque     | `insumo.ativo` AND `estoque_minimo > 0` AND `estoque_atual < estoque_minimo` (filtro em mem.) |
+| `os_sem_materiais_<id>`               | critico  | estoque     | `status ∈ STATUS_OS_LIBERADA` AND `materiais_disponivel = false`                            |
+
+**Conjuntos sincronizados em `backend/src/home-operacional/services/alertas-operacionais.service.ts`:**
+
+```text
+STATUS_OS_IGNORAR_APROVACAO = { FINALIZADA, CANCELADA, REJEITADA, APROVADA_TECNICA }
+STATUS_OS_LIBERADA          = { APROVADA_TECNICA, LIBERADA_PARA_PCP, PRODUCAO, ACABAMENTO, AGUARDANDO_MATERIAL }
+```
+
+Cada detector limita o resultado entre 20 e 30 registros para a UI não inflar. A ordenação final é `critico > atencao > informativo`, e dentro do mesmo nível, mais recentes primeiro.
+
+**Arquivos criados:**
+
+- Backend: `interfaces/alerta.interface.ts`, `services/alertas-operacionais.service.ts` + integração no controller + módulo.
+- Frontend: `lib/home-operacional-api.ts` (tipos `Alerta`, `AlertasResumo`, `fetchAlertas`), `hooks/use-home-operacional.ts` (`useAlertasOperacionais`), `components/home-operacional/AlertaCard.tsx`, `components/home-operacional/AlertasOperacionais.tsx`, integração em `app/(main)/dashboard/page.tsx`.
+
+**Hierarquia visual no card:**
+
+- `critico`: borda + fundo vermelhos suaves (`border-red-300 bg-red-50/70`), ícone `AlertCircle` vermelho, chip "Crítico" `bg-red-100`.
+- `atencao`: borda + fundo âmbar suaves (`border-amber-300 bg-amber-50/70`), ícone `AlertTriangle` âmbar, chip "Atenção" `bg-amber-100`.
+- `informativo`: borda neutra (`border-zinc-200 bg-zinc-50/70`), ícone `Info`, chip "Informativo" `bg-zinc-100`.
+
+**Pendência conhecida (não-bloqueante):**
+
+- O 7º alerta previsto pelo plano-mãe — `trabalho_pronto_sem_recebimento` — depende da Fase 6 (módulo financeiro / cobranças). Aparece hoje como nota discreta no rodapé do bloco no `/dashboard` ("O alerta 'trabalho pronto sem recebimento' será habilitado quando o módulo financeiro (Fase 6) for liberado.").
+
+**Como invalidar o cache em outros módulos** (quando ações relevantes acontecem):
+
+```ts
+import { HomeCacheService } from '../home-operacional/services/home-cache.service';
+// ...
+constructor(private readonly homeCacheService: HomeCacheService) {}
+
+// Em ações que alteram orçamentos, OS, estoque etc:
+this.homeCacheService.invalidar(`alertas:${lojaId}`);
+this.homeCacheService.invalidar(`fluxo:${lojaId}`);
+```
+
+**Critérios de aceite cumpridos:**
+
+- Endpoint mapeado pelo Nest no startup (`Mapped {/home-operacional/alertas, GET}` no log).
+- Front consome via `useAlertasOperacionais` com loading skeleton, erro com retry e refresh manual (`?refresh=1`).
+- Ordenação por nível conforme contrato (vem ordenado do back).
+- Estado vazio mostra mensagem amigável em vez de esconder o bloco (decisão UX desta sessão — divergente do plano-mãe que dizia "esconder se vazio"; mantemos o bloco visível para o usuário saber que o sistema está monitorando, em vez de parecer que algo quebrou).
 
 ### 4.5 Atualização de 2026-05-25 (sessão da tarde) — Fixes urgentes do "Fechar pedido"
 

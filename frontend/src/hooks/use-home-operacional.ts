@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
+  AlertasResumo,
   BannerMensagem,
   FluxoResumo,
   OnboardingResumo,
+  fetchAlertas,
   fetchBannerEstado,
   fetchFluxo,
   fetchOnboarding,
@@ -149,4 +151,50 @@ export function useFluxoTrabalho(): UseFluxoTrabalhoResult {
   }, [recarregar]);
 
   return { fluxo, loading, erro, recarregar };
+}
+
+// ====================================================================
+// Alertas operacionais (Fase 5)
+// ====================================================================
+
+interface UseAlertasOperacionaisResult {
+  resumo: AlertasResumo | null;
+  loading: boolean;
+  erro: string | null;
+  /**
+   * Recarrega os alertas. Por default reutiliza o cache de 60s do
+   * backend. Use `recarregar({ forcar: true })` para enviar
+   * `?refresh=1` e recomputar do zero (ex.: depois que o usuario tomou
+   * uma acao em outro modulo).
+   */
+  recarregar: (opcoes?: { forcar?: boolean }) => Promise<void>;
+}
+
+export function useAlertasOperacionais(): UseAlertasOperacionaisResult {
+  const [resumo, setResumo] = useState<AlertasResumo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const recarregar = useCallback(async (opcoes?: { forcar?: boolean }) => {
+    setLoading(true);
+    setErro(null);
+    try {
+      const data = await fetchAlertas({ refresh: opcoes?.forcar === true });
+      setResumo(data);
+    } catch (e) {
+      setErro(
+        e instanceof Error
+          ? e.message
+          : 'Falha ao carregar alertas operacionais',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void recarregar();
+  }, [recarregar]);
+
+  return { resumo, loading, erro, recarregar };
 }

@@ -1,6 +1,6 @@
 # Plano de Ação: Home, Onboarding e Evolução Operacional
 
-> **Status atual (atualizado em 2026-05-25):** Fases 0, 1, 2, 3 e 4 concluídas. Próximo passo é a Fase 5 (Alertas operacionais) — endpoint `GET /home-operacional/alertas` + componente `AlertasOperacionais`. As colunas `a_receber` e `concluidos` do fluxo continuam em `aguardando_modulo` até a Fase 6 (financeiro). Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF antes de continuar.**
+> **Status atual (atualizado em 2026-05-25, sessão da tarde 2):** Fases 0, 1, 2, 3, 4 e 5 concluídas. Próximo passo é a Fase 6 (Financeiro mínimo) — campos de condição de pagamento no orçamento, previsão de recebimento, bloco `ResumoFinanceiroSimples` na Home e eventos automáticos pelo avanço do trabalho. O desbloqueio da Fase 6 libera também as colunas `a_receber` / `concluidos` do fluxo (Fase 4) e o 7º alerta operacional (`trabalho_pronto_sem_recebimento`). Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF antes de continuar.**
 
 ## Critério de sucesso
 
@@ -923,22 +923,24 @@ Critérios de aceite:
 - Não há drag and drop entre colunas. **[OK por design.]**
 - O endpoint responde em tempo aceitável mesmo em lojas com muitos registros. **[A medir em lojas reais; cache de 60s atenua picos.]**
 
-### Fase 5: alertas operacionais
+### Fase 5: alertas operacionais [CONCLUÍDA]
 
 Objetivo: mostrar pendências e evitar que o usuário precise procurar problemas.
 
 Entregáveis:
 
-1. Criar endpoint `GET /home-operacional/alertas` retornando alertas classificados por `nivel`.
-2. Implementar alertas iniciais (lista da seção "Bloco 3").
-3. Criar componente `AlertasOperacionais` com hierarquia visual por nível.
+1. Criar endpoint `GET /home-operacional/alertas` retornando alertas classificados por `nivel`. **[CONCLUÍDO]**
+2. Implementar alertas iniciais (lista da seção "Bloco 3"). **[6 de 7 alertas implementados; o 7º (`trabalho_pronto_sem_recebimento`) depende da Fase 6]**
+3. Criar componente `AlertasOperacionais` com hierarquia visual por nível. **[CONCLUÍDO]**
 
 Critérios de aceite:
 
-- Alertas aparecem com dados reais.
-- Cada alerta tem ação clara.
-- Alertas sem dados não ocupam espaço inútil.
-- Alertas críticos vêm primeiro e têm tratamento visual diferenciado.
+- Alertas aparecem com dados reais. **[OK — 6 detectores agregados]**
+- Cada alerta tem ação clara. **[OK — sempre um link "Abrir <recurso>" no card]**
+- Alertas sem dados não ocupam espaço inútil. **[Divergência aprovada: o bloco permanece visível com mensagem "Tudo em ordem" em vez de sumir, para o usuário saber que o sistema está monitorando]**
+- Alertas críticos vêm primeiro e têm tratamento visual diferenciado. **[OK — ordenação e temas distintos por nível]**
+
+Detalhes operacionais em `docs/HANDOFF-AGENTE-CONTINUACAO.md` seção 4.9.
 
 ### Fase 6: financeiro mínimo
 

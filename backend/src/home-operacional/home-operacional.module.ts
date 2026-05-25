@@ -7,6 +7,7 @@ import { ConfiguracaoRecomendadaService } from './services/configuracao-recomend
 import { SystemStateService } from './services/system-state.service';
 import { FluxoTrabalhoService } from './services/fluxo-trabalho.service';
 import { HomeCacheService } from './services/home-cache.service';
+import { AlertasOperacionaisService } from './services/alertas-operacionais.service';
 
 /**
  * Modulo da Home operacional.
@@ -14,9 +15,11 @@ import { HomeCacheService } from './services/home-cache.service';
  * - Fase 1: onboarding + configuracao recomendada + banner de estado.
  * - Fase 4: agregador de fluxo (`GET /home-operacional/fluxo`) com
  *   `FluxoTrabalhoService` + `HomeCacheService`.
- * - Fase 5: `GET /home-operacional/alertas` (pendente).
+ * - Fase 5: alertas operacionais (`GET /home-operacional/alertas`) com
+ *   `AlertasOperacionaisService` reutilizando o `HomeCacheService`.
  * - Fase 6: integracao com Cobranca para reabrir as colunas `a_receber`
- *   e `concluidos` do fluxo.
+ *   e `concluidos` do fluxo e habilitar o alerta de "trabalho pronto sem
+ *   recebimento" (placeholder no front por enquanto).
  *
  * `HomeCacheService` e `OnboardingService` sao exportados para que
  * outros modulos possam invalidar o cache ou ler o estado de onboarding
@@ -31,6 +34,7 @@ import { HomeCacheService } from './services/home-cache.service';
     SystemStateService,
     FluxoTrabalhoService,
     HomeCacheService,
+    AlertasOperacionaisService,
   ],
   exports: [OnboardingService, HomeCacheService],
 })

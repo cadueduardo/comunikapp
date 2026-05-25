@@ -15,9 +15,11 @@ import { ConfiguracaoRecomendadaService } from './services/configuracao-recomend
 import { SystemStateService } from './services/system-state.service';
 import { FluxoTrabalhoService } from './services/fluxo-trabalho.service';
 import { HomeCacheService } from './services/home-cache.service';
+import { AlertasOperacionaisService } from './services/alertas-operacionais.service';
 import { AtualizarOnboardingStepDto } from './dto/atualizar-onboarding-step.dto';
 import { AplicarConfiguracaoRecomendadaDto } from './dto/aplicar-configuracao-recomendada.dto';
 import { FluxoResponseData } from './interfaces/fluxo.interface';
+import { AlertasResponseData } from './interfaces/alerta.interface';
 
 /**
  * Controlador da Home operacional. Endpoints documentados em
@@ -36,6 +38,7 @@ export class HomeOperacionalController {
     private readonly systemStateService: SystemStateService,
     private readonly fluxoTrabalhoService: FluxoTrabalhoService,
     private readonly homeCacheService: HomeCacheService,
+    private readonly alertasOperacionaisService: AlertasOperacionaisService,
   ) {}
 
   @Get('onboarding')
@@ -97,6 +100,36 @@ export class HomeOperacionalController {
     }
 
     const data = await this.fluxoTrabalhoService.montarFluxo(lojaId);
+    this.homeCacheService.gravar(chave, data);
+    return this.envelope(data, { cache_hit: false });
+  }
+
+  /**
+   * GET /home-operacional/alertas
+   *
+   * Lista de alertas operacionais ordenados por nivel (critico > atencao >
+   * informativo). Contrato em
+   * docs/fase-0-home-operacional/02-contratos-home-operacional.md secao 6.
+   *
+   * Cache: 60s por `loja_id`. Use `?refresh=1` para forcar recomputacao.
+   */
+  @Get('alertas')
+  async alertas(
+    @CurrentLojaId() lojaId: string,
+    @Query('refresh') refresh?: string,
+  ) {
+    const chave = `alertas:${lojaId}`;
+    const bypass = refresh === '1' || refresh === 'true';
+
+    const cached = this.homeCacheService.obter<AlertasResponseData>(
+      chave,
+      bypass,
+    );
+    if (cached) {
+      return this.envelope(cached, { cache_hit: true });
+    }
+
+    const data = await this.alertasOperacionaisService.listar(lojaId);
     this.homeCacheService.gravar(chave, data);
     return this.envelope(data, { cache_hit: false });
   }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useUser } from '@/contexts/UserContext';
+import { AlertasOperacionais } from '@/components/home-operacional/AlertasOperacionais';
 import { FluxoTrabalho } from '@/components/home-operacional/FluxoTrabalho';
 import { OnboardingChecklist } from '@/components/home-operacional/OnboardingChecklist';
 import { SystemStateBanner } from '@/components/home-operacional/SystemStateBanner';
@@ -27,8 +28,9 @@ export default function DashboardPage() {
 
       <FluxoTrabalho />
 
-      {/* Próximas seções (Fase 5 e 6):
-         - AlertasOperacionais
+      <AlertasOperacionais />
+
+      {/* Próxima seção (Fase 6):
          - ResumoFinanceiroSimples (sensível a permissão) */}
     </div>
   );
