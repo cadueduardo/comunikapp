@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { buildApiUrl } from '@/lib/config';
+
+// Em route handlers do Next.js (server-side) precisamos da URL absoluta do
+// backend. `buildApiUrl('')` resolvia para "/api" (relativo) e quebrava o
+// fetch com ERR_INVALID_URL. Aqui seguimos o padrao usado pelas demais
+// rotas: ler `process.env.BACKEND_URL` e cair em http://localhost:4000.
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:4000';
 
 // GET /api/os - Listar todas as OS
 export async function GET(request: NextRequest) {
@@ -17,7 +22,7 @@ export async function GET(request: NextRequest) {
     const responsavel = searchParams.get('responsavel');
 
     // Construir URL com parametros
-    let url = `${buildApiUrl('')}/os?page=${page}&limit=${limit}`;
+    let url = `${BACKEND_URL}/os?page=${page}&limit=${limit}`;
     if (status) url += `&status=${status}`;
     if (responsavel) url += `&responsavel=${responsavel}`;
 
@@ -62,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const url = `${buildApiUrl('')}/os`;
+    const url = `${BACKEND_URL}/os`;
 
     const response = await fetch(url, {
       method: 'POST',
