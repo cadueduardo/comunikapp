@@ -22,21 +22,17 @@ import { useUser } from '@/contexts/UserContext';
  * - So renderiza quando o usuario tem permissao
  *   `home-operacional.ver_resumo_financeiro`.
  * - Enquanto o sistema de perfis nao esta populado (ver TODO no backend),
- *   usamos como proxy `usuario.funcao` IN [ADMIN, MASTER, GESTOR] para
- *   habilitar a visualizacao. Perfis OPERADOR/COMERCIAL nao veem.
+ *   usamos como proxy `usuario.funcao` alinhado ao enum oficial
+ *   `usuario_funcao` em backend/prisma/schema.prisma:
+ *     { ADMINISTRADOR, FINANCEIRO, PRODUCAO, VENDAS, ESTOQUE }
+ *   Hoje apenas ADMINISTRADOR e FINANCEIRO veem o bloco.
  *
  * Cada indicador e clicavel quando faz sentido (decisao do produto: cada
  * indicador leva a listagem ou tela correspondente).
  *
  * Indicadores com valor `null` sao OCULTADOS (regra: nao inventar projecao).
  */
-const FUNCOES_COM_VISAO_FINANCEIRA = new Set([
-  'ADMIN',
-  'MASTER',
-  'GESTOR',
-  'FINANCEIRO',
-  'DONO',
-]);
+const FUNCOES_COM_VISAO_FINANCEIRA = new Set(['ADMINISTRADOR', 'FINANCEIRO']);
 
 export function ResumoFinanceiroSimples() {
   const { user } = useUser();

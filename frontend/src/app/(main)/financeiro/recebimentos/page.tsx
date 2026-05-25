@@ -58,13 +58,10 @@ import { CancelarCobrancaDialog } from '@/components/financeiro/CancelarCobranca
 // Helpers
 // ============================================================================
 
-const FUNCOES_COM_VISAO_FINANCEIRA = new Set([
-  'ADMIN',
-  'MASTER',
-  'GESTOR',
-  'FINANCEIRO',
-  'DONO',
-]);
+// Alinhado ao enum oficial `usuario_funcao` em backend/prisma/schema.prisma:
+//   { ADMINISTRADOR, FINANCEIRO, PRODUCAO, VENDAS, ESTOQUE }
+// Hoje apenas ADMINISTRADOR e FINANCEIRO acessam a auditoria.
+const FUNCOES_COM_VISAO_FINANCEIRA = new Set(['ADMINISTRADOR', 'FINANCEIRO']);
 
 const STATUS_OPCOES: { value: string; label: string }[] = [
   { value: 'PREVISTA', label: 'Em prospeccao' },

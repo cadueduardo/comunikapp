@@ -192,14 +192,15 @@ export default function DashboardLayout({
   // Funcoes que enxergam o modulo financeiro na sidebar.
   // Coerente com a regra usada na pagina /financeiro/recebimentos e no
   // bloco ResumoFinanceiroSimples (Fase 6).
-  // TODO Fase 6 follow-up: trocar por leitura real de perfil_permissao.
-  const funcoesComVisaoFinanceira = new Set([
-    'ADMIN',
-    'MASTER',
-    'GESTOR',
-    'FINANCEIRO',
-    'DONO',
-  ]);
+  //
+  // Alinhado ao enum oficial `usuario_funcao` em backend/prisma/schema.prisma:
+  //   { ADMINISTRADOR, FINANCEIRO, PRODUCAO, VENDAS, ESTOQUE }
+  // Hoje apenas ADMINISTRADOR e FINANCEIRO veem o bloco. Demais funcoes
+  // ficam ocultas por design ("Permissao visivel").
+  //
+  // TODO Fase 6 follow-up: trocar por leitura real de perfil_permissao
+  // (permissao `home-operacional.ver_resumo_financeiro`).
+  const funcoesComVisaoFinanceira = new Set(['ADMINISTRADOR', 'FINANCEIRO']);
   const podeVerFinanceiro = funcoesComVisaoFinanceira.has(
     String(user?.funcao ?? '').toUpperCase(),
   );
