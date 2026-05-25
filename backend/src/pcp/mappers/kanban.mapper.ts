@@ -9,7 +9,11 @@ export class KanbanMapper {
    * Mapeia dados brutos do Prisma para formato do kanban
    */
   static mapearOSParaKanban(os: any): OSCardKanban {
-    const workflowAtivo = os.workflow_instancia?.[0];
+    // schema.prisma define OrdemServico.workflow_instancia como WorkflowInstancia?
+    // (relação 1-para-1 opcional). O include do Prisma devolve OBJETO ou null,
+    // nunca array. O código antigo tratava como array (?.[0]) e quebrava
+    // silenciosamente o progresso/setor/operador dos cards.
+    const workflowAtivo = os.workflow_instancia ?? null;
     const etapaAtual = workflowAtivo?.etapas?.[0];
 
     return {
@@ -101,15 +105,19 @@ export class KanbanMapper {
   static calcularEstatisticas(cards: OSCardKanban[]): KanbanStats {
     const hoje = new Date();
 
+    // Os cards aqui já passaram por `mapearStatusOS` e portanto carregam o
+    // bucket de coluna (FILA | PRODUCAO | CONCLUIDA | REJEITADA), e não o
+    // status técnico da OrdemServico. Manter os contadores alinhados a esses
+    // buckets evita que os totais fiquem permanentemente zerados na UI.
     const stats: KanbanStats = {
       total: cards.length,
-      fila: cards.filter((c) => c.status === 'LIBERADA_PARA_PCP').length,
-      producao: cards.filter((c) => c.status === 'EM_WORKFLOW').length,
-      concluida: cards.filter((c) => c.status === 'FINALIZADA').length,
+      fila: cards.filter((c) => c.status === 'FILA').length,
+      producao: cards.filter((c) => c.status === 'PRODUCAO').length,
+      concluida: cards.filter((c) => c.status === 'CONCLUIDA').length,
       rejeitada: cards.filter((c) => c.status === 'REJEITADA').length,
       atrasadas: cards.filter((c) => {
         if (!c.data_prazo) return false;
-        return new Date(c.data_prazo) < hoje && c.status !== 'FINALIZADA';
+        return new Date(c.data_prazo) < hoje && c.status !== 'CONCLUIDA';
       }).length,
       criticas: cards.filter((c) => c.prioridade === 'CRITICA').length,
       por_setor: {},
@@ -213,35 +221,42 @@ export class KanbanMapper {
   }
 
   /**
-   * Mapeia status da OS para status do kanban
+   * Mapeia o status técnico da OS (`OrdemServico.status`) para o bucket de
+   * coluna esperado pelo KanbanBoard do frontend (FILA | PRODUCAO | CONCLUIDA |
+   * REJEITADA). O componente `frontend/src/components/ui/kanban-board.tsx`
+   * agrupa cards via igualdade estrita (`card.status === column.status`); sem
+   * esse mapeamento, todos os cards caem em buckets inexistentes e o board
+   * fica vazio mesmo quando há OS para mostrar.
    */
   private static mapearStatusOS(statusOS: string): string {
     const mapeamento: Record<string, string> = {
-      LIBERADA_PARA_PCP: 'LIBERADA_PARA_PCP',
-      EM_WORKFLOW: 'EM_WORKFLOW',
-      FINALIZADA: 'FINALIZADA',
+      LIBERADA_PARA_PCP: 'FILA',
+      AGUARDANDO_MATERIAL: 'FILA',
+      EM_WORKFLOW: 'PRODUCAO',
+      PRODUCAO: 'PRODUCAO',
+      ACABAMENTO: 'PRODUCAO',
+      FINALIZADA: 'CONCLUIDA',
       REJEITADA: 'REJEITADA',
-      CANCELADA: 'CANCELADA',
+      CANCELADA: 'REJEITADA',
     };
 
-    return mapeamento[statusOS] || 'LIBERADA_PARA_PCP';
+    return mapeamento[statusOS] || 'FILA';
   }
 
   /**
    * Calcula progresso da OS
    */
   private static calcularProgresso(os: any): number {
-    if (!os.workflow_instancia?.[0]?.etapas) return 0;
+    // Mesma correção do bug 1-para-1 do mapearOSParaKanban.
+    const etapas = os.workflow_instancia?.etapas;
+    if (!Array.isArray(etapas) || etapas.length === 0) return 0;
 
-    const etapas = os.workflow_instancia[0].etapas;
     const totalEtapas = etapas.length;
     const etapasConcluidas = etapas.filter(
       (etapa: any) => etapa.status === 'CONCLUIDA',
     ).length;
 
-    return totalEtapas > 0
-      ? Math.round((etapasConcluidas / totalEtapas) * 100)
-      : 0;
+    return Math.round((etapasConcluidas / totalEtapas) * 100);
   }
 
   /**

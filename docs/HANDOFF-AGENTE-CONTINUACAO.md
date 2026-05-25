@@ -976,5 +976,59 @@ Não delete este arquivo. Ele é a memória viva do projeto entre sessões.
 
 ---
 
-**Última atualização:** 2026-05-24 (handoff revisado com decisões de produto da Sub-fase 2.F: `unidade_geometria` separado, default histórico `mm` sem backfill, `SimuladorPrecificacao` como modal + página standalone, mapeamento confirmado de `ProdutoSection.tsx` e `MaquinaSection.tsx`).
+### 4.10 Fix do Kanban PCP — aprovação técnica passa a liberar para o PCP (2026-05-25)
+
+**Contexto:** Após as Fases 4–5 e a UX de aprovação no grid `/os` (4.8), foi descoberto que **OS aprovadas tecnicamente nunca apareciam no Kanban PCP**. Investigação revelou 4 bugs simultâneos:
+
+1. **Filtro do `PCPKanbanService.obterKanbanGeral`** era restrito a `[LIBERADA_PARA_PCP, EM_WORKFLOW, FINALIZADA]`, enquanto a aprovação técnica deixava a OS em `APROVADA_TECNICA`.
+2. **Não havia trigger automático** que criasse `WorkflowInstancia` na aprovação técnica.
+3. **`KanbanMapper.mapearOSParaKanban` tratava `workflow_instancia` como array** (`?.[0]`), mas o schema declara relação 1-para-1 opcional. Consequência: setor, operador e progresso dos cards sempre vazios.
+4. **`KanbanMapper.mapearStatusOS` devolvia status técnicos** (`LIBERADA_PARA_PCP`, `EM_WORKFLOW`, `FINALIZADA`) que não batiam com os buckets esperados pelo `KanbanBoard` do frontend (`FILA`, `PRODUCAO`, `CONCLUIDA`). Resultado: mesmo a OS chegando no kanban, ela caía em buckets inexistentes e não renderizava.
+
+**Decisão de produto (aplicada nesta sessão):**
+
+A aprovação técnica passa a **promover a OS direto para `LIBERADA_PARA_PCP`** no fluxo padrão (quando a OS estava em `AGUARDANDO_APROVACAO_TECNICA` ou `FILA`). O status `APROVADA_TECNICA` deixa de ser estado de repouso porque a etapa seguinte (liberar para PCP) era sempre manual e ninguém fazia, deixando a OS invisível ao kanban. **Aprovação técnica = liberação para PCP**.
+
+**Mudanças backend (4 arquivos):**
+
+- `backend/src/pcp/services/pcp-kanban.service.ts`:
+  - `obterKanbanGeral`: filtro ampliado para `aprovacao_tecnica_status = 'APROVADA'` + `status ∈ {LIBERADA_PARA_PCP, EM_WORKFLOW, PRODUCAO, ACABAMENTO, AGUARDANDO_MATERIAL, FINALIZADA}`. Espelha o set já usado por `FluxoTrabalhoService.montarColunaProducao`, `kpi-dashboard.service` e `alertas-operacionais.service`.
+- `backend/src/pcp/mappers/kanban.mapper.ts`:
+  - `mapearOSParaKanban` e `calcularProgresso`: trocaram `os.workflow_instancia?.[0]` por `os.workflow_instancia` (relação 1-para-1 opcional).
+  - `mapearStatusOS`: agora mapeia para `FILA | PRODUCAO | CONCLUIDA | REJEITADA` (buckets do `KanbanBoard`). Tabela:
+    - `LIBERADA_PARA_PCP`, `AGUARDANDO_MATERIAL` → `FILA`
+    - `EM_WORKFLOW`, `PRODUCAO`, `ACABAMENTO` → `PRODUCAO`
+    - `FINALIZADA` → `CONCLUIDA`
+    - `REJEITADA`, `CANCELADA` → `REJEITADA`
+  - `calcularEstatisticas`: contadores ajustados para os novos buckets (antes contavam status técnicos que nunca apareciam após o mapeamento).
+- `backend/src/os/services/os.service.ts`:
+  - `aprovarOSTecnica`: no fluxo padrão, status novo passa a ser `LIBERADA_PARA_PCP` (era `APROVADA_TECNICA`). Motivo da modificação reflete o novo significado: "Aprovação técnica aprovada e OS liberada para PCP". Fluxo retroativo continua mantendo o status atual (sem alteração).
+  - Novo helper público `promoverAprovacaoParaPCP(osId, lojaId, usuarioId)`: libera itens `PENDENTE` para `LIBERADO`, dispara `notificarOSLiberadaParaPCP`, tenta `workflowAssignmentService.atribuirWorkflow`. Cada passo em try/catch warn — falhas não revertem a aprovação. Reaproveitado pelo `AprovacaoTecnicaService` para evitar duplicação.
+- `backend/src/os/services/aprovacao-tecnica.service.ts`:
+  - `aprovarTecnica`: mesma promoção (`LIBERADA_PARA_PCP` no fluxo padrão) + chama `osService.promoverAprovacaoParaPCP`. `OSService` injetado via `forwardRef` para evitar ciclo de inicialização dentro do mesmo módulo.
+  - `agendarInstalacao`: gating ampliado de `status === 'APROVADA_TECNICA'` para `status ∈ {APROVADA_TECNICA, LIBERADA_PARA_PCP, EM_WORKFLOW, PRODUCAO, ACABAMENTO, AGUARDANDO_MATERIAL}` AND `aprovacao_tecnica_status = 'APROVADA'`. APROVADA_TECNICA continua aceito para não quebrar OS legadas.
+
+**Mudanças frontend (1 arquivo):**
+
+- `frontend/src/components/ui/os/OSWorkflowActions.tsx`:
+  - Novos cases para `LIBERADA_PARA_PCP` e `EM_WORKFLOW`: mensagem informativa + botão "Abrir Kanban PCP" (link para `/pcp/kanban`). Sem botões de transição direta — a partir daqui a operação é via Kanban.
+  - `statusComAcoes` ampliado para incluir os dois novos estados.
+
+**Comportamento esperado pós-mudança:**
+
+| Antes | Depois |
+| --- | --- |
+| Usuário aprova OS → status fica `APROVADA_TECNICA` → OS não aparece no kanban | Usuário aprova OS → status vira `LIBERADA_PARA_PCP` (ou `EM_WORKFLOW` se houver categoria inteligente) → OS aparece imediatamente no kanban na coluna correta |
+| Itens da OS ficam `status_liberacao_pcp = PENDENTE` (precisa liberar item por item) | Itens em `PENDENTE` viram `LIBERADO` automaticamente (decisão consolidada na aprovação) |
+| `OSWorkflowActions.tsx` mostra botão "Iniciar Produção" → muda status sem passar pelo PCP | `OSWorkflowActions.tsx` mostra link para `/pcp/kanban` quando OS já está no PCP |
+
+**Pontos de atenção / dívida técnica:**
+
+- Se a OS já tinha sido vinculada a uma `WorkflowInstancia` manualmente antes da aprovação (caso raro), o `atribuirWorkflow` detecta a instância existente e adiciona itens novos no mesmo workflow — não duplica.
+- Se não houver `WorkflowCategoria` cadastrada na loja, a OS fica em `LIBERADA_PARA_PCP` sem `WorkflowInstancia`. O kanban ainda mostra (filtro aceita esse status) mas o usuário precisa vincular workflow manualmente pelo modal "Vincular workflow" do PCP.
+- O fluxo `LiberacaoPCPController.liberarParaPCP` continua existindo — agora é redundante para o caso padrão, mas continua sendo o canal para forçar workflow específico ou re-liberar OS legadas.
+- Documentação canônica em `docs/fase-0-home-operacional/01-status-oficiais.md` ainda lista `APROVADA_TECNICA` como estado intermediário. Manter o documento, mas o fluxo real agora pula esse estado — atualizar quando for revisar os status oficiais (provavelmente junto com a Fase 6).
+- Testes unitários existentes (`os-direta-interna.service.spec.ts`) usam `expect.objectContaining` apenas para `aprovacao_tecnica_status`, então continuam passando. Não foram adicionados testes novos para o helper `promoverAprovacaoParaPCP` — fica como TODO se a equipe quiser cobertura.
+
+**Última atualização:** 2026-05-25 (sessão final do dia: aprovação técnica passou a promover OS direto para LIBERADA_PARA_PCP + 4 bugs do Kanban PCP corrigidos).
 Branch `feature/home-operacional-dashboard`.

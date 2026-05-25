@@ -3,6 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -11,12 +13,17 @@ import {
   AprovacaoTecnicaResponseDto,
 } from '../dto/aprovacao-tecnica.dto';
 import { ValidacaoEstoqueService } from '../../orcamentos-v2/services/validacao-estoque.service';
+import { OSService } from './os.service';
 
 @Injectable()
 export class AprovacaoTecnicaService {
   constructor(
     private prisma: PrismaService,
     private validacaoEstoque: ValidacaoEstoqueService,
+    // forwardRef evita ciclo de inicializacao com OSService (ambos estao no
+    // mesmo modulo e podem se referenciar mutuamente em runtime futuro).
+    @Inject(forwardRef(() => OSService))
+    private osService: OSService,
   ) {}
 
   async validarPreAprovacao(osId: string): Promise<{
@@ -191,8 +198,11 @@ export class AprovacaoTecnicaService {
     }
 
     // Decidir novo status:
-    // - Fluxo padrao (FILA / AGUARDANDO_APROVACAO_TECNICA): aprovacao avanca
-    //   o status para APROVADA_TECNICA.
+    // - Fluxo padrao (FILA / AGUARDANDO_APROVACAO_TECNICA): aprovacao promove
+    //   a OS direto para LIBERADA_PARA_PCP (decisao de produto tomada em
+    //   2026-05-25). O estado APROVADA_TECNICA deixou de ser estado de
+    //   repouso porque a etapa seguinte (liberar para PCP) era sempre
+    //   manual e ninguem fazia, deixando a OS invisivel ao kanban.
     // - Fluxo retroativo (qualquer outro status): aprovacao apenas registra
     //   a decisao mas MANTEM o status operacional atual.
     // - Rejeicao sempre marca status como REJEITADA.
@@ -201,7 +211,7 @@ export class AprovacaoTecnicaService {
 
     let statusNovo: string;
     if (dto.aprovado) {
-      statusNovo = eFluxoPadrao ? 'APROVADA_TECNICA' : os.status;
+      statusNovo = eFluxoPadrao ? 'LIBERADA_PARA_PCP' : os.status;
     } else {
       statusNovo = 'REJEITADA';
     }
@@ -216,6 +226,18 @@ export class AprovacaoTecnicaService {
         aprovacao_tecnica_obs: dto.observacoes,
       },
     });
+
+    // Auto-promocao para o PCP no fluxo padrao: libera itens PENDENTE,
+    // notifica eventos e tenta atribuir um workflow inteligente. Falhas sao
+    // absorvidas em warn dentro do proprio helper para nao reverter a
+    // aprovacao.
+    if (dto.aprovado && eFluxoPadrao) {
+      await this.osService.promoverAprovacaoParaPCP(
+        osId,
+        os.loja_id,
+        usuarioId,
+      );
+    }
 
     // TODO: Enviar notificação se rejeitada
 
@@ -244,7 +266,24 @@ export class AprovacaoTecnicaService {
       throw new NotFoundException('Ordem de Serviço não encontrada');
     }
 
-    if (os.status !== 'APROVADA_TECNICA') {
+    // A partir de 2026-05-25 o status APROVADA_TECNICA deixou de ser estado
+    // de repouso (a aprovacao agora promove direto para LIBERADA_PARA_PCP /
+    // EM_WORKFLOW). Mantemos APROVADA_TECNICA na lista permitida para nao
+    // quebrar OS legadas que ainda estejam nesse estado. O que realmente
+    // importa neste ponto e a OS ja ter passado pela aprovacao tecnica, nao
+    // o status operacional em si.
+    const statusPermitidosInstalacao = new Set([
+      'APROVADA_TECNICA',
+      'LIBERADA_PARA_PCP',
+      'EM_WORKFLOW',
+      'PRODUCAO',
+      'ACABAMENTO',
+      'AGUARDANDO_MATERIAL',
+    ]);
+    if (
+      !statusPermitidosInstalacao.has(os.status) ||
+      (os.aprovacao_tecnica_status || '').toUpperCase() !== 'APROVADA'
+    ) {
       throw new BadRequestException(
         'OS deve estar aprovada tecnicamente para agendar instalação',
       );

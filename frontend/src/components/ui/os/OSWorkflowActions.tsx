@@ -4,14 +4,16 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  CheckCircle, 
-  AlertTriangle, 
-  Clock, 
+import {
+  CheckCircle,
+  AlertTriangle,
+  Clock,
   ArrowRight,
   DollarSign,
-  Settings
+  Settings,
+  Factory,
 } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
 
@@ -192,6 +194,28 @@ export function OSWorkflowActions({ os, onStatusChange }: OSWorkflowActionsProps
           </div>
         );
 
+      // A partir de 2026-05-25 a aprovacao tecnica promove a OS direto para
+      // LIBERADA_PARA_PCP (e depois EM_WORKFLOW se houver workflow inteligente).
+      // Nesses estados a operacao sai do detalhe da OS e passa a ser feita no
+      // Kanban PCP, entao oferecemos apenas um atalho informativo.
+      case 'LIBERADA_PARA_PCP':
+      case 'EM_WORKFLOW':
+        return (
+          <div className="space-y-3">
+            <div className="text-sm text-gray-600 mb-3">
+              {os.status === 'LIBERADA_PARA_PCP'
+                ? 'OS liberada para o PCP. O próximo passo é vincular um workflow e iniciar a produção pelo Kanban PCP.'
+                : 'OS em execução no workflow do PCP. Acompanhe e movimente as etapas pelo Kanban PCP.'}
+            </div>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/pcp/kanban">
+                <Factory className="h-4 w-4 mr-2" />
+                Abrir Kanban PCP
+              </Link>
+            </Button>
+          </div>
+        );
+
       case 'PRODUCAO':
         return (
           <div className="space-y-3">
@@ -236,7 +260,17 @@ export function OSWorkflowActions({ os, onStatusChange }: OSWorkflowActionsProps
   };
 
   // Não mostrar o card se não há ações disponíveis
-  if (!['AGUARDANDO_APROVACAO_TECNICA', 'AGUARDANDO_APROVACAO_ORCAMENTARIA', 'APROVADA_TECNICA', 'APROVADA_ORCAMENTARIA', 'PRODUCAO', 'ACABAMENTO'].includes(os.status)) {
+  const statusComAcoes = [
+    'AGUARDANDO_APROVACAO_TECNICA',
+    'AGUARDANDO_APROVACAO_ORCAMENTARIA',
+    'APROVADA_TECNICA',
+    'APROVADA_ORCAMENTARIA',
+    'LIBERADA_PARA_PCP',
+    'EM_WORKFLOW',
+    'PRODUCAO',
+    'ACABAMENTO',
+  ];
+  if (!statusComAcoes.includes(os.status)) {
     return null;
   }
 

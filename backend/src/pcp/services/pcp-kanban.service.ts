@@ -36,12 +36,28 @@ export class PCPKanbanService {
     try {
       this.logger.log(`Obtendo kanban geral para loja ${lojaId}`);
 
-      // Buscar OSs liberadas para PCP (reaproveitando lógica existente)
+      // Critério de "OS de PCP": aprovacao_tecnica_status = APROVADA + status
+      // operacional não-terminal. Espelha o set já usado por
+      // FluxoTrabalhoService.montarColunaProducao, kpi-dashboard.service e
+      // alertas-operacionais.service para manter coerência entre a Home, o
+      // Kanban e os alertas. APROVADA_TECNICA não entra porque, a partir de
+      // 2026-05-25, a aprovação técnica promove a OS direto para
+      // LIBERADA_PARA_PCP (ver os.service.ts:aprovarOSTecnica). Mantemos
+      // PRODUCAO/ACABAMENTO/AGUARDANDO_MATERIAL para acomodar OS legadas que
+      // já avançaram no operacional sem passar pelo checkpoint formal.
       const osLiberadas = await this.prisma.ordemServico.findMany({
         where: {
           loja_id: lojaId,
+          aprovacao_tecnica_status: 'APROVADA',
           status: {
-            in: ['LIBERADA_PARA_PCP', 'EM_WORKFLOW', 'FINALIZADA'],
+            in: [
+              'LIBERADA_PARA_PCP',
+              'EM_WORKFLOW',
+              'PRODUCAO',
+              'ACABAMENTO',
+              'AGUARDANDO_MATERIAL',
+              'FINALIZADA',
+            ],
           },
           ...this.aplicarFiltros(filtros),
         },

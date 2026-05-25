@@ -2290,11 +2290,14 @@ export class OSService {
 
       const statusAprovacao = aprovado ? 'APROVADA' : 'REJEITADA';
 
-      // Status que representam o ciclo padrao de aprovacao - nestes casos o
-      // status operacional AVANCA junto com a aprovacao. Em qualquer outro
-      // status (ex.: PRODUCAO, ACABAMENTO), aprovar e retroativo: registra a
-      // decisao mas MANTEM o status operacional atual para nao retroceder o
-      // workflow.
+      // Status que representam o ciclo padrao de aprovacao - nestes casos a
+      // aprovacao promove a OS direto para LIBERADA_PARA_PCP (decisao de
+      // produto tomada em 2026-05-25): o status APROVADA_TECNICA deixa de ser
+      // estado de repouso porque a etapa seguinte (liberar para PCP) era
+      // sempre manual e ninguem fazia, deixando a OS invisivel para o
+      // kanban. Em qualquer outro status (ex.: PRODUCAO, ACABAMENTO),
+      // aprovar e retroativo: registra a decisao mas MANTEM o status
+      // operacional atual para nao retroceder o workflow.
       const statusFluxoPadrao: string[] = [
         StatusOS.AGUARDANDO_APROVACAO_TECNICA,
         StatusOS.FILA,
@@ -2304,7 +2307,7 @@ export class OSService {
       let novoStatus: StatusOS;
       if (aprovado) {
         novoStatus = eFluxoPadrao
-          ? StatusOS.APROVADA_TECNICA
+          ? StatusOS.LIBERADA_PARA_PCP
           : (os.status as StatusOS); // retroativo: mantem status atual
       } else {
         novoStatus = StatusOS.REJEITADA; // rejeicao sempre marca status
@@ -2312,7 +2315,7 @@ export class OSService {
 
       const motivoModificacao = aprovado
         ? eFluxoPadrao
-          ? 'Aprovação técnica aprovada'
+          ? 'Aprovação técnica aprovada e OS liberada para PCP'
           : 'Aprovação técnica aprovada (retroativa)'
         : 'Aprovação técnica rejeitada';
 
@@ -2342,6 +2345,14 @@ export class OSService {
         observacoes || motivoModificacao,
       );
 
+      // Auto-promocao para o PCP no fluxo padrao: libera os itens ainda
+      // PENDENTE, notifica os eventos automaticos e tenta atribuir um
+      // workflow inteligente. Falhas aqui sao apenas registradas em log; nao
+      // revertem a aprovacao tecnica.
+      if (aprovado && eFluxoPadrao) {
+        await this.promoverAprovacaoParaPCP(osId, os.loja_id, usuarioId);
+      }
+
       this.logger.log(
         `OS ${os.numero} aprovada tecnicamente: ${statusAprovacao}`,
       );
@@ -2349,6 +2360,75 @@ export class OSService {
     } catch (error) {
       this.logger.error(`Erro ao aprovar OS técnica ${osId}:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Promove uma OS recém-aprovada tecnicamente para o PCP. Não faz `update`
+   * de status (quem chama já fez); apenas executa os efeitos colaterais que
+   * antes só aconteciam quando o usuário clicava em "Liberar para PCP"
+   * manualmente:
+   *
+   *  1. Libera todos os `ItemOS` ainda `PENDENTE` para `LIBERADO`.
+   *  2. Dispara `EventosAutomaticosService.notificarOSLiberadaParaPCP`.
+   *  3. Tenta atribuir um workflow via `WorkflowAssignmentService` (se houver
+   *     categoria inteligente cadastrada, a OS já nasce em `EM_WORKFLOW`).
+   *
+   * Toda falha aqui é absorvida em `warn` para não reverter a aprovação
+   * técnica. Exposto como `public` para que `AprovacaoTecnicaService` (caminho
+   * paralelo `POST /os/:id/aprovar-tecnica`) reuse a mesma lógica.
+   */
+  async promoverAprovacaoParaPCP(
+    osId: string,
+    lojaId: string,
+    usuarioId: string,
+  ): Promise<void> {
+    try {
+      await this.prisma.itemOS.updateMany({
+        where: {
+          os_id: osId,
+          status_liberacao_pcp: 'PENDENTE',
+        },
+        data: {
+          status_liberacao_pcp: 'LIBERADO',
+          liberado_pcp_por: usuarioId,
+          liberado_pcp_em: new Date(),
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao liberar itens da OS ${osId} apos aprovacao tecnica: ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
+    }
+
+    try {
+      await this.eventosAutomaticosService.notificarOSLiberadaParaPCP(
+        osId,
+        lojaId,
+        undefined,
+        usuarioId,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao notificar OS ${osId} liberada para PCP apos aprovacao tecnica: ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
+    }
+
+    try {
+      await this.workflowAssignmentService.atribuirWorkflow(lojaId, {
+        osId,
+        usuarioId,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao atribuir workflow automaticamente para OS ${osId} apos aprovacao tecnica: ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
     }
   }
 
