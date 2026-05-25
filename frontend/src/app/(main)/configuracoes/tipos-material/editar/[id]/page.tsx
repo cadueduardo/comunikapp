@@ -40,7 +40,7 @@ export default function EditarTipoMaterialPage() {
 
   if (loading) {
     return (
-      <div>
+      <div className="p-6">
         <p>Carregando...</p>
       </div>
     );
@@ -51,7 +51,7 @@ export default function EditarTipoMaterialPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="p-6 space-y-4">
       <div>
         <h1 className="text-2xl font-bold">Editar Tipo de Material</h1>
         <p className="text-gray-600">Altere as configurações do tipo de material.</p>

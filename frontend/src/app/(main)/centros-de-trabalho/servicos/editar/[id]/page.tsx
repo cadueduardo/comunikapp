@@ -97,11 +97,11 @@ export default function EditarServicoManualCTPage({ params }: { params: Promise<
     }
   };
 
-  if (loading) return <div>Carregando...</div>;
-  if (!registro) return <div>Registro não encontrado.</div>;
+  if (loading) return <div className="p-6">Carregando...</div>;
+  if (!registro) return <div className="p-6">Registro não encontrado.</div>;
 
   return (
-    <div>
+    <div className="p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Editar Serviço Manual</h1>
         <p className="text-gray-600 mt-1">Atualize os parâmetros do serviço.</p>

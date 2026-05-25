@@ -106,7 +106,7 @@ export default function TiposMaterialPage() {
   }, []);
 
   return (
-    <div className="space-y-4">
+    <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Gerenciar Tipos de Material</h1>

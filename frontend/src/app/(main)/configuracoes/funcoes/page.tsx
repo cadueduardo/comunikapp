@@ -93,7 +93,7 @@ export default function FuncoesPage() {
 
   if (loading) {
     return (
-      <div>
+      <div className="p-6">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Funções</h1>
           <p className="text-gray-600 mt-1">
@@ -121,7 +121,7 @@ export default function FuncoesPage() {
   }
 
   return (
-    <div>
+    <div className="p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Funções</h1>
         <p className="text-gray-600 mt-1">

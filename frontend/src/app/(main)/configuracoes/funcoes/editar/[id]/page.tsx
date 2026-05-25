@@ -93,15 +93,15 @@ export default function EditarFuncaoPage({ params }: { params: Promise<{ id: str
   } : undefined;
 
   if (loading) {
-    return <div>Carregando dados da função...</div>;
+    return <div className="p-6">Carregando dados da função...</div>;
   }
   
   if (!funcao) {
-    return <div>Função não encontrada.</div>;
+    return <div className="p-6">Função não encontrada.</div>;
   }
 
   return (
-    <div>
+    <div className="p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Editar Função</h1>
         <p className="text-gray-600 mt-1">

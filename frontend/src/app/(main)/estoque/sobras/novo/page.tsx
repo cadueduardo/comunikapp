@@ -124,7 +124,7 @@ export default function NovaSobraPage() {
   };
 
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto p-6">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <Link href="/estoque/sobras">

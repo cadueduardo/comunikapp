@@ -261,7 +261,7 @@ export default function FuncoesCTPage() {
   const table = <DataTable<Funcao, unknown> columns={columns} data={filtered} />;
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       {header}
       {toolbar}
       {filtered.length ? (

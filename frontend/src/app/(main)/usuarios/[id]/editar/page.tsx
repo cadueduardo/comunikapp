@@ -142,7 +142,7 @@ export default function EditarUsuarioPage({
 
   if (userLoading || loading || !isAdmin) {
     return (
-      <div>
+      <div className="p-6">
         <PageHeader
           title="Editar usuário"
           backHref="/usuarios/gestao"
@@ -154,7 +154,7 @@ export default function EditarUsuarioPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <PageHeader
         title="Editar usuário"
         backHref={`/usuarios/${id}`}

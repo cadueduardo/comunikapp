@@ -101,7 +101,7 @@ export default function SimuladorOrcamentoV2Page() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen p-4 lg:p-6">
       <div className="mb-6 flex items-center gap-3">
         <Link
           href="/orcamentos-v2"

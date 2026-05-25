@@ -277,7 +277,7 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
 
   if (userLoading) {
     return (
-      <div className="container mx-auto">
+      <div className="container mx-auto p-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
@@ -290,7 +290,7 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
 
   if (!user) {
     return (
-      <div className="container mx-auto">
+      <div className="container mx-auto p-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="text-lg font-medium text-gray-700 mb-2">
@@ -307,7 +307,7 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
 
   if (loading) {
     return (
-      <div className="container mx-auto">
+      <div className="container mx-auto p-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
@@ -319,7 +319,7 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
   }
 
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto p-6">
       <div className="flex items-center gap-4 mb-6">
         <Link href="/estoque/itens">
           <Button variant="outline" size="sm">

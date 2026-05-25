@@ -75,7 +75,7 @@ export default function VerLotePage() {
 
   if (loading) {
     return (
-      <div>
+      <div className="p-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto" />
@@ -88,7 +88,7 @@ export default function VerLotePage() {
 
   if (!lote) {
     return (
-      <div>
+      <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <Link href="/estoque/lotes">
             <Button variant="outline" size="sm">
@@ -106,7 +106,7 @@ export default function VerLotePage() {
   const formatDate = (v?: string | null) => (v ? new Date(v).toLocaleDateString('pt-BR') : '-')
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/estoque/lotes">

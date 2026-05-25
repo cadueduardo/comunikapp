@@ -100,15 +100,15 @@ export default function EditarFuncaoCTPage({ params }: { params: Promise<{ id: s
   } : undefined;
 
   if (loading) {
-    return <div>Carregando dados...</div>;
+    return <div className="p-6">Carregando dados...</div>;
   }
   
   if (!registro) {
-    return <div>Registro não encontrado.</div>;
+    return <div className="p-6">Registro não encontrado.</div>;
   }
 
   return (
-    <div>
+    <div className="p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Editar Função</h1>
         <p className="text-gray-600 mt-1">Atualize os dados da função.</p>

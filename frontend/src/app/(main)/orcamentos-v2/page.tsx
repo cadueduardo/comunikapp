@@ -12,7 +12,7 @@ export default function OrcamentosV2Page() {
   const [viewMode, setViewMode] = React.useState<'table' | 'cards'>('table');
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full px-4 lg:px-6 py-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>

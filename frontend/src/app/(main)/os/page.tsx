@@ -1,4 +1,4 @@
-'use client';
+ï»¿'use client';
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -46,7 +46,7 @@ export default function OSPage() {
     setViewMode(isMobile ? 'cards' : 'table');
   }, [isMobile]);
 
-  // Carregar dados quando usuário estiver disponível
+  // Carregar dados quando usuÃ¡rio estiver disponÃ­vel
   useEffect(() => {
     if (!userLoading && user) {
       fetchOrdens();
@@ -67,7 +67,7 @@ export default function OSPage() {
       }
     } catch (error) {
       console.error('Erro ao carregar OS:', error);
-      toast.error('Erro ao carregar ordens de serviço');
+      toast.error('Erro ao carregar ordens de serviÃ§o');
       setOrdens([]);
     } finally {
       setLoading(false);
@@ -82,7 +82,7 @@ export default function OSPage() {
         setEstatisticas(data.data);
       }
     } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
+      console.error('Erro ao carregar estatÃ­sticas:', error);
     }
   };
 
@@ -101,7 +101,7 @@ export default function OSPage() {
       });
 
       if (response.ok) {
-        toast.success(`OS #${numero} excluída com sucesso`);
+        toast.success(`OS #${numero} excluÃ­da com sucesso`);
         fetchOrdens();
         fetchEstatisticas();
       } else {
@@ -109,7 +109,7 @@ export default function OSPage() {
       }
     } catch (error) {
       console.error('Erro ao excluir OS:', error);
-      toast.error('Erro ao excluir ordem de serviço');
+      toast.error('Erro ao excluir ordem de serviÃ§o');
     }
   };
 
@@ -127,10 +127,10 @@ export default function OSPage() {
 
   const header = (
     <PageHeader
-      title="Ordens de Serviço"
+      title="Ordens de ServiÃ§o"
       backHref="/dashboard"
       icon={<ClipboardList className="h-8 w-8" />}
-      subtitle="Gerencie ordens de serviço e acompanhe a produção"
+      subtitle="Gerencie ordens de serviÃ§o e acompanhe a produÃ§Ã£o"
       actions={
         <div className="flex gap-2">
           <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
@@ -192,7 +192,7 @@ export default function OSPage() {
       <div className="flex items-center gap-2 w-full sm:w-auto">
         <Search className="h-4 w-4 text-gray-400" />
         <Input
-          placeholder="Buscar por número, serviço ou cliente..."
+          placeholder="Buscar por nÃºmero, serviÃ§o ou cliente..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full sm:w-96"
@@ -227,7 +227,7 @@ export default function OSPage() {
       <CardContent className="flex items-center justify-center h-32">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Carregando ordens de serviço...</p>
+          <p className="mt-2 text-gray-600">Carregando ordens de serviÃ§o...</p>
         </div>
       </CardContent>
     </Card>
@@ -236,7 +236,7 @@ export default function OSPage() {
       <CardContent className="flex items-center justify-center h-32">
         <div className="text-center">
           <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">Nenhuma ordem de serviço encontrada</p>
+          <p className="text-gray-600">Nenhuma ordem de serviÃ§o encontrada</p>
           <Link href="/os/novo">
             <Button className="mt-2" variant="outline">
               Criar primeira OS
@@ -272,7 +272,7 @@ export default function OSPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       {header}
       {kpis}
       {toolbar}

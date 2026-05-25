@@ -62,7 +62,7 @@ export default function NovoServicoManualCTPage() {
   };
 
   return (
-    <div>
+    <div className="p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Adicionar Serviço Manual</h1>
         <p className="text-gray-600 mt-1">Cadastre um serviço manual com parâmetros de cálculo.</p>
