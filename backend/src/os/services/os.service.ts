@@ -134,6 +134,50 @@ export class OSService {
   }
 
   /**
+   * Normaliza a `prioridade` herdada do orcamento para o enum PrioridadeOS.
+   *
+   * Os dados antigos do orcamento podem ter valores fora do enum oficial
+   * (URGENTE | ALTA | NORMAL | BAIXA), por exemplo "media", "alta", "baixa"
+   * ou ate `null`. Aqui:
+   * - Convertemos para UPPERCASE.
+   * - Mapeamos sinonimos comuns (MEDIA, MEDIO, MEDIUM -> NORMAL).
+   * - Aceitamos somente valores listados em PrioridadeOS; qualquer outra
+   *   coisa cai para NORMAL com um warning.
+   */
+  private normalizarPrioridadeOS(valor: unknown): PrioridadeOS {
+    if (valor === null || valor === undefined) {
+      return PrioridadeOS.NORMAL;
+    }
+
+    if (typeof valor !== 'string') {
+      this.logger.warn(
+        `Prioridade do orcamento nao e string ("${String(valor)}"). Usando NORMAL.`,
+      );
+      return PrioridadeOS.NORMAL;
+    }
+
+    const upper = valor.trim().toUpperCase();
+    if (!upper) {
+      return PrioridadeOS.NORMAL;
+    }
+
+    const sinonimosParaNormal = new Set(['MEDIA', 'MEDIO', 'MEDIUM']);
+    if (sinonimosParaNormal.has(upper)) {
+      return PrioridadeOS.NORMAL;
+    }
+
+    const valoresValidos = Object.values(PrioridadeOS) as string[];
+    if (valoresValidos.includes(upper)) {
+      return upper as PrioridadeOS;
+    }
+
+    this.logger.warn(
+      `Prioridade do orcamento fora do enum PrioridadeOS ("${valor}"). Usando NORMAL.`,
+    );
+    return PrioridadeOS.NORMAL;
+  }
+
+  /**
    * Normaliza `data_prazo` aceitando apenas valores parseaveis para Date.
    * Texto livre (ex.: "10 a 15 dias uteis") herdado do orcamento e descartado
    * para nao quebrar o create do Prisma (que exige ISO-8601 DateTime).
@@ -2533,7 +2577,7 @@ export class OSService {
       const createDto: CreateOSDto = {
         tipo_os: TipoOS.COMERCIAL, // OS criada a partir de orçamento é sempre comercial
         origem_os: OrigemOS.ORCAMENTO,
-        prioridade: dadosOrcamento.prioridade ?? PrioridadeOS.NORMAL,
+        prioridade: this.normalizarPrioridadeOS(dadosOrcamento.prioridade),
         cliente_id: dadosOrcamento.cliente_id,
         orcamento_id: dadosOrcamento.orcamento_id,
         nome_servico: dadosOrcamento.nome_servico,
