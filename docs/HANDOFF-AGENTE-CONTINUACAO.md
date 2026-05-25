@@ -12,7 +12,9 @@
 
 Em 2026-05-25, a **Fase 4 foi concluída**: o endpoint `GET /home-operacional/fluxo` agrega orçamentos V2 / OS em 5 colunas funcionais (`orcamentos`, `aprovados`, `revisao_tecnica`, `producao`, `prontos`) e devolve `a_receber` / `concluidos` em estado `aguardando_modulo` até a Fase 6. `HomeCacheService` cuida do TTL de 60s por `loja_id` e expõe `invalidar(...)` para os módulos downstream. Frontend tem `FluxoTrabalho` + `CardTrabalho` integrados em `/dashboard`.
 
-Próximo passo é **Fase 5 (Alertas operacionais)** — endpoint `GET /home-operacional/alertas` + componente `AlertasOperacionais`. Em paralelo, é hora de validar pela UI (1) o fluxo "Aprovar e gerar OS" introduzido na Fase 3 e (2) a Home com a nova Fase 4.
+Também foi entregue a **UX de aprovação da OS direto no grid** (`/os`): nova coluna "Aprovação" com badge contextual (Aprovada / Rejeitada) ou botão "Aprovar OS" para `PENDENTE`; coluna "Ações" migrou para dropdown "..." (Visualizar / Editar / Imprimir / Excluir). O modal `AprovarOSModal` lista os critérios (`dados_completos`, `arte_anexada`, `estoque_ok`, `prazo_viavel`) e só bloqueia aprovação quando `dados_completos = false`. Arte ausente e estoque vão para `alertas` mas **não bloqueiam** — suportam OS recorrente que não passa pelo ciclo de arte.
+
+Próximo passo é **Fase 5 (Alertas operacionais)** — endpoint `GET /home-operacional/alertas` + componente `AlertasOperacionais`. Em paralelo, é hora de validar pela UI (1) o fluxo "Aprovar e gerar OS" introduzido na Fase 3, (2) a Home com a nova Fase 4 e (3) a nova UX de aprovação no grid de OS.
 
 ---
 
@@ -330,6 +332,55 @@ Pasta `docs/fase-0-home-operacional/` com 10 documentos:
 
 - Conectar `HomeCacheService.invalidar(\`fluxo:${lojaId}\`)` aos pontos relevantes: criação/aprovação/edição de orçamento, criação/avanço/finalização de OS, aprovação técnica. Recomendo fazer junto com a Fase 5, porque os mesmos eventos vão alimentar os alertas.
 - O contrato original previa `GET /home-operacional/resumo` consolidando banner+onboarding+fluxo+alertas+financeiro em uma única chamada. Não implementei nesta fase — o front faz 3-4 chamadas paralelas (banner, onboarding, fluxo) e isso é aceitável. Reabrir só se a Home começar a sofrer com first paint lento.
+
+### 4.8 Aprovação de OS no grid `/os` (sessão da tarde de 2026-05-25)
+
+**Contexto:** após a Fase 4, o usuário levantou que não havia como aprovar tecnicamente uma OS direto pelo grid — só dentro do detalhe da OS (`OSWorkflowActions.tsx`). Também trouxe uma dúvida importante de produto: a aprovação técnica estava amarrada ao módulo de arte? E como ficaria o caso de **OS recorrente** (sem ciclo de arte)?
+
+**Diagnóstico (sem alteração de schema):**
+
+- Em código, **OS comercial sempre nasce em `AGUARDANDO_APROVACAO_TECNICA`** com `aprovacao_tecnica_status = PENDENTE` (`os.service.ts` linha ~254).
+- O `liberarParaPCP` de `ArteVersao` (`modules/arte-aprovacao/services/arte-versao.service.ts`) é independente da OS — não toca `aprovacao_tecnica_status`.
+- `validarArteAnexada(...)` em `os.service.ts` era um TODO sempre retornando `true`; o `validarPreAprovacao` em `aprovacao-tecnica.service.ts` também tinha `arte_anexada = true` hard-coded.
+- **Bomba latente:** se alguém ativasse a checagem real sem critério, toda OS comercial (inclusive recorrente) ficaria bloqueada esperando arte.
+
+**Decisão de produto (aplicada nesta sessão):**
+
+- Política de bloqueio reduzida ao mínimo necessário para integridade técnica: **apenas `dados_completos = false` bloqueia a aprovação**. Estoque e arte viram **alertas no payload**, nunca bloqueio. Isso resolve o cenário de OS recorrente sem precisar de nova flag de schema (ex.: `requer_arte`) — a decisão fica explícita na UI com o aprovador assumindo a responsabilidade.
+- UX híbrida no grid: **coluna dedicada "Aprovação"** + **dropdown "..." para ações secundárias**. Não criamos uma ação nova "aprovar OS" — reaproveitamos o endpoint existente `PATCH /os/:id/aprovar-tecnica` (rota do `WorkflowComercialController`).
+
+**Backend (mudanças):**
+
+- `backend/src/os/services/aprovacao-tecnica.service.ts`:
+  - `validarPreAprovacao`: `estoque_ok` agora reflete `os.materiais_disponivel` e gera alerta quando false. `arte_anexada` consulta `prisma.arteVersao.count({ os_id, deletado: false }) > 0` e gera alerta quando zero.
+  - `aprovarTecnica`: removidos os `throw` por `estoque_ok` e `arte_anexada`. Mantido apenas o `throw` por `dados_completos`. Mensagem do bloqueio inclui `validacoes.alertas` para feedback claro.
+- `backend/src/os/services/os.service.ts` (`formatarOrdemServico`):
+  - Passa a expor `tipo_os`, `origem_os`, `prioridade` no payload de listagem. Os campos `aprovacao_tecnica_*` já eram expostos.
+
+**Frontend (mudanças):**
+
+- `frontend/src/components/ui/os/AprovarOSModal.tsx` (novo): carrega `GET /os/:id/aprovacao-tecnica/status` quando abre, lista os 4 critérios com ícones (`CheckCircle2` / warning) + section colapsável com `validacoes.alertas`. Botão principal varia entre "Aprovar OS" (sem alertas) e "Aprovar mesmo assim" (com alertas). Desabilita quando `dados_completos = false`. Chama `PATCH /os/:id/aprovar-tecnica` com `{ aprovado: true, observacoes: 'Aprovada via grid de OS' }` e dispara `onAprovado` para refazer o fetch da grid.
+- `frontend/src/app/(main)/os/columns.tsx`:
+  - Interface `OrdemServico` estendida com `aprovacao_tecnica_status`, `aprovacao_tecnica_por`, `aprovacao_tecnica_em`, `aprovacao_tecnica_obs`, `tipo_os`.
+  - Nova coluna **`aprovacao`** com lógica: `tipo_os = INTERNA` → "—"; `APROVADA` → badge verde com tooltip de aprovador/data; `REJEITADA` → badge vermelha com tooltip da obs; `PENDENTE`/`null` → botão "Aprovar OS".
+  - Coluna **`actions`** trocou os 3 ícones por um **dropdown "..."** (`shadcn DropdownMenu`) com: Visualizar / Editar / Imprimir / Excluir. O confirm de exclusão agora é renderizado no mesmo componente (`Dialog` direto), porque o `ConfirmDialog` antigo não suportava `children`/`open interno`.
+  - `createColumns` agora exige 2 callbacks: `onDelete(id)` e `onAprovar(os)`.
+- `frontend/src/app/(main)/os/page.tsx`: estado novo `aprovarTarget` + `aprovarModalOpen`. Passa os 2 callbacks pro `createColumns` e renderiza o `<AprovarOSModal />` no final da árvore.
+
+**Comportamento UX confirmado:**
+
+| Estado da OS | Coluna "Aprovação" |
+| --- | --- |
+| `tipo_os = INTERNA` | "—" |
+| `aprovacao_tecnica_status = APROVADA` | Badge verde "Aprovada" + tooltip |
+| `aprovacao_tecnica_status = REJEITADA` | Badge vermelha "Rejeitada" + tooltip da obs |
+| `aprovacao_tecnica_status = PENDENTE` ou nulo | Botão "Aprovar OS" → modal |
+
+**Armadilhas evitadas:**
+
+- O `ConfirmDialog` em `frontend/src/components/ui/confirm-dialog.tsx` **não suporta `children` como trigger nem gerencia `open` internamente** — o uso anterior em `columns.tsx` era inválido (o `<Button Trash2>` envolvido por ele provavelmente não renderizava). A nova UI usa `Dialog` direto, o que também conserta esse bug de exclusão silencioso.
+- O `aprovacao-tecnica.service.ts` é o "caminho A" da aprovação (`POST /os/:id/aprovar-tecnica`, controller `AprovacaoTecnicaController`); existe também o "caminho B" via `WorkflowComercialController` (`PATCH /os/:id/aprovar-tecnica` → `OSService.aprovarOSTecnica`). O modal usa o caminho B (PATCH), que é o mesmo do `OSWorkflowActions` existente. Os dois caminhos compartilham o status `AGUARDANDO_APROVACAO_TECNICA` como precondição, mas têm regras de permissão e auditoria ligeiramente diferentes — manter atenção se for unificar no futuro.
+- Há **divergência conhecida do enum `StatusOS`** vs `schema.prisma`: o `backend/src/os/interfaces/os.interfaces.ts` declara 14 estados (incluindo `AGUARDANDO_APROVACAO_TECNICA`, `APROVADA_TECNICA`, `LIBERADA_PARA_PCP`), mas o `schema.prisma` e `docs/fase-0-home-operacional/01-status-oficiais.md` listam apenas 7. **A query da coluna "Produção" no `FluxoTrabalhoService` ignora os 4 estados intermediários do workflow comercial** — a Fase 4 do dashboard pode estar perdendo OS em `APROVADA_TECNICA` ou `LIBERADA_PARA_PCP`. Reavaliar no início da Fase 5 ou em uma rodada de cleanup dos status.
 
 ### 4.5 Atualização de 2026-05-25 (sessão da tarde) — Fixes urgentes do "Fechar pedido"
 

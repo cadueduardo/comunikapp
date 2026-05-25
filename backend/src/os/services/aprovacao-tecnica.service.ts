@@ -48,20 +48,38 @@ export class AprovacaoTecnicaService {
     let dados_completos = true;
     let prazo_viavel = true;
 
-    // 1. Validar estoque disponível
+    // 1. Validar estoque disponivel (usa flag materiais_disponivel da OS)
+    // OBS: nao bloqueia aprovacao; serve apenas como alerta para o aprovador.
     try {
-      // TODO: Implementar validação de estoque quando estrutura estiver completa
-      // Por enquanto, assumir que estoque está OK
-      estoque_ok = true;
+      estoque_ok = os.materiais_disponivel === true;
+      if (!estoque_ok) {
+        alertas.push('Materiais ainda nao confirmados como disponiveis');
+      }
     } catch (error) {
       estoque_ok = false;
       alertas.push('Erro ao validar estoque');
     }
 
-    // 2. Validar se arte está anexada (verificar se há arquivos anexados)
-    // TODO: Implementar verificação de arquivos anexados
-    // Por enquanto, assumir que sempre tem arte
-    arte_anexada = true;
+    // 2. Validar se arte foi anexada / aprovada pelo cliente.
+    // Consideramos "arte anexada" quando existe pelo menos uma versao de arte
+    // nao deletada para a OS. NAO bloqueia aprovacao - serve apenas como alerta,
+    // para que o aprovador decida sob sua responsabilidade (ex.: OS recorrente
+    // que nao requer ciclo de arte).
+    try {
+      const versoesArte = await this.prisma.arteVersao.count({
+        where: {
+          os_id: osId,
+          deletado: false,
+        },
+      });
+      arte_anexada = versoesArte > 0;
+      if (!arte_anexada) {
+        alertas.push('Nenhuma versao de arte anexada a esta OS');
+      }
+    } catch (error) {
+      arte_anexada = false;
+      alertas.push('Erro ao validar arte anexada');
+    }
 
     // 3. Validar dados completos
     if (!os.nome_servico || !os.descricao) {
@@ -136,18 +154,20 @@ export class AprovacaoTecnicaService {
     // TODO: Implementar verificação de permissões baseada em funções
     // Por enquanto, permitir para todos os usuários autenticados
 
-    // Executar validações pré-aprovação
+    // Executar validacoes pre-aprovacao
     const validacoes = await this.validarPreAprovacao(osId);
 
-    if (dto.aprovado && !validacoes.estoque_ok) {
-      throw new BadRequestException(
-        'Não é possível aprovar: estoque insuficiente',
-      );
-    }
-
+    // POLITICA DE BLOQUEIO (intencionalmente restrita):
+    // - Estoque insuficiente: NAO bloqueia. Vira alerta no payload.
+    // - Arte nao anexada: NAO bloqueia. Vira alerta no payload (suporta o
+    //   caso de OS recorrente que nao requer ciclo de arte).
+    // - Dados incompletos (nome_servico, descricao, quantidade, parametros): BLOQUEIA.
+    //   Esses sao requisitos minimos para a OS sequer existir tecnicamente.
+    // - Prazo nao definido: NAO bloqueia (vira alerta). Apenas prazo no passado
+    //   tambem nao bloqueia, pois e responsabilidade do aprovador decidir.
     if (dto.aprovado && !validacoes.dados_completos) {
       throw new BadRequestException(
-        'Não é possível aprovar: dados incompletos',
+        `Nao e possivel aprovar: dados incompletos. ${validacoes.alertas.join(' | ')}`,
       );
     }
 

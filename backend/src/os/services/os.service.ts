@@ -1831,6 +1831,10 @@ export class OSService {
       aprovacao_tecnica_por: os.aprovacao_tecnica_por,
       aprovacao_tecnica_em: os.aprovacao_tecnica_em,
       aprovacao_tecnica_obs: os.aprovacao_tecnica_obs,
+      // Campos necessarios para UI de aprovacao da OS no grid (coluna "Aprovacao")
+      tipo_os: os.tipo_os,
+      origem_os: os.origem_os,
+      prioridade: os.prioridade,
       criado_em: os.criado_em,
       atualizado_em: os.atualizado_em,
       cliente: os.cliente

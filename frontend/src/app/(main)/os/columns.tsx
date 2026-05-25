@@ -1,9 +1,24 @@
 ﻿'use client';
 
+import { useState } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Eye,
   Edit,
@@ -11,7 +26,11 @@ import {
   Calendar,
   User,
   Package,
-  ArrowRight,
+  MoreHorizontal,
+  Printer,
+  ShieldCheck,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -31,6 +50,12 @@ export interface OrdemServico {
   materiais_disponivel: boolean;
   criado_em: string;
   atualizado_em: string;
+  // Campos para coluna de Aprovacao
+  aprovacao_tecnica_status?: string | null;
+  aprovacao_tecnica_por?: string | null;
+  aprovacao_tecnica_em?: string | null;
+  aprovacao_tecnica_obs?: string | null;
+  tipo_os?: string | null;
 }
 
 // Função para obter configuração de status
@@ -117,8 +142,167 @@ const formatDateTime = (dateString: string) => {
   });
 };
 
+// Componente: celula da coluna "Aprovacao"
+function AprovacaoCell({
+  os,
+  onAprovar,
+}: {
+  os: OrdemServico;
+  onAprovar: (os: OrdemServico) => void;
+}) {
+  const tipoOs = (os.tipo_os || 'COMERCIAL').toUpperCase();
+  const aprovacao = (os.aprovacao_tecnica_status || 'PENDENTE').toUpperCase();
+
+  // OS interna nao usa aprovacao tecnica - usa aprovacao gerencial em outro fluxo
+  if (tipoOs === 'INTERNA') {
+    return <span className="text-muted-foreground text-sm">—</span>;
+  }
+
+  if (aprovacao === 'APROVADA') {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-green-50 text-green-700 border-green-200"
+        title={
+          os.aprovacao_tecnica_em
+            ? `Aprovada em ${formatDateTime(os.aprovacao_tecnica_em)}`
+            : 'Aprovada'
+        }
+      >
+        <CheckCircle2 className="h-3 w-3 mr-1" />
+        Aprovada
+      </Badge>
+    );
+  }
+
+  if (aprovacao === 'REJEITADA') {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-red-50 text-red-700 border-red-200"
+        title={os.aprovacao_tecnica_obs || 'Rejeitada'}
+      >
+        <XCircle className="h-3 w-3 mr-1" />
+        Rejeitada
+      </Badge>
+    );
+  }
+
+  // PENDENTE (ou nulo): botao para abrir o modal de aprovacao
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={() => onAprovar(os)}
+      className="h-8"
+    >
+      <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
+      Aprovar OS
+    </Button>
+  );
+}
+
+// Componente: dropdown de acoes secundarias
+function AcoesDropdown({
+  os,
+  onDelete,
+}: {
+  os: OrdemServico;
+  onDelete: (id: string) => void;
+}) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    try {
+      setExcluindo(true);
+      await onDelete(os.id);
+      setConfirmOpen(false);
+    } finally {
+      setExcluindo(false);
+    }
+  };
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            aria-label="Abrir menu de ações"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem asChild>
+            <Link href={`/os/${os.id}`}>
+              <Eye className="h-4 w-4 mr-2" />
+              Visualizar
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href={`/os/${os.id}/editar`}>
+              <Edit className="h-4 w-4 mr-2" />
+              Editar
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href={`/os/${os.id}/imprimir`}>
+              <Printer className="h-4 w-4 mr-2" />
+              Imprimir
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onSelect={(e) => {
+              e.preventDefault();
+              setConfirmOpen(true);
+            }}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Excluir
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Excluir Ordem de Serviço</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir a OS #{os.numero}? Esta ação não
+              pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmOpen(false)}
+              disabled={excluindo}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={excluindo}
+            >
+              {excluindo ? 'Excluindo...' : 'Excluir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 export const createColumns = (
   onDelete: (id: string) => void,
+  onAprovar: (os: OrdemServico) => void,
 ): ColumnDef<OrdemServico>[] => [
   {
     accessorKey: 'numero',
@@ -133,9 +317,7 @@ export const createColumns = (
     header: 'Serviço',
     cell: ({ row }) => {
       const nome = row.getValue('nome_servico') as string;
-      return (
-        <div className="font-medium">{nome}</div>
-      );
+      return <div className="font-medium">{nome}</div>;
     },
   },
   {
@@ -211,41 +393,19 @@ export const createColumns = (
     },
   },
   {
+    id: 'aprovacao',
+    header: 'Aprovação',
+    cell: ({ row }) => {
+      const os = row.original;
+      return <AprovacaoCell os={os} onAprovar={onAprovar} />;
+    },
+  },
+  {
     id: 'actions',
     header: 'Ações',
     cell: ({ row }) => {
       const os = row.original;
-
-      return (
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href={`/os/${os.id}`}>
-              <Eye className="h-4 w-4" />
-            </Link>
-          </Button>
-
-          <Button variant="ghost" size="sm" asChild>
-            <Link href={`/os/${os.id}/editar`}>
-              <Edit className="h-4 w-4" />
-            </Link>
-          </Button>
-
-          <ConfirmDialog
-            title="Excluir Ordem de Serviço"
-            description={`Tem certeza que deseja excluir a OS #${os.numero}? Esta ação não pode ser desfeita.`}
-            onConfirm={() => onDelete(os.id)}
-          >
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </ConfirmDialog>
-        </div>
-      );
+      return <AcoesDropdown os={os} onDelete={onDelete} />;
     },
   },
 ];
-

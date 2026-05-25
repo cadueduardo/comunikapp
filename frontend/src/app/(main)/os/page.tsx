@@ -25,6 +25,7 @@ import { DataTable } from '@/components/data-table/data-table';
 import { apiRequest } from '@/lib/api';
 import { useUser } from '@/contexts/UserContext';
 import { OSCard } from '@/components/ui/os-card';
+import { AprovarOSModal } from '@/components/ui/os/AprovarOSModal';
 import { createColumns, type OrdemServico } from './columns';
 
 export default function OSPage() {
@@ -36,6 +37,8 @@ export default function OSPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [estatisticas, setEstatisticas] = useState<any>(null);
+  const [aprovarTarget, setAprovarTarget] = useState<OrdemServico | null>(null);
+  const [aprovarModalOpen, setAprovarModalOpen] = useState(false);
   const isMobile = useIsMobile();
 
   // Configurar view mode baseado no dispositivo
@@ -243,9 +246,18 @@ export default function OSPage() {
       </CardContent>
     </Card>
   ) : viewMode === 'table' ? (
-    <DataTable 
-      columns={createColumns(handleDelete)} 
-      data={filteredOrdens} 
+    <DataTable
+      columns={createColumns(
+        (id: string) => {
+          const os = ordens.find((o) => o.id === id);
+          handleDelete(id, os?.numero || '');
+        },
+        (os: OrdemServico) => {
+          setAprovarTarget(os);
+          setAprovarModalOpen(true);
+        },
+      )}
+      data={filteredOrdens}
     />
   ) : (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -265,6 +277,20 @@ export default function OSPage() {
       {kpis}
       {toolbar}
       {content}
+
+      <AprovarOSModal
+        osId={aprovarTarget?.id ?? null}
+        osNumero={aprovarTarget?.numero ?? null}
+        open={aprovarModalOpen}
+        onOpenChange={(open) => {
+          setAprovarModalOpen(open);
+          if (!open) setAprovarTarget(null);
+        }}
+        onAprovado={() => {
+          fetchOrdens();
+          fetchEstatisticas();
+        }}
+      />
     </div>
   );
 }
