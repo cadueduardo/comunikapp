@@ -51,12 +51,27 @@ export class ImpressaoOSService {
       versao: 'simples',
     },
   ): Promise<DadosImpressaoOS> {
-    // Buscar dados completos da OS
+    // Carrega a OS com seus `itens_os` (verdade pos-OS) e tambem o orcamento.
+    //
+    // Por que ainda precisamos do orcamento?
+    // O modelo `ItemOS` hoje guarda apenas `insumos_necessarios` (JSON) por
+    // item; nao persiste maquinas nem servicos manuais. Enquanto essa
+    // estrutura nao existir no ItemOS, esses dois dominios continuam vindo
+    // do orcamento via relacao `os.orcamento.produtos`. Esta divida tecnica
+    // esta registrada no HANDOFF (secao 4.6) como prerequisito da Fase 4
+    // (PCP) para evitar que edicoes posteriores do orcamento afetem o que
+    // a OS imprime.
     const os = await this.prisma.ordemServico.findUnique({
       where: { id: osId },
       include: {
         loja: true,
         cliente: true,
+        itens: {
+          orderBy: [
+            { ordem_producao: 'asc' },
+            { criado_em: 'asc' },
+          ],
+        },
         orcamento: {
           include: {
             produtos: {
@@ -87,22 +102,35 @@ export class ImpressaoOSService {
       throw new Error(`OS ${osId} não encontrada`);
     }
 
-    // Gerar QR Code
     const qrCodeDataUrl = config.incluirQRCode
       ? await this.gerarQRCode(os.numero)
       : '';
 
-    // Transformar dados do orçamento
+    // Fontes de dados para a impressao:
+    // - `produtos`: shape esperado por `formatarDimensoes` (largura/altura/
+    //   profundidade). Saem dos itens_os quando existem; cai no orcamento
+    //   para OS legacy criada antes de Fase 3 (sem ItemOS).
+    // - `insumos`: shape esperado pelo helper e pelo template. Saem do JSON
+    //   `insumos_necessarios` dos itens_os (com adaptacao de
+    //   `quantidade_necessaria -> quantidade`); cai nos insumos do orcamento
+    //   como fallback.
+    // - `maquinas` / `servicosManuais`: continuam vindo do orcamento
+    //   enquanto nao houver schema dedicado no ItemOS.
+    const produtosImpressao = this.montarProdutosImpressao(os);
+    const insumosImpressao = this.montarInsumosImpressao(os);
+    const maquinasImpressao =
+      os.orcamento?.produtos?.flatMap((p: any) => p.maquinas ?? []) ?? [];
+    const servicosManuaisImpressao =
+      os.orcamento?.produtos?.flatMap((p: any) => p.servicos_manuais ?? []) ?? [];
+
     const dadosTransformados = os.orcamento
       ? TransformacaoDadosHelper.transformarDadosCompletos({
           horasProducao: Number(os.orcamento.horas_producao) || 0,
-          prazoEntrega: '10 dias', // Seria extraído do orçamento
+          prazoEntrega: '10 dias',
           dataAbertura: os.data_abertura,
-          insumos: os.orcamento.produtos.flatMap((p) => p.insumos),
-          maquinas: os.orcamento.produtos.flatMap((p) => p.maquinas),
-          servicosManuais: os.orcamento.produtos.flatMap(
-            (p) => p.servicos_manuais,
-          ),
+          insumos: insumosImpressao,
+          maquinas: maquinasImpressao,
+          servicosManuais: servicosManuaisImpressao,
         })
       : null;
 
@@ -111,14 +139,119 @@ export class ImpressaoOSService {
       cliente: os.cliente,
       loja: os.loja,
       orcamento: os.orcamento,
-      produtos: os.orcamento?.produtos || [],
-      insumos: os.orcamento?.produtos.flatMap((p) => p.insumos) || [],
-      maquinas: os.orcamento?.produtos.flatMap((p) => p.maquinas) || [],
-      servicosManuais:
-        os.orcamento?.produtos.flatMap((p) => p.servicos_manuais) || [],
+      produtos: produtosImpressao,
+      insumos: insumosImpressao,
+      maquinas: maquinasImpressao,
+      servicosManuais: servicosManuaisImpressao,
       dadosTransformados,
       qrCodeDataUrl,
     };
+  }
+
+  /**
+   * Monta o shape de produtos esperado por `formatarDimensoes`
+   * ({ largura, altura, profundidade }).
+   *
+   * - Quando a OS tem `itens` (caminho moderno pos-Fase 3), le direto deles.
+   *   `profundidade` nao existe como coluna no ItemOS; recupero do JSON
+   *   `parametros_tecnicos` se presente.
+   * - Quando a OS nao tem itens (legacy ou OS criada manualmente sem
+   *   `criarOSDeOrcamento`), faz fallback nos produtos do orcamento.
+   */
+  private montarProdutosImpressao(os: any): any[] {
+    if (Array.isArray(os.itens) && os.itens.length > 0) {
+      return os.itens.map((item: any) => {
+        const parametros = this.parseParametrosTecnicos(
+          item.parametros_tecnicos,
+        );
+        return {
+          id: item.id,
+          nome: item.produto_servico,
+          quantidade: item.quantidade,
+          largura: item.largura ?? parametros.largura ?? null,
+          altura: item.altura ?? parametros.altura ?? null,
+          profundidade: parametros.profundidade ?? null,
+          area: item.area ?? null,
+          perimetro: item.perimetro ?? null,
+          unidade_medida: item.unidade_medida ?? null,
+          observacoes: item.observacoes ?? null,
+        };
+      });
+    }
+
+    return os.orcamento?.produtos ?? [];
+  }
+
+  /**
+   * Monta a lista de insumos para o helper de transformacao e para
+   * `formatarTabelaMateriais`. Le do JSON `insumos_necessarios` gravado em
+   * cada `ItemOS` (formato `InsumoCalculado` produzido pelo `OSService`).
+   *
+   * Adaptacao importante: o JSON guarda `quantidade_necessaria`, mas o
+   * helper e o template esperam `quantidade`. Espelho o campo aqui para
+   * manter compatibilidade sem mexer no helper (que tambem serve para o
+   * fluxo legacy de orcamento).
+   *
+   * Fallback: se nao houver itens com insumos validos, cai nos insumos do
+   * orcamento para nao quebrar impressao de OS legacy.
+   */
+  private montarInsumosImpressao(os: any): any[] {
+    const dosItens: any[] = [];
+
+    if (Array.isArray(os.itens)) {
+      for (const item of os.itens) {
+        const insumosItem = this.parseInsumosNecessarios(
+          item.insumos_necessarios,
+        );
+        for (const insumo of insumosItem) {
+          dosItens.push({
+            ...insumo,
+            quantidade:
+              insumo.quantidade ?? insumo.quantidade_necessaria ?? 0,
+          });
+        }
+      }
+    }
+
+    if (dosItens.length > 0) {
+      return dosItens;
+    }
+
+    return (
+      os.orcamento?.produtos?.flatMap((p: any) => p.insumos ?? []) ?? []
+    );
+  }
+
+  /**
+   * Parse defensivo do JSON `insumos_necessarios` do ItemOS. Aceita string,
+   * array ou null e devolve sempre um array (vazio em caso de erro).
+   */
+  private parseInsumosNecessarios(valor: unknown): any[] {
+    if (!valor) return [];
+    if (Array.isArray(valor)) return valor;
+    if (typeof valor !== 'string') return [];
+    try {
+      const parsed = JSON.parse(valor);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Parse defensivo do JSON `parametros_tecnicos` do ItemOS. Retorna sempre
+   * um objeto plain (vazio em caso de erro).
+   */
+  private parseParametrosTecnicos(valor: unknown): Record<string, any> {
+    if (!valor) return {};
+    if (typeof valor === 'object') return valor as Record<string, any>;
+    if (typeof valor !== 'string') return {};
+    try {
+      const parsed = JSON.parse(valor);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
   }
 
   /**

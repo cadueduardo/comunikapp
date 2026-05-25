@@ -10,9 +10,9 @@
 
 ## 1. Estado atual em uma frase
 
-Em 2026-05-25, a **Sub-fase 2.F** foi aplicada no fluxo principal de Orçamentos V2 e a **Fase 3 foi iniciada**: a OS criada a partir de orçamento aprovado agora passa a gravar `ItemOS` por produto, com geometria estruturada e `insumos_calculados` serializado de forma consistente.
+Em 2026-05-25, a **Fase 3 foi concluída**: orçamento aprovado gera OS com `ItemOS` por produto (geometria + `insumos_necessarios` consistentes), a ação interna **Aprovar e gerar OS** está disponível com auditoria dedicada (`APROVADO_INTERNAMENTE_E_OS_GERADA`) e notificação alinhada à aprovação pública, e a impressão da OS já lê de `os.itens` em vez de `os.orcamento.produtos`.
 
-Ainda falta concluir a Fase 3 com a ação interna **Aprovar orçamento e gerar OS**, validar o fluxo ponta a ponta na interface e depois avançar para a Fase 4 da Home operacional.
+Próximo passo é **validar o fluxo ponta a ponta pela interface** (aprovar orçamento → conferir OS criada → conferir impressão) e em seguida iniciar a **Fase 4 (Home operacional com cards de gestão)**.
 
 ---
 
@@ -277,7 +277,7 @@ Pasta `docs/fase-0-home-operacional/` com 10 documentos:
 
 **Validação feita:** `npx prisma migrate deploy`, `npx prisma generate`, `npx tsc --noEmit` no backend e `git diff --check`.
 
-**Pendências imediatas:** validar na interface um orçamento aprovado gerando OS com múltiplos itens (botão renomeado para "Aprovar e gerar OS") e corrigir `impressao-os.service.ts` para ler de `os.itens` em vez de `os.orcamento.produtos` antes de exercitar PCP (Fase 4). Detalhes em 4.6.
+**Pendências imediatas:** validar na interface um orçamento aprovado gerando OS com múltiplos itens (botão renomeado para "Aprovar e gerar OS") e verificar a impressão da OS pelo template. A migração de `impressao-os.service.ts` para `os.itens` foi concluída e validada por script. Detalhes em 4.6.
 
 ### 4.5 Atualização de 2026-05-25 (sessão da tarde) — Fixes urgentes do "Fechar pedido"
 
@@ -310,12 +310,15 @@ Durante a tentativa de fechar um pedido via UI (`POST /orcamentos-v2/:id/fechar-
 
 Mapeamento read-only feito em 2026-05-25 para identificar onde o backend ainda lê `orcamento.produtos` em contextos pós-OS (onde idealmente deveria consultar `itens_os`).
 
-**Crítico — corrigir antes de avançar para Fase 4 (PCP):**
+**Concluído em 2026-05-25 (sessão final):**
 
-- `backend/src/os/services/impressao-os.service.ts` linhas 100-103 e 115-118:
-  - `os.orcamento.produtos.flatMap((p) => p.insumos)` (e variantes para `maquinas`, `servicos_manuais`).
-  - É o que monta o PDF/HTML da OS impressa. Se o orçamento foi editado após gerar a OS, a impressão mostra dados do orçamento, não da OS realmente em produção.
-  - Correção: ler de `os.itens` (relação `ItemOS[]`) — `insumos_calculados` (JSON), `parametros_tecnicos`, etc. já estão no ItemOS desde a migration `20260525120000_add_geometria_item_os`.
+- ~~`backend/src/os/services/impressao-os.service.ts`~~ — **Migrado.** A função `gerarDadosImpressao` agora consome `os.itens` para `produtos` e `insumos`. Implementação:
+  - Carrega `itens` no `findUnique` da OS (com `orderBy [ordem_producao, criado_em]`).
+  - `montarProdutosImpressao(os)`: prioriza `os.itens`, mapeia cada item para `{ id, nome, quantidade, largura, altura, profundidade, area, perimetro, unidade_medida, observacoes }`. `profundidade` é recuperada do JSON `parametros_tecnicos` quando presente. Cai em `os.orcamento.produtos` se a OS não tiver itens (OS legacy criada antes de Fase 3).
+  - `montarInsumosImpressao(os)`: itera `os.itens`, faz `JSON.parse` defensivo de `insumos_necessarios` (formato `InsumoCalculado`) e espelha `quantidade_necessaria → quantidade` para manter compatibilidade com `TransformacaoDadosHelper.extrairMateriaisPrincipais` e com o template HTML. Fallback nos insumos do orçamento se não houver itens válidos.
+  - `parseInsumosNecessarios` e `parseParametrosTecnicos`: helpers `private` aceitando string/array/object/null sem lançar erro.
+  - **Dívida técnica documentada (não-bloqueante para Fase 4):** `ItemOS` ainda não persiste máquinas e serviços manuais. Esses dois domínios continuam vindo de `os.orcamento.produtos.flatMap(...)`. Se o orçamento for editado depois de gerar a OS, máquinas/serviços manuais na impressão podem ficar desincronizados. Tratamento estrutural exige migration aditiva em `ItemOS` (`maquinas_necessarias`, `servicos_manuais_necessarios` JSON) + ajuste de `montarItensOSDoOrcamento` — deixar para quando a Fase 4 (PCP) precisar dessa informação por item.
+  - Validado por script ponta a ponta em OS real (OS-2026-007 com 2 itens, 4 insumos via JSON `insumos_necessarios`).
 
 **Aceitável (consumidores legítimos de `orcamento.produtos`):**
 

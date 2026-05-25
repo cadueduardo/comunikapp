@@ -1,6 +1,6 @@
 # Plano de Ação: Home, Onboarding e Evolução Operacional
 
-> **Status atual (atualizado em 2026-05-25):** Fases 0, 1 e 2 concluídas. Fase 3 em conclusão (criação de OS com `ItemOS` por produto e geometria estruturada já funciona; falta finalizar a ação interna formal "Aprovar e gerar OS" com notificações alinhadas à aprovação pública e revisar PCP/estoque para consumirem `itens_os`). Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF antes de continuar.**
+> **Status atual (atualizado em 2026-05-25):** Fases 0, 1, 2 e 3 concluídas. Próximo passo é iniciar a Fase 4 (Home operacional com cards de gestão), com pré-requisito de validar pela interface o fluxo "Aprovar e gerar OS" e a impressão da OS gerada. Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF antes de continuar.**
 
 ## Critério de sucesso
 
@@ -873,7 +873,7 @@ Critérios de aceite:
 
 ### Fase 3: correção OS gerada por orçamento
 
-> **[EM CONCLUSÃO em 2026-05-25]** — Backend já cria `ItemOS` por produto do orçamento aprovado, com largura/altura/área/perímetro/unidade/origem da geometria e referência do anexo (migration `20260525120000_add_geometria_item_os`). `insumos_calculados` foi padronizado para gravar/ler JSON consistente. Validado via script ponta a ponta (orçamento real com 2 produtos gerou OS-2026-006 com 2 `ItemOS`).
+> **[CONCLUÍDA em 2026-05-25]** — Backend já cria `ItemOS` por produto do orçamento aprovado, com largura/altura/área/perímetro/unidade/origem da geometria e referência do anexo (migration `20260525120000_add_geometria_item_os`). `insumos_calculados` foi padronizado para gravar/ler JSON consistente. Validado via script ponta a ponta (orçamento real com 2 produtos gerou OS-2026-006 com 2 `ItemOS`).
 >
 > **Decisão de produto (2026-05-25):** a ação interna **Aprovar orçamento e gerar OS** **não é** um endpoint separado; ela reaproveita o `fecharPedidoInterno` existente. O que mudou:
 > - Labels da UI passaram de "Fechar pedido" para "Aprovar e gerar OS".
@@ -889,7 +889,7 @@ Entregáveis:
 1. Corrigir serialização/desserialização de `insumos_calculados` (gravar como JSON e fazer `JSON.parse` defensivo em todos os consumidores). **[Feito]**
 2. Criar `ItemOS` por produto do orçamento aprovado. **[Feito]**
 3. Levar anexos e geometria para OS. **[Feito]** (largura, altura, area, perimetro, unidade_medida, unidade_geometria, geometria_origem, arquivo_geometria_url, arquivo_geometria_metadados).
-4. Garantir que PCP leia itens e materiais corretamente. **[Pendente — revisão read-only mapeando onde ainda lê `orcamento.produtos` em vez de `itens_os`.]**
+4. Garantir que PCP leia itens e materiais corretamente. **[Concluído em 2026-05-25:** `impressao-os.service.ts` migrado para ler de `os.itens` (produtos e insumos). Máquinas e serviços manuais continuam vindo do orçamento como dívida técnica documentada (`ItemOS` ainda não persiste esses domínios) — não bloqueia Fase 4. Detalhes na seção 4.6 do HANDOFF.**]**
 5. Criar ação interna **Aprovar orçamento e gerar OS** (atalho para usuário interno). **[Feito como renomeação + notificação alinhada à aprovação pública, conforme decisão de 2026-05-25.]**
 
 Critérios de aceite:
@@ -897,7 +897,7 @@ Critérios de aceite:
 - Orçamento aprovado gera OS completa. **[OK]**
 - OS possui itens. **[OK]**
 - Materiais aparecem para revisão técnica. **[OK]**
-- PCP consegue operar por item. **[A validar após revisão pendente do entregável 4.]**
+- PCP consegue operar por item. **[OK na impressão; validação completa ao exercitar Fase 4.]**
 - Aprovação interna direta funciona com auditoria de quem/quando e dispara os mesmos eventos da aprovação via link público. **[OK]**
 
 ### Fase 4: fluxo operacional resumido na Home
