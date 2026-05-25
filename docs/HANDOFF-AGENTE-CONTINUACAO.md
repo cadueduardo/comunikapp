@@ -10,9 +10,9 @@
 
 ## 1. Estado atual em uma frase
 
-Em 2026-05-25, a **Fase 3 foi concluída**: orçamento aprovado gera OS com `ItemOS` por produto (geometria + `insumos_necessarios` consistentes), a ação interna **Aprovar e gerar OS** está disponível com auditoria dedicada (`APROVADO_INTERNAMENTE_E_OS_GERADA`) e notificação alinhada à aprovação pública, e a impressão da OS já lê de `os.itens` em vez de `os.orcamento.produtos`.
+Em 2026-05-25, a **Fase 4 foi concluída**: o endpoint `GET /home-operacional/fluxo` agrega orçamentos V2 / OS em 5 colunas funcionais (`orcamentos`, `aprovados`, `revisao_tecnica`, `producao`, `prontos`) e devolve `a_receber` / `concluidos` em estado `aguardando_modulo` até a Fase 6. `HomeCacheService` cuida do TTL de 60s por `loja_id` e expõe `invalidar(...)` para os módulos downstream. Frontend tem `FluxoTrabalho` + `CardTrabalho` integrados em `/dashboard`.
 
-Próximo passo é **validar o fluxo ponta a ponta pela interface** (aprovar orçamento → conferir OS criada → conferir impressão) e em seguida iniciar a **Fase 4 (Home operacional com cards de gestão)**.
+Próximo passo é **Fase 5 (Alertas operacionais)** — endpoint `GET /home-operacional/alertas` + componente `AlertasOperacionais`. Em paralelo, é hora de validar pela UI (1) o fluxo "Aprovar e gerar OS" introduzido na Fase 3 e (2) a Home com a nova Fase 4.
 
 ---
 
@@ -30,6 +30,9 @@ Esta branch está **à frente do `main`**. Não fazer merge para `main` sem apro
 
 | Commit  | Fase    | O que fez                                                                                          |
 | ------- | ------- | -------------------------------------------------------------------------------------------------- |
+| c3ca82c | Fase 3 fix                | `impressao-os.service` lê de `itens_os` (encerra Fase 3).                                          |
+| 48fa389 | Fase 3 / Fixes            | Ação "Aprovar e gerar OS" + `buildApiUrl` server-side absoluto + `obterRegrasAtivas` sem null.     |
+| 33c176d | Sub-fase 2.F + Fase 3     | Consolidação geometria estruturada + `ItemOS` por produto.                                         |
 | 169d909 | Fase 2 frontend (parte 1) | `QuickGeometryInput` + `SimuladorPrecificacao` + página `/orcamentos-v2/simulador` (andaime).      |
 | 5417de4 | Fase 2 backend            | Geometria avançada em `ProdutoOrcamento`, `velocidade_ml_h` em `maquina`, módulo `estimativa-tempo`. |
 | dcb9f98 | Fase 1 fix                | Esconder checklist quando todas as obrigatórias estão concluídas.                                  |
@@ -37,6 +40,8 @@ Esta branch está **à frente do `main`**. Não fazer merge para `main` sem apro
 | 71c4acf | Fase 1 backend            | Módulo `home-operacional` com onboarding, configuração recomendada e banner.                       |
 | 66de457 | Fase 0                    | Decisões e contratos da Home operacional (10 documentos em `docs/fase-0-home-operacional/`).       |
 | 0089746 | Plano                     | Plano de ação revisado com diretriz de dashboard com cards.                                        |
+
+> Próximo commit (Fase 4) será adicionado a esta tabela na próxima atualização do HANDOFF; o resumo executivo da Fase 4 está logo abaixo, na seção 1.
 
 ### Ambiente local
 
@@ -278,6 +283,53 @@ Pasta `docs/fase-0-home-operacional/` com 10 documentos:
 **Validação feita:** `npx prisma migrate deploy`, `npx prisma generate`, `npx tsc --noEmit` no backend e `git diff --check`.
 
 **Pendências imediatas:** validar na interface um orçamento aprovado gerando OS com múltiplos itens (botão renomeado para "Aprovar e gerar OS") e verificar a impressão da OS pelo template. A migração de `impressao-os.service.ts` para `os.itens` foi concluída e validada por script. Detalhes em 4.6.
+
+### 4.7 Fase 4 — Home operacional com cards (concluída em 2026-05-25)
+
+**Decisões de produto confirmadas:**
+
+- Inicia já agora (sem esperar validação manual da Fase 3 pela UI; usuário valida em paralelo).
+- 7 colunas conforme contrato em `docs/fase-0-home-operacional/02-contratos-home-operacional.md` seção 5. As 2 colunas que dependem de Cobrança (`a_receber`, `concluidos`) ficam **visíveis** com `status: 'aguardando_modulo'` + aviso "Aguardando módulo financeiro (Fase 6)." em vez de serem ocultadas.
+
+**Backend (`backend/src/home-operacional/`):**
+
+- `interfaces/fluxo.interface.ts`: tipos `ColunaFluxo`, `CardFluxo`, `AcaoCardFluxo`, `StatusColunaFluxo`, `FluxoResponseData`. Estado por coluna: `ativa` ou `aguardando_modulo`.
+- `services/home-cache.service.ts`: cache em memória (Map) com TTL fixo de 60s e métodos `obter / gravar / invalidar / limparTudo`. Exportado pelo módulo para que `OSService`, `OrcamentosV2Service` e outros possam chamar `invalidar(\`fluxo:${lojaId}\`)` quando uma mudança de estado relevante acontecer. Por ora apenas o TTL natural é exercitado; a fiação por evento fica para os módulos consumidores decidirem quando vale a pena.
+- `services/fluxo-trabalho.service.ts`: monta as 5 colunas ativas com `Promise.all` para paralelizar 10 queries (5 counts + 5 findMany com `take: 5`). Helpers privados para labels pt-BR (`labelStatusOrcamento`, `labelStatusOS`) e formatação numérica robusta a Decimal/string/number do Prisma.
+- `home-operacional.controller.ts`: novo `GET /home-operacional/fluxo?refresh=1?`. Envelope `{ data, meta }` com `meta.cache_hit` refletindo se veio do cache.
+- `home-operacional.module.ts`: registra os dois novos services e exporta `HomeCacheService`.
+
+**Mapeamento coluna → query (concreto):**
+
+| Coluna | Where principal | Notas |
+| --- | --- | --- |
+| `orcamentos` | `status ∈ {rascunho, em_analise}` | Mostra ação "Enviar" para rascunho. |
+| `aprovados` | `status = aprovado AND id NOT IN (orcamento_ids com OS)` | Ação rápida "Gerar OS" aponta para `POST /orcamentos-v2/:id/fechar-pedido`. |
+| `revisao_tecnica` | `aprovacao_tecnica_status = PENDENTE AND status NOT IN (CANCELADA, FINALIZADA)` | Independe do status principal da OS. |
+| `producao` | `status ∈ {FILA, AGUARDANDO_MATERIAL, PRODUCAO, ACABAMENTO} AND aprovacao_tecnica_status = APROVADA` | Inclui `AGUARDANDO_MATERIAL` para não esconder OS bloqueadas por estoque (alertas vêm na Fase 5). |
+| `prontos` | `status = FINALIZADA` | Quando Cobrança existir, restringir para `cobranca.status ∈ {PREVISTA_SALDO, PARCIAL_PAGO}`. |
+| `a_receber` | — | `aguardando_modulo`. |
+| `concluidos` | — | `aguardando_modulo`. |
+
+**Frontend:**
+
+- `frontend/src/lib/home-operacional-api.ts`: types espelhados do backend + função `fetchFluxo({ refresh })`.
+- `frontend/src/hooks/use-home-operacional.ts`: hook `useFluxoTrabalho()` com `recarregar({ forcar })` para forçar `?refresh=1`.
+- `frontend/src/components/home-operacional/CardTrabalho.tsx`: card individual; corpo clicável se houver ação `abrir`; rodapé com até N ações (`href` vira `Link`, `endpoint` faz chamada direta via `apiRequest` e dispara `onAcaoConcluida`).
+- `frontend/src/components/home-operacional/FluxoTrabalho.tsx`: layout responsivo (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7`); cabeçalho com botão de "atualizar agora". Trata 3 estados por coluna: aguardando_modulo (com aviso), vazia ativa ("Nada por aqui ainda."), com cards.
+- `frontend/src/app/(main)/dashboard/page.tsx`: render do `FluxoTrabalho` abaixo do `OnboardingChecklist`.
+
+**Validação ponta a ponta (script de debug, deletado depois):**
+
+- Loja real do banco: `tisruw9j7`.
+- 1ª chamada: 26 ms para 5 colunas; 2ª (via `HomeCacheService.obter`): 0 ms.
+- `invalidar(...)` → próxima leitura retorna `null`.
+- Dados reais: 12 OS em `revisao_tecnica`, 1 OS em `prontos`, demais zeradas.
+
+**Pendências pequenas (não bloqueantes):**
+
+- Conectar `HomeCacheService.invalidar(\`fluxo:${lojaId}\`)` aos pontos relevantes: criação/aprovação/edição de orçamento, criação/avanço/finalização de OS, aprovação técnica. Recomendo fazer junto com a Fase 5, porque os mesmos eventos vão alimentar os alertas.
+- O contrato original previa `GET /home-operacional/resumo` consolidando banner+onboarding+fluxo+alertas+financeiro em uma única chamada. Não implementei nesta fase — o front faz 3-4 chamadas paralelas (banner, onboarding, fluxo) e isso é aceitável. Reabrir só se a Home começar a sofrer com first paint lento.
 
 ### 4.5 Atualização de 2026-05-25 (sessão da tarde) — Fixes urgentes do "Fechar pedido"
 

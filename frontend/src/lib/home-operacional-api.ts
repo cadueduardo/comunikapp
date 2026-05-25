@@ -135,3 +135,62 @@ export async function fetchBannerEstado(): Promise<BannerMensagem[]> {
   const data = await unwrap<{ mensagens: BannerMensagem[] }>(r);
   return data.mensagens;
 }
+
+// ====================================================================
+// Fluxo de trabalho (Fase 4)
+//
+// Mantenha sincronizado com:
+//   backend/src/home-operacional/interfaces/fluxo.interface.ts
+// ====================================================================
+
+export type TipoCardFluxo = 'orcamento' | 'os' | 'item_os' | 'cobranca';
+
+export type StatusColunaFluxo = 'ativa' | 'aguardando_modulo';
+
+export type IdColunaFluxo =
+  | 'orcamentos'
+  | 'aprovados'
+  | 'revisao_tecnica'
+  | 'producao'
+  | 'prontos'
+  | 'a_receber'
+  | 'concluidos';
+
+export interface AcaoCardFluxo {
+  id: string;
+  label: string;
+  href?: string;
+  endpoint?: string;
+}
+
+export interface CardFluxo {
+  id: string;
+  tipo: TipoCardFluxo;
+  titulo: string;
+  subtitulo?: string;
+  status_label?: string;
+  valor?: number;
+  atualizado_em: string;
+  acoes: AcaoCardFluxo[];
+}
+
+export interface ColunaFluxo {
+  id: IdColunaFluxo;
+  label: string;
+  total: number;
+  cards: CardFluxo[];
+  status: StatusColunaFluxo;
+  aviso?: string;
+}
+
+export interface FluxoResumo {
+  colunas: ColunaFluxo[];
+}
+
+export async function fetchFluxo(opcoes?: {
+  refresh?: boolean;
+}): Promise<FluxoResumo> {
+  const qs = opcoes?.refresh ? '?refresh=1' : '';
+  const r = await apiRequest(`/home-operacional/fluxo${qs}`, { method: 'GET' });
+  return unwrap<FluxoResumo>(r);
+}

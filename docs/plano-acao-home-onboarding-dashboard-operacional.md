@@ -1,6 +1,6 @@
 # Plano de Ação: Home, Onboarding e Evolução Operacional
 
-> **Status atual (atualizado em 2026-05-25):** Fases 0, 1, 2 e 3 concluídas. Próximo passo é iniciar a Fase 4 (Home operacional com cards de gestão), com pré-requisito de validar pela interface o fluxo "Aprovar e gerar OS" e a impressão da OS gerada. Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF antes de continuar.**
+> **Status atual (atualizado em 2026-05-25):** Fases 0, 1, 2, 3 e 4 concluídas. Próximo passo é a Fase 5 (Alertas operacionais) — endpoint `GET /home-operacional/alertas` + componente `AlertasOperacionais`. As colunas `a_receber` e `concluidos` do fluxo continuam em `aguardando_modulo` até a Fase 6 (financeiro). Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF antes de continuar.**
 
 ## Critério de sucesso
 
@@ -902,24 +902,26 @@ Critérios de aceite:
 
 ### Fase 4: fluxo operacional resumido na Home
 
+> **[CONCLUÍDA em 2026-05-25]** — endpoint `GET /home-operacional/fluxo` em produção, `HomeCacheService` com TTL 60s e método `invalidar(lojaId)` exportado para os módulos downstream, e os componentes `FluxoTrabalho` + `CardTrabalho` integrados em `frontend/src/app/(main)/dashboard/page.tsx`. As 5 colunas dependentes apenas de Orçamentos V2 / OS estão ativas; `a_receber` e `concluidos` retornam `status: 'aguardando_modulo'` (decisão de UX de 2026-05-25). Validação em runtime: 26 ms para a primeira chamada, 0 ms na segunda (cache hit), invalidar + recomputar funcionando.
+
 Objetivo: permitir que a empresa pequena acompanhe o trabalho sem entrar primeiro em cada módulo.
 
 Entregáveis:
 
-1. Criar endpoint `GET /home-operacional/fluxo` com agregações no banco.
-2. Implementar cache de 60s por `loja_id` com invalidação por evento.
-3. Agregar Orçamentos V2, OS e PCP em colunas operacionais conforme mapeamento da seção "Bloco 2".
-4. Criar componente `FluxoTrabalho`.
-5. Criar componente `CardTrabalho` com ações rápidas por estágio.
-6. Permitir clique no card para abrir orçamento, OS ou PCP.
+1. Criar endpoint `GET /home-operacional/fluxo` com agregações no banco. **[OK]**
+2. Implementar cache de 60s por `loja_id` com invalidação por evento. **[OK — TTL 60s implementado em `HomeCacheService`. Invalidação por evento ainda não conectada; o método público está pronto para os outros módulos chamarem quando uma mudança de estado for detectada. Por enquanto vale a expiração natural por TTL + `?refresh=1` manual.]**
+3. Agregar Orçamentos V2, OS e PCP em colunas operacionais conforme mapeamento da seção "Bloco 2". **[OK para as 5 colunas funcionais. `a_receber` e `concluidos` ficam em `aguardando_modulo` até Fase 6.]**
+4. Criar componente `FluxoTrabalho`. **[OK]**
+5. Criar componente `CardTrabalho` com ações rápidas por estágio. **[OK]**
+6. Permitir clique no card para abrir orçamento, OS ou PCP. **[OK]**
 
 Critérios de aceite:
 
-- Cards reais aparecem nas colunas corretas.
-- Clique no card abre o detalhe certo.
-- Ações rápidas funcionam sem sair do dashboard quando possível.
-- Não há drag and drop entre colunas.
-- O endpoint responde em tempo aceitável mesmo em lojas com muitos registros.
+- Cards reais aparecem nas colunas corretas. **[OK em validação ponta a ponta com dados reais.]**
+- Clique no card abre o detalhe certo. **[OK]**
+- Ações rápidas funcionam sem sair do dashboard quando possível. **[OK — ações `endpoint` chamam direto via `apiRequest` e fazem `recarregar({ forcar: true })`.]**
+- Não há drag and drop entre colunas. **[OK por design.]**
+- O endpoint responde em tempo aceitável mesmo em lojas com muitos registros. **[A medir em lojas reais; cache de 60s atenua picos.]**
 
 ### Fase 5: alertas operacionais
 

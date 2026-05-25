@@ -1,6 +1,7 @@
 'use client';
 
 import { useUser } from '@/contexts/UserContext';
+import { FluxoTrabalho } from '@/components/home-operacional/FluxoTrabalho';
 import { OnboardingChecklist } from '@/components/home-operacional/OnboardingChecklist';
 import { SystemStateBanner } from '@/components/home-operacional/SystemStateBanner';
 
@@ -24,8 +25,9 @@ export default function DashboardPage() {
 
       <OnboardingChecklist />
 
-      {/* Próximas seções (Fase 4 e 5):
-         - FluxoTrabalho (kanban somente leitura + atalhos)
+      <FluxoTrabalho />
+
+      {/* Próximas seções (Fase 5 e 6):
          - AlertasOperacionais
          - ResumoFinanceiroSimples (sensível a permissão) */}
     </div>

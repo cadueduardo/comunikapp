@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   BannerMensagem,
+  FluxoResumo,
   OnboardingResumo,
   fetchBannerEstado,
+  fetchFluxo,
   fetchOnboarding,
   patchOnboardingStep,
   postAplicarConfiguracaoRecomendada,
@@ -101,4 +103,50 @@ export function useBannerEstado(): UseBannerEstadoResult {
   }, [recarregar]);
 
   return { mensagens, loading, erro, recarregar };
+}
+
+// ====================================================================
+// Fluxo de trabalho (Fase 4)
+// ====================================================================
+
+interface UseFluxoTrabalhoResult {
+  fluxo: FluxoResumo | null;
+  loading: boolean;
+  erro: string | null;
+  /**
+   * Recarrega o fluxo. Por default reutiliza o cache de 60s do backend.
+   * Use `recarregar({ forcar: true })` para enviar `?refresh=1` e
+   * recomputar do zero (ex.: depois que o usuario aprovou um orcamento
+   * em outro modulo).
+   */
+  recarregar: (opcoes?: { forcar?: boolean }) => Promise<void>;
+}
+
+export function useFluxoTrabalho(): UseFluxoTrabalhoResult {
+  const [fluxo, setFluxo] = useState<FluxoResumo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const recarregar = useCallback(async (opcoes?: { forcar?: boolean }) => {
+    setLoading(true);
+    setErro(null);
+    try {
+      const data = await fetchFluxo({ refresh: opcoes?.forcar === true });
+      setFluxo(data);
+    } catch (e) {
+      setErro(
+        e instanceof Error
+          ? e.message
+          : 'Falha ao carregar fluxo de trabalho',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void recarregar();
+  }, [recarregar]);
+
+  return { fluxo, loading, erro, recarregar };
 }
