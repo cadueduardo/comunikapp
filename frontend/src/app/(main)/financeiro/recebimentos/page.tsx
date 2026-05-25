@@ -501,7 +501,11 @@ export default function RecebimentosPage() {
       </Card>
 
       <RegistrarRecebimentoDialog
-        key={recebimentoTarget ? `${recebimentoTarget.id}-${modoForcado}` : 'none'}
+        key={
+          recebimentoTarget
+            ? `receber-${recebimentoTarget.id}-${modoForcado}`
+            : 'receber-none'
+        }
         cobranca={recebimentoTarget}
         open={!!recebimentoTarget}
         onOpenChange={(open) => {
@@ -515,7 +519,7 @@ export default function RecebimentosPage() {
       />
 
       <CancelarCobrancaDialog
-        key={cancelarTarget ? `cancel-${cancelarTarget.id}` : 'none'}
+        key={cancelarTarget ? `cancelar-${cancelarTarget.id}` : 'cancelar-none'}
         cobranca={cancelarTarget}
         open={!!cancelarTarget}
         onOpenChange={(open) => {
