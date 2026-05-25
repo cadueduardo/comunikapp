@@ -7,6 +7,8 @@ import { MailModule } from '../mail/mail.module';
 import { DocumentosModule } from '../documentos/documentos.module';
 import { MotorCalculoV2Module } from '../motor-calculo-v2/motor-calculo-v2.module';
 import { OSModule } from '../os/os.module';
+import { FinanceiroModule } from '../financeiro/financeiro.module';
+import { HomeOperacionalModule } from '../home-operacional/home-operacional.module';
 import { getRequiredJwtSecret } from '../auth/jwt-secret';
 
 // Controllers
@@ -41,6 +43,8 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     DocumentosModule,
     MotorCalculoV2Module, // Integracao com motor ja funcionando
     OSModule,
+    FinanceiroModule, // Fase 6 - Cobranca/Recebimento (CobrancasService + CobrancaVencimentoService)
+    HomeOperacionalModule, // Fase 6 - Invalidar cache da home apos aprovacao
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

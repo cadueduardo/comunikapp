@@ -27,6 +27,9 @@ import {
   PrioridadeOrcamento,
   DadosHerdadosOrcamento,
 } from '../interfaces/orcamento.interface';
+import { CobrancasService } from '../../financeiro/services/cobrancas.service';
+import { CobrancaVencimentoService } from '../../financeiro/services/cobranca-vencimento.service';
+import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
 
 /**
  * Serviço Principal de Orçamentos V2
@@ -52,6 +55,10 @@ export class OrcamentosV2Service {
     private readonly osService: OSService,
     private readonly documentCodeService: DocumentCodeService,
     private readonly mailService: MailService,
+    // Fase 6 - Financeiro minimo
+    private readonly cobrancasService: CobrancasService,
+    private readonly cobrancaVencimentoService: CobrancaVencimentoService,
+    private readonly homeCacheService: HomeCacheService,
   ) {}
 
   /**
@@ -1450,6 +1457,25 @@ export class OrcamentosV2Service {
           'Falha ao gerar OS automaticamente. Status do orcamento foi revertido.',
         );
       }
+
+      // Fase 6 - Cria cobranca financeira automaticamente. Igual a
+      // aprovacao interna, falha aqui nao reverte a aprovacao - apenas avisa.
+      try {
+        await this.criarCobrancaAposAprovacao(
+          orcamentoAtualizado,
+          orcamentoAtualizado.id,
+          lojaContexto,
+          'CLIENTE_PUBLICO',
+        );
+        this.homeCacheService.invalidar(lojaContexto);
+      } catch (cobrancaError) {
+        this.logger.warn(
+          '[COBRANCA_AUTO] Falha na criacao da cobranca para orcamento ' +
+            orcamentoAtualizado.id +
+            ' via canal publico: ' +
+            (cobrancaError as Error).message,
+        );
+      }
     }
 
     this.logger.log(
@@ -2162,6 +2188,25 @@ export class OrcamentosV2Service {
         observacaoRegistro,
       );
 
+      // Fase 6 - Cria a Cobranca financeira automaticamente. Se a criacao
+      // falhar (ex.: condicao_pagamento_tipo nao preenchido), nao reverter a
+      // aprovacao do orcamento - apenas logar o problema. O usuario podera
+      // criar a cobranca depois manualmente (ou complementar os campos).
+      try {
+        await this.criarCobrancaAposAprovacao(orcamento, id, lojaId, userId);
+        // Invalida o cache da home para o ResumoFinanceiroSimples e
+        // colunas a_receber/concluidos refletirem a nova cobranca.
+        this.homeCacheService.invalidar(lojaId);
+      } catch (cobrancaError) {
+        this.logger.warn(
+          '[APROVACAO_INTERNA] Aprovacao registrada, mas criacao da cobranca falhou para o orcamento ' +
+            id +
+            ': ' +
+            (cobrancaError as Error).message +
+            '. O usuario pode criar a cobranca manualmente.',
+        );
+      }
+
       // Dispara a mesma notificacao que o fluxo de aprovacao via link publico
       // (`processarAcaoCliente('APROVAR')`). Mantemos o tipo 'APROVAR' para
       // reaproveitar o `TipoNotificacao.ORCAMENTO_APROVADO` ja existente; a
@@ -2211,6 +2256,86 @@ export class OrcamentosV2Service {
         'Falha ao aprovar e gerar OS. O orçamento foi revertido.',
       );
     }
+  }
+
+  /**
+   * Fase 6 - Cria a cobranca financeira para um orcamento recem-aprovado.
+   *
+   * Le os campos estruturados `condicao_pagamento_*` do orcamento; se
+   * algum estiver faltando (orcamento antigo / nao migrado), tenta inferir
+   * a partir dos defaults da loja. Se ainda assim nao for possivel, lanca
+   * BadRequestException - o caller decide se reverte ou apenas avisa.
+   *
+   * Idempotente: se o orcamento ja tem cobranca, o servico downstream retorna
+   * a existente sem duplicar.
+   */
+  private async criarCobrancaAposAprovacao(
+    orcamento: any,
+    orcamentoId: string,
+    lojaId: string,
+    usuarioId: string,
+  ): Promise<void> {
+    const valorTotal = Number(orcamento.preco_final ?? orcamento.valor_total ?? 0);
+    if (valorTotal <= 0) {
+      this.logger.warn(
+        `[COBRANCA_AUTO] Orcamento ${orcamentoId} sem valor_total - cobranca nao criada.`,
+      );
+      return;
+    }
+
+    // Resolve tipo: do orcamento ou, se nao informado, default da loja.
+    let tipo = orcamento.condicao_pagamento_tipo as string | null | undefined;
+    let entradaPct = orcamento.condicao_pagamento_entrada_pct
+      ? Number(orcamento.condicao_pagamento_entrada_pct)
+      : null;
+    const numeroParcelas = orcamento.condicao_pagamento_parcelas ?? null;
+    const descricao = orcamento.condicao_pagamento_descricao ?? null;
+
+    if (!tipo) {
+      const loja = await this.prisma.loja.findUnique({
+        where: { id: lojaId },
+        select: {
+          condicao_pagamento_padrao_tipo: true,
+          condicao_pagamento_padrao_entrada_pct: true,
+        },
+      });
+      tipo = loja?.condicao_pagamento_padrao_tipo ?? null;
+      if (!entradaPct && loja?.condicao_pagamento_padrao_entrada_pct) {
+        entradaPct = Number(loja.condicao_pagamento_padrao_entrada_pct);
+      }
+    }
+
+    if (!tipo) {
+      // Sem condicao definida nem na loja nem no orcamento - nao da pra criar.
+      this.logger.warn(
+        `[COBRANCA_AUTO] Orcamento ${orcamentoId} sem condicao_pagamento_tipo e loja sem default. Cobranca nao criada.`,
+      );
+      return;
+    }
+
+    const prazoEntregaDias = this.cobrancaVencimentoService.parsePrazoEntrega(
+      orcamento.prazo_entrega,
+    );
+
+    await this.cobrancasService.criarCobrancaParaOrcamento(
+      orcamentoId,
+      lojaId,
+      {
+        tipo,
+        entrada_pct: entradaPct,
+        parcelas: numeroParcelas,
+        descricao,
+        valor_total: valorTotal,
+        data_aprovacao: new Date(),
+        prazo_entrega_dias: prazoEntregaDias,
+        cliente_id: orcamento.cliente_id ?? null,
+      },
+      usuarioId,
+    );
+
+    this.logger.log(
+      `[COBRANCA_AUTO] Cobranca criada para orcamento ${orcamentoId} (tipo=${tipo}, valor=R$ ${valorTotal.toFixed(2)})`,
+    );
   }
 
   private async criarOSAutomaticaParaOrcamento(
