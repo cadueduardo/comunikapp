@@ -40,17 +40,27 @@ export class PCPKanbanService {
       // operacional não-terminal. Espelha o set já usado por
       // FluxoTrabalhoService.montarColunaProducao, kpi-dashboard.service e
       // alertas-operacionais.service para manter coerência entre a Home, o
-      // Kanban e os alertas. APROVADA_TECNICA não entra porque, a partir de
-      // 2026-05-25, a aprovação técnica promove a OS direto para
-      // LIBERADA_PARA_PCP (ver os.service.ts:aprovarOSTecnica). Mantemos
-      // PRODUCAO/ACABAMENTO/AGUARDANDO_MATERIAL para acomodar OS legadas que
-      // já avançaram no operacional sem passar pelo checkpoint formal.
+      // Kanban e os alertas.
+      //
+      // IMPORTANTE: APROVADA_TECNICA precisa entrar aqui. O serviço
+      // `aprovarOSTecnica` (os.service.ts e aprovacao-tecnica.service.ts)
+      // grava o status `APROVADA_TECNICA` e NÃO promove automaticamente
+      // para `LIBERADA_PARA_PCP` — a promoção depende de o usuário entrar
+      // em `/pcp` e vincular um workflow manualmente. Até esse passo
+      // acontecer, a OS precisa ser visível no Kanban (coluna FILA via
+      // KanbanMapper.mapearStatusOS) para o operador saber que existe
+      // trabalho pendente.
+      //
+      // PRODUCAO/ACABAMENTO/AGUARDANDO_MATERIAL cobrem OS que avançaram pelo
+      // botão "Iniciar produção" do `OSWorkflowActions` sem passar pelo
+      // checkpoint formal de PCP.
       const osLiberadas = await this.prisma.ordemServico.findMany({
         where: {
           loja_id: lojaId,
           aprovacao_tecnica_status: 'APROVADA',
           status: {
             in: [
+              'APROVADA_TECNICA',
               'LIBERADA_PARA_PCP',
               'EM_WORKFLOW',
               'PRODUCAO',

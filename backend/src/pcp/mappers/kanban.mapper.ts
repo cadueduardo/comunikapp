@@ -230,6 +230,9 @@ export class KanbanMapper {
    */
   private static mapearStatusOS(statusOS: string): string {
     const mapeamento: Record<string, string> = {
+      // OS aprovada tecnicamente mas ainda sem WorkflowInstancia vinculada
+      // entra direto na FILA do Kanban para sinalizar trabalho pendente.
+      APROVADA_TECNICA: 'FILA',
       LIBERADA_PARA_PCP: 'FILA',
       AGUARDANDO_MATERIAL: 'FILA',
       EM_WORKFLOW: 'PRODUCAO',
