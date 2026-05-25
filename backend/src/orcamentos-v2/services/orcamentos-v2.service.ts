@@ -2046,6 +2046,22 @@ export class OrcamentosV2Service {
     };
   }
 
+  /**
+   * Aprovacao interna do orcamento + geracao de OS em um unico passo.
+   *
+   * Esta e a "acao interna" prevista pela Fase 3 do plano-mae: o vendedor /
+   * atendente nao precisa enviar o link publico nem esperar o cliente clicar
+   * em "Aprovar". Quem fecha o negocio fora do canal publico (balcao,
+   * telefone, WhatsApp) usa esse caminho para registrar a aprovacao,
+   * disparar a criacao da OS e notificar a equipe interna como se o cliente
+   * tivesse aprovado pelo link.
+   *
+   * Mantemos o nome `fecharPedidoInterno` (e o endpoint `/fechar-pedido`)
+   * por compatibilidade com o frontend ja em uso; o que muda e a semantica
+   * visivel ao usuario (label "Aprovar e gerar OS"), o evento de auditoria
+   * (`APROVADO_INTERNAMENTE_E_OS_GERADA`) e o disparo da notificacao
+   * `notificarAcaoCliente(orcamento, 'APROVAR')`, identica ao fluxo publico.
+   */
   async fecharPedidoInterno(
     id: string,
     lojaId: string,
@@ -2053,7 +2069,7 @@ export class OrcamentosV2Service {
     observacoes?: string,
   ) {
     this.logger.log(
-      'Fechando pedido internamente para o orcamento ' + id,
+      'Aprovacao interna + geracao de OS solicitada para o orcamento ' + id,
     );
 
     const orcamento = await this.prisma.orcamento.findFirst({
@@ -2071,7 +2087,7 @@ export class OrcamentosV2Service {
     const statusBloqueados = ['cancelado', 'rejeitado'];
     if (statusBloqueados.includes(String(orcamento.status).toLowerCase())) {
       throw new BadRequestException(
-        'Este orçamento não pode ser fechado no status atual: ' +
+        'Este orçamento não pode ser aprovado no status atual: ' +
           orcamento.status,
       );
     }
@@ -2090,7 +2106,7 @@ export class OrcamentosV2Service {
     if (osExistente) {
       return {
         success: true,
-        message: 'Pedido já estava fechado e possui OS gerada.',
+        message: 'Orçamento já estava aprovado e possui OS gerada.',
         orcamento_id: id,
         os_id: osExistente.id,
         os_numero: osExistente.numero,
@@ -2106,7 +2122,7 @@ export class OrcamentosV2Service {
 
     const observacaoRegistro =
       observacoes?.trim() ||
-      'Pedido fechado internamente no sistema pelo usuário ' + userId;
+      'Orçamento aprovado internamente no sistema pelo usuário ' + userId;
 
     try {
       await this.prisma.orcamento.update({
@@ -2123,7 +2139,7 @@ export class OrcamentosV2Service {
         lojaId,
         id,
         userId,
-        'FECHAMENTO_RAPIDO',
+        'APROVACAO_INTERNA',
       );
 
       const osCriada = await this.prisma.ordemServico.findFirst({
@@ -2142,13 +2158,30 @@ export class OrcamentosV2Service {
 
       await this.registrarLog(
         id,
-        'PEDIDO_FECHADO_INTERNAMENTE',
+        'APROVADO_INTERNAMENTE_E_OS_GERADA',
         observacaoRegistro,
       );
 
+      // Dispara a mesma notificacao que o fluxo de aprovacao via link publico
+      // (`processarAcaoCliente('APROVAR')`). Mantemos o tipo 'APROVAR' para
+      // reaproveitar o `TipoNotificacao.ORCAMENTO_APROVADO` ja existente; a
+      // diferenciacao de origem (interna vs publica) fica visivel no log
+      // (`APROVADO_INTERNAMENTE_E_OS_GERADA`) e em `observacoes_cliente`.
+      try {
+        await this.notificarAcaoCliente(orcamento, 'APROVAR');
+      } catch (notifError) {
+        // Notificacao falhar nao deve reverter a aprovacao; apenas avisa.
+        this.logger.warn(
+          '[APROVACAO_INTERNA] Aprovacao registrada, mas notificacao de equipe falhou para o orcamento ' +
+            id +
+            ': ' +
+            (notifError as Error).message,
+        );
+      }
+
       return {
         success: true,
-        message: 'Pedido fechado e OS gerada com sucesso.',
+        message: 'Orçamento aprovado e OS gerada com sucesso.',
         orcamento_id: id,
         os_id: osCriada?.id,
         os_numero: osCriada?.numero,
@@ -2168,14 +2201,14 @@ export class OrcamentosV2Service {
       });
 
       this.logger.error(
-        '[FECHAMENTO_RAPIDO] Falha ao fechar pedido do orcamento ' +
+        '[APROVACAO_INTERNA] Falha ao aprovar e gerar OS para o orcamento ' +
           id +
           ': ' +
           error.message,
       );
 
       throw new InternalServerErrorException(
-        'Falha ao fechar pedido e gerar OS. O orçamento foi revertido.',
+        'Falha ao aprovar e gerar OS. O orçamento foi revertido.',
       );
     }
   }

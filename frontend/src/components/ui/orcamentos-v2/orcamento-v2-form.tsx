@@ -1627,11 +1627,11 @@ export function OrcamentoV2Form({
       );
       router.push('/orcamentos-v2');
     } catch (error) {
-      console.error('Erro ao fechar pedido:', error);
+      console.error('Erro ao aprovar e gerar OS:', error);
       if (error instanceof Error) {
-        toast.error(`Erro ao fechar pedido: ${error.message}`);
+        toast.error(`Erro ao aprovar e gerar OS: ${error.message}`);
       } else {
-        toast.error('Erro ao fechar pedido');
+        toast.error('Erro ao aprovar e gerar OS');
       }
     } finally {
       setIsFechandoPedido(false);
@@ -1807,7 +1807,7 @@ export function OrcamentoV2Form({
                             className="flex items-center space-x-2"
                           >
                             <CheckCircle2 className="w-4 h-4" />
-                            <span>{isFechandoPedido ? 'Fechando...' : 'Fechar pedido'}</span>
+                            <span>{isFechandoPedido ? 'Aprovando...' : 'Aprovar e gerar OS'}</span>
                           </Button>
                         )}
                         <Button
@@ -1846,7 +1846,7 @@ export function OrcamentoV2Form({
                                   className="flex items-center space-x-2"
                                 >
                                   <CheckCircle2 className="w-4 h-4" />
-                                  <span>{isFechandoPedido ? 'Fechando...' : 'Fechar pedido'}</span>
+                                  <span>{isFechandoPedido ? 'Aprovando...' : 'Aprovar e gerar OS'}</span>
                                 </Button>
                               )}
                               <Button
@@ -1869,7 +1869,7 @@ export function OrcamentoV2Form({
                                   className="flex items-center space-x-2"
                                 >
                                   <CheckCircle2 className="w-4 h-4" />
-                                  <span>{isFechandoPedido ? 'Fechando...' : 'Fechar pedido'}</span>
+                                  <span>{isFechandoPedido ? 'Aprovando...' : 'Aprovar e gerar OS'}</span>
                                 </Button>
                               )}
                             <Button
@@ -1982,7 +1982,7 @@ export function OrcamentoV2Form({
                       className="flex items-center space-x-2"
                     >
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>{isFechandoPedido ? 'Fechando...' : 'Fechar pedido'}</span>
+                      <span>{isFechandoPedido ? 'Aprovando...' : 'Aprovar e gerar OS'}</span>
                     </Button>
                   )}
                   <Button
@@ -2021,7 +2021,7 @@ export function OrcamentoV2Form({
                             className="flex items-center space-x-2"
                           >
                             <CheckCircle2 className="w-4 h-4" />
-                            <span>{isFechandoPedido ? 'Fechando...' : 'Fechar pedido'}</span>
+                            <span>{isFechandoPedido ? 'Aprovando...' : 'Aprovar e gerar OS'}</span>
                           </Button>
                         )}
                         <Button
@@ -2044,7 +2044,7 @@ export function OrcamentoV2Form({
                             className="flex items-center space-x-2"
                           >
                             <CheckCircle2 className="w-4 h-4" />
-                            <span>{isFechandoPedido ? 'Fechando...' : 'Fechar pedido'}</span>
+                            <span>{isFechandoPedido ? 'Aprovando...' : 'Aprovar e gerar OS'}</span>
                           </Button>
                         )}
                       <Button

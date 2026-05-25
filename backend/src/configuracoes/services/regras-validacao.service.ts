@@ -238,15 +238,22 @@ export class RegrasValidacaoService {
   }
 
   /**
-   * Obter regras ativas para execução
+   * Obter regras ativas para execução.
+   *
+   * Observação: o schema do modelo `RegraValidacao` define `loja_id` como
+   * `String` não-anulável; portanto não existem "regras globais" persistidas
+   * com `loja_id = null`. Versões anteriores deste método tentavam um
+   * `OR: [{ loja_id: lojaId }, { loja_id: null }]` que o Prisma 6.x rejeita
+   * com `Argument 'loja_id' is missing`, fazendo o `validarOS` falhar em
+   * silêncio (capturado por `try/catch` em `OSValidacoesService`) e nenhuma
+   * regra automática rodava. Filtramos apenas por `loja_id` para manter o
+   * isolamento por tenant; se "regras globais" virarem requisito, o schema
+   * precisa tornar `loja_id` opcional antes.
    */
   async obterRegrasAtivas(lojaId: string, regraIds?: string[]): Promise<any[]> {
     const where: any = {
       ativo: true,
-      OR: [
-        { loja_id: lojaId },
-        { loja_id: null }, // Regras globais
-      ],
+      loja_id: lojaId,
     };
 
     if (regraIds?.length) {
