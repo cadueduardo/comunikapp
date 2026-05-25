@@ -138,8 +138,21 @@ export class AprovacaoTecnicaService {
       throw new NotFoundException('Ordem de Serviço não encontrada');
     }
 
-    if (os.status !== 'AGUARDANDO_APROVACAO_TECNICA') {
-      throw new BadRequestException('OS não está aguardando aprovação técnica');
+    // Aceita aprovacao tecnica enquanto a OS nao entrou em producao.
+    // FILA tambem e aceito porque caminhos antigos de criacao (criarOSComercial)
+    // usam FILA como status inicial; o gating real e via aprovacao_tecnica_status.
+    const statusPermitidos = ['AGUARDANDO_APROVACAO_TECNICA', 'FILA'];
+    if (!statusPermitidos.includes(os.status)) {
+      throw new BadRequestException(
+        `OS em status "${os.status}" nao pode receber aprovacao tecnica`,
+      );
+    }
+
+    const aprovacaoAtual = (os.aprovacao_tecnica_status || 'PENDENTE').toUpperCase();
+    if (aprovacaoAtual !== 'PENDENTE') {
+      throw new BadRequestException(
+        `OS ja possui decisao de aprovacao tecnica: ${aprovacaoAtual}`,
+      );
     }
 
     // Verificar permissões do usuário

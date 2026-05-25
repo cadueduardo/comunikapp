@@ -379,8 +379,18 @@ Pasta `docs/fase-0-home-operacional/` com 10 documentos:
 **Armadilhas evitadas:**
 
 - O `ConfirmDialog` em `frontend/src/components/ui/confirm-dialog.tsx` **não suporta `children` como trigger nem gerencia `open` internamente** — o uso anterior em `columns.tsx` era inválido (o `<Button Trash2>` envolvido por ele provavelmente não renderizava). A nova UI usa `Dialog` direto, o que também conserta esse bug de exclusão silencioso.
-- O `aprovacao-tecnica.service.ts` é o "caminho A" da aprovação (`POST /os/:id/aprovar-tecnica`, controller `AprovacaoTecnicaController`); existe também o "caminho B" via `WorkflowComercialController` (`PATCH /os/:id/aprovar-tecnica` → `OSService.aprovarOSTecnica`). O modal usa o caminho B (PATCH), que é o mesmo do `OSWorkflowActions` existente. Os dois caminhos compartilham o status `AGUARDANDO_APROVACAO_TECNICA` como precondição, mas têm regras de permissão e auditoria ligeiramente diferentes — manter atenção se for unificar no futuro.
+- O `aprovacao-tecnica.service.ts` é o "caminho A" da aprovação (`POST /os/:id/aprovar-tecnica`, controller `AprovacaoTecnicaController`); existe também o "caminho B" via `WorkflowComercialController` e o "caminho C" via `OSDiretaInternaController` (ambos `PATCH /os/:id/aprovar-tecnica` → `OSService.aprovarOSTecnica`). O modal acaba caindo no caminho C (testado pelo log do dev em 2026-05-25). Os 3 caminhos compartilham regras parecidas mas têm permissões/auditoria ligeiramente diferentes — manter atenção se for unificar no futuro.
 - Há **divergência conhecida do enum `StatusOS`** vs `schema.prisma`: o `backend/src/os/interfaces/os.interfaces.ts` declara 14 estados (incluindo `AGUARDANDO_APROVACAO_TECNICA`, `APROVADA_TECNICA`, `LIBERADA_PARA_PCP`), mas o `schema.prisma` e `docs/fase-0-home-operacional/01-status-oficiais.md` listam apenas 7. **A query da coluna "Produção" no `FluxoTrabalhoService` ignora os 4 estados intermediários do workflow comercial** — a Fase 4 do dashboard pode estar perdendo OS em `APROVADA_TECNICA` ou `LIBERADA_PARA_PCP`. Reavaliar no início da Fase 5 ou em uma rodada de cleanup dos status.
+
+**Hotfix posterior (2026-05-25, ainda na mesma sessão):**
+
+Logo após o primeiro commit, ao testar pela UI o "Aprovar mesmo assim", apareceram 2 problemas:
+
+1. **Hydration error** `<div> cannot be a descendant of <p>`: era um `<p className="sr-only">` envolvendo um `Badge` no rodapé do `AprovarOSModal` — sobra do scaffolding. Removido.
+2. **PATCH 400 Bad Request** `OS não está aguardando aprovação técnica`: a OS estava em `status = 'FILA'` (criada por caminho antigo `criarOSComercial`, linha 781 de `os.service.ts`) com `aprovacao_tecnica_status = 'PENDENTE'`. **Os 2 campos são independentes** e o `OSService.aprovarOSTecnica` só aceitava `AGUARDANDO_APROVACAO_TECNICA`, travando OS legadas que ficaram com `FILA + PENDENTE`. Decisão: o gating real da aprovação técnica deve ser o campo `aprovacao_tecnica_status`, não o status operacional. Mudanças:
+   - `os.service.aprovarOSTecnica`: passa a aceitar `[AGUARDANDO_APROVACAO_TECNICA, FILA]`. Também checa que `aprovacao_tecnica_status = PENDENTE` para evitar reaprovação. Movimentação agora registra o status real anterior (não hardcoded).
+   - `aprovacao-tecnica.service.aprovarTecnica`: mesma tolerância de status.
+   - `columns.tsx` (`AprovacaoCell`): o botão "Aprovar OS" só aparece quando `status ∈ {AGUARDANDO_APROVACAO_TECNICA, FILA}`. Para OS já em produção/finalizada com `aprovacao_tecnica_status = PENDENTE` (dado inconsistente), mostra badge cinza "Pendente" sem ação.
 
 ### 4.5 Atualização de 2026-05-25 (sessão da tarde) — Fixes urgentes do "Fechar pedido"
 

@@ -10,7 +10,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   CheckCircle2,
   AlertTriangle,
@@ -320,12 +319,6 @@ export function AprovarOSModal({
             )}
           </Button>
         </DialogFooter>
-
-        {validacoes && (
-          <p className="sr-only" aria-live="polite">
-            <Badge>info</Badge>
-          </p>
-        )}
       </DialogContent>
     </Dialog>
   );

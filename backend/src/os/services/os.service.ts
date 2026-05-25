@@ -2230,9 +2230,27 @@ export class OSService {
         );
       }
 
-      if (os.status !== StatusOS.AGUARDANDO_APROVACAO_TECNICA) {
+      // Aceita aprovacao tecnica quando a OS ainda nao entrou em producao.
+      // Inclui FILA porque caminhos antigos de criacao (criarOSComercial) usam
+      // FILA como status inicial, embora aprovacao_tecnica_status fique PENDENTE
+      // por default do schema. Sem esse fallback, OS legadas ou criadas por
+      // fluxo direto nunca conseguiriam ser aprovadas pelo grid.
+      const statusPermitidos: string[] = [
+        StatusOS.AGUARDANDO_APROVACAO_TECNICA,
+        StatusOS.FILA,
+      ];
+      if (!statusPermitidos.includes(os.status)) {
         throw new BadRequestException(
-          'OS não está aguardando aprovação técnica',
+          `OS em status "${os.status}" nao pode receber aprovacao tecnica`,
+        );
+      }
+
+      // Bloqueia revalidacao quando ja existe decisao registrada,
+      // a menos que o aprovacao_tecnica_status ainda esteja PENDENTE/null.
+      const aprovacaoAtual = (os.aprovacao_tecnica_status || 'PENDENTE').toUpperCase();
+      if (aprovacaoAtual !== 'PENDENTE') {
+        throw new BadRequestException(
+          `OS ja possui decisao de aprovacao tecnica: ${aprovacaoAtual}`,
         );
       }
 
@@ -2281,11 +2299,12 @@ export class OSService {
         },
       });
 
-      // Registrar movimentação
+      // Registrar movimentacao com o status real anterior (pode ser FILA ou
+      // AGUARDANDO_APROVACAO_TECNICA dependendo do caminho de criacao da OS)
       await this.adicionarMovimentacao(
         osId,
         TipoMovimentacaoOS.APROVACAO_TECNICA,
-        StatusOS.AGUARDANDO_APROVACAO_TECNICA,
+        os.status as StatusOS,
         novoStatus,
         usuarioId,
         observacoes || `Aprovação técnica ${statusAprovacao.toLowerCase()}`,

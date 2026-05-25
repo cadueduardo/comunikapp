@@ -142,6 +142,14 @@ const formatDateTime = (dateString: string) => {
   });
 };
 
+// Status da OS em que ainda faz sentido aprovar tecnicamente.
+// Sincronizado com backend (os.service.aprovarOSTecnica) e
+// aprovacao-tecnica.service.aprovarTecnica.
+const STATUS_PERMITE_APROVACAO = new Set([
+  'AGUARDANDO_APROVACAO_TECNICA',
+  'FILA',
+]);
+
 // Componente: celula da coluna "Aprovacao"
 function AprovacaoCell({
   os,
@@ -152,6 +160,7 @@ function AprovacaoCell({
 }) {
   const tipoOs = (os.tipo_os || 'COMERCIAL').toUpperCase();
   const aprovacao = (os.aprovacao_tecnica_status || 'PENDENTE').toUpperCase();
+  const statusOs = (os.status || '').toUpperCase();
 
   // OS interna nao usa aprovacao tecnica - usa aprovacao gerencial em outro fluxo
   if (tipoOs === 'INTERNA') {
@@ -188,17 +197,33 @@ function AprovacaoCell({
     );
   }
 
-  // PENDENTE (ou nulo): botao para abrir o modal de aprovacao
+  // PENDENTE: so mostra botao se o status operacional ainda permite aprovar.
+  // Status como PRODUCAO/ACABAMENTO/FINALIZADA NAO devem reabrir aprovacao,
+  // mesmo que aprovacao_tecnica_status esteja PENDENTE em dados legados.
+  if (STATUS_PERMITE_APROVACAO.has(statusOs)) {
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => onAprovar(os)}
+        className="h-8"
+      >
+        <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
+        Aprovar OS
+      </Button>
+    );
+  }
+
+  // Caso atipico: aprovacao_tecnica_status = PENDENTE mas OS ja avancou.
+  // Mostra badge informativa para o usuario nao ficar bloqueado nem confuso.
   return (
-    <Button
-      size="sm"
+    <Badge
       variant="outline"
-      onClick={() => onAprovar(os)}
-      className="h-8"
+      className="bg-gray-50 text-gray-600 border-gray-200"
+      title="OS ja avancou alem da etapa de aprovacao"
     >
-      <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
-      Aprovar OS
-    </Button>
+      Pendente
+    </Badge>
   );
 }
 
