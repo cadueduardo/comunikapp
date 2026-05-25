@@ -13,8 +13,48 @@ export const createFormSchema = (mode: 'novo' | 'editar' | 'template') => z.obje
   condicoes_comerciais: z.string().optional(),
   // Configurações comerciais
   prazo_entrega: z.string().optional(),
+  /**
+   * DEPRECATED (Fase 6 - 2026-05-25): substituido por condicao_pagamento_*.
+   * Mantido aqui apenas para nao quebrar formularios antigos em execucao.
+   * Novos orcamentos nao gravam mais este campo (gerado a partir dos estruturados).
+   */
   forma_pagamento: z.string().optional(),
   validade_proposta: z.string().optional(),
+  // Fase 6 - Condicao de pagamento estruturada
+  condicao_pagamento_tipo: z
+    .enum([
+      'A_VISTA',
+      'ENTRADA_SALDO',
+      'FATURADO_30',
+      'FATURADO_60',
+      'FATURADO_90',
+      'PARCELADO',
+      'PERSONALIZADO',
+    ])
+    .optional(),
+  condicao_pagamento_entrada_pct: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val.trim() === '') return true;
+        const num = Number(val.replace(',', '.'));
+        return !Number.isNaN(num) && num >= 1 && num <= 99;
+      },
+      'Percentual de entrada deve estar entre 1 e 99',
+    ),
+  condicao_pagamento_parcelas: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val.trim() === '') return true;
+        const num = Number(val);
+        return Number.isInteger(num) && num >= 2 && num <= 36;
+      },
+      'Numero de parcelas deve estar entre 2 e 36',
+    ),
+  condicao_pagamento_descricao: z.string().max(255).optional(),
   atendente: z.string().optional(),
   comissao_percentual: z.string().optional().refine(
     (val) => {

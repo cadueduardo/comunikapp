@@ -23,6 +23,10 @@ interface Loja {
   horas_produtivas_mensais?: number | null;
   /** 'markup' | 'margem_por_dentro' — padrão da loja para tipo de margem */
   tipo_margem_lucro?: string | null;
+  // Fase 6 - Condicao de pagamento padrao da loja
+  condicao_pagamento_padrao_tipo?: string | null;
+  condicao_pagamento_padrao_entrada_pct?: string | null;
+  condicao_pagamento_padrao_descricao?: string | null;
 }
 
 interface User {

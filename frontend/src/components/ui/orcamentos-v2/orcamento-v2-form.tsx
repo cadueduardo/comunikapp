@@ -233,8 +233,13 @@ export function OrcamentoV2Form({
       tipo_margem_lucro: '',
       condicoes_comerciais: '',
       prazo_entrega: '10 a 15 dias úteis',
-      forma_pagamento: '50% entrada, restante na entrega',
+      forma_pagamento: '', // DEPRECATED Fase 6: nao gravado pelo formulario novo; permanece para compatibilidade.
       validade_proposta: '30 dias',
+      // Fase 6 - Condicao de pagamento estruturada (defaults vem da loja via CondicaoPagamentoFieldset)
+      condicao_pagamento_tipo: undefined,
+      condicao_pagamento_entrada_pct: '',
+      condicao_pagamento_parcelas: '',
+      condicao_pagamento_descricao: '',
       atendente: 'Equipe Comercial',
       comissao_percentual: '5',
       itens_produto: [
@@ -341,8 +346,27 @@ export function OrcamentoV2Form({
         ),
         condicoes_comerciais: String(initialData.condicoes_comerciais || ''),
         prazo_entrega: String(initialData.prazo_entrega || '10 a 15 dias úteis'),
-        forma_pagamento: String(initialData.forma_pagamento || '50% entrada, restante na entrega'),
+        forma_pagamento: String(initialData.forma_pagamento || ''),
         validade_proposta: String(initialData.validade_proposta || '30 dias'),
+        // Fase 6 - Condicao de pagamento estruturada
+        condicao_pagamento_tipo: (initialData.condicao_pagamento_tipo as
+          | 'A_VISTA'
+          | 'ENTRADA_SALDO'
+          | 'FATURADO_30'
+          | 'FATURADO_60'
+          | 'FATURADO_90'
+          | 'PARCELADO'
+          | 'PERSONALIZADO'
+          | undefined) ?? undefined,
+        condicao_pagamento_entrada_pct:
+          initialData.condicao_pagamento_entrada_pct != null
+            ? String(initialData.condicao_pagamento_entrada_pct)
+            : '',
+        condicao_pagamento_parcelas:
+          initialData.condicao_pagamento_parcelas != null
+            ? String(initialData.condicao_pagamento_parcelas)
+            : '',
+        condicao_pagamento_descricao: String(initialData.condicao_pagamento_descricao ?? ''),
         atendente: String(initialData.atendente || 'Equipe Comercial'),
         itens_produto: (() => {
           // Se tem itens_produto no initialData, usar eles
@@ -949,8 +973,17 @@ export function OrcamentoV2Form({
         cliente_id: data.cliente_id,
         condicoes_comerciais: data.condicoes_comerciais,
         prazo_entrega: data.prazo_entrega,
-        forma_pagamento: data.forma_pagamento,
+        // forma_pagamento: DEPRECATED Fase 6 - nao gravamos mais; backend deriva da condicao estruturada
         validade_proposta: data.validade_proposta,
+        // Fase 6 - Condicao de pagamento estruturada
+        condicao_pagamento_tipo: data.condicao_pagamento_tipo,
+        condicao_pagamento_entrada_pct: data.condicao_pagamento_entrada_pct
+          ? Number(String(data.condicao_pagamento_entrada_pct).replace(',', '.'))
+          : undefined,
+        condicao_pagamento_parcelas: data.condicao_pagamento_parcelas
+          ? Number(data.condicao_pagamento_parcelas)
+          : undefined,
+        condicao_pagamento_descricao: data.condicao_pagamento_descricao || undefined,
         atendente: data.atendente,
         comissao_percentual: comissaoPercentualEfetiva,
         tipo: 'produto_servico',
@@ -1302,8 +1335,17 @@ export function OrcamentoV2Form({
       cliente_id: data.cliente_id,
       condicoes_comerciais: data.condicoes_comerciais,
       prazo_entrega: data.prazo_entrega,
-      forma_pagamento: data.forma_pagamento,
+      // forma_pagamento: DEPRECATED Fase 6 - nao gravamos mais; backend deriva da condicao estruturada
       validade_proposta: data.validade_proposta,
+      // Fase 6 - Condicao de pagamento estruturada
+      condicao_pagamento_tipo: data.condicao_pagamento_tipo,
+      condicao_pagamento_entrada_pct: data.condicao_pagamento_entrada_pct
+        ? Number(String(data.condicao_pagamento_entrada_pct).replace(',', '.'))
+        : undefined,
+      condicao_pagamento_parcelas: data.condicao_pagamento_parcelas
+        ? Number(data.condicao_pagamento_parcelas)
+        : undefined,
+      condicao_pagamento_descricao: data.condicao_pagamento_descricao || undefined,
       atendente: data.atendente,
       tipo: tipoOrcamento,
       tipo_orcamento: tipoOrcamento,

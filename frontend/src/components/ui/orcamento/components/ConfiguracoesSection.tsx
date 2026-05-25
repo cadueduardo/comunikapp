@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Settings } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
+import { CondicaoPagamentoFieldset } from './CondicaoPagamentoFieldset';
 
 interface ConfiguracoesSectionProps {
   mode: 'novo' | 'editar' | 'template';
@@ -145,24 +146,6 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
             
             <FormField
               control={form.control}
-              name="forma_pagamento"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Forma de Pagamento</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="text" 
-                      placeholder="50% entrada, restante na entrega"
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
               name="validade_proposta"
               render={({ field }) => (
                 <FormItem>
@@ -225,6 +208,9 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
               )}
             />
           </div>
+
+          {/* Bloco estruturado de Condicao de Pagamento (Fase 6) */}
+          <CondicaoPagamentoFieldset />
         </div>
       </CardContent>
     </Card>

@@ -32,6 +32,12 @@ export interface OrcamentoBase {
   area_produto?: number;
   quantidade_produto?: number;
   unidade_medida_produto?: string;
+
+  // Fase 6 - Condicao de pagamento estruturada
+  condicao_pagamento_tipo?: string;
+  condicao_pagamento_entrada_pct?: number;
+  condicao_pagamento_parcelas?: number;
+  condicao_pagamento_descricao?: string;
 }
 
 export interface OrcamentoCompleto extends OrcamentoBase {

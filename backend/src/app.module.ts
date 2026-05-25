@@ -28,6 +28,7 @@ import { ConfiguracoesModule } from './configuracoes/configuracoes.module';
 import { ArteAprovacaoModule } from './modules/arte-aprovacao/arte-aprovacao.module';
 import { HomeOperacionalModule } from './home-operacional/home-operacional.module';
 import { EstimativaTempoModule } from './estimativa-tempo/estimativa-tempo.module';
+import { FinanceiroModule } from './financeiro/financeiro.module';
 import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
 
 @Module({
@@ -64,6 +65,7 @@ import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
     ArteAprovacaoModule, // Módulo de Arte & Aprovação
     HomeOperacionalModule, // Módulo da Home operacional (Fase 1)
     EstimativaTempoModule, // Estimativa de tempo de máquina + compatibilidade material×máquina (Fase 2)
+    FinanceiroModule, // Módulo do financeiro mínimo (Fase 6)
   ],
 })
 export class AppModule {
