@@ -7,11 +7,13 @@ import {
   FluxoResumo,
   KpisResumo,
   OnboardingResumo,
+  ResumoFinanceiroResponse,
   fetchAlertas,
   fetchBannerEstado,
   fetchFluxo,
   fetchKpis,
   fetchOnboarding,
+  fetchResumoFinanceiro,
   patchOnboardingStep,
   postAplicarConfiguracaoRecomendada,
 } from '@/lib/home-operacional-api';
@@ -226,6 +228,46 @@ export function useAlertasOperacionais(): UseAlertasOperacionaisResult {
         e instanceof Error
           ? e.message
           : 'Falha ao carregar alertas operacionais',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void recarregar();
+  }, [recarregar]);
+
+  return { resumo, loading, erro, recarregar };
+}
+
+// ====================================================================
+// Resumo Financeiro Simples (Fase 6.C)
+// ====================================================================
+
+interface UseResumoFinanceiroResult {
+  resumo: ResumoFinanceiroResponse | null;
+  loading: boolean;
+  erro: string | null;
+  recarregar: (opcoes?: { forcar?: boolean }) => Promise<void>;
+}
+
+export function useResumoFinanceiro(): UseResumoFinanceiroResult {
+  const [resumo, setResumo] = useState<ResumoFinanceiroResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const recarregar = useCallback(async (opcoes?: { forcar?: boolean }) => {
+    setLoading(true);
+    setErro(null);
+    try {
+      const data = await fetchResumoFinanceiro({
+        refresh: opcoes?.forcar === true,
+      });
+      setResumo(data);
+    } catch (e) {
+      setErro(
+        e instanceof Error ? e.message : 'Falha ao carregar resumo financeiro',
       );
     } finally {
       setLoading(false);

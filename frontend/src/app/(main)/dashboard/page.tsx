@@ -5,6 +5,7 @@ import { AlertasOperacionais } from '@/components/home-operacional/AlertasOperac
 import { DashboardKPIs } from '@/components/home-operacional/DashboardKPIs';
 import { FluxoTrabalho } from '@/components/home-operacional/FluxoTrabalho';
 import { OnboardingChecklist } from '@/components/home-operacional/OnboardingChecklist';
+import { ResumoFinanceiroSimples } from '@/components/home-operacional/ResumoFinanceiroSimples';
 import { SystemStateBanner } from '@/components/home-operacional/SystemStateBanner';
 
 /**
@@ -39,6 +40,9 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div className="lg:col-span-8 space-y-4 min-w-0">
           <DashboardKPIs />
+
+          {/* Fase 6.C - Resumo financeiro (renderiza apenas com permissao) */}
+          <ResumoFinanceiroSimples />
 
           <OnboardingChecklist />
 

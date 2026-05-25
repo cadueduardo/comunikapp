@@ -301,3 +301,55 @@ export async function fetchKpis(opcoes?: {
   const r = await apiRequest(`/home-operacional/kpis${qs}`, { method: 'GET' });
   return unwrap<KpisResumo>(r);
 }
+
+// ====================================================================
+// Resumo Financeiro Simples (Fase 6.C - Bloco 4)
+//
+// Mantenha sincronizado com:
+//   backend/src/home-operacional/interfaces/resumo-financeiro.interface.ts
+// ====================================================================
+
+export interface ResumoFinanceiroData {
+  loja_id: string;
+  periodo: string; // YYYY-MM
+  /** null = sem dado; front esconde o indicador. */
+  total_orcado_mes: number | null;
+  total_aprovado_mes: number | null;
+  valor_em_producao: number | null;
+  valor_pronto_a_receber: number | null;
+  valor_recebido_mes: number | null;
+  cobrancas_vencidas: number;
+  valor_vencido: number;
+}
+
+export interface ResumoFinanceiroResponse {
+  data: ResumoFinanceiroData;
+  meta: {
+    calculado_em: string;
+    cached: boolean;
+  };
+}
+
+export async function fetchResumoFinanceiro(opcoes?: {
+  refresh?: boolean;
+}): Promise<ResumoFinanceiroResponse> {
+  const qs = opcoes?.refresh ? '?refresh=1' : '';
+  const r = await apiRequest(`/home-operacional/resumo-financeiro${qs}`, {
+    method: 'GET',
+  });
+  // Este endpoint NAO usa o envelope `unwrap` (retorna { data, meta } com
+  // shape proprio onde `data.loja_id`, etc).
+  if (!r.ok) {
+    let detalhe = '';
+    try {
+      detalhe = await r.text();
+    } catch {
+      /* noop */
+    }
+    throw new Error(
+      `Falha ao carregar resumo financeiro (HTTP ${r.status})${detalhe ? `: ${detalhe.slice(0, 160)}` : ''}`,
+    );
+  }
+  const json = (await r.json()) as ResumoFinanceiroResponse;
+  return json;
+}

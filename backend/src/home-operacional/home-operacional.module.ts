@@ -9,6 +9,7 @@ import { FluxoTrabalhoService } from './services/fluxo-trabalho.service';
 import { HomeCacheService } from './services/home-cache.service';
 import { AlertasOperacionaisService } from './services/alertas-operacionais.service';
 import { KpiDashboardService } from './services/kpi-dashboard.service';
+import { ResumoFinanceiroService } from './services/resumo-financeiro.service';
 
 /**
  * Modulo da Home operacional.
@@ -37,6 +38,7 @@ import { KpiDashboardService } from './services/kpi-dashboard.service';
     HomeCacheService,
     AlertasOperacionaisService,
     KpiDashboardService,
+    ResumoFinanceiroService, // Fase 6.C
   ],
   exports: [OnboardingService, HomeCacheService],
 })

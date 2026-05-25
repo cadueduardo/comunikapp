@@ -17,6 +17,7 @@ import { FluxoTrabalhoService } from './services/fluxo-trabalho.service';
 import { HomeCacheService } from './services/home-cache.service';
 import { AlertasOperacionaisService } from './services/alertas-operacionais.service';
 import { KpiDashboardService } from './services/kpi-dashboard.service';
+import { ResumoFinanceiroService } from './services/resumo-financeiro.service';
 import { AtualizarOnboardingStepDto } from './dto/atualizar-onboarding-step.dto';
 import { AplicarConfiguracaoRecomendadaDto } from './dto/aplicar-configuracao-recomendada.dto';
 import { FluxoResponseData } from './interfaces/fluxo.interface';
@@ -42,6 +43,7 @@ export class HomeOperacionalController {
     private readonly homeCacheService: HomeCacheService,
     private readonly alertasOperacionaisService: AlertasOperacionaisService,
     private readonly kpiDashboardService: KpiDashboardService,
+    private readonly resumoFinanceiroService: ResumoFinanceiroService,
   ) {}
 
   @Get('onboarding')
@@ -165,6 +167,29 @@ export class HomeOperacionalController {
     const data = await this.kpiDashboardService.listar(lojaId);
     this.homeCacheService.gravar(chave, data);
     return this.envelope(data, { cache_hit: false });
+  }
+
+  /**
+   * GET /home-operacional/resumo-financeiro
+   *
+   * Bloco 4 do dashboard (Fase 6.C). Retorna os 5 indicadores principais
+   * + count e valor de cobrancas vencidas.
+   *
+   * Decisao Fase 0 (doc 07-permissoes-home.md): o front so renderiza
+   * quando o usuario tem `home-operacional.ver_resumo_financeiro`. O
+   * backend retorna o dado para qualquer JWT autenticado (validacao
+   * fina sera adicionada quando o sistema de perfis estiver populado).
+   *
+   * Cache: 60s, usa o `ResumoFinanceiroService` interno.
+   * `?refresh=1` para forcar recomputacao.
+   */
+  @Get('resumo-financeiro')
+  async resumoFinanceiro(
+    @CurrentLojaId() lojaId: string,
+    @Query('refresh') refresh?: string,
+  ) {
+    const bypass = refresh === '1' || refresh === 'true';
+    return this.resumoFinanceiroService.obterResumo(lojaId, bypass);
   }
 
   private envelope<T>(data: T, metaExtra?: Record<string, unknown>) {
