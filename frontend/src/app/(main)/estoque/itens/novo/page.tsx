@@ -191,7 +191,7 @@ export default function NovoItemEstoquePage() {
   };
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto">
       <div className="flex items-center gap-4 mb-6">
         <Link href="/estoque/itens">
           <Button variant="outline" size="sm">

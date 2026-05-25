@@ -332,9 +332,16 @@ export default function DashboardLayout({
       </Sidebar>
       
       {/* Área de conteúdo principal */}
-      <main className="flex-1">
+      <main className="flex-1 min-w-0">
         <MainHeader />
-        <div>
+        {/*
+          Padding lateral e vertical centralizado no layout para garantir
+          respiro consistente em toda a plataforma. Paginas individuais
+          NAO devem mais adicionar `p-6` / `container mx-auto p-X` no
+          root - basta usar `space-y-X` ou layout proprio dentro deste
+          padding. Migracao em massa feita em 2026-05-25.
+        */}
+        <div className="px-4 sm:px-6 lg:px-8 py-4 lg:py-6">
           {children}
         </div>
       </main>

@@ -102,15 +102,15 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
   } : undefined;
 
   if (loading) {
-    return <div className="p-6">Carregando dados do insumo...</div>;
+    return <div>Carregando dados do insumo...</div>;
   }
   
   if (!insumo) {
-    return <div className="p-6">Insumo não encontrado.</div>;
+    return <div>Insumo não encontrado.</div>;
   }
 
   return (
-    <div className="p-6">
+    <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Editar Insumo</h1>
         <p className="text-gray-600 mt-1">

@@ -91,15 +91,15 @@ export default function EditarMaquinaPage({ params }: { params: Promise<{ id: st
   } : undefined;
 
   if (loading) {
-    return <div className="p-6">Carregando dados da máquina...</div>;
+    return <div>Carregando dados da máquina...</div>;
   }
   
   if (!maquina) {
-    return <div className="p-6">Máquina não encontrada.</div>;
+    return <div>Máquina não encontrada.</div>;
   }
 
   return (
-    <div className="p-6">
+    <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Editar Máquina</h1>
         <p className="text-gray-600 mt-1">

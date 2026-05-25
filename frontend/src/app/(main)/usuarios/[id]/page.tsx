@@ -78,7 +78,7 @@ export default function UsuarioDetalhePage({
 
   if (loading || !usuario) {
     return (
-      <div className="p-6">
+      <div>
         <PageHeader
           title="Usuário"
           backHref="/usuarios/gestao"
@@ -90,7 +90,7 @@ export default function UsuarioDetalhePage({
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title={usuario.nome_completo}
         backHref="/usuarios/gestao"

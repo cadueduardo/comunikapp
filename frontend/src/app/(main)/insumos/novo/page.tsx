@@ -31,7 +31,7 @@ export default function NovoInsumoPage() {
   };
 
   return (
-    <div className="p-6">
+    <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Adicionar Novo Insumo</h1>
         <p className="text-gray-600 mt-1">

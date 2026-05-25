@@ -111,11 +111,11 @@ export default function EditarClientePage({ params }: { params: Promise<{ id: st
   };
 
   if (loading) {
-    return <div className="p-6">Carregando dados do cliente...</div>;
+    return <div>Carregando dados do cliente...</div>;
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link href="/clientes">

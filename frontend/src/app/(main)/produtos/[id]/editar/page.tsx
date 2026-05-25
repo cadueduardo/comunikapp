@@ -8,7 +8,7 @@ export default function EditarProdutoPage() {
   const produtoId = params.id as string;
 
   return (
-    <div className="p-6">
+    <div>
       <ProdutoForm 
         mode="editar"
         produtoId={produtoId}
