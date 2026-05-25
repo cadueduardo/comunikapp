@@ -127,6 +127,38 @@ Remove-Item .commit-msg-tmp.txt
 
 Ou usar o método HEREDOC do `cat` do bash (não tem nativo no PowerShell). O arquivo tmp é o caminho mais seguro.
 
+### 3.5.1 CRÍTICO: NUNCA usar `Set-Content`/`Out-File` do PowerShell 5.1 sem `-Encoding UTF8`
+
+O encoding padrão do PowerShell 5.1 (Windows) para `Set-Content`, `Out-File` e `>` é **Default (ANSI/Windows-1252)** — NÃO é UTF-8. Isso corrompe silenciosamente qualquer arquivo contendo caracteres acentuados (`ç`, `ã`, `ú`, `é`, etc.), porque os bytes UTF-8 multi-byte são reinterpretados/sobrescritos como bytes single-byte Latin-1.
+
+**Sintoma de corrupção:** ao rodar `npm run dev`, o Next.js (turbopack) cospe:
+
+```text
+Build Error
+Reading source code for parsing failed
+./src/app/.../page.tsx
+- invalid utf-8 sequence of 1 bytes from index XXXX
+```
+
+E o request HTTP cai com `500` em qualquer rota dependente (inclusive `/favicon.ico`, `/api/lojas/me`, etc.) porque o servidor não consegue montar a árvore de rotas.
+
+**Caso real (2026-05-25):** o commit `435cec7` (`refactor(layout): padding lateral centralizado...`) usou um script PowerShell com `Set-Content -NoNewline -Path $f -Value $new` para fazer substituições em massa em ~60 páginas. Resultado: o `ú` (`0xC3 0xBA` em UTF-8) virou `0xE1` (Latin-1) e o build quebrou em `os/page.tsx` no byte 1833. O fix foi `git revert HEAD` + reaplicar tudo via Node.js (`fs.writeFileSync(f, Buffer.from(novo, 'utf-8'))`), validando com `new TextDecoder('utf-8', { fatal: true })` antes/depois.
+
+**Regras obrigatórias para substituições em massa:**
+
+1. **Prefira `StrReplace` (tool)** ou edição direta arquivo a arquivo no IDE — preserva UTF-8 nativamente.
+2. Se precisar de script em batch, **use Node.js**, NÃO PowerShell. Node lê/escreve UTF-8 por padrão e oferece `TextDecoder({fatal:true})` para validação.
+3. Se for absolutamente necessário usar PowerShell, **sempre** especifique `-Encoding UTF8`:
+   ```powershell
+   Set-Content -Path $f -Value $novo -Encoding UTF8 -NoNewline
+   # ou explicitamente sem BOM:
+   [System.IO.File]::WriteAllText($f, $novo, [System.Text.UTF8Encoding]::new($false))
+   ```
+4. **Sempre valide** após uma edição em massa rodando algo como:
+   ```bash
+   node -e "const fs=require('fs');const cp=require('child_process');for(const f of cp.execSync('git diff --name-only HEAD').toString().split(/\\r?\\n/)){if(!f.endsWith('.tsx'))continue;try{new TextDecoder('utf-8',{fatal:true}).decode(fs.readFileSync(f));}catch(e){console.log('BAD',f)}}"
+   ```
+
 ### 3.6 Nomes de tabelas MySQL (case-insensitive)
 
 O `model ProdutoOrcamento` no Prisma gera tabela `ProdutoOrcamento` (mantém o case), mas o MySQL no Windows é case-insensitive por padrão. Em migrations SQL, use o case **exato** que o Prisma usa (verifique no resultado do `migrate diff --script`). Modelos sem `@@map` mantêm o nome em PascalCase; com `@@map("nome_snake")`, usam snake_case.
