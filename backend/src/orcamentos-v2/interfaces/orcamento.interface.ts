@@ -78,6 +78,11 @@ export interface ProdutoOrcamento {
   largura?: number;
   altura?: number;
   area?: number;
+  perimetro_produto?: number;
+  unidade_geometria?: 'mm' | 'cm' | 'm';
+  geometria_origem?: 'MANUAL' | 'IMAGEM' | 'DXF';
+  arquivo_geometria_url?: string;
+  arquivo_geometria_metadados?: string;
   insumos: ItemInsumo[];
   maquinas: ItemMaquina[];
   funcoes: ItemFuncao[];
@@ -248,6 +253,11 @@ export interface DadosHerdadosOrcamento {
   largura_produto?: number;
   altura_produto?: number;
   area_produto?: number;
+  perimetro_produto?: number;
+  unidade_geometria?: string;
+  geometria_origem?: string;
+  arquivo_geometria_url?: string;
+  arquivo_geometria_metadados?: string;
   unidade_medida_produto?: string;
   horas_producao: number;
   custos_calculados?: any;

@@ -133,7 +133,11 @@ export class OSProdutoPrazoService {
           altura: produtoOrcamento.altura?.toString(),
           profundidade: produtoOrcamento.profundidade?.toString(),
           area: produtoOrcamento.area_produto?.toString(),
+          perimetro: produtoOrcamento.perimetro_produto?.toString(),
           unidade_medida: produtoOrcamento.unidade_medida,
+          unidade_geometria: produtoOrcamento.unidade_geometria,
+          geometria_origem: produtoOrcamento.geometria_origem,
+          arquivo_geometria_url: produtoOrcamento.arquivo_geometria_url,
           categoria: produtoOrcamento.categoria,
           observacoes: produtoOrcamento.observacoes,
         };
@@ -152,6 +156,16 @@ export class OSProdutoPrazoService {
               insumos_necessarios: null, // Será calculado posteriormente se necessário
               observacoes: produtoOrcamento.descricao,
               materiais_disponivel: false,
+              largura: produtoOrcamento.largura,
+              altura: produtoOrcamento.altura,
+              area: produtoOrcamento.area_produto,
+              perimetro: produtoOrcamento.perimetro_produto,
+              unidade_medida: produtoOrcamento.unidade_medida,
+              unidade_geometria: produtoOrcamento.unidade_geometria,
+              geometria_origem: produtoOrcamento.geometria_origem,
+              arquivo_geometria_url: produtoOrcamento.arquivo_geometria_url,
+              arquivo_geometria_metadados:
+                produtoOrcamento.arquivo_geometria_metadados,
               // Inicializar campos de prazo
               data_inicio_producao: null,
               data_prazo_produto: null,

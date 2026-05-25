@@ -1,6 +1,6 @@
 # Plano de Ação: Home, Onboarding e Evolução Operacional
 
-> **Status atual (atualizado em 2026-05-24):** Fases 0 e 1 concluídas, Fase 2 em andamento (backend + componentes standalone prontos; falta integrar no formulário grande). Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF antes de continuar.**
+> **Status atual (atualizado em 2026-05-25):** Fases 0, 1 e 2 concluídas. Fase 3 em conclusão (criação de OS com `ItemOS` por produto e geometria estruturada já funciona; falta finalizar a ação interna formal "Aprovar e gerar OS" com notificações alinhadas à aprovação pública e revisar PCP/estoque para consumirem `itens_os`). Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF antes de continuar.**
 
 ## Critério de sucesso
 
@@ -836,9 +836,7 @@ Critérios de aceite:
 
 ### Fase 2: cálculo rápido em Orçamentos V2
 
-> **[EM ANDAMENTO]** — Backend pronto em commit `5417de4` (geometria avançada em `ProdutoOrcamento`, `velocidade_ml_h` em `maquina`, módulo `estimativa-tempo`). Frontend standalone pronto em commit `169d909` (`QuickGeometryInput`, `SimuladorPrecificacao`, página `/orcamentos-v2/simulador` como andaime).
->
-> **Pendente:** Sub-fase 2.F — integrar `QuickGeometryInput` em `ProdutoSection.tsx` (mantendo `unidade_medida_produto` comercial intacto e introduzindo novo campo `unidade_geometria`), botão "Estimar tempo" em `MaquinaSection.tsx`, `SimuladorPrecificacao` como modal no formulário, atualizar DTOs do orçamento, nova migration aditiva para `unidade_geometria`. **Todas as decisões de produto da 2.F estão registradas e detalhamento passo a passo em `docs/HANDOFF-AGENTE-CONTINUACAO.md` seção 5.**
+> **[CONCLUÍDA em 2026-05-25]** — Sub-fases 2.A a 2.F integradas. Backend (`5417de4`): geometria avançada em `ProdutoOrcamento`, `velocidade_ml_h` em `maquina`, módulo `estimativa-tempo`. Frontend standalone (`169d909`): `QuickGeometryInput`, `SimuladorPrecificacao`, página `/orcamentos-v2/simulador`. Sub-fase 2.F integrada no formulário grande de orçamento V2: geometria rápida no `ProdutoSection`, unidade de geometria separada (`unidade_geometria`, persistida via migration `20260524160000_add_unidade_geometria`), cálculo de material por área/perímetro no `MaterialSection`, botão "Estimar tempo" explícito no `MaquinaSection` e `SimuladorPrecificacao` como modal acionado por botão "Simular preço".
 >
 > **Diferenças entre o plano original e o implementado:**
 > - O plano sugeria `minutos_por_metro_corte` no cadastro de máquina; implementei como `velocidade_ml_h` (m/h) para manter consistência com o `velocidade_m2_h` que já existia. O motor calcula da mesma forma.
@@ -875,23 +873,32 @@ Critérios de aceite:
 
 ### Fase 3: correção OS gerada por orçamento
 
+> **[EM CONCLUSÃO em 2026-05-25]** — Backend já cria `ItemOS` por produto do orçamento aprovado, com largura/altura/área/perímetro/unidade/origem da geometria e referência do anexo (migration `20260525120000_add_geometria_item_os`). `insumos_calculados` foi padronizado para gravar/ler JSON consistente. Validado via script ponta a ponta (orçamento real com 2 produtos gerou OS-2026-006 com 2 `ItemOS`).
+>
+> **Decisão de produto (2026-05-25):** a ação interna **Aprovar orçamento e gerar OS** **não é** um endpoint separado; ela reaproveita o `fecharPedidoInterno` existente. O que mudou:
+> - Labels da UI passaram de "Fechar pedido" para "Aprovar e gerar OS".
+> - Evento de auditoria interno renomeado de `PEDIDO_FECHADO_INTERNAMENTE` para `APROVADO_INTERNAMENTE_E_OS_GERADA`.
+> - O fluxo passa a disparar as mesmas notificações que a aprovação via link público (`notificarAcaoCliente('APROVAR')`).
+>
+> Bugs de fechamento de pedido (que apareciam como 500 opaco) foram corrigidos: `data_prazo` (texto livre virou DateTime) em `021ec1d`, `prioridade` fora do enum em `1e7e422`, e proxy `/api/os` com URL relativa em `44433ce`.
+
 Objetivo: garantir que Orçamentos V2, OS e PCP trabalhem com o mesmo dado técnico.
 
 Entregáveis:
 
-1. Corrigir serialização/desserialização de `insumos_calculados` (gravar como JSON e fazer `JSON.parse` defensivo em todos os consumidores).
-2. Criar `ItemOS` por produto do orçamento aprovado.
-3. Levar anexos e geometria para OS.
-4. Garantir que PCP leia itens e materiais corretamente.
-5. Criar ação interna **Aprovar orçamento e gerar OS** (atalho para usuário interno).
+1. Corrigir serialização/desserialização de `insumos_calculados` (gravar como JSON e fazer `JSON.parse` defensivo em todos os consumidores). **[Feito]**
+2. Criar `ItemOS` por produto do orçamento aprovado. **[Feito]**
+3. Levar anexos e geometria para OS. **[Feito]** (largura, altura, area, perimetro, unidade_medida, unidade_geometria, geometria_origem, arquivo_geometria_url, arquivo_geometria_metadados).
+4. Garantir que PCP leia itens e materiais corretamente. **[Pendente — revisão read-only mapeando onde ainda lê `orcamento.produtos` em vez de `itens_os`.]**
+5. Criar ação interna **Aprovar orçamento e gerar OS** (atalho para usuário interno). **[Feito como renomeação + notificação alinhada à aprovação pública, conforme decisão de 2026-05-25.]**
 
 Critérios de aceite:
 
-- Orçamento aprovado gera OS completa.
-- OS possui itens.
-- Materiais aparecem para revisão técnica.
-- PCP consegue operar por item.
-- Aprovação interna direta funciona com auditoria de quem/quando e dispara os mesmos eventos da aprovação via link público.
+- Orçamento aprovado gera OS completa. **[OK]**
+- OS possui itens. **[OK]**
+- Materiais aparecem para revisão técnica. **[OK]**
+- PCP consegue operar por item. **[A validar após revisão pendente do entregável 4.]**
+- Aprovação interna direta funciona com auditoria de quem/quando e dispara os mesmos eventos da aprovação via link público. **[OK]**
 
 ### Fase 4: fluxo operacional resumido na Home
 

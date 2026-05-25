@@ -562,6 +562,29 @@ export class OrcamentosV2Controller {
   /**
    * Duplica orçamento existente
    */
+  /**
+   * Fecha o pedido internamente e gera OS sem aprovação externa do cliente
+   */
+  @Post(':id/fechar-pedido')
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
+  @ApiOperation({ summary: 'Fechar pedido internamente e gerar OS' })
+  @ApiResponse({ status: 200, description: 'Pedido fechado com sucesso' })
+  @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
+  @ApiResponse({ status: 401, description: 'Não autorizado' })
+  async fecharPedido(
+    @Param('id') id: string,
+    @Body() body: { observacoes?: string },
+    @Request() req: any,
+  ) {
+    const { loja_id, user_id } = req.user;
+    return await this.orcamentosService.fecharPedidoInterno(
+      id,
+      loja_id,
+      user_id,
+      body?.observacoes,
+    );
+  }
+
   @Post(':id/duplicar')
   @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
   @ApiOperation({ summary: 'Duplicar orçamento existente' })

@@ -10,7 +10,9 @@
 
 ## 1. Estado atual em uma frase
 
-Estamos no meio da **Fase 2 (orçamento V2)**. Backend e componentes standalone do frontend prontos e commitados. Falta a **integração dos componentes dentro do formulário grande de orçamento** (Sub-fase 2.F) e depois seguir para a **Fase 3 (correção da OS gerada por orçamento)**.
+Em 2026-05-25, a **Sub-fase 2.F** foi aplicada no fluxo principal de Orçamentos V2 e a **Fase 3 foi iniciada**: a OS criada a partir de orçamento aprovado agora passa a gravar `ItemOS` por produto, com geometria estruturada e `insumos_calculados` serializado de forma consistente.
+
+Ainda falta concluir a Fase 3 com a ação interna **Aprovar orçamento e gerar OS**, validar o fluxo ponta a ponta na interface e depois avançar para a Fase 4 da Home operacional.
 
 ---
 
@@ -128,6 +130,49 @@ O arquivo está com mudança não-commitada (porta 4001→4000) que não foi fei
 
 Idem item anterior. Esse arquivo não-rastreado é do usuário. Não inclua nos commits.
 
+### 3.9 Route handlers Next.js precisam de URL absoluta no `fetch`
+
+Em `frontend/src/app/api/**/route.ts` (server-side), `fetch` exige URL absoluta. Vários route handlers ainda usam `buildApiUrl('')` (de `frontend/src/lib/config.ts`), que resolve para `"/api"` quando `NEXT_PUBLIC_API_URL` não está definido (caso padrão do dev local). O resultado em runtime é:
+
+```text
+TypeError: Failed to parse URL from /api/<rota>?...
+[cause]: TypeError: Invalid URL
+code: 'ERR_INVALID_URL'
+```
+
+O handler captura no `catch` e devolve `500` ao browser, escondendo a causa raiz.
+
+**Padrão correto** (idêntico ao já usado em `frontend/src/app/api/os/[id]/route.ts` e em `pcp/kanban/...`):
+
+```ts
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:4000';
+const response = await fetch(`${BACKEND_URL}/os?...`, { ... });
+```
+
+`BACKEND_URL` é injetada por `frontend/next.config.mjs` (`env: { BACKEND_URL: ... }`).
+
+**Pendência aberta (catalogada em 2026-05-25):** ainda há cerca de 15 route handlers usando `buildApiUrl('')` que vão estourar `ERR_INVALID_URL` quando forem exercitados. Lista completa (`Grep buildApiUrl frontend/src/app/api`):
+
+- `centros-de-trabalho/setores-produtivos/route.ts`
+- `centros-de-trabalho/setores-produtivos/operador/[operadorId]/route.ts`
+- `centros-de-trabalho/setores-produtivos/setor/[id]/route.ts`
+- `pcp/kanban/status/[osId]/route.ts`
+- `pcp/kanban/geral/route.ts`
+- `pcp/kanban/concluir/[itemOsId]/route.ts`
+- `pcp/kanban/iniciar/[itemOsId]/route.ts`
+- `pcp/kanban/pausar/[itemOsId]/route.ts`
+- `pcp/kanban/fila-setor/[setorId]/route.ts`
+- `pcp/workflows/sugestao/[osId]/route.ts`
+- `pcp/workflows/atribuir/route.ts`
+- `pcp/workflow-templates/route.ts`
+- `pcp/workflow-templates/[id]/route.ts`
+- `orcamentos-v2/[id]/publico/route.ts`
+- `orcamentos-v2/[id]/publico/acao/route.ts`
+
+Quando for trabalhar em PCP / Workflow / Centros de Trabalho / link público de orçamento, **trocar `buildApiUrl('')` por `process.env.BACKEND_URL || 'http://localhost:4000'`** antes de mexer em qualquer feature; senão o sintoma aparece como `500` opaco no log do Next.
+
+Já corrigido nesta sessão: `frontend/src/app/api/os/route.ts` (commit `44433ce`).
+
 ---
 
 ## 4. O que já está pronto
@@ -203,7 +248,54 @@ Pasta `docs/fase-0-home-operacional/` com 10 documentos:
 
 ---
 
-## 5. Próximo passo: Sub-fase 2.F (detalhada)
+### 4.4 Atualização de 2026-05-25 — Sub-fase 2.F e início da Fase 3
+
+**Sub-fase 2.F aplicada no código local:**
+
+- `unidade_geometria` foi adicionada em `ProdutoOrcamento` por migration manual (`20260524160000_add_unidade_geometria`).
+- O formulário principal de Orçamentos V2 passou a separar unidade de geometria da unidade comercial.
+- `QuickGeometryInput` foi integrado ao produto, com área e perímetro calculados.
+- `MaterialSection` passou a calcular consumo por área/perímetro usando a geometria, não a unidade comercial.
+- `MaquinaSection` passou a usar botão explícito **Estimar**, preservando edição manual das horas.
+- `SimuladorPrecificacao` foi integrado como modal e a página standalone foi mantida.
+- WebSocket local passou a cair para `http://localhost:4000` quando não houver env pública configurada.
+
+**Fase 3 iniciada no código local:**
+
+- `ItemOS` recebeu campos estruturados de geometria por migration manual (`20260525120000_add_geometria_item_os`).
+- `OSService.create()` agora persiste `insumos_calculados` tanto quando recebe array quanto quando recebe string JSON.
+- `OSService.criarOSDeOrcamento()` agora cria um `ItemOS` por produto do orçamento e copia largura, altura, área, perímetro, unidade, origem da geometria e referência do anexo.
+- O retorno de OS passou a expor `itens_os` formatados com geometria e insumos do item.
+- A migração tardia de produto em `os-produto-prazo.service.ts` também copia os novos campos para `ItemOS`.
+
+**Validação feita:** `npx prisma migrate deploy`, `npx prisma generate`, `npx tsc --noEmit` no backend e `git diff --check`.
+
+**Pendências imediatas:** validar na interface um orçamento aprovado gerando OS com múltiplos itens, criar a ação interna **Aprovar orçamento e gerar OS**, e revisar se PCP/estoque precisam consumir `itens_os` diretamente em mais telas.
+
+### 4.5 Atualização de 2026-05-25 (sessão da tarde) — Fixes urgentes do "Fechar pedido"
+
+Durante a tentativa de fechar um pedido via UI (`POST /orcamentos-v2/:id/fechar-pedido`), o backend devolvia `500` com a mensagem genérica `"Falha ao fechar pedido e gerar OS. O orçamento foi revertido."` — a exceção real ficava engolida no `try/catch` de `fecharPedidoInterno`. Reproduzindo o fluxo por script (`NestFactory.createApplicationContext` + `OrcamentosV2Service.fecharPedidoInterno`) e inspeção do banco, foram identificados e corrigidos **três bugs** introduzidos pela ampliação de `criarOSDeOrcamento` na Sub-fase 2.F / Fase 3:
+
+1. **`data_prazo` recebia texto livre** (commit `021ec1d`)
+   - `orcamento.prazo_entrega` é `String? @default("10 a 15 dias úteis")` (texto livre), mas o novo `criarOSDeOrcamento` passava esse valor direto para `OrdemServico.data_prazo` (DateTime). Resultado: Prisma rejeitava com `Invalid value for argument data_prazo: input contains invalid characters. Expected ISO-8601 DateTime.`
+   - Fix em camadas: `OrcamentosV2Service.parsePrazoEntregaIso(...)` descarta texto não parseável; `OSService.normalizarDataPrazo(...)` no `create()` valida `new Date(...)` e grava `NULL` com warning quando inválido.
+
+2. **`prioridade` herdada com valor fora do enum** (commit `1e7e422`)
+   - `orcamento.prioridade` é `String?` livre (default `"NORMAL"`), mas existem registros antigos com `"media"`. A nova linha `prioridade: dadosOrcamento.prioridade ?? PrioridadeOS.NORMAL` propagava o valor sujo; `OSService.validarDadosBasicos` recusava com `BadRequestException: Prioridade inválida: media`.
+   - Fix: `OSService.normalizarPrioridadeOS(...)` converte para UPPERCASE, mapeia `MEDIA | MEDIO | MEDIUM → NORMAL` e cai em `NORMAL` (com warning) para qualquer outro valor fora de `URGENTE | ALTA | NORMAL | BAIXA`. Aplicado **apenas no caminho `criarOSDeOrcamento`** (a validação principal continua intacta para o fluxo manual).
+
+3. **Proxy `/api/os` chamava URL relativa** (commit `44433ce`)
+   - `frontend/src/app/api/os/route.ts` usava `buildApiUrl('')` que resolvia para `"/api"`. Em server-side o `fetch('/api/os?...')` lança `ERR_INVALID_URL`. Trocado por `process.env.BACKEND_URL || 'http://localhost:4000'` (padrão das demais rotas). Vide armadilha 3.9 para a lista de outros 15 handlers com o mesmo bug latente.
+
+**Validação:** o script de debug rodou o fluxo completo (`fecharPedidoInterno` → `criarOSAutomaticaParaOrcamento` → `OSService.criarOSDeOrcamento` → `prisma.itemOS.createMany`) contra um orçamento real (`cmpl6saaf0002w4qwpwhfn56g`, 2 produtos com geometria mm/cm) e retornou `success: true`, criando `OS-2026-006` com 2 `ItemOS` (geometria preservada, `insumos_calculados` consistentes). O estado de teste foi **revertido** no banco para o usuário poder testar pela UI.
+
+**Pendências decorrentes desta sessão:**
+
+- Aplicar o mesmo fix de `BACKEND_URL` nos 15 route handlers listados na armadilha 3.9 (apenas quando essas features forem exercitadas; varrer agora é seguro e barato, mas opcional).
+- Confirmar com o dono do projeto se a **ação "Aprovar orçamento e gerar OS"** prevista na Fase 3 é a mesma coisa que o atual `fecharPedidoInterno` / botão "Fechar pedido", ou se precisa ser uma ação separada com semântica/auditoria distinta (ex.: `AcaoCliente: APROVADO_INTERNO` vs `PEDIDO_FECHADO_INTERNAMENTE`).
+- Durante o teste do `fecharPedidoInterno` apareceu outro erro **não bloqueante** no log: `RegrasValidacaoService.obterRegrasAtivas` faz `prisma.regraValidacao.findMany` sem passar `loja_id` no `where`, e o Prisma lança `PrismaClientValidationError: Argument loja_id is missing.` O erro é capturado pelo `try/catch` de `OSValidacoesService.validarOS`, então a OS é criada normalmente. Mas a validação automática nunca executa para nenhuma OS. Arquivo: `backend/src/configuracoes/services/regras-validacao.service.ts:256`.
+
+## 5. Próximo passo: concluir Fase 3 e validar OS/PCP
 
 > **Objetivo:** trazer o `QuickGeometryInput` e a estimativa de tempo de máquina para dentro do formulário real de orçamento (`/orcamentos-v2/novo` e `/orcamentos-v2/novo?id=...`). Ao final, o usuário não digita mais área manualmente — ele digita largura/altura/unidade de geometria e o sistema preenche área e perímetro. Quando ele adiciona uma máquina ao produto, ganha um botão "Estimar tempo" que preenche `horas_utilizadas`. Adicionalmente, ele tem um botão "Simular preço" que abre o `SimuladorPrecificacao` em modal.
 

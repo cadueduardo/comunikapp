@@ -1,7 +1,6 @@
 'use client';
 
 import { useFormContext, useFieldArray } from 'react-hook-form';
-import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   FormControl,
@@ -29,6 +28,11 @@ import {
 import { Plus, Package, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import {
+  QuickGeometryInput,
+  type GeometriaCalculada,
+  type GeometriaValor,
+} from '@/components/orcamentos-v2/QuickGeometryInput';
 import { MaterialSection, MaquinaSection, FuncaoSection, ServicoSection } from '../../shared/sections';
 
 interface ProdutoSectionProps {
@@ -82,7 +86,7 @@ interface ProdutoSectionProps {
   }>;
 }
 
-export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [], funcoes = [], servicos = [] }: ProdutoSectionProps) {
+export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas = [], funcoes = [], servicos = [] }: ProdutoSectionProps) {
   const form = useFormContext();
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -98,6 +102,10 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
       altura_produto: '',
       unidade_medida_produto: '',
       area_produto: '',
+      perimetro_produto: '',
+      geometria_origem: 'MANUAL',
+      arquivo_geometria_url: '',
+      unidade_geometria: 'mm',
       materiais: [{ insumo_id: '', quantidade: '1', material_do_cliente: false }],
       maquinas: [{ maquina_id: '', horas_utilizadas: '1' }],
       funcoes: [{ funcao_id: '', horas_trabalhadas: '1' }],
@@ -114,63 +122,34 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
     }
   };
 
-  // Função para converter medidas para metros
-  const converterParaMetros = (valor: number, unidade: string): number => {
-    switch (unidade.toLowerCase()) {
-      case 'mm':
-        return valor / 1000;
-      case 'cm':
-        return valor / 100;
-      case 'm':
-        return valor;
-      case 'm2':
-        return valor;
-      default:
-        return valor;
-    }
-  };
-
-  // Função para calcular área em m²
-  const calcularArea = (largura: number, altura: number, unidade: string): number => {
-    if (!largura || !altura) return 0;
-    
-    const larguraEmMetros = converterParaMetros(largura, unidade);
-    const alturaEmMetros = converterParaMetros(altura, unidade);
-    
-    return larguraEmMetros * alturaEmMetros;
-  };
-
-  // Função para calcular área automaticamente
-  const calcularAreaAutomatica = (itemIndex: number) => {
-    const larguraStr = form.watch(`itens_produto.${itemIndex}.largura_produto`);
-    const alturaStr = form.watch(`itens_produto.${itemIndex}.altura_produto`);
-    const unidade = form.watch(`itens_produto.${itemIndex}.unidade_medida_produto`);
-
-    // Converter string para número, tratando vírgulas
-    const largura = Number(larguraStr?.toString().replace(',', '.') || 0);
-    const altura = Number(alturaStr?.toString().replace(',', '.') || 0);
-
-    console.log(`🔍 Debug - Calculando área para produto ${itemIndex}:`, {
-      larguraStr,
-      alturaStr,
-      largura,
-      altura,
-      unidade,
-      larguraType: typeof largura,
-      alturaType: typeof altura
+  // Atualiza a geometria sem misturar unidade produtiva com unidade comercial.
+  const atualizarGeometria = (
+    itemIndex: number,
+    valor: GeometriaValor,
+    calculada: GeometriaCalculada,
+  ) => {
+    form.setValue(`itens_produto.${itemIndex}.largura_produto`, valor.largura, {
+      shouldDirty: true,
     });
-
-    if (largura && altura && unidade) {
-      const area = calcularArea(largura, altura, unidade);
-      console.log(`🔍 Debug - Área calculada: ${area}`);
-      form.setValue(`itens_produto.${itemIndex}.area_produto`, area.toFixed(2));
-    } else {
-      console.log(`🔍 Debug - Valores inválidos, limpando área`);
-      form.setValue(`itens_produto.${itemIndex}.area_produto`, '');
-    }
+    form.setValue(`itens_produto.${itemIndex}.altura_produto`, valor.altura, {
+      shouldDirty: true,
+    });
+    form.setValue(`itens_produto.${itemIndex}.unidade_geometria`, valor.unidade, {
+      shouldDirty: true,
+    });
+    form.setValue(`itens_produto.${itemIndex}.area_produto`, String(calculada.area_m2), {
+      shouldDirty: true,
+    });
+    form.setValue(
+      `itens_produto.${itemIndex}.perimetro_produto`,
+      String(calculada.perimetro_mm),
+      { shouldDirty: true },
+    );
+    form.setValue(`itens_produto.${itemIndex}.geometria_origem`, 'MANUAL', {
+      shouldDirty: true,
+    });
   };
 
-  // Função para calcular área total considerando quantidade
   const calcularAreaTotal = (itemIndex: number) => {
     const areaUnitaria = Number(form.watch(`itens_produto.${itemIndex}.area_produto`));
     const quantidade = Number(form.watch(`itens_produto.${itemIndex}.quantidade_produto`));
@@ -180,27 +159,6 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
     }
     return '0.00';
   };
-
-  // Recalcular área automaticamente quando os dados são carregados
-  useEffect(() => {
-    const itensProduto = form.watch('itens_produto');
-    if (itensProduto && Array.isArray(itensProduto)) {
-      itensProduto.forEach((_, index) => {
-        const largura = form.watch(`itens_produto.${index}.largura_produto`);
-        const altura = form.watch(`itens_produto.${index}.altura_produto`);
-        const unidade = form.watch(`itens_produto.${index}.unidade_medida_produto`);
-        
-        if (largura && altura && unidade) {
-          console.log(`🔍 Debug - Recalculando área inicial para produto ${index}:`, {
-            largura,
-            altura,
-            unidade
-          });
-          calcularAreaAutomatica(index);
-        }
-      });
-    }
-  }, [form.watch('itens_produto')]); // Executar quando itens_produto mudar
 
   return (
     <div className="space-y-6">
@@ -326,105 +284,81 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
                   {/* Medidas do Produto */}
                   <div className="space-y-4">
                     <h4 className="text-sm font-medium">Medidas do Produto</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                             <FormField
-                         control={form.control}
-                         name={`itens_produto.${index}.largura_produto`}
-                         render={({ field }) => (
-                           <FormItem>
-                             <FormLabel>Largura</FormLabel>
-                             <FormControl>
-                               <Input 
-                                 type="text" 
-                                 placeholder="0.00"
-                                 {...field}
-                                 onChange={(e) => {
-                                   const value = e.target.value.replace(/[^0-9,.-]/g, '');
-                                   field.onChange(value);
-                                   // Calcular área automaticamente
-                                   setTimeout(() => calcularAreaAutomatica(index), 0);
-                                 }}
-                               />
-                             </FormControl>
-                             <FormMessage />
-                           </FormItem>
-                         )}
-                       />
-                      
-                                             <FormField
-                         control={form.control}
-                         name={`itens_produto.${index}.altura_produto`}
-                         render={({ field }) => (
-                           <FormItem>
-                             <FormLabel>Altura</FormLabel>
-                             <FormControl>
-                               <Input 
-                                 type="text" 
-                                 placeholder="0.00"
-                                 {...field}
-                                 onChange={(e) => {
-                                   const value = e.target.value.replace(/[^0-9,.-]/g, '');
-                                   field.onChange(value);
-                                   // Calcular área automaticamente
-                                   setTimeout(() => calcularAreaAutomatica(index), 0);
-                                 }}
-                               />
-                             </FormControl>
-                             <FormMessage />
-                           </FormItem>
-                         )}
-                       />
-                      
-                                                                     <FormField
-                          control={form.control}
-                          name={`itens_produto.${index}.unidade_medida_produto`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Unidade de Medida</FormLabel>
-                              <Select onValueChange={(value) => {
-                                field.onChange(value);
-                                setTimeout(() => calcularAreaAutomatica(index), 0);
-                              }} value={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Selecione a unidade" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="mm">Milímetros (mm)</SelectItem>
-                                  <SelectItem value="cm">Centímetros (cm)</SelectItem>
-                                  <SelectItem value="m">Metros (m)</SelectItem>
-                                  <SelectItem value="un">Unidade (un)</SelectItem>
-                                  <SelectItem value="kg">Quilogramas (kg)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      
-                                             <FormField
-                         control={form.control}
-                         name={`itens_produto.${index}.area_produto`}
-                         render={({ field }) => (
-                           <FormItem>
-                             <FormLabel>Área (m²)</FormLabel>
-                             <FormControl>
-                               <Input 
-                                 type="text" 
-                                 placeholder="0.00"
-                                 {...field}
-                                 readOnly
-                                 className="bg-muted"
-                               />
-                             </FormControl>
-                             <FormMessage />
-                           </FormItem>
-                         )}
-                       />
-                    </div>
-                    
+                    <QuickGeometryInput
+                      valor={{
+                        largura: form.watch(`itens_produto.${index}.largura_produto`) || '',
+                        altura: form.watch(`itens_produto.${index}.altura_produto`) || '',
+                        unidade:
+                          (form.watch(`itens_produto.${index}.unidade_geometria`) as GeometriaValor['unidade']) ||
+                          'mm',
+                      }}
+                      onChange={(valor, calculada) =>
+                        atualizarGeometria(index, valor, calculada)
+                      }
+                      titulo="Geometria de produção"
+                    />
+                    {mode === 'editar' &&
+                      !form.watch(`itens_produto.${index}.unidade_geometria`) && (
+                        <p className="text-xs text-amber-700">
+                          Unidade não confirmada para este orçamento. Assumindo mm.
+                          Confirme abaixo.
+                        </p>
+                      )}
                     {/* Disclaimer da Área Total */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`itens_produto.${index}.unidade_medida_produto`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Unidade comercial</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione a unidade comercial" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="m2">Metro quadrado (m²)</SelectItem>
+                                <SelectItem value="un">Unidade (un)</SelectItem>
+                                <SelectItem value="kg">Quilogramas (kg)</SelectItem>
+                                <SelectItem value="m">Metro linear (m)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`itens_produto.${index}.area_produto`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Área (m²)</FormLabel>
+                            <FormControl>
+                              <Input {...field} readOnly className="bg-muted" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`itens_produto.${index}.perimetro_produto`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Perímetro (mm)</FormLabel>
+                            <FormControl>
+                              <Input {...field} readOnly className="bg-muted" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
                     {form.watch(`itens_produto.${index}.area_produto`) && 
                      form.watch(`itens_produto.${index}.quantidade_produto`) && 
                      Number(form.watch(`itens_produto.${index}.quantidade_produto`)) > 1 && (
@@ -476,4 +410,4 @@ export function ProdutoSection({ onCarregarProduto, insumos = [], maquinas = [],
       </Accordion>
     </div>
   );
-} 
+}

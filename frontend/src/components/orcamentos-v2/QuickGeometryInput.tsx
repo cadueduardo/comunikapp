@@ -189,7 +189,7 @@ export function QuickGeometryInput({
         <div className="rounded-md border border-dashed border-gray-200 bg-gray-50 px-3 py-2">
           <div className="text-gray-500">Perímetro calculado</div>
           <div className="font-mono font-semibold text-gray-900">
-            {formatarNumeroPtBr(calculada.perimetro_mm / 1000, 3)} m
+            {formatarNumeroPtBr(calculada.perimetro_mm / 1000, 2)} m
           </div>
         </div>
       </div>

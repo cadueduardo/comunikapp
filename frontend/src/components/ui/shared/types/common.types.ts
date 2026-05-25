@@ -37,7 +37,12 @@ export interface Maquina {
   nome: string;
   tipo: string;
   custo_hora: number;
-  status: string;
+  status?: string;
+  modo_producao?: 'M2_H' | 'ML_H' | 'MANUAL';
+  velocidade_m2_h?: number | string | null;
+  velocidade_ml_h?: number | string | null;
+  eficiencia_percent?: number | string | null;
+  setup_min?: number | string | null;
 }
 
 export interface Funcao {
@@ -72,4 +77,4 @@ export interface ServicoManual {
     tempo_min: number | string;
   }>;
   criado_em?: string;
-} 
+}

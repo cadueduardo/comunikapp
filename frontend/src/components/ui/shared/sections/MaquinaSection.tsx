@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,8 +12,10 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, Clock, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
+import { postEstimarTempoMaquina } from '@/lib/estimativa-tempo-api';
 import { Maquina } from '../types/common.types';
 
 interface MaquinaSectionProps {
@@ -51,64 +53,17 @@ export function MaquinaSection({
   };
 
   const form = useFormContext();
+  const [estimandoKey, setEstimandoKey] = useState<string | null>(null);
+  const [ultimaEstimativa, setUltimaEstimativa] = useState<Record<string, string>>({});
   
   // Hooks devem ser chamados sempre na mesma ordem - movidos para fora do map
   const maquinasData = useWatch({ control: form.control, name: `itens_produto.${itemIndex}.maquinas` }) || [];
   const areaM2 = useWatch({ control: form.control, name: `itens_produto.${itemIndex}.area_produto` });
+  const perimetroProduto = useWatch({ control: form.control, name: `itens_produto.${itemIndex}.perimetro_produto` });
   const quantidade = useWatch({ control: form.control, name: `itens_produto.${itemIndex}.quantidade_produto` });
   
   // Usar watch para obter todos os valores de uma vez
   const allFormValues = useWatch({ control: form.control });
-
-  // useEffect para atualizar valores automaticamente sem causar re-render durante o render
-  useEffect(() => {
-    if (!maquinasData || maquinasData.length === 0) return;
-
-    maquinasData.forEach((maquina: { maquina_id: string; horas_utilizadas: string }, maquinaIndex: number) => {
-      const maquinaSelecionada = maquinas.find((m) => m.id === maquina.maquina_id);
-      
-      if (!maquinaSelecionada) return;
-
-      const toNumber = (v: any): number => {
-        if (v == null || v === '') return 0;
-        if (typeof v === 'number') return v;
-        if (typeof v === 'string') return parseFloat(v.replace(',', '.')) || 0;
-        if (v && typeof v.toString === 'function') {
-          return parseFloat(v.toString().replace(',', '.')) || 0;
-        }
-        return 0;
-      };
-
-      const areaM2Value = toNumber(areaM2) || 0;
-      const quantidadeValue = toNumber(quantidade) || 1;
-      const areaTotal = areaM2Value * quantidadeValue;
-
-      const velocidadeM2H = toNumber(maquinaSelecionada?.velocidade_m2_h) || 0;
-      const eficienciaPercent = Math.max(toNumber(maquinaSelecionada?.eficiencia_percent) || 100, 5);
-      const setupMin = toNumber(maquinaSelecionada?.setup_min) || 0;
-      const horasSetup = setupMin / 60;
-
-      let horasCalculadas = 0;
-      let isManual = true;
-
-      if (maquinaSelecionada && maquinaSelecionada.modo_producao === 'M2_H' && velocidadeM2H > 0 && areaTotal > 0) {
-        const horasBase = areaTotal / velocidadeM2H;
-        const fatorEficiencia = 100 / eficienciaPercent;
-        horasCalculadas = horasBase * fatorEficiencia + horasSetup;
-        isManual = false;
-      }
-
-      if (!isManual) {
-        const fieldPath = `itens_produto.${itemIndex}.maquinas.${maquinaIndex}.horas_utilizadas`;
-        const horasFieldValue = allFormValues?.itens_produto?.[itemIndex]?.maquinas?.[maquinaIndex]?.horas_utilizadas || '';
-        const displayValue = horasCalculadas.toFixed(2);
-        
-        if (horasFieldValue !== displayValue) {
-          form.setValue(fieldPath, displayValue, { shouldDirty: true, shouldValidate: false });
-        }
-      }
-    });
-  }, [maquinasData, areaM2, quantidade, maquinas, itemIndex, allFormValues, form]);
 
   const handleAddMaquina = () => {
     if (onAddMaquina) {
@@ -132,6 +87,62 @@ export function MaquinaSection({
         const newMaquinas = currentMaquinas.filter((_: unknown, index: number) => index !== maquinaIndex);
         form.setValue(`itens_produto.${itemIndex}.maquinas`, newMaquinas);
       }
+    }
+  };
+
+  const handleEstimarTempo = async (maquinaIndex: number) => {
+    const maquina = form.getValues(`itens_produto.${itemIndex}.maquinas.${maquinaIndex}`);
+    if (!maquina?.maquina_id) {
+      toast.info('Selecione uma máquina antes de estimar o tempo.');
+      return;
+    }
+
+    const area = converterValor(areaM2);
+    const perimetro = converterValor(perimetroProduto);
+    const quantidadeProduto = converterValor(quantidade) || 1;
+    const key = `${itemIndex}-${maquinaIndex}`;
+    const assinatura = [
+      maquina.maquina_id,
+      area.toFixed(4),
+      perimetro.toFixed(2),
+      quantidadeProduto.toFixed(4),
+    ].join('|');
+
+    setEstimandoKey(key);
+    try {
+      const resultado = await postEstimarTempoMaquina({
+        maquina_id: maquina.maquina_id,
+        quantidade: quantidadeProduto,
+        area_m2: area > 0 ? area : undefined,
+        perimetro_mm: perimetro > 0 ? perimetro : undefined,
+      });
+
+      if (resultado.estimativa_possivel) {
+        form.setValue(
+          `itens_produto.${itemIndex}.maquinas.${maquinaIndex}.horas_utilizadas`,
+          String(resultado.tempo_horas),
+          { shouldDirty: true, shouldValidate: true },
+        );
+        setUltimaEstimativa((prev) => ({
+          ...prev,
+          [key]: assinatura,
+        }));
+        toast.success(`Tempo estimado: ${resultado.tempo_horas}h`);
+        return;
+      }
+
+      toast.info(
+        resultado.detalhamento?.mensagens?.[0] ||
+          'Não foi possível estimar automaticamente. Informe o tempo manualmente.',
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao estimar tempo de máquina.',
+      );
+    } finally {
+      setEstimandoKey(null);
     }
   };
 
@@ -174,20 +185,17 @@ export function MaquinaSection({
 
         let horasCalculadas = 0;
         let disclaimer = '';
-        let isManual = true;
+        const isManual = true;
 
         if (maquinaSelecionada && maquinaSelecionada.modo_producao === 'M2_H' && velocidadeM2H > 0 && areaTotal > 0) {
           const horasBase = areaTotal / velocidadeM2H;
           const fatorEficiencia = 100 / eficienciaPercent;
           horasCalculadas = horasBase * fatorEficiencia + horasSetup;
           disclaimer = `${areaTotal.toFixed(2)}m² ÷ ${velocidadeM2H.toFixed(2)}m²/h × (100 ÷ ${eficienciaPercent}%) + ${setupMin}min setup = ${horasCalculadas.toFixed(2)}h`;
-          isManual = false;
         } else if (maquinaSelecionada && maquinaSelecionada.modo_producao === 'ML_H') {
-          disclaimer = 'Modo linear (ML/H) - implementação pendente';
-          isManual = false;
+          disclaimer = 'Modo linear (ML/H): use Estimar para calcular pelo perímetro.';
         } else {
           disclaimer = 'Horas inseridas manualmente';
-          isManual = true;
         }
 
         const fieldPath = `itens_produto.${itemIndex}.maquinas.${maquinaIndex}.horas_utilizadas`;
@@ -196,6 +204,17 @@ export function MaquinaSection({
 
         const horasFinais = Number(displayValue) || 0;
         const custoCalculado = maquinaSelecionada ? converterValor(maquinaSelecionada.custo_hora) * horasFinais : 0;
+        const assinaturaAtual = [
+          maquina.maquina_id,
+          converterValor(areaM2).toFixed(4),
+          converterValor(perimetroProduto).toFixed(2),
+          quantidadeValue.toFixed(4),
+        ].join('|');
+        const estimativaDesatualizada =
+          Boolean(maquina.maquina_id) &&
+          horasFinais > 0 &&
+          Boolean(ultimaEstimativa[`${itemIndex}-${maquinaIndex}`]) &&
+          ultimaEstimativa[`${itemIndex}-${maquinaIndex}`] !== assinaturaAtual;
 
         return (
           <div key={maquinaIndex} className="space-y-4 mb-4">
@@ -251,7 +270,23 @@ export function MaquinaSection({
                 )}
               />
               
-              <div className="flex items-center justify-end">
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEstimarTempo(maquinaIndex)}
+                  disabled={
+                    !maquina.maquina_id ||
+                    (maquinaSelecionada?.modo_producao === 'ML_H'
+                      ? converterValor(perimetroProduto) <= 0
+                      : converterValor(areaM2) <= 0) ||
+                    estimandoKey === `${itemIndex}-${maquinaIndex}`
+                  }
+                >
+                  <Clock className="w-4 h-4 mr-2" />
+                  Estimar
+                </Button>
                 <Button
                   type="button"
                   variant="ghost"
@@ -264,6 +299,16 @@ export function MaquinaSection({
                 </Button>
               </div>
             </div>
+
+            {estimativaDesatualizada && (
+              <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <span>
+                  A geometria ou quantidade mudou. Clique em Estimar para atualizar
+                  o tempo desta máquina.
+                </span>
+              </div>
+            )}
             
             {/* Custo calculado */}
             {maquinaSelecionada && horasFinais > 0 && custoCalculado > 0 && (
@@ -299,4 +344,4 @@ export function MaquinaSection({
       })}
     </div>
   );
-} 
+}

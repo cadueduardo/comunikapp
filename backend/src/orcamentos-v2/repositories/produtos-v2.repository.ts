@@ -57,6 +57,14 @@ export class ProdutosV2Repository {
           descricao: rest.descricao,
           quantidade: rest.quantidade,
           unidade_medida: unidade,
+          largura: rest.largura,
+          altura: rest.altura,
+          area_produto: rest.area ?? rest.area_produto,
+          perimetro_produto: rest.perimetro_produto,
+          unidade_geometria: rest.unidade_geometria,
+          geometria_origem: rest.geometria_origem,
+          arquivo_geometria_url: rest.arquivo_geometria_url,
+          arquivo_geometria_metadados: rest.arquivo_geometria_metadados,
           custo_total_producao: rest.custo_total_producao ?? 0,
           preco_unitario: preco_unitario || 0, // Será recalculado pelo motor
           preco_total: preco_total || 0, // Será recalculado pelo motor
@@ -186,6 +194,26 @@ export class ProdutosV2Repository {
             ? { quantidade: rest.quantidade }
             : {}),
           ...(unidade !== undefined ? { unidade_medida: unidade } : {}),
+          ...(rest.largura !== undefined ? { largura: rest.largura } : {}),
+          ...(rest.altura !== undefined ? { altura: rest.altura } : {}),
+          ...(rest.area !== undefined || rest.area_produto !== undefined
+            ? { area_produto: rest.area ?? rest.area_produto }
+            : {}),
+          ...(rest.perimetro_produto !== undefined
+            ? { perimetro_produto: rest.perimetro_produto }
+            : {}),
+          ...(rest.unidade_geometria !== undefined
+            ? { unidade_geometria: rest.unidade_geometria }
+            : {}),
+          ...(rest.geometria_origem !== undefined
+            ? { geometria_origem: rest.geometria_origem }
+            : {}),
+          ...(rest.arquivo_geometria_url !== undefined
+            ? { arquivo_geometria_url: rest.arquivo_geometria_url }
+            : {}),
+          ...(rest.arquivo_geometria_metadados !== undefined
+            ? { arquivo_geometria_metadados: rest.arquivo_geometria_metadados }
+            : {}),
           ...(preco_unitario !== undefined ? { preco_unitario } : {}),
           ...(preco_total !== undefined ? { preco_total } : {}),
           ...(rest.margem_lucro !== undefined
@@ -626,6 +654,14 @@ export class ProdutosV2Repository {
       descricao: produto.descricao,
       quantidade: produto.quantidade,
       unidade: produto.unidade_medida,
+      largura: produto.largura,
+      altura: produto.altura,
+      area: produto.area_produto,
+      perimetro_produto: produto.perimetro_produto,
+      unidade_geometria: produto.unidade_geometria,
+      geometria_origem: produto.geometria_origem,
+      arquivo_geometria_url: produto.arquivo_geometria_url,
+      arquivo_geometria_metadados: produto.arquivo_geometria_metadados,
       preco_unitario: produto.preco_unitario,
       preco_total: produto.preco_total,
       margem_lucro: produto.margem_lucro,

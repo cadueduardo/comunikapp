@@ -35,6 +35,10 @@ export const createFormSchema = (mode: 'novo' | 'editar' | 'template') => z.obje
     altura_produto: z.string().optional(),
     unidade_medida_produto: z.string().optional(),
     area_produto: z.string().optional(),
+    perimetro_produto: z.string().optional(),
+    geometria_origem: z.enum(['MANUAL', 'IMAGEM', 'DXF']).optional(),
+    arquivo_geometria_url: z.string().optional(),
+    unidade_geometria: z.enum(['mm', 'cm', 'm']).optional(),
     // Materiais utilizados para este produto
     materiais: z.array(z.object({
       insumo_id: z.string().min(1, 'Selecione um material'),
@@ -66,4 +70,4 @@ export const createFormSchema = (mode: 'novo' | 'editar' | 'template') => z.obje
   })).min(1, 'Adicione pelo menos um produto'),
 });
 
-export type FormValues = z.infer<ReturnType<typeof createFormSchema>>; 
+export type FormValues = z.infer<ReturnType<typeof createFormSchema>>;

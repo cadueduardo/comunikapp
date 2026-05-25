@@ -112,7 +112,7 @@ export default function SimuladorOrcamentoV2Page() {
         </Link>
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-            Simulador de orçamento (Fase 2)
+            Simulador de precificação e produção
           </h1>
           <p className="text-sm text-gray-600">
             Ferramentas de apoio: geometria rápida, estimativa de tempo de máquina e

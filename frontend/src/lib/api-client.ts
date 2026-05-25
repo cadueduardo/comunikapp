@@ -249,6 +249,8 @@ export const orcamentosApi = {
   delete: (id: string, token: string) => ApiClient.delete(`/orcamentos-v2/${id}`, token),
   calcular: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos-v2/calcular', data, token),
   enviar: (id: string, token: string) => ApiClient.post(`/orcamentos-v2/${id}/enviar`, {}, token),
+  fecharPedido: (id: string, token: string, observacoes?: string) =>
+    ApiClient.post(`/orcamentos-v2/${id}/fechar-pedido`, { observacoes }, token),
   aprovar: (codigo: string, token: string) => ApiClient.post('/orcamentos-v2/aprovar', { codigo }, token),
   reenviarCodigo: (id: string, token: string) => ApiClient.post(`/orcamentos-v2/${id}/reenviar-codigo`, {}, token),
   getMensagens: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}/mensagens`, token),
@@ -278,6 +280,8 @@ export const orcamentosApi = {
     // Operações específicas V2
     enviarParaAprovacao: (id: string, observacoes: string, token: string) => 
       ApiClient.post(`/orcamentos-v2/${id}/enviar-aprovacao`, { observacoes }, token),
+    fecharPedido: (id: string, token: string, observacoes?: string) =>
+      ApiClient.post(`/orcamentos-v2/${id}/fechar-pedido`, { observacoes }, token),
     aprovar: (id: string, observacoes: string, token: string) => 
       ApiClient.post(`/orcamentos-v2/${id}/aprovar`, { observacoes }, token),
     rejeitar: (id: string, motivo: string, token: string) => 

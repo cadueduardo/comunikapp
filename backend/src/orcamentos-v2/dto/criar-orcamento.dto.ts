@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsNumber,
   IsEnum,
+  IsIn,
   IsArray,
   IsDateString,
   IsUUID,
@@ -207,6 +208,51 @@ export class ProdutoOrcamentoDto {
   @IsNumber()
   @Min(0)
   valor_unitario?: number;
+
+  @ApiPropertyOptional({
+    description: 'Perímetro do produto em milímetros',
+    example: 3000,
+    minimum: 0,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  perimetro_produto?: number;
+
+  @ApiPropertyOptional({
+    description: 'Unidade usada para informar a geometria',
+    enum: ['mm', 'cm', 'm'],
+    example: 'mm',
+  })
+  @IsOptional()
+  @IsIn(['mm', 'cm', 'm'])
+  unidade_geometria?: 'mm' | 'cm' | 'm';
+
+  @ApiPropertyOptional({
+    description: 'Origem da geometria do produto',
+    enum: ['MANUAL', 'IMAGEM', 'DXF'],
+    example: 'MANUAL',
+  })
+  @IsOptional()
+  @IsIn(['MANUAL', 'IMAGEM', 'DXF'])
+  geometria_origem?: 'MANUAL' | 'IMAGEM' | 'DXF';
+
+  @ApiPropertyOptional({
+    description: 'URL do arquivo de geometria associado ao produto',
+    example: '/uploads/geometrias/arquivo.png',
+    maxLength: 512,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  arquivo_geometria_url?: string;
+
+  @ApiPropertyOptional({
+    description: 'Metadados JSON do arquivo de geometria',
+  })
+  @IsOptional()
+  @IsString()
+  arquivo_geometria_metadados?: string;
 
   @ApiPropertyOptional({
     description: 'Ordem de exibição',

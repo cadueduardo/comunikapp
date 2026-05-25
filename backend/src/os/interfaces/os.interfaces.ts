@@ -65,7 +65,35 @@ export interface OrdemServicoData {
   };
   cliente_nome?: string; // Para compatibilidade com Grid
   produtos?: ProdutoOSData[];
+  itens_os?: ItemOSData[];
   materiais_consolidados?: MaterialConsolidadoData[];
+}
+
+export interface ItemOSData {
+  id: string;
+  os_id: string;
+  produto_servico: string;
+  quantidade: number;
+  parametros_tecnicos?: any;
+  insumos_necessarios?: InsumoCalculado[] | string | null;
+  materiais_disponivel: boolean;
+  observacoes?: string;
+  largura?: number;
+  altura?: number;
+  area?: number;
+  perimetro?: number;
+  unidade_medida?: string;
+  unidade_geometria?: string;
+  geometria_origem?: string;
+  arquivo_geometria_url?: string;
+  arquivo_geometria_metadados?: string;
+  data_inicio_producao?: Date;
+  data_prazo_produto?: Date;
+  status_liberacao_pcp?: string;
+  liberado_pcp_por?: string;
+  liberado_pcp_em?: Date;
+  prioridade_produto?: string;
+  ordem_producao?: number;
 }
 
 export interface ProdutoOSData {
@@ -78,6 +106,10 @@ export interface ProdutoOSData {
   altura?: number;
   profundidade?: number;
   area_produto?: number;
+  perimetro_produto?: number;
+  unidade_geometria?: string;
+  geometria_origem?: string;
+  arquivo_geometria_url?: string;
   observacoes?: string;
   materiais: MaterialProdutoData[];
   maquinas: MaquinaProdutoData[];
@@ -285,6 +317,11 @@ export interface DadosHerdadosOrcamento {
   largura_produto?: number;
   altura_produto?: number;
   area_produto?: number;
+  perimetro_produto?: number;
+  unidade_geometria?: string;
+  geometria_origem?: string;
+  arquivo_geometria_url?: string;
+  arquivo_geometria_metadados?: string;
   unidade_medida_produto?: string;
   horas_producao: number;
   custos_calculados?: any; // JSON do motor de calculo

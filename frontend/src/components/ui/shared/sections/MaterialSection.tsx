@@ -44,7 +44,39 @@ export function MaterialSection({
   const areaProduto = form.watch(`itens_produto.${itemIndex}.area_produto`);
   const larguraProduto = form.watch(`itens_produto.${itemIndex}.largura_produto`);
   const alturaProduto = form.watch(`itens_produto.${itemIndex}.altura_produto`);
-  const unidadeMedidaProduto = form.watch(`itens_produto.${itemIndex}.unidade_medida_produto`);
+  const unidadeGeometria = form.watch(`itens_produto.${itemIndex}.unidade_geometria`) || 'mm';
+  const perimetroProduto = form.watch(`itens_produto.${itemIndex}.perimetro_produto`);
+
+  const normalizarNumero = (valor: unknown): number => {
+    if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+    if (typeof valor === 'string') {
+      const parsed = Number(valor.replace(/[^0-9,.-]/g, '').replace(',', '.'));
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  };
+
+  const obterAreaM2 = (): number => {
+    const areaInformada = normalizarNumero(areaProduto);
+    if (areaInformada > 0) return areaInformada;
+
+    const largura = normalizarNumero(larguraProduto);
+    const altura = normalizarNumero(alturaProduto);
+    return largura && altura ? calcularArea(largura, altura, unidadeGeometria) : 0;
+  };
+
+  const obterPerimetroM = (): number => {
+    const perimetroMm = normalizarNumero(perimetroProduto);
+    if (perimetroMm > 0) return perimetroMm / 1000;
+
+    const largura = normalizarNumero(larguraProduto);
+    const altura = normalizarNumero(alturaProduto);
+    if (!largura || !altura) return 0;
+
+    const larguraEmMetros = converterParaMetros(largura, unidadeGeometria);
+    const alturaEmMetros = converterParaMetros(altura, unidadeGeometria);
+    return 2 * (larguraEmMetros + alturaEmMetros);
+  };
 
   useEffect(() => {
     // Recalcular automaticamente as quantidades de materiais quando as dimensões ou quantidade do produto mudarem
@@ -56,9 +88,8 @@ export function MaterialSection({
         if (insumoSelecionado) {
           let novaQuantidade = '';
           const quantidadeProdutoNum = Number(quantidadeProduto) || 1;
-          const areaProdutoNum = Number(areaProduto) || 0;
-          const larguraProdutoNum = Number(larguraProduto) || 0;
-          const alturaProdutoNum = Number(alturaProduto) || 0;
+          const areaProdutoNum = obterAreaM2();
+          const perimetroProdutoM = obterPerimetroM();
           
           // Verificar se tem lógica personalizada
           if (insumoSelecionado.logica_consumo === 'custom' && insumoSelecionado.tipoMaterial) {
@@ -67,8 +98,8 @@ export function MaterialSection({
             if (parametros && parametros.tipo_calculo) {
               switch (parametros.tipo_calculo) {
                 case 'espacamento':
-                  if (parametros.espacamento && larguraProdutoNum && alturaProdutoNum) {
-                    const perimetro = 2 * (larguraProdutoNum + alturaProdutoNum);
+                  if (parametros.espacamento && perimetroProdutoM > 0) {
+                    const perimetro = perimetroProdutoM * 100;
                     const espacamento = Number(parametros.espacamento);
                     novaQuantidade = (Math.ceil(perimetro / espacamento) * quantidadeProdutoNum).toString();
                   }
@@ -88,7 +119,7 @@ export function MaterialSection({
                 
                 case 'quantidade_fixa':
                   if (parametros.quantidade_fixa) {
-                    novaQuantidade = (parametros.quantidade_fixa * quantidadeProdutoNum).toString();
+                    novaQuantidade = (Number(parametros.quantidade_fixa) * quantidadeProdutoNum).toString();
                   }
                   break;
               }
@@ -97,17 +128,13 @@ export function MaterialSection({
             // Lógica padrão baseada na unidade de uso
             switch (insumoSelecionado.unidade_uso) {
               case 'M2':
-                if (larguraProdutoNum && alturaProdutoNum && unidadeMedidaProduto) {
-                  const area = calcularArea(larguraProdutoNum, alturaProdutoNum, unidadeMedidaProduto);
-                  novaQuantidade = (area * quantidadeProdutoNum).toFixed(2);
+                if (areaProdutoNum > 0) {
+                  novaQuantidade = (areaProdutoNum * quantidadeProdutoNum).toFixed(2);
                 }
                 break;
               case 'M':
-                if (larguraProdutoNum && alturaProdutoNum && unidadeMedidaProduto) {
-                  const larguraEmMetros = converterParaMetros(larguraProdutoNum, unidadeMedidaProduto);
-                  const alturaEmMetros = converterParaMetros(alturaProdutoNum, unidadeMedidaProduto);
-                  const perimetro = 2 * (larguraEmMetros + alturaEmMetros);
-                  novaQuantidade = (perimetro * quantidadeProdutoNum).toFixed(2);
+                if (perimetroProdutoM > 0) {
+                  novaQuantidade = (perimetroProdutoM * quantidadeProdutoNum).toFixed(2);
                 }
                 break;
             }
@@ -120,7 +147,7 @@ export function MaterialSection({
         }
       }
     });
-  }, [quantidadeProduto, areaProduto, larguraProduto, alturaProduto, unidadeMedidaProduto, form, itemIndex, insumos]);
+  }, [quantidadeProduto, areaProduto, larguraProduto, alturaProduto, unidadeGeometria, perimetroProduto, form, itemIndex, insumos]);
 
   const handleAddMaterial = () => {
     if (onAddMaterial) {
@@ -171,13 +198,9 @@ export function MaterialSection({
         // Calcular custo considerando se a quantidade já inclui a multiplicação pelo produto
         // Se o material foi calculado automaticamente, a quantidade já considera a quantidade do produto
         // Se foi digitado manualmente, precisamos verificar se deve multiplicar
-        const quantidadeProduto = Number(form.watch(`itens_produto.${itemIndex}.quantidade_produto`)) || 1;
         const custoCalculado = materialDoCliente ? 0 : custoPorUnidade * quantidade;
         
         // Obter dimensões do produto para materiais calculados por m²
-        const larguraProduto = Number(form.watch(`itens_produto.${itemIndex}.largura_produto`)) || 0;
-        const alturaProduto = Number(form.watch(`itens_produto.${itemIndex}.altura_produto`)) || 0;
-        const unidadeMedidaProduto = form.watch(`itens_produto.${itemIndex}.unidade_medida_produto`);
         
         // Calcular área se não estiver calculada
         // const areaCalculada = areaProduto > 0 ? areaProduto : 
@@ -192,13 +215,13 @@ export function MaterialSection({
           
           // Obter quantidade do produto para cálculo total
           const quantidadeProduto = Number(form.watch(`itens_produto.${itemIndex}.quantidade_produto`)) || 1;
+          const areaProduto = obterAreaM2();
+          const perimetroProdutoM = obterPerimetroM();
+          const perimetroProdutoCm = perimetroProdutoM * 100;
                           
           // Verificar se tem lógica personalizada
           if (insumoSelecionado.logica_consumo === 'custom' && insumoSelecionado.tipoMaterial) {
             const parametros = insumoSelecionado.tipoMaterial.parametros_padrao;
-            const areaProduto = Number(form.watch(`itens_produto.${itemIndex}.area_produto`)) || 0;
-            const larguraProduto = Number(form.watch(`itens_produto.${itemIndex}.largura_produto`)) || 0;
-            const alturaProduto = Number(form.watch(`itens_produto.${itemIndex}.altura_produto`)) || 0;
             
             console.log('🔍 MaterialSection - Cálculo personalizado:', {
               insumo: insumoSelecionado.nome,
@@ -206,16 +229,15 @@ export function MaterialSection({
               tipoMaterial: insumoSelecionado.tipoMaterial,
               parametros,
               areaProduto,
-              larguraProduto,
-              alturaProduto,
+              perimetroProdutoM,
               quantidadeProduto
             });
             
             if (parametros && parametros.tipo_calculo) {
               switch (parametros.tipo_calculo) {
                 case 'espacamento':
-                  if (parametros.espacamento && larguraProduto && alturaProduto) {
-                    const perimetro = 2 * (larguraProduto + alturaProduto);
+                  if (parametros.espacamento && perimetroProdutoCm > 0) {
+                    const perimetro = perimetroProdutoCm;
                     const espacamento = Number(parametros.espacamento);
                     sugestao = (Math.ceil(perimetro / espacamento) * quantidadeProduto).toString();
                     console.log('🔍 MaterialSection - Cálculo espaçamento:', {
@@ -228,8 +250,7 @@ export function MaterialSection({
                   } else {
                     console.warn('⚠️ MaterialSection - Parâmetros de espaçamento incompletos:', {
                       espacamento: parametros.espacamento,
-                      larguraProduto,
-                      alturaProduto
+                      perimetroProdutoM
                     });
                   }
                   break;
@@ -248,7 +269,7 @@ export function MaterialSection({
                 
                 case 'quantidade_fixa':
                   if (parametros.quantidade_fixa) {
-                    sugestao = (parametros.quantidade_fixa * quantidadeProduto).toString();
+                    sugestao = (Number(parametros.quantidade_fixa) * quantidadeProduto).toString();
                   }
                   break;
               }
@@ -257,9 +278,9 @@ export function MaterialSection({
               
               // Fallback: se é um material de ilhós mas não tem parâmetros corretos,
               // usar cálculo padrão de espaçamento de 15cm
-              if (insumoSelecionado.nome.toLowerCase().includes('ilh') && larguraProduto && alturaProduto) {
+              if (insumoSelecionado.nome.toLowerCase().includes('ilh') && perimetroProdutoCm > 0) {
                 console.log('🔧 MaterialSection - Aplicando fallback para ilhós (15cm)');
-                const perimetro = 2 * (larguraProduto + alturaProduto);
+                const perimetro = perimetroProdutoCm;
                 const espacamento = 15; // Fallback padrão
                 sugestao = (Math.ceil(perimetro / espacamento) * quantidadeProduto).toString();
                 console.log('🔍 MaterialSection - Cálculo fallback:', {
@@ -275,19 +296,13 @@ export function MaterialSection({
             // Lógica padrão baseada na unidade de uso
             switch (insumoSelecionado.unidade_uso) {
               case 'M2':
-                if (larguraProduto && alturaProduto && unidadeMedidaProduto) {
-                  const area = calcularArea(Number(larguraProduto), Number(alturaProduto), unidadeMedidaProduto);
-                  // Multiplicar pela quantidade do produto
-                  sugestao = (area * quantidadeProduto).toFixed(2);
+                if (areaProduto > 0) {
+                  sugestao = (areaProduto * quantidadeProduto).toFixed(2);
                 }
                 break;
               case 'M':
-                if (larguraProduto && alturaProduto && unidadeMedidaProduto) {
-                  const larguraEmMetros = converterParaMetros(Number(larguraProduto), unidadeMedidaProduto);
-                  const alturaEmMetros = converterParaMetros(Number(alturaProduto), unidadeMedidaProduto);
-                  const perimetro = 2 * (larguraEmMetros + alturaEmMetros);
-                  // Multiplicar pela quantidade do produto
-                  sugestao = (perimetro * quantidadeProduto).toFixed(2);
+                if (perimetroProdutoM > 0) {
+                  sugestao = (perimetroProdutoM * quantidadeProduto).toFixed(2);
                 }
                 break;
             }
@@ -300,9 +315,9 @@ export function MaterialSection({
         const gerarExplicacaoCalculo = () => {
           if (!insumoSelecionado) return '';
           
-          const areaProduto = Number(form.watch(`itens_produto.${itemIndex}.area_produto`)) || 0;
-          const larguraProduto = Number(form.watch(`itens_produto.${itemIndex}.largura_produto`)) || 0;
-          const alturaProduto = Number(form.watch(`itens_produto.${itemIndex}.altura_produto`)) || 0;
+          const areaProduto = obterAreaM2();
+          const perimetroProdutoM = obterPerimetroM();
+          const perimetroProdutoCm = perimetroProdutoM * 100;
           const quantidadeProduto = Number(form.watch(`itens_produto.${itemIndex}.quantidade_produto`)) || 1;
           
           // Verificar se tem lógica personalizada
@@ -312,8 +327,8 @@ export function MaterialSection({
             if (parametros && parametros.tipo_calculo) {
               switch (parametros.tipo_calculo) {
                 case 'espacamento':
-                  if (parametros.espacamento && larguraProduto && alturaProduto) {
-                    const perimetro = 2 * (larguraProduto + alturaProduto);
+                  if (parametros.espacamento && perimetroProdutoCm > 0) {
+                    const perimetro = perimetroProdutoCm;
                     const espacamento = Number(parametros.espacamento);
                     const quantidadeUnitaria = Math.ceil(perimetro / espacamento);
                     const quantidadeTotal = quantidadeUnitaria * quantidadeProduto;
@@ -331,14 +346,14 @@ export function MaterialSection({
                 
                 case 'multiplicador':
                   if (parametros.multiplicador) {
-                    const quantidadeTotal = parametros.multiplicador * quantidadeProduto;
+                    const quantidadeTotal = Number(parametros.multiplicador) * quantidadeProduto;
                     return `Multiplicador: ${parametros.multiplicador}x × ${quantidadeProduto} unidades • Total: ${quantidadeTotal} unidades`;
                   }
                   break;
                 
                 case 'quantidade_fixa':
                   if (parametros.quantidade_fixa) {
-                    const quantidadeTotal = parametros.quantidade_fixa * quantidadeProduto;
+                    const quantidadeTotal = Number(parametros.quantidade_fixa) * quantidadeProduto;
                     return `Quantidade fixa: ${parametros.quantidade_fixa} × ${quantidadeProduto} unidades • Total: ${quantidadeTotal} unidades`;
                   }
                   break;
@@ -348,19 +363,15 @@ export function MaterialSection({
             // Lógica padrão
             switch (insumoSelecionado.unidade_uso) {
               case 'M2':
-                if (larguraProduto && alturaProduto && unidadeMedidaProduto) {
-                  const area = calcularArea(Number(larguraProduto), Number(alturaProduto), unidadeMedidaProduto);
-                  const areaTotal = area * quantidadeProduto;
-                  return `Área calculada: ${area.toFixed(2)}m² × ${quantidadeProduto} unidades = ${areaTotal.toFixed(2)}m²`;
+                if (areaProduto > 0) {
+                  const areaTotal = areaProduto * quantidadeProduto;
+                  return `Área calculada: ${areaProduto.toFixed(2)}m² × ${quantidadeProduto} unidades = ${areaTotal.toFixed(2)}m²`;
                 }
                 break;
               case 'M':
-                if (larguraProduto && alturaProduto && unidadeMedidaProduto) {
-                  const larguraEmMetros = converterParaMetros(Number(larguraProduto), unidadeMedidaProduto);
-                  const alturaEmMetros = converterParaMetros(Number(alturaProduto), unidadeMedidaProduto);
-                  const perimetro = 2 * (larguraEmMetros + alturaEmMetros);
-                  const perimetroTotal = perimetro * quantidadeProduto;
-                  return `Perímetro calculado: ${perimetro.toFixed(2)}m × ${quantidadeProduto} unidades = ${perimetroTotal.toFixed(2)}m`;
+                if (perimetroProdutoM > 0) {
+                  const perimetroTotal = perimetroProdutoM * quantidadeProduto;
+                  return `Perímetro calculado: ${perimetroProdutoM.toFixed(2)}m × ${quantidadeProduto} unidades = ${perimetroTotal.toFixed(2)}m`;
                 }
                 break;
             }
@@ -385,9 +396,9 @@ export function MaterialSection({
                       if (value) {
                         const insumoSelecionado = insumos.find(insumo => insumo.id === value);
                         if (insumoSelecionado) {
-                          const larguraProduto = form.watch(`itens_produto.${itemIndex}.largura_produto`);
-                          const alturaProduto = form.watch(`itens_produto.${itemIndex}.altura_produto`);
-                          const unidadeMedidaProduto = form.watch(`itens_produto.${itemIndex}.unidade_medida_produto`);
+                          const areaProduto = obterAreaM2();
+                          const perimetroProdutoM = obterPerimetroM();
+                          const perimetroProdutoCm = perimetroProdutoM * 100;
                           
                           let sugestao = '';
                           
@@ -397,15 +408,11 @@ export function MaterialSection({
                           // Verificar se tem lógica personalizada
                           if (insumoSelecionado.logica_consumo === 'custom' && insumoSelecionado.tipoMaterial) {
                             const parametros = insumoSelecionado.tipoMaterial.parametros_padrao;
-                            const areaProduto = Number(form.watch(`itens_produto.${itemIndex}.area_produto`)) || 0;
-                            const larguraProduto = Number(form.watch(`itens_produto.${itemIndex}.largura_produto`)) || 0;
-                            const alturaProduto = Number(form.watch(`itens_produto.${itemIndex}.altura_produto`)) || 0;
-                            
                             if (parametros && parametros.tipo_calculo) {
                               switch (parametros.tipo_calculo) {
                                 case 'espacamento':
-                                  if (parametros.espacamento && larguraProduto && alturaProduto) {
-                                    const perimetro = 2 * (larguraProduto + alturaProduto);
+                                  if (parametros.espacamento && perimetroProdutoCm > 0) {
+                                    const perimetro = perimetroProdutoCm;
                                     const espacamento = Number(parametros.espacamento);
                                     sugestao = (Math.ceil(perimetro / espacamento) * quantidadeProduto).toString();
                                   }
@@ -425,7 +432,7 @@ export function MaterialSection({
                                 
                                 case 'quantidade_fixa':
                                   if (parametros.quantidade_fixa) {
-                                    sugestao = (parametros.quantidade_fixa * quantidadeProduto).toString();
+                                    sugestao = (Number(parametros.quantidade_fixa) * quantidadeProduto).toString();
                                   }
                                   break;
                               }
@@ -434,19 +441,13 @@ export function MaterialSection({
                             // Lógica padrão baseada na unidade de uso
                             switch (insumoSelecionado.unidade_uso) {
                               case 'M2':
-                                if (larguraProduto && alturaProduto && unidadeMedidaProduto) {
-                                  const area = calcularArea(Number(larguraProduto), Number(alturaProduto), unidadeMedidaProduto);
-                                  // Multiplicar pela quantidade do produto
-                                  sugestao = (area * quantidadeProduto).toFixed(2);
+                                if (areaProduto > 0) {
+                                  sugestao = (areaProduto * quantidadeProduto).toFixed(2);
                                 }
                                 break;
                               case 'M':
-                                if (larguraProduto && alturaProduto && unidadeMedidaProduto) {
-                                  const larguraEmMetros = converterParaMetros(Number(larguraProduto), unidadeMedidaProduto);
-                                  const alturaEmMetros = converterParaMetros(Number(alturaProduto), unidadeMedidaProduto);
-                                  const perimetro = 2 * (larguraEmMetros + alturaEmMetros);
-                                  // Multiplicar pela quantidade do produto
-                                  sugestao = (perimetro * quantidadeProduto).toFixed(2);
+                                if (perimetroProdutoM > 0) {
+                                  sugestao = (perimetroProdutoM * quantidadeProduto).toFixed(2);
                                 }
                                 break;
                             }
@@ -601,4 +602,4 @@ export function MaterialSection({
       })}
     </div>
   );
-} 
+}

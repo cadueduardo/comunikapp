@@ -8,12 +8,20 @@ import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Save } from 'lucide-react';
+import { Calculator, CheckCircle2, Save } from 'lucide-react';
 import { orcamentosApi } from '@/lib/api-client';
 import { createFormSchema, FormValues } from '../orcamento/schemas/orcamento.schema';
 import { useOrcamentoData } from '../orcamento/hooks/useOrcamentoData';
 import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
 import { calcularProdutosPreview } from '../shared/utils/preview-calculo.helpers';
+import { SimuladorPrecificacao } from '@/components/orcamentos-v2/SimuladorPrecificacao';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 // Função para calcular custo por unidade de uso
 const calcularCustoPorUnidadeUso = (insumo: any): number => {
@@ -141,6 +149,14 @@ interface OrcamentoFormProps {
   statusAprovacao?: string;
 }
 
+interface SimuladorSeed {
+  custoInicial: number;
+  margemInicial: number;
+  impostosInicial: number;
+  comissaoInicial: number;
+  tipoInicial: 'markup' | 'margem_por_dentro';
+}
+
 export function OrcamentoV2Form({ 
   mode, 
   initialData, 
@@ -157,10 +173,15 @@ export function OrcamentoV2Form({
   const [loading] = useState(false);
   const [isEnviando, setIsEnviando] = useState(false);
   const [isAtualizando, setIsAtualizando] = useState(false);
+  const [isFechandoPedido, setIsFechandoPedido] = useState(false);
   const [showProdutoModal, setShowProdutoModal] = useState(false);
+  const [showSimuladorModal, setShowSimuladorModal] = useState(false);
+  const [simuladorSeed, setSimuladorSeed] = useState<SimuladorSeed | null>(null);
   const [selectedProdutoIndex, setSelectedProdutoIndex] = useState<number>(0);
   const { clientes, insumos, maquinas, funcoes, servicos, custosIndiretos } = useOrcamentoData();
   const { user } = useUser();
+  const funcaoUsuario = String(user?.funcao || '').toLowerCase();
+  const podeFecharPedido = ['admin', 'administrador', 'gerente', 'vendedor'].includes(funcaoUsuario);
 
   // Hook para WebSocket - capturar dados calculados do preview
   const { resultadoOrcamento, isConnected } = useCalculoWebSocket();
@@ -181,7 +202,7 @@ export function OrcamentoV2Form({
       const impostosPercentual = parseFloat(formData?.impostos_customizados || '18');
       const comissaoPercentual = parseFloat(formData?.comissao_percentual || '5');
       const tipoMargemLucro =
-        (formData?.tipo_margem_lucro && formData.tipo_margem_lucro !== '')
+        formData?.tipo_margem_lucro
           ? (formData.tipo_margem_lucro as 'markup' | 'margem_por_dentro')
           : (user?.loja?.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro');
 
@@ -225,6 +246,10 @@ export function OrcamentoV2Form({
           altura_produto: '',
           unidade_medida_produto: '',
           area_produto: '',
+          perimetro_produto: '',
+          geometria_origem: 'MANUAL',
+          arquivo_geometria_url: '',
+          unidade_geometria: 'mm',
           materiais: [{ insumo_id: '', quantidade: '1', material_do_cliente: false }],
           maquinas: [{ maquina_id: '', horas_utilizadas: '1' }],
           funcoes: [{ funcao_id: '', horas_trabalhadas: '1' }],
@@ -254,6 +279,35 @@ export function OrcamentoV2Form({
     return null;
   };
 
+  const abrirSimuladorPrecificacao = () => {
+    const formData = form.getValues();
+    const calculoLocal = calcularDadosLocalmente(formData);
+    const custoInicial = Number(
+      calculoLocal
+        ? calculoLocal.totais.materiais +
+            calculoLocal.totais.maquinas +
+            calculoLocal.totais.funcoes +
+            calculoLocal.totais.servicos +
+            calculoLocal.totais.indiretos
+        : 0,
+    );
+    const margemInicial = parseNumeroInicial(formData.margem_lucro_customizada) || 30;
+    const impostosInicial = parseNumeroInicial(formData.impostos_customizados) || 18;
+    const comissaoInicial = parseNumeroInicial(formData.comissao_percentual) || 5;
+    const tipoInicial =
+      formData.tipo_margem_lucro ||
+      (user?.loja?.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro');
+
+    setSimuladorSeed({
+      custoInicial,
+      margemInicial,
+      impostosInicial,
+      comissaoInicial,
+      tipoInicial,
+    });
+    setShowSimuladorModal(true);
+  };
+
   // Debug: verificar props recebidas
   useEffect(() => {
     console.log('🔍 Debug - OrcamentoForm - Props recebidas:', {
@@ -273,13 +327,18 @@ export function OrcamentoV2Form({
       // console.log('🔍 Debug - OrcamentoForm - Estrutura completa dos dados:', JSON.stringify(initialData, null, 2));
       
       // Verificar se os dados estão no formato esperado pelo formulário
+      const configuracoesIniciais = initialData.configuracoes as
+        | { tipo_margem_lucro?: unknown }
+        | undefined;
       const dadosFormatados = {
         cliente_id: String(initialData.cliente_id || ''),
         titulo: String(initialData.titulo || ''),
         margem_lucro_customizada: String(initialData.margem_lucro_customizada || '30'),
         impostos_customizados: String(initialData.impostos_customizados || '25'),
         comissao_percentual: String(initialData.comissao_percentual ?? '5'),
-        tipo_margem_lucro: String(initialData.tipo_margem_lucro ?? initialData.configuracoes?.tipo_margem_lucro ?? ''),
+        tipo_margem_lucro: String(
+          initialData.tipo_margem_lucro ?? configuracoesIniciais?.tipo_margem_lucro ?? '',
+        ),
         condicoes_comerciais: String(initialData.condicoes_comerciais || ''),
         prazo_entrega: String(initialData.prazo_entrega || '10 a 15 dias úteis'),
         forma_pagamento: String(initialData.forma_pagamento || '50% entrada, restante na entrega'),
@@ -302,6 +361,10 @@ export function OrcamentoV2Form({
                   produto.unidade_medida_produto || produto.unidade_medida || produto.unidade || '',
                 ),
                 area_produto: String(produto.area_produto?.toString() || produto.area?.toString() || ''),
+                perimetro_produto: String(produto.perimetro_produto?.toString() || ''),
+                geometria_origem: produto.geometria_origem || 'MANUAL',
+                arquivo_geometria_url: String(produto.arquivo_geometria_url || ''),
+                unidade_geometria: produto.unidade_geometria || undefined,
                 materiais: Array.isArray(produto.materiais)
                   ? produto.materiais.map((material: any) => ({
                       ...material,
@@ -342,6 +405,10 @@ export function OrcamentoV2Form({
                 altura_produto: String(produto.altura?.toString() || ''),
                 unidade_medida_produto: String(produto.unidade_medida || ''),
                 area_produto: String(produto.area_produto?.toString() || produto.area?.toString() || ''),
+                perimetro_produto: String(produto.perimetro_produto?.toString() || ''),
+                geometria_origem: produto.geometria_origem || 'MANUAL',
+                arquivo_geometria_url: String(produto.arquivo_geometria_url || ''),
+                unidade_geometria: produto.unidade_geometria || undefined,
                 materiais: (produto.insumos || []).map((ins: any) => ({
                   insumo_id: ins.insumo_id,
                   quantidade: ajustarQuantidadeMaterialParaFormulario(
@@ -378,6 +445,10 @@ export function OrcamentoV2Form({
               altura_produto: '',
               unidade_medida_produto: '',
               area_produto: '',
+              perimetro_produto: '',
+              geometria_origem: 'MANUAL',
+              arquivo_geometria_url: '',
+              unidade_geometria: 'mm',
               materiais: [],
               maquinas: [],
               funcoes: [],
@@ -393,7 +464,7 @@ export function OrcamentoV2Form({
       // Tentar reset com delay para garantir que o formulário esteja pronto
       setTimeout(() => {
         // console.log('🔍 Debug - OrcamentoForm - Executando reset com delay...');
-        form.reset(dadosFormatados);
+        form.reset(dadosFormatados as FormValues);
         
         // Verificar se os valores foram aplicados
         setTimeout(() => {
@@ -526,13 +597,13 @@ export function OrcamentoV2Form({
       return vazioParaUndefined(itens);
     };
 
-    const somarCampo = <T extends Record<string, unknown>>(lista: T[] | undefined, campo: keyof T): number => {
+    const somarCampo = (lista: unknown[] | undefined, campo: string): number => {
       if (!Array.isArray(lista)) {
         return 0;
       }
 
-      return lista.reduce((acc, item) => {
-        const valor = Number(item[campo] ?? 0);
+      return lista.reduce<number>((acc, item) => {
+        const valor = Number((item as Record<string, unknown>)?.[campo] ?? 0);
         return acc + (Number.isFinite(valor) ? valor : 0);
       }, 0);
     };
@@ -598,6 +669,10 @@ export function OrcamentoV2Form({
             : normalizarNumero(produtoFormulario.area_produto),
           3,
         );
+        const perimetroProduto = fixDecimal(
+          normalizarNumero(produtoFormulario.perimetro_produto),
+          2,
+        );
         const unidadeMedida =
           (typeof dimensoesPreview?.unidade_medida === 'string' && dimensoesPreview.unidade_medida.trim().length > 0
             ? dimensoesPreview.unidade_medida.trim()
@@ -620,7 +695,11 @@ export function OrcamentoV2Form({
                   );
                   const unidadeMaterial =
                     material.unidade_consumo ||
-                    produtoFormulario.materiais?.find((item) => item?.insumo_id === material.insumo_id)?.unidade;
+                    (
+                      produtoFormulario.materiais?.find(
+                        (item) => item?.insumo_id === material.insumo_id,
+                      ) as { unidade?: string } | undefined
+                    )?.unidade;
                   const materialDoCliente = produtoFormulario.materiais?.find(
                     (item) => item?.insumo_id === material.insumo_id,
                   )?.material_do_cliente;
@@ -753,6 +832,11 @@ export function OrcamentoV2Form({
           largura,
           altura,
           area,
+          perimetro_produto: perimetroProduto || undefined,
+          unidade_geometria: produtoFormulario.unidade_geometria,
+          geometria_origem: produtoFormulario.geometria_origem || 'MANUAL',
+          arquivo_geometria_url:
+            produtoFormulario.arquivo_geometria_url || undefined,
           custo_total_producao: custoTotalProducao,
           preco_unitario: precoUnitarioProduto,
           preco_total: precoTotalProduto,
@@ -816,7 +900,7 @@ export function OrcamentoV2Form({
       );
 
       const tipoMargemLucroEfetivo =
-        (data.tipo_margem_lucro && data.tipo_margem_lucro !== '')
+        data.tipo_margem_lucro
           ? data.tipo_margem_lucro
           : (user?.loja?.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro');
 
@@ -889,7 +973,6 @@ export function OrcamentoV2Form({
         quantidade_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.quantidade : undefined,
         margem_lucro_customizada: margemPercentual,
         impostos_customizados: impostosPercentual,
-        comissao_percentual: comissaoPercentual,
         tipo_margem_lucro: tipoMargemLucroEfetivo,
         configuracoes: { tipo_margem_lucro: tipoMargemLucroEfetivo },
       };
@@ -902,6 +985,7 @@ export function OrcamentoV2Form({
       const largura = normalizarNumero(produto.largura_produto);
       const altura = normalizarNumero(produto.altura_produto);
       const area = normalizarNumero(produto.area_produto);
+      const perimetroProduto = normalizarNumero(produto.perimetro_produto);
 
       const nomeProduto = produto.nome_servico?.trim() || `Produto ${index + 1}`;
 
@@ -916,6 +1000,11 @@ export function OrcamentoV2Form({
         largura,
         altura,
         area,
+        area_produto: area,
+        perimetro_produto: perimetroProduto || undefined,
+        unidade_geometria: produto.unidade_geometria,
+        geometria_origem: produto.geometria_origem || 'MANUAL',
+        arquivo_geometria_url: produto.arquivo_geometria_url || undefined,
         insumos: Array.isArray(produto.materiais)
           ? (produto.materiais || [])
             .filter((material) => material?.insumo_id)
@@ -1019,7 +1108,7 @@ export function OrcamentoV2Form({
     
     // Resolver tipo de margem: do orçamento ou padrão da loja
     const tipoMargemLucroEfetivo =
-      (data.tipo_margem_lucro && data.tipo_margem_lucro !== '')
+      data.tipo_margem_lucro
         ? data.tipo_margem_lucro
         : (user?.loja?.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro');
 
@@ -1027,6 +1116,8 @@ export function OrcamentoV2Form({
     const percentualImpostosDecimal = impostosPercentual / 100;
     const percentualComissaoDecimal = comissaoPercentual / 100;
 
+    const divisorMargemPorDentro =
+      1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
     let precoFinal: number;
     if (tipoMargemLucroEfetivo === 'markup') {
       // Markup: margem por fora sobre o custo. Preço = Custo*(1+margem) / (1 - impostos - comissão)
@@ -1036,8 +1127,7 @@ export function OrcamentoV2Form({
         : custoTotal * (1 + percentualMargemDecimal);
     } else {
       // Margem por dentro: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
-      const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
-      precoFinal = divisor > 0 ? custoTotal / divisor : custoTotal;
+      precoFinal = divisorMargemPorDentro > 0 ? custoTotal / divisorMargemPorDentro : custoTotal;
     }
 
     const margemLucro = precoFinal * percentualMargemDecimal;
@@ -1130,7 +1220,17 @@ export function OrcamentoV2Form({
           const { produto, custoTotalProduto } = item;
           
           // Aplicar mesma fórmula do total: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
-          const precoVendaProduto = divisor > 0 ? custoTotalProduto / divisor : custoTotalProduto;
+          const precoVendaProduto =
+            tipoMargemLucroEfetivo === 'markup'
+              ? (() => {
+                  const divisorMarkup = 1 - percentualImpostosDecimal - percentualComissaoDecimal;
+                  return divisorMarkup > 0
+                    ? (custoTotalProduto * (1 + percentualMargemDecimal)) / divisorMarkup
+                    : custoTotalProduto * (1 + percentualMargemDecimal);
+                })()
+              : divisorMargemPorDentro > 0
+                ? custoTotalProduto / divisorMargemPorDentro
+                : custoTotalProduto;
           const precoUnitarioVenda = precoVendaProduto / produto.quantidade;
           
           // Calcular componentes individuais
@@ -1468,6 +1568,76 @@ export function OrcamentoV2Form({
     }
   };
 
+  const handleFecharPedido = async () => {
+    if (isFechandoPedido) return;
+    setIsFechandoPedido(true);
+
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        toast.error('Token de autenticação não encontrado');
+        return;
+      }
+
+      const formData = form.getValues();
+
+      if (!formData.itens_produto || formData.itens_produto.length === 0) {
+        toast.error('Adicione pelo menos um produto ao orçamento');
+        return;
+      }
+
+      const primeiroProduto = formData.itens_produto[0];
+      if (!primeiroProduto.materiais || primeiroProduto.materiais.length === 0) {
+        toast.error('O primeiro produto deve ter pelo menos um material');
+        return;
+      }
+
+      let dadosCalculados = dadosCalculadosLocais || resultadoOrcamento?.resultado;
+
+      if (!dadosCalculados) {
+        const calculoLocal = calcularDadosLocalmente(formData);
+        if (calculoLocal) {
+          dadosCalculados = calculoLocal;
+        }
+      }
+
+      const dadosTransformados = transformarDadosParaBackend(formData, dadosCalculados);
+      let idParaFechar = orcamentoId;
+
+      if (mode === 'editar' && orcamentoId) {
+        await orcamentosApi.v2.update(orcamentoId, dadosTransformados, token);
+      } else {
+        const orcamentoCriado = await orcamentosApi.v2.create(dadosTransformados, token);
+        idParaFechar = (orcamentoCriado as { id?: string })?.id;
+      }
+
+      if (!idParaFechar) {
+        throw new Error('Não foi possível identificar o orçamento para fechar o pedido.');
+      }
+
+      const resultado = await orcamentosApi.v2.fecharPedido(
+        idParaFechar,
+        token,
+      ) as { os_numero?: string };
+
+      toast.success(
+        resultado?.os_numero
+          ? `Pedido fechado. OS ${resultado.os_numero} gerada.`
+          : 'Pedido fechado e OS gerada com sucesso.',
+      );
+      router.push('/orcamentos-v2');
+    } catch (error) {
+      console.error('Erro ao fechar pedido:', error);
+      if (error instanceof Error) {
+        toast.error(`Erro ao fechar pedido: ${error.message}`);
+      } else {
+        toast.error('Erro ao fechar pedido');
+      }
+    } finally {
+      setIsFechandoPedido(false);
+    }
+  };
+
   const handleCarregarProduto = (itemIndex: number) => {
     setSelectedProdutoIndex(itemIndex);
     setShowProdutoModal(true);
@@ -1505,6 +1675,10 @@ export function OrcamentoV2Form({
         altura_produto: produto.altura_produto?.toString() || '',
         unidade_medida_produto: produto.unidade_medida_produto || '',
         area_produto: produto.area_produto?.toString() || '',
+        perimetro_produto: '',
+        geometria_origem: 'MANUAL' as const,
+        arquivo_geometria_url: '',
+        unidade_geometria: 'mm' as const,
         materiais: produto.itens?.map((item) => ({
           insumo_id: item.insumo.id,
           quantidade: item.quantidade.toString()
@@ -1585,6 +1759,15 @@ export function OrcamentoV2Form({
                     <Button
                       type="button"
                       variant="outline"
+                      onClick={abrirSimuladorPrecificacao}
+                      className="flex items-center space-x-2"
+                    >
+                      <Calculator className="w-4 h-4" />
+                      <span>Simular preço</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
                       onClick={() => router.back()}
                     >
                       {isAprovado ? 'Voltar' : 'Cancelar'}
@@ -1616,6 +1799,17 @@ export function OrcamentoV2Form({
                           <Save className="w-4 h-4" />
                           <span>{loading ? 'Salvando...' : 'Salvar Rascunho'}</span>
                         </Button>
+                        {podeFecharPedido && (
+                          <Button
+                            type="button"
+                            onClick={() => handleFecharPedido()}
+                            disabled={loading || isEnviando || isAtualizando || isFechandoPedido}
+                            className="flex items-center space-x-2"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>{isFechandoPedido ? 'Fechando...' : 'Fechar pedido'}</span>
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           onClick={() => handleEnviar()}
@@ -1644,6 +1838,17 @@ export function OrcamentoV2Form({
                                 <Save className="w-4 h-4" />
                                 <span>{loading ? 'Salvando...' : 'Salvar como Rascunho'}</span>
                               </Button>
+                              {podeFecharPedido && (
+                                <Button
+                                  type="button"
+                                  onClick={() => handleFecharPedido()}
+                                  disabled={loading || isEnviando || isAtualizando || isFechandoPedido}
+                                  className="flex items-center space-x-2"
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  <span>{isFechandoPedido ? 'Fechando...' : 'Fechar pedido'}</span>
+                                </Button>
+                              )}
                               <Button
                                 type="button"
                                 onClick={() => handleEnviar()}
@@ -1655,6 +1860,18 @@ export function OrcamentoV2Form({
                               </Button>
                             </>
                           ) : (
+                            <>
+                              {podeFecharPedido && (
+                                <Button
+                                  type="button"
+                                  onClick={() => handleFecharPedido()}
+                                  disabled={loading || isEnviando || isAtualizando || isFechandoPedido}
+                                  className="flex items-center space-x-2"
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  <span>{isFechandoPedido ? 'Fechando...' : 'Fechar pedido'}</span>
+                                </Button>
+                              )}
                             <Button
                               type="button"
                               onClick={() => handleSubmit(form.getValues())}
@@ -1664,6 +1881,7 @@ export function OrcamentoV2Form({
                               <Save className="w-4 h-4" />
                               <span>{loading || isAtualizando ? 'Atualizando...' : 'Atualizar Orçamento'}</span>
                             </Button>
+                            </>
                           );
                         })()}
                       </>
@@ -1717,6 +1935,15 @@ export function OrcamentoV2Form({
               <Button
                 type="button"
                 variant="outline"
+                onClick={abrirSimuladorPrecificacao}
+                className="flex items-center space-x-2"
+              >
+                <Calculator className="w-4 h-4" />
+                <span>Simular preço</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => router.back()}
               >
                 {isAprovado ? 'Voltar' : 'Cancelar'}
@@ -1747,6 +1974,17 @@ export function OrcamentoV2Form({
                     <Save className="w-4 h-4" />
                     <span>{loading ? 'Salvando...' : 'Salvar Rascunho'}</span>
                   </Button>
+                  {podeFecharPedido && (
+                    <Button
+                      type="button"
+                      onClick={() => handleFecharPedido()}
+                      disabled={loading || isEnviando || isAtualizando || isFechandoPedido}
+                      className="flex items-center space-x-2"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{isFechandoPedido ? 'Fechando...' : 'Fechar pedido'}</span>
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     onClick={() => handleEnviar()}
@@ -1775,6 +2013,17 @@ export function OrcamentoV2Form({
                           <Save className="w-4 h-4" />
                           <span>{loading ? 'Salvando...' : 'Salvar como Rascunho'}</span>
                         </Button>
+                        {podeFecharPedido && (
+                          <Button
+                            type="button"
+                            onClick={() => handleFecharPedido()}
+                            disabled={loading || isEnviando || isAtualizando || isFechandoPedido}
+                            className="flex items-center space-x-2"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>{isFechandoPedido ? 'Fechando...' : 'Fechar pedido'}</span>
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           onClick={() => handleEnviar()}
@@ -1786,6 +2035,18 @@ export function OrcamentoV2Form({
                         </Button>
                       </>
                     ) : (
+                      <>
+                        {podeFecharPedido && (
+                          <Button
+                            type="button"
+                            onClick={() => handleFecharPedido()}
+                            disabled={loading || isEnviando || isAtualizando || isFechandoPedido}
+                            className="flex items-center space-x-2"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>{isFechandoPedido ? 'Fechando...' : 'Fechar pedido'}</span>
+                          </Button>
+                        )}
                       <Button
                         type="submit"
                         disabled={loading || isAtualizando}
@@ -1794,6 +2055,7 @@ export function OrcamentoV2Form({
                         <Save className="w-4 h-4" />
                         <span>{loading || isAtualizando ? 'Atualizando...' : 'Atualizar Orçamento'}</span>
                       </Button>
+                      </>
                     );
                   })()}
                 </>
@@ -1813,6 +2075,29 @@ export function OrcamentoV2Form({
       )}
 
       {/* Chat Flutuante - mostrar para todos os status exceto rascunho e aprovado (aprovado = somente visualização) */}
+      <Dialog open={showSimuladorModal} onOpenChange={setShowSimuladorModal}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Simular preço</DialogTitle>
+            <DialogDescription>
+              Simulação rápida com os dados atuais do orçamento. Fechar esta janela
+              não altera o formulário.
+            </DialogDescription>
+          </DialogHeader>
+          {simuladorSeed && (
+            <SimuladorPrecificacao
+              key={JSON.stringify(simuladorSeed)}
+              custoInicial={simuladorSeed.custoInicial}
+              margemInicial={simuladorSeed.margemInicial}
+              impostosInicial={simuladorSeed.impostosInicial}
+              comissaoInicial={simuladorSeed.comissaoInicial}
+              tipoInicial={simuladorSeed.tipoInicial}
+              className="border-0 shadow-none"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       {orcamentoId && orcamentoStatus && orcamentoStatus !== 'rascunho' && !isAprovado && (
         <ChatFlutuante 
           orcamentoId={orcamentoId}

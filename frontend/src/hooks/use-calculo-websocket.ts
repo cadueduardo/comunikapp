@@ -6,6 +6,9 @@ const resolveSocketBaseUrl = () => {
   const configuredUrl = (process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
 
   if (!configuredUrl || configuredUrl === '/api') {
+    if (process.env.NODE_ENV !== 'production') {
+      return 'http://localhost:4000';
+    }
     return '';
   }
 

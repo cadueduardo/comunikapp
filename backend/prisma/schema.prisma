@@ -701,6 +701,9 @@ model ProdutoOrcamento {
   // Ver docs/fase-0-home-operacional/04-campos-geometria.md
   // Perimetro em milimetros (para estimativa de tempo de corte).
   perimetro_produto           Decimal? @db.Decimal(10, 2)
+  // Unidade original informada na geometria (mm | cm | m). NULL em registros
+  // anteriores à Fase 2.F; o frontend assume mm e pede confirmação.
+  unidade_geometria           String?  @db.VarChar(4)
   // 'MANUAL' | 'IMAGEM' | 'DXF' (string controlada por codigo)
   geometria_origem            String?  @db.VarChar(16)
   arquivo_geometria_url       String?  @db.VarChar(512)
@@ -1470,6 +1473,17 @@ model ItemOS {
   materiais_disponivel Boolean  @default(false)
   observacoes          String?  @db.Text
   criado_em            DateTime @default(now())
+
+  // Geometria herdada do ProdutoOrcamento para PCP/produção
+  largura                     Decimal? @db.Decimal(10, 2)
+  altura                      Decimal? @db.Decimal(10, 2)
+  area                        Decimal? @db.Decimal(10, 2)
+  perimetro                   Decimal? @db.Decimal(10, 2)
+  unidade_medida              String?  @db.VarChar(16)
+  unidade_geometria           String?  @db.VarChar(4)
+  geometria_origem            String?  @db.VarChar(16)
+  arquivo_geometria_url       String?  @db.VarChar(512)
+  arquivo_geometria_metadados String?  @db.LongText
 
   // PRAZOS DO PRODUTO
   data_inicio_producao DateTime? // Quando deve iniciar produção
