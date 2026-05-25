@@ -54,7 +54,7 @@ export default function NovaFuncaoPage() {
   };
 
   return (
-    <div className="p-6">
+    <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Adicionar Nova Função</h1>
         <p className="text-gray-600 mt-1">

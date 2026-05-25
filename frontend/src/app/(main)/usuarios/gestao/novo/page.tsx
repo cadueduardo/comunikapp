@@ -57,7 +57,7 @@ export default function NovoUsuarioPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <PageHeader title="Novo Usuário" backHref="/usuarios/gestao" icon={<Users className="h-8 w-8" />} />
       <div className="rounded-lg border bg-white p-6">
         <div className="grid gap-3 max-w-xl">

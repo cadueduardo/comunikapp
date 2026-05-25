@@ -50,7 +50,7 @@ export default function NovaMaquinaCTPage() {
   };
 
   return (
-    <div className="p-6">
+    <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Adicionar Nova Máquina</h1>
         <p className="text-gray-600 mt-1">Cadastre uma nova máquina para calcular custos operacionais.</p>

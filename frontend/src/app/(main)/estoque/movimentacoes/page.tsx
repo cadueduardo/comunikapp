@@ -143,7 +143,7 @@ export default function MovimentacoesPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
@@ -155,7 +155,7 @@ export default function MovimentacoesPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
