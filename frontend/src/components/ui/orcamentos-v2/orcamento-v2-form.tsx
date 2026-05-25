@@ -1766,7 +1766,7 @@ export function OrcamentoV2Form({
                       Orçamento aprovado — somente visualização. Nenhuma alteração é permitida.
                     </div>
                   )}
-                  <div className={isAprovado ? 'pointer-events-none select-none opacity-95' : ''}>
+                  <div className={isAprovado ? 'pointer-events-none select-none opacity-95 space-y-6' : 'space-y-6'}>
                   {/* Seção de Cliente */}
                   <ClienteSection 
                     clientes={clientes} 
@@ -1947,7 +1947,7 @@ export function OrcamentoV2Form({
                   Orçamento aprovado — somente visualização. Nenhuma alteração é permitida.
                 </div>
               )}
-              <div className={isAprovado ? 'pointer-events-none select-none opacity-95' : ''}>
+              <div className={isAprovado ? 'pointer-events-none select-none opacity-95 space-y-6' : 'space-y-6'}>
               {/* Seção de Cliente */}
               <ClienteSection 
                 clientes={clientes} 
