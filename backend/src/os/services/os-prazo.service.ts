@@ -96,20 +96,24 @@ export class OSPrazoService {
       };
     }
 
-    // 4. Definir novo status baseado na data
-    let novoStatus: string;
-    if (isHoje || isRetroativa) {
-      novoStatus = 'PRONTA_PRODUCAO';
-    } else {
-      novoStatus = 'AGUARDANDO_INICIO';
-    }
+    // 4. Calcular o "status de prazo" derivado da data (devolvido na resposta
+    // mas NAO gravado na OS - o campo `OrdemServico.status` e exclusivo do
+    // ciclo operacional, ver `StatusOS` em os.interfaces.ts). Valores
+    // possiveis: AGUARDANDO_INICIO | PRONTA_PRODUCAO. Esses rotulos sao
+    // calculados dinamicamente tambem em `consultarStatusPrazo` para que
+    // qualquer consumidor que precise dessa visao a obtenha sem depender de
+    // dado persistido. Ate 2026-05-25 esses rotulos eram erroneamente
+    // gravados no campo `status` da OS, corrompendo o status operacional
+    // (ex.: uma OS aprovada virava `AGUARDANDO_INICIO` e desaparecia do
+    // kanban). Ver HANDOFF secao 4.11.
+    const statusPrazo: 'PRONTA_PRODUCAO' | 'AGUARDANDO_INICIO' =
+      isHoje || isRetroativa ? 'PRONTA_PRODUCAO' : 'AGUARDANDO_INICIO';
 
-    // 5. Atualizar a OS
+    // 5. Atualizar a OS (apenas prazo + auditoria, sem tocar no `status`)
     const osAtualizada = await this.prisma.ordemServico.update({
       where: { id: osId },
       data: {
         data_prazo: dataPrazo,
-        status: novoStatus,
         atualizado_em: new Date(),
         modificado_por: usuarioId,
         motivo_modificacao:
@@ -151,7 +155,9 @@ export class OSPrazoService {
       success: true,
       os_id: osId,
       data_prazo: dataPrazo,
-      status: novoStatus,
+      // `status` aqui se refere ao STATUS DE PRAZO calculado, NAO ao status
+      // operacional da OS (que permanece intocado por este service).
+      status: statusPrazo,
       dias_restantes: diasRestantes,
       is_retroativo: isRetroativa,
       mensagem: mensagem,

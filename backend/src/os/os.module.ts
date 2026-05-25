@@ -40,6 +40,7 @@ import { DebugValidacoesController } from './controllers/debug-validacoes.contro
 import { TestOSValidacoesController } from './controllers/test-os-validacoes.controller';
 import { OSPrazoController } from './controllers/os-prazo.controller';
 import { OSProdutoPrazoController } from './controllers/os-produto-prazo.controller';
+import { OSAdminController } from './controllers/os-admin.controller';
 // import { HistoricoController } from './controllers/historico.controller'; // TODO: Implementar
 
 // Services (<= 400 linhas cada)
@@ -58,6 +59,7 @@ import { OSValidacoesService } from './services/os-validacoes.service';
 import { CalculoMaterialUnidadeService } from './services/calculo-material-unidade.service';
 import { OSPrazoService } from './services/os-prazo.service';
 import { OSProdutoPrazoService } from './services/os-produto-prazo.service';
+import { OSAdminService } from './services/os-admin.service';
 import { CorrecaoMateriaisHelper } from './helpers/correcao-materiais.helper';
 // import { NotificacoesOSService } from './services/notificacoes-os.service'; // TODO: Implementar
 // import { IntegracaoService } from './services/integracao.service'; // TODO: Implementar
@@ -104,6 +106,7 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
     TestOSValidacoesController,
     OSPrazoController,
     OSProdutoPrazoController,
+    OSAdminController,
     // HistoricoController, // TODO: Implementar
   ],
   providers: [
@@ -124,6 +127,7 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
     CalculoMaterialUnidadeService,
     OSPrazoService,
     OSProdutoPrazoService,
+    OSAdminService,
     CorrecaoMateriaisHelper,
     // NotificacoesOSService, // TODO: Implementar
     // IntegracaoService, // TODO: Implementar

@@ -1030,5 +1030,53 @@ A aprovação técnica passa a **promover a OS direto para `LIBERADA_PARA_PCP`**
 - Documentação canônica em `docs/fase-0-home-operacional/01-status-oficiais.md` ainda lista `APROVADA_TECNICA` como estado intermediário. Manter o documento, mas o fluxo real agora pula esse estado — atualizar quando for revisar os status oficiais (provavelmente junto com a Fase 6).
 - Testes unitários existentes (`os-direta-interna.service.spec.ts`) usam `expect.objectContaining` apenas para `aprovacao_tecnica_status`, então continuam passando. Não foram adicionados testes novos para o helper `promoverAprovacaoParaPCP` — fica como TODO se a equipe quiser cobertura.
 
-**Última atualização:** 2026-05-25 (sessão final do dia: aprovação técnica passou a promover OS direto para LIBERADA_PARA_PCP + 4 bugs do Kanban PCP corrigidos).
+### 4.11 Bug histórico do `OSPrazoService` corrompendo o `status` operacional (2026-05-25, sessão noturna)
+
+**Sintoma:** após o fix da seção 4.10, OS aprovadas pelo modal do grid continuavam sumindo do Kanban PCP em casos específicos. A OS#2026-007 apareceu com `status = AGUARDANDO_INICIO` e `aprovacao_tecnica_status = APROVADA` — combinação que o filtro do kanban não conhece.
+
+**Diagnóstico:** o `OSPrazoService.definirPrazo` (`backend/src/os/services/os-prazo.service.ts`) gravava no campo `OrdemServico.status` valores que não pertencem ao enum operacional (`AGUARDANDO_INICIO`, `PRONTA_PRODUCAO`). São na verdade conceitos de "status de prazo" — calculados dinamicamente em `consultarStatusPrazo` a partir da `data_prazo`. O autor original misturou os dois conceitos. Resultado: toda vez que um usuário definia ou atualizava o prazo de uma OS, o `status` operacional era destruído.
+
+Sequência típica do bug:
+
+1. OS criada com `status = AGUARDANDO_APROVACAO_TECNICA`.
+2. Usuário define prazo via `PrazoOSComponent` no detalhe da OS → status sobrescrito para `AGUARDANDO_INICIO` (prazo futuro) ou `PRONTA_PRODUCAO` (prazo hoje/retroativo).
+3. Usuário aprova tecnicamente → como o status atual não está no fluxo padrão (`{AGUARDANDO_APROVACAO_TECNICA, FILA}`), a aprovação cai no caminho retroativo (mantém status atual) → não promove para `LIBERADA_PARA_PCP`.
+4. Kanban filtra apenas status operacionais válidos → OS some.
+
+**Confirmação isolada:** procurei `AGUARDANDO_INICIO`/`PRONTA_PRODUCAO`/`EM_PRODUCAO` em todo o backend. Só aparecem em `os-prazo.service.ts` (escrita) e no DTO de resposta `os-prazo.dto.ts` (`StatusPrazoResponse`). Nenhum outro código (PCP, kanban, alertas, home, fluxo de trabalho) usa esses valores para nada. Confirma que é um bug isolado.
+
+**Correção estrutural aplicada:**
+
+- `backend/src/os/services/os-prazo.service.ts`:
+  - `definirPrazo` **parou** de gravar `status: novoStatus`. Atualiza apenas `data_prazo`, `atualizado_em`, `modificado_por`, `motivo_modificacao`.
+  - O retorno continua incluindo `status` (com o valor calculado `AGUARDANDO_INICIO`/`PRONTA_PRODUCAO`) para preservar compatibilidade com `PrazoOSComponent` no front, mas agora é apenas projeção em memória, não persistido.
+  - `consultarStatusPrazo` continua igual: já calculava dinamicamente a partir da `data_prazo`.
+
+**Endpoint admin de recuperação:**
+
+- `POST /os/admin/recuperar-status` (gated por `funcao === 'ADMINISTRADOR'` no controller, multi-tenant por `loja_id`).
+- Body opcional:
+  - `dry_run: boolean` — calcula o plano sem gravar.
+  - `os_id: string` — opera apenas naquela OS (caso contrário varre todas as OS da loja com `status ∈ {AGUARDANDO_INICIO, PRONTA_PRODUCAO, EM_PRODUCAO}`).
+- Regra de reconstrução, em ordem de prioridade:
+  1. `aprovacao_tecnica_status = 'APROVADA'`  → `LIBERADA_PARA_PCP`
+  2. `aprovacao_tecnica_status = 'REJEITADA'` → `REJEITADA`
+  3. `tipo_os = 'COMERCIAL'` (pendente) → `AGUARDANDO_APROVACAO_TECNICA`
+  4. `tipo_os = 'INTERNA'`   (pendente) → `AGUARDANDO_APROVACAO_ORCAMENTARIA`
+  5. fallback → `FILA`
+- Retorna `{ total_analisadas, total_corrigidas, dry_run, detalhes: [{ os_id, numero, status_anterior, status_novo, motivo, aplicado }] }`.
+- Arquivos novos: `backend/src/os/services/os-admin.service.ts`, `backend/src/os/controllers/os-admin.controller.ts`. Registrados em `os.module.ts`.
+
+**Correção pontual aplicada nesta sessão:**
+
+- A OS#2026-007 (`numero = OS-2026-007`, `id = cmpl9vn7o000ow4age3rxv9kj`, `loja_id = tisruw9j7`) foi corrigida via script Node único (`backend/scripts/recuperar-os-2026-007.ts`, deletado após uso). Estado anterior: `status = AGUARDANDO_INICIO`. Estado novo: `status = LIBERADA_PARA_PCP`. Já aparece no Kanban PCP na coluna FILA.
+
+**Pontos de atenção:**
+
+- Se houver outras lojas com OS corrompidas, o administrador deve chamar `POST /os/admin/recuperar-status` (com `dry_run=true` primeiro para revisar). O endpoint é seguro: opera só na própria loja do usuário autenticado.
+- O conceito de "status de prazo" (`AGUARDANDO_INICIO`/`PRONTA_PRODUCAO`) continua existindo e sendo devolvido pelo `consultarStatusPrazo` e pelo `definirPrazo`, mas agora apenas como informação calculada — nunca persistido. O frontend `PrazoOSComponent` continua funcionando sem alterações.
+- O DTO `StatusPrazoResponse` ainda declara `EM_PRODUCAO` como possível valor de `status`, mas esse valor **nunca foi gravado por código** e o `consultarStatusPrazo` também nunca o retorna. Pode ser removido em uma limpeza futura.
+- Não foi adicionada migração automatizada de schema — a recuperação fica sob demanda via endpoint. Se a quantidade de OS corrompidas for grande, considerar rodar uma vez `dry_run=true` para mapear o impacto.
+
+**Última atualização:** 2026-05-25 (sessão noturna: refactor estrutural do OSPrazoService + endpoint admin de recuperação de status + correção pontual da OS#2026-007).
 Branch `feature/home-operacional-dashboard`.
