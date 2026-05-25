@@ -31,11 +31,16 @@ export interface DetalheRecuperacaoStatus {
   status_novo: string | null;
   motivo: string;
   aplicado: boolean;
+  // Reconciliacao de itens: quando a OS esta APROVADA tecnicamente porem
+  // tem `ItemOS` ainda `PENDENTE` (gap historico anterior ao helper
+  // `promoverAprovacaoParaPCP`), o admin libera esses itens para o PCP.
+  itens_liberados: number;
 }
 
 export interface ResultadoRecuperacaoStatus {
   total_analisadas: number;
   total_corrigidas: number;
+  total_itens_liberados: number;
   dry_run: boolean;
   detalhes: DetalheRecuperacaoStatus[];
 }
@@ -87,6 +92,8 @@ export class OSAdminService {
         status: true,
         tipo_os: true,
         aprovacao_tecnica_status: true,
+        aprovacao_tecnica_por: true,
+        criado_por: true,
       },
     });
 
@@ -98,28 +105,35 @@ export class OSAdminService {
 
     const detalhes: DetalheRecuperacaoStatus[] = [];
     let corrigidas = 0;
+    let totalItensLiberados = 0;
 
     for (const os of candidatas) {
       const statusAtual = (os.status || '').toUpperCase();
       const aprovacao = (os.aprovacao_tecnica_status || '').toUpperCase();
       const tipoOs = (os.tipo_os || '').toUpperCase();
+      const statusCorrompido = STATUS_CORROMPIDOS.has(statusAtual);
 
-      // Quando opera no modo "todas da loja" o filtro ja limita a corrompidas.
-      // Quando opera no modo "uma OS especifica" precisa filtrar manualmente.
-      if (osId && !STATUS_CORROMPIDOS.has(statusAtual)) {
-        detalhes.push({
-          os_id: os.id,
-          numero: os.numero,
-          status_anterior: statusAtual,
-          status_novo: null,
-          motivo: 'Status atual nao e considerado corrompido - nada a fazer',
-          aplicado: false,
+      // Calcula status novo apenas se o atual for corrompido. Caso contrario,
+      // mantem o atual e prossegue para a fase de reconciliacao de itens.
+      const statusReconstruido = statusCorrompido
+        ? this.inferirStatusCorreto(aprovacao, tipoOs)
+        : null;
+      const motivo = statusCorrompido
+        ? this.descreverMotivo(aprovacao, tipoOs)
+        : 'Status atual nao e corrompido - apenas reconciliando itens';
+
+      // Reconciliacao de itens: libera ItemOS PENDENTE quando a OS esta
+      // APROVADA tecnicamente (sempre, independente de o status estar
+      // corrompido). Inferido em dry-run pela contagem.
+      let itensALiberar = 0;
+      if (aprovacao === 'APROVADA') {
+        itensALiberar = await this.prisma.itemOS.count({
+          where: {
+            os_id: os.id,
+            status_liberacao_pcp: 'PENDENTE',
+          },
         });
-        continue;
       }
-
-      const statusReconstruido = this.inferirStatusCorreto(aprovacao, tipoOs);
-      const motivo = this.descreverMotivo(aprovacao, tipoOs);
 
       detalhes.push({
         os_id: os.id,
@@ -127,27 +141,55 @@ export class OSAdminService {
         status_anterior: statusAtual,
         status_novo: statusReconstruido,
         motivo,
-        aplicado: !dryRun,
+        aplicado: !dryRun && (statusCorrompido || itensALiberar > 0),
+        itens_liberados: itensALiberar,
       });
 
       if (!dryRun) {
-        await this.prisma.ordemServico.update({
-          where: { id: os.id },
-          data: {
-            status: statusReconstruido,
-            motivo_modificacao: `Recuperacao de status corrompido (${statusAtual} -> ${statusReconstruido}). ${motivo}`,
-          },
-        });
-        corrigidas += 1;
-        this.logger.log(
-          `OS ${os.numero} recuperada: ${statusAtual} -> ${statusReconstruido}`,
-        );
+        if (statusCorrompido && statusReconstruido) {
+          await this.prisma.ordemServico.update({
+            where: { id: os.id },
+            data: {
+              status: statusReconstruido,
+              motivo_modificacao: `Recuperacao de status corrompido (${statusAtual} -> ${statusReconstruido}). ${motivo}`,
+            },
+          });
+          corrigidas += 1;
+          this.logger.log(
+            `OS ${os.numero} recuperada: ${statusAtual} -> ${statusReconstruido}`,
+          );
+        }
+
+        if (itensALiberar > 0) {
+          // Atribui liberador rastreavel: aprovador tecnico se conhecido,
+          // senao quem criou a OS, senao 'SISTEMA' (string sentinel para
+          // operacao administrativa).
+          const liberadorId =
+            os.aprovacao_tecnica_por || os.criado_por || 'SISTEMA';
+
+          const resultado = await this.prisma.itemOS.updateMany({
+            where: {
+              os_id: os.id,
+              status_liberacao_pcp: 'PENDENTE',
+            },
+            data: {
+              status_liberacao_pcp: 'LIBERADO',
+              liberado_pcp_por: liberadorId,
+              liberado_pcp_em: new Date(),
+            },
+          });
+          totalItensLiberados += resultado.count;
+          this.logger.log(
+            `OS ${os.numero}: ${resultado.count} itens PENDENTE liberados para o PCP`,
+          );
+        }
       }
     }
 
     return {
       total_analisadas: candidatas.length,
       total_corrigidas: corrigidas,
+      total_itens_liberados: totalItensLiberados,
       dry_run: dryRun,
       detalhes,
     };

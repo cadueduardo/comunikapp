@@ -10,6 +10,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   CheckCircle2,
   AlertTriangle,
@@ -23,6 +25,16 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
+
+// Formata Date em 'YYYY-MM-DD' no fuso local (input type=date espera esse
+// formato). NAO usa toISOString() porque ela converte para UTC e pode pular
+// um dia em fusos negativos.
+function formatarDataInput(date: Date): string {
+  const ano = date.getFullYear();
+  const mes = String(date.getMonth() + 1).padStart(2, '0');
+  const dia = String(date.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
 
 interface AprovarOSModalProps {
   osId: string | null;
@@ -61,6 +73,10 @@ interface AprovacaoStatusResponse {
   data_instalacao_agendada: string | null;
   observacoes_instalacao: string | null;
   validacoes: ValidacoesAprovacao;
+  // Prazos atuais da OS (carregados de GET /os/:id para pre-preencher os
+  // campos editaveis do modal).
+  data_inicio_prevista?: string | null;
+  data_prazo?: string | null;
 }
 
 function CritItem({
@@ -108,11 +124,20 @@ export function AprovarOSModal({
   const [validacoes, setValidacoes] = useState<ValidacoesAprovacao | null>(
     null,
   );
+  // Datas do plano de producao (campos editaveis do modal). Sao strings no
+  // formato 'YYYY-MM-DD' (compatibilidade com <input type="date">). Convertidos
+  // para Date apenas na submissao.
+  const [dataInicio, setDataInicio] = useState<string>('');
+  const [dataFim, setDataFim] = useState<string>('');
+  const [erroPrazo, setErroPrazo] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !osId) {
       setValidacoes(null);
       setErroCarga(null);
+      setDataInicio('');
+      setDataFim('');
+      setErroPrazo(null);
       return;
     }
 
@@ -142,6 +167,33 @@ export function AprovarOSModal({
               alertas: [],
             },
           );
+
+          // Pre-preenche os campos de prazo:
+          //  - Data inicio: valor atual da OS OU hoje
+          //  - Data fim: valor atual da OS OU hoje + 7 dias
+          const hoje = new Date();
+          const hoje7 = new Date();
+          hoje7.setDate(hoje7.getDate() + 7);
+
+          const inicioAtual = data.data_inicio_prevista
+            ? new Date(data.data_inicio_prevista)
+            : null;
+          const fimAtual = data.data_prazo ? new Date(data.data_prazo) : null;
+
+          setDataInicio(
+            formatarDataInput(
+              inicioAtual && !Number.isNaN(inicioAtual.getTime())
+                ? inicioAtual
+                : hoje,
+            ),
+          );
+          setDataFim(
+            formatarDataInput(
+              fimAtual && !Number.isNaN(fimAtual.getTime())
+                ? fimAtual
+                : hoje7,
+            ),
+          );
         }
       } catch (error) {
         if (!cancelado) {
@@ -163,8 +215,34 @@ export function AprovarOSModal({
     };
   }, [open, osId]);
 
+  // Validacao em tempo real dos campos de prazo. Mantem mensagem visivel
+  // junto aos inputs e bloqueia o botao de aprovar enquanto invalido.
+  useEffect(() => {
+    if (!dataFim) {
+      setErroPrazo('Defina a data de entrega');
+      return;
+    }
+    if (dataInicio && dataFim && dataInicio > dataFim) {
+      setErroPrazo('A data de inicio nao pode ser posterior a data de entrega');
+      return;
+    }
+    setErroPrazo(null);
+  }, [dataInicio, dataFim]);
+
   const handleAprovar = async () => {
     if (!osId) return;
+
+    // Em fluxo padrao, exigir data fim. Em fluxo retroativo, permitir aprovar
+    // mesmo sem informar prazo (backend respeita o que estiver no banco).
+    if (!eAprovacaoRetroativa && !dataFim) {
+      toast.error('Defina a data de entrega antes de aprovar');
+      return;
+    }
+    if (erroPrazo && !eAprovacaoRetroativa) {
+      toast.error(erroPrazo);
+      return;
+    }
+
     try {
       setAprovando(true);
       const response = await apiRequest(`/os/${osId}/aprovar-tecnica`, {
@@ -175,6 +253,10 @@ export function AprovarOSModal({
           observacoes: eAprovacaoRetroativa
             ? 'Aprovada via grid de OS (retroativa)'
             : 'Aprovada via grid de OS',
+          // Envia datas apenas quando informadas. Backend trata 'undefined'
+          // como "manter o valor atual".
+          ...(dataInicio ? { data_inicio_prevista: dataInicio } : {}),
+          ...(dataFim ? { data_prazo: dataFim } : {}),
         }),
       });
 
@@ -246,6 +328,53 @@ export function AprovarOSModal({
           {erroCarga && !carregando && (
             <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
               {erroCarga}
+            </div>
+          )}
+
+          {!carregando && !erroCarga && (
+            <div className="space-y-2 rounded-md border bg-card p-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Calendar className="h-4 w-4 text-primary" />
+                Plano de producao
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {eAprovacaoRetroativa
+                  ? 'OS ja avancou no operacional. Edite os prazos se necessario - aprovar nao retrocede o status.'
+                  : 'Defina a janela planejada de producao. A data de entrega e obrigatoria.'}
+              </p>
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="space-y-1">
+                  <Label htmlFor="data-inicio" className="text-xs">
+                    Data de inicio
+                  </Label>
+                  <Input
+                    id="data-inicio"
+                    type="date"
+                    value={dataInicio}
+                    onChange={(e) => setDataInicio(e.target.value)}
+                    disabled={aprovando}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="data-fim" className="text-xs">
+                    Data de entrega{' '}
+                    {!eAprovacaoRetroativa && (
+                      <span className="text-destructive">*</span>
+                    )}
+                  </Label>
+                  <Input
+                    id="data-fim"
+                    type="date"
+                    value={dataFim}
+                    onChange={(e) => setDataFim(e.target.value)}
+                    disabled={aprovando}
+                    min={dataInicio || undefined}
+                  />
+                </div>
+              </div>
+              {erroPrazo && (
+                <p className="text-xs text-destructive pt-1">{erroPrazo}</p>
+              )}
             </div>
           )}
 
@@ -334,7 +463,13 @@ export function AprovarOSModal({
           </Button>
           <Button
             onClick={handleAprovar}
-            disabled={aprovando || carregando || dadosIncompletos}
+            disabled={
+              aprovando ||
+              carregando ||
+              dadosIncompletos ||
+              // Em fluxo padrao, prazo invalido bloqueia. Retroativo nao.
+              (!eAprovacaoRetroativa && !!erroPrazo)
+            }
           >
             {aprovando ? (
               <>

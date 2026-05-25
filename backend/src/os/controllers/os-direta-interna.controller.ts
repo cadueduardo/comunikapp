@@ -136,7 +136,13 @@ export class OSDiretaInternaController {
   })
   async aprovarOSTecnica(
     @Param('id') osId: string,
-    @Body() body: { aprovado: boolean; observacoes?: string },
+    @Body()
+    body: {
+      aprovado: boolean;
+      observacoes?: string;
+      data_inicio_prevista?: string;
+      data_prazo?: string;
+    },
     @Request() req: any,
   ) {
     const user = req['user'] || req.user;
@@ -149,11 +155,18 @@ export class OSDiretaInternaController {
 
     const usuarioId = user.sub || user.id;
 
+    const dataInicioPrevista = body.data_inicio_prevista
+      ? new Date(body.data_inicio_prevista)
+      : undefined;
+    const dataPrazo = body.data_prazo ? new Date(body.data_prazo) : undefined;
+
     const resultado = await this.osService.aprovarOSTecnica(
       osId,
       usuarioId,
       body.aprovado,
       body.observacoes,
+      dataInicioPrevista,
+      dataPrazo,
     );
 
     return OrdemServicoResponseDto.fromDomain(resultado);

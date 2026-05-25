@@ -1,4 +1,10 @@
-import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class AprovarTecnicaDto {
   @IsBoolean()
@@ -8,6 +14,18 @@ export class AprovarTecnicaDto {
   @IsString()
   @MaxLength(1000)
   observacoes?: string;
+
+  // Datas do plano de producao definidas no proprio modal de aprovacao.
+  // Sao opcionais no DTO porque a aprovacao retroativa (OS ja avancada no
+  // operacional) nao deve forcar o usuario a redefinir prazo. O service
+  // exige data_prazo apenas em fluxo padrao.
+  @IsOptional()
+  @IsDateString()
+  data_inicio_prevista?: string;
+
+  @IsOptional()
+  @IsDateString()
+  data_prazo?: string;
 }
 
 export class AgendarInstalacaoDto {
@@ -29,6 +47,10 @@ export class AprovacaoTecnicaResponseDto {
   aprovacao_tecnica_obs?: string;
   data_instalacao_agendada?: Date;
   observacoes_instalacao?: string;
+  // Prazos atuais para que o modal de aprovacao consiga pre-preencher os
+  // campos editaveis (data inicio prevista e data de entrega).
+  data_inicio_prevista?: Date | null;
+  data_prazo?: Date | null;
   validacoes: {
     estoque_ok: boolean;
     arte_anexada: boolean;

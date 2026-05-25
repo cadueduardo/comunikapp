@@ -72,6 +72,7 @@ export class OSProdutoPrazoService {
             data_prazo: true,
             status: true,
             orcamento_id: true,
+            aprovacao_tecnica_status: true,
           },
         },
       },
@@ -235,6 +236,18 @@ export class OSProdutoPrazoService {
     }
 
     // 5. Atualizar o produto
+    //    Auto-liberacao: se a OS ja foi aprovada tecnicamente e o item ainda
+    //    esta PENDENTE, definir prazo libera automaticamente para o PCP.
+    //    Decisao tomada em 2026-05-25: alterar prazo de um produto de OS ja
+    //    aprovada deve refletir no PCP imediatamente (antes o usuario tinha
+    //    que clicar em "Liberar para PCP" depois, o que confundia).
+    const aprovacaoStatus = (
+      item.os.aprovacao_tecnica_status || ''
+    ).toUpperCase();
+    const itemPendente =
+      (item.status_liberacao_pcp || 'PENDENTE').toUpperCase() === 'PENDENTE';
+    const deveAutoLiberar = aprovacaoStatus === 'APROVADA' && itemPendente;
+
     const itemAtualizado = await this.prisma.itemOS.update({
       where: { id: itemId },
       data: {
@@ -242,6 +255,13 @@ export class OSProdutoPrazoService {
         data_inicio_producao: dataInicio,
         prioridade_produto: prioridade || 'NORMAL',
         ordem_producao: ordemProducao,
+        ...(deveAutoLiberar
+          ? {
+              status_liberacao_pcp: 'LIBERADO',
+              liberado_pcp_por: usuarioId,
+              liberado_pcp_em: new Date(),
+            }
+          : {}),
       },
     });
 
@@ -273,6 +293,9 @@ export class OSProdutoPrazoService {
       prioridade_produto: prioridade || 'NORMAL',
       dias_restantes: diasRestantes > 0 ? diasRestantes : 0,
       is_retroativo: isRetroativa,
+      // Sinaliza ao caller (frontend) que o produto foi auto-liberado para
+      // PCP nesta operacao.
+      liberado_para_pcp: deveAutoLiberar,
       mensagem: isRetroativa
         ? 'Prazo retroativo definido com sucesso'
         : `Prazo definido: ${diasRestantes} dias restantes`,

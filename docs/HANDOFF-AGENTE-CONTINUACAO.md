@@ -1078,5 +1078,78 @@ Sequência típica do bug:
 - O DTO `StatusPrazoResponse` ainda declara `EM_PRODUCAO` como possível valor de `status`, mas esse valor **nunca foi gravado por código** e o `consultarStatusPrazo` também nunca o retorna. Pode ser removido em uma limpeza futura.
 - Não foi adicionada migração automatizada de schema — a recuperação fica sob demanda via endpoint. Se a quantidade de OS corrompidas for grande, considerar rodar uma vez `dry_run=true` para mapear o impacto.
 
-**Última atualização:** 2026-05-25 (sessão noturna: refactor estrutural do OSPrazoService + endpoint admin de recuperação de status + correção pontual da OS#2026-007).
+### 4.12 Prazo obrigatório no modal de aprovação + auto-liberação de itens (2026-05-25, sessão tardia)
+
+**Sintoma:** mesmo após o fix da seção 4.10 e a correção pontual da OS#2026-007, o usuário viu que:
+
+1. Ao tentar atribuir um workflow no PCP para uma OS aprovada, os dois produtos apareciam com badge `PENDENTE` no modal "Atribuir workflow" — impossibilitando seleção.
+2. Após editar as datas dos produtos no detalhe da OS (já aprovada e no PCP), os produtos continuavam travados — não eram liberados automaticamente.
+
+**Diagnóstico:**
+
+- A OS#2026-007 foi aprovada **antes** do helper `promoverAprovacaoParaPCP` existir (commit da 4.10). O script de recuperação (4.11) corrigiu o `status` operacional, mas não tocou nos `ItemOS` — eles continuaram `status_liberacao_pcp = 'PENDENTE'`.
+- `OSProdutoPrazoService.definirPrazoProduto` por design só atualizava `data_prazo_produto`, `data_inicio_producao`, `prioridade_produto`, `ordem_producao`. Liberar para PCP exigia chamada separada (`liberarProdutoPCP`). UX confusa: o usuário esperava que alterar prazo refletisse no PCP automaticamente.
+- A OS#2026-007 também não tinha prazo de produção definido no momento da aprovação (apenas `data_prazo`), porque o modal de aprovação não cobrava isso. Esse foi exatamente o cenário que provocou todos os problemas.
+
+**Correções aplicadas:**
+
+**Schema (`backend/prisma/schema.prisma`):**
+
+- Adicionada coluna `data_inicio_prevista DateTime?` em `OrdemServico`. Representa a data planejada de início da produção (definida na aprovação técnica). Aplicada via `prisma db push`.
+
+**Backend — fluxo de aprovação técnica:**
+
+- `backend/src/os/dto/aprovacao-tecnica.dto.ts`:
+  - `AprovarTecnicaDto` ganhou `data_inicio_prevista?: string` e `data_prazo?: string` (ambos `IsDateString` opcionais).
+  - `AprovacaoTecnicaResponseDto` retorna `data_inicio_prevista` e `data_prazo` para o front pré-preencher os campos.
+
+- `backend/src/os/services/aprovacao-tecnica.service.ts` (`aprovarTecnica`):
+  - Em **fluxo padrão**, se `aprovado=true` e a OS ainda não tem `data_prazo` no banco, o `data_prazo` no payload é **obrigatório** → 400 caso contrário.
+  - Em **fluxo retroativo**, os campos são opcionais (a OS já andou).
+  - Valida ordenação temporal: `inicio <= fim` (considera valor recém-enviado OR valor já no banco).
+  - Persiste as datas **antes** de invocar `promoverAprovacaoParaPCP` (que libera itens e tenta workflow). Garante que a OS já chega ao PCP com prazo definido.
+
+- `backend/src/os/services/os.service.ts` (`aprovarOSTecnica`):
+  - Mesma lógica, exposta também pelo `WorkflowComercialController.PATCH /os/:id/aprovar-tecnica` e `os-direta-interna.controller.ts`. Adicionados parâmetros `dataInicioPrevista?` e `dataPrazo?` (Date opcionais).
+  - Controllers convertem strings ISO em Date antes de chamar o service; `undefined` mantém o valor atual no banco.
+
+- `getStatusAprovacao` agora retorna `data_inicio_prevista` e `data_prazo` (usado pelo `AprovarOSModal` para pré-preencher).
+
+**Backend — auto-liberação ao definir prazo do produto:**
+
+- `backend/src/os/services/os-produto-prazo.service.ts` (`definirPrazoProduto`):
+  - Quando `os.aprovacao_tecnica_status = 'APROVADA'` e o item ainda está `status_liberacao_pcp = 'PENDENTE'`, salvar o prazo libera **automaticamente** para o PCP (seta `LIBERADO`, `liberado_pcp_por`, `liberado_pcp_em`).
+  - O response inclui `liberado_para_pcp: boolean` indicando se houve auto-liberação.
+  - Para itens já `LIBERADO` ou OS ainda não aprovada, o comportamento antigo é mantido.
+
+**Backend — endpoint admin reconcilia itens:**
+
+- `backend/src/os/services/os-admin.service.ts` (`recuperarStatusOS`):
+  - Além de corrigir o `status` operacional corrompido, agora também conta e libera `ItemOS` ainda `PENDENTE` em qualquer OS com `aprovacao_tecnica_status = 'APROVADA'` (independente de o status estar corrompido ou não).
+  - Cada `DetalheRecuperacaoStatus` ganhou `itens_liberados: number`. O resumo final inclui `total_itens_liberados`.
+  - Em modo `osId` específico, se o status atual NÃO está corrompido mas há itens pendentes, ainda assim a OS é processada (`aplicado=true` quando algo é alterado).
+  - Liberador atribuído: `aprovacao_tecnica_por > criado_por > 'SISTEMA'` (mantém rastreabilidade).
+
+**Frontend — modal de aprovação:**
+
+- `frontend/src/components/ui/os/AprovarOSModal.tsx`:
+  - Novo card "Plano de produção" com 2 inputs `type="date"`:
+    - **Data de início** (pré-preenchida com a `data_inicio_prevista` atual da OS OU `new Date()`).
+    - **Data de entrega** (pré-preenchida com `data_prazo` atual OU `new Date() + 7 dias`). **Obrigatória em fluxo padrão**.
+  - Validação em tempo real: bloqueia o botão "Aprovar" se data fim vazia ou início > fim (apenas em fluxo padrão; retroativo permite aprovar sem informar).
+  - Envia `data_inicio_prevista` e `data_prazo` no body da `PATCH /os/:id/aprovar-tecnica`. Strings vazias não são enviadas (deixa o backend manter o valor atual).
+  - Função local `formatarDataInput` evita o bug clássico de fuso ao usar `toISOString()` em datas locais.
+
+**Correção pontual aplicada nesta sessão:**
+
+- Itens da OS#2026-007 (`cmpl9vl1v0000w4agx1t4lbu4` Lona com Ilhós, `cmpl9vl1v0009w4agvythaiot` Acrilico) liberados manualmente via script Node único (deletado após uso): `status_liberacao_pcp` mudou de `PENDENTE` para `LIBERADO`, com `liberado_pcp_por = aprovacao_tecnica_por` da OS. Agora aparecem como liberados no modal "Atribuir workflow" do PCP.
+
+**Pontos de atenção:**
+
+- O endpoint `POST /os/admin/recuperar-status` agora também reconcilia itens, então se o usuário quiser destravar todas as OS legadas de uma loja em uma operação só, basta chamar o endpoint sem `os_id`.
+- O cenário do `definirPrazoProduto` agora libera o item automaticamente. Se a equipe quiser uma operação não destrutiva (definir prazo SEM liberar), pode-se adicionar um flag `liberar_automatico?: boolean` no DTO no futuro. Decisão atual (2026-05-25): UX simples > flexibilidade.
+- O `prisma db push` foi usado em vez de `migrate dev`. Para deploy em produção, considerar transformar em migration formal antes do release.
+- Frontend: os arquivos pré-existentes do projeto têm erros TS que **não** são causados por esta sessão. Não foi feita limpeza geral.
+
+**Última atualização:** 2026-05-25 (sessão tardia: prazo obrigatório no modal de aprovação + auto-liberação ao definir prazo do produto + endpoint admin reconcilia itens).
 Branch `feature/home-operacional-dashboard`.

@@ -216,6 +216,44 @@ export class AprovacaoTecnicaService {
       statusNovo = 'REJEITADA';
     }
 
+    // Datas do plano de producao: em fluxo padrao a data fim (data_prazo) e
+    // obrigatoria - aprovar uma OS sem prazo levou (em casos historicos) a
+    // produtos travados no PCP e Kanban descalibrado. Em aprovacao
+    // retroativa as datas sao opcionais (a OS ja andou).
+    let dataInicioPrevista: Date | null | undefined = undefined;
+    let dataPrazo: Date | null | undefined = undefined;
+
+    if (dto.aprovado) {
+      if (dto.data_prazo) {
+        dataPrazo = new Date(dto.data_prazo);
+        if (Number.isNaN(dataPrazo.getTime())) {
+          throw new BadRequestException('Data de prazo invalida');
+        }
+      } else if (eFluxoPadrao && !os.data_prazo) {
+        // Fluxo padrao sem prazo previo e sem prazo no payload: bloqueia.
+        throw new BadRequestException(
+          'Defina a data de entrega antes de aprovar a OS',
+        );
+      }
+
+      if (dto.data_inicio_prevista) {
+        dataInicioPrevista = new Date(dto.data_inicio_prevista);
+        if (Number.isNaN(dataInicioPrevista.getTime())) {
+          throw new BadRequestException('Data de inicio prevista invalida');
+        }
+      }
+
+      // Validacao de ordem temporal: inicio <= fim. Considera valor recem
+      // recebido OU valor ja existente na OS (caso so um lado seja enviado).
+      const inicioRef = dataInicioPrevista ?? os.data_inicio_prevista ?? null;
+      const fimRef = dataPrazo ?? os.data_prazo ?? null;
+      if (inicioRef && fimRef && inicioRef > fimRef) {
+        throw new BadRequestException(
+          'A data de inicio nao pode ser posterior a data de entrega',
+        );
+      }
+    }
+
     const osAtualizada = await this.prisma.ordemServico.update({
       where: { id: osId },
       data: {
@@ -224,6 +262,12 @@ export class AprovacaoTecnicaService {
         aprovacao_tecnica_por: usuarioId,
         aprovacao_tecnica_em: new Date(),
         aprovacao_tecnica_obs: dto.observacoes,
+        // Persiste prazos somente quando foram enviados no payload (undefined
+        // mantem o valor atual do banco).
+        ...(dataInicioPrevista !== undefined
+          ? { data_inicio_prevista: dataInicioPrevista }
+          : {}),
+        ...(dataPrazo !== undefined ? { data_prazo: dataPrazo } : {}),
       },
     });
 
@@ -250,6 +294,8 @@ export class AprovacaoTecnicaService {
       aprovacao_tecnica_obs: osAtualizada.aprovacao_tecnica_obs,
       data_instalacao_agendada: osAtualizada.data_instalacao_agendada,
       observacoes_instalacao: osAtualizada.observacoes_instalacao,
+      data_inicio_prevista: osAtualizada.data_inicio_prevista,
+      data_prazo: osAtualizada.data_prazo,
       validacoes,
     };
   }
@@ -350,6 +396,8 @@ export class AprovacaoTecnicaService {
       aprovacao_tecnica_obs: os.aprovacao_tecnica_obs,
       data_instalacao_agendada: os.data_instalacao_agendada,
       observacoes_instalacao: os.observacoes_instalacao,
+      data_inicio_prevista: os.data_inicio_prevista,
+      data_prazo: os.data_prazo,
       validacoes,
     };
   }

@@ -2208,12 +2208,18 @@ export class OSService {
 
   /**
    * Aprova OS técnica (workflow comercial)
+   *
+   * `dataPrazo` (data fim de producao) e obrigatoria em fluxo padrao se a OS
+   * ainda nao tiver `data_prazo` definida. Aprovacao retroativa nao exige.
+   * `dataInicioPrevista` e sempre opcional.
    */
   async aprovarOSTecnica(
     osId: string,
     usuarioId: string,
     aprovado: boolean,
     observacoes?: string,
+    dataInicioPrevista?: Date | null,
+    dataPrazo?: Date | null,
   ): Promise<OrdemServicoData> {
     try {
       const os = await this.prisma.ordemServico.findUnique({
@@ -2319,6 +2325,40 @@ export class OSService {
           : 'Aprovação técnica aprovada (retroativa)'
         : 'Aprovação técnica rejeitada';
 
+      // Datas do plano de producao: em fluxo padrao a data fim e obrigatoria
+      // (evita OS aprovada sem prazo, que historicamente causou produtos
+      // travados no PCP). Em fluxo retroativo as datas sao opcionais.
+      let dataInicioPersist: Date | null | undefined = undefined;
+      let dataPrazoPersist: Date | null | undefined = undefined;
+
+      if (aprovado) {
+        if (dataPrazo !== undefined && dataPrazo !== null) {
+          if (Number.isNaN(dataPrazo.getTime())) {
+            throw new BadRequestException('Data de prazo invalida');
+          }
+          dataPrazoPersist = dataPrazo;
+        } else if (eFluxoPadrao && !os.data_prazo) {
+          throw new BadRequestException(
+            'Defina a data de entrega antes de aprovar a OS',
+          );
+        }
+
+        if (dataInicioPrevista !== undefined && dataInicioPrevista !== null) {
+          if (Number.isNaN(dataInicioPrevista.getTime())) {
+            throw new BadRequestException('Data de inicio prevista invalida');
+          }
+          dataInicioPersist = dataInicioPrevista;
+        }
+
+        const inicioRef = dataInicioPersist ?? os.data_inicio_prevista ?? null;
+        const fimRef = dataPrazoPersist ?? os.data_prazo ?? null;
+        if (inicioRef && fimRef && inicioRef > fimRef) {
+          throw new BadRequestException(
+            'A data de inicio nao pode ser posterior a data de entrega',
+          );
+        }
+      }
+
       const osAtualizada = await this.prisma.ordemServico.update({
         where: { id: osId },
         data: {
@@ -2330,6 +2370,12 @@ export class OSService {
           modificado_por: usuarioId,
           motivo_modificacao: motivoModificacao,
           versao: { increment: 1 },
+          ...(dataInicioPersist !== undefined
+            ? { data_inicio_prevista: dataInicioPersist }
+            : {}),
+          ...(dataPrazoPersist !== undefined
+            ? { data_prazo: dataPrazoPersist }
+            : {}),
         },
       });
 

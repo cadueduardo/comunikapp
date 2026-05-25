@@ -1530,6 +1530,7 @@ model OrdemServico {
   cliente_id     String
   orcamento_id   String? // Opcional - vínculo com orçamento aprovado
   data_abertura  DateTime  @default(now())
+  data_inicio_prevista DateTime? // Data planejada de inicio da producao (definida na aprovacao tecnica)
   data_prazo     DateTime?
   status         String    @default("FILA")
   responsavel_id String?
