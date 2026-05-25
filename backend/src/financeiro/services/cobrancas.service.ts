@@ -437,6 +437,117 @@ export class CobrancasService {
   }
 
   // --------------------------------------------------------------------------
+  // EXPORT CSV (Fase 6.D)
+  // --------------------------------------------------------------------------
+
+  /**
+   * Gera CSV das cobrancas conforme os filtros aplicados na tela de auditoria.
+   * Sem paginacao: o usuario que pediu o export quer "tudo o que ele esta vendo".
+   * Limitado a 5000 linhas como guarda-corpo (evita estourar memoria).
+   *
+   * Colunas (ordem fixa, alinhada ao plano):
+   * Cliente, Orcamento (numero), Titulo, Condicao de pagamento, Status,
+   * Valor total, Valor recebido, Saldo, Aprovado em, Proxima parcela (data),
+   * Proxima parcela (valor), Liquidado em, Cancelado em.
+   */
+  async exportarCsv(
+    lojaId: string,
+    filtros: {
+      status?: string;
+      cliente_id?: string;
+      data_inicio?: Date;
+      data_fim?: Date;
+    },
+  ): Promise<string> {
+    const where: Prisma.CobrancaWhereInput = { loja_id: lojaId };
+    if (filtros.status) where.status = filtros.status;
+    if (filtros.cliente_id) where.cliente_id = filtros.cliente_id;
+    if (filtros.data_inicio || filtros.data_fim) {
+      where.data_aprovacao = {};
+      if (filtros.data_inicio) where.data_aprovacao.gte = filtros.data_inicio;
+      if (filtros.data_fim) where.data_aprovacao.lte = filtros.data_fim;
+    }
+
+    const rows = await this.prisma.cobranca.findMany({
+      where,
+      orderBy: { data_aprovacao: 'desc' },
+      take: 5000,
+      include: {
+        orcamento: { select: { numero: true, titulo: true } },
+        cliente: { select: { nome: true } },
+        parcelas: {
+          where: {
+            status: { in: [ParcelaStatus.PREVISTO, ParcelaStatus.PARCIAL_PAGO, ParcelaStatus.VENCIDO] },
+          },
+          orderBy: { data_vencimento: 'asc' },
+          take: 1,
+        },
+      },
+    });
+
+    const cabecalho = [
+      'Cliente',
+      'Orcamento',
+      'Titulo',
+      'Condicao de pagamento',
+      'Status',
+      'Valor total',
+      'Valor recebido',
+      'Saldo',
+      'Aprovado em',
+      'Proxima parcela (data)',
+      'Proxima parcela (valor)',
+      'Liquidado em',
+      'Cancelado em',
+    ];
+
+    const linhas: string[][] = rows.map((row) => {
+      const proxima = row.parcelas[0];
+      return [
+        row.cliente?.nome ?? '',
+        row.orcamento.numero,
+        row.orcamento.titulo ?? '',
+        row.descricao,
+        row.status,
+        this.formatarMoeda(Number(row.valor_total)),
+        this.formatarMoeda(Number(row.valor_recebido)),
+        this.formatarMoeda(Number(row.valor_saldo)),
+        this.formatarData(row.data_aprovacao),
+        proxima ? this.formatarData(proxima.data_vencimento) : '',
+        proxima ? this.formatarMoeda(Number(proxima.valor_previsto)) : '',
+        row.liquidado_em ? this.formatarData(row.liquidado_em) : '',
+        row.cancelado_em ? this.formatarData(row.cancelado_em) : '',
+      ];
+    });
+
+    const bom = '\uFEFF'; // BOM para Excel reconhecer UTF-8.
+    const csv =
+      bom +
+      [cabecalho, ...linhas]
+        .map((linha) => linha.map((c) => this.escaparCampoCsv(c)).join(';'))
+        .join('\r\n');
+    return csv;
+  }
+
+  private escaparCampoCsv(valor: string): string {
+    if (valor == null) return '';
+    const precisaAspas = /[";\r\n]/.test(valor);
+    const escapado = valor.replace(/"/g, '""');
+    return precisaAspas ? `"${escapado}"` : escapado;
+  }
+
+  private formatarMoeda(valor: number): string {
+    return valor.toFixed(2).replace('.', ',');
+  }
+
+  private formatarData(data: Date): string {
+    const d = data.getUTCDate().toString().padStart(2, '0');
+    const m = (data.getUTCMonth() + 1).toString().padStart(2, '0');
+    const y = data.getUTCFullYear();
+    return `${d}/${m}/${y}`;
+  }
+
+  // --------------------------------------------------------------------------
   // RECALCULO PARA O JOB @Cron DA SUB-FASE 6.E
   // --------------------------------------------------------------------------
 

@@ -948,13 +948,13 @@ Objetivo: dar visão de caixa sem depender ainda de um financeiro completo, e fe
 
 Entregáveis:
 
-1. Estruturar condição de pagamento no orçamento (campos: `condicao_pagamento_tipo`, `percentual_entrada`, `valor_entrada`, `valor_saldo`, `vencimento_entrada`, `vencimento_saldo`, `status_recebimento`).
-2. Gerar previsão de recebimento na aprovação.
-3. Exibir entrada e saldo no orçamento, OS e Home.
-4. Criar bloco `ResumoFinanceiroSimples` (apenas para perfis com permissão financeira).
-5. Implementar eventos financeiros automáticos descritos na seção "Eventos financeiros automáticos pelo avanço do trabalho".
-6. Criar tela de **Auditoria de Recebimentos** com as colunas e ações descritas na seção correspondente.
-7. Registrar auditoria de toda transição financeira.
+1. Estruturar condição de pagamento no orçamento (campos: `condicao_pagamento_tipo`, `percentual_entrada`, `valor_entrada`, `valor_saldo`, `vencimento_entrada`, `vencimento_saldo`, `status_recebimento`). **[OK — 6.A]**
+2. Gerar previsão de recebimento na aprovação. **[OK — 6.B (criação automática via `CobrancasService.criarCobrancaParaOrcamento`)]**
+3. Exibir entrada e saldo no orçamento, OS e Home. **[Parcial — Home tem `ResumoFinanceiroSimples`; valores no orçamento/OS ainda usam exibição existente.]**
+4. Criar bloco `ResumoFinanceiroSimples` (apenas para perfis com permissão financeira). **[OK — 6.C]**
+5. Implementar eventos financeiros automáticos descritos na seção "Eventos financeiros automáticos pelo avanço do trabalho". **[Pendente — 6.E]**
+6. Criar tela de **Auditoria de Recebimentos** com as colunas e ações descritas na seção correspondente. **[OK — 6.D (`/financeiro/recebimentos` com filtros, ações e export CSV)]**
+7. Registrar auditoria de toda transição financeira. **[OK — logs `CobrancaLog` cobrindo criação, recebimento, forçado, cancelamento e vencimento]**
 
 Critérios de aceite:
 

@@ -3,13 +3,15 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentLojaId, CurrentUser } from '../auth/decorators';
 import { AuthenticatedUser } from '../auth/auth.service';
@@ -52,6 +54,37 @@ export class FinanceiroController {
       pagina,
       por_pagina: porPagina,
     });
+  }
+
+  /**
+   * Export CSV (Fase 6.D).
+   * Os filtros aceitos sao os mesmos do `GET /financeiro/cobrancas` (sem paginacao).
+   * Limitado a 5000 linhas para evitar estourar memoria.
+   *
+   * Nome do arquivo inclui timestamp UTC para evitar colisao no download.
+   */
+  @Get('cobrancas/export.csv')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  async exportarCobrancasCsv(
+    @CurrentLojaId() lojaId: string,
+    @Res() res: Response,
+    @Query('status') status?: string,
+    @Query('cliente_id') clienteId?: string,
+    @Query('data_inicio') dataInicio?: string,
+    @Query('data_fim') dataFim?: string,
+  ) {
+    const csv = await this.cobrancasService.exportarCsv(lojaId, {
+      status,
+      cliente_id: clienteId,
+      data_inicio: this.parseDataOpcional(dataInicio, 'data_inicio'),
+      data_fim: this.parseDataOpcional(dataFim, 'data_fim'),
+    });
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="cobrancas-${ts}.csv"`,
+    );
+    res.send(csv);
   }
 
   @Get('cobrancas/:id')
