@@ -94,6 +94,11 @@ export class OrcamentosV2Service {
               altura: true,
               profundidade: true,
               area_produto: true,
+              perimetro_produto: true,
+              unidade_geometria: true,
+              geometria_origem: true,
+              arquivo_geometria_url: true,
+              arquivo_geometria_metadados: true,
               unidade_medida: true,
               custo_total_producao: true,
               preco_unitario: true,
@@ -223,6 +228,11 @@ export class OrcamentosV2Service {
               altura: true,
               profundidade: true,
               area_produto: true,
+              perimetro_produto: true,
+              unidade_geometria: true,
+              geometria_origem: true,
+              arquivo_geometria_url: true,
+              arquivo_geometria_metadados: true,
               unidade_medida: true,
               custo_total_producao: true,
               preco_unitario: true,
@@ -496,6 +506,11 @@ export class OrcamentosV2Service {
               altura: true,
               profundidade: true,
               area_produto: true,
+              perimetro_produto: true,
+              unidade_geometria: true,
+              geometria_origem: true,
+              arquivo_geometria_url: true,
+              arquivo_geometria_metadados: true,
               unidade_medida: true,
               custo_total_producao: true,
               preco_unitario: true,
@@ -1101,6 +1116,11 @@ export class OrcamentosV2Service {
             altura: true,
             profundidade: true,
             area_produto: true,
+            perimetro_produto: true,
+            unidade_geometria: true,
+            geometria_origem: true,
+            arquivo_geometria_url: true,
+            arquivo_geometria_metadados: true,
             unidade_medida: true,
             custo_total_producao: true,
             preco_unitario: true,
@@ -2026,6 +2046,140 @@ export class OrcamentosV2Service {
     };
   }
 
+  async fecharPedidoInterno(
+    id: string,
+    lojaId: string,
+    userId: string,
+    observacoes?: string,
+  ) {
+    this.logger.log(
+      'Fechando pedido internamente para o orcamento ' + id,
+    );
+
+    const orcamento = await this.prisma.orcamento.findFirst({
+      where: { id, loja_id: lojaId },
+      include: {
+        cliente: true,
+        loja: true,
+      },
+    });
+
+    if (!orcamento) {
+      throw new NotFoundException('Orçamento não encontrado');
+    }
+
+    const statusBloqueados = ['cancelado', 'rejeitado'];
+    if (statusBloqueados.includes(String(orcamento.status).toLowerCase())) {
+      throw new BadRequestException(
+        'Este orçamento não pode ser fechado no status atual: ' +
+          orcamento.status,
+      );
+    }
+
+    const osExistente = await this.prisma.ordemServico.findFirst({
+      where: {
+        loja_id: lojaId,
+        orcamento_id: id,
+      },
+      select: {
+        id: true,
+        numero: true,
+      },
+    });
+
+    if (osExistente) {
+      return {
+        success: true,
+        message: 'Pedido já estava fechado e possui OS gerada.',
+        orcamento_id: id,
+        os_id: osExistente.id,
+        os_numero: osExistente.numero,
+        status: orcamento.status,
+        status_aprovacao: orcamento.status_aprovacao,
+      };
+    }
+
+    const statusAnterior = orcamento.status;
+    const statusAprovacaoAnterior = orcamento.status_aprovacao;
+    const observacoesClienteAnterior = (orcamento as any).observacoes_cliente;
+    const codigoAprovacaoAnterior = orcamento.codigo_aprovacao;
+
+    const observacaoRegistro =
+      observacoes?.trim() ||
+      'Pedido fechado internamente no sistema pelo usuário ' + userId;
+
+    try {
+      await this.prisma.orcamento.update({
+        where: { id },
+        data: {
+          status: 'aprovado',
+          status_aprovacao: 'APROVADO' as any,
+          observacoes_cliente: observacaoRegistro,
+          data_atualizacao: new Date(),
+        },
+      });
+
+      await this.criarOSAutomaticaParaOrcamento(
+        lojaId,
+        id,
+        userId,
+        'FECHAMENTO_RAPIDO',
+      );
+
+      const osCriada = await this.prisma.ordemServico.findFirst({
+        where: {
+          loja_id: lojaId,
+          orcamento_id: id,
+        },
+        select: {
+          id: true,
+          numero: true,
+        },
+        orderBy: {
+          criado_em: 'desc',
+        },
+      });
+
+      await this.registrarLog(
+        id,
+        'PEDIDO_FECHADO_INTERNAMENTE',
+        observacaoRegistro,
+      );
+
+      return {
+        success: true,
+        message: 'Pedido fechado e OS gerada com sucesso.',
+        orcamento_id: id,
+        os_id: osCriada?.id,
+        os_numero: osCriada?.numero,
+        status: 'aprovado',
+        status_aprovacao: 'APROVADO',
+      };
+    } catch (error) {
+      await this.prisma.orcamento.update({
+        where: { id },
+        data: {
+          status: statusAnterior,
+          status_aprovacao: statusAprovacaoAnterior,
+          observacoes_cliente: observacoesClienteAnterior,
+          codigo_aprovacao: codigoAprovacaoAnterior,
+          data_atualizacao: new Date(),
+        },
+      });
+
+      this.logger.error(
+        '[FECHAMENTO_RAPIDO] Falha ao fechar pedido do orcamento ' +
+          id +
+          ': ' +
+          error.message,
+      );
+
+      throw new InternalServerErrorException(
+        'Falha ao fechar pedido e gerar OS. O orçamento foi revertido.',
+      );
+    }
+  }
+
   private async criarOSAutomaticaParaOrcamento(
     lojaId: string,
     orcamentoId: string,
@@ -2098,6 +2252,16 @@ export class OrcamentosV2Service {
         produtoPrincipal?.altura ?? orcamento.altura_produto ?? undefined,
       area_produto:
         produtoPrincipal?.area ?? orcamento.area_produto ?? undefined,
+      perimetro_produto:
+        produtoPrincipal?.perimetro_produto ?? undefined,
+      unidade_geometria:
+        produtoPrincipal?.unidade_geometria ?? undefined,
+      geometria_origem:
+        produtoPrincipal?.geometria_origem ?? undefined,
+      arquivo_geometria_url:
+        produtoPrincipal?.arquivo_geometria_url ?? undefined,
+      arquivo_geometria_metadados:
+        produtoPrincipal?.arquivo_geometria_metadados ?? undefined,
       unidade_medida_produto:
         produtoPrincipal?.unidade ??
         orcamento.unidade_medida_produto ??
@@ -2110,9 +2274,47 @@ export class OrcamentosV2Service {
       configuracao_calculo: orcamento.configuracoes ?? undefined,
       responsavel_id: orcamento.responsavel_id ?? undefined,
       prioridade: orcamento.prioridade ?? undefined,
-      prazo_entrega: (orcamento as any).prazo_entrega ?? undefined,
+      // O campo `prazo_entrega` no orcamento e uma String livre (ex.: "10 a 15 dias uteis").
+      // Aqui so propagamos para a OS quando o valor for uma data ISO-8601 valida; caso
+      // contrario devolvemos undefined para nao quebrar o `data_prazo` (DateTime) da OS.
+      prazo_entrega: this.parsePrazoEntregaIso(
+        (orcamento as any).prazo_entrega,
+      ),
       observacoes_internas: orcamento.observacoes ?? undefined,
     };
+  }
+
+  /**
+   * Converte o `prazo_entrega` do orcamento (texto livre ou ISO-8601) para uma
+   * data ISO valida que possa ser usada como `data_prazo` na OS. Retorna
+   * `undefined` para qualquer entrada nao parseavel.
+   */
+  private parsePrazoEntregaIso(valor: unknown): string | undefined {
+    if (!valor) {
+      return undefined;
+    }
+
+    if (valor instanceof Date) {
+      return Number.isNaN(valor.getTime()) ? undefined : valor.toISOString();
+    }
+
+    if (typeof valor !== 'string') {
+      return undefined;
+    }
+
+    const texto = valor.trim();
+    if (!texto) {
+      return undefined;
+    }
+
+    // Aceita apenas strings com cara de data (ISO-8601 ou similar parseavel).
+    // Texto livre como "10 a 15 dias uteis" cai no NaN e e descartado.
+    const data = new Date(texto);
+    if (Number.isNaN(data.getTime())) {
+      return undefined;
+    }
+
+    return data.toISOString();
   }
 
   /**

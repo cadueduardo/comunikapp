@@ -77,6 +77,113 @@ export class OSService {
 
   // ===== CRUD BÁSICO =====
 
+  private parseJsonArray<T = any>(valor: unknown, contexto: string): T[] {
+    if (!valor) {
+      return [];
+    }
+
+    if (Array.isArray(valor)) {
+      return valor as T[];
+    }
+
+    if (typeof valor !== 'string') {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(valor);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      this.logger.warn(`Erro ao processar ${contexto}:`, error);
+      return [];
+    }
+  }
+
+  private serializarInsumosCalculados(
+    valor: CreateOSDto['insumos_calculados'],
+    quantidadeProduto: number,
+  ): string | null {
+    if (!valor) {
+      return null;
+    }
+
+    if (typeof valor === 'string') {
+      const insumos = this.parseJsonArray(valor, 'insumos_calculados');
+      return JSON.stringify(insumos);
+    }
+
+    if (Array.isArray(valor)) {
+      const corrigidos = CorrecaoMateriaisHelper.corrigirInsumosCalculados(
+        valor as any,
+        Number(quantidadeProduto || 1),
+      );
+      return JSON.stringify(corrigidos);
+    }
+
+    return null;
+  }
+
+  private serializarParametrosTecnicos(parametros: unknown): string | null {
+    if (!parametros) {
+      return null;
+    }
+
+    return typeof parametros === 'string'
+      ? parametros
+      : JSON.stringify(parametros);
+  }
+
+  /**
+   * Normaliza `data_prazo` aceitando apenas valores parseaveis para Date.
+   * Texto livre (ex.: "10 a 15 dias uteis") herdado do orcamento e descartado
+   * para nao quebrar o create do Prisma (que exige ISO-8601 DateTime).
+   */
+  private normalizarDataPrazo(valor: unknown): Date | null {
+    if (!valor) {
+      return null;
+    }
+
+    if (valor instanceof Date) {
+      return Number.isNaN(valor.getTime()) ? null : valor;
+    }
+
+    if (typeof valor !== 'string') {
+      return null;
+    }
+
+    const texto = valor.trim();
+    if (!texto) {
+      return null;
+    }
+
+    const data = new Date(texto);
+    if (Number.isNaN(data.getTime())) {
+      this.logger.warn(
+        `data_prazo recebida nao parseavel como ISO-8601: "${texto}". Gravando NULL.`,
+      );
+      return null;
+    }
+
+    return data;
+  }
+
+  private parseJsonObject(valor: unknown, contexto: string): any {
+    if (!valor) {
+      return null;
+    }
+
+    if (typeof valor !== 'string') {
+      return valor;
+    }
+
+    try {
+      return JSON.parse(valor);
+    } catch (error) {
+      this.logger.warn(`Erro ao processar ${contexto}:`, error);
+      return null;
+    }
+  }
+
   async create(
     lojaId: string,
     createOSDto: CreateOSDto,
@@ -107,12 +214,10 @@ export class OSService {
       }
 
       // 5. Preparar insumos calculados com correção inteligente (quando houver)
-      const insumosCorrigidos = Array.isArray(createOSDto.insumos_calculados)
-        ? CorrecaoMateriaisHelper.corrigirInsumosCalculados(
-            createOSDto.insumos_calculados as any,
-            Number(createOSDto.quantidade || 1),
-          )
-        : null;
+      const insumosCalculadosSerializados = this.serializarInsumosCalculados(
+        createOSDto.insumos_calculados,
+        createOSDto.quantidade,
+      );
 
       // 6. Criar OS
       const os = await this.prisma.ordemServico.create({
@@ -124,22 +229,22 @@ export class OSService {
           nome_servico: createOSDto.nome_servico,
           descricao: createOSDto.descricao,
           quantidade: createOSDto.quantidade,
-          parametros_tecnicos: createOSDto.parametros_tecnicos
-            ? JSON.stringify(createOSDto.parametros_tecnicos)
-            : null,
+          parametros_tecnicos: this.serializarParametrosTecnicos(
+            createOSDto.parametros_tecnicos,
+          ),
           // NOTA: Os insumos calculados devem vir já processados pelo Motor de Cálculo V2
           // que aplica corretamente a multiplicação pela quantidade do produto
-          insumos_calculados: insumosCorrigidos
-            ? JSON.stringify(insumosCorrigidos)
-            : null,
-          data_prazo: createOSDto.data_prazo
-            ? new Date(createOSDto.data_prazo)
-            : null,
+          insumos_calculados: insumosCalculadosSerializados,
+          data_prazo: this.normalizarDataPrazo(createOSDto.data_prazo),
           responsavel_id: createOSDto.responsavel_id,
           observacoes: createOSDto.observacoes,
           status: statusInicial,
           materiais_disponivel: validacaoEstoque.materiaisDisponiveis,
           tipo_os: createOSDto.tipo_os || TipoOS.COMERCIAL,
+          origem_os: createOSDto.origem_os,
+          prioridade: createOSDto.prioridade || PrioridadeOS.NORMAL,
+          valor_orcado: createOSDto.valor_orcado,
+          criado_por: createOSDto.criado_por,
         },
       });
 
@@ -1507,6 +1612,11 @@ export class OSService {
   ): OrdemServicoData {
     // Processar produtos do orçamento
     const produtos = os.orcamento?.produtos || [];
+    const insumosOS = this.parseJsonArray<any>(
+      os.insumos_calculados,
+      `insumos_calculados para OS ${os.id}`,
+    );
+    const itensOS = Array.isArray(os.itens) ? os.itens : [];
     const produtosFormatados = produtos.map((produto) => ({
       id: produto.id,
       nome: produto.nome,
@@ -1517,6 +1627,10 @@ export class OSService {
       altura: produto.altura,
       profundidade: produto.profundidade,
       area_produto: produto.area_produto,
+      perimetro_produto: produto.perimetro_produto,
+      unidade_geometria: produto.unidade_geometria,
+      geometria_origem: produto.geometria_origem,
+      arquivo_geometria_url: produto.arquivo_geometria_url,
       observacoes: produto.observacoes,
       // Materiais por produto - usar dados exatos do orçamento via insumos_calculados
       materiais:
@@ -1544,7 +1658,7 @@ export class OSService {
             insumosCalculados = [];
           }
 
-          const insumoCalculado = insumosCalculados.find(
+          const insumoCalculado = insumosOS.find(
             (ic: any) =>
               ic.insumo_id === itemInsumo.insumo.id &&
               ic.produto_nome === produto.nome,
@@ -1663,27 +1777,11 @@ export class OSService {
       nome_servico: os.nome_servico,
       descricao: os.descricao,
       quantidade: Number(os.quantidade) || 0,
-      parametros_tecnicos: os.parametros_tecnicos
-        ? JSON.parse(os.parametros_tecnicos)
-        : null,
-      insumos_calculados: (() => {
-        try {
-          if (os.insumos_calculados) {
-            if (typeof os.insumos_calculados === 'string') {
-              return JSON.parse(os.insumos_calculados);
-            } else if (Array.isArray(os.insumos_calculados)) {
-              return os.insumos_calculados;
-            }
-          }
-          return [];
-        } catch (error) {
-          this.logger.warn(
-            `Erro ao processar insumos_calculados para OS ${os.id}:`,
-            error,
-          );
-          return [];
-        }
-      })(),
+      parametros_tecnicos: this.parseJsonObject(
+        os.parametros_tecnicos,
+        `parametros_tecnicos para OS ${os.id}`,
+      ),
+      insumos_calculados: insumosOS,
       materiais_disponivel: os.materiais_disponivel,
       aprovacao_tecnica_status: os.aprovacao_tecnica_status,
       aprovacao_tecnica_por: os.aprovacao_tecnica_por,
@@ -1703,6 +1801,38 @@ export class OSService {
       cliente_nome: os.cliente?.nome || null,
       // Novos campos estruturados
       produtos: produtosFormatados,
+      itens_os: itensOS.map((item: any) => ({
+        id: item.id,
+        os_id: item.os_id,
+        produto_servico: item.produto_servico,
+        quantidade: Number(item.quantidade) || 0,
+        parametros_tecnicos: this.parseJsonObject(
+          item.parametros_tecnicos,
+          `parametros_tecnicos para ItemOS ${item.id}`,
+        ),
+        insumos_necessarios: this.parseJsonArray(
+          item.insumos_necessarios,
+          `insumos_necessarios para ItemOS ${item.id}`,
+        ),
+        materiais_disponivel: item.materiais_disponivel,
+        observacoes: item.observacoes,
+        largura: item.largura ? Number(item.largura) : undefined,
+        altura: item.altura ? Number(item.altura) : undefined,
+        area: item.area ? Number(item.area) : undefined,
+        perimetro: item.perimetro ? Number(item.perimetro) : undefined,
+        unidade_medida: item.unidade_medida,
+        unidade_geometria: item.unidade_geometria,
+        geometria_origem: item.geometria_origem,
+        arquivo_geometria_url: item.arquivo_geometria_url,
+        arquivo_geometria_metadados: item.arquivo_geometria_metadados,
+        data_inicio_producao: item.data_inicio_producao,
+        data_prazo_produto: item.data_prazo_produto,
+        status_liberacao_pcp: item.status_liberacao_pcp,
+        liberado_pcp_por: item.liberado_pcp_por,
+        liberado_pcp_em: item.liberado_pcp_em,
+        prioridade_produto: item.prioridade_produto,
+        ordem_producao: item.ordem_producao,
+      })),
       materiais_consolidados: Array.from(materiaisConsolidados.values()),
     };
 
@@ -2303,6 +2433,58 @@ export class OSService {
 
   // ===== MÉTODOS DE INTEGRAÇÃO =====
 
+  private montarParametrosItemOS(produto: any): Record<string, any> {
+    return {
+      largura: produto.largura?.toString?.() ?? produto.largura ?? null,
+      altura: produto.altura?.toString?.() ?? produto.altura ?? null,
+      profundidade:
+        produto.profundidade?.toString?.() ?? produto.profundidade ?? null,
+      area: produto.area_produto?.toString?.() ?? produto.area ?? null,
+      perimetro:
+        produto.perimetro_produto?.toString?.() ??
+        produto.perimetro_produto ??
+        null,
+      unidade_medida: produto.unidade_medida ?? produto.unidade ?? null,
+      unidade_geometria: produto.unidade_geometria ?? null,
+      geometria_origem: produto.geometria_origem ?? null,
+      arquivo_geometria_url: produto.arquivo_geometria_url ?? null,
+      categoria: produto.categoria ?? null,
+      observacoes: produto.observacoes ?? null,
+    };
+  }
+
+  private montarItensOSDoOrcamento(orcamento: any): any[] {
+    const produtos = Array.isArray(orcamento?.produtos)
+      ? orcamento.produtos
+      : [];
+
+    return produtos.map((produto: any, index: number) => ({
+      id: produto.id,
+      produto_servico:
+        produto.nome || produto.nome_servico || `Produto ${index + 1}`,
+      quantidade: produto.quantidade,
+      parametros_tecnicos: JSON.stringify(this.montarParametrosItemOS(produto)),
+      insumos_necessarios: JSON.stringify(
+        this.extrairMateriaisDoProdutoOrcamento(orcamento, produto),
+      ),
+      materiais_disponivel: false,
+      observacoes: produto.descricao || produto.observacoes || null,
+      largura: produto.largura ?? null,
+      altura: produto.altura ?? null,
+      area: produto.area_produto ?? produto.area ?? null,
+      perimetro: produto.perimetro_produto ?? null,
+      unidade_medida: produto.unidade_medida ?? produto.unidade ?? null,
+      unidade_geometria: produto.unidade_geometria ?? null,
+      geometria_origem: produto.geometria_origem ?? null,
+      arquivo_geometria_url: produto.arquivo_geometria_url ?? null,
+      arquivo_geometria_metadados:
+        produto.arquivo_geometria_metadados ?? null,
+      status_liberacao_pcp: 'PENDENTE',
+      prioridade_produto: 'NORMAL',
+      ordem_producao: index + 1,
+    }));
+  }
+
   async criarOSDeOrcamento(
     lojaId: string,
     dadosOrcamento: any,
@@ -2346,11 +2528,12 @@ export class OSService {
       // 2. Extrair materiais exatos do orçamento
       const materiaisOrcamento =
         this.extrairMateriaisDoOrcamento(orcamentoCompleto);
+      const itensOS = this.montarItensOSDoOrcamento(orcamentoCompleto);
 
       const createDto: CreateOSDto = {
         tipo_os: TipoOS.COMERCIAL, // OS criada a partir de orçamento é sempre comercial
         origem_os: OrigemOS.ORCAMENTO,
-        prioridade: PrioridadeOS.NORMAL,
+        prioridade: dadosOrcamento.prioridade ?? PrioridadeOS.NORMAL,
         cliente_id: dadosOrcamento.cliente_id,
         orcamento_id: dadosOrcamento.orcamento_id,
         nome_servico: dadosOrcamento.nome_servico,
@@ -2360,18 +2543,36 @@ export class OSService {
           largura: dadosOrcamento.largura_produto,
           altura: dadosOrcamento.altura_produto,
           area: dadosOrcamento.area_produto,
+          perimetro: dadosOrcamento.perimetro_produto,
           unidade_medida: dadosOrcamento.unidade_medida_produto,
+          unidade_geometria: dadosOrcamento.unidade_geometria,
+          geometria_origem: dadosOrcamento.geometria_origem,
+          arquivo_geometria_url: dadosOrcamento.arquivo_geometria_url,
         },
         responsavel_id: dadosOrcamento.responsavel_id,
+        data_prazo: dadosOrcamento.prazo_entrega,
+        observacoes: dadosOrcamento.observacoes_internas,
+        valor_orcado: Number(orcamentoCompleto.preco_final ?? 0),
+        criado_por: usuarioId,
         insumos_calculados: JSON.stringify(materiaisOrcamento), // Materiais exatos do orçamento
       };
 
       const os = await this.create(lojaId, createDto);
 
+      if (itensOS.length > 0) {
+        await this.prisma.itemOS.createMany({
+          data: itensOS.map((item) => ({
+            ...item,
+            os_id: os.id,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
       this.logger.log(
         `[OK] OS #${os.numero} criada automaticamente do orçamento com ${materiaisOrcamento.length} materiais`,
       );
-      return os;
+      return await this.findOne(os.id, lojaId);
     } catch (error) {
       this.logger.error('Erro ao criar OS de orçamento:', error);
       throw error;
@@ -2595,6 +2796,43 @@ export class OSService {
   /**
    * Extrai materiais exatos do orçamento para garantir consistência na OS
    */
+  private extrairMateriaisDoProdutoOrcamento(
+    orcamento: any,
+    produto: any,
+  ): InsumoCalculado[] {
+    if (!produto?.insumos || !Array.isArray(produto.insumos)) {
+      return [];
+    }
+
+    return produto.insumos
+      .filter((itemInsumo: any) => itemInsumo.insumo)
+      .map((itemInsumo: any) => ({
+        insumo_id: itemInsumo.insumo.id,
+        nome: itemInsumo.insumo.nome,
+        quantidade_necessaria: parseFloat(itemInsumo.quantidade || '0'),
+        unidade: itemInsumo.unidade || itemInsumo.insumo.unidade_uso || 'un',
+        display: `${parseFloat(itemInsumo.quantidade || '0')} ${
+          itemInsumo.unidade || itemInsumo.insumo.unidade_uso || 'un'
+        }`,
+        custo_unitario: parseFloat(itemInsumo.custo_unitario || '0'),
+        custo_total: parseFloat(itemInsumo.custo_total || '0'),
+        produto_nome: produto.nome || produto.nome_servico || 'Produto sem nome',
+        logica_consumo: itemInsumo.insumo.logica_consumo || 'area',
+        parametros_consumo: itemInsumo.insumo.parametros_consumo
+          ? this.parseJsonObject(
+              itemInsumo.insumo.parametros_consumo,
+              'parametros_consumo',
+            )
+          : null,
+        origem: 'orcamento' as const,
+        orcamento_id: orcamento.id,
+        data_calculo: orcamento.data_ultimo_calculo || orcamento.criado_em,
+        disponivel_estoque: true,
+        quantidade_disponivel: parseFloat(itemInsumo.quantidade || '0'),
+        localizacao_estoque: undefined,
+      }));
+  }
+
   private extrairMateriaisDoOrcamento(orcamento: any): InsumoCalculado[] {
     const materiais: InsumoCalculado[] = [];
 
