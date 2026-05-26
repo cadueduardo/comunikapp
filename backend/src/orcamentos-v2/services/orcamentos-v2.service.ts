@@ -158,7 +158,25 @@ export class OrcamentosV2Service {
         dados.preco_final != null &&
         dados.custo_total != null &&
         (toNumber(dados.preco_final) > 0 || toNumber(dados.custo_total) > 0);
+      const isRascunho =
+        String(dados.status || orcamentoCriado.status || '').toLowerCase() ===
+        OrcamentoStatus.RASCUNHO;
+      const produtosPayload = Array.isArray(dados.produtos) ? dados.produtos : [];
+      const todosProdutosTemInsumos =
+        produtosPayload.length > 0 &&
+        produtosPayload.every((produto: any) => {
+          const insumos = Array.isArray(produto?.insumos) ? produto.insumos : [];
+          const materiais = Array.isArray(produto?.materiais)
+            ? produto.materiais
+            : [];
+          return (
+            insumos.length > 0 ||
+            materiais.some((material: any) => Boolean(material?.insumo_id))
+          );
+        });
+      const deveCalcularViaMotor = !isRascunho || todosProdutosTemInsumos;
 
+      if (deveCalcularViaMotor) {
       // 4. Sempre calcular via motor V2 (fonte da verdade para preco_final)
       this.logger.log(
           `Ã°Å¸â€™Â° Calculando custos via motor V2 para novo orcamento: custo_total=${dados.custo_total}, preco_final=${dados.preco_final}`,
@@ -189,6 +207,11 @@ export class OrcamentosV2Service {
         orcamentoCriado.id,
         resultadoCalculo,
       );
+      } else {
+        this.logger.warn(
+          `Rascunho ${orcamentoCriado.id} salvo sem calculo: produto sem insumo informado.`,
+        );
+      }
 
       // Hotfix determinÃ­stico:
       // Na criaÃ§Ã£o, quando o frontend jÃ¡ enviou custos do preview,
