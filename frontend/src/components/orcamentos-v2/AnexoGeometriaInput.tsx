@@ -11,6 +11,7 @@ import {
 import { ImagePlus, Loader2, Trash2, UploadCloud, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import type { DxfExtraido } from './DxfRevisaoCard';
 
 /**
  * Componente único de upload de anexo de geometria (imagem ou DXF) para o
@@ -50,6 +51,13 @@ export interface AnexoGeometriaInputProps {
    * "Nome do Produto" (apenas se ele estiver vazio — decisão de produto).
    */
   onNomeSugerido?: (nomeSugerido: string) => void;
+  /**
+   * Callback opcional ao receber metadados extraídos de um DXF (Sub-fase 7.B).
+   * Recebe `null` quando o anexo é removido, deixa de ser DXF ou nenhum
+   * metadado pôde ser interpretado. O caller decide se exibe o card
+   * `DxfRevisaoCard` para que o operador aplique os valores ao produto.
+   */
+  onDxfExtraido?: (dxf: DxfExtraido | null) => void;
   disabled?: boolean;
 }
 
@@ -97,12 +105,14 @@ interface UploadResponse {
     nome_original?: string;
     [key: string]: unknown;
   };
+  dxf_extraido: DxfExtraido | null;
 }
 
 export function AnexoGeometriaInput({
   value,
   onChange,
   onNomeSugerido,
+  onDxfExtraido,
   disabled = false,
 }: AnexoGeometriaInputProps) {
   const inputFileRef = useRef<HTMLInputElement | null>(null);
@@ -151,12 +161,39 @@ export function AnexoGeometriaInput({
         setPreviewUrl(blobUrlCriado);
         // Detecta categoria pelo content-type retornado.
         const ct = (resp.headers.get('content-type') || '').toLowerCase();
+        let categoriaCarregada: CategoriaDetectada = null;
         if (ct.startsWith('image/')) {
-          setCategoriaAtual('IMAGEM');
+          categoriaCarregada = 'IMAGEM';
         } else if (ct.includes('dxf') || ct === 'application/octet-stream') {
-          setCategoriaAtual('DXF');
-        } else {
-          setCategoriaAtual(null);
+          categoriaCarregada = 'DXF';
+        }
+        setCategoriaAtual(categoriaCarregada);
+
+        // Sub-fase 7.B: se o anexo recarregado for DXF, refaz a leitura dos
+        // metadados extraídos para que o card de revisão volte a aparecer
+        // (ex.: ao reabrir um orçamento salvo). Falha silenciosa: o card
+        // simplesmente não aparece.
+        if (categoriaCarregada === 'DXF' && onDxfExtraido) {
+          const match = value.match(
+            /\/orcamentos-v2\/anexos-geometria\/([0-9a-f-]{36})$/i,
+          );
+          const tokenAnexo = match ? match[1] : null;
+          if (tokenAnexo) {
+            try {
+              const respDxf = await fetch(
+                `${API_BASE_URL}/orcamentos-v2/anexos-geometria/${tokenAnexo}/dxf-extraido`,
+                { headers },
+              );
+              if (respDxf.ok) {
+                const dataDxf = (await respDxf.json()) as {
+                  dxf_extraido: DxfExtraido | null;
+                };
+                if (!cancelado) onDxfExtraido(dataDxf.dxf_extraido);
+              }
+            } catch (error) {
+              console.warn('Falha ao reler metadados do DXF:', error);
+            }
+          }
         }
       } catch (error) {
         if (!cancelado) {
@@ -233,19 +270,31 @@ export function AnexoGeometriaInput({
           `${categoria === 'IMAGEM' ? 'Imagem' : 'DXF'} anexado com sucesso.`,
         );
 
-        // Sugestão de nome para DXF (apenas para informar; o caller decide
-        // se sobrescreve o campo "Nome do Produto" — política atual é só
-        // preencher quando o campo estiver vazio).
-        if (
-          categoria === 'DXF' &&
-          onNomeSugerido &&
-          data.metadados?.nome_original
-        ) {
-          const sugestao = (data.metadados.nome_original as string)
-            .replace(/\.dxf$/i, '')
-            .replace(/[_-]+/g, ' ')
-            .trim();
-          if (sugestao) onNomeSugerido(sugestao);
+        if (categoria === 'DXF') {
+          // Sub-fase 7.B: propaga metadados extraídos do DXF para que o
+          // ProdutoSection possa renderizar o card de revisão. Quando
+          // `dxf_extraido` vier null (DXF inválido ou exótico), o caller
+          // ainda decide se mostra um aviso.
+          onDxfExtraido?.(data.dxf_extraido ?? null);
+
+          // Sugestão de nome: prefere `$PROJECTNAME` do DXF se vier (mais
+          // descritivo); cai para o nome do arquivo caso contrário. Política
+          // atual: só preenche quando o campo "Nome do Produto" estiver vazio.
+          if (onNomeSugerido) {
+            const projeto = data.dxf_extraido?.nome_projeto?.trim();
+            if (projeto && projeto.length > 0) {
+              onNomeSugerido(projeto);
+            } else if (data.metadados?.nome_original) {
+              const sugestao = (data.metadados.nome_original as string)
+                .replace(/\.dxf$/i, '')
+                .replace(/[_-]+/g, ' ')
+                .trim();
+              if (sugestao) onNomeSugerido(sugestao);
+            }
+          }
+        } else {
+          // Categoria mudou para IMAGEM: limpa eventual card de revisão.
+          onDxfExtraido?.(null);
         }
       } catch (error) {
         const msg =
@@ -255,7 +304,7 @@ export function AnexoGeometriaInput({
         setEnviando(false);
       }
     },
-    [onChange, onNomeSugerido],
+    [onChange, onNomeSugerido, onDxfExtraido],
   );
 
   const handleArquivoSelecionado = useCallback(
@@ -349,10 +398,11 @@ export function AnexoGeometriaInput({
         }
       } finally {
         onChange(null, null);
+        onDxfExtraido?.(null);
         setNomeOriginal(null);
       }
     },
-    [value, onChange, disabled, enviando],
+    [value, onChange, disabled, enviando, onDxfExtraido],
   );
 
   const temAnexo = !!value;

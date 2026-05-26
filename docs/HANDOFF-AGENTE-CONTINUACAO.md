@@ -10,7 +10,7 @@
 
 ## 1. Estado atual em uma frase
 
-Em 2026-05-26 (manhã), foi iniciada a **Fase 7 (DXF real / anexos)** com a **Sub-fase 7.A entregue**: o produto do Orçamento V2 ganhou no topo do card uma área única de anexo de imagem/DXF que aceita **Ctrl+V (clipboard)**, **drag-and-drop** e clique para abrir o file picker. O endpoint `POST /orcamentos-v2/anexos-geometria` grava o arquivo na pasta da loja com metadados (mime, hash SHA-256, `loja_id`), devolve uma URL relativa autenticada que o `ProdutoOrcamento.arquivo_geometria_url` persiste, e a Fase 3 já propaga essa URL para `ItemOS.arquivo_geometria_url` quando o orçamento vira OS. **Decisão de produto (Leitura B):** a imagem/DXF anexada conta como arte da OS — o critério `arte_anexada` do modal de aprovação técnica passou a considerar `ItemOS.arquivo_geometria_url`, sem criar `ArteVersao` automaticamente; o módulo `Arte & Aprovação` continua disponível para revisões profissionais. O parser DXF real (perímetro/área/camadas/`$PROJECTNAME`) fica para a Sub-fase 7.B; hoje o sistema só armazena o arquivo e marca `geometria_origem = 'DXF'`. Detalhes na seção 4.15.
+Em 2026-05-26 (manhã), a **Fase 7 (DXF real / anexos)** entrou em produção com as **Sub-fases 7.A e 7.B entregues**. (1) **7.A:** o produto do Orçamento V2 ganhou no topo do card uma área única de anexo de imagem/DXF que aceita **Ctrl+V (clipboard)**, **drag-and-drop** e clique para abrir o file picker; o endpoint `POST /orcamentos-v2/anexos-geometria` grava o arquivo na pasta da loja com metadados (mime, hash SHA-256, `loja_id`), devolve URL relativa autenticada que o `ProdutoOrcamento.arquivo_geometria_url` persiste e que a Fase 3 propaga para `ItemOS.arquivo_geometria_url` na OS. **Decisão de produto (Leitura B):** a imagem/DXF anexada conta como arte da OS — o critério `arte_anexada` do modal de aprovação técnica passou a considerar `ItemOS.arquivo_geometria_url`. (2) **7.B:** `DxfParserService` (backend, baseado em `dxf-parser@1.1.2`) extrai `$PROJECTNAME`, unidade (`$INSUNITS`), bounding box, área (shoelace de polígono fechado ou envolvente), perímetro por camada (LINE/LWPOLYLINE/POLYLINE/CIRCLE/ARC/ELLIPSE) e devolve `dxf_extraido` no response do upload. No frontend, o card `DxfRevisaoCard` mostra os valores detectados logo abaixo do upload e exige clique em "Aplicar ao produto" — **o parser nunca preenche valores sozinho**. Detalhes nas seções 4.15 e 4.16.
 
 Antes disso, a **Fase 6 foi concluída** (sub-fases 6.A a 6.E entre 2026-05-25 e 2026-05-26): condição de pagamento estruturada no orçamento, cobrança criada automaticamente na aprovação (`CobrancasService`), bloco `ResumoFinanceiroSimples` na Home, tela `/financeiro/recebimentos` com auditoria/ações/CSV, cron diário recategoriza cobranças vencidas, 7º alerta operacional `trabalho_pronto_sem_recebimento` e colunas `a_receber`/`concluidos` no fluxo de trabalho. Comissões: `3e432e6`, `9436a15`, `afa2d68`, `30fbeba`, `75f9e0c`.
 
@@ -18,7 +18,7 @@ Antes ainda, foram entregues a **Fase 5** (`GET /home-operacional/alertas` com 6
 
 Também ficaram em produção: a **UX de aprovação da OS direto no grid** (`/os`) com modal `AprovarOSModal` listando os critérios (`dados_completos`, `arte_anexada`, `estoque_ok`, `prazo_viavel`); **prazos por serviço** no mesmo modal (4.13) com prazo "mãe" para aplicar em todos de uma vez (4.14); **fix estrutural** do `OSPrazoService` que corrompia `OrdemServico.status` (4.11) + endpoint admin de recuperação; **auto-promoção** OS → PCP na aprovação técnica (4.10).
 
-**Próximo passo:** **Sub-fase 7.B (parser DXF real)** — biblioteca npm como `dxf-parser` para extrair perímetro/área/camadas do arquivo, tela de revisão obrigatória antes de aplicar valores no preço, e troca da heurística atual de sugestão de nome (`nome_original` do arquivo) pelo `$PROJECTNAME` do header DXF quando presente. Plano-mãe linhas 967-983, observação sobre DXF nas linhas 354-360.
+**Próximo passo:** Fase 7 do plano-mãe está fechada (Sub-fases 7.A e 7.B entregues). Restam dívidas menores documentadas em 4.16: discretização de `SPLINE` no parser (hoje ignorada — ok para o caso comum de retângulo/polígono), cleanup de anexos órfãos (cron diário não implementado) e análise por IA de imagem colada (mantida como possibilidade futura, sem demanda atual). O próximo módulo do plano-mãe a ser tocado é definido com o usuário.
 
 ---
 
@@ -1292,5 +1292,38 @@ O endpoint não exige `produto_id` na URL. Isso resolve o caso de orçamento nov
 - O cleanup de anexos órfãos (uploads que ficaram sem `ProdutoOrcamento` referenciando) não está implementado. Por enquanto fica como dívida; um cron diário pode ser adicionado depois.
 - O endpoint `GET /orcamentos-v2/anexos-geometria/:token` exige JWT. Para baixar o DXF do PCP/produção precisa do mesmo token de sessão. Quando a feature de "OS pública" do PCP for repensada, talvez seja necessário um endpoint público autenticado por token de OS — não é caso hoje.
 
-**Última atualização:** 2026-05-26 (Sub-fase 7.A: anexo de imagem/DXF no topo do produto + Leitura B para `arte_anexada` + drag-and-drop + sugestão de nome do DXF).
+### 4.16 Sub-fase 7.B: Parser DXF real + card de revisão (2026-05-26 manhã)
+
+**Contexto:** A Sub-fase 7.A entregou o upload e a sugestão de nome a partir do `nome_original` do arquivo. O usuário validou em produção que o DXF era anexado e o título sugerido, mas observou que as medidas (largura, altura, área, perímetro) não eram preenchidas — comportamento esperado para 7.A. O usuário confirmou: "Ainda irá aplicar a leitura das medidas? Se sim, pode continuar".
+
+**O que foi entregue na Sub-fase 7.B (este commit):**
+
+1. **Backend — `DxfParserService` (`backend/src/orcamentos-v2/services/dxf-parser.service.ts`)**: parser determinístico baseado em `dxf-parser@1.1.2`. Lê o HEADER (`$PROJECTNAME`, `$INSUNITS`), agrupa entidades por camada e calcula:
+   - **Perímetro por camada**: soma exata de `LINE`, `LWPOLYLINE`, `POLYLINE`, `CIRCLE` (`2πr`), `ARC` (`r·Δθ`) e `ELLIPSE` (Ramanujan II).
+   - **Bounding box global**: `maxX-minX` × `maxY-minY` (em mm, após conversão pela unidade de origem).
+   - **Área**: prefere shoelace do maior polígono fechado (`LWPOLYLINE`/`POLYLINE` com `shape=true`). Senão, cai para `largura × altura` do bbox, marcado como `area_origem: 'BOUNDING_BOX'` e com alerta automático.
+   - **Conversão de unidade**: `$INSUNITS` é mapeado para `mm/cm/m/pol/pe/desconhecida`. Os valores são convertidos para milímetros internamente. Se `$INSUNITS=0` (unitless), assume mm e adiciona alerta.
+   - **Camada sugerida**: prioriza nome contendo "CORTE"/"CUT" (case-insensitive, ignora acentos); cai para a de maior perímetro.
+   - **Robustez**: o service nunca lança — erros do parser viram entradas em `alertas`, garantindo que um DXF exótico não derruba o upload.
+   - **Versionamento**: o JSON devolvido carrega `versao_parser: '7.B-1.0'` para que mudanças futuras de schema possam ser detectadas pelo frontend.
+   - Validado contra `docs/exemplos-dxf/exemplo-retangulo-1200x800.dxf` (1200×800 mm, perímetro 4000 mm, projeto "Placa Fachada Padaria Bom Pao") e `docs/exemplos-dxf/exemplo-logo-corte-gravacao.dxf` (600×400 mm, perímetros separados de CORTE e GRAVACAO).
+2. **Integração no `AnexoGeometriaService.salvar`**: quando categoria === 'DXF', invoca o parser e persiste `dxf_extraido` no JSON de metadados ao lado do arquivo. O response do upload (`POST /orcamentos-v2/anexos-geometria`) inclui `dxf_extraido` para que o frontend renderize o card de revisão imediatamente.
+3. **Endpoint de releitura**: `GET /orcamentos-v2/anexos-geometria/:token/dxf-extraido` devolve `{ dxf_extraido: DxfExtraido | null }`. Usado pelo frontend ao recarregar um orçamento que já tinha DXF anexado (o card volta a aparecer sem necessidade de reupload).
+4. **Frontend — `DxfRevisaoCard.tsx` (`frontend/src/components/orcamentos-v2/DxfRevisaoCard.tsx`)**: card "Valores detectados no DXF" exibido logo abaixo do `AnexoGeometriaInput` quando há `dxf_extraido` não nulo. Mostra largura/altura/área (com selo "polígono fechado" ou "aprox. envolvente"), lista de camadas selecionáveis (chip clicável para escolher qual usa para o perímetro) e alertas. Tem botões "Aplicar ao produto" (preenche largura/altura/área/perímetro + define `geometria_origem='DXF'` + força `unidade_geometria='mm'`) e "Ignorar" (esconde o card sem tocar no anexo).
+5. **`AnexoGeometriaInput.tsx`**: ganhou prop `onDxfExtraido`. Repassa o `dxf_extraido` do response do upload, e ao recarregar um anexo DXF já gravado faz um `GET /dxf-extraido` em background para repor o card. A sugestão de nome do produto agora prefere `$PROJECTNAME` do DXF (mais descritivo) e só cai para `nome_original` quando o header não tem o campo — política "só preencher se vazio" mantida.
+6. **`ProdutoSection.tsx`**: estado `dxfPorIndice` mantém o último `DxfExtraido` por índice de produto. Quando o operador clica em "Aplicar ao produto", o card é fechado e os valores entram no formulário; quando o operador remove o anexo ou troca para imagem, o card é limpo automaticamente.
+
+**Política de produto formalizada:**
+
+- O parser **nunca** preenche valores no formulário sozinho. Sempre exige clique explícito em "Aplicar ao produto" — o operador continua sendo o responsável final pelas medidas que vão para o orçamento.
+- Área via bounding box é aceita como aproximação prática para os exemplos da comunicação visual (placa retangular). Quando o DXF tem polígono fechado, a área shoelace é preferida automaticamente e marcada como tal no card.
+- Camada "CORTE" tem prioridade para perímetro (caso comum de plotter de recorte). O operador pode trocar livremente.
+
+**Dívidas conhecidas para próximas iterações (NÃO bloqueiam Fase 7):**
+
+- Curvas `SPLINE` ainda não têm comprimento calculado — quando um DXF traz contornos vetoriais com splines, elas são ignoradas (entram como entidades de outras camadas mas contribuem 0 ao perímetro). O alerta atual ("Nenhuma entidade 2D suportada") só aparece quando NENHUMA das entidades suportadas é encontrada. Se houver demanda real, posso adicionar discretização de spline depois.
+- O cleanup de anexos órfãos (Sub-fase 7.A) continua pendente.
+- Análise por IA de imagens coladas (OCR de cotas) continua deferida — usar DXF resolve o caso de medidas exatas; OCR só seria útil para imagens de cliente sem arquivo vetorial, e a UX hoje ainda permite digitação manual nessas situações.
+
+**Última atualização:** 2026-05-26 (Sub-fase 7.B: parser DXF real + card de revisão com aplicação manual + releitura ao recarregar).
 Branch `feature/home-operacional-dashboard`.

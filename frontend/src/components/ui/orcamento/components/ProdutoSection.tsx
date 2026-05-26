@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useFormContext, useFieldArray } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,6 +35,11 @@ import {
   type GeometriaValor,
 } from '@/components/orcamentos-v2/QuickGeometryInput';
 import { AnexoGeometriaInput } from '@/components/orcamentos-v2/AnexoGeometriaInput';
+import {
+  DxfRevisaoCard,
+  type DxfExtraido,
+  type AplicarMedidasDxf,
+} from '@/components/orcamentos-v2/DxfRevisaoCard';
 import { MaterialSection, MaquinaSection, FuncaoSection, ServicoSection } from '../../shared/sections';
 
 interface ProdutoSectionProps {
@@ -93,6 +99,66 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
     control: form.control,
     name: 'itens_produto',
   });
+
+  // Sub-fase 7.B: metadados extraídos de DXFs anexados, por índice de produto.
+  // Quando há entrada aqui o card "Valores detectados no DXF" é exibido
+  // logo abaixo do AnexoGeometriaInput. O operador escolhe "Aplicar ao
+  // produto" (preenche largura/altura/área/perímetro) ou "Ignorar" (limpa
+  // apenas o card — não toca no anexo).
+  const [dxfPorIndice, setDxfPorIndice] = useState<
+    Record<number, DxfExtraido | null>
+  >({});
+
+  const setDxfDoProduto = (indice: number, dxf: DxfExtraido | null) => {
+    setDxfPorIndice((prev) => ({ ...prev, [indice]: dxf }));
+  };
+
+  // Aplica os valores extraídos do DXF (sempre em mm) ao produto. O formulário
+  // armazena a unidade em `unidade_geometria`; aqui forçamos 'mm' para evitar
+  // converter ida-e-volta — o operador pode trocar manualmente depois.
+  const aplicarMedidasDxf = (
+    itemIndex: number,
+    medidas: AplicarMedidasDxf,
+  ) => {
+    form.setValue(
+      `itens_produto.${itemIndex}.largura_produto`,
+      String(medidas.largura_mm),
+      { shouldDirty: true },
+    );
+    form.setValue(
+      `itens_produto.${itemIndex}.altura_produto`,
+      String(medidas.altura_mm),
+      { shouldDirty: true },
+    );
+    form.setValue(
+      `itens_produto.${itemIndex}.unidade_geometria`,
+      'mm',
+      { shouldDirty: true },
+    );
+    // Área em m² (campo do formulário), arredondada para 4 casas.
+    const areaM2 = Number((medidas.area_mm2 / 1_000_000).toFixed(4));
+    form.setValue(
+      `itens_produto.${itemIndex}.area_produto`,
+      String(areaM2),
+      { shouldDirty: true },
+    );
+    form.setValue(
+      `itens_produto.${itemIndex}.perimetro_produto`,
+      String(medidas.perimetro_mm),
+      { shouldDirty: true },
+    );
+    form.setValue(
+      `itens_produto.${itemIndex}.geometria_origem`,
+      'DXF',
+      { shouldDirty: true },
+    );
+    setDxfDoProduto(itemIndex, null);
+    toast.success(
+      medidas.origem_area === 'POLIGONO_FECHADO'
+        ? `Medidas do DXF aplicadas (camada ${medidas.camada_perimetro || '—'}, área pelo polígono fechado).`
+        : `Medidas do DXF aplicadas (camada ${medidas.camada_perimetro || '—'}, área aproximada pela envolvente).`,
+    );
+  };
 
   const handleAddProduto = () => {
     append({
@@ -260,9 +326,24 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
                       }
                       onChange={(url, categoria) => {
                         atualizarAnexoGeometria(index, url, categoria);
+                        if (!url || categoria !== 'DXF') {
+                          setDxfDoProduto(index, null);
+                        }
                       }}
                       onNomeSugerido={(sug) => sugerirNomeProduto(index, sug)}
+                      onDxfExtraido={(dxf) => setDxfDoProduto(index, dxf)}
                     />
+                    {dxfPorIndice[index] ? (
+                      <div className="mt-2">
+                        <DxfRevisaoCard
+                          dados={dxfPorIndice[index] as DxfExtraido}
+                          onAplicar={(medidas) =>
+                            aplicarMedidasDxf(index, medidas)
+                          }
+                          onIgnorar={() => setDxfDoProduto(index, null)}
+                        />
+                      </div>
+                    ) : null}
                   </div>
 
                   {/* Informações do Produto */}

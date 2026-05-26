@@ -1,6 +1,6 @@
 # Plano de Ação: Home, Onboarding e Evolução Operacional
 
-> **Status atual (atualizado em 2026-05-25, sessão da tarde 3):** Fases 0, 1, 2, 3, 4, 5 e 6 concluídas. A Fase 6 cobriu schema de cobrança/parcelas/recebimentos/logs (6.A), geração automática na aprovação (6.B), endpoint + bloco `ResumoFinanceiroSimples` na Home (6.C), tela `/financeiro/recebimentos` com filtros, ações e export CSV (6.D), cron job diário de vencimento + 7º alerta `trabalho_pronto_sem_recebimento` + ativação das colunas `a_receber`/`concluidos` no fluxo (6.E). Próximo passo é a Fase 7 (DXF real) ou a Fase 8 (ajustes mobile e navegação) — alinhar com o dono do projeto. Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF antes de continuar.**
+> **Status atual (atualizado em 2026-05-26, manhã):** Fases 0, 1, 2, 3, 4, 5, 6 e **7 concluídas**. A Fase 7 cobriu o anexo de imagem/DXF no produto do orçamento (7.A — `AnexoGeometriaInput` com Ctrl+V/drag-and-drop/file picker, endpoint multi-tenant, Leitura B para `arte_anexada`) e o parser DXF real (7.B — `DxfParserService` baseado em `dxf-parser`, card `DxfRevisaoCard` com aplicação manual, `$PROJECTNAME` sugerindo o nome do produto). Próximo passo é a Fase 8 (ajustes mobile e navegação) — alinhar com o dono do projeto. Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF antes de continuar.**
 
 ## Critério de sucesso
 
@@ -968,13 +968,14 @@ Critérios de aceite:
 
 > **[Sub-fase 7.A CONCLUÍDA em 2026-05-26]** — Componente único `AnexoGeometriaInput` no topo do card de produto do Orçamento V2 que aceita Ctrl+V (clipboard), drag-and-drop e clique para file picker. Backend: endpoint autenticado `POST/GET/DELETE /orcamentos-v2/anexos-geometria` com storage por loja_id em `<COMUNIKAPP_ANEXOS_DIR>/geometria/<loja_id>/<token>.<ext>`, metadados JSON ao lado, hash SHA-256, validação cross-tenant. Limites: 5 MB para imagem, 20 MB para DXF. Aceita PNG/JPG/JPEG/WEBP/GIF e DXF (com fallback por extensão porque o mime do DXF varia). Detalhes na seção 4.15 do HANDOFF.
 >
-> **[Sub-fase 7.B PENDENTE]** — Parser DXF real (perímetro/área/camadas/$PROJECTNAME) com tela de revisão obrigatória antes de aplicar valores no preço.
+> **[Sub-fase 7.B CONCLUÍDA em 2026-05-26]** — `DxfParserService` (backend, baseado em `dxf-parser@1.1.2`) extrai `$PROJECTNAME`, unidade (`$INSUNITS`), bounding box, área (shoelace de polígono fechado ou envolvente) e perímetro por camada (LINE, LWPOLYLINE, POLYLINE, CIRCLE, ARC, ELLIPSE). O metadado `dxf_extraido` é gravado ao lado do arquivo (com `versao_parser: '7.B-1.0'`) e devolvido no response do upload + endpoint dedicado `GET /orcamentos-v2/anexos-geometria/:token/dxf-extraido` para releitura. No frontend, o card `DxfRevisaoCard` (logo abaixo do upload) mostra largura/altura/área/perímetro e exige clique em "Aplicar ao produto" — o parser **nunca** preenche valores sozinho. A camada padrão é "CORTE" (case-insensitive, ignora acentos); o operador pode trocar via chips. Dívidas conhecidas: discretização de SPLINE não implementada (entidades de spline ficam fora do perímetro), cleanup de anexos órfãos pendente. Detalhes na seção 4.16 do HANDOFF.
 >
 > **Decisões de produto registradas em 2026-05-26:**
 > - **Leitura B aprovada**: a imagem/DXF anexada ao orçamento conta como arte da OS gerada — o critério `arte_anexada` (modal de aprovação técnica) passou a contar `ItemOS.arquivo_geometria_url`, sem criar `ArteVersao` automaticamente. O módulo `Arte & Aprovação` permanece para revisões profissionais. Isso **substitui a decisão original da Fase 0** (`05-persistencia-anexos.md` linhas 11-23, que rejeitava o reuso de `ArteArquivo`); a coexistência continua, mas a equivalência semântica passa a valer para fins de validação.
 > - **Drag-and-drop** entra como método de entrada além do `onPaste` original do plano-mãe.
 > - **Posição do anexo:** SEMPRE no TOPO do card de produto, antes do "Nome do Produto".
 > - **Sugestão de nome do DXF:** só preencher o "Nome do Produto" se ele estiver vazio. Nunca sobrescrever digitação do operador.
+> - **Parser nunca aplica valores sozinho** (Sub-fase 7.B): o card de revisão sempre exige clique manual em "Aplicar ao produto".
 
 Objetivo: evoluir do anexo técnico para leitura real de arquivos DXF.
 
@@ -982,17 +983,17 @@ Entregáveis:
 
 1. Aceitar DXF como anexo técnico no orçamento e na OS. **[Sub-fase 7.A — OK]**
 2. Exibir dados informados manualmente para confirmação. **[Sub-fase 7.A — OK: medidas continuam editáveis via `QuickGeometryInput`]**
-3. Estudar e escolher parser backend para área, perímetro e camadas. **[Sub-fase 7.B — pendente]**
-4. Criar tela de revisão antes de aplicar valores no preço. **[Sub-fase 7.B — pendente]**
+3. Estudar e escolher parser backend para área, perímetro e camadas. **[Sub-fase 7.B — OK: `dxf-parser@1.1.2` + `DxfParserService` próprio]**
+4. Criar tela de revisão antes de aplicar valores no preço. **[Sub-fase 7.B — OK: `DxfRevisaoCard` inline no card de produto]**
 5. **Novo (Sub-fase 7.A):** suporte a clipboard (Ctrl+V), drag-and-drop e file picker na mesma área. **[OK]**
 6. **Novo (Sub-fase 7.A):** Leitura B para `arte_anexada` (imagem/DXF do orçamento = arte da OS). **[OK]**
-7. **Novo (Sub-fase 7.B):** ao detectar `$PROJECTNAME` no header do DXF, preencher "Nome do Produto" **apenas** se o campo estiver vazio. **[Pendente — hoje usa heurística do `nome_original` do arquivo]**
+7. **Novo (Sub-fase 7.B):** ao detectar `$PROJECTNAME` no header do DXF, preencher "Nome do Produto" **apenas** se o campo estiver vazio. **[OK — quando o DXF tem `$PROJECTNAME`, ele é preferido; senão cai para o `nome_original` do arquivo]**
 
 Critérios de aceite:
 
 - DXF pode ser anexado ao orçamento e à OS. **[OK]**
-- Usuário confirma medidas antes de precificar. **[OK na 7.A — `QuickGeometryInput` permanece editável; 7.B vai adicionar tela específica para valores extraídos do DXF]**
-- Parser real não aplica valores sem revisão. **[Garantia a manter na 7.B]**
+- Usuário confirma medidas antes de precificar. **[OK: o `DxfRevisaoCard` exige clique manual em "Aplicar ao produto"; `QuickGeometryInput` continua editável depois]**
+- Parser real não aplica valores sem revisão. **[OK: card é a única forma de aplicar; o operador pode ignorar e manter MANUAL]**
 
 ### Fase 8: ajustes mobile e navegação global
 

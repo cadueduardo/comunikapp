@@ -19,6 +19,7 @@ import type { Request, Response } from 'express';
 import { multerAnexoGeometriaConfig } from '../../config/multer-anexo-geometria.config';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { AnexoGeometriaService } from '../services/anexo-geometria.service';
+import type { DxfExtraido } from '../services/dxf-parser.service';
 
 /**
  * Endpoints de upload/download/remoção de anexos de geometria
@@ -59,6 +60,7 @@ export class AnexoGeometriaController {
     token: string;
     categoria: 'IMAGEM' | 'DXF';
     metadados: Record<string, unknown>;
+    dxf_extraido: DxfExtraido | null;
   }> {
     if (!arquivo) {
       throw new BadRequestException('Nenhum arquivo recebido');
@@ -78,7 +80,29 @@ export class AnexoGeometriaController {
       token: resultado.token,
       categoria: resultado.categoria,
       metadados: resultado.metadados,
+      dxf_extraido: resultado.dxf_extraido,
     };
+  }
+
+  /**
+   * Releitura dos metadados de extração de um DXF já enviado. Útil quando
+   * o frontend perdeu o estado em memória (recarga de página, reabertura
+   * de orçamento) e precisa repor o card "Valores detectados no DXF".
+   */
+  @Get(':token/dxf-extraido')
+  @ApiOperation({
+    summary: 'Lê os metadados extraídos de um DXF já enviado',
+  })
+  async lerDxfExtraido(
+    @Param('token') token: string,
+    @Req() req: Request,
+  ): Promise<{ dxf_extraido: DxfExtraido | null }> {
+    const lojaId = this.lojaIdFromJwt(req);
+    const dxfExtraido = await this.anexoService.lerDxfExtraido({
+      token,
+      lojaId,
+    });
+    return { dxf_extraido: dxfExtraido };
   }
 
   /**

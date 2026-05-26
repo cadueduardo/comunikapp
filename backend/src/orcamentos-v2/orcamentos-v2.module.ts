@@ -32,6 +32,7 @@ import { ImpressaoV2Service } from './services/impressao-v2.service';
 import { ValidacaoEstoqueService } from './services/validacao-estoque.service';
 import { InsumosAutocompleteService } from './services/insumos-autocomplete.service';
 import { AnexoGeometriaService } from './services/anexo-geometria.service';
+import { DxfParserService } from './services/dxf-parser.service';
 
 // Repositories
 import { OrcamentosV2Repository } from './repositories/orcamentos-v2.repository';
@@ -80,6 +81,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     ValidacaoEstoqueService,
     InsumosAutocompleteService,
     AnexoGeometriaService,
+    DxfParserService,
 
     // Repositories
     OrcamentosV2Repository,

@@ -16,6 +16,7 @@ import {
   CategoriaAnexoGeometria,
   classificarAnexoGeometria,
 } from '../../config/multer-anexo-geometria.config';
+import { DxfExtraido, DxfParserService } from './dxf-parser.service';
 
 /**
  * Service responsável pela persistência física dos anexos de geometria
@@ -53,7 +54,7 @@ export class AnexoGeometriaService {
     'geometria',
   );
 
-  constructor() {
+  constructor(private readonly dxfParser: DxfParserService) {
     if (!existsSync(this.baseDir)) {
       mkdirSync(this.baseDir, { recursive: true });
     }
@@ -73,6 +74,7 @@ export class AnexoGeometriaService {
     url: string;
     metadados: Record<string, unknown>;
     categoria: CategoriaAnexoGeometria;
+    dxf_extraido: DxfExtraido | null;
   }> {
     const { arquivo, lojaId, usuarioId } = args;
 
@@ -119,7 +121,26 @@ export class AnexoGeometriaService {
 
     await writeFile(caminhoFisico, arquivo.buffer);
 
-    const metadados = {
+    // Sub-fase 7.B: se o anexo for DXF, roda o parser determinístico para
+    // extrair $PROJECTNAME, dimensões do bounding box, perímetro por camada
+    // e área aproximada. Persistimos o resultado no JSON de metadados para
+    // que uma releitura (GET) consiga repor os valores na UI sem reparsear.
+    let dxfExtraido: DxfExtraido | null = null;
+    if (categoria === 'DXF') {
+      try {
+        dxfExtraido = this.dxfParser.parse(arquivo.buffer);
+      } catch (error) {
+        // O parser já é defensivo (devolve alertas em vez de lançar), mas
+        // mantemos o try/catch para garantir que um bug nunca derruba o
+        // upload do arquivo em si.
+        this.logger.error(
+          `Falha inesperada no DxfParserService: ${error instanceof Error ? error.message : error}`,
+        );
+        dxfExtraido = null;
+      }
+    }
+
+    const metadados: Record<string, unknown> = {
       token,
       categoria,
       nome_arquivo: nomeFisico,
@@ -131,6 +152,9 @@ export class AnexoGeometriaService {
       criado_por: usuarioId,
       criado_em: new Date().toISOString(),
     };
+    if (dxfExtraido) {
+      metadados.dxf_extraido = dxfExtraido;
+    }
 
     await writeFile(caminhoMeta, JSON.stringify(metadados, null, 2));
 
@@ -143,7 +167,28 @@ export class AnexoGeometriaService {
       url: `/orcamentos-v2/anexos-geometria/${token}`,
       metadados,
       categoria,
+      dxf_extraido: dxfExtraido,
     };
+  }
+
+  /**
+   * Lê apenas os metadados persistidos do anexo, sem entregar o arquivo
+   * bruto. Usado pela rota GET .../dxf-extraido para reler o resultado do
+   * parser de um DXF já enviado.
+   */
+  async lerDxfExtraido(args: {
+    token: string;
+    lojaId: string;
+  }): Promise<DxfExtraido | null> {
+    const { token, lojaId } = args;
+    this.validarToken(token);
+    const meta = await this.lerMetadados(token, lojaId);
+    if (meta.categoria !== 'DXF') {
+      throw new BadRequestException(
+        'O anexo informado não é um DXF; metadados de extração não se aplicam.',
+      );
+    }
+    return meta.dxf_extraido ?? null;
   }
 
   /**
@@ -319,4 +364,5 @@ interface MetadadosAnexo {
   loja_id: string;
   criado_por: string;
   criado_em: string;
+  dxf_extraido?: DxfExtraido;
 }
