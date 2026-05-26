@@ -497,6 +497,14 @@ export class TransformacaoV2Service {
         ? profundidadeNum
         : null;
 
+    // Fase 11 - log de diagnostico (guardrail 3). Mostra o input e o que sera persistido.
+    this.logger.log(
+      `[FASE11] prepararProdutoCriacao produto[${index}] "${nomeProduto}": ` +
+        `input.profundidade=${JSON.stringify(produto.profundidade)} ` +
+        `(type=${typeof produto.profundidade}), ` +
+        `normalizada=${profundidadeNormalizada}`,
+    );
+
     const produtoPreparado: any = {
       nome_servico: nomeProduto,
       nome: nomeProduto,

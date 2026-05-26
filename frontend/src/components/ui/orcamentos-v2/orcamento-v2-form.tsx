@@ -1035,13 +1035,14 @@ export function OrcamentoV2Form({
       const altura = normalizarNumero(produto.altura_produto);
       const area = normalizarNumero(produto.area_produto);
       const perimetroProduto = normalizarNumero(produto.perimetro_produto);
-      // Fase 11: profundidade so vai no payload quando a flag esta ligada E o valor e valido.
-      // 'source of truth unica' (guardrail 3): se 'tem_profundidade' for false ou o valor for invalido,
-      // envia null (nao zero), para que o backend persista null e nao 0.
+      // Fase 11: profundidade so vai no payload quando ha valor numerico > 0.
+      // Source-of-truth unica (guardrail 3): o VALOR DIGITADO e a fonte da verdade,
+      // nao a flag. Isso evita perder profundidade caso a flag 'tem_profundidade'
+      // do react-hook-form fique dessincronizada do checkbox visual em alguma race
+      // condition. Quando profundidade_produto e vazio/0, envia null (produto 2D).
       const profundidadeRaw = (produto as any)?.profundidade_produto;
       const profundidadeNum = normalizarNumero(profundidadeRaw);
-      const temProfundidade = Boolean((produto as any)?.tem_profundidade);
-      const profundidade = temProfundidade && profundidadeNum > 0 ? profundidadeNum : null;
+      const profundidade = profundidadeNum > 0 ? profundidadeNum : null;
 
       const nomeProduto = produto.nome_servico?.trim() || `Produto ${index + 1}`;
 

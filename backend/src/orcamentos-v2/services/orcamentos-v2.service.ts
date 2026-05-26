@@ -69,6 +69,24 @@ export class OrcamentosV2Service {
     lojaId: string,
     usuarioId: string,
   ): Promise<OrcamentoCompleto> {
+    // Fase 11 - diagnostico de profundidade (guardrail 3). Log explicito do que
+    // o frontend mandou para cada produto. Ajuda a investigar divergencias
+    // silenciosas no round-trip preview/grid/detalhe.
+    if (Array.isArray(dados?.produtos)) {
+      const resumoProfundidade = dados.produtos.map((p: any, i: number) => ({
+        idx: i,
+        nome: p?.nome ?? p?.nome_servico,
+        largura: p?.largura,
+        altura: p?.altura,
+        profundidade: p?.profundidade,
+        tem_profundidade: p?.tem_profundidade,
+        unidade_geometria: p?.unidade_geometria,
+      }));
+      this.logger.log(
+        `[FASE11] criarOrcamento - produtos recebidos: ${JSON.stringify(resumoProfundidade)}`,
+      );
+    }
+
     this.logger.log(`ðŸ“ Criando novo orçamento para loja ${lojaId}`);
 
     try {

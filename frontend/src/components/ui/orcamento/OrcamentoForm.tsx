@@ -282,16 +282,15 @@ export function OrcamentoForm({
       impostos_customizados: data.impostos_customizados ? Number(data.impostos_customizados.replace(',', '.')) : undefined,
       // Enviar dados de múltiplos produtos
       itens_produto: data.itens_produto.map((produto, index) => {
-        // Fase 11: profundidade so vai no payload quando 'tem_profundidade' esta ligado E o valor e valido (> 0).
-        // 'source of truth unica' (guardrail 3) - envia null (nao 0) quando flag desligada.
+        // Fase 11: profundidade so vai no payload quando ha valor numerico > 0.
+        // Source-of-truth unica (guardrail 3): o VALOR DIGITADO e a fonte da verdade,
+        // nao a flag tem_profundidade. Isso evita perder dados em race conditions
+        // do react-hook-form. Quando profundidade_produto e vazio/0, envia null (2D).
         const profundidadeRaw = (produto as any)?.profundidade_produto;
         const profundidadeNum =
           profundidadeRaw ? Number(String(profundidadeRaw).replace(',', '.')) : NaN;
-        const temProfundidade = Boolean((produto as any)?.tem_profundidade);
         const profundidade =
-          temProfundidade && !isNaN(profundidadeNum) && profundidadeNum > 0
-            ? profundidadeNum
-            : null;
+          !isNaN(profundidadeNum) && profundidadeNum > 0 ? profundidadeNum : null;
         return {
           nome_servico: produto.nome_servico || `Produto ${index + 1}`,
           descricao: produto.descricao || '',
