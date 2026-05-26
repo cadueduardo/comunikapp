@@ -85,15 +85,14 @@ interface DxfRevisaoCardProps {
    */
   onAplicar: (medidas: AplicarMedidasDxf) => void;
   /**
-   * Disparado quando o operador clica em "Atrelar" em uma sugestão de
-   * insumo. O caller é responsável por adicionar o insumo à lista de
-   * materiais do produto.
-   */
-  onAtrelarInsumo?: (sugestao: SugestaoInsumoCamada) => void;
-  /**
    * Disparado quando o operador clica em "Cadastrar novo insumo" em uma
    * camada (sub-fase 7.B++). O caller é responsável por abrir o modal
    * compacto de cadastro, pré-preenchido com o nome da camada limpo.
+   *
+   * Quando omitido, a seção "Materiais por camada" não é renderizada
+   * (decisão de produto da 7.B++++: a UI de sugestões heurísticas foi
+   * removida por gerar muitos falsos positivos; resta apenas o caminho
+   * de cadastrar um insumo novo a partir da camada de material).
    */
   onCadastrarNovoInsumo?: (args: {
     nome_camada: string;
@@ -122,7 +121,6 @@ export function DxfRevisaoCard({
   dados,
   sugestoesInsumo,
   onAplicar,
-  onAtrelarInsumo,
   onCadastrarNovoInsumo,
   onIgnorar,
 }: DxfRevisaoCardProps) {
@@ -130,29 +128,20 @@ export function DxfRevisaoCard({
     dados.camada_sugerida || dados.camadas[0]?.nome || null,
   );
 
-  // Rastreia insumos já atrelados via clique para feedback visual ("Atrelado").
-  // Não persiste — é só uma marcação local; o estado real do produto fica no
-  // formulário (`materiais` do `ProdutoSection`).
-  const [insumosAtrelados, setInsumosAtrelados] = useState<Set<string>>(
-    () => new Set(),
-  );
-
   const camadaAtual = useMemo(
     () => dados.camadas.find((c) => c.nome === camadaSelecionada) || null,
     [dados.camadas, camadaSelecionada],
   );
 
-  // Lista de blocos a renderizar na seção "Materiais sugeridos".
-  // - Se `onCadastrarNovoInsumo` está habilitado: mostra todas as camadas
-  //   COM sugestão + camadas SEM sugestão que NÃO são apenas operação
-  //   (operador pode usar "Cadastrar novo" nelas). Camadas marcadas como
-  //   `apenas_operacao` também aparecem para que a mensagem orientativa
-  //   explique por que não há sugestão (mas sem o botão de cadastro).
-  // - Caso contrário: omite todas as camadas sem sugestão.
+  // Lista de blocos a renderizar na seção "Materiais por camada".
+  // - Se `onCadastrarNovoInsumo` está habilitado: mostra TODAS as camadas
+  //   (apenas_operacao recebe mensagem orientativa; demais recebem botão
+  //   "Cadastrar novo").
+  // - Caso contrário: omite a seção inteira (sem callback, nada útil para
+  //   exibir já que a UI de sugestões da heurística foi removida na 7.B++++).
   const blocosDeCamada = useMemo(() => {
-    const lista = sugestoesInsumo || [];
-    if (onCadastrarNovoInsumo) return lista;
-    return lista.filter((s) => s.sugestoes.length > 0);
+    if (!onCadastrarNovoInsumo) return [];
+    return sugestoesInsumo || [];
   }, [sugestoesInsumo, onCadastrarNovoInsumo]);
 
   /**
@@ -168,28 +157,6 @@ export function DxfRevisaoCard({
       )
       .replace(/[_\-]+/g, ' ')
       .trim();
-  };
-
-  const handleAtrelarInsumo = (sugestao: SugestaoInsumoCamada) => {
-    onAtrelarInsumo?.(sugestao);
-    setInsumosAtrelados((prev) => {
-      const proximo = new Set(prev);
-      proximo.add(sugestao.insumo_id);
-      return proximo;
-    });
-  };
-
-  const labelMotivo = (motivo: SugestaoInsumoCamada['motivo']): string => {
-    switch (motivo) {
-      case 'NOME_INSUMO':
-        return 'nome do insumo';
-      case 'TIPO_MATERIAL':
-        return 'tipo de material';
-      case 'CATEGORIA':
-        return 'categoria';
-      default:
-        return '';
-    }
   };
 
   const podeAplicar =
@@ -307,16 +274,30 @@ export function DxfRevisaoCard({
         </div>
       ) : null}
 
-      {blocosDeCamada.length > 0 && (onAtrelarInsumo || onCadastrarNovoInsumo) ? (
+      {/*
+        Sub-fase 7.B++++: a UI de "Materiais sugeridos" foi removida.
+        Decisão de produto (registrada na seção 4.21 do HANDOFF):
+        - A heurística atual gera muitos falsos positivos quando o catálogo
+          tem poucos materiais ou quando os tokens da camada/descrição são
+          genéricos (`3mm`, `de`, `designer`, etc.).
+        - Em vez de listar matches duvidosos, o card agora só oferece o
+          caminho de cadastrar um insumo novo a partir da camada.
+        - Backend continua calculando `sugestoes_insumo` (não custa caro
+          e mantém os hooks intactos para um futuro "modo avançado"), mas
+          o frontend ignora a lista e usa só o flag `apenas_operacao` para
+          decidir entre "Cadastrar novo" (material) e mensagem orientativa
+          (operação).
+      */}
+      {blocosDeCamada.length > 0 && onCadastrarNovoInsumo ? (
         <div className="rounded bg-emerald-50/50 border border-emerald-200 p-2 space-y-2">
           <div className="flex items-center gap-1 text-xs font-medium text-emerald-900">
             <Package2 className="h-3.5 w-3.5" />
-            <span>Materiais sugeridos (heurística por nome de camada)</span>
+            <span>Materiais por camada</span>
           </div>
           <p className="text-[11px] text-emerald-900/80">
-            Sugestões baseadas em palavras-chave da camada que casam com seu
-            catálogo. Confira antes de atrelar; a quantidade é calculada pelo
-            motor a partir da área/perímetro.
+            Cada camada do DXF que representa um material pode virar insumo no
+            seu catálogo. Camadas de operação (corte/gravação) são apenas
+            instruções para a máquina.
           </p>
           {blocosDeCamada.map((porCamada) => {
             const nomeSugerido = sugerirNomeInsumoApartirDaCamada(
@@ -343,10 +324,8 @@ export function DxfRevisaoCard({
                     Sub-fase 7.B+++: esconde "Cadastrar novo" em camadas
                     que são puramente operação (CORTE/GRAVACAO/etc.) —
                     não faz sentido criar um insumo chamado "CORTE".
-                    Operador precisa renomear a camada do DXF para algo
-                    como `ACRILICO_3MM_CRISTAL` para sugerir/cadastrar.
                   */}
-                  {onCadastrarNovoInsumo && !porCamada.apenas_operacao ? (
+                  {!porCamada.apenas_operacao ? (
                     <Button
                       type="button"
                       variant="outline"
@@ -380,58 +359,12 @@ export function DxfRevisaoCard({
                     . Você ainda pode adicionar materiais manualmente em
                     &quot;Materiais Utilizados&quot;.
                   </p>
-                ) : porCamada.sugestoes.length > 0 && onAtrelarInsumo ? (
-                  <ul className="space-y-1">
-                    {porCamada.sugestoes.map((sug) => {
-                      const atrelado = insumosAtrelados.has(sug.insumo_id);
-                      return (
-                        <li
-                          key={sug.insumo_id}
-                          className="flex items-center justify-between gap-2 text-xs"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate font-medium">
-                              {sug.insumo_nome}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground truncate">
-                              {sug.tipo_material_nome
-                                ? `${sug.tipo_material_nome} · `
-                                : ''}
-                              {sug.categoria_nome || 'sem categoria'} · match:{' '}
-                              {labelMotivo(sug.motivo)}
-                              {sug.tokens_match.length > 0
-                                ? ` (${sug.tokens_match.join(', ')})`
-                                : ''}
-                            </p>
-                          </div>
-                          <Button
-                            type="button"
-                            variant={atrelado ? 'outline' : 'secondary'}
-                            size="sm"
-                            onClick={() => handleAtrelarInsumo(sug)}
-                            disabled={atrelado}
-                            className="h-7 px-2 gap-1 flex-shrink-0"
-                          >
-                            {atrelado ? (
-                              <>
-                                <CheckCircle2 className="h-3 w-3" />
-                                Atrelado
-                              </>
-                            ) : (
-                              <>
-                                <Plus className="h-3 w-3" />
-                                Atrelar
-                              </>
-                            )}
-                          </Button>
-                        </li>
-                      );
-                    })}
-                  </ul>
                 ) : (
                   <p className="text-[10px] text-muted-foreground italic">
-                    Nenhum insumo do catálogo bate com esta camada. Use
-                    &quot;Cadastrar novo&quot; para criar um agora.
+                    Se o material desta camada ainda não está no catálogo,
+                    clique em &quot;Cadastrar novo&quot;. Caso já exista,
+                    atrele manualmente em &quot;Materiais Utilizados&quot; logo
+                    abaixo.
                   </p>
                 )}
               </div>

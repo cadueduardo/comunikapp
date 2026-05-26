@@ -1479,5 +1479,41 @@ Resultado: o card visual mostrava `2,00 m` (correto), mas o campo persistido `pe
 - A política de sincronização não cobre DXFs com curvas complexas onde o operador edita L/A levemente — o aviso amarelo "Recalcular pelo retângulo" depende do threshold de 50%. Pode virar configurável se virar atrito real.
 - A stop-list de operações está hard-coded no service (`STOP_WORDS`). Quando uma loja usa termos específicos (ex.: "VINCAR" em vez de "VINCO"), precisa ser ajustada manualmente. Configuração por loja virou item da Fase 11.x se necessário.
 
-**Última atualização:** 2026-05-26 (Fix da sincronização do perímetro do retângulo + flag `apenas_operacao` em camadas puramente de operação + DXF de exemplo com descrição rica para validar 7.B++).
+### 4.21 Remoção da listagem de sugestões de insumo no `DxfRevisaoCard` (2026-05-26 manhã)
+
+**Contexto:** o usuário testou a 7.B++ com o DXF de exemplo e observou que a heurística estava produzindo sugestões irrelevantes — "praticamente todos os materiais que tenho no catálogo de teste". Exemplos vistos no print:
+
+- Camada `ACRILICO_3MM_CRISTAL_CORTE` recebeu como sugestão "Cordao Para Banner 3 Mm 205 M Branco" porque o token `3mm` casou com "3 Mm" do cordão.
+- A mesma camada recebeu "Cabo De Madeira Para Banner..." porque tokens da descrição (`de`, `designer`, `800x500`) bateram em palavras genéricas do nome do insumo.
+- "Bobina Lona Impressão Digital..." apareceu porque a palavra `prolongadores` da descrição casou com "Front" da lona.
+
+**Diagnóstico:** a heurística atual depende de tokens curtos (mínimo 3 caracteres pelo serviço de tokenização) que, em catálogos pequenos, geram muitos falsos positivos. Os tokens da descrição com peso 0.5 acumulam quando há muitas palavras na descrição. A confiança real é baixa demais para a UX atual ("Atrelar este insumo") — o operador acaba pulando todas as sugestões.
+
+**Decisão de produto (registrada):**
+
+- **Frontend remove a UI de listagem de sugestões** (`<ul>` interno em cada camada do `DxfRevisaoCard`). Sem listar matches duvidosos, o card fica mais limpo e o operador foca no caminho real: cadastrar o insumo se ainda não tem ou atrelar manualmente em "Materiais Utilizados".
+- **Backend mantém o `DxfSugestaoInsumoService` rodando** — o cálculo é barato (uma query + matching em memória), e mantém os hooks intactos para um futuro "modo avançado" (toggle para mostrar matches com threshold alto, por exemplo). A flag `apenas_operacao` da 7.B+++ continua sendo usada pelo frontend para diferenciar camadas de material vs. operação.
+- **Decisão de design:** o frontend usa o array `sugestoes_insumo` recebido apenas para enumerar quais camadas existem e qual o status `apenas_operacao` de cada uma. Os matches em si são ignorados pela UI.
+
+**O que foi entregue (este commit):**
+
+1. **`DxfRevisaoCard.tsx`**: removido o `<ul>` de sugestões e a lógica `handleAtrelarInsumo`/`insumosAtrelados`/`labelMotivo` que dependia dele. Removida também a prop `onAtrelarInsumo` (dead code após a remoção).
+2. **Seção renomeada** de "Materiais sugeridos (heurística por nome de camada)" para **"Materiais por camada"**. O subtítulo passou a explicar que cada camada de material pode virar insumo no catálogo, sem mencionar matches do catálogo.
+3. **Camadas com `apenas_operacao=true`**: continuam exibindo chip "operação" + mensagem orientativa (para renomear no DXF), sem botão.
+4. **Camadas de material** (não-operação): exibem o nome + botão **"Cadastrar novo"** + texto curto orientando o operador: *"Se o material desta camada ainda não está no catálogo, clique em 'Cadastrar novo'. Caso já exista, atrele manualmente em 'Materiais Utilizados' logo abaixo."*
+5. **Seção é renderizada apenas quando `onCadastrarNovoInsumo` está habilitado** — sem callback, nada de útil sobra para exibir.
+6. **`ProdutoSection.tsx`**: removida a passagem de `onAtrelarInsumo` para o `DxfRevisaoCard` (dead code). A função `atrelarInsumoAoProduto` ainda é usada quando o `NovoInsumoModal` confirma criação (atrelar o insumo recém-criado ao produto), então é mantida.
+
+**Política de produto consolidada:**
+
+- O `DxfRevisaoCard` agora tem duas responsabilidades claras: **(a)** aplicar geometria detectada no produto (área/perímetro/largura/altura) e **(b)** abrir o `NovoInsumoModal` para camadas de material que ainda não estão no catálogo.
+- Atrelamento de materiais existentes do catálogo é feito SEMPRE manualmente em "Materiais Utilizados" (que agora também tem o botão "Cadastrar novo insumo" no dropdown — feature da seção 4.19).
+- A heurística do backend fica disponível para evolução futura: scoring com threshold configurável, regras por loja, etc., se virar demanda real.
+
+**Dívidas e refinamentos opcionais:**
+
+- O backend continua devolvendo `sugestoes_insumo` no JSON do GET `/dxf-extraido` e do POST. O frontend ignora o array de matches mas usa o `apenas_operacao`. Bandwidth pequeno; pode ser otimizado se virar gargalo (não é hoje).
+- "Modo avançado" para reativar a listagem com filtros estritos foi proposto e ficou como evolução opcional — não bloqueia uso de produção.
+
+**Última atualização:** 2026-05-26 (Remoção da UI de listagem de sugestões heurísticas no `DxfRevisaoCard` — heurística atual gera muitos falsos positivos em catálogos pequenos; card fica focado em aplicar geometria + cadastrar novo insumo para camadas de material).
 Branch `feature/home-operacional-dashboard`.

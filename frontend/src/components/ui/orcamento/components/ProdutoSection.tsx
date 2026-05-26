@@ -679,9 +679,6 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
                           onAplicar={(medidas) =>
                             aplicarMedidasDxf(index, medidas)
                           }
-                          onAtrelarInsumo={(sug) =>
-                            atrelarInsumoAoProduto(index, sug)
-                          }
                           onCadastrarNovoInsumo={(args) =>
                             abrirNovoInsumoModal(index, args)
                           }
