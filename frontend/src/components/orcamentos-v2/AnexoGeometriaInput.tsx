@@ -52,6 +52,13 @@ export interface AnexoGeometriaInputProps {
    */
   onNomeSugerido?: (nomeSugerido: string) => void;
   /**
+   * Callback opcional ao extrair a descrição do projeto do header do DXF
+   * (concatenação de `$TITLE/$SUBJECT/$KEYWORDS/$COMMENTS/$AUTHOR`). Usado
+   * para sugerir preenchimento do campo "Descrição" do produto — apenas se
+   * ele estiver vazio (mesma política do nome).
+   */
+  onDescricaoSugerida?: (descricaoSugerida: string) => void;
+  /**
    * Callback opcional ao receber metadados extraídos de um DXF (Sub-fase 7.B).
    * Recebe `null` quando o anexo é removido, deixa de ser DXF ou nenhum
    * metadado pôde ser interpretado. O segundo argumento traz as sugestões
@@ -118,6 +125,7 @@ export function AnexoGeometriaInput({
   value,
   onChange,
   onNomeSugerido,
+  onDescricaoSugerida,
   onDxfExtraido,
   disabled = false,
 }: AnexoGeometriaInputProps) {
@@ -306,6 +314,14 @@ export function AnexoGeometriaInput({
               if (sugestao) onNomeSugerido(sugestao);
             }
           }
+
+          // Sub-fase 7.B++: sugestão de descrição a partir do header do DXF
+          // (`$TITLE/$SUBJECT/$KEYWORDS/$COMMENTS/$AUTHOR` concatenados).
+          const descricaoProjeto =
+            data.dxf_extraido?.descricao_projeto?.trim();
+          if (descricaoProjeto && descricaoProjeto.length > 0) {
+            onDescricaoSugerida?.(descricaoProjeto);
+          }
         } else {
           // Categoria mudou para IMAGEM: limpa eventual card de revisão.
           onDxfExtraido?.(null, []);
@@ -318,7 +334,7 @@ export function AnexoGeometriaInput({
         setEnviando(false);
       }
     },
-    [onChange, onNomeSugerido, onDxfExtraido],
+    [onChange, onNomeSugerido, onDescricaoSugerida, onDxfExtraido],
   );
 
   const handleArquivoSelecionado = useCallback(

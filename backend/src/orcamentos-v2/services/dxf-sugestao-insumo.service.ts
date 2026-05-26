@@ -121,14 +121,21 @@ export class DxfSugestaoInsumoService {
       return [];
     }
 
+    // Sub-fase 7.B++: tokens da descrição do projeto (HEADER do DXF) entram
+    // como pista adicional de material. Cada camada herda esses tokens, mas
+    // com peso menor para não dominar a heurística do nome da camada.
+    const tokensDescricao = dxfExtraido.descricao_projeto
+      ? this.tokenizar(dxfExtraido.descricao_projeto)
+      : [];
+
     const camadasComToken = dxfExtraido.camadas.map((camada) => ({
       nome_original: camada.nome,
       tokens: this.tokenizar(camada.nome),
     }));
 
-    const algumaCamadaTemToken = camadasComToken.some(
-      (c) => c.tokens.length > 0,
-    );
+    const algumaCamadaTemToken =
+      camadasComToken.some((c) => c.tokens.length > 0) ||
+      tokensDescricao.length > 0;
     if (!algumaCamadaTemToken) {
       return dxfExtraido.camadas.map((c) => ({
         nome_camada: c.nome,
@@ -172,7 +179,7 @@ export class DxfSugestaoInsumoService {
     }));
 
     return camadasComToken.map((camada) => {
-      if (camada.tokens.length === 0) {
+      if (camada.tokens.length === 0 && tokensDescricao.length === 0) {
         return { nome_camada: camada.nome_original, sugestoes: [] };
       }
       const ranking: SugestaoInsumoCamada[] = [];
@@ -184,13 +191,28 @@ export class DxfSugestaoInsumoService {
           camada.tokens,
           insumo.tokens_categoria,
         );
+        // Sub-fase 7.B++: matches da descrição entram com peso reduzido (0.5)
+        // — servem para reforçar quando o nome da camada é genérico, sem
+        // mascarar a evidência principal (nome da camada x catálogo).
+        const matchNomePelaDescricao = this.calcularMatch(
+          tokensDescricao,
+          insumo.tokens_nome,
+        );
+        const matchTipoPelaDescricao = this.calcularMatch(
+          tokensDescricao,
+          insumo.tokens_tipo,
+        );
 
-        // Pesos: nome do insumo é a melhor pista (3x); tipoMaterial (2x);
-        // categoria (1x). Soma todos para o score final.
+        // Pesos: nome do insumo casado pela camada é a melhor pista (3x);
+        // tipoMaterial pela camada (2x); categoria pela camada (1x).
+        // Casamentos via descrição entram com peso reduzido (0.5x) para não
+        // dominar a evidência principal (nome da camada).
         const score =
           matchNome.score * 3 +
           matchTipo.score * 2 +
-          matchCategoria.score * 1;
+          matchCategoria.score * 1 +
+          matchNomePelaDescricao.score * 0.5 +
+          matchTipoPelaDescricao.score * 0.5;
 
         if (score <= 0) continue;
 
@@ -199,16 +221,22 @@ export class DxfSugestaoInsumoService {
             ...matchNome.tokens,
             ...matchTipo.tokens,
             ...matchCategoria.tokens,
+            ...matchNomePelaDescricao.tokens,
+            ...matchTipoPelaDescricao.tokens,
           ]),
         );
 
-        // Motivo principal é a fonte de maior contribuição.
+        // Motivo principal é a fonte de maior contribuição. Quando só a
+        // descrição casou, o motivo continua sendo NOME_INSUMO/TIPO_MATERIAL,
+        // pois é o campo do insumo que casou — a descrição é só o veículo.
         let motivo: SugestaoInsumoCamada['motivo'] = 'NOME_INSUMO';
-        if (matchNome.score === 0 && matchTipo.score > 0) {
+        const scoreNomeTotal = matchNome.score + matchNomePelaDescricao.score;
+        const scoreTipoTotal = matchTipo.score + matchTipoPelaDescricao.score;
+        if (scoreNomeTotal === 0 && scoreTipoTotal > 0) {
           motivo = 'TIPO_MATERIAL';
         } else if (
-          matchNome.score === 0 &&
-          matchTipo.score === 0 &&
+          scoreNomeTotal === 0 &&
+          scoreTipoTotal === 0 &&
           matchCategoria.score > 0
         ) {
           motivo = 'CATEGORIA';
@@ -219,7 +247,7 @@ export class DxfSugestaoInsumoService {
           insumo_nome: insumo.nome,
           tipo_material_nome: insumo.tipo_material_nome,
           categoria_nome: insumo.categoria_nome,
-          score,
+          score: Number(score.toFixed(2)),
           tokens_match: tokensMatch,
           motivo,
         });

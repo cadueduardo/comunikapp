@@ -41,6 +41,18 @@ const DxfParserCtor = require('dxf-parser') as new () => {
 export interface DxfExtraido {
   versao_parser: string;
   nome_projeto: string | null;
+  /**
+   * Descrição consolidada extraída do HEADER do DXF (Sub-fase 7.B++).
+   * Concatena `$SUBJECT`, `$COMMENTS`, `$TITLE`, `$KEYWORDS`, `$AUTHOR`
+   * com separador `" — "`. Campos vazios são omitidos. Quando o header
+   * não tem nenhum desses, vem `null`.
+   *
+   * NOTA: texto livre das entidades `TEXT`/`MTEXT` do desenho NÃO é
+   * incluído aqui — geralmente carrega cotas, notas de produção, número
+   * de peças, etc., que poluiriam a descrição. Se virar necessidade,
+   * adiciona-se em um campo separado.
+   */
+  descricao_projeto: string | null;
   unidade_origem: UnidadeDxf;
   largura_mm: number | null;
   altura_mm: number | null;
@@ -68,9 +80,24 @@ export type UnidadeDxf =
 
 /**
  * Versão da estrutura `DxfExtraido` persistida nos metadados do anexo.
- * Bump quando mudar o shape do JSON (a UI atual cobre 1.0).
+ * Bump quando mudar o shape do JSON. Histórico:
+ *  - 7.B-1.0: estrutura inicial (Sub-fase 7.B).
+ *  - 7.B-1.1: adiciona `descricao_projeto` (Sub-fase 7.B++).
  */
-const VERSAO_PARSER = '7.B-1.0';
+const VERSAO_PARSER = '7.B-1.1';
+
+/**
+ * Campos do HEADER do DXF que são considerados "descrição" do projeto e
+ * concatenados em `DxfExtraido.descricao_projeto`. A ordem aqui define a
+ * ordem da concatenação final.
+ */
+const CHAVES_DESCRICAO_PROJETO = [
+  '$TITLE',
+  '$SUBJECT',
+  '$KEYWORDS',
+  '$COMMENTS',
+  '$AUTHOR',
+];
 
 /**
  * Mapa dos códigos de `$INSUNITS` (DXF spec) para a unidade que o backend
@@ -124,6 +151,7 @@ export class DxfParserService {
     const resultadoVazio = (): DxfExtraido => ({
       versao_parser: VERSAO_PARSER,
       nome_projeto: null,
+      descricao_projeto: null,
       unidade_origem: 'desconhecida',
       largura_mm: null,
       altura_mm: null,
@@ -166,6 +194,7 @@ export class DxfParserService {
     }
 
     const nomeProjeto = this.extrairNomeProjeto(parsed);
+    const descricaoProjeto = this.extrairDescricaoProjeto(parsed);
     const unidadeOrigem = this.extrairUnidade(parsed);
     const fatorMm = FATOR_PARA_MM[unidadeOrigem];
 
@@ -181,6 +210,7 @@ export class DxfParserService {
       return {
         ...resultadoVazio(),
         nome_projeto: nomeProjeto,
+        descricao_projeto: descricaoProjeto,
         unidade_origem: unidadeOrigem,
       };
     }
@@ -245,6 +275,7 @@ export class DxfParserService {
       return {
         ...resultadoVazio(),
         nome_projeto: nomeProjeto,
+        descricao_projeto: descricaoProjeto,
         unidade_origem: unidadeOrigem,
       };
     }
@@ -300,6 +331,7 @@ export class DxfParserService {
     return {
       versao_parser: VERSAO_PARSER,
       nome_projeto: nomeProjeto,
+      descricao_projeto: descricaoProjeto,
       unidade_origem: unidadeOrigem,
       largura_mm: larguraMm,
       altura_mm: alturaMm,
@@ -334,6 +366,42 @@ export class DxfParserService {
     }
     const escolhido = candidatos.find((v) => v && v.length > 0);
     return escolhido || null;
+  }
+
+  /**
+   * Consolida em uma string única os campos descritivos do HEADER do DXF
+   * (`$TITLE`, `$SUBJECT`, `$KEYWORDS`, `$COMMENTS`, `$AUTHOR`). Cada campo
+   * vazio é descartado. Retorna `null` quando nenhum dos campos veio
+   * preenchido — assim a UI sabe que não há nada para sugerir.
+   *
+   * Não inclui texto livre das entidades `TEXT`/`MTEXT` do desenho — esses
+   * normalmente trazem cotas/notas de produção e poluiriam a descrição.
+   */
+  private extrairDescricaoProjeto(parsed: IDxf): string | null {
+    const header = (parsed.header || {}) as Record<string, unknown>;
+    const partes: string[] = [];
+    for (const chaveAlvo of CHAVES_DESCRICAO_PROJETO) {
+      for (const chave of Object.keys(header)) {
+        if (chave.toUpperCase() === chaveAlvo) {
+          const valor = header[chave];
+          if (typeof valor === 'string' && valor.trim().length > 0) {
+            partes.push(valor.trim());
+          }
+          break;
+        }
+      }
+    }
+    if (partes.length === 0) return null;
+    // Remove duplicatas (ex.: $TITLE igual ao $SUBJECT) preservando ordem.
+    const vistos = new Set<string>();
+    const dedup: string[] = [];
+    for (const p of partes) {
+      const k = p.toLowerCase();
+      if (vistos.has(k)) continue;
+      vistos.add(k);
+      dedup.push(p);
+    }
+    return dedup.join(' — ');
   }
 
   private extrairUnidade(parsed: IDxf): UnidadeDxf {

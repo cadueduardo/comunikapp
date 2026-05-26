@@ -42,6 +42,7 @@ import {
   type SugestaoInsumoCamada,
   type SugestoesPorCamada,
 } from '@/components/orcamentos-v2/DxfRevisaoCard';
+import { NovoInsumoModal } from '@/components/orcamentos-v2/NovoInsumoModal';
 import { MaterialSection, MaquinaSection, FuncaoSection, ServicoSection } from '../../shared/sections';
 
 interface ProdutoSectionProps {
@@ -118,6 +119,16 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
   const [sugestoesPorIndice, setSugestoesPorIndice] = useState<
     Record<number, SugestoesPorCamada[]>
   >({});
+
+  // Sub-fase 7.B++: estado do modal de cadastro inline de insumo.
+  // Quando aberto, guarda o índice do produto + nome sugerido para o novo
+  // insumo. Ao criar com sucesso, o insumo é atrelado a esse mesmo índice.
+  const [novoInsumoModal, setNovoInsumoModal] = useState<{
+    aberto: boolean;
+    itemIndex: number | null;
+    nomeSugerido: string;
+    nomeCamada: string;
+  }>({ aberto: false, itemIndex: null, nomeSugerido: '', nomeCamada: '' });
 
   const setDxfDoProduto = (
     indice: number,
@@ -317,6 +328,73 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
     });
   };
 
+  // Sub-fase 7.B++: sugere a descrição a partir do header do DXF
+  // (`$TITLE/$SUBJECT/$KEYWORDS/$COMMENTS/$AUTHOR` concatenados). Mesma
+  // política do nome: só preenche quando o campo "Descrição" estiver vazio.
+  const sugerirDescricaoProduto = (itemIndex: number, sugestao: string) => {
+    const atual = form.getValues(`itens_produto.${itemIndex}.descricao`);
+    if (atual && String(atual).trim().length > 0) return;
+    if (!sugestao || sugestao.trim().length === 0) return;
+    form.setValue(`itens_produto.${itemIndex}.descricao`, sugestao.trim(), {
+      shouldDirty: true,
+    });
+  };
+
+  // Sub-fase 7.B++: abre o modal de cadastro inline a partir de uma camada
+  // do DXF que não tem sugestão (ou que o operador queira customizar).
+  const abrirNovoInsumoModal = (
+    itemIndex: number,
+    args: { nome_camada: string; nome_sugerido: string },
+  ) => {
+    setNovoInsumoModal({
+      aberto: true,
+      itemIndex,
+      nomeSugerido: args.nome_sugerido,
+      nomeCamada: args.nome_camada,
+    });
+  };
+
+  // Recarrega as sugestões de insumo para um produto, refazendo o GET no
+  // endpoint de releitura do anexo. Usado após cadastrar um insumo novo
+  // para que ele apareça nas listas de sugestão de outras camadas.
+  const recarregarSugestoesDoProduto = async (itemIndex: number) => {
+    const urlAnexo = form.getValues(
+      `itens_produto.${itemIndex}.arquivo_geometria_url`,
+    ) as string | undefined;
+    if (!urlAnexo) return;
+    const match = urlAnexo.match(
+      /\/orcamentos-v2\/anexos-geometria\/([0-9a-f-]{36})$/i,
+    );
+    if (!match) return;
+    const tokenAnexo = match[1];
+    try {
+      const apiBase = (
+        process.env.NEXT_PUBLIC_API_URL || '/api'
+      ).replace(/\/$/, '');
+      const tokenAuth =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('access_token')
+          : null;
+      const headers: Record<string, string> = {};
+      if (tokenAuth) headers['Authorization'] = `Bearer ${tokenAuth}`;
+      const resp = await fetch(
+        `${apiBase}/orcamentos-v2/anexos-geometria/${tokenAnexo}/dxf-extraido`,
+        { headers },
+      );
+      if (!resp.ok) return;
+      const data = (await resp.json()) as {
+        sugestoes_insumo?: SugestoesPorCamada[];
+      };
+      setSugestoesPorIndice((prev) => ({
+        ...prev,
+        [itemIndex]: data.sugestoes_insumo || [],
+      }));
+    } catch {
+      // Releitura é best-effort; se falhar, o insumo recém-criado já está
+      // atrelado, só não aparece como "sugestão" para outras camadas.
+    }
+  };
+
   const calcularAreaTotal = (itemIndex: number) => {
     const areaUnitaria = Number(form.watch(`itens_produto.${itemIndex}.area_produto`));
     const quantidade = Number(form.watch(`itens_produto.${itemIndex}.quantidade_produto`));
@@ -392,6 +470,9 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
                         }
                       }}
                       onNomeSugerido={(sug) => sugerirNomeProduto(index, sug)}
+                      onDescricaoSugerida={(sug) =>
+                        sugerirDescricaoProduto(index, sug)
+                      }
                       onDxfExtraido={(dxf, sugestoes) =>
                         setDxfDoProduto(index, dxf, sugestoes)
                       }
@@ -406,6 +487,9 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
                           }
                           onAtrelarInsumo={(sug) =>
                             atrelarInsumoAoProduto(index, sug)
+                          }
+                          onCadastrarNovoInsumo={(args) =>
+                            abrirNovoInsumoModal(index, args)
                           }
                           onIgnorar={() => setDxfDoProduto(index, null, [])}
                         />
@@ -617,6 +701,34 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
           </AccordionItem>
         ))}
       </Accordion>
+
+      <NovoInsumoModal
+        open={novoInsumoModal.aberto}
+        onOpenChange={(aberto) =>
+          setNovoInsumoModal((prev) => ({ ...prev, aberto }))
+        }
+        nomeInicial={novoInsumoModal.nomeSugerido}
+        onCriado={(insumoCriado) => {
+          const itemIndex = novoInsumoModal.itemIndex;
+          if (itemIndex === null) return;
+          // Atrela o insumo recém-criado ao produto imediatamente, sem
+          // esperar nova consulta. Usa o mesmo helper das sugestões para
+          // manter o comportamento consistente (substitui posição vazia /
+          // evita duplicata).
+          atrelarInsumoAoProduto(itemIndex, {
+            insumo_id: insumoCriado.id,
+            insumo_nome: insumoCriado.nome,
+            tipo_material_nome: null,
+            categoria_nome: null,
+            score: 0,
+            tokens_match: [],
+            motivo: 'NOME_INSUMO',
+          });
+          // Recarrega sugestões para que o insumo novo apareça também em
+          // outras camadas com palavras-chave compatíveis.
+          void recarregarSugestoesDoProduto(itemIndex);
+        }}
+      />
     </div>
   );
 }

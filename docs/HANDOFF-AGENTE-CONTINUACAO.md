@@ -10,7 +10,7 @@
 
 ## 1. Estado atual em uma frase
 
-Em 2026-05-26 (manhã), a **Fase 7 (DXF real / anexos)** entrou em produção com as **Sub-fases 7.A, 7.B e 7.B+ entregues**. (1) **7.A:** o produto do Orçamento V2 ganhou no topo do card uma área única de anexo de imagem/DXF que aceita **Ctrl+V (clipboard)**, **drag-and-drop** e clique para abrir o file picker; o endpoint `POST /orcamentos-v2/anexos-geometria` grava o arquivo na pasta da loja com metadados (mime, hash SHA-256, `loja_id`), devolve URL relativa autenticada que o `ProdutoOrcamento.arquivo_geometria_url` persiste e que a Fase 3 propaga para `ItemOS.arquivo_geometria_url` na OS. **Decisão de produto (Leitura B):** a imagem/DXF anexada conta como arte da OS — o critério `arte_anexada` do modal de aprovação técnica passou a considerar `ItemOS.arquivo_geometria_url`. (2) **7.B:** `DxfParserService` (backend, baseado em `dxf-parser@1.1.2`) extrai `$PROJECTNAME`, unidade (`$INSUNITS`), bounding box, área (shoelace de polígono fechado ou envolvente), perímetro por camada (LINE/LWPOLYLINE/POLYLINE/CIRCLE/ARC/ELLIPSE) e devolve `dxf_extraido` no response do upload. No frontend, o card `DxfRevisaoCard` mostra os valores detectados logo abaixo do upload e exige clique em "Aplicar ao produto" — **o parser nunca preenche valores sozinho**. (3) **7.B+:** `DxfSugestaoInsumoService` adiciona uma seção "Materiais sugeridos" no card de revisão. A heurística tokeniza o nome da camada (com stop-list de operações: `corte`, `gravacao`, `dobra`, etc.) e compara com `Insumo.nome`/`TipoMaterial.nome`/`Categoria.nome` do catálogo da loja, devolvendo top 3 sugestões com botão "Atrelar". As sugestões são recalculadas a cada upload/releitura (não persistidas), refletindo mudanças no catálogo sem reupload. **Política mantida: nunca atrela sozinho**, sempre exige clique. Detalhes nas seções 4.15, 4.16 e 4.17.
+Em 2026-05-26 (manhã), a **Fase 7 (DXF real / anexos) foi fechada** com as **Sub-fases 7.A, 7.B, 7.B+ e 7.B++ entregues**. (1) **7.A:** anexo único de imagem/DXF no topo do produto do Orçamento V2 (Ctrl+V, drag-and-drop, file picker), endpoint multi-tenant em `POST /orcamentos-v2/anexos-geometria`, e Leitura B em `arte_anexada`. (2) **7.B:** `DxfParserService` (`dxf-parser@1.1.2`) extrai `$PROJECTNAME`, unidade (`$INSUNITS`), bounding box, área (shoelace ou envolvente) e perímetro por camada (LINE/LWPOLYLINE/POLYLINE/CIRCLE/ARC/ELLIPSE). O card `DxfRevisaoCard` exibe os valores e exige clique em "Aplicar ao produto" — **parser nunca preenche sozinho**. (3) **7.B+:** `DxfSugestaoInsumoService` adiciona seção "Materiais sugeridos" no card via heurística por nome de camada (stop-list de operações + matching contra `Insumo.nome`/`TipoMaterial.nome`/`Categoria.nome` da loja), com botão "Atrelar" por sugestão. (4) **7.B++:** o parser passou a extrair também `descricao_projeto` (concatenação de `$TITLE/$SUBJECT/$KEYWORDS/$COMMENTS/$AUTHOR`) que preenche o campo "Descrição" do produto (se vazio) e alimenta o scoring de insumo com peso reduzido (0.5). E o card ganhou botão "Cadastrar novo" por camada → abre `NovoInsumoModal` compacto (8 campos obrigatórios + lógica de consumo) que, ao salvar, atrela o insumo recém-criado ao produto e recarrega as sugestões. Detalhes nas seções 4.15, 4.16, 4.17 e 4.18.
 
 Antes disso, a **Fase 6 foi concluída** (sub-fases 6.A a 6.E entre 2026-05-25 e 2026-05-26): condição de pagamento estruturada no orçamento, cobrança criada automaticamente na aprovação (`CobrancasService`), bloco `ResumoFinanceiroSimples` na Home, tela `/financeiro/recebimentos` com auditoria/ações/CSV, cron diário recategoriza cobranças vencidas, 7º alerta operacional `trabalho_pronto_sem_recebimento` e colunas `a_receber`/`concluidos` no fluxo de trabalho. Comissões: `3e432e6`, `9436a15`, `afa2d68`, `30fbeba`, `75f9e0c`.
 
@@ -18,7 +18,7 @@ Antes ainda, foram entregues a **Fase 5** (`GET /home-operacional/alertas` com 6
 
 Também ficaram em produção: a **UX de aprovação da OS direto no grid** (`/os`) com modal `AprovarOSModal` listando os critérios (`dados_completos`, `arte_anexada`, `estoque_ok`, `prazo_viavel`); **prazos por serviço** no mesmo modal (4.13) com prazo "mãe" para aplicar em todos de uma vez (4.14); **fix estrutural** do `OSPrazoService` que corrompia `OrdemServico.status` (4.11) + endpoint admin de recuperação; **auto-promoção** OS → PCP na aprovação técnica (4.10).
 
-**Próximo passo:** Fase 7 fechada (7.A + 7.B + 7.B+ entregues). O usuário aprovou criar uma fase dedicada à **profundidade no orçamento** como último item do handoff — afeta schema (`ProdutoOrcamento` + `ItemOS`), motor de cálculo (novo `tipo_calculo` ou modificador `usa_profundidade=true`), UI do `QuickGeometryInput` e templates. Está registrada como **Fase 11** em `docs/plano-acao-home-onboarding-dashboard-operacional.md` (foi numerada 11 porque 9 e 10 já estavam reservadas para outros temas no plano-mãe). O plano traz 3 decisões a confirmar antes de implementar (modelagem do motor, unidade da profundidade, escopo de "caixa fechada vs aberta"). Dívidas menores conhecidas: discretização de `SPLINE` no parser (4.16), cleanup de anexos órfãos (4.15), "Passo 2" de regras configuráveis de match de insumo (4.17). Nenhuma bloqueia uso de produção.
+**Próximo passo:** Fase 7 fechada (7.A + 7.B + 7.B+ + 7.B++ entregues). O usuário aprovou criar uma fase dedicada à **profundidade no orçamento** como último item do handoff — afeta schema (`ProdutoOrcamento` + `ItemOS`), motor de cálculo (novo `tipo_calculo` ou modificador `usa_profundidade=true`), UI do `QuickGeometryInput` e templates. Está registrada como **Fase 11** em `docs/plano-acao-home-onboarding-dashboard-operacional.md` (foi numerada 11 porque 9 e 10 já estavam reservadas para outros temas no plano-mãe). O plano traz 3 decisões a confirmar antes de implementar (modelagem do motor, unidade da profundidade, escopo de "caixa fechada vs aberta"). Dívidas menores conhecidas: discretização de `SPLINE` no parser (4.16), cleanup de anexos órfãos (4.15), "Passo 2" de regras configuráveis de match de insumo (4.17), captura de `MTEXT/TEXT` para descrição (4.18) e criação inline de categoria/fornecedor no `NovoInsumoModal` (4.18). Nenhuma bloqueia uso de produção.
 
 ---
 
@@ -1356,5 +1356,44 @@ O endpoint não exige `produto_id` na URL. Isso resolve o caso de orçamento nov
 
 - "Passo 2" do plano (regras configuráveis de match por loja, ex.: `se nome contém "X" → sugerir insumo Y`) ficou parado. O usuário avaliou que a heurística do Passo 1 é suficiente por enquanto e pediu para priorizar a próxima fase (profundidade no orçamento). Se a heurística começar a errar em casos reais, ativa-se o Passo 2 sem regressão (regras viram um boost adicional no score).
 
-**Última atualização:** 2026-05-26 (Sub-fase 7.B+ extensão: sugestão heurística de insumo por nome de camada do DXF, com botão "Atrelar" no `DxfRevisaoCard`).
+### 4.18 Sub-fase 7.B++: Descrição do DXF + cadastro inline de insumo (2026-05-26 manhã)
+
+**Contexto:** Após a 7.B+, o usuário trouxe dois refinamentos para finalizar a Fase 7:
+1. O orçamento tem campo `descricao` no produto — o DXF traz alguma descrição? Pode preencher e também alimentar a sugestão de insumo.
+2. E quando o insumo da camada não está cadastrado? Modal de criação inline ("Não encontrei este insumo, deseja incluir?") para evitar trocar de tela no meio do orçamento.
+
+Resposta técnica entregue:
+
+- **DXF tem campos descritivos no HEADER** (`$TITLE`, `$SUBJECT`, `$KEYWORDS`, `$COMMENTS`, `$AUTHOR`), mas eles são opcionais e variam entre exportadores. `MTEXT`/`TEXT` do desenho **não** foram incluídos para evitar puxar cotas/notas de produção como descrição.
+- **O modal de cadastro inline** foi implementado em formato **compacto** (apenas os 8 campos obrigatórios do `CreateInsumoDto` + lógica de consumo), com link para o cadastro completo em `/insumos/novo` quando o operador quer detalhar.
+
+**O que foi entregue (este commit):**
+
+1. **Backend — `DxfParserService` (`versao_parser: '7.B-1.1'`)**: novo método `extrairDescricaoProjeto` lê `$TITLE`, `$SUBJECT`, `$KEYWORDS`, `$COMMENTS`, `$AUTHOR` do header, descarta vazios, deduplica por valor case-insensitive e concatena com `" — "`. Devolvido como `descricao_projeto: string | null` em `DxfExtraido`. Quando o header não tem nenhum desses campos, vem `null` e a UI não sugere nada.
+2. **Backend — `DxfSugestaoInsumoService`**: tokens da `descricao_projeto` entram no scoring de TODAS as camadas, com peso **0.5** (vs. 3 para nome de camada × `Insumo.nome`, 2 para `TipoMaterial.nome`, 1 para `Categoria.nome`). Assim, "ACM 3mm branco" na descrição reforça sugestões mesmo quando a camada tem nome genérico, sem dominar a evidência principal. O `motivo` da sugestão continua refletindo o campo do insumo que casou (descrição é só veículo).
+3. **Frontend — `AnexoGeometriaInput`**: novo callback `onDescricaoSugerida`, disparado quando o backend devolve `dxf_extraido.descricao_projeto` não nulo. Mesma política do nome do produto: **só preenche se o campo "Descrição" estiver vazio** — nunca sobrescreve digitação.
+4. **Frontend — `NovoInsumoModal.tsx`** (componente novo): modal compacto com os 8 campos obrigatórios do `CreateInsumoDto`:
+   - Nome (pré-preenchido a partir da camada, já limpa de prefixos como `CORTE_`/`GRAVACAO_`/etc.)
+   - Categoria + Fornecedor (selects carregados via `categoriasApi.getAll`/`fornecedoresApi.getAll`)
+   - Custo unitário, Quantidade de compra, Fator de conversão
+   - Unidade de compra, Unidade de uso, Lógica de consumo (área/perímetro/quantidade_fixa/custom)
+   - Aviso explícito quando a loja não tem categoria E fornecedor cadastrados (botão fica desabilitado).
+   - Link "Cadastro completo →" abre `/insumos/novo` em nova aba (footer).
+5. **Frontend — extensão do `DxfRevisaoCard`**: nova prop `onCadastrarNovoInsumo`. Quando habilitada, o card mostra TODAS as camadas (mesmo sem sugestão) e cada bloco ganha um botão "Cadastrar novo" no canto. Para camada sem sugestão, mostra mensagem inline orientando a usar o botão.
+6. **Frontend — `ProdutoSection`**: estado `novoInsumoModal` controla a abertura. Ao criar com sucesso, o insumo é atrelado ao produto imediatamente (usa o mesmo `atrelarInsumoAoProduto` das sugestões) **e** as sugestões são recarregadas via GET `/dxf-extraido` para que o insumo recém-criado apareça em outras camadas com palavras-chave compatíveis.
+
+**Política de produto formalizada (mantida):**
+
+- Descrição do DXF nunca sobrescreve o campo "Descrição" do produto se já estiver preenchido.
+- Insumo recém-criado é atrelado ao produto automaticamente — porque o operador acabou de pedir o cadastro a partir daquela camada. O Atrelar/Atrelado dos demais insumos do catálogo continua exigindo clique.
+- O modal compacto cobre o caso comum sem regredir o cadastro completo (categorias/fornecedores avançados, parâmetros de consumo, dimensões e estoque mínimo continuam disponíveis em `/insumos/novo`).
+
+**Dívidas e refinamentos opcionais (não bloqueantes):**
+
+- Texto de entidades `MTEXT`/`TEXT` continua não sendo capturado. Se houver demanda real (operadores que escrevem o material como texto no desenho), adiciona-se em campo separado para não poluir a descrição principal.
+- O modal compacto não permite criar categoria ou fornecedor inline. Quando a loja é nova e ainda não tem cadastros básicos, é necessário ir em Configurações antes — o modal mostra aviso claro nesse caso. Inline-create-cascade ficou para evolução.
+
+**Fase 7 oficialmente fechada.** Próximo movimento é a Fase 11 (profundidade no orçamento) — documentada em `plano-acao-home-onboarding-dashboard-operacional.md` aguardando confirmação das 3 decisões antes de codar.
+
+**Última atualização:** 2026-05-26 (Sub-fase 7.B++: `descricao_projeto` do DXF preenche descrição do produto + alimenta scoring de insumo + `NovoInsumoModal` compacto para cadastro inline com atrelamento automático).
 Branch `feature/home-operacional-dashboard`.

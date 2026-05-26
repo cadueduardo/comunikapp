@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 export interface DxfExtraido {
   versao_parser: string;
   nome_projeto: string | null;
+  descricao_projeto: string | null;
   unidade_origem: 'mm' | 'cm' | 'm' | 'pol' | 'pe' | 'desconhecida';
   largura_mm: number | null;
   altura_mm: number | null;
@@ -83,6 +84,15 @@ interface DxfRevisaoCardProps {
    */
   onAtrelarInsumo?: (sugestao: SugestaoInsumoCamada) => void;
   /**
+   * Disparado quando o operador clica em "Cadastrar novo insumo" em uma
+   * camada (sub-fase 7.B++). O caller é responsável por abrir o modal
+   * compacto de cadastro, pré-preenchido com o nome da camada limpo.
+   */
+  onCadastrarNovoInsumo?: (args: {
+    nome_camada: string;
+    nome_sugerido: string;
+  }) => void;
+  /**
    * Disparado quando o operador clica em "Ignorar". O caller pode esconder
    * o card ou marcá-lo como dispensado para esta sessão.
    */
@@ -106,6 +116,7 @@ export function DxfRevisaoCard({
   sugestoesInsumo,
   onAplicar,
   onAtrelarInsumo,
+  onCadastrarNovoInsumo,
   onIgnorar,
 }: DxfRevisaoCardProps) {
   const [camadaSelecionada, setCamadaSelecionada] = useState<string | null>(
@@ -124,13 +135,31 @@ export function DxfRevisaoCard({
     [dados.camadas, camadaSelecionada],
   );
 
-  // Filtra apenas camadas que efetivamente têm sugestões. Camadas sem
-  // sugestão são omitidas para não poluir o card.
-  const sugestoesNaoVazias = useMemo(
-    () =>
-      (sugestoesInsumo || []).filter((s) => s.sugestoes.length > 0),
-    [sugestoesInsumo],
-  );
+  // Lista de blocos a renderizar na seção "Materiais sugeridos".
+  // - Se `onCadastrarNovoInsumo` está habilitado: mostra TODAS as camadas
+  //   (mesmo sem sugestões) para que o operador consiga cadastrar a partir
+  //   de qualquer uma.
+  // - Caso contrário: omite as camadas sem sugestão para não poluir o card.
+  const blocosDeCamada = useMemo(() => {
+    const lista = sugestoesInsumo || [];
+    if (onCadastrarNovoInsumo) return lista;
+    return lista.filter((s) => s.sugestoes.length > 0);
+  }, [sugestoesInsumo, onCadastrarNovoInsumo]);
+
+  /**
+   * Limpa o nome da camada para sugerir como nome do insumo: remove os
+   * prefixos comuns de operação (`CORTE_`, `GRAVACAO_`, `CUT_`, etc.) e
+   * troca `_`/`-` por espaços. Mantém capitalização original.
+   */
+  const sugerirNomeInsumoApartirDaCamada = (nomeCamada: string): string => {
+    return nomeCamada
+      .replace(
+        /^(corte|cortes|gravacao|gravação|cut|cutting|engrave|engraving|dobra|vinco|furo|contorno)[_\-\s]+/i,
+        '',
+      )
+      .replace(/[_\-]+/g, ' ')
+      .trim();
+  };
 
   const handleAtrelarInsumo = (sugestao: SugestaoInsumoCamada) => {
     onAtrelarInsumo?.(sugestao);
@@ -269,7 +298,7 @@ export function DxfRevisaoCard({
         </div>
       ) : null}
 
-      {sugestoesNaoVazias.length > 0 && onAtrelarInsumo ? (
+      {blocosDeCamada.length > 0 && (onAtrelarInsumo || onCadastrarNovoInsumo) ? (
         <div className="rounded bg-emerald-50/50 border border-emerald-200 p-2 space-y-2">
           <div className="flex items-center gap-1 text-xs font-medium text-emerald-900">
             <Package2 className="h-3.5 w-3.5" />
@@ -280,62 +309,97 @@ export function DxfRevisaoCard({
             catálogo. Confira antes de atrelar; a quantidade é calculada pelo
             motor a partir da área/perímetro.
           </p>
-          {sugestoesNaoVazias.map((porCamada) => (
-            <div
-              key={porCamada.nome_camada}
-              className="rounded bg-white border border-emerald-100 p-2"
-            >
-              <p className="text-xs font-semibold mb-1">
-                Camada{' '}
-                <span className="text-primary">{porCamada.nome_camada}</span>
-              </p>
-              <ul className="space-y-1">
-                {porCamada.sugestoes.map((sug) => {
-                  const atrelado = insumosAtrelados.has(sug.insumo_id);
-                  return (
-                    <li
-                      key={sug.insumo_id}
-                      className="flex items-center justify-between gap-2 text-xs"
+          {blocosDeCamada.map((porCamada) => {
+            const nomeSugerido = sugerirNomeInsumoApartirDaCamada(
+              porCamada.nome_camada,
+            );
+            return (
+              <div
+                key={porCamada.nome_camada}
+                className="rounded bg-white border border-emerald-100 p-2"
+              >
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="text-xs font-semibold">
+                    Camada{' '}
+                    <span className="text-primary">
+                      {porCamada.nome_camada}
+                    </span>
+                  </p>
+                  {onCadastrarNovoInsumo ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        onCadastrarNovoInsumo({
+                          nome_camada: porCamada.nome_camada,
+                          nome_sugerido: nomeSugerido,
+                        })
+                      }
+                      className="h-6 px-2 gap-1 text-[11px]"
                     >
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{sug.insumo_nome}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">
-                          {sug.tipo_material_nome
-                            ? `${sug.tipo_material_nome} · `
-                            : ''}
-                          {sug.categoria_nome || 'sem categoria'} · match:{' '}
-                          {labelMotivo(sug.motivo)}
-                          {sug.tokens_match.length > 0
-                            ? ` (${sug.tokens_match.join(', ')})`
-                            : ''}
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant={atrelado ? 'outline' : 'secondary'}
-                        size="sm"
-                        onClick={() => handleAtrelarInsumo(sug)}
-                        disabled={atrelado}
-                        className="h-7 px-2 gap-1 flex-shrink-0"
-                      >
-                        {atrelado ? (
-                          <>
-                            <CheckCircle2 className="h-3 w-3" />
-                            Atrelado
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="h-3 w-3" />
-                            Atrelar
-                          </>
-                        )}
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
+                      <Plus className="h-3 w-3" />
+                      Cadastrar novo
+                    </Button>
+                  ) : null}
+                </div>
+                {porCamada.sugestoes.length > 0 && onAtrelarInsumo ? (
+                  <ul className="space-y-1">
+                    {porCamada.sugestoes.map((sug) => {
+                      const atrelado = insumosAtrelados.has(sug.insumo_id);
+                      return (
+                        <li
+                          key={sug.insumo_id}
+                          className="flex items-center justify-between gap-2 text-xs"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">
+                              {sug.insumo_nome}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {sug.tipo_material_nome
+                                ? `${sug.tipo_material_nome} · `
+                                : ''}
+                              {sug.categoria_nome || 'sem categoria'} · match:{' '}
+                              {labelMotivo(sug.motivo)}
+                              {sug.tokens_match.length > 0
+                                ? ` (${sug.tokens_match.join(', ')})`
+                                : ''}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant={atrelado ? 'outline' : 'secondary'}
+                            size="sm"
+                            onClick={() => handleAtrelarInsumo(sug)}
+                            disabled={atrelado}
+                            className="h-7 px-2 gap-1 flex-shrink-0"
+                          >
+                            {atrelado ? (
+                              <>
+                                <CheckCircle2 className="h-3 w-3" />
+                                Atrelado
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="h-3 w-3" />
+                                Atrelar
+                              </>
+                            )}
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground italic">
+                    Nenhum insumo do catálogo bate com esta camada. Use
+                    &quot;Cadastrar novo&quot; para criar um agora.
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
       ) : null}
 
