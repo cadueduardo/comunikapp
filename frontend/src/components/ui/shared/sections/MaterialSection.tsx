@@ -71,10 +71,11 @@ export function MaterialSection({
   const alturaProduto = form.watch(`itens_produto.${itemIndex}.altura_produto`);
   const unidadeGeometria = form.watch(`itens_produto.${itemIndex}.unidade_geometria`) || 'mm';
   const perimetroProduto = form.watch(`itens_produto.${itemIndex}.perimetro_produto`);
-  // Fase 11: profundidade opcional (produtos 3D). 'temProfundidade' e source-of-truth da exibicao
-  // e do consumo - quando false, o motor ignora profundidade mesmo que o campo tenha valor residual.
+  // Fase 11: profundidade opcional (produtos 3D). Source-of-truth e o VALOR DIGITADO
+  // (profundidadeProduto). A flag 'tem_profundidade' do form controla apenas a UI do
+  // QuickGeometryInput (mostrar/esconder o campo) e nao influencia o motor de calculo,
+  // evitando race conditions em que a flag fica dessincronizada do checkbox visual.
   const profundidadeProduto = form.watch(`itens_produto.${itemIndex}.profundidade_produto`);
-  const temProfundidade = Boolean(form.watch(`itens_produto.${itemIndex}.tem_profundidade`));
 
   const normalizarNumero = (valor: unknown): number => {
     if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
@@ -107,24 +108,32 @@ export function MaterialSection({
     return 2 * (larguraEmMetros + alturaEmMetros);
   };
 
-  // Fase 11: volume em m3 (LxAxP) so quando temProfundidade=true e o valor e valido.
-  // Compartilha unidade_geometria com largura/altura (decisao do plano).
+  // Fase 11: volume em m3 (LxAxP). Source-of-truth unica (guardrail 3): a presenca
+  // de profundidade > 0 e suficiente para caracterizar 3D. NAO depende de
+  // 'temProfundidade' (flag do react-hook-form que pode estar dessincronizada do
+  // checkbox visual em race conditions). Compartilha unidade_geometria com L/A.
   const obterVolumeM3 = (): number => {
-    if (!temProfundidade) return 0;
     const largura = normalizarNumero(larguraProduto);
     const altura = normalizarNumero(alturaProduto);
     const profundidade = normalizarNumero(profundidadeProduto);
+    if (profundidade <= 0) return 0;
     return calcularVolume(largura, altura, profundidade, unidadeGeometria);
   };
 
-  // Fase 11: area lateral em m2 (caixa aberta, 4 laterais) so quando temProfundidade=true.
+  // Fase 11: area lateral em m2 (caixa aberta, 4 laterais). Mesma logica do volume:
+  // valor digitado e source-of-truth, nao a flag.
   const obterAreaLateralM2 = (): number => {
-    if (!temProfundidade) return 0;
     const largura = normalizarNumero(larguraProduto);
     const altura = normalizarNumero(alturaProduto);
     const profundidade = normalizarNumero(profundidadeProduto);
+    if (profundidade <= 0) return 0;
     return calcularAreaLateral(largura, altura, profundidade, unidadeGeometria);
   };
+
+  // Helper para o aviso visual e mensagens: indica se o produto ja tem profundidade
+  // util preenchida (mesma logica defensiva acima, independente da flag tem_profundidade).
+  const temProfundidadeValida = (): boolean =>
+    normalizarNumero(profundidadeProduto) > 0;
 
   useEffect(() => {
     // Recalcular automaticamente as quantidades de materiais quando as dimensões ou quantidade do produto mudarem
@@ -185,20 +194,23 @@ export function MaterialSection({
                   novaQuantidade = (perimetroProdutoM * quantidadeProdutoNum).toFixed(2);
                 }
                 break;
-              // Fase 11: volume (LxAxP em m3) para produtos 3D. So calcula se temProfundidade=true.
-              // Quando o produto e 2D (temProfundidade=false), nao preenche - operador ve aviso na UI.
+              // Fase 11: volume (LxAxP em m3) para produtos 3D. obterVolumeM3 ja retorna 0
+              // quando profundidade <= 0; nesse caso o operador ve o aviso amarelo abaixo.
+              // Precisao 6 casas porque produtos pequenos em mm (ex.: letra caixa 50x50x50 mm)
+              // dao volume = 0.000125 m3, que arredondado a 3 casas vira 0.000 (silencioso).
               case 'M3': {
                 const volumeM3 = obterVolumeM3();
                 if (volumeM3 > 0) {
-                  novaQuantidade = (volumeM3 * quantidadeProdutoNum).toFixed(3);
+                  novaQuantidade = (volumeM3 * quantidadeProdutoNum).toFixed(6);
                 }
                 break;
               }
               // Fase 11: area lateral (caixa aberta, 4 laterais sem tampa/fundo) em m2.
+              // Precisao 4 casas para acomodar produtos pequenos (laterais finas).
               case 'M2_LATERAL': {
                 const areaLateralM2 = obterAreaLateralM2();
                 if (areaLateralM2 > 0) {
-                  novaQuantidade = (areaLateralM2 * quantidadeProdutoNum).toFixed(2);
+                  novaQuantidade = (areaLateralM2 * quantidadeProdutoNum).toFixed(4);
                 }
                 break;
               }
@@ -212,7 +224,7 @@ export function MaterialSection({
         }
       }
     });
-  }, [quantidadeProduto, areaProduto, larguraProduto, alturaProduto, unidadeGeometria, perimetroProduto, profundidadeProduto, temProfundidade, form, itemIndex, insumos]);
+  }, [quantidadeProduto, areaProduto, larguraProduto, alturaProduto, unidadeGeometria, perimetroProduto, profundidadeProduto, form, itemIndex, insumos]);
 
   const handleAddMaterial = () => {
     if (onAddMaterial) {
@@ -371,17 +383,19 @@ export function MaterialSection({
                 }
                 break;
               // Fase 11: volume e area lateral para produtos 3D.
+              // Mesma precisao dos campos auto-preenchidos (6 casas para M3, 4 para M2_LATERAL)
+              // para evitar exibir "Sugestao: 0.000 m3" em produtos pequenos.
               case 'M3': {
                 const volumeM3 = obterVolumeM3();
                 if (volumeM3 > 0) {
-                  sugestao = (volumeM3 * quantidadeProduto).toFixed(3);
+                  sugestao = (volumeM3 * quantidadeProduto).toFixed(6);
                 }
                 break;
               }
               case 'M2_LATERAL': {
                 const areaLateralM2 = obterAreaLateralM2();
                 if (areaLateralM2 > 0) {
-                  sugestao = (areaLateralM2 * quantidadeProduto).toFixed(2);
+                  sugestao = (areaLateralM2 * quantidadeProduto).toFixed(4);
                 }
                 break;
               }
@@ -448,8 +462,8 @@ export function MaterialSection({
                 const volumeTotal = volumeM3 * quantidadeProduto;
                 return `Volume: L x A x P = ${volumeM3.toFixed(4)}m³ × ${quantidadeProduto} unidades = ${volumeTotal.toFixed(4)}m³`;
               }
-              if (!temProfundidade) {
-                return 'Este insumo requer profundidade. Marque "Este produto tem profundidade (3D)" acima e preencha o valor.';
+              if (!temProfundidadeValida()) {
+                return 'Este insumo requer profundidade. Preencha o campo Profundidade em Geometria de produção.';
               }
             }
             if (insumoSelecionado.unidade_uso === 'M2_LATERAL') {
@@ -458,8 +472,8 @@ export function MaterialSection({
                 const areaTotal = areaLateralM2 * quantidadeProduto;
                 return `Área lateral (caixa aberta): (2L+2A) x P = ${areaLateralM2.toFixed(4)}m² × ${quantidadeProduto} unidades = ${areaTotal.toFixed(4)}m²`;
               }
-              if (!temProfundidade) {
-                return 'Este insumo requer profundidade. Marque "Este produto tem profundidade (3D)" acima e preencha o valor.';
+              if (!temProfundidadeValida()) {
+                return 'Este insumo requer profundidade. Preencha o campo Profundidade em Geometria de produção.';
               }
             }
             switch (insumoSelecionado.unidade_uso) {
@@ -682,14 +696,16 @@ export function MaterialSection({
               </div>
             </div>
             
-            {/* Fase 11: salvaguarda anti-erro - se o insumo exige profundidade mas o produto e 2D,
-                avisar o operador em vez de calcular com 0 silenciosamente. */}
+            {/* Fase 11: salvaguarda anti-erro - se o insumo exige profundidade mas o produto
+                nao tem profundidade preenchida, avisar o operador em vez de calcular com 0
+                silenciosamente. Usa o VALOR (temProfundidadeValida) como source-of-truth,
+                nao a flag tem_profundidade (que pode estar dessincronizada). */}
             {insumoSelecionado &&
               insumoExigeProfundidade(insumoSelecionado.unidade_uso) &&
-              !temProfundidade && (
+              !temProfundidadeValida() && (
                 <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 p-2 rounded">
                   Este insumo usa <strong>{insumoSelecionado.unidade_uso === 'M3' ? 'volume (m³)' : 'área lateral (m²)'}</strong> e requer profundidade do produto.
-                  Marque <em>&ldquo;Este produto tem profundidade (3D)&rdquo;</em> em <strong>Geometria de produção</strong> e preencha o valor para calcular automaticamente.
+                  Preencha o campo <em>Profundidade</em> em <strong>Geometria de produção</strong> para calcular automaticamente.
                 </div>
               )}
 
