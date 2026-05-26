@@ -22,7 +22,7 @@ import { Edit, Filter, Loader2, MoreHorizontal, Search, Share2, Trash2 } from 'l
 import { OrcamentoV2, useOrcamentosV2 } from './hooks/useOrcamentosV2';
 
 type StatusFilter = 'todos' | 'rascunho' | 'enviado';
-const DESCRICAO_MAX_CHARS = 140;
+const DESCRICAO_MAX_CHARS = 32;
 
 interface OrcamentosV2TableProps {
   onDelete?: (id: string, nome: string) => void;
