@@ -2209,17 +2209,23 @@ export class OSService {
   /**
    * Aprova OS técnica (workflow comercial)
    *
-   * `dataPrazo` (data fim de producao) e obrigatoria em fluxo padrao se a OS
-   * ainda nao tiver `data_prazo` definida. Aprovacao retroativa nao exige.
-   * `dataInicioPrevista` e sempre opcional.
+   * `prazosItens` carrega o par (inicio, fim) por servico/item da OS,
+   * definidos no modal de aprovacao. Em fluxo padrao todos os itens da OS
+   * precisam ter `data_prazo_produto`. Em fluxo retroativo o array e
+   * opcional. O service tambem atualiza o prazo guarda-chuva da OS
+   * (`data_prazo`) quando ele ainda nao existe, usando o maior prazo dos
+   * itens.
    */
   async aprovarOSTecnica(
     osId: string,
     usuarioId: string,
     aprovado: boolean,
     observacoes?: string,
-    dataInicioPrevista?: Date | null,
-    dataPrazo?: Date | null,
+    prazosItens?: Array<{
+      item_id: string;
+      data_inicio_producao?: Date;
+      data_prazo_produto?: Date;
+    }>,
   ): Promise<OrdemServicoData> {
     try {
       const os = await this.prisma.ordemServico.findUnique({
@@ -2325,39 +2331,20 @@ export class OSService {
           : 'Aprovação técnica aprovada (retroativa)'
         : 'Aprovação técnica rejeitada';
 
-      // Datas do plano de producao: em fluxo padrao a data fim e obrigatoria
-      // (evita OS aprovada sem prazo, que historicamente causou produtos
-      // travados no PCP). Em fluxo retroativo as datas sao opcionais.
-      let dataInicioPersist: Date | null | undefined = undefined;
-      let dataPrazoPersist: Date | null | undefined = undefined;
+      // Valida e prepara prazos por item. Em fluxo padrao todos os itens
+      // precisam ter data_prazo_produto. Em retroativo, o array e opcional.
+      const prazosPreparados = await this.validarEPrepararPrazosItens(
+        osId,
+        prazosItens || [],
+        eFluxoPadrao && aprovado,
+      );
 
-      if (aprovado) {
-        if (dataPrazo !== undefined && dataPrazo !== null) {
-          if (Number.isNaN(dataPrazo.getTime())) {
-            throw new BadRequestException('Data de prazo invalida');
-          }
-          dataPrazoPersist = dataPrazo;
-        } else if (eFluxoPadrao && !os.data_prazo) {
-          throw new BadRequestException(
-            'Defina a data de entrega antes de aprovar a OS',
-          );
-        }
-
-        if (dataInicioPrevista !== undefined && dataInicioPrevista !== null) {
-          if (Number.isNaN(dataInicioPrevista.getTime())) {
-            throw new BadRequestException('Data de inicio prevista invalida');
-          }
-          dataInicioPersist = dataInicioPrevista;
-        }
-
-        const inicioRef = dataInicioPersist ?? os.data_inicio_prevista ?? null;
-        const fimRef = dataPrazoPersist ?? os.data_prazo ?? null;
-        if (inicioRef && fimRef && inicioRef > fimRef) {
-          throw new BadRequestException(
-            'A data de inicio nao pode ser posterior a data de entrega',
-          );
-        }
-      }
+      // Atualiza prazo guarda-chuva da OS se ainda nao existir (usa max
+      // dos itens). Bloqueia se algum item exceder o prazo atual da OS.
+      const dataPrazoOS = this.calcularPrazoGuardaChuvaOS(
+        os.data_prazo,
+        prazosPreparados,
+      );
 
       const osAtualizada = await this.prisma.ordemServico.update({
         where: { id: osId },
@@ -2370,14 +2357,28 @@ export class OSService {
           modificado_por: usuarioId,
           motivo_modificacao: motivoModificacao,
           versao: { increment: 1 },
-          ...(dataInicioPersist !== undefined
-            ? { data_inicio_prevista: dataInicioPersist }
-            : {}),
-          ...(dataPrazoPersist !== undefined
-            ? { data_prazo: dataPrazoPersist }
-            : {}),
+          ...(dataPrazoOS !== undefined ? { data_prazo: dataPrazoOS } : {}),
         },
       });
+
+      // Persiste prazos por item em batch (apos atualizar a OS).
+      if (prazosPreparados.length > 0) {
+        await Promise.all(
+          prazosPreparados.map((p) =>
+            this.prisma.itemOS.update({
+              where: { id: p.item_id },
+              data: {
+                ...(p.data_inicio_producao !== undefined
+                  ? { data_inicio_producao: p.data_inicio_producao }
+                  : {}),
+                ...(p.data_prazo_produto !== undefined
+                  ? { data_prazo_produto: p.data_prazo_produto }
+                  : {}),
+              },
+            }),
+          ),
+        );
+      }
 
       // Registrar movimentacao com o status real anterior (pode ser FILA,
       // AGUARDANDO_APROVACAO_TECNICA ou qualquer status intermediario quando
@@ -2476,6 +2477,114 @@ export class OSService {
         }`,
       );
     }
+  }
+
+  /**
+   * Valida prazos por item enviados no modal de aprovacao. Em fluxo padrao
+   * (exigirCompleto=true) todos os itens da OS precisam ter
+   * `data_prazo_produto`. Cada par (inicio, fim) e validado individualmente.
+   */
+  private async validarEPrepararPrazosItens(
+    osId: string,
+    prazos: Array<{
+      item_id: string;
+      data_inicio_producao?: Date;
+      data_prazo_produto?: Date;
+    }>,
+    exigirCompleto: boolean,
+  ): Promise<
+    Array<{
+      item_id: string;
+      data_inicio_producao?: Date;
+      data_prazo_produto?: Date;
+    }>
+  > {
+    const itensDaOS = await this.prisma.itemOS.findMany({
+      where: { os_id: osId },
+      select: { id: true, produto_servico: true },
+    });
+    const idsValidos = new Set(itensDaOS.map((i) => i.id));
+    const indexPrazos = new Map(prazos.map((p) => [p.item_id, p]));
+
+    if (exigirCompleto) {
+      const semPrazo: string[] = [];
+      for (const item of itensDaOS) {
+        const p = indexPrazos.get(item.id);
+        if (!p?.data_prazo_produto) {
+          semPrazo.push(item.produto_servico);
+        }
+      }
+      if (semPrazo.length > 0) {
+        throw new BadRequestException(
+          `Defina a data de entrega de cada servico antes de aprovar: ${semPrazo.join(', ')}`,
+        );
+      }
+    }
+
+    for (const p of prazos) {
+      if (!idsValidos.has(p.item_id)) {
+        throw new BadRequestException(
+          `Item ${p.item_id} nao pertence a esta OS`,
+        );
+      }
+
+      if (p.data_inicio_producao && Number.isNaN(p.data_inicio_producao.getTime())) {
+        throw new BadRequestException(
+          `Data de inicio invalida no item ${p.item_id}`,
+        );
+      }
+      if (p.data_prazo_produto && Number.isNaN(p.data_prazo_produto.getTime())) {
+        throw new BadRequestException(
+          `Data de entrega invalida no item ${p.item_id}`,
+        );
+      }
+      if (
+        p.data_inicio_producao &&
+        p.data_prazo_produto &&
+        p.data_inicio_producao > p.data_prazo_produto
+      ) {
+        throw new BadRequestException(
+          `Data de inicio nao pode ser posterior a data de entrega (item ${p.item_id})`,
+        );
+      }
+    }
+
+    return prazos;
+  }
+
+  /**
+   * Calcula o prazo guarda-chuva (`OrdemServico.data_prazo`) com base nos
+   * prazos individuais dos itens.
+   *  - Se a OS ainda nao tem `data_prazo` e algum item tem
+   *    `data_prazo_produto`: retorna o maior `data_prazo_produto`.
+   *  - Se ja tem `data_prazo` e algum item o excede: 400.
+   *  - Caso contrario: undefined (nao atualizar).
+   */
+  private calcularPrazoGuardaChuvaOS(
+    dataPrazoAtual: Date | null,
+    prazosItens: Array<{ data_prazo_produto?: Date }>,
+  ): Date | undefined {
+    const fins = prazosItens
+      .map((p) => p.data_prazo_produto)
+      .filter((d): d is Date => !!d);
+
+    if (fins.length === 0) {
+      return undefined;
+    }
+
+    const maiorFim = fins.reduce((max, d) => (d > max ? d : max));
+
+    if (!dataPrazoAtual) {
+      return maiorFim;
+    }
+
+    if (maiorFim > dataPrazoAtual) {
+      throw new BadRequestException(
+        'Algum servico tem prazo maior que o prazo limite atual da OS. Atualize o prazo da OS antes.',
+      );
+    }
+
+    return undefined;
   }
 
   // ===== MÉTODOS DE VALIDAÇÃO PARA WORKFLOW INTERNA =====

@@ -1,10 +1,32 @@
 import {
+  IsArray,
   IsBoolean,
   IsDateString,
   IsOptional,
   IsString,
   MaxLength,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+/**
+ * Prazo individual de um item da OS, enviado pelo modal de aprovacao.
+ * Cada serviço/produto da OS pode ter seu proprio par (inicio, fim).
+ */
+export class PrazoItemAprovacaoDto {
+  @IsString()
+  item_id: string;
+
+  @IsOptional()
+  @IsDateString()
+  data_inicio_producao?: string;
+
+  // Em fluxo padrao a data_prazo_produto e obrigatoria por item, mas a
+  // validacao final fica no service (porque depende de eFluxoPadrao).
+  @IsOptional()
+  @IsDateString()
+  data_prazo_produto?: string;
+}
 
 export class AprovarTecnicaDto {
   @IsBoolean()
@@ -15,17 +37,14 @@ export class AprovarTecnicaDto {
   @MaxLength(1000)
   observacoes?: string;
 
-  // Datas do plano de producao definidas no proprio modal de aprovacao.
-  // Sao opcionais no DTO porque a aprovacao retroativa (OS ja avancada no
-  // operacional) nao deve forcar o usuario a redefinir prazo. O service
-  // exige data_prazo apenas em fluxo padrao.
+  // Prazos por item da OS, definidos no proprio modal de aprovacao.
+  // Em fluxo padrao todos os itens da OS precisam ter data_prazo_produto.
+  // Em fluxo retroativo o array pode ser omitido (a OS ja andou).
   @IsOptional()
-  @IsDateString()
-  data_inicio_prevista?: string;
-
-  @IsOptional()
-  @IsDateString()
-  data_prazo?: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PrazoItemAprovacaoDto)
+  prazos_itens?: PrazoItemAprovacaoDto[];
 }
 
 export class AgendarInstalacaoDto {
@@ -38,6 +57,14 @@ export class AgendarInstalacaoDto {
   observacoes?: string;
 }
 
+export class ItemAprovacaoInfo {
+  item_id: string;
+  produto_servico: string;
+  data_inicio_producao?: Date | null;
+  data_prazo_produto?: Date | null;
+  status_liberacao_pcp?: string | null;
+}
+
 export class AprovacaoTecnicaResponseDto {
   id: string;
   status: string;
@@ -47,10 +74,12 @@ export class AprovacaoTecnicaResponseDto {
   aprovacao_tecnica_obs?: string;
   data_instalacao_agendada?: Date;
   observacoes_instalacao?: string;
-  // Prazos atuais para que o modal de aprovacao consiga pre-preencher os
-  // campos editaveis (data inicio prevista e data de entrega).
-  data_inicio_prevista?: Date | null;
+  // Prazo guarda-chuva da OS (limite global). Cada item pode ter seu proprio
+  // prazo individual menor ou igual.
   data_prazo?: Date | null;
+  // Lista de itens da OS com seus prazos atuais, para o modal pre-preencher
+  // o card de cada servico.
+  itens?: ItemAprovacaoInfo[];
   validacoes: {
     estoque_ok: boolean;
     arte_anexada: boolean;

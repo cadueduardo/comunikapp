@@ -1151,5 +1151,66 @@ Sequência típica do bug:
 - O `prisma db push` foi usado em vez de `migrate dev`. Para deploy em produção, considerar transformar em migration formal antes do release.
 - Frontend: os arquivos pré-existentes do projeto têm erros TS que **não** são causados por esta sessão. Não foi feita limpeza geral.
 
-**Última atualização:** 2026-05-25 (sessão tardia: prazo obrigatório no modal de aprovação + auto-liberação ao definir prazo do produto + endpoint admin reconcilia itens).
+### 4.13 Correção do modelo: prazos por serviço (não pela OS inteira) (2026-05-25)
+
+**Feedback do usuário (literal):** *"o prazo é por serviço na OS e não nela inteira... Eu posso liberar para a OS completa, mas posso colocar prazos diferentes para cada serviço nela"*.
+
+Eu havia interpretado mal a seção 4.12: adicionei `data_inicio_prevista` no `OrdemServico` e construí o modal com 2 campos no nível da OS. O modelo correto é:
+
+- `OrdemServico.data_prazo` = prazo guarda-chuva (data limite global).
+- `ItemOS.data_inicio_producao` + `ItemOS.data_prazo_produto` = prazos por serviço (já existiam no schema).
+- Cada serviço pode ter prazo diferente, todos `<= OrdemServico.data_prazo`.
+
+**Mudanças aplicadas (revertendo/corrigindo a 4.12):**
+
+**Schema (`backend/prisma/schema.prisma`):**
+
+- Coluna `data_inicio_prevista` removida do `OrdemServico` (db push). Não chegou a ir para produção.
+
+**Backend — DTO (`aprovacao-tecnica.dto.ts`):**
+
+- `AprovarTecnicaDto` ganhou `prazos_itens?: PrazoItemAprovacaoDto[]`. Cada item carrega `item_id`, `data_inicio_producao?`, `data_prazo_produto?` (strings ISO).
+- `AprovacaoTecnicaResponseDto` perdeu `data_inicio_prevista` e ganhou `itens?: ItemAprovacaoInfo[]` com os prazos atuais de cada `ItemOS`.
+
+**Backend — `aprovacao-tecnica.service.ts`:**
+
+- `aprovarTecnica` agora chama dois helpers privados antes do update:
+  - `validarEPrepararPrazosItens(osId, prazos, exigirCompleto)`: garante que todos os `item_id` pertencem à OS, valida `inicio <= fim` por item, e em fluxo padrão exige `data_prazo_produto` em **todos** os itens (mensagem identifica o serviço faltante).
+  - `calcularPrazoGuardaChuva(dataPrazoAtual, prazos)`: se a OS ainda não tem `data_prazo`, usa o maior `data_prazo_produto`. Se já tem e algum item excede, bloqueia com 400.
+- Persistência dos prazos por item feita em batch com `Promise.all(prisma.itemOS.update(...))` após o `update` da OS.
+- `getStatusAprovacao` agora carrega `os.itens` (select limitado) e devolve a lista no response.
+
+**Backend — `os.service.ts`:**
+
+- `aprovarOSTecnica` mudou a assinatura: removidos `dataInicioPrevista?` e `dataPrazo?`, adicionado `prazosItens?: Array<{ item_id, data_inicio_producao?, data_prazo_produto? }>`.
+- Helpers privados duplicados (`validarEPrepararPrazosItens` + `calcularPrazoGuardaChuvaOS`) com a mesma lógica. (Decisão consciente: manter cada service autocontido para não introduzir dependência cruzada.)
+
+**Backend — controllers (`workflow-comercial.controller.ts` e `os-direta-interna.controller.ts`):**
+
+- Body agora declara `prazos_itens?: Array<{ item_id, data_inicio_producao?, data_prazo_produto? }>` (strings).
+- Conversão para Date feita no controller; campos vazios → `undefined` (não atualizar).
+
+**Frontend (`AprovarOSModal.tsx`):**
+
+- Modal renderiza um card "Plano de produção por serviço" com **uma linha por `ItemOS`**, cada uma com inputs `type="date"` de início e fim.
+- Pré-preenchimento por serviço:
+  - Início: `data_inicio_producao` atual do item OU hoje.
+  - Fim: `data_prazo_produto` atual do item OU `data_prazo` da OS OU hoje+7.
+- Validação em tempo real (`useMemo`):
+  - Em fluxo padrão, `data_fim` é obrigatória em todos os serviços.
+  - `data_inicio <= data_fim` por item.
+  - `data_fim` não pode exceder `data_prazo` da OS (input `max` + erro inline).
+- Botão "Aprovar" desabilitado se algum item inválido (apenas em fluxo padrão).
+- Payload enviado: `prazos_itens: [{ item_id, data_inicio_producao, data_prazo_produto }]`.
+- `prazoOSLabel` mostrado no canto superior do card como info read-only (formato `pt-BR`).
+- Modal alargado para `sm:max-w-2xl` e com scroll vertical (`max-h-[90vh] overflow-y-auto`) para OSs com muitos serviços.
+
+**Pontos de atenção:**
+
+- `OSPrazoService.definirPrazo` e `OSProdutoPrazoService.definirPrazoProduto` continuam funcionando para edições posteriores. A 4.12 já garantiu que alterar prazo do produto auto-libera para PCP se a OS estiver aprovada — esse comportamento permanece.
+- A "data de início" da OS como um todo deixa de existir. Se algum relatório futuro precisar de "início consolidado", pode calcular `min(data_inicio_producao)` dos itens em tempo de leitura.
+- Os helpers `validarEPrepararPrazosItens` ficaram duplicados em `AprovacaoTecnicaService` e `OSService`. Se a equipe quiser DRY, pode extrair para um util compartilhado — preferi manter explícito por enquanto.
+- `prisma db push` foi usado para remover a coluna `data_inicio_prevista` adicionada na 4.12. Se a 4.12 já tinha ido para produção em algum ambiente, vai precisar de migration. **Não foi para produção neste branch.**
+
+**Última atualização:** 2026-05-25 (sessão tardia 2: prazos por serviço no modal de aprovação, revertendo a tentativa de prazos no nível da OS da 4.12).
 Branch `feature/home-operacional-dashboard`.

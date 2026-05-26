@@ -71,8 +71,11 @@ export class WorkflowComercialController {
     body: {
       aprovado: boolean;
       observacoes?: string;
-      data_inicio_prevista?: string;
-      data_prazo?: string;
+      prazos_itens?: Array<{
+        item_id: string;
+        data_inicio_producao?: string;
+        data_prazo_produto?: string;
+      }>;
     },
     @Request() req: any,
   ) {
@@ -86,20 +89,24 @@ export class WorkflowComercialController {
 
     const usuarioId = user.id;
 
-    // Converte strings ISO em Date apenas quando enviadas. `undefined` mantem
-    // o valor atual no banco; nao confundir com "limpar".
-    const dataInicioPrevista = body.data_inicio_prevista
-      ? new Date(body.data_inicio_prevista)
-      : undefined;
-    const dataPrazo = body.data_prazo ? new Date(body.data_prazo) : undefined;
+    // Converte strings ISO em Date por item. Campos ausentes permanecem
+    // undefined (= nao atualizar).
+    const prazosItens = body.prazos_itens?.map((p) => ({
+      item_id: p.item_id,
+      ...(p.data_inicio_producao
+        ? { data_inicio_producao: new Date(p.data_inicio_producao) }
+        : {}),
+      ...(p.data_prazo_produto
+        ? { data_prazo_produto: new Date(p.data_prazo_produto) }
+        : {}),
+    }));
 
     return await this.osService.aprovarOSTecnica(
       osId,
       usuarioId,
       body.aprovado,
       body.observacoes,
-      dataInicioPrevista,
-      dataPrazo,
+      prazosItens,
     );
   }
 
