@@ -29,8 +29,36 @@ import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/contexts/UserContext';
 import { ImageUpload } from '@/components/ui/ImageUpload';
-import { formatCurrency, parseCurrency } from '@/lib/utils';
 import { buildApiUrl } from '@/lib/config';
+
+const formatPercentage = (value: unknown): string => {
+  if (value === null || value === undefined || value === '') return '';
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) return '';
+
+  return new Intl.NumberFormat('pt-BR', {
+    minimumFractionDigits: Number.isInteger(numberValue) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(numberValue);
+};
+
+const normalizePercentageInput = (value: string): string =>
+  value.replace(/[^\d,.-]/g, '');
+
+const parsePercentage = (value?: string): number | null => {
+  if (value === undefined) return null;
+  const cleaned = value
+    .trim()
+    .replace(/\s/g, '')
+    .replace(/%/g, '');
+  const normalized = cleaned.includes(',')
+    ? cleaned.replace(/\./g, '').replace(',', '.')
+    : cleaned;
+
+  if (normalized === '') return null;
+  const numberValue = Number(normalized);
+  return Number.isFinite(numberValue) ? numberValue : null;
+};
 
 const formSchema = z.object({
   logo_url: z.string().optional(),
@@ -66,8 +94,8 @@ export default function ConfiguracoesLojaPage() {
       const initialValues = {
         logo_url: loja.logo_url ?? '',
         cabecalho_orcamento: loja.cabecalho_orcamento ?? '',
-        margem_lucro_padrao: formatCurrency(loja.margem_lucro_padrao, false, true),
-        impostos_padrao: formatCurrency(loja.impostos_padrao, false, true),
+        margem_lucro_padrao: formatPercentage(loja.margem_lucro_padrao),
+        impostos_padrao: formatPercentage(loja.impostos_padrao),
         horas_produtivas_mensais: String(loja.horas_produtivas_mensais ?? 352),
         tipo_margem_lucro: (loja.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro') as 'markup' | 'margem_por_dentro',
       };
@@ -111,8 +139,10 @@ export default function ConfiguracoesLojaPage() {
       
       // Adicionar apenas campos que não estão vazios
       if (values.cabecalho_orcamento) payload.cabecalho_orcamento = values.cabecalho_orcamento;
-      if (values.margem_lucro_padrao) payload.margem_lucro_padrao = String(parseCurrency(values.margem_lucro_padrao));
-      if (values.impostos_padrao) payload.impostos_padrao = String(parseCurrency(values.impostos_padrao));
+      const margemLucroPadrao = parsePercentage(values.margem_lucro_padrao);
+      const impostosPadrao = parsePercentage(values.impostos_padrao);
+      if (margemLucroPadrao !== null) payload.margem_lucro_padrao = String(margemLucroPadrao);
+      if (impostosPadrao !== null) payload.impostos_padrao = String(impostosPadrao);
       if (values.horas_produtivas_mensais) payload.horas_produtivas_mensais = String(parseInt(values.horas_produtivas_mensais));
       if (values.tipo_margem_lucro) payload.tipo_margem_lucro = values.tipo_margem_lucro;
 
@@ -248,9 +278,10 @@ export default function ConfiguracoesLojaPage() {
                     <FormLabel>Margem de Lucro Padrão (%)</FormLabel>
                     <FormControl>
                       <Input 
-                        placeholder="100,00 %" 
+                        placeholder="30"
                         {...field} 
-                        onChange={(e) => field.onChange(formatCurrency(e.target.value, false))}
+                        inputMode="decimal"
+                        onChange={(e) => field.onChange(normalizePercentageInput(e.target.value))}
                       />
                     </FormControl>
                     <FormMessage />
@@ -265,9 +296,10 @@ export default function ConfiguracoesLojaPage() {
                     <FormLabel>Impostos Padrão (%)</FormLabel>
                     <FormControl>
                       <Input 
-                        placeholder="10,00 %" 
+                        placeholder="18"
                         {...field} 
-                        onChange={(e) => field.onChange(formatCurrency(e.target.value, false))}
+                        inputMode="decimal"
+                        onChange={(e) => field.onChange(normalizePercentageInput(e.target.value))}
                       />
                     </FormControl>
                     <FormMessage />

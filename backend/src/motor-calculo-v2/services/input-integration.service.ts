@@ -98,14 +98,16 @@ export class InputIntegrationService {
         erros.push('Configurações não informadas');
       } else {
         if (
-          !contexto.configuracoes.margem_lucro_padrao ||
-          contexto.configuracoes.margem_lucro_padrao <= 0
+          contexto.configuracoes.margem_lucro_padrao == null ||
+          !Number.isFinite(Number(contexto.configuracoes.margem_lucro_padrao)) ||
+          contexto.configuracoes.margem_lucro_padrao < 0
         ) {
           avisos.push('Margem de lucro não configurada - usando padrão (30%)');
         }
         if (
-          !contexto.configuracoes.impostos_padrao ||
-          contexto.configuracoes.impostos_padrao <= 0
+          contexto.configuracoes.impostos_padrao == null ||
+          !Number.isFinite(Number(contexto.configuracoes.impostos_padrao)) ||
+          contexto.configuracoes.impostos_padrao < 0
         ) {
           avisos.push('Impostos não configurados - usando padrão (18%)');
         }

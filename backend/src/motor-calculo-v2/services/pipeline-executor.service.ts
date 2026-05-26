@@ -18,6 +18,11 @@ export class PipelineExecutorService {
     private readonly rateioCustosIndiretos: RateioCustosIndiretosService,
   ) {}
 
+  private percentualOuPadrao(value: unknown, fallback: number): number {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
   /**
    * Executa pipeline completo de estágios
    * Sistema configurável e extensível
@@ -392,9 +397,18 @@ export class PipelineExecutorService {
       (resultado.custo_mao_obra || 0) +
       (resultado.custo_indiretos || 0);
 
-    const percentualMargem = contexto.configuracoes.margem_lucro_padrao || 30;
-    const percentualImpostos = contexto.configuracoes.impostos_padrao || 18;
-    const percentualComissao = contexto.configuracoes.comissao_padrao || 5;
+    const percentualMargem = this.percentualOuPadrao(
+      contexto.configuracoes.margem_lucro_padrao,
+      30,
+    );
+    const percentualImpostos = this.percentualOuPadrao(
+      contexto.configuracoes.impostos_padrao,
+      18,
+    );
+    const percentualComissao = this.percentualOuPadrao(
+      contexto.configuracoes.comissao_padrao,
+      5,
+    );
 
     // Fórmula correta: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
     // Isso garante que a margem de lucro seja aplicada APÓS impostos e comissão
@@ -446,7 +460,10 @@ export class PipelineExecutorService {
     // Esta função agora apenas retorna os dados já calculados
     const impostos = resultado.impostos_valor || 0;
     const precoFinal = resultado.preco_final || 0;
-    const percentualImpostos = contexto.configuracoes.impostos_padrao || 18;
+    const percentualImpostos = this.percentualOuPadrao(
+      contexto.configuracoes.impostos_padrao,
+      18,
+    );
 
     const dados = {
       impostos: impostos,
@@ -526,9 +543,9 @@ export class PipelineExecutorService {
   private processarContextoComercial(configuracoes: any, dados: any): any {
     return {
       margem_lucro_aplicada:
-        dados.percentual_aplicado || configuracoes.margem_lucro_padrao,
+        dados.percentual_aplicado ?? configuracoes.margem_lucro_padrao,
       impostos_aplicados:
-        dados.percentual_aplicado || configuracoes.impostos_padrao,
+        dados.percentual_aplicado ?? configuracoes.impostos_padrao,
     };
   }
 }

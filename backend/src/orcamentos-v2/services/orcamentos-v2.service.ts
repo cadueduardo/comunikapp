@@ -149,6 +149,11 @@ export class OrcamentosV2Service {
         const n = Number(value);
         return Number.isFinite(n) ? n : 0;
       };
+      const optionalNumber = (value: unknown): number | undefined => {
+        if (value === null || value === undefined || value === '') return undefined;
+        const n = Number(value);
+        return Number.isFinite(n) ? n : undefined;
+      };
       const possuiCustosCalculadosNoPayload =
         dados.preco_final != null &&
         dados.custo_total != null &&
@@ -167,9 +172,9 @@ export class OrcamentosV2Service {
           tipo_margem_lucro:
             dados.tipo_margem_lucro ?? dados.configuracoes?.tipo_margem_lucro,
           configuracoes: {
-            margem_lucro_padrao: Number(dados.margem_lucro_customizada) || undefined,
-            impostos_padrao: Number(dados.impostos_customizados) || undefined,
-            comissao_padrao: Number(dados.comissao_percentual) || undefined,
+            margem_lucro_padrao: optionalNumber(dados.margem_lucro_customizada),
+            impostos_padrao: optionalNumber(dados.impostos_customizados),
+            comissao_padrao: optionalNumber(dados.comissao_percentual),
             tipo_margem_lucro:
               dados.tipo_margem_lucro ?? dados.configuracoes?.tipo_margem_lucro,
           },

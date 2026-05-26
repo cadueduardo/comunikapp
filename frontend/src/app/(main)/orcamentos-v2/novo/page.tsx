@@ -154,7 +154,7 @@ export default function NovoOrcamentoV2Page() {
           const parsePercentual = (value: unknown, fallback: number): string => {
             const n = Number(value);
             // Tratar 0 como "não definido" para usar fallback (evita zerar margem/impostos ao reabrir)
-            if (!Number.isFinite(n) || n <= 0) return String(fallback);
+            if (!Number.isFinite(n) || n < 0) return String(fallback);
             return String(n);
           };
           const parseConfig = (raw: unknown): Record<string, unknown> => {

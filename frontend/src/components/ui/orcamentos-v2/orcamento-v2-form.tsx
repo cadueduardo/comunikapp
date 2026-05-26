@@ -97,6 +97,12 @@ const formatNumeroFormulario = (valor: number, precision = 3): string => {
   return normalized.toString();
 };
 
+const percentualOuPadrao = (valor: unknown, fallback: number): number => {
+  if (valor === null || valor === undefined || valor === '') return fallback;
+  const parsed = parseNumeroInicial(valor);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 const deveMultiplicarMaterialPreview = (unidade?: string | null): boolean => {
   if (!unidade || typeof unidade !== 'string') {
     return false;
@@ -198,9 +204,9 @@ export function OrcamentoV2Form({
       }
 
       const custosIndiretosPercentual = 15;
-      const margemPercentual = parseFloat(formData?.margem_lucro_customizada || '30');
-      const impostosPercentual = parseFloat(formData?.impostos_customizados || '18');
-      const comissaoPercentual = parseFloat(formData?.comissao_percentual || '5');
+      const margemPercentual = percentualOuPadrao(formData?.margem_lucro_customizada, 30);
+      const impostosPercentual = percentualOuPadrao(formData?.impostos_customizados, 18);
+      const comissaoPercentual = percentualOuPadrao(formData?.comissao_percentual, 5);
       const tipoMargemLucro =
         formData?.tipo_margem_lucro
           ? (formData.tipo_margem_lucro as 'markup' | 'margem_por_dentro')
@@ -267,6 +273,30 @@ export function OrcamentoV2Form({
   });
   
   // Função para calcular dados quando necessário (sem useEffect)
+  const lojaDefaultsAplicadosRef = useRef(false);
+
+  useEffect(() => {
+    if (mode !== 'novo' || lojaDefaultsAplicadosRef.current || !user?.loja) {
+      return;
+    }
+
+    const loja = user.loja as any;
+    form.reset({
+      ...form.getValues(),
+      margem_lucro_customizada: formatNumeroFormulario(
+        percentualOuPadrao(loja.margem_lucro_padrao, 30),
+        2,
+      ),
+      impostos_customizados: formatNumeroFormulario(
+        percentualOuPadrao(loja.impostos_padrao, 25),
+        2,
+      ),
+      tipo_margem_lucro:
+        loja.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro',
+    });
+    lojaDefaultsAplicadosRef.current = true;
+  }, [form, mode, user?.loja]);
+
   const calcularDadosQuandoNecessario = () => {
     const formData = form.getValues();
     console.log('🔍 Debug - FormData para cálculo:', formData);
@@ -298,9 +328,9 @@ export function OrcamentoV2Form({
             calculoLocal.totais.indiretos
         : 0,
     );
-    const margemInicial = parseNumeroInicial(formData.margem_lucro_customizada) || 30;
-    const impostosInicial = parseNumeroInicial(formData.impostos_customizados) || 18;
-    const comissaoInicial = parseNumeroInicial(formData.comissao_percentual) || 5;
+    const margemInicial = percentualOuPadrao(formData.margem_lucro_customizada, 30);
+    const impostosInicial = percentualOuPadrao(formData.impostos_customizados, 18);
+    const comissaoInicial = percentualOuPadrao(formData.comissao_percentual, 5);
     const tipoInicial =
       formData.tipo_margem_lucro ||
       (user?.loja?.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro');
@@ -340,8 +370,8 @@ export function OrcamentoV2Form({
       const dadosFormatados = {
         cliente_id: String(initialData.cliente_id || ''),
         titulo: String(initialData.titulo || ''),
-        margem_lucro_customizada: String(initialData.margem_lucro_customizada || '30'),
-        impostos_customizados: String(initialData.impostos_customizados || '25'),
+        margem_lucro_customizada: String(initialData.margem_lucro_customizada ?? '30'),
+        impostos_customizados: String(initialData.impostos_customizados ?? '25'),
         comissao_percentual: String(initialData.comissao_percentual ?? '5'),
         tipo_margem_lucro: String(
           initialData.tipo_margem_lucro ?? configuracoesIniciais?.tipo_margem_lucro ?? '',
@@ -533,9 +563,9 @@ export function OrcamentoV2Form({
 
     // Definir variáveis de percentuais que estavam faltando
     const custosIndiretosPercentual = 15; // Valor padrão
-    const margemPercentual = parseFloat(data?.margem_lucro_customizada || '30');
-    const impostosPercentual = parseFloat(data?.impostos_customizados || '25');
-    const comissaoPercentual = parseFloat(data?.comissao_percentual || '5');
+    const margemPercentual = percentualOuPadrao(data?.margem_lucro_customizada, 30);
+    const impostosPercentual = percentualOuPadrao(data?.impostos_customizados, 25);
+    const comissaoPercentual = percentualOuPadrao(data?.comissao_percentual, 5);
 
     const normalizarNumero = (valor: unknown): number => {
       if (typeof valor === 'number') return valor;

@@ -71,7 +71,7 @@ export class BusinessRulesEngineService {
         acao: 'aplicar_margem_minima',
         parametros: { margem_minima: 15 },
         ordem: 2,
-        ativo: true,
+        ativo: false,
         loja_id: lojaId,
       },
     ];
@@ -200,8 +200,9 @@ export class BusinessRulesEngineService {
       case 'margem_lucro':
         if (
           !contexto.configuracoes ||
-          !contexto.configuracoes.margem_lucro_padrao ||
-          contexto.configuracoes.margem_lucro_padrao <= 0
+          contexto.configuracoes.margem_lucro_padrao == null ||
+          !Number.isFinite(Number(contexto.configuracoes.margem_lucro_padrao)) ||
+          contexto.configuracoes.margem_lucro_padrao < 0
         ) {
           return false;
         }
@@ -209,8 +210,9 @@ export class BusinessRulesEngineService {
       case 'impostos_configurados':
         if (
           !contexto.configuracoes ||
-          !contexto.configuracoes.impostos_padrao ||
-          contexto.configuracoes.impostos_padrao <= 0
+          contexto.configuracoes.impostos_padrao == null ||
+          !Number.isFinite(Number(contexto.configuracoes.impostos_padrao)) ||
+          contexto.configuracoes.impostos_padrao < 0
         ) {
           return false;
         }

@@ -46,7 +46,7 @@ export class TransformacaoV2Service {
     if (!config) return false;
 
     const numeroValido = (value: unknown): boolean =>
-      typeof value === 'number' && Number.isFinite(value) && value > 0;
+      typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
     const tipoRaw =
       config.tipo_margem_lucro != null
@@ -378,12 +378,12 @@ export class TransformacaoV2Service {
       // Só expor número quando for > 0; 0 ou vazio = undefined para o form usar fallback (30/25).
       margem_lucro_customizada:
         configuracoesPersistidas?.margem_lucro_padrao != null &&
-        Number(configuracoesPersistidas.margem_lucro_padrao) > 0
+        Number.isFinite(Number(configuracoesPersistidas.margem_lucro_padrao))
           ? Number(configuracoesPersistidas.margem_lucro_padrao)
           : undefined,
       impostos_customizados:
         configuracoesPersistidas?.impostos_padrao != null &&
-        Number(configuracoesPersistidas.impostos_padrao) > 0
+        Number.isFinite(Number(configuracoesPersistidas.impostos_padrao))
           ? Number(configuracoesPersistidas.impostos_padrao)
           : undefined,
       tipo_margem_lucro: (() => {

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
 import { MotorCalculoV2Service } from '../../motor-calculo-v2/services/motor-calculo-v2.service';
 import {
   OrcamentoCompleto,
@@ -19,7 +20,10 @@ import {
 export class IntegracaoMotorService {
   private readonly logger = new Logger(IntegracaoMotorService.name);
 
-  constructor(private readonly motorCalculoV2Service: MotorCalculoV2Service) {}
+  constructor(
+    private readonly motorCalculoV2Service: MotorCalculoV2Service,
+    private readonly prisma: PrismaService,
+  ) {}
 
   /**
    * Calcula orçamento completo usando o motor V2
@@ -142,12 +146,24 @@ export class IntegracaoMotorService {
 
     try {
       // Motor não expõe configurações específicas: retornar defaults adequados
+      const loja = await this.prisma.loja.findUnique({
+        where: { id: lojaId },
+        select: {
+          margem_lucro_padrao: true,
+          impostos_padrao: true,
+          custos_indiretos_mensais: true,
+          horas_produtivas_mensais: true,
+          tipo_margem_lucro: true,
+        },
+      });
+
       return this.converterConfiguracoesMotor({
-        margem_lucro_padrao: 30,
-        impostos_padrao: 18,
-        custos_indiretos_padrao: 15,
-        horas_produtivas_mensais: 160,
-        custos_indiretos_mensais: 0,
+        margem_lucro_padrao: loja?.margem_lucro_padrao ?? 30,
+        impostos_padrao: loja?.impostos_padrao ?? 18,
+        custos_indiretos_padrao: 0,
+        horas_produtivas_mensais: loja?.horas_produtivas_mensais ?? 160,
+        custos_indiretos_mensais: loja?.custos_indiretos_mensais ?? 0,
+        tipo_margem_lucro: loja?.tipo_margem_lucro ?? 'margem_por_dentro',
         regras_especiais: [],
       });
     } catch (error) {
@@ -397,14 +413,20 @@ export class IntegracaoMotorService {
   private converterConfiguracoesMotor(
     configuracoesMotor: any,
   ): ConfiguracaoCalculo {
+    const toNumber = (value: unknown, fallback = 0): number => {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : fallback;
+    };
+
     // Converter configurações do motor para formato do orçamento
     return {
-      margem_lucro_padrao: configuracoesMotor.margem_lucro_padrao || 0,
-      impostos_padrao: configuracoesMotor.impostos_padrao || 0,
-      custos_indiretos_padrao: configuracoesMotor.custos_indiretos_padrao || 0,
+      margem_lucro_padrao: toNumber(configuracoesMotor.margem_lucro_padrao),
+      impostos_padrao: toNumber(configuracoesMotor.impostos_padrao),
+      custos_indiretos_padrao: toNumber(configuracoesMotor.custos_indiretos_padrao),
       horas_produtivas_mensais:
-        configuracoesMotor.horas_produtivas_mensais || 0,
-      custos_indiretos_mensais: configuracoesMotor.custos_indiretos_mensais,
+        toNumber(configuracoesMotor.horas_produtivas_mensais),
+      custos_indiretos_mensais: toNumber(configuracoesMotor.custos_indiretos_mensais),
+      tipo_margem_lucro: configuracoesMotor.tipo_margem_lucro,
       regras_especiais: configuracoesMotor.regras_especiais || [],
     };
   }
