@@ -33,6 +33,7 @@ import {
   type GeometriaCalculada,
   type GeometriaValor,
 } from '@/components/orcamentos-v2/QuickGeometryInput';
+import { AnexoGeometriaInput } from '@/components/orcamentos-v2/AnexoGeometriaInput';
 import { MaterialSection, MaquinaSection, FuncaoSection, ServicoSection } from '../../shared/sections';
 
 interface ProdutoSectionProps {
@@ -123,6 +124,10 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
   };
 
   // Atualiza a geometria sem misturar unidade produtiva com unidade comercial.
+  // Importante: a `geometria_origem` só vira `MANUAL` aqui quando o operador
+  // edita largura/altura. Se o produto já tem um anexo (IMAGEM/DXF), o campo
+  // foi ajustado pelo `atualizarAnexoGeometria` e não deve regredir só porque
+  // o operador conferiu a medida manualmente.
   const atualizarGeometria = (
     itemIndex: number,
     valor: GeometriaValor,
@@ -145,7 +150,42 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
       String(calculada.perimetro_mm),
       { shouldDirty: true },
     );
-    form.setValue(`itens_produto.${itemIndex}.geometria_origem`, 'MANUAL', {
+    const origemAtual = form.getValues(
+      `itens_produto.${itemIndex}.geometria_origem`,
+    );
+    if (origemAtual !== 'IMAGEM' && origemAtual !== 'DXF') {
+      form.setValue(`itens_produto.${itemIndex}.geometria_origem`, 'MANUAL', {
+        shouldDirty: true,
+      });
+    }
+  };
+
+  // Atualiza o anexo de geometria do produto. A categoria (IMAGEM/DXF) é
+  // devolvida pelo backend no momento do upload e usada para refletir em
+  // `geometria_origem`. Quando o anexo é removido (url=null), volta para
+  // MANUAL.
+  const atualizarAnexoGeometria = (
+    itemIndex: number,
+    url: string | null,
+    categoria: 'IMAGEM' | 'DXF' | null,
+  ) => {
+    form.setValue(`itens_produto.${itemIndex}.arquivo_geometria_url`, url || '', {
+      shouldDirty: true,
+    });
+    const novaOrigem = url && categoria ? categoria : 'MANUAL';
+    form.setValue(`itens_produto.${itemIndex}.geometria_origem`, novaOrigem, {
+      shouldDirty: true,
+    });
+  };
+
+  // Sugere preenchimento do "Nome do Produto" a partir do nome do arquivo DXF
+  // — apenas quando o campo estiver vazio. Decisão registrada na Fase 7.A:
+  // nunca sobrescrever digitação do operador.
+  const sugerirNomeProduto = (itemIndex: number, sugestao: string) => {
+    const atual = form.getValues(`itens_produto.${itemIndex}.nome_servico`);
+    if (atual && String(atual).trim().length > 0) return;
+    if (!sugestao || sugestao.trim().length === 0) return;
+    form.setValue(`itens_produto.${itemIndex}.nome_servico`, sugestao.trim(), {
       shouldDirty: true,
     });
   };
@@ -204,7 +244,28 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
               </AccordionTrigger>
               <AccordionContent>
                 <CardContent className="space-y-6">
-                                     {/* Informações do Produto */}
+                  {/* Anexo de geometria (imagem ou DXF) — sempre no TOPO do
+                      card. Aceita Ctrl+V, drag-and-drop e clique. A imagem
+                      anexada aqui vira a arte da OS gerada (decisão da
+                      Fase 7.A). */}
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">
+                      Imagem do produto / DXF
+                    </h4>
+                    <AnexoGeometriaInput
+                      value={
+                        (form.watch(
+                          `itens_produto.${index}.arquivo_geometria_url`,
+                        ) as string | undefined) || null
+                      }
+                      onChange={(url, categoria) => {
+                        atualizarAnexoGeometria(index, url, categoria);
+                      }}
+                      onNomeSugerido={(sug) => sugerirNomeProduto(index, sug)}
+                    />
+                  </div>
+
+                  {/* Informações do Produto */}
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                      <FormField
                        control={form.control}

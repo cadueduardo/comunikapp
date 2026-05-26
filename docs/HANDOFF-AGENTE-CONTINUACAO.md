@@ -10,13 +10,15 @@
 
 ## 1. Estado atual em uma frase
 
-Em 2026-05-25 (sessão da tarde), a **Fase 5 foi concluída**: o endpoint `GET /home-operacional/alertas` agrega 6 detectores independentes em uma única resposta classificada por nível (`critico | atencao | informativo`) e o frontend exibe `AlertasOperacionais` no `/dashboard` logo após o `FluxoTrabalho`. O 7º alerta previsto (trabalho pronto sem recebimento há mais de N dias) depende da Fase 6 (módulo financeiro) e aparece hoje como nota discreta no rodapé do bloco.
+Em 2026-05-26 (manhã), foi iniciada a **Fase 7 (DXF real / anexos)** com a **Sub-fase 7.A entregue**: o produto do Orçamento V2 ganhou no topo do card uma área única de anexo de imagem/DXF que aceita **Ctrl+V (clipboard)**, **drag-and-drop** e clique para abrir o file picker. O endpoint `POST /orcamentos-v2/anexos-geometria` grava o arquivo na pasta da loja com metadados (mime, hash SHA-256, `loja_id`), devolve uma URL relativa autenticada que o `ProdutoOrcamento.arquivo_geometria_url` persiste, e a Fase 3 já propaga essa URL para `ItemOS.arquivo_geometria_url` quando o orçamento vira OS. **Decisão de produto (Leitura B):** a imagem/DXF anexada conta como arte da OS — o critério `arte_anexada` do modal de aprovação técnica passou a considerar `ItemOS.arquivo_geometria_url`, sem criar `ArteVersao` automaticamente; o módulo `Arte & Aprovação` continua disponível para revisões profissionais. O parser DXF real (perímetro/área/camadas/`$PROJECTNAME`) fica para a Sub-fase 7.B; hoje o sistema só armazena o arquivo e marca `geometria_origem = 'DXF'`. Detalhes na seção 4.15.
 
-Antes disso, a **Fase 4 foi concluída**: o endpoint `GET /home-operacional/fluxo` agrega orçamentos V2 / OS em 5 colunas funcionais (`orcamentos`, `aprovados`, `revisao_tecnica`, `producao`, `prontos`) e devolve `a_receber` / `concluidos` em estado `aguardando_modulo` até a Fase 6. `HomeCacheService` cuida do TTL de 60s por `loja_id` e expõe `invalidar(...)` para os módulos downstream. Frontend tem `FluxoTrabalho` + `CardTrabalho` integrados em `/dashboard`.
+Antes disso, a **Fase 6 foi concluída** (sub-fases 6.A a 6.E entre 2026-05-25 e 2026-05-26): condição de pagamento estruturada no orçamento, cobrança criada automaticamente na aprovação (`CobrancasService`), bloco `ResumoFinanceiroSimples` na Home, tela `/financeiro/recebimentos` com auditoria/ações/CSV, cron diário recategoriza cobranças vencidas, 7º alerta operacional `trabalho_pronto_sem_recebimento` e colunas `a_receber`/`concluidos` no fluxo de trabalho. Comissões: `3e432e6`, `9436a15`, `afa2d68`, `30fbeba`, `75f9e0c`.
 
-Também foi entregue a **UX de aprovação da OS direto no grid** (`/os`): nova coluna "Aprovação" com badge contextual (Aprovada / Rejeitada) ou botão "Aprovar OS" para `PENDENTE`; coluna "Ações" migrou para dropdown "..." (Visualizar / Editar / Imprimir / Excluir). O modal `AprovarOSModal` lista os critérios (`dados_completos`, `arte_anexada`, `estoque_ok`, `prazo_viavel`) e só bloqueia aprovação quando `dados_completos = false`. Arte ausente e estoque vão para `alertas` mas **não bloqueiam** — suportam OS recorrente que não passa pelo ciclo de arte.
+Antes ainda, foram entregues a **Fase 5** (`GET /home-operacional/alertas` com 6 detectores e `AlertasOperacionais` em `/dashboard`) e a **Fase 4** (`GET /home-operacional/fluxo` com cache TTL 60s e `FluxoTrabalho` em `/dashboard`).
 
-Próximo passo é **Fase 6 (Financeiro mínimo)** — campos de condição de pagamento no orçamento + previsão de recebimento + bloco `ResumoFinanceiroSimples` na Home. A Fase 6 está pré-quebrada em sub-fases 6.A a 6.E no plano-mãe; o desbloqueio dela libera também (1) as colunas `a_receber` e `concluidos` do fluxo de trabalho e (2) o 7º alerta operacional.
+Também ficaram em produção: a **UX de aprovação da OS direto no grid** (`/os`) com modal `AprovarOSModal` listando os critérios (`dados_completos`, `arte_anexada`, `estoque_ok`, `prazo_viavel`); **prazos por serviço** no mesmo modal (4.13) com prazo "mãe" para aplicar em todos de uma vez (4.14); **fix estrutural** do `OSPrazoService` que corrompia `OrdemServico.status` (4.11) + endpoint admin de recuperação; **auto-promoção** OS → PCP na aprovação técnica (4.10).
+
+**Próximo passo:** **Sub-fase 7.B (parser DXF real)** — biblioteca npm como `dxf-parser` para extrair perímetro/área/camadas do arquivo, tela de revisão obrigatória antes de aplicar valores no preço, e troca da heurística atual de sugestão de nome (`nome_original` do arquivo) pelo `$PROJECTNAME` do header DXF quando presente. Plano-mãe linhas 967-983, observação sobre DXF nas linhas 354-360.
 
 ---
 
@@ -1212,5 +1214,83 @@ Eu havia interpretado mal a seção 4.12: adicionei `data_inicio_prevista` no `O
 - Os helpers `validarEPrepararPrazosItens` ficaram duplicados em `AprovacaoTecnicaService` e `OSService`. Se a equipe quiser DRY, pode extrair para um util compartilhado — preferi manter explícito por enquanto.
 - `prisma db push` foi usado para remover a coluna `data_inicio_prevista` adicionada na 4.12. Se a 4.12 já tinha ido para produção em algum ambiente, vai precisar de migration. **Não foi para produção neste branch.**
 
-**Última atualização:** 2026-05-25 (sessão tardia 2: prazos por serviço no modal de aprovação, revertendo a tentativa de prazos no nível da OS da 4.12).
+### 4.14 Prazo "mãe" no modal de aprovação + restauração de acentos UTF-8 (2026-05-26)
+
+**Feedback do usuário (literal):** *"veja a imagem do modal, ficou ótimo o prazo para cada serviço, mas acho que deveria ter um prazo mãe para aprovar de uma vez só. Percebi que não está com acentuação no modal, eu solicitei explicitamente que é UTF-8 e que preciso dos acentos."*
+
+Duas frentes de ajuste sobre a 4.13:
+
+**Frontend (`AprovarOSModal.tsx`):**
+
+- Quando a OS tem 2+ serviços, o modal mostra um novo bloco "Aplicar prazo a todos os serviços" entre o cabeçalho e a lista de itens.
+- Esse bloco tem 2 inputs (Início, Entrega) + botão "Aplicar a todos". Pré-preenchido com `hoje` / `data_prazo` da OS (ou `hoje + 7`).
+- Validações replicadas: `início <= entrega` e `entrega <= prazo limite da OS`.
+- Comportamento conservador: se um dos lados estiver vazio, só o lado preenchido é replicado para os itens.
+- Toda a UI/UX do modal teve seus textos visíveis revisados para UTF-8 com acentos corretos (títulos, descrições, labels, mensagens de erro, toasts).
+
+**Backend (acentos):**
+
+- Mensagens de `BadRequestException` em `AprovacaoTecnicaService` e `OSService` agora têm acentuação (campos como "Defina a data de entrega de cada serviço", "Data de início inválida", "não pertence a esta OS", "não pode ser posterior à data de entrega", "Algum serviço tem prazo maior...").
+- Comentários JSDoc + warns dos helpers de promoção (`OSService.promoverAprovacaoParaPCP`) e da auditoria de `motivo_modificacao` em `OSAdminService` também ganharam acentos.
+
+Commit: `5bfc40e`.
+
+---
+
+### 4.15 Início da Fase 7 — Sub-fase 7.A: Anexo de imagem/DXF no produto do orçamento (2026-05-26)
+
+**Feedback do usuário (literal):**
+- *"Quando trabalhar o anexar imagem no orçamento (subir o DXF ou o copia e cola), ele já deve ser entendido como a arte da OS"*
+- *"o recurso de arrastar e soltar na área do upload também será bem válido"*
+- *"A área de anexar ou colar, deve ser no topo do produto (imagem)"*
+- *"Se no DXF já ter o nome do projeto, já extrai também o nome e preencha o campo Nome do Produto"*
+
+**Diferenças em relação ao plano-mãe original da Fase 7:**
+
+| Item | Plano-mãe original | Decisão de 2026-05-26 |
+| --- | --- | --- |
+| Métodos de entrada do anexo | apenas `onPaste` (Ctrl+V) e upload via file picker | **+ drag-and-drop** na mesma área |
+| Posição do anexo no card de produto | não especificada | **TOPO do card**, antes do "Nome do Produto" |
+| Relação `arquivo_geometria_url` ↔ critério `arte_anexada` | rejeitada pela Fase 0 (doc `05-persistencia-anexos.md`): nunca misturar `ArteArquivo` com geometria | **Leitura B aprovada pelo usuário**: a imagem/DXF do orçamento conta como arte da OS gerada (sem criar ArteVersao). O módulo `Arte & Aprovação` permanece para casos que precisam de revisão profissional |
+| Extração do nome do projeto do DXF | não documentada | **Sugerir nome do produto somente se o campo estiver vazio** (nunca sobrescrever digitação do operador) |
+
+**O que foi entregue na Sub-fase 7.A (este commit):**
+
+**Backend:**
+
+- `backend/src/config/multer-anexo-geometria.config.ts` (novo): `memoryStorage` + classificador `classificarAnexoGeometria(mime, nome)` que devolve `'IMAGEM' | 'DXF' | null`. Aceita PNG/JPG/JPEG/WEBP/GIF como imagem e o trio `application/dxf`/`application/x-dxf`/`image/x-dxf` + fallback por extensão `.dxf` (porque o mime do DXF varia entre exportadores, alguns enviam `application/octet-stream`).
+- `backend/src/orcamentos-v2/services/anexo-geometria.service.ts` (novo): grava o arquivo em `<COMUNIKAPP_ANEXOS_DIR ou ./uploads/anexos>/geometria/<loja_id>/<token>.<ext>` e um `.json` ao lado com metadados (mime, tamanho, hash SHA-256, `loja_id`, `criado_por`, `criado_em`, `nome_original`). Multi-tenant garantido por: (a) gravação na pasta da loja, (b) validação do `loja_id` do JWT contra o metadado no GET. Devolve 403 explícito se o token existir em outra loja (detecta cross-tenant access tentado por enumeração de UUID).
+- `backend/src/orcamentos-v2/controllers/anexo-geometria.controller.ts` (novo): 3 endpoints autenticados por JWT:
+  - `POST /orcamentos-v2/anexos-geometria` — multipart `arquivo`, devolve `{ url, token, categoria, metadados }`.
+  - `GET /orcamentos-v2/anexos-geometria/:token` — serve o arquivo (inline para imagem, attachment para DXF). Cache `private, max-age=300` (5 min).
+  - `DELETE /orcamentos-v2/anexos-geometria/:token` — idempotente.
+- `backend/src/os/services/aprovacao-tecnica.service.ts`: critério `arte_anexada` no `validarPreAprovacao` passou a contar TAMBÉM `ItemOS.arquivo_geometria_url` não-nulo (Leitura B). A mensagem do alerta foi ajustada para "Nenhuma arte ou imagem de geometria anexada a esta OS". `ArteVersao` continua sendo considerada — os dois sistemas convivem.
+- `backend/src/orcamentos-v2/orcamentos-v2.module.ts`: registra o novo controller + service.
+
+**Frontend:**
+
+- `frontend/src/components/orcamentos-v2/AnexoGeometriaInput.tsx` (novo): componente único que aceita as três formas de entrada (Ctrl+V, drag-and-drop, clique → file picker). Renderiza:
+  - estado vazio com instrução + ícones;
+  - preview de imagem (carregado via fetch autenticado + `URL.createObjectURL` para respeitar JWT);
+  - card de DXF (sem preview visual, apenas nome + botão remover);
+  - estado de envio (spinner + texto "Enviando arquivo...").
+  - Toasts para erros (formato inválido, excesso de tamanho — 5 MB imagem / 20 MB DXF).
+  - Limpa o blob URL ao trocar o `value` para evitar memory leak.
+  - Devolve a categoria no `onChange(url, categoria)` para o caller refletir em `geometria_origem`.
+- `frontend/src/components/ui/orcamento/components/ProdutoSection.tsx`: integra o componente no topo do `CardContent` do produto, com 3 utilitários novos:
+  - `atualizarAnexoGeometria(itemIndex, url, categoria)` — sincroniza `arquivo_geometria_url` e `geometria_origem` (`IMAGEM`/`DXF` quando há anexo; `MANUAL` quando removido).
+  - `sugerirNomeProduto(itemIndex, sugestao)` — política "só preencher se vazio". A sugestão atual é o `nome_original` do arquivo enxuto (remove `.dxf`, troca `_` e `-` por espaço). Sub-fase 7.B vai substituir isso pelo `$PROJECTNAME` do header do DXF quando o parser real entrar.
+  - `atualizarGeometria` foi ajustado para NÃO regredir `geometria_origem` para `MANUAL` se já estiver em `IMAGEM` ou `DXF` (impede que conferir uma medida apague a origem do anexo).
+
+**Estratégia de upload escolhida (sem token temporário):**
+
+O endpoint não exige `produto_id` na URL. Isso resolve o caso de orçamento novo (em que o produto ainda não tem `id`). O arquivo é gravado já com nome definitivo (`<token>.<ext>`) na pasta da loja, e a URL retornada (`/orcamentos-v2/anexos-geometria/<token>`) é a URL final — o `ProdutoOrcamento.arquivo_geometria_url` (campo já existente desde a Fase 2) recebe essa URL no submit do orçamento. **Não há fase de "promoção" de anexo temporário para definitivo.**
+
+**Dívidas conhecidas registradas para a Sub-fase 7.B (DXF real, ainda pendente):**
+
+- O parser DXF real ainda não foi implementado. Hoje o sistema apenas armazena o arquivo e marca `geometria_origem = 'DXF'`, mas não extrai perímetro/área/camadas. A sugestão de nome do produto usa o `nome_original` do arquivo, não o `$PROJECTNAME` do header.
+- O cleanup de anexos órfãos (uploads que ficaram sem `ProdutoOrcamento` referenciando) não está implementado. Por enquanto fica como dívida; um cron diário pode ser adicionado depois.
+- O endpoint `GET /orcamentos-v2/anexos-geometria/:token` exige JWT. Para baixar o DXF do PCP/produção precisa do mesmo token de sessão. Quando a feature de "OS pública" do PCP for repensada, talvez seja necessário um endpoint público autenticado por token de OS — não é caso hoje.
+
+**Última atualização:** 2026-05-26 (Sub-fase 7.A: anexo de imagem/DXF no topo do produto + Leitura B para `arte_anexada` + drag-and-drop + sugestão de nome do DXF).
 Branch `feature/home-operacional-dashboard`.

@@ -68,20 +68,35 @@ export class AprovacaoTecnicaService {
     }
 
     // 2. Validar se arte foi anexada / aprovada pelo cliente.
-    // Consideramos "arte anexada" quando existe pelo menos uma versao de arte
-    // nao deletada para a OS. NAO bloqueia aprovacao - serve apenas como alerta,
-    // para que o aprovador decida sob sua responsabilidade (ex.: OS recorrente
-    // que nao requer ciclo de arte).
+    //
+    // Leitura B (decisão de 2026-05-26, Fase 7.A): a imagem/DXF anexada ao
+    // produto no orçamento (`ItemOS.arquivo_geometria_url`, propagada da
+    // Fase 3) **conta como arte** para fins desse critério. Isso evita o
+    // duplo trabalho de subir a imagem no orçamento e depois subir uma
+    // `ArteVersao` separada para a OS quando o trabalho é simples (banner,
+    // adesivo, recorte). O módulo `Arte & Aprovação` continua disponível
+    // para casos que precisam de revisão profissional com link público.
+    //
+    // NÃO bloqueia aprovação — serve apenas como alerta, para que o
+    // aprovador decida sob sua responsabilidade.
     try {
-      const versoesArte = await this.prisma.arteVersao.count({
-        where: {
-          os_id: osId,
-          deletado: false,
-        },
-      });
-      arte_anexada = versoesArte > 0;
+      const [versoesArte, itensComGeometria] = await Promise.all([
+        this.prisma.arteVersao.count({
+          where: {
+            os_id: osId,
+            deletado: false,
+          },
+        }),
+        this.prisma.itemOS.count({
+          where: {
+            os_id: osId,
+            arquivo_geometria_url: { not: null },
+          },
+        }),
+      ]);
+      arte_anexada = versoesArte > 0 || itensComGeometria > 0;
       if (!arte_anexada) {
-        alertas.push('Nenhuma versao de arte anexada a esta OS');
+        alertas.push('Nenhuma arte ou imagem de geometria anexada a esta OS');
       }
     } catch (error) {
       arte_anexada = false;

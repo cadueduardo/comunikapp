@@ -18,6 +18,7 @@ import { ChatV2Controller } from './controllers/chat-v2.controller';
 import { LinksV2Controller } from './controllers/links-v2.controller';
 import { ImpressaoV2Controller } from './controllers/impressao-v2.controller';
 import { ProdutoDetalhesController } from './controllers/produto-detalhes.controller';
+import { AnexoGeometriaController } from './controllers/anexo-geometria.controller';
 
 // Services
 import { OrcamentosV2Service } from './services/orcamentos-v2.service';
@@ -30,6 +31,7 @@ import { LinksV2Service } from './services/links-v2.service';
 import { ImpressaoV2Service } from './services/impressao-v2.service';
 import { ValidacaoEstoqueService } from './services/validacao-estoque.service';
 import { InsumosAutocompleteService } from './services/insumos-autocomplete.service';
+import { AnexoGeometriaService } from './services/anexo-geometria.service';
 
 // Repositories
 import { OrcamentosV2Repository } from './repositories/orcamentos-v2.repository';
@@ -61,6 +63,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     LinksV2Controller,
     ImpressaoV2Controller,
     ProdutoDetalhesController,
+    AnexoGeometriaController,
   ],
   providers: [
     // Services principais
@@ -76,6 +79,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     ImpressaoV2Service,
     ValidacaoEstoqueService,
     InsumosAutocompleteService,
+    AnexoGeometriaService,
 
     // Repositories
     OrcamentosV2Repository,

@@ -964,22 +964,35 @@ Critérios de aceite:
 - Eventos automáticos nunca movimentam caixa sem confirmação manual.
 - O bloco financeiro da Home não aparece para perfis sem permissão.
 
-### Fase 7: DXF real
+### Fase 7: DXF real / anexos no orçamento
+
+> **[Sub-fase 7.A CONCLUÍDA em 2026-05-26]** — Componente único `AnexoGeometriaInput` no topo do card de produto do Orçamento V2 que aceita Ctrl+V (clipboard), drag-and-drop e clique para file picker. Backend: endpoint autenticado `POST/GET/DELETE /orcamentos-v2/anexos-geometria` com storage por loja_id em `<COMUNIKAPP_ANEXOS_DIR>/geometria/<loja_id>/<token>.<ext>`, metadados JSON ao lado, hash SHA-256, validação cross-tenant. Limites: 5 MB para imagem, 20 MB para DXF. Aceita PNG/JPG/JPEG/WEBP/GIF e DXF (com fallback por extensão porque o mime do DXF varia). Detalhes na seção 4.15 do HANDOFF.
+>
+> **[Sub-fase 7.B PENDENTE]** — Parser DXF real (perímetro/área/camadas/$PROJECTNAME) com tela de revisão obrigatória antes de aplicar valores no preço.
+>
+> **Decisões de produto registradas em 2026-05-26:**
+> - **Leitura B aprovada**: a imagem/DXF anexada ao orçamento conta como arte da OS gerada — o critério `arte_anexada` (modal de aprovação técnica) passou a contar `ItemOS.arquivo_geometria_url`, sem criar `ArteVersao` automaticamente. O módulo `Arte & Aprovação` permanece para revisões profissionais. Isso **substitui a decisão original da Fase 0** (`05-persistencia-anexos.md` linhas 11-23, que rejeitava o reuso de `ArteArquivo`); a coexistência continua, mas a equivalência semântica passa a valer para fins de validação.
+> - **Drag-and-drop** entra como método de entrada além do `onPaste` original do plano-mãe.
+> - **Posição do anexo:** SEMPRE no TOPO do card de produto, antes do "Nome do Produto".
+> - **Sugestão de nome do DXF:** só preencher o "Nome do Produto" se ele estiver vazio. Nunca sobrescrever digitação do operador.
 
 Objetivo: evoluir do anexo técnico para leitura real de arquivos DXF.
 
 Entregáveis:
 
-1. Aceitar DXF como anexo técnico no orçamento e na OS.
-2. Exibir dados informados manualmente para confirmação.
-3. Estudar e escolher parser backend para área, perímetro e camadas.
-4. Criar tela de revisão antes de aplicar valores no preço.
+1. Aceitar DXF como anexo técnico no orçamento e na OS. **[Sub-fase 7.A — OK]**
+2. Exibir dados informados manualmente para confirmação. **[Sub-fase 7.A — OK: medidas continuam editáveis via `QuickGeometryInput`]**
+3. Estudar e escolher parser backend para área, perímetro e camadas. **[Sub-fase 7.B — pendente]**
+4. Criar tela de revisão antes de aplicar valores no preço. **[Sub-fase 7.B — pendente]**
+5. **Novo (Sub-fase 7.A):** suporte a clipboard (Ctrl+V), drag-and-drop e file picker na mesma área. **[OK]**
+6. **Novo (Sub-fase 7.A):** Leitura B para `arte_anexada` (imagem/DXF do orçamento = arte da OS). **[OK]**
+7. **Novo (Sub-fase 7.B):** ao detectar `$PROJECTNAME` no header do DXF, preencher "Nome do Produto" **apenas** se o campo estiver vazio. **[Pendente — hoje usa heurística do `nome_original` do arquivo]**
 
 Critérios de aceite:
 
-- DXF pode ser anexado ao orçamento e à OS.
-- Usuário confirma medidas antes de precificar.
-- Parser real não aplica valores sem revisão.
+- DXF pode ser anexado ao orçamento e à OS. **[OK]**
+- Usuário confirma medidas antes de precificar. **[OK na 7.A — `QuickGeometryInput` permanece editável; 7.B vai adicionar tela específica para valores extraídos do DXF]**
+- Parser real não aplica valores sem revisão. **[Garantia a manter na 7.B]**
 
 ### Fase 8: ajustes mobile e navegação global
 
