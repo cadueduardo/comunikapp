@@ -38,7 +38,7 @@ export function ProdutoTemplateForm({
   const { 
     insumos, maquinas, funcoes,
     loading: loadingData,
-    refetchAll, fetchMaquinas, fetchFuncoes
+    refetchAll, fetchMaquinas, fetchFuncoes, fetchInsumos
   } = useProdutoData();
 
   const form = useForm<ProdutoFormValues>({
@@ -592,6 +592,7 @@ export function ProdutoTemplateForm({
                   variant="produto"
                   itemIndex={0}
                   insumos={insumos}
+                  onInsumoCriado={fetchInsumos}
                 />
 
                 <MaquinaSection

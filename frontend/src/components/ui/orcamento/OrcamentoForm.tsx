@@ -127,7 +127,7 @@ export function OrcamentoForm({
   const [showProdutoModal, setShowProdutoModal] = useState(false);
   const [selectedProdutoIndex, setSelectedProdutoIndex] = useState<number>(0);
   const [dadosCarregados, setDadosCarregados] = useState(false);
-  const { clientes, insumos, maquinas, funcoes, servicos } = useOrcamentoData();
+  const { clientes, insumos, maquinas, funcoes, servicos, fetchInsumos } = useOrcamentoData();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createFormSchema(mode)),
@@ -556,6 +556,7 @@ export function OrcamentoForm({
                 maquinas={maquinas}
                 funcoes={funcoes}
                 servicos={servicos as any}
+                onInsumoCriado={fetchInsumos}
               />
 
               <Separator />

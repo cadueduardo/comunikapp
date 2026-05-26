@@ -178,7 +178,7 @@ export function OrcamentoV2Form({
   const [showSimuladorModal, setShowSimuladorModal] = useState(false);
   const [simuladorSeed, setSimuladorSeed] = useState<SimuladorSeed | null>(null);
   const [selectedProdutoIndex, setSelectedProdutoIndex] = useState<number>(0);
-  const { clientes, insumos, maquinas, funcoes, servicos, custosIndiretos } = useOrcamentoData();
+  const { clientes, insumos, maquinas, funcoes, servicos, custosIndiretos, fetchInsumos } = useOrcamentoData();
   const { user } = useUser();
   const funcaoUsuario = String(user?.funcao || '').toLowerCase();
   const podeFecharPedido = ['admin', 'administrador', 'gerente', 'vendedor'].includes(funcaoUsuario);
@@ -1788,6 +1788,7 @@ export function OrcamentoV2Form({
                     maquinas={maquinas}
                     funcoes={funcoes}
                     servicos={servicos}
+                    onInsumoCriado={fetchInsumos}
                   />
 
                   <Separator />
@@ -1964,6 +1965,7 @@ export function OrcamentoV2Form({
                 maquinas={maquinas}
                 funcoes={funcoes}
                 servicos={servicos}
+                onInsumoCriado={fetchInsumos}
               />
 
               <Separator />

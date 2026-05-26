@@ -94,9 +94,18 @@ interface ProdutoSectionProps {
       tempo_min: number | string;
     }>;
   }>;
+  /**
+   * Sub-fase 7.B++: callback opcional disparado quando um insumo é
+   * cadastrado dentro do orçamento (seja pelo `NovoInsumoModal` do DXF ou
+   * pelo botão no dropdown de Material). Esperado: o parent recarrega a
+   * lista global de insumos (ex.: `fetchInsumos` do `useOrcamentoData`).
+   * Quando omitido, a opção "Cadastrar novo insumo" continua disponível
+   * mas a lista não é atualizada automaticamente (só após reload manual).
+   */
+  onInsumoCriado?: () => void | Promise<void>;
 }
 
-export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas = [], funcoes = [], servicos = [] }: ProdutoSectionProps) {
+export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas = [], funcoes = [], servicos = [], onInsumoCriado }: ProdutoSectionProps) {
   const form = useFormContext();
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -672,6 +681,7 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
                       variant="orcamento"
                       itemIndex={index}
                       insumos={insumos}
+                      onInsumoCriado={onInsumoCriado}
                     />
 
                     {/* Máquinas Utilizadas */}
@@ -708,6 +718,7 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
           setNovoInsumoModal((prev) => ({ ...prev, aberto }))
         }
         nomeInicial={novoInsumoModal.nomeSugerido}
+        onInsumoCriado={onInsumoCriado}
         onCriado={(insumoCriado) => {
           const itemIndex = novoInsumoModal.itemIndex;
           if (itemIndex === null) return;

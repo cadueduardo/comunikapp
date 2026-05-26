@@ -1395,5 +1395,43 @@ Resposta técnica entregue:
 
 **Fase 7 oficialmente fechada.** Próximo movimento é a Fase 11 (profundidade no orçamento) — documentada em `plano-acao-home-onboarding-dashboard-operacional.md` aguardando confirmação das 3 decisões antes de codar.
 
-**Última atualização:** 2026-05-26 (Sub-fase 7.B++: `descricao_projeto` do DXF preenche descrição do produto + alimenta scoring de insumo + `NovoInsumoModal` compacto para cadastro inline com atrelamento automático).
+### 4.19 Refinamento UX do `NovoInsumoModal` + cadastro a partir do dropdown de Material (2026-05-26 manhã)
+
+**Contexto:** Após o usuário testar a 7.B++, dois ajustes de UX foram solicitados (referência da imagem enviada):
+1. Categoria e Fornecedor estavam como `Select` puro — não dava para criar um novo item inline. Na tela `/insumos/novo` eles usam `Combobox` com `onCreate`. Replicar o mesmo padrão.
+2. "Unidade de compra" e "Unidade de uso" estavam como `Input` de texto livre, alto risco de erro de preenchimento (operador podia digitar `m²` vs `M2` vs `mts` etc.). Na tela `/insumos/novo` usam `UnitSelect` com a lista estruturada `UNIDADES_COMPRA`.
+3. Aproveitando o mesmo modal, adicionar a opção "Cadastrar novo insumo" no rodapé do dropdown "Material" do `MaterialSection` — para não exigir trocar de tela durante o preenchimento do produto.
+
+**O que foi entregue (este commit):**
+
+1. **Refatoração do `NovoInsumoModal`** (`frontend/src/components/orcamentos-v2/NovoInsumoModal.tsx`):
+   - **Categoria:** trocado `Select` por `Combobox` (`@/components/ui/combobox`) com `onCreate` que chama `categoriasApi.create({ nome })`. Após criar, a categoria é adicionada à lista local e selecionada automaticamente. Mesmo padrão da tela `/insumos/novo`.
+   - **Fornecedor:** idem, com `fornecedoresApi.create({ nome })`.
+   - **Unidade de compra/uso:** trocadas de `Input` para `UnitSelect` carregado com `UNIDADES_COMPRA` (`frontend/src/lib/unidades-compra.ts`). Defaults migrados de `'m2'` para `'M2'` (value real da lista).
+   - **Aviso "sem cadastros básicos"** removido — agora o operador pode cadastrar categoria/fornecedor inline, então o estado vazio deixou de ser bloqueante.
+   - **Nova prop `onInsumoCriado?: () => void | Promise<void>`**: callback opcional para o parent recarregar sua lista global de insumos após criação. Quando informado, é chamado **antes** de `onCriado` para garantir que a UI já encontre o novo insumo pelo id.
+
+2. **Cadastro inline no dropdown de Material** (`MaterialSection.tsx`):
+   - Nova prop opcional `onInsumoCriado?: () => void | Promise<void>`. Quando passada, o `SelectContent` do campo "Material" exibe ao final um botão "Cadastrar novo insumo" (com `PlusCircle`) acima de um separador.
+   - O botão usa `<button>` com `onMouseDown` + `e.preventDefault()` + `e.stopPropagation()` para **não** disparar a seleção do `Select` (que tentaria atrelar um valor inválido); fecha o popover dando `blur()` no elemento ativo e abre o modal.
+   - O modal é renderizado uma única vez por `MaterialSection`; a linha alvo é guardada em `novoInsumoModal.materialIndex`. Após criação, o insumo é atrelado àquela linha específica via `form.setValue(materiais.{idx}.insumo_id, ...)`. Quantidade padrão fica em `'1'` se vazia — o `useEffect` de recálculo automático de quantidade reage normalmente quando `insumos` é atualizado.
+
+3. **Propagação do `fetchInsumos`** como callback global:
+   - `useOrcamentoData` já expunha `fetchInsumos` (re-fetch via `insumosApi.getAll`); agora é destruturado em `OrcamentoForm.tsx` (orçamento v1) e em `orcamento-v2-form.tsx` (orçamento v2) e passado como `onInsumoCriado` para `ProdutoSection`.
+   - `ProdutoSection` ganhou nova prop `onInsumoCriado` e a propaga para: (a) o `NovoInsumoModal` do fluxo DXF (seção 4.18); (b) o `MaterialSection` de cada produto.
+   - `ProdutoTemplateForm.tsx` (tela `/produtos/templates/novo`): também passou a usar `fetchInsumos` do `useProdutoData` como `onInsumoCriado` no `MaterialSection`, ganhando a feature de cadastro inline na tela de templates.
+   - Ambos os pontos garantem que, ao cadastrar um insumo novo, a lista global de insumos do orçamento/template é recarregada automaticamente — o novo insumo aparece em todos os dropdowns sem refresh manual.
+
+**Política de produto mantida:**
+
+- O cadastro inline NUNCA atrela automaticamente a outras linhas; só atrela na linha que disparou a abertura.
+- A política do DXF (atrelar imediatamente ao produto que originou o cadastro) continua. A do dropdown de Material é mais conservadora: atrela apenas na linha do dropdown que abriu o modal, deixando demais linhas com o operador.
+- Lista de unidades em `UNIDADES_COMPRA` é a única fonte (sem digitação livre).
+
+**Dívidas e refinamentos opcionais (não bloqueantes):**
+
+- O dropdown nativo do shadcn `Select` não suporta naturalmente "ações" no rodapé; usei `<button>` dentro de `<SelectContent>` com guards de evento. A navegação por teclado pode não cobrir esse botão extra. Se virar atrito real, migra-se o `MaterialSection` para `Combobox` (mesma estratégia da tela `/insumos/novo`) — refatoração maior que ficou para depois.
+- Não há criação inline de **tipo de material** (`tipo_material_id`) no `NovoInsumoModal` — quando o operador escolhe `logica_consumo='custom'`, ainda precisa ter cadastrado o tipo de material antes em Configurações.
+
+**Última atualização:** 2026-05-26 (Refinamento 7.B++: `NovoInsumoModal` usa `Combobox` com `onCreate` em categoria/fornecedor + `UnitSelect` em unidades; dropdown de "Material" do `MaterialSection` ganhou "Cadastrar novo insumo"; `fetchInsumos` propagado via `onInsumoCriado` em orçamento v1, v2 e templates).
 Branch `feature/home-operacional-dashboard`.

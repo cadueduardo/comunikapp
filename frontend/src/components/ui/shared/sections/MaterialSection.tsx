@@ -1,7 +1,7 @@
 'use client';
 
 import { useFormContext } from 'react-hook-form';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   FormControl,
@@ -13,11 +13,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, PlusCircle } from 'lucide-react';
 
 import { formatCurrency } from '@/lib/utils';
 import { Insumo } from '../types/common.types';
 import { getCampoQuantidade, calcularCustoPorUnidadeUso, calcularArea, converterParaMetros } from '../utils/calculo.utils';
+import { NovoInsumoModal } from '@/components/orcamentos-v2/NovoInsumoModal';
 
 interface MaterialSectionProps {
   variant?: 'orcamento' | 'produto';
@@ -27,6 +28,13 @@ interface MaterialSectionProps {
   onRemoveMaterial?: (itemIndex: number, materialIndex: number) => void;
   customFields?: React.ReactNode;
   customActions?: React.ReactNode;
+  /**
+   * Callback opcional disparado quando o operador cadastra um insumo novo
+   * via dropdown "Material" (botão "Cadastrar novo insumo" no rodapé do
+   * select). O caller deve recarregar sua lista de insumos para que o
+   * novo apareça no dropdown. Quando omitido, a opção não é exibida.
+   */
+  onInsumoCriado?: () => void | Promise<void>;
 }
 
 export function MaterialSection({ 
@@ -35,9 +43,18 @@ export function MaterialSection({
   onAddMaterial,
   onRemoveMaterial,
   customFields,
-  customActions
+  customActions,
+  onInsumoCriado,
 }: MaterialSectionProps) {
   const form = useFormContext();
+
+  // Sub-fase 7.B++: estado do modal de cadastro inline acionado pelo
+  // dropdown de Material. Guarda o índice do material que disparou para
+  // poder atrelar o insumo recém-criado naquela linha específica.
+  const [novoInsumoModal, setNovoInsumoModal] = useState<{
+    aberto: boolean;
+    materialIndex: number | null;
+  }>({ aberto: false, materialIndex: null });
 
   // Monitorar mudanças nas dimensões e quantidade do produto para recalcular materiais automaticamente
   const quantidadeProduto = form.watch(`itens_produto.${itemIndex}.quantidade_produto`);
@@ -470,6 +487,42 @@ export function MaterialSection({
                             {insumo.nome} ({insumo.categoria.nome})
                           </SelectItem>
                         ))}
+                        {/*
+                          Sub-fase 7.B++: opção "Cadastrar novo insumo" no
+                          rodapé do dropdown. Usa <button> (não <SelectItem>)
+                          para que o clique NÃO selecione o valor — apenas
+                          dispara a abertura do modal. onMouseDown previne a
+                          propagação para o Select fechar com selectedValue
+                          inalterado. Só é exibida quando o caller passa
+                          onInsumoCriado (sinalizando que ele sabe atualizar
+                          a lista de insumos).
+                        */}
+                        {onInsumoCriado ? (
+                          <div className="border-t mt-1 pt-1 px-1">
+                            <button
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setNovoInsumoModal({
+                                  aberto: true,
+                                  materialIndex,
+                                });
+                                // Fecha o Select fora do React state cycle
+                                // via blur do elemento ativo (o trigger).
+                                if (
+                                  document.activeElement instanceof HTMLElement
+                                ) {
+                                  document.activeElement.blur();
+                                }
+                              }}
+                              className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-accent text-primary font-medium"
+                            >
+                              <PlusCircle className="h-4 w-4" />
+                              Cadastrar novo insumo
+                            </button>
+                          </div>
+                        ) : null}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -600,6 +653,49 @@ export function MaterialSection({
           </div>
         );
       })}
+
+      {/*
+        Sub-fase 7.B++: modal compartilhado para cadastro inline de insumo
+        a partir do dropdown de Material. Renderizado uma única vez por
+        produto; a linha alvo é guardada em novoInsumoModal.materialIndex.
+        Só é montado quando onInsumoCriado foi passado (do contrário o
+        botão que abre o modal nem aparece).
+      */}
+      {onInsumoCriado ? (
+        <NovoInsumoModal
+          open={novoInsumoModal.aberto}
+          onOpenChange={(aberto) =>
+            setNovoInsumoModal((prev) => ({ ...prev, aberto }))
+          }
+          nomeInicial=""
+          onInsumoCriado={onInsumoCriado}
+          onCriado={(insumoCriado) => {
+            const materialIndex = novoInsumoModal.materialIndex;
+            if (materialIndex === null) return;
+            // Atrela o insumo recém-criado naquela linha específica do
+            // array de materiais. A sugestão automática de quantidade
+            // (que normalmente roda no onValueChange do Select) é
+            // reproduzida aqui de forma simplificada: M2 usa area, M usa
+            // perimetro, e o resto fica em '1' como placeholder.
+            form.setValue(
+              `itens_produto.${itemIndex}.materiais.${materialIndex}.insumo_id`,
+              insumoCriado.id,
+            );
+            // Quantidade padrão pós-cadastro: deixa em branco para a
+            // sugestão automática rodar quando o useEffect reagir à
+            // mudança em insumos. Se já houver valor, não sobrescreve.
+            const qtdAtual = form.getValues(
+              `itens_produto.${itemIndex}.materiais.${materialIndex}.quantidade`,
+            );
+            if (!qtdAtual || String(qtdAtual).trim().length === 0) {
+              form.setValue(
+                `itens_produto.${itemIndex}.materiais.${materialIndex}.quantidade`,
+                '1',
+              );
+            }
+          }}
+        />
+      ) : null}
     </div>
   );
 }

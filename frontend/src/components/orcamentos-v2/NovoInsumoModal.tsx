@@ -21,6 +21,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
+import { UnitSelect } from '@/components/ui/unit-select';
+import { UNIDADES_COMPRA } from '@/lib/unidades-compra';
 import {
   categoriasApi,
   fornecedoresApi,
@@ -28,9 +31,11 @@ import {
 } from '@/lib/api-client';
 
 /**
- * Modal compacto de cadastro de insumo, acionado a partir do
- * `DxfRevisaoCard` (Sub-fase 7.B++) quando o operador clica em "Cadastrar
- * novo" para uma camada que não tem sugestão no catálogo.
+ * Modal compacto de cadastro de insumo, usado em dois lugares:
+ *  1. `DxfRevisaoCard` (Sub-fase 7.B++): cadastro a partir de camada do DXF.
+ *  2. Dropdown "Material" do `MaterialSection`: opção "Cadastrar novo insumo"
+ *     no rodapé do dropdown (decisão de UX: evita trocar de tela durante o
+ *     preenchimento do produto).
  *
  * Mostra **apenas os 8 campos obrigatórios** do `CreateInsumoDto` + a
  * lógica de consumo (default `area`). Demais campos do cadastro completo
@@ -38,27 +43,37 @@ import {
  * `/insumos/novo`, acessível via link no rodapé.
  *
  * Política de produto:
- *  - Nunca tenta inferir categoria/fornecedor: o operador é obrigado a
- *    escolher dos cadastros existentes da loja. Se a loja não tiver pelo
- *    menos uma categoria E um fornecedor, o modal mostra aviso e o botão
- *    de cadastrar fica desabilitado.
+ *  - Categoria e Fornecedor agora usam `Combobox` com `onCreate`: o operador
+ *    pode CADASTRAR categoria/fornecedor novo no próprio dropdown, sem
+ *    fechar o modal nem trocar de tela. Mesmo padrão da tela `/insumos/novo`.
+ *  - Unidades de compra/uso são selecionadas pela lista estruturada
+ *    `UNIDADES_COMPRA` (sem digitação livre, evita erro de preenchimento).
  *  - Após criação bem-sucedida, o `onCriado` é chamado com o insumo já
  *    persistido (id real); o caller fica responsável por atrelar ao produto
- *    e/ou atualizar a lista de sugestões.
+ *    e/ou atualizar a lista global de insumos via `onInsumoCriado`.
  */
 export interface NovoInsumoModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /**
-   * Nome inicial sugerido (vem do nome da camada do DXF, já limpo).
-   * O operador pode editar antes de salvar.
+   * Nome inicial sugerido. Quando vem do DXF, é o nome da camada já limpo;
+   * quando vem do dropdown de Material, é string vazia.
    */
   nomeInicial: string;
   /**
    * Disparado após o insumo ser persistido com sucesso. Recebe o id real
-   * do insumo criado (vindo da API) + nome final escolhido.
+   * do insumo criado (vindo da API) + nome final escolhido. Caller usa
+   * esse callback para atrelar o insumo ao produto / linha de material.
    */
   onCriado: (insumoCriado: { id: string; nome: string }) => void;
+  /**
+   * Disparado após criação bem-sucedida para que o caller atualize sua
+   * lista global de insumos (ex.: `fetchInsumos` do `useOrcamentoData`).
+   * Quando omitido, a lista global não é recarregada — mas o `onCriado`
+   * continua sendo disparado normalmente. Útil em cenários onde o caller
+   * gerencia o estado por outra via.
+   */
+  onInsumoCriado?: () => void | Promise<void>;
 }
 
 interface CategoriaApi {
@@ -92,15 +107,16 @@ export function NovoInsumoModal({
   onOpenChange,
   nomeInicial,
   onCriado,
+  onInsumoCriado,
 }: NovoInsumoModalProps) {
   // Form state
   const [nome, setNome] = useState('');
   const [categoriaId, setCategoriaId] = useState('');
   const [fornecedorId, setFornecedorId] = useState('');
-  const [unidadeCompra, setUnidadeCompra] = useState('m2');
+  const [unidadeCompra, setUnidadeCompra] = useState('M2');
   const [custoUnitario, setCustoUnitario] = useState('');
   const [quantidadeCompra, setQuantidadeCompra] = useState('1');
-  const [unidadeUso, setUnidadeUso] = useState('m2');
+  const [unidadeUso, setUnidadeUso] = useState('M2');
   const [fatorConversao, setFatorConversao] = useState('1');
   const [logicaConsumo, setLogicaConsumo] = useState('area');
 
@@ -116,10 +132,10 @@ export function NovoInsumoModal({
     setNome(nomeInicial || '');
     setCategoriaId('');
     setFornecedorId('');
-    setUnidadeCompra('m2');
+    setUnidadeCompra('M2');
     setCustoUnitario('');
     setQuantidadeCompra('1');
-    setUnidadeUso('m2');
+    setUnidadeUso('M2');
     setFatorConversao('1');
     setLogicaConsumo('area');
     setErroListas(null);
@@ -146,6 +162,50 @@ export function NovoInsumoModal({
     };
     void carregar();
   }, [open, nomeInicial]);
+
+  /**
+   * Cadastro inline de categoria a partir do `Combobox`. Reaproveita o
+   * padrão da tela `/insumos/novo` (insumo-form.tsx).
+   */
+  const handleCreateCategoria = async (nomeNovo: string) => {
+    if (!nomeNovo || nomeNovo.trim().length === 0) return;
+    try {
+      const token = obterToken();
+      const criado = (await categoriasApi.create(
+        { nome: nomeNovo.trim() },
+        token,
+      )) as CategoriaApi;
+      setCategorias((prev) => [...prev, criado]);
+      setCategoriaId(criado.id);
+      toast.success(`Categoria "${criado.nome}" criada.`);
+    } catch (error) {
+      const msg =
+        error instanceof Error
+          ? error.message
+          : 'Falha ao criar categoria';
+      toast.error(msg);
+    }
+  };
+
+  const handleCreateFornecedor = async (nomeNovo: string) => {
+    if (!nomeNovo || nomeNovo.trim().length === 0) return;
+    try {
+      const token = obterToken();
+      const criado = (await fornecedoresApi.create(
+        { nome: nomeNovo.trim() },
+        token,
+      )) as FornecedorApi;
+      setFornecedores((prev) => [...prev, criado]);
+      setFornecedorId(criado.id);
+      toast.success(`Fornecedor "${criado.nome}" criado.`);
+    } catch (error) {
+      const msg =
+        error instanceof Error
+          ? error.message
+          : 'Falha ao criar fornecedor';
+      toast.error(msg);
+    }
+  };
 
   const podeSalvar =
     nome.trim().length > 0 &&
@@ -175,7 +235,18 @@ export function NovoInsumoModal({
         logica_consumo: logicaConsumo,
       };
       const criado = (await insumosApi.create(payload, token)) as InsumoCriadoApi;
-      toast.success(`Insumo "${criado.nome}" cadastrado e atrelado.`);
+      toast.success(`Insumo "${criado.nome}" cadastrado.`);
+      // Atualiza a lista global de insumos do parent (re-fetch) ANTES de
+      // disparar onCriado para que a UI já encontre o insumo pelo id quando
+      // for atrelar.
+      if (onInsumoCriado) {
+        try {
+          await onInsumoCriado();
+        } catch {
+          // Falha de re-fetch não bloqueia o fluxo — o id real já foi
+          // retornado e o caller pode atrelar mesmo sem a lista atualizada.
+        }
+      }
       onCriado({ id: criado.id, nome: criado.nome });
       onOpenChange(false);
     } catch (error) {
@@ -187,12 +258,9 @@ export function NovoInsumoModal({
     }
   };
 
-  const semCadastrosBasicos =
-    !carregandoListas && (categorias.length === 0 || fornecedores.length === 0);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px]">
+      <DialogContent className="sm:max-w-[640px]">
         <DialogHeader>
           <DialogTitle>Cadastrar novo insumo</DialogTitle>
           <DialogDescription>
@@ -216,15 +284,6 @@ export function NovoInsumoModal({
           </div>
         ) : null}
 
-        {semCadastrosBasicos && !erroListas ? (
-          <div className="rounded bg-amber-50 border border-amber-200 p-2 text-xs text-amber-900">
-            Para cadastrar insumos é preciso ter pelo menos{' '}
-            <strong>uma categoria</strong> e <strong>um fornecedor</strong>{' '}
-            já registrados na loja. Cadastre essas referências antes em
-            Configurações.
-          </div>
-        ) : null}
-
         <div className="grid gap-3">
           <div className="grid gap-1">
             <Label htmlFor="ni-nome">Nome do insumo</Label>
@@ -240,52 +299,38 @@ export function NovoInsumoModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1">
               <Label>Categoria</Label>
-              <Select
+              <Combobox
+                options={categorias.map((c) => ({
+                  value: c.id,
+                  label: c.nome,
+                }))}
                 value={categoriaId}
-                onValueChange={setCategoriaId}
-                disabled={salvando || carregandoListas || categorias.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      carregandoListas ? 'Carregando...' : 'Selecione'
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {categorias.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={setCategoriaId}
+                onCreate={(nomeNovo) => void handleCreateCategoria(nomeNovo)}
+                placeholder={
+                  carregandoListas ? 'Carregando...' : 'Selecione ou crie'
+                }
+                createPlaceholder="Criar categoria"
+                disabled={salvando || carregandoListas}
+              />
             </div>
 
             <div className="grid gap-1">
               <Label>Fornecedor</Label>
-              <Select
+              <Combobox
+                options={fornecedores.map((f) => ({
+                  value: f.id,
+                  label: f.nome,
+                }))}
                 value={fornecedorId}
-                onValueChange={setFornecedorId}
-                disabled={
-                  salvando || carregandoListas || fornecedores.length === 0
+                onChange={setFornecedorId}
+                onCreate={(nomeNovo) => void handleCreateFornecedor(nomeNovo)}
+                placeholder={
+                  carregandoListas ? 'Carregando...' : 'Selecione ou crie'
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      carregandoListas ? 'Carregando...' : 'Selecione'
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {fornecedores.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>
-                      {f.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                createPlaceholder="Criar fornecedor"
+                disabled={salvando || carregandoListas}
+              />
             </div>
           </div>
 
@@ -334,20 +379,20 @@ export function NovoInsumoModal({
           <div className="grid grid-cols-3 gap-3">
             <div className="grid gap-1">
               <Label>Unidade de compra</Label>
-              <Input
+              <UnitSelect
                 value={unidadeCompra}
-                onChange={(e) => setUnidadeCompra(e.target.value)}
-                placeholder="m2, un, kg, etc."
-                disabled={salvando}
+                onValueChange={setUnidadeCompra}
+                placeholder="Selecione"
+                units={UNIDADES_COMPRA}
               />
             </div>
             <div className="grid gap-1">
               <Label>Unidade de uso</Label>
-              <Input
+              <UnitSelect
                 value={unidadeUso}
-                onChange={(e) => setUnidadeUso(e.target.value)}
-                placeholder="m2, un, kg, etc."
-                disabled={salvando}
+                onValueChange={setUnidadeUso}
+                placeholder="Selecione"
+                units={UNIDADES_COMPRA}
               />
             </div>
             <div className="grid gap-1">
@@ -384,7 +429,7 @@ export function NovoInsumoModal({
           <Button
             type="button"
             onClick={handleSalvar}
-            disabled={!podeSalvar || semCadastrosBasicos}
+            disabled={!podeSalvar}
             className="gap-2"
           >
             {salvando ? (
