@@ -24,6 +24,8 @@ import {
 import { Combobox } from '@/components/ui/combobox';
 import { UnitSelect } from '@/components/ui/unit-select';
 import { UNIDADES_COMPRA } from '@/lib/unidades-compra';
+// Fase 11 — Opção B: unidade de uso tem lista própria (inclui M²_LATERAL para caixa aberta 3D).
+import { UNIDADES_USO } from '@/lib/unidades-uso';
 import {
   categoriasApi,
   fornecedoresApi,
@@ -392,7 +394,7 @@ export function NovoInsumoModal({
                 value={unidadeUso}
                 onValueChange={setUnidadeUso}
                 placeholder="Selecione"
-                units={UNIDADES_COMPRA}
+                units={UNIDADES_USO}
               />
             </div>
             <div className="grid gap-1">

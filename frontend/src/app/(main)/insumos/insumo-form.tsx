@@ -18,6 +18,9 @@ import { CustomCurrencyInput } from '@/components/ui/currency-input';
 import { Combobox } from '@/components/ui/combobox';
 import { UnitSelect } from '@/components/ui/unit-select';
 import { UNIDADES_COMPRA } from '@/lib/unidades-compra';
+// Fase 11 — Opção B: unidade de uso tem lista própria (inclui M²_LATERAL para caixa aberta 3D).
+// Unidade de compra continua usando UNIDADES_COMPRA porque ninguém "compra" em M²_LATERAL.
+import { UNIDADES_USO } from '@/lib/unidades-uso';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { InfoWithExamples } from '@/components/ui/info-with-examples';
 import { ConversionExamplesModal } from '@/components/ui/conversion-examples-modal';
@@ -81,6 +84,8 @@ interface InsumoFormProps {
 }
 
 const unidadesDeMedida = UNIDADES_COMPRA;
+// Fase 11: lista de unidades de uso (UNIDADES_COMPRA + M2_LATERAL para caixa aberta 3D).
+const unidadesDeUso = UNIDADES_USO;
 
 const unidadesDimensao = [
   { value: 'M', label: 'METROS' },
@@ -795,7 +800,7 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                 <FormField control={form.control} name="unidade_uso" render={({ field }) => (
                     <FormItem>
                     <FormLabel>
-                        <InfoTooltip content="Como você consome o insumo no produto final. Ex: M² (lona), M (cordão), UNIDADE (parafusos), M² (tinta), M² (cola).">
+                        <InfoTooltip content="Como você consome o insumo no produto final. Ex: M² (lona), M (cordão), UNIDADE (parafusos), M³ (bloco EPS para totem 3D), M² LATERAL (lona que reveste só as 4 laterais de caixa aberta).">
                             Unidade de Uso *
                         </InfoTooltip>
                     </FormLabel>
@@ -804,7 +809,7 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                             value={field.value}
                             onValueChange={field.onChange}
                             placeholder="Selecione a unidade de uso"
-                            units={unidadesDeMedida}
+                            units={unidadesDeUso}
                         />
                     </FormControl>
                     <FormMessage />
