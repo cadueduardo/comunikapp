@@ -482,6 +482,28 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
       String(calculada.perimetro_mm),
       { shouldDirty: true },
     );
+    // Fase 11: profundidade opcional para produtos 3D.
+    // Source-of-truth unica (guardrail 3): persistir EXATAMENTE o que o operador digitou na unidade
+    // selecionada. Quando temProfundidade=false, limpa o campo profundidade_produto (string vazia)
+    // para que o backend persista null (NaN no Number() -> null no payload do form).
+    (form.setValue as unknown as (
+      name: string,
+      value: unknown,
+      options?: { shouldDirty?: boolean },
+    ) => void)(
+      `itens_produto.${itemIndex}.tem_profundidade`,
+      Boolean(valor.temProfundidade),
+      { shouldDirty: true },
+    );
+    (form.setValue as unknown as (
+      name: string,
+      value: unknown,
+      options?: { shouldDirty?: boolean },
+    ) => void)(
+      `itens_produto.${itemIndex}.profundidade_produto`,
+      valor.temProfundidade ? valor.profundidade || '' : '',
+      { shouldDirty: true },
+    );
     const origemAtual = form.getValues(
       `itens_produto.${itemIndex}.geometria_origem`,
     );
@@ -775,11 +797,18 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
                         unidade:
                           (form.watch(`itens_produto.${index}.unidade_geometria`) as GeometriaValor['unidade']) ||
                           'mm',
+                        // Fase 11: profundidade opcional para produtos 3D.
+                        profundidade:
+                          (form.watch(`itens_produto.${index}.profundidade_produto`) as string | undefined) || '',
+                        temProfundidade: Boolean(
+                          form.watch(`itens_produto.${index}.tem_profundidade`),
+                        ),
                       }}
                       onChange={(valor, calculada) =>
                         atualizarGeometria(index, valor, calculada)
                       }
                       titulo="Geometria de produção"
+                      permitirProfundidade
                     />
                     {/*
                       Sincroniza area_produto e perimetro_produto com o

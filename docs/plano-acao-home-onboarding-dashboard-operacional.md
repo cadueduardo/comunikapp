@@ -1,6 +1,6 @@
 # Plano de Ação: Home, Onboarding e Evolução Operacional
 
-> **Status atual (atualizado em 2026-05-26, manhã — HANDOFF ENCERRADO):** Fases 0, 1, 2, 3, 4, 5, 6 e **7 concluídas**. A Fase 7 cobriu o anexo de imagem/DXF no produto do orçamento (7.A), o parser DXF real (7.B), a sugestão heurística de insumo por nome de camada (7.B+), a extração de `descricao_projeto` e o `NovoInsumoModal` inline (7.B++), os refinamentos UX do modal e do dropdown de material (4.19), o sincronizador de geometria + flag `apenas_operacao` (4.20) e a remoção da UI heurística de sugestões por falsos positivos (4.21). A **Fase 11 (profundidade no orçamento)** é o próximo entregável formal, com plano completo + **três guardrails obrigatórios** registrados pelo usuário no fechamento (motor de cálculo, preview com profundidade, persistência sem mutação preview/grid/detalhe). Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF e a seção "Fase 11" antes de codar.**
+> **Status atual (atualizado em 2026-05-26, tarde):** Fases 0, 1, 2, 3, 4, 5, 6, **7** e **11.A–11.H concluídas**. A Fase 7 cobriu o anexo de imagem/DXF no produto do orçamento (7.A), o parser DXF real (7.B), a sugestão heurística de insumo por nome de camada (7.B+), a extração de `descricao_projeto` e o `NovoInsumoModal` inline (7.B++), os refinamentos UX do modal e do dropdown de material (4.19), o sincronizador de geometria + flag `apenas_operacao` (4.20) e a remoção da UI heurística de sugestões por falsos positivos (4.21). A **Fase 11 (profundidade no orçamento)** foi entregue em 2026-05-26 cobrindo: schema (`ItemOS.profundidade` via migration `20260526090000_add_profundidade_item_os`), motor com duas funções puras testadas (`calcularVolume`, `calcularAreaLateral`) e 22 cenários cobertos pelo script `frontend/scripts/validar-motor-profundidade.mjs`, DTO + persistência sem mutação (criarProduto/atualizarProduto/transformarProduto/transformacao-v2), UI opcional com checkbox 3D no `QuickGeometryInput`, novas unidades `M3` e `M2_LATERAL` no `MaterialSection` com salvaguarda anti-erro, correção do bug de dupla multiplicação no `PreviewCalculoV2.deveAplicarMultiplicacaoMaterial`, e propagação de profundidade até `ItemOS`. **Validação manual em 3 telas (preview, grid, detalhe) é o próximo passo** — depende do usuário reiniciar o backend dev para regenerar o cliente Prisma e testar fim a fim. Detalhes operacionais em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md).
 
 ## Critério de sucesso
 
@@ -1049,7 +1049,32 @@ Critérios de aceite:
 
 ### Fase 11: profundidade no orçamento (3D / volume)
 
-> **[PLANO REGISTRADO em 2026-05-26 — aguardando aprovação para implementação]** O usuário pediu para criar uma fase dedicada à profundidade após constatar que o sistema hoje só trabalha com `largura × altura` (geometria 2D), mas produtos como **letras caixa**, **displays 3D**, **totens** e **caixas de luminoso** dependem da profundidade para o cálculo correto de material e tempo de máquina. Foi numerada como Fase 11 porque as Fases 9 (polimento de navegação) e 10 (roadmap não bloqueante) já estavam reservadas para outros temas — não há intenção de renumerar.
+> **[ENTREGA TÉCNICA CONCLUÍDA em 2026-05-26 (tarde). Validação manual em 3 telas pendente do usuário reiniciar o backend dev.]** O usuário pediu para criar uma fase dedicada à profundidade após constatar que o sistema hoje só trabalha com `largura × altura` (geometria 2D), mas produtos como **letras caixa**, **displays 3D**, **totens** e **caixas de luminoso** dependem da profundidade para o cálculo correto de material e tempo de máquina. Foi numerada como Fase 11 porque as Fases 9 (polimento de navegação) e 10 (roadmap não bloqueante) já estavam reservadas para outros temas — não há intenção de renumerar.
+
+**Sub-fases entregues (2026-05-26 tarde):**
+
+- **11.A Schema:** migration `20260526090000_add_profundidade_item_os` aplicada no banco local (`ProdutoOrcamento.profundidade` já existia desde `20250101000000_add_profundidade_produto_orcamento`). Schemas Zod do frontend (`orcamento.schema.ts`, `produto.schema.ts`) estendidos com `profundidade_produto?` e `tem_profundidade?`. Defaults dos forms V1 (`OrcamentoForm.tsx`) e V2 (`orcamento-v2-form.tsx`) atualizados em todos os pontos de reconstrução de produto a partir de `initialData`.
+- **11.B Motor (testes antes da UI — guardrail #1):** funções puras `calcularVolume()` e `calcularAreaLateral()` adicionadas em `frontend/src/components/ui/shared/utils/calculo.utils.ts` com helper `insumoExigeProfundidade()`. Documentação viva em `__tests__/calculo-profundidade.spec.ts` + validador executável `frontend/scripts/validar-motor-profundidade.mjs` rodando 22 cenários (regressão zero, M3, M2_LATERAL, profundidade ausente, unidades mm/cm/m, coerência interna). Rodar com `node frontend/scripts/validar-motor-profundidade.mjs`.
+- **11.C DTO/persistência (guardrail #3):** `ProdutoOrcamentoDto.profundidade?` (`@IsOptional()`, `@Min(0)`) adicionado em `criar-orcamento.dto.ts`. Interface `ProdutoOrcamento` em `orcamento.interface.ts` estendida. `produtos-v2.repository.ts` propaga profundidade em `criarProduto`, `atualizarProduto` e `transformarProduto` com source-of-truth única (null quando ausente). `transformacao-v2.service.ts` normaliza profundidade para number ou null antes de gravar no Prisma. Listagem (`listarOrcamentos`) e payload público (`montarPayloadPublicoOrcamento`) também devolvem profundidade.
+- **11.D UI:** `QuickGeometryInput` estendido com prop opcional `permitirProfundidade` (default `false` para compatibilidade com simulador e outros consumidores). Quando ligada, exibe checkbox "Este produto tem profundidade (3D)" + campo de profundidade (mesma `unidade_geometria`) + cards de "Área lateral (caixa aberta)" e "Volume" calculados em tempo real. `ProdutoSection.tsx` (orçamento V1 e V2) passa `permitirProfundidade` e estendeu `atualizarGeometria` para persistir `tem_profundidade` e `profundidade_produto` no form.
+- **11.E MaterialSection (cálculo automático):** cases `M3` e `M2_LATERAL` adicionados no switch do `useEffect` (recálculo automático) e do `sugerirQuantidade()`. `gerarExplicacaoCalculo()` mostra a fórmula aplicada (`L × A × P` ou `(2L+2A) × P`). **Salvaguarda anti-erro:** se o operador escolhe insumo com `unidade_uso='M3'`/`'M2_LATERAL'` mas o produto não tem profundidade marcada, o card mostra aviso amarelo "Este insumo usa volume/área lateral e requer profundidade do produto. Marque 'Este produto tem profundidade (3D)' em Geometria de produção" — não calcula com 0 silenciosamente.
+- **11.F Preview (guardrail #2):** `preview-calculo.helpers.ts.deveAplicarMultiplicacaoMaterial()` foi corrigido com early return para `m3` e `m2_lateral` (match exato), evitando bug latente onde `'m3'.includes('m')` causaria dupla multiplicação (preview × MaterialSection). O preview consome a `quantidade` já calculada pelo `MaterialSection` — uma única fonte de verdade.
+- **11.G OS:** `montarItensOSDoOrcamento` em `os.service.ts` propaga `profundidade` para `ItemOS`. Payload da OS para o frontend (`OSTabs.tsx` já exibe profundidade quando > 0) inclui o campo. Interface `ItemOSData` estendida.
+- **11.H Validação técnica:** `tsc --noEmit` do backend rodou limpo (0 erros). `tsc` do frontend não introduziu erros novos (apenas pré-existentes em `centros-de-trabalho`, `configuracoes`, `estoque` e o `preview-calculo-correcao-materiais.spec.ts` que usa `describe/it/expect` sem `@types/jest`). Script validador do motor passou (22/22 cenários).
+
+**Sub-fases pendentes:**
+
+- **11.H Validação manual em 3 telas (responsabilidade do usuário com backend reiniciado):**
+  1. Criar produto com profundidade no Orçamento V2 → conferir valor exibido no preview.
+  2. Salvar orçamento → abrir listagem (`/orcamentos-v2`) → conferir se o valor exibido no grid bate com o preview.
+  3. Abrir o orçamento para edição → conferir se profundidade carrega exatamente igual ao salvo.
+  4. Gerar OS a partir do orçamento → conferir se `ItemOS.profundidade` aparece nas abas e PDFs.
+  5. Reabrir produto sem profundidade (cenário comum) → conferir que o checkbox fica desmarcado e o campo permanece oculto (regressão zero).
+
+**Pontos de atenção para o usuário ao reiniciar o backend dev:**
+
+- O `prisma generate` ficou bloqueado durante a sessão porque o `dev:backend` mantém `query_engine-windows.dll.node` em uso. Parar o backend → rodar `npx prisma generate` no diretório `backend/` → reiniciar com `npm run dev` resolve.
+- Se aparecer qualquer divergência entre preview, grid e detalhe (bug histórico do Orçamento V2 reportado pelo usuário), pesquisar o caminho: `ProdutoSection.atualizarGeometria` → `produtoTransformado.profundidade` (linha ~1054 em `orcamento-v2-form.tsx`) → `produtos-v2.repository.ts.criarProduto/atualizarProduto` → `transformacao-v2.service.ts.transformarProdutos` → `orcamentos-v2.service.ts` payloads de listagem e detalhe.
 
 Objetivo: permitir que o motor de cálculo aceite profundidade como dimensão opcional do produto, sem regredir os fluxos atuais (todos os produtos planos continuam funcionando exatamente como hoje).
 
@@ -1072,11 +1097,26 @@ Critérios de aceite:
 - A profundidade aparece em todos os documentos gerados (orçamento, OS, PCP).
 - Operador pode marcar/desmarcar "tem profundidade" e o campo aparece/some sem efeitos colaterais.
 
-Decisões a confirmar antes de implementar:
+Decisões fechadas pelo usuário em 2026-05-26 (Fase 11 — Sub-fase 0, definição de produto):
 
-- **Modelagem do motor:** modificador `usa_profundidade` por insumo (mais flexível) OU novos `tipo_calculo` (`POR_M2_LATERAL`, `POR_VOLUME`)?
-- **Unidade de profundidade:** segue a `unidade_geometria` do produto (mesmo padrão de largura/altura) OU campo independente?
-- **Cálculo de laterais com perfil de fechamento:** caixa fechada (4 laterais + frente + fundo) vs caixa aberta (4 laterais) vs personalizado — incluir já ou ficar para evolução?
+- **Modelagem do motor (Decisão 1, revisada com base no código real):** o cálculo automático hoje é guiado por `unidade_uso` do Insumo (M2 → área, M → perímetro) — o enum `LogicaConsumoInsumo` só é consultado para o branch `custom`. Para Fase 11, mantemos o padrão e adicionamos **duas novas unidades de uso**:
+  - **`M3` (volume):** fórmula `largura × altura × profundidade`, já tem label "Volume (m³)" no `getCampoQuantidade`.
+  - **`M2_LATERAL` (área lateral):** fórmula `(2 × largura + 2 × altura) × profundidade`, normalizada para m². Label novo: "Área lateral (m²)".
+  - Os casos `M2` e `M` existentes **continuam funcionando idênticos a hoje** — não leem `profundidade` mesmo quando preenchida (regressão zero).
+  - O enum `LogicaConsumoInsumo` **não é alterado** nesta fase — evita migration desnecessária e refatoração ampla do MaterialSection.
+- **Unidade da profundidade (Decisão 2):** segue a `unidade_geometria` do produto (mm | cm | m). Sem campo independente.
+- **Escopo de `area_lateral` (Decisão 3):** apenas **caixa aberta (4 laterais)**. Caixa fechada (4 laterais + tampa + fundo) ou parametrização por produto (checkbox "tem tampa?", "tem fundo?") ficam como evolução futura, com flag opcional em `ProdutoOrcamento` quando virar demanda real.
+
+**Garantia explícita de opcionalidade (registrada por exigência do usuário):**
+
+A maioria dos serviços do nicho usa apenas largura × altura. A profundidade tem que ser **totalmente opcional em todas as camadas**, sem efeito colateral para quem não usa:
+
+1. **Schema:** `ProdutoOrcamento.profundidade` já é `Decimal(10,2)?` (existe via migration `20250101000000_add_profundidade_produto_orcamento`). `ItemOS.profundidade` será adicionada como `Decimal(10,2)?`. Nunca obrigatório.
+2. **UI:** o campo só aparece quando o operador marcar o checkbox "Este produto tem profundidade (3D)" no `ProdutoSection`. Por padrão, fica oculto.
+3. **DTO:** `profundidade?` com `@IsOptional()`. Payload pode vir sem o campo, sem erro.
+4. **Motor:** insumos com `unidade_uso` em `M2`, `M` ou outros (e `logica_consumo='custom'`) ignoram `profundidade` mesmo quando preenchida. Só `M3` e `M2_LATERAL` consomem o campo.
+5. **Salvaguarda anti-erro:** se o operador escolher um insumo `M3`/`M2_LATERAL` mas o produto não tem `profundidade` preenchida, o motor **NÃO calcula com 0 silenciosamente** — exibe aviso visual no `MaterialSection` ("Este insumo requer profundidade do produto") e deixa a quantidade em branco até o operador resolver.
+6. **Exibição (grids, PDFs, OS):** profundidade só aparece quando o produto tem valor preenchido (`if (profundidade)`), padrão já adotado em `OSTabs.tsx`.
 
 **Guardrails obrigatórios para o próximo agente (registrados em 2026-05-26 pelo usuário):**
 

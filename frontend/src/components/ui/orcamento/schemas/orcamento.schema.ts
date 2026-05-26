@@ -73,6 +73,12 @@ export const createFormSchema = (mode: 'novo' | 'editar' | 'template') => z.obje
     // Medidas do produto
     largura_produto: z.string().optional(),
     altura_produto: z.string().optional(),
+    // Fase 11: profundidade opcional para produtos 3D (totens, letras caixa, displays).
+    // Quando preenchida, segue a mesma 'unidade_geometria' do produto.
+    profundidade_produto: z.string().optional(),
+    // Fase 11: flag controlada pelo checkbox "Este produto tem profundidade (3D)".
+    // Quando false ou ausente, o campo profundidade_produto fica oculto e e ignorado pelo motor.
+    tem_profundidade: z.boolean().optional(),
     unidade_medida_produto: z.string().optional(),
     area_produto: z.string().optional(),
     perimetro_produto: z.string().optional(),

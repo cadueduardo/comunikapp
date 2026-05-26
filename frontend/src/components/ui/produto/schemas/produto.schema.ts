@@ -8,6 +8,10 @@ export const createProdutoSchema = () => z.object({
     // Medidas do produto
     largura_produto: z.string().optional(),
     altura_produto: z.string().optional(),
+    // Fase 11: profundidade opcional para templates de produtos 3D (totens, letras caixa, displays).
+    profundidade_produto: z.string().optional(),
+    // Fase 11: flag controlada pelo checkbox "Este template tem profundidade (3D)".
+    tem_profundidade: z.boolean().optional(),
     unidade_medida_produto: z.string().optional(),
     area_produto: z.string().optional(),
     // Materiais utilizados para este produto

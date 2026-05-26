@@ -1,6 +1,8 @@
 # Handoff para o próximo agente — Home Operacional + Evolução Operacional
 
-> **HANDOFF ENCERRADO em 2026-05-26 (manhã)** pelo usuário. Fases 0-7 entregues, o que abrange Home Operacional + Onboarding + Dashboard Operacional + Aprovação Técnica de OS + PCP + Financeiro + DXF real. **Próximo entregável formal: Fase 11 (profundidade no orçamento)** — plano completo e **guardrails críticos** registrados em [`docs/plano-acao-home-onboarding-dashboard-operacional.md`](./plano-acao-home-onboarding-dashboard-operacional.md) na seção "Fase 11". **OBRIGATÓRIO ler aqueles guardrails antes de codar a Fase 11** — eles refletem três bugs históricos do Orçamento V2 que o usuário não quer repetir.
+> **ENTREGA TÉCNICA DA FASE 11 EM 2026-05-26 (TARDE).** Sub-fases **11.A–11.H concluídas** (schema, motor com 22 testes, DTO, persistência sem mutação, UI opcional, MaterialSection, Preview, OS). Pendência: **(a)** o usuário precisa parar o backend dev e rodar `npx prisma generate` no diretório `backend/` (o EPERM aconteceu durante a sessão porque o `dev:backend` segurava `query_engine-windows.dll.node`), e **(b)** validação manual fim a fim em 3 telas (preview → grid → detalhe) + geração de OS, para confirmar que o guardrail #3 está respeitado. Plano detalhado e guardrails em [`docs/plano-acao-home-onboarding-dashboard-operacional.md`](./plano-acao-home-onboarding-dashboard-operacional.md) seção "Fase 11".
+
+> **HANDOFF ENCERRADO em 2026-05-26 (manhã)** pelo usuário, e **retomado no mesmo dia (tarde) para entregar a Fase 11**. Fases 0-7 + 11.A–11.H entregues, o que abrange Home Operacional + Onboarding + Dashboard Operacional + Aprovação Técnica de OS + PCP + Financeiro + DXF real + Profundidade 3D no orçamento.
 
 > **Para quem é este documento:** outro agente de IA (ou desenvolvedor humano) que vai continuar de onde paramos. Leia este arquivo inteiro antes de tocar em qualquer código. Ele é a fonte de verdade do **estado atual** e dos **próximos passos**.
 
@@ -20,13 +22,26 @@ Antes ainda, foram entregues a **Fase 5** (`GET /home-operacional/alertas` com 6
 
 Também ficaram em produção: a **UX de aprovação da OS direto no grid** (`/os`) com modal `AprovarOSModal` listando os critérios (`dados_completos`, `arte_anexada`, `estoque_ok`, `prazo_viavel`); **prazos por serviço** no mesmo modal (4.13) com prazo "mãe" para aplicar em todos de uma vez (4.14); **fix estrutural** do `OSPrazoService` que corrompia `OrdemServico.status` (4.11) + endpoint admin de recuperação; **auto-promoção** OS → PCP na aprovação técnica (4.10).
 
-**Próximo entregável formal: Fase 11 — profundidade no orçamento.** Afeta schema (`ProdutoOrcamento` + `ItemOS`), motor de cálculo (novo `tipo_calculo` ou modificador `usa_profundidade=true`), UI do `QuickGeometryInput` e templates. Registrada em `docs/plano-acao-home-onboarding-dashboard-operacional.md` (foi numerada 11 porque 9 e 10 já estavam reservadas). O plano traz 3 decisões a confirmar antes de implementar (modelagem do motor, unidade da profundidade, escopo de "caixa fechada vs aberta") **e três guardrails obrigatórios** registrados pelo usuário no fechamento do handoff:
+**Fase 11 — profundidade no orçamento — ENTREGA TÉCNICA CONCLUÍDA em 2026-05-26 (tarde).** Decisões fechadas pelo usuário foram:
 
-1. **Cuidado redobrado no motor de cálculo** — mapear todos os pontos que usam `largura_produto/altura_produto/area_produto/perimetro_produto` e escrever testes unitários do motor ANTES de mexer na UI.
-2. **`PreviewCalculoV2` precisa entender `profundidade_produto`** — sem duplicar lógica (compartilhar função pura com o motor).
-3. **Persistência sem mutação** — preview = grid = detalhe do orçamento (corrigir o bug histórico onde os três mostravam valores diferentes do mesmo produto). Estratégia: persistir o input bruto e recalcular derivados no display (source of truth única).
+- **Decisão 1 (revisada com base no código real):** sem mexer no enum `LogicaConsumoInsumo`. Em vez disso, duas novas `unidade_uso` adicionadas: `M3` (volume = `L × A × P`) e `M2_LATERAL` (caixa aberta = `(2L + 2A) × P`). Mínima superfície de mudança, segue o padrão do `MaterialSection` (que já roteava por `unidade_uso`).
+- **Decisão 2:** profundidade segue a mesma `unidade_geometria` do produto (mm | cm | m). Sem campo independente.
+- **Decisão 3:** caixa aberta apenas (4 laterais). Caixa fechada/parametrização ficam para evolução futura.
 
-Detalhes completos dos guardrails no plano-mãe, seção "Fase 11". **NÃO codar a Fase 11 sem ler aqueles guardrails.**
+**Guardrails respeitados:**
+
+1. **Motor primeiro, UI depois.** Funções puras `calcularVolume()` e `calcularAreaLateral()` em `calculo.utils.ts` validadas via script standalone `frontend/scripts/validar-motor-profundidade.mjs` (22 cenários cobrindo regressão zero, M3, M2_LATERAL, profundidade ausente, unidades, coerência). Apenas DEPOIS dos testes verdes a UI foi mexida.
+2. **Preview entende profundidade sem duplicar lógica.** O `MaterialSection` chama `calcularVolume`/`calcularAreaLateral` para preencher a `quantidade` no form. O `PreviewCalculoV2` consome o valor já calculado — uma fonte única. Bug latente de dupla multiplicação no `deveAplicarMultiplicacaoMaterial` (porque `'m3'.includes('m')` matchearia) foi corrigido com early return explícito para `m3` e `m2_lateral`.
+3. **Persistência sem mutação (preview = grid = detalhe).** Frontend manda `profundidade: null` quando flag desligada (não 0); backend persiste exatamente o que veio (`rest.profundidade ?? null` no `criarProduto`; `...(rest.profundidade !== undefined ? { profundidade: rest.profundidade } : {})` no `atualizarProduto` aceitando `null` explícito). `transformarProduto` (repository), `transformacao-v2.service.ts.transformarProdutos` (listagem/detalhe) e payload público (`orcamentos-v2.service.ts`) propagam o campo. Em `os.service.ts`, `montarItensOSDoOrcamento` passa profundidade ao `ItemOS` (novo campo via migration `20260526090000_add_profundidade_item_os`).
+
+**Pendência (depende do usuário):**
+
+1. Parar o backend dev (`Ctrl+C` no terminal 2 onde está rodando `dev:backend`).
+2. No diretório `backend/`, rodar `npx prisma generate` para regenerar o cliente com `ItemOS.profundidade`. (Durante a sessão, isso deu EPERM porque o backend estava segurando `query_engine-windows.dll.node`.)
+3. Reiniciar o backend dev.
+4. Validar manualmente em 3 telas: criar produto 3D no Orçamento V2 → preview mostra Volume/Área Lateral → salvar → conferir grid de orçamentos → reabrir → conferir se profundidade carrega igual ao salvo → gerar OS → conferir abas de OS exibindo profundidade.
+
+Detalhes completos das sub-fases (11.A–11.H) no plano-mãe, seção "Fase 11".
 
 **Dívidas menores conhecidas (não bloqueantes para a Fase 11 nem para uso em produção):**
 

@@ -26,6 +26,68 @@ export function calcularArea(largura: number, altura: number, unidade: string): 
   return larguraEmMetros * alturaEmMetros;
 }
 
+// Fase 11: profundidade no orçamento (produtos 3D)
+// Funções puras compartilhadas entre MaterialSection (cálculo automático) e
+// PreviewCalculoV2 (preview do orçamento). Source-of-truth única — guardrail #2.
+
+/**
+ * Calcula o volume em m³ a partir de largura, altura e profundidade.
+ * Usada por insumos com `unidade_uso = 'M3'` em produtos 3D.
+ *
+ * Retorna 0 quando qualquer dimensão estiver ausente ou for inválida.
+ * O chamador é responsável por exibir aviso ao operador quando o produto
+ * não tem profundidade preenchida (salvaguarda anti-erro).
+ */
+export function calcularVolume(
+  largura: number,
+  altura: number,
+  profundidade: number,
+  unidade: string,
+): number {
+  if (!largura || !altura || !profundidade) return 0;
+
+  const larguraEmMetros = converterParaMetros(largura, unidade);
+  const alturaEmMetros = converterParaMetros(altura, unidade);
+  const profundidadeEmMetros = converterParaMetros(profundidade, unidade);
+
+  return larguraEmMetros * alturaEmMetros * profundidadeEmMetros;
+}
+
+/**
+ * Calcula a área lateral em m² para uma caixa aberta (4 laterais sem tampa nem fundo).
+ * Fórmula: (2 × largura + 2 × altura) × profundidade.
+ * Usada por insumos com `unidade_uso = 'M2_LATERAL'` em produtos 3D (letras caixa,
+ * displays, totens abertos).
+ *
+ * Retorna 0 quando qualquer dimensão estiver ausente ou for inválida.
+ * O chamador é responsável por exibir aviso ao operador quando o produto
+ * não tem profundidade preenchida (salvaguarda anti-erro).
+ */
+export function calcularAreaLateral(
+  largura: number,
+  altura: number,
+  profundidade: number,
+  unidade: string,
+): number {
+  if (!largura || !altura || !profundidade) return 0;
+
+  const larguraEmMetros = converterParaMetros(largura, unidade);
+  const alturaEmMetros = converterParaMetros(altura, unidade);
+  const profundidadeEmMetros = converterParaMetros(profundidade, unidade);
+
+  const perimetroEmMetros = 2 * (larguraEmMetros + alturaEmMetros);
+  return perimetroEmMetros * profundidadeEmMetros;
+}
+
+/**
+ * Verifica se um insumo (pelo `unidade_uso`) exige profundidade do produto.
+ * Usado para exibir aviso no MaterialSection quando profundidade está ausente.
+ */
+export function insumoExigeProfundidade(unidadeUso: string | undefined | null): boolean {
+  if (!unidadeUso) return false;
+  return unidadeUso === 'M3' || unidadeUso === 'M2_LATERAL';
+}
+
 // Função para obter o tipo de campo baseado na unidade de uso
 export function getCampoQuantidade(insumo: Insumo | undefined) {
   if (!insumo) return { label: 'Quantidade', placeholder: '0.00', step: '0.01' };
@@ -35,6 +97,8 @@ export function getCampoQuantidade(insumo: Insumo | undefined) {
       return { label: 'Comprimento (metros)', placeholder: '0.00', step: '0.001' };
     case 'M2':
       return { label: 'Área (m²)', placeholder: '0.00', step: '0.01' };
+    case 'M2_LATERAL':
+      return { label: 'Área lateral (m²)', placeholder: '0.00', step: '0.01' };
     case 'M3':
       return { label: 'Volume (m³)', placeholder: '0.00', step: '0.001' };
     case 'CM':

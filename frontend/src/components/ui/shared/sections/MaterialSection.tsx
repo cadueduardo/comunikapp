@@ -17,7 +17,15 @@ import { Plus, Trash2, PlusCircle } from 'lucide-react';
 
 import { formatCurrency } from '@/lib/utils';
 import { Insumo } from '../types/common.types';
-import { getCampoQuantidade, calcularCustoPorUnidadeUso, calcularArea, converterParaMetros } from '../utils/calculo.utils';
+import {
+  getCampoQuantidade,
+  calcularCustoPorUnidadeUso,
+  calcularArea,
+  calcularVolume,
+  calcularAreaLateral,
+  converterParaMetros,
+  insumoExigeProfundidade,
+} from '../utils/calculo.utils';
 import { NovoInsumoModal } from '@/components/orcamentos-v2/NovoInsumoModal';
 
 interface MaterialSectionProps {
@@ -63,6 +71,10 @@ export function MaterialSection({
   const alturaProduto = form.watch(`itens_produto.${itemIndex}.altura_produto`);
   const unidadeGeometria = form.watch(`itens_produto.${itemIndex}.unidade_geometria`) || 'mm';
   const perimetroProduto = form.watch(`itens_produto.${itemIndex}.perimetro_produto`);
+  // Fase 11: profundidade opcional (produtos 3D). 'temProfundidade' e source-of-truth da exibicao
+  // e do consumo - quando false, o motor ignora profundidade mesmo que o campo tenha valor residual.
+  const profundidadeProduto = form.watch(`itens_produto.${itemIndex}.profundidade_produto`);
+  const temProfundidade = Boolean(form.watch(`itens_produto.${itemIndex}.tem_profundidade`));
 
   const normalizarNumero = (valor: unknown): number => {
     if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
@@ -93,6 +105,25 @@ export function MaterialSection({
     const larguraEmMetros = converterParaMetros(largura, unidadeGeometria);
     const alturaEmMetros = converterParaMetros(altura, unidadeGeometria);
     return 2 * (larguraEmMetros + alturaEmMetros);
+  };
+
+  // Fase 11: volume em m3 (LxAxP) so quando temProfundidade=true e o valor e valido.
+  // Compartilha unidade_geometria com largura/altura (decisao do plano).
+  const obterVolumeM3 = (): number => {
+    if (!temProfundidade) return 0;
+    const largura = normalizarNumero(larguraProduto);
+    const altura = normalizarNumero(alturaProduto);
+    const profundidade = normalizarNumero(profundidadeProduto);
+    return calcularVolume(largura, altura, profundidade, unidadeGeometria);
+  };
+
+  // Fase 11: area lateral em m2 (caixa aberta, 4 laterais) so quando temProfundidade=true.
+  const obterAreaLateralM2 = (): number => {
+    if (!temProfundidade) return 0;
+    const largura = normalizarNumero(larguraProduto);
+    const altura = normalizarNumero(alturaProduto);
+    const profundidade = normalizarNumero(profundidadeProduto);
+    return calcularAreaLateral(largura, altura, profundidade, unidadeGeometria);
   };
 
   useEffect(() => {
@@ -154,6 +185,23 @@ export function MaterialSection({
                   novaQuantidade = (perimetroProdutoM * quantidadeProdutoNum).toFixed(2);
                 }
                 break;
+              // Fase 11: volume (LxAxP em m3) para produtos 3D. So calcula se temProfundidade=true.
+              // Quando o produto e 2D (temProfundidade=false), nao preenche - operador ve aviso na UI.
+              case 'M3': {
+                const volumeM3 = obterVolumeM3();
+                if (volumeM3 > 0) {
+                  novaQuantidade = (volumeM3 * quantidadeProdutoNum).toFixed(3);
+                }
+                break;
+              }
+              // Fase 11: area lateral (caixa aberta, 4 laterais sem tampa/fundo) em m2.
+              case 'M2_LATERAL': {
+                const areaLateralM2 = obterAreaLateralM2();
+                if (areaLateralM2 > 0) {
+                  novaQuantidade = (areaLateralM2 * quantidadeProdutoNum).toFixed(2);
+                }
+                break;
+              }
             }
           }
           
@@ -164,7 +212,7 @@ export function MaterialSection({
         }
       }
     });
-  }, [quantidadeProduto, areaProduto, larguraProduto, alturaProduto, unidadeGeometria, perimetroProduto, form, itemIndex, insumos]);
+  }, [quantidadeProduto, areaProduto, larguraProduto, alturaProduto, unidadeGeometria, perimetroProduto, profundidadeProduto, temProfundidade, form, itemIndex, insumos]);
 
   const handleAddMaterial = () => {
     if (onAddMaterial) {
@@ -322,6 +370,21 @@ export function MaterialSection({
                   sugestao = (perimetroProdutoM * quantidadeProduto).toFixed(2);
                 }
                 break;
+              // Fase 11: volume e area lateral para produtos 3D.
+              case 'M3': {
+                const volumeM3 = obterVolumeM3();
+                if (volumeM3 > 0) {
+                  sugestao = (volumeM3 * quantidadeProduto).toFixed(3);
+                }
+                break;
+              }
+              case 'M2_LATERAL': {
+                const areaLateralM2 = obterAreaLateralM2();
+                if (areaLateralM2 > 0) {
+                  sugestao = (areaLateralM2 * quantidadeProduto).toFixed(2);
+                }
+                break;
+              }
             }
           }
           
@@ -378,6 +441,27 @@ export function MaterialSection({
             }
           } else {
             // Lógica padrão
+            // Fase 11: M3 e M2_LATERAL precedem M2/M porque o switch precisa caso a caso.
+            if (insumoSelecionado.unidade_uso === 'M3') {
+              const volumeM3 = obterVolumeM3();
+              if (volumeM3 > 0) {
+                const volumeTotal = volumeM3 * quantidadeProduto;
+                return `Volume: L x A x P = ${volumeM3.toFixed(4)}m³ × ${quantidadeProduto} unidades = ${volumeTotal.toFixed(4)}m³`;
+              }
+              if (!temProfundidade) {
+                return 'Este insumo requer profundidade. Marque "Este produto tem profundidade (3D)" acima e preencha o valor.';
+              }
+            }
+            if (insumoSelecionado.unidade_uso === 'M2_LATERAL') {
+              const areaLateralM2 = obterAreaLateralM2();
+              if (areaLateralM2 > 0) {
+                const areaTotal = areaLateralM2 * quantidadeProduto;
+                return `Área lateral (caixa aberta): (2L+2A) x P = ${areaLateralM2.toFixed(4)}m² × ${quantidadeProduto} unidades = ${areaTotal.toFixed(4)}m²`;
+              }
+              if (!temProfundidade) {
+                return 'Este insumo requer profundidade. Marque "Este produto tem profundidade (3D)" acima e preencha o valor.';
+              }
+            }
             switch (insumoSelecionado.unidade_uso) {
               case 'M2':
                 if (areaProduto > 0) {
@@ -598,6 +682,17 @@ export function MaterialSection({
               </div>
             </div>
             
+            {/* Fase 11: salvaguarda anti-erro - se o insumo exige profundidade mas o produto e 2D,
+                avisar o operador em vez de calcular com 0 silenciosamente. */}
+            {insumoSelecionado &&
+              insumoExigeProfundidade(insumoSelecionado.unidade_uso) &&
+              !temProfundidade && (
+                <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 p-2 rounded">
+                  Este insumo usa <strong>{insumoSelecionado.unidade_uso === 'M3' ? 'volume (m³)' : 'área lateral (m²)'}</strong> e requer profundidade do produto.
+                  Marque <em>&ldquo;Este produto tem profundidade (3D)&rdquo;</em> em <strong>Geometria de produção</strong> e preencha o valor para calcular automaticamente.
+                </div>
+              )}
+
             {/* Sugestão automática baseada no produto */}
             {insumoSelecionado && !quantidade && (
               <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">

@@ -148,6 +148,8 @@ export function OrcamentoForm({
           quantidade_produto: '1',
           largura_produto: '',
           altura_produto: '',
+          profundidade_produto: '',
+          tem_profundidade: false,
           unidade_medida_produto: '',
           area_produto: '',
           materiais: [],
@@ -177,18 +179,27 @@ export function OrcamentoForm({
         validade_proposta: String(initialData.validade_proposta || '30 dias'),
         atendente: String(initialData.atendente || 'Equipe Comercial'),
         itens_produto: [
-          {
-            nome_servico: String(initialData.nome_servico || ''),
-            descricao: String(initialData.descricao || ''),
-            quantidade_produto: String(initialData.quantidade_produto || '1'),
-            largura_produto: String(initialData.largura_produto || ''),
-            altura_produto: String(initialData.altura_produto || ''),
-            unidade_medida_produto: String(initialData.unidade_medida_produto || ''),
-            area_produto: String(initialData.area_produto || ''),
-            materiais: [],
-            maquinas: [],
-            funcoes: [],
-          }
+          (() => {
+            // Fase 11: profundidade vem do initialData (se a OS/orcamento ja tem 3D).
+            // Source-of-truth unica: tem_profundidade e derivado do valor (> 0 = true).
+            const profundidadeRaw = (initialData as any).profundidade_produto?.toString() || '';
+            const profundidadeNum = Number(String(profundidadeRaw).replace(',', '.'));
+            const temProfundidade = !!profundidadeRaw && !isNaN(profundidadeNum) && profundidadeNum > 0;
+            return {
+              nome_servico: String(initialData.nome_servico || ''),
+              descricao: String(initialData.descricao || ''),
+              quantidade_produto: String(initialData.quantidade_produto || '1'),
+              largura_produto: String(initialData.largura_produto || ''),
+              altura_produto: String(initialData.altura_produto || ''),
+              profundidade_produto: profundidadeRaw,
+              tem_profundidade: temProfundidade,
+              unidade_medida_produto: String(initialData.unidade_medida_produto || ''),
+              area_produto: String(initialData.area_produto || ''),
+              materiais: [],
+              maquinas: [],
+              funcoes: [],
+            };
+          })(),
         ],
       };
       
@@ -270,19 +281,32 @@ export function OrcamentoForm({
       margem_lucro_customizada: data.margem_lucro_customizada ? Number(data.margem_lucro_customizada.replace(',', '.')) : undefined,
       impostos_customizados: data.impostos_customizados ? Number(data.impostos_customizados.replace(',', '.')) : undefined,
       // Enviar dados de múltiplos produtos
-      itens_produto: data.itens_produto.map((produto, index) => ({
-        nome_servico: produto.nome_servico || `Produto ${index + 1}`,
-        descricao: produto.descricao || '',
-        quantidade: produto.quantidade_produto ? Number(produto.quantidade_produto.replace(',', '.')) : 1,
-        largura: produto.largura_produto ? Number(produto.largura_produto.replace(',', '.')) : undefined,
-        altura: produto.altura_produto ? Number(produto.altura_produto.replace(',', '.')) : undefined,
-        area_produto: produto.area_produto ? Number(produto.area_produto.replace(',', '.')) : undefined,
-        unidade_medida: produto.unidade_medida_produto || '',
-        ordem: index,
-        materiais: produto.materiais || [],
-        maquinas: produto.maquinas || [],
-        funcoes: produto.funcoes || []
-      })),
+      itens_produto: data.itens_produto.map((produto, index) => {
+        // Fase 11: profundidade so vai no payload quando 'tem_profundidade' esta ligado E o valor e valido (> 0).
+        // 'source of truth unica' (guardrail 3) - envia null (nao 0) quando flag desligada.
+        const profundidadeRaw = (produto as any)?.profundidade_produto;
+        const profundidadeNum =
+          profundidadeRaw ? Number(String(profundidadeRaw).replace(',', '.')) : NaN;
+        const temProfundidade = Boolean((produto as any)?.tem_profundidade);
+        const profundidade =
+          temProfundidade && !isNaN(profundidadeNum) && profundidadeNum > 0
+            ? profundidadeNum
+            : null;
+        return {
+          nome_servico: produto.nome_servico || `Produto ${index + 1}`,
+          descricao: produto.descricao || '',
+          quantidade: produto.quantidade_produto ? Number(produto.quantidade_produto.replace(',', '.')) : 1,
+          largura: produto.largura_produto ? Number(produto.largura_produto.replace(',', '.')) : undefined,
+          altura: produto.altura_produto ? Number(produto.altura_produto.replace(',', '.')) : undefined,
+          profundidade,
+          area_produto: produto.area_produto ? Number(produto.area_produto.replace(',', '.')) : undefined,
+          unidade_medida: produto.unidade_medida_produto || '',
+          ordem: index,
+          materiais: produto.materiais || [],
+          maquinas: produto.maquinas || [],
+          funcoes: produto.funcoes || []
+        };
+      }),
       // Manter compatibilidade com campos do primeiro produto para o nível raiz
       largura_produto: primeiroProduto.largura_produto ? Number(primeiroProduto.largura_produto.replace(',', '.')) : undefined,
       altura_produto: primeiroProduto.altura_produto ? Number(primeiroProduto.altura_produto.replace(',', '.')) : undefined,
@@ -450,13 +474,20 @@ export function OrcamentoForm({
     }>;
   }) => {
     try {
-      // Mapear dados do produto template para o formato do orçamento
+      // Mapear dados do produto template para o formato do orçamento.
+      // Fase 11: profundidade do template e propagada quando preenchida (template 3D).
+      const profundidadeTemplateRaw = (produto as any)?.profundidade_produto?.toString() || '';
+      const profundidadeTemplateNum = Number(String(profundidadeTemplateRaw).replace(',', '.'));
+      const temProfundidadeTemplate =
+        !!profundidadeTemplateRaw && !isNaN(profundidadeTemplateNum) && profundidadeTemplateNum > 0;
       const produtoData = {
         nome_servico: produto.nome_servico || '',
         descricao: produto.descricao_produto || '',
         quantidade_produto: '1', // Quantidade padrão
         largura_produto: produto.largura_produto?.toString() || '',
         altura_produto: produto.altura_produto?.toString() || '',
+        profundidade_produto: profundidadeTemplateRaw,
+        tem_profundidade: temProfundidadeTemplate,
         unidade_medida_produto: produto.unidade_medida_produto || '',
         area_produto: produto.area_produto?.toString() || '',
         materiais: produto.itens?.map((item) => ({

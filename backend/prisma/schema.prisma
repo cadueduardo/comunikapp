@@ -1637,6 +1637,9 @@ model ItemOS {
   // Geometria herdada do ProdutoOrcamento para PCP/produção
   largura                     Decimal? @db.Decimal(10, 2)
   altura                      Decimal? @db.Decimal(10, 2)
+  // Fase 11: profundidade opcional para produtos 3D (totens, letras caixa, displays).
+  // Quando preenchida, sera usada por insumos com unidade_uso='M3' (volume) ou 'M2_LATERAL' (caixa aberta 4 laterais).
+  profundidade                Decimal? @db.Decimal(10, 2)
   area                        Decimal? @db.Decimal(10, 2)
   perimetro                   Decimal? @db.Decimal(10, 2)
   unidade_medida              String?  @db.VarChar(16)

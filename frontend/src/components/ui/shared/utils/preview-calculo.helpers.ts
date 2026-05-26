@@ -34,6 +34,14 @@ const deveAplicarMultiplicacaoMaterial = (unidade: string): boolean => {
 
   const unidadeLower = unidade.toLowerCase().trim();
 
+  // Fase 11: M3 (volume) e M2_LATERAL (area lateral) sao TOTAIS - o MaterialSection
+  // ja multiplicou por quantidade_produto antes de salvar no form. Aqui o preview
+  // NAO pode multiplicar de novo, senao havera dupla multiplicacao (bug do guardrail 3).
+  // Match exato para evitar colisao com 'm' / 'm2' em unidadesTotais/unidadesPorUnidade.
+  if (unidadeLower === 'm3' || unidadeLower === 'm2_lateral') {
+    return false;
+  }
+
   // Materiais que NÃO precisam de multiplicação (já são totais)
   const unidadesTotais = ['m²', 'm2', 'metro quadrado', 'metros quadrados'];
   

@@ -219,6 +219,19 @@ export class ProdutoOrcamentoDto {
   @Min(0)
   perimetro_produto?: number;
 
+  // Fase 11: profundidade opcional para produtos 3D (totens, letras caixa, displays).
+  // Segue a mesma 'unidade_geometria' do produto. Quando null/undefined, o produto e tratado como 2D.
+  @ApiPropertyOptional({
+    description:
+      'Profundidade do produto (para produtos 3D como totens, letras caixa, displays). Segue a mesma unidade_geometria. Quando ausente, o produto e tratado como 2D.',
+    example: 50,
+    minimum: 0,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  profundidade?: number;
+
   @ApiPropertyOptional({
     description: 'Unidade usada para informar a geometria',
     enum: ['mm', 'cm', 'm'],

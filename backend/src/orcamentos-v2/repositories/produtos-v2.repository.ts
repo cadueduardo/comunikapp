@@ -59,6 +59,8 @@ export class ProdutosV2Repository {
           unidade_medida: unidade,
           largura: rest.largura,
           altura: rest.altura,
+          // Fase 11: profundidade opcional para produtos 3D. Aceita null (campo vazio).
+          profundidade: rest.profundidade ?? null,
           area_produto: rest.area ?? rest.area_produto,
           perimetro_produto: rest.perimetro_produto,
           unidade_geometria: rest.unidade_geometria,
@@ -196,6 +198,11 @@ export class ProdutosV2Repository {
           ...(unidade !== undefined ? { unidade_medida: unidade } : {}),
           ...(rest.largura !== undefined ? { largura: rest.largura } : {}),
           ...(rest.altura !== undefined ? { altura: rest.altura } : {}),
+          // Fase 11: profundidade aceita null para limpar quando o operador desmarca a flag 3D.
+          // Source-of-truth unica (guardrail 3): persistir o input bruto recebido do frontend.
+          ...(rest.profundidade !== undefined
+            ? { profundidade: rest.profundidade }
+            : {}),
           ...(rest.area !== undefined || rest.area_produto !== undefined
             ? { area_produto: rest.area ?? rest.area_produto }
             : {}),
@@ -656,6 +663,8 @@ export class ProdutosV2Repository {
       unidade: produto.unidade_medida,
       largura: produto.largura,
       altura: produto.altura,
+      // Fase 11: profundidade propagada ao DTO de saida. Null quando o produto e 2D.
+      profundidade: produto.profundidade,
       area: produto.area_produto,
       perimetro_produto: produto.perimetro_produto,
       unidade_geometria: produto.unidade_geometria,

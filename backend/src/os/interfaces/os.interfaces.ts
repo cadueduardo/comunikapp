@@ -80,6 +80,9 @@ export interface ItemOSData {
   observacoes?: string;
   largura?: number;
   altura?: number;
+  // Fase 11: profundidade opcional para produtos 3D (totens, letras caixa, displays).
+  // Coluna `profundidade` em `itens_os` adicionada na migration 20260526090000_add_profundidade_item_os.
+  profundidade?: number;
   area?: number;
   perimetro?: number;
   unidade_medida?: string;

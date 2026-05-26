@@ -1202,6 +1202,8 @@ export class OrcamentosV2Service {
             unidade: produto.unidade_medida,
             largura: produto.largura,
             altura: produto.altura,
+            // Fase 11: profundidade propagada quando o produto e 3D.
+            profundidade: (produto as { profundidade?: unknown }).profundidade ?? null,
             area: produto.area_produto,
             // CORREÇÃO: Usar valores corretos salvos no banco
             preco_unitario: Number(produto.preco_unitario) || 0,

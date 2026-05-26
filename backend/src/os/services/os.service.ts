@@ -1866,6 +1866,12 @@ export class OSService {
         observacoes: item.observacoes,
         largura: item.largura ? Number(item.largura) : undefined,
         altura: item.altura ? Number(item.altura) : undefined,
+        // Fase 11: profundidade exposta no payload da OS para o frontend (OSTabs ja consome o campo).
+        // Number() converte Decimal do Prisma; null/0 viram undefined para esconder na UI.
+        profundidade:
+          item.profundidade && Number(item.profundidade) > 0
+            ? Number(item.profundidade)
+            : undefined,
         area: item.area ? Number(item.area) : undefined,
         perimetro: item.perimetro ? Number(item.perimetro) : undefined,
         unidade_medida: item.unidade_medida,
@@ -2805,6 +2811,10 @@ export class OSService {
       observacoes: produto.descricao || produto.observacoes || null,
       largura: produto.largura ?? null,
       altura: produto.altura ?? null,
+      // Fase 11: profundidade propagada do ProdutoOrcamento para ItemOS (produtos 3D).
+      // Coluna adicionada via migration 20260526090000_add_profundidade_item_os.
+      // Quando o produto e 2D, vai null (campo opcional).
+      profundidade: produto.profundidade ?? null,
       area: produto.area_produto ?? produto.area ?? null,
       perimetro: produto.perimetro_produto ?? null,
       unidade_medida: produto.unidade_medida ?? produto.unidade ?? null,

@@ -486,6 +486,17 @@ export class TransformacaoV2Service {
       area: produto.area_produto || produto.area,
     });
 
+    // Fase 11: profundidade convertida para number (Decimal aceitavel pelo Prisma) ou null.
+    // Source-of-truth unica (guardrail 3): persistir o valor exatamente como veio do payload do operador.
+    const profundidadeNum =
+      produto.profundidade === null || produto.profundidade === undefined
+        ? null
+        : Number(produto.profundidade);
+    const profundidadeNormalizada =
+      profundidadeNum !== null && !isNaN(profundidadeNum) && profundidadeNum > 0
+        ? profundidadeNum
+        : null;
+
     const produtoPreparado: any = {
       nome_servico: nomeProduto,
       nome: nomeProduto,
@@ -493,6 +504,8 @@ export class TransformacaoV2Service {
       quantidade: Math.max(toNumber(produto.quantidade), 0.001),
       largura: produto.largura ?? null,
       altura: produto.altura ?? null,
+      // Fase 11: profundidade opcional para produtos 3D. Null quando ausente ou invalida.
+      profundidade: profundidadeNormalizada,
       area_produto: produto.area_produto || produto.area || null,
       unidade_medida: produto.unidade_medida || produto.unidade || 'un',
       perimetro_produto: produto.perimetro_produto ?? null,
@@ -770,6 +783,8 @@ export class TransformacaoV2Service {
       unidade: produto.unidade,
       largura: produto.largura,
       altura: produto.altura,
+      // Fase 11: profundidade propagada na resposta da listagem/detalhe (guardrail 3 - round-trip sem mutacao).
+      profundidade: produto.profundidade ?? null,
       area: produto.area_produto || produto.area,
       area_produto: produto.area_produto || produto.area,
       perimetro_produto: produto.perimetro_produto,

@@ -83,6 +83,8 @@ export interface ProdutoOrcamento {
   unidade: string;
   largura?: number;
   altura?: number;
+  // Fase 11: profundidade opcional para produtos 3D. Null/undefined = 2D (comportamento padrao).
+  profundidade?: number | null;
   area?: number;
   perimetro_produto?: number;
   unidade_geometria?: 'mm' | 'cm' | 'm';
