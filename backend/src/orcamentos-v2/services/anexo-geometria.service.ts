@@ -17,6 +17,10 @@ import {
   classificarAnexoGeometria,
 } from '../../config/multer-anexo-geometria.config';
 import { DxfExtraido, DxfParserService } from './dxf-parser.service';
+import {
+  DxfSugestaoInsumoService,
+  SugestoesPorCamada,
+} from './dxf-sugestao-insumo.service';
 
 /**
  * Service responsável pela persistência física dos anexos de geometria
@@ -54,7 +58,10 @@ export class AnexoGeometriaService {
     'geometria',
   );
 
-  constructor(private readonly dxfParser: DxfParserService) {
+  constructor(
+    private readonly dxfParser: DxfParserService,
+    private readonly dxfSugestao: DxfSugestaoInsumoService,
+  ) {
     if (!existsSync(this.baseDir)) {
       mkdirSync(this.baseDir, { recursive: true });
     }
@@ -75,6 +82,7 @@ export class AnexoGeometriaService {
     metadados: Record<string, unknown>;
     categoria: CategoriaAnexoGeometria;
     dxf_extraido: DxfExtraido | null;
+    sugestoes_insumo: SugestoesPorCamada[];
   }> {
     const { arquivo, lojaId, usuarioId } = args;
 
@@ -162,12 +170,30 @@ export class AnexoGeometriaService {
       `Anexo de geometria gravado: loja=${lojaId} token=${token} categoria=${categoria} (${arquivo.size} bytes)`,
     );
 
+    // Sugestões de insumo são recalculadas on-demand (não persistidas), para
+    // que cadastros novos de insumo passem a sugerir sem reupload do DXF.
+    let sugestoesInsumo: SugestoesPorCamada[] = [];
+    if (dxfExtraido) {
+      try {
+        sugestoesInsumo = await this.dxfSugestao.sugerir({
+          dxfExtraido,
+          lojaId,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Falha ao gerar sugestões de insumo no upload: ${error instanceof Error ? error.message : error}`,
+        );
+        sugestoesInsumo = [];
+      }
+    }
+
     return {
       token,
       url: `/orcamentos-v2/anexos-geometria/${token}`,
       metadados,
       categoria,
       dxf_extraido: dxfExtraido,
+      sugestoes_insumo: sugestoesInsumo,
     };
   }
 
@@ -175,11 +201,17 @@ export class AnexoGeometriaService {
    * Lê apenas os metadados persistidos do anexo, sem entregar o arquivo
    * bruto. Usado pela rota GET .../dxf-extraido para reler o resultado do
    * parser de um DXF já enviado.
+   *
+   * As sugestões de insumo são recalculadas a cada chamada (não persistidas)
+   * para refletir mudanças no catálogo da loja.
    */
   async lerDxfExtraido(args: {
     token: string;
     lojaId: string;
-  }): Promise<DxfExtraido | null> {
+  }): Promise<{
+    dxf_extraido: DxfExtraido | null;
+    sugestoes_insumo: SugestoesPorCamada[];
+  }> {
     const { token, lojaId } = args;
     this.validarToken(token);
     const meta = await this.lerMetadados(token, lojaId);
@@ -188,7 +220,25 @@ export class AnexoGeometriaService {
         'O anexo informado não é um DXF; metadados de extração não se aplicam.',
       );
     }
-    return meta.dxf_extraido ?? null;
+    const dxfExtraido = meta.dxf_extraido ?? null;
+    let sugestoesInsumo: SugestoesPorCamada[] = [];
+    if (dxfExtraido) {
+      try {
+        sugestoesInsumo = await this.dxfSugestao.sugerir({
+          dxfExtraido,
+          lojaId,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Falha ao gerar sugestões de insumo na releitura: ${error instanceof Error ? error.message : error}`,
+        );
+        sugestoesInsumo = [];
+      }
+    }
+    return {
+      dxf_extraido: dxfExtraido,
+      sugestoes_insumo: sugestoesInsumo,
+    };
   }
 
   /**

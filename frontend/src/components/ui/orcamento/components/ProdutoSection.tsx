@@ -39,6 +39,8 @@ import {
   DxfRevisaoCard,
   type DxfExtraido,
   type AplicarMedidasDxf,
+  type SugestaoInsumoCamada,
+  type SugestoesPorCamada,
 } from '@/components/orcamentos-v2/DxfRevisaoCard';
 import { MaterialSection, MaquinaSection, FuncaoSection, ServicoSection } from '../../shared/sections';
 
@@ -109,8 +111,67 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
     Record<number, DxfExtraido | null>
   >({});
 
-  const setDxfDoProduto = (indice: number, dxf: DxfExtraido | null) => {
+  // Sub-fase 7.B (extensão): sugestões de insumo derivadas das camadas do
+  // DXF, calculadas pelo backend (heurística por nome de camada). Mantidas
+  // separadas do dxf_extraido porque o backend recalcula on-demand a cada
+  // upload/releitura.
+  const [sugestoesPorIndice, setSugestoesPorIndice] = useState<
+    Record<number, SugestoesPorCamada[]>
+  >({});
+
+  const setDxfDoProduto = (
+    indice: number,
+    dxf: DxfExtraido | null,
+    sugestoes: SugestoesPorCamada[] = [],
+  ) => {
     setDxfPorIndice((prev) => ({ ...prev, [indice]: dxf }));
+    setSugestoesPorIndice((prev) => ({ ...prev, [indice]: sugestoes }));
+  };
+
+  // Adiciona o insumo sugerido à lista de materiais do produto. A quantidade
+  // ainda é calculada pelo motor a partir da área/perímetro do produto;
+  // gravamos '1' como placeholder editável. Se o insumo já estava na lista
+  // (mesmo `insumo_id`), evita duplicar.
+  const atrelarInsumoAoProduto = (
+    itemIndex: number,
+    sugestao: SugestaoInsumoCamada,
+  ) => {
+    const materiaisAtuais =
+      (form.getValues(`itens_produto.${itemIndex}.materiais`) as
+        | Array<{
+            insumo_id?: string;
+            quantidade?: string;
+            material_do_cliente?: boolean;
+          }>
+        | undefined) || [];
+    const jaExiste = materiaisAtuais.some(
+      (m) => m.insumo_id === sugestao.insumo_id,
+    );
+    if (jaExiste) {
+      toast.info(`O insumo "${sugestao.insumo_nome}" já está na lista.`);
+      return;
+    }
+    // Se a primeira posição estiver "vazia" (placeholder de novo produto),
+    // substitui ela em vez de criar nova entrada — UX mais limpa.
+    const proximaLista = [...materiaisAtuais];
+    const primeiraVazia = proximaLista.findIndex((m) => !m.insumo_id);
+    if (primeiraVazia >= 0) {
+      proximaLista[primeiraVazia] = {
+        insumo_id: sugestao.insumo_id,
+        quantidade: '1',
+        material_do_cliente: false,
+      };
+    } else {
+      proximaLista.push({
+        insumo_id: sugestao.insumo_id,
+        quantidade: '1',
+        material_do_cliente: false,
+      });
+    }
+    form.setValue(`itens_produto.${itemIndex}.materiais`, proximaLista, {
+      shouldDirty: true,
+    });
+    toast.success(`Insumo "${sugestao.insumo_nome}" atrelado ao produto.`);
   };
 
   // Aplica os valores extraídos do DXF (sempre em mm) ao produto. O formulário
@@ -327,20 +388,26 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
                       onChange={(url, categoria) => {
                         atualizarAnexoGeometria(index, url, categoria);
                         if (!url || categoria !== 'DXF') {
-                          setDxfDoProduto(index, null);
+                          setDxfDoProduto(index, null, []);
                         }
                       }}
                       onNomeSugerido={(sug) => sugerirNomeProduto(index, sug)}
-                      onDxfExtraido={(dxf) => setDxfDoProduto(index, dxf)}
+                      onDxfExtraido={(dxf, sugestoes) =>
+                        setDxfDoProduto(index, dxf, sugestoes)
+                      }
                     />
                     {dxfPorIndice[index] ? (
                       <div className="mt-2">
                         <DxfRevisaoCard
                           dados={dxfPorIndice[index] as DxfExtraido}
+                          sugestoesInsumo={sugestoesPorIndice[index] || []}
                           onAplicar={(medidas) =>
                             aplicarMedidasDxf(index, medidas)
                           }
-                          onIgnorar={() => setDxfDoProduto(index, null)}
+                          onAtrelarInsumo={(sug) =>
+                            atrelarInsumoAoProduto(index, sug)
+                          }
+                          onIgnorar={() => setDxfDoProduto(index, null, [])}
                         />
                       </div>
                     ) : null}

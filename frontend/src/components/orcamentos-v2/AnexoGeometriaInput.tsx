@@ -11,7 +11,7 @@ import {
 import { ImagePlus, Loader2, Trash2, UploadCloud, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import type { DxfExtraido } from './DxfRevisaoCard';
+import type { DxfExtraido, SugestoesPorCamada } from './DxfRevisaoCard';
 
 /**
  * Componente único de upload de anexo de geometria (imagem ou DXF) para o
@@ -54,10 +54,15 @@ export interface AnexoGeometriaInputProps {
   /**
    * Callback opcional ao receber metadados extraídos de um DXF (Sub-fase 7.B).
    * Recebe `null` quando o anexo é removido, deixa de ser DXF ou nenhum
-   * metadado pôde ser interpretado. O caller decide se exibe o card
-   * `DxfRevisaoCard` para que o operador aplique os valores ao produto.
+   * metadado pôde ser interpretado. O segundo argumento traz as sugestões
+   * de insumo por camada (heurística do `DxfSugestaoInsumoService`). O
+   * caller decide se exibe o card `DxfRevisaoCard` para que o operador
+   * aplique os valores ao produto e/ou atrele insumos.
    */
-  onDxfExtraido?: (dxf: DxfExtraido | null) => void;
+  onDxfExtraido?: (
+    dxf: DxfExtraido | null,
+    sugestoesInsumo: SugestoesPorCamada[],
+  ) => void;
   disabled?: boolean;
 }
 
@@ -106,6 +111,7 @@ interface UploadResponse {
     [key: string]: unknown;
   };
   dxf_extraido: DxfExtraido | null;
+  sugestoes_insumo: SugestoesPorCamada[];
 }
 
 export function AnexoGeometriaInput({
@@ -187,8 +193,14 @@ export function AnexoGeometriaInput({
               if (respDxf.ok) {
                 const dataDxf = (await respDxf.json()) as {
                   dxf_extraido: DxfExtraido | null;
+                  sugestoes_insumo?: SugestoesPorCamada[];
                 };
-                if (!cancelado) onDxfExtraido(dataDxf.dxf_extraido);
+                if (!cancelado) {
+                  onDxfExtraido(
+                    dataDxf.dxf_extraido,
+                    dataDxf.sugestoes_insumo ?? [],
+                  );
+                }
               }
             } catch (error) {
               console.warn('Falha ao reler metadados do DXF:', error);
@@ -271,11 +283,13 @@ export function AnexoGeometriaInput({
         );
 
         if (categoria === 'DXF') {
-          // Sub-fase 7.B: propaga metadados extraídos do DXF para que o
-          // ProdutoSection possa renderizar o card de revisão. Quando
-          // `dxf_extraido` vier null (DXF inválido ou exótico), o caller
-          // ainda decide se mostra um aviso.
-          onDxfExtraido?.(data.dxf_extraido ?? null);
+          // Sub-fase 7.B: propaga metadados extraídos do DXF + sugestões de
+          // insumo (heurística por camada) para que o ProdutoSection
+          // renderize o card de revisão e ofereça "Atrelar" nos materiais.
+          onDxfExtraido?.(
+            data.dxf_extraido ?? null,
+            data.sugestoes_insumo ?? [],
+          );
 
           // Sugestão de nome: prefere `$PROJECTNAME` do DXF se vier (mais
           // descritivo); cai para o nome do arquivo caso contrário. Política
@@ -294,7 +308,7 @@ export function AnexoGeometriaInput({
           }
         } else {
           // Categoria mudou para IMAGEM: limpa eventual card de revisão.
-          onDxfExtraido?.(null);
+          onDxfExtraido?.(null, []);
         }
       } catch (error) {
         const msg =
@@ -398,7 +412,7 @@ export function AnexoGeometriaInput({
         }
       } finally {
         onChange(null, null);
-        onDxfExtraido?.(null);
+        onDxfExtraido?.(null, []);
         setNomeOriginal(null);
       }
     },

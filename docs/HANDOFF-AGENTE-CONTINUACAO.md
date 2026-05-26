@@ -10,7 +10,7 @@
 
 ## 1. Estado atual em uma frase
 
-Em 2026-05-26 (manhã), a **Fase 7 (DXF real / anexos)** entrou em produção com as **Sub-fases 7.A e 7.B entregues**. (1) **7.A:** o produto do Orçamento V2 ganhou no topo do card uma área única de anexo de imagem/DXF que aceita **Ctrl+V (clipboard)**, **drag-and-drop** e clique para abrir o file picker; o endpoint `POST /orcamentos-v2/anexos-geometria` grava o arquivo na pasta da loja com metadados (mime, hash SHA-256, `loja_id`), devolve URL relativa autenticada que o `ProdutoOrcamento.arquivo_geometria_url` persiste e que a Fase 3 propaga para `ItemOS.arquivo_geometria_url` na OS. **Decisão de produto (Leitura B):** a imagem/DXF anexada conta como arte da OS — o critério `arte_anexada` do modal de aprovação técnica passou a considerar `ItemOS.arquivo_geometria_url`. (2) **7.B:** `DxfParserService` (backend, baseado em `dxf-parser@1.1.2`) extrai `$PROJECTNAME`, unidade (`$INSUNITS`), bounding box, área (shoelace de polígono fechado ou envolvente), perímetro por camada (LINE/LWPOLYLINE/POLYLINE/CIRCLE/ARC/ELLIPSE) e devolve `dxf_extraido` no response do upload. No frontend, o card `DxfRevisaoCard` mostra os valores detectados logo abaixo do upload e exige clique em "Aplicar ao produto" — **o parser nunca preenche valores sozinho**. Detalhes nas seções 4.15 e 4.16.
+Em 2026-05-26 (manhã), a **Fase 7 (DXF real / anexos)** entrou em produção com as **Sub-fases 7.A, 7.B e 7.B+ entregues**. (1) **7.A:** o produto do Orçamento V2 ganhou no topo do card uma área única de anexo de imagem/DXF que aceita **Ctrl+V (clipboard)**, **drag-and-drop** e clique para abrir o file picker; o endpoint `POST /orcamentos-v2/anexos-geometria` grava o arquivo na pasta da loja com metadados (mime, hash SHA-256, `loja_id`), devolve URL relativa autenticada que o `ProdutoOrcamento.arquivo_geometria_url` persiste e que a Fase 3 propaga para `ItemOS.arquivo_geometria_url` na OS. **Decisão de produto (Leitura B):** a imagem/DXF anexada conta como arte da OS — o critério `arte_anexada` do modal de aprovação técnica passou a considerar `ItemOS.arquivo_geometria_url`. (2) **7.B:** `DxfParserService` (backend, baseado em `dxf-parser@1.1.2`) extrai `$PROJECTNAME`, unidade (`$INSUNITS`), bounding box, área (shoelace de polígono fechado ou envolvente), perímetro por camada (LINE/LWPOLYLINE/POLYLINE/CIRCLE/ARC/ELLIPSE) e devolve `dxf_extraido` no response do upload. No frontend, o card `DxfRevisaoCard` mostra os valores detectados logo abaixo do upload e exige clique em "Aplicar ao produto" — **o parser nunca preenche valores sozinho**. (3) **7.B+:** `DxfSugestaoInsumoService` adiciona uma seção "Materiais sugeridos" no card de revisão. A heurística tokeniza o nome da camada (com stop-list de operações: `corte`, `gravacao`, `dobra`, etc.) e compara com `Insumo.nome`/`TipoMaterial.nome`/`Categoria.nome` do catálogo da loja, devolvendo top 3 sugestões com botão "Atrelar". As sugestões são recalculadas a cada upload/releitura (não persistidas), refletindo mudanças no catálogo sem reupload. **Política mantida: nunca atrela sozinho**, sempre exige clique. Detalhes nas seções 4.15, 4.16 e 4.17.
 
 Antes disso, a **Fase 6 foi concluída** (sub-fases 6.A a 6.E entre 2026-05-25 e 2026-05-26): condição de pagamento estruturada no orçamento, cobrança criada automaticamente na aprovação (`CobrancasService`), bloco `ResumoFinanceiroSimples` na Home, tela `/financeiro/recebimentos` com auditoria/ações/CSV, cron diário recategoriza cobranças vencidas, 7º alerta operacional `trabalho_pronto_sem_recebimento` e colunas `a_receber`/`concluidos` no fluxo de trabalho. Comissões: `3e432e6`, `9436a15`, `afa2d68`, `30fbeba`, `75f9e0c`.
 
@@ -18,7 +18,7 @@ Antes ainda, foram entregues a **Fase 5** (`GET /home-operacional/alertas` com 6
 
 Também ficaram em produção: a **UX de aprovação da OS direto no grid** (`/os`) com modal `AprovarOSModal` listando os critérios (`dados_completos`, `arte_anexada`, `estoque_ok`, `prazo_viavel`); **prazos por serviço** no mesmo modal (4.13) com prazo "mãe" para aplicar em todos de uma vez (4.14); **fix estrutural** do `OSPrazoService` que corrompia `OrdemServico.status` (4.11) + endpoint admin de recuperação; **auto-promoção** OS → PCP na aprovação técnica (4.10).
 
-**Próximo passo:** Fase 7 do plano-mãe está fechada (Sub-fases 7.A e 7.B entregues). Restam dívidas menores documentadas em 4.16: discretização de `SPLINE` no parser (hoje ignorada — ok para o caso comum de retângulo/polígono), cleanup de anexos órfãos (cron diário não implementado) e análise por IA de imagem colada (mantida como possibilidade futura, sem demanda atual). O próximo módulo do plano-mãe a ser tocado é definido com o usuário.
+**Próximo passo:** Fase 7 fechada (7.A + 7.B + 7.B+ entregues). O usuário aprovou criar uma fase dedicada à **profundidade no orçamento** como último item do handoff — afeta schema (`ProdutoOrcamento` + `ItemOS`), motor de cálculo (novo `tipo_calculo` ou modificador `usa_profundidade=true`), UI do `QuickGeometryInput` e templates. Está registrada como **Fase 11** em `docs/plano-acao-home-onboarding-dashboard-operacional.md` (foi numerada 11 porque 9 e 10 já estavam reservadas para outros temas no plano-mãe). O plano traz 3 decisões a confirmar antes de implementar (modelagem do motor, unidade da profundidade, escopo de "caixa fechada vs aberta"). Dívidas menores conhecidas: discretização de `SPLINE` no parser (4.16), cleanup de anexos órfãos (4.15), "Passo 2" de regras configuráveis de match de insumo (4.17). Nenhuma bloqueia uso de produção.
 
 ---
 
@@ -1325,5 +1325,36 @@ O endpoint não exige `produto_id` na URL. Isso resolve o caso de orçamento nov
 - O cleanup de anexos órfãos (Sub-fase 7.A) continua pendente.
 - Análise por IA de imagens coladas (OCR de cotas) continua deferida — usar DXF resolve o caso de medidas exatas; OCR só seria útil para imagens de cliente sem arquivo vetorial, e a UX hoje ainda permite digitação manual nessas situações.
 
-**Última atualização:** 2026-05-26 (Sub-fase 7.B: parser DXF real + card de revisão com aplicação manual + releitura ao recarregar).
+### 4.17 Sub-fase 7.B+: Sugestão heurística de insumo por camada do DXF (2026-05-26 manhã)
+
+**Contexto:** Logo após a entrega da 7.B, o usuário perguntou se o DXF normalmente indica o material e se daria para atrelar o insumo automaticamente. Resposta técnica: **o formato DXF não tem campo padronizado para material** — o que existe é uma convenção informal da indústria (operadores nomeiam camadas como `CORTE_ACM3MM`, `GRAVACAO_MDF15`, etc.). Para evitar atrelamento automático que pode errar silenciosamente, foi escolhido o "Passo 1" do plano: heurística por nome de camada que **sugere** insumos, exigindo clique do operador.
+
+**O que foi entregue (este commit):**
+
+1. **Backend — `DxfSugestaoInsumoService` (`backend/src/orcamentos-v2/services/dxf-sugestao-insumo.service.ts`)**: para cada camada do DXF, tokeniza o nome (remove acentos, separa por `[\s_\-./,]`), descarta tokens em uma stop-list de operações (`corte`, `gravacao`, `dobra`, `furo`, `vinco`, `contorno`, `lateral`, etc.) e compara com cada insumo ativo da loja. Score por insumo:
+   - **+3×** quando um token da camada bate exato com token do `Insumo.nome`.
+   - **+1×** quando há substring match (mín. 3 chars).
+   - Mesma lógica com peso **2×** para `TipoMaterial.nome` e **1×** para `Categoria.nome`.
+   - Top 3 sugestões por camada, ordenadas por score desc.
+   - Cada sugestão devolve `insumo_id`, `insumo_nome`, `tipo_material_nome`, `categoria_nome`, `score`, `tokens_match` (auditoria/UI) e `motivo` (`NOME_INSUMO` | `TIPO_MATERIAL` | `CATEGORIA`).
+2. **Não persistido nos metadados.** As sugestões são recalculadas a cada upload e a cada `GET /orcamentos-v2/anexos-geometria/:token/dxf-extraido`. Isso garante que cadastrar/desativar um insumo passa a refletir imediatamente, sem necessidade de reupload do DXF.
+3. **Integração no upload e na releitura:** o response do `POST /orcamentos-v2/anexos-geometria` e do `GET /dxf-extraido` agora carrega `sugestoes_insumo: SugestoesPorCamada[]` ao lado de `dxf_extraido`. Falha do service nunca derruba o upload (try/catch devolve lista vazia + log).
+4. **Frontend — extensão do `DxfRevisaoCard`**: nova seção "Materiais sugeridos (heurística por nome de camada)" abaixo dos alertas. Para cada camada com sugestões válidas, lista os top 3 insumos com:
+   - Nome do insumo + tipo de material/categoria.
+   - Tokens que casaram (transparência).
+   - Botão "Atrelar" → vira "Atrelado" (com check) ao clicar; desabilitado em seguida para evitar duplicatas.
+5. **`ProdutoSection.tsx`**: estado `sugestoesPorIndice` por produto. Ao clicar em "Atrelar", `atrelarInsumoAoProduto` adiciona o insumo ao array `materiais` do produto (usa a primeira posição vazia se existir, senão `push`), com `quantidade: '1'` como placeholder — o motor de cálculo recalcula a quantidade real a partir da área/perímetro no momento do orçamento (lógica de `tipo_calculo` por insumo).
+6. **Sincronia com remoção do anexo:** quando o operador remove o DXF ou troca para imagem, `dxfPorIndice` e `sugestoesPorIndice` são zerados juntos.
+
+**Política de produto formalizada:**
+
+- O parser DXF **sugere** insumos, **nunca atrela sozinho**. O operador continua sendo o responsável pelo material que vai para o orçamento.
+- A heurística trabalha sem nenhuma configuração — funciona a partir do catálogo de insumos já cadastrado da loja.
+- Quando nenhuma sugestão é encontrada (catálogo vazio, nomes muito diferentes, só palavras de operação na camada), a seção "Materiais sugeridos" simplesmente não aparece — o card de revisão continua útil para as medidas.
+
+**Decisão registrada para uma futura sub-fase (não implementada):**
+
+- "Passo 2" do plano (regras configuráveis de match por loja, ex.: `se nome contém "X" → sugerir insumo Y`) ficou parado. O usuário avaliou que a heurística do Passo 1 é suficiente por enquanto e pediu para priorizar a próxima fase (profundidade no orçamento). Se a heurística começar a errar em casos reais, ativa-se o Passo 2 sem regressão (regras viram um boost adicional no score).
+
+**Última atualização:** 2026-05-26 (Sub-fase 7.B+ extensão: sugestão heurística de insumo por nome de camada do DXF, com botão "Atrelar" no `DxfRevisaoCard`).
 Branch `feature/home-operacional-dashboard`.

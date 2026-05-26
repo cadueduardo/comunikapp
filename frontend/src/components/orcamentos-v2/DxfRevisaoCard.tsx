@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Info, Layers, Ruler } from 'lucide-react';
+import { CheckCircle2, Info, Layers, Package2, Plus, Ruler } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -43,14 +43,45 @@ export interface AplicarMedidasDxf {
   origem_area: 'POLIGONO_FECHADO' | 'BOUNDING_BOX';
 }
 
+/**
+ * Sugestão de insumo para uma camada do DXF. Replicada do backend
+ * (`DxfSugestaoInsumoService`); mantenha em sincronia.
+ */
+export interface SugestaoInsumoCamada {
+  insumo_id: string;
+  insumo_nome: string;
+  tipo_material_nome: string | null;
+  categoria_nome: string | null;
+  score: number;
+  tokens_match: string[];
+  motivo: 'NOME_INSUMO' | 'TIPO_MATERIAL' | 'CATEGORIA';
+}
+
+export interface SugestoesPorCamada {
+  nome_camada: string;
+  sugestoes: SugestaoInsumoCamada[];
+}
+
 interface DxfRevisaoCardProps {
   dados: DxfExtraido;
+  /**
+   * Sugestões de insumo para cada camada do DXF. Calculadas pelo backend a
+   * partir do catálogo da loja. Quando vazio, a seção "Materiais sugeridos"
+   * não é renderizada.
+   */
+  sugestoesInsumo?: SugestoesPorCamada[];
   /**
    * Disparado quando o operador confirma a aplicação. O caller decide o
    * que fazer com os valores (em `ProdutoSection.tsx` invocamos
    * `atualizarGeometria`).
    */
   onAplicar: (medidas: AplicarMedidasDxf) => void;
+  /**
+   * Disparado quando o operador clica em "Atrelar" em uma sugestão de
+   * insumo. O caller é responsável por adicionar o insumo à lista de
+   * materiais do produto.
+   */
+  onAtrelarInsumo?: (sugestao: SugestaoInsumoCamada) => void;
   /**
    * Disparado quando o operador clica em "Ignorar". O caller pode esconder
    * o card ou marcá-lo como dispensado para esta sessão.
@@ -72,17 +103,56 @@ interface DxfRevisaoCardProps {
  */
 export function DxfRevisaoCard({
   dados,
+  sugestoesInsumo,
   onAplicar,
+  onAtrelarInsumo,
   onIgnorar,
 }: DxfRevisaoCardProps) {
   const [camadaSelecionada, setCamadaSelecionada] = useState<string | null>(
     dados.camada_sugerida || dados.camadas[0]?.nome || null,
   );
 
+  // Rastreia insumos já atrelados via clique para feedback visual ("Atrelado").
+  // Não persiste — é só uma marcação local; o estado real do produto fica no
+  // formulário (`materiais` do `ProdutoSection`).
+  const [insumosAtrelados, setInsumosAtrelados] = useState<Set<string>>(
+    () => new Set(),
+  );
+
   const camadaAtual = useMemo(
     () => dados.camadas.find((c) => c.nome === camadaSelecionada) || null,
     [dados.camadas, camadaSelecionada],
   );
+
+  // Filtra apenas camadas que efetivamente têm sugestões. Camadas sem
+  // sugestão são omitidas para não poluir o card.
+  const sugestoesNaoVazias = useMemo(
+    () =>
+      (sugestoesInsumo || []).filter((s) => s.sugestoes.length > 0),
+    [sugestoesInsumo],
+  );
+
+  const handleAtrelarInsumo = (sugestao: SugestaoInsumoCamada) => {
+    onAtrelarInsumo?.(sugestao);
+    setInsumosAtrelados((prev) => {
+      const proximo = new Set(prev);
+      proximo.add(sugestao.insumo_id);
+      return proximo;
+    });
+  };
+
+  const labelMotivo = (motivo: SugestaoInsumoCamada['motivo']): string => {
+    switch (motivo) {
+      case 'NOME_INSUMO':
+        return 'nome do insumo';
+      case 'TIPO_MATERIAL':
+        return 'tipo de material';
+      case 'CATEGORIA':
+        return 'categoria';
+      default:
+        return '';
+    }
+  };
 
   const podeAplicar =
     !!camadaAtual &&
@@ -196,6 +266,76 @@ export function DxfRevisaoCard({
               ))}
             </ul>
           </div>
+        </div>
+      ) : null}
+
+      {sugestoesNaoVazias.length > 0 && onAtrelarInsumo ? (
+        <div className="rounded bg-emerald-50/50 border border-emerald-200 p-2 space-y-2">
+          <div className="flex items-center gap-1 text-xs font-medium text-emerald-900">
+            <Package2 className="h-3.5 w-3.5" />
+            <span>Materiais sugeridos (heurística por nome de camada)</span>
+          </div>
+          <p className="text-[11px] text-emerald-900/80">
+            Sugestões baseadas em palavras-chave da camada que casam com seu
+            catálogo. Confira antes de atrelar; a quantidade é calculada pelo
+            motor a partir da área/perímetro.
+          </p>
+          {sugestoesNaoVazias.map((porCamada) => (
+            <div
+              key={porCamada.nome_camada}
+              className="rounded bg-white border border-emerald-100 p-2"
+            >
+              <p className="text-xs font-semibold mb-1">
+                Camada{' '}
+                <span className="text-primary">{porCamada.nome_camada}</span>
+              </p>
+              <ul className="space-y-1">
+                {porCamada.sugestoes.map((sug) => {
+                  const atrelado = insumosAtrelados.has(sug.insumo_id);
+                  return (
+                    <li
+                      key={sug.insumo_id}
+                      className="flex items-center justify-between gap-2 text-xs"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{sug.insumo_nome}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">
+                          {sug.tipo_material_nome
+                            ? `${sug.tipo_material_nome} · `
+                            : ''}
+                          {sug.categoria_nome || 'sem categoria'} · match:{' '}
+                          {labelMotivo(sug.motivo)}
+                          {sug.tokens_match.length > 0
+                            ? ` (${sug.tokens_match.join(', ')})`
+                            : ''}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant={atrelado ? 'outline' : 'secondary'}
+                        size="sm"
+                        onClick={() => handleAtrelarInsumo(sug)}
+                        disabled={atrelado}
+                        className="h-7 px-2 gap-1 flex-shrink-0"
+                      >
+                        {atrelado ? (
+                          <>
+                            <CheckCircle2 className="h-3 w-3" />
+                            Atrelado
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-3 w-3" />
+                            Atrelar
+                          </>
+                        )}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </div>
       ) : null}
 

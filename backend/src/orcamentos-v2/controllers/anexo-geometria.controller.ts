@@ -20,6 +20,7 @@ import { multerAnexoGeometriaConfig } from '../../config/multer-anexo-geometria.
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { AnexoGeometriaService } from '../services/anexo-geometria.service';
 import type { DxfExtraido } from '../services/dxf-parser.service';
+import type { SugestoesPorCamada } from '../services/dxf-sugestao-insumo.service';
 
 /**
  * Endpoints de upload/download/remoção de anexos de geometria
@@ -61,6 +62,7 @@ export class AnexoGeometriaController {
     categoria: 'IMAGEM' | 'DXF';
     metadados: Record<string, unknown>;
     dxf_extraido: DxfExtraido | null;
+    sugestoes_insumo: SugestoesPorCamada[];
   }> {
     if (!arquivo) {
       throw new BadRequestException('Nenhum arquivo recebido');
@@ -81,6 +83,7 @@ export class AnexoGeometriaController {
       categoria: resultado.categoria,
       metadados: resultado.metadados,
       dxf_extraido: resultado.dxf_extraido,
+      sugestoes_insumo: resultado.sugestoes_insumo,
     };
   }
 
@@ -96,13 +99,12 @@ export class AnexoGeometriaController {
   async lerDxfExtraido(
     @Param('token') token: string,
     @Req() req: Request,
-  ): Promise<{ dxf_extraido: DxfExtraido | null }> {
+  ): Promise<{
+    dxf_extraido: DxfExtraido | null;
+    sugestoes_insumo: SugestoesPorCamada[];
+  }> {
     const lojaId = this.lojaIdFromJwt(req);
-    const dxfExtraido = await this.anexoService.lerDxfExtraido({
-      token,
-      lojaId,
-    });
-    return { dxf_extraido: dxfExtraido };
+    return this.anexoService.lerDxfExtraido({ token, lojaId });
   }
 
   /**

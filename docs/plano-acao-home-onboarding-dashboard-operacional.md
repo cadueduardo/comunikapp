@@ -1,6 +1,6 @@
 # Plano de Ação: Home, Onboarding e Evolução Operacional
 
-> **Status atual (atualizado em 2026-05-26, manhã):** Fases 0, 1, 2, 3, 4, 5, 6 e **7 concluídas**. A Fase 7 cobriu o anexo de imagem/DXF no produto do orçamento (7.A — `AnexoGeometriaInput` com Ctrl+V/drag-and-drop/file picker, endpoint multi-tenant, Leitura B para `arte_anexada`) e o parser DXF real (7.B — `DxfParserService` baseado em `dxf-parser`, card `DxfRevisaoCard` com aplicação manual, `$PROJECTNAME` sugerindo o nome do produto). Próximo passo é a Fase 8 (ajustes mobile e navegação) — alinhar com o dono do projeto. Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF antes de continuar.**
+> **Status atual (atualizado em 2026-05-26, manhã):** Fases 0, 1, 2, 3, 4, 5, 6 e **7 concluídas**. A Fase 7 cobriu o anexo de imagem/DXF no produto do orçamento (7.A — `AnexoGeometriaInput` com Ctrl+V/drag-and-drop/file picker, endpoint multi-tenant, Leitura B para `arte_anexada`), o parser DXF real (7.B — `DxfParserService` baseado em `dxf-parser`, card `DxfRevisaoCard` com aplicação manual, `$PROJECTNAME` sugerindo o nome do produto) e a sugestão heurística de insumo por nome de camada (7.B+ — `DxfSugestaoInsumoService` com botão "Atrelar" no card de revisão, sem auto-atrelamento). A **Fase 11 (profundidade no orçamento)** foi registrada como próximo entregável após aprovação do usuário; foi numerada 11 porque 9 e 10 já estavam reservadas para outros temas. Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF antes de continuar.**
 
 ## Critério de sucesso
 
@@ -970,12 +970,15 @@ Critérios de aceite:
 >
 > **[Sub-fase 7.B CONCLUÍDA em 2026-05-26]** — `DxfParserService` (backend, baseado em `dxf-parser@1.1.2`) extrai `$PROJECTNAME`, unidade (`$INSUNITS`), bounding box, área (shoelace de polígono fechado ou envolvente) e perímetro por camada (LINE, LWPOLYLINE, POLYLINE, CIRCLE, ARC, ELLIPSE). O metadado `dxf_extraido` é gravado ao lado do arquivo (com `versao_parser: '7.B-1.0'`) e devolvido no response do upload + endpoint dedicado `GET /orcamentos-v2/anexos-geometria/:token/dxf-extraido` para releitura. No frontend, o card `DxfRevisaoCard` (logo abaixo do upload) mostra largura/altura/área/perímetro e exige clique em "Aplicar ao produto" — o parser **nunca** preenche valores sozinho. A camada padrão é "CORTE" (case-insensitive, ignora acentos); o operador pode trocar via chips. Dívidas conhecidas: discretização de SPLINE não implementada (entidades de spline ficam fora do perímetro), cleanup de anexos órfãos pendente. Detalhes na seção 4.16 do HANDOFF.
 >
+> **[Sub-fase 7.B+ CONCLUÍDA em 2026-05-26]** — `DxfSugestaoInsumoService` (Passo 1 do plano de atrelamento de material): tokeniza o nome de cada camada do DXF (remove acentos, separa por `[\s_\-./,]`, descarta stop-list de operações como `corte/gravacao/dobra/furo/vinco`) e compara contra `Insumo.nome` (peso 3), `TipoMaterial.nome` (peso 2) e `Categoria.nome` (peso 1) do catálogo da loja. Devolve top 3 sugestões por camada com `motivo`/`tokens_match` para auditoria. As sugestões NÃO são persistidas — recalculadas a cada upload e GET `/dxf-extraido` para refletir mudanças do catálogo. No frontend, o `DxfRevisaoCard` ganhou seção "Materiais sugeridos" com botão "Atrelar" por sugestão; ao clicar, o insumo é adicionado ao array `materiais` do produto (quantidade `1` como placeholder — motor recalcula a partir de área/perímetro). **Política mantida: nunca atrela sozinho.** Passo 2 (regras configuráveis por loja) ficou parado conforme decisão do usuário. Detalhes na seção 4.17 do HANDOFF.
+>
 > **Decisões de produto registradas em 2026-05-26:**
 > - **Leitura B aprovada**: a imagem/DXF anexada ao orçamento conta como arte da OS gerada — o critério `arte_anexada` (modal de aprovação técnica) passou a contar `ItemOS.arquivo_geometria_url`, sem criar `ArteVersao` automaticamente. O módulo `Arte & Aprovação` permanece para revisões profissionais. Isso **substitui a decisão original da Fase 0** (`05-persistencia-anexos.md` linhas 11-23, que rejeitava o reuso de `ArteArquivo`); a coexistência continua, mas a equivalência semântica passa a valer para fins de validação.
 > - **Drag-and-drop** entra como método de entrada além do `onPaste` original do plano-mãe.
 > - **Posição do anexo:** SEMPRE no TOPO do card de produto, antes do "Nome do Produto".
 > - **Sugestão de nome do DXF:** só preencher o "Nome do Produto" se ele estiver vazio. Nunca sobrescrever digitação do operador.
 > - **Parser nunca aplica valores sozinho** (Sub-fase 7.B): o card de revisão sempre exige clique manual em "Aplicar ao produto".
+> - **Material via DXF é apenas sugestão** (Sub-fase 7.B+): a heurística por nome de camada **nunca atrela insumo sozinha**. Cada sugestão exige clique em "Atrelar".
 
 Objetivo: evoluir do anexo técnico para leitura real de arquivos DXF.
 
@@ -988,12 +991,14 @@ Entregáveis:
 5. **Novo (Sub-fase 7.A):** suporte a clipboard (Ctrl+V), drag-and-drop e file picker na mesma área. **[OK]**
 6. **Novo (Sub-fase 7.A):** Leitura B para `arte_anexada` (imagem/DXF do orçamento = arte da OS). **[OK]**
 7. **Novo (Sub-fase 7.B):** ao detectar `$PROJECTNAME` no header do DXF, preencher "Nome do Produto" **apenas** se o campo estiver vazio. **[OK — quando o DXF tem `$PROJECTNAME`, ele é preferido; senão cai para o `nome_original` do arquivo]**
+8. **Novo (Sub-fase 7.B+):** sugerir insumo por nome de camada (heurística com stop-list e score), com botão "Atrelar" no card de revisão. **[OK — top 3 sugestões por camada, sem auto-atrelamento]**
 
 Critérios de aceite:
 
 - DXF pode ser anexado ao orçamento e à OS. **[OK]**
 - Usuário confirma medidas antes de precificar. **[OK: o `DxfRevisaoCard` exige clique manual em "Aplicar ao produto"; `QuickGeometryInput` continua editável depois]**
 - Parser real não aplica valores sem revisão. **[OK: card é a única forma de aplicar; o operador pode ignorar e manter MANUAL]**
+- Insumos sugeridos não são atrelados sozinhos. **[OK na 7.B+: cada sugestão tem botão "Atrelar" individual]**
 
 ### Fase 8: ajustes mobile e navegação global
 
@@ -1039,6 +1044,39 @@ Critérios de aceite:
 - Novo usuário entende o próximo passo sem treinamento.
 - Usuário recorrente vê pendências e fluxo operacional no primeiro carregamento.
 - A tela funciona bem em desktop e mobile.
+
+### Fase 11: profundidade no orçamento (3D / volume)
+
+> **[PLANO REGISTRADO em 2026-05-26 — aguardando aprovação para implementação]** O usuário pediu para criar uma fase dedicada à profundidade após constatar que o sistema hoje só trabalha com `largura × altura` (geometria 2D), mas produtos como **letras caixa**, **displays 3D**, **totens** e **caixas de luminoso** dependem da profundidade para o cálculo correto de material e tempo de máquina. Foi numerada como Fase 11 porque as Fases 9 (polimento de navegação) e 10 (roadmap não bloqueante) já estavam reservadas para outros temas — não há intenção de renumerar.
+
+Objetivo: permitir que o motor de cálculo aceite profundidade como dimensão opcional do produto, sem regredir os fluxos atuais (todos os produtos planos continuam funcionando exatamente como hoje).
+
+Entregáveis:
+
+1. **Schema:** novo campo `profundidade_produto` (`Decimal(10,2)`, opcional) em `ProdutoOrcamento` e `ItemOS`. Migration Prisma + `db push` em ambiente local.
+2. **DTOs/validação:** estender os DTOs do Orçamento V2 (`CriarProdutoOrcamentoDto`, `AtualizarProdutoOrcamentoDto`) e da geração de OS para aceitar/propagar `profundidade_produto` quando preenchida.
+3. **UI `QuickGeometryInput`:** novo campo opcional `Profundidade`, exibido apenas quando o operador marcar **"Este produto tem profundidade (3D)"** (checkbox próximo ao seletor de unidade). Sem o checkbox, o comportamento atual fica intacto.
+4. **Motor de cálculo:** novo modificador `usa_profundidade` (boolean) nos `tipo_calculo` existentes, OU novos tipos derivados (`POR_M2_LATERAL`, `POR_VOLUME`) — escolha a ser confirmada com o usuário antes de codar. Quando o insumo tem `usa_profundidade=true` e o produto tem profundidade preenchida, o motor calcula:
+   - **Laterais** (caixa aberta): `(2×largura + 2×altura) × profundidade` em m² → consumo por área.
+   - **Volume** (estrutura interna, espuma de preenchimento, etc.): `largura × altura × profundidade` em m³.
+5. **Templates de produto:** permitir gravar `profundidade_padrao` no template (com flag `tem_profundidade`).
+6. **Documentos (orçamento PDF, OS):** exibir profundidade na linha do produto quando preenchida (`L × A × P`).
+7. **Fase 7 não regride:** o DXF continua sendo 2D — operador digita profundidade manualmente quando aplicável; o `DxfRevisaoCard` não tem como sugerir profundidade.
+
+Critérios de aceite:
+
+- Produto plano (sem profundidade) é orçado exatamente como antes (regressão zero).
+- Produto com profundidade preenchida calcula corretamente material lateral e/ou volume.
+- A profundidade aparece em todos os documentos gerados (orçamento, OS, PCP).
+- Operador pode marcar/desmarcar "tem profundidade" e o campo aparece/some sem efeitos colaterais.
+
+Decisões a confirmar antes de implementar:
+
+- **Modelagem do motor:** modificador `usa_profundidade` por insumo (mais flexível) OU novos `tipo_calculo` (`POR_M2_LATERAL`, `POR_VOLUME`)?
+- **Unidade de profundidade:** segue a `unidade_geometria` do produto (mesmo padrão de largura/altura) OU campo independente?
+- **Cálculo de laterais com perfil de fechamento:** caixa fechada (4 laterais + frente + fundo) vs caixa aberta (4 laterais) vs personalizado — incluir já ou ficar para evolução?
+
+Estimativa: 1-2 dias focados após decisões confirmadas.
 
 ### Fase 10: roadmap de evolução (não bloqueante)
 
