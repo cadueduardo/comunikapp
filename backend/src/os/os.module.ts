@@ -68,6 +68,11 @@ import { CorrecaoMateriaisHelper } from './helpers/correcao-materiais.helper';
 import { OSPermissionsGuard } from './guards/os-permissions.guard';
 import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.middleware';
 
+const debugControllers =
+  process.env.NODE_ENV === 'production'
+    ? []
+    : [DebugValidacoesController, TestOSValidacoesController];
+
 @Global()
 @Module({
   imports: [
@@ -102,8 +107,7 @@ import { OSTenantIsolationMiddleware } from './middleware/os-tenant-isolation.mi
     CentroCustoController,
     OSValidacoesController,
     CalculoMaterialController,
-    DebugValidacoesController,
-    TestOSValidacoesController,
+    ...debugControllers,
     OSPrazoController,
     OSProdutoPrazoController,
     OSAdminController,

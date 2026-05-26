@@ -67,7 +67,10 @@ export default function ArtePublicApprovalPage() {
         const versaoId = versaoIndex !== -1 ? urlParts[versaoIndex + 1] : null;
         
         if (versaoId && filename) {
-          const downloadUrl = `http://localhost:4000/uploads/arte/${versaoId}/${filename}`;
+          const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+          const downloadUrl = arquivo.url_arquivo.startsWith('http')
+            ? arquivo.url_arquivo
+            : `${baseUrl}${arquivo.url_arquivo}`;
           
           // Fazer fetch do arquivo para forçar download
           const response = await fetch(downloadUrl);

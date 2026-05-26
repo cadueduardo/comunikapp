@@ -1,7 +1,8 @@
 # Script para atualizar o arquivo .env
 # Execute: .\update-env.ps1
 
-Write-Host "Atualizando arquivo .env..." -ForegroundColor Green
+Write-Host "Atualizando arquivo .env de desenvolvimento..." -ForegroundColor Green
+Write-Host "Nao use este script em producao/VPS. Configure secrets reais fora do repositorio." -ForegroundColor Yellow
 
 # Backup do arquivo atual
 if (Test-Path ".env") {
@@ -14,17 +15,17 @@ $envContent = @"
 # ===== CONFIGURAÇÃO PRINCIPAL DO PROJETO =====
 
 # Database Configuration (PRINCIPAL)
-DATABASE_URL="mysql://comunikapp:password@localhost:3306/comunikapp"
+DATABASE_URL="mysql://usuario:senha-forte@127.0.0.1:3306/comunikapp"
 
 # JWT Configuration
-JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
+JWT_SECRET="troque-por-um-segredo-local-com-64-caracteres-ou-mais"
 JWT_EXPIRES_IN="7d"
 
 # Mail Configuration
 MAIL_HOST="smtp.ethereal.email"
 MAIL_PORT=587
-MAIL_USER="test@ethereal.email"
-MAIL_PASS="test-password"
+MAIL_USER=""
+MAIL_PASS=""
 
 # App Configuration
 PORT=3001
@@ -34,11 +35,11 @@ NODE_ENV=development
 
 # Estoque Module Configuration
 ESTOQUE_MODULE_ENABLED=true
-ESTOQUE_INTERNAL_API_TOKEN="estoque-internal-token-2025"
+ESTOQUE_INTERNAL_API_TOKEN="troque-por-token-local-com-64-caracteres-ou-mais"
 ESTOQUE_ALLOWED_ROLES="ADMINISTRADOR,FINANCEIRO,ESTOQUE"
 
 # Estoque Database (usando o mesmo banco principal)
-ESTOQUE_DATABASE_URL="mysql://comunikapp:password@localhost:3306/comunikapp"
+ESTOQUE_DATABASE_URL="mysql://usuario:senha-forte@127.0.0.1:3306/comunikapp"
 
 # Estoque Performance Settings
 ESTOQUE_DB_CONNECTION_LIMIT=10
@@ -72,8 +73,8 @@ ESTOQUE_ENABLE_PERFORMANCE_LOGS=true
 # ===== CONFIGURAÇÕES OPCIONAIS =====
 
 # Stripe Configuration (opcional)
-STRIPE_SECRET_KEY="sk_test_..."
-STRIPE_WEBHOOK_SECRET="whsec_..."
+STRIPE_SECRET_KEY=""
+STRIPE_WEBHOOK_SECRET=""
 
 # File Upload Configuration
 UPLOAD_DEST="./uploads"
@@ -87,7 +88,7 @@ Write-Host "Arquivo .env atualizado com sucesso!" -ForegroundColor Green
 Write-Host "Principais mudanças:" -ForegroundColor Cyan
 Write-Host "- Usando banco principal: comunikapp" -ForegroundColor White
 Write-Host "- Usuário: comunikapp" -ForegroundColor White
-Write-Host "- Senha: password" -ForegroundColor White
+Write-Host "- Secrets reais nao foram impressos nem gerados por este script" -ForegroundColor White
 Write-Host "- Removidas configurações antigas" -ForegroundColor White
 
 Write-Host "Proximos passos:" -ForegroundColor Yellow

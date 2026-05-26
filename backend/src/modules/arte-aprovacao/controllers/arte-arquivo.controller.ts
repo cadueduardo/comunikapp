@@ -14,6 +14,7 @@ import {
   Res,
   StreamableFile,
   SetMetadata,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -28,6 +29,7 @@ import { createReadStream, existsSync } from 'fs';
 import { basename, join } from 'path';
 import { ArteArquivoService } from '../services/arte-arquivo.service';
 import { ArteThumbnailService } from '../services/arte-thumbnail.service';
+import { ArteLinkAprovacaoService } from '../services/arte-link-aprovacao.service';
 import { ArteArquivoResponseDto } from '../dto/arte-response.dto';
 import { JwtAuthGuard, IS_PUBLIC_KEY } from '../../../auth/jwt-auth.guard';
 import { multerConfig } from '../../../config/multer.config';
@@ -43,6 +45,7 @@ export class ArteArquivoController {
   constructor(
     private readonly arteArquivoService: ArteArquivoService,
     private readonly thumbnailService: ArteThumbnailService,
+    private readonly linkAprovacaoService: ArteLinkAprovacaoService,
   ) {}
 
   @Get()
@@ -120,7 +123,7 @@ export class ArteArquivoController {
       tamanho: BigInt(arquivo.size),
       url_arquivo: `/api/arte-aprovacao/versoes/${versaoId}/arquivos/download/${arquivo.filename}`,
       url_thumbnail: thumbnailFilename
-        ? `/uploads/arte/${versaoId}/${thumbnailFilename}`
+        ? `/api/arte-aprovacao/versoes/${versaoId}/arquivos/public/download/${thumbnailFilename}`
         : undefined,
       storage_provider: 'local',
       storage_path: arquivo.path,
@@ -168,26 +171,25 @@ export class ArteArquivoController {
   async downloadArquivoPublico(
     @Param('versaoId') versaoId: string,
     @Param('filename') filename: string,
+    @Query('token') token: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
-    console.log('📥 [Controller] Download público de arquivo:', {
-      versaoId,
-      filename,
-      cwd: process.cwd(),
-    });
-
     const safeFilename = basename(filename);
     if (safeFilename !== filename) {
       throw new BadRequestException('Nome de arquivo inválido');
     }
 
-    const filePath = join(process.cwd(), 'uploads', 'arte', versaoId, safeFilename);
-    console.log('📁 [Controller] Caminho completo do arquivo:', filePath);
-    console.log('📁 [Controller] Arquivo existe?', existsSync(filePath));
+    const arquivoAutorizado =
+      await this.linkAprovacaoService.validarDownloadPublicoArquivo(
+        token,
+        versaoId,
+        safeFilename,
+      );
+
+    const filePath = arquivoAutorizado.storagePath;
 
     if (!existsSync(filePath)) {
-      console.error('❌ [Controller] Arquivo não encontrado:', filePath);
-      throw new BadRequestException(`Arquivo não encontrado: ${filename}`);
+      throw new BadRequestException('Arquivo não encontrado');
     }
 
     const file = createReadStream(filePath);
@@ -209,8 +211,8 @@ export class ArteArquivoController {
     // Definir headers para preview inline
     res.set({
       'Content-Type': contentType,
-      'Content-Disposition': `inline; filename="${safeFilename.replace(/["\r\n]/g, '_')}"`,
-      'Cache-Control': 'public, max-age=31536000', // Cache por 1 ano
+      'Content-Disposition': `inline; filename="${arquivoAutorizado.nomeOriginal.replace(/["\r\n]/g, '_')}"`,
+      'Cache-Control': 'private, no-store',
     });
 
     return new StreamableFile(file);

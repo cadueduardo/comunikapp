@@ -15,6 +15,7 @@ import { Request, Response, NextFunction } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { getRequiredJwtSecret } from '../../auth/jwt-secret';
+import { timingSafeEqual } from 'crypto';
 
 export interface EstoqueRequest extends Request {
   estoque?: {
@@ -26,29 +27,46 @@ export interface EstoqueRequest extends Request {
 
 @Injectable()
 export class TenantIsolationMiddleware implements NestMiddleware {
+  private readonly logger = new Logger(TenantIsolationMiddleware.name);
+
   constructor(
     private configService: ConfigService,
     private jwtService: JwtService,
   ) {}
 
   use(req: EstoqueRequest, res: Response, next: NextFunction) {
-    const logger = new Logger(TenantIsolationMiddleware.name);
-    logger.debug('🔒 Middleware de isolamento de tenant executado');
-    logger.debug(`📍 URL: ${req.url}`);
-    logger.debug(`🔑 Headers: ${JSON.stringify(req.headers)}`);
+    this.logger.debug(`Estoque tenant isolation: ${req.method} ${req.url}`);
 
     try {
       // 1. VALIDAÇÃO DE TOKEN INTERNO (comunicação entre módulos)
-      const internalToken = req.headers['x-internal-token'];
-      const expectedToken = this.configService.get(
+      const internalToken = this.headerAsString(req.headers['x-internal-token']);
+      const expectedToken = this.configService.get<string>(
         'ESTOQUE_INTERNAL_API_TOKEN',
       );
 
-      if (internalToken && internalToken === expectedToken) {
+      if (internalToken) {
+        if (!this.isInternalTokenConfigured(expectedToken)) {
+          throw new UnauthorizedException(
+            'Token interno do estoque não configurado com segurança',
+          );
+        }
+
+        if (!this.secureCompare(internalToken, expectedToken as string)) {
+          throw new UnauthorizedException('Token interno inválido');
+        }
+
+        const lojaId = this.headerAsString(req.headers['x-loja-id']);
+        if (!lojaId) {
+          throw new BadRequestException(
+            'x-loja-id é obrigatório para chamadas internas do estoque',
+          );
+        }
+
         // Token interno válido - bypass para comunicação entre módulos
         req.estoque = {
-          lojaId: req.headers['x-loja-id'] as string,
-          usuarioId: req.headers['x-usuario-id'] as string,
+          lojaId,
+          usuarioId: this.headerAsString(req.headers['x-usuario-id']),
+          roles: ['INTERNO'],
         };
         return next();
       }
@@ -65,29 +83,20 @@ export class TenantIsolationMiddleware implements NestMiddleware {
       const token = authHeader.substring(7); // Remove 'Bearer '
 
       try {
-        logger.debug('🔍 Validando token JWT...');
-        logger.debug(`🔑 Token recebido: ${token.substring(0, 50)}...`);
-
         const secret = getRequiredJwtSecret(this.configService);
 
         const payload = this.jwtService.verify(token, {
           secret: secret,
         });
 
-        logger.debug(`📋 Payload JWT: ${JSON.stringify(payload)}`);
-
         // 4. EXTRAÇÃO DE DADOS DO PAYLOAD JWT
-        const headerLojaId = req.headers['x-loja-id'] as string | undefined;
-        const headerRoles = (req.headers['x-user-roles'] as string | undefined)
-          ?.split(',')
-          .map((r) => r.trim())
-          .filter(Boolean);
-
-        // Fallback seguro: usar loja do payload quando header não vier (evita 400 no dev)
+        const headerLojaId = this.headerAsString(req.headers['x-loja-id']);
+        const headerRoles = this.headerAsString(req.headers['x-user-roles']);
         const payloadLojaId = payload?.loja_id || payload?.lojaId;
-        const lojaId = headerLojaId || payloadLojaId;
+        const lojaId = payloadLojaId;
+
         if (!lojaId) {
-          logger.error('❌ LojaId ausente (header e payload)');
+          this.logger.warn('Estoque JWT sem loja_id no payload');
           throw new BadRequestException(
             'lojaId é obrigatório para operações de estoque',
           );
@@ -96,18 +105,20 @@ export class TenantIsolationMiddleware implements NestMiddleware {
         const usuarioId = payload.sub; // user id
         const funcao = payload.funcao; // função do usuário
 
-        logger.debug(`🏪 LojaId: ${lojaId}`);
-        logger.debug(`👤 UsuarioId: ${usuarioId}`);
-        logger.debug(`🔧 Função: ${funcao}`);
+        if (headerLojaId && headerLojaId !== lojaId) {
+          this.logger.warn(
+            `Tentativa de troca de loja via header no estoque: user=${usuarioId} payloadLoja=${lojaId} headerLoja=${headerLojaId} rota=${req.method} ${req.path}`,
+          );
+        }
 
-        // 5. VALIDAÇÃO DE TENANT (lojaId obrigatório) – já garantido via header
+        if (headerRoles) {
+          this.logger.warn(
+            `Header x-user-roles ignorado no estoque: user=${usuarioId} loja=${lojaId} funcao=${funcao} rota=${req.method} ${req.path}`,
+          );
+        }
 
         // 6. MAPEAMENTO DE FUNÇÃO PARA ROLES E VALIDAÇÃO DE PERMISSÕES
-        // Fallback: mapear função quando header de roles não vier
-        const rolesSource =
-          headerRoles && headerRoles.length > 0
-            ? headerRoles
-            : this.mapearFuncaoParaRoles(funcao);
+        const rolesSource = this.mapearFuncaoParaRoles(funcao);
         const normalizedUserRoles = rolesSource.map((r) =>
           r.trim().toLowerCase(),
         );
@@ -133,13 +144,13 @@ export class TenantIsolationMiddleware implements NestMiddleware {
         };
 
         // 8. LOG DE AUDITORIA (logs completos e rastreáveis)
-        logger.log(
-          `🔒 Acesso ao estoque: Usuário ${usuarioId} | Loja ${lojaId} | Função ${funcao} | Roles ${rolesSource.join(',')}`,
+        this.logger.log(
+          `Acesso ao estoque: user=${usuarioId} loja=${lojaId} funcao=${funcao} roles=${rolesSource.join(',')}`,
         );
 
         next();
       } catch (jwtError) {
-        logger.error(`❌ Erro na validação do JWT: ${jwtError.message}`);
+        this.logger.warn(`JWT inválido no estoque: ${jwtError.message}`);
         if (
           jwtError instanceof UnauthorizedException ||
           jwtError instanceof BadRequestException
@@ -150,8 +161,7 @@ export class TenantIsolationMiddleware implements NestMiddleware {
       }
     } catch (error) {
       // 9. TRATAMENTO DE ERROS DE SEGURANÇA
-      const logger = new Logger(TenantIsolationMiddleware.name);
-      logger.error(`❌ Erro de isolamento de tenant: ${error.message}`);
+      this.logger.warn(`Erro de isolamento de tenant: ${error.message}`);
       res.status(error.status || 500).json({
         message: error.message,
         module: 'estoque',
@@ -183,5 +193,21 @@ export class TenantIsolationMiddleware implements NestMiddleware {
     };
 
     return mapeamento[funcao] || [funcao];
+  }
+
+  private headerAsString(value: string | string[] | undefined): string | undefined {
+    if (Array.isArray(value)) return value[0];
+    return value;
+  }
+
+  private isInternalTokenConfigured(token?: string): boolean {
+    return typeof token === 'string' && token.trim().length >= 32;
+  }
+
+  private secureCompare(received: string, expected: string): boolean {
+    const receivedBuffer = Buffer.from(received);
+    const expectedBuffer = Buffer.from(expected);
+    if (receivedBuffer.length !== expectedBuffer.length) return false;
+    return timingSafeEqual(receivedBuffer, expectedBuffer);
   }
 }

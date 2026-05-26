@@ -433,6 +433,8 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
       quantidade_produto: '1',
       largura_produto: '',
       altura_produto: '',
+      profundidade_produto: '',
+      tem_profundidade: false,
       unidade_medida_produto: '',
       area_produto: '',
       perimetro_produto: '',
@@ -612,13 +614,29 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
   };
 
   const calcularAreaTotal = (itemIndex: number) => {
-    const areaUnitaria = Number(form.watch(`itens_produto.${itemIndex}.area_produto`));
-    const quantidade = Number(form.watch(`itens_produto.${itemIndex}.quantidade_produto`));
+    const areaUnitaria = Number(
+      String(form.watch(`itens_produto.${itemIndex}.area_produto`) || '').replace(',', '.'),
+    );
+    const quantidade = Number(
+      String(form.watch(`itens_produto.${itemIndex}.quantidade_produto`) || '').replace(',', '.'),
+    );
     
     if (areaUnitaria && quantidade) {
-      return (areaUnitaria * quantidade).toFixed(2);
+      return formatarNumeroMedida(areaUnitaria * quantidade, 2);
     }
-    return '0.00';
+    return '0';
+  };
+
+  const formatarNumeroMedida = (valor: unknown, casas = 2): string => {
+    const numero =
+      typeof valor === 'number'
+        ? valor
+        : Number(String(valor || '').replace(',', '.'));
+    if (!Number.isFinite(numero)) return '';
+    return numero.toLocaleString('pt-BR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: casas,
+    });
   };
 
   return (
@@ -859,7 +877,12 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
                           <FormItem>
                             <FormLabel>Área (m²)</FormLabel>
                             <FormControl>
-                              <Input {...field} readOnly className="bg-muted" />
+                              <Input
+                                {...field}
+                                value={formatarNumeroMedida(field.value, 2)}
+                                readOnly
+                                className="bg-muted"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -873,7 +896,12 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
                           <FormItem>
                             <FormLabel>Perímetro (mm)</FormLabel>
                             <FormControl>
-                              <Input {...field} readOnly className="bg-muted" />
+                              <Input
+                                {...field}
+                                value={formatarNumeroMedida(field.value, 0)}
+                                readOnly
+                                className="bg-muted"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

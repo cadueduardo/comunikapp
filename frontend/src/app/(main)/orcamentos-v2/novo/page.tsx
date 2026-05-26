@@ -228,17 +228,28 @@ export default function NovoOrcamentoV2Page() {
                 nome: produto.nome || produto.nome_servico,
                 largura: produto.largura,
                 altura: produto.altura,
+                profundidade: produto.profundidade,
                 area: produto.area_produto || produto.area,
                 larguraType: typeof produto.largura,
                 alturaType: typeof produto.altura,
+                profundidadeType: typeof produto.profundidade,
                 areaType: typeof (produto.area_produto || produto.area)
               });
+              const profundidadeRaw =
+                produto.profundidade?.toString() ||
+                produto.profundidade_produto?.toString() ||
+                '';
+              const profundidadeNum = Number(String(profundidadeRaw).replace(',', '.'));
+              const temProfundidade =
+                !!profundidadeRaw && Number.isFinite(profundidadeNum) && profundidadeNum > 0;
               return ({
               nome_servico: produto.nome_servico || produto.nome || '',
               descricao: produto.descricao || '',
               quantidade_produto: String(produto.quantidade || 1),
               largura_produto: String(produto.largura?.toString() || orcamentoData.largura_produto || ''),
               altura_produto: String(produto.altura?.toString() || orcamentoData.altura_produto || ''),
+              profundidade_produto: profundidadeRaw,
+              tem_profundidade: temProfundidade,
               unidade_medida_produto: produto.unidade_medida || produto.unidade || orcamentoData.unidade_medida_produto || 'un',
               area_produto: String(produto.area_produto?.toString() || produto.area?.toString() || orcamentoData.area_produto || ''),
               perimetro_produto: String(produto.perimetro_produto?.toString() || ''),
@@ -271,6 +282,8 @@ export default function NovoOrcamentoV2Page() {
                 quantidade_produto: String(orcamentoData.quantidade_produto || 1),
                 largura_produto: String(orcamentoData.largura_produto || ''),
                 altura_produto: String(orcamentoData.altura_produto || ''),
+                profundidade_produto: '',
+                tem_profundidade: false,
                 unidade_medida_produto: orcamentoData.unidade_medida_produto || 'un',
                 area_produto: String(orcamentoData.area_produto || ''),
                 perimetro_produto: '',

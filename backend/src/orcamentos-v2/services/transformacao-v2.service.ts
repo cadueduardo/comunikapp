@@ -180,6 +180,7 @@ export class TransformacaoV2Service {
       'margem_lucro_customizada',
       'impostos_customizados',
       'configuracoes',
+      'profundidade_produto',
     ];
     camposProibidos.forEach((c) => delete dadosPreparados[c]);
 
@@ -292,11 +293,18 @@ export class TransformacaoV2Service {
       'cliente', 'custos', 'itens_produto', 'historicoOrcamento', 'versoes',
       'aprovacoes', 'linksPublicos', 'mensagensChat', 'anexos', 'numero',
       'criado_em', 'atualizado_em',
+      'cliente_id', 'profundidade_produto',
       'preco_final', 'custo_total', 'margem_lucro', 'impostos',
       'custo_material', 'custo_mao_obra', 'custo_indireto', 'data_ultimo_calculo',
       'margem_lucro_customizada', 'impostos_customizados',
     ];
     camposProibidos.forEach((campo) => delete dadosPreparados[campo]);
+
+    if (Object.prototype.hasOwnProperty.call(dados, 'cliente_id')) {
+      dadosPreparados.cliente = dados.cliente_id
+        ? { connect: { id: dados.cliente_id } }
+        : { disconnect: true };
+    }
 
     // Garantir que campos JSON sejam strings (Prisma/MySQL)
     if (dadosPreparados.custos_calculados != null && typeof dadosPreparados.custos_calculados === 'object') {
@@ -469,7 +477,12 @@ export class TransformacaoV2Service {
       `Produto ${index + 1}`
     ).toString();
     const toNumber = (valor: any, precision?: number): number => {
-      const numero = typeof valor === 'number' ? valor : Number(valor);
+      const valorNormalizado =
+        typeof valor === 'string' ? valor.trim().replace(',', '.') : valor;
+      const numero =
+        typeof valorNormalizado === 'number'
+          ? valorNormalizado
+          : Number(valorNormalizado);
       if (!Number.isFinite(numero)) {
         return 0;
       }
@@ -488,20 +501,24 @@ export class TransformacaoV2Service {
 
     // Fase 11: profundidade convertida para number (Decimal aceitavel pelo Prisma) ou null.
     // Source-of-truth unica (guardrail 3): persistir o valor exatamente como veio do payload do operador.
+    const profundidadeInput =
+      produto.profundidade ??
+      produto.profundidade_produto ??
+      produto.profundidadeProduto;
     const profundidadeNum =
-      produto.profundidade === null || produto.profundidade === undefined
+      profundidadeInput === null || profundidadeInput === undefined || profundidadeInput === ''
         ? null
-        : Number(produto.profundidade);
+        : toNumber(profundidadeInput, 3);
     const profundidadeNormalizada =
-      profundidadeNum !== null && !isNaN(profundidadeNum) && profundidadeNum > 0
+      profundidadeNum !== null && Number.isFinite(profundidadeNum) && profundidadeNum > 0
         ? profundidadeNum
         : null;
 
     // Fase 11 - log de diagnostico (guardrail 3). Mostra o input e o que sera persistido.
     this.logger.log(
       `[FASE11] prepararProdutoCriacao produto[${index}] "${nomeProduto}": ` +
-        `input.profundidade=${JSON.stringify(produto.profundidade)} ` +
-        `(type=${typeof produto.profundidade}), ` +
+        `input.profundidade=${JSON.stringify(profundidadeInput)} ` +
+        `(type=${typeof profundidadeInput}), ` +
         `normalizada=${profundidadeNormalizada}`,
     );
 

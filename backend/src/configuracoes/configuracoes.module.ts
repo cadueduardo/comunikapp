@@ -25,6 +25,11 @@ import { RegrasValidacaoService } from './services/regras-validacao.service';
 import { ExecucaoRegraService } from './services/execucao-regra.service';
 import { SetoresProdutivosService } from './services/centros-de-trabalho/setores-produtivos.service';
 
+const testControllers =
+  process.env.NODE_ENV === 'production'
+    ? []
+    : [TestValidacoesController, TestCamposValidacaoController];
+
 @Module({
   imports: [
     PrismaModule,
@@ -41,8 +46,7 @@ import { SetoresProdutivosService } from './services/centros-de-trabalho/setores
     ValidacoesAutomaticasController,
     RegrasValidacaoController,
     CamposValidacaoController,
-    TestValidacoesController,
-    TestCamposValidacaoController,
+    ...testControllers,
     SetoresProdutivosController,
   ],
   providers: [

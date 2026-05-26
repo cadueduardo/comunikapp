@@ -66,6 +66,12 @@ export function ArtePublicSidebarNew({
 
   const [showMobileModal, setShowMobileModal] = useState(false);
   const [versaoModal, setVersaoModal] = useState<VersaoArte | null>(null);
+  const resolvePublicFileUrl = (url?: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    return `${baseUrl}${url}`;
+  };
 
   // Função para formatar datas
   const formatarData = (dataString: any): string => {
@@ -283,7 +289,7 @@ export function ArtePublicSidebarNew({
           <div className="flex-1 bg-black flex items-center justify-center p-4">
             {versaoModal.arquivos?.[0]?.url_thumbnail ? (
               <img
-                src={`http://localhost:4000${versaoModal.arquivos[0].url_thumbnail}`}
+                src={resolvePublicFileUrl(versaoModal.arquivos[0].url_thumbnail)}
                 alt={versaoModal.arquivos[0].nome_original}
                 className="max-w-full max-h-full object-contain"
                 onClick={(e) => e.stopPropagation()}

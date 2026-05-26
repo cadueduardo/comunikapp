@@ -135,6 +135,12 @@ export function ArtePublicMainSimple({
   }
 
   const arquivoPrincipal = versaoAtual.arquivos[0];
+  const resolvePublicFileUrl = (url?: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    return `${baseUrl}${url}`;
+  };
   
   // Construir URL do arquivo para visualização
   let imageSrc = '';
@@ -167,21 +173,19 @@ export function ArtePublicMainSimple({
         console.log('🔍 [ArtePublicMainSimple] Construindo URL:', { filename, versaoId, urlParts });
         
         if (versaoId && filename) {
-          imageSrc = `${baseUrl}/uploads/arte/${versaoId}/${filename}`;
+          imageSrc = `${baseUrl}/api/arte-aprovacao/versoes/${versaoId}/arquivos/public/download/${filename}?token=${encodeURIComponent(token)}`;
           console.log('✅ [ArtePublicMainSimple] URL construída:', imageSrc);
         } else {
           console.warn('⚠️ [ArtePublicMainSimple] Não foi possível construir URL:', { versaoId, filename });
         }
       }
     }
+    if (arquivoPrincipal.url_arquivo.startsWith('/api/')) {
+      imageSrc = resolvePublicFileUrl(arquivoPrincipal.url_arquivo);
+    }
   } else if (arquivoPrincipal?.url_thumbnail) {
     // Fallback para thumbnail se não houver arquivo original
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-    if (arquivoPrincipal.url_thumbnail.startsWith('http')) {
-      imageSrc = arquivoPrincipal.url_thumbnail;
-    } else {
-      imageSrc = `${baseUrl}${arquivoPrincipal.url_thumbnail}`;
-    }
+    imageSrc = resolvePublicFileUrl(arquivoPrincipal.url_thumbnail);
     console.log('✅ [ArtePublicMainSimple] Usando thumbnail:', imageSrc);
   } else {
     console.warn('⚠️ [ArtePublicMainSimple] Nenhuma URL de arquivo encontrada');

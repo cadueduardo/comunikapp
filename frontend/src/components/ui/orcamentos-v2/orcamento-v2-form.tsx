@@ -713,6 +713,12 @@ export function OrcamentoV2Form({
           normalizarNumero(produtoFormulario.perimetro_produto),
           2,
         );
+        const profundidadePreview = normalizarNumero(
+          (dimensoesPreview as any)?.profundidade ??
+            previewProduto?.profundidade ??
+            (produtoFormulario as any)?.profundidade_produto,
+        );
+        const profundidade = profundidadePreview > 0 ? fixDecimal(profundidadePreview, 3) : null;
         const unidadeMedida =
           (typeof dimensoesPreview?.unidade_medida === 'string' && dimensoesPreview.unidade_medida.trim().length > 0
             ? dimensoesPreview.unidade_medida.trim()
@@ -871,6 +877,7 @@ export function OrcamentoV2Form({
           observacoes: (produtoFormulario as any)?.observacoes,
           largura,
           altura,
+          profundidade,
           area,
           perimetro_produto: perimetroProduto || undefined,
           unidade_geometria: produtoFormulario.unidade_geometria,

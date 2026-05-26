@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { NotificacoesModule } from '../../notificacoes/notificacoes.module';
+import { getRequiredJwtSecret } from '../../auth/jwt-secret';
 import { ArteVersaoController } from './controllers/arte-versao.controller';
 import { ArteArquivoController } from './controllers/arte-arquivo.controller';
 import { ArteLinkAprovacaoController } from './controllers/arte-link-aprovacao.controller';
@@ -21,9 +23,13 @@ import { ArteWebSocketGateway } from './gateways/arte-websocket.gateway';
     PrismaModule,
     NotificacoesModule,
     // JwtModule próprio para o módulo (seguindo premissas)
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'arte-aprovacao-secret-key',
-      signOptions: { expiresIn: '24h' },
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        secret: getRequiredJwtSecret(configService),
+        signOptions: { expiresIn: '24h' },
+      }),
     }),
   ],
   controllers: [

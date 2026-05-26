@@ -109,10 +109,10 @@ function arred(v: number, casas: number) {
   return Math.round(v * f) / f;
 }
 
-function formatarNumeroPtBr(valor: number, casas: number): string {
+function formatarNumeroPtBr(valor: number, casas: number, minimo = 0): string {
   if (!Number.isFinite(valor) || valor === 0) return '—';
   return valor.toLocaleString('pt-BR', {
-    minimumFractionDigits: casas,
+    minimumFractionDigits: minimo,
     maximumFractionDigits: casas,
   });
 }
@@ -253,7 +253,7 @@ export function QuickGeometryInput({
         <div className="rounded-md border border-dashed border-gray-200 bg-gray-50 px-3 py-2">
           <div className="text-gray-500">Área calculada</div>
           <div className="font-mono font-semibold text-gray-900">
-            {formatarNumeroPtBr(calculada.area_m2, 4)} m²
+            {formatarNumeroPtBr(calculada.area_m2, 2)} m²
           </div>
         </div>
         <div className="rounded-md border border-dashed border-gray-200 bg-gray-50 px-3 py-2">
@@ -269,7 +269,7 @@ export function QuickGeometryInput({
               <div className="font-mono font-semibold text-gray-900">
                 {formatarNumeroPtBr(
                   (calculada.perimetro_mm / 1000) * (calculada.profundidade_mm / 1000),
-                  4,
+                  2,
                 )}{' '}
                 m²
               </div>
@@ -279,7 +279,7 @@ export function QuickGeometryInput({
               <div className="font-mono font-semibold text-gray-900">
                 {formatarNumeroPtBr(
                   calculada.area_m2 * (calculada.profundidade_mm / 1000),
-                  4,
+                  3,
                 )}{' '}
                 m³
               </div>

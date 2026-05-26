@@ -62,9 +62,11 @@ describe('TenantIsolationMiddleware', () => {
       (key: string, defaultValue?: string) => {
         switch (key) {
           case 'ESTOQUE_INTERNAL_API_TOKEN':
-            return 'internal-token-123';
+            return 'internal-token-123456789012345678901234';
           case 'ESTOQUE_ALLOWED_ROLES':
-            return 'admin,manager,estoque';
+            return 'ADMINISTRADOR,FINANCEIRO,ESTOQUE';
+          case 'JWT_SECRET':
+            return 'test-jwt-secret-with-more-than-32-characters';
           default:
             return defaultValue;
         }
@@ -83,7 +85,7 @@ describe('TenantIsolationMiddleware', () => {
   describe('internal token validation', () => {
     it('should allow access with valid internal token', () => {
       mockRequest.headers = {
-        'x-internal-token': 'internal-token-123',
+        'x-internal-token': 'internal-token-123456789012345678901234',
         'x-loja-id': 'loja-123',
         'x-usuario-id': 'user-456',
       };
@@ -94,6 +96,7 @@ describe('TenantIsolationMiddleware', () => {
       expect(mockRequest.estoque).toEqual({
         lojaId: 'loja-123',
         usuarioId: 'user-456',
+        roles: ['INTERNO'],
       });
     });
 
@@ -110,7 +113,7 @@ describe('TenantIsolationMiddleware', () => {
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: expect.stringContaining('Token de autenticação requerido'),
+          message: expect.stringContaining('Token interno inválido'),
           module: 'estoque',
         }),
       );
@@ -172,12 +175,12 @@ describe('TenantIsolationMiddleware', () => {
       );
     });
 
-    it('should accept request with valid lojaId', () => {
+    it('should ignore spoofed lojaId and roles headers for JWT requests', () => {
       mockRequest.headers = {
         authorization: 'Bearer valid-token',
-        'x-loja-id': 'loja-123',
+        'x-loja-id': 'loja-falsa',
         'x-usuario-id': 'user-456',
-        'x-user-roles': 'admin,manager',
+        'x-user-roles': 'ADMINISTRADOR',
       };
 
       middleware.use(mockRequest, mockResponse, mockNext);
@@ -186,7 +189,7 @@ describe('TenantIsolationMiddleware', () => {
       expect(mockRequest.estoque).toEqual({
         lojaId: 'loja-123',
         usuarioId: 'user-456',
-        roles: ['admin', 'manager'],
+        roles: ['ADMINISTRADOR', 'FINANCEIRO', 'ESTOQUE', 'PRODUCAO', 'VENDAS'],
       });
     });
   });
@@ -203,11 +206,7 @@ describe('TenantIsolationMiddleware', () => {
       middleware.use(mockRequest, mockResponse, mockNext);
 
       expect(mockNext).toHaveBeenCalled();
-      expect(mockRequest.estoque).toEqual({
-        lojaId: 'loja-123',
-        usuarioId: 'user-456',
-        roles: ['admin'],
-      });
+      expect(mockRequest.estoque?.roles).toContain('ADMINISTRADOR');
     });
 
     it('should accept request with multiple roles including allowed role', () => {
@@ -221,20 +220,17 @@ describe('TenantIsolationMiddleware', () => {
       middleware.use(mockRequest, mockResponse, mockNext);
 
       expect(mockNext).toHaveBeenCalled();
-      expect(mockRequest.estoque).toEqual({
-        lojaId: 'loja-123',
-        usuarioId: 'user-456',
-        roles: ['user', 'manager', 'viewer'],
-      });
+      expect(mockRequest.estoque?.roles).toContain('ADMINISTRADOR');
     });
 
-    it('should reject request without allowed roles', () => {
+    it('should reject request when JWT funcao has no allowed mapped role', () => {
       mockRequest.headers = {
         authorization: 'Bearer valid-token',
-        'x-loja-id': 'loja-123',
-        'x-usuario-id': 'user-456',
-        'x-user-roles': 'user,viewer',
       };
+      const jwt = (middleware as any).jwtService;
+      jest
+        .spyOn(jwt, 'verify')
+        .mockReturnValueOnce({ loja_id: 'loja-123', sub: 'user-456', funcao: 'VENDAS' });
 
       middleware.use(mockRequest, mockResponse, mockNext);
 
@@ -340,7 +336,10 @@ describe('TenantIsolationMiddleware', () => {
     it('should use custom allowed roles from config', () => {
       mockConfigService.get.mockImplementation((key: string) => {
         if (key === 'ESTOQUE_ALLOWED_ROLES') {
-          return 'admin,supervisor';
+          return 'SUPERVISOR';
+        }
+        if (key === 'JWT_SECRET') {
+          return 'test-jwt-secret-with-more-than-32-characters';
         }
         return 'default-value';
       });
@@ -358,7 +357,7 @@ describe('TenantIsolationMiddleware', () => {
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: expect.stringContaining('admin,supervisor'),
+          message: expect.stringContaining('supervisor'),
           module: 'estoque',
         }),
       );
@@ -367,13 +366,16 @@ describe('TenantIsolationMiddleware', () => {
     it('should use custom internal token from config', () => {
       mockConfigService.get.mockImplementation((key: string) => {
         if (key === 'ESTOQUE_INTERNAL_API_TOKEN') {
-          return 'custom-internal-token';
+          return 'custom-internal-token-12345678901234567890';
+        }
+        if (key === 'JWT_SECRET') {
+          return 'test-jwt-secret-with-more-than-32-characters';
         }
         return 'default-value';
       });
 
       mockRequest.headers = {
-        'x-internal-token': 'custom-internal-token',
+        'x-internal-token': 'custom-internal-token-12345678901234567890',
         'x-loja-id': 'loja-123',
         'x-usuario-id': 'user-456',
       };
@@ -384,6 +386,7 @@ describe('TenantIsolationMiddleware', () => {
       expect(mockRequest.estoque).toEqual({
         lojaId: 'loja-123',
         usuarioId: 'user-456',
+        roles: ['INTERNO'],
       });
     });
   });

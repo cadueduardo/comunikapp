@@ -135,6 +135,33 @@ export function MaterialSection({
   const temProfundidadeValida = (): boolean =>
     normalizarNumero(profundidadeProduto) > 0;
 
+  const formatarNumeroMedida = (
+    valor: unknown,
+    casas: number,
+    usarVirgula = true,
+  ): string => {
+    const numero =
+      typeof valor === 'number'
+        ? valor
+        : Number(String(valor || '').replace(',', '.'));
+    if (!Number.isFinite(numero)) return '';
+    const formatado = numero.toLocaleString('pt-BR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: casas,
+    });
+    return usarVirgula ? formatado : formatado.replace(/\./g, '').replace(',', '.');
+  };
+
+  const formatarQuantidadeAutomatica = (
+    valor: number,
+    unidadeUso?: string,
+    usarVirgula = true,
+  ): string => {
+    const casas =
+      unidadeUso === 'M3' ? 3 : unidadeUso === 'M2_LATERAL' ? 2 : 2;
+    return formatarNumeroMedida(valor, casas, usarVirgula);
+  };
+
   useEffect(() => {
     // Recalcular automaticamente as quantidades de materiais quando as dimensões ou quantidade do produto mudarem
     const materiais = form.getValues(`itens_produto.${itemIndex}.materiais`) || [];
@@ -186,12 +213,18 @@ export function MaterialSection({
             switch (insumoSelecionado.unidade_uso) {
               case 'M2':
                 if (areaProdutoNum > 0) {
-                  novaQuantidade = (areaProdutoNum * quantidadeProdutoNum).toFixed(2);
+                  novaQuantidade = formatarQuantidadeAutomatica(
+                    areaProdutoNum * quantidadeProdutoNum,
+                    insumoSelecionado.unidade_uso,
+                  );
                 }
                 break;
               case 'M':
                 if (perimetroProdutoM > 0) {
-                  novaQuantidade = (perimetroProdutoM * quantidadeProdutoNum).toFixed(2);
+                  novaQuantidade = formatarQuantidadeAutomatica(
+                    perimetroProdutoM * quantidadeProdutoNum,
+                    insumoSelecionado.unidade_uso,
+                  );
                 }
                 break;
               // Fase 11: volume (LxAxP em m3) para produtos 3D. obterVolumeM3 ja retorna 0
@@ -201,7 +234,10 @@ export function MaterialSection({
               case 'M3': {
                 const volumeM3 = obterVolumeM3();
                 if (volumeM3 > 0) {
-                  novaQuantidade = (volumeM3 * quantidadeProdutoNum).toFixed(6);
+                  novaQuantidade = formatarQuantidadeAutomatica(
+                    volumeM3 * quantidadeProdutoNum,
+                    insumoSelecionado.unidade_uso,
+                  );
                 }
                 break;
               }
@@ -210,7 +246,10 @@ export function MaterialSection({
               case 'M2_LATERAL': {
                 const areaLateralM2 = obterAreaLateralM2();
                 if (areaLateralM2 > 0) {
-                  novaQuantidade = (areaLateralM2 * quantidadeProdutoNum).toFixed(4);
+                  novaQuantidade = formatarQuantidadeAutomatica(
+                    areaLateralM2 * quantidadeProdutoNum,
+                    insumoSelecionado.unidade_uso,
+                  );
                 }
                 break;
               }
@@ -374,12 +413,18 @@ export function MaterialSection({
             switch (insumoSelecionado.unidade_uso) {
               case 'M2':
                 if (areaProduto > 0) {
-                  sugestao = (areaProduto * quantidadeProduto).toFixed(2);
+                  sugestao = formatarQuantidadeAutomatica(
+                    areaProduto * quantidadeProduto,
+                    insumoSelecionado.unidade_uso,
+                  );
                 }
                 break;
               case 'M':
                 if (perimetroProdutoM > 0) {
-                  sugestao = (perimetroProdutoM * quantidadeProduto).toFixed(2);
+                  sugestao = formatarQuantidadeAutomatica(
+                    perimetroProdutoM * quantidadeProduto,
+                    insumoSelecionado.unidade_uso,
+                  );
                 }
                 break;
               // Fase 11: volume e area lateral para produtos 3D.
@@ -388,14 +433,20 @@ export function MaterialSection({
               case 'M3': {
                 const volumeM3 = obterVolumeM3();
                 if (volumeM3 > 0) {
-                  sugestao = (volumeM3 * quantidadeProduto).toFixed(6);
+                  sugestao = formatarQuantidadeAutomatica(
+                    volumeM3 * quantidadeProduto,
+                    insumoSelecionado.unidade_uso,
+                  );
                 }
                 break;
               }
               case 'M2_LATERAL': {
                 const areaLateralM2 = obterAreaLateralM2();
                 if (areaLateralM2 > 0) {
-                  sugestao = (areaLateralM2 * quantidadeProduto).toFixed(4);
+                  sugestao = formatarQuantidadeAutomatica(
+                    areaLateralM2 * quantidadeProduto,
+                    insumoSelecionado.unidade_uso,
+                  );
                 }
                 break;
               }
@@ -460,7 +511,7 @@ export function MaterialSection({
               const volumeM3 = obterVolumeM3();
               if (volumeM3 > 0) {
                 const volumeTotal = volumeM3 * quantidadeProduto;
-                return `Volume: L x A x P = ${volumeM3.toFixed(4)}m³ × ${quantidadeProduto} unidades = ${volumeTotal.toFixed(4)}m³`;
+                return `Volume: L x A x P = ${formatarNumeroMedida(volumeM3, 3)}m³ × ${quantidadeProduto} unidades = ${formatarNumeroMedida(volumeTotal, 3)}m³`;
               }
               if (!temProfundidadeValida()) {
                 return 'Este insumo requer profundidade. Preencha o campo Profundidade em Geometria de produção.';
@@ -470,7 +521,7 @@ export function MaterialSection({
               const areaLateralM2 = obterAreaLateralM2();
               if (areaLateralM2 > 0) {
                 const areaTotal = areaLateralM2 * quantidadeProduto;
-                return `Área lateral (caixa aberta): (2L+2A) x P = ${areaLateralM2.toFixed(4)}m² × ${quantidadeProduto} unidades = ${areaTotal.toFixed(4)}m²`;
+                return `Área lateral (caixa aberta): (2L+2A) x P = ${formatarNumeroMedida(areaLateralM2, 2)}m² × ${quantidadeProduto} unidades = ${formatarNumeroMedida(areaTotal, 2)}m²`;
               }
               if (!temProfundidadeValida()) {
                 return 'Este insumo requer profundidade. Preencha o campo Profundidade em Geometria de produção.';
@@ -480,13 +531,13 @@ export function MaterialSection({
               case 'M2':
                 if (areaProduto > 0) {
                   const areaTotal = areaProduto * quantidadeProduto;
-                  return `Área calculada: ${areaProduto.toFixed(2)}m² × ${quantidadeProduto} unidades = ${areaTotal.toFixed(2)}m²`;
+                  return `Área calculada: ${formatarNumeroMedida(areaProduto, 2)}m² × ${quantidadeProduto} unidades = ${formatarNumeroMedida(areaTotal, 2)}m²`;
                 }
                 break;
               case 'M':
                 if (perimetroProdutoM > 0) {
                   const perimetroTotal = perimetroProdutoM * quantidadeProduto;
-                  return `Perímetro calculado: ${perimetroProdutoM.toFixed(2)}m × ${quantidadeProduto} unidades = ${perimetroTotal.toFixed(2)}m`;
+                  return `Perímetro calculado: ${formatarNumeroMedida(perimetroProdutoM, 2)}m × ${quantidadeProduto} unidades = ${formatarNumeroMedida(perimetroTotal, 2)}m`;
                 }
                 break;
             }
@@ -557,14 +608,40 @@ export function MaterialSection({
                             switch (insumoSelecionado.unidade_uso) {
                               case 'M2':
                                 if (areaProduto > 0) {
-                                  sugestao = (areaProduto * quantidadeProduto).toFixed(2);
+                                  sugestao = formatarQuantidadeAutomatica(
+                                    areaProduto * quantidadeProduto,
+                                    insumoSelecionado.unidade_uso,
+                                  );
                                 }
                                 break;
                               case 'M':
                                 if (perimetroProdutoM > 0) {
-                                  sugestao = (perimetroProdutoM * quantidadeProduto).toFixed(2);
+                                  sugestao = formatarQuantidadeAutomatica(
+                                    perimetroProdutoM * quantidadeProduto,
+                                    insumoSelecionado.unidade_uso,
+                                  );
                                 }
                                 break;
+                              case 'M3': {
+                                const volumeM3 = obterVolumeM3();
+                                if (volumeM3 > 0) {
+                                  sugestao = formatarQuantidadeAutomatica(
+                                    volumeM3 * quantidadeProduto,
+                                    insumoSelecionado.unidade_uso,
+                                  );
+                                }
+                                break;
+                              }
+                              case 'M2_LATERAL': {
+                                const areaLateralM2 = obterAreaLateralM2();
+                                if (areaLateralM2 > 0) {
+                                  sugestao = formatarQuantidadeAutomatica(
+                                    areaLateralM2 * quantidadeProduto,
+                                    insumoSelecionado.unidade_uso,
+                                  );
+                                }
+                                break;
+                              }
                             }
                           }
                           
@@ -633,11 +710,20 @@ export function MaterialSection({
                 name={`itens_produto.${itemIndex}.materiais.${materialIndex}.quantidade`}
                 render={({ field }) => {
                   // Verificar se o material é calculado por área (M2) ou tem lógica personalizada baseada em área
-                  const isAreaCalculated = insumoSelecionado && (
+                  const isQuantidadeCalculada = insumoSelecionado && (
                     insumoSelecionado.unidade_uso === 'M2' ||
-                    (insumoSelecionado.logica_consumo === 'custom' && 
+                    insumoSelecionado.unidade_uso === 'M' ||
+                    insumoSelecionado.unidade_uso === 'M3' ||
+                    insumoSelecionado.unidade_uso === 'M2_LATERAL' ||
+                    (insumoSelecionado.logica_consumo === 'custom' &&
                      insumoSelecionado.tipoMaterial?.parametros_padrao?.tipo_calculo === 'quantidade_por_m2')
                   );
+                  const quantidadeCasas =
+                    insumoSelecionado?.unidade_uso === 'M3'
+                      ? 3
+                      : insumoSelecionado?.unidade_uso === 'M2_LATERAL'
+                        ? 2
+                        : 2;
                   
                   return (
                     <FormItem>
@@ -647,10 +733,15 @@ export function MaterialSection({
                           type="text" 
                           placeholder={campoQuantidade.placeholder}
                           {...field}
-                          readOnly={isAreaCalculated}
-                          className={`max-w-[80px] ${isAreaCalculated ? "bg-muted" : ""}`}
+                          value={
+                            isQuantidadeCalculada
+                              ? formatarNumeroMedida(field.value, quantidadeCasas)
+                              : field.value
+                          }
+                          readOnly={Boolean(isQuantidadeCalculada)}
+                          className={`max-w-[80px] ${isQuantidadeCalculada ? "bg-muted" : ""}`}
                           onChange={(e) => {
-                            if (!isAreaCalculated) {
+                            if (!isQuantidadeCalculada) {
                               // Permitir vírgula e ponto como separador decimal
                               const value = e.target.value.replace(/[^0-9,.-]/g, '');
                               field.onChange(value);

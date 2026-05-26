@@ -8,10 +8,9 @@ export async function GET(request: NextRequest) {
 
     // Validar token
     if (!token || token === 'Bearer null' || token === 'Bearer undefined') {
-      return NextResponse.json({ message: 'Token não fornecido' }, { status: 401 });
+      return NextResponse.json({ message: 'Token nÃ£o fornecido' }, { status: 401 });
     }
 
-    console.log('🔍 API Route - Token recebido:', !!token);
 
     const response = await fetch(`${BACKEND_URL}/os/liberadas-para-pcp`, {
       method: 'GET',

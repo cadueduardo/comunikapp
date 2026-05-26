@@ -17,6 +17,7 @@ async function bootstrap() {
   // Configurar timezone - padrão Brasil, mas configurável via .env
   process.env.TZ = process.env.TZ || 'America/Sao_Paulo';
   const app = await NestFactory.create(AppModule);
+  const isProd = process.env.NODE_ENV === 'production';
 
   // Trust proxy: necessário para express-rate-limit atrás de nginx/reverse proxy (evita ERR_ERL_UNEXPECTED_X_FORWARDED_FOR)
   const expressApp = app.getHttpAdapter().getInstance();
@@ -33,12 +34,10 @@ async function bootstrap() {
       'https://comunikapp.com.br',
       'https://www.comunikapp.com.br',
     ];
-    const corsOrigins = [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      ...defaultProduction,
-      ...envOrigins,
-    ];
+    const devOrigins = isProd
+      ? []
+      : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+    const corsOrigins = [...devOrigins, ...defaultProduction, ...envOrigins];
     app.enableCors({
       origin: corsOrigins,
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
@@ -60,7 +59,6 @@ async function bootstrap() {
   }
 
   // Níveis de log por ambiente
-  const isProd = process.env.NODE_ENV === 'production';
   app.useLogger(
     isProd
       ? ['error', 'warn', 'log']
@@ -104,6 +102,12 @@ async function bootstrap() {
   if (!isProd) {
     logger.debug(`Uploads estáticos: ${uploadsPath}`);
   }
+  app.use('/uploads/arte', (req, res, next) => {
+    if (isProd && process.env.SERVE_PUBLIC_ARTE_UPLOADS !== 'true') {
+      return res.status(404).json({ message: 'Arquivo não encontrado' });
+    }
+    return next();
+  });
   app.use(
     '/uploads',
     express.static(uploadsPath, {
@@ -120,17 +124,19 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger OpenAPI
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Comunikapp API')
-    .setDescription('Documentação da API (Orçamentos, Estoque, etc.)')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api/docs', app, swaggerDocument, {
-    swaggerOptions: { persistAuthorization: true },
-  });
+  // Swagger OpenAPI: desabilitado por padrão, inclusive em produção.
+  if (process.env.ENABLE_SWAGGER === 'true') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Comunikapp API')
+      .setDescription('Documentação da API (Orçamentos, Estoque, etc.)')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api/docs', app, swaggerDocument, {
+      swaggerOptions: { persistAuthorization: true },
+    });
+  }
 
   const port = Number(process.env.PORT ?? 4000);
   // Em produção, escuta apenas em 127.0.0.1 por padrão (Nginx fica na frente).
@@ -140,7 +146,7 @@ async function bootstrap() {
 
   if (!isProd) {
     logger.debug(
-      `Env: PORT=${process.env.PORT} HOST=${host} NODE_ENV=${process.env.NODE_ENV} DATABASE_URL=${process.env.DATABASE_URL ? 'ok' : 'missing'} TZ=${process.env.TZ}`,
+      `Env: PORT=${process.env.PORT} HOST=${host} NODE_ENV=${process.env.NODE_ENV} DB_CONFIG=${process.env.DATABASE_URL ? 'ok' : 'missing'} TZ=${process.env.TZ}`,
     );
   }
 
