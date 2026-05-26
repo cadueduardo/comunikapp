@@ -22,6 +22,7 @@ import { Edit, Filter, Loader2, MoreHorizontal, Search, Share2, Trash2 } from 'l
 import { OrcamentoV2, useOrcamentosV2 } from './hooks/useOrcamentosV2';
 
 type StatusFilter = 'todos' | 'rascunho' | 'enviado';
+const DESCRICAO_MAX_CHARS = 140;
 
 interface OrcamentosV2TableProps {
   onDelete?: (id: string, nome: string) => void;
@@ -121,6 +122,12 @@ function resolveStatusConfig(orcamento: OrcamentoV2): StatusConfig {
     className: 'text-xs bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 transition-colors',
     href: editHref,
   };
+}
+
+function truncateText(text: string, maxChars: number): string {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxChars) return normalized;
+  return `${normalized.slice(0, maxChars).trimEnd()}...`;
 }
 
 export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps) {
@@ -313,16 +320,25 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
               ) : (
                 filteredData.map((orcamento) => {
                   const statusConfig = resolveStatusConfig(orcamento);
+                  const descricao = orcamento.descricao?.trim();
+                  const descricaoCurta = descricao
+                    ? truncateText(descricao, DESCRICAO_MAX_CHARS)
+                    : '';
 
                   return (
                   <tr key={orcamento.id} className="hover:bg-gray-50">
                       <td className="whitespace-nowrap px-6 py-4">
                       <Badge variant="secondary">#{orcamento.numero}</Badge>
                     </td>
-                      <td className="whitespace-nowrap px-6 py-4">
+                      <td className="px-6 py-4 max-w-[48rem]">
                         <div className="font-medium text-gray-900">{orcamento.nome_servico}</div>
-                        {orcamento.descricao && (
-                          <div className="text-sm text-gray-500">{orcamento.descricao}</div>
+                        {descricao && (
+                          <div
+                            className="text-sm text-gray-500 truncate"
+                            title={descricao}
+                          >
+                            {descricaoCurta}
+                          </div>
                         )}
                     </td>
                       <td className="whitespace-nowrap px-6 py-4 text-gray-900">
