@@ -194,10 +194,10 @@ export function OSWorkflowActions({ os, onStatusChange }: OSWorkflowActionsProps
           </div>
         );
 
-      // A partir de 2026-05-25 a aprovacao tecnica promove a OS direto para
+      // A partir de 2026-05-25 a aprovação técnica promove a OS direto para
       // LIBERADA_PARA_PCP (e depois EM_WORKFLOW se houver workflow inteligente).
-      // Nesses estados a operacao sai do detalhe da OS e passa a ser feita no
-      // Kanban PCP, entao oferecemos apenas um atalho informativo.
+      // Nesses estados a operação sai do detalhe da OS e passa a ser feita no
+      // Kanban PCP, então oferecemos apenas um atalho informativo.
       case 'LIBERADA_PARA_PCP':
       case 'EM_WORKFLOW':
         return (

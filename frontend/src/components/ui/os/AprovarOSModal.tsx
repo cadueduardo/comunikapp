@@ -23,12 +23,13 @@ import {
   Calendar,
   ClipboardList,
   Package,
+  CalendarRange,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
 
 // Formata Date em 'YYYY-MM-DD' no fuso local (input type=date espera esse
-// formato). NAO usa toISOString() porque ela converte para UTC e pode pular
+// formato). NÃO usa toISOString() porque ela converte para UTC e pode pular
 // um dia em fusos negativos.
 function formatarDataInput(date: Date): string {
   const ano = date.getFullYear();
@@ -48,16 +49,16 @@ function parseDataInput(valor: string): Date | null {
 interface AprovarOSModalProps {
   osId: string | null;
   osNumero?: string | null;
-  // Status atual da OS - usado para sinalizar se a aprovacao sera retroativa
-  // (OS ja avancou no operacional sem passar pelo checkpoint).
+  // Status atual da OS — usado para sinalizar se a aprovação será retroativa
+  // (OS já avançou no operacional sem passar pelo checkpoint).
   osStatus?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAprovado?: () => void;
 }
 
-// Status do fluxo padrao - aprovacao avanca o workflow para LIBERADA_PARA_PCP.
-// Qualquer outro status permitido vira aprovacao retroativa.
+// Status do fluxo padrão — aprovação avança o workflow para LIBERADA_PARA_PCP.
+// Qualquer outro status permitido vira aprovação retroativa.
 const STATUS_FLUXO_PADRAO = new Set([
   'AGUARDANDO_APROVACAO_TECNICA',
   'FILA',
@@ -93,14 +94,14 @@ interface AprovacaoStatusResponse {
   validacoes: ValidacoesAprovacao;
 }
 
-// Estado editavel de cada item dentro do modal. Datas em formato 'YYYY-MM-DD'
+// Estado editável de cada item dentro do modal. Datas em formato 'YYYY-MM-DD'
 // para compatibilidade direta com <input type="date">.
 interface ItemPrazoState {
   item_id: string;
   produto_servico: string;
   data_inicio: string;
   data_fim: string;
-  // Mensagem de erro local (validacao em tempo real) para este item.
+  // Mensagem de erro local (validação em tempo real) para este item.
   erro?: string | null;
 }
 
@@ -150,11 +151,17 @@ export function AprovarOSModal({
     null,
   );
 
-  // Prazos por servico (1 par inicio/fim por ItemOS). Pre-preenchido a partir
+  // Prazos por serviço (1 par início/fim por ItemOS). Pré-preenchido a partir
   // do response GET /aprovacao-tecnica/status.
   const [itensPrazo, setItensPrazo] = useState<ItemPrazoState[]>([]);
   // Prazo guarda-chuva atual da OS (read-only no modal, apenas info).
   const [prazoOS, setPrazoOS] = useState<string | null>(null);
+
+  // Prazo "mãe" — atalho para aplicar o mesmo par (início, fim) a todos os
+  // serviços com um clique. NÃO é persistido; serve apenas como input de
+  // conveniência. Pré-preenchido com hoje / hoje+7.
+  const [prazoMaeInicio, setPrazoMaeInicio] = useState<string>('');
+  const [prazoMaeFim, setPrazoMaeFim] = useState<string>('');
 
   useEffect(() => {
     if (!open || !osId) {
@@ -162,6 +169,8 @@ export function AprovarOSModal({
       setErroCarga(null);
       setItensPrazo([]);
       setPrazoOS(null);
+      setPrazoMaeInicio('');
+      setPrazoMaeFim('');
       return;
     }
 
@@ -177,7 +186,7 @@ export function AprovarOSModal({
         if (!response.ok) {
           const txt = await response.text().catch(() => '');
           throw new Error(
-            txt || 'Falha ao carregar pre-validacoes da aprovacao',
+            txt || 'Falha ao carregar pré-validações da aprovação',
           );
         }
         const data = (await response.json()) as AprovacaoStatusResponse;
@@ -195,8 +204,8 @@ export function AprovarOSModal({
 
         setPrazoOS(data.data_prazo ?? null);
 
-        // Pre-preenche os campos de prazo de cada servico:
-        //  - Data inicio: data_inicio_producao do item OU hoje
+        // Pré-preenche os campos de prazo de cada serviço:
+        //  - Data início: data_inicio_producao do item OU hoje
         //  - Data fim: data_prazo_produto do item OU data_prazo da OS OU
         //    hoje + 7 dias
         const hoje = new Date();
@@ -205,6 +214,9 @@ export function AprovarOSModal({
         const fallbackFim = data.data_prazo
           ? new Date(data.data_prazo)
           : hoje7;
+
+        setPrazoMaeInicio(formatarDataInput(hoje));
+        setPrazoMaeFim(formatarDataInput(fallbackFim));
 
         const itens: ItemPrazoState[] = (data.itens ?? []).map((it) => {
           const inicioAtual = it.data_inicio_producao
@@ -236,7 +248,7 @@ export function AprovarOSModal({
           setErroCarga(
             error instanceof Error
               ? error.message
-              : 'Erro inesperado ao carregar validacoes',
+              : 'Erro inesperado ao carregar validações',
           );
         }
       } finally {
@@ -251,9 +263,9 @@ export function AprovarOSModal({
     };
   }, [open, osId]);
 
-  // Validacao em tempo real dos prazos por item. Calcula erros individuais.
-  // Em fluxo padrao todos os itens precisam ter data_fim preenchida.
-  // Em retroativo, erros nao bloqueiam aprovacao.
+  // Validação em tempo real dos prazos por item. Calcula erros individuais.
+  // Em fluxo padrão todos os itens precisam ter data_fim preenchida.
+  // Em retroativo, erros não bloqueiam aprovação.
   const itensValidados = useMemo(() => {
     return itensPrazo.map((it) => {
       let erro: string | null = null;
@@ -264,7 +276,7 @@ export function AprovarOSModal({
         it.data_fim &&
         it.data_inicio > it.data_fim
       ) {
-        erro = 'Inicio nao pode ser posterior a entrega';
+        erro = 'Início não pode ser posterior à entrega';
       } else if (prazoOS && it.data_fim && it.data_fim > prazoOS.slice(0, 10)) {
         erro = 'Excede o prazo limite da OS';
       }
@@ -289,12 +301,50 @@ export function AprovarOSModal({
     );
   };
 
+  // Aplica o par (início, fim) do prazo "mãe" a todos os serviços.
+  // Comportamento conservador: só sobrescreve o campo que estiver preenchido
+  // no prazo mãe. Se o usuário deixar um lado vazio, esse lado é preservado
+  // nos itens individuais.
+  const aplicarPrazoMaeATodos = () => {
+    if (!prazoMaeInicio && !prazoMaeFim) {
+      toast.info('Informe ao menos uma data no prazo geral.');
+      return;
+    }
+    if (
+      prazoMaeInicio &&
+      prazoMaeFim &&
+      prazoMaeInicio > prazoMaeFim
+    ) {
+      toast.error('A data de início não pode ser posterior à entrega.');
+      return;
+    }
+    if (
+      prazoOS &&
+      prazoMaeFim &&
+      prazoMaeFim > prazoOS.slice(0, 10)
+    ) {
+      toast.error('A data de entrega excede o prazo limite da OS.');
+      return;
+    }
+
+    setItensPrazo((prev) =>
+      prev.map((it) => ({
+        ...it,
+        data_inicio: prazoMaeInicio || it.data_inicio,
+        data_fim: prazoMaeFim || it.data_fim,
+      })),
+    );
+    toast.success(
+      `Prazo aplicado a ${itensPrazo.length} serviço(s).`,
+    );
+  };
+
   const handleAprovar = async () => {
     if (!osId) return;
 
     if (!eAprovacaoRetroativa && algumItemInvalido) {
       toast.error(
-        'Ajuste os prazos dos servicos antes de aprovar (veja os campos em vermelho).',
+        'Ajuste os prazos dos serviços antes de aprovar (veja os campos em vermelho).',
       );
       return;
     }
@@ -309,7 +359,7 @@ export function AprovarOSModal({
           observacoes: eAprovacaoRetroativa
             ? 'Aprovada via grid de OS (retroativa)'
             : 'Aprovada via grid de OS',
-          // Envia um par (inicio, fim) por servico. Strings vazias sao
+          // Envia um par (início, fim) por serviço. Strings vazias são
           // omitidas para que o backend mantenha o valor atual.
           prazos_itens: itensPrazo.map((it) => ({
             item_id: it.item_id,
@@ -356,6 +406,25 @@ export function AprovarOSModal({
     return d.toLocaleDateString('pt-BR');
   }, [prazoOS]);
 
+  // Erro local do prazo mãe (apenas avisa o usuário antes de aplicar).
+  const erroPrazoMae = useMemo(() => {
+    if (
+      prazoMaeInicio &&
+      prazoMaeFim &&
+      prazoMaeInicio > prazoMaeFim
+    ) {
+      return 'Início não pode ser posterior à entrega';
+    }
+    if (
+      prazoOS &&
+      prazoMaeFim &&
+      prazoMaeFim > prazoOS.slice(0, 10)
+    ) {
+      return 'Excede o prazo limite da OS';
+    }
+    return null;
+  }, [prazoMaeInicio, prazoMaeFim, prazoOS]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -366,8 +435,8 @@ export function AprovarOSModal({
           </DialogTitle>
           <DialogDescription>
             {eAprovacaoRetroativa
-              ? 'Esta OS ja avancou no operacional. Aprovar agora registra a decisao retroativamente, sem alterar o status atual.'
-              : 'Esta acao aprova tecnicamente a OS e libera o avanco para producao. Confira os criterios abaixo antes de prosseguir.'}
+              ? 'Esta OS já avançou no operacional. Aprovar agora registra a decisão retroativamente, sem alterar o status atual.'
+              : 'Esta ação aprova tecnicamente a OS e libera o avanço para produção. Confira os critérios abaixo antes de prosseguir.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -376,10 +445,10 @@ export function AprovarOSModal({
             <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 mt-0.5 text-blue-600" />
               <div>
-                <p className="font-medium">Aprovacao retroativa</p>
+                <p className="font-medium">Aprovação retroativa</p>
                 <p className="text-xs mt-0.5">
-                  A OS esta atualmente em <strong>{osStatus}</strong>. A
-                  aprovacao sera registrada mas o status nao sera alterado.
+                  A OS está atualmente em <strong>{osStatus}</strong>. A
+                  aprovação será registrada mas o status não será alterado.
                 </p>
               </div>
             </div>
@@ -388,7 +457,7 @@ export function AprovarOSModal({
           {carregando && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Carregando validacoes...
+              Carregando validações...
             </div>
           )}
 
@@ -403,7 +472,7 @@ export function AprovarOSModal({
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <Calendar className="h-4 w-4 text-primary" />
-                  Plano de producao por servico
+                  Plano de produção por serviço
                 </div>
                 {prazoOSLabel && (
                   <span className="text-xs text-muted-foreground">
@@ -413,13 +482,73 @@ export function AprovarOSModal({
               </div>
               <p className="text-xs text-muted-foreground">
                 {eAprovacaoRetroativa
-                  ? 'OS ja avancou no operacional. Edite os prazos por servico se necessario.'
-                  : 'Defina o inicio e a entrega de cada servico. A data de entrega e obrigatoria.'}
+                  ? 'OS já avançou no operacional. Edite os prazos por serviço se necessário.'
+                  : 'Defina o início e a entrega de cada serviço. A data de entrega é obrigatória.'}
               </p>
+
+              {/* Prazo "mãe" — atalho para aplicar o mesmo prazo a todos */}
+              {itensPrazo.length > 1 && (
+                <div className="rounded-md border border-dashed bg-muted/40 p-2 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    <CalendarRange className="h-3.5 w-3.5" />
+                    Aplicar prazo a todos os serviços de uma vez
+                  </div>
+                  <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="prazo-mae-inicio"
+                        className="text-xs text-muted-foreground"
+                      >
+                        Início
+                      </Label>
+                      <Input
+                        id="prazo-mae-inicio"
+                        type="date"
+                        value={prazoMaeInicio}
+                        onChange={(e) => setPrazoMaeInicio(e.target.value)}
+                        disabled={aprovando}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="prazo-mae-fim"
+                        className="text-xs text-muted-foreground"
+                      >
+                        Entrega
+                      </Label>
+                      <Input
+                        id="prazo-mae-fim"
+                        type="date"
+                        value={prazoMaeFim}
+                        onChange={(e) => setPrazoMaeFim(e.target.value)}
+                        disabled={aprovando}
+                        min={prazoMaeInicio || undefined}
+                        max={prazoOS ? prazoOS.slice(0, 10) : undefined}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={aplicarPrazoMaeATodos}
+                      disabled={
+                        aprovando ||
+                        !!erroPrazoMae ||
+                        (!prazoMaeInicio && !prazoMaeFim)
+                      }
+                    >
+                      Aplicar a todos
+                    </Button>
+                  </div>
+                  {erroPrazoMae && (
+                    <p className="text-xs text-destructive">{erroPrazoMae}</p>
+                  )}
+                </div>
+              )}
 
               {itensValidados.length === 0 ? (
                 <div className="text-xs text-muted-foreground italic py-2">
-                  Nenhum servico cadastrado nesta OS.
+                  Nenhum serviço cadastrado nesta OS.
                 </div>
               ) : (
                 <div className="space-y-2 pt-1">
@@ -440,7 +569,7 @@ export function AprovarOSModal({
                             htmlFor={`inicio-${it.item_id}`}
                             className="text-xs"
                           >
-                            Data de inicio
+                            Data de início
                           </Label>
                           <Input
                             id={`inicio-${it.item_id}`}
@@ -500,8 +629,8 @@ export function AprovarOSModal({
               {totalAlertas === 0 && !dadosIncompletos ? (
                 <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800 flex items-start gap-2">
                   <CheckCircle2 className="h-4 w-4 mt-0.5" />
-                  Todos os criterios estao atendidos. Pode aprovar com
-                  seguranca.
+                  Todos os critérios estão atendidos. Pode aprovar com
+                  segurança.
                 </div>
               ) : (
                 <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 flex items-start gap-2">
@@ -509,13 +638,13 @@ export function AprovarOSModal({
                   <div>
                     {totalAlertas > 0 && (
                       <p className="font-medium">
-                        Existem {totalAlertas} alerta(s). Voce pode aprovar
+                        Existem {totalAlertas} alerta(s). Você pode aprovar
                         mesmo assim sob sua responsabilidade.
                       </p>
                     )}
                     {dadosIncompletos && (
                       <p className="font-medium text-destructive">
-                        Dados tecnicos incompletos. Corrija antes de aprovar.
+                        Dados técnicos incompletos. Corrija antes de aprovar.
                       </p>
                     )}
                   </div>
@@ -527,29 +656,29 @@ export function AprovarOSModal({
                   ok={validacoes.dados_completos}
                   okIcon={<CheckCircle2 className="h-4 w-4" />}
                   warnIcon={<XCircle className="h-4 w-4" />}
-                  okLabel="Dados tecnicos completos"
-                  warnLabel="Dados tecnicos incompletos (bloqueia aprovacao)"
+                  okLabel="Dados técnicos completos"
+                  warnLabel="Dados técnicos incompletos (bloqueia aprovação)"
                 />
                 <CritItem
                   ok={validacoes.arte_anexada}
                   okIcon={<ImageIcon className="h-4 w-4" />}
                   warnIcon={<ImageIcon className="h-4 w-4" />}
                   okLabel="Arte anexada"
-                  warnLabel="Nenhuma versao de arte anexada"
+                  warnLabel="Nenhuma versão de arte anexada"
                 />
                 <CritItem
                   ok={validacoes.estoque_ok}
                   okIcon={<CheckCircle2 className="h-4 w-4" />}
                   warnIcon={<PackageX className="h-4 w-4" />}
                   okLabel="Materiais confirmados"
-                  warnLabel="Materiais ainda nao confirmados"
+                  warnLabel="Materiais ainda não confirmados"
                 />
                 <CritItem
                   ok={validacoes.prazo_viavel}
                   okIcon={<Calendar className="h-4 w-4" />}
                   warnIcon={<Calendar className="h-4 w-4" />}
-                  okLabel="Prazo viavel"
-                  warnLabel="Prazo nao definido ou muito apertado"
+                  okLabel="Prazo viável"
+                  warnLabel="Prazo não definido ou muito apertado"
                 />
               </div>
 
@@ -584,7 +713,7 @@ export function AprovarOSModal({
               aprovando ||
               carregando ||
               dadosIncompletos ||
-              // Em fluxo padrao, prazos invalidos bloqueiam. Retroativo nao.
+              // Em fluxo padrão, prazos inválidos bloqueiam. Retroativo não.
               (!eAprovacaoRetroativa && algumItemInvalido)
             }
           >

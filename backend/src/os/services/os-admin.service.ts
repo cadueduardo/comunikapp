@@ -1,9 +1,9 @@
 /**
- * Service administrativo de manutencao da OrdemServico.
+ * Service administrativo de manutenção da OrdemServico.
  *
- * Implementa operacoes de recuperacao pontual / migracao de dados que NAO
- * fazem parte do fluxo normal do dominio. O acesso e gated por funcao
- * ADMINISTRADOR no controller; este service nao faz checagem de permissao
+ * Implementa operações de recuperação pontual / migração de dados que NÃO
+ * fazem parte do fluxo normal do domínio. O acesso é gated por função
+ * ADMINISTRADOR no controller; este service não faz checagem de permissão
  * (responsabilidade do controller).
  */
 
@@ -13,9 +13,9 @@ import { StatusOS } from '../interfaces/os.interfaces';
 
 /**
  * Status historicamente gravados por engano no campo `OrdemServico.status`
- * pelo `OSPrazoService` ate 2026-05-25. Sao na verdade "status de prazo"
- * (calculados dinamicamente em `consultarStatusPrazo`) e foram corrompidos
- * o status operacional. Esta lista e usada apenas para detectar OS
+ * pelo `OSPrazoService` até 2026-05-25. São na verdade "status de prazo"
+ * (calculados dinamicamente em `consultarStatusPrazo`) e foram corrompendo
+ * o status operacional. Esta lista é usada apenas para detectar OS
  * corrompidas e reconstruir o status correto.
  */
 const STATUS_CORROMPIDOS = new Set<string>([
@@ -31,8 +31,8 @@ export interface DetalheRecuperacaoStatus {
   status_novo: string | null;
   motivo: string;
   aplicado: boolean;
-  // Reconciliacao de itens: quando a OS esta APROVADA tecnicamente porem
-  // tem `ItemOS` ainda `PENDENTE` (gap historico anterior ao helper
+  // Reconciliação de itens: quando a OS está APROVADA tecnicamente porém
+  // tem `ItemOS` ainda `PENDENTE` (gap histórico anterior ao helper
   // `promoverAprovacaoParaPCP`), o admin libera esses itens para o PCP.
   itens_liberados: number;
 }
@@ -53,18 +53,18 @@ export class OSAdminService {
 
   /**
    * Recupera o status operacional correto de OS que tiveram o campo
-   * `status` corrompido por escrita historica do `OSPrazoService`.
+   * `status` corrompido por escrita histórica do `OSPrazoService`.
    *
-   * Regra de reconstrucao (em ordem de prioridade):
+   * Regra de reconstrução (em ordem de prioridade):
    *  1. `aprovacao_tecnica_status = 'APROVADA'`  -> `LIBERADA_PARA_PCP`
    *  2. `aprovacao_tecnica_status = 'REJEITADA'` -> `REJEITADA`
    *  3. `tipo_os = 'COMERCIAL'` (pendente) -> `AGUARDANDO_APROVACAO_TECNICA`
    *  4. `tipo_os = 'INTERNA'`   (pendente) -> `AGUARDANDO_APROVACAO_ORCAMENTARIA`
    *  5. fallback -> `FILA`
    *
-   * Quando `osId` e informado, opera apenas naquela OS (corrige inclusive
-   * status nao-corrompidos, mas marca como `aplicado=false` se nao houver
-   * inferencia segura). Quando `osId` e omitido, varre todas as OS da loja
+   * Quando `osId` é informado, opera apenas naquela OS (corrige inclusive
+   * status não-corrompidos, mas marca como `aplicado=false` se não houver
+   * inferência segura). Quando `osId` é omitido, varre todas as OS da loja
    * com status corrompido.
    */
   async recuperarStatusOS(args: {
@@ -99,7 +99,7 @@ export class OSAdminService {
 
     if (!candidatas.length && osId) {
       throw new NotFoundException(
-        `OS ${osId} nao encontrada na loja informada`,
+        `OS ${osId} não encontrada na loja informada`,
       );
     }
 
@@ -113,16 +113,16 @@ export class OSAdminService {
       const tipoOs = (os.tipo_os || '').toUpperCase();
       const statusCorrompido = STATUS_CORROMPIDOS.has(statusAtual);
 
-      // Calcula status novo apenas se o atual for corrompido. Caso contrario,
-      // mantem o atual e prossegue para a fase de reconciliacao de itens.
+      // Calcula status novo apenas se o atual for corrompido. Caso contrário,
+      // mantém o atual e prossegue para a fase de reconciliação de itens.
       const statusReconstruido = statusCorrompido
         ? this.inferirStatusCorreto(aprovacao, tipoOs)
         : null;
       const motivo = statusCorrompido
         ? this.descreverMotivo(aprovacao, tipoOs)
-        : 'Status atual nao e corrompido - apenas reconciliando itens';
+        : 'Status atual não é corrompido — apenas reconciliando itens';
 
-      // Reconciliacao de itens: libera ItemOS PENDENTE quando a OS esta
+      // Reconciliação de itens: libera ItemOS PENDENTE quando a OS está
       // APROVADA tecnicamente (sempre, independente de o status estar
       // corrompido). Inferido em dry-run pela contagem.
       let itensALiberar = 0;
@@ -151,7 +151,7 @@ export class OSAdminService {
             where: { id: os.id },
             data: {
               status: statusReconstruido,
-              motivo_modificacao: `Recuperacao de status corrompido (${statusAtual} -> ${statusReconstruido}). ${motivo}`,
+              motivo_modificacao: `Recuperação de status corrompido (${statusAtual} -> ${statusReconstruido}). ${motivo}`,
             },
           });
           corrigidas += 1;
@@ -161,9 +161,9 @@ export class OSAdminService {
         }
 
         if (itensALiberar > 0) {
-          // Atribui liberador rastreavel: aprovador tecnico se conhecido,
-          // senao quem criou a OS, senao 'SISTEMA' (string sentinel para
-          // operacao administrativa).
+          // Atribui liberador rastreável: aprovador técnico se conhecido,
+          // senão quem criou a OS, senão 'SISTEMA' (string sentinel para
+          // operação administrativa).
           const liberadorId =
             os.aprovacao_tecnica_por || os.criado_por || 'SISTEMA';
 
@@ -231,6 +231,6 @@ export class OSAdminService {
     if (tipoOs === 'INTERNA') {
       return 'tipo_os=INTERNA pendente -> AGUARDANDO_APROVACAO_ORCAMENTARIA';
     }
-    return 'fallback -> FILA (sem aprovacao e sem tipo_os identificavel)';
+    return 'fallback -> FILA (sem aprovação e sem tipo_os identificável)';
   }
 }

@@ -216,10 +216,10 @@ export class AprovacaoTecnicaService {
       statusNovo = 'REJEITADA';
     }
 
-    // Prazos por item da OS, definidos no modal de aprovacao. Em fluxo
-    // padrao TODOS os itens precisam ter data_prazo_produto (cobrir o caso
-    // historico em que OS aprovadas sem prazo travavam o PCP). Em fluxo
-    // retroativo o array e opcional.
+    // Prazos por item da OS, definidos no modal de aprovação. Em fluxo
+    // padrão TODOS os itens precisam ter data_prazo_produto (cobre o caso
+    // histórico em que OS aprovadas sem prazo travavam o PCP). Em fluxo
+    // retroativo o array é opcional.
     const prazosPorItem = await this.validarEPrepararPrazosItens(
       osId,
       dto.prazos_itens || [],
@@ -227,9 +227,9 @@ export class AprovacaoTecnicaService {
     );
 
     // Atualiza prazo guarda-chuva da OS, se for o caso. Regra:
-    //  - Se a OS ainda nao tem data_prazo, usa o max(data_prazo_produto) dos
+    //  - Se a OS ainda não tem data_prazo, usa o max(data_prazo_produto) dos
     //    itens enviados.
-    //  - Se ja tem, valida que todos os itens caibam dentro.
+    //  - Se já tem, valida que todos os itens caibam dentro.
     const dataPrazoOS = this.calcularPrazoGuardaChuva(
       os.data_prazo,
       prazosPorItem,
@@ -247,7 +247,7 @@ export class AprovacaoTecnicaService {
       },
     });
 
-    // Persiste prazos por item em batch (apos atualizar a OS para garantir
+    // Persiste prazos por item em batch (após atualizar a OS para garantir
     // que o estado da OS reflete o que foi aprovado).
     if (prazosPorItem.length > 0) {
       await Promise.all(
@@ -415,14 +415,14 @@ export class AprovacaoTecnicaService {
   }
 
   /**
-   * Valida e prepara prazos por item enviados no modal de aprovacao.
+   * Valida e prepara prazos por item enviados no modal de aprovação.
    *
    * Regras:
-   *  - Em fluxo padrao (exigirCompleto=true) todos os itens da OS devem ter
-   *    `data_prazo_produto` informado. Caso contrario, 400.
-   *  - Cada item enviado precisa pertencer a OS (segurança contra IDs
+   *  - Em fluxo padrão (exigirCompleto=true) todos os itens da OS devem ter
+   *    `data_prazo_produto` informado. Caso contrário, 400.
+   *  - Cada item enviado precisa pertencer à OS (segurança contra IDs
    *    alheios).
-   *  - Para cada item: se ambas as datas foram enviadas, inicio <= fim.
+   *  - Para cada item: se ambas as datas foram enviadas, início <= fim.
    *
    * Retorna a lista de prazos validados, prontos para persistir.
    */
@@ -458,7 +458,7 @@ export class AprovacaoTecnicaService {
       }
       if (semPrazo.length > 0) {
         throw new BadRequestException(
-          `Defina a data de entrega de cada servico antes de aprovar: ${semPrazo.join(', ')}`,
+          `Defina a data de entrega de cada serviço antes de aprovar: ${semPrazo.join(', ')}`,
         );
       }
     }
@@ -472,7 +472,7 @@ export class AprovacaoTecnicaService {
     for (const p of prazos) {
       if (!idsValidos.has(p.item_id)) {
         throw new BadRequestException(
-          `Item ${p.item_id} nao pertence a esta OS`,
+          `Item ${p.item_id} não pertence a esta OS`,
         );
       }
 
@@ -483,7 +483,7 @@ export class AprovacaoTecnicaService {
         inicio = new Date(p.data_inicio_producao);
         if (Number.isNaN(inicio.getTime())) {
           throw new BadRequestException(
-            `Data de inicio invalida no item ${p.item_id}`,
+            `Data de início inválida no item ${p.item_id}`,
           );
         }
       }
@@ -491,13 +491,13 @@ export class AprovacaoTecnicaService {
         fim = new Date(p.data_prazo_produto);
         if (Number.isNaN(fim.getTime())) {
           throw new BadRequestException(
-            `Data de entrega invalida no item ${p.item_id}`,
+            `Data de entrega inválida no item ${p.item_id}`,
           );
         }
       }
       if (inicio && fim && inicio > fim) {
         throw new BadRequestException(
-          `Data de inicio nao pode ser posterior a data de entrega (item ${p.item_id})`,
+          `Data de início não pode ser posterior à data de entrega (item ${p.item_id})`,
         );
       }
 
@@ -515,14 +515,14 @@ export class AprovacaoTecnicaService {
    * Calcula o prazo guarda-chuva (`OrdemServico.data_prazo`) com base nos
    * prazos individuais dos itens. Regras:
    *
-   *  - Se a OS ainda nao tem `data_prazo` e ao menos 1 item tem
+   *  - Se a OS ainda não tem `data_prazo` e ao menos 1 item tem
    *    `data_prazo_produto`: usa o MAIOR `data_prazo_produto` (data de
    *    entrega mais tardia). Garante que o prazo da OS engloba todos os
-   *    servicos.
-   *  - Se a OS ja tem `data_prazo` definido E algum item enviado o excede:
-   *    bloqueia com 400. Evita estado inconsistente em que o prazo da OS e
-   *    menor do que algum servico.
-   *  - Caso contrario retorna `undefined` (nao atualizar).
+   *    serviços.
+   *  - Se a OS já tem `data_prazo` definido E algum item enviado o excede:
+   *    bloqueia com 400. Evita estado inconsistente em que o prazo da OS é
+   *    menor do que algum serviço.
+   *  - Caso contrário retorna `undefined` (não atualizar).
    */
   private calcularPrazoGuardaChuva(
     dataPrazoAtual: Date | null,
@@ -544,7 +544,7 @@ export class AprovacaoTecnicaService {
 
     if (maiorFim > dataPrazoAtual) {
       throw new BadRequestException(
-        'Algum servico tem prazo maior que o prazo limite atual da OS. Atualize o prazo da OS antes.',
+        'Algum serviço tem prazo maior que o prazo limite atual da OS. Atualize o prazo da OS antes.',
       );
     }
 

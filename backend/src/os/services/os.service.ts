@@ -2209,11 +2209,11 @@ export class OSService {
   /**
    * Aprova OS técnica (workflow comercial)
    *
-   * `prazosItens` carrega o par (inicio, fim) por servico/item da OS,
-   * definidos no modal de aprovacao. Em fluxo padrao todos os itens da OS
-   * precisam ter `data_prazo_produto`. Em fluxo retroativo o array e
-   * opcional. O service tambem atualiza o prazo guarda-chuva da OS
-   * (`data_prazo`) quando ele ainda nao existe, usando o maior prazo dos
+   * `prazosItens` carrega o par (início, fim) por serviço/item da OS,
+   * definidos no modal de aprovação. Em fluxo padrão todos os itens da OS
+   * precisam ter `data_prazo_produto`. Em fluxo retroativo o array é
+   * opcional. O service também atualiza o prazo guarda-chuva da OS
+   * (`data_prazo`) quando ele ainda não existe, usando o maior prazo dos
    * itens.
    */
   async aprovarOSTecnica(
@@ -2331,15 +2331,15 @@ export class OSService {
           : 'Aprovação técnica aprovada (retroativa)'
         : 'Aprovação técnica rejeitada';
 
-      // Valida e prepara prazos por item. Em fluxo padrao todos os itens
-      // precisam ter data_prazo_produto. Em retroativo, o array e opcional.
+      // Valida e prepara prazos por item. Em fluxo padrão todos os itens
+      // precisam ter data_prazo_produto. Em retroativo, o array é opcional.
       const prazosPreparados = await this.validarEPrepararPrazosItens(
         osId,
         prazosItens || [],
         eFluxoPadrao && aprovado,
       );
 
-      // Atualiza prazo guarda-chuva da OS se ainda nao existir (usa max
+      // Atualiza prazo guarda-chuva da OS se ainda não existir (usa max
       // dos itens). Bloqueia se algum item exceder o prazo atual da OS.
       const dataPrazoOS = this.calcularPrazoGuardaChuvaOS(
         os.data_prazo,
@@ -2361,7 +2361,7 @@ export class OSService {
         },
       });
 
-      // Persiste prazos por item em batch (apos atualizar a OS).
+      // Persiste prazos por item em batch (após atualizar a OS).
       if (prazosPreparados.length > 0) {
         await Promise.all(
           prazosPreparados.map((p) =>
@@ -2380,9 +2380,9 @@ export class OSService {
         );
       }
 
-      // Registrar movimentacao com o status real anterior (pode ser FILA,
-      // AGUARDANDO_APROVACAO_TECNICA ou qualquer status intermediario quando
-      // for aprovacao retroativa)
+      // Registrar movimentação com o status real anterior (pode ser FILA,
+      // AGUARDANDO_APROVACAO_TECNICA ou qualquer status intermediário quando
+      // for aprovação retroativa)
       await this.adicionarMovimentacao(
         osId,
         TipoMovimentacaoOS.APROVACAO_TECNICA,
@@ -2392,10 +2392,10 @@ export class OSService {
         observacoes || motivoModificacao,
       );
 
-      // Auto-promocao para o PCP no fluxo padrao: libera os itens ainda
-      // PENDENTE, notifica os eventos automaticos e tenta atribuir um
-      // workflow inteligente. Falhas aqui sao apenas registradas em log; nao
-      // revertem a aprovacao tecnica.
+      // Auto-promoção para o PCP no fluxo padrão: libera os itens ainda
+      // PENDENTE, notifica os eventos automáticos e tenta atribuir um
+      // workflow inteligente. Falhas aqui são apenas registradas em log; não
+      // revertem a aprovação técnica.
       if (aprovado && eFluxoPadrao) {
         await this.promoverAprovacaoParaPCP(osId, os.loja_id, usuarioId);
       }
@@ -2423,7 +2423,7 @@ export class OSService {
    *
    * Toda falha aqui é absorvida em `warn` para não reverter a aprovação
    * técnica. Exposto como `public` para que `AprovacaoTecnicaService` (caminho
-   * paralelo `POST /os/:id/aprovar-tecnica`) reuse a mesma lógica.
+   * paralelo `POST /os/:id/aprovar-tecnica`) reúse a mesma lógica.
    */
   async promoverAprovacaoParaPCP(
     osId: string,
@@ -2444,7 +2444,7 @@ export class OSService {
       });
     } catch (error) {
       this.logger.warn(
-        `Falha ao liberar itens da OS ${osId} apos aprovacao tecnica: ${
+        `Falha ao liberar itens da OS ${osId} após aprovação técnica: ${
           error instanceof Error ? error.message : error
         }`,
       );
@@ -2459,7 +2459,7 @@ export class OSService {
       );
     } catch (error) {
       this.logger.warn(
-        `Falha ao notificar OS ${osId} liberada para PCP apos aprovacao tecnica: ${
+        `Falha ao notificar OS ${osId} liberada para PCP após aprovação técnica: ${
           error instanceof Error ? error.message : error
         }`,
       );
@@ -2472,7 +2472,7 @@ export class OSService {
       });
     } catch (error) {
       this.logger.warn(
-        `Falha ao atribuir workflow automaticamente para OS ${osId} apos aprovacao tecnica: ${
+        `Falha ao atribuir workflow automaticamente para OS ${osId} após aprovação técnica: ${
           error instanceof Error ? error.message : error
         }`,
       );
@@ -2480,9 +2480,9 @@ export class OSService {
   }
 
   /**
-   * Valida prazos por item enviados no modal de aprovacao. Em fluxo padrao
+   * Valida prazos por item enviados no modal de aprovação. Em fluxo padrão
    * (exigirCompleto=true) todos os itens da OS precisam ter
-   * `data_prazo_produto`. Cada par (inicio, fim) e validado individualmente.
+   * `data_prazo_produto`. Cada par (início, fim) é validado individualmente.
    */
   private async validarEPrepararPrazosItens(
     osId: string,
@@ -2516,7 +2516,7 @@ export class OSService {
       }
       if (semPrazo.length > 0) {
         throw new BadRequestException(
-          `Defina a data de entrega de cada servico antes de aprovar: ${semPrazo.join(', ')}`,
+          `Defina a data de entrega de cada serviço antes de aprovar: ${semPrazo.join(', ')}`,
         );
       }
     }
@@ -2524,18 +2524,18 @@ export class OSService {
     for (const p of prazos) {
       if (!idsValidos.has(p.item_id)) {
         throw new BadRequestException(
-          `Item ${p.item_id} nao pertence a esta OS`,
+          `Item ${p.item_id} não pertence a esta OS`,
         );
       }
 
       if (p.data_inicio_producao && Number.isNaN(p.data_inicio_producao.getTime())) {
         throw new BadRequestException(
-          `Data de inicio invalida no item ${p.item_id}`,
+          `Data de início inválida no item ${p.item_id}`,
         );
       }
       if (p.data_prazo_produto && Number.isNaN(p.data_prazo_produto.getTime())) {
         throw new BadRequestException(
-          `Data de entrega invalida no item ${p.item_id}`,
+          `Data de entrega inválida no item ${p.item_id}`,
         );
       }
       if (
@@ -2544,7 +2544,7 @@ export class OSService {
         p.data_inicio_producao > p.data_prazo_produto
       ) {
         throw new BadRequestException(
-          `Data de inicio nao pode ser posterior a data de entrega (item ${p.item_id})`,
+          `Data de início não pode ser posterior à data de entrega (item ${p.item_id})`,
         );
       }
     }
@@ -2555,10 +2555,10 @@ export class OSService {
   /**
    * Calcula o prazo guarda-chuva (`OrdemServico.data_prazo`) com base nos
    * prazos individuais dos itens.
-   *  - Se a OS ainda nao tem `data_prazo` e algum item tem
+   *  - Se a OS ainda não tem `data_prazo` e algum item tem
    *    `data_prazo_produto`: retorna o maior `data_prazo_produto`.
-   *  - Se ja tem `data_prazo` e algum item o excede: 400.
-   *  - Caso contrario: undefined (nao atualizar).
+   *  - Se já tem `data_prazo` e algum item o excede: 400.
+   *  - Caso contrário: undefined (não atualizar).
    */
   private calcularPrazoGuardaChuvaOS(
     dataPrazoAtual: Date | null,
@@ -2580,7 +2580,7 @@ export class OSService {
 
     if (maiorFim > dataPrazoAtual) {
       throw new BadRequestException(
-        'Algum servico tem prazo maior que o prazo limite atual da OS. Atualize o prazo da OS antes.',
+        'Algum serviço tem prazo maior que o prazo limite atual da OS. Atualize o prazo da OS antes.',
       );
     }
 
