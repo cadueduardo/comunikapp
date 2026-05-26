@@ -1,6 +1,6 @@
 # Plano de Ação: Home, Onboarding e Evolução Operacional
 
-> **Status atual (atualizado em 2026-05-26, manhã):** Fases 0, 1, 2, 3, 4, 5, 6 e **7 concluídas**. A Fase 7 cobriu o anexo de imagem/DXF no produto do orçamento (7.A — `AnexoGeometriaInput` com Ctrl+V/drag-and-drop/file picker, endpoint multi-tenant, Leitura B para `arte_anexada`), o parser DXF real (7.B — `DxfParserService` baseado em `dxf-parser`, card `DxfRevisaoCard` com aplicação manual, `$PROJECTNAME` sugerindo o nome do produto) e a sugestão heurística de insumo por nome de camada (7.B+ — `DxfSugestaoInsumoService` com botão "Atrelar" no card de revisão, sem auto-atrelamento). A **Fase 11 (profundidade no orçamento)** foi registrada como próximo entregável após aprovação do usuário; foi numerada 11 porque 9 e 10 já estavam reservadas para outros temas. Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF antes de continuar.**
+> **Status atual (atualizado em 2026-05-26, manhã — HANDOFF ENCERRADO):** Fases 0, 1, 2, 3, 4, 5, 6 e **7 concluídas**. A Fase 7 cobriu o anexo de imagem/DXF no produto do orçamento (7.A), o parser DXF real (7.B), a sugestão heurística de insumo por nome de camada (7.B+), a extração de `descricao_projeto` e o `NovoInsumoModal` inline (7.B++), os refinamentos UX do modal e do dropdown de material (4.19), o sincronizador de geometria + flag `apenas_operacao` (4.20) e a remoção da UI heurística de sugestões por falsos positivos (4.21). A **Fase 11 (profundidade no orçamento)** é o próximo entregável formal, com plano completo + **três guardrails obrigatórios** registrados pelo usuário no fechamento (motor de cálculo, preview com profundidade, persistência sem mutação preview/grid/detalhe). Detalhes operacionais para o próximo agente em [`docs/HANDOFF-AGENTE-CONTINUACAO.md`](./HANDOFF-AGENTE-CONTINUACAO.md). **Leia o HANDOFF e a seção "Fase 11" antes de codar.**
 
 ## Critério de sucesso
 
@@ -1078,7 +1078,24 @@ Decisões a confirmar antes de implementar:
 - **Unidade de profundidade:** segue a `unidade_geometria` do produto (mesmo padrão de largura/altura) OU campo independente?
 - **Cálculo de laterais com perfil de fechamento:** caixa fechada (4 laterais + frente + fundo) vs caixa aberta (4 laterais) vs personalizado — incluir já ou ficar para evolução?
 
-Estimativa: 1-2 dias focados após decisões confirmadas.
+**Guardrails obrigatórios para o próximo agente (registrados em 2026-05-26 pelo usuário):**
+
+1. **Cuidado redobrado no motor de cálculo.** A introdução da profundidade altera o consumo de material e o tempo de máquina por produto. Antes de codar qualquer linha:
+   - Mapear TODOS os pontos que hoje calculam usando `largura_produto`/`altura_produto`/`area_produto`/`perimetro_produto` (`backend/src/orcamentos-v2/services/calculo-orcamento-v2.service.ts`, `frontend/src/components/ui/shared/sections/PreviewCalculoV2.tsx`, `frontend/src/components/ui/shared/utils/preview-calculo.helpers.ts` e correlatos).
+   - Listar cada `tipo_calculo` existente e definir explicitamente como cada um reage à profundidade (alguns ignoram, alguns usam laterais, alguns usam volume).
+   - Escrever testes unitários do motor ANTES de mudar a UI — não confiar em verificação manual via preview, porque o preview é o item 2 abaixo.
+2. **O Cálculo Preview precisa entender o campo profundidade.** O componente `PreviewCalculoV2` é a fonte de verdade visual durante o preenchimento do orçamento. Ele tem que:
+   - Receber `profundidade_produto` no payload.
+   - Recalcular consumo de insumos e horas de máquina conforme as regras do motor (mesmo motor, sem duplicar lógica — se preciso, extrair função pura compartilhada).
+   - Mostrar o valor que será efetivamente persistido. Qualquer divergência entre preview e o que vai pro banco gera o bug do item 3.
+3. **Persistência: o valor do preview tem que ser EXATAMENTE o valor salvo, em todas as três telas.** Histórico de bugs observados pelo usuário no Orçamento V2:
+   - Preview mostra um valor → operador salva → na **lista (grid)** aparece outro valor → ao **abrir o orçamento** aparece um terceiro valor.
+   - Causa típica: divergência entre o que o frontend manda no payload (`profundidade_produto`, totais derivados), o que o backend persiste em `ProdutoOrcamento` (recalcula no save? aceita o que veio?), e o que o backend retorna no GET de listagem (campo derivado vs. campo armazenado). Para a Fase 11 isso é especialmente crítico porque a profundidade entra no cálculo de TOTAL.
+   - Estratégia mínima: revisar exaustivamente o caminho `ProdutoSection → POST/PATCH /orcamentos-v2 → DB → GET /orcamentos-v2 (listagem) → GET /orcamentos-v2/:id (detalhe) → form.reset no carregamento`. Garantir que `profundidade_produto` (e qualquer campo derivado) faz round-trip sem mutação.
+   - Testar manualmente em três telas (criar, listar, abrir para editar) ANTES de declarar a fase concluída. Capturar o valor exibido em cada tela e comparar via `git diff` mental.
+   - Se houver dúvida sobre persistência de algum campo, persistir SEMPRE o input bruto do operador (não o derivado) e recalcular derivados no momento do display — princípio de **source of truth única**.
+
+Estimativa: 1-2 dias focados após decisões confirmadas. Não tentar acelerar pulando os guardrails acima — o risco de regressão silenciosa do motor de cálculo do orçamento inteiro é alto.
 
 ### Fase 10: roadmap de evolução (não bloqueante)
 

@@ -1,5 +1,7 @@
 # Handoff para o próximo agente — Home Operacional + Evolução Operacional
 
+> **HANDOFF ENCERRADO em 2026-05-26 (manhã)** pelo usuário. Fases 0-7 entregues, o que abrange Home Operacional + Onboarding + Dashboard Operacional + Aprovação Técnica de OS + PCP + Financeiro + DXF real. **Próximo entregável formal: Fase 11 (profundidade no orçamento)** — plano completo e **guardrails críticos** registrados em [`docs/plano-acao-home-onboarding-dashboard-operacional.md`](./plano-acao-home-onboarding-dashboard-operacional.md) na seção "Fase 11". **OBRIGATÓRIO ler aqueles guardrails antes de codar a Fase 11** — eles refletem três bugs históricos do Orçamento V2 que o usuário não quer repetir.
+
 > **Para quem é este documento:** outro agente de IA (ou desenvolvedor humano) que vai continuar de onde paramos. Leia este arquivo inteiro antes de tocar em qualquer código. Ele é a fonte de verdade do **estado atual** e dos **próximos passos**.
 
 > **Idioma:** todo código novo, comentários e textos visíveis devem estar em pt-BR com acentuação correta. UTF-8 obrigatório.
@@ -10,7 +12,7 @@
 
 ## 1. Estado atual em uma frase
 
-Em 2026-05-26 (manhã), a **Fase 7 (DXF real / anexos) foi fechada** com as **Sub-fases 7.A, 7.B, 7.B+ e 7.B++ entregues**. (1) **7.A:** anexo único de imagem/DXF no topo do produto do Orçamento V2 (Ctrl+V, drag-and-drop, file picker), endpoint multi-tenant em `POST /orcamentos-v2/anexos-geometria`, e Leitura B em `arte_anexada`. (2) **7.B:** `DxfParserService` (`dxf-parser@1.1.2`) extrai `$PROJECTNAME`, unidade (`$INSUNITS`), bounding box, área (shoelace ou envolvente) e perímetro por camada (LINE/LWPOLYLINE/POLYLINE/CIRCLE/ARC/ELLIPSE). O card `DxfRevisaoCard` exibe os valores e exige clique em "Aplicar ao produto" — **parser nunca preenche sozinho**. (3) **7.B+:** `DxfSugestaoInsumoService` adiciona seção "Materiais sugeridos" no card via heurística por nome de camada (stop-list de operações + matching contra `Insumo.nome`/`TipoMaterial.nome`/`Categoria.nome` da loja), com botão "Atrelar" por sugestão. (4) **7.B++:** o parser passou a extrair também `descricao_projeto` (concatenação de `$TITLE/$SUBJECT/$KEYWORDS/$COMMENTS/$AUTHOR`) que preenche o campo "Descrição" do produto (se vazio) e alimenta o scoring de insumo com peso reduzido (0.5). E o card ganhou botão "Cadastrar novo" por camada → abre `NovoInsumoModal` compacto (8 campos obrigatórios + lógica de consumo) que, ao salvar, atrela o insumo recém-criado ao produto e recarrega as sugestões. Detalhes nas seções 4.15, 4.16, 4.17 e 4.18.
+Em 2026-05-26 (manhã), a **Fase 7 (DXF real / anexos) foi fechada** com as **Sub-fases 7.A, 7.B, 7.B+, 7.B++, 7.B+++ e 7.B++++ entregues**, além dos refinamentos de UX do `NovoInsumoModal` (4.19) e do sincronizador de geometria (4.20). (1) **7.A:** anexo único de imagem/DXF no topo do produto do Orçamento V2 (Ctrl+V, drag-and-drop, file picker), endpoint multi-tenant em `POST /orcamentos-v2/anexos-geometria`, e Leitura B em `arte_anexada`. (2) **7.B:** `DxfParserService` (`dxf-parser@1.1.2`) extrai `$PROJECTNAME`, unidade (`$INSUNITS`), bounding box, área (shoelace ou envolvente) e perímetro por camada (LINE/LWPOLYLINE/POLYLINE/CIRCLE/ARC/ELLIPSE). O card `DxfRevisaoCard` exibe os valores e exige clique em "Aplicar ao produto" — **parser nunca preenche sozinho**. (3) **7.B+:** `DxfSugestaoInsumoService` (heurística por nome de camada com stop-list de operações + matching contra `Insumo.nome`/`TipoMaterial.nome`/`Categoria.nome` da loja). (4) **7.B++:** o parser passou a extrair `descricao_projeto` (concatenação de `$TITLE/$SUBJECT/$KEYWORDS/$COMMENTS/$AUTHOR`) que preenche o campo "Descrição" do produto se vazio, e o card ganhou botão "Cadastrar novo" → abre `NovoInsumoModal` compacto (8 campos obrigatórios + lógica de consumo) que, ao salvar, atrela o insumo recém-criado ao produto e recarrega a lista global de insumos via `fetchInsumos`. (5) **4.19 (refinamento UX do modal):** categoria/fornecedor migrados para `Combobox` com `onCreate` (criação inline), unidades de compra/uso para `UnitSelect` estruturado, e adicionada a opção "Cadastrar novo insumo" no rodapé do dropdown "Material" do `MaterialSection`. (6) **4.20 (fix de sincronização + camada operação + DXF de exemplo):** `SincronizadorGeometriaProduto` mantém `area_produto`/`perimetro_produto` consistentes com o retângulo `L × A × unidade` (corrige bug do `822,655 mm` em produto 600×400); backend marca camadas `apenas_operacao` (`CORTE/GRAVACAO/DOBRA` puros) e o card esconde "Cadastrar novo" nelas com mensagem orientativa; novo DXF de exemplo `exemplo-acrilico-com-descricao-800x500.dxf` com header completo. (7) **7.B++++ (4.21):** removida a UI de listagem heurística de sugestões no `DxfRevisaoCard` por gerar muitos falsos positivos em catálogos pequenos; backend continua calculando mas frontend usa só o flag `apenas_operacao`. Detalhes nas seções 4.15 a 4.21.
 
 Antes disso, a **Fase 6 foi concluída** (sub-fases 6.A a 6.E entre 2026-05-25 e 2026-05-26): condição de pagamento estruturada no orçamento, cobrança criada automaticamente na aprovação (`CobrancasService`), bloco `ResumoFinanceiroSimples` na Home, tela `/financeiro/recebimentos` com auditoria/ações/CSV, cron diário recategoriza cobranças vencidas, 7º alerta operacional `trabalho_pronto_sem_recebimento` e colunas `a_receber`/`concluidos` no fluxo de trabalho. Comissões: `3e432e6`, `9436a15`, `afa2d68`, `30fbeba`, `75f9e0c`.
 
@@ -18,7 +20,23 @@ Antes ainda, foram entregues a **Fase 5** (`GET /home-operacional/alertas` com 6
 
 Também ficaram em produção: a **UX de aprovação da OS direto no grid** (`/os`) com modal `AprovarOSModal` listando os critérios (`dados_completos`, `arte_anexada`, `estoque_ok`, `prazo_viavel`); **prazos por serviço** no mesmo modal (4.13) com prazo "mãe" para aplicar em todos de uma vez (4.14); **fix estrutural** do `OSPrazoService` que corrompia `OrdemServico.status` (4.11) + endpoint admin de recuperação; **auto-promoção** OS → PCP na aprovação técnica (4.10).
 
-**Próximo passo:** Fase 7 fechada (7.A + 7.B + 7.B+ + 7.B++ entregues). O usuário aprovou criar uma fase dedicada à **profundidade no orçamento** como último item do handoff — afeta schema (`ProdutoOrcamento` + `ItemOS`), motor de cálculo (novo `tipo_calculo` ou modificador `usa_profundidade=true`), UI do `QuickGeometryInput` e templates. Está registrada como **Fase 11** em `docs/plano-acao-home-onboarding-dashboard-operacional.md` (foi numerada 11 porque 9 e 10 já estavam reservadas para outros temas no plano-mãe). O plano traz 3 decisões a confirmar antes de implementar (modelagem do motor, unidade da profundidade, escopo de "caixa fechada vs aberta"). Dívidas menores conhecidas: discretização de `SPLINE` no parser (4.16), cleanup de anexos órfãos (4.15), "Passo 2" de regras configuráveis de match de insumo (4.17), captura de `MTEXT/TEXT` para descrição (4.18) e criação inline de categoria/fornecedor no `NovoInsumoModal` (4.18). Nenhuma bloqueia uso de produção.
+**Próximo entregável formal: Fase 11 — profundidade no orçamento.** Afeta schema (`ProdutoOrcamento` + `ItemOS`), motor de cálculo (novo `tipo_calculo` ou modificador `usa_profundidade=true`), UI do `QuickGeometryInput` e templates. Registrada em `docs/plano-acao-home-onboarding-dashboard-operacional.md` (foi numerada 11 porque 9 e 10 já estavam reservadas). O plano traz 3 decisões a confirmar antes de implementar (modelagem do motor, unidade da profundidade, escopo de "caixa fechada vs aberta") **e três guardrails obrigatórios** registrados pelo usuário no fechamento do handoff:
+
+1. **Cuidado redobrado no motor de cálculo** — mapear todos os pontos que usam `largura_produto/altura_produto/area_produto/perimetro_produto` e escrever testes unitários do motor ANTES de mexer na UI.
+2. **`PreviewCalculoV2` precisa entender `profundidade_produto`** — sem duplicar lógica (compartilhar função pura com o motor).
+3. **Persistência sem mutação** — preview = grid = detalhe do orçamento (corrigir o bug histórico onde os três mostravam valores diferentes do mesmo produto). Estratégia: persistir o input bruto e recalcular derivados no display (source of truth única).
+
+Detalhes completos dos guardrails no plano-mãe, seção "Fase 11". **NÃO codar a Fase 11 sem ler aqueles guardrails.**
+
+**Dívidas menores conhecidas (não bloqueantes para a Fase 11 nem para uso em produção):**
+
+- Discretização de `SPLINE` no parser (4.16).
+- Cleanup de anexos órfãos (4.15).
+- "Passo 2" de regras configuráveis de match de insumo (4.17).
+- Captura de `MTEXT/TEXT` para descrição (4.18).
+- Criação inline de categoria/fornecedor no `NovoInsumoModal` (4.19) — categoria/fornecedor já têm `onCreate` via `Combobox`; falta o mesmo para `tipo_material` quando `logica_consumo='custom'`.
+- "Modo avançado" do `DxfRevisaoCard` reativando a listagem heurística com threshold de score alto (4.21).
+- Política de sincronização do retângulo vs DXF com curvas é binária (4.20); aviso amarelo cobre o caso óbvio mas não há ajuste fino.
 
 ---
 
@@ -1517,3 +1535,58 @@ Resultado: o card visual mostrava `2,00 m` (correto), mas o campo persistido `pe
 
 **Última atualização:** 2026-05-26 (Remoção da UI de listagem de sugestões heurísticas no `DxfRevisaoCard` — heurística atual gera muitos falsos positivos em catálogos pequenos; card fica focado em aplicar geometria + cadastrar novo insumo para camadas de material).
 Branch `feature/home-operacional-dashboard`.
+
+---
+
+## 5. Encerramento do handoff (2026-05-26)
+
+O usuário **encerrou formalmente este handoff** após validar a Fase 7 em três rodadas de teste:
+
+1. Sincronização do perímetro (corrigida — `822,655 mm` deixou de aparecer em produtos retangulares manuais).
+2. DXF de exemplo com descrição rica (preenchimento da descrição do produto + scoring de insumo via tokens da descrição funcionando como esperado).
+3. Lista de sugestões heurísticas (removida da UI por gerar muitos falsos positivos em catálogos pequenos).
+
+### O que está em produção e funcionando
+
+- **Fases 0 a 7** completas (Home Operacional, Onboarding, Dashboard, Aprovação Técnica de OS, PCP, Financeiro, DXF real, Anexos de geometria).
+- **Refinamentos críticos posteriores:** prazos por serviço com prazo mãe (4.13/4.14), `NovoInsumoModal` com cadastro inline de categoria/fornecedor + dropdown estruturado de unidades + "Cadastrar novo insumo" no dropdown de "Material" do `MaterialSection` (4.19), sincronizador de geometria (4.20), camadas `apenas_operacao` no `DxfRevisaoCard` (4.20), remoção da UI heurística de sugestões (4.21).
+
+### O que NÃO foi entregue (próximo agente pega daqui)
+
+- **Fase 11 — profundidade no orçamento**: plano completo + **três guardrails obrigatórios** registrados no plano-mãe, seção "Fase 11". **LEIA OS GUARDRAILS ANTES DE CODAR.** Resumo:
+  1. Cuidado redobrado no motor de cálculo — mapear todos os pontos que usam `largura_produto/altura_produto/area_produto/perimetro_produto` e escrever testes unitários ANTES de mexer na UI.
+  2. `PreviewCalculoV2` precisa entender `profundidade_produto` — sem duplicar lógica do motor.
+  3. Persistência sem mutação — preview = grid = detalhe do orçamento (corrigir o bug histórico do Orçamento V2 onde os três mostravam valores diferentes). Estratégia: persistir o input bruto e recalcular derivados no display.
+- **Decisões de produto a confirmar antes de codar a Fase 11**:
+  - Modelagem do motor: modificador `usa_profundidade` por insumo OU novos `tipo_calculo` (`POR_M2_LATERAL`, `POR_VOLUME`)?
+  - Unidade da profundidade: segue `unidade_geometria` do produto OU campo independente?
+  - Escopo de "caixa fechada vs aberta" (4 laterais + frente + fundo vs 4 laterais vs personalizado): incluir já ou ficar para evolução?
+
+### Dívidas técnicas registradas (não bloqueantes para produção nem para a Fase 11)
+
+- Discretização de `SPLINE` no parser (4.16).
+- Cleanup de anexos órfãos em `uploads/anexos-geometria/` (4.15).
+- "Passo 2" de regras configuráveis de match de insumo por loja (4.17).
+- Captura de texto `MTEXT`/`TEXT` das entidades do DXF para enriquecer descrição (4.18).
+- Criação inline de **tipo de material** no `NovoInsumoModal` (categoria e fornecedor já têm; faltou `tipo_material_id` quando `logica_consumo='custom'`).
+- "Modo avançado" reativando a listagem heurística do `DxfSugestaoInsumoService` com threshold de score alto (4.21).
+- Política de sincronização do retângulo vs DXF com curvas é binária (4.20) — aviso amarelo cobre o caso óbvio mas não há ajuste fino.
+- `ProdutoTemplateForm.tsx` tem erros pré-existentes de TypeScript (`Property 'length' does not exist on type '{}'`) — não introduzidos nesta janela; deixar para refatoração separada.
+
+### Convenções herdadas que o próximo agente DEVE manter
+
+- Idioma pt-BR com acentuação correta. UTF-8 obrigatório em todo arquivo novo.
+- Nunca atrelar insumo automaticamente nem aplicar geometria do DXF sozinho — sempre exigir clique de confirmação do operador.
+- Política de "source of truth única" para campos do orçamento: persistir o input bruto, recalcular derivados no display (corrige o bug histórico de divergência entre preview/grid/detalhe).
+- Não fazer merge para `main` sem aprovação. Branch ativa: `feature/home-operacional-dashboard`.
+- Após mudanças relevantes, sempre `git add` + commit descritivo + `git push`. Não criar empty commits.
+
+### Onde olhar primeiro
+
+1. Este HANDOFF (você está aqui) — seções 1, 4.x e 5.
+2. [`docs/plano-acao-home-onboarding-dashboard-operacional.md`](./plano-acao-home-onboarding-dashboard-operacional.md) — seção "Fase 11" para guardrails da próxima fase.
+3. `backend/src/orcamentos-v2/services/calculo-orcamento-v2.service.ts` — motor de cálculo atual.
+4. `frontend/src/components/ui/shared/sections/PreviewCalculoV2.tsx` — preview do orçamento.
+5. `frontend/src/components/ui/orcamento/components/ProdutoSection.tsx` — UI principal do produto no orçamento.
+
+**Fim do handoff.** Boa sorte ao próximo agente.
