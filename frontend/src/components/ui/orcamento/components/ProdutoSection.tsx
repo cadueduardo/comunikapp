@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useFormContext, useFieldArray } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,6 +34,7 @@ import {
   type GeometriaCalculada,
   type GeometriaValor,
 } from '@/components/orcamentos-v2/QuickGeometryInput';
+import { useWatch } from 'react-hook-form';
 import { AnexoGeometriaInput } from '@/components/orcamentos-v2/AnexoGeometriaInput';
 import {
   DxfRevisaoCard,
@@ -103,6 +104,190 @@ interface ProdutoSectionProps {
    * mas a lista não é atualizada automaticamente (só após reload manual).
    */
   onInsumoCriado?: () => void | Promise<void>;
+}
+
+/**
+ * Componente interno que, para um produto específico do array, mantém
+ * `area_produto` e `perimetro_produto` SINCRONIZADOS com o retângulo de
+ * `largura_produto × altura_produto × unidade_geometria`.
+ *
+ * Motivação (bug observado em 2026-05-26): o `QuickGeometryInput` só dispara
+ * `onChange` quando o operador INTERAGE com seus inputs. Em três cenários
+ * isso causa inconsistência entre o "Perímetro calculado" exibido e o
+ * `perimetro_produto` realmente persistido no form:
+ *   1. Carga de orçamento salvo (valor antigo do banco fica preso).
+ *   2. Carga via "carregar produto template" (copia perímetro do template).
+ *   3. Operador edita L/A após aplicar DXF de retângulo simples (cobre
+ *      a maioria dos casos, mas resíduos podem aparecer dependendo do
+ *      timing dos `setValue`).
+ *
+ * Política:
+ *   - `geometria_origem !== 'DXF'`: sincroniza SEMPRE que L/A/U mudam ou
+ *     na carga inicial. Garante consistência total.
+ *   - `geometria_origem === 'DXF'`: NÃO sincroniza automaticamente — o
+ *     perímetro real da camada (curvas) precisa ser preservado para o
+ *     motor de cálculo. Mas se o valor persistido diverge em mais que 50%
+ *     do retângulo (e o retângulo não é zero), expõe `inconsistenciaDxf=true`
+ *     para que o caller mostre o botão "Recalcular pelo retângulo".
+ */
+function calcularRetanguloMm(
+  largura: string | number | undefined,
+  altura: string | number | undefined,
+  unidade: string | undefined,
+): { area_m2: number; perimetro_mm: number } | null {
+  const fatores: Record<string, number> = { mm: 1, cm: 10, m: 1000 };
+  const fator = fatores[(unidade as string) || ''] || 0;
+  if (!fator) return null;
+  const lNum = Number(String(largura || '').replace(',', '.'));
+  const aNum = Number(String(altura || '').replace(',', '.'));
+  if (!Number.isFinite(lNum) || !Number.isFinite(aNum) || lNum <= 0 || aNum <= 0) {
+    return null;
+  }
+  const lMm = lNum * fator;
+  const aMm = aNum * fator;
+  return {
+    area_m2: Number(((lMm * aMm) / 1_000_000).toFixed(4)),
+    perimetro_mm: Number((2 * (lMm + aMm)).toFixed(2)),
+  };
+}
+
+/**
+ * Componente filho que aplica a política de sincronização do retângulo
+ * para um produto específico. Renderiza um aviso quando detecta
+ * inconsistência forte com origem DXF (operador pode recalcular).
+ */
+function SincronizadorGeometriaProduto({ itemIndex }: { itemIndex: number }) {
+  const form = useFormContext();
+  const largura = useWatch({
+    control: form.control,
+    name: `itens_produto.${itemIndex}.largura_produto`,
+  });
+  const altura = useWatch({
+    control: form.control,
+    name: `itens_produto.${itemIndex}.altura_produto`,
+  });
+  const unidade = useWatch({
+    control: form.control,
+    name: `itens_produto.${itemIndex}.unidade_geometria`,
+  });
+  const origem = useWatch({
+    control: form.control,
+    name: `itens_produto.${itemIndex}.geometria_origem`,
+  });
+  const perimetroAtual = useWatch({
+    control: form.control,
+    name: `itens_produto.${itemIndex}.perimetro_produto`,
+  });
+  const areaAtual = useWatch({
+    control: form.control,
+    name: `itens_produto.${itemIndex}.area_produto`,
+  });
+
+  const [inconsistenciaDxf, setInconsistenciaDxf] = useState(false);
+
+  useEffect(() => {
+    const calc = calcularRetanguloMm(
+      largura as string,
+      altura as string,
+      unidade as string,
+    );
+    if (!calc) {
+      setInconsistenciaDxf(false);
+      return;
+    }
+    const perimetroPersistido = Number(
+      String(perimetroAtual || '').replace(',', '.'),
+    );
+    const areaPersistida = Number(
+      String(areaAtual || '').replace(',', '.'),
+    );
+    if (origem === 'DXF') {
+      // Política: NÃO sincroniza com DXF (preserva perímetro real de
+      // camadas com curvas). Detecta inconsistência forte só para o
+      // aviso visual (botão "Recalcular pelo retângulo").
+      const divergePerimetro =
+        Number.isFinite(perimetroPersistido) &&
+        calc.perimetro_mm > 0 &&
+        Math.abs(perimetroPersistido - calc.perimetro_mm) / calc.perimetro_mm >
+          0.5;
+      setInconsistenciaDxf(divergePerimetro);
+      return;
+    }
+    setInconsistenciaDxf(false);
+    // Sincroniza apenas se houver diferença real (>0.01 mm de perímetro
+    // ou 0.0001 m² de área). Evita loops desnecessários do react-hook-form.
+    if (
+      !Number.isFinite(perimetroPersistido) ||
+      Math.abs(perimetroPersistido - calc.perimetro_mm) > 0.01
+    ) {
+      form.setValue(
+        `itens_produto.${itemIndex}.perimetro_produto`,
+        String(calc.perimetro_mm),
+        { shouldDirty: false },
+      );
+    }
+    if (
+      !Number.isFinite(areaPersistida) ||
+      Math.abs(areaPersistida - calc.area_m2) > 0.0001
+    ) {
+      form.setValue(
+        `itens_produto.${itemIndex}.area_produto`,
+        String(calc.area_m2),
+        { shouldDirty: false },
+      );
+    }
+  }, [
+    form,
+    itemIndex,
+    largura,
+    altura,
+    unidade,
+    origem,
+    perimetroAtual,
+    areaAtual,
+  ]);
+
+  if (!inconsistenciaDxf) return null;
+
+  return (
+    <div className="rounded bg-amber-50 border border-amber-200 p-2 text-xs text-amber-900 flex items-center justify-between gap-2">
+      <span>
+        O perímetro persistido diverge de <strong>2 × (Largura + Altura)</strong>{' '}
+        — provavelmente vem de uma camada do DXF com curvas. Mantemos o valor
+        original para o motor de cálculo. Se quiser usar o do retângulo, clique
+        ao lado.
+      </span>
+      <button
+        type="button"
+        className="rounded bg-amber-100 hover:bg-amber-200 px-2 py-1 font-medium whitespace-nowrap"
+        onClick={() => {
+          const calc = calcularRetanguloMm(
+            largura as string,
+            altura as string,
+            unidade as string,
+          );
+          if (!calc) return;
+          form.setValue(
+            `itens_produto.${itemIndex}.perimetro_produto`,
+            String(calc.perimetro_mm),
+            { shouldDirty: true },
+          );
+          form.setValue(
+            `itens_produto.${itemIndex}.area_produto`,
+            String(calc.area_m2),
+            { shouldDirty: true },
+          );
+          form.setValue(
+            `itens_produto.${itemIndex}.geometria_origem`,
+            'MANUAL',
+            { shouldDirty: true },
+          );
+        }}
+      >
+        Recalcular pelo retângulo
+      </button>
+    </div>
+  );
 }
 
 export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas = [], funcoes = [], servicos = [], onInsumoCriado }: ProdutoSectionProps) {
@@ -599,6 +784,15 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
                       }
                       titulo="Geometria de produção"
                     />
+                    {/*
+                      Sincroniza area_produto e perimetro_produto com o
+                      retângulo (L×A×unidade) quando origem !== 'DXF', evitando
+                      resíduos do form (orçamento salvo, template carregado).
+                      Para origem DXF, mostra aviso visual quando o valor
+                      persistido diverge fortemente do retângulo, com botão
+                      "Recalcular pelo retângulo".
+                    */}
+                    <SincronizadorGeometriaProduto itemIndex={index} />
                     {mode === 'editar' &&
                       !form.watch(`itens_produto.${index}.unidade_geometria`) && (
                         <p className="text-xs text-amber-700">

@@ -61,6 +61,13 @@ export interface SugestaoInsumoCamada {
 export interface SugestoesPorCamada {
   nome_camada: string;
   sugestoes: SugestaoInsumoCamada[];
+  /**
+   * Sub-fase 7.B+++: marca camadas cujo nome é puramente operação
+   * (CORTE/GRAVACAO/DOBRA/etc.) — sem tokens de material após filtrar
+   * stop-words. Para essas, esconder "Cadastrar novo" e orientar o
+   * operador a renomear a camada no DXF.
+   */
+  apenas_operacao?: boolean;
 }
 
 interface DxfRevisaoCardProps {
@@ -136,10 +143,12 @@ export function DxfRevisaoCard({
   );
 
   // Lista de blocos a renderizar na seção "Materiais sugeridos".
-  // - Se `onCadastrarNovoInsumo` está habilitado: mostra TODAS as camadas
-  //   (mesmo sem sugestões) para que o operador consiga cadastrar a partir
-  //   de qualquer uma.
-  // - Caso contrário: omite as camadas sem sugestão para não poluir o card.
+  // - Se `onCadastrarNovoInsumo` está habilitado: mostra todas as camadas
+  //   COM sugestão + camadas SEM sugestão que NÃO são apenas operação
+  //   (operador pode usar "Cadastrar novo" nelas). Camadas marcadas como
+  //   `apenas_operacao` também aparecem para que a mensagem orientativa
+  //   explique por que não há sugestão (mas sem o botão de cadastro).
+  // - Caso contrário: omite todas as camadas sem sugestão.
   const blocosDeCamada = useMemo(() => {
     const lista = sugestoesInsumo || [];
     if (onCadastrarNovoInsumo) return lista;
@@ -324,8 +333,20 @@ export function DxfRevisaoCard({
                     <span className="text-primary">
                       {porCamada.nome_camada}
                     </span>
+                    {porCamada.apenas_operacao ? (
+                      <span className="ml-2 inline-block rounded bg-slate-100 text-slate-700 px-1.5 py-0.5 text-[10px] font-medium">
+                        operação
+                      </span>
+                    ) : null}
                   </p>
-                  {onCadastrarNovoInsumo ? (
+                  {/*
+                    Sub-fase 7.B+++: esconde "Cadastrar novo" em camadas
+                    que são puramente operação (CORTE/GRAVACAO/etc.) —
+                    não faz sentido criar um insumo chamado "CORTE".
+                    Operador precisa renomear a camada do DXF para algo
+                    como `ACRILICO_3MM_CRISTAL` para sugerir/cadastrar.
+                  */}
+                  {onCadastrarNovoInsumo && !porCamada.apenas_operacao ? (
                     <Button
                       type="button"
                       variant="outline"
@@ -343,7 +364,23 @@ export function DxfRevisaoCard({
                     </Button>
                   ) : null}
                 </div>
-                {porCamada.sugestoes.length > 0 && onAtrelarInsumo ? (
+                {porCamada.apenas_operacao ? (
+                  <p className="text-[10px] text-muted-foreground italic">
+                    Esta camada parece ser <strong>apenas uma operação</strong>{' '}
+                    que a máquina executa (corte / gravação / dobra). Para
+                    sugerir um material automaticamente, renomeie a camada no
+                    DXF incluindo o material — ex.:{' '}
+                    <code className="bg-slate-100 px-1 rounded">
+                      ACRILICO_3MM_CRISTAL
+                    </code>{' '}
+                    ou{' '}
+                    <code className="bg-slate-100 px-1 rounded">
+                      ACM_3MM_BRANCO_CORTE
+                    </code>
+                    . Você ainda pode adicionar materiais manualmente em
+                    &quot;Materiais Utilizados&quot;.
+                  </p>
+                ) : porCamada.sugestoes.length > 0 && onAtrelarInsumo ? (
                   <ul className="space-y-1">
                     {porCamada.sugestoes.map((sug) => {
                       const atrelado = insumosAtrelados.has(sug.insumo_id);

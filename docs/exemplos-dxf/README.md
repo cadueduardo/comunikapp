@@ -30,6 +30,25 @@ Arquivos DXF válidos (formato ASCII, AutoCAD R14 — `AC1014`) para testar a Su
   - perímetro de `CORTE`: 2000 mm
   - área de `CORTE`: 0,24 m²
   - camada `GRAVACAO` deve ser **ignorada** no cálculo de perímetro de corte (alerta: *"Camada GRAVACAO ignorada para cálculo de perímetro"*).
+- **Sugestão de insumo esperada:** **nenhuma** — as duas camadas (`CORTE` e `GRAVACAO`) são puramente nomes de operação. O `DxfRevisaoCard` deve marcá-las como `apenas_operacao` e mostrar a mensagem orientativa pedindo para renomear as camadas (ex.: `ACRILICO_3MM_CORTE`).
+
+### `exemplo-acrilico-com-descricao-800x500.dxf`
+
+- **Descrição:** placa retangular em acrílico 3mm cristal, 800 mm × 500 mm, com camada de material nomeada corretamente. Inclui todos os campos descritivos do header DXF (`$TITLE`, `$SUBJECT`, `$KEYWORDS`, `$COMMENTS`, `$AUTHOR`) preenchidos, para validar a feature de descrição (Sub-fase 7.B++).
+- **Entidades:** 4 `LINE` no perímetro externo (camada `ACRILICO_3MM_CRISTAL_CORTE`) + 1 `CIRCLE` de gravação na camada `GRAVACAO_TEXTO`.
+- **Camadas:** `ACRILICO_3MM_CRISTAL_CORTE` (cor 7, branco) e `GRAVACAO_TEXTO` (cor 1, vermelho).
+- **Metadados do header preenchidos:**
+  - `$PROJECTNAME` → "Placa Acrilico Bar Recanto Mineiro"
+  - `$TITLE` → "Placa de Identificacao 800x500"
+  - `$SUBJECT` → "Placa em acrilico cristal 3mm com corte a laser"
+  - `$KEYWORDS` → "acrilico, 3mm, cristal, placa, corte a laser, ponto comercial"
+  - `$COMMENTS` → "Material: acrilico cristal 3mm transparente. Corte a laser CO2..."
+  - `$AUTHOR` → "Estudio Comunikapp - Designer Carla"
+- **Geometria esperada após parser:**
+  - perímetro da camada de corte: 2600 mm (800 + 500 + 800 + 500)
+  - área pelo bounding box: 0,40 m² (alerta de "envolvente" porque o parser ainda não detecta o retângulo como polígono fechado pela soma de LINES)
+- **Descrição do projeto esperada no card:** concatenação dos 5 campos do header, separados por `" — "`, deduplicada — usada para sugerir preenchimento do campo "Descrição" do produto (se vazio).
+- **Sugestão de insumo esperada:** se a loja tiver cadastrado um insumo com nome contendo "acrílico" ou "acrilico" e/ou um `TipoMaterial` "acrílico", a camada `ACRILICO_3MM_CRISTAL_CORTE` deve gerar sugestão com score reforçado pelos tokens da descrição (`cristal`, `transparente`). Caso contrário, o botão "Cadastrar novo" aparece (pois a camada não é apenas operação).
 
 ## O que validar na Sub-fase 7.A (já entregue)
 

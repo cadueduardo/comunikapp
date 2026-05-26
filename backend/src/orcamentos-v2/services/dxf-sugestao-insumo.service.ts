@@ -20,6 +20,16 @@ export interface SugestaoInsumoCamada {
 export interface SugestoesPorCamada {
   nome_camada: string;
   sugestoes: SugestaoInsumoCamada[];
+  /**
+   * Sub-fase 7.B+++: `true` quando o nome da camada, após filtrar as
+   * stop-words de operação (CORTE/GRAVACAO/DOBRA/etc.), não sobra nenhum
+   * token de material. Indica que a camada é puramente uma operação que
+   * a máquina executa — **NÃO** faz sentido sugerir/cadastrar um insumo
+   * a partir dela. O frontend usa para esconder o botão "Cadastrar novo"
+   * e mostrar mensagem orientativa pedindo ao operador para nomear as
+   * camadas do DXF incluindo o material (ex.: `ACRILICO_3MM_CRISTAL`).
+   */
+  apenas_operacao: boolean;
 }
 
 /**
@@ -137,9 +147,12 @@ export class DxfSugestaoInsumoService {
       camadasComToken.some((c) => c.tokens.length > 0) ||
       tokensDescricao.length > 0;
     if (!algumaCamadaTemToken) {
+      // Sem tokens em nenhuma camada nem na descrição: todas são apenas
+      // operação (CORTE/GRAVACAO/etc.) ou estão vazias. Marca todas.
       return dxfExtraido.camadas.map((c) => ({
         nome_camada: c.nome,
         sugestoes: [],
+        apenas_operacao: true,
       }));
     }
 
@@ -156,9 +169,12 @@ export class DxfSugestaoInsumoService {
     });
 
     if (insumos.length === 0) {
+      // Sem catálogo, ainda assim marcamos camadas apenas-operação para
+      // que a UI consiga orientar o operador.
       return dxfExtraido.camadas.map((c) => ({
         nome_camada: c.nome,
         sugestoes: [],
+        apenas_operacao: this.tokenizar(c.nome).length === 0,
       }));
     }
 
@@ -179,8 +195,18 @@ export class DxfSugestaoInsumoService {
     }));
 
     return camadasComToken.map((camada) => {
-      if (camada.tokens.length === 0 && tokensDescricao.length === 0) {
-        return { nome_camada: camada.nome_original, sugestoes: [] };
+      // Camada é "apenas operação" quando, após remover stop-words, não
+      // restou nenhum token DELA (mesmo que a descrição do projeto traga
+      // algo). O frontend usa isso para esconder "Cadastrar novo" e
+      // sinalizar que o operador precisa renomear a camada no DXF.
+      const apenasOperacao = camada.tokens.length === 0;
+
+      if (apenasOperacao && tokensDescricao.length === 0) {
+        return {
+          nome_camada: camada.nome_original,
+          sugestoes: [],
+          apenas_operacao: true,
+        };
       }
       const ranking: SugestaoInsumoCamada[] = [];
 
@@ -257,6 +283,7 @@ export class DxfSugestaoInsumoService {
       return {
         nome_camada: camada.nome_original,
         sugestoes: ranking.slice(0, limitePorCamada),
+        apenas_operacao: apenasOperacao,
       };
     });
   }

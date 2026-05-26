@@ -1433,5 +1433,51 @@ Resposta técnica entregue:
 - O dropdown nativo do shadcn `Select` não suporta naturalmente "ações" no rodapé; usei `<button>` dentro de `<SelectContent>` com guards de evento. A navegação por teclado pode não cobrir esse botão extra. Se virar atrito real, migra-se o `MaterialSection` para `Combobox` (mesma estratégia da tela `/insumos/novo`) — refatoração maior que ficou para depois.
 - Não há criação inline de **tipo de material** (`tipo_material_id`) no `NovoInsumoModal` — quando o operador escolhe `logica_consumo='custom'`, ainda precisa ter cadastrado o tipo de material antes em Configurações.
 
-**Última atualização:** 2026-05-26 (Refinamento 7.B++: `NovoInsumoModal` usa `Combobox` com `onCreate` em categoria/fornecedor + `UnitSelect` em unidades; dropdown de "Material" do `MaterialSection` ganhou "Cadastrar novo insumo"; `fetchInsumos` propagado via `onInsumoCriado` em orçamento v1, v2 e templates).
+### 4.20 Fix de sincronização do perímetro + camadas "apenas operação" + DXF de exemplo com descrição (2026-05-26 manhã)
+
+**Contexto:** após testar a 7.B++, o usuário levantou três pontos:
+1. O campo "Perímetro (mm)" apareceu com valor `822,655` em um produto cuja largura/altura era `600 × 400 mm` (o esperado seria `2000 mm`). A "Geometria de produção" exibia o cálculo correto (`2,00 m`), mas o input de form ficou dessincronizado.
+2. A camada `CORTE` puro no DXF gerou um card "Camada CORTE" sugerindo "Cadastrar novo" — mas CORTE é a **operação que a máquina executa**, não um material. O modal de cadastro nunca deveria abrir para esse caso.
+3. Pedido para gerar um DXF de exemplo com `$SUBJECT`/`$KEYWORDS`/`$COMMENTS` preenchidos, para validar o fluxo de descrição da 7.B++.
+
+**Diagnóstico do bug do perímetro:**
+
+O `QuickGeometryInput` calcula `perimetro_mm = 2 × (L + A)` em runtime e exibe o valor formatado, mas só dispara `onChange` (que escreve em `perimetro_produto` do form) quando o operador INTERAGE com seus próprios inputs. Em três cenários a sincronização fica defasada:
+- Carga de orçamento salvo (valor antigo do banco fica preso).
+- Carga via "carregar produto template" (copia o perímetro do template, que pode ter outras dimensões).
+- Aplicar DXF e depois editar L/A — dependendo do timing dos `setValue`, podia ficar resíduo.
+
+Resultado: o card visual mostrava `2,00 m` (correto), mas o campo persistido `perimetro_produto` carregava um valor antigo (`822,655 mm` no caso do usuário).
+
+**O que foi entregue (este commit):**
+
+1. **Sincronizador de geometria do produto** (`SincronizadorGeometriaProduto` em `ProdutoSection.tsx`):
+   - Componente filho que `useWatch`-a `largura_produto`/`altura_produto`/`unidade_geometria`/`geometria_origem` e em `useEffect` recalcula `area_m2 = (L_mm × A_mm)/1e6` e `perimetro_mm = 2 × (L_mm + A_mm)`.
+   - **Política:** quando `geometria_origem !== 'DXF'`, **sincroniza sempre** que houver divergência (>0.01 mm de perímetro ou >0.0001 m² de área). Cobre carga inicial, template carregado, edição manual. `shouldDirty=false` para não disparar alerta de "alterações não salvas" só por causa da reconciliação.
+   - Quando `geometria_origem === 'DXF'`, **NÃO sincroniza** (preserva o perímetro real da camada CORTE para o motor de cálculo, especialmente em DXFs com curvas). Se detectar divergência de >50% entre persistido e retângulo, exibe um aviso amarelo com botão **"Recalcular pelo retângulo"** (deixa explícito que o operador está sobrescrevendo o valor real do DXF — e marca `geometria_origem` como `MANUAL`).
+   - Renderizado uma vez por produto, logo abaixo do `QuickGeometryInput`.
+
+2. **Camadas "apenas operação" no DXF** (`DxfSugestaoInsumoService` + `DxfRevisaoCard`):
+   - Backend `SugestoesPorCamada` ganhou flag `apenas_operacao: boolean` — `true` quando, após filtrar a stop-list de operações (`corte`, `gravacao`, `dobra`, `furo`, `vinco`, ...), não sobra nenhum token de material no nome da camada.
+   - Frontend: quando `apenas_operacao=true`, o `DxfRevisaoCard` **esconde o botão "Cadastrar novo"** e mostra uma mensagem orientativa pedindo para renomear a camada no DXF (ex.: `ACRILICO_3MM_CRISTAL` ou `ACM_3MM_BRANCO_CORTE`). Também adiciona um chip "operação" ao lado do nome da camada.
+   - Camadas operação ainda permitem inclusão manual de materiais via "Materiais Utilizados" — a mensagem direciona explicitamente para isso.
+
+3. **DXF de exemplo com descrição rica** (`docs/exemplos-dxf/exemplo-acrilico-com-descricao-800x500.dxf`):
+   - Retângulo 800 × 500 mm, em ASCII puro AC1014.
+   - Header preenchido com `$PROJECTNAME`, `$TITLE`, `$SUBJECT`, `$KEYWORDS`, `$COMMENTS`, `$AUTHOR` — para validar o fluxo de extração de descrição da 7.B++.
+   - Duas camadas: `ACRILICO_3MM_CRISTAL_CORTE` (camada de material, gera sugestão se loja tiver o insumo) e `GRAVACAO_TEXTO` (camada de operação puro — deve ser marcada `apenas_operacao=true`).
+   - `README.md` da pasta atualizado descrevendo o que o operador deve ver ao aplicar este DXF (descrição esperada, sugestões esperadas).
+
+**Política de produto consolidada:**
+
+- O motor de cálculo continua usando `perimetro_produto` para calcular consumo de insumos por perímetro. Com a nova política, retângulos manuais sempre têm perímetro consistente; DXFs com curvas preservam o perímetro real da camada CORTE; e o operador tem como destravar quando quiser usar o retângulo.
+- Camadas que são apenas operação **nunca** disparam cadastro de insumo. Operador é orientado a renomear no DXF (boa prática que será documentada no manual do cliente futuramente).
+- A descrição do DXF (header) é um **complemento informativo** — preenche o campo "Descrição" do produto se vazio e dá peso baixo no scoring de insumo, sem dominar.
+
+**Dívidas e refinamentos opcionais:**
+
+- A política de sincronização não cobre DXFs com curvas complexas onde o operador edita L/A levemente — o aviso amarelo "Recalcular pelo retângulo" depende do threshold de 50%. Pode virar configurável se virar atrito real.
+- A stop-list de operações está hard-coded no service (`STOP_WORDS`). Quando uma loja usa termos específicos (ex.: "VINCAR" em vez de "VINCO"), precisa ser ajustada manualmente. Configuração por loja virou item da Fase 11.x se necessário.
+
+**Última atualização:** 2026-05-26 (Fix da sincronização do perímetro do retângulo + flag `apenas_operacao` em camadas puramente de operação + DXF de exemplo com descrição rica para validar 7.B++).
 Branch `feature/home-operacional-dashboard`.
