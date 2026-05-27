@@ -218,9 +218,6 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
   const fatorConversao = form.watch('fator_conversao');
   const unidadeUso = form.watch('unidade_uso');
   const controlarEstoque = form.watch('controlar_estoque');
-  const usaGeometria3D =
-    tipoCalculo === 'VOLUME' || (unidadeUso || '').toUpperCase() === 'M3';
-
   const converterParaMetros = (valor: number, unidade: string) => {
     switch (unidade) {
       case 'CENTÍMETROS':
@@ -698,29 +695,27 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                 )} />
             </div>
 
-            {usaGeometria3D && (
-              <div className="flex items-center gap-2 py-1">
-                <FormField control={form.control} name="tem_profundidade" render={({ field }) => (
-                  <FormItem className="flex flex-row items-center gap-2 space-y-0">
-                    <FormControl>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(field.value)}
-                        onChange={(event) => {
-                          const checked = event.target.checked;
-                          field.onChange(checked);
-                          if (!checked) form.setValue('profundidade', '');
-                        }}
-                        className="h-3.5 w-3.5 rounded border-gray-300"
-                      />
-                    </FormControl>
-                    <FormLabel className="text-xs font-normal text-muted-foreground">
-                      Usar profundidade (3D)
-                    </FormLabel>
-                  </FormItem>
-                )} />
-              </div>
-            )}
+            <div className="flex items-center gap-2 py-1">
+              <FormField control={form.control} name="tem_profundidade" render={({ field }) => (
+                <FormItem className="flex flex-row items-center gap-2 space-y-0">
+                  <FormControl>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(field.value)}
+                      onChange={(event) => {
+                        const checked = event.target.checked;
+                        field.onChange(checked);
+                        if (!checked) form.setValue('profundidade', '');
+                      }}
+                      className="h-3.5 w-3.5 rounded border-gray-300"
+                    />
+                  </FormControl>
+                  <FormLabel className="text-xs font-normal text-muted-foreground">
+                    Usar profundidade (3D)
+                  </FormLabel>
+                </FormItem>
+              )} />
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 <FormField control={form.control} name="largura" render={({ field }) => (
@@ -751,7 +746,7 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                     <FormMessage />
                     </FormItem>
                 )} />
-                {usaGeometria3D && temProfundidade && (
+                {temProfundidade && (
                   <FormField control={form.control} name="profundidade" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Profundidade</FormLabel>
