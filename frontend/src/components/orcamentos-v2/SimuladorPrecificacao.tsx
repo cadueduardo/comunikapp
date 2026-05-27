@@ -41,9 +41,21 @@ interface ResultadoSimulacao {
 
 function parseNumeroPtBr(raw: string): number {
   if (!raw) return 0;
-  const limpo = String(raw).trim().replace(/\./g, '').replace(',', '.');
+  const texto = String(raw).trim().replace(/[^0-9,.-]/g, '');
+  const temVirgula = texto.includes(',');
+  const limpo = temVirgula
+    ? texto.replace(/\./g, '').replace(',', '.')
+    : texto;
   const n = Number(limpo);
   return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+function formatNumeroInicial(valor: number | undefined, casas = 2): string {
+  if (valor === undefined || !Number.isFinite(valor)) return '';
+  return valor.toLocaleString('pt-BR', {
+    minimumFractionDigits: casas,
+    maximumFractionDigits: casas,
+  });
 }
 
 function brl(valor: number): string {
@@ -156,16 +168,16 @@ export function SimuladorPrecificacao({
   className,
 }: SimuladorPrecificacaoProps) {
   const [custo, setCusto] = useState<string>(
-    custoInicial !== undefined ? String(custoInicial) : '',
+    formatNumeroInicial(custoInicial, 2),
   );
   const [margem, setMargem] = useState<string>(
-    margemInicial !== undefined ? String(margemInicial) : '45',
+    margemInicial !== undefined ? formatNumeroInicial(margemInicial, 2) : '45',
   );
   const [impostos, setImpostos] = useState<string>(
-    impostosInicial !== undefined ? String(impostosInicial) : '6',
+    impostosInicial !== undefined ? formatNumeroInicial(impostosInicial, 2) : '6',
   );
   const [comissao, setComissao] = useState<string>(
-    comissaoInicial !== undefined ? String(comissaoInicial) : '5',
+    comissaoInicial !== undefined ? formatNumeroInicial(comissaoInicial, 2) : '5',
   );
   const [tipo, setTipo] = useState<TipoCalculo>(tipoInicial ?? 'margem_por_dentro');
 
