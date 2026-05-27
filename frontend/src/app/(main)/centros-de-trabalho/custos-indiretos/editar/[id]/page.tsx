@@ -25,9 +25,7 @@ export default function EditarCustoIndiretoCTPage({ params }: { params: Promise<
   }, [id]);
 
   if (loading) return <div>Carregando...</div>;
-  if (!registro) return <div>Registro nÃ£o encontrado.</div>;
+  if (!registro) return <div>Registro não encontrado.</div>;
 
   return <CustoIndiretoForm custoIndireto={registro} />;
 }
-
-

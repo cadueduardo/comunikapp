@@ -47,6 +47,7 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
   const { id } = use(params);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [resolvedItemId, setResolvedItemId] = useState<string>('');
   const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [localizacoes, setLocalizacoes] = useState<Localizacao[]>([]);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
@@ -70,6 +71,8 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
     ativo: true,
   });
 
+  const normalizeId = (value: unknown): string => String(value ?? '').trim().replace(/^:+/, '');
+
   useEffect(() => {
     console.log('🔍 EditarItemEstoquePage - useEffect executado');
     console.log('👤 Usuário:', user);
@@ -90,19 +93,39 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
   const fetchItem = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`/api/estoque/itens/${id}`, {
+      let data: any = null;
+      const normalizedId = normalizeId(id);
+
+      // Resolve sempre o ID canônico na listagem para suportar URL com itemId ou insumoId.
+      const listResponse = await fetch('/api/estoque/itens', {
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store',
       });
-      
-      if (response.ok) {
-        const data = await response.json();
+
+      if (listResponse.ok) {
+        const listData = await listResponse.json();
+        const items = Array.isArray(listData) ? listData : (listData?.data ?? []);
+        const matchedItem = items.find((item: any) => normalizeId(item?.id) === normalizedId);
+        const matchedByInsumo = items.find((item: any) => normalizeId(item?.insumoId) === normalizedId);
+        const fallbackItem = matchedItem ?? matchedByInsumo;
+
+        if (fallbackItem?.id) {
+          const canonicalId = normalizeId(fallbackItem.id);
+          data = fallbackItem;
+          if (canonicalId !== normalizedId) {
+            router.replace(`/estoque/itens/editar/${canonicalId}`);
+          }
+        }
+      }
+
+      if (data) {
         const toDateInput = (value?: string) => {
           if (!value) return '';
           const d = new Date(value);
           if (Number.isNaN(d.getTime())) return '';
           return d.toISOString().split('T')[0];
         };
+        setResolvedItemId(normalizeId(data.id || id));
         setFormData({
           insumoId: data.insumoId || '',
           localizacaoId: data.localizacaoId || '',
@@ -123,7 +146,7 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
           ativo: data.ativo !== false
         });
       } else {
-        toast.error('Erro ao carregar item de estoque');
+        toast.error('Item de estoque não encontrado para este insumo.');
       }
     } catch (error) {
       toast.error('Erro ao carregar item de estoque');
@@ -234,7 +257,8 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
 
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`/api/estoque/itens/${id}`, {
+      const itemIdToUpdate = normalizeId(resolvedItemId || id);
+      const response = await fetch(`/api/estoque/itens/${itemIdToUpdate}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

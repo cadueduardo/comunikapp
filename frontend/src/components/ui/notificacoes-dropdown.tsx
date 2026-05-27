@@ -3,11 +3,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Bell, 
-  MessageCircle, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Bell,
+  MessageCircle,
+  CheckCircle,
+  XCircle,
   AlertCircle,
   Trash2,
   Eye,
@@ -26,6 +26,22 @@ interface Notificacao {
   visualizada: boolean;
   criado_em: string;
   dados_extras?: Record<string, unknown>;
+}
+
+function corrigirMojibake(texto: string): string {
+  if (!/[ÃÂâð]/.test(texto)) {
+    return texto;
+  }
+
+  try {
+    const bytes = Array.from(texto, (char) => {
+      const code = char.charCodeAt(0);
+      return code <= 255 ? `%${code.toString(16).padStart(2, '0')}` : char;
+    }).join('');
+    return decodeURIComponent(bytes);
+  } catch {
+    return texto;
+  }
 }
 
 export function NotificacoesDropdown() {
@@ -58,9 +74,9 @@ export function NotificacoesDropdown() {
       } else {
         setLoadingMore(true);
       }
-      
+
       const token = localStorage.getItem('access_token');
-      
+
       if (!token) {
         console.log('Token não encontrado, pulando carregamento de notificações');
         return;
@@ -73,14 +89,14 @@ export function NotificacoesDropdown() {
       }
 
       console.log('Tentando carregar notificações com token:', token.substring(0, 20) + '...');
-      
+
       const currentPage = reset ? 1 : pageRef.current;
       const limit = 10;
       const offset = (currentPage - 1) * limit;
-      
+
       // Usar paginação real do backend
       const data = await notificacoesApi.getAll(token, limit, offset);
-      
+
       if (reset) {
         setNotificacoes(data as Notificacao[]);
       } else {
@@ -91,25 +107,25 @@ export function NotificacoesDropdown() {
           return [...prev, ...notificacoesUnicas];
         });
       }
-      
+
       // Verificar se há mais dados para carregar
       if ((data as Notificacao[]).length < limit) {
         setHasMore(false);
       }
-      
+
       if (!reset) {
         pageRef.current += 1; // Incrementar ref
         setPage(pageRef.current); // Atualizar state para UI
       }
     } catch (error) {
       console.error('Erro ao carregar notificações:', error);
-      
+
       // Se for erro de autenticação, limpar o token
       if (error instanceof Error && error.message.includes('401')) {
         localStorage.removeItem('access_token');
         console.log('Token inválido removido do localStorage');
       }
-      
+
       // Se for erro de rede, mostrar mensagem específica
       if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
         console.error('Erro de conectividade com a API. Verifique se o backend está rodando.');
@@ -130,9 +146,9 @@ export function NotificacoesDropdown() {
     if (novaMensagemArte && novaMensagemArte.mensagem && novaMensagemArte.autor_nome) {
       // Mostrar toast de notificação para mensagens de arte
       if (novaMensagemArte.autor_tipo?.toLowerCase() === 'cliente') {
-        const mensagemPreview = novaMensagemArte.mensagem.substring(0, 50) + 
+        const mensagemPreview = novaMensagemArte.mensagem.substring(0, 50) +
           (novaMensagemArte.mensagem.length > 50 ? '...' : '');
-        
+
         toast.info(`Nova mensagem na aprovação de arte`, {
           description: `${novaMensagemArte.autor_nome}: ${mensagemPreview}`,
           action: {
@@ -143,10 +159,10 @@ export function NotificacoesDropdown() {
             },
           },
         });
-        
+
         // Atualizar contador de notificações
         setNaoVisualizadas(prev => prev + 1);
-        
+
         // Recarregar notificações para incluir a nova
         carregarNotificacoes(true);
       }
@@ -173,7 +189,7 @@ export function NotificacoesDropdown() {
   const carregarContador = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      
+
       if (!token || token.trim() === '') {
         console.log('Token não encontrado ou vazio, pulando carregamento do contador');
         return;
@@ -183,7 +199,7 @@ export function NotificacoesDropdown() {
       setNaoVisualizadas((data as { count: number }).count);
     } catch (error) {
       console.error('Erro ao carregar contador:', error);
-      
+
       // Se for erro de autenticação, limpar o token
       if (error instanceof Error && error.message.includes('401')) {
         localStorage.removeItem('access_token');
@@ -271,7 +287,7 @@ export function NotificacoesDropdown() {
   // Função para carregar mais notificações quando o usuário faz scroll
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    
+
     // Verificar se chegou ao final (com margem de 50px)
     if (scrollHeight - scrollTop <= clientHeight + 50 && hasMore && !loadingMore) {
       carregarNotificacoes(false);
@@ -288,8 +304,8 @@ export function NotificacoesDropdown() {
       >
         <Bell className="w-5 h-5" />
         {naoVisualizadas > 0 && (
-          <Badge 
-            variant="destructive" 
+          <Badge
+            variant="destructive"
             className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
           >
             {naoVisualizadas > 9 ? '9+' : naoVisualizadas}
@@ -306,7 +322,7 @@ export function NotificacoesDropdown() {
             )}
           </div>
 
-          <div 
+          <div
             ref={scrollContainerRef}
             className="max-h-96 overflow-y-auto"
             onScroll={handleScroll}
@@ -332,14 +348,14 @@ export function NotificacoesDropdown() {
                       <div className="flex-shrink-0 mt-1">
                         {getIconeTipo(notificacao.tipo)}
                       </div>
-                      
+
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="text-sm font-medium truncate">
-                            {notificacao.titulo}
+                            {corrigirMojibake(notificacao.titulo)}
                           </h4>
-                          <Badge 
-                            variant="outline" 
+                          <Badge
+                            variant="outline"
                             className={`text-xs ${getCorTipo(notificacao.tipo)}`}
                           >
                             {notificacao.tipo.replace('_', ' ')}
@@ -350,11 +366,11 @@ export function NotificacoesDropdown() {
                             </Badge>
                           )}
                         </div>
-                        
+
                         <p className="text-sm text-gray-600 mb-2">
-                          {notificacao.mensagem}
+                          {corrigirMojibake(notificacao.mensagem)}
                         </p>
-                        
+
                         {(notificacao.orcamento_id || notificacao.dados_extras?.os_id) && (
                           <div className="mb-2">
                             <Button
@@ -375,12 +391,12 @@ export function NotificacoesDropdown() {
                             </Button>
                           </div>
                         )}
-                        
+
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-500">
                             {formatarData(notificacao.criado_em)}
                           </span>
-                          
+
                           <div className="flex items-center gap-1">
                             {!notificacao.visualizada && (
                               <Button
@@ -406,7 +422,7 @@ export function NotificacoesDropdown() {
                     </div>
                   </div>
                 ))}
-                
+
                 {/* Indicador de carregamento para mais notificações */}
                 {loadingMore && (
                   <div className="p-4 text-center bg-blue-50 border-t border-blue-100">
@@ -416,7 +432,7 @@ export function NotificacoesDropdown() {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Indicador quando não há mais notificações */}
                 {!hasMore && notificacoes.length > 0 && (
                   <div className="p-4 text-center text-gray-400 text-sm">
@@ -430,4 +446,4 @@ export function NotificacoesDropdown() {
       )}
     </div>
   );
-} 
+}

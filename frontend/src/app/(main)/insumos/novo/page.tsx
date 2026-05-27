@@ -20,12 +20,19 @@ export default function NovoInsumoPage() {
         ? parseFloat(data.custo_unitario) 
         : data.custo_unitario;
         
+      const toNonNegativeNumber = (value: unknown): number | undefined => {
+        if (value === '' || value === null || value === undefined) return undefined;
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) return undefined;
+        return parsed < 0 ? 0 : parsed;
+      };
+
       await insumosApi.create({
         ...data,
         custo_unitario: custo,
-        estoque_minimo: data.estoque_minimo ? Number(data.estoque_minimo) : undefined,
-        estoque_quantidade_inicial: data.estoque_quantidade_inicial ? Number(data.estoque_quantidade_inicial) : undefined,
-        estoque_maximo: data.estoque_maximo ? Number(data.estoque_maximo) : undefined,
+        estoque_minimo: toNonNegativeNumber(data.estoque_minimo),
+        estoque_quantidade_inicial: toNonNegativeNumber(data.estoque_quantidade_inicial),
+        estoque_maximo: toNonNegativeNumber(data.estoque_maximo),
       }, token);
       
       toast.success('Insumo criado com sucesso!');

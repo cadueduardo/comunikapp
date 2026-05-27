@@ -324,6 +324,56 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
     nomeCamada: string;
   }>({ aberto: false, itemIndex: null, nomeSugerido: '', nomeCamada: '' });
 
+  const sincronizarMateriaisComSugestoes = (
+    itemIndex: number,
+    sugestoes: SugestoesPorCamada[],
+  ) => {
+    if (!Array.isArray(sugestoes) || sugestoes.length === 0) return;
+
+    const materiaisAtuais =
+      (form.getValues(`itens_produto.${itemIndex}.materiais`) as
+        | Array<{
+            insumo_id?: string;
+            quantidade?: string;
+            material_do_cliente?: boolean;
+          }>
+        | undefined) || [];
+
+    const proximaLista = [...materiaisAtuais];
+    let houveMudanca = false;
+
+    for (const camada of sugestoes) {
+      if (!camada || camada.apenas_operacao) continue;
+      const primeiraSugestao = camada.sugestoes?.[0];
+      if (!primeiraSugestao?.insumo_id) continue;
+
+      const jaExiste = proximaLista.some(
+        (m) => m.insumo_id === primeiraSugestao.insumo_id,
+      );
+      if (jaExiste) continue;
+
+      const primeiraVazia = proximaLista.findIndex((m) => !m.insumo_id);
+      const materialNovo = {
+        insumo_id: primeiraSugestao.insumo_id,
+        quantidade: '1',
+        material_do_cliente: false,
+      };
+
+      if (primeiraVazia >= 0) {
+        proximaLista[primeiraVazia] = materialNovo;
+      } else {
+        proximaLista.push(materialNovo);
+      }
+      houveMudanca = true;
+    }
+
+    if (houveMudanca) {
+      form.setValue(`itens_produto.${itemIndex}.materiais`, proximaLista, {
+        shouldDirty: true,
+      });
+    }
+  };
+
   const setDxfDoProduto = (
     indice: number,
     dxf: DxfExtraido | null,
@@ -386,6 +436,10 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
     itemIndex: number,
     medidas: AplicarMedidasDxf,
   ) => {
+    sincronizarMateriaisComSugestoes(
+      itemIndex,
+      sugestoesPorIndice[itemIndex] || [],
+    );
     form.setValue(
       `itens_produto.${itemIndex}.largura_produto`,
       String(medidas.largura_mm),

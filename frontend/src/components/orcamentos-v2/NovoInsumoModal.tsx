@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CustomCurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -102,6 +103,18 @@ const LOGICAS_CONSUMO: Array<{ value: string; label: string }> = [
 function obterToken(): string {
   if (typeof window === 'undefined') return '';
   return localStorage.getItem('access_token') || '';
+}
+
+function parseDecimalInput(value: string): number {
+  if (!value) return 0;
+  // Suporta valores vindos do CustomCurrencyInput ("12.34")
+  // e entradas manuais no formato brasileiro ("12,34" / "R$ 12,34").
+  const normalized = value
+    .replace(/[^\d,.-]/g, '')
+    .replace(/\.(?=.*\.)/g, '')
+    .replace(',', '.');
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 export function NovoInsumoModal({
@@ -215,7 +228,7 @@ export function NovoInsumoModal({
     !!fornecedorId &&
     unidadeCompra.trim().length > 0 &&
     unidadeUso.trim().length > 0 &&
-    Number(custoUnitario.replace(',', '.')) > 0 &&
+    parseDecimalInput(custoUnitario) > 0 &&
     Number(quantidadeCompra.replace(',', '.')) > 0 &&
     Number(fatorConversao.replace(',', '.')) > 0 &&
     !salvando;
@@ -230,7 +243,7 @@ export function NovoInsumoModal({
         categoriaId,
         fornecedorId,
         unidade_compra: unidadeCompra.trim(),
-        custo_unitario: Number(custoUnitario.replace(',', '.')),
+        custo_unitario: parseDecimalInput(custoUnitario),
         quantidade_compra: Number(quantidadeCompra.replace(',', '.')),
         unidade_uso: unidadeUso.trim(),
         fator_conversao: Number(fatorConversao.replace(',', '.')),
@@ -339,13 +352,9 @@ export function NovoInsumoModal({
           <div className="grid grid-cols-3 gap-3">
             <div className="grid gap-1">
               <Label>Custo unitário (R$)</Label>
-              <Input
+              <CustomCurrencyInput
                 value={custoUnitario}
-                onChange={(e) =>
-                  setCustoUnitario(
-                    e.target.value.replace(/[^0-9,.]/g, ''),
-                  )
-                }
+                onValueChange={setCustoUnitario}
                 placeholder="0,00"
                 disabled={salvando}
               />

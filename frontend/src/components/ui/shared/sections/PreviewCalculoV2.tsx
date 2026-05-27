@@ -120,7 +120,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     try {
       setFormSnapshot(form.getValues());
     } catch (error) {
-      console.warn('[PreviewCalculoV2] Nao foi possivel obter valores iniciais do formulario', error);
+      console.warn('[PreviewCalculoV2] Não foi possível obter valores iniciais do formulário', error);
     }
 
     const subscription = form.watch((values) => {
@@ -318,7 +318,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     return `${minutos}min`;
   };
 
-  // Formatar valores monetarios (aceita numeros ou "Aguardando...")
+  // Formatar valores monetários (aceita números ou "Aguardando...")
   const formatarValor = (valor: unknown): string => {
     if (typeof valor === 'string') {
       return valor;
@@ -582,7 +582,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       return mockData;
     }
   };
-  // Usar dados reais se disponiveis, senao usar mockados
+  // Usar dados reais se disponíveis, senão usar mockados
   const data: PreviewData = (() => {
     console.debug('[PreviewCalculoV2] Estados', {
       form: !!form,
@@ -602,7 +602,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     console.debug('[PreviewCalculoV2] Usando mockData porque', {
       form: !!form,
       dadosCarregados,
-      motivo: !form ? 'sem formulario' : !dadosCarregados ? 'dados nao carregados' : 'desconhecido'
+      motivo: !form ? 'sem formulário' : !dadosCarregados ? 'dados não carregados' : 'desconhecido'
     });
     
     // TEMPORARIO: Vamos forcar usar dados reais mesmo sem form completo
@@ -637,7 +637,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         <div className="p-6 pb-4 border-b border-gray-100">
           <div className="flex items-center gap-2 mb-2">
             <Calculator className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Preview do Calculo</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Preview do Cálculo</h2>
           </div>
           <Badge variant="outline" className="text-xs">
             Desconectado
@@ -648,7 +648,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         <div className="flex-1 overflow-y-auto p-6 pt-4">
           <div className="text-center text-gray-500 py-8">
             <Calculator className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-            <p>Nenhum calculo disponivel</p>
+            <p>Nenhum cálculo disponível</p>
             <p className="text-sm">Adicione produtos para ver o preview</p>
           </div>
         </div>
@@ -662,7 +662,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       <div className="p-6 pb-4 border-b border-gray-100">
         <div className="flex items-center gap-2 mb-2">
           <Calculator className="h-5 w-5 text-blue-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Preview do Calculo</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Preview do Cálculo</h2>
         </div>
         <Badge 
           variant="outline" 
@@ -670,19 +670,19 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         >
           {connectionStatus === 'connecting' ? 'Conectando...' : 
            isConnected ? 'Tempo real ativo' : 
-           connectionStatus === 'error' ? 'Erro de conexao' : 'Desconectado'}
+           connectionStatus === 'error' ? 'Erro de conexão' : 'Desconectado'}
         </Badge>
       </div>
 
       {/* Conteudo com scroll */}
       <div className="flex-1 overflow-y-auto p-6 pt-4">
         <div className="space-y-4">
-        {/* Resumo do Orcamento */}
+        {/* Resumo do Orçamento */}
         <div>
           <div className="pb-3">
             <h3 className="text-base font-semibold flex items-center gap-2">
               <Package className="h-4 w-4" />
-              Resumo do Orcamento
+              Resumo do Orçamento
             </h3>
           </div>
           <div className="space-y-3">
@@ -718,7 +718,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Custo de Producao</span>
+                <span className="text-gray-600">Custo de Produção</span>
                 <span>R$ {formatarValor(data.resumo.total_custo_producao)}</span>
               </div>
               <div className="flex justify-between">
@@ -730,7 +730,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                 <span className="text-red-600">+R$ {formatarValor(data.resumo.total_impostos)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Comissao ({data.resumo.comissao_percentual}%)</span>
+                <span className="text-gray-600">Comissão ({data.resumo.comissao_percentual}%)</span>
                 <span className="text-orange-600">+R$ {formatarValor(data.resumo.comissao_total)}</span>
               </div>
             </div>
@@ -746,7 +746,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             </div>
             
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Itens no Orcamento</span>
+              <span className="text-gray-600">Itens no Orçamento</span>
               <span>{data.resumo.total_produtos}</span>
             </div>
           </div>
@@ -759,7 +759,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         {/* Detalhamento por Produto */}
         <div>
           <div className="pb-3">
-            <h3 className="text-base font-semibold">Produtos no Orcamento</h3>
+            <h3 className="text-base font-semibold">Produtos no Orçamento</h3>
           </div>
           <div className="space-y-3">
             {data.produtos.map((produto: PreviewProduto, index: number) => (
@@ -835,9 +835,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                       </div>
                     </div>
 
-                    {/* Maquinas */}
+                {/* Máquinas */}
                     <div>
-                      <h5 className="text-xs font-medium mb-2">Maquinas</h5>
+                      <h5 className="text-xs font-medium mb-2">Máquinas</h5>
                       <div className="space-y-1">
                         {produto.maquinas.map((maquina: PreviewMaquina, idx: number) => (
                           <div key={idx} className="flex justify-between items-start text-xs">
@@ -855,9 +855,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                       </div>
                     </div>
 
-                    {/* Funcoes */}
+                    {/* Funções */}
                     <div>
-                      <h5 className="text-xs font-medium mb-2">Mao de Obra</h5>
+                      <h5 className="text-xs font-medium mb-2">Mão de Obra</h5>
                       <div className="space-y-1">
                         {produto.funcoes.map((funcao: PreviewFuncao, idx: number) => (
                           <div key={idx} className="flex justify-between items-start text-xs">
@@ -875,9 +875,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                       </div>
                     </div>
 
-                    {/* Servicos Manuais */}
+                    {/* Serviços Manuais */}
                     <div>
-                      <h5 className="text-xs font-medium mb-2">Servicos Manuais</h5>
+                      <h5 className="text-xs font-medium mb-2">Serviços Manuais</h5>
                       <div className="space-y-1">
                         {produto.servicos.map((servico: PreviewFuncao, idx: number) => (
                           <div key={idx} className="flex justify-between items-start text-xs">
@@ -963,14 +963,14 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         {/* Separador */}
         <Separator className="my-6" />
 
-        {/* Informacoes de Sistema */}
+        {/* Informações de Sistema */}
         <div className="text-xs text-gray-500 text-center p-2 bg-gray-50 rounded">
           <div className="mb-1 font-medium text-gray-600">
             Valor estimado (pequenas variações de centavos são normais)
           </div>
-          <div>Ultima atualizacao: {data.metadata.timestamp_calculo.toLocaleTimeString('pt-BR')}</div>
-          <div className="mt-1">Versao do calculo: {data.metadata.versao_motor}</div>
-          <div className="mt-1">Tempo de execucao: {data.metadata.tempo_execucao_ms}ms</div>
+          <div>Última atualização: {data.metadata.timestamp_calculo.toLocaleTimeString('pt-BR')}</div>
+          <div className="mt-1">Versão do cálculo: {data.metadata.versao_motor}</div>
+          <div className="mt-1">Tempo de execução: {data.metadata.tempo_execucao_ms}ms</div>
         </div>
         </div>
       </div>

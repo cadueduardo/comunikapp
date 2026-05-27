@@ -19,10 +19,10 @@ export function converterParaMetros(valor: number, unidade: string): number {
 // Função para calcular área em m²
 export function calcularArea(largura: number, altura: number, unidade: string): number {
   if (!largura || !altura) return 0;
-  
+
   const larguraEmMetros = converterParaMetros(largura, unidade);
   const alturaEmMetros = converterParaMetros(altura, unidade);
-  
+
   return larguraEmMetros * alturaEmMetros;
 }
 
@@ -91,7 +91,7 @@ export function insumoExigeProfundidade(unidadeUso: string | undefined | null): 
 // Função para obter o tipo de campo baseado na unidade de uso
 export function getCampoQuantidade(insumo: Insumo | undefined) {
   if (!insumo) return { label: 'Quantidade', placeholder: '0.00', step: '0.01' };
-  
+
   switch (insumo.unidade_uso) {
     case 'M':
       return { label: 'Comprimento (metros)', placeholder: '0.00', step: '0.001' };
@@ -221,20 +221,24 @@ export function calcularCustoPorUnidadeUso(insumo: Insumo): number {
   if (!insumo || !insumo.custo_unitario || !insumo.quantidade_compra || !insumo.fator_conversao) {
     return 0;
   }
-  
+
   const custo = Number(insumo.custo_unitario);
   const quantidade = Number(insumo.quantidade_compra);
   const fator = Number(insumo.fator_conversao);
-  
+
   if (quantidade > 0 && fator > 0) {
+    const unidadeUsoNormalizada = (insumo.unidade_uso || '').toUpperCase();
+    const unidadeUsoEhMetroQuadrado =
+      unidadeUsoNormalizada === 'M2' ||
+      unidadeUsoNormalizada === 'METRO QUADRADO';
     // Se temos dimensões e tipo de cálculo, usar a lógica específica
     if (insumo.altura && insumo.unidade_dimensao && insumo.tipo_calculo) {
       const alturaNum = Number(insumo.altura);
-      
+
       if (!isNaN(alturaNum)) {
         // Converter altura para metros
         let alturaEmMetros = alturaNum;
-        
+
         switch (insumo.unidade_dimensao) {
           case 'CENTÍMETROS':
           case 'CM':
@@ -249,32 +253,32 @@ export function calcularCustoPorUnidadeUso(insumo: Insumo): number {
             // Já está em metros
             break;
         }
-        
+
         // Calcular quantidade baseada no tipo de cálculo
         switch (insumo.tipo_calculo) {
           case 'COMPRIMENTO LINEAR':
           case 'LINEAR':
             // Para comprimento linear: calcular custo por unidade de uso
             const custoPorUnidade = custo / quantidade;
-            
+
             if (insumo.unidade_uso === 'CENTIMETRO' || insumo.unidade_uso === 'CM') {
               // Se a unidade de uso é centímetro, calcular custo por centímetro
               // Para cordão: custo por metro ÷ 100 = custo por centímetro
               const custoPorCentimetro = custoPorUnidade / 100;
-              
+
               return custoPorCentimetro;
             } else {
               // Para outras unidades de uso, usar o cálculo padrão
               return custoPorUnidade;
             }
-            
+
           case 'AREA':
             // Para área: calcular custo por unidade de uso baseado na área da unidade
             if (insumo.largura) {
               const larguraNum = Number(insumo.largura);
               if (!isNaN(larguraNum)) {
                 let larguraEmMetros = larguraNum;
-                
+
                 switch (insumo.unidade_dimensao) {
                   case 'CENTÍMETROS':
                   case 'CM':
@@ -285,13 +289,13 @@ export function calcularCustoPorUnidadeUso(insumo: Insumo): number {
                     larguraEmMetros = larguraNum / 1000;
                     break;
                 }
-                
+
                 const areaPorUnidade = larguraEmMetros * alturaEmMetros;
-                
-                if (insumo.unidade_uso === 'METRO QUADRADO') {
+
+                if (unidadeUsoEhMetroQuadrado) {
                   // Se a unidade de uso é metro quadrado, calcular custo por m²
                   const custoPorMetroQuadrado = custo / areaPorUnidade;
-                  
+
                   return custoPorMetroQuadrado;
                 } else {
                   // Para outras unidades de uso, usar o cálculo padrão
@@ -302,21 +306,21 @@ export function calcularCustoPorUnidadeUso(insumo: Insumo): number {
               return custo / quantidade;
             }
             break;
-            
+
           case 'QUANTIDADE':
             // Para quantidade fixa: usar quantidade diretamente
             return custo / quantidade;
-            
+
           default:
             // Padrão: usar quantidade diretamente
             return custo / quantidade;
         }
       }
     }
-    
+
     // Cálculo padrão: custo / (quantidade * fator)
     return custo / (quantidade * fator);
   }
-  
+
   return 0;
-} 
+}

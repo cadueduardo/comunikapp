@@ -8,7 +8,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
     }
 
-    const response = await fetch(`${process.env.BACKEND_URL}/api/estoque/itens`, {
+    const queryString = request.nextUrl.searchParams.toString();
+    const backendUrl = `${process.env.BACKEND_URL}/api/estoque/itens${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetch(backendUrl, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',

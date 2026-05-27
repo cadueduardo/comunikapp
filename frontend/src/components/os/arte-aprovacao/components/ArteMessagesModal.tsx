@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -14,12 +14,12 @@ interface Mensagem {
   autor: string;
   autorTipo: 'cliente' | 'equipe';
   mensagem: string;
-  mensagemProcessada?: string; // Mensagem com menÃ§Ãµes processadas
+  mensagemProcessada?: string; // Mensagem com menções processadas
   data: string;
   lida: boolean;
   produtoId?: string;
   versaoId?: string;
-  versoesMencionadas?: string[]; // VersÃµes mencionadas na mensagem
+  versoesMencionadas?: string[]; // Versões mencionadas na mensagem
 }
 
 interface ArteMessagesModalProps {
@@ -28,35 +28,35 @@ interface ArteMessagesModalProps {
   produtoId: string;
   produtoNome: string;
   osId: string;
-  versaoId?: string; // ID da versÃ£o especÃ­fica
+  versaoId?: string; // ID da versão especÃ­fica
   clienteNome?: string; // Nome do cliente
   empresaNome?: string; // Nome da empresa
-  versoesDisponiveis?: Array<{ id: string; versao: string; descricao?: string; produtoNome?: string }>; // VersÃµes disponÃ­veis para menÃ§Ãµes
-  onNotificacoesZeradas?: (versaoId: string) => void; // Callback para zerar notificaÃ§Ãµes
+  versoesDisponiveis?: Array<{ id: string; versao: string; descricao?: string; produtoNome?: string }>; // Versões disponÃ­veis para menções
+  onNotificacoesZeradas?: (versaoId: string) => void; // Callback para zerar notificações
 }
 
-export function ArteMessagesModal({ 
-  isOpen, 
-  onClose, 
-  produtoId, 
-  produtoNome, 
-  osId, 
+export function ArteMessagesModal({
+  isOpen,
+  onClose,
+  produtoId,
+  produtoNome,
+  osId,
   versaoId,
   clienteNome,
   empresaNome,
   versoesDisponiveis = [],
   onNotificacoesZeradas
 }: ArteMessagesModalProps) {
-  
+
   // Debug removido para reduzir spam no console
-  
+
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [novaMensagem, setNovaMensagem] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [loading, setLoading] = useState(false);
-  
-  // Estados para sistema de menÃ§Ãµes
-  
+
+  // Estados para sistema de menções
+
   const mensagensRef = useRef<HTMLDivElement>(null);
 
   // WebSocket para tempo real - memoizar valores do localStorage
@@ -100,14 +100,14 @@ export function ArteMessagesModal({
     if (novaMensagemWS.mensagem && typeof novaMensagemWS.mensagem === 'object') {
       mensagemReal = novaMensagemWS.mensagem;
     }
-    
+
     if (!mensagemReal?.mensagem) return;
 
-    // Filtrar apenas mensagens da versÃ£o atual
+    // Filtrar apenas mensagens da versão atual
     if (versaoId && mensagemReal.versao_id !== versaoId) return;
-    
+
     const autorTipo = mensagemReal.autor_tipo?.toLowerCase() === 'cliente' ? 'cliente' : 'equipe';
-    
+
     const novaMsg: Mensagem = {
       id: mensagemReal.id || `temp-${Date.now()}`,
       autor: mensagemReal.autor_nome || 'Desconhecido',
@@ -120,13 +120,13 @@ export function ArteMessagesModal({
       versaoId: mensagemReal.versao_id,
       versoesMencionadas: mensagemReal.versoesMencionadas,
     };
-    
+
     // Adicionar mensagem (otimizado)
     setMensagens(prev => {
       if (prev.some(msg => msg.id === novaMsg.id)) return prev;
       return [...prev, novaMsg];
     });
-    
+
     // Marcar como lida se for do cliente
     if (autorTipo === 'cliente' && mensagemReal.id) {
       marcarMensagemLida(mensagemReal.id);
@@ -136,14 +136,14 @@ export function ArteMessagesModal({
   const carregarMensagens = useCallback(async () => {
       try {
         setLoading(true);
-      
+
       const token = localStorage.getItem('access_token');
       if (!token) {
-        throw new Error('Token de autenticaÃ§Ã£o nÃ£o encontrado');
+        throw new Error('Token de autenticação não encontrado');
       }
 
-      // Se tiver versaoId, buscar mensagens da versÃ£o especÃ­fica
-      const url = versaoId 
+      // Se tiver versaoId, buscar mensagens da versão especÃ­fica
+      const url = versaoId
         ? `/api/arte-aprovacao/mensagens/versao/${versaoId}`
         : `/api/arte-aprovacao/mensagens/os/${osId}/produto/${produtoId}`;
 
@@ -159,7 +159,7 @@ export function ArteMessagesModal({
       }
 
       const mensagensData = await response.json();
-      
+
       // Converter para o formato esperado
       const mensagensCarregadas: Mensagem[] = mensagensData.map((msg: {
         id: string;
@@ -184,10 +184,10 @@ export function ArteMessagesModal({
         versaoId: msg.versao_id
       }));
 
-      // âœ… CORRIGIDO: Sempre substituir mensagens pela versÃ£o especÃ­fica
-      // NÃ£o mesclar com mensagens de outras versÃµes
+      // âœ… CORRIGIDO: Sempre substituir mensagens pela versão especÃ­fica
+      // Não mesclar com mensagens de outras versões
       setMensagens(mensagensCarregadas);
-      
+
     } catch (error) {
       console.error('Erro ao carregar mensagens:', error);
       toast.error('Erro ao carregar mensagens');
@@ -199,8 +199,8 @@ export function ArteMessagesModal({
   // âœ… FunÃ§Ã£o para marcar todas as mensagens como lidas
   const marcarTodasMensagensComoLidas = useCallback(async () => {
     try {
-      // Marcar todas as mensagens nÃ£o lidas do cliente como lidas
-      
+      // Marcar todas as mensagens não lidas do cliente como lidas
+
       const response = await apiRequest('/arte-aprovacao/mensagens/marcar-lidas-produto', {
         method: 'POST',
         body: JSON.stringify({
@@ -212,11 +212,11 @@ export function ArteMessagesModal({
 
       if (response.ok) {
         // Atualizar estado local
-        setMensagens(prev => 
+        setMensagens(prev =>
           prev.map(msg => ({ ...msg, lida: true }))
         );
-        
-        // Chamar callback para zerar notificaÃ§Ãµes no componente pai
+
+        // Chamar callback para zerar notificações no componente pai
         if (onNotificacoesZeradas && versaoId) {
           onNotificacoesZeradas(versaoId);
         }
@@ -247,11 +247,11 @@ export function ArteMessagesModal({
   const enviarMensagem = async () => {
     if (!novaMensagem.trim()) return;
 
-    // O Tiptap jÃ¡ envia HTML formatado, vamos usar direto
+    // O Tiptap já envia HTML formatado, vamos usar direto
     const mensagemHTML = novaMensagem;
-    
-    // Debug: Log do HTML que estÃ¡ sendo enviado
-    
+
+    // Debug: Log do HTML que está sendo enviado
+
     if (!mensagemHTML.trim()) return;
 
     // Limpar campo ANTES de enviar
@@ -259,10 +259,10 @@ export function ArteMessagesModal({
 
     try {
       setEnviando(true);
-      
+
       const token = localStorage.getItem('access_token');
       if (!token) {
-        throw new Error('Token de autenticaÃ§Ã£o nÃ£o encontrado');
+        throw new Error('Token de autenticação não encontrado');
       }
 
       const response = await apiRequest('/arte-aprovacao/mensagens', {
@@ -313,15 +313,15 @@ export function ArteMessagesModal({
   };
 
   // const mensagensNaoLidas = mensagens.filter(m => !m.lida).length;
-  
+
   // Usar mensagens diretamente (sem processamento adicional)
   const mensagensUnicas = mensagens;
 
   // Memoizar mentions para evitar re-renders desnecessÃ¡rios
-  const mentionsMemo = useMemo(() => 
+  const mentionsMemo = useMemo(() =>
     versoesDisponiveis.map(v => ({
       id: v.id,
-      label: `${v.versao} - ${v.produtoNome || produtoNome}` // Usar nome do produto especÃ­fico da versÃ£o
+      label: `${v.versao} - ${v.produtoNome || produtoNome}` // Usar nome do produto especÃ­fico da versão
     })), [versoesDisponiveis, produtoNome]
   );
 
@@ -361,25 +361,25 @@ export function ArteMessagesModal({
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center space-x-2">
               <MessageSquare className="h-5 w-5" />
-              <span>ComentÃ¡rios Recentes - {produtoNome}</span>
+              <span>Comentários Recentes - {produtoNome}</span>
             </DialogTitle>
           </DialogHeader>
 
-          {/* Status de conexÃ£o */}
+          {/* Status de conexão */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
               <div className={`w-2 h-2 rounded-full ${
-                connectionStatus === 'connected' ? 'bg-green-500' : 
+                connectionStatus === 'connected' ? 'bg-green-500' :
                 connectionStatus === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
               }`} />
               <span className="text-xs text-gray-500">
-                {connectionStatus === 'connected' ? 'Conectado' : 
+                {connectionStatus === 'connected' ? 'Conectado' :
                  connectionStatus === 'connecting' ? 'Conectando...' : 'Desconectado'}
               </span>
             </div>
             {usuariosTyping.length > 0 && (
               <div className="text-xs text-gray-500">
-                {usuariosTyping.map(u => u.tipo).join(', ')} estÃ¡ digitando...
+                {usuariosTyping.map(u => u.tipo).join(', ')} está digitando...
               </div>
             )}
           </div>
@@ -399,7 +399,7 @@ export function ArteMessagesModal({
           ) : (
             mensagensUnicas.map((mensagem) => {
               const isCliente = mensagem.autorTipo === 'cliente';
-              
+
               return (
                 <div
                   key={mensagem.id}
@@ -437,7 +437,7 @@ export function ArteMessagesModal({
                         } ${!mensagem.lida && isCliente ? 'ring-2 ring-green-400' : ''}`}
                       >
                         <div className="text-xs font-semibold mb-1 opacity-75">
-                          {isCliente 
+                          {isCliente
                             ? (clienteNome ? clienteNome.split(' ')[0] : 'Cliente')
                             : (empresaNome || 'Equipe')
                           }
@@ -450,7 +450,7 @@ export function ArteMessagesModal({
                       <div className="text-xs text-gray-500 mt-1 px-2">
                         {formatarData(mensagem.data)}
                         {!mensagem.lida && isCliente && (
-                          <span className="ml-2 text-green-600">â— NÃ£o lida</span>
+                          <span className="ml-2 text-green-600">• Não lida</span>
                         )}
                       </div>
                     </div>
@@ -469,7 +469,7 @@ export function ArteMessagesModal({
                 content={novaMensagem}
                 onUpdate={handleUpdate}
                 onSubmit={enviarMensagem}
-                placeholder="Digite @ para mencionar uma versÃ£o..."
+                placeholder="Digite @ para mencionar uma versão..."
                 mentions={mentionsMemo}
               />
             </div>
@@ -486,7 +486,7 @@ export function ArteMessagesModal({
               Pressione Enter para enviar, Shift+Enter para nova linha
             </p>
             <p className="text-xs text-gray-500">
-              Use @ para mencionar versÃµes
+              Use @ para mencionar versões
             </p>
           </div>
         </div>

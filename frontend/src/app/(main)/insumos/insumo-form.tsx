@@ -47,6 +47,8 @@ const formSchema = z.object({
   // Campos de dimensões (opcional)
   largura: z.any().optional(),
   altura: z.any().optional(),
+  profundidade: z.any().optional(),
+  tem_profundidade: z.boolean().optional(),
   unidade_dimensao: z.string().optional(), // Unidade das dimensões (M, CM, MM)
   tipo_calculo: z.string().optional(), // Tipo de cálculo (AREA, LINEAR, QUANTIDADE)
   quantidade_compra: z.any().refine(val => {
@@ -131,6 +133,8 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
       quantidade_compra: '',
       largura: '',
       altura: '',
+      profundidade: '',
+      tem_profundidade: false,
       unidade_dimensao: '',
       tipo_calculo: '',
       gramatura: '',
@@ -170,6 +174,30 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
           form.setValue(key as keyof InsumoFormValues, value);
         }
       });
+
+      const parametros = initialData.parametros_consumo;
+      let parametrosObj: any = null;
+      if (typeof parametros === 'string') {
+        try {
+          parametrosObj = JSON.parse(parametros);
+        } catch {
+          parametrosObj = null;
+        }
+      } else if (parametros && typeof parametros === 'object') {
+        parametrosObj = parametros;
+      }
+
+      const geometria3d = parametrosObj?.geometria_3d;
+      if (geometria3d && typeof geometria3d === 'object') {
+        const profundidadeInicial = Number(geometria3d.profundidade);
+        const temProfundidadeInicial =
+          Boolean(geometria3d.tem_profundidade) && profundidadeInicial > 0;
+        form.setValue('tem_profundidade', temProfundidadeInicial);
+        form.setValue(
+          'profundidade',
+          temProfundidadeInicial ? String(profundidadeInicial) : '',
+        );
+      }
     }
   }, [initialData, form]);
 
@@ -178,6 +206,8 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
   // Cálculo automático da quantidade total
   const largura = form.watch('largura');
   const altura = form.watch('altura');
+  const profundidade = form.watch('profundidade');
+  const temProfundidade = form.watch('tem_profundidade');
   const unidadeDimensao = form.watch('unidade_dimensao');
   const tipoCalculo = form.watch('tipo_calculo');
   const unidadeCompra = form.watch('unidade_compra');
@@ -188,6 +218,23 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
   const fatorConversao = form.watch('fator_conversao');
   const unidadeUso = form.watch('unidade_uso');
   const controlarEstoque = form.watch('controlar_estoque');
+  const usaGeometria3D =
+    tipoCalculo === 'VOLUME' || (unidadeUso || '').toUpperCase() === 'M3';
+
+  const converterParaMetros = (valor: number, unidade: string) => {
+    switch (unidade) {
+      case 'CENTÍMETROS':
+      case 'CM':
+        return valor / 100;
+      case 'MILÍMETROS':
+      case 'MM':
+        return valor / 1000;
+      case 'METROS':
+      case 'M':
+      default:
+        return valor;
+    }
+  };
   
   // Debug: monitorar mudanças no quantidadeCompra
   useEffect(() => {
@@ -390,28 +437,8 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
         let quantidadeTotal = 0;
         
         // Converter dimensões para metros se necessário
-        let larguraEmMetros = larguraNum;
-        let alturaEmMetros = alturaNum;
-        
-        switch (unidadeDimensao) {
-          case 'CENTÍMETROS':
-          case 'CM':
-            larguraEmMetros = larguraNum / 100;
-            alturaEmMetros = alturaNum / 100;
-            break;
-          case 'MILÍMETROS':
-          case 'MM':
-            larguraEmMetros = larguraNum / 1000;
-            alturaEmMetros = alturaNum / 1000;
-            break;
-          case 'METROS':
-          case 'M':
-            // Já está em metros
-            break;
-          default:
-            // Unidade não reconhecida, mantém valores originais
-            break;
-        }
+        const larguraEmMetros = converterParaMetros(larguraNum, unidadeDimensao);
+        const alturaEmMetros = converterParaMetros(alturaNum, unidadeDimensao);
         
         // Calcular quantidade com base no tipo de cálculo selecionado.
         // A unidade de compra influencia apenas casos específicos de quantidade.
@@ -422,6 +449,18 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
           case 'AREA':
             quantidadeTotal = larguraEmMetros * alturaEmMetros;
             break;
+          case 'VOLUME': {
+            const profundidadeNum = parseFloat(profundidade || '');
+            if (!temProfundidade || isNaN(profundidadeNum) || profundidadeNum <= 0) {
+              return;
+            }
+            const profundidadeEmMetros = converterParaMetros(
+              profundidadeNum,
+              unidadeDimensao,
+            );
+            quantidadeTotal = larguraEmMetros * alturaEmMetros * profundidadeEmMetros;
+            break;
+          }
           case 'QUANTIDADE':
             if (unidadeCompra === 'PACOTE' || unidadeCompra === 'UNID') {
               quantidadeTotal = 1;
@@ -450,7 +489,7 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
         }
       }
     }
-  }, [largura, altura, unidadeDimensao, tipoCalculo, unidadeCompra, form]);
+  }, [largura, altura, profundidade, temProfundidade, unidadeDimensao, tipoCalculo, unidadeCompra, form]);
   
   const [categorias, setCategorias] = useState<Option[]>([]);
   const [fornecedores, setFornecedores] = useState<Option[]>([]);
@@ -545,8 +584,30 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
 
   function onSubmit(data: InsumoFormValues) {
     console.log('🔍 Dados do formulário antes da limpeza:', data);
+    const profundidadeNumerica = Number(data.profundidade || 0);
+    let parametrosConsumo: any = data.parametros_consumo ?? null;
+
+    if (typeof parametrosConsumo === 'string') {
+      try {
+        parametrosConsumo = JSON.parse(parametrosConsumo);
+      } catch {
+        parametrosConsumo = null;
+      }
+    }
+    if (!parametrosConsumo || typeof parametrosConsumo !== 'object') {
+      parametrosConsumo = {};
+    }
+
+    if (data.tem_profundidade && profundidadeNumerica > 0) {
+      parametrosConsumo.geometria_3d = {
+        tem_profundidade: true,
+        profundidade: profundidadeNumerica,
+      };
+    } else if (parametrosConsumo.geometria_3d) {
+      delete parametrosConsumo.geometria_3d;
+    }
     
-    const cleanedData = {
+    const cleanedData: any = {
       ...data,
       custo_unitario: data.custo_unitario || 0,
       quantidade_compra: data.quantidade_compra || 1,
@@ -569,9 +630,11 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
       observacoes: data.observacoes || undefined,
       logica_consumo: data.logica_consumo || 'area', // Valor padrão se não selecionado
       tipo_material_id: data.tipo_material_id || '',
-      parametros_consumo: data.parametros_consumo || null,
+      parametros_consumo: Object.keys(parametrosConsumo).length > 0 ? parametrosConsumo : null,
       ativo: data.ativo ?? true,
     }
+    delete cleanedData.tem_profundidade;
+    delete cleanedData.profundidade;
     
     console.log('🔍 Dados limpos para envio:', cleanedData);
     onSave(cleanedData);
@@ -635,7 +698,31 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                 )} />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {usaGeometria3D && (
+              <div className="flex items-center gap-2 py-1">
+                <FormField control={form.control} name="tem_profundidade" render={({ field }) => (
+                  <FormItem className="flex flex-row items-center gap-2 space-y-0">
+                    <FormControl>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(field.value)}
+                        onChange={(event) => {
+                          const checked = event.target.checked;
+                          field.onChange(checked);
+                          if (!checked) form.setValue('profundidade', '');
+                        }}
+                        className="h-3.5 w-3.5 rounded border-gray-300"
+                      />
+                    </FormControl>
+                    <FormLabel className="text-xs font-normal text-muted-foreground">
+                      Usar profundidade (3D)
+                    </FormLabel>
+                  </FormItem>
+                )} />
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 <FormField control={form.control} name="largura" render={({ field }) => (
                     <FormItem>
                     <FormLabel>Largura (opcional)</FormLabel>
@@ -664,6 +751,17 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                     <FormMessage />
                     </FormItem>
                 )} />
+                {usaGeometria3D && temProfundidade && (
+                  <FormField control={form.control} name="profundidade" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Profundidade</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" placeholder="Ex: 0.05" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                )}
                 <FormField control={form.control} name="unidade_dimensao" render={({ field }) => (
                     <FormItem>
                     <FormLabel>
@@ -723,7 +821,15 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                                 step="0.001"
                                 placeholder="Ex: 13.2" 
                                 {...field} 
-                                className={largura && altura && unidadeDimensao && tipoCalculo ? "pr-10" : ""}
+                                className={
+                                  largura &&
+                                  altura &&
+                                  unidadeDimensao &&
+                                  tipoCalculo &&
+                                  (tipoCalculo !== 'VOLUME' || (temProfundidade && profundidade))
+                                    ? "pr-10"
+                                    : ""
+                                }
                                 onChange={(e) => {
                                     const value = parseFloat(e.target.value);
                                     // Validar se o valor não é absurdo (mais de 1 milhão)
@@ -735,19 +841,8 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                                     if (largura && altura && unidadeDimensao && tipoCalculo) {
                                         const larguraNum = parseFloat(largura);
                                         const alturaNum = parseFloat(altura);
-                                        let larguraEmMetros = larguraNum;
-                                        let alturaEmMetros = alturaNum;
-                                        
-                                        switch (unidadeDimensao) {
-                                            case 'CENTÍMETROS':
-                                                larguraEmMetros = larguraNum / 100;
-                                                alturaEmMetros = alturaNum / 100;
-                                                break;
-                                            case 'MILÍMETROS':
-                                                larguraEmMetros = larguraNum / 1000;
-                                                alturaEmMetros = alturaNum / 1000;
-                                                break;
-                                        }
+                                        const larguraEmMetros = converterParaMetros(larguraNum, unidadeDimensao);
+                                        const alturaEmMetros = converterParaMetros(alturaNum, unidadeDimensao);
                                         
                                         let areaEsperada = 0;
                                         switch (tipoCalculo) {
@@ -757,6 +852,15 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                                             case 'LINEAR':
                                                 areaEsperada = larguraEmMetros;
                                                 break;
+                                            case 'VOLUME': {
+                                                const profundidadeNum = parseFloat(profundidade || '');
+                                                const profundidadeEmMetros = converterParaMetros(
+                                                  isNaN(profundidadeNum) ? 0 : profundidadeNum,
+                                                  unidadeDimensao,
+                                                );
+                                                areaEsperada = larguraEmMetros * alturaEmMetros * profundidadeEmMetros;
+                                                break;
+                                            }
                                             default:
                                                 areaEsperada = larguraEmMetros * alturaEmMetros;
                                         }
@@ -779,19 +883,8 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                                     if (largura && altura && unidadeDimensao && tipoCalculo) {
                                         const larguraNum = parseFloat(largura);
                                         const alturaNum = parseFloat(altura);
-                                        let larguraEmMetros = larguraNum;
-                                        let alturaEmMetros = alturaNum;
-                                        
-                                        switch (unidadeDimensao) {
-                                            case 'CENTÍMETROS':
-                                                larguraEmMetros = larguraNum / 100;
-                                                alturaEmMetros = alturaNum / 100;
-                                                break;
-                                            case 'MILÍMETROS':
-                                                larguraEmMetros = larguraNum / 1000;
-                                                alturaEmMetros = alturaNum / 1000;
-                                                break;
-                                        }
+                                        const larguraEmMetros = converterParaMetros(larguraNum, unidadeDimensao);
+                                        const alturaEmMetros = converterParaMetros(alturaNum, unidadeDimensao);
                                         
                                         let areaEsperada = 0;
                                         switch (tipoCalculo) {
@@ -801,6 +894,15 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                                             case 'LINEAR':
                                                 areaEsperada = larguraEmMetros;
                                                 break;
+                                            case 'VOLUME': {
+                                                const profundidadeNum = parseFloat(profundidade || '');
+                                                const profundidadeEmMetros = converterParaMetros(
+                                                  isNaN(profundidadeNum) ? 0 : profundidadeNum,
+                                                  unidadeDimensao,
+                                                );
+                                                areaEsperada = larguraEmMetros * alturaEmMetros * profundidadeEmMetros;
+                                                break;
+                                            }
                                             default:
                                                 areaEsperada = larguraEmMetros * alturaEmMetros;
                                         }
@@ -813,16 +915,20 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                                     field.onChange(e);
                                 }}
                             />
-                            {largura && altura && unidadeDimensao && tipoCalculo && (
+                            {largura &&
+                              altura &&
+                              unidadeDimensao &&
+                              tipoCalculo &&
+                              (tipoCalculo !== 'VOLUME' || (temProfundidade && profundidade)) && (
                                 <div className="absolute inset-y-0 right-0 flex items-center pr-3">
                                     <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
                                         Auto
                                     </div>
                                 </div>
                             )}
-                            {!largura || !altura || !unidadeDimensao || !tipoCalculo ? (
+                            {!largura || !altura || !unidadeDimensao || !tipoCalculo || (tipoCalculo === 'VOLUME' && (!temProfundidade || !profundidade)) ? (
                                 <div className="text-xs text-gray-500 mt-1">
-                                    💡 Preencha largura, altura, unidade e tipo de cálculo para cálculo automático
+                                    💡 Preencha largura, altura, unidade e tipo de cálculo{tipoCalculo === 'VOLUME' ? ' + profundidade 3D' : ''} para cálculo automático
                                 </div>
                             ) : null}
                         </div>
@@ -881,12 +987,12 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                             <Input 
                                 type="number" 
                                 step="0.0001"
-                                placeholder="Ex: 1.0" 
+                                placeholder="Ex: 1" 
                                 {...field} 
                             />
                             <div className="absolute inset-y-0 right-0 flex items-center pr-3">
                                 <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded border">
-                                    Dica: Use 1.0
+                                    Dica: 1 ou 1,0
                                 </div>
                             </div>
                         </div>
@@ -911,8 +1017,8 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                                 {new Intl.NumberFormat('pt-BR', { 
                                   style: 'currency', 
                                   currency: 'BRL',
-                                  minimumFractionDigits: 4,
-                                  maximumFractionDigits: 4
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2
                                 }).format(custoPorUnidadeUso)}
                             </div>
                             <div className="text-xs text-green-600">
@@ -1003,7 +1109,7 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                     <FormItem><FormLabel>Código Interno</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="estoque_minimo" render={({ field }) => (
-                    <FormItem><FormLabel>Estoque Mínimo</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Estoque Mínimo</FormLabel><FormControl><Input type="number" min="0" step="1" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                 )} />
             </div>
             

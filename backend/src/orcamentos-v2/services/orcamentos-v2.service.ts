@@ -32,8 +32,8 @@ import { CobrancaVencimentoService } from '../../financeiro/services/cobranca-ve
 import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
 
 /**
- * ServiÃ§o Principal de OrÃ§amentos V2
- * Implementa todas as operaÃ§ÃƒÂµes CRUD usando motor de cÃ¡lculo V2
+ * ServiÃ§o Principal de Orçamentos V2
+ * Implementa todas as operaÃ§ÃƒÂµes CRUD usando motor de cálculo V2
  *
  * Ã¢Å“â€¦ ARQUIVO Ã¢â€°Â¤ 400 LINHAS (CONFORME PREMISSAS)
  * Ã¢Å“â€¦ INTEGRAÃƒâ€¡ÃƒÆ’O COMPLETA COM MOTOR FUNCIONANDO
@@ -62,7 +62,7 @@ export class OrcamentosV2Service {
   ) {}
 
   /**
-   * Cria novo orÃ§amento
+   * Cria novo orçamento
    */
   async criarOrcamento(
     dados: any,
@@ -87,7 +87,7 @@ export class OrcamentosV2Service {
       );
     }
 
-    this.logger.log(`Ã°Å¸â€œÂ Criando novo orÃ§amento para loja ${lojaId}`);
+    this.logger.log(`Ã°Å¸â€œÂ Criando novo orçamento para loja ${lojaId}`);
 
     try {
       // 1. Validar dados de entrada
@@ -103,7 +103,7 @@ export class OrcamentosV2Service {
       dadosPreparados.numero =
         await this.documentCodeService.gerarCodigoOrcamento(lojaId);
 
-      // 3. Criar orÃ§amento no banco
+      // 3. Criar orçamento no banco
       const orcamentoCriado = await this.prisma.orcamento.create({
         data: dadosPreparados,
         include: {
@@ -214,7 +214,7 @@ export class OrcamentosV2Service {
       }
 
       // Hotfix determinÃ­stico:
-      // Na criaÃ§Ã£o, quando o frontend jÃ¡ enviou custos do preview,
+      // Na criação, quando o frontend já enviou custos do preview,
       // persistimos esses valores como fonte da verdade para manter
       // a listagem em sincronia com o que foi visto no formulÃ¡rio.
       if (possuiCustosCalculadosNoPayload) {
@@ -239,7 +239,7 @@ export class OrcamentosV2Service {
       await this.criarHistorico(
         orcamentoCriado.id,
         'criacao',
-        'OrÃ§amento criado',
+        'Orçamento criado',
         usuarioId,
       );
 
@@ -247,23 +247,23 @@ export class OrcamentosV2Service {
       await this.notificacaoService.notificarCriacao(orcamentoCriado, lojaId);
 
       this.logger.log(
-        `Ã¢Å“â€¦ OrÃ§amento criado com sucesso: ${orcamentoCriado.id}`,
+        `Ã¢Å“â€¦ Orçamento criado com sucesso: ${orcamentoCriado.id}`,
       );
       return await this.buscarOrcamento(orcamentoCriado.id, lojaId);
     } catch (error) {
-      this.logger.error(`Ã¢ÂÅ’ Erro ao criar orÃ§amento: ${error.message}`);
+      this.logger.error(`Ã¢ÂÅ’ Erro ao criar orçamento: ${error.message}`);
       throw error;
     }
   }
 
   /**
-   * Busca orÃ§amento por ID
+   * Busca orçamento por ID
    */
   async buscarOrcamento(
     id: string,
     lojaId: string,
   ): Promise<OrcamentoCompleto> {
-    this.logger.log(`Ã°Å¸â€Â Buscando orÃ§amento ${id} na loja ${lojaId}`);
+    this.logger.log(`Ã°Å¸â€Â Buscando orçamento ${id} na loja ${lojaId}`);
 
     try {
       const orcamento = await this.prisma.orcamento.findFirst({
@@ -318,14 +318,14 @@ export class OrcamentosV2Service {
       });
 
       if (!orcamento) {
-        throw new NotFoundException('OrÃ§amento nÃ£o encontrado');
+        throw new NotFoundException('Orçamento não encontrado');
       }
 
       // Debug logs removidos para limpar terminal
-      // this.logger.log(`Ã°Å¸â€Â Debug - OrÃ§amento encontrado: ID=${orcamento.id}, cliente_id=${orcamento.cliente_id}, temCliente=${!!orcamento.cliente}, temProdutos=${!!orcamento.produtos}, qtdProdutos=${orcamento.produtos?.length || 0}`);
-      // this.logger.log(`Ã°Å¸â€Â Debug - Campos do orÃ§amento: titulo=${(orcamento as any).titulo}, nome_servico=${(orcamento as any).nome_servico}, descricao=${(orcamento as any).descricao}, quantidade_produto=${(orcamento as any).quantidade_produto}`);
+      // this.logger.log(`Ã°Å¸â€Â Debug - Orçamento encontrado: ID=${orcamento.id}, cliente_id=${orcamento.cliente_id}, temCliente=${!!orcamento.cliente}, temProdutos=${!!orcamento.produtos}, qtdProdutos=${orcamento.produtos?.length || 0}`);
+      // this.logger.log(`Ã°Å¸â€Â Debug - Campos do orçamento: titulo=${(orcamento as any).titulo}, nome_servico=${(orcamento as any).nome_servico}, descricao=${(orcamento as any).descricao}, quantidade_produto=${(orcamento as any).quantidade_produto}`);
       // this.logger.log(`Ã°Å¸â€Â Debug - Campos de medida: largura_produto=${(orcamento as any).largura_produto}, altura_produto=${(orcamento as any).altura_produto}, area_produto=${(orcamento as any).area_produto}`);
-      // this.logger.log(`Ã°Å¸â€Â Debug - Dados completos do orÃ§amento:`, JSON.stringify(orcamento, null, 2));
+      // this.logger.log(`Ã°Å¸â€Â Debug - Dados completos do orçamento:`, JSON.stringify(orcamento, null, 2));
 
       if (orcamento.cliente) {
         this.logger.log(`Ã¢Å“â€¦ Cliente carregado: ${orcamento.cliente.nome}`);
@@ -345,7 +345,7 @@ export class OrcamentosV2Service {
             orcamento.cliente = clienteManual;
           } else {
             this.logger.log(
-              `Ã¢ÂÅ’ Cliente nÃ£o encontrado no banco: ${orcamento.cliente_id}`,
+              `Ã¢ÂÅ’ Cliente não encontrado no banco: ${orcamento.cliente_id}`,
             );
           }
         }
@@ -375,20 +375,20 @@ export class OrcamentosV2Service {
           orcamento.produtos = produtosManual;
         } else {
           this.logger.log(
-            `Ã¢ÂÅ’ Produtos nÃ£o encontrados no banco para orcamento_id: ${orcamento.id}`,
+            `Ã¢ÂÅ’ Produtos não encontrados no banco para orcamento_id: ${orcamento.id}`,
           );
         }
       }
 
       return this.transformacaoService.transformarParaInterface(orcamento);
     } catch (error) {
-      this.logger.error(`Ã¢ÂÅ’ Erro ao buscar orÃ§amento: ${error.message}`);
+      this.logger.error(`Ã¢ÂÅ’ Erro ao buscar orçamento: ${error.message}`);
       throw error;
     }
   }
 
   /**
-   * Lista orÃ§amentos com filtros
+   * Lista orçamentos com filtros
    */
   async listarOrcamentos(
     lojaId: string,
@@ -400,14 +400,14 @@ export class OrcamentosV2Service {
     pagina: number;
     porPagina: number;
   }> {
-    this.logger.log(`Ã°Å¸â€œâ€¹ Listando orÃ§amentos da loja ${lojaId}`);
+    this.logger.log(`Ã°Å¸â€œâ€¹ Listando orçamentos da loja ${lojaId}`);
 
     try {
       // Construir filtros
       const where = this.construirFiltros(filtros, lojaId);
       const { skip, take } = this.prepararPaginacao(paginacao);
 
-      // Buscar orÃ§amentos
+      // Buscar orçamentos
       const [orcamentos, total] = await Promise.all([
         this.prisma.orcamento.findMany({
           where,
@@ -455,13 +455,13 @@ export class OrcamentosV2Service {
         this.prisma.orcamento.count({ where }),
       ]);
 
-      // Debug: verificar se status_aprovacao estÃ¡ sendo retornado
+      // Debug: verificar se status_aprovacao está sendo retornado
       this.logger.log(
-        `Ã°Å¸â€Â Debug - Total de orÃ§amentos encontrados: ${orcamentos.length}`,
+        `Ã°Å¸â€Â Debug - Total de orçamentos encontrados: ${orcamentos.length}`,
       );
 
       if (orcamentos.length > 0) {
-        this.logger.log(`Ã°Å¸â€Â Debug - Primeiro orÃ§amento - Dados brutos:`, {
+        this.logger.log(`Ã°Å¸â€Â Debug - Primeiro orçamento - Dados brutos:`, {
           id: orcamentos[0].id,
           status: orcamentos[0].status,
           status_aprovacao: orcamentos[0].status_aprovacao,
@@ -474,7 +474,7 @@ export class OrcamentosV2Service {
         const transformado =
           this.transformacaoService.transformarParaInterface(o);
         if (index === 0) {
-          this.logger.log(`Ã°Å¸â€Â Debug - Primeiro orÃ§amento - Transformado:`, {
+          this.logger.log(`Ã°Å¸â€Â Debug - Primeiro orçamento - Transformado:`, {
             id: transformado.id,
             status: transformado.status,
             status_aprovacao: transformado.status_aprovacao,
@@ -484,8 +484,8 @@ export class OrcamentosV2Service {
         return transformado;
       });
 
-      // Debug: verificar se status_aprovacao estÃ¡ sendo retornado na resposta final
-      this.logger.log(`Ã°Å¸â€Â Debug - Resposta final - Primeiro orÃ§amento:`, {
+      // Debug: verificar se status_aprovacao está sendo retornado na resposta final
+      this.logger.log(`Ã°Å¸â€Â Debug - Resposta final - Primeiro orçamento:`, {
         id: orcamentosTransformados[0]?.id,
         status: orcamentosTransformados[0]?.status,
         status_aprovacao: orcamentosTransformados[0]?.status_aprovacao,
@@ -501,13 +501,13 @@ export class OrcamentosV2Service {
         porPagina: paginacao.porPagina || 20,
       };
     } catch (error) {
-      this.logger.error(`Ã¢ÂÅ’ Erro ao listar orÃ§amentos: ${error.message}`);
+      this.logger.error(`Ã¢ÂÅ’ Erro ao listar orçamentos: ${error.message}`);
       throw error;
     }
   }
 
   /**
-   * Atualiza orÃ§amento existente
+   * Atualiza orçamento existente
    */
   async atualizarOrcamento(
     id: string,
@@ -515,17 +515,17 @@ export class OrcamentosV2Service {
     lojaId: string,
     usuarioId: string,
   ): Promise<OrcamentoCompleto> {
-    this.logger.log(`Ã¢Å“ÂÃ¯Â¸Â Atualizando orÃ§amento ${id} na loja ${lojaId}`);
+    this.logger.log(`Ã¢Å“ÂÃ¯Â¸Â Atualizando orçamento ${id} na loja ${lojaId}`);
 
     try {
       // 1. Verificar se existe
       const orcamentoExistente = await this.buscarOrcamento(id, lojaId);
 
-      // 1.1. Bloquear alteraÃ§Ãµes em orÃ§amento aprovado
+      // 1.1. Bloquear alteraÃ§Ãµes em orçamento aprovado
       const orcExistente = orcamentoExistente as unknown as { status?: string; status_aprovacao?: string };
       if (orcExistente.status === 'aprovado' || orcExistente.status_aprovacao === 'APROVADO') {
         throw new BadRequestException(
-          'OrÃ§amento aprovado nÃ£o pode ser alterado. Somente visualizaÃ§Ã£o permitida.',
+          'Orçamento aprovado não pode ser alterado. Somente visualização permitida.',
         );
       }
 
@@ -587,7 +587,7 @@ export class OrcamentosV2Service {
       // 5. Recalcular custos se necessÃ¡rio
       const precisaRecalcular = this.necessitaRecalculo(dados);
 
-      // Verificar se os dados jÃ¡ tÃƒÂªm custos calculados corretamente
+      // Verificar se os dados já tÃƒÂªm custos calculados corretamente
       const temCustosValidos =
         (dados.preco_final > 0) ||
         (dados.custo_material > 0) ||
@@ -602,7 +602,7 @@ export class OrcamentosV2Service {
       };
 
       // Hotfix determinÃ­stico:
-      // Se o frontend enviar custos jÃ¡ calculados no preview, persistir esses valores
+      // Se o frontend enviar custos já calculados no preview, persistir esses valores
       // como fonte da verdade para manter listagem e preview em sincronia.
       const possuiCustosCalculadosNoPayload =
         dados.preco_final != null &&
@@ -686,7 +686,7 @@ export class OrcamentosV2Service {
         }
       } else if (false && temCustosValidos) {
         this.logger.log(
-          `Ã°Å¸â€™Â° Usando custos calculados do frontend para orÃ§amento ${id}: custo_total=${dados.custo_total}, preco_final=${dados.preco_final}`,
+          `Ã°Å¸â€™Â° Usando custos calculados do frontend para orçamento ${id}: custo_total=${dados.custo_total}, preco_final=${dados.preco_final}`,
         );
 
         // Debug: verificar dados recebidos
@@ -731,7 +731,7 @@ export class OrcamentosV2Service {
         });
 
         this.logger.log(
-          `Ã¢Å“â€¦ Custos do frontend salvos no banco para orÃ§amento ${id}`,
+          `Ã¢Å“â€¦ Custos do frontend salvos no banco para orçamento ${id}`,
         );
       }
 
@@ -743,7 +743,7 @@ export class OrcamentosV2Service {
         dados.produtos.length > 0
       ) {
         this.logger.log(
-          `Ã°Å¸â€â€ž Atualizando ${dados.produtos.length} produtos para orÃ§amento ${id}`,
+          `Ã°Å¸â€â€ž Atualizando ${dados.produtos.length} produtos para orçamento ${id}`,
         );
 
         for (const produtoData of dados.produtos) {
@@ -775,7 +775,7 @@ export class OrcamentosV2Service {
         }
 
         this.logger.log(
-          `Ã¢Å“â€¦ Todos os produtos atualizados para orÃ§amento ${id}`,
+          `Ã¢Å“â€¦ Todos os produtos atualizados para orçamento ${id}`,
         );
       }
 
@@ -832,18 +832,18 @@ export class OrcamentosV2Service {
         }
       }
 
-      // 6. Criar versÃ£o se mudanÃ§as significativas
-      // TEMPORARIAMENTE DESABILITADO - Tabela VersaoOrcamento nÃ£o migrada
+      // 6. Criar versão se mudanças significativas
+      // TEMPORARIAMENTE DESABILITADO - Tabela VersaoOrcamento não migrada
       // if (this.mudancasSignificativas(orcamentoExistente, dados)) {
       //   await this.criarNovaVersao(id, orcamentoExistente, dados, usuarioId);
       // }
 
       // 7. Criar histÃ³rico
-      // TEMPORARIAMENTE DESABILITADO - Tabela HistoricoOrcamento nÃ£o migrada
+      // TEMPORARIAMENTE DESABILITADO - Tabela HistoricoOrcamento não migrada
       // await this.criarHistorico(
       //   id,
       //   'edicao',
-      //   'OrÃ§amento atualizado',
+      //   'Orçamento atualizado',
       //   usuarioId,
       //   { dados_anteriores: orcamentoExistente, dados_novos: dados },
       // );
@@ -857,7 +857,7 @@ export class OrcamentosV2Service {
       const orcamentoFinal = await this.buscarOrcamento(id, lojaId);
       const orc = orcamentoFinal as unknown as Record<string, unknown>;
 
-      // 9. Enviar e-mail ao cliente se orÃ§amento jÃ¡ foi enviado (status enviado)
+      // 9. Enviar e-mail ao cliente se orçamento já foi enviado (status enviado)
       if (orc.status === 'enviado' && orcamentoFinal.cliente?.email) {
         try {
           const frontendUrl =
@@ -882,7 +882,7 @@ export class OrcamentosV2Service {
               : 0);
           const codigoAprovacao = String(orc.codigo_aprovacao ?? '');
           const nomeServico = String(
-            orc.nome_servico ?? orc.titulo ?? 'OrÃ§amento',
+            orc.nome_servico ?? orc.titulo ?? 'Orçamento',
           );
 
           await this.mailService.enviarNotificacaoOrcamentoAtualizado(
@@ -895,27 +895,27 @@ export class OrcamentosV2Service {
             linkPublico,
           );
           this.logger.log(
-            `ðŸ“§ E-mail de orÃ§amento atualizado enviado para ${orcamentoFinal.cliente.email}`,
+            `ðŸ“§ E-mail de orçamento atualizado enviado para ${orcamentoFinal.cliente.email}`,
           );
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           this.logger.error(
-            `Erro ao enviar e-mail de atualizaÃ§Ã£o para cliente: ${msg}`,
+            `Erro ao enviar e-mail de atualização para cliente: ${msg}`,
           );
-          // NÃ£o falha a atualizaÃ§Ã£o - apenas loga o erro
+          // Não falha a atualização - apenas loga o erro
         }
       }
 
-      this.logger.log(`Ã¢Å“â€¦ OrÃ§amento atualizado com sucesso: ${id}`);
+      this.logger.log(`Ã¢Å“â€¦ Orçamento atualizado com sucesso: ${id}`);
       return orcamentoFinal;
     } catch (error) {
-      this.logger.error(`Ã¢ÂÅ’ Erro ao atualizar orÃ§amento: ${error.message}`);
+      this.logger.error(`Ã¢ÂÅ’ Erro ao atualizar orçamento: ${error.message}`);
       throw error;
     }
   }
 
   /**
-   * Remove orÃ§amento
+   * Remove orçamento
    */
   async removerOrcamento(
     id: string,
@@ -923,7 +923,7 @@ export class OrcamentosV2Service {
     usuarioId: string,
     motivo?: string,
   ): Promise<void> {
-    this.logger.log(`Ã°Å¸â€”â€˜Ã¯Â¸Â Removendo orÃ§amento ${id} da loja ${lojaId}`);
+    this.logger.log(`Ã°Å¸â€”â€˜Ã¯Â¸Â Removendo orçamento ${id} da loja ${lojaId}`);
 
     try {
       // 1. Verificar se existe
@@ -936,7 +936,7 @@ export class OrcamentosV2Service {
       await this.criarHistorico(
         id,
         'remocao',
-        `OrÃ§amento removido${motivo ? `: ${motivo}` : ''}`,
+        `Orçamento removido${motivo ? `: ${motivo}` : ''}`,
         usuarioId,
         { motivo_exclusao: motivo },
       );
@@ -955,9 +955,9 @@ export class OrcamentosV2Service {
       // 5. Notificar remoÃ§ÃƒÂ£o
       await this.notificacaoService.notificarRemocao(id, lojaId);
 
-      this.logger.log(`Ã¢Å“â€¦ OrÃ§amento removido com sucesso: ${id}`);
+      this.logger.log(`Ã¢Å“â€¦ Orçamento removido com sucesso: ${id}`);
     } catch (error) {
-      this.logger.error(`Ã¢ÂÅ’ Erro ao remover orÃ§amento: ${error.message}`);
+      this.logger.error(`Ã¢ÂÅ’ Erro ao remover orçamento: ${error.message}`);
       throw error;
     }
   }
@@ -977,13 +977,13 @@ export class OrcamentosV2Service {
     const impostos = custos.impostos || 0;
 
     this.logger.log(
-      `Ã°Å¸â€™Â° Atualizando custos calculados para orÃ§amento ${orcamentoId}: preÃ§o_final=${preco_final}`,
+      `Ã°Å¸â€™Â° Atualizando custos calculados para orçamento ${orcamentoId}: preÃ§o_final=${preco_final}`,
     );
 
     await this.prisma.orcamento.update({
       where: { id: orcamentoId },
       data: {
-        // Campos principais do orÃ§amento (valor_total = preco_final para listagem/relatÃ³rios)
+        // Campos principais do orçamento (valor_total = preco_final para listagem/relatÃ³rios)
         preco_final: preco_final,
         valor_total: preco_final,
         custo_total: custo_total,
@@ -1058,7 +1058,7 @@ export class OrcamentosV2Service {
           anterior: versaoAnterior,
           mudancas,
         }),
-        motivo_alteracao: 'AtualizaÃ§ÃƒÂ£o de orÃ§amento',
+        motivo_alteracao: 'AtualizaÃ§ÃƒÂ£o de orçamento',
       },
     });
   }
@@ -1066,7 +1066,7 @@ export class OrcamentosV2Service {
   private construirFiltros(filtros: any, lojaId: string): any {
     const where: any = {
       loja_id: lojaId,
-      status: { not: 'EXCLUIDO' }, // Excluir orÃ§amentos deletados
+      status: { not: 'EXCLUIDO' }, // Excluir orçamentos deletados
     };
 
     if (filtros.status) where.status = filtros.status;
@@ -1097,7 +1097,7 @@ export class OrcamentosV2Service {
   }
 
   private necessitaRecalculo(dados: any): boolean {
-    // Sempre recalcular quando hÃ¡ mudanÃ§as que afetam o cÃ¡lculo
+    // Sempre recalcular quando há mudanças que afetam o cálculo
     const camposQueAfetamCalculo = [
       'produtos',
       'configuracoes',
@@ -1118,7 +1118,7 @@ export class OrcamentosV2Service {
     const necessita = camposEncontrados.length > 0;
 
     this.logger.log(
-      `Ã°Å¸â€Â Debug necessitaRecalculo - Campos que afetam cÃ¡lculo encontrados: [${camposEncontrados.join(', ')}] | Resultado: ${necessita}`,
+      `Ã°Å¸â€Â Debug necessitaRecalculo - Campos que afetam cálculo encontrados: [${camposEncontrados.join(', ')}] | Resultado: ${necessita}`,
     );
 
     return necessita;
@@ -1133,11 +1133,11 @@ export class OrcamentosV2Service {
   }
 
   /**
-   * Buscar orÃ§amento para visualizaÃ§Ã£o pÃºblica (versÃ£o simplificada)
+   * Buscar orçamento para visualização pública (versão simplificada)
    */
   async buscarOrcamentoPublico(id: string) {
-    this.logger.log(`ðŸ” Buscando orÃ§amento pÃºblico: ${id}`);
-    console.log(`ðŸ” [PUBLICO] Buscando orÃ§amento com ID: ${id}`);
+    this.logger.log(`ðŸ” Buscando orçamento público: ${id}`);
+    console.log(`ðŸ” [PUBLICO] Buscando orçamento com ID: ${id}`);
 
     const orcamento = await this.prisma.orcamento.findUnique({
       where: { id },
@@ -1195,16 +1195,16 @@ export class OrcamentosV2Service {
     });
 
     if (!orcamento) {
-      console.log(`âŒ [PUBLICO] OrÃ§amento nÃ£o encontrado com ID: ${id}`);
-      this.logger.error(`OrÃ§amento nÃ£o encontrado: ${id}`);
-      throw new NotFoundException('OrÃ§amento nÃ£o encontrado');
+      console.log(`âŒ [PUBLICO] Orçamento não encontrado com ID: ${id}`);
+      this.logger.error(`Orçamento não encontrado: ${id}`);
+      throw new NotFoundException('Orçamento não encontrado');
     }
 
     console.log(
-      `âœ… [PUBLICO] OrÃ§amento encontrado: ${orcamento.numero} - ${orcamento.titulo}`,
+      `âœ… [PUBLICO] Orçamento encontrado: ${orcamento.numero} - ${orcamento.titulo}`,
     );
 
-    // Retornar apenas os dados necessÃ¡rios para visualizaÃ§ÃƒÂ£o pÃºblica do cliente
+    // Retornar apenas os dados necessÃ¡rios para visualizaÃ§ÃƒÂ£o pública do cliente
     return {
       id: orcamento.id,
       numero: orcamento.numero,
@@ -1218,10 +1218,10 @@ export class OrcamentosV2Service {
       observacoes_cliente: orcamento.observacoes_cliente,
       criado_em: orcamento.data_criacao,
 
-      // Produtos do orÃ§amento
+      // Produtos do orçamento
       produtos:
         orcamento.produtos?.map((produto) => {
-          console.log(`Ã°Å¸â€Â Debug - Produto pÃºblico: ${produto.nome_servico}`, {
+          console.log(`Ã°Å¸â€Â Debug - Produto público: ${produto.nome_servico}`, {
             preco_unitario: produto.preco_unitario,
             preco_total: produto.preco_total,
             quantidade: produto.quantidade,
@@ -1308,7 +1308,7 @@ export class OrcamentosV2Service {
       }
       tentativas++;
 
-      // Verificar se o cÃ³digo jÃ¡ existe
+      // Verificar se o cÃ³digo já existe
       const existe = await this.prisma.orcamento.findUnique({
         where: { codigo_aprovacao: codigo },
       });
@@ -1319,7 +1319,7 @@ export class OrcamentosV2Service {
     } while (tentativas < maxTentativas);
 
     throw new Error(
-      'NÃƒÂ£o foi possÃ­vel gerar um cÃ³digo Ãºnico apÃ³s vÃ¡rias tentativas',
+      'Não foi possível gerar um código único após várias tentativas',
     );
   }
 
@@ -1343,7 +1343,7 @@ export class OrcamentosV2Service {
   }
 
   /**
-   * Processar aÃ§ÃƒÂ£o do cliente pÃºblico (aprovar/rejeitar/negociar)
+   * Processar aÃ§ÃƒÂ£o do cliente público (aprovar/rejeitar/negociar)
    */
   async processarAcaoClientePublico(
     id: string,
@@ -1556,18 +1556,18 @@ export class OrcamentosV2Service {
   }
 
   /**
-   * Busca mensagens do chat (pÃºblico)
+   * Busca mensagens do chat (público)
    */
   async buscarMensagensPublicas(orcamentoId: string) {
     this.logger.log(
-      `Ã°Å¸â€Â Buscando mensagens pÃºblicas do orÃ§amento: ${orcamentoId}`,
+      `Ã°Å¸â€Â Buscando mensagens públicas do orçamento: ${orcamentoId}`,
     );
 
     try {
-      // Verificar se orÃ§amento existe
+      // Verificar se orçamento existe
       const orcamento = await this.buscarOrcamentoPublico(orcamentoId);
       if (!orcamento) {
-        throw new Error('OrÃ§amento nÃ£o encontrado');
+        throw new Error('Orçamento não encontrado');
       }
 
       // Buscar mensagens do chat
@@ -1585,7 +1585,7 @@ export class OrcamentosV2Service {
         },
       });
 
-      // Transformar mensagens para formato pÃºblico
+      // Transformar mensagens para formato público
       return mensagens.map((mensagem) => ({
         id: mensagem.id,
         mensagem: mensagem.conteudo,
@@ -1603,28 +1603,28 @@ export class OrcamentosV2Service {
       }));
     } catch (error) {
       this.logger.error(
-        `Ã¢ÂÅ’ Erro ao buscar mensagens pÃºblicas: ${error.message}`,
+        `Ã¢ÂÅ’ Erro ao buscar mensagens públicas: ${error.message}`,
       );
       throw error;
     }
   }
 
   /**
-   * Buscar mensagens do chat pÃºblico - NATIVO V2
+   * Buscar mensagens do chat público - NATIVO V2
    */
   async buscarMensagensPublicasLegado(orcamentoId: string) {
     this.logger.log(
-      `Ã°Å¸â€Â Buscando mensagens pÃºblicas do orÃ§amento legado: ${orcamentoId}`,
+      `Ã°Å¸â€Â Buscando mensagens públicas do orçamento legado: ${orcamentoId}`,
     );
 
     try {
-      // Verificar se o orÃ§amento existe
+      // Verificar se o orçamento existe
       const orcamento = await this.prisma.orcamento.findUnique({
         where: { id: orcamentoId },
       });
 
       if (!orcamento) {
-        throw new Error('OrÃ§amento nÃ£o encontrado');
+        throw new Error('Orçamento não encontrado');
       }
 
       // Buscar mensagens ordenadas por data de criaÃ§ÃƒÂ£o
@@ -1650,12 +1650,12 @@ export class OrcamentosV2Service {
       }));
 
       this.logger.log(
-        `Ã°Å¸â€œÅ  Retornando ${mensagensFormatadas.length} mensagens pÃºblicas do legado`,
+        `Ã°Å¸â€œÅ  Retornando ${mensagensFormatadas.length} mensagens públicas do legado`,
       );
       return mensagensFormatadas;
     } catch (error) {
       this.logger.error(
-        `Ã¢ÂÅ’ Erro ao buscar mensagens pÃºblicas do legado: ${error.message}`,
+        `Ã¢ÂÅ’ Erro ao buscar mensagens públicas do legado: ${error.message}`,
       );
       throw error;
     }
@@ -1671,14 +1671,14 @@ export class OrcamentosV2Service {
     file?: Express.Multer.File,
   ) {
     this.logger.log(
-      `Ã°Å¸â€™Â¬ Enviando mensagem no chat V2 para orÃ§amento: ${orcamentoId}`,
+      `Ã°Å¸â€™Â¬ Enviando mensagem no chat V2 para orçamento: ${orcamentoId}`,
     );
     this.logger.log(`Ã°Å¸â€™Â¬ Dados recebidos:`, JSON.stringify(dados, null, 2));
 
     try {
-      // Validar se dados nÃ£o Ã© undefined
+      // Validar se dados não Ã© undefined
       if (!dados) {
-        throw new Error('Dados da mensagem nÃ£o fornecidos');
+        throw new Error('Dados da mensagem não fornecidos');
       }
 
       // Validar tipo de mensagem
@@ -1686,17 +1686,17 @@ export class OrcamentosV2Service {
       const tipo = dados.tipo || 'VENDEDOR';
       if (!tiposValidos.includes(tipo)) {
         throw new Error(
-          `Tipo de mensagem invÃ¡lido. Tipos permitidos: ${tiposValidos.join(', ')}`,
+          `Tipo de mensagem inválido. Tipos permitidos: ${tiposValidos.join(', ')}`,
         );
       }
 
-      // Verificar se o orÃ§amento existe e pertence ÃƒÂ  loja
+      // Verificar se o orçamento existe e pertence ÃƒÂ  loja
       const orcamento = await this.prisma.orcamento.findFirst({
         where: { id: orcamentoId, loja_id: lojaId },
       });
 
       if (!orcamento) {
-        throw new Error('OrÃ§amento nÃ£o encontrado');
+        throw new Error('Orçamento não encontrado');
       }
 
       let anexoInfo: any = null;
@@ -1714,14 +1714,14 @@ export class OrcamentosV2Service {
         ];
         if (!tiposPermitidos.includes(file.mimetype)) {
           throw new Error(
-            'Tipo de arquivo nÃ£o permitido. Use apenas JPG, PNG, PDF ou ZIP.',
+            'Tipo de arquivo não permitido. Use apenas JPG, PNG, PDF ou ZIP.',
           );
         }
 
         // Validar tamanho (5MB)
         const maxSize = 5 * 1024 * 1024; // 5MB
         if (file.size > maxSize) {
-          throw new Error('Arquivo muito grande. Tamanho mÃ¡ximo: 5MB.');
+          throw new Error('Arquivo muito grande. Tamanho máximo: 5MB.');
         }
 
         // Salvar arquivo (em produÃ§ÃƒÂ£o seria para um serviÃ§o de storage)
@@ -1770,7 +1770,7 @@ export class OrcamentosV2Service {
 
       this.logger.log(`Ã¢Å“â€¦ Mensagem enviada no chat V2: ${mensagem.id}`);
 
-      // Criar notificaÃ§ÃƒÂ£o para outros usuÃ¡rios da loja
+      // Criar notificaÃ§ÃƒÂ£o para outros usuários da loja
       await this.notificarNovaMensagemLegado(orcamentoId, lojaId, 'Vendedor');
 
       return mensagem;
@@ -1783,7 +1783,7 @@ export class OrcamentosV2Service {
   }
 
   /**
-   * Enviar mensagem no chat pÃºblico - NATIVO V2
+   * Enviar mensagem no chat público - NATIVO V2
    */
   async enviarMensagemPublicaLegado(
     orcamentoId: string,
@@ -1802,7 +1802,7 @@ export class OrcamentosV2Service {
   }
 
   /**
-   * Enviar mensagem no chat pÃºblico com anexo - NATIVO V2
+   * Enviar mensagem no chat público com anexo - NATIVO V2
    */
   async enviarMensagemPublicaLegadoComAnexo(
     orcamentoId: string,
@@ -1815,7 +1815,7 @@ export class OrcamentosV2Service {
     file?: Express.Multer.File,
   ) {
     this.logger.log(
-      `Ã°Å¸â€™Â¬ Enviando mensagem pÃºblica no chat V2 para orÃ§amento: ${orcamentoId}`,
+      `Ã°Å¸â€™Â¬ Enviando mensagem pública no chat V2 para orçamento: ${orcamentoId}`,
     );
 
     try {
@@ -1824,18 +1824,18 @@ export class OrcamentosV2Service {
       const tipo = dados.tipo || 'CLIENTE';
       if (!tiposValidos.includes(tipo)) {
         throw new Error(
-          `Tipo de mensagem invÃ¡lido. Tipos permitidos: ${tiposValidos.join(', ')}`,
+          `Tipo de mensagem inválido. Tipos permitidos: ${tiposValidos.join(', ')}`,
         );
       }
 
-      // Verificar se o orÃ§amento existe
+      // Verificar se o orçamento existe
       const orcamento = await this.prisma.orcamento.findUnique({
         where: { id: orcamentoId },
         include: { cliente: true },
       });
 
       if (!orcamento) {
-        throw new Error('OrÃ§amento nÃ£o encontrado');
+        throw new Error('Orçamento não encontrado');
       }
 
       let anexoInfo: any = null;
@@ -1853,14 +1853,14 @@ export class OrcamentosV2Service {
         ];
         if (!tiposPermitidos.includes(file.mimetype)) {
           throw new Error(
-            'Tipo de arquivo nÃ£o permitido. Use apenas JPG, PNG, PDF ou ZIP.',
+            'Tipo de arquivo não permitido. Use apenas JPG, PNG, PDF ou ZIP.',
           );
         }
 
         // Validar tamanho (5MB)
         const maxSize = 5 * 1024 * 1024; // 5MB
         if (file.size > maxSize) {
-          throw new Error('Arquivo muito grande. Tamanho mÃ¡ximo: 5MB.');
+          throw new Error('Arquivo muito grande. Tamanho máximo: 5MB.');
         }
 
         // Salvar arquivo (em produÃ§ÃƒÂ£o seria para um serviÃ§o de storage)
@@ -1908,7 +1908,7 @@ export class OrcamentosV2Service {
       });
 
       this.logger.log(
-        `Ã¢Å“â€¦ Mensagem pÃºblica enviada no chat V2: ${mensagem.id}`,
+        `Ã¢Å“â€¦ Mensagem pública enviada no chat V2: ${mensagem.id}`,
       );
 
       // Criar notificaÃ§ÃƒÂ£o para vendedores da loja
@@ -1921,14 +1921,14 @@ export class OrcamentosV2Service {
       return mensagem;
     } catch (error) {
       this.logger.error(
-        `Ã¢ÂÅ’ Erro ao enviar mensagem pÃºblica no chat V2: ${error.message}`,
+        `Ã¢ÂÅ’ Erro ao enviar mensagem pública no chat V2: ${error.message}`,
       );
       throw error;
     }
   }
 
   /**
-   * Alterar status do orÃ§amento - BASEADO NO LEGADO
+   * Alterar status do orçamento - BASEADO NO LEGADO
    */
   async alterarStatus(
     id: string,
@@ -2042,10 +2042,10 @@ export class OrcamentosV2Service {
   }
 
   /**
-   * Enviar orÃ§amento para o cliente
+   * Enviar orçamento para o cliente
    */
   async enviarOrcamento(id: string, lojaId: string, userId: string) {
-    this.logger.log(`Enviando orÃ§amento ${id} para o cliente`);
+    this.logger.log(`Enviando orçamento ${id} para o cliente`);
 
     const orcamento = await this.prisma.orcamento.findFirst({
       where: { id, loja_id: lojaId },
@@ -2056,10 +2056,10 @@ export class OrcamentosV2Service {
     });
 
     if (!orcamento) {
-      throw new NotFoundException('OrÃ§amento nÃ£o encontrado');
+      throw new NotFoundException('Orçamento não encontrado');
     }
 
-    // Alterar status para 'enviado' (gera codigo_aprovacao se nÃ£o existir)
+    // Alterar status para 'enviado' (gera codigo_aprovacao se não existir)
     const orcamentoAtualizado = await this.alterarStatus(
       id,
       'enviado',
@@ -2086,7 +2086,7 @@ export class OrcamentosV2Service {
           orcamentoAtualizado.numero,
           orcamentoAtualizado.nome_servico ||
             orcamentoAtualizado.titulo ||
-            'OrÃ§amento',
+            'Orçamento',
           precoFinal,
           codigoAprovacao,
           linkPublico,
@@ -2094,25 +2094,25 @@ export class OrcamentosV2Service {
         emailEnviado = true;
         emailDestinatario = orcamentoAtualizado.cliente.email;
         this.logger.log(
-          `ðŸ“§ E-mail de orÃ§amento enviado para ${orcamentoAtualizado.cliente.email}`,
+          `ðŸ“§ E-mail de orçamento enviado para ${orcamentoAtualizado.cliente.email}`,
         );
       } catch (error) {
         this.logger.error(
           `Erro ao enviar e-mail para cliente: ${error.message}`,
         );
         emailMotivo = `Erro ao enviar: ${error.message}`;
-        // NÃ£o falha o envio do orÃ§amento - apenas loga o erro
+        // Não falha o envio do orçamento - apenas loga o erro
       }
     } else {
       this.logger.warn(
-        `OrÃ§amento ${id} sem e-mail do cliente - e-mail nÃ£o enviado`,
+        `Orçamento ${id} sem e-mail do cliente - e-mail não enviado`,
       );
       emailMotivo = 'Cliente sem e-mail cadastrado';
     }
 
     return {
       success: true,
-      message: 'OrÃ§amento enviado com sucesso',
+      message: 'Orçamento enviado com sucesso',
       orcamento_id: id,
       email_enviado: emailEnviado,
       email_destinatario: emailDestinatario,
@@ -2155,13 +2155,13 @@ export class OrcamentosV2Service {
     });
 
     if (!orcamento) {
-      throw new NotFoundException('OrÃ§amento nÃ£o encontrado');
+      throw new NotFoundException('Orçamento não encontrado');
     }
 
     const statusBloqueados = ['cancelado', 'rejeitado'];
     if (statusBloqueados.includes(String(orcamento.status).toLowerCase())) {
       throw new BadRequestException(
-        'Este orÃ§amento nÃ£o pode ser aprovado no status atual: ' +
+        'Este orçamento não pode ser aprovado no status atual: ' +
           orcamento.status,
       );
     }
@@ -2180,7 +2180,7 @@ export class OrcamentosV2Service {
     if (osExistente) {
       return {
         success: true,
-        message: 'OrÃ§amento jÃ¡ estava aprovado e possui OS gerada.',
+        message: 'Orçamento já estava aprovado e possui OS gerada.',
         orcamento_id: id,
         os_id: osExistente.id,
         os_numero: osExistente.numero,
@@ -2196,7 +2196,7 @@ export class OrcamentosV2Service {
 
     const observacaoRegistro =
       observacoes?.trim() ||
-      'OrÃ§amento aprovado internamente no sistema pelo usuÃ¡rio ' + userId;
+      'Orçamento aprovado internamente no sistema pelo usuário ' + userId;
 
     try {
       await this.prisma.orcamento.update({
@@ -2274,7 +2274,7 @@ export class OrcamentosV2Service {
 
       return {
         success: true,
-        message: 'OrÃ§amento aprovado e OS gerada com sucesso.',
+        message: 'Orçamento aprovado e OS gerada com sucesso.',
         orcamento_id: id,
         os_id: osCriada?.id,
         os_numero: osCriada?.numero,
@@ -2301,7 +2301,7 @@ export class OrcamentosV2Service {
       );
 
       throw new InternalServerErrorException(
-        'Falha ao aprovar e gerar OS. O orÃ§amento foi revertido.',
+        'Falha ao aprovar e gerar OS. O orçamento foi revertido.',
       );
     }
   }
@@ -2535,7 +2535,7 @@ export class OrcamentosV2Service {
       // Por enquanto, apenas log no console
       // Futuramente pode ser implementada uma tabela de logs
       this.logger.log(
-        `Ã°Å¸â€œÂ LOG: OrÃ§amento ${orcamentoId} - ${acao}: ${descricao}`,
+        `Ã°Å¸â€œÂ LOG: Orçamento ${orcamentoId} - ${acao}: ${descricao}`,
       );
     } catch (error) {
       this.logger.error(`Ã¢ÂÅ’ Erro ao registrar log: ${error.message}`);
@@ -2547,10 +2547,10 @@ export class OrcamentosV2Service {
    */
   async reenviarCodigoAprovacao(id: string) {
     this.logger.log(
-      `Ã°Å¸â€œÂ§ Reenviando cÃ³digo de aprovaÃ§ÃƒÂ£o para orÃ§amento: ${id}`,
+      `Ã°Å¸â€œÂ§ Reenviando cÃ³digo de aprovaÃ§ÃƒÂ£o para orçamento: ${id}`,
     );
 
-    // Verificar se o orÃ§amento existe
+    // Verificar se o orçamento existe
     const orcamento = await this.prisma.orcamento.findUnique({
       where: { id },
       include: {
@@ -2560,12 +2560,12 @@ export class OrcamentosV2Service {
     });
 
     if (!orcamento) {
-      throw new NotFoundException('OrÃ§amento nÃ£o encontrado');
+      throw new NotFoundException('Orçamento não encontrado');
     }
 
-    // Verificar se jÃ¡ tem cÃ³digo de aprovaÃ§ÃƒÂ£o
+    // Verificar se já tem cÃ³digo de aprovaÃ§ÃƒÂ£o
     if (!orcamento.codigo_aprovacao) {
-      // Gerar novo cÃ³digo se nÃ£o existir
+      // Gerar novo cÃ³digo se não existir
       const codigoAprovacao = await this.gerarCodigoAprovacao();
 
       await this.prisma.orcamento.update({
@@ -2579,18 +2579,18 @@ export class OrcamentosV2Service {
       console.log(`Ã°Å¸â€œÂ§ ==========================================`);
       console.log(`Ã°Å¸â€œÂ§ NOVO CÃƒâ€œDIGO DE APROVAÃƒâ€¡ÃƒÆ’O GERADO!`);
       console.log(`Ã°Å¸â€œÂ§ ==========================================`);
-      console.log(`Ã°Å¸â€œÂ§ OrÃ§amento: ${orcamento.numero}`);
+      console.log(`Ã°Å¸â€œÂ§ Orçamento: ${orcamento.numero}`);
       console.log(`Ã°Å¸â€œÂ§ Cliente: ${orcamento.cliente.nome}`);
       console.log(`Ã°Å¸â€œÂ§ CÃ³digo: ${codigoAprovacao}`);
       console.log(`Ã°Å¸â€œÂ§ ==========================================`);
     } else {
       this.logger.log(
-        `Ã°Å¸â€œÂ§ CÃ³digo de aprovaÃ§ÃƒÂ£o jÃ¡ existe: ${orcamento.codigo_aprovacao}`,
+        `Ã°Å¸â€œÂ§ CÃ³digo de aprovaÃ§ÃƒÂ£o já existe: ${orcamento.codigo_aprovacao}`,
       );
       console.log(`Ã°Å¸â€œÂ§ ==========================================`);
       console.log(`Ã°Å¸â€œÂ§ CÃƒâ€œDIGO DE APROVAÃƒâ€¡ÃƒÆ’O EXISTENTE!`);
       console.log(`Ã°Å¸â€œÂ§ ==========================================`);
-      console.log(`Ã°Å¸â€œÂ§ OrÃ§amento: ${orcamento.numero}`);
+      console.log(`Ã°Å¸â€œÂ§ Orçamento: ${orcamento.numero}`);
       console.log(`Ã°Å¸â€œÂ§ Cliente: ${orcamento.cliente.nome}`);
       console.log(`Ã°Å¸â€œÂ§ CÃ³digo: ${orcamento.codigo_aprovacao}`);
       console.log(`Ã°Å¸â€œÂ§ ==========================================`);
@@ -2601,7 +2601,7 @@ export class OrcamentosV2Service {
 
     return {
       success: true,
-      message: 'CÃ³digo de aprovaÃ§ÃƒÂ£o reenviado com sucesso',
+      message: 'Código de aprovação reenviado com sucesso',
       codigo: orcamento.codigo_aprovacao,
     };
   }
@@ -2614,7 +2614,7 @@ export class OrcamentosV2Service {
     acao: string,
   ): Promise<void> {
     try {
-      // Buscar usuÃ¡rios da loja que devem receber notificaÃ§ÃƒÂ£o
+      // Buscar usuários da loja que devem receber notificaÃ§ÃƒÂ£o
       const usuariosLoja = await this.prisma.usuario.findMany({
         where: {
           loja_id: orcamento.loja_id,
@@ -2628,7 +2628,7 @@ export class OrcamentosV2Service {
         },
       });
 
-      // Filtrar usuÃ¡rios relevantes (vendedores, gerentes, admins)
+      // Filtrar usuários relevantes (vendedores, gerentes, admins)
       const usuariosRelevantes = usuariosLoja.filter((usuario) => {
         const funcaoLower = usuario.funcao?.toLowerCase();
         return [
@@ -2648,24 +2648,24 @@ export class OrcamentosV2Service {
       switch (acao) {
         case 'APROVAR':
           tipoNotificacao = TipoNotificacao.ORCAMENTO_APROVADO;
-          titulo = 'OrÃ§amento Aprovado';
-          mensagem = `O cliente ${orcamento.cliente.nome} aprovou o orÃ§amento #${orcamento.numero}`;
+          titulo = 'Orçamento Aprovado';
+          mensagem = `O cliente ${orcamento.cliente.nome} aprovou o orçamento #${orcamento.numero}`;
           break;
         case 'REJEITAR':
           tipoNotificacao = TipoNotificacao.ORCAMENTO_REJEITADO;
-          titulo = 'OrÃ§amento Rejeitado';
-          mensagem = `O cliente ${orcamento.cliente.nome} rejeitou o orÃ§amento #${orcamento.numero}`;
+          titulo = 'Orçamento Rejeitado';
+          mensagem = `O cliente ${orcamento.cliente.nome} rejeitou o orçamento #${orcamento.numero}`;
           break;
         case 'NEGOCIAR':
           tipoNotificacao = TipoNotificacao.NOVA_MENSAGEM;
-          titulo = 'NegociaÃ§ÃƒÂ£o Iniciada';
-          mensagem = `O cliente ${orcamento.cliente.nome} iniciou negociaÃ§ÃƒÂ£o no orÃ§amento #${orcamento.numero}`;
+          titulo = 'Negociação Iniciada';
+          mensagem = `O cliente ${orcamento.cliente.nome} iniciou negociação no orçamento #${orcamento.numero}`;
           break;
         default:
           return;
       }
 
-      // Criar notificaÃ§ÃƒÂ£o para cada usuÃ¡rio relevante
+      // Criar notificaÃ§ÃƒÂ£o para cada usuário relevante
       for (const usuario of usuariosRelevantes) {
         await this.notificacoesService.criarNotificacao(
           orcamento.loja_id,
@@ -2682,7 +2682,7 @@ export class OrcamentosV2Service {
       }
 
       this.logger.log(
-        `Ã¢Å“â€¦ NotificaÃ§ÃƒÂµes de ${acao} enviadas para ${usuariosRelevantes.length} usuÃ¡rios`,
+        `Ã¢Å“â€¦ NotificaÃ§ÃƒÂµes de ${acao} enviadas para ${usuariosRelevantes.length} usuários`,
       );
     } catch (error) {
       this.logger.error(
@@ -2701,7 +2701,7 @@ export class OrcamentosV2Service {
   ): Promise<void> {
     try {
       this.logger.log(
-        `Ã°Å¸â€œÂ¢ Notificando nova mensagem no chat V2 do orÃ§amento ${orcamentoId}`,
+        `Ã°Å¸â€œÂ¢ Notificando nova mensagem no chat V2 do orçamento ${orcamentoId}`,
       );
 
       const orcamento = await this.prisma.orcamento.findUnique({
@@ -2715,8 +2715,8 @@ export class OrcamentosV2Service {
       await this.notificacoesService.criarNotificacao(
         lojaId,
         TipoNotificacao.NOVA_MENSAGEM,
-        'Nova mensagem no orÃ§amento',
-        `${autorNome} enviou uma mensagem no orÃ§amento #${orcamento.numero}`,
+        'Nova mensagem no orçamento',
+        `${autorNome} enviou uma mensagem no orçamento #${orcamento.numero}`,
         orcamentoId,
         { autor_nome: autorNome, numero_orcamento: orcamento.numero },
       );
@@ -2730,7 +2730,7 @@ export class OrcamentosV2Service {
   }
 
   /**
-   * Envia mensagem no chat (pÃºblico)
+   * Envia mensagem no chat (público)
    */
   async enviarMensagemPublica(
     orcamentoId: string,
@@ -2741,21 +2741,21 @@ export class OrcamentosV2Service {
     },
   ) {
     this.logger.log(
-      `Ã°Å¸â€™Â¬ Enviando mensagem pÃºblica no orÃ§amento: ${orcamentoId}`,
+      `Ã°Å¸â€™Â¬ Enviando mensagem pública no orçamento: ${orcamentoId}`,
     );
 
     try {
-      // Verificar se orÃ§amento existe
+      // Verificar se orçamento existe
       const orcamento = await this.buscarOrcamentoPublico(orcamentoId);
       if (!orcamento) {
-        throw new Error('OrÃ§amento nÃ£o encontrado');
+        throw new Error('Orçamento não encontrado');
       }
 
       // Criar mensagem
       const mensagem = await this.prisma.mensagemChat.create({
         data: {
           orcamento_id: orcamentoId,
-          usuario_id: 'cliente_publico', // ID especial para cliente pÃºblico
+          usuario_id: 'cliente_publico', // ID especial para cliente público
           tipo: 'texto',
           conteudo: dados.mensagem,
           anexos: JSON.stringify([]),
@@ -2765,18 +2765,18 @@ export class OrcamentosV2Service {
       });
 
       this.logger.log(
-        `Ã°Å¸â€™Â¬ Mensagem pÃºblica criada: ID=${mensagem.id}, ConteÃºdo="${dados.mensagem.substring(0, 50)}...", UsuarioID=${mensagem.usuario_id}`,
+        `Ã°Å¸â€™Â¬ Mensagem pública criada: ID=${mensagem.id}, ConteÃºdo="${dados.mensagem.substring(0, 50)}...", UsuarioID=${mensagem.usuario_id}`,
       );
 
-      this.logger.log(`Ã¢Å“â€¦ Mensagem pÃºblica enviada: ${mensagem.id}`);
+      this.logger.log(`Ã¢Å“â€¦ Mensagem pública enviada: ${mensagem.id}`);
 
       // Enviar notificaÃ§ÃƒÂ£o para vendedores da loja
       this.logger.log(
-        `Ã°Å¸â€œÂ¢ Iniciando notificaÃ§ÃƒÂ£o para mensagem pÃºblica ${mensagem.id}`,
+        `Ã°Å¸â€œÂ¢ Iniciando notificaÃ§ÃƒÂ£o para mensagem pública ${mensagem.id}`,
       );
       await this.notificarNovaMensagemChat(orcamento, mensagem, 'cliente');
       this.logger.log(
-        `Ã¢Å“â€¦ NotificaÃ§ÃƒÂ£o para mensagem pÃºblica ${mensagem.id} concluÃ­da`,
+        `Ã¢Å“â€¦ NotificaÃ§ÃƒÂ£o para mensagem pública ${mensagem.id} concluÃ­da`,
       );
 
       // Retornar mensagem no formato esperado pelo frontend
@@ -2791,13 +2791,13 @@ export class OrcamentosV2Service {
         criado_em: mensagem.data_envio.toISOString(),
       };
     } catch (error) {
-      this.logger.error(`Ã¢ÂÅ’ Erro ao enviar mensagem pÃºblica: ${error.message}`);
+      this.logger.error(`Ã¢ÂÅ’ Erro ao enviar mensagem pública: ${error.message}`);
       throw error;
     }
   }
 
   /**
-   * Marca mensagem como visualizada (pÃºblico)
+   * Marca mensagem como visualizada (público)
    */
   async marcarMensagemVisualizadaPublica(
     orcamentoId: string,
@@ -2806,10 +2806,10 @@ export class OrcamentosV2Service {
     this.logger.log(`Ã°Å¸â€˜ÂÃ¯Â¸Â Marcando mensagem como visualizada: ${mensagemId}`);
 
     try {
-      // Verificar se orÃ§amento existe
+      // Verificar se orçamento existe
       const orcamento = await this.buscarOrcamentoPublico(orcamentoId);
       if (!orcamento) {
-        throw new Error('OrÃ§amento nÃ£o encontrado');
+        throw new Error('Orçamento não encontrado');
       }
 
       // Marcar mensagem como visualizada
@@ -2843,10 +2843,10 @@ export class OrcamentosV2Service {
   ): Promise<void> {
     try {
       this.logger.log(
-        `Ã°Å¸â€œÂ¢ Notificando nova mensagem no chat do orÃ§amento ${orcamento.id}`,
+        `Ã°Å¸â€œÂ¢ Notificando nova mensagem no chat do orçamento ${orcamento.id}`,
       );
 
-      // Buscar usuÃ¡rios da loja que devem receber notificaÃ§ÃƒÂ£o
+      // Buscar usuários da loja que devem receber notificaÃ§ÃƒÂ£o
       const usuariosLoja = await this.prisma.usuario.findMany({
         where: {
           loja_id: orcamento.loja_id,
@@ -2861,10 +2861,10 @@ export class OrcamentosV2Service {
       });
 
       this.logger.log(
-        `Ã°Å¸â€˜Â¥ UsuÃ¡rios encontrados na loja ${orcamento.loja_id}: ${usuariosLoja.length}`,
+        `Ã°Å¸â€˜Â¥ Usuários encontrados na loja ${orcamento.loja_id}: ${usuariosLoja.length}`,
       );
       this.logger.log(
-        `Ã°Å¸â€˜Â¥ UsuÃ¡rios: ${JSON.stringify(
+        `Ã°Å¸â€˜Â¥ Usuários: ${JSON.stringify(
           usuariosLoja.map((u) => ({
             nome: u.nome_completo,
             funcao: u.funcao,
@@ -2874,7 +2874,7 @@ export class OrcamentosV2Service {
         )}`,
       );
 
-      // Filtrar usuÃ¡rios relevantes (vendedores, gerentes, admins)
+      // Filtrar usuários relevantes (vendedores, gerentes, admins)
       const usuariosRelevantes = usuariosLoja.filter((usuario) => {
         const funcaoLower = usuario.funcao?.toLowerCase();
         const isRelevant = [
@@ -2885,20 +2885,20 @@ export class OrcamentosV2Service {
           'administrador',
         ].includes(funcaoLower);
         this.logger.log(
-          `Ã°Å¸â€Â UsuÃ¡rio ${usuario.nome_completo} - FunÃ§ÃƒÂ£o: ${usuario.funcao} (${funcaoLower}) - Relevante: ${isRelevant}`,
+          `Ã°Å¸â€Â Usuário ${usuario.nome_completo} - FunÃ§ÃƒÂ£o: ${usuario.funcao} (${funcaoLower}) - Relevante: ${isRelevant}`,
         );
         return isRelevant;
       });
 
       this.logger.log(
-        `Ã°Å¸Å½Â¯ UsuÃ¡rios relevantes apÃ³s filtro: ${usuariosRelevantes.length}`,
+        `Ã°Å¸Å½Â¯ Usuários relevantes apÃ³s filtro: ${usuariosRelevantes.length}`,
       );
 
-      // Criar notificaÃ§ÃƒÂ£o para cada usuÃ¡rio relevante
+      // Criar notificaÃ§ÃƒÂ£o para cada usuário relevante
       for (const usuario of usuariosRelevantes) {
         try {
           this.logger.log(
-            `Ã°Å¸â€œÂ Criando notificaÃ§ÃƒÂ£o para usuÃ¡rio ${usuario.nome_completo} (${usuario.id})`,
+            `Ã°Å¸â€œÂ Criando notificaÃ§ÃƒÂ£o para usuário ${usuario.nome_completo} (${usuario.id})`,
           );
 
           const notificacao = await this.prisma.notificacao.create({
@@ -2910,8 +2910,8 @@ export class OrcamentosV2Service {
                   : 'Nova mensagem no chat',
               mensagem:
                 tipoRemetente === 'cliente'
-                  ? `Cliente enviou mensagem no orÃ§amento "${orcamento.titulo || orcamento.nome_servico || 'OrÃ§amento'}": "${mensagem.conteudo.substring(0, 100)}${mensagem.conteudo.length > 100 ? '...' : ''}"`
-                  : `Nova mensagem no orÃ§amento "${orcamento.titulo || orcamento.nome_servico || 'OrÃ§amento'}": "${mensagem.conteudo.substring(0, 100)}${mensagem.conteudo.length > 100 ? '...' : ''}"`,
+                  ? `Cliente enviou mensagem no orçamento "${orcamento.titulo || orcamento.nome_servico || 'Orçamento'}": "${mensagem.conteudo.substring(0, 100)}${mensagem.conteudo.length > 100 ? '...' : ''}"`
+                  : `Nova mensagem no orçamento "${orcamento.titulo || orcamento.nome_servico || 'Orçamento'}": "${mensagem.conteudo.substring(0, 100)}${mensagem.conteudo.length > 100 ? '...' : ''}"`,
               orcamento_id: orcamento.id,
               loja_id: orcamento.loja_id || 'qkg2dy5c5', // Fallback para loja padrÃ£o
               dados_extras: JSON.stringify({
@@ -2926,11 +2926,11 @@ export class OrcamentosV2Service {
           });
 
           this.logger.log(
-            `âœ… NotificaÃ§Ã£o criada com sucesso: ${notificacao.id} para usuÃ¡rio ${usuario.nome_completo}`,
+            `âœ… Notificação criada com sucesso: ${notificacao.id} para usuário ${usuario.nome_completo}`,
           );
         } catch (error) {
           this.logger.error(
-            `Ã¢ÂÅ’ Erro ao criar notificaÃ§ÃƒÂ£o para usuÃ¡rio ${usuario.id}: ${error.message}`,
+            `Ã¢ÂÅ’ Erro ao criar notificaÃ§ÃƒÂ£o para usuário ${usuario.id}: ${error.message}`,
           );
           if (process.env.NODE_ENV !== 'production') {
             this.logger.error(`Ã¢ÂÅ’ Debug trace: ${error.stack}`);
@@ -2939,7 +2939,7 @@ export class OrcamentosV2Service {
       }
 
       this.logger.log(
-        `Ã¢Å“â€¦ NotificaÃ§ÃƒÂµes de chat enviadas para ${usuariosRelevantes.length} usuÃ¡rios`,
+        `Ã¢Å“â€¦ NotificaÃ§ÃƒÂµes de chat enviadas para ${usuariosRelevantes.length} usuários`,
       );
     } catch (error) {
       this.logger.error(
@@ -2953,17 +2953,17 @@ export class OrcamentosV2Service {
    */
   async buscarMensagensChatLegado(orcamentoId: string, lojaId: string) {
     this.logger.log(
-      `Ã°Å¸â€Â Buscando mensagens do chat V2 para orÃ§amento: ${orcamentoId}`,
+      `Ã°Å¸â€Â Buscando mensagens do chat V2 para orçamento: ${orcamentoId}`,
     );
 
     try {
-      // Verificar se o orÃ§amento existe e pertence ÃƒÂ  loja
+      // Verificar se o orçamento existe e pertence ÃƒÂ  loja
       const orcamento = await this.prisma.orcamento.findFirst({
         where: { id: orcamentoId, loja_id: lojaId },
       });
 
       if (!orcamento) {
-        throw new Error('OrÃ§amento nÃ£o encontrado');
+        throw new Error('Orçamento não encontrado');
       }
 
       // Buscar mensagens ordenadas por data de criaÃ§ÃƒÂ£o
@@ -3011,7 +3011,7 @@ export class OrcamentosV2Service {
     anexos?: string[],
   ) {
     this.logger.log(
-      `Ã°Å¸â€™Â¬ Enviando mensagem no chat autenticado para orÃ§amento ${orcamentoId}`,
+      `Ã°Å¸â€™Â¬ Enviando mensagem no chat autenticado para orçamento ${orcamentoId}`,
     );
 
     try {
@@ -3039,7 +3039,7 @@ export class OrcamentosV2Service {
     usuarioId: string,
   ) {
     this.logger.log(
-      `Ã°Å¸â€˜ÂÃ¯Â¸Â Marcando mensagens do orÃ§amento ${orcamentoId} como visualizadas`,
+      `Ã°Å¸â€˜ÂÃ¯Â¸Â Marcando mensagens do orçamento ${orcamentoId} como visualizadas`,
     );
 
     try {

@@ -303,6 +303,7 @@ export function DxfRevisaoCard({
             const nomeSugerido = sugerirNomeInsumoApartirDaCamada(
               porCamada.nome_camada,
             );
+            const camadaJaCadastrada = (porCamada.sugestoes?.length || 0) > 0;
             return (
               <div
                 key={porCamada.nome_camada}
@@ -318,6 +319,10 @@ export function DxfRevisaoCard({
                       <span className="ml-2 inline-block rounded bg-slate-100 text-slate-700 px-1.5 py-0.5 text-[10px] font-medium">
                         operação
                       </span>
+                    ) : camadaJaCadastrada ? (
+                      <span className="ml-2 inline-block rounded bg-emerald-100 text-emerald-700 px-1.5 py-0.5 text-[10px] font-medium">
+                        cadastrado
+                      </span>
                     ) : null}
                   </p>
                   {/*
@@ -325,7 +330,7 @@ export function DxfRevisaoCard({
                     que são puramente operação (CORTE/GRAVACAO/etc.) —
                     não faz sentido criar um insumo chamado "CORTE".
                   */}
-                  {!porCamada.apenas_operacao ? (
+                  {!porCamada.apenas_operacao && !camadaJaCadastrada ? (
                     <Button
                       type="button"
                       variant="outline"
@@ -340,6 +345,17 @@ export function DxfRevisaoCard({
                     >
                       <Plus className="h-3 w-3" />
                       Cadastrar novo
+                    </Button>
+                  ) : camadaJaCadastrada ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled
+                      className="h-6 px-2 gap-1 text-[11px]"
+                    >
+                      <CheckCircle2 className="h-3 w-3" />
+                      Cadastrado
                     </Button>
                   ) : null}
                 </div>
@@ -358,6 +374,11 @@ export function DxfRevisaoCard({
                     </code>
                     . Você ainda pode adicionar materiais manualmente em
                     &quot;Materiais Utilizados&quot;.
+                  </p>
+                ) : camadaJaCadastrada ? (
+                  <p className="text-[10px] text-emerald-800 italic">
+                    Material encontrado no catálogo. Já foi sugerido/atrelado
+                    automaticamente no produto.
                   </p>
                 ) : (
                   <p className="text-[10px] text-muted-foreground italic">
