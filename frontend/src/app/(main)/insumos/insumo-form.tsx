@@ -31,7 +31,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { categoriasApi, fornecedoresApi, tiposMaterialApi } from '@/lib/api-client';
+import { categoriasApi, fornecedoresApi, tiposMaterialApi, estoqueApi } from '@/lib/api-client';
 
 const formSchema = z.object({
   nome: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
@@ -70,6 +70,13 @@ const formSchema = z.object({
   
   codigo_interno: z.string().optional().nullable(),
   estoque_minimo: z.any().optional().nullable(),
+  controlar_estoque: z.boolean().optional(),
+  estoque_localizacao_id: z.string().optional().nullable(),
+  estoque_quantidade_inicial: z.any().optional().nullable(),
+  estoque_maximo: z.any().optional().nullable(),
+  estoque_lote: z.string().optional().nullable(),
+  estoque_data_validade: z.string().optional().nullable(),
+  estoque_observacoes: z.string().optional().nullable(),
   descricao_tecnica: z.string().optional().nullable(),
   observacoes: z.string().optional().nullable(),
   ativo: z.boolean().optional(),
@@ -134,6 +141,13 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
       parametros_consumo: null,
       codigo_interno: '',
       estoque_minimo: '',
+      controlar_estoque: false,
+      estoque_localizacao_id: '',
+      estoque_quantidade_inicial: '',
+      estoque_maximo: '',
+      estoque_lote: '',
+      estoque_data_validade: '',
+      estoque_observacoes: '',
       descricao_tecnica: '',
       observacoes: '',
       ativo: true,
@@ -173,6 +187,7 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
   const quantidadeCompra = form.watch('quantidade_compra');
   const fatorConversao = form.watch('fator_conversao');
   const unidadeUso = form.watch('unidade_uso');
+  const controlarEstoque = form.watch('controlar_estoque');
   
   // Debug: monitorar mudanças no quantidadeCompra
   useEffect(() => {
@@ -180,6 +195,9 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
   }, [quantidadeCompra]);
   
   const custoPorUnidadeUso = React.useMemo(() => {
+    const unidadeUsoNormalizada = (unidadeUso || '').toUpperCase();
+    const unidadeUsoEhMetroQuadrado =
+      unidadeUsoNormalizada === 'M2' || unidadeUsoNormalizada === 'METRO QUADRADO';
     // console.log('🔄 useMemo sendo recalculado!');
     // console.log('🔍 Valores observados:', {
     //   custoUnitario,
@@ -293,7 +311,7 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                     
                     const areaPorUnidade = larguraEmMetros * alturaEmMetros;
                     
-                    if (unidadeUso === 'METRO QUADRADO') {
+                    if (unidadeUsoEhMetroQuadrado) {
                       // Se a unidade de uso é metro quadrado, calcular custo por m²
                       const custoPorMetroQuadrado = custo / areaPorUnidade;
                       
@@ -395,24 +413,29 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
             break;
         }
         
-        // Calcular quantidade baseada na unidade de compra
-        switch (unidadeCompra) {
-          case 'PACOTE':
-          case 'UNID':
-            // Para pacotes, usar quantidade de unidades (não calcular automaticamente)
-            quantidadeTotal = 1; // Deixar o usuário definir
-            break;
-          case 'ROLO':
-            // Para rolos, usar o comprimento em metros
+        // Calcular quantidade com base no tipo de cálculo selecionado.
+        // A unidade de compra influencia apenas casos específicos de quantidade.
+        switch (tipoCalculo) {
+          case 'LINEAR':
             quantidadeTotal = alturaEmMetros;
             break;
-          case 'BOBINA':
-            // Para bobinas, usar a área em metros quadrados
+          case 'AREA':
             quantidadeTotal = larguraEmMetros * alturaEmMetros;
             break;
+          case 'QUANTIDADE':
+            if (unidadeCompra === 'PACOTE' || unidadeCompra === 'UNID') {
+              quantidadeTotal = 1;
+            } else {
+              quantidadeTotal = larguraEmMetros * alturaEmMetros;
+            }
+            break;
           default:
-            // Caso padrão: usar área
-            quantidadeTotal = larguraEmMetros * alturaEmMetros;
+            if (unidadeCompra === 'ROLO') {
+              quantidadeTotal = alturaEmMetros;
+            } else {
+              quantidadeTotal = larguraEmMetros * alturaEmMetros;
+            }
+            break;
         }
         
         // Validar se a quantidade calculada faz sentido
@@ -431,6 +454,7 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
   
   const [categorias, setCategorias] = useState<Option[]>([]);
   const [fornecedores, setFornecedores] = useState<Option[]>([]);
+  const [localizacoesEstoque, setLocalizacoesEstoque] = useState<Option[]>([]);
   
   useEffect(() => {
     const fetchData = async () => {
@@ -449,6 +473,26 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
           value: item.id, 
           label: item.nome 
         })));
+
+        try {
+          const localizacoesData = await estoqueApi.getLocalizacoes(token) as
+            | Array<{ id: string; codigo?: string; deposito?: string; descricao?: string }>
+            | { data?: Array<{ id: string; codigo?: string; deposito?: string; descricao?: string }> };
+          const localizacoes = Array.isArray(localizacoesData)
+            ? localizacoesData
+            : localizacoesData.data ?? [];
+
+          setLocalizacoesEstoque(localizacoes.map((localizacao) => ({
+            value: localizacao.id,
+            label: [
+              localizacao.codigo,
+              localizacao.deposito || localizacao.descricao || 'Estoque',
+            ].filter(Boolean).join(' - '),
+          })));
+        } catch (error) {
+          console.warn('Não foi possível carregar localizações de estoque:', error);
+          setLocalizacoesEstoque([]);
+        }
         
         setFornecedores(fornecedoresData.map((item: {id: string, nome: string}) => ({ 
           value: item.id, 
@@ -513,6 +557,13 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
       tipo_calculo: data.tipo_calculo || undefined,
       gramatura: data.gramatura || undefined,
       estoque_minimo: data.estoque_minimo || undefined,
+      controlar_estoque: Boolean(data.controlar_estoque),
+      estoque_localizacao_id: data.estoque_localizacao_id || undefined,
+      estoque_quantidade_inicial: data.estoque_quantidade_inicial || undefined,
+      estoque_maximo: data.estoque_maximo || undefined,
+      estoque_lote: data.estoque_lote || undefined,
+      estoque_data_validade: data.estoque_data_validade || undefined,
+      estoque_observacoes: data.estoque_observacoes || undefined,
       codigo_interno: data.codigo_interno || undefined,
       descricao_tecnica: data.descricao_tecnica || undefined,
       observacoes: data.observacoes || undefined,
@@ -956,6 +1007,82 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                 )} />
             </div>
             
+            <div className="rounded-md border p-4 space-y-4">
+                <FormField control={form.control} name="controlar_estoque" render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                            <input
+                                type="checkbox"
+                                checked={Boolean(field.value)}
+                                onChange={(event) => field.onChange(event.target.checked)}
+                                className="mt-1 h-4 w-4 rounded border-gray-300"
+                            />
+                        </FormControl>
+                        <div className="space-y-1">
+                            <FormLabel className="text-sm font-medium">Controlar este insumo no estoque</FormLabel>
+                            <p className="text-sm text-muted-foreground">
+                                Ao marcar, o sistema cria ou atualiza um item de estoque vinculado a este insumo.
+                            </p>
+                        </div>
+                    </FormItem>
+                )} />
+
+                {controlarEstoque && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="estoque_localizacao_id" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Localização do Estoque</FormLabel>
+                                <Combobox
+                                    options={localizacoesEstoque}
+                                    {...field}
+                                    value={field.value ?? ''}
+                                    placeholder="Usar localização padrão"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Se não selecionar, será usada ou criada a localização padrão da loja.
+                                </p>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="estoque_quantidade_inicial" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Quantidade Inicial</FormLabel>
+                                <FormControl><Input type="number" min="0" step="0.001" {...field} value={field.value ?? ''} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="estoque_maximo" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Estoque Máximo</FormLabel>
+                                <FormControl><Input type="number" min="0" step="0.001" {...field} value={field.value ?? ''} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="estoque_lote" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Lote</FormLabel>
+                                <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="estoque_data_validade" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Validade do Lote</FormLabel>
+                                <FormControl><Input type="date" {...field} value={field.value ?? ''} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="estoque_observacoes" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Observações do Estoque</FormLabel>
+                                <FormControl><Textarea {...field} value={field.value ?? ''} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    </div>
+                )}
+            </div>
+
             <FormField control={form.control} name="descricao_tecnica" render={({ field }) => (
                 <FormItem><FormLabel>Descrição Técnica</FormLabel><FormControl><Textarea placeholder="Cor, gramatura, etc." {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
             )} />

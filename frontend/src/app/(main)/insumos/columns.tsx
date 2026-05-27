@@ -36,7 +36,17 @@ export type Insumo = {
   // Campos de lógica de consumo personalizada
   logica_consumo?: string | null;
   tipo_material_id?: string | null;
+  tipoMaterialId?: string | null;
   parametros_consumo?: any | null;
+  controlar_estoque?: boolean | null;
+  estoque_controlado?: boolean | null;
+  estoque_item_id?: string | null;
+  estoque_localizacao_id?: string | null;
+  estoque_quantidade_inicial?: number | string | null;
+  estoque_maximo?: number | string | null;
+  estoque_lote?: string | null;
+  estoque_data_validade?: string | null;
+  estoque_observacoes?: string | null;
   categoria: {
     id: string;
     nome: string;

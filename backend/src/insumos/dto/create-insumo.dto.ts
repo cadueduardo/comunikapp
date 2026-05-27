@@ -91,6 +91,36 @@ export class CreateInsumoDto {
   estoque_minimo?: number;
 
   @IsOptional()
+  @IsBoolean()
+  controlar_estoque?: boolean;
+
+  @IsOptional()
+  @IsString()
+  estoque_localizacao_id?: string;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0)
+  estoque_quantidade_inicial?: number;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0)
+  estoque_maximo?: number;
+
+  @IsOptional()
+  @IsString()
+  estoque_lote?: string;
+
+  @IsOptional()
+  @IsString()
+  estoque_data_validade?: string;
+
+  @IsOptional()
+  @IsString()
+  estoque_observacoes?: string;
+
+  @IsOptional()
   @IsString()
   descricao_tecnica?: string;
 

@@ -11,6 +11,10 @@ export default function NovoInsumoPage() {
   const handleSave = async (data: InsumoFormValues) => {
     try {
       const token = localStorage.getItem('access_token');
+      if (!token) {
+        toast.error('Sessão expirada. Faça login novamente.');
+        return;
+      }
       
       const custo = typeof data.custo_unitario === 'string' 
         ? parseFloat(data.custo_unitario) 
@@ -20,6 +24,8 @@ export default function NovoInsumoPage() {
         ...data,
         custo_unitario: custo,
         estoque_minimo: data.estoque_minimo ? Number(data.estoque_minimo) : undefined,
+        estoque_quantidade_inicial: data.estoque_quantidade_inicial ? Number(data.estoque_quantidade_inicial) : undefined,
+        estoque_maximo: data.estoque_maximo ? Number(data.estoque_maximo) : undefined,
       }, token);
       
       toast.success('Insumo criado com sucesso!');

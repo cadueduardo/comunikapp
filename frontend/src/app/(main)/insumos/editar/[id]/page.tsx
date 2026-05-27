@@ -23,7 +23,12 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
       try {
         setLoading(true);
         const token = localStorage.getItem('access_token');
-        const data = await insumosApi.getById(id, token);
+        if (!token) {
+          toast.error('Sessão expirada. Faça login novamente.');
+          router.push('/login');
+          return;
+        }
+        const data = await insumosApi.getById(id, token) as InsumoData;
         setInsumo(data);
       } catch (err) {
         toast.error('Ocorreu um erro ao buscar o insumo.');
@@ -39,6 +44,10 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
   const handleSave = async (data: InsumoFormValues) => {
     try {
       const token = localStorage.getItem('access_token');
+      if (!token) {
+        toast.error('Sessão expirada. Faça login novamente.');
+        return;
+      }
       
       // Lógica de conversão corrigida
       const custo = typeof data.custo_unitario === 'string' 
@@ -49,6 +58,8 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
           ...data,
           custo_unitario: custo,
           estoque_minimo: data.estoque_minimo ? Number(data.estoque_minimo) : null,
+          estoque_quantidade_inicial: data.estoque_quantidade_inicial ? Number(data.estoque_quantidade_inicial) : undefined,
+          estoque_maximo: data.estoque_maximo ? Number(data.estoque_maximo) : undefined,
       }, token);
 
       toast.success('Insumo atualizado com sucesso!');
@@ -95,6 +106,13 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
       
       // Outros campos
       estoque_minimo: insumo.estoque_minimo?.toString() ?? '',
+      controlar_estoque: Boolean((insumo as any).controlar_estoque),
+      estoque_localizacao_id: (insumo as any).estoque_localizacao_id ?? '',
+      estoque_quantidade_inicial: (insumo as any).estoque_quantidade_inicial?.toString() ?? '',
+      estoque_maximo: (insumo as any).estoque_maximo?.toString() ?? '',
+      estoque_lote: (insumo as any).estoque_lote ?? '',
+      estoque_data_validade: (insumo as any).estoque_data_validade ?? '',
+      estoque_observacoes: (insumo as any).estoque_observacoes ?? '',
       codigo_interno: insumo.codigo_interno ?? '',
       descricao_tecnica: insumo.descricao_tecnica ?? '',
       observacoes: insumo.observacoes ?? '',

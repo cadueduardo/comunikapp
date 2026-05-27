@@ -15,6 +15,164 @@ import * as ExcelJS from 'exceljs';
 export class InsumosService {
   constructor(private prisma: PrismaService) {}
 
+  private toNumberOrZero(value: unknown): number {
+    if (value === null || value === undefined || value === '') return 0;
+    const parsed =
+      typeof value === 'string'
+        ? Number(value.replace(/\./g, '').replace(',', '.'))
+        : Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+  }
+
+  private parseOptionalDate(value?: string | null): Date | null {
+    if (!value) return null;
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException('Data de validade do estoque inválida.');
+    }
+
+    return date;
+  }
+
+  private async buscarOuCriarLocalizacaoPadrao(
+    tx: any,
+    lojaId: string,
+    localizacaoId?: string,
+  ) {
+    if (localizacaoId) {
+      const localizacao = await tx.estoque_localizacoes.findFirst({
+        where: { id: localizacaoId, lojaId, ativo: true },
+      });
+
+      if (!localizacao) {
+        throw new BadRequestException(
+          'Localização de estoque não encontrada para esta loja.',
+        );
+      }
+
+      return localizacao;
+    }
+
+    const localizacaoExistente = await tx.estoque_localizacoes.findFirst({
+      where: { lojaId, ativo: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (localizacaoExistente) {
+      return localizacaoExistente;
+    }
+
+    return tx.estoque_localizacoes.create({
+      data: {
+        codigo: `PADRAO-${lojaId.slice(0, 8).toUpperCase()}`,
+        deposito: 'Principal',
+        descricao: 'Localização padrão criada automaticamente',
+        lojaId,
+        ativo: true,
+      },
+    });
+  }
+
+  private async sincronizarInsumoComEstoque(
+    tx: any,
+    insumo: any,
+    dto: Partial<CreateInsumoDto>,
+    lojaId: string,
+    usuarioId = 'sistema',
+  ) {
+    if (!dto.controlar_estoque) return null;
+
+    const localizacao = await this.buscarOuCriarLocalizacaoPadrao(
+      tx,
+      lojaId,
+      dto.estoque_localizacao_id,
+    );
+
+    const estoqueMinimo = this.toNumberOrZero(
+      dto.estoque_minimo ?? insumo.estoque_minimo,
+    );
+    const estoqueMaximo =
+      dto.estoque_maximo === undefined || dto.estoque_maximo === null
+        ? null
+        : this.toNumberOrZero(dto.estoque_maximo);
+    const quantidadeInicial = this.toNumberOrZero(
+      dto.estoque_quantidade_inicial,
+    );
+
+    const existente = await tx.estoque_itens.findFirst({
+      where: {
+        insumoId: insumo.id,
+        localizacaoId: localizacao.id,
+        lojaId,
+      },
+    });
+
+    const dataItem = {
+      codigo: insumo.codigo_interno || insumo.codigo || undefined,
+      nome: insumo.nome,
+      descricao: insumo.descricao_tecnica || insumo.descricao || null,
+      unidadeMedida: insumo.unidade_compra,
+      precoUnitario: insumo.custo_unitario,
+      estoqueMinimo,
+      estoqueMaximo,
+      lote: dto.estoque_lote || null,
+      dataValidade: this.parseOptionalDate(dto.estoque_data_validade),
+      observacoes: dto.estoque_observacoes || null,
+      ativo: true,
+    };
+
+    const item = existente
+      ? await tx.estoque_itens.update({
+          where: { id: existente.id },
+          data: dataItem,
+        })
+      : await tx.estoque_itens.create({
+          data: {
+            insumoId: insumo.id,
+            localizacaoId: localizacao.id,
+            lojaId,
+            quantidadeAtual: quantidadeInicial,
+            quantidadeReservada: 0,
+            dataUltimaMov: quantidadeInicial > 0 ? new Date() : null,
+            ...dataItem,
+          },
+        });
+
+    if (!existente && quantidadeInicial > 0) {
+      await tx.estoque_movimentacoes.create({
+        data: {
+          estoqueId: item.id,
+          tipo: 'ENTRADA',
+          quantidade: quantidadeInicial,
+          quantidadeAnterior: 0,
+          quantidadePosterior: quantidadeInicial,
+          documentoRef: `INSUMO-${insumo.id}`,
+          usuarioId,
+          lojaId,
+          observacoes:
+            dto.estoque_observacoes ||
+            'Entrada inicial criada a partir do cadastro do insumo',
+        },
+      });
+    }
+
+    if (!existente && dto.estoque_lote && quantidadeInicial > 0) {
+      await tx.estoque_lotes.create({
+        data: {
+          estoqueId: item.id,
+          numeroLote: dto.estoque_lote,
+          dataValidade: this.parseOptionalDate(dto.estoque_data_validade),
+          quantidadeLote: quantidadeInicial,
+          status: 'ATIVO',
+          lojaId,
+        },
+      });
+    }
+
+    return item;
+  }
+
   private worksheetToObjects(worksheet: ExcelJS.Worksheet): Record<string, unknown>[] {
     const headerRow = worksheet.getRow(1);
     const headers = headerRow.values as ExcelJS.CellValue[];
@@ -551,6 +709,13 @@ export class InsumosService {
       tipo_material_id,
       categoriaId,
       fornecedorId,
+      controlar_estoque,
+      estoque_localizacao_id,
+      estoque_quantidade_inicial,
+      estoque_maximo,
+      estoque_lote,
+      estoque_data_validade,
+      estoque_observacoes,
       ...dataWithoutExtraFields
     } = createInsumoDto;
 
@@ -605,14 +770,36 @@ export class InsumosService {
       tipoMaterialId: dataForPrisma.tipoMaterialId,
     });
 
-    const insumo = await this.prisma.insumo.create({
-      data: dataForPrisma,
-      include: {
-        categoria: true,
-        fornecedor: true,
-        tipoMaterial: true,
+    const { insumo, estoqueItem } = await this.prisma.$transaction(
+      async (tx) => {
+        const insumoCriado = await tx.insumo.create({
+          data: dataForPrisma,
+          include: {
+            categoria: true,
+            fornecedor: true,
+            tipoMaterial: true,
+          },
+        });
+
+        const itemCriado = await this.sincronizarInsumoComEstoque(
+          tx,
+          insumoCriado,
+          {
+            controlar_estoque,
+            estoque_localizacao_id,
+            estoque_quantidade_inicial,
+            estoque_maximo,
+            estoque_lote,
+            estoque_data_validade,
+            estoque_observacoes,
+            estoque_minimo: dataWithoutExtraFields.estoque_minimo,
+          },
+          loja.id,
+        );
+
+        return { insumo: insumoCriado, estoqueItem: itemCriado };
       },
-    });
+    );
 
     // Converter valores Decimal para números
     return {
@@ -623,6 +810,8 @@ export class InsumosService {
       largura: insumo.largura ? Number(insumo.largura) : null,
       altura: insumo.altura ? Number(insumo.altura) : null,
       gramatura: insumo.gramatura ? Number(insumo.gramatura) : null,
+      estoque_controlado: Boolean(estoqueItem),
+      estoque_item_id: estoqueItem?.id ?? null,
     };
   }
 
@@ -721,6 +910,15 @@ export class InsumosService {
     }
 
     // Converter valores Decimal para números
+    const estoqueItem = await this.prisma.estoque_itens.findFirst({
+      where: {
+        insumoId: id,
+        lojaId: loja.id,
+        ativo: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
     const resultado = {
       ...insumo,
       custo_unitario: Number(insumo.custo_unitario),
@@ -729,6 +927,21 @@ export class InsumosService {
       largura: insumo.largura ? Number(insumo.largura) : null,
       altura: insumo.altura ? Number(insumo.altura) : null,
       gramatura: insumo.gramatura ? Number(insumo.gramatura) : null,
+      estoque_controlado: Boolean(estoqueItem),
+      controlar_estoque: Boolean(estoqueItem),
+      estoque_item_id: estoqueItem?.id ?? null,
+      estoque_localizacao_id: estoqueItem?.localizacaoId ?? '',
+      estoque_quantidade_inicial: estoqueItem
+        ? Number(estoqueItem.quantidadeAtual)
+        : '',
+      estoque_maximo: estoqueItem?.estoqueMaximo
+        ? Number(estoqueItem.estoqueMaximo)
+        : '',
+      estoque_lote: estoqueItem?.lote ?? '',
+      estoque_data_validade: estoqueItem?.dataValidade
+        ? estoqueItem.dataValidade.toISOString().slice(0, 10)
+        : '',
+      estoque_observacoes: estoqueItem?.observacoes ?? '',
     };
 
     // Processar parametros_consumo para evitar problemas de serialização
@@ -807,7 +1020,17 @@ export class InsumosService {
     }
 
     // Remover campos que não existem no modelo Prisma
-    const { tipo_material_id, ...dataWithoutExtraFields } = updateInsumoDto;
+    const {
+      tipo_material_id,
+      controlar_estoque,
+      estoque_localizacao_id,
+      estoque_quantidade_inicial,
+      estoque_maximo,
+      estoque_lote,
+      estoque_data_validade,
+      estoque_observacoes,
+      ...dataWithoutExtraFields
+    } = updateInsumoDto;
 
     console.log('🔍 InsumosService.update - Dados recebidos:', {
       logica_consumo: updateInsumoDto.logica_consumo,
@@ -847,15 +1070,37 @@ export class InsumosService {
       parametros_consumo: dataForPrisma.parametros_consumo,
     });
 
-    const insumo = await this.prisma.insumo.update({
-      where: { id },
-      data: dataForPrisma,
-      include: {
-        categoria: true,
-        fornecedor: true,
-        tipoMaterial: true,
+    const { insumo, estoqueItem } = await this.prisma.$transaction(
+      async (tx) => {
+        const insumoAtualizado = await tx.insumo.update({
+          where: { id },
+          data: dataForPrisma,
+          include: {
+            categoria: true,
+            fornecedor: true,
+            tipoMaterial: true,
+          },
+        });
+
+        const itemAtualizado = await this.sincronizarInsumoComEstoque(
+          tx,
+          insumoAtualizado,
+          {
+            controlar_estoque,
+            estoque_localizacao_id,
+            estoque_quantidade_inicial,
+            estoque_maximo,
+            estoque_lote,
+            estoque_data_validade,
+            estoque_observacoes,
+            estoque_minimo: dataWithoutExtraFields.estoque_minimo,
+          },
+          loja.id,
+        );
+
+        return { insumo: insumoAtualizado, estoqueItem: itemAtualizado };
       },
-    });
+    );
 
     // Converter valores Decimal para números
     const resultado = {
@@ -866,6 +1111,8 @@ export class InsumosService {
       largura: insumo.largura ? Number(insumo.largura) : null,
       altura: insumo.altura ? Number(insumo.altura) : null,
       gramatura: insumo.gramatura ? Number(insumo.gramatura) : null,
+      estoque_controlado: Boolean(estoqueItem),
+      estoque_item_id: estoqueItem?.id ?? null,
     };
 
     // Processar parametros_consumo para evitar problemas de serialização

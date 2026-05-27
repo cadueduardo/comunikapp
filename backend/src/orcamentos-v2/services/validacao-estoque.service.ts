@@ -438,6 +438,26 @@ export class ValidacaoEstoqueService {
     lojaId: string,
   ): Promise<number> {
     try {
+      const estoqueItens = await this.prisma.$queryRaw<
+        Array<{ total: unknown; registros: unknown }>
+      >`
+        SELECT
+          COALESCE(SUM(quantidadeAtual - quantidadeReservada), 0) AS total,
+          COUNT(*) AS registros
+        FROM estoque_itens
+        WHERE insumoId = ${insumoId}
+          AND lojaId = ${lojaId}
+          AND ativo = true
+      `;
+
+      const estoqueNovo = estoqueItens[0];
+      const totalEstoqueNovo = Number(estoqueNovo?.total ?? 0);
+      const registrosEstoqueNovo = Number(estoqueNovo?.registros ?? 0);
+
+      if (registrosEstoqueNovo > 0) {
+        return totalEstoqueNovo;
+      }
+
       // Buscar estoque na tabela de estoque
       const estoque = await this.prisma.estoque.findFirst({
         where: {
