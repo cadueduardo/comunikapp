@@ -10,13 +10,49 @@ import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import * as bcrypt from 'bcrypt';
 import { MailService } from '../mail/mail.service';
 import { usuario_status, usuario_funcao } from '@prisma/client';
+import { randomBytes, createHash } from 'crypto';
+
+type PasswordResetAttemptState = {
+  attempts: number;
+  firstAttemptAt: number;
+};
 
 @Injectable()
 export class UsuariosService {
+  private readonly passwordResetAttempts = new Map<string, PasswordResetAttemptState>();
+  private readonly passwordResetWindowMs = 15 * 60 * 1000;
+  private readonly passwordResetMaxAttempts = 5;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
   ) {}
+
+  private normalizeEmail(email: string) {
+    return String(email || '').trim().toLowerCase();
+  }
+
+  private hashPasswordResetToken(token: string) {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private canRequestPasswordReset(email: string) {
+    const key = this.normalizeEmail(email);
+    const now = Date.now();
+    const existing = this.passwordResetAttempts.get(key);
+
+    if (!existing || now - existing.firstAttemptAt > this.passwordResetWindowMs) {
+      this.passwordResetAttempts.set(key, {
+        attempts: 1,
+        firstAttemptAt: now,
+      });
+      return true;
+    }
+
+    existing.attempts += 1;
+    this.passwordResetAttempts.set(key, existing);
+    return existing.attempts <= this.passwordResetMaxAttempts;
+  }
 
   async listar(lojaId: string) {
     return this.prisma.usuario.findMany({
@@ -209,6 +245,117 @@ export class UsuariosService {
     });
 
     return { message: 'Senha definida e e-mail verificado' };
+  }
+
+  async solicitarRedefinicaoSenha(email: string) {
+    const normalizedEmail = this.normalizeEmail(email);
+    const genericResponse = {
+      message:
+        'Se o e-mail existir, enviaremos instrucoes para redefinir a senha.',
+    };
+
+    if (!normalizedEmail || !this.canRequestPasswordReset(normalizedEmail)) {
+      return genericResponse;
+    }
+
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        email: true,
+        status: true,
+        email_verificado: true,
+      },
+    });
+
+    if (
+      !usuario ||
+      usuario.status !== usuario_status.ATIVO ||
+      !usuario.email_verificado
+    ) {
+      return genericResponse;
+    }
+
+    const token = randomBytes(32).toString('base64url');
+    const tokenHash = this.hashPasswordResetToken(token);
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+    await this.prisma.$transaction([
+      this.prisma.passwordResetToken.updateMany({
+        where: {
+          usuario_id: usuario.id,
+          used_at: null,
+        },
+        data: {
+          used_at: new Date(),
+        },
+      }),
+      this.prisma.passwordResetToken.create({
+        data: {
+          usuario_id: usuario.id,
+          token_hash: tokenHash,
+          expires_at: expiresAt,
+        },
+      }),
+    ]);
+
+    const resetLink = `${
+      process.env.FRONTEND_URL || 'https://comunikapp.com.br'
+    }/redefinir-senha?token=${encodeURIComponent(token)}`;
+
+    await this.mail.sendPasswordResetEmail(usuario.email, resetLink);
+
+    return genericResponse;
+  }
+
+  async redefinirSenha(token: string, novaSenha: string) {
+    if (!token || !novaSenha) {
+      throw new BadRequestException('Token e senha sao obrigatorios');
+    }
+
+    if (novaSenha.length < 8) {
+      throw new BadRequestException('A senha deve ter no minimo 8 caracteres');
+    }
+
+    const tokenHash = this.hashPasswordResetToken(token);
+    const resetToken = await this.prisma.passwordResetToken.findUnique({
+      where: { token_hash: tokenHash },
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            status: true,
+            email_verificado: true,
+          },
+        },
+      },
+    });
+
+    if (
+      !resetToken ||
+      resetToken.used_at ||
+      resetToken.expires_at < new Date() ||
+      resetToken.usuario.status !== usuario_status.ATIVO ||
+      !resetToken.usuario.email_verificado
+    ) {
+      throw new BadRequestException('Link de redefinicao invalido ou expirado');
+    }
+
+    const salt = await bcrypt.genSalt();
+    const senhaHash = await bcrypt.hash(novaSenha, salt);
+
+    await this.prisma.$transaction([
+      this.prisma.usuario.update({
+        where: { id: resetToken.usuario_id },
+        data: { senha: senhaHash },
+      }),
+      this.prisma.passwordResetToken.update({
+        where: { id: resetToken.id },
+        data: { used_at: new Date() },
+      }),
+    ]);
+
+    return { message: 'Senha redefinida com sucesso' };
   }
 
   async listarPerfis() {

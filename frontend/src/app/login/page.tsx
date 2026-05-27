@@ -203,7 +203,12 @@ function LoginContent() {
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="password">Senha</Label>
+                                <div className="flex items-center justify-between gap-3">
+                                    <Label htmlFor="password">Senha</Label>
+                                    <Link href="/esqueci-senha" className="text-sm underline">
+                                        Esqueci minha senha
+                                    </Link>
+                                </div>
                                 <Input 
                                     id="password" 
                                     type="password" 

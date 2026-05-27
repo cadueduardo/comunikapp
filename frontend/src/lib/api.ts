@@ -6,6 +6,8 @@ const SESSION_EXPIRED_IGNORED_ENDPOINTS = new Set([
   '/lojas',
   '/usuarios/reenviar-codigo',
   '/usuarios/definir-senha',
+  '/usuarios/solicitar-redefinicao-senha',
+  '/usuarios/redefinir-senha',
 ]);
 
 export class AuthApiError extends Error {
@@ -139,6 +141,40 @@ export const authAPI = {
       const errorData = await response.json();
       throw new AuthApiError(
         errorData.message || 'Codigo 2FA invalido',
+        errorData.code,
+      );
+    }
+
+    return response.json();
+  },
+
+  solicitarRedefinicaoSenha: async (email: string) => {
+    const response = await apiRequest('/usuarios/solicitar-redefinicao-senha', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new AuthApiError(
+        errorData.message || 'Erro ao solicitar redefinicao de senha',
+        errorData.code,
+      );
+    }
+
+    return response.json();
+  },
+
+  redefinirSenha: async (token: string, senha: string) => {
+    const response = await apiRequest('/usuarios/redefinir-senha', {
+      method: 'POST',
+      body: JSON.stringify({ token, senha }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new AuthApiError(
+        errorData.message || 'Erro ao redefinir senha',
         errorData.code,
       );
     }

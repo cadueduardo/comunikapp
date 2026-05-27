@@ -145,6 +145,41 @@ export class MailService implements OnModuleInit {
     return info;
   }
 
+  async sendPasswordResetEmail(to: string, resetLink: string) {
+    const mailOptions = {
+      from: this.getFromAddress(),
+      to,
+      subject: 'Redefinicao de senha do Comunikapp',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1>Redefina sua senha</h1>
+          <p>Recebemos uma solicitacao para redefinir a senha da sua conta no Comunikapp.</p>
+          <p>Clique no botao abaixo para criar uma nova senha. O link expira em 30 minutos.</p>
+          <div style="margin: 24px 0;">
+            <a href="${resetLink}"
+              style="background-color: #0f172a; color: #ffffff; padding: 12px 20px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              Redefinir senha
+            </a>
+          </div>
+          <p style="color: #666; font-size: 12px;">
+            Se voce nao solicitou esta redefinicao, ignore este e-mail. Sua senha atual continuara valida.
+          </p>
+        </div>
+      `,
+    };
+
+    const info = await this.transporter.sendMail(mailOptions);
+
+    this.logger.log(
+      `E-mail de redefinicao de senha enviado messageId=${info.messageId} destino=${MailService.maskEmail(to)}`,
+    );
+    if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
+      this.logger.debug(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+    }
+
+    return info;
+  }
+
   private static maskEmail(email: string): string {
     const [user, domain] = email.split('@');
     if (!domain) return '[invalid]';

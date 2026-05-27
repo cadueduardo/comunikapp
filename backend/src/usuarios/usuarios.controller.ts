@@ -147,4 +147,16 @@ export class UsuariosController {
     );
   }
 
+  @Post('solicitar-redefinicao-senha')
+  @Public()
+  async solicitarRedefinicaoSenha(@Body() body: { email: string }) {
+    return this.usuariosService.solicitarRedefinicaoSenha(body.email);
+  }
+
+  @Post('redefinir-senha')
+  @Public()
+  async redefinirSenha(@Body() body: { token: string; senha: string }) {
+    return this.usuariosService.redefinirSenha(body.token, body.senha);
+  }
+
 }
