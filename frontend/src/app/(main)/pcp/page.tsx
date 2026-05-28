@@ -6,9 +6,24 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { KanbanBoard } from '@/components/ui/kanban-board';
 import type { KanbanColumn } from '@/components/ui/kanban-board';
 import { useKanbanData } from '@/hooks/useKanbanData';
+import {
+  alternarSetoresVisiveis,
+  montarQueryKanbanPorSetores,
+  montarTopGargalos,
+  nivelGargaloClassName,
+  resumoSelecaoSetores,
+} from '@/lib/pcp/pcp.utils';
 import {
   IconAlertTriangle,
   IconArrowRight,
@@ -16,6 +31,7 @@ import {
   IconCheck,
   IconClipboardList,
   IconClock,
+  IconChevronDown,
   IconRefresh,
   IconSettings,
   IconUser,
@@ -28,14 +44,52 @@ interface ConfiguracaoPCP {
   definido: boolean;
 }
 
+interface GargaloResumo {
+  setor_id: string;
+  titulo: string;
+  score_gargalo: number;
+  nivel_gargalo: 'BAIXO' | 'MEDIO' | 'ALTO';
+  pendentes: number;
+  pausadas: number;
+  atrasadas: number;
+}
+
+interface DashboardPCP {
+  configuracao: ConfiguracaoPCP;
+  stats: {
+    total: number;
+    fila: number;
+    producao: number;
+    concluida: number;
+    rejeitada: number;
+    atrasadas: number;
+    criticas: number;
+    por_setor: Record<string, number>;
+  };
+  cards_atencao: Array<{
+    id: string;
+    os_id?: string;
+    numero: string;
+    titulo: string;
+    cliente: string;
+    status: string;
+    prioridade: string;
+    data_prazo: string;
+    alertas: string[];
+  }>;
+  gargalos: GargaloResumo[];
+  gerado_em: string;
+}
+
 interface KanbanSetorCard {
   id: string;
   os_id?: string;
+  operador_id?: string;
   numero: string;
   titulo: string;
   cliente: string;
   status: string;
-  prioridade: 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA';
+  prioridade: 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA' | 'NORMAL' | 'URGENTE';
   responsavel: string;
   data_prazo: string;
   progresso: number;
@@ -54,6 +108,9 @@ interface KanbanSetorColuna {
   pendentes: number;
   em_andamento: number;
   pausadas: number;
+  atrasadas: number;
+  score_gargalo: number;
+  nivel_gargalo: 'BAIXO' | 'MEDIO' | 'ALTO';
   cards: KanbanSetorCard[];
 }
 
@@ -61,6 +118,20 @@ interface KanbanPorSetoresResponse {
   colunas: KanbanSetorColuna[];
   total: number;
   gerado_em: string;
+}
+
+type PrazoBucket =
+  | 'atrasados'
+  | 'vence_hoje'
+  | 'esta_semana'
+  | 'sem_prazo';
+
+interface FiltrosSetores {
+  operadorId: string;
+  prioridade: string;
+  prazoBucket: PrazoBucket | '';
+  dataInicial: string;
+  dataFinal: string;
 }
 
 const nivelLabel: Record<NivelPCP, string> = {
@@ -77,9 +148,17 @@ const nivelDescricao: Record<NivelPCP, string> = {
 
 export default function PCPPage() {
   const router = useRouter();
-  const [configuracao, setConfiguracao] = useState<ConfiguracaoPCP | null>(null);
-  const [loadingConfig, setLoadingConfig] = useState(true);
+  const [dashboard, setDashboard] = useState<DashboardPCP | null>(null);
+  const [loadingDashboard, setLoadingDashboard] = useState(true);
   const [kanbanSetores, setKanbanSetores] = useState<KanbanPorSetoresResponse | null>(null);
+  const [setoresVisiveis, setSetoresVisiveis] = useState<string[]>([]);
+  const [filtrosSetores, setFiltrosSetores] = useState<FiltrosSetores>({
+    operadorId: '',
+    prioridade: '',
+    prazoBucket: '',
+    dataInicial: '',
+    dataFinal: '',
+  });
   const [loadingSetores, setLoadingSetores] = useState(false);
   const [erroSetores, setErroSetores] = useState<string | null>(null);
   const {
@@ -92,11 +171,11 @@ export default function PCPPage() {
     handleStatusChange,
   } = useKanbanData();
 
-  const carregarConfiguracao = useCallback(async () => {
-    setLoadingConfig(true);
+  const carregarDashboard = useCallback(async () => {
+    setLoadingDashboard(true);
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('/api/pcp/configuracao', {
+      const response = await fetch('/api/pcp/dashboard', {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -104,16 +183,16 @@ export default function PCPPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Falha ao carregar configuração do PCP');
+        throw new Error('Falha ao carregar dashboard do PCP');
       }
 
-      const data = (await response.json()) as ConfiguracaoPCP;
-      setConfiguracao(data);
-    } catch (configError) {
-      console.error('Erro ao carregar configuração do PCP:', configError);
-      toast.error('Não foi possível carregar a configuração do PCP.');
+      const data = (await response.json()) as DashboardPCP;
+      setDashboard(data);
+    } catch (dashboardError) {
+      console.error('Erro ao carregar dashboard do PCP:', dashboardError);
+      toast.error('Não foi possível carregar o dashboard do PCP.');
     } finally {
-      setLoadingConfig(false);
+      setLoadingDashboard(false);
     }
   }, []);
 
@@ -123,7 +202,12 @@ export default function PCPPage() {
 
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('/api/pcp/kanban/por-setores', {
+      const query = montarQueryKanbanPorSetores(filtrosSetores);
+      const endpoint = query
+        ? `/api/pcp/kanban/por-setores?${query}`
+        : '/api/pcp/kanban/por-setores';
+
+      const response = await fetch(endpoint, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -142,13 +226,14 @@ export default function PCPPage() {
     } finally {
       setLoadingSetores(false);
     }
-  }, []);
+  }, [filtrosSetores]);
 
   useEffect(() => {
-    void carregarConfiguracao();
-  }, [carregarConfiguracao]);
+    void carregarDashboard();
+  }, [carregarDashboard]);
 
-  const nivel = configuracao?.nivel ?? null;
+  const nivel = dashboard?.configuracao?.nivel ?? null;
+  const statsExibir = dashboard?.stats ?? stats;
 
   useEffect(() => {
     if (nivel === 'COMPLETO') {
@@ -161,6 +246,10 @@ export default function PCPPage() {
   }, [carregarKanbanPorSetores, nivel]);
 
   const cardsAtencao = useMemo(() => {
+    if (dashboard?.cards_atencao?.length) {
+      return dashboard.cards_atencao;
+    }
+
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
 
@@ -172,7 +261,28 @@ export default function PCPPage() {
         return temAlerta || atrasado || !card.data_prazo;
       })
       .slice(0, 6);
-  }, [cards]);
+  }, [cards, dashboard?.cards_atencao]);
+
+  const opcoesSetores = useMemo(() => {
+    return (kanbanSetores?.colunas ?? []).map((coluna) => ({
+      id: coluna.setor_id,
+      nome: coluna.titulo,
+    }));
+  }, [kanbanSetores]);
+
+  const opcoesOperadores = useMemo(() => {
+    const mapa = new Map<string, string>();
+    for (const coluna of kanbanSetores?.colunas ?? []) {
+      for (const card of coluna.cards) {
+        if (card.operador_id && card.operador_atual) {
+          mapa.set(card.operador_id, card.operador_atual);
+        }
+      }
+    }
+    return Array.from(mapa.entries())
+      .map(([id, nome]) => ({ id, nome }))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [kanbanSetores]);
 
   const acoesPorNivel = useMemo(() => {
     if (nivel === 'COMPLETO') {
@@ -300,9 +410,26 @@ export default function PCPPage() {
   async function atualizar() {
     await Promise.all([
       refreshData(),
-      carregarConfiguracao(),
+      carregarDashboard(),
       nivel === 'COMPLETO' ? carregarKanbanPorSetores() : Promise.resolve(),
     ]);
+  }
+
+  function atualizarFiltroSetores<K extends keyof FiltrosSetores>(
+    campo: K,
+    valor: FiltrosSetores[K],
+  ) {
+    setFiltrosSetores((anterior) => ({ ...anterior, [campo]: valor }));
+  }
+
+  function limparFiltrosSetores() {
+    setFiltrosSetores({
+      operadorId: '',
+      prioridade: '',
+      prazoBucket: '',
+      dataInicial: '',
+      dataFinal: '',
+    });
   }
 
   return (
@@ -323,7 +450,7 @@ export default function PCPPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={atualizar} disabled={loading || loadingConfig || loadingSetores}>
+          <Button variant="outline" size="sm" onClick={atualizar} disabled={loading || loadingDashboard || loadingSetores}>
             <IconRefresh className={`mr-2 h-4 w-4 ${loading || loadingSetores ? 'animate-spin' : ''}`} />
             Atualizar
           </Button>
@@ -336,7 +463,7 @@ export default function PCPPage() {
         </div>
       </header>
 
-      {!loadingConfig && !nivel && (
+      {!loadingDashboard && !nivel && (
         <section className="rounded-lg border border-amber-200 bg-amber-50 p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex gap-3">
@@ -359,10 +486,10 @@ export default function PCPPage() {
       )}
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Indicador label="Na fila" valor={stats.fila} detalhe="Aguardando produção" />
-        <Indicador label="Em produção" valor={stats.producao} detalhe="Em andamento" />
-        <Indicador label="Atrasadas" valor={stats.atrasadas} detalhe="Precisam de ação" destaque={stats.atrasadas > 0} />
-        <Indicador label="Prontas" valor={stats.concluida} detalhe="Concluídas no PCP" />
+        <Indicador label="Na fila" valor={statsExibir.fila} detalhe="Aguardando produção" />
+        <Indicador label="Em produção" valor={statsExibir.producao} detalhe="Em andamento" />
+        <Indicador label="Atrasadas" valor={statsExibir.atrasadas} detalhe="Precisam de ação" destaque={statsExibir.atrasadas > 0} />
+        <Indicador label="Prontas" valor={statsExibir.concluida} detalhe="Concluídas no PCP" />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -390,12 +517,51 @@ export default function PCPPage() {
           )}
 
           {nivel === 'COMPLETO' ? (
-            <KanbanPorSetores
-              data={kanbanSetores}
-              loading={loadingSetores}
-              error={erroSetores}
-              onCardClick={(osId) => router.push(`/os/${osId}`)}
-            />
+            <div className="space-y-3">
+              <FiltrosKanbanSetores
+                filtros={filtrosSetores}
+                onChange={atualizarFiltroSetores}
+                onClear={limparFiltrosSetores}
+                setoresVisiveis={setoresVisiveis}
+                onSetoresVisiveisChange={setSetoresVisiveis}
+                onMarcarTodosSetores={() => setSetoresVisiveis([])}
+                setores={opcoesSetores}
+                operadores={opcoesOperadores}
+              />
+              <KanbanPorSetores
+                data={kanbanSetores}
+                loading={loadingSetores}
+                error={erroSetores}
+                setoresVisiveis={setoresVisiveis}
+                onMoverItem={async (itemOsId, setorDestinoId) => {
+                  const token = localStorage.getItem('access_token');
+                  const response = await fetch(
+                    `/api/pcp/kanban/mover-setor/${itemOsId}`,
+                    {
+                      method: 'POST',
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ setorDestinoId }),
+                    },
+                  );
+
+                  const payload = (await response.json()) as {
+                    error?: string;
+                    message?: string;
+                  };
+
+                  if (!response.ok) {
+                    throw new Error(payload.error || 'Falha ao mover item de setor');
+                  }
+
+                  toast.success(payload.message || 'Item movido com sucesso');
+                  await carregarKanbanPorSetores();
+                }}
+                onCardClick={(osId) => router.push(`/os/${osId}`)}
+              />
+            </div>
           ) : (
             <KanbanBoard
               data={cards}
@@ -408,6 +574,34 @@ export default function PCPPage() {
         </div>
 
         <aside className="space-y-4">
+          {nivel === 'COMPLETO' && (dashboard?.gargalos?.length ?? 0) > 0 && (
+            <section className="rounded-lg border bg-white p-4">
+              <h2 className="text-sm font-semibold">Gargalos por setor</h2>
+              <div className="mt-3 space-y-2">
+                {dashboard!.gargalos.map((gargalo) => (
+                  <div
+                    key={gargalo.setor_id}
+                    className="rounded-md border px-3 py-2 text-xs"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{gargalo.titulo}</span>
+                      <Badge
+                        variant="outline"
+                        className={nivelGargaloClassName(gargalo.nivel_gargalo)}
+                      >
+                        {gargalo.nivel_gargalo}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-muted-foreground">
+                      Score {gargalo.score_gargalo} · Fila {gargalo.pendentes} ·
+                      Pausado {gargalo.pausadas} · Atrasado {gargalo.atrasadas}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section className="rounded-lg border bg-white p-4">
             <h2 className="text-sm font-semibold">Precisa de atenção</h2>
             <div className="mt-3 space-y-3">
@@ -419,7 +613,7 @@ export default function PCPPage() {
                     key={card.id}
                     type="button"
                     className="block w-full rounded-md border p-3 text-left transition-colors hover:bg-muted"
-                    onClick={() => router.push(`/os/${card.id}`)}
+                    onClick={() => router.push(`/os/${card.os_id ?? card.id}`)}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -458,15 +652,172 @@ export default function PCPPage() {
   );
 }
 
+function FiltrosKanbanSetores({
+  filtros,
+  onChange,
+  onClear,
+  setoresVisiveis,
+  onSetoresVisiveisChange,
+  onMarcarTodosSetores,
+  setores,
+  operadores,
+}: {
+  filtros: FiltrosSetores;
+  onChange: <K extends keyof FiltrosSetores>(
+    campo: K,
+    valor: FiltrosSetores[K],
+  ) => void;
+  onClear: () => void;
+  setoresVisiveis: string[];
+  onSetoresVisiveisChange: (setores: string[]) => void;
+  onMarcarTodosSetores: () => void;
+  setores: Array<{ id: string; nome: string }>;
+  operadores: Array<{ id: string; nome: string }>;
+}) {
+  const todosAtivos = setoresVisiveis.length === 0;
+  const [buscaSetor, setBuscaSetor] = useState('');
+
+  function alternarSetor(setorId: string) {
+    onSetoresVisiveisChange(
+      alternarSetoresVisiveis(setoresVisiveis, setorId),
+    );
+  }
+
+  const setoresFiltrados = setores.filter((setor) =>
+    setor.nome.toLowerCase().includes(buscaSetor.toLowerCase()),
+  );
+
+  const resumoSelecao = resumoSelecaoSetores(setoresVisiveis, setores.length);
+
+  return (
+    <div className="rounded-lg border bg-white p-3">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 justify-between px-3 text-sm font-normal"
+            >
+              <span>
+                Colunas visiveis ({resumoSelecao})
+              </span>
+              <IconChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-72">
+            <DropdownMenuLabel>Selecione os setores</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <div className="px-2 pb-2">
+              <input
+                type="text"
+                value={buscaSetor}
+                onChange={(e) => setBuscaSetor(e.target.value)}
+                placeholder="Buscar setor..."
+                className="h-8 w-full rounded-md border px-2 text-sm"
+              />
+            </div>
+            <DropdownMenuCheckboxItem
+              checked={setoresVisiveis.length === 0}
+              onCheckedChange={() => onMarcarTodosSetores()}
+            >
+              Todas as colunas
+            </DropdownMenuCheckboxItem>
+            {setoresFiltrados.map((setor) => (
+              <DropdownMenuCheckboxItem
+                key={setor.id}
+                checked={setoresVisiveis.includes(setor.id)}
+                onCheckedChange={() => alternarSetor(setor.id)}
+              >
+                {setor.nome}
+              </DropdownMenuCheckboxItem>
+            ))}
+            {setoresFiltrados.length === 0 && (
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                Nenhum setor encontrado.
+              </div>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <select
+          value={filtros.operadorId}
+          onChange={(e) => onChange('operadorId', e.target.value)}
+          className="h-9 rounded-md border px-2 text-sm"
+        >
+          <option value="">Todos os operadores</option>
+          {operadores.map((operador) => (
+            <option key={operador.id} value={operador.id}>
+              {operador.nome}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={filtros.prioridade}
+          onChange={(e) => onChange('prioridade', e.target.value)}
+          className="h-9 rounded-md border px-2 text-sm"
+        >
+          <option value="">Todas as prioridades</option>
+          <option value="URGENTE">Urgente</option>
+          <option value="CRITICA">Critica</option>
+          <option value="ALTA">Alta</option>
+          <option value="MEDIA">Media</option>
+          <option value="NORMAL">Normal</option>
+          <option value="BAIXA">Baixa</option>
+        </select>
+
+        <select
+          value={filtros.prazoBucket}
+          onChange={(e) =>
+            onChange('prazoBucket', e.target.value as FiltrosSetores['prazoBucket'])
+          }
+          className="h-9 rounded-md border px-2 text-sm"
+        >
+          <option value="">Prazo (todos)</option>
+          <option value="atrasados">Atrasados</option>
+          <option value="vence_hoje">Vence hoje</option>
+          <option value="esta_semana">Esta semana</option>
+          <option value="sem_prazo">Sem prazo</option>
+        </select>
+
+        <input
+          type="date"
+          value={filtros.dataInicial}
+          onChange={(e) => onChange('dataInicial', e.target.value)}
+          className="h-9 rounded-md border px-2 text-sm"
+        />
+
+        <input
+          type="date"
+          value={filtros.dataFinal}
+          onChange={(e) => onChange('dataFinal', e.target.value)}
+          className="h-9 rounded-md border px-2 text-sm"
+        />
+      </div>
+
+      <div className="mt-3 flex justify-end">
+        <Button type="button" size="sm" variant="outline" onClick={onClear}>
+          Limpar filtros
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function KanbanPorSetores({
   data,
   loading,
   error,
+  setoresVisiveis,
+  onMoverItem,
   onCardClick,
 }: {
   data: KanbanPorSetoresResponse | null;
   loading: boolean;
   error: string | null;
+  setoresVisiveis: string[];
+  onMoverItem: (itemOsId: string, setorDestinoId: string) => Promise<void>;
   onCardClick: (osId: string) => void;
 }) {
   if (loading) {
@@ -502,10 +853,53 @@ function KanbanPorSetores({
     );
   }
 
+  const colunasFiltradas =
+    setoresVisiveis.length === 0
+      ? data.colunas
+      : data.colunas.filter((coluna) => setoresVisiveis.includes(coluna.setor_id));
+
+  if (colunasFiltradas.length === 0) {
+    return (
+      <div className="rounded-lg border bg-white p-6">
+        <h3 className="text-sm font-semibold">Nenhuma coluna selecionada</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Marque pelo menos um setor no filtro "Colunas visiveis" para exibir o Kanban.
+        </p>
+      </div>
+    );
+  }
+
+  const gargalos = montarTopGargalos(colunasFiltradas, 3);
+
   return (
-    <div className="overflow-x-auto pb-2">
-      <div className="grid min-w-[920px] auto-cols-[minmax(280px,1fr)] grid-flow-col gap-4">
-        {data.colunas.map((coluna) => (
+    <div className="space-y-3 pb-2">
+      {gargalos.length > 0 && (
+        <section className="rounded-lg border bg-white p-3">
+          <h3 className="text-sm font-semibold">Gargalos por setor</h3>
+          <div className="mt-2 grid gap-2 md:grid-cols-3">
+            {gargalos.map((coluna) => (
+              <div key={`gargalo-${coluna.id}`} className="rounded-md border p-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-sm font-medium">{coluna.titulo}</p>
+                  <Badge
+                    variant="outline"
+                    className={nivelGargaloClassName(coluna.nivel_gargalo)}
+                  >
+                    {coluna.nivel_gargalo}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Score: {coluna.score_gargalo} | Fila: {coluna.pendentes} | Pausado:{' '}
+                  {coluna.pausadas} | Atrasado: {coluna.atrasadas}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className={gridColunasSetoresClass(colunasFiltradas.length)}>
+        {colunasFiltradas.map((coluna) => (
           <section key={coluna.id} className="rounded-lg border bg-white">
             <div className="border-b p-4">
               <div className="flex items-center justify-between gap-3">
@@ -518,10 +912,22 @@ function KanbanPorSetores({
                 </div>
                 <Badge variant="secondary">{coluna.total}</Badge>
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="mt-2 flex items-center justify-between">
+                <Badge
+                  variant="outline"
+                  className={nivelGargaloClassName(coluna.nivel_gargalo)}
+                >
+                  Gargalo {coluna.nivel_gargalo}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  Score {coluna.score_gargalo}
+                </span>
+              </div>
+              <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
                 <ResumoSetor label="Fila" valor={coluna.pendentes} />
                 <ResumoSetor label="Rodando" valor={coluna.em_andamento} />
                 <ResumoSetor label="Pausado" valor={coluna.pausadas} />
+                <ResumoSetor label="Atrasado" valor={coluna.atrasadas} />
               </div>
             </div>
 
@@ -560,6 +966,38 @@ function KanbanPorSetores({
                       )}
                     </div>
 
+                    <div className="mt-2">
+                      <select
+                        className="h-8 w-full rounded-md border px-2 text-xs"
+                        defaultValue=""
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={async (e) => {
+                          const setorDestinoId = e.target.value;
+                          if (!setorDestinoId) return;
+                          try {
+                            await onMoverItem(card.id, setorDestinoId);
+                            e.currentTarget.value = '';
+                          } catch (moveError) {
+                            console.error('Erro ao mover item de setor:', moveError);
+                            toast.error(
+                              moveError instanceof Error
+                                ? moveError.message
+                                : 'Nao foi possivel mover o item.',
+                            );
+                          }
+                        }}
+                      >
+                        <option value="">Mover para setor...</option>
+                        {data.colunas
+                          .filter((destino) => destino.setor_id !== coluna.setor_id)
+                          .map((destino) => (
+                            <option key={`${card.id}-${destino.setor_id}`} value={destino.setor_id}>
+                              {destino.titulo}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
                     <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
                       <IconClock className="h-3.5 w-3.5" />
                       {card.data_prazo || 'Sem prazo definido'}
@@ -573,6 +1011,26 @@ function KanbanPorSetores({
       </div>
     </div>
   );
+}
+
+function gridColunasSetoresClass(totalColunas: number): string {
+  if (totalColunas <= 1) {
+    return 'grid grid-cols-1 gap-4';
+  }
+
+  if (totalColunas === 2) {
+    return 'grid grid-cols-1 gap-4 lg:grid-cols-2';
+  }
+
+  if (totalColunas === 3) {
+    return 'grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3';
+  }
+
+  if (totalColunas === 4) {
+    return 'grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-4';
+  }
+
+  return 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4';
 }
 
 function ResumoSetor({ label, valor }: { label: string; valor: number }) {
@@ -596,8 +1054,10 @@ function statusSetorLabel(status: string) {
 
 function prioridadeClassName(prioridade: KanbanSetorCard['prioridade']) {
   const classes: Record<KanbanSetorCard['prioridade'], string> = {
+    URGENTE: 'border-fuchsia-200 text-fuchsia-700',
     BAIXA: 'border-zinc-200 text-zinc-700',
     MEDIA: 'border-blue-200 text-blue-700',
+    NORMAL: 'border-slate-200 text-slate-700',
     ALTA: 'border-amber-200 text-amber-700',
     CRITICA: 'border-red-200 text-red-700',
   };

@@ -3,15 +3,17 @@ import { toast } from 'sonner';
 
 export interface ItemFila {
   id: string;
+  os_id?: string;
   numero: string;
   titulo: string;
   cliente: string;
   status: string;
-  prioridade: 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA';
+  prioridade: 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA' | 'NORMAL' | 'URGENTE';
   data_prazo: string;
   progresso: number;
   alertas: string[];
   setor_atual?: string;
+  operador_atual?: string;
   observacoes?: string;
   quantidade_produzida?: number;
   quantidade_refugo?: number;
@@ -52,7 +54,20 @@ export interface UseMeuSetorReturn {
     motivo: string,
     observacoes?: string,
   ) => Promise<void>;
+  moverItemSetor: (itemId: string, setorDestinoId: string) => Promise<void>;
   selecionarSetor: (setorId: string | null) => void;
+  filtrarSomenteMinhaFila: boolean;
+  setFiltrarSomenteMinhaFila: (value: boolean) => void;
+  setoresParaMovimento: SetorOperador[];
+}
+
+async function extrairErroApi(response: Response, fallback: string): Promise<string> {
+  try {
+    const payload = (await response.json()) as { message?: string; error?: string };
+    return payload.message || payload.error || fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export function useMeuSetor(): UseMeuSetorReturn {
@@ -69,15 +84,21 @@ export function useMeuSetor(): UseMeuSetorReturn {
     null,
   );
   const [isAdministrador, setIsAdministrador] = useState(false);
+  const [filtrarSomenteMinhaFila, setFiltrarSomenteMinhaFila] = useState(false);
+  const [setoresParaMovimento, setSetoresParaMovimento] = useState<SetorOperador[]>(
+    [],
+  );
   const setoresRef = useRef<SetorOperador[]>([]);
+
+  const deveFiltrarPorOperador =
+    !isAdministrador || (isAdministrador && filtrarSomenteMinhaFila);
 
   // Obter informações básicas do usuário (operador/admin) ao montar
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const roles = localStorage.getItem('user_roles');
-    const admin =
-      !!roles && roles.split(',').some((role) => role === 'ADMINISTRADOR');
+    const funcao = (localStorage.getItem('user_roles') || '').toUpperCase();
+    const admin = funcao === 'ADMINISTRADOR';
     setIsAdministrador(admin);
 
     const storedUserId = localStorage.getItem('user_id');
@@ -209,19 +230,26 @@ export function useMeuSetor(): UseMeuSetorReturn {
 
           setSetor(setorAlvo);
 
-          const filaResponse = await fetch(
-            `/api/pcp/kanban/fila-setor/${setorAlvo.id}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
+          const filaParams = new URLSearchParams();
+          if (deveFiltrarPorOperador && operadorId) {
+            filaParams.set('operadorId', operadorId);
+          }
+
+          const filaUrl = filaParams.toString()
+            ? `/api/pcp/kanban/fila-setor/${setorAlvo.id}?${filaParams.toString()}`
+            : `/api/pcp/kanban/fila-setor/${setorAlvo.id}`;
+
+          const filaResponse = await fetch(filaUrl, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
             },
-          );
+          });
 
           if (!filaResponse.ok) {
-            const filaText = await filaResponse.text();
-            throw new Error(filaText || 'Erro ao carregar fila do setor');
+            throw new Error(
+              await extrairErroApi(filaResponse, 'Erro ao carregar fila do setor'),
+            );
           }
 
           const filaData = await filaResponse.json();
@@ -268,24 +296,59 @@ export function useMeuSetor(): UseMeuSetorReturn {
           return;
         }
 
-        const setorAtual = setores[0];
+        const selectedOperadorId =
+          options?.setorOverride !== undefined
+            ? options.setorOverride
+            : setorSelecionadoId;
+
+        const setorAtual =
+          setores.find((item) => item.id === selectedOperadorId) || setores[0];
+
         setSetor(setorAtual);
-        setSetoresDisponiveis([]);
+        setSetoresDisponiveis(setores);
         setSetorSelecionadoId(setorAtual.id);
 
-        const filaResponse = await fetch(
-          `/api/pcp/kanban/fila-setor/${setorAtual.id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
+        if (setoresParaMovimento.length === 0) {
+          const listaResponse = await fetch(
+            '/api/centros-de-trabalho/setores-produtivos',
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
             },
+          );
+          if (listaResponse.ok) {
+            const listaData = await listaResponse.json();
+            const lista = Array.isArray(listaData)
+              ? listaData
+              : listaData
+              ? [listaData]
+              : [];
+            setSetoresParaMovimento(lista);
+          }
+        }
+
+        const filaParams = new URLSearchParams();
+        if (operadorId) {
+          filaParams.set('operadorId', operadorId);
+        }
+
+        const filaUrl = filaParams.toString()
+          ? `/api/pcp/kanban/fila-setor/${setorAtual.id}?${filaParams.toString()}`
+          : `/api/pcp/kanban/fila-setor/${setorAtual.id}`;
+
+        const filaResponse = await fetch(filaUrl, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
           },
-        );
+        });
 
         if (!filaResponse.ok) {
-          const filaText = await filaResponse.text();
-          throw new Error(filaText || 'Erro ao carregar fila do setor');
+          throw new Error(
+            await extrairErroApi(filaResponse, 'Erro ao carregar fila do setor'),
+          );
         }
 
         const filaData = await filaResponse.json();
@@ -303,7 +366,13 @@ export function useMeuSetor(): UseMeuSetorReturn {
         setLoading(false);
       }
     },
-    [isAdministrador, operadorId, setorSelecionadoId],
+    [
+      deveFiltrarPorOperador,
+      isAdministrador,
+      operadorId,
+      setorSelecionadoId,
+      setoresParaMovimento.length,
+    ],
   );
 
   const refreshData = useCallback(async () => {
@@ -364,22 +433,23 @@ export function useMeuSetor(): UseMeuSetorReturn {
         });
 
         if (!response.ok) {
-          throw new Error('Erro ao iniciar produção');
+          throw new Error(
+            await extrairErroApi(response, 'Erro ao iniciar produção'),
+          );
         }
 
-        setFila((prevFila) =>
-          prevFila.map((item) =>
-            item.id === itemId ? { ...item, status: 'EM_ANDAMENTO' } : item,
-          ),
-        );
-
         toast.success('Produção iniciada com sucesso');
+        await fetchSetorData({ skipLista: true });
       } catch (startError: unknown) {
         console.error('Erro ao iniciar produção:', startError);
-        toast.error('Erro ao iniciar produção');
+        const mensagem =
+          startError instanceof Error
+            ? startError.message
+            : 'Erro ao iniciar produção';
+        toast.error(mensagem);
       }
     },
-    [operadorId],
+    [fetchSetorData, operadorId],
   );
 
   const concluirEtapa = useCallback(
@@ -410,18 +480,21 @@ export function useMeuSetor(): UseMeuSetorReturn {
         });
 
         if (!response.ok) {
-          throw new Error('Erro ao concluir etapa');
+          throw new Error(await extrairErroApi(response, 'Erro ao concluir etapa'));
         }
 
-        setFila((prevFila) => prevFila.filter((item) => item.id !== itemId));
-
         toast.success('Etapa concluída com sucesso');
+        await fetchSetorData({ skipLista: true });
       } catch (finishError: unknown) {
         console.error('Erro ao concluir etapa:', finishError);
-        toast.error('Erro ao concluir etapa');
+        const mensagem =
+          finishError instanceof Error
+            ? finishError.message
+            : 'Erro ao concluir etapa';
+        toast.error(mensagem);
       }
     },
-    [operadorId],
+    [fetchSetorData, operadorId],
   );
 
   const pausarProducao = useCallback(
@@ -448,22 +521,64 @@ export function useMeuSetor(): UseMeuSetorReturn {
         });
 
         if (!response.ok) {
-          throw new Error('Erro ao pausar produção');
+          throw new Error(
+            await extrairErroApi(response, 'Erro ao pausar produção'),
+          );
         }
 
-        setFila((prevFila) =>
-          prevFila.map((item) =>
-            item.id === itemId ? { ...item, status: 'PAUSADA' } : item,
-          ),
-        );
-
         toast.success('Produção pausada com sucesso');
+        await fetchSetorData({ skipLista: true });
       } catch (pauseError: unknown) {
         console.error('Erro ao pausar produção:', pauseError);
-        toast.error('Erro ao pausar produção');
+        const mensagem =
+          pauseError instanceof Error
+            ? pauseError.message
+            : 'Erro ao pausar produção';
+        toast.error(mensagem);
       }
     },
-    [operadorId],
+    [fetchSetorData, operadorId],
+  );
+
+  const moverItemSetor = useCallback(
+    async (itemId: string, setorDestinoId: string) => {
+      try {
+        if (!operadorId) {
+          toast.error('Operador não identificado para mover o item.');
+          return;
+        }
+
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`/api/pcp/kanban/mover-setor/${itemId}`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            setorDestinoId,
+            operadorId,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            await extrairErroApi(response, 'Erro ao mover item de setor'),
+          );
+        }
+
+        toast.success('Item movido com sucesso');
+        await fetchSetorData({ skipLista: true });
+      } catch (moveError: unknown) {
+        console.error('Erro ao mover item de setor:', moveError);
+        const mensagem =
+          moveError instanceof Error
+            ? moveError.message
+            : 'Erro ao mover item de setor';
+        toast.error(mensagem);
+      }
+    },
+    [fetchSetorData, operadorId],
   );
 
   return {
@@ -485,6 +600,12 @@ export function useMeuSetor(): UseMeuSetorReturn {
     iniciarProducao,
     concluirEtapa,
     pausarProducao,
+    moverItemSetor,
     selecionarSetor,
+    filtrarSomenteMinhaFila,
+    setFiltrarSomenteMinhaFila,
+    setoresParaMovimento: isAdministrador
+      ? setoresDisponiveis
+      : setoresParaMovimento,
   };
 }

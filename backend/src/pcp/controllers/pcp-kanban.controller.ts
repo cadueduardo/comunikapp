@@ -16,6 +16,8 @@ import {
   PausarProducaoDto,
   KanbanQueryDto,
   AtualizarStatusOSDto,
+  KanbanPorSetoresQueryDto,
+  MoverItemSetorDto,
 } from '../dto/kanban.dto';
 import { LojaId } from '../../auth/loja-id.decorator';
 import { CurrentUser } from '../../auth/decorators';
@@ -63,8 +65,11 @@ export class PCPKanbanController {
     summary: 'Obtém a visão do Kanban agrupada por setores produtivos',
   })
   @ApiResponse({ status: 200, description: 'Kanban por setores produtivos.' })
-  async obterKanbanPorSetores(@LojaId() lojaId: string) {
-    return this.pcpKanbanService.obterKanbanPorSetores(lojaId);
+  async obterKanbanPorSetores(
+    @LojaId() lojaId: string,
+    @Query() filtros: KanbanPorSetoresQueryDto,
+  ) {
+    return this.pcpKanbanService.obterKanbanPorSetores(lojaId, filtros);
   }
 
   @Post('iniciar/:itemOsId')
@@ -124,6 +129,26 @@ export class PCPKanbanController {
       usuario,
     );
     return { message: 'Produção pausada com sucesso' };
+  }
+
+  @Post('mover-setor/:itemOsId')
+  @ApiOperation({
+    summary: 'Move item entre setores seguindo regras de workflow',
+  })
+  @ApiResponse({ status: 200, description: 'Item movido com sucesso.' })
+  async moverItemSetor(
+    @LojaId() lojaId: string,
+    @CurrentUser() usuario: AuthenticatedUser,
+    @Param('itemOsId') itemOsId: string,
+    @Body() data: MoverItemSetorDto,
+  ) {
+    await this.pcpKanbanService.moverItemEntreSetores(
+      lojaId,
+      itemOsId,
+      data,
+      usuario,
+    );
+    return { message: 'Item movido com sucesso' };
   }
 
   @Put('status/:osId')

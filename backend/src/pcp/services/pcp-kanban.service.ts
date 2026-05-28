@@ -11,7 +11,12 @@ import {
   KanbanPorSetores,
   StatusSetorProdutivo,
 } from '../entities/pcp.entities';
-import { KanbanQueryDto } from '../dto/kanban.dto';
+import {
+  KanbanQueryDto,
+  KanbanPorSetoresQueryDto,
+  PrazoBucketKanban,
+  MoverItemSetorDto,
+} from '../dto/kanban.dto';
 import { KanbanMapper } from '../mappers/kanban.mapper';
 import { SetoresProdutivosService } from '../../configuracoes/services/centros-de-trabalho/setores-produtivos.service';
 import { AuthenticatedUser } from '../../auth/auth.service';
@@ -182,23 +187,19 @@ export class PCPKanbanService {
   /**
    * Obtém a visão gerencial do PCP Completo, agrupando itens por setor.
    */
-  async obterKanbanPorSetores(lojaId: string): Promise<KanbanPorSetores> {
+  async obterKanbanPorSetores(
+    lojaId: string,
+    filtros?: KanbanPorSetoresQueryDto,
+  ): Promise<KanbanPorSetores> {
     try {
       this.logger.log(`Obtendo kanban por setores para loja ${lojaId}`);
+
+      const where = this.montarWhereKanbanPorSetores(lojaId, filtros);
 
       const [setores, instanciasSetor] = await Promise.all([
         this.setoresProdutivosService.listar(lojaId, true),
         this.prisma.workflowInstanciaSetor.findMany({
-          where: {
-            status: {
-              in: ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA'],
-            },
-            workflow_instancia: {
-              os: {
-                loja_id: lojaId,
-              },
-            },
-          },
+          where,
           include: {
             item_os: {
               include: {
@@ -234,6 +235,20 @@ export class PCPKanbanService {
 
       const colunas = setores.map((setor) => {
         const cards = cardsPorSetor.get(setor.id) ?? [];
+        const pendentes = cards.filter((card) => card.status === 'PENDENTE').length;
+        const emAndamento = cards.filter(
+          (card) => card.status === 'EM_ANDAMENTO',
+        ).length;
+        const pausadas = cards.filter((card) => card.status === 'PAUSADA').length;
+        const atrasadas = cards.filter((card) =>
+          this.estaAtrasada(card.data_prazo),
+        ).length;
+        const scoreGargalo = this.calcularScoreGargalo({
+          pendentes,
+          pausadas,
+          atrasadas,
+        });
+
         return {
           id: `setor-${setor.id}`,
           setor_id: setor.id,
@@ -241,10 +256,12 @@ export class PCPKanbanService {
           cor: setor.cor,
           ordem: setor.ordem,
           total: cards.length,
-          pendentes: cards.filter((card) => card.status === 'PENDENTE').length,
-          em_andamento: cards.filter((card) => card.status === 'EM_ANDAMENTO')
-            .length,
-          pausadas: cards.filter((card) => card.status === 'PAUSADA').length,
+          pendentes,
+          em_andamento: emAndamento,
+          pausadas,
+          atrasadas,
+          score_gargalo: scoreGargalo,
+          nivel_gargalo: this.classificarNivelGargalo(scoreGargalo),
           cards,
         };
       });
@@ -516,6 +533,105 @@ export class PCPKanbanService {
     }
   }
 
+  async moverItemEntreSetores(
+    lojaId: string,
+    itemOsId: string,
+    data: MoverItemSetorDto,
+    usuario?: AuthenticatedUser,
+  ): Promise<void> {
+    this.validarPermissaoOperacional(usuario);
+
+    const etapaOrigem = await this.prisma.workflowInstanciaSetor.findFirst({
+      where: {
+        item_os_id: itemOsId,
+        status: { in: ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA'] },
+        workflow_instancia: { os: { loja_id: lojaId } },
+      },
+      orderBy: [{ ordem: 'asc' }, { criado_em: 'asc' }],
+    });
+
+    if (!etapaOrigem) {
+      throw new BadRequestException(
+        'Item sem etapa ativa para movimentacao entre setores.',
+      );
+    }
+
+    await this.setoresProdutivosService.obterPorId(data.setorDestinoId, lojaId);
+
+    const etapaDestino = await this.prisma.workflowInstanciaSetor.findFirst({
+      where: {
+        workflow_instancia_id: etapaOrigem.workflow_instancia_id,
+        item_os_id: itemOsId,
+        setor_id: data.setorDestinoId,
+      },
+    });
+
+    if (!etapaDestino) {
+      throw new BadRequestException(
+        'Setor destino nao pertence ao workflow deste item.',
+      );
+    }
+
+    if (etapaDestino.id === etapaOrigem.id) {
+      return;
+    }
+
+    if (etapaDestino.status === 'CONCLUIDA' || etapaDestino.status === 'CANCELADA') {
+      throw new BadRequestException(
+        'Setor destino ja esta encerrado para este item.',
+      );
+    }
+
+    if (etapaDestino.ordem > etapaOrigem.ordem + 1) {
+      throw new BadRequestException(
+        'Movimentacao invalida: destino fora da proxima etapa permitida.',
+      );
+    }
+
+    const statusDestino =
+      etapaOrigem.status === 'EM_ANDAMENTO' ? 'EM_ANDAMENTO' : 'PENDENTE';
+    const operadorDestino = data.operadorId ?? etapaOrigem.operador_id ?? null;
+    if (operadorDestino) {
+      await this.validarOperadorDaAcao(lojaId, operadorDestino, usuario);
+    }
+
+    const dataInicioDestino =
+      statusDestino === 'EM_ANDAMENTO'
+        ? etapaDestino.data_inicio ?? new Date()
+        : etapaDestino.data_inicio;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.workflowInstanciaSetor.update({
+        where: { id: etapaOrigem.id },
+        data: {
+          status: 'CANCELADA',
+          observacoes: data.observacoes
+            ? `${etapaOrigem.observacoes ?? ''} Movida para outro setor: ${data.observacoes}`.trim()
+            : etapaOrigem.observacoes,
+          atualizado_em: new Date(),
+        },
+      });
+
+      await tx.workflowInstanciaSetor.update({
+        where: { id: etapaDestino.id },
+        data: {
+          status: statusDestino,
+          operador_id: operadorDestino,
+          data_inicio: dataInicioDestino,
+          atualizado_em: new Date(),
+        },
+      });
+
+      await tx.workflowInstancia.update({
+        where: { id: etapaOrigem.workflow_instancia_id },
+        data: {
+          etapa_atual: etapaDestino.setor_id,
+          atualizado_em: new Date(),
+        },
+      });
+    });
+  }
+
   private async liberarProximoGrupo(
     workflowInstanciaId: string,
     ordemAtual: number,
@@ -670,5 +786,162 @@ export class PCPKanbanService {
     }
 
     return where;
+  }
+
+  private montarWhereKanbanPorSetores(
+    lojaId: string,
+    filtros?: KanbanPorSetoresQueryDto,
+  ): any {
+    const where: any = {
+      status: { in: ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA'] },
+      workflow_instancia: {
+        os: this.montarFiltroOSPorSetores(lojaId, filtros),
+      },
+    };
+
+    if (filtros?.setorId) {
+      where.setor_id = filtros.setorId;
+    }
+
+    if (filtros?.operadorId) {
+      where.operador_id = filtros.operadorId;
+    }
+
+    return where;
+  }
+
+  private montarFiltroOSPorSetores(
+    lojaId: string,
+    filtros?: KanbanPorSetoresQueryDto,
+  ): any {
+    const osAnd: any[] = [];
+
+    if (filtros?.prioridade) {
+      osAnd.push({ prioridade: filtros.prioridade });
+    }
+
+    const rangeClause = this.montarFiltroRangePrazo(
+      filtros?.dataInicial,
+      filtros?.dataFinal,
+    );
+    if (rangeClause) {
+      osAnd.push(rangeClause);
+    }
+
+    const bucketClause = this.montarFiltroBucketPrazo(filtros?.prazoBucket);
+    if (bucketClause) {
+      osAnd.push(bucketClause);
+    }
+
+    if (osAnd.length === 0) {
+      return { loja_id: lojaId };
+    }
+
+    return {
+      loja_id: lojaId,
+      AND: osAnd,
+    };
+  }
+
+  private montarFiltroRangePrazo(
+    dataInicial?: string,
+    dataFinal?: string,
+  ): any | null {
+    if (!dataInicial && !dataFinal) {
+      return null;
+    }
+
+    const dataPrazo: Record<string, Date> = {};
+    if (dataInicial) {
+      dataPrazo.gte = this.inicioDoDia(dataInicial);
+    }
+    if (dataFinal) {
+      dataPrazo.lte = this.fimDoDia(dataFinal);
+    }
+
+    return { data_prazo: dataPrazo };
+  }
+
+  private montarFiltroBucketPrazo(bucket?: PrazoBucketKanban): any | null {
+    if (!bucket) {
+      return null;
+    }
+
+    const hoje = this.inicioDoDia(new Date());
+    const amanha = new Date(hoje);
+    amanha.setDate(amanha.getDate() + 1);
+
+    switch (bucket) {
+      case PrazoBucketKanban.ATRASADOS:
+        return { data_prazo: { lt: hoje } };
+      case PrazoBucketKanban.VENCE_HOJE:
+        return { data_prazo: { gte: hoje, lt: amanha } };
+      case PrazoBucketKanban.ESTA_SEMANA: {
+        const fimSemana = this.fimDaSemana(hoje);
+        return { data_prazo: { gte: hoje, lte: fimSemana } };
+      }
+      case PrazoBucketKanban.SEM_PRAZO:
+        return { data_prazo: null };
+      default:
+        return null;
+    }
+  }
+
+  private inicioDoDia(data: string | Date): Date {
+    const d = typeof data === 'string' ? new Date(data) : new Date(data);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  private fimDoDia(data: string | Date): Date {
+    const d = typeof data === 'string' ? new Date(data) : new Date(data);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  }
+
+  private fimDaSemana(data: Date): Date {
+    const d = new Date(data);
+    const diaSemana = d.getDay(); // 0 dom ... 6 sab
+    const diasAteDomingo = (7 - diaSemana) % 7;
+    d.setDate(d.getDate() + diasAteDomingo);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  }
+
+  private estaAtrasada(dataPrazo?: string): boolean {
+    if (!dataPrazo) {
+      return false;
+    }
+
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const prazo = new Date(dataPrazo);
+    prazo.setHours(0, 0, 0, 0);
+    return prazo < hoje;
+  }
+
+  private calcularScoreGargalo({
+    pendentes,
+    pausadas,
+    atrasadas,
+  }: {
+    pendentes: number;
+    pausadas: number;
+    atrasadas: number;
+  }): number {
+    // Pesos explícitos para manter leitura clara e determinística.
+    return pendentes * 1 + pausadas * 2 + atrasadas * 3;
+  }
+
+  private classificarNivelGargalo(
+    score: number,
+  ): 'BAIXO' | 'MEDIO' | 'ALTO' {
+    if (score >= 10) {
+      return 'ALTO';
+    }
+    if (score >= 4) {
+      return 'MEDIO';
+    }
+    return 'BAIXO';
   }
 }

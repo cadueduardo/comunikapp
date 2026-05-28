@@ -12,7 +12,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const response = await fetch(buildApiUrl('/pcp/kanban/por-setores'), {
+    const backendSearch = request.nextUrl.searchParams.toString();
+    const endpoint = backendSearch
+      ? `/pcp/kanban/por-setores?${backendSearch}`
+      : '/pcp/kanban/por-setores';
+
+    const response = await fetch(buildApiUrl(endpoint), {
       method: 'GET',
       headers: {
         Authorization: authHeader,

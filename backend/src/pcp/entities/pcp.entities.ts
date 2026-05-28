@@ -45,11 +45,12 @@ export enum TipoApontamento {
 export interface OSCardKanban {
   id: string;
   os_id?: string;
+  operador_id?: string;
   numero: string;
   titulo: string;
   cliente: string;
   status: string;
-  prioridade: 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA';
+  prioridade: 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA' | 'NORMAL' | 'URGENTE';
   responsavel: string;
   data_prazo: string;
   progresso: number;
@@ -79,6 +80,9 @@ export interface KanbanSetorColuna {
   pendentes: number;
   em_andamento: number;
   pausadas: number;
+  atrasadas: number;
+  score_gargalo: number;
+  nivel_gargalo: 'BAIXO' | 'MEDIO' | 'ALTO';
   cards: OSCardKanban[];
 }
 

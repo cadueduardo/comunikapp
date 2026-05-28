@@ -94,6 +94,39 @@ export class KanbanQueryDto {
   dataFim?: string;
 }
 
+export enum PrazoBucketKanban {
+  ATRASADOS = 'atrasados',
+  VENCE_HOJE = 'vence_hoje',
+  ESTA_SEMANA = 'esta_semana',
+  SEM_PRAZO = 'sem_prazo',
+}
+
+export class KanbanPorSetoresQueryDto {
+  @IsOptional()
+  @IsString()
+  setorId?: string;
+
+  @IsOptional()
+  @IsString()
+  operadorId?: string;
+
+  @IsOptional()
+  @IsString()
+  prioridade?: string;
+
+  @IsOptional()
+  @IsEnum(PrazoBucketKanban)
+  prazoBucket?: PrazoBucketKanban;
+
+  @IsOptional()
+  @IsDateString()
+  dataInicial?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dataFinal?: string;
+}
+
 export enum StatusKanbanOS {
   FILA = 'FILA',
   PRODUCAO = 'PRODUCAO',
@@ -104,4 +137,18 @@ export enum StatusKanbanOS {
 export class AtualizarStatusOSDto {
   @IsEnum(StatusKanbanOS)
   status: StatusKanbanOS;
+}
+
+export class MoverItemSetorDto {
+  @IsString()
+  setorDestinoId: string;
+
+  @IsOptional()
+  @IsString()
+  operadorId?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 500)
+  observacoes?: string;
 }

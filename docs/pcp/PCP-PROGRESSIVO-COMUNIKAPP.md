@@ -6,6 +6,32 @@ Módulo: PCP - Planejamento e Controle de Produção
 
 ## 0. Registro De Implementação
 
+### 28/05/2026 - Fase 3 (Meu Setor + Dashboard Agregado)
+
+**Meu Setor (`/pcp/meu-setor`)**
+
+- Fila por operador com filtro "Somente minha fila" para administrador.
+- Movimentação entre setores no modo `COMPLETO` (select por card).
+- Refresh real após iniciar, pausar, concluir ou mover.
+- Layout compacto: métricas inline, fila ocupa a maior parte da tela.
+- Link "Voltar ao PCP", chips de status e seletor de setor para operador com múltiplos setores.
+
+**Dashboard agregado**
+
+- Endpoint `GET /pcp/dashboard` retorna, em uma chamada:
+  - `configuracao` (`pcp_nivel`);
+  - `stats` do Kanban geral;
+  - `cards_atencao` (até 6 itens críticos);
+  - `gargalos` (top 3 setores, somente no modo `COMPLETO`).
+- Proxy frontend: `GET /api/pcp/dashboard`.
+- Home `/pcp` passou a consumir o dashboard para indicadores, atenção e gargalos na sidebar.
+
+**Entregas anteriores desta fase (mesma sessão)**
+
+- Filtros do Kanban por setores (`operador`, `prioridade`, `prazo`, intervalo).
+- Indicadores de gargalo por coluna (`score_gargalo`, `nivel_gargalo`).
+- `POST /pcp/kanban/mover-setor/:itemOsId` com validação de workflow e `loja_id`.
+
 ### 28/05/2026 - Quinta Entrega Executada
 
 Esta entrega iniciou a visão real do PCP Completo por setores produtivos, conforme a preocupação de enxergar todas as interações da produção em um único Kanban gerencial.
@@ -70,7 +96,7 @@ GET /api/pcp/kanban/por-setores
 
 - Permitir filtros por setor, prioridade, prazo e operador.
 - Adicionar indicadores de gargalo por setor.
-- Evoluir "Meu Setor", que ainda precisa de revisão de UX.
+- Evoluir "Meu Setor", que ainda precisa de revisão de UX. **Executado em 28/05/2026: UX compacta + fila por operador + mover setor.**
 - Definir regra futura para movimentar cards entre setores respeitando workflow e permissões.
 
 **Validação Executada**
@@ -918,6 +944,7 @@ Status em 28/05/2026:
 
 - `GET /pcp/configuracao` implementado.
 - `PUT /pcp/configuracao` implementado.
+- `GET /pcp/dashboard` implementado.
 - `POST /pcp/configuracao/aplicar-padrao` ainda não implementado.
 
 Onboarding:
@@ -1149,7 +1176,7 @@ Aceite:
 Prioridade alta:
 
 - Remover `mockData` do Kanban principal. **Executado em 28/05/2026 para `frontend/src/components/ui/kanban-board.tsx`.**
-- Criar endpoint agregado de dashboard PCP.
+- Criar endpoint agregado de dashboard PCP. **Executado em 28/05/2026: `GET /pcp/dashboard`.**
 - Implementar pausa real. **Executado em 28/05/2026 para `PCPKanbanService.pausarProducao`.**
 - Corrigir queries sem validação de `loja_id`. **Parcialmente executado em 28/05/2026 nas operações críticas do Kanban; ainda revisar telas/endpoints restantes do PCP.**
 - Corrigir textos com encoding quebrado nas telas do PCP.
@@ -1163,7 +1190,7 @@ Prioridade média:
 - Adaptar Home PCP por nível. **Parcialmente executado em 28/05/2026: Home consulta `pcp_nivel`, muda textos/atalhos e centraliza Kanban real. Ainda falta dashboard backend agregado e Kanban com colunas por nível.**
 - Adaptar Kanban por nível. **Parcialmente executado em 28/05/2026: `KanbanBoard` aceita colunas customizadas e a Home altera colunas por nível. Ainda falta backend com colunas/status dinâmicos reais.**
 - Criar Kanban por setores para o modo Completo. **Parcialmente executado em 28/05/2026: `GET /pcp/kanban/por-setores` retorna colunas por setor produtivo e a Home usa essa visão quando `pcp_nivel = COMPLETO`. Ainda falta drag and drop entre setores, filtros e indicadores de gargalo.**
-- Criar testes frontend mínimos.
+- Criar testes frontend mínimos. **Executado em 28/05/2026: `frontend/src/lib/pcp/pcp.utils.ts` + `npm run test:pcp` (`validar-pcp.mjs`).**
 
 Prioridade baixa:
 
@@ -1191,7 +1218,7 @@ Classificação de status da fase:
 
 - **Fase 3 Parcial:** visão por setores funcionando em modo leitura.
 - **Fase 3 Rollout:** filtros + indicadores de gargalo + testes mínimos.
-- **Fase 3 Concluída:** movimentação entre setores com validação de workflow/permissão + Meu Setor revisado.
+- **Fase 3 Concluída:** movimentação entre setores com validação de workflow/permissão + Meu Setor revisado + dashboard agregado.
 
 Checklist obrigatório antes de marcar uma entrega da Fase 3:
 

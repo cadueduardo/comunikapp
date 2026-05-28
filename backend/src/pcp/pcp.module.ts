@@ -9,6 +9,7 @@ import { ApontamentoController } from './controllers/apontamento.controller';
 import { NotificacoesController } from './controllers/notificacoes.controller';
 import { PCPKanbanController } from './controllers/pcp-kanban.controller';
 import { PCPConfiguracaoController } from './controllers/pcp-configuracao.controller';
+import { PCPDashboardController } from './controllers/pcp-dashboard.controller';
 import { WorkflowService } from './services/workflow.service';
 import { WorkflowAssignmentService } from './services/workflow-assignment.service';
 import { EtapaService } from './services/etapa.service';
@@ -17,6 +18,7 @@ import { OSPCPIntegrationService } from './services/os-pcp-integration.service';
 import { NotificacoesPCPService } from './services/notificacoes-pcp.service';
 import { PCPKanbanService } from './services/pcp-kanban.service';
 import { PCPConfiguracaoService } from './services/pcp-configuracao.service';
+import { PCPDashboardService } from './services/pcp-dashboard.service';
 import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-estoque.service';
 
 @Module({
@@ -29,6 +31,7 @@ import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-est
     NotificacoesController,
     PCPKanbanController,
     PCPConfiguracaoController,
+    PCPDashboardController,
   ],
   providers: [
     WorkflowService,
@@ -39,6 +42,7 @@ import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-est
     NotificacoesPCPService,
     PCPKanbanService,
     PCPConfiguracaoService,
+    PCPDashboardService,
     ValidacaoEstoqueService,
   ],
   exports: [
@@ -50,6 +54,7 @@ import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-est
     NotificacoesPCPService,
     PCPKanbanService,
     PCPConfiguracaoService,
+    PCPDashboardService,
     ValidacaoEstoqueService,
   ],
 })

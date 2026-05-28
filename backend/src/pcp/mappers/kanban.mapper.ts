@@ -44,6 +44,7 @@ export class KanbanMapper {
     return {
       id: instancia.item_os_id ?? instancia.id,
       os_id: os?.id,
+      operador_id: instancia.operador_id ?? undefined,
       numero: os?.numero || instancia.workflow_instancia?.os_id || '',
       titulo:
         instancia.item_os?.produto_servico ||
