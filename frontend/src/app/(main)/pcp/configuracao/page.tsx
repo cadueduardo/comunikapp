@@ -76,6 +76,30 @@ export default function ConfiguracaoPCPPage() {
     }
   }
 
+  async function aplicarPadrao() {
+    setSalvando('ORGANIZADO');
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch('/api/pcp/configuracao/aplicar-padrao', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) throw new Error('Falha ao aplicar padrão');
+      const data = await response.json();
+      setNivelAtual(data.nivel);
+      toast.success('Nível Organizado aplicado como padrão.');
+    } catch (error) {
+      console.error(error);
+      toast.error('Não foi possível aplicar o padrão recomendado.');
+    } finally {
+      setSalvando(null);
+    }
+  }
+
   async function salvarNivel(nivel: NivelPCP) {
     setSalvando(nivel);
     try {
@@ -103,11 +127,20 @@ export default function ConfiguracaoPCPPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Configuração do PCP</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Escolha o nível de controle produtivo adequado para a operação atual.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Configuração do PCP</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Escolha o nível de controle produtivo adequado para a operação atual.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          disabled={loading || salvando !== null}
+          onClick={() => aplicarPadrao()}
+        >
+          Usar padrão recomendado (Organizado)
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

@@ -20,28 +20,16 @@ export class ApontamentoService {
     private validacaoEstoque: ValidacaoEstoqueService,
   ) {}
 
-  async criarApontamento(dto: CreateApontamentoDto): Promise<ApontamentoData> {
-    // Verificar se OS existe
-    const os = await this.prisma.ordemServico.findUnique({
-      where: { id: dto.os_id },
-    });
+  async criarApontamento(
+    lojaId: string,
+    dto: CreateApontamentoDto,
+  ): Promise<ApontamentoData> {
+    await this.assertOsDaLoja(lojaId, dto.os_id);
 
-    if (!os) {
-      throw new NotFoundException('Ordem de Serviço não encontrada');
-    }
-
-    // Verificar se etapa_instancia existe (se fornecida)
     if (dto.etapa_instancia_id) {
-      const etapa = await this.prisma.etapaInstancia.findUnique({
-        where: { id: dto.etapa_instancia_id },
-      });
-
-      if (!etapa) {
-        throw new NotFoundException('Etapa não encontrada');
-      }
+      await this.assertEtapaDaLoja(lojaId, dto.etapa_instancia_id, dto.os_id);
     }
 
-    // Validar tipo de apontamento
     this.validarTipoApontamento(dto.tipo, dto.etapa_instancia_id);
 
     const apontamento = await this.prisma.apontamento.create({
@@ -50,7 +38,7 @@ export class ApontamentoService {
         etapa_instancia_id: dto.etapa_instancia_id,
         tipo: dto.tipo,
         data_apontamento: new Date(),
-        usuario_id: dto.usuario_id || 'sistema', // TODO: Pegar do contexto de autenticação
+        usuario_id: dto.usuario_id || 'sistema',
         observacoes: dto.observacoes,
         quantidade_produzida: dto.quantidade_produzida,
         quantidade_refugo: dto.quantidade_refugo,
@@ -60,18 +48,20 @@ export class ApontamentoService {
       },
     });
 
-    // Processar integração com estoque se necessário
-    await this.processarIntegracaoEstoque(apontamento);
-
-    // Notificar módulo OS sobre apontamento
+    await this.processarIntegracaoEstoque(lojaId, apontamento);
     await this.osPCPIntegration.notificarApontamento(dto.os_id, dto.tipo);
 
     return this.converterParaInterface(apontamento);
   }
 
-  async buscarPorOS(osId: string): Promise<ApontamentoData[]> {
+  async buscarPorOS(lojaId: string, osId: string): Promise<ApontamentoData[]> {
+    await this.assertOsDaLoja(lojaId, osId);
+
     const apontamentos = await this.prisma.apontamento.findMany({
-      where: { os_id: osId },
+      where: {
+        os_id: osId,
+        os: { loja_id: lojaId },
+      },
       orderBy: { data_apontamento: 'desc' },
     });
 
@@ -80,9 +70,17 @@ export class ApontamentoService {
     );
   }
 
-  async buscarPorEtapa(etapaInstanciaId: string): Promise<ApontamentoData[]> {
+  async buscarPorEtapa(
+    lojaId: string,
+    etapaInstanciaId: string,
+  ): Promise<ApontamentoData[]> {
+    await this.assertEtapaDaLoja(lojaId, etapaInstanciaId);
+
     const apontamentos = await this.prisma.apontamento.findMany({
-      where: { etapa_instancia_id: etapaInstanciaId },
+      where: {
+        etapa_instancia_id: etapaInstanciaId,
+        os: { loja_id: lojaId },
+      },
       orderBy: { data_apontamento: 'desc' },
     });
 
@@ -91,28 +89,37 @@ export class ApontamentoService {
     );
   }
 
-  async buscarPorId(id: string): Promise<ApontamentoData | null> {
-    const apontamento = await this.prisma.apontamento.findUnique({
-      where: { id },
+  async buscarPorId(
+    lojaId: string,
+    id: string,
+  ): Promise<ApontamentoData | null> {
+    const apontamento = await this.prisma.apontamento.findFirst({
+      where: {
+        id,
+        os: { loja_id: lojaId },
+      },
     });
 
     return apontamento ? this.converterParaInterface(apontamento) : null;
   }
 
   async atualizarApontamento(
+    lojaId: string,
     id: string,
     dto: UpdateApontamentoDto,
   ): Promise<ApontamentoData> {
-    const apontamento = await this.prisma.apontamento.findUnique({
-      where: { id },
+    const apontamento = await this.prisma.apontamento.findFirst({
+      where: {
+        id,
+        os: { loja_id: lojaId },
+      },
     });
 
     if (!apontamento) {
-      throw new NotFoundException('Apontamento não encontrado');
+      throw new NotFoundException('Apontamento não encontrado nesta loja.');
     }
 
-    // Validar se pode ser editado (apenas apontamentos recentes)
-    const tempoLimite = 24 * 60 * 60 * 1000; // 24 horas
+    const tempoLimite = 24 * 60 * 60 * 1000;
     const tempoDecorrido = Date.now() - apontamento.data_apontamento.getTime();
 
     if (tempoDecorrido > tempoLimite) {
@@ -134,17 +141,19 @@ export class ApontamentoService {
     return this.converterParaInterface(apontamentoAtualizado);
   }
 
-  async deletarApontamento(id: string): Promise<void> {
-    const apontamento = await this.prisma.apontamento.findUnique({
-      where: { id },
+  async deletarApontamento(lojaId: string, id: string): Promise<void> {
+    const apontamento = await this.prisma.apontamento.findFirst({
+      where: {
+        id,
+        os: { loja_id: lojaId },
+      },
     });
 
     if (!apontamento) {
-      throw new NotFoundException('Apontamento não encontrado');
+      throw new NotFoundException('Apontamento não encontrado nesta loja.');
     }
 
-    // Validar se pode ser deletado (apenas apontamentos recentes)
-    const tempoLimite = 24 * 60 * 60 * 1000; // 24 horas
+    const tempoLimite = 24 * 60 * 60 * 1000;
     const tempoDecorrido = Date.now() - apontamento.data_apontamento.getTime();
 
     if (tempoDecorrido > tempoLimite) {
@@ -158,17 +167,42 @@ export class ApontamentoService {
     });
   }
 
-  async listarApontamentos(filtros?: {
-    os_id?: string;
-    etapa_instancia_id?: string;
-    tipo?: string;
-    usuario_id?: string;
-    data_inicio?: Date;
-    data_fim?: Date;
-  }): Promise<ApontamentoData[]> {
+  async listarApontamentos(
+    lojaId: string,
+    filtros?: {
+      os_id?: string;
+      etapa_instancia_id?: string;
+      tipo?: string;
+      usuario_id?: string;
+      data_inicio?: Date;
+      data_fim?: Date;
+    },
+  ): Promise<ApontamentoData[]> {
+    if (filtros?.os_id) {
+      await this.assertOsDaLoja(lojaId, filtros.os_id);
+    }
+
+    if (filtros?.etapa_instancia_id) {
+      await this.assertEtapaDaLoja(lojaId, filtros.etapa_instancia_id);
+    }
+
     const apontamentos = await this.prisma.apontamento.findMany({
       where: {
-        ...filtros,
+        ...(filtros?.os_id && { os_id: filtros.os_id }),
+        ...(filtros?.etapa_instancia_id && {
+          etapa_instancia_id: filtros.etapa_instancia_id,
+        }),
+        ...(filtros?.tipo && { tipo: filtros.tipo }),
+        ...(filtros?.usuario_id && { usuario_id: filtros.usuario_id }),
+        ...(filtros?.data_inicio || filtros?.data_fim
+          ? {
+              data_apontamento: {
+                ...(filtros.data_inicio && { gte: filtros.data_inicio }),
+                ...(filtros.data_fim && { lte: filtros.data_fim }),
+              },
+            }
+          : {}),
+        os: { loja_id: lojaId },
       },
       orderBy: { data_apontamento: 'desc' },
     });
@@ -176,6 +210,50 @@ export class ApontamentoService {
     return apontamentos.map((apontamento) =>
       this.converterParaInterface(apontamento),
     );
+  }
+
+  private async assertOsDaLoja(lojaId: string, osId: string): Promise<void> {
+    const os = await this.prisma.ordemServico.findFirst({
+      where: { id: osId, loja_id: lojaId },
+      select: { id: true },
+    });
+
+    if (!os) {
+      throw new NotFoundException(
+        'Ordem de Serviço não encontrada nesta loja.',
+      );
+    }
+  }
+
+  private async assertEtapaDaLoja(
+    lojaId: string,
+    etapaInstanciaId: string,
+    osIdEsperado?: string,
+  ): Promise<void> {
+    const etapa = await this.prisma.etapaInstancia.findFirst({
+      where: {
+        id: etapaInstanciaId,
+        workflow_instancia: {
+          os: { loja_id: lojaId },
+        },
+      },
+      select: {
+        id: true,
+        workflow_instancia: {
+          select: { os_id: true },
+        },
+      },
+    });
+
+    if (!etapa) {
+      throw new NotFoundException('Etapa não encontrada nesta loja.');
+    }
+
+    if (osIdEsperado && etapa.workflow_instancia.os_id !== osIdEsperado) {
+      throw new BadRequestException(
+        'Etapa não pertence à Ordem de Serviço informada.',
+      );
+    }
   }
 
   private validarTipoApontamento(
@@ -188,7 +266,6 @@ export class ApontamentoService {
       throw new BadRequestException(`Tipo de apontamento inválido: ${tipo}`);
     }
 
-    // Validações específicas por tipo
     if (tipo === 'INICIO' && !etapaInstanciaId) {
       throw new BadRequestException(
         'Apontamento de INÍCIO deve estar associado a uma etapa',
@@ -202,59 +279,33 @@ export class ApontamentoService {
     }
   }
 
-  private async processarIntegracaoEstoque(apontamento: any): Promise<void> {
-    // Processar integração com estoque baseado no tipo de apontamento
+  private async processarIntegracaoEstoque(
+    lojaId: string,
+    apontamento: { id: string; os_id: string; tipo: string },
+  ): Promise<void> {
     const tiposComEstoque = ['INICIO', 'CONCLUSAO', 'REFUGO'];
 
-    if (tiposComEstoque.includes(apontamento.tipo)) {
-      try {
-        // Buscar itens da OS para processar estoque
-        const os = await this.prisma.ordemServico.findUnique({
-          where: { id: apontamento.os_id },
-          include: {
-            itens: true,
-          },
-        });
+    if (!tiposComEstoque.includes(apontamento.tipo)) {
+      return;
+    }
 
-        if (!os || !os.itens) {
-          console.log(
-            `OS ${apontamento.os_id} não possui itens para processar estoque`,
-          );
-          return;
-        }
+    try {
+      const os = await this.prisma.ordemServico.findFirst({
+        where: { id: apontamento.os_id, loja_id: lojaId },
+        include: { itens: true },
+      });
 
-        // Preparar dados para validação de estoque
-        // TODO: Implementar quando estrutura de itens estiver completa
-        const insumos: any[] = [];
-
-        if (apontamento.tipo === 'INICIO') {
-          // Reservar materiais no início da produção
-          console.log(`Reservando materiais para OS ${apontamento.os_id}`);
-          // TODO: Implementar reserva de estoque
-        } else if (apontamento.tipo === 'CONCLUSAO') {
-          // Baixar materiais consumidos na conclusão
-          console.log(
-            `Baixando materiais consumidos para OS ${apontamento.os_id}`,
-          );
-          // TODO: Implementar baixa de estoque
-        } else if (apontamento.tipo === 'REFUGO') {
-          // Baixar materiais refugados
-          console.log(
-            `Baixando materiais refugados para OS ${apontamento.os_id}`,
-          );
-          // TODO: Implementar baixa de refugo
-        }
-
-        console.log(
-          `Integração com estoque processada para apontamento ${apontamento.id} do tipo ${apontamento.tipo}`,
-        );
-      } catch (error) {
-        console.error(
-          `Erro ao processar integração com estoque para apontamento ${apontamento.id}:`,
-          error,
-        );
-        // Não falhar o apontamento por erro de estoque
+      if (!os?.itens?.length) {
+        return;
       }
+
+      // TODO: integração real de estoque quando estrutura de itens estiver completa
+      void this.validacaoEstoque;
+    } catch (error) {
+      console.error(
+        `Erro ao processar integração com estoque para apontamento ${apontamento.id}:`,
+        error,
+      );
     }
   }
 
@@ -262,16 +313,20 @@ export class ApontamentoService {
     return {
       id: apontamento.id,
       os_id: apontamento.os_id,
-      etapa_instancia_id: apontamento.etapa_instancia_id,
+      etapa_instancia_id: apontamento.etapa_instancia_id ?? undefined,
       tipo: apontamento.tipo,
       data_apontamento: apontamento.data_apontamento,
       usuario_id: apontamento.usuario_id,
-      observacoes: apontamento.observacoes,
-      quantidade_produzida: apontamento.quantidade_produzida,
-      quantidade_refugo: apontamento.quantidade_refugo,
-      tempo_gasto: apontamento.tempo_gasto,
-      ip_origem: apontamento.ip_origem,
-      user_agent: apontamento.user_agent,
+      observacoes: apontamento.observacoes ?? undefined,
+      quantidade_produzida: apontamento.quantidade_produzida
+        ? Number(apontamento.quantidade_produzida)
+        : undefined,
+      quantidade_refugo: apontamento.quantidade_refugo
+        ? Number(apontamento.quantidade_refugo)
+        : undefined,
+      tempo_gasto: apontamento.tempo_gasto ?? undefined,
+      ip_origem: apontamento.ip_origem ?? undefined,
+      user_agent: apontamento.user_agent ?? undefined,
       criado_em: apontamento.criado_em,
     };
   }

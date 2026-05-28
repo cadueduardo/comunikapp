@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators';
@@ -28,5 +28,16 @@ export class PCPConfiguracaoController {
     @Body() dto: AtualizarConfiguracaoPCPDto,
   ) {
     return this.service.atualizar(lojaId, dto.nivel, usuario);
+  }
+
+  @Post('aplicar-padrao')
+  @ApiOperation({
+    summary: 'Aplica o nível Organizado como padrão recomendado do PCP',
+  })
+  aplicarPadrao(
+    @LojaId() lojaId: string,
+    @CurrentUser() usuario: AuthenticatedUser,
+  ) {
+    return this.service.aplicarPadrao(lojaId, usuario);
   }
 }

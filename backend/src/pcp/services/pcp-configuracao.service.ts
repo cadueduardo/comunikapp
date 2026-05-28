@@ -30,6 +30,13 @@ export class PCPConfiguracaoService {
     };
   }
 
+  async aplicarPadrao(
+    lojaId: string,
+    usuario?: AuthenticatedUser,
+  ): Promise<ConfiguracaoPCP> {
+    return this.atualizar(lojaId, NivelPCP.ORGANIZADO, usuario);
+  }
+
   async atualizar(
     lojaId: string,
     nivel: NivelPCP,

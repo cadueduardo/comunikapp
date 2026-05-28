@@ -6,6 +6,19 @@ Módulo: PCP - Planejamento e Controle de Produção
 
 ## 0. Registro De Implementação
 
+### 28/05/2026 - Fase 3 (Segurança Apontamentos + Aplicar Padrão)
+
+**Segurança multi-tenant em Apontamentos**
+
+- Todos os endpoints de `pcp/apontamentos` passam a receber `loja_id` via `@LojaId()`.
+- Criação, listagem, busca, edição e exclusão validam que OS/etapa/apontamento pertencem à loja autenticada.
+- Testes: `apontamento.service.spec.ts`.
+
+**Configuração**
+
+- `POST /pcp/configuracao/aplicar-padrao` define nível **Organizado** (recomendação do produto).
+- Testes: `pcp-configuracao.service.spec.ts`.
+
 ### 28/05/2026 - Fase 3 (Meu Setor + Dashboard Agregado)
 
 **Meu Setor (`/pcp/meu-setor`)**
@@ -945,7 +958,7 @@ Status em 28/05/2026:
 - `GET /pcp/configuracao` implementado.
 - `PUT /pcp/configuracao` implementado.
 - `GET /pcp/dashboard` implementado.
-- `POST /pcp/configuracao/aplicar-padrao` ainda não implementado.
+- `POST /pcp/configuracao/aplicar-padrao` implementado (define nível Organizado).
 
 Onboarding:
 
@@ -1178,7 +1191,7 @@ Prioridade alta:
 - Remover `mockData` do Kanban principal. **Executado em 28/05/2026 para `frontend/src/components/ui/kanban-board.tsx`.**
 - Criar endpoint agregado de dashboard PCP. **Executado em 28/05/2026: `GET /pcp/dashboard`.**
 - Implementar pausa real. **Executado em 28/05/2026 para `PCPKanbanService.pausarProducao`.**
-- Corrigir queries sem validação de `loja_id`. **Parcialmente executado em 28/05/2026 nas operações críticas do Kanban; ainda revisar telas/endpoints restantes do PCP.**
+- Corrigir queries sem validação de `loja_id`. **Parcialmente executado em 28/05/2026: Kanban + Apontamentos com escopo por loja; revisar Etapas/Notificações se necessário.**
 - Corrigir textos com encoding quebrado nas telas do PCP.
 - Separar configuração de workflow da home operacional.
 - Criar estado vazio correto para PCP sem OS.
@@ -1222,16 +1235,17 @@ Classificação de status da fase:
 
 Checklist obrigatório antes de marcar uma entrega da Fase 3:
 
-- [ ] Documento atualizado em UTF-8 no registro de implementação.
-- [ ] Não há regressão de segurança em multi-tenant (`loja_id`) nas queries e operações.
-- [ ] Endpoints críticos validam permissão por perfil antes de executar ação.
-- [ ] Status/ações vindos do frontend passam por whitelist/mapeamento no backend.
-- [ ] Home `/pcp` no modo `COMPLETO` exibe visão por setores sem dados mockados.
-- [ ] Clique no card abre a OS correta por `os_id`.
-- [ ] Estado vazio para ausência de setores aparece com chamada clara para ação.
-- [ ] Build backend e frontend concluídos com sucesso.
-- [ ] Testes críticos de backend do PCP executados e aprovados.
-- [ ] `git diff --check` sem erros.
+- [x] Documento atualizado em UTF-8 no registro de implementação.
+- [x] Não há regressão de segurança em multi-tenant (`loja_id`) nas queries e operações críticas (Kanban + Apontamentos).
+- [x] Endpoints críticos validam permissão por perfil antes de executar ação.
+- [x] Status/ações vindos do frontend passam por whitelist/mapeamento no backend.
+- [x] Home `/pcp` no modo `COMPLETO` exibe visão por setores sem dados mockados.
+- [x] Clique no card abre a OS correta por `os_id`.
+- [x] Estado vazio para ausência de setores aparece com chamada clara para ação.
+- [ ] Build backend e frontend concluídos com sucesso (validar no deploy local).
+- [x] Testes críticos de backend do PCP executados e aprovados.
+- [x] Testes frontend mínimos (`npm run test:pcp`).
+- [x] `git diff --check` sem erros.
 
 Checklist funcional de teste final (manual):
 
