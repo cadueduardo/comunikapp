@@ -189,6 +189,7 @@ export class OnboardingService {
             margem_lucro_padrao: true,
             impostos_padrao: true,
             condicao_pagamento_padrao_tipo: true,
+            pcp_nivel: true,
           },
         }),
         this.prisma.cliente.count({ where: { loja_id: lojaId } }),
@@ -216,6 +217,10 @@ export class OnboardingService {
         loja.margem_lucro_padrao !== null && loja.impostos_padrao !== null;
       resultado[OnboardingStepId.CONDICAO_PAGAMENTO] =
         !!loja.condicao_pagamento_padrao_tipo;
+      resultado[OnboardingStepId.CONFIGURAR_PRODUCAO] =
+        loja.pcp_nivel === 'ESSENCIAL' ||
+        loja.pcp_nivel === 'ORGANIZADO' ||
+        loja.pcp_nivel === 'COMPLETO';
     }
 
     resultado[OnboardingStepId.PRIMEIRO_CLIENTE] = clientesCount > 0;

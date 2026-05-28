@@ -293,6 +293,10 @@ export default function DashboardLayout({
           label: 'Relatórios',
           href: '/pcp/relatorios',
         },
+        {
+          label: 'Configuração',
+          href: '/pcp/configuracao',
+        },
       ],
     },
     {

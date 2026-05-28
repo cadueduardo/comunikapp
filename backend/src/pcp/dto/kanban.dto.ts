@@ -60,6 +60,9 @@ export class ConcluirEtapaDto {
 
 export class PausarProducaoDto {
   @IsString()
+  operadorId: string;
+
+  @IsString()
   @Length(1, 200)
   motivo: string;
 
@@ -89,4 +92,16 @@ export class KanbanQueryDto {
   @IsOptional()
   @IsDateString()
   dataFim?: string;
+}
+
+export enum StatusKanbanOS {
+  FILA = 'FILA',
+  PRODUCAO = 'PRODUCAO',
+  CONCLUIDA = 'CONCLUIDA',
+  REJEITADA = 'REJEITADA',
+}
+
+export class AtualizarStatusOSDto {
+  @IsEnum(StatusKanbanOS)
+  status: StatusKanbanOS;
 }

@@ -44,6 +44,7 @@ export enum TipoApontamento {
 // Interfaces para integração com sistema existente
 export interface OSCardKanban {
   id: string;
+  os_id?: string;
   numero: string;
   titulo: string;
   cliente: string;
@@ -66,4 +67,23 @@ export interface KanbanStats {
   atrasadas: number;
   criticas: number;
   por_setor: Record<string, number>;
+}
+
+export interface KanbanSetorColuna {
+  id: string;
+  setor_id: string;
+  titulo: string;
+  cor: string;
+  ordem: number;
+  total: number;
+  pendentes: number;
+  em_andamento: number;
+  pausadas: number;
+  cards: OSCardKanban[];
+}
+
+export interface KanbanPorSetores {
+  colunas: KanbanSetorColuna[];
+  total: number;
+  gerado_em: string;
 }

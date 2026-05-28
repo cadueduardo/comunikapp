@@ -15,8 +15,11 @@ import {
   ConcluirEtapaDto,
   PausarProducaoDto,
   KanbanQueryDto,
+  AtualizarStatusOSDto,
 } from '../dto/kanban.dto';
 import { LojaId } from '../../auth/loja-id.decorator';
+import { CurrentUser } from '../../auth/decorators';
+import { AuthenticatedUser } from '../../auth/auth.service';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -52,20 +55,33 @@ export class PCPKanbanController {
     @LojaId() lojaId: string,
     @Query('operadorId') operadorId?: string,
   ) {
-    return this.pcpKanbanService.obterFilaSetor(setorId, operadorId);
+    return this.pcpKanbanService.obterFilaSetor(lojaId, setorId, operadorId);
+  }
+
+  @Get('por-setores')
+  @ApiOperation({
+    summary: 'Obtém a visão do Kanban agrupada por setores produtivos',
+  })
+  @ApiResponse({ status: 200, description: 'Kanban por setores produtivos.' })
+  async obterKanbanPorSetores(@LojaId() lojaId: string) {
+    return this.pcpKanbanService.obterKanbanPorSetores(lojaId);
   }
 
   @Post('iniciar/:itemOsId')
   @ApiOperation({ summary: 'Inicia produção de um item' })
   @ApiResponse({ status: 200, description: 'Produção iniciada com sucesso.' })
   async iniciarProducao(
+    @LojaId() lojaId: string,
+    @CurrentUser() usuario: AuthenticatedUser,
     @Param('itemOsId') itemOsId: string,
     @Body() data: IniciarProducaoDto,
   ) {
     await this.pcpKanbanService.iniciarProducao(
+      lojaId,
       itemOsId,
       data.operadorId,
       data.observacoes,
+      usuario,
     );
     return { message: 'Produção iniciada com sucesso' };
   }
@@ -74,14 +90,18 @@ export class PCPKanbanController {
   @ApiOperation({ summary: 'Conclui etapa de produção' })
   @ApiResponse({ status: 200, description: 'Etapa concluída com sucesso.' })
   async concluirEtapa(
+    @LojaId() lojaId: string,
+    @CurrentUser() usuario: AuthenticatedUser,
     @Param('itemOsId') itemOsId: string,
     @Body() data: ConcluirEtapaDto,
   ) {
     await this.pcpKanbanService.concluirEtapa(
+      lojaId,
       itemOsId,
       data.operadorId,
       data.observacoes,
       data.quantidadeProduzida,
+      usuario,
     );
     return { message: 'Etapa concluída com sucesso' };
   }
@@ -90,10 +110,19 @@ export class PCPKanbanController {
   @ApiOperation({ summary: 'Pausa produção de um item' })
   @ApiResponse({ status: 200, description: 'Produção pausada com sucesso.' })
   async pausarProducao(
+    @LojaId() lojaId: string,
+    @CurrentUser() usuario: AuthenticatedUser,
     @Param('itemOsId') itemOsId: string,
     @Body() data: PausarProducaoDto,
   ) {
-    // TODO: Implementar pausa de produção
+    await this.pcpKanbanService.pausarProducao(
+      lojaId,
+      itemOsId,
+      data.operadorId,
+      data.motivo,
+      data.observacoes,
+      usuario,
+    );
     return { message: 'Produção pausada com sucesso' };
   }
 
@@ -101,10 +130,17 @@ export class PCPKanbanController {
   @ApiOperation({ summary: 'Atualiza o status de uma OS no Kanban' })
   @ApiResponse({ status: 200, description: 'Status atualizado com sucesso.' })
   async atualizarStatusOS(
+    @LojaId() lojaId: string,
+    @CurrentUser() usuario: AuthenticatedUser,
     @Param('osId') osId: string,
-    @Body() data: { status: string },
+    @Body() data: AtualizarStatusOSDto,
   ) {
-    await this.pcpKanbanService.atualizarStatusOS(osId, data.status);
+    await this.pcpKanbanService.atualizarStatusOS(
+      lojaId,
+      osId,
+      data.status,
+      usuario,
+    );
     return { message: 'Status atualizado com sucesso' };
   }
 

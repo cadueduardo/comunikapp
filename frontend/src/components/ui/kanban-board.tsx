@@ -52,10 +52,11 @@ export interface OSCard {
   alertas: string[];
 }
 
-interface KanbanColumn {
+export interface KanbanColumn {
   id: string;
   title: string;
   status: string;
+  statuses?: string[];
   color: string;
   icon: React.ReactNode;
 }
@@ -63,77 +64,14 @@ interface KanbanColumn {
 interface KanbanBoardProps {
   data?: OSCard[];
   loading?: boolean;
+  columns?: KanbanColumn[];
   onStatusChange?: (osId: string, newStatus: string) => void;
   onCardClick?: (osId: string) => void;
   onCardsChange?: (cards: OSCard[]) => void;
 }
 
-// Dados mockados para demonstração
-const mockData: OSCard[] = [
-  {
-    id: '1',
-    numero: 'OS-2024-001',
-    titulo: 'Banner Promocional',
-    cliente: 'Empresa ABC',
-    status: 'FILA',
-    prioridade: 'ALTA',
-    responsavel: 'João Silva',
-    data_prazo: '2024-01-15',
-    progresso: 0,
-    alertas: []
-  },
-  {
-    id: '2',
-    numero: 'OS-2024-002',
-    titulo: 'Placa de Sinalização',
-    cliente: 'Loja XYZ',
-    status: 'PRODUCAO',
-    prioridade: 'MEDIA',
-    responsavel: 'Maria Santos',
-    data_prazo: '2024-01-20',
-    progresso: 60,
-    alertas: ['Prazo próximo']
-  },
-  {
-    id: '3',
-    numero: 'OS-2024-003',
-    titulo: 'Adesivos Personalizados',
-    cliente: 'Restaurante DEF',
-    status: 'CONCLUIDA',
-    prioridade: 'BAIXA',
-    responsavel: 'Pedro Costa',
-    data_prazo: '2024-01-10',
-    progresso: 100,
-    alertas: []
-  },
-  {
-    id: '4',
-    numero: 'OS-2024-004',
-    titulo: 'Banner de Vendas',
-    cliente: 'Loja GHI',
-    status: 'PRODUCAO',
-    prioridade: 'ALTA',
-    responsavel: 'Ana Lima',
-    data_prazo: '2024-01-25',
-    progresso: 30,
-    alertas: ['Material atrasado']
-  },
-  {
-    id: '5',
-    numero: 'OS-2024-005',
-    titulo: 'Placa de Rua',
-    cliente: 'Prefeitura',
-    status: 'FILA',
-    prioridade: 'CRITICA',
-    responsavel: 'Carlos Silva',
-    data_prazo: '2024-01-12',
-    progresso: 0,
-    alertas: ['Urgente']
-  }
-];
-
 // Colunas do Kanban
-const columns: KanbanColumn[] = [
+const defaultColumns: KanbanColumn[] = [
   { id: 'fila', title: 'Fila', status: 'FILA', color: 'bg-gray-100', icon: <IconClipboardList className="h-4 w-4" /> },
   { id: 'producao', title: 'Em Produção', status: 'PRODUCAO', color: 'bg-blue-100', icon: <IconPlayerPlay className="h-4 w-4" /> },
   { id: 'concluida', title: 'Concluída', status: 'CONCLUIDA', color: 'bg-green-100', icon: <IconCircleCheck className="h-4 w-4" /> },
@@ -214,20 +152,23 @@ function DraggableCard({ card, index, onCardClick, getPrioridadeColor, getAlerta
   );
 }
 
-export function KanbanBoard({ data = [], loading = false, onStatusChange, onCardClick, onCardsChange }: KanbanBoardProps) {
+export function KanbanBoard({
+  data = [],
+  loading = false,
+  columns = defaultColumns,
+  onStatusChange,
+  onCardClick,
+  onCardsChange,
+}: KanbanBoardProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPrioridade, setFilterPrioridade] = useState('all');
   const [filterResponsavel, setFilterResponsavel] = useState('all');
   const [localCards, setLocalCards] = useState<OSCard[]>([]);
 
-  // Inicializar estado local com os dados
+  // Inicializar estado local apenas com os dados reais da API.
   useEffect(() => {
-    if (data.length > 0) {
-      setLocalCards(data);
-    } else {
-      setLocalCards(mockData);
-    }
+    setLocalCards(data);
   }, [data]);
 
   // Filtrar dados usando localCards com memoização
@@ -236,25 +177,29 @@ export function KanbanBoard({ data = [], loading = false, onStatusChange, onCard
       const matchesSearch = card.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            card.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            card.cliente.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = filterStatus === 'all' || card.status === filterStatus;
+      const selectedColumn = columns.find((column) => column.status === filterStatus);
+      const matchesStatus =
+        filterStatus === 'all' ||
+        (selectedColumn?.statuses ?? [filterStatus]).includes(card.status);
       const matchesPrioridade = filterPrioridade === 'all' || card.prioridade === filterPrioridade;
       const matchesResponsavel = filterResponsavel === 'all' || card.responsavel === filterResponsavel;
 
       return matchesSearch && matchesStatus && matchesPrioridade && matchesResponsavel;
     });
-  }, [localCards, searchTerm, filterStatus, filterPrioridade, filterResponsavel]);
+  }, [columns, localCards, searchTerm, filterStatus, filterPrioridade, filterResponsavel]);
 
   // Agrupar cards por status com memoização
   const groupedColumns = useMemo(() => {
     return columns.map(column => {
-      const columnCards = filteredData.filter(card => card.status === column.status);
+      const statuses = column.statuses ?? [column.status];
+      const columnCards = filteredData.filter(card => statuses.includes(card.status));
       return {
         ...column,
         cards: columnCards,
         count: columnCards.length
       };
     });
-  }, [filteredData]);
+  }, [columns, filteredData]);
 
   // Handler para drag end - baseado no fem-kanban
   const handleDragEnd = useCallback((result: DropResult) => {
@@ -292,7 +237,8 @@ export function KanbanBoard({ data = [], loading = false, onStatusChange, onCard
     } else {
       // Reordenação na mesma coluna
       const newCards = [...localCards];
-      const columnCards = newCards.filter(card => card.status === sourceColumn.status);
+      const sourceStatuses = sourceColumn.statuses ?? [sourceColumn.status];
+      const columnCards = newCards.filter(card => sourceStatuses.includes(card.status));
       
       // Remover o card da posição atual
       const [removed] = columnCards.splice(source.index, 1);
@@ -303,7 +249,7 @@ export function KanbanBoard({ data = [], loading = false, onStatusChange, onCard
       // Atualizar os cards da coluna
       let cardIndex = 0;
       const updatedCards = newCards.map(card => {
-        if (card.status === sourceColumn.status) {
+        if (sourceStatuses.includes(card.status)) {
           return columnCards[cardIndex++];
         }
         return card;
@@ -312,7 +258,7 @@ export function KanbanBoard({ data = [], loading = false, onStatusChange, onCard
       setLocalCards(updatedCards);
       onCardsChange?.(updatedCards);
     }
-  }, [localCards, onStatusChange, onCardsChange]);
+  }, [columns, localCards, onStatusChange, onCardsChange]);
 
   const getPrioridadeColor = (prioridade: string) => {
     switch (prioridade) {

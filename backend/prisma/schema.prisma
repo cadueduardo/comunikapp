@@ -583,6 +583,7 @@ model loja {
   telefone                 String
   trial_restante_dias      Int?
   horas_produtivas_mensais Int?        @default(352)
+  pcp_nivel                String?     @db.VarChar(24) // ESSENCIAL | ORGANIZADO | COMPLETO
 
   // Condicao de pagamento padrao da loja (Home operacional / Fase 1)
   // Tipo: 'ENTRADA_SALDO' | 'A_VISTA' | 'FATURADO_30'

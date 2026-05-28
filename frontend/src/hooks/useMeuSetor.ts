@@ -427,6 +427,11 @@ export function useMeuSetor(): UseMeuSetorReturn {
   const pausarProducao = useCallback(
     async (itemId: string, motivo: string, observacoes?: string) => {
       try {
+        if (!operadorId) {
+          toast.error('Operador não identificado para pausar a produção.');
+          return;
+        }
+
         const token = localStorage.getItem('access_token');
 
         const response = await fetch(`/api/pcp/kanban/pausar/${itemId}`, {
@@ -436,6 +441,7 @@ export function useMeuSetor(): UseMeuSetorReturn {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            operadorId,
             motivo,
             observacoes,
           }),
@@ -457,7 +463,7 @@ export function useMeuSetor(): UseMeuSetorReturn {
         toast.error('Erro ao pausar produção');
       }
     },
-    [],
+    [operadorId],
   );
 
   return {
