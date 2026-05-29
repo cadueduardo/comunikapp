@@ -180,6 +180,58 @@ export class MailService implements OnModuleInit {
     return info;
   }
 
+  async sendSignupInviteEmail(
+    to: string,
+    inviteLink: string,
+    options?: { message?: string; expiresAt?: Date },
+  ) {
+    const expiresText = options?.expiresAt
+      ? options.expiresAt.toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        })
+      : null;
+
+    const mailOptions = {
+      from: this.getFromAddress(),
+      to,
+      subject: 'Convite para criar sua conta no Comunikapp',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1>Voce foi convidado para acessar o Comunikapp</h1>
+          <p>Use o link abaixo para criar sua conta e iniciar o cadastro da sua loja.</p>
+          ${
+            options?.message
+              ? `<p style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px;">${options.message}</p>`
+              : ''
+          }
+          <div style="margin: 24px 0;">
+            <a href="${inviteLink}"
+              style="background-color: #0f172a; color: #ffffff; padding: 12px 20px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              Criar minha conta
+            </a>
+          </div>
+          ${expiresText ? `<p>Este convite expira em ${expiresText}.</p>` : ''}
+          <p style="color: #666; font-size: 12px;">
+            Se voce nao esperava este convite, pode ignorar este e-mail.
+          </p>
+        </div>
+      `,
+    };
+
+    const info = await this.transporter.sendMail(mailOptions);
+
+    this.logger.log(
+      `Convite de cadastro enviado messageId=${info.messageId} destino=${MailService.maskEmail(to)}`,
+    );
+    if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
+      this.logger.debug(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+    }
+
+    return info;
+  }
+
   private static maskEmail(email: string): string {
     const [user, domain] = email.split('@');
     if (!domain) return '[invalid]';

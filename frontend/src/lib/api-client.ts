@@ -179,6 +179,17 @@ export const lojasApi = {
   getCurrentUser: (token: string) => ApiClient.get('/lojas/me', token),
 };
 
+export const platformApi = {
+  me: (token: string) => ApiClient.get('/platform/me', token),
+  validateInvite: (inviteToken: string) =>
+    ApiClient.get(`/platform/convites/validar?token=${encodeURIComponent(inviteToken)}`),
+  listInvites: (token: string) => ApiClient.get('/platform/convites', token),
+  createInvite: (data: Record<string, unknown>, token: string) =>
+    ApiClient.post('/platform/convites', data, token),
+  revokeInvite: (id: string, token: string) =>
+    ApiClient.post(`/platform/convites/${id}/revogar`, {}, token),
+};
+
 export const insumosApi = {
   getAll: (token: string) => ApiClient.get('/insumos', token),
   getById: (id: string, token: string) => ApiClient.get(`/insumos/${id}`, token),

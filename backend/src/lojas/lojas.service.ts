@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { createHash, timingSafeEqual } from 'crypto';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
@@ -24,6 +25,12 @@ type LoginAttemptState = {
   firstFailureAt: number;
   lockUntil?: number;
 };
+
+const SIGNUP_INVITE_STATUS = {
+  PENDENTE: 'PENDENTE',
+  USADO: 'USADO',
+  EXPIRADO: 'EXPIRADO',
+} as const;
 
 @Injectable()
 export class LojasService {
@@ -118,6 +125,66 @@ export class LojasService {
 
     const data = (await response.json()) as { success?: boolean };
     return data.success === true;
+  }
+
+  private validateSignupInviteCode(inviteCode?: string) {
+    const configuredCode = process.env.SIGNUP_INVITE_CODE?.trim();
+
+    if (!configuredCode) {
+      throw new BadRequestException(
+        'Cadastro disponivel apenas por convite.',
+      );
+    }
+
+    if (!inviteCode?.trim()) {
+      throw new BadRequestException('Informe o codigo de convite.');
+    }
+
+    const providedCode = inviteCode.trim();
+    const configuredBuffer = Buffer.from(configuredCode);
+    const providedBuffer = Buffer.from(providedCode);
+
+    if (
+      configuredBuffer.length !== providedBuffer.length ||
+      !timingSafeEqual(configuredBuffer, providedBuffer)
+    ) {
+      throw new BadRequestException('Codigo de convite invalido.');
+    }
+  }
+
+  private hashInviteToken(token: string) {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private async validateSignupInviteToken(token: string, email: string) {
+    const tokenHash = this.hashInviteToken(token.trim());
+    const convite = await this.prisma.conviteCadastro.findUnique({
+      where: { token_hash: tokenHash },
+    });
+
+    if (!convite) {
+      throw new BadRequestException('Convite invalido.');
+    }
+
+    if (convite.status !== SIGNUP_INVITE_STATUS.PENDENTE) {
+      throw new BadRequestException('Convite nao esta mais disponivel.');
+    }
+
+    if (convite.expira_em <= new Date()) {
+      await this.prisma.conviteCadastro.updateMany({
+        where: { id: convite.id, status: SIGNUP_INVITE_STATUS.PENDENTE },
+        data: { status: SIGNUP_INVITE_STATUS.EXPIRADO },
+      });
+      throw new BadRequestException('Convite expirado.');
+    }
+
+    if (convite.email.toLowerCase() !== email.trim().toLowerCase()) {
+      throw new BadRequestException(
+        'Este convite foi emitido para outro e-mail.',
+      );
+    }
+
+    return convite;
   }
 
   private sanitizeUserAgent(userAgent: string) {
@@ -394,8 +461,27 @@ export class LojasService {
   }
 
   async create(createOnboardingDto: CreateOnboardingDto) {
-    const { nome_loja, nome_responsavel, email, telefone, cnpj, cpf, senha } =
+    const {
+      nome_loja,
+      nome_responsavel,
+      email,
+      telefone,
+      cnpj,
+      cpf,
+      senha,
+      codigo_convite,
+      token_convite,
+    } =
       createOnboardingDto;
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const convite = token_convite?.trim()
+      ? await this.validateSignupInviteToken(token_convite, normalizedEmail)
+      : null;
+
+    if (!convite) {
+      this.validateSignupInviteCode(codigo_convite);
+    }
 
     try {
       const salt = await bcrypt.genSalt();
@@ -410,7 +496,7 @@ export class LojasService {
           data: {
             id: Math.random().toString(36).substr(2, 9), // Gerar ID único
             nome: nome_loja,
-            email,
+            email: normalizedEmail,
             telefone,
             cpf: cpf || undefined,
             cnpj: cnpj || undefined,
@@ -422,7 +508,7 @@ export class LojasService {
           data: {
             id: Math.random().toString(36).substr(2, 9), // Gerar ID único
             nome_completo: nome_responsavel,
-            email,
+            email: normalizedEmail,
             telefone: telefone,
             senha: hashedPassword,
             funcao: usuario_funcao.ADMINISTRADOR,
@@ -434,6 +520,18 @@ export class LojasService {
         });
 
         await this.mailService.sendVerificationEmail(usuario.email, emailCode);
+
+        if (convite) {
+          await tx.conviteCadastro.update({
+            where: { id: convite.id },
+            data: {
+              status: SIGNUP_INVITE_STATUS.USADO,
+              usado_em: new Date(),
+              usado_por_loja_id: loja.id,
+              usado_por_usuario_id: usuario.id,
+            },
+          });
+        }
 
         // SEGURANÇA: NUNCA retornar o código de verificação nem hash da senha na resposta.
         // O código fica apenas no e-mail enviado e gravado no banco para conferência posterior.

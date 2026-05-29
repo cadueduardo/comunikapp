@@ -1229,6 +1229,27 @@ model PasswordResetToken {
   @@map("password_reset_token")
 }
 
+model ConviteCadastro {
+  id                   String    @id @default(cuid())
+  email                String
+  token_hash           String    @unique
+  status               String    @default("PENDENTE") @db.VarChar(24)
+  mensagem             String?   @db.Text
+  criado_por_email     String?   @db.VarChar(255)
+  expira_em            DateTime
+  usado_em             DateTime?
+  revogado_em          DateTime?
+  usado_por_loja_id    String?
+  usado_por_usuario_id String?
+  criado_em            DateTime  @default(now())
+  atualizado_em        DateTime  @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([expira_em])
+  @@map("convites_cadastro")
+}
+
 model estoque_localizacoes {
   id         String   @id @default(uuid())
   codigo     String   @unique(map: "inventory_locations_codigo_key")

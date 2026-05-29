@@ -31,6 +31,7 @@ import { HomeOperacionalModule } from './home-operacional/home-operacional.modul
 import { EstimativaTempoModule } from './estimativa-tempo/estimativa-tempo.module';
 import { FinanceiroModule } from './financeiro/financeiro.module';
 import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
+import { PlatformModule } from './platform/platform.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
     HomeOperacionalModule, // Módulo da Home operacional (Fase 1)
     EstimativaTempoModule, // Estimativa de tempo de máquina + compatibilidade material×máquina (Fase 2)
     FinanceiroModule, // Módulo do financeiro mínimo (Fase 6)
+    PlatformModule,
   ],
 })
 export class AppModule {
