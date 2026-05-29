@@ -1,9 +1,10 @@
 "use client";
 import { cn } from "@/lib/utils";
-import React, { useState, createContext, useContext } from "react";
+import React, { useState, createContext, useContext, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { IconMenu2, IconX } from "@tabler/icons-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { SidebarBrandLogo } from "@/components/brand/SidebarBrandLogo";
 
@@ -49,6 +50,13 @@ export const SidebarProvider = ({
   const [openState, setOpenState] = useState(false);
   const open = openProp !== undefined ? openProp : openState;
   const setOpen = setOpenProp !== undefined ? setOpenProp : setOpenState;
+  const pathname = usePathname();
+
+  // Fecha o drawer mobile (e recolhe sidebar desktop) ao mudar de rota
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname, setOpen]);
+
   return (
     <SidebarContext.Provider value={{ open, setOpen, animate: animate }}>
       {children}
@@ -120,50 +128,75 @@ export const MobileSidebar = ({
   ...props
 }: React.ComponentProps<"div">) => {
   const { open, setOpen } = useSidebar();
+
   return (
     <>
       <div
         className={cn(
-          "flex h-10 w-full flex-row items-center justify-between px-4 py-4",
+          "flex h-12 w-full shrink-0 items-center px-3 lg:hidden",
           sidebarSurfaceClass,
         )}
         {...props}
       >
-        <div className="flex justify-start z-20 w-full">
-          <IconMenu2
-            className="text-neutral-800 dark:text-neutral-200"
-            onClick={() => setOpen(!open)}
-          />
-        </div>
-        <AnimatePresence>
-          {open && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="rounded-md p-2 text-neutral-800 dark:text-neutral-200"
+          aria-label="Abrir menu"
+          aria-expanded={open}
+        >
+          <IconMenu2 className="h-6 w-6" />
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {open && (
+          <>
+            <motion.button
+              type="button"
+              key="sidebar-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[200] bg-black/50 lg:hidden"
+              onClick={() => setOpen(false)}
+              aria-label="Fechar menu"
+            />
             <motion.div
-              initial={{ x: "-100%", opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: "-100%", opacity: 0 }}
-              transition={{
-                duration: 0.3,
-                ease: "easeInOut",
-              }}
+              key="sidebar-drawer"
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
               className={cn(
-                "fixed inset-0 z-[100] flex h-full w-full flex-col justify-between bg-white p-10 dark:bg-black",
-                className
+                "fixed inset-y-0 left-0 z-[201] flex w-[min(100vw,320px)] flex-col shadow-xl lg:hidden",
+                sidebarSurfaceClass,
               )}
             >
-              <div className="flex flex-col flex-1">
+              <div className="flex shrink-0 items-center justify-between border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
                 <Logo />
-                {children}
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="rounded-md p-2 text-neutral-800 dark:text-neutral-200"
+                  aria-label="Fechar menu"
+                >
+                  <IconX className="h-6 w-6" />
+                </button>
               </div>
               <div
-                className="absolute right-10 top-10 z-50 text-neutral-800 dark:text-neutral-200"
-                onClick={() => setOpen(!open)}
+                className={cn(
+                  "flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-4 py-4",
+                  className,
+                )}
               >
-                <IconX />
+                {children}
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   );
 };
@@ -172,12 +205,21 @@ export const MobileSidebar = ({
 export const SidebarLink = ({
   link,
   className,
+  onClick,
   ...props
 }: {
   link: Links;
   className?: string;
+  onClick?: () => void;
 }) => {
-  const { open, animate } = useSidebar();
+  const { open, animate, setOpen } = useSidebar();
+
+  const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    onClick?.();
+    setOpen(false);
+    props.onClick?.(event);
+  };
+
   return (
     <a
       href={link.href}
@@ -185,6 +227,7 @@ export const SidebarLink = ({
         "flex items-center justify-start gap-2 group/sidebar py-2",
         className
       )}
+      onClick={handleClick}
       {...props}
     >
       {link.icon}

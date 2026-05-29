@@ -49,12 +49,17 @@ const SidebarLink = ({
   className?: string;
   onClick?: () => void;
 }) => {
-  const { open, animate } = useSidebar();
-  
+  const { open, animate, setOpen } = useSidebar();
+
+  const closeMenu = () => setOpen(false);
+
   if (onClick) {
     return (
       <button
-        onClick={onClick}
+        onClick={() => {
+          onClick();
+          closeMenu();
+        }}
         className={cn(
           "flex items-center justify-start gap-2 group/sidebar py-2 w-full text-left",
           className
@@ -79,6 +84,7 @@ const SidebarLink = ({
   return (
     <Link
       href={link.href}
+      onClick={closeMenu}
       className={cn(
         "flex items-center justify-start gap-2 group/sidebar py-2",
         className
