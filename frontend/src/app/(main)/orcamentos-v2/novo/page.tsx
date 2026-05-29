@@ -34,6 +34,8 @@ export default function NovoOrcamentoV2Page() {
 
   // Verificar se é edição baseado nos query parameters
   const editId = searchParams.get('id');
+  const clienteIdFromQuery =
+    searchParams.get('cliente_id') || searchParams.get('clienteId');
   const isEditMode = !!editId;
   const mode = isEditMode ? 'editar' : 'novo';
 
@@ -316,6 +318,55 @@ export default function NovoOrcamentoV2Page() {
       loadOrcamentoData();
     }
   }, [isEditMode, editId]);
+
+  useEffect(() => {
+    if (isEditMode || !clienteIdFromQuery || initialData) return;
+
+    const preencherCliente = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        if (!token) return;
+
+        const cliente = await clientesApi.getById(clienteIdFromQuery, token);
+        setInitialData({
+          cliente_id: clienteIdFromQuery,
+          nome_servico: '',
+          descricao: '',
+          quantidade_produto: '1',
+          margem_lucro_customizada: '',
+          impostos_customizados: '',
+          tipo_margem_lucro: '',
+          condicoes_comerciais: '',
+          prazo_entrega: '',
+          forma_pagamento: '',
+          validade_proposta: '',
+          atendente: '',
+          comissao_percentual: '',
+          itens_produto: [],
+          cliente,
+        } as OrcamentoData);
+      } catch {
+        setInitialData({
+          cliente_id: clienteIdFromQuery,
+          nome_servico: '',
+          descricao: '',
+          quantidade_produto: '1',
+          margem_lucro_customizada: '',
+          impostos_customizados: '',
+          tipo_margem_lucro: '',
+          condicoes_comerciais: '',
+          prazo_entrega: '',
+          forma_pagamento: '',
+          validade_proposta: '',
+          atendente: '',
+          comissao_percentual: '',
+          itens_produto: [],
+        } as OrcamentoData);
+      }
+    };
+
+    preencherCliente();
+  }, [isEditMode, clienteIdFromQuery, initialData]);
   // Mostrar loading durante carregamento dos dados
   if (loading) {
     return (

@@ -42,6 +42,14 @@ export const createColumns = (
         </Button>
       );
     },
+    cell: ({ row }) => (
+      <Link
+        href={`/clientes/${row.original.id}`}
+        className="font-medium text-foreground hover:text-primary hover:underline"
+      >
+        {row.original.nome}
+      </Link>
+    ),
   },
   {
     accessorKey: 'documento',
@@ -124,15 +132,21 @@ export const createColumns = (
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Ações</DropdownMenuLabel>
               <DropdownMenuItem asChild>
-                <Link href={`/orcamentos/novo?clienteId=${cliente.id}`}>
+                <Link href={`/clientes/${cliente.id}`}>
                   <FileText className="mr-2 h-4 w-4" />
-                  Novo Orçamento
+                  Ver ficha
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/orcamentos-v2/novo?cliente_id=${cliente.id}`}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Novo orçamento
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href={`/clientes/editar/${cliente.id}`}>
                   <Edit className="mr-2 h-4 w-4" />
-                  Editar
+                  Editar cadastro
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />

@@ -324,7 +324,7 @@ export default function DashboardLayout({
   ];
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background lg:h-screen lg:flex-row lg:overflow-hidden">
+    <div className="app-shell flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-background lg:flex-row">
       {/* O Sidebar agora gerencia seu próprio estado */}
       <Sidebar> 
         <SidebarBody className="justify-between gap-6">
@@ -365,9 +365,11 @@ export default function DashboardLayout({
         </SidebarBody>
       </Sidebar>
       
-      {/* Área de conteúdo principal */}
-      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-        <MainHeader />
+      {/* Área de conteúdo principal: header fixo + uma única área com scroll */}
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="shrink-0">
+          <MainHeader />
+        </div>
         {/*
           Padding lateral e vertical centralizado no layout para garantir
           respiro consistente em toda a plataforma. Páginas individuais
@@ -375,7 +377,7 @@ export default function DashboardLayout({
           root - basta usar `space-y-X` ou layout próprio dentro deste
           padding. Migração em massa feita em 2026-05-25.
         */}
-        <div className="px-4 sm:px-6 lg:px-8 py-4 lg:py-6">
+        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-4 sm:px-6 lg:px-8 py-4 lg:py-6">
           {children}
         </div>
       </main>

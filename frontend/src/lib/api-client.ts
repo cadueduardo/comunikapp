@@ -282,7 +282,12 @@ export const orcamentosApi = {
     create: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos-v2', data, token),
     update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/orcamentos-v2/${id}`, data, token),
     delete: (id: string, token: string, data?: { motivo?: string }) => ApiClient.delete(`/orcamentos-v2/${id}`, token, data),
-    
+    duplicar: (
+      id: string,
+      data: { titulo?: string; descricao?: string },
+      token: string,
+    ) => ApiClient.post(`/orcamentos-v2/${id}/duplicar`, data, token),
+
     // Cálculo via Motor V2
     calcularOrcamento: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos-v2/calcular', data, token),
     calcularPreview: (data: Record<string, unknown>, token: string) => ApiClient.post('/motor-calculo-v2/preview', data, token),

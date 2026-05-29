@@ -257,6 +257,54 @@ export class OrcamentosV2Service {
   }
 
   /**
+   * Duplica orçamento existente como novo rascunho (produtos, insumos, máquinas, etc.).
+   */
+  async duplicarOrcamento(
+    id: string,
+    lojaId: string,
+    usuarioId: string,
+    opcoes?: { titulo?: string; descricao?: string },
+  ): Promise<OrcamentoCompleto> {
+    const original = await this.buscarOrcamento(id, lojaId);
+    const tituloBase =
+      original.titulo ||
+      (original as any).nome_servico ||
+      'Orçamento';
+
+    const produtos = (original.produtos || []).map((produto) =>
+      this.transformacaoService.normalizarProdutoParaDuplicacao(produto),
+    );
+
+    if (produtos.length === 0) {
+      throw new BadRequestException(
+        'Não é possível duplicar orçamento sem produtos',
+      );
+    }
+
+    const dadosDuplicacao: Record<string, unknown> = {
+      cliente_id: original.cliente_id,
+      titulo: opcoes?.titulo || `${tituloBase} (Cópia)`,
+      nome_servico: opcoes?.titulo || `${tituloBase} (Cópia)`,
+      descricao:
+        opcoes?.descricao || `Cópia do orçamento ${tituloBase}`,
+      status: OrcamentoStatus.RASCUNHO,
+      produtos,
+      margem_lucro_customizada: (original as any).margem_lucro_customizada,
+      impostos_customizados: (original as any).impostos_customizados,
+      tipo_margem_lucro: (original as any).tipo_margem_lucro,
+      comissao_percentual: original.comissao_percentual,
+      configuracoes: original.configuracoes,
+      prazo_entrega: (original as any).prazo_entrega,
+      forma_pagamento: (original as any).forma_pagamento,
+      validade_proposta: (original as any).validade_proposta,
+      atendente: (original as any).atendente,
+      condicoes_comerciais: (original as any).condicoes_comerciais,
+    };
+
+    return this.criarOrcamento(dadosDuplicacao, lojaId, usuarioId);
+  }
+
+  /**
    * Busca orçamento por ID
    */
   async buscarOrcamento(

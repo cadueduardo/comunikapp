@@ -597,36 +597,11 @@ export class OrcamentosV2Controller {
     @Request() req: any,
   ) {
     const { loja_id, user_id } = req.user;
-    const orcamentoOriginal = await this.orcamentosService.buscarOrcamento(
+    return await this.orcamentosService.duplicarOrcamento(
       id,
       loja_id,
-    );
-
-    // Preparar dados para duplicação
-    const dadosDuplicacao = {
-      ...orcamentoOriginal,
-      titulo: dados.titulo || `${orcamentoOriginal.titulo} (Cópia)`,
-      descricao:
-        dados.descricao || `Cópia do orçamento ${orcamentoOriginal.titulo}`,
-      status: 'rascunho' as any,
-      produtos: orcamentoOriginal.produtos,
-    };
-
-    // Remover campos que não devem ser duplicados
-    delete dadosDuplicacao.id;
-    delete dadosDuplicacao.data_criacao;
-    delete dadosDuplicacao.data_atualizacao;
-    delete (dadosDuplicacao as any).historicoOrcamento;
-    delete dadosDuplicacao.versoes;
-    delete dadosDuplicacao.aprovacoes;
-    delete (dadosDuplicacao as any).linksPublicos;
-    delete (dadosDuplicacao as any).mensagensChat;
-    delete dadosDuplicacao.anexos;
-
-    return await this.orcamentosService.criarOrcamento(
-      dadosDuplicacao,
-      loja_id,
       user_id,
+      dados,
     );
   }
 

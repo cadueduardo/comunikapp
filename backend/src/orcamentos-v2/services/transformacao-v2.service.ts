@@ -800,81 +800,163 @@ export class TransformacaoV2Service {
   private transformarProdutos(produtos: any[]): any[] {
     if (!produtos || !Array.isArray(produtos)) return [];
 
-    return produtos.map((produto) => ({
-      id: produto.id,
-      nome: produto.nome,
-      descricao: produto.descricao,
-      quantidade: produto.quantidade,
-      unidade: produto.unidade,
-      largura: produto.largura,
-      altura: produto.altura,
-      // Fase 11: profundidade propagada na resposta da listagem/detalhe (guardrail 3 - round-trip sem mutacao).
-      profundidade: produto.profundidade ?? null,
-      area: produto.area_produto || produto.area,
-      area_produto: produto.area_produto || produto.area,
-      perimetro_produto: produto.perimetro_produto,
-      unidade_geometria: produto.unidade_geometria,
-      geometria_origem: produto.geometria_origem,
-      arquivo_geometria_url: produto.arquivo_geometria_url,
-      arquivo_geometria_metadados: produto.arquivo_geometria_metadados,
-      preco_unitario: produto.preco_unitario || 0,
-      preco_total: produto.preco_total || 0,
-      margem_lucro: produto.margem_lucro || 0,
-      impostos: produto.impostos || 0,
-      observacoes: produto.observacoes,
+    return produtos.map((produto) => {
+      const unidade = produto.unidade_medida || produto.unidade || 'un';
+      return {
+        id: produto.id,
+        nome_servico: produto.nome_servico || produto.nome,
+        nome: produto.nome || produto.nome_servico,
+        descricao: produto.descricao,
+        quantidade: produto.quantidade,
+        unidade,
+        unidade_medida: unidade,
+        largura: produto.largura,
+        altura: produto.altura,
+        // Fase 11: profundidade propagada na resposta da listagem/detalhe (guardrail 3 - round-trip sem mutacao).
+        profundidade: produto.profundidade ?? null,
+        area: produto.area_produto || produto.area,
+        area_produto: produto.area_produto || produto.area,
+        perimetro_produto: produto.perimetro_produto,
+        unidade_geometria: produto.unidade_geometria,
+        geometria_origem: produto.geometria_origem,
+        arquivo_geometria_url: produto.arquivo_geometria_url,
+        arquivo_geometria_metadados: produto.arquivo_geometria_metadados,
+        preco_unitario: produto.preco_unitario || 0,
+        preco_total: produto.preco_total || 0,
+        margem_lucro: produto.margem_lucro || 0,
+        impostos: produto.impostos || 0,
+        observacoes: produto.observacoes,
 
-      insumos:
-        produto.insumos?.map((insumo) => ({
-          id: insumo.id, // ID do relacionamento ItemInsumo
-          insumo_id: insumo.insumo_id, // ID real do insumo no banco
-          nome: insumo.nome,
+        insumos:
+          produto.insumos?.map((insumo) => ({
+            id: insumo.id,
+            insumo_id: insumo.insumo_id,
+            nome: insumo.nome,
+            quantidade: insumo.quantidade,
+            unidade: insumo.unidade,
+            preco_unitario: insumo.preco_unitario || 0,
+            preco_total: insumo.preco_total || 0,
+            material_do_cliente: Boolean(insumo.material_do_cliente),
+            estoque_disponivel: insumo.estoque_disponivel,
+            alerta_estoque: insumo.alerta_estoque || false,
+          })) || [],
+
+        maquinas:
+          produto.maquinas?.map((maquina) => ({
+            id: maquina.id,
+            maquina_id: maquina.maquina_id,
+            nome: maquina.nome,
+            tempo_horas: maquina.tempo_horas,
+            custo_hora: maquina.custo_hora || 0,
+            custo_total: maquina.custo_total || 0,
+          })) || [],
+
+        funcoes:
+          produto.funcoes?.map((funcao) => ({
+            id: funcao.id,
+            funcao_id: funcao.funcao_id,
+            nome: funcao.nome,
+            tempo_horas: funcao.tempo_horas,
+            custo_hora: funcao.custo_hora || 0,
+            custo_total: funcao.custo_total || 0,
+          })) || [],
+
+        servicos_manuais:
+          produto.servicos_manuais?.map((servico) => ({
+            id: servico.id,
+            servico_id: servico.servico_id,
+            nome: servico.nome,
+            tempo_horas: servico.tempo_horas,
+            custo_hora: servico.custo_hora || 0,
+            custo_total: servico.custo_total || 0,
+          })) || [],
+
+        custos_indiretos:
+          produto.custos_indiretos?.map((custo) => ({
+            custo_id: custo.custo_id,
+            percentual: custo.percentual,
+            valor_fixo: custo.valor_fixo || 0,
+            custo_total: custo.custo_total || 0,
+          })) || [],
+      };
+    });
+  }
+
+  /**
+   * Normaliza produto vindo da interface/Prisma para criação (ex.: duplicar orçamento).
+   */
+  normalizarProdutoParaDuplicacao(produto: any): any {
+    const unidade =
+      produto?.unidade_medida ||
+      produto?.unidade ||
+      produto?.unidade_medida_produto ||
+      'un';
+    const nome = produto?.nome_servico || produto?.nome || 'Produto';
+
+    return {
+      nome_servico: nome,
+      nome,
+      descricao: produto?.descricao ?? '',
+      quantidade: produto?.quantidade ?? 1,
+      unidade,
+      unidade_medida: unidade,
+      largura: produto?.largura ?? null,
+      altura: produto?.altura ?? null,
+      profundidade: produto?.profundidade ?? null,
+      area_produto: produto?.area_produto ?? produto?.area ?? null,
+      perimetro_produto: produto?.perimetro_produto ?? null,
+      unidade_geometria: produto?.unidade_geometria ?? null,
+      geometria_origem: produto?.geometria_origem ?? null,
+      arquivo_geometria_url: produto?.arquivo_geometria_url ?? null,
+      arquivo_geometria_metadados: produto?.arquivo_geometria_metadados ?? null,
+      observacoes: produto?.observacoes,
+      custo_total_producao: produto?.custo_total_producao,
+      preco_unitario: produto?.preco_unitario,
+      preco_total: produto?.preco_total,
+      margem_lucro: produto?.margem_lucro,
+      impostos: produto?.impostos,
+      insumos: (produto?.insumos || [])
+        .filter((i: any) => i?.insumo_id)
+        .map((insumo: any) => ({
+          insumo_id: insumo.insumo_id,
           quantidade: insumo.quantidade,
-          unidade: insumo.unidade,
-          preco_unitario: insumo.preco_unitario || 0,
-          preco_total: insumo.preco_total || 0,
+          unidade: insumo.unidade || unidade,
+          preco_unitario: insumo.preco_unitario,
+          preco_total: insumo.preco_total,
           material_do_cliente: Boolean(insumo.material_do_cliente),
-          estoque_disponivel: insumo.estoque_disponivel,
-          alerta_estoque: insumo.alerta_estoque || false,
-        })) || [],
-
-      maquinas:
-        produto.maquinas?.map((maquina) => ({
-          id: maquina.id, // ID do relacionamento ItemMaquina
-          maquina_id: maquina.maquina_id, // ID real da máquina no banco
-          nome: maquina.nome,
-          tempo_horas: maquina.tempo_horas,
-          custo_hora: maquina.custo_hora || 0,
-          custo_total: maquina.custo_total || 0,
-        })) || [],
-
-      funcoes:
-        produto.funcoes?.map((funcao) => ({
-          id: funcao.id, // ID do relacionamento ItemFuncao
-          funcao_id: funcao.funcao_id, // ID real da função no banco
-          nome: funcao.nome,
-          tempo_horas: funcao.tempo_horas,
-          custo_hora: funcao.custo_hora || 0,
-          custo_total: funcao.custo_total || 0,
-        })) || [],
-
-      servicos_manuais:
-        produto.servicos_manuais?.map((servico) => ({
-          id: servico.id, // ID do relacionamento ItemServicoManual
-          servico_id: servico.servico_id, // ID real do serviço no banco
-          nome: servico.nome,
-          tempo_horas: servico.tempo_horas,
-          custo_hora: servico.custo_hora || 0,
-          custo_total: servico.custo_total || 0,
-        })) || [],
-
-      custos_indiretos:
-        produto.custos_indiretos?.map((custo) => ({
+        })),
+      maquinas: (produto?.maquinas || [])
+        .filter((m: any) => m?.maquina_id)
+        .map((maquina: any) => ({
+          maquina_id: maquina.maquina_id,
+          tempo_horas: maquina.tempo_horas ?? maquina.horas_utilizadas,
+          custo_hora: maquina.custo_hora,
+          custo_total: maquina.custo_total,
+        })),
+      funcoes: (produto?.funcoes || [])
+        .filter((f: any) => f?.funcao_id)
+        .map((funcao: any) => ({
+          funcao_id: funcao.funcao_id,
+          tempo_horas: funcao.tempo_horas ?? funcao.horas_trabalhadas,
+          custo_hora: funcao.custo_hora,
+          custo_total: funcao.custo_total,
+        })),
+      servicos_manuais: (produto?.servicos_manuais || [])
+        .filter((s: any) => s?.servico_id)
+        .map((servico: any) => ({
+          servico_id: servico.servico_id,
+          tempo_horas: servico.tempo_horas ?? servico.horas_trabalhadas,
+          custo_hora: servico.custo_hora,
+          custo_total: servico.custo_total,
+        })),
+      custos_indiretos: (produto?.custos_indiretos || [])
+        .filter((c: any) => c?.custo_id)
+        .map((custo: any) => ({
           custo_id: custo.custo_id,
           percentual: custo.percentual,
-          valor_fixo: custo.valor_fixo || 0,
-          custo_total: custo.custo_total || 0,
-        })) || [],
-    }));
+          valor_fixo: custo.valor_fixo,
+        })),
+    };
   }
 
   private transformarCustos(dados: any): any {

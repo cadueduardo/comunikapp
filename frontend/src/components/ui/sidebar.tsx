@@ -95,7 +95,7 @@ export const DesktopSidebar = ({
     <motion.div
       className={cn(
         "hidden shrink-0 flex-col overflow-hidden px-4 py-4",
-        "min-h-screen lg:sticky lg:top-0 lg:flex lg:h-screen lg:min-h-0",
+        "lg:sticky lg:top-0 lg:flex lg:h-full lg:max-h-dvh lg:min-h-0",
         sidebarSurfaceClass,
       )}
       animate={{

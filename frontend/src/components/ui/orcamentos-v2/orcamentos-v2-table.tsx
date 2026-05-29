@@ -18,8 +18,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/utils';
 import { orcamentosApi } from '@/lib/api-client';
-import { Edit, Filter, Loader2, MoreHorizontal, Search, Share2, Trash2 } from 'lucide-react';
+import { Copy, Edit, Filter, Loader2, MoreHorizontal, Search, Share2, Trash2 } from 'lucide-react';
 import { OrcamentoV2, useOrcamentosV2 } from './hooks/useOrcamentosV2';
+import { useDuplicarOrcamento } from '@/hooks/use-duplicar-orcamento';
 
 type StatusFilter = 'todos' | 'rascunho' | 'enviado';
 const DESCRICAO_MAX_CHARS = 32;
@@ -141,6 +142,7 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('todos');
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; orcamentoId?: string; nome?: string; loading?: boolean }>({ open: false });
   const { orcamentos, loading, error, refetch } = useOrcamentosV2();
+  const { duplicar, isDuplicando } = useDuplicarOrcamento();
 
   const filteredData = useMemo(() => {
     const normalizedTerm = searchTerm.trim().toLowerCase();
@@ -283,7 +285,6 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
       </div>
 
       <div className="crud-table-shell">
-        <div className="overflow-x-auto">
           <table>
             <thead>
               <tr>
@@ -372,6 +373,17 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
                               Editar
                             </Link>
                           </DropdownMenuItem>
+                          <DropdownMenuItem
+                            disabled={isDuplicando(orcamento.id)}
+                            onClick={() => void duplicar(orcamento.id)}
+                          >
+                            {isDuplicando(orcamento.id) ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Copy className="mr-2 h-4 w-4" />
+                            )}
+                            Duplicar
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
                               onClick={() => openDeleteDialog(orcamento.id, orcamento.nome_servico)}
@@ -389,7 +401,6 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
               )}
             </tbody>
           </table>
-        </div>
       </div>
 
       {filteredData.length > 0 && (

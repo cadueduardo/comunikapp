@@ -121,10 +121,24 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+/* Shell logado: um único scroll na área de conteúdo (evita barra do body + barra interna) */
+@layer base {
+  html:has(.app-shell),
+  html:has(.app-shell) body {
+    height: 100%;
+    overflow: hidden;
+  }
+}
+
 @layer components {
   /* Tabelas CRUD com markup HTML manual (sem shadcn Table) */
   .crud-table-shell {
-    @apply overflow-hidden rounded-lg border border-border;
+    /* overflow-x-auto sozinho vira overflow:auto (eixo Y também) — forçar só horizontal */
+    @apply overflow-x-auto overflow-y-hidden rounded-lg border border-border bg-card;
+  }
+  /* Páginas legadas com div interna overflow-x-auto dentro do shell */
+  .crud-table-shell .overflow-x-auto {
+    overflow-y: hidden;
   }
   .crud-table-shell table {
     @apply min-w-full divide-y divide-border;

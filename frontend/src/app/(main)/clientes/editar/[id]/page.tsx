@@ -97,7 +97,7 @@ export default function EditarClientePage({ params }: { params: Promise<{ id: st
 
       await clientesApi.update(clienteId, cleanData, token);
       toast.success('Cliente atualizado com sucesso!');
-      router.push('/clientes');
+      router.push(`/clientes/${clienteId}`);
     } catch (error) {
       console.error('Erro ao atualizar cliente:', error);
       toast.error('Erro ao atualizar cliente. Tente novamente.');
@@ -118,10 +118,10 @@ export default function EditarClientePage({ params }: { params: Promise<{ id: st
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/clientes">
+        <Link href={`/clientes/${clienteId}`}>
           <Button variant="outline" size="sm" className="cursor-pointer hover:bg-gray-100 transition-colors">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
+            Voltar à ficha
           </Button>
         </Link>
         <div>

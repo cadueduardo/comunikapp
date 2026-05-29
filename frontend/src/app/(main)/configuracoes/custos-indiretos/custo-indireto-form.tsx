@@ -29,6 +29,11 @@ import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { custosIndiretosApi } from '@/lib/api-client';
+import { Combobox } from '@/components/ui/combobox';
+import {
+  buildCategoriaCustoIndiretoOptions,
+  type CategoriaCustoIndiretoOption,
+} from '@/lib/custos-indiretos-categorias';
 
 const formSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório'),
@@ -59,6 +64,9 @@ export default function CustoIndiretoForm({ custoIndireto }: CustoIndiretoFormPr
   const isEditing = !!custoIndireto;
 
   const [setores, setSetores] = useState<Array<{ id: string; nome: string }>>([]);
+  const [categoriasOptions, setCategoriasOptions] = useState<CategoriaCustoIndiretoOption[]>(
+    () => buildCategoriaCustoIndiretoOptions([], custoIndireto?.categoria),
+  );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -75,11 +83,51 @@ export default function CustoIndiretoForm({ custoIndireto }: CustoIndiretoFormPr
     const token = localStorage.getItem('access_token');
     if (!token) return;
     const headers = { Authorization: `Bearer ${token}` };
+
     fetch('/api/centros-de-trabalho/setores-produtivos?ativo=true', { headers })
       .then((r) => r.json())
       .then((data) => setSetores(Array.isArray(data) ? data : []))
       .catch(() => setSetores([]));
-  }, []);
+
+    custosIndiretosApi
+      .getAll(token)
+      .then((data) => {
+        const existentes = Array.isArray(data)
+          ? [
+              ...new Set(
+                data
+                  .map((item: { categoria?: string }) => item.categoria?.trim())
+                  .filter((c): c is string => Boolean(c)),
+              ),
+            ]
+          : [];
+        setCategoriasOptions(
+          buildCategoriaCustoIndiretoOptions(existentes, custoIndireto?.categoria),
+        );
+      })
+      .catch(() => {
+        setCategoriasOptions(
+          buildCategoriaCustoIndiretoOptions([], custoIndireto?.categoria),
+        );
+      });
+  }, [custoIndireto?.categoria]);
+
+  const handleCreateCategoria = (nome: string) => {
+    const valor = nome.trim();
+    if (!valor) return;
+
+    setCategoriasOptions((prev) => {
+      if (prev.some((o) => o.value.toLowerCase() === valor.toLowerCase())) {
+        return prev;
+      }
+      return buildCategoriaCustoIndiretoOptions(
+        [...prev.map((o) => o.value), valor],
+        valor,
+      );
+    });
+    form.setValue('categoria', valor, { shouldValidate: true });
+    toast.success(`Categoria "${valor}" adicionada`);
+  };
 
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
@@ -156,7 +204,16 @@ export default function CustoIndiretoForm({ custoIndireto }: CustoIndiretoFormPr
                     <FormItem>
                       <FormLabel>Categoria</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ex: Infraestrutura, Serviços..." {...field} />
+                        <Combobox
+                          options={categoriasOptions}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Selecione a categoria"
+                          searchPlaceholder="Buscar..."
+                          emptyPlaceholder="Nenhuma categoria encontrada."
+                          createPlaceholder="Criar categoria"
+                          onCreate={handleCreateCategoria}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

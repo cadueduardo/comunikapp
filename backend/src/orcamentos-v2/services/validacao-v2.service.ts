@@ -318,7 +318,10 @@ export class ValidacaoV2Service {
       throw new BadRequestException('Produto deve ter quantidade válida');
     }
 
-    if (!produto.unidade_medida && !produto.unidade) {
+    const unidade = String(
+      produto.unidade_medida || produto.unidade || produto.unidade_medida_produto || '',
+    ).trim();
+    if (!unidade) {
       throw new BadRequestException('Produto deve ter unidade válida');
     }
   }

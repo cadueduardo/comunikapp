@@ -6,9 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, Edit, Trash2, Search, Filter, Calendar, User, DollarSign, Loader2, Share2 } from 'lucide-react';
+import Link from 'next/link';
+import { Edit, Search, Filter, Calendar, User, DollarSign, Loader2, Share2, Copy } from 'lucide-react';
 import { useOrcamentosV2 } from './hooks/useOrcamentosV2';
 import { formatCurrency } from '@/lib/utils';
+import { useDuplicarOrcamento } from '@/hooks/use-duplicar-orcamento';
 
 const statusColors = {
   PENDENTE: 'bg-yellow-100 text-yellow-800',
@@ -27,6 +29,7 @@ export function OrcamentosV2Cards() {
   
   // Usar hook para buscar dados reais do backend
   const { orcamentos, loading, error, refetch } = useOrcamentosV2();
+  const { duplicar, isDuplicando } = useDuplicarOrcamento();
 
   const handleShare = async (orcamento: any) => {
     try {
@@ -182,25 +185,35 @@ export function OrcamentosV2Cards() {
               </div>
 
               {/* Ações */}
-              <div className="flex gap-2 pt-2 border-t border-gray-100">
-                <Button variant="ghost" size="sm" className="flex-1">
-                  <Eye className="w-4 h-4 mr-2" />
-                  Ver
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                <Button variant="outline" size="sm" className="flex-1 min-w-[5rem]" asChild>
+                  <Link href={`/orcamentos-v2/novo?id=${orcamento.id}`}>
+                    <Edit className="w-4 h-4 mr-1" />
+                    Editar
+                  </Link>
                 </Button>
-                <Button variant="ghost" size="sm" className="flex-1">
-                  <Edit className="w-4 h-4 mr-2" />
-                  Editar
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 min-w-[5rem]"
+                  disabled={isDuplicando(orcamento.id)}
+                  onClick={() => void duplicar(orcamento.id, { onSuccess: () => refetch() })}
+                >
+                  {isDuplicando(orcamento.id) ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Copy className="w-4 h-4 mr-1" />
+                  )}
+                  Duplicar
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleShare(orcamento)}
-                  className="text-blue-600 hover:text-blue-700"
+                  className="text-primary"
+                  title="Compartilhar"
                 >
                   <Share2 className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
-                  <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
             </CardContent>
