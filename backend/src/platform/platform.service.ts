@@ -7,6 +7,10 @@ import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { CreateConviteCadastroDto } from './dto/create-convite-cadastro.dto';
+import {
+  CONVITE_INDIVIDUAL_WHATSAPP,
+  renderConviteIndividualWhatsapp,
+} from './convite-templates';
 import { isPlatformAdminEmail } from './platform-admin.guard';
 
 const INVITE_STATUS = {
@@ -49,8 +53,13 @@ export class PlatformService {
     return safeInvite;
   }
 
+  private normalizeNome(nome: string) {
+    return nome.trim().replace(/\s+/g, ' ');
+  }
+
   async createInvite(dto: CreateConviteCadastroDto, createdByEmail?: string) {
     const email = this.normalizeEmail(dto.email);
+    const nome = this.normalizeNome(dto.nome);
     const activeInvite = await this.prisma.conviteCadastro.findFirst({
       where: {
         email,
@@ -72,6 +81,7 @@ export class PlatformService {
     const convite = await this.prisma.conviteCadastro.create({
       data: {
         email,
+        nome,
         token_hash: this.hashToken(token),
         mensagem: dto.mensagem?.trim() || null,
         criado_por_email: createdByEmail?.trim().toLowerCase() || null,
@@ -80,11 +90,15 @@ export class PlatformService {
     });
 
     const inviteUrl = this.getSignupInviteUrl(token);
+    const mensagemWhatsapp = renderConviteIndividualWhatsapp(
+      CONVITE_INDIVIDUAL_WHATSAPP,
+      { nome, link: inviteUrl },
+    );
     let emailSent = true;
     let emailError: string | null = null;
     try {
       await this.mailService.sendSignupInviteEmail(email, inviteUrl, {
-        message: dto.mensagem,
+        nome,
         expiresAt,
       });
     } catch (error) {
@@ -96,6 +110,7 @@ export class PlatformService {
     return {
       ...this.toInviteResponse(convite),
       invite_url: inviteUrl,
+      mensagem_whatsapp: mensagemWhatsapp,
       email_enviado: emailSent,
       email_erro: emailError,
     };
@@ -109,6 +124,7 @@ export class PlatformService {
       select: {
         id: true,
         email: true,
+        nome: true,
         status: true,
         mensagem: true,
         criado_por_email: true,
@@ -155,6 +171,7 @@ export class PlatformService {
       where: { token_hash: this.hashToken(token.trim()) },
       select: {
         email: true,
+        nome: true,
         status: true,
         expira_em: true,
       },
@@ -182,6 +199,7 @@ export class PlatformService {
     return {
       valid: true,
       email: convite.email,
+      nome: convite.nome,
       expira_em: convite.expira_em,
     };
   }

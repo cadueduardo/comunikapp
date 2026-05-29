@@ -1,6 +1,7 @@
 import {
   IsEmail,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   Max,
@@ -9,6 +10,11 @@ import {
 } from 'class-validator';
 
 export class CreateConviteCadastroDto {
+  @IsString()
+  @IsNotEmpty({ message: 'Informe o nome do convidado.' })
+  @MaxLength(255, { message: 'O nome deve ter no maximo 255 caracteres.' })
+  nome: string;
+
   @IsEmail()
   email: string;
 

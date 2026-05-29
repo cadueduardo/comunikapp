@@ -106,6 +106,9 @@ export default function CadastroPage() {
                 if (response?.email) {
                     setFormData(prev => ({ ...prev, email: String(response.email) }));
                 }
+                if (response?.nome) {
+                    setFormData(prev => ({ ...prev, name: String(response.nome) }));
+                }
             })
             .catch((err: unknown) => {
                 if (err instanceof Error) {

@@ -1232,6 +1232,7 @@ model PasswordResetToken {
 model ConviteCadastro {
   id                   String    @id @default(cuid())
   email                String
+  nome                 String?   @db.VarChar(255)
   token_hash           String    @unique
   status               String    @default("PENDENTE") @db.VarChar(24)
   mensagem             String?   @db.Text

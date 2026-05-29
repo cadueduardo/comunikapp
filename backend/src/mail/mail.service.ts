@@ -183,7 +183,7 @@ export class MailService implements OnModuleInit {
   async sendSignupInviteEmail(
     to: string,
     inviteLink: string,
-    options?: { message?: string; expiresAt?: Date },
+    options?: { nome?: string; expiresAt?: Date },
   ) {
     const expiresText = options?.expiresAt
       ? options.expiresAt.toLocaleDateString('pt-BR', {
@@ -192,6 +192,7 @@ export class MailService implements OnModuleInit {
           year: 'numeric',
         })
       : null;
+    const nome = options?.nome?.trim() || 'convidado(a)';
 
     const mailOptions = {
       from: this.getFromAddress(),
@@ -200,12 +201,7 @@ export class MailService implements OnModuleInit {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1>Voce foi convidado para acessar o Comunikapp</h1>
-          <p>Use o link abaixo para criar sua conta e iniciar o cadastro da sua loja.</p>
-          ${
-            options?.message
-              ? `<p style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px;">${options.message}</p>`
-              : ''
-          }
+          <p>Ola, ${nome}! Use o link abaixo para criar sua conta e iniciar o cadastro da sua loja.</p>
           <div style="margin: 24px 0;">
             <a href="${inviteLink}"
               style="background-color: #0f172a; color: #ffffff; padding: 12px 20px; text-decoration: none; border-radius: 6px; display: inline-block;">
