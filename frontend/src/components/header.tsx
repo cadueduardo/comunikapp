@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
+import { BRAND_ASSETS } from "@/lib/brand";
 
 const Header = () => {
     const [scrolled, setScrolled] = useState(false);
@@ -47,7 +48,13 @@ const Header = () => {
                         : "relative p-6"
                 )}
             >
-                <div className="text-xl font-bold pl-4 text-white">Comunikapp</div>
+                <Link href="/" className="flex items-center pl-2 md:pl-4">
+                    <img
+                        src={BRAND_ASSETS.logoWhite}
+                        alt="Comunikapp"
+                        className="h-8 md:h-9 w-auto"
+                    />
+                </Link>
                 {/* Mobile: Cadastrar e Login sempre visíveis */}
                 <nav className="flex md:hidden items-center gap-2">
                     <Link href="/login">

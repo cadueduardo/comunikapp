@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { IconMenu2, IconX } from "@tabler/icons-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import Link from "next/link";
+import { BRAND_ASSETS } from "@/lib/brand";
 
 // Types and Context Definition
 interface Links {
@@ -197,16 +198,13 @@ export const Logo = () => {
   return (
     <Link
       href="/dashboard"
-      className="font-normal flex space-x-2 items-center text-sm text-black py-1 relative z-20"
+      className="mb-4 flex items-center py-1 relative z-20"
     >
-      <div className="h-5 w-6 bg-black dark:bg-white rounded-br-lg rounded-tr-sm rounded-tl-lg rounded-bl-sm flex-shrink-0" />
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="font-medium text-black dark:text-white whitespace-pre"
-      >
-        Comunikapp
-      </motion.span>
+      <img
+        src={BRAND_ASSETS.logoPlatform}
+        alt="Comunikapp"
+        className="h-8 w-auto max-w-[220px] flex-shrink-0"
+      />
     </Link>
   );
 };
@@ -215,9 +213,13 @@ export const LogoIcon = () => {
   return (
     <Link
       href="/dashboard"
-      className="font-normal flex space-x-2 items-center text-sm text-black py-1 relative z-20"
+      className="mb-4 flex items-center justify-center py-1 relative z-20 w-full"
     >
-      <div className="h-5 w-6 bg-black dark:bg-white rounded-br-lg rounded-tr-sm rounded-tl-lg rounded-bl-sm flex-shrink-0" />
+      <img
+        src={BRAND_ASSETS.logoSymbol}
+        alt="Comunikapp"
+        className="h-8 w-8 flex-shrink-0 object-contain"
+      />
     </Link>
   );
 }; 

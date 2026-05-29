@@ -4,6 +4,7 @@ import "./globals.css";
 import { UserProvider } from "@/contexts/UserContext";
 import { SentryProvider } from "@/components/providers/SentryProvider";
 import { Toaster } from "@/components/ui/sonner"; // Importando o Toaster
+import { BRAND_ASSETS } from "@/lib/brand";
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -14,6 +15,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Comunikapp",
   description: "Gestão para comunicação visual",
+  icons: {
+    icon: [{ url: BRAND_ASSETS.favicon, type: "image/svg+xml" }],
+    shortcut: BRAND_ASSETS.favicon,
+    apple: BRAND_ASSETS.favicon,
+  },
 };
 
 export default function RootLayout({

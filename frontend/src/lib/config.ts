@@ -57,6 +57,20 @@ export const buildApiUrl = (endpoint: string): string => {
   return `${baseUrl}${endpoint}`;
 };
 
+/** Resolve caminhos de upload/logo da loja para exibicao no frontend. */
+export const resolveAssetUrl = (path?: string | null): string | null => {
+  if (!path || path.includes('undefined')) return null;
+  if (
+    path.startsWith('http://') ||
+    path.startsWith('https://') ||
+    path.startsWith('blob:') ||
+    path.startsWith('data:')
+  ) {
+    return path;
+  }
+  return buildApiUrl(path.startsWith('/') ? path : `/${path}`);
+};
+
 // Função helper para obter headers com autenticação
 export const getAuthHeaders = (token?: string) => {
   const headers: Record<string, string> = {
