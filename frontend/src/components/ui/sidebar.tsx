@@ -5,7 +5,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { IconMenu2, IconX } from "@tabler/icons-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import Link from "next/link";
-import { BRAND_ASSETS } from "@/lib/brand";
+import { SidebarBrandLogo } from "@/components/brand/SidebarBrandLogo";
+
+const sidebarSurfaceClass =
+  "bg-neutral-100 dark:bg-black border-r border-transparent dark:border-neutral-900";
 
 // Types and Context Definition
 interface Links {
@@ -91,18 +94,21 @@ export const DesktopSidebar = ({
   return (
     <motion.div
       className={cn(
-        "h-full px-4 py-4 hidden lg:flex flex-col bg-neutral-100 dark:bg-neutral-800 w-[300px] shrink-0",
-        className
+        "hidden shrink-0 flex-col overflow-hidden px-4 py-4",
+        "min-h-screen lg:sticky lg:top-0 lg:flex lg:h-screen lg:min-h-0",
+        sidebarSurfaceClass,
       )}
       animate={{
-        width: animate ? (open ? "300px" : "60px") : "300px",
+        width: animate ? (open ? 300 : 60) : 300,
       }}
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
       {...props}
     >
       {open ? <Logo /> : <LogoIcon />}
-      {children}
+      <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
+        {children}
+      </div>
     </motion.div>
   );
 };
@@ -118,7 +124,8 @@ export const MobileSidebar = ({
     <>
       <div
         className={cn(
-          "h-10 px-4 py-4 flex flex-row items-center justify-between bg-neutral-100 dark:bg-neutral-800 w-full"
+          "flex h-10 w-full flex-row items-center justify-between px-4 py-4",
+          sidebarSurfaceClass,
         )}
         {...props}
       >
@@ -139,7 +146,7 @@ export const MobileSidebar = ({
                 ease: "easeInOut",
               }}
               className={cn(
-                "fixed h-full w-full inset-0 bg-white dark:bg-neutral-900 p-10 z-[100] flex flex-col justify-between",
+                "fixed inset-0 z-[100] flex h-full w-full flex-col justify-between bg-white p-10 dark:bg-black",
                 className
               )}
             >
@@ -194,32 +201,6 @@ export const SidebarLink = ({
   );
 };
 
-export const Logo = () => {
-  return (
-    <Link
-      href="/dashboard"
-      className="mb-4 flex items-center py-1 relative z-20"
-    >
-      <img
-        src={BRAND_ASSETS.logoPlatform}
-        alt="Comunikapp"
-        className="h-8 w-auto max-w-[220px] flex-shrink-0"
-      />
-    </Link>
-  );
-};
+export const Logo = () => <SidebarBrandLogo collapsed={false} />;
 
-export const LogoIcon = () => {
-  return (
-    <Link
-      href="/dashboard"
-      className="mb-4 flex items-center justify-center py-1 relative z-20 w-full"
-    >
-      <img
-        src={BRAND_ASSETS.logoSymbol}
-        alt="Comunikapp"
-        className="h-8 w-8 flex-shrink-0 object-contain"
-      />
-    </Link>
-  );
-}; 
+export const LogoIcon = () => <SidebarBrandLogo collapsed />; 

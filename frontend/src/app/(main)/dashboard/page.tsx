@@ -27,7 +27,7 @@ export default function DashboardPage() {
       <SystemStateBanner />
 
       <header>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
           {loading ? 'Bem-vindo' : `Olá, ${getFirstName()}`}
         </h1>
         <p className="text-muted-foreground mt-0.5">

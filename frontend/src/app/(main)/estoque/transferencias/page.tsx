@@ -109,7 +109,7 @@ export default function TransferenciasPage() {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Carregando transferências...</p>
+            <p className="mt-2 text-muted-foreground">Carregando transferências...</p>
           </div>
         </div>
       </div>
@@ -128,11 +128,11 @@ export default function TransferenciasPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
               <Package className="h-8 w-8" />
               Transferências de Estoque
             </h1>
-            <p className="text-gray-600 mt-1">Gerencie as transferências de itens entre localizações</p>
+            <p className="text-muted-foreground mt-1">Gerencie as transferências de itens entre localizações</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -155,7 +155,7 @@ export default function TransferenciasPage() {
           <CardContent className="p-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">{transferencias.length}</div>
-              <p className="text-sm text-gray-600">Total de Transferências</p>
+              <p className="text-sm text-muted-foreground">Total de Transferências</p>
             </div>
           </CardContent>
         </Card>
@@ -165,7 +165,7 @@ export default function TransferenciasPage() {
               <div className="text-2xl font-bold text-green-600">
                 {transferencias.filter((t) => t.status === 'CONCLUIDA').length}
               </div>
-              <p className="text-sm text-gray-600">Concluídas</p>
+              <p className="text-sm text-muted-foreground">Concluídas</p>
             </div>
           </CardContent>
         </Card>
@@ -175,7 +175,7 @@ export default function TransferenciasPage() {
               <div className="text-2xl font-bold text-orange-600">
                 {transferencias.filter((t) => t.status === 'PENDENTE').length}
               </div>
-              <p className="text-sm text-gray-600">Pendentes</p>
+              <p className="text-sm text-muted-foreground">Pendentes</p>
             </div>
           </CardContent>
         </Card>
@@ -221,7 +221,7 @@ export default function TransferenciasPage() {
           <CardContent className="flex items-center justify-center h-32">
             <div className="text-center">
               <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">Nenhuma transferência encontrada</p>
+              <p className="text-muted-foreground">Nenhuma transferência encontrada</p>
               <Link href="/estoque/transferencias/nova">
                 <Button className="mt-2" variant="outline">
                   Criar primeira transferência
@@ -231,34 +231,34 @@ export default function TransferenciasPage() {
           </CardContent>
         </Card>
       ) : viewMode === 'table' ? (
-        <div className="bg-white rounded-lg border">
+        <div className="crud-table-shell">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Item
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     De
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Para
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Quantidade
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Data
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Status
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody>
                 {filteredTransferencias.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-50">
+                  <tr key={t.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <Package className="h-4 w-4 text-blue-500" />
@@ -294,7 +294,7 @@ export default function TransferenciasPage() {
                       </div>
                       {getStatusBadge(transferencia.status)}
                     </div>
-                    <div className="flex items-center gap-6 text-sm text-gray-600">
+                    <div className="flex items-center gap-6 text-sm text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4" />
                         <span>De: {transferencia.localizacaoOrigemCodigo}</span>
@@ -305,7 +305,7 @@ export default function TransferenciasPage() {
                         <span>Para: {transferencia.localizacaoDestinoCodigo}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-6 mt-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-6 mt-2 text-sm text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">Quantidade:</span>
                         <span>{transferencia.quantidade}</span>
@@ -316,7 +316,7 @@ export default function TransferenciasPage() {
                       </div>
                     </div>
                     {transferencia.observacoes && (
-                      <div className="mt-2 text-sm text-gray-600">
+                      <div className="mt-2 text-sm text-muted-foreground">
                         <span className="font-medium">Observações:</span> {transferencia.observacoes}
                       </div>
                     )}

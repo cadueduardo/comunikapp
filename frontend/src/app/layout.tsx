@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "@/contexts/UserContext";
 import { SentryProvider } from "@/components/providers/SentryProvider";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner"; // Importando o Toaster
 import { BRAND_ASSETS } from "@/lib/brand";
 
@@ -28,14 +29,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" suppressHydrationWarning>
       <body className={inter.className}>
-        <SentryProvider>
-          <UserProvider>
-            {children}
-            <Toaster richColors /> {/* Adicionando o componente Toaster */}
-          </UserProvider>
-        </SentryProvider>
+        <ThemeProvider>
+          <SentryProvider>
+            <UserProvider>
+              {children}
+              <Toaster richColors /> {/* Adicionando o componente Toaster */}
+            </UserProvider>
+          </SentryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

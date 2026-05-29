@@ -139,7 +139,7 @@ export default function LotesPage() {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Carregando lotes...</p>
+            <p className="mt-2 text-muted-foreground">Carregando lotes...</p>
           </div>
         </div>
       </div>
@@ -158,11 +158,11 @@ export default function LotesPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
               <Package className="h-8 w-8" />
               Lotes de Estoque
             </h1>
-            <p className="text-gray-600 mt-1">Controle de lotes e validades do estoque</p>
+            <p className="text-muted-foreground mt-1">Controle de lotes e validades do estoque</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -285,69 +285,69 @@ export default function LotesPage() {
 
       {/* Lista de Lotes */}
       {viewMode === 'table' ? (
-      <div className="bg-white rounded-lg border">
+      <div className="crud-table-shell">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Lote
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Item
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Localização
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Quantidade
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Fabricação
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Validade
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Ações
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody>
               {filteredLotes.map((lote) => {
                 const statusInfo = getStatusInfo(lote.status, lote.diasRestantes);
                 const StatusIcon = statusInfo.icon;
                 
                 return (
-                  <tr key={lote.id} className="hover:bg-gray-50">
+                  <tr key={lote.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium">
                         {lote.numeroLote}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium">
                           {lote.itemNome}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-muted-foreground">
                           {lote.insumoNome}
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{lote.localizacaoCodigo || '-'}</div>
+                      <div className="text-sm text-foreground">{lote.localizacaoCodigo || '-'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
+                      <div className="text-sm text-foreground">
                         {lote.quantidadeLote} {lote.unidadeCompra}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
+                      <div className="text-sm text-foreground">
                         {lote.dataFabricacao 
                           ? new Date(lote.dataFabricacao).toLocaleDateString('pt-BR')
                           : '-'
@@ -355,7 +355,7 @@ export default function LotesPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
+                      <div className="text-sm text-foreground">
                         {lote.dataValidade 
                           ? new Date(lote.dataValidade).toLocaleDateString('pt-BR')
                           : '-'
@@ -414,7 +414,7 @@ export default function LotesPage() {
                   <div className="flex items-start justify-between">
                     <div>
                       <CardTitle className="text-lg">Lote {lote.numeroLote}</CardTitle>
-                      <div className="text-sm text-gray-500">{lote.itemNome}</div>
+                      <div className="text-sm text-muted-foreground">{lote.itemNome}</div>
                     </div>
                     <Badge variant={statusInfo.variant} className="flex items-center gap-1">
                       <StatusIcon className="h-3 w-3" /> {statusInfo.label}
@@ -443,10 +443,10 @@ export default function LotesPage() {
       {filteredLotes.length === 0 && (
         <div className="text-center py-12">
           <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <h3 className="text-lg font-medium text-foreground mb-2">
             Nenhum lote encontrado
           </h3>
-          <p className="text-gray-500 mb-4">
+          <p className="text-muted-foreground mb-4">
             {lotes.length === 0 
               ? 'Não há lotes registrados no sistema'
               : 'Nenhum lote corresponde aos filtros aplicados'

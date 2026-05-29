@@ -21,17 +21,22 @@ export function MainHeader() {
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
+    <header className="border-b border-gray-200 bg-white px-4 py-4 sm:px-6 dark:border-neutral-700 dark:bg-neutral-900">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center">
           {lojaLogoUrl ? (
             <img
               src={lojaLogoUrl}
               alt={lojaNome}
-              className="h-9 max-w-[200px] object-contain object-left"
+              width={200}
+              height={36}
+              className="block h-9 w-auto max-w-[200px] object-contain object-left"
+              style={{ height: 36 }}
+              decoding="sync"
+              draggable={false}
             />
           ) : (
-            <h1 className="truncate text-xl font-semibold text-gray-900">
+            <h1 className="truncate text-xl font-semibold text-gray-900 dark:text-neutral-100">
               {lojaNome}
             </h1>
           )}
@@ -41,7 +46,7 @@ export function MainHeader() {
           <NotificacoesDropdown />
 
           <div className="flex items-center gap-2">
-            <div className="hidden items-center gap-2 text-sm text-gray-700 sm:flex">
+            <div className="hidden items-center gap-2 text-sm text-gray-700 dark:text-neutral-300 sm:flex">
               <User className="h-4 w-4" />
               <span>{getFirstName()}</span>
             </div>
@@ -50,7 +55,7 @@ export function MainHeader() {
               variant="ghost"
               size="sm"
               onClick={handleLogout}
-              className="text-gray-600 hover:text-gray-900"
+              className="text-gray-600 hover:text-gray-900 dark:text-neutral-400 dark:hover:text-neutral-100"
               aria-label="Sair"
             >
               <LogOut className="h-4 w-4" />

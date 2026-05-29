@@ -4,21 +4,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
-import { BRAND_ASSETS } from "@/lib/brand";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import {
+  BrandLogo,
+  BRAND_LOGO_HEIGHT,
+} from "@/components/brand/BrandLogo";
 
 const Header = () => {
     const [scrolled, setScrolled] = useState(false);
+    const isDesktop = useMediaQuery("(min-width: 768px)");
 
     useEffect(() => {
         const handleScroll = () => {
-            const offset = window.scrollY;
-            if (offset > 20) {
-                setScrolled(true);
-            } else {
-                setScrolled(false);
-            }
+            setScrolled(window.scrollY > 20);
         };
-        window.addEventListener("scroll", handleScroll);
+        handleScroll();
+        window.addEventListener("scroll", handleScroll, { passive: true });
         return () => {
             window.removeEventListener("scroll", handleScroll);
         };
@@ -37,22 +38,32 @@ const Header = () => {
                     y: 0,
                 }}
                 animate={{
-                    y: scrolled ? -20 : 0,
-                    opacity: scrolled ? 1 : 1,
+                    y: 0,
+                    opacity: 1,
                 }}
                 transition={{ duration: 0.2 }}
                 className={cn(
                     "flex items-center justify-between w-full z-50 transition-all duration-300 ease-in-out",
                     scrolled
                         ? "fixed top-4 inset-x-0 max-w-2xl mx-auto rounded-full bg-black/50 border border-neutral-700 backdrop-blur-sm p-2.5"
-                        : "relative p-6"
+                        : "relative px-6 py-4"
                 )}
             >
-                <Link href="/" className="flex items-center pl-2 md:pl-4">
-                    <img
-                        src={BRAND_ASSETS.logoWhite}
-                        alt="Comunikapp"
-                        className="h-8 md:h-9 w-auto"
+                <Link
+                    href="/"
+                    className={cn(
+                        "flex shrink-0 items-center pl-2 md:pl-4",
+                        scrolled && "relative z-10 isolate [transform:translateZ(0)]",
+                    )}
+                >
+                    <BrandLogo
+                        variant="logoWhiteCompact"
+                        heightPx={
+                            scrolled
+                                ? BRAND_LOGO_HEIGHT.landingCompact
+                                : BRAND_LOGO_HEIGHT.landingHero
+                        }
+                        maxWidthPx={scrolled ? 220 : isDesktop ? 340 : 240}
                     />
                 </Link>
                 {/* Mobile: Cadastrar e Login sempre visíveis */}
@@ -84,4 +95,4 @@ const Header = () => {
     );
 };
 
-export default Header; 
+export default Header;

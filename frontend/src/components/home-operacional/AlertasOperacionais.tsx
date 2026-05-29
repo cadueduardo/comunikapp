@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Info, RefreshCw } from 'lucide-react';
+import { CheckCircle2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -147,14 +147,6 @@ export function AlertasOperacionais({
             ))}
           </div>
         )}
-
-        <div className="mt-3 flex items-start gap-1.5 text-[10px] text-muted-foreground border-t pt-2">
-          <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-          <span>
-            O alerta &quot;trabalho pronto sem recebimento&quot; será
-            habilitado com a Fase 6.
-          </span>
-        </div>
       </CardContent>
     </Card>
   );

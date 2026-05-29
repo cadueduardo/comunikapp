@@ -16,8 +16,8 @@ export default function OrcamentosV2Page() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Orçamentos V2</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className="text-3xl font-bold text-foreground">Orçamentos V2</h1>
+          <p className="mt-2 text-muted-foreground">
             Sistema de orçamentos com nova arquitetura e motor de cálculo V2
           </p>
         </div>

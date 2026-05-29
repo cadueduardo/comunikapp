@@ -31,6 +31,7 @@ import Link from 'next/link';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useUser } from '@/contexts/UserContext';
 import { MainHeader } from '@/components/ui/main-header';
+import { SidebarThemeToggle } from '@/components/theme/SidebarThemeToggle';
 import { usuariosApi } from '@/lib/api-client';
 
 // Componente customizado para SidebarLink com Next.js Link
@@ -323,16 +324,17 @@ export default function DashboardLayout({
   ];
 
   return (
-    <div className="flex flex-col lg:flex-row bg-white dark:bg-neutral-800 w-full min-h-screen">
+    <div className="flex min-h-screen w-full flex-col bg-background lg:h-screen lg:flex-row lg:overflow-hidden">
       {/* O Sidebar agora gerencia seu próprio estado */}
       <Sidebar> 
-        <SidebarBody className="justify-between gap-10">
-          <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
+        <SidebarBody className="justify-between gap-6">
+          <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
             {/* O Logo é renderizado condicionalmente dentro do DesktopSidebar */}
-            <div className="mt-8 flex flex-col gap-2">
+            <div className="mt-2 flex flex-col gap-2">
               {links.map((link, idx) => (
                 <SidebarLink key={idx} link={link} />
               ))}
+              <SidebarThemeToggle />
             </div>
           </div>
           <div className="flex flex-col gap-2">
@@ -364,7 +366,7 @@ export default function DashboardLayout({
       </Sidebar>
       
       {/* Área de conteúdo principal */}
-      <main className="flex-1 min-w-0">
+      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
         <MainHeader />
         {/*
           Padding lateral e vertical centralizado no layout para garantir

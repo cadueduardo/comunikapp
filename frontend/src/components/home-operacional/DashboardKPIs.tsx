@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useKpisDashboard } from '@/hooks/use-home-operacional';
 import type { CorKPI, IconeKPI, KPI } from '@/lib/home-operacional-api';
+import { kpiSurfaceThemes } from '@/lib/theme-surfaces';
 
 /**
  * Bloco de KPIs do topo do dashboard.
@@ -60,52 +61,6 @@ export function DashboardKPIs() {
 // Card individual
 // -------------------------------------------------------------------
 
-interface TemaCor {
-  borda: string;
-  fundo: string;
-  iconeFundo: string;
-  iconeFg: string;
-  valorFg: string;
-}
-
-const TEMAS: Record<CorKPI, TemaCor> = {
-  zinc: {
-    borda: 'border-zinc-200',
-    fundo: 'bg-white',
-    iconeFundo: 'bg-zinc-100',
-    iconeFg: 'text-zinc-600',
-    valorFg: 'text-zinc-900',
-  },
-  blue: {
-    borda: 'border-blue-200',
-    fundo: 'bg-blue-50/50',
-    iconeFundo: 'bg-blue-100',
-    iconeFg: 'text-blue-600',
-    valorFg: 'text-blue-900',
-  },
-  amber: {
-    borda: 'border-amber-200',
-    fundo: 'bg-amber-50/50',
-    iconeFundo: 'bg-amber-100',
-    iconeFg: 'text-amber-700',
-    valorFg: 'text-amber-900',
-  },
-  emerald: {
-    borda: 'border-emerald-200',
-    fundo: 'bg-emerald-50/50',
-    iconeFundo: 'bg-emerald-100',
-    iconeFg: 'text-emerald-700',
-    valorFg: 'text-emerald-900',
-  },
-  red: {
-    borda: 'border-red-200',
-    fundo: 'bg-red-50/60',
-    iconeFundo: 'bg-red-100',
-    iconeFg: 'text-red-600',
-    valorFg: 'text-red-900',
-  },
-};
-
 const ICONES: Record<IconeKPI, React.ReactNode> = {
   orcamento: <FileText className="h-5 w-5" />,
   dinheiro: <DollarSign className="h-5 w-5" />,
@@ -130,7 +85,7 @@ function formatarValor(kpi: KPI): string {
 }
 
 function KPICard({ kpi }: { kpi: KPI }) {
-  const tema = TEMAS[kpi.cor];
+  const tema = kpiSurfaceThemes[kpi.cor];
   const icone = ICONES[kpi.icone];
 
   const conteudo = (

@@ -16,6 +16,7 @@ import {
 import { toast } from 'sonner';
 import { notificacoesApi } from '@/lib/api-client';
 import { useArteWebSocket } from '@/hooks/use-arte-websocket';
+import { cn } from '@/lib/utils';
 
 interface Notificacao {
   id: string;
@@ -259,18 +260,18 @@ export function NotificacoesDropdown() {
     switch (tipo) {
       case 'NOVA_MENSAGEM':
       case 'NOVA_MENSAGEM_CLIENTE':
-        return 'bg-blue-100 text-blue-800';
+        return 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-200';
       case 'ORCAMENTO_APROVADO':
       case 'ARTE_APROVADA':
-        return 'bg-green-100 text-green-800';
+        return 'border-green-200 bg-green-100 text-green-800 dark:border-green-800 dark:bg-green-950/60 dark:text-green-200';
       case 'ORCAMENTO_REJEITADO':
       case 'ARTE_REJEITADA':
-        return 'bg-red-100 text-red-800';
+        return 'border-red-200 bg-red-100 text-red-800 dark:border-red-800 dark:bg-red-950/60 dark:text-red-200';
       case 'ORCAMENTO_NEGOCIANDO':
       case 'APROVACAO_SOLICITADA':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'border-amber-200 bg-amber-100 text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'border-border bg-muted text-muted-foreground';
     }
   };
 
@@ -314,11 +315,11 @@ export function NotificacoesDropdown() {
       </Button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border z-50">
-          <div className="p-4 border-b">
-            <h3 className="text-lg font-semibold">Notificações</h3>
+        <div className="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg">
+          <div className="border-b border-border p-4">
+            <h3 className="text-lg font-semibold text-foreground">Notificações</h3>
             {naoVisualizadas > 0 && (
-              <p className="text-sm text-gray-600">{naoVisualizadas} não lidas</p>
+              <p className="text-sm text-muted-foreground">{naoVisualizadas} não lidas</p>
             )}
           </div>
 
@@ -328,11 +329,11 @@ export function NotificacoesDropdown() {
             onScroll={handleScroll}
           >
             {loading ? (
-              <div className="p-4 text-center text-gray-500">
+              <div className="p-4 text-center text-muted-foreground">
                 Carregando notificações...
               </div>
             ) : notificacoes.length === 0 ? (
-              <div className="p-4 text-center text-gray-500">
+              <div className="p-4 text-center text-muted-foreground">
                 Nenhuma notificação
               </div>
             ) : (
@@ -340,34 +341,39 @@ export function NotificacoesDropdown() {
                 {notificacoes.map((notificacao, index) => (
                   <div
                     key={`${notificacao.id}-${index}`}
-                    className={`p-3 border-b last:border-b-0 hover:bg-gray-50 ${
-                      !notificacao.visualizada ? 'bg-blue-50' : ''
-                    }`}
+                    className={cn(
+                      'border-b border-border p-3 last:border-b-0 hover:bg-muted/50',
+                      !notificacao.visualizada &&
+                        'bg-blue-50/90 dark:bg-blue-950/25',
+                    )}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 mt-1">
+                      <div className="mt-1 shrink-0 text-muted-foreground">
                         {getIconeTipo(notificacao.tipo)}
                       </div>
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="text-sm font-medium truncate">
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex flex-wrap items-center gap-2">
+                          <h4 className="truncate text-sm font-medium text-foreground">
                             {corrigirMojibake(notificacao.titulo)}
                           </h4>
                           <Badge
                             variant="outline"
-                            className={`text-xs ${getCorTipo(notificacao.tipo)}`}
+                            className={cn('text-xs', getCorTipo(notificacao.tipo))}
                           >
                             {notificacao.tipo.replace('_', ' ')}
                           </Badge>
                           {!notificacao.visualizada && (
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge
+                              variant="secondary"
+                              className="text-xs dark:bg-primary dark:text-primary-foreground"
+                            >
                               Nova
                             </Badge>
                           )}
                         </div>
 
-                        <p className="text-sm text-gray-600 mb-2">
+                        <p className="mb-2 text-sm text-muted-foreground">
                           {corrigirMojibake(notificacao.mensagem)}
                         </p>
 
@@ -393,7 +399,7 @@ export function NotificacoesDropdown() {
                         )}
 
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-muted-foreground">
                             {formatarData(notificacao.criado_em)}
                           </span>
 
@@ -403,18 +409,18 @@ export function NotificacoesDropdown() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => marcarComoVisualizada(notificacao.id)}
-                                className="h-6 w-6 p-0"
+                                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                               >
-                                <Eye className="w-3 h-3" />
+                                <Eye className="h-3 w-3" />
                               </Button>
                             )}
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => deletarNotificacao(notificacao.id)}
-                              className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                              className="h-6 w-6 p-0 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="h-3 w-3" />
                             </Button>
                           </div>
                         </div>
@@ -425,9 +431,9 @@ export function NotificacoesDropdown() {
 
                 {/* Indicador de carregamento para mais notificações */}
                 {loadingMore && (
-                  <div className="p-4 text-center bg-blue-50 border-t border-blue-100">
-                    <div className="flex items-center justify-center gap-2 text-blue-600">
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                  <div className="border-t border-border bg-muted/40 p-4 text-center">
+                    <div className="flex items-center justify-center gap-2 text-primary">
+                      <Loader2 className="h-5 w-5 animate-spin" />
                       <span className="text-sm font-medium">Carregando mais notificações...</span>
                     </div>
                   </div>
@@ -435,7 +441,7 @@ export function NotificacoesDropdown() {
 
                 {/* Indicador quando não há mais notificações */}
                 {!hasMore && notificacoes.length > 0 && (
-                  <div className="p-4 text-center text-gray-400 text-sm">
+                  <div className="p-4 text-center text-sm text-muted-foreground">
                     Todas as notificações foram carregadas
                   </div>
                 )}

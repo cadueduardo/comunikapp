@@ -46,7 +46,8 @@ function resolveStatusConfig(orcamento: OrcamentoV2): StatusConfig {
     return {
       label: 'Rascunho',
       variant: 'outline',
-      className: 'text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors',
+      className:
+        'text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 transition-colors',
       href: editHref,
     };
   }
@@ -55,7 +56,8 @@ function resolveStatusConfig(orcamento: OrcamentoV2): StatusConfig {
     return {
       label: 'Aprovado',
       variant: 'default',
-      className: 'text-xs bg-green-100 text-green-800 border-green-200 hover:bg-green-200 transition-colors',
+      className:
+        'text-xs bg-green-100 text-green-800 border-green-200 hover:bg-green-200 dark:bg-green-950/50 dark:text-green-200 dark:border-green-800 dark:hover:bg-green-900/50 transition-colors',
       href: editHref,
     };
   }
@@ -73,7 +75,8 @@ function resolveStatusConfig(orcamento: OrcamentoV2): StatusConfig {
     return {
       label: 'Negociando',
       variant: 'secondary',
-      className: 'text-xs bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 transition-colors',
+      className:
+        'text-xs bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 dark:bg-blue-950/50 dark:text-blue-200 dark:border-blue-800 dark:hover:bg-blue-900/50 transition-colors',
       href: editHref,
     };
   }
@@ -83,7 +86,8 @@ function resolveStatusConfig(orcamento: OrcamentoV2): StatusConfig {
       return {
         label: 'Enviado - Pendente',
         variant: 'secondary',
-        className: 'text-xs bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200 transition-colors',
+        className:
+          'text-xs bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-800 dark:hover:bg-amber-900/50 transition-colors',
         href: editHref,
       };
     }
@@ -92,7 +96,8 @@ function resolveStatusConfig(orcamento: OrcamentoV2): StatusConfig {
       return {
         label: 'Enviado - Aprovado',
         variant: 'default',
-        className: 'text-xs bg-green-100 text-green-800 border-green-200 hover:bg-green-200 transition-colors',
+        className:
+        'text-xs bg-green-100 text-green-800 border-green-200 hover:bg-green-200 dark:bg-green-950/50 dark:text-green-200 dark:border-green-800 dark:hover:bg-green-900/50 transition-colors',
         href: editHref,
       };
     }
@@ -110,7 +115,8 @@ function resolveStatusConfig(orcamento: OrcamentoV2): StatusConfig {
       return {
         label: 'Enviado - Negociando',
         variant: 'secondary',
-        className: 'text-xs bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 transition-colors',
+        className:
+        'text-xs bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 dark:bg-blue-950/50 dark:text-blue-200 dark:border-blue-800 dark:hover:bg-blue-900/50 transition-colors',
         href: editHref,
       };
     }
@@ -234,7 +240,7 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
       <div className="flex flex-col items-center justify-center py-12 space-y-4">
         <div className="text-center">
           <div className="text-lg font-medium text-red-600">Erro ao carregar orcamentos</div>
-          <div className="text-sm text-gray-600 mt-1">{error}</div>
+          <div className="mt-1 text-sm text-muted-foreground">{error}</div>
         </div>
         <Button onClick={refetch} variant="outline">
           Tentar novamente
@@ -276,44 +282,28 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border">
+      <div className="crud-table-shell">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table>
+            <thead>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Numero
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Servico
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Cliente
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Valor
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Criado em
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Atualizado em
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Acoes
-                </th>
+                <th>Numero</th>
+                <th>Servico</th>
+                <th>Cliente</th>
+                <th>Valor</th>
+                <th>Status</th>
+                <th>Criado em</th>
+                <th>Atualizado em</th>
+                <th className="text-right">Acoes</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
+            <tbody>
               {filteredData.length === 0 ? (
-                                 <tr>
-                   <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground">
                     <div className="space-y-2">
                       <div className="text-lg font-medium">Nenhum orcamento encontrado</div>
-                      <div className="text-sm text-gray-400">Ajuste os filtros ou crie um novo orcamento.</div>
+                      <div className="text-sm">Ajuste os filtros ou crie um novo orcamento.</div>
                     </div>
                   </td>
                 </tr>
@@ -326,26 +316,26 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
                     : '';
 
                   return (
-                  <tr key={orcamento.id} className="hover:bg-gray-50">
+                  <tr key={orcamento.id}>
                       <td className="whitespace-nowrap px-6 py-4">
                       <Badge variant="secondary">#{orcamento.numero}</Badge>
                     </td>
                       <td className="px-6 py-4 max-w-[48rem]">
-                        <div className="font-medium text-gray-900">{orcamento.nome_servico}</div>
+                        <div className="font-medium">{orcamento.nome_servico}</div>
                         {descricao && (
                           <div
-                            className="text-sm text-gray-500 truncate"
+                            className="text-sm text-muted-foreground truncate"
                             title={descricao}
                           >
                             {descricaoCurta}
                           </div>
                         )}
                     </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-gray-900">
+                      <td className="whitespace-nowrap px-6 py-4">
                         {orcamento.cliente?.nome ?? '-'}
                     </td>
                       <td className="whitespace-nowrap px-6 py-4">
-                      <span className="font-semibold text-green-600">
+                      <span className="font-semibold text-green-600 dark:text-green-400">
                         {formatCurrency(orcamento.preco_final)}
                       </span>
                     </td>
@@ -356,10 +346,10 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
                             </Badge>
                           </Link>
                     </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-gray-900">
+                      <td className="whitespace-nowrap px-6 py-4">
                         {orcamento.criado_em ?? '-'}
                     </td>
-                       <td className="whitespace-nowrap px-6 py-4 text-gray-900">
+                       <td className="whitespace-nowrap px-6 py-4">
                          {(orcamento as OrcamentoV2 & { data_atualizacao?: string }).data_atualizacao ?? '-'}
                     </td>
                       <td className="whitespace-nowrap px-6 py-4 text-right">
@@ -403,7 +393,7 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
       </div>
 
       {filteredData.length > 0 && (
-        <div className="flex items-center justify-between text-sm text-gray-700">
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
           <div>
             Mostrando <span className="font-medium">{filteredData.length}</span> de{' '}
             <span className="font-medium">{orcamentos.length}</span> orcamentos

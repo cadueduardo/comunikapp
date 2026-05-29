@@ -139,7 +139,7 @@ export default function ItensEstoquePage() {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Carregando itens de estoque...</p>
+            <p className="mt-2 text-muted-foreground">Carregando itens de estoque...</p>
           </div>
         </div>
       </div>
@@ -158,11 +158,11 @@ export default function ItensEstoquePage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
               <Package className="h-8 w-8" />
               Itens de Estoque
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-muted-foreground mt-1">
               Gerencie os itens armazenados no seu estoque
             </p>
           </div>
@@ -211,58 +211,58 @@ export default function ItensEstoquePage() {
 
       {/* Lista de Itens */}
       {viewMode === 'table' ? (
-        <div className="bg-white rounded-lg border">
+        <div className="crud-table-shell">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Item
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Localização
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Quantidade
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Valor
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Última Mov.
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Ações
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody>
                 {filteredData.map((item) => {
                   const { status, variant } = getEstoqueStatus(item.quantidadeAtual, item.estoqueMinimo);
                   return (
-                    <tr key={item.id} className="hover:bg-gray-50">
+                    <tr key={item.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium">
                             {item.insumoNome}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-muted-foreground">
                             ID: {item.insumoId}
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-foreground">
                           {(() => {
                             const { deposito, detalhes } = formatLocalizacaoDisplay(item);
                             return (
                               <div>
                                 <div className="font-medium">{deposito}</div>
                                 {detalhes && (
-                                  <div className="text-xs text-gray-500">{detalhes}</div>
+                                  <div className="text-xs text-muted-foreground">{detalhes}</div>
                                 )}
                               </div>
                             );
@@ -270,11 +270,11 @@ export default function ItensEstoquePage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-foreground">
                           {item.quantidadeAtual} {item.unidadeCompra}
                         </div>
                         {item.quantidadeReservada > 0 && (
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-muted-foreground">
                             Reservado: {item.quantidadeReservada}
                           </div>
                         )}
@@ -283,14 +283,14 @@ export default function ItensEstoquePage() {
                         <Badge variant={variant}>{status}</Badge>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-foreground">
                           {formatCurrency(item.valorUnitario)}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           Total: {formatCurrency(item.valorUnitario * item.quantidadeAtual)}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                         {item.dataUltimaMov ? new Date(item.dataUltimaMov).toLocaleDateString('pt-BR') : 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -326,7 +326,7 @@ export default function ItensEstoquePage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <CardTitle className="text-lg">{item.insumoNome}</CardTitle>
-                      <div className="text-sm text-gray-500 mt-1">
+                      <div className="text-sm text-muted-foreground mt-1">
                         {(() => {
                           const { deposito, detalhes } = formatLocalizacaoDisplay(item);
                           return (
@@ -346,27 +346,27 @@ export default function ItensEstoquePage() {
                 <CardContent>
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Quantidade:</span>
+                      <span className="text-sm text-muted-foreground">Quantidade:</span>
                       <span className="text-sm font-medium">
                         {item.quantidadeAtual} {item.unidadeCompra}
                       </span>
                     </div>
                     {item.quantidadeReservada > 0 && (
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Reservado:</span>
+                        <span className="text-sm text-muted-foreground">Reservado:</span>
                         <span className="text-sm font-medium text-orange-600">
                           {item.quantidadeReservada} {item.unidadeCompra}
                         </span>
                       </div>
                     )}
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Valor Unitário:</span>
+                      <span className="text-sm text-muted-foreground">Valor Unitário:</span>
                       <span className="text-sm font-medium">
                         {formatCurrency(item.valorUnitario)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Valor Total:</span>
+                      <span className="text-sm text-muted-foreground">Valor Total:</span>
                       <span className="text-sm font-medium text-green-600">
                         {formatCurrency(item.valorUnitario * item.quantidadeAtual)}
                       </span>
@@ -398,10 +398,10 @@ export default function ItensEstoquePage() {
       {filteredData.length === 0 && (
         <div className="text-center py-12">
           <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <h3 className="text-lg font-medium text-foreground mb-2">
             {searchTerm ? 'Nenhum item encontrado' : 'Nenhum item de estoque'}
           </h3>
-          <p className="text-gray-500 mb-4">
+          <p className="text-muted-foreground mb-4">
             {searchTerm 
               ? 'Tente ajustar os termos de busca'
               : 'Comece adicionando seu primeiro item de estoque'

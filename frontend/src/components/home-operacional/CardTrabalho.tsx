@@ -107,7 +107,7 @@ export function CardTrabalho({ card, onAcaoConcluida }: CardTrabalhoProps) {
           {card.titulo}
         </p>
         {card.status_label && (
-          <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 whitespace-nowrap flex-shrink-0">
+          <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 whitespace-nowrap flex-shrink-0">
             {card.status_label}
           </span>
         )}
@@ -127,7 +127,7 @@ export function CardTrabalho({ card, onAcaoConcluida }: CardTrabalhoProps) {
   );
 
   return (
-    <div className="rounded-md border bg-white hover:bg-zinc-50 transition-colors p-2.5 space-y-2">
+    <div className="rounded-md border border-border bg-card p-2.5 space-y-2 transition-colors hover:bg-muted/50">
       {acaoAbrir?.href ? (
         <Link
           href={acaoAbrir.href}

@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { apiRequest } from '@/lib/api';
 import type { Alerta, NivelAlerta } from '@/lib/home-operacional-api';
+import { alertSurfaceThemes } from '@/lib/theme-surfaces';
 
 /**
  * Card individual de um alerta operacional (Fase 5).
@@ -25,41 +26,16 @@ export interface AlertaCardProps {
   onAcaoConcluida?: () => void;
 }
 
-interface NivelTema {
-  containerCls: string;
-  iconCls: string;
-  // Marcador de nivel discreto (chip) - so usado para "critico" e "atencao"
-  // porque o "informativo" ja se diferencia bastante pelo tom mais neutro.
-  pillCls: string;
-  pillLabel: string;
-  icone: React.ReactNode;
-}
+const ALERTA_ICONES: Record<NivelAlerta, React.ReactNode> = {
+  critico: <AlertCircle className="h-4 w-4" />,
+  atencao: <AlertTriangle className="h-4 w-4" />,
+  informativo: <Info className="h-4 w-4" />,
+};
 
-const TEMAS: Record<NivelAlerta, NivelTema> = {
-  critico: {
-    containerCls:
-      'border-red-300 bg-red-50/70 hover:bg-red-50 focus-within:ring-red-400',
-    iconCls: 'text-red-600',
-    pillCls: 'bg-red-100 text-red-700',
-    pillLabel: 'Crítico',
-    icone: <AlertCircle className="h-4 w-4" />,
-  },
-  atencao: {
-    containerCls:
-      'border-amber-300 bg-amber-50/70 hover:bg-amber-50 focus-within:ring-amber-400',
-    iconCls: 'text-amber-600',
-    pillCls: 'bg-amber-100 text-amber-700',
-    pillLabel: 'Atenção',
-    icone: <AlertTriangle className="h-4 w-4" />,
-  },
-  informativo: {
-    containerCls:
-      'border-zinc-200 bg-zinc-50/70 hover:bg-zinc-50 focus-within:ring-zinc-400',
-    iconCls: 'text-zinc-600',
-    pillCls: 'bg-zinc-100 text-zinc-700',
-    pillLabel: 'Informativo',
-    icone: <Info className="h-4 w-4" />,
-  },
+const ALERTA_LABELS: Record<NivelAlerta, string> = {
+  critico: 'Crítico',
+  atencao: 'Atenção',
+  informativo: 'Informativo',
 };
 
 function tempoRelativo(iso: string): string {
@@ -77,7 +53,7 @@ function tempoRelativo(iso: string): string {
 }
 
 export function AlertaCard({ alerta, onAcaoConcluida }: AlertaCardProps) {
-  const tema = TEMAS[alerta.nivel];
+  const tema = alertSurfaceThemes[alerta.nivel];
   const [executando, setExecutando] = useState(false);
 
   async function executarEndpoint() {
@@ -109,7 +85,9 @@ export function AlertaCard({ alerta, onAcaoConcluida }: AlertaCardProps) {
       className={`rounded-md border p-3 transition-colors ${tema.containerCls}`}
     >
       <div className="flex items-start gap-2.5">
-        <div className={`mt-0.5 flex-shrink-0 ${tema.iconCls}`}>{tema.icone}</div>
+        <div className={`mt-0.5 flex-shrink-0 ${tema.iconCls}`}>
+          {ALERTA_ICONES[alerta.nivel]}
+        </div>
 
         <div className="flex-1 min-w-0 space-y-1.5">
           <div className="flex items-start justify-between gap-2">
@@ -119,7 +97,7 @@ export function AlertaCard({ alerta, onAcaoConcluida }: AlertaCardProps) {
             <span
               className={`text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded whitespace-nowrap flex-shrink-0 ${tema.pillCls}`}
             >
-              {tema.pillLabel}
+              {ALERTA_LABELS[alerta.nivel]}
             </span>
           </div>
 

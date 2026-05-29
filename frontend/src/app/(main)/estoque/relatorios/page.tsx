@@ -128,7 +128,7 @@ export default function RelatoriosPage() {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Carregando relatórios...</p>
+            <p className="mt-2 text-muted-foreground">Carregando relatórios...</p>
           </div>
         </div>
       </div>
@@ -147,11 +147,11 @@ export default function RelatoriosPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
               <BarChart3 className="h-8 w-8" />
               Relatórios de Estoque
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-muted-foreground mt-1">
               Visualize relatórios detalhados do seu estoque
             </p>
           </div>
@@ -176,7 +176,7 @@ export default function RelatoriosPage() {
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'baixo'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-muted-foreground hover:text-gray-700 hover:border-gray-300'
             }`}
           >
             <div className="flex items-center gap-2">
@@ -190,7 +190,7 @@ export default function RelatoriosPage() {
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'vencimento'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-muted-foreground hover:text-gray-700 hover:border-gray-300'
             }`}
           >
             <div className="flex items-center gap-2">
@@ -204,7 +204,7 @@ export default function RelatoriosPage() {
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'ocupacao'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-muted-foreground hover:text-gray-700 hover:border-gray-300'
             }`}
           >
             <div className="flex items-center gap-2">
@@ -265,41 +265,41 @@ export default function RelatoriosPage() {
             </Card>
           </div>
 
-          <div className="bg-white rounded-lg border">
+          <div className="crud-table-shell">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead>
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Item
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Localização
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Quantidade Atual
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Estoque Mínimo
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Valor Unitário
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Dias Sem Mov.
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody>
                   {relatorioBaixo.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
+                    <tr key={item.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium">
                           {item.insumoNome}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-foreground">
                           {item.localizacaoCodigo}
                         </div>
                       </td>
@@ -309,17 +309,17 @@ export default function RelatoriosPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-foreground">
                           {item.estoqueMinimo} {item.unidadeCompra}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-foreground">
                           {formatCurrency(item.valorUnitario)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-foreground">
                           {item.diasSemMovimentacao} dias
                         </div>
                       </td>
@@ -377,56 +377,56 @@ export default function RelatoriosPage() {
             </Card>
           </div>
 
-          <div className="bg-white rounded-lg border">
+          <div className="crud-table-shell">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead>
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Item
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Localização
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Lote
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Data Vencimento
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Dias Restantes
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Quantidade
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Status
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody>
                   {relatorioVencimento.map((item) => {
                     const { status, variant } = getStatusVencimento(item.diasRestantes);
                     return (
-                      <tr key={item.id} className="hover:bg-gray-50">
+                      <tr key={item.id}>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium">
                             {item.insumoNome}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                          <div className="text-sm text-foreground">
                             {item.localizacaoCodigo}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                          <div className="text-sm text-foreground">
                             {item.numeroLote}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                          <div className="text-sm text-foreground">
                             {new Date(item.dataValidade).toLocaleDateString('pt-BR')}
                           </div>
                         </td>
@@ -436,7 +436,7 @@ export default function RelatoriosPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                          <div className="text-sm text-foreground">
                             {item.quantidadeLote} {item.unidadeCompra}
                           </div>
                         </td>
@@ -510,19 +510,19 @@ export default function RelatoriosPage() {
                 <CardContent>
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Localizações:</span>
+                      <span className="text-sm text-muted-foreground">Localizações:</span>
                       <span className="text-sm font-medium">
                         {deposito.localizacoesOcupadas}/{deposito.totalLocalizacoes}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Taxa de Ocupação:</span>
+                      <span className="text-sm text-muted-foreground">Taxa de Ocupação:</span>
                       <span className="text-sm font-medium text-green-600">
                         {deposito.taxaOcupacao}%
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Capacidade:</span>
+                      <span className="text-sm text-muted-foreground">Capacidade:</span>
                       <span className="text-sm font-medium">
                         {deposito.capacidadeUtilizada}/{deposito.capacidadeTotal}
                       </span>
@@ -547,10 +547,10 @@ export default function RelatoriosPage() {
         (activeTab === 'ocupacao' && relatorioOcupacao.length === 0)) && (
         <div className="text-center py-12">
           <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <h3 className="text-lg font-medium text-foreground mb-2">
             Nenhum dado encontrado
           </h3>
-          <p className="text-gray-500 mb-4">
+          <p className="text-muted-foreground mb-4">
             Não há dados para exibir neste relatório
           </p>
         </div>

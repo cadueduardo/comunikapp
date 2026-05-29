@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useResumoFinanceiro } from '@/hooks/use-home-operacional';
 import { useUser } from '@/contexts/UserContext';
+import { financeIndicatorThemes } from '@/lib/theme-surfaces';
 
 /**
  * Bloco 4 do dashboard - Resumo Financeiro Simples (Fase 6.C).
@@ -198,48 +199,6 @@ export function ResumoFinanceiroSimples() {
 // Card individual
 // -------------------------------------------------------------------
 
-const TEMAS_INDICADOR: Record<
-  'blue' | 'emerald' | 'amber' | 'zinc' | 'red' | 'violet',
-  { borda: string; fundo: string; iconeFg: string; valorFg: string }
-> = {
-  blue: {
-    borda: 'border-blue-200',
-    fundo: 'bg-blue-50/50',
-    iconeFg: 'text-blue-600',
-    valorFg: 'text-blue-900',
-  },
-  emerald: {
-    borda: 'border-emerald-200',
-    fundo: 'bg-emerald-50/50',
-    iconeFg: 'text-emerald-600',
-    valorFg: 'text-emerald-900',
-  },
-  amber: {
-    borda: 'border-amber-200',
-    fundo: 'bg-amber-50/50',
-    iconeFg: 'text-amber-700',
-    valorFg: 'text-amber-900',
-  },
-  zinc: {
-    borda: 'border-zinc-200',
-    fundo: 'bg-white',
-    iconeFg: 'text-zinc-600',
-    valorFg: 'text-zinc-900',
-  },
-  red: {
-    borda: 'border-red-200',
-    fundo: 'bg-red-50/60',
-    iconeFg: 'text-red-600',
-    valorFg: 'text-red-900',
-  },
-  violet: {
-    borda: 'border-violet-200',
-    fundo: 'bg-violet-50/50',
-    iconeFg: 'text-violet-600',
-    valorFg: 'text-violet-900',
-  },
-};
-
 function formatarMoeda(valor: number): string {
   try {
     return valor.toLocaleString('pt-BR', {
@@ -266,7 +225,7 @@ interface IndicadorCardProps {
 }
 
 function IndicadorCard({ indicador }: IndicadorCardProps) {
-  const tema = TEMAS_INDICADOR[indicador.cor];
+  const tema = financeIndicatorThemes[indicador.cor];
 
   const conteudo = (
     <div

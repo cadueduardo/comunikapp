@@ -12,7 +12,7 @@ interface ViewToggleProps {
 
 export function ViewToggle({ viewMode, onViewModeChange, className = '' }: ViewToggleProps) {
   return (
-    <div className={`flex items-center gap-1 bg-gray-100 rounded-lg p-1 ${className}`}>
+    <div className={`flex items-center gap-1 rounded-lg bg-muted p-1 ${className}`}>
       <Button
         variant={viewMode === 'table' ? 'default' : 'ghost'}
         size="sm"

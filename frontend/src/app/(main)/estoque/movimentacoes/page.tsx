@@ -147,7 +147,7 @@ export default function MovimentacoesPage() {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Carregando movimentações...</p>
+            <p className="mt-2 text-muted-foreground">Carregando movimentações...</p>
           </div>
         </div>
       </div>
@@ -166,11 +166,11 @@ export default function MovimentacoesPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
               <TrendingUp className="h-8 w-8" />
               Movimentações
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-muted-foreground mt-1">
               Acompanhe todas as entradas, saídas e ajustes do estoque
             </p>
           </div>
@@ -248,48 +248,48 @@ export default function MovimentacoesPage() {
 
       {/* Lista de Movimentações */}
       {viewMode === 'table' ? (
-        <div className="bg-white rounded-lg border">
+        <div className="crud-table-shell">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Data/Hora
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Tipo
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Item
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Localização
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Quantidade
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Usuário
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Documento
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Ações
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody>
                 {filteredData.map((mov) => {
                   const tipoInfo = getTipoInfo(mov.tipo);
                   const TipoIcon = tipoInfo.icon;
                   return (
-                    <tr key={mov.id} className="hover:bg-gray-50">
+                    <tr key={mov.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-foreground">
                           {new Date(mov.dataMovimentacao).toLocaleDateString('pt-BR')}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           {new Date(mov.dataMovimentacao).toLocaleTimeString('pt-BR')}
                         </div>
                       </td>
@@ -300,19 +300,19 @@ export default function MovimentacoesPage() {
                         </Badge>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium">
                           {mov.insumoNome}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-foreground">
                           {(() => {
                             const { deposito, detalhes } = formatLocalizacaoDisplay(mov);
                             return (
                               <div>
                                 <div className="font-medium">{deposito}</div>
                                 {detalhes && (
-                                  <div className="text-xs text-gray-500">{detalhes}</div>
+                                  <div className="text-xs text-muted-foreground">{detalhes}</div>
                                 )}
                               </div>
                             );
@@ -323,17 +323,17 @@ export default function MovimentacoesPage() {
                         <div className={`text-sm font-medium ${tipoInfo.color}`}>
                           {mov.tipo === 'SAIDA' ? '-' : '+'}{Math.abs(mov.quantidade)}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           {mov.quantidadeAnterior} → {mov.quantidadePosterior}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-foreground">
                           {mov.usuarioNome}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-foreground">
                           {mov.documentoRef || '-'}
                         </div>
                       </td>
@@ -364,7 +364,7 @@ export default function MovimentacoesPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <CardTitle className="text-lg">{mov.insumoNome}</CardTitle>
-                      <div className="text-sm text-gray-500 mt-1">
+                      <div className="text-sm text-muted-foreground mt-1">
                         {(() => {
                           const { deposito, detalhes } = formatLocalizacaoDisplay(mov);
                           return (
@@ -387,26 +387,26 @@ export default function MovimentacoesPage() {
                 <CardContent>
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Data:</span>
+                      <span className="text-sm text-muted-foreground">Data:</span>
                       <span className="text-sm font-medium">
                         {new Date(mov.dataMovimentacao).toLocaleDateString('pt-BR')}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Quantidade:</span>
+                      <span className="text-sm text-muted-foreground">Quantidade:</span>
                       <span className={`text-sm font-medium ${tipoInfo.color}`}>
                         {mov.tipo === 'SAIDA' ? '-' : '+'}{Math.abs(mov.quantidade)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Usuário:</span>
+                      <span className="text-sm text-muted-foreground">Usuário:</span>
                       <span className="text-sm font-medium">
                         {mov.usuarioNome}
                       </span>
                     </div>
                     {mov.documentoRef && (
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Documento:</span>
+                        <span className="text-sm text-muted-foreground">Documento:</span>
                         <span className="text-sm font-medium">
                           {mov.documentoRef}
                         </span>
@@ -414,7 +414,7 @@ export default function MovimentacoesPage() {
                     )}
                     {mov.observacoes && (
                       <div className="pt-2 border-t">
-                        <p className="text-sm text-gray-600">{mov.observacoes}</p>
+                        <p className="text-sm text-muted-foreground">{mov.observacoes}</p>
                       </div>
                     )}
                     <div className="pt-3 border-t">
@@ -438,10 +438,10 @@ export default function MovimentacoesPage() {
       {filteredData.length === 0 && (
         <div className="text-center py-12">
           <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <h3 className="text-lg font-medium text-foreground mb-2">
             {searchTerm || filterTipo ? 'Nenhuma movimentação encontrada' : 'Nenhuma movimentação'}
           </h3>
-          <p className="text-gray-500 mb-4">
+          <p className="text-muted-foreground mb-4">
             {searchTerm || filterTipo 
               ? 'Tente ajustar os filtros de busca'
               : 'Comece registrando sua primeira movimentação'

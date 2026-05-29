@@ -10,6 +10,7 @@ import { useSearchParams } from 'next/navigation';
 import { useUser } from '@/contexts/UserContext'; // Importar o useUser
 import { BackgroundBeamsWithCollision } from '@/components/ui/background-beams-with-collision';
 import { authAPI, AuthApiError } from '@/lib/api';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 
 declare global {
     interface Window {
@@ -170,6 +171,13 @@ function LoginContent() {
                 <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
                     <div className="mx-auto grid w-[400px] gap-6">
                         <div className="grid gap-2 text-center">
+                            <div className="mb-4 flex justify-center">
+                                <BrandLogo
+                                    variant="logoPlatform"
+                                    heightPx={40}
+                                    maxWidthPx={240}
+                                />
+                            </div>
                             <h1 className="text-3xl font-bold">Faça seu login</h1>
                             <p className="text-balance text-muted-foreground">
                                 Entre em sua conta para continuar

@@ -46,19 +46,22 @@ export function DataTable<TData, TValue>({
 
   return (
     <div>
-      <div className="bg-white rounded-lg border overflow-x-auto">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <Table>
-          <TableHeader className="bg-gray-50">
+          <TableHeader className="bg-muted/80">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id} className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <TableHead
+                      key={header.id}
+                      className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(
                             header.column.columnDef.header,
-                            header.getContext()
+                            header.getContext(),
                           )}
                     </TableHead>
                   );
@@ -66,24 +69,30 @@ export function DataTable<TData, TValue>({
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody className="bg-white">
+          <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && 'selected'}
-                  className="hover:bg-gray-50"
+                  className="hover:bg-muted/50"
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center text-muted-foreground"
+                >
                   Nenhum resultado encontrado.
                 </TableCell>
               </TableRow>
@@ -111,4 +120,4 @@ export function DataTable<TData, TValue>({
       </div>
     </div>
   );
-} 
+}

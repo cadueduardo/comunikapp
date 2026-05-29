@@ -42,7 +42,7 @@ export function FluxoTrabalho() {
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <div
                 key={i}
-                className="rounded-lg border bg-zinc-50/50 p-3 space-y-2"
+                className="rounded-lg border border-border bg-muted/30 p-3 space-y-2"
               >
                 <Skeleton className="h-4 w-32" />
                 <Skeleton className="h-16 w-full" />
@@ -137,9 +137,9 @@ function ColunaFluxoView({
   onAcaoConcluida: () => void;
 }) {
   return (
-    <div className="rounded-lg border bg-zinc-50/40 p-3 space-y-2.5 flex flex-col">
-      <div className="flex items-baseline justify-between gap-2 pb-1.5 border-b border-zinc-200/70">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-700">
+    <div className="flex flex-col space-y-2.5 rounded-lg border border-border bg-muted/30 p-3">
+      <div className="flex items-baseline justify-between gap-2 border-b border-border pb-1.5">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {coluna.label}
         </h3>
         <span className="text-lg font-bold text-foreground tabular-nums leading-none">
@@ -148,7 +148,7 @@ function ColunaFluxoView({
       </div>
 
       {coluna.cards.length === 0 ? (
-        <div className="rounded-md border border-dashed bg-white/60 p-3 text-xs text-muted-foreground flex items-center gap-1.5 flex-1">
+        <div className="flex flex-1 items-center gap-1.5 rounded-md border border-dashed border-border bg-card/60 p-3 text-xs text-muted-foreground">
           <Clock className="h-3.5 w-3.5" />
           Nada por aqui ainda.
         </div>
@@ -178,9 +178,9 @@ function CelulaFinanceiraConsolidada({
   colunas: ColunaFluxo[];
 }) {
   return (
-    <div className="rounded-lg border border-dashed bg-zinc-50/40 p-3 space-y-2.5 flex flex-col">
-      <div className="flex items-baseline justify-between gap-2 pb-1.5 border-b border-zinc-200/70">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-700">
+    <div className="flex flex-col space-y-2.5 rounded-lg border border-dashed border-border bg-muted/30 p-3">
+      <div className="flex items-baseline justify-between gap-2 border-b border-border pb-1.5">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Financeiro
         </h3>
         <span className="text-[10px] text-muted-foreground uppercase">

@@ -26,11 +26,11 @@ export function PageHeader({ title, backHref, icon, subtitle, actions }: PageHea
           </Link>
         )}
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="flex items-center gap-2 text-3xl font-bold text-foreground">
             {icon}
             {title}
           </h1>
-          {subtitle && <p className="text-gray-600 mt-1">{subtitle}</p>}
+          {subtitle && <p className="mt-1 text-muted-foreground">{subtitle}</p>}
         </div>
       </div>
       {actions && <div className="flex gap-2">{actions}</div>}
