@@ -20,6 +20,7 @@ import {
 import { KanbanMapper } from '../mappers/kanban.mapper';
 import { SetoresProdutivosService } from '../../configuracoes/services/centros-de-trabalho/setores-produtivos.service';
 import { AuthenticatedUser } from '../../auth/auth.service';
+import { OSPCPIntegrationService } from './os-pcp-integration.service';
 
 @Injectable()
 export class PCPKanbanService {
@@ -32,6 +33,7 @@ export class PCPKanbanService {
   constructor(
     private prisma: PrismaService,
     private setoresProdutivosService: SetoresProdutivosService,
+    private osPcpIntegration: OSPCPIntegrationService,
   ) {}
 
   /**
@@ -95,10 +97,10 @@ export class PCPKanbanService {
                 },
               },
               instancias_setor: {
-                select: { id: true, status: true, setor_id: true },
-              },
-              etapas: {
-                where: { status: 'EM_ANDAMENTO' },
+                include: {
+                  setor: { select: { nome: true } },
+                  operador: { select: { nome: true } },
+                },
               },
             },
           },
@@ -168,6 +170,15 @@ export class PCPKanbanService {
             operador: true,
             workflow_instancia: {
               include: {
+                instancias_setor: {
+                  select: {
+                    id: true,
+                    setor_id: true,
+                    ordem: true,
+                    status: true,
+                    item_os_id: true,
+                  },
+                },
                 os: {
                   include: {
                     cliente: true,
@@ -232,6 +243,15 @@ export class PCPKanbanService {
             operador: true,
             workflow_instancia: {
               include: {
+                instancias_setor: {
+                  select: {
+                    id: true,
+                    setor_id: true,
+                    ordem: true,
+                    status: true,
+                    item_os_id: true,
+                  },
+                },
                 os: {
                   include: {
                     cliente: true,
@@ -540,11 +560,25 @@ export class PCPKanbanService {
   ): Promise<void> {
     this.validarPermissaoOperacional(usuario);
 
-    const etapaOrigem = await this.buscarInstanciaSetorPorReferencia(
-      itemOsId,
-      lojaId,
-      { in: ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA'] },
-    );
+    let etapaOrigem = await this.prisma.workflowInstanciaSetor.findFirst({
+      where: {
+        id: itemOsId,
+        workflow_instancia: {
+          os: {
+            loja_id: lojaId,
+          },
+        },
+        status: { in: ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA'] },
+      },
+    });
+
+    if (!etapaOrigem) {
+      etapaOrigem = await this.buscarInstanciaSetorPorReferencia(
+        itemOsId,
+        lojaId,
+        { in: ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA'] },
+      );
+    }
 
     if (!etapaOrigem) {
       throw new BadRequestException(
@@ -660,6 +694,11 @@ export class PCPKanbanService {
     });
 
     if (!proximoGrupo) {
+      const workflowInstancia = await this.prisma.workflowInstancia.findUnique({
+        where: { id: workflowInstanciaId },
+        select: { os_id: true },
+      });
+
       await this.prisma.workflowInstancia.update({
         where: { id: workflowInstanciaId },
         data: {
@@ -669,6 +708,13 @@ export class PCPKanbanService {
           atualizado_em: new Date(),
         },
       });
+
+      if (workflowInstancia?.os_id) {
+        await this.osPcpIntegration.notificarStatusAlterado(
+          workflowInstancia.os_id,
+          'CONCLUIDO',
+        );
+      }
       return;
     }
 

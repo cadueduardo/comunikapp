@@ -20,6 +20,8 @@ export interface ItemFila {
   workflow_id?: string;
   workflow_nome?: string;
   workflow_setores_nomes?: string[];
+  instancia_setor_id?: string;
+  proximos_setores_ids?: string[];
 }
 
 export interface SetorOperador {
@@ -552,17 +554,20 @@ export function useMeuSetor(): UseMeuSetorReturn {
         }
 
         const token = localStorage.getItem('access_token');
-        const response = await fetch(`/api/pcp/kanban/mover-setor/${itemId}`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
+        const response = await fetch(
+          `/api/pcp/kanban/mover-setor/${itemId}`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              setorDestinoId,
+              operadorId,
+            }),
           },
-          body: JSON.stringify({
-            setorDestinoId,
-            operadorId,
-          }),
-        });
+        );
 
         if (!response.ok) {
           throw new Error(

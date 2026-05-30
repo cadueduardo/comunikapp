@@ -114,9 +114,15 @@ export function FilaOperador({
           !!item.data_prazo &&
           new Date(item.data_prazo) < new Date() &&
           item.status !== 'CONCLUIDA';
-        const destinosMovimento = setoresDestino.filter(
-          (setor) => setor.id !== setorAtualId,
-        );
+        const destinosMovimento = setoresDestino.filter((setor) => {
+          if (setor.id === setorAtualId) {
+            return false;
+          }
+          if (item.proximos_setores_ids?.length) {
+            return item.proximos_setores_ids.includes(setor.id);
+          }
+          return true;
+        });
 
         return (
           <article
@@ -251,12 +257,16 @@ export function FilaOperador({
                   defaultValue=""
                   disabled={executando}
                   onChange={(event) => {
-                    const setorDestinoId = event.target.value;
+                    const select = event.currentTarget;
+                    const setorDestinoId = select.value;
                     if (!setorDestinoId) return;
+                    select.value = '';
                     void executarAcao(item.id, () =>
-                      onMoverItem(item.id, setorDestinoId),
+                      onMoverItem!(
+                        item.instancia_setor_id ?? item.id,
+                        setorDestinoId,
+                      ),
                     );
-                    event.currentTarget.value = '';
                   }}
                 >
                   <option value="">Mover para setor...</option>

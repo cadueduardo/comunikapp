@@ -14,7 +14,7 @@ export class KanbanMapper {
     // nunca array. O código antigo tratava como array (?.[0]) e quebrava
     // silenciosamente o progresso/setor/operador dos cards.
     const workflowAtivo = os.workflow_instancia ?? null;
-    const etapaAtual = workflowAtivo?.etapas?.[0];
+    const instanciaAtiva = this.resolverInstanciaSetorAtiva(workflowAtivo);
     const workflowInfo = this.extrairWorkflowInfo(workflowAtivo);
 
     return {
@@ -22,9 +22,9 @@ export class KanbanMapper {
       numero: os.numero,
       titulo: os.nome_servico,
       cliente: os.cliente?.nome || 'Cliente não informado',
-      status: this.mapearStatusOS(os.status),
+      status: this.resolverStatusKanbanOS(os),
       prioridade: os.prioridade || 'MEDIA',
-      responsavel: etapaAtual?.responsavel?.nome || 'Não atribuído',
+      responsavel: instanciaAtiva?.operador?.nome || 'Não atribuído',
       data_prazo: os.data_prazo
         ? new Date(os.data_prazo).toISOString().split('T')[0]
         : '',
@@ -32,8 +32,8 @@ export class KanbanMapper {
       alertas: this.gerarAlertas(os),
       tem_workflow: Boolean(workflowAtivo),
       ...workflowInfo,
-      setor_atual: etapaAtual?.setor?.nome,
-      operador_atual: etapaAtual?.responsavel?.nome,
+      setor_atual: instanciaAtiva?.setor?.nome,
+      operador_atual: instanciaAtiva?.operador?.nome,
     };
   }
 
@@ -49,6 +49,10 @@ export class KanbanMapper {
       id: instancia.item_os_id ?? instancia.id,
       os_id: os?.id,
       operador_id: instancia.operador_id ?? undefined,
+      instancia_setor_id: instancia.id,
+      setor_id: instancia.setor_id,
+      etapa_ordem: instancia.ordem ?? undefined,
+      proximos_setores_ids: this.calcularProximosSetoresIds(instancia),
       numero: os?.numero || instancia.workflow_instancia?.os_id || '',
       titulo:
         instancia.item_os?.produto_servico ||
@@ -254,11 +258,104 @@ export class KanbanMapper {
     return mapeamento[statusOS] || 'FILA';
   }
 
+  private static resolverStatusKanbanOS(os: any): string {
+    const workflowInstancia = os.workflow_instancia;
+    if (workflowInstancia?.status === 'CONCLUIDO') {
+      return 'CONCLUIDA';
+    }
+
+    const instanciasSetor = workflowInstancia?.instancias_setor;
+    if (Array.isArray(instanciasSetor) && instanciasSetor.length > 0) {
+      const relevantes = instanciasSetor.filter(
+        (instancia: any) => instancia.status !== 'CANCELADA',
+      );
+      const concluidas = relevantes.filter(
+        (instancia: any) => instancia.status === 'CONCLUIDA',
+      );
+      const ativas = relevantes.filter((instancia: any) =>
+        ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA', 'AGUARDANDO'].includes(
+          instancia.status,
+        ),
+      );
+
+      if (relevantes.length > 0 && concluidas.length === relevantes.length) {
+        return 'CONCLUIDA';
+      }
+
+      if (
+        ativas.some((instancia: any) =>
+          ['EM_ANDAMENTO', 'PAUSADA'].includes(instancia.status),
+        ) ||
+        concluidas.length > 0
+      ) {
+        return 'PRODUCAO';
+      }
+    }
+
+    return this.mapearStatusOS(os.status);
+  }
+
+  private static resolverInstanciaSetorAtiva(workflowInstancia: any) {
+    const instanciasSetor = workflowInstancia?.instancias_setor;
+    if (!Array.isArray(instanciasSetor) || instanciasSetor.length === 0) {
+      return null;
+    }
+
+    return [...instanciasSetor]
+      .filter((instancia: any) =>
+        ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA'].includes(instancia.status),
+      )
+      .sort(
+        (a: any, b: any) =>
+          (a.ordem ?? 0) - (b.ordem ?? 0) ||
+          String(a.id).localeCompare(String(b.id)),
+      )[0];
+  }
+
+  private static calcularProximosSetoresIds(instancia: any): string[] {
+    const ordemAtual = instancia.ordem ?? 0;
+    const itemOsId = instancia.item_os_id ?? null;
+    const instanciasSetor = instancia.workflow_instancia?.instancias_setor ?? [];
+
+    return instanciasSetor
+      .filter((destino: any) => {
+        if (destino.setor_id === instancia.setor_id) {
+          return false;
+        }
+        if (itemOsId && destino.item_os_id && destino.item_os_id !== itemOsId) {
+          return false;
+        }
+        if (['CONCLUIDA', 'CANCELADA'].includes(destino.status)) {
+          return false;
+        }
+        return destino.ordem <= ordemAtual + 1 && destino.ordem >= ordemAtual;
+      })
+      .map((destino: any) => destino.setor_id as string)
+      .filter((setorId: string, index: number, lista: string[]) =>
+        lista.indexOf(setorId) === index,
+      );
+  }
+
   /**
    * Calcula progresso da OS
    */
   private static calcularProgresso(os: any): number {
-    // Mesma correção do bug 1-para-1 do mapearOSParaKanban.
+    const instanciasSetor = os.workflow_instancia?.instancias_setor;
+    if (Array.isArray(instanciasSetor) && instanciasSetor.length > 0) {
+      const relevantes = instanciasSetor.filter(
+        (instancia: any) => instancia.status !== 'CANCELADA',
+      );
+      if (relevantes.length === 0) {
+        return 0;
+      }
+
+      const concluidas = relevantes.filter(
+        (instancia: any) => instancia.status === 'CONCLUIDA',
+      ).length;
+
+      return Math.round((concluidas / relevantes.length) * 100);
+    }
+
     const etapas = os.workflow_instancia?.etapas;
     if (!Array.isArray(etapas) || etapas.length === 0) return 0;
 

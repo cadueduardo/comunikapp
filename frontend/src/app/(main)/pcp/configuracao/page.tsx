@@ -2,6 +2,7 @@
 
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { CheckCircle2, Columns3, Gauge, Layers3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -46,6 +47,7 @@ const opcoes: OpcaoPCP[] = [
 ];
 
 export default function ConfiguracaoPCPPage() {
+  const router = useRouter();
   const [nivelAtual, setNivelAtual] = useState<NivelPCP | null>(null);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState<NivelPCP | null>(null);
@@ -92,6 +94,7 @@ export default function ConfiguracaoPCPPage() {
       const data = await response.json();
       setNivelAtual(data.nivel);
       toast.success('Nível Organizado aplicado como padrão.');
+      router.push('/pcp');
     } catch (error) {
       console.error(error);
       toast.error('Não foi possível aplicar o padrão recomendado.');
@@ -117,6 +120,7 @@ export default function ConfiguracaoPCPPage() {
       const data = await response.json();
       setNivelAtual(data.nivel);
       toast.success('Configuração do PCP salva.');
+      router.push('/pcp');
     } catch (error) {
       console.error(error);
       toast.error('Não foi possível salvar a configuração do PCP.');

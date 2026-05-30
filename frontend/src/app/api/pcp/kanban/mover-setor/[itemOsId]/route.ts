@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildApiUrl } from '@/lib/config';
 
+async function parseResponseBody(response: Response) {
+  const text = await response.text();
+  if (!text) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return { message: text };
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ itemOsId: string }> },
@@ -30,7 +43,7 @@ export async function POST(
       },
     );
 
-    const data = await response.json();
+    const data = await parseResponseBody(response);
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error(

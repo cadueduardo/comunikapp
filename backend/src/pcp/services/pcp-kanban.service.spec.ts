@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PCPKanbanService } from './pcp-kanban.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SetoresProdutivosService } from '../../configuracoes/services/centros-de-trabalho/setores-produtivos.service';
+import { OSPCPIntegrationService } from './os-pcp-integration.service';
 
 jest.mock('../mappers/kanban.mapper', () => ({
   KanbanMapper: {
@@ -27,12 +28,14 @@ describe('PCPKanbanService', () => {
       workflowInstanciaSetor: {
         findMany: jest.fn(),
         findFirst: jest.fn(),
+        findUnique: jest.fn(),
         update: jest.fn(),
         updateMany: jest.fn(),
         count: jest.fn(),
       },
       workflowInstancia: {
         update: jest.fn(),
+        findUnique: jest.fn(),
       },
       workflowSetor: {
         count: jest.fn(),
@@ -56,11 +59,21 @@ describe('PCPKanbanService', () => {
           provide: SetoresProdutivosService,
           useValue: { obterPorId: jest.fn().mockResolvedValue({ id: 'setor-1' }) },
         },
+        {
+          provide: OSPCPIntegrationService,
+          useValue: {
+            notificarStatusAlterado: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<PCPKanbanService>(PCPKanbanService);
     jest.clearAllMocks();
+    prisma.workflowInstanciaSetor.findUnique.mockResolvedValue({
+      item_os: { os_id: 'os-1' },
+      workflow_instancia: { os_id: 'os-1' },
+    } as any);
   });
 
   it('deve obter kanban geral mapeando os dados', async () => {
@@ -302,6 +315,9 @@ describe('PCPKanbanService', () => {
       prisma.apontamento.create.mockResolvedValueOnce({
         id: 'apontamento-1',
       } as any);
+      prisma.workflowInstancia.findUnique.mockResolvedValueOnce({
+        os_id: 'os-1',
+      } as any);
       prisma.workflowInstancia.update.mockResolvedValueOnce({
         id: 'instancia-1',
       } as any);
@@ -499,6 +515,9 @@ describe('PCPKanbanService', () => {
       } as any);
       prisma.apontamento.create.mockResolvedValueOnce({
         id: 'apontamento-1',
+      } as any);
+      prisma.workflowInstancia.findUnique.mockResolvedValueOnce({
+        os_id: 'os-1',
       } as any);
       prisma.workflowInstancia.update.mockResolvedValueOnce({
         id: 'instancia-1',

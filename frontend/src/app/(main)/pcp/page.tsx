@@ -105,6 +105,10 @@ interface KanbanSetorCard {
   workflow_setores_nomes?: string[];
   setor_atual?: string;
   operador_atual?: string;
+  instancia_setor_id?: string;
+  setor_id?: string;
+  etapa_ordem?: number;
+  proximos_setores_ids?: string[];
 }
 
 interface KanbanSetorColuna {
@@ -682,10 +686,10 @@ export default function PCPPage() {
                 loading={loadingSetores}
                 error={erroSetores}
                 setoresVisiveis={setoresVisiveis}
-                onMoverItem={async (itemOsId, setorDestinoId) => {
+                onMoverItem={async (instanciaSetorId, setorDestinoId) => {
                   const token = localStorage.getItem('access_token');
                   const response = await fetch(
-                    `/api/pcp/kanban/mover-setor/${itemOsId}`,
+                    `/api/pcp/kanban/mover-setor/${instanciaSetorId}`,
                     {
                       method: 'POST',
                       headers: {
@@ -696,16 +700,22 @@ export default function PCPPage() {
                     },
                   );
 
-                  const payload = (await response.json()) as {
+                  const payload = (await response.json().catch(() => ({}))) as {
                     error?: string;
-                    message?: string;
+                    message?: string | string[];
                   };
 
                   if (!response.ok) {
-                    throw new Error(payload.error || 'Falha ao mover item de setor');
+                    const mensagem = Array.isArray(payload.message)
+                      ? payload.message.join(' | ')
+                      : payload.message || payload.error;
+                    throw new Error(mensagem || 'Falha ao mover item de setor');
                   }
 
-                  toast.success(payload.message || 'Item movido com sucesso');
+                  toast.success(
+                    (typeof payload.message === 'string' && payload.message) ||
+                      'Item movido com sucesso',
+                  );
                   await carregarKanbanPorSetores();
                 }}
                 onCardClick={(osId) => router.push(`/os/${osId}`)}
@@ -1146,7 +1156,7 @@ function KanbanPorSetores({
   loading: boolean;
   error: string | null;
   setoresVisiveis: string[];
-  onMoverItem: (itemOsId: string, setorDestinoId: string) => Promise<void>;
+  onMoverItem: (instanciaSetorId: string, setorDestinoId: string) => Promise<void>;
   onCardClick: (osId: string) => void;
 }) {
   if (loading) {
@@ -1310,35 +1320,49 @@ function KanbanPorSetores({
                     </div>
 
                     <div className="mt-2">
+                      {(() => {
+                        const destinosPermitidos = filtrarDestinosMovimento(
+                          card,
+                          coluna,
+                          data.colunas,
+                        );
+
+                        if (destinosPermitidos.length === 0) {
+                          return null;
+                        }
+
+                        return (
                       <select
                         className="h-8 w-full rounded-md border px-2 text-xs"
                         defaultValue=""
                         onClick={(e) => e.stopPropagation()}
-                        onChange={async (e) => {
-                          const setorDestinoId = e.target.value;
+                        onChange={(e) => {
+                          const select = e.currentTarget;
+                          const setorDestinoId = select.value;
                           if (!setorDestinoId) return;
-                          try {
-                            await onMoverItem(card.id, setorDestinoId);
-                            e.currentTarget.value = '';
-                          } catch (moveError) {
+                          select.value = '';
+                          void onMoverItem(
+                            card.instancia_setor_id ?? card.id,
+                            setorDestinoId,
+                          ).catch((moveError) => {
                             console.error('Erro ao mover item de setor:', moveError);
                             toast.error(
                               moveError instanceof Error
                                 ? moveError.message
                                 : 'Nao foi possivel mover o item.',
                             );
-                          }
+                          });
                         }}
                       >
                         <option value="">Mover para setor...</option>
-                        {data.colunas
-                          .filter((destino) => destino.setor_id !== coluna.setor_id)
-                          .map((destino) => (
+                        {destinosPermitidos.map((destino) => (
                             <option key={`${card.id}-${destino.setor_id}`} value={destino.setor_id}>
                               {destino.titulo}
                             </option>
                           ))}
                       </select>
+                        );
+                      })()}
                     </div>
 
                     <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
@@ -1354,6 +1378,20 @@ function KanbanPorSetores({
       </div>
     </div>
   );
+}
+
+function filtrarDestinosMovimento(
+  card: KanbanSetorCard,
+  coluna: KanbanSetorColuna,
+  colunas: KanbanSetorColuna[],
+) {
+  if (card.proximos_setores_ids?.length) {
+    return colunas.filter((destino) =>
+      card.proximos_setores_ids!.includes(destino.setor_id),
+    );
+  }
+
+  return colunas.filter((destino) => destino.setor_id !== coluna.setor_id);
 }
 
 function gridColunasSetoresClass(totalColunas: number): string {

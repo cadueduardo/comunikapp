@@ -62,6 +62,12 @@ export interface OSCardKanban {
   workflow_setores_nomes?: string[];
   setor_atual?: string;
   operador_atual?: string;
+  /** ID da linha WorkflowInstanciaSetor (usar em mover-setor). */
+  instancia_setor_id?: string;
+  setor_id?: string;
+  etapa_ordem?: number;
+  /** Setores permitidos como destino na proxima movimentacao. */
+  proximos_setores_ids?: string[];
 }
 
 export interface KanbanStats {
