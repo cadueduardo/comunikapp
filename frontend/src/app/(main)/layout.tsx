@@ -33,6 +33,7 @@ import { useUser } from '@/contexts/UserContext';
 import { MainHeader } from '@/components/ui/main-header';
 import { SidebarThemeToggle } from '@/components/theme/SidebarThemeToggle';
 import { usuariosApi } from '@/lib/api-client';
+import { BetaFeedbackButton } from '@/components/feedback/BetaFeedbackButton';
 
 // Componente customizado para SidebarLink com Next.js Link
 const SidebarLink = ({
@@ -408,6 +409,7 @@ export default function DashboardLayout({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <BetaFeedbackButton />
     </div>
   );
 }

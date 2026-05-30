@@ -14,7 +14,9 @@ import {
 } from './convite-templates';
 import { isPlatformAdminEmail } from './platform-admin.guard';
 import { InteresseBetaDto } from './dto/interesse-beta.dto';
+import { BetaFeedbackDto } from './dto/beta-feedback.dto';
 import { PendingSignupService } from '../lojas/pending-signup.service';
+import { AuthenticatedUser } from '../auth/auth.service';
 
 export const INVITE_ORIGEM = {
   ADMIN: 'admin_manual',
@@ -387,6 +389,57 @@ export class PlatformService {
       },
       data: { status: INVITE_STATUS.EXPIRADO },
     });
+  }
+
+  isBetaFeedbackEnabled(): boolean {
+    return process.env.BETA_FEEDBACK_ENABLED !== 'false';
+  }
+
+  private getBetaFeedbackRecipientEmail(): string {
+    return (
+      process.env.BETA_FEEDBACK_EMAIL?.trim() || 'cadu.eduardo@gmail.com'
+    );
+  }
+
+  async submitBetaFeedback(dto: BetaFeedbackDto, user: AuthenticatedUser) {
+    if (!this.isBetaFeedbackEnabled()) {
+      throw new BadRequestException(
+        'O canal de feedback beta esta temporariamente indisponivel.',
+      );
+    }
+
+    const usuarioEmail = user.email?.trim();
+    const usuarioNome = user.nome_completo?.trim() || 'Usuario';
+
+    if (!usuarioEmail) {
+      throw new BadRequestException('Usuario autenticado sem e-mail valido.');
+    }
+
+    await this.mailService.sendBetaFeedbackEmail({
+      to: this.getBetaFeedbackRecipientEmail(),
+      replyTo: usuarioEmail,
+      usuarioNome,
+      usuarioEmail,
+      lojaNome: user.loja?.nome || 'Loja nao identificada',
+      lojaId: user.loja_id,
+      funcao: user.funcao || 'N/A',
+      descricao: dto.descricao.trim(),
+      expectativa: dto.expectativa?.trim(),
+      paginaUrl: dto.pagina_url.trim(),
+      paginaPath: dto.pagina_path.trim(),
+      paginaTitulo: dto.pagina_titulo?.trim(),
+      versaoPlataforma: dto.versao_plataforma?.trim(),
+      userAgent: dto.user_agent?.trim(),
+    });
+
+    this.logger.log(
+      `Feedback beta recebido de ${usuarioEmail} na pagina ${dto.pagina_path}`,
+    );
+
+    return {
+      message:
+        'Feedback enviado com sucesso. Obrigado por ajudar a melhorar o Comunikapp.',
+    };
   }
 }
 

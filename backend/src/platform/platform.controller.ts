@@ -12,8 +12,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public } from '../auth/decorators';
 import { CreateConviteCadastroDto } from './dto/create-convite-cadastro.dto';
 import { InteresseBetaDto } from './dto/interesse-beta.dto';
+import { BetaFeedbackDto } from './dto/beta-feedback.dto';
 import { PlatformAdminGuard } from './platform-admin.guard';
 import { PlatformService } from './platform.service';
+import { CurrentUser } from '../auth/decorators';
+import { AuthenticatedUser } from '../auth/auth.service';
 
 @Controller('platform')
 export class PlatformController {
@@ -39,6 +42,15 @@ export class PlatformController {
       req.ip ||
       'unknown';
     return this.platformService.registerBetaInterest(dto, ip);
+  }
+
+  @Post('feedback-beta')
+  @UseGuards(JwtAuthGuard)
+  submitBetaFeedback(
+    @Body() dto: BetaFeedbackDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.platformService.submitBetaFeedback(dto, user);
   }
 
   @Get('convites')

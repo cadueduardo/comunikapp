@@ -514,4 +514,85 @@ export class MailService implements OnModuleInit {
 
     return info;
   }
+
+  async sendBetaFeedbackEmail(payload: {
+    to: string;
+    replyTo: string;
+    usuarioNome: string;
+    usuarioEmail: string;
+    lojaNome: string;
+    lojaId: string;
+    funcao: string;
+    descricao: string;
+    expectativa?: string;
+    paginaUrl: string;
+    paginaPath: string;
+    paginaTitulo?: string;
+    versaoPlataforma?: string;
+    userAgent?: string;
+  }) {
+    const escape = (value: string) =>
+      value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    const expectativaBlock = payload.expectativa?.trim()
+      ? `<p><strong>O que esperava:</strong><br>${escape(payload.expectativa).replace(/\n/g, '<br>')}</p>`
+      : '';
+
+    const mailOptions = {
+      from: this.getFromAddress(),
+      to: payload.to,
+      replyTo: payload.replyTo,
+      subject: `[Beta Comunikapp] Feedback — ${payload.paginaPath}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+          <div style="background-color: #eef2ff; padding: 20px; border-bottom: 1px solid #c7d2fe;">
+            <h1 style="color: #312e81; margin: 0; font-size: 20px;">Beta · Feedback recebido</h1>
+            <p style="color: #4338ca; margin: 8px 0 0 0; font-size: 14px;">Pagina acessada no momento do reporte</p>
+          </div>
+
+          <div style="padding: 24px 20px;">
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+              <p style="margin: 0 0 8px 0;"><strong>Pagina (URL):</strong><br><a href="${escape(payload.paginaUrl)}">${escape(payload.paginaUrl)}</a></p>
+              <p style="margin: 0 0 8px 0;"><strong>Rota:</strong> ${escape(payload.paginaPath)}</p>
+              ${payload.paginaTitulo ? `<p style="margin: 0;"><strong>Titulo da aba:</strong> ${escape(payload.paginaTitulo)}</p>` : ''}
+            </div>
+
+            <div style="background-color: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+              <h2 style="margin: 0 0 12px 0; color: #9a3412; font-size: 16px;">Relato do usuario</h2>
+              <p style="margin: 0;"><strong>Problema:</strong><br>${escape(payload.descricao).replace(/\n/g, '<br>')}</p>
+              ${expectativaBlock}
+            </div>
+
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+              <h3 style="margin: 0 0 12px 0; color: #334155; font-size: 15px;">Contexto</h3>
+              <p style="margin: 0 0 8px 0;"><strong>Usuario:</strong> ${escape(payload.usuarioNome)} (${escape(payload.usuarioEmail)})</p>
+              <p style="margin: 0 0 8px 0;"><strong>Loja:</strong> ${escape(payload.lojaNome)} (${escape(payload.lojaId)})</p>
+              <p style="margin: 0 0 8px 0;"><strong>Funcao:</strong> ${escape(payload.funcao)}</p>
+              ${payload.versaoPlataforma ? `<p style="margin: 0 0 8px 0;"><strong>Versao da plataforma:</strong> ${escape(payload.versaoPlataforma)}</p>` : ''}
+              ${payload.userAgent ? `<p style="margin: 0;"><strong>Navegador:</strong> ${escape(payload.userAgent)}</p>` : ''}
+            </div>
+          </div>
+
+          <div style="background-color: #f8fafc; padding: 16px 20px; text-align: center; color: #64748b; font-size: 12px;">
+            <p style="margin: 0;">Responda este e-mail para falar diretamente com o usuario.</p>
+          </div>
+        </div>
+      `,
+    };
+
+    const info = await this.transporter.sendMail(mailOptions);
+
+    this.logger.log(
+      `Feedback beta enviado messageId=${info.messageId} pagina=${payload.paginaPath} destino=${MailService.maskEmail(payload.to)}`,
+    );
+    if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
+      this.logger.debug(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+    }
+
+    return info;
+  }
 }

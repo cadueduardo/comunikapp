@@ -193,6 +193,8 @@ export const platformApi = {
     ApiClient.post('/platform/convites', data, token),
   revokeInvite: (id: string, token: string) =>
     ApiClient.post(`/platform/convites/${id}/revogar`, {}, token),
+  submitBetaFeedback: (data: Record<string, unknown>, token: string) =>
+    ApiClient.post('/platform/feedback-beta', data, token),
 };
 
 export const insumosApi = {
