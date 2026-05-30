@@ -50,6 +50,7 @@ export interface OSCard {
   data_prazo: string;
   progresso: number;
   alertas: string[];
+  tem_workflow?: boolean;
 }
 
 export interface KanbanColumn {
@@ -66,7 +67,7 @@ interface KanbanBoardProps {
   loading?: boolean;
   columns?: KanbanColumn[];
   onStatusChange?: (osId: string, newStatus: string) => void;
-  onCardClick?: (osId: string) => void;
+  onCardClick?: (card: OSCard) => void;
   onCardsChange?: (cards: OSCard[]) => void;
 }
 
@@ -82,11 +83,14 @@ const defaultColumns: KanbanColumn[] = [
 function DraggableCard({ card, index, onCardClick, getPrioridadeColor, getAlertaIcon, getAlertaText }: {
   card: OSCard;
   index: number;
-  onCardClick?: (osId: string) => void;
+  onCardClick?: (card: OSCard) => void;
   getPrioridadeColor: (prioridade: string) => string;
   getAlertaIcon: (alerta: string) => React.ReactNode;
   getAlertaText: (alerta: string) => string;
 }) {
+  const aguardandoWorkflow =
+    card.tem_workflow === false || card.alertas?.includes('sem_workflow');
+
   return (
     <Draggable draggableId={card.id} index={index}>
       {(provided, snapshot) => (
@@ -97,10 +101,12 @@ function DraggableCard({ card, index, onCardClick, getPrioridadeColor, getAlerta
           className={`mb-2 ${snapshot.isDragging ? 'opacity-50' : ''}`}
         >
           <Card
-            className={`cursor-grab hover:shadow-md transition-shadow ${
-              snapshot.isDragging ? 'shadow-2xl ring-2 ring-blue-500' : ''
-            }`}
-            onClick={() => onCardClick?.(card.id)}
+            className={`cursor-pointer hover:shadow-md transition-shadow ${
+              aguardandoWorkflow
+                ? 'border-amber-300 bg-amber-50/40 hover:border-amber-400'
+                : ''
+            } ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-blue-500' : ''}`}
+            onClick={() => onCardClick?.(card)}
           >
             <CardContent className="p-4">
               <div className="space-y-3">
@@ -120,11 +126,23 @@ function DraggableCard({ card, index, onCardClick, getPrioridadeColor, getAlerta
                   </div>
                 </div>
 
+                {aguardandoWorkflow && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-950">
+                    <div className="flex items-center gap-1.5 font-medium">
+                      <IconAlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                      Aguardando workflow
+                    </div>
+                    <p className="mt-1 text-[11px] leading-snug text-amber-900">
+                      Clique para atribuir o workflow e liberar a produção.
+                    </p>
+                  </div>
+                )}
+
                 {/* Informações do card */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>Responsável: {card.responsavel}</span>
-                    <span>Prazo: {card.data_prazo}</span>
+                    <span>Prazo: {card.data_prazo || 'Sem prazo'}</span>
                   </div>
                   
                   {/* Barra de progresso */}
@@ -135,11 +153,11 @@ function DraggableCard({ card, index, onCardClick, getPrioridadeColor, getAlerta
                     />
                   </div>
                   
-                  {/* Alertas */}
-                  {card.alertas && card.alertas.length > 0 && (
+                  {/* Alertas (exceto sem_workflow, já exibido acima) */}
+                  {card.alertas?.filter((alerta) => alerta !== 'sem_workflow').length > 0 && (
                     <div className="flex items-center gap-1 text-red-600 text-xs">
-                      {getAlertaIcon(card.alertas[0])}
-                      {getAlertaText(card.alertas[0])}
+                      {getAlertaIcon(card.alertas.find((a) => a !== 'sem_workflow')!)}
+                      {getAlertaText(card.alertas.find((a) => a !== 'sem_workflow')!)}
                     </div>
                   )}
                 </div>
@@ -273,6 +291,7 @@ export function KanbanBoard({
 
   const getAlertaIcon = (alerta: string) => {
     switch (alerta) {
+      case 'sem_workflow': return <IconAlertTriangle className="h-3 w-3" />;
       case 'estoque_baixo': return <IconAlertTriangle className="h-3 w-3" />;
       case 'prazo_proximo': return <IconHourglass className="h-3 w-3" />;
       case 'dados_faltantes': return <IconFlag className="h-3 w-3" />;
@@ -284,6 +303,7 @@ export function KanbanBoard({
 
   const getAlertaText = (alerta: string) => {
     switch (alerta) {
+      case 'sem_workflow': return 'Aguardando workflow';
       case 'estoque_baixo': return 'Estoque baixo';
       case 'prazo_proximo': return 'Prazo próximo';
       case 'dados_faltantes': return 'Dados faltantes';

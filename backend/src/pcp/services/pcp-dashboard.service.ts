@@ -75,10 +75,12 @@ export class PCPDashboardService {
       .filter((card) => {
         const temAlerta =
           Array.isArray(card.alertas) && card.alertas.length > 0;
+        const aguardandoEntrada =
+          card.status === 'FILA' || card.tem_workflow === false;
         const prazo = card.data_prazo ? new Date(card.data_prazo) : null;
         const atrasado =
           !!prazo && prazo < hoje && card.status !== 'CONCLUIDA';
-        return temAlerta || atrasado || !card.data_prazo;
+        return temAlerta || atrasado || !card.data_prazo || aguardandoEntrada;
       })
       .slice(0, limite);
   }

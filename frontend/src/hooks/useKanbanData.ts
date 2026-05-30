@@ -12,6 +12,7 @@ export interface OSCardKanban {
   data_prazo: string;
   progresso: number;
   alertas: string[];
+  tem_workflow?: boolean;
   setor_atual?: string;
   operador_atual?: string;
 }
@@ -52,7 +53,6 @@ export interface UseKanbanDataReturn {
   refreshData: () => Promise<void>;
   toggleFullscreen: () => void;
   handleStatusChange: (osId: string, newStatus: string) => Promise<void>;
-  handleCardClick: (osId: string) => void;
 }
 
 export function useKanbanData(lojaId?: string): UseKanbanDataReturn {
@@ -179,12 +179,6 @@ export function useKanbanData(lojaId?: string): UseKanbanDataReturn {
     }
   }, []);
 
-  // Click no card
-  const handleCardClick = useCallback((osId: string) => {
-    // TODO: Implementar navegação para detalhes da OS
-    console.log('Clicando na OS:', osId);
-  }, []);
-
   return {
     // Dados
     cards,
@@ -202,7 +196,6 @@ export function useKanbanData(lojaId?: string): UseKanbanDataReturn {
     refreshData,
     toggleFullscreen,
     handleStatusChange,
-    handleCardClick
   };
 }
 

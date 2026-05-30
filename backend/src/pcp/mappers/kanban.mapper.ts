@@ -29,6 +29,7 @@ export class KanbanMapper {
         : '',
       progresso: this.calcularProgresso(os),
       alertas: this.gerarAlertas(os),
+      tem_workflow: Boolean(workflowAtivo),
       setor_atual: etapaAtual?.setor?.nome,
       operador_atual: etapaAtual?.responsavel?.nome,
     };
@@ -59,6 +60,7 @@ export class KanbanMapper {
         : '',
       progresso: this.calcularProgressoInstancia(instancia),
       alertas: [],
+      tem_workflow: true,
       setor_atual: instancia.setor?.nome,
       operador_atual: instancia.operador?.nome,
     };
@@ -285,6 +287,10 @@ export class KanbanMapper {
    */
   private static gerarAlertas(os: any): string[] {
     const alertas: string[] = [];
+
+    if (!os.workflow_instancia) {
+      alertas.unshift('sem_workflow');
+    }
 
     if (os.data_prazo && new Date(os.data_prazo) < new Date()) {
       alertas.push('Prazo vencido');

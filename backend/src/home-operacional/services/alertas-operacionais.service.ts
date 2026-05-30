@@ -270,8 +270,8 @@ export class AlertasOperacionaisService {
           criado_em: new Date(os.atualizado_em).toISOString(),
           acao: {
             tipo: 'link',
-            label: 'Abrir OS',
-            href: `/os/${os.id}`,
+            label: 'Atribuir workflow no PCP',
+            href: `/pcp?atribuirWorkflow=${os.id}`,
           },
         } satisfies Alerta;
       });

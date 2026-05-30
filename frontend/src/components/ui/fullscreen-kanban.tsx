@@ -46,7 +46,7 @@ interface FullscreenKanbanProps {
   data?: OSCard[];
   loading?: boolean;
   onStatusChange?: (osId: string, newStatus: string) => void;
-  onCardClick?: (osId: string) => void;
+  onCardClick?: (card: OSCard) => void;
   autoRefresh?: boolean;
   refreshInterval?: number; // em segundos
 }
@@ -384,7 +384,7 @@ export function FullscreenKanban({
                   >
                     <Card 
                       className="cursor-pointer hover:shadow-lg transition-all duration-200 border-2"
-                      onClick={() => onCardClick?.(card.id)}
+                      onClick={() => onCardClick?.(card)}
                     >
                       <CardContent className="p-4">
                         <div className="space-y-3">

@@ -147,3 +147,19 @@ export function nivelGargaloClassName(nivel: NivelGargalo): string {
   };
   return classes[nivel];
 }
+
+export interface CardKanbanPendenciaInput {
+  tem_workflow?: boolean;
+  alertas?: string[];
+}
+
+/** OS na fila do PCP que ainda precisa de workflow antes de iniciar produção. */
+export function cardPrecisaAtribuirWorkflow(
+  card: CardKanbanPendenciaInput,
+): boolean {
+  if (card.tem_workflow === false) {
+    return true;
+  }
+
+  return card.alertas?.includes('sem_workflow') ?? false;
+}

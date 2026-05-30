@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { WorkflowAssignmentDialog } from '@/components/pcp/WorkflowAssignmentDialog';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,11 +20,13 @@ import type { KanbanColumn } from '@/components/ui/kanban-board';
 import { useKanbanData } from '@/hooks/useKanbanData';
 import {
   alternarSetoresVisiveis,
+  cardPrecisaAtribuirWorkflow,
   montarQueryKanbanPorSetores,
   montarTopGargalos,
   nivelGargaloClassName,
   resumoSelecaoSetores,
 } from '@/lib/pcp/pcp.utils';
+import type { OSCard } from '@/components/ui/kanban-board';
 import {
   IconAlertTriangle,
   IconArrowRight,
@@ -76,6 +79,7 @@ interface DashboardPCP {
     prioridade: string;
     data_prazo: string;
     alertas: string[];
+    tem_workflow?: boolean;
   }>;
   gargalos: GargaloResumo[];
   gerado_em: string;
@@ -148,6 +152,12 @@ const nivelDescricao: Record<NivelPCP, string> = {
 
 export default function PCPPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const osIdAtribuirWorkflow = searchParams.get('atribuirWorkflow');
+  const [osSelecionadaAtribuir, setOsSelecionadaAtribuir] = useState<{
+    id: string;
+    numero?: string;
+  } | null>(null);
   const [dashboard, setDashboard] = useState<DashboardPCP | null>(null);
   const [loadingDashboard, setLoadingDashboard] = useState(true);
   const [kanbanSetores, setKanbanSetores] = useState<KanbanPorSetoresResponse | null>(null);
@@ -232,6 +242,16 @@ export default function PCPPage() {
     void carregarDashboard();
   }, [carregarDashboard]);
 
+  useEffect(() => {
+    if (osIdAtribuirWorkflow) {
+      setOsSelecionadaAtribuir((atual) =>
+        atual?.id === osIdAtribuirWorkflow
+          ? atual
+          : { id: osIdAtribuirWorkflow },
+      );
+    }
+  }, [osIdAtribuirWorkflow]);
+
   const nivel = dashboard?.configuracao?.nivel ?? null;
   const statsExibir = dashboard?.stats ?? stats;
 
@@ -262,6 +282,38 @@ export default function PCPPage() {
       })
       .slice(0, 6);
   }, [cards, dashboard?.cards_atencao]);
+
+  const osNumeroAtribuir = useMemo(() => {
+    if (!osSelecionadaAtribuir) {
+      return undefined;
+    }
+
+    if (osSelecionadaAtribuir.numero) {
+      return osSelecionadaAtribuir.numero;
+    }
+
+    const cardKanban = cards.find(
+      (card) => card.id === osSelecionadaAtribuir.id,
+    );
+    if (cardKanban?.numero) {
+      return cardKanban.numero;
+    }
+
+    const cardAtencao = cardsAtencao.find(
+      (card) => (card.os_id ?? card.id) === osSelecionadaAtribuir.id,
+    );
+    return cardAtencao?.numero;
+  }, [cards, cardsAtencao, osSelecionadaAtribuir]);
+
+  const osAguardandoWorkflow = useMemo(
+    () => cards.filter((card) => cardPrecisaAtribuirWorkflow(card)).length,
+    [cards],
+  );
+
+  const cardsFilaEntrada = useMemo(
+    () => cards.filter((card) => card.status === 'FILA'),
+    [cards],
+  );
 
   const opcoesSetores = useMemo(() => {
     return (kanbanSetores?.colunas ?? []).map((coluna) => ({
@@ -415,6 +467,41 @@ export default function PCPPage() {
     ]);
   }
 
+  function abrirAtribuirWorkflow(osId: string, osNumero?: string) {
+    setOsSelecionadaAtribuir({ id: osId, numero: osNumero });
+  }
+
+  function fecharDialogAtribuirWorkflow() {
+    setOsSelecionadaAtribuir(null);
+    if (osIdAtribuirWorkflow) {
+      router.replace('/pcp');
+    }
+  }
+
+  async function handleWorkflowAtribuido() {
+    await atualizar();
+    fecharDialogAtribuirWorkflow();
+  }
+
+  function handleKanbanCardClick(card: OSCard) {
+    if (cardPrecisaAtribuirWorkflow(card)) {
+      abrirAtribuirWorkflow(card.id, card.numero);
+      return;
+    }
+
+    router.push(`/os/${card.id}`);
+  }
+
+  function handleCardAtencaoClick(card: DashboardPCP['cards_atencao'][number]) {
+    const osId = card.os_id ?? card.id;
+    if (cardPrecisaAtribuirWorkflow(card)) {
+      abrirAtribuirWorkflow(osId, card.numero);
+      return;
+    }
+
+    router.push(`/os/${osId}`);
+  }
+
   function atualizarFiltroSetores<K extends keyof FiltrosSetores>(
     campo: K,
     valor: FiltrosSetores[K],
@@ -486,7 +573,15 @@ export default function PCPPage() {
       )}
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Indicador label="Na fila" valor={statsExibir.fila} detalhe="Aguardando produção" />
+        <Indicador
+          label="Na fila"
+          valor={statsExibir.fila}
+          detalhe={
+            osAguardandoWorkflow > 0
+              ? `${osAguardandoWorkflow} aguardando workflow`
+              : 'Aguardando produção'
+          }
+        />
         <Indicador label="Em produção" valor={statsExibir.producao} detalhe="Em andamento" />
         <Indicador label="Atrasadas" valor={statsExibir.atrasadas} detalhe="Precisam de ação" destaque={statsExibir.atrasadas > 0} />
         <Indicador label="Prontas" valor={statsExibir.concluida} detalhe="Concluídas no PCP" />
@@ -497,11 +592,29 @@ export default function PCPPage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">
-                {nivel === 'COMPLETO' ? 'Produção por setores' : 'Quadro de produção'}
+                {nivel === 'COMPLETO'
+                  ? 'Visão de produção'
+                  : 'Quadro de produção'}
               </h2>
               <p className="text-sm text-muted-foreground">
                 Última atualização: {lastRefresh.toLocaleTimeString('pt-BR')}
               </p>
+              {nivel === 'COMPLETO' && statsExibir.fila > 0 && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {statsExibir.fila} OS na fila de entrada
+                  {osAguardandoWorkflow > 0
+                    ? ` — ${osAguardandoWorkflow} aguardando workflow`
+                    : ''}
+                  .
+                </p>
+              )}
+              {nivel !== 'COMPLETO' && osAguardandoWorkflow > 0 && (
+                <p className="mt-1 text-sm text-amber-800">
+                  {osAguardandoWorkflow}{' '}
+                  {osAguardandoWorkflow === 1 ? 'OS aguarda' : 'OS aguardam'}{' '}
+                  atribuição de workflow — clique no card para configurar.
+                </p>
+              )}
             </div>
             <Button asChild variant="outline" size="sm">
               <Link href={nivel === 'COMPLETO' ? '/pcp/meu-setor' : '/pcp/kanban'}>
@@ -517,7 +630,21 @@ export default function PCPPage() {
           )}
 
           {nivel === 'COMPLETO' ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
+              <FilaEntradaPCP
+                cards={cardsFilaEntrada}
+                loading={loading}
+                onCardClick={handleKanbanCardClick}
+              />
+
+              <div className="space-y-3">
+                <div>
+                  <h3 className="text-base font-semibold">Produção por setores</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Itens já em execução, distribuídos pelos setores produtivos.
+                  </p>
+                </div>
+
               <FiltrosKanbanSetores
                 filtros={filtrosSetores}
                 onChange={atualizarFiltroSetores}
@@ -561,6 +688,7 @@ export default function PCPPage() {
                 }}
                 onCardClick={(osId) => router.push(`/os/${osId}`)}
               />
+              </div>
             </div>
           ) : (
             <KanbanBoard
@@ -568,7 +696,7 @@ export default function PCPPage() {
               loading={loading}
               columns={colunasKanban}
               onStatusChange={handleStatusChange}
-              onCardClick={(osId) => router.push(`/os/${osId}`)}
+              onCardClick={handleKanbanCardClick}
             />
           )}
         </div>
@@ -613,7 +741,7 @@ export default function PCPPage() {
                     key={card.id}
                     type="button"
                     className="block w-full rounded-md border p-3 text-left transition-colors hover:bg-muted"
-                    onClick={() => router.push(`/os/${card.os_id ?? card.id}`)}
+                    onClick={() => handleCardAtencaoClick(card)}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -623,10 +751,16 @@ export default function PCPPage() {
                       <Badge variant="outline">{card.prioridade}</Badge>
                     </div>
                     <p className="mt-2 line-clamp-2 text-sm">{card.titulo}</p>
-                    <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                      <IconClock className="h-3.5 w-3.5" />
-                      {card.data_prazo || 'Sem prazo definido'}
-                    </p>
+                    {cardPrecisaAtribuirWorkflow(card) ? (
+                      <p className="mt-1 text-xs font-medium text-amber-800">
+                        Aguardando workflow — clique para atribuir
+                      </p>
+                    ) : (
+                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                        <IconClock className="h-3.5 w-3.5" />
+                        {card.data_prazo || 'Sem prazo definido'}
+                      </p>
+                    )}
                   </button>
                 ))
               )}
@@ -648,6 +782,14 @@ export default function PCPPage() {
           </section>
         </aside>
       </section>
+
+      <WorkflowAssignmentDialog
+        open={Boolean(osSelecionadaAtribuir)}
+        osId={osSelecionadaAtribuir?.id}
+        osNumero={osNumeroAtribuir}
+        onClose={fecharDialogAtribuirWorkflow}
+        onAssigned={() => void handleWorkflowAtribuido()}
+      />
     </div>
   );
 }
@@ -802,6 +944,93 @@ function FiltrosKanbanSetores({
         </Button>
       </div>
     </div>
+  );
+}
+
+function FilaEntradaPCP({
+  cards,
+  loading,
+  onCardClick,
+}: {
+  cards: OSCard[];
+  loading: boolean;
+  onCardClick: (card: OSCard) => void;
+}) {
+  if (loading && cards.length === 0) {
+    return (
+      <section className="rounded-lg border bg-white p-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <IconRefresh className="h-4 w-4 animate-spin" />
+          Carregando fila de entrada...
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-lg border bg-white p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold">Fila de entrada</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            OS liberadas para o PCP. Atribua o workflow aqui antes de distribuir
+            nos setores.
+          </p>
+        </div>
+        <Badge variant="secondary">{cards.length}</Badge>
+      </div>
+
+      {cards.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Nenhuma OS aguardando na fila de entrada.
+        </p>
+      ) : (
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {cards.map((card) => {
+            const aguardandoWorkflow = cardPrecisaAtribuirWorkflow(card);
+
+            return (
+              <button
+                key={card.id}
+                type="button"
+                className={`rounded-md border p-3 text-left transition-colors hover:bg-muted ${
+                  aguardandoWorkflow
+                    ? 'border-amber-300 bg-amber-50/50 hover:bg-amber-50'
+                    : ''
+                }`}
+                onClick={() => onCardClick(card)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium">{card.numero}</p>
+                    <p className="text-xs text-muted-foreground">{card.cliente}</p>
+                  </div>
+                  <Badge variant="outline">{card.prioridade}</Badge>
+                </div>
+
+                <p className="mt-2 line-clamp-2 text-sm">{card.titulo}</p>
+
+                {aguardandoWorkflow ? (
+                  <p className="mt-2 flex items-center gap-1 text-xs font-medium text-amber-900">
+                    <IconAlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                    Aguardando workflow — clique para atribuir
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Workflow atribuído — aguardando início nos setores
+                  </p>
+                )}
+
+                <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                  <IconClock className="h-3.5 w-3.5" />
+                  {card.data_prazo || 'Sem prazo definido'}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 

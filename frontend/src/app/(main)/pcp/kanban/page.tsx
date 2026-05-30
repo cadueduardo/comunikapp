@@ -1,12 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { KanbanBoard } from '@/components/ui/kanban-board';
+import type { OSCard } from '@/components/ui/kanban-board';
 import { KanbanFilters, KanbanFilters as KanbanFiltersType } from '@/components/pcp/KanbanFilters';
 import { KanbanStats } from '@/components/pcp/KanbanStats';
+import { WorkflowAssignmentDialog } from '@/components/pcp/WorkflowAssignmentDialog';
 import { useKanbanData } from '@/hooks/useKanbanData';
+import { cardPrecisaAtribuirWorkflow } from '@/lib/pcp/pcp.utils';
 import { 
   IconBuilding, 
   IconRefresh, 
@@ -17,7 +21,12 @@ import {
 } from '@tabler/icons-react';
 
 export default function KanbanPage() {
+  const router = useRouter();
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [osSelecionadaAtribuir, setOsSelecionadaAtribuir] = useState<{
+    id: string;
+    numero?: string;
+  } | null>(null);
   
   const {
     cards,
@@ -31,8 +40,21 @@ export default function KanbanPage() {
     refreshData,
     toggleFullscreen,
     handleStatusChange,
-    handleCardClick
   } = useKanbanData();
+
+  function handleKanbanCardClick(card: OSCard) {
+    if (cardPrecisaAtribuirWorkflow(card)) {
+      setOsSelecionadaAtribuir({ id: card.id, numero: card.numero });
+      return;
+    }
+
+    router.push(`/os/${card.id}`);
+  }
+
+  async function handleWorkflowAtribuido() {
+    await refreshData();
+    setOsSelecionadaAtribuir(null);
+  }
 
   const handleFiltersChange = (newFilters: KanbanFiltersType) => {
     setFilters(newFilters);
@@ -82,7 +104,15 @@ export default function KanbanPage() {
           data={cards}
           loading={loading}
           onStatusChange={handleStatusChange}
-          onCardClick={handleCardClick}
+          onCardClick={handleKanbanCardClick}
+        />
+
+        <WorkflowAssignmentDialog
+          open={Boolean(osSelecionadaAtribuir)}
+          osId={osSelecionadaAtribuir?.id}
+          osNumero={osSelecionadaAtribuir?.numero}
+          onClose={() => setOsSelecionadaAtribuir(null)}
+          onAssigned={() => void handleWorkflowAtribuido()}
         />
       </div>
     );
@@ -169,10 +199,18 @@ export default function KanbanPage() {
             data={cards}
             loading={loading}
             onStatusChange={handleStatusChange}
-            onCardClick={handleCardClick}
+            onCardClick={handleKanbanCardClick}
           />
         </CardContent>
       </Card>
+
+      <WorkflowAssignmentDialog
+        open={Boolean(osSelecionadaAtribuir)}
+        osId={osSelecionadaAtribuir?.id}
+        osNumero={osSelecionadaAtribuir?.numero}
+        onClose={() => setOsSelecionadaAtribuir(null)}
+        onAssigned={() => void handleWorkflowAtribuido()}
+      />
     </div>
   );
 }
