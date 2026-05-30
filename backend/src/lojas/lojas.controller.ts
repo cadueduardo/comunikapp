@@ -21,6 +21,7 @@ import { LojasService } from './lojas.service';
 import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateLojaDto } from './dto/update-loja.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyTwoFactorLoginDto } from './dto/verify-two-factor-login.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -67,6 +68,12 @@ export class LojasController {
   @Post('verificar-email')
   verifyEmail(@Body() body: VerifyEmailDto) {
     return this.lojasService.verifyEmail(body);
+  }
+
+  @Public()
+  @Post('reenviar-verificacao')
+  resendVerification(@Body() body: ResendVerificationDto) {
+    return this.lojasService.resendVerificationEmail(body.email);
   }
 
   @UseGuards(JwtAuthGuard)

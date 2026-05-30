@@ -176,6 +176,8 @@ export const lojasApi = {
   login: (data: Record<string, unknown>) => ApiClient.post('/lojas/login', data),
   register: (data: Record<string, unknown>) => ApiClient.post('/lojas', data),
   verifyEmail: (data: Record<string, unknown>) => ApiClient.post('/lojas/verificar-email', data),
+  resendVerification: (data: Record<string, unknown>) =>
+    ApiClient.post('/lojas/reenviar-verificacao', data),
   getCurrentUser: (token: string) => ApiClient.get('/lojas/me', token),
 };
 

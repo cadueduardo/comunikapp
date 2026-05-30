@@ -14,6 +14,7 @@ import {
 } from './convite-templates';
 import { isPlatformAdminEmail } from './platform-admin.guard';
 import { InteresseBetaDto } from './dto/interesse-beta.dto';
+import { PendingSignupService } from '../lojas/pending-signup.service';
 
 export const INVITE_ORIGEM = {
   ADMIN: 'admin_manual',
@@ -34,6 +35,7 @@ export class PlatformService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
+    private readonly pendingSignupService: PendingSignupService,
   ) {}
 
   getPlatformAccess(email?: string | null) {
@@ -215,18 +217,21 @@ export class PlatformService {
       throw new BadRequestException('Token de convite obrigatorio.');
     }
 
-    const convite = await this.prisma.conviteCadastro.findUnique({
-      where: { token_hash: this.hashToken(token.trim()) },
-      select: {
-        email: true,
-        nome: true,
-        status: true,
-        expira_em: true,
-      },
+    const tokenHash = this.hashToken(token.trim());
+    let convite = await this.prisma.conviteCadastro.findUnique({
+      where: { token_hash: tokenHash },
     });
 
     if (!convite) {
       throw new BadRequestException('Convite invalido.');
+    }
+
+    if (convite.status === INVITE_STATUS.USADO) {
+      const canReuse = await this.pendingSignupService.canReuseUsedInvite(convite);
+      if (!canReuse) {
+        throw new BadRequestException('Convite nao esta mais disponivel.');
+      }
+      convite = await this.pendingSignupService.reopenInvite(convite.id);
     }
 
     if (convite.status !== INVITE_STATUS.PENDENTE) {
@@ -236,7 +241,7 @@ export class PlatformService {
     if (convite.expira_em <= new Date()) {
       await this.prisma.conviteCadastro.updateMany({
         where: {
-          token_hash: this.hashToken(token.trim()),
+          token_hash: tokenHash,
           status: INVITE_STATUS.PENDENTE,
         },
         data: { status: INVITE_STATUS.EXPIRADO },
@@ -311,9 +316,11 @@ export class PlatformService {
       where: { email },
       select: { id: true },
     });
-    if (existingLoja) {
+    if (existingLoja && (await this.pendingSignupService.hasVerifiedAccount(email))) {
       return this.getBetaInterestSuccessMessage();
     }
+
+    await this.pendingSignupService.purgeUnverifiedSignup(email);
 
     const activeInvite = await this.prisma.conviteCadastro.findFirst({
       where: {

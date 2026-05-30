@@ -3,6 +3,7 @@ const SESSION_EXPIRED_IGNORED_ENDPOINTS = new Set([
   '/lojas/login',
   '/lojas/login/2fa',
   '/lojas/verificar-email',
+  '/lojas/reenviar-verificacao',
   '/lojas',
   '/usuarios/reenviar-codigo',
   '/usuarios/definir-senha',

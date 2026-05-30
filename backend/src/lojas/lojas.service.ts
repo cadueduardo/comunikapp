@@ -19,6 +19,7 @@ import { VerifyTwoFactorLoginDto } from './dto/verify-two-factor-login.dto';
 import { UpdateConfiguracoesLojaDto } from './dto/update-configuracoes-loja.dto';
 import { loja } from '@prisma/client';
 import { TwoFactorService } from '../auth/two-factor.service';
+import { PendingSignupService } from './pending-signup.service';
 import {
   formatCnpj,
   formatCpf,
@@ -55,6 +56,7 @@ export class LojasService {
     private readonly mailService: MailService,
     private readonly authService: AuthService,
     private readonly twoFactorService: TwoFactorService,
+    private readonly pendingSignupService: PendingSignupService,
   ) {}
 
   private getLoginAttemptKey(email: string, ip: string) {
@@ -166,12 +168,20 @@ export class LojasService {
 
   private async validateSignupInviteToken(token: string, email: string) {
     const tokenHash = this.hashInviteToken(token.trim());
-    const convite = await this.prisma.conviteCadastro.findUnique({
+    let convite = await this.prisma.conviteCadastro.findUnique({
       where: { token_hash: tokenHash },
     });
 
     if (!convite) {
       throw new BadRequestException('Convite invalido.');
+    }
+
+    if (convite.status === SIGNUP_INVITE_STATUS.USADO) {
+      const canReuse = await this.pendingSignupService.canReuseUsedInvite(convite);
+      if (!canReuse) {
+        throw new BadRequestException('Convite nao esta mais disponivel.');
+      }
+      convite = await this.pendingSignupService.reopenInvite(convite.id);
     }
 
     if (convite.status !== SIGNUP_INVITE_STATUS.PENDENTE) {
@@ -517,6 +527,14 @@ export class LojasService {
 
     const documentos = this.validateSignupDocuments(cpf, cnpj);
 
+    if (await this.pendingSignupService.hasVerifiedAccount(normalizedEmail)) {
+      throw new BadRequestException(
+        'Este e-mail ja possui conta ativa. Faca login ou recupere sua senha.',
+      );
+    }
+
+    await this.pendingSignupService.purgeUnverifiedSignup(normalizedEmail);
+
     try {
       const salt = await bcrypt.genSalt();
       const hashedPassword = await bcrypt.hash(senha, salt);
@@ -600,7 +618,7 @@ export class LojasService {
       // Prisma: violação de unique (ex.: e-mail já cadastrado)
       if (err && typeof err === 'object' && 'code' in err && err.code === 'P2002') {
         throw new BadRequestException(
-          'Este e-mail já está cadastrado. Use outro e-mail ou faça login.',
+          'Nao foi possivel concluir o cadastro com este e-mail. Se voce ja tentou antes, solicite um novo convite ou reenvie o codigo de verificacao.',
         );
       }
       // Prisma: outros erros de validação/banco
@@ -650,8 +668,9 @@ export class LojasService {
     }
 
     if (new Date() > usuario.codigo_verificacao_email_expiracao) {
-      // TODO: Implementar lógica de reenviar código
-      throw new BadRequestException('O código de verificação expirou.');
+      throw new BadRequestException(
+        'O codigo de verificacao expirou. Clique em "Reenviar codigo" para receber um novo.',
+      );
     }
 
     // Usar transação para ativar tanto o usuário quanto a loja
@@ -679,6 +698,39 @@ export class LojasService {
     });
 
     return { message: 'E-mail verificado com sucesso!' };
+  }
+
+  async resendVerificationEmail(email: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (!usuario) {
+      throw new NotFoundException('Nenhum cadastro pendente encontrado para este e-mail.');
+    }
+
+    if (usuario.email_verificado) {
+      throw new BadRequestException('Este e-mail ja foi verificado. Faca login.');
+    }
+
+    const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expirationDate = new Date();
+    expirationDate.setMinutes(expirationDate.getMinutes() + 15);
+
+    await this.prisma.usuario.update({
+      where: { id: usuario.id },
+      data: {
+        codigo_verificacao_email: emailCode,
+        codigo_verificacao_email_expiracao: expirationDate,
+      },
+    });
+
+    await this.mailService.sendVerificationEmail(normalizedEmail, emailCode);
+
+    return {
+      message: 'Enviamos um novo codigo de verificacao para seu e-mail.',
+    };
   }
 
   findAll() {

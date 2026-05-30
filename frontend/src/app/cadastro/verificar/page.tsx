@@ -2,16 +2,19 @@
 
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { MailCheck, XCircle } from 'lucide-react';
+import { CheckCircle2, MailCheck, XCircle } from 'lucide-react';
 import { lojasApi } from '@/lib/api-client';
 
 function VerifyContent() {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
@@ -20,84 +23,131 @@ function VerifyContent() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setResendMessage(null);
 
     if (!email) {
-        setError('O e-mail não foi encontrado. Por favor, volte e tente novamente.');
-        setLoading(false);
-        return;
+      setError('O e-mail nao foi encontrado. Por favor, volte e tente novamente.');
+      setLoading(false);
+      return;
     }
 
     try {
       await lojasApi.verifyEmail({ email, codigo: code });
-
-      // Se a verificação for bem-sucedida, redireciona para a página de login com um parâmetro
       router.push('/login?verified=true');
-
     } catch (err: unknown) {
-        if (err instanceof Error) {
-            setError(err.message);
-        } else {
-            setError('Ocorreu um erro desconhecido.');
-        }
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Ocorreu um erro desconhecido.');
+      }
     } finally {
-        setLoading(false);
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!email) {
+      setError('E-mail nao informado.');
+      return;
+    }
+
+    setResending(true);
+    setError(null);
+    setResendMessage(null);
+
+    try {
+      const response = await lojasApi.resendVerification({ email }) as { message?: string };
+      setResendMessage(response.message || 'Novo codigo enviado para seu e-mail.');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Nao foi possivel reenviar o codigo.');
+      }
+    } finally {
+      setResending(false);
     }
   };
 
   if (!email) {
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-white text-center p-8">
-            <XCircle className="w-16 h-16 text-red-500 mb-4" />
-            <h1 className="text-2xl font-bold mb-2">Ocorreu um erro</h1>
-            <p className="text-muted-foreground">
-                Não foi possível identificar o seu e-mail para verificação.
-            </p>
-            <Button variant="outline" onClick={() => router.push('/cadastro')} className="mt-4">
-                Voltar ao Cadastro
-            </Button>
-        </div>
-    )
+      <div className="flex flex-col items-center justify-center min-h-screen bg-white text-center p-8">
+        <XCircle className="w-16 h-16 text-red-500 mb-4" />
+        <h1 className="text-2xl font-bold mb-2">Ocorreu um erro</h1>
+        <p className="text-muted-foreground">
+          Nao foi possivel identificar o seu e-mail para verificacao.
+        </p>
+        <Button variant="outline" onClick={() => router.push('/cadastro')} className="mt-4">
+          Voltar ao Cadastro
+        </Button>
+      </div>
+    );
   }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
         <div className="text-center">
-            <MailCheck className="mx-auto h-12 w-12 text-blue-500" />
-            <h1 className="text-3xl font-bold mt-4">Verifique seu e-mail</h1>
-            <p className="text-muted-foreground mt-2">
-                Enviamos um código de 6 dígitos para <strong>{email}</strong>. Por favor, insira-o abaixo.
-            </p>
+          <MailCheck className="mx-auto h-12 w-12 text-blue-500" />
+          <h1 className="text-3xl font-bold mt-4">Verifique seu e-mail</h1>
+          <p className="text-muted-foreground mt-2">
+            Enviamos um codigo de 6 digitos para <strong>{email}</strong>. Insira-o abaixo.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-                <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md flex items-center">
-                    <XCircle className="w-5 h-5 mr-3"/>
-                    <span>{error}</span>
-                </div>
-            )}
-            <div className="space-y-2">
-                <Label htmlFor="verification-code">Código de Verificação</Label>
-                <Input
-                id="verification-code"
-                type="text"
-                maxLength={6}
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="------"
-                required
-                disabled={loading}
-                className="text-center text-2xl tracking-[0.5em]"
-                />
+          {error && (
+            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md flex items-center">
+              <XCircle className="w-5 h-5 mr-3" />
+              <span>{error}</span>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Verificando...' : 'Verificar e Acessar'}
-            </Button>
+          )}
+
+          {resendMessage && (
+            <div className="bg-green-100 border-l-4 border-green-500 text-green-800 p-4 rounded-md flex items-center">
+              <CheckCircle2 className="w-5 h-5 mr-3" />
+              <span>{resendMessage}</span>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="verification-code">Codigo de Verificacao</Label>
+            <Input
+              id="verification-code"
+              type="text"
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              placeholder="------"
+              required
+              disabled={loading}
+              className="text-center text-2xl tracking-[0.5em]"
+            />
+          </div>
+
+          <Button type="submit" className="w-full" disabled={loading || resending}>
+            {loading ? 'Verificando...' : 'Verificar e Acessar'}
+          </Button>
         </form>
 
-        <div className="text-center text-sm text-muted-foreground">
-            <p>Não recebeu o código? <button className="underline hover:text-blue-600">Reenviar código</button></p>
+        <div className="space-y-3 text-center text-sm text-muted-foreground">
+          <p>
+            Nao recebeu o codigo?{' '}
+            <button
+              type="button"
+              className="underline hover:text-blue-600 disabled:opacity-50"
+              onClick={handleResend}
+              disabled={loading || resending}
+            >
+              {resending ? 'Reenviando...' : 'Reenviar codigo'}
+            </button>
+          </p>
+          <p>
+            Quer comecar de novo?{' '}
+            <Link href="/beta" className="underline hover:text-blue-600">
+              Solicitar novo convite
+            </Link>
+          </p>
         </div>
       </div>
     </div>
