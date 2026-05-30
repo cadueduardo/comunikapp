@@ -6,6 +6,7 @@ import { SentryProvider } from "@/components/providers/SentryProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner"; // Importando o Toaster
 import { BRAND_ASSETS } from "@/lib/brand";
+import { siteMetadata } from "@/lib/site-metadata";
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -14,8 +15,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Comunikapp",
-  description: "Gestão para comunicação visual",
+  ...siteMetadata,
   icons: {
     icon: [{ url: BRAND_ASSETS.favicon, type: "image/svg+xml" }],
     shortcut: BRAND_ASSETS.favicon,

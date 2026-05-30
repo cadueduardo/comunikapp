@@ -16,6 +16,22 @@ export const BRAND_PNG_DIR = {
   '2x': '/brand/png/2x',
 } as const;
 
+/**
+ * Imagem de preview ao compartilhar link (Open Graph / WhatsApp / redes sociais).
+ * Exportar o MESMO arquivo em 1x/ e 2x/ com as dimensoes abaixo.
+ */
+export const BRAND_SOCIAL_PREVIEW = {
+  pngFile: 'comunikapp-comunicacao-visual.png',
+  path1x: `${BRAND_PNG_DIR['1x']}/comunikapp-comunicacao-visual.png`,
+  path2x: `${BRAND_PNG_DIR['2x']}/comunikapp-comunicacao-visual.png`,
+  /** Proporcao 1.91:1 — padrao Open Graph (WhatsApp, Facebook, LinkedIn, Telegram). */
+  export1x: { width: 1200, height: 630 },
+  export2x: { width: 2400, height: 630 * 2 },
+  alt: 'Comunikapp — Gestão para comunicação visual',
+  usage:
+    'Preview ao compartilhar link do site. Manter logo e texto na zona central (margem ~10%).',
+} as const;
+
 export type BrandLogoVariant =
   | 'logoWhite'
   | 'logoWhiteCompact'

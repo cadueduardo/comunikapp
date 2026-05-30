@@ -2,6 +2,9 @@
 export const ENV_CONFIG = {
   // URL da API - pode ser configurada por variável de ambiente
   API_URL: process.env.NEXT_PUBLIC_API_URL || '/api',
+
+  // URL pública do site (preview Open Graph / WhatsApp)
+  SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'https://comunikapp.com.br',
   
   // Nome da aplicação
   APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'Comunikapp',
