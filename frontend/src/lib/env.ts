@@ -6,8 +6,9 @@ export const ENV_CONFIG = {
   // Nome da aplicação
   APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'Comunikapp',
   
-  // Versão da aplicação
+  // Versão global da plataforma (mesma para todas as lojas após cada deploy)
   APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
+  GIT_SHA: process.env.NEXT_PUBLIC_GIT_SHA || '',
   
   // Ambiente
   NODE_ENV: process.env.NODE_ENV || 'development',

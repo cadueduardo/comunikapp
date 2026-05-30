@@ -179,6 +179,7 @@ export const lojasApi = {
   resendVerification: (data: Record<string, unknown>) =>
     ApiClient.post('/lojas/reenviar-verificacao', data),
   getCurrentUser: (token: string) => ApiClient.get('/lojas/me', token),
+  getMinhaLoja: (token: string) => ApiClient.get('/lojas/minha-loja', token),
 };
 
 export const platformApi = {

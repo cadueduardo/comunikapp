@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ValidacoesAutomaticasCard } from '@/components/configuracoes/ValidacoesAutomaticasCard';
+import { IdentificacaoLojaCard } from '@/components/configuracoes/IdentificacaoLojaCard';
 import {
   Settings,
   Tag,
@@ -259,6 +260,8 @@ export default function ConfiguracoesPage() {
         <h1 className="text-3xl font-bold">Configurações</h1>
         <p className="text-gray-600">Gerencie as configurações do sistema</p>
       </div>
+
+      <IdentificacaoLojaCard />
 
       {/* Card de Validações Automáticas em destaque */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
