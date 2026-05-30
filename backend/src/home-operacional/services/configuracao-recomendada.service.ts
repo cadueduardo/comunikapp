@@ -163,9 +163,9 @@ export class ConfiguracaoRecomendadaService {
     await this.aplicarTiposMaterial(lojaId, aplicado, ignorado);
 
     // 4. Setores produtivos (so cria se nao houver nenhum)
-    await this.aplicarSetores(lojaId, aplicado, ignorado);
+    await this.garantirSetoresPadrao(lojaId, aplicado, ignorado);
 
-    // 5. Workflow padrao de OS (so cria se nao houver nenhum)
+    // 5. Workflow padrao de OS (cria ou repara vinculos com setores)
     await this.aplicarWorkflow(lojaId, aplicado, ignorado);
 
     // 6. Regras de validacao (cria por nome unico)
@@ -301,16 +301,21 @@ export class ConfiguracaoRecomendadaService {
     }
   }
 
-  private async aplicarSetores(
+  private async garantirSetoresPadrao(
     lojaId: string,
     aplicado: ResultadoAplicado,
     ignorado: ResultadoIgnorado,
   ): Promise<void> {
-    const existentes = await this.prisma.setorProdutivo.count({ where: { loja_id: lojaId } });
+    const existentes = await this.prisma.setorProdutivo.count({
+      where: { loja_id: lojaId },
+    });
     if (existentes > 0) {
-      ignorado.setores = 'já existem setores produtivos na loja';
+      if (!ignorado.setores) {
+        ignorado.setores = 'já existem setores produtivos na loja';
+      }
       return;
     }
+
     for (const setor of this.SETORES_DEFAULT) {
       try {
         await this.prisma.setorProdutivo.create({
@@ -319,13 +324,55 @@ export class ConfiguracaoRecomendadaService {
             nome: setor.nome,
             cor: setor.cor,
             ordem: setor.ordem,
+            ativo: true,
           },
         });
         aplicado.setores_criados.push(setor.nome);
       } catch {
-        // ignora
+        // ignora conflito por race
       }
     }
+  }
+
+  private async vincularSetoresAoWorkflow(
+    workflowId: string,
+    lojaId: string,
+  ): Promise<number> {
+    const setores = await this.prisma.setorProdutivo.findMany({
+      where: { loja_id: lojaId, ativo: true },
+      orderBy: { ordem: 'asc' },
+    });
+
+    if (setores.length === 0) {
+      return 0;
+    }
+
+    const vinculosExistentes = await this.prisma.workflowSetor.findMany({
+      where: { workflow_id: workflowId },
+      select: { setor_id: true },
+    });
+    const setoresJaVinculados = new Set(
+      vinculosExistentes.map((vinculo) => vinculo.setor_id),
+    );
+
+    const novosVinculos = setores
+      .filter((setor) => !setoresJaVinculados.has(setor.id))
+      .map((setor, index) => ({
+        workflow_id: workflowId,
+        setor_id: setor.id,
+        ordem: setor.ordem ?? index + 1,
+      }));
+
+    if (novosVinculos.length === 0) {
+      return vinculosExistentes.length;
+    }
+
+    await this.prisma.workflowSetor.createMany({
+      data: novosVinculos,
+      skipDuplicates: true,
+    });
+
+    return vinculosExistentes.length + novosVinculos.length;
   }
 
   private async aplicarWorkflow(
@@ -333,43 +380,44 @@ export class ConfiguracaoRecomendadaService {
     aplicado: ResultadoAplicado,
     ignorado: ResultadoIgnorado,
   ): Promise<void> {
-    const existentes = await this.prisma.workflowOS.count({ where: { loja_id: lojaId } });
-    if (existentes > 0) {
-      ignorado.workflow = 'já existe pelo menos um workflow de OS na loja';
-      return;
-    }
-    await this.prisma.workflowOS.create({
-      data: {
-        loja_id: lojaId,
-        nome: this.WORKFLOW_DEFAULT_NOME,
-        descricao: 'Workflow gerado pela configuração recomendada.',
-        sequencial: true,
-        ativo: true,
-        etapas: JSON.stringify(this.WORKFLOW_DEFAULT_ETAPAS),
-      },
-    });
+    // Garante setores antes de criar/vincular workflow (evita workflow "vazio").
+    await this.garantirSetoresPadrao(lojaId, aplicado, ignorado);
 
-    const workflowCriado = await this.prisma.workflowOS.findFirst({
+    const workflowExistente = await this.prisma.workflowOS.findFirst({
       where: { loja_id: lojaId, nome: this.WORKFLOW_DEFAULT_NOME },
       select: { id: true },
     });
 
-    if (workflowCriado) {
-      const setores = await this.prisma.setorProdutivo.findMany({
-        where: { loja_id: lojaId, ativo: true },
-        orderBy: { ordem: 'asc' },
-      });
+    let workflowId = workflowExistente?.id;
 
-      if (setores.length > 0) {
-        await this.prisma.workflowSetor.createMany({
-          data: setores.map((setor, index) => ({
-            workflow_id: workflowCriado.id,
-            setor_id: setor.id,
-            ordem: setor.ordem ?? index + 1,
-          })),
-          skipDuplicates: true,
-        });
+    if (!workflowId) {
+      const totalWorkflows = await this.prisma.workflowOS.count({
+        where: { loja_id: lojaId },
+      });
+      if (totalWorkflows > 0) {
+        ignorado.workflow =
+          'já existe outro workflow na loja; mantido sem alterar nome ou setores';
+        return;
       }
+
+      const workflowCriado = await this.prisma.workflowOS.create({
+        data: {
+          loja_id: lojaId,
+          nome: this.WORKFLOW_DEFAULT_NOME,
+          descricao: 'Workflow gerado pela configuração recomendada.',
+          sequencial: true,
+          ativo: true,
+          etapas: JSON.stringify(this.WORKFLOW_DEFAULT_ETAPAS),
+        },
+        select: { id: true },
+      });
+      workflowId = workflowCriado.id;
+    }
+
+    const totalVinculos = await this.vincularSetoresAoWorkflow(workflowId, lojaId);
+    if (totalVinculos === 0) {
+      ignorado.workflow =
+        'workflow padrão sem setores produtivos vinculados (cadastre setores ativos)';
     }
 
     aplicado.workflow_criado = this.WORKFLOW_DEFAULT_NOME;
