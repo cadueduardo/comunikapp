@@ -10,7 +10,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Check } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/header";
 
@@ -115,58 +114,10 @@ export default function HomePage() {
             />
              <FaqItem
               value="item-4"
-              question="Posso cancelar minha assinatura a qualquer momento?"
-              answer="Sim. A assinatura dos módulos é mensal e você pode cancelar ou alterar seu plano quando quiser, sem taxas ou multas. A gestão é flexível para se adaptar ao crescimento da sua empresa."
+              question="Como reporto um problema durante o beta?"
+              answer="Dentro da plataforma, use o botao Beta · Feedback no canto da tela. Sua mensagem inclui automaticamente a pagina em que voce estava, o que ajuda muito na investigacao."
             />
           </Accordion>
-        </div>
-
-        {/* Pricing Section */}
-        <div id="precos" className="w-full max-w-6xl py-20">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-center mb-4">
-                Planos flexíveis para sua empresa
-            </h2>
-            <p className="text-lg text-neutral-400 text-center mb-12 max-w-2xl mx-auto">
-                Comece com o essencial e adicione módulos conforme você cresce. Sem contratos de longo prazo.
-            </p>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <PricingCard
-                    plan="Essencial"
-                    price="R$ 99"
-                    description="Para freelancers e pequenas empresas começando."
-                    features={[
-                        "Módulo de Orçamento",
-                        "Módulo de Produção (Básico)",
-                        "1 Usuário",
-                        "Suporte por E-mail"
-                    ]}
-                />
-                <PricingCard
-                    plan="Profissional"
-                    price="R$ 249"
-                    description="Para empresas em crescimento que precisam de mais automação."
-                    features={[
-                        "Tudo do Essencial, e mais:",
-                        "Módulo Financeiro",
-                        "Módulo de Estoque",
-                        "Até 5 Usuários",
-                        "Suporte Prioritário"
-                    ]}
-                    isPopular={true}
-          />
-                <PricingCard
-                    plan="Enterprise"
-                    price="Customizado"
-                    description="Para grandes operações com necessidades específicas."
-                    features={[
-                        "Tudo do Profissional, e mais:",
-                        "Módulos Customizados",
-                        "Usuários Ilimitados",
-                        "Gerente de Conta Dedicado",
-                        "SLA de Uptime"
-                    ]}
-                />
-            </div>
         </div>
 
       </div>
@@ -229,33 +180,3 @@ const FaqItem = ({ value, question, answer }: { value: string; question: string;
   </AccordionItem>
 );
 
-const PricingCard = ({ plan, price, description, features, isPopular = false }: { plan: string; price: string; description: string; features: string[]; isPopular?: boolean; }) => (
-    <div className={`relative rounded-2xl p-8 border ${isPopular ? 'border-purple-500' : 'border-neutral-700'}`}>
-        {isPopular && (
-            <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2">
-                <span className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                    MAIS POPULAR
-                </span>
-            </div>
-        )}
-        <h3 className="text-2xl font-bold">{plan}</h3>
-        <p className="text-neutral-400 mt-2">{description}</p>
-        <div className="mt-6">
-            <span className="text-4xl font-bold">{price}</span>
-            <span className="text-neutral-400">/mês</span>
-        </div>
-        <ul className="mt-6 space-y-4">
-            {features.map((feature, index) => (
-                <li key={index} className="flex items-center">
-                    <Check className="w-5 h-5 text-green-500 mr-3 shrink-0" />
-                    <span>{feature}</span>
-                </li>
-            ))}
-        </ul>
-        <Link href="/cadastro">
-            <Button className={`w-full mt-8 text-base py-6 ${isPopular ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-white text-black hover:bg-neutral-200'}`}>
-                Começar Agora
-            </Button>
-        </Link>
-    </div>
-);

@@ -27,7 +27,6 @@ const Header = () => {
 
     const navItems = [
         { name: "Módulos", href: "#modulos" },
-        { name: "Preços", href: "#precos" },
     ];
 
     return (
