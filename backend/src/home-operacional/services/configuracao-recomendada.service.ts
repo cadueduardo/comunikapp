@@ -348,6 +348,30 @@ export class ConfiguracaoRecomendadaService {
         etapas: JSON.stringify(this.WORKFLOW_DEFAULT_ETAPAS),
       },
     });
+
+    const workflowCriado = await this.prisma.workflowOS.findFirst({
+      where: { loja_id: lojaId, nome: this.WORKFLOW_DEFAULT_NOME },
+      select: { id: true },
+    });
+
+    if (workflowCriado) {
+      const setores = await this.prisma.setorProdutivo.findMany({
+        where: { loja_id: lojaId, ativo: true },
+        orderBy: { ordem: 'asc' },
+      });
+
+      if (setores.length > 0) {
+        await this.prisma.workflowSetor.createMany({
+          data: setores.map((setor, index) => ({
+            workflow_id: workflowCriado.id,
+            setor_id: setor.id,
+            ordem: setor.ordem ?? index + 1,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
     aplicado.workflow_criado = this.WORKFLOW_DEFAULT_NOME;
   }
 

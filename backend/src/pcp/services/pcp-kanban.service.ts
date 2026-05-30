@@ -86,7 +86,17 @@ export class PCPKanbanService {
           cliente: true,
           workflow_instancia: {
             include: {
-              workflow: true,
+              workflow: {
+                include: {
+                  workflow_setores: {
+                    orderBy: { ordem: 'asc' },
+                    include: { setor: { select: { nome: true } } },
+                  },
+                },
+              },
+              instancias_setor: {
+                select: { id: true, status: true, setor_id: true },
+              },
               etapas: {
                 where: { status: 'EM_ANDAMENTO' },
               },
@@ -163,6 +173,14 @@ export class PCPKanbanService {
                     cliente: true,
                   },
                 },
+                workflow: {
+                  include: {
+                    workflow_setores: {
+                      orderBy: { ordem: 'asc' },
+                      include: { setor: { select: { nome: true } } },
+                    },
+                  },
+                },
               },
             },
           },
@@ -217,6 +235,14 @@ export class PCPKanbanService {
                 os: {
                   include: {
                     cliente: true,
+                  },
+                },
+                workflow: {
+                  include: {
+                    workflow_setores: {
+                      orderBy: { ordem: 'asc' },
+                      include: { setor: { select: { nome: true } } },
+                    },
                   },
                 },
               },
@@ -326,17 +352,11 @@ export class PCPKanbanService {
         `Iniciando producao do item ${itemOsId} pelo operador ${operadorId}`,
       );
 
-      const etapa = await this.prisma.workflowInstanciaSetor.findFirst({
-        where: {
-          item_os_id: itemOsId,
-          status: { in: ['PENDENTE', 'PAUSADA'] },
-          workflow_instancia: {
-            os: {
-              loja_id: lojaId,
-            },
-          },
-        },
-      });
+      const etapa = await this.buscarInstanciaSetorPorReferencia(
+        itemOsId,
+        lojaId,
+        { in: ['PENDENTE', 'PAUSADA'] },
+      );
 
       if (!etapa) {
         throw new BadRequestException(
@@ -365,15 +385,12 @@ export class PCPKanbanService {
         },
       });
 
-      const itemOS = await this.prisma.itemOS.findUnique({
-        where: { id: itemOsId },
-        include: { os: true },
-      });
+      const osId = await this.resolverOsIdDaInstanciaSetor(etapa.id);
 
-      if (itemOS) {
+      if (osId) {
         await this.prisma.apontamento.create({
           data: {
-            os_id: itemOS.os_id,
+            os_id: osId,
             tipo: tipoApontamento,
             data_apontamento: new Date(),
             usuario_id: operadorId,
@@ -404,17 +421,11 @@ export class PCPKanbanService {
       await this.validarOperadorDaAcao(lojaId, operadorId, usuario);
       this.logger.log(`Concluindo etapa do item ${itemOsId}`);
 
-      const etapaAtual = await this.prisma.workflowInstanciaSetor.findFirst({
-        where: {
-          item_os_id: itemOsId,
-          status: 'EM_ANDAMENTO',
-          workflow_instancia: {
-            os: {
-              loja_id: lojaId,
-            },
-          },
-        },
-      });
+      const etapaAtual = await this.buscarInstanciaSetorPorReferencia(
+        itemOsId,
+        lojaId,
+        'EM_ANDAMENTO',
+      );
 
       if (!etapaAtual) {
         throw new BadRequestException(
@@ -432,15 +443,12 @@ export class PCPKanbanService {
         },
       });
 
-      const itemOS = await this.prisma.itemOS.findUnique({
-        where: { id: itemOsId },
-        include: { os: true },
-      });
+      const osId = await this.resolverOsIdDaInstanciaSetor(etapaAtual.id);
 
-      if (itemOS) {
+      if (osId) {
         await this.prisma.apontamento.create({
           data: {
-            os_id: itemOS.os_id,
+            os_id: osId,
             tipo: 'CONCLUSAO',
             data_apontamento: new Date(),
             usuario_id: operadorId,
@@ -477,17 +485,11 @@ export class PCPKanbanService {
       await this.validarOperadorDaAcao(lojaId, operadorId, usuario);
       this.logger.log(`Pausando producao do item ${itemOsId}`);
 
-      const etapa = await this.prisma.workflowInstanciaSetor.findFirst({
-        where: {
-          item_os_id: itemOsId,
-          status: 'EM_ANDAMENTO',
-          workflow_instancia: {
-            os: {
-              loja_id: lojaId,
-            },
-          },
-        },
-      });
+      const etapa = await this.buscarInstanciaSetorPorReferencia(
+        itemOsId,
+        lojaId,
+        'EM_ANDAMENTO',
+      );
 
       if (!etapa) {
         throw new BadRequestException(
@@ -509,15 +511,12 @@ export class PCPKanbanService {
         },
       });
 
-      const itemOS = await this.prisma.itemOS.findUnique({
-        where: { id: itemOsId },
-        include: { os: true },
-      });
+      const osId = await this.resolverOsIdDaInstanciaSetor(etapa.id);
 
-      if (itemOS) {
+      if (osId) {
         await this.prisma.apontamento.create({
           data: {
-            os_id: itemOS.os_id,
+            os_id: osId,
             tipo: 'PAUSA',
             data_apontamento: new Date(),
             usuario_id: operadorId,
@@ -541,14 +540,11 @@ export class PCPKanbanService {
   ): Promise<void> {
     this.validarPermissaoOperacional(usuario);
 
-    const etapaOrigem = await this.prisma.workflowInstanciaSetor.findFirst({
-      where: {
-        item_os_id: itemOsId,
-        status: { in: ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA'] },
-        workflow_instancia: { os: { loja_id: lojaId } },
-      },
-      orderBy: [{ ordem: 'asc' }, { criado_em: 'asc' }],
-    });
+    const etapaOrigem = await this.buscarInstanciaSetorPorReferencia(
+      itemOsId,
+      lojaId,
+      { in: ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA'] },
+    );
 
     if (!etapaOrigem) {
       throw new BadRequestException(
@@ -561,7 +557,7 @@ export class PCPKanbanService {
     const etapaDestino = await this.prisma.workflowInstanciaSetor.findFirst({
       where: {
         workflow_instancia_id: etapaOrigem.workflow_instancia_id,
-        item_os_id: itemOsId,
+        item_os_id: etapaOrigem.item_os_id,
         setor_id: data.setorDestinoId,
       },
     });
@@ -943,5 +939,40 @@ export class PCPKanbanService {
       return 'MEDIO';
     }
     return 'BAIXO';
+  }
+
+  private async buscarInstanciaSetorPorReferencia(
+    referenciaItemId: string,
+    lojaId: string,
+    status: string | { in: string[] },
+  ) {
+    return this.prisma.workflowInstanciaSetor.findFirst({
+      where: {
+        OR: [{ id: referenciaItemId }, { item_os_id: referenciaItemId }],
+        workflow_instancia: {
+          os: {
+            loja_id: lojaId,
+          },
+        },
+        status,
+      },
+      orderBy: [{ ordem: 'asc' }, { criado_em: 'asc' }],
+    });
+  }
+
+  private async resolverOsIdDaInstanciaSetor(
+    instanciaSetorId: string,
+  ): Promise<string | null> {
+    const instancia = await this.prisma.workflowInstanciaSetor.findUnique({
+      where: { id: instanciaSetorId },
+      select: {
+        item_os: { select: { os_id: true } },
+        workflow_instancia: { select: { os_id: true } },
+      },
+    });
+
+    return (
+      instancia?.item_os?.os_id ?? instancia?.workflow_instancia?.os_id ?? null
+    );
   }
 }

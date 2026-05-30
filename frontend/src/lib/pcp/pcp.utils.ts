@@ -163,3 +163,10 @@ export function cardPrecisaAtribuirWorkflow(
 
   return card.alertas?.includes('sem_workflow') ?? false;
 }
+
+/** Workflow atribuído, mas o template não gerou filas nos setores produtivos. */
+export function cardSemSetoresProdutivos(
+  card: CardKanbanPendenciaInput,
+): boolean {
+  return card.alertas?.includes('workflow_sem_setores') ?? false;
+}

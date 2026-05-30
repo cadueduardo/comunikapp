@@ -158,10 +158,7 @@ export class WorkflowAssignmentService {
       );
     }
 
-    const workflow = await this.prisma.workflowOS.findUnique({
-      where: { id: workflowId },
-      include: { workflow_setores: { orderBy: { ordem: 'asc' } } },
-    });
+    const workflow = await this.garantirWorkflowComSetores(lojaId, workflowId);
 
     if (!workflow) {
       throw new NotFoundException('Workflow informado não encontrado.');
@@ -698,6 +695,64 @@ export class WorkflowAssignmentService {
 
     return { novosItens, ignorados };
   }
+
+  /**
+   * Workflows legados (ex.: "Workflow Padrão" da configuração recomendada) podem
+   * existir sem registros em workflow_setores. Neste caso, vincula automaticamente
+   * todos os setores produtivos ativos da loja para permitir operação no PCP Completo.
+   */
+  private async garantirWorkflowComSetores(lojaId: string, workflowId: string) {
+    const workflow = await this.prisma.workflowOS.findUnique({
+      where: { id: workflowId },
+      include: {
+        workflow_setores: {
+          orderBy: { ordem: 'asc' },
+          include: { setor: { select: { nome: true } } },
+        },
+      },
+    });
+
+    if (!workflow) {
+      return null;
+    }
+
+    if ((workflow.workflow_setores?.length ?? 0) > 0) {
+      return workflow;
+    }
+
+    const setores = await this.prisma.setorProdutivo.findMany({
+      where: { loja_id: lojaId, ativo: true },
+      orderBy: { ordem: 'asc' },
+    });
+
+    if (setores.length === 0) {
+      return workflow;
+    }
+
+    await this.prisma.workflowSetor.createMany({
+      data: setores.map((setor, index) => ({
+        workflow_id: workflow.id,
+        setor_id: setor.id,
+        ordem: setor.ordem ?? index + 1,
+      })),
+      skipDuplicates: true,
+    });
+
+    this.logger.warn(
+      `[garantirWorkflowComSetores] Workflow ${workflow.nome} (${workflow.id}) recebeu ${setores.length} setor(es) automaticamente.`,
+    );
+
+    return this.prisma.workflowOS.findUnique({
+      where: { id: workflowId },
+      include: {
+        workflow_setores: {
+          orderBy: { ordem: 'asc' },
+          include: { setor: { select: { nome: true } } },
+        },
+      },
+    });
+  }
+
   private parseJSONSafe(value: unknown) {
     if (!value) {
       return [];

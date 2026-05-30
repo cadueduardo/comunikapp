@@ -57,6 +57,9 @@ export interface OSCardKanban {
   alertas: string[];
   /** false quando a OS ainda não possui WorkflowInstancia vinculada. */
   tem_workflow: boolean;
+  workflow_id?: string;
+  workflow_nome?: string;
+  workflow_setores_nomes?: string[];
   setor_atual?: string;
   operador_atual?: string;
 }

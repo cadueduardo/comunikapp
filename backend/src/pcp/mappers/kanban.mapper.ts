@@ -15,6 +15,7 @@ export class KanbanMapper {
     // silenciosamente o progresso/setor/operador dos cards.
     const workflowAtivo = os.workflow_instancia ?? null;
     const etapaAtual = workflowAtivo?.etapas?.[0];
+    const workflowInfo = this.extrairWorkflowInfo(workflowAtivo);
 
     return {
       id: os.id,
@@ -30,6 +31,7 @@ export class KanbanMapper {
       progresso: this.calcularProgresso(os),
       alertas: this.gerarAlertas(os),
       tem_workflow: Boolean(workflowAtivo),
+      ...workflowInfo,
       setor_atual: etapaAtual?.setor?.nome,
       operador_atual: etapaAtual?.responsavel?.nome,
     };
@@ -41,6 +43,7 @@ export class KanbanMapper {
   static mapearInstanciaParaKanban(instancia: any): OSCardKanban {
     const os =
       instancia.item_os?.os ?? instancia.workflow_instancia?.os ?? null;
+    const workflowInfo = this.extrairWorkflowInfo(instancia.workflow_instancia);
 
     return {
       id: instancia.item_os_id ?? instancia.id,
@@ -61,6 +64,7 @@ export class KanbanMapper {
       progresso: this.calcularProgressoInstancia(instancia),
       alertas: [],
       tem_workflow: true,
+      ...workflowInfo,
       setor_atual: instancia.setor?.nome,
       operador_atual: instancia.operador?.nome,
     };
@@ -282,14 +286,16 @@ export class KanbanMapper {
     }
   }
 
-  /**
-   * Gera alertas para a OS
-   */
   private static gerarAlertas(os: any): string[] {
     const alertas: string[] = [];
 
     if (!os.workflow_instancia) {
       alertas.unshift('sem_workflow');
+    } else {
+      const instanciasSetor = os.workflow_instancia.instancias_setor;
+      if (!Array.isArray(instanciasSetor) || instanciasSetor.length === 0) {
+        alertas.unshift('workflow_sem_setores');
+      }
     }
 
     if (os.data_prazo && new Date(os.data_prazo) < new Date()) {
@@ -302,5 +308,31 @@ export class KanbanMapper {
     }
 
     return alertas;
+  }
+
+  private static extrairWorkflowInfo(workflowInstancia: any): {
+    workflow_id?: string;
+    workflow_nome?: string;
+    workflow_setores_nomes?: string[];
+  } {
+    const workflow = workflowInstancia?.workflow;
+    if (!workflow) {
+      return {};
+    }
+
+    const setoresNomes = (workflow.workflow_setores ?? [])
+      .slice()
+      .sort(
+        (a: { ordem?: number }, b: { ordem?: number }) =>
+          (a.ordem ?? 0) - (b.ordem ?? 0),
+      )
+      .map((item: { setor?: { nome?: string } }) => item.setor?.nome)
+      .filter((nome: string | undefined): nome is string => Boolean(nome));
+
+    return {
+      workflow_id: workflow.id,
+      workflow_nome: workflow.nome,
+      workflow_setores_nomes: setoresNomes,
+    };
   }
 }

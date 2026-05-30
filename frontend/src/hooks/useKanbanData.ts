@@ -13,6 +13,9 @@ export interface OSCardKanban {
   progresso: number;
   alertas: string[];
   tem_workflow?: boolean;
+  workflow_id?: string;
+  workflow_nome?: string;
+  workflow_setores_nomes?: string[];
   setor_atual?: string;
   operador_atual?: string;
 }

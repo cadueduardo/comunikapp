@@ -17,6 +17,9 @@ export interface ItemFila {
   observacoes?: string;
   quantidade_produzida?: number;
   quantidade_refugo?: number;
+  workflow_id?: string;
+  workflow_nome?: string;
+  workflow_setores_nomes?: string[];
 }
 
 export interface SetorOperador {

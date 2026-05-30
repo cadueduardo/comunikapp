@@ -37,6 +37,7 @@ import {
   IconDownload,
   IconSettings
 } from '@tabler/icons-react';
+import { WorkflowCardInfo } from '@/components/pcp/WorkflowCardInfo';
 
 // Interfaces
 export interface OSCard {
@@ -51,6 +52,9 @@ export interface OSCard {
   progresso: number;
   alertas: string[];
   tem_workflow?: boolean;
+  workflow_id?: string;
+  workflow_nome?: string;
+  workflow_setores_nomes?: string[];
 }
 
 export interface KanbanColumn {
@@ -136,6 +140,15 @@ function DraggableCard({ card, index, onCardClick, getPrioridadeColor, getAlerta
                       Clique para atribuir o workflow e liberar a produção.
                     </p>
                   </div>
+                )}
+
+                {card.workflow_nome && (
+                  <WorkflowCardInfo
+                    compact
+                    workflowId={card.workflow_id}
+                    workflowNome={card.workflow_nome}
+                    setoresNomes={card.workflow_setores_nomes}
+                  />
                 )}
 
                 {/* Informações do card */}

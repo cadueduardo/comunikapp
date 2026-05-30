@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { WorkflowAssignmentDialog } from '@/components/pcp/WorkflowAssignmentDialog';
+import { WorkflowCardInfo } from '@/components/pcp/WorkflowCardInfo';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,7 @@ import { useKanbanData } from '@/hooks/useKanbanData';
 import {
   alternarSetoresVisiveis,
   cardPrecisaAtribuirWorkflow,
+  cardSemSetoresProdutivos,
   montarQueryKanbanPorSetores,
   montarTopGargalos,
   nivelGargaloClassName,
@@ -98,6 +100,9 @@ interface KanbanSetorCard {
   data_prazo: string;
   progresso: number;
   alertas: string[];
+  workflow_id?: string;
+  workflow_nome?: string;
+  workflow_setores_nomes?: string[];
   setor_atual?: string;
   operador_atual?: string;
 }
@@ -311,7 +316,15 @@ export default function PCPPage() {
   );
 
   const cardsFilaEntrada = useMemo(
-    () => cards.filter((card) => card.status === 'FILA'),
+    () =>
+      cards.filter(
+        (card) => card.status === 'FILA' && !cardSemSetoresProdutivos(card),
+      ),
+    [cards],
+  );
+
+  const cardsProducaoSemSetor = useMemo(
+    () => cards.filter((card) => cardSemSetoresProdutivos(card)),
     [cards],
   );
 
@@ -637,6 +650,15 @@ export default function PCPPage() {
                 onCardClick={handleKanbanCardClick}
               />
 
+              {cardsProducaoSemSetor.length > 0 && (
+                <ProducaoSemSetoresPCP
+                  cards={cardsProducaoSemSetor}
+                  onReatribuirWorkflow={(card) =>
+                    abrirAtribuirWorkflow(card.id, card.numero)
+                  }
+                />
+              )}
+
               <div className="space-y-3">
                 <div>
                   <h3 className="text-base font-semibold">Produção por setores</h3>
@@ -947,6 +969,73 @@ function FiltrosKanbanSetores({
   );
 }
 
+function ProducaoSemSetoresPCP({
+  cards,
+  onReatribuirWorkflow,
+}: {
+  cards: OSCard[];
+  onReatribuirWorkflow: (card: OSCard) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-orange-200 bg-orange-50/60 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-orange-950">
+            Em produção sem setores
+          </h3>
+          <p className="mt-1 text-xs text-orange-900">
+            Estas OS já têm workflow, mas o template não possui setores produtivos
+          vinculados. Reatribua o workflow com a opção <strong>Forçar</strong> para
+          sincronizar os setores da loja e liberar a fila nos setores.
+          </p>
+        </div>
+        <Badge variant="secondary">{cards.length}</Badge>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {cards.map((card) => (
+          <div
+            key={card.id}
+            className="rounded-md border border-orange-200 bg-white p-3"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium">{card.numero}</p>
+                <p className="text-xs text-muted-foreground">{card.cliente}</p>
+              </div>
+              <Badge variant="outline">{card.prioridade}</Badge>
+            </div>
+            <p className="mt-2 line-clamp-2 text-sm">{card.titulo}</p>
+            {card.workflow_nome && (
+              <div className="mt-2">
+                <WorkflowCardInfo
+                  compact
+                  workflowId={card.workflow_id}
+                  workflowNome={card.workflow_nome}
+                  setoresNomes={card.workflow_setores_nomes}
+                />
+              </div>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="outline" className="h-8">
+                <Link href="/pcp/workflows">Abrir workflows</Link>
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8"
+                onClick={() => onReatribuirWorkflow(card)}
+              >
+                Reatribuir workflow
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function FilaEntradaPCP({
   cards,
   loading,
@@ -1009,6 +1098,17 @@ function FilaEntradaPCP({
                 </div>
 
                 <p className="mt-2 line-clamp-2 text-sm">{card.titulo}</p>
+
+                {card.workflow_nome && (
+                  <div className="mt-2" onClick={(event) => event.stopPropagation()}>
+                    <WorkflowCardInfo
+                      compact
+                      workflowId={card.workflow_id}
+                      workflowNome={card.workflow_nome}
+                      setoresNomes={card.workflow_setores_nomes}
+                    />
+                  </div>
+                )}
 
                 {aguardandoWorkflow ? (
                   <p className="mt-2 flex items-center gap-1 text-xs font-medium text-amber-900">
@@ -1184,6 +1284,20 @@ function KanbanPorSetores({
                     </div>
 
                     <p className="mt-2 line-clamp-2 text-sm">{card.titulo}</p>
+
+                    {card.workflow_nome && (
+                      <div
+                        className="mt-2"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <WorkflowCardInfo
+                          compact
+                          workflowId={card.workflow_id}
+                          workflowNome={card.workflow_nome}
+                          setoresNomes={card.workflow_setores_nomes}
+                        />
+                      </div>
+                    )}
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <Badge variant="secondary">{statusSetorLabel(card.status)}</Badge>
