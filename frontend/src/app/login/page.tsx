@@ -276,9 +276,9 @@ function LoginContent() {
                         </form>
                         
                         <div className="text-center text-sm">
-                            Não tem uma conta?{' '}
-                            <Link href="/cadastro" className="underline">
-                                Cadastre-se grátis
+                            Nao tem convite?{' '}
+                            <Link href="/beta" className="underline">
+                                Quero conhecer o beta
                             </Link>
                         </div>
                         <div className="text-center text-sm">

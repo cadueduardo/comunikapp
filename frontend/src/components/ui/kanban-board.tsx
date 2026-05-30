@@ -143,12 +143,14 @@ function DraggableCard({ card, index, onCardClick, getPrioridadeColor, getAlerta
                 )}
 
                 {card.workflow_nome && (
-                  <WorkflowCardInfo
-                    compact
-                    workflowId={card.workflow_id}
-                    workflowNome={card.workflow_nome}
-                    setoresNomes={card.workflow_setores_nomes}
-                  />
+                  <div onClick={(event) => event.stopPropagation()}>
+                    <WorkflowCardInfo
+                      compact
+                      workflowId={card.workflow_id}
+                      workflowNome={card.workflow_nome}
+                      setoresNomes={card.workflow_setores_nomes}
+                    />
+                  </div>
                 )}
 
                 {/* Informações do card */}

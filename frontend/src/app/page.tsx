@@ -31,10 +31,13 @@ export default function HomePage() {
           <p className="max-w-2xl text-base sm:text-lg text-neutral-300">
             A plataforma modular para sua empresa de comunicação visual crescer. Otimize orçamentos, produção e finanças em um só lugar.
           </p>
-          <Link href="/cadastro">
+          <Link href="/beta">
             <Button size="lg" className="bg-white text-black hover:bg-neutral-200 rounded-full px-8 py-6 text-base font-semibold">
-              Inicie seu teste gratuito de 30 dias
+              Quero conhecer o beta
             </Button>
+          </Link>
+          <Link href="/cadastro" className="text-sm text-neutral-400 hover:text-neutral-200 underline underline-offset-4">
+            Já recebi convite
           </Link>
         </div>
 
@@ -102,8 +105,8 @@ export default function HomePage() {
             />
             <FaqItem
               value="item-2"
-              question="Como funciona o período de teste gratuito?"
-              answer="Você pode experimentar o Comunikapp com todos os módulos disponíveis por 30 dias, sem compromisso. Não pedimos cartão de crédito para iniciar o teste. Ao final do período, você pode escolher os módulos que deseja assinar."
+              question="Como funciona o beta fechado?"
+              answer="Clique em Quero conhecer, informe seus dados e receba um convite por e-mail com link exclusivo para criar sua conta. Assim garantimos acesso seguro e acompanhamos quem esta testando a plataforma."
             />
             <FaqItem
               value="item-3"

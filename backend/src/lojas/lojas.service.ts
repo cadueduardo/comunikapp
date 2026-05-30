@@ -19,6 +19,14 @@ import { VerifyTwoFactorLoginDto } from './dto/verify-two-factor-login.dto';
 import { UpdateConfiguracoesLojaDto } from './dto/update-configuracoes-loja.dto';
 import { loja } from '@prisma/client';
 import { TwoFactorService } from '../auth/two-factor.service';
+import {
+  formatCnpj,
+  formatCpf,
+  isValidCnpj,
+  isValidCpf,
+  normalizeCnpj,
+  normalizeCpf,
+} from '../common/utils/cpf-cnpj.util';
 
 type LoginAttemptState = {
   failedAttempts: number;
@@ -191,6 +199,30 @@ export class LojasService {
     return userAgent.length > 240
       ? `${userAgent.slice(0, 240)}...`
       : userAgent;
+  }
+
+  private validateSignupDocuments(cpf?: string, cnpj?: string) {
+    if (cpf?.trim()) {
+      if (!isValidCpf(cpf)) {
+        throw new BadRequestException('CPF invalido.');
+      }
+      return {
+        cpf: formatCpf(normalizeCpf(cpf)),
+        cnpj: undefined as string | undefined,
+      };
+    }
+
+    if (cnpj?.trim()) {
+      if (!isValidCnpj(cnpj)) {
+        throw new BadRequestException('CNPJ invalido.');
+      }
+      return {
+        cpf: undefined as string | undefined,
+        cnpj: formatCnpj(normalizeCnpj(cnpj)),
+      };
+    }
+
+    throw new BadRequestException('Informe um CPF ou CNPJ valido.');
   }
 
   async login(
@@ -483,6 +515,8 @@ export class LojasService {
       this.validateSignupInviteCode(codigo_convite);
     }
 
+    const documentos = this.validateSignupDocuments(cpf, cnpj);
+
     try {
       const salt = await bcrypt.genSalt();
       const hashedPassword = await bcrypt.hash(senha, salt);
@@ -498,8 +532,8 @@ export class LojasService {
             nome: nome_loja,
             email: normalizedEmail,
             telefone,
-            cpf: cpf || undefined,
-            cnpj: cnpj || undefined,
+            cpf: documentos.cpf,
+            cnpj: documentos.cnpj,
             atualizado_em: new Date(),
           },
         });

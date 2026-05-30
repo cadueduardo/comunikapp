@@ -71,8 +71,8 @@ const Header = () => {
                     <Link href="/login">
                         <Button variant="ghost" size={scrolled ? "sm" : "default"}>Login</Button>
                     </Link>
-                    <Link href="/cadastro">
-                        <Button size={scrolled ? "sm" : "default"} className="bg-white text-black hover:bg-neutral-200">Cadastrar</Button>
+                    <Link href="/beta">
+                        <Button size={scrolled ? "sm" : "default"} className="bg-white text-black hover:bg-neutral-200">Quero conhecer</Button>
                     </Link>
                 </nav>
                 {/* Desktop: nav completa */}
@@ -86,8 +86,8 @@ const Header = () => {
                      <Link href="/login">
                         <Button variant="ghost" size={scrolled ? "sm" : "default"}>Login</Button>
                     </Link>
-                    <Link href="/cadastro">
-                        <Button size={scrolled ? "sm" : "default"} className="bg-white text-black hover:bg-neutral-200">Experimente Grátis</Button>
+                    <Link href="/beta">
+                        <Button size={scrolled ? "sm" : "default"} className="bg-white text-black hover:bg-neutral-200">Quero conhecer</Button>
                     </Link>
                 </nav>
             </motion.header>

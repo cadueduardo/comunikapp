@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { createHash, randomBytes } from 'crypto';
@@ -12,6 +13,12 @@ import {
   renderConviteIndividualWhatsapp,
 } from './convite-templates';
 import { isPlatformAdminEmail } from './platform-admin.guard';
+import { InteresseBetaDto } from './dto/interesse-beta.dto';
+
+export const INVITE_ORIGEM = {
+  ADMIN: 'admin_manual',
+  LANDING: 'landing_interesse',
+} as const;
 
 const INVITE_STATUS = {
   PENDENTE: 'PENDENTE',
@@ -22,6 +29,8 @@ const INVITE_STATUS = {
 
 @Injectable()
 export class PlatformService {
+  private readonly logger = new Logger(PlatformService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
@@ -57,7 +66,17 @@ export class PlatformService {
     return nome.trim().replace(/\s+/g, ' ');
   }
 
-  async createInvite(dto: CreateConviteCadastroDto, createdByEmail?: string) {
+  async createInvite(
+    dto: CreateConviteCadastroDto,
+    createdByEmail?: string,
+    options?: {
+      origem?: string;
+      telefone?: string;
+      nome_loja?: string;
+      inviteEmailMode?: 'default' | 'beta';
+      notifyAdmin?: boolean;
+    },
+  ) {
     const email = this.normalizeEmail(dto.email);
     const nome = this.normalizeNome(dto.nome);
     const activeInvite = await this.prisma.conviteCadastro.findFirst({
@@ -78,10 +97,17 @@ export class PlatformService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (dto.validade_dias || 7));
 
+    const origem =
+      options?.origem ||
+      (createdByEmail ? INVITE_ORIGEM.ADMIN : INVITE_ORIGEM.LANDING);
+
     const convite = await this.prisma.conviteCadastro.create({
       data: {
         email,
         nome,
+        nome_loja: options?.nome_loja?.trim() || null,
+        telefone: options?.telefone?.trim() || null,
+        origem,
         token_hash: this.hashToken(token),
         mensagem: dto.mensagem?.trim() || null,
         criado_por_email: createdByEmail?.trim().toLowerCase() || null,
@@ -100,11 +126,30 @@ export class PlatformService {
       await this.mailService.sendSignupInviteEmail(email, inviteUrl, {
         nome,
         expiresAt,
+        mode: options?.inviteEmailMode || 'default',
       });
     } catch (error) {
       emailSent = false;
       emailError =
         error instanceof Error ? error.message : 'Falha ao enviar e-mail.';
+    }
+
+    if (options?.notifyAdmin) {
+      try {
+        await this.mailService.sendBetaLeadNotificationEmail({
+          nome,
+          email,
+          telefone: options.telefone,
+          nome_loja: options.nome_loja,
+          origem,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Falha ao notificar admin sobre novo lead beta: ${
+            error instanceof Error ? error.message : 'erro desconhecido'
+          }`,
+        );
+      }
     }
 
     return {
@@ -125,6 +170,9 @@ export class PlatformService {
         id: true,
         email: true,
         nome: true,
+        nome_loja: true,
+        telefone: true,
+        origem: true,
         status: true,
         mensagem: true,
         criado_por_email: true,
@@ -202,6 +250,126 @@ export class PlatformService {
       nome: convite.nome,
       expira_em: convite.expira_em,
     };
+  }
+
+  private isTurnstileEnabled() {
+    return !!process.env.TURNSTILE_SECRET_KEY;
+  }
+
+  private async validateTurnstileToken(captchaToken: string, ip: string) {
+    if (!this.isTurnstileEnabled()) return true;
+
+    const response = await fetch(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          secret: process.env.TURNSTILE_SECRET_KEY || '',
+          response: captchaToken,
+          remoteip: ip,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const data = (await response.json()) as { success?: boolean };
+    return data.success === true;
+  }
+
+  private getBetaInterestSuccessMessage() {
+    return {
+      success: true,
+      message:
+        'Recebemos seu interesse. Enviamos um e-mail com o link para continuar seu cadastro. Verifique sua caixa de entrada e o spam.',
+    };
+  }
+
+  async registerBetaInterest(dto: InteresseBetaDto, ip = 'unknown') {
+    if (this.isTurnstileEnabled()) {
+      if (!dto.captchaToken?.trim()) {
+        throw new BadRequestException('Confirme que voce nao e um robo.');
+      }
+      const isCaptchaValid = await this.validateTurnstileToken(
+        dto.captchaToken,
+        ip,
+      );
+      if (!isCaptchaValid) {
+        throw new BadRequestException('Validacao de seguranca falhou. Tente novamente.');
+      }
+    }
+
+    const email = this.normalizeEmail(dto.email);
+    const nome = this.normalizeNome(dto.nome);
+    const telefone = dto.telefone.trim();
+    const nome_loja = dto.nome_loja.trim();
+
+    const existingLoja = await this.prisma.loja.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (existingLoja) {
+      return this.getBetaInterestSuccessMessage();
+    }
+
+    const activeInvite = await this.prisma.conviteCadastro.findFirst({
+      where: {
+        email,
+        status: INVITE_STATUS.PENDENTE,
+        expira_em: { gt: new Date() },
+      },
+      orderBy: { criado_em: 'desc' },
+    });
+
+    if (activeInvite) {
+      const inviteUrl = this.getSignupInviteUrl(
+        await this.regenerateInviteToken(activeInvite.id),
+      );
+      try {
+        await this.mailService.sendSignupInviteEmail(email, inviteUrl, {
+          nome: activeInvite.nome || nome,
+          expiresAt: activeInvite.expira_em,
+          mode: 'beta',
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Falha ao reenviar convite beta para ${email}: ${
+            error instanceof Error ? error.message : 'erro desconhecido'
+          }`,
+        );
+      }
+      return this.getBetaInterestSuccessMessage();
+    }
+
+    await this.createInvite(
+      {
+        nome,
+        email,
+        validade_dias: Number(process.env.BETA_INVITE_VALIDADE_DIAS || 7),
+      },
+      undefined,
+      {
+        origem: INVITE_ORIGEM.LANDING,
+        telefone,
+        nome_loja,
+        inviteEmailMode: 'beta',
+        notifyAdmin: true,
+      },
+    );
+
+    return this.getBetaInterestSuccessMessage();
+  }
+
+  private async regenerateInviteToken(conviteId: string) {
+    const token = randomBytes(32).toString('base64url');
+    await this.prisma.conviteCadastro.update({
+      where: { id: conviteId },
+      data: { token_hash: this.hashToken(token) },
+    });
+    return token;
   }
 
   private async expireOldInvites() {

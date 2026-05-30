@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { Transporter } from 'nodemailer';
+import { getPlatformAdminEmails } from '../platform/platform-admin.guard';
 
 @Injectable()
 export class MailService implements OnModuleInit {
@@ -183,7 +184,7 @@ export class MailService implements OnModuleInit {
   async sendSignupInviteEmail(
     to: string,
     inviteLink: string,
-    options?: { nome?: string; expiresAt?: Date },
+    options?: { nome?: string; expiresAt?: Date; mode?: 'default' | 'beta' },
   ) {
     const expiresText = options?.expiresAt
       ? options.expiresAt.toLocaleDateString('pt-BR', {
@@ -193,24 +194,31 @@ export class MailService implements OnModuleInit {
         })
       : null;
     const nome = options?.nome?.trim() || 'convidado(a)';
+    const isBeta = options?.mode === 'beta';
 
     const mailOptions = {
       from: this.getFromAddress(),
       to,
-      subject: 'Convite para criar sua conta no Comunikapp',
+      subject: isBeta
+        ? 'Seu convite para conhecer o Comunikapp (beta)'
+        : 'Convite para criar sua conta no Comunikapp',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1>Voce foi convidado para acessar o Comunikapp</h1>
-          <p>Ola, ${nome}! Use o link abaixo para criar sua conta e iniciar o cadastro da sua loja.</p>
+          <h1>${isBeta ? 'Obrigado pelo interesse no Comunikapp' : 'Voce foi convidado para acessar o Comunikapp'}</h1>
+          <p>Ola, ${nome}! ${
+            isBeta
+              ? 'Recebemos seu pedido para conhecer a plataforma. Use o link abaixo para continuar seu cadastro e iniciar o teste.'
+              : 'Use o link abaixo para criar sua conta e iniciar o cadastro da sua loja.'
+          }</p>
           <div style="margin: 24px 0;">
             <a href="${inviteLink}"
               style="background-color: #0f172a; color: #ffffff; padding: 12px 20px; text-decoration: none; border-radius: 6px; display: inline-block;">
-              Criar minha conta
+              ${isBeta ? 'Continuar meu cadastro' : 'Criar minha conta'}
             </a>
           </div>
           ${expiresText ? `<p>Este convite expira em ${expiresText}.</p>` : ''}
           <p style="color: #666; font-size: 12px;">
-            Se voce nao esperava este convite, pode ignorar este e-mail.
+            Se voce nao solicitou este acesso, pode ignorar este e-mail.
           </p>
         </div>
       `,
@@ -225,6 +233,72 @@ export class MailService implements OnModuleInit {
       this.logger.debug(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
     }
 
+    return info;
+  }
+
+  async sendBetaLeadNotificationEmail(data: {
+    nome: string;
+    email: string;
+    telefone?: string;
+    nome_loja?: string;
+    origem?: string;
+  }) {
+    const recipients = getPlatformAdminEmails();
+    if (!recipients.length) {
+      this.logger.warn(
+        'Nenhum PLATFORM_ADMIN_EMAILS configurado; notificacao de lead beta nao enviada.',
+      );
+      return null;
+    }
+
+    const now = new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'America/Sao_Paulo',
+    }).format(new Date());
+
+    const origemLabel =
+      data.origem === 'landing_interesse'
+        ? 'Landing - Quero conhecer'
+        : data.origem || 'Nao informada';
+
+    const rows = [
+      ['Nome', data.nome],
+      ['E-mail', data.email],
+      ['Telefone', data.telefone || '-'],
+      ['Empresa / Loja', data.nome_loja || '-'],
+      ['Origem', origemLabel],
+      ['Recebido em', now],
+    ]
+      .map(
+        ([label, value]) =>
+          `<tr><td style="padding:8px 12px;border:1px solid #e5e7eb;font-weight:600;">${label}</td><td style="padding:8px 12px;border:1px solid #e5e7eb;">${value}</td></tr>`,
+      )
+      .join('');
+
+    const mailOptions = {
+      from: this.getFromAddress(),
+      to: recipients.join(', '),
+      subject: `[Comunikapp] Novo interesse no beta - ${data.nome}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+          <h1>Novo lead no beta</h1>
+          <p>Alguem solicitou acesso para conhecer o Comunikapp pela landing.</p>
+          <table style="border-collapse: collapse; width: 100%; margin-top: 16px;">${rows}</table>
+          <p style="color: #666; font-size: 12px; margin-top: 24px;">
+            O convite foi enviado automaticamente para o e-mail informado.
+          </p>
+        </div>
+      `,
+    };
+
+    const info = await this.transporter.sendMail(mailOptions);
+    this.logger.log(
+      `Notificacao de lead beta enviada messageId=${info.messageId} destinos=${recipients.length}`,
+    );
     return info;
   }
 

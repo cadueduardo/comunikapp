@@ -12,6 +12,8 @@ function getPlatformAdminEmails() {
     .filter(Boolean);
 }
 
+export { getPlatformAdminEmails };
+
 @Injectable()
 export class PlatformAdminGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {

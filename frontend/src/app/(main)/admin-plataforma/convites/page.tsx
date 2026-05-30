@@ -32,6 +32,9 @@ type ConviteCadastro = {
   id: string;
   email: string;
   nome?: string | null;
+  nome_loja?: string | null;
+  telefone?: string | null;
+  origem?: string | null;
   status: string;
   criado_por_email?: string | null;
   expira_em: string;
@@ -68,6 +71,12 @@ function formatDate(value?: string | null) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value));
+}
+
+function formatOrigem(origem?: string | null) {
+  if (origem === 'landing_interesse') return 'Landing';
+  if (origem === 'admin_manual') return 'Admin';
+  return origem || '-';
 }
 
 function statusVariant(status: string) {
@@ -342,6 +351,9 @@ export default function ConvitesPlataformaPage() {
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>E-mail</TableHead>
+              <TableHead>Empresa</TableHead>
+              <TableHead>Telefone</TableHead>
+              <TableHead>Origem</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Criado em</TableHead>
               <TableHead>Expira em</TableHead>
@@ -352,13 +364,13 @@ export default function ConvitesPlataformaPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                   Carregando convites...
                 </TableCell>
               </TableRow>
             ) : invites.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                   Nenhum convite individual criado.
                 </TableCell>
               </TableRow>
@@ -367,6 +379,9 @@ export default function ConvitesPlataformaPage() {
                 <TableRow key={invite.id}>
                   <TableCell className="font-medium">{invite.nome || '-'}</TableCell>
                   <TableCell>{invite.email}</TableCell>
+                  <TableCell>{invite.nome_loja || '-'}</TableCell>
+                  <TableCell>{invite.telefone || '-'}</TableCell>
+                  <TableCell>{formatOrigem(invite.origem)}</TableCell>
                   <TableCell>
                     <Badge variant={statusVariant(invite.status) as any}>{invite.status}</Badge>
                   </TableCell>
