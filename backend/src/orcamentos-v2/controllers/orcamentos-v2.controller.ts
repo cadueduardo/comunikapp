@@ -32,6 +32,8 @@ import { NotificacoesService } from '../../notificacoes/notificacoes.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { UserRole } from '../../auth/enums/user-role.enum';
+import { SimularChapaDto } from '../../common/calculo-chapa/simular-chapa.dto';
+import { OrcamentoOrigemSobraService } from '../services/orcamento-origem-sobra.service';
 
 /**
  * Controller Principal de Orçamentos V2
@@ -51,6 +53,7 @@ export class OrcamentosV2Controller {
     private readonly validacaoEstoque: ValidacaoEstoqueService,
     private readonly insumosAutocomplete: InsumosAutocompleteService,
     private readonly notificacoesService: NotificacoesService,
+    private readonly origemSobraService: OrcamentoOrigemSobraService,
   ) {}
 
   /**
@@ -359,6 +362,75 @@ export class OrcamentosV2Controller {
       id,
       mensagemId,
     );
+  }
+
+  @Post(':id/itens/:itemId/simular-chapa')
+  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
+  @ApiOperation({ summary: 'Simular cálculo da chapa para item do orçamento' })
+  async simularChapaItem(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Body() dados: SimularChapaDto,
+    @Request() req: any,
+  ) {
+    const { loja_id } = req.user;
+    return this.orcamentosService.simularChapaItem(id, itemId, dados, loja_id);
+  }
+
+  @Put(':id/itens/:itemId/calculo-chapa')
+  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
+  @ApiOperation({
+    summary: 'Salvar cálculo da chapa congelado no item do orçamento',
+  })
+  async salvarCalculoChapaItem(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Body() dados: SimularChapaDto,
+    @Request() req: any,
+  ) {
+    const { loja_id } = req.user;
+    return this.orcamentosService.salvarCalculoChapaItem(
+      id,
+      itemId,
+      dados,
+      loja_id,
+      req.user?.id ?? req.user?.user_id,
+    );
+  }
+
+  @Get('origem-sobra/busca')
+  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @ApiOperation({
+    summary: 'Buscar orçamentos para origem de sobra/retalho',
+  })
+  async buscarOrcamentosOrigemSobra(
+    @Query('q') q: string,
+    @Query('limite') limite: string,
+    @Request() req: any,
+  ) {
+    const { loja_id } = req.user;
+    return this.origemSobraService.buscarOrcamentos(
+      loja_id,
+      q,
+      limite ? Number(limite) : 20,
+    );
+  }
+
+  @Get(':id/candidatos-sobra')
+  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @ApiOperation({
+    summary: 'Listar materiais candidatos a sobra de um orçamento',
+  })
+  async listarCandidatosSobraOrcamento(
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    const { loja_id } = req.user;
+    return this.origemSobraService.listarCandidatosSobra(loja_id, id);
   }
 
   /**

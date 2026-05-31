@@ -34,6 +34,10 @@ export class IniciarProducaoDto {
   @IsString()
   @Length(0, 500)
   observacoes?: string;
+
+  @IsOptional()
+  @IsString()
+  maquinaId?: string;
 }
 
 export class ConcluirEtapaDto {

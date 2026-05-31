@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import React from 'react';
 import { MaquinaForm, MaquinaFormValues } from '../../maquina-form';
 import { maquinasApi } from '@/lib/api-client';
+import { parseTimeValue, formatTimeDisplay } from '@/components/ui/time-input';
 
 interface Maquina {
   id: string;
@@ -15,6 +16,16 @@ interface Maquina {
   status: string;
   capacidade?: string;
   observacoes?: string;
+  modo_producao?: 'M2_H' | 'ML_H' | 'MANUAL';
+  velocidade_m2_h?: number | string;
+  eficiencia_percent?: number | string;
+  setup_min?: number | string;
+  setor_id?: string | null;
+  usar_no_pcp?: boolean;
+  horas_disponiveis_dia?: number | string | null;
+  permite_agendamento_simultaneo?: boolean;
+  tempo_minimo_entre_servicos_min?: number | string | null;
+  considerar_eficiencia_na_capacidade?: boolean;
 }
 
 export default function EditarMaquinaPage({ params }: { params: Promise<{ id: string }> }) {
@@ -69,7 +80,31 @@ export default function EditarMaquinaPage({ params }: { params: Promise<{ id: st
         return;
       }
 
-      await maquinasApi.update(id, { ...data, custo_hora: custo }, token);
+      const transformedData = {
+        ...data,
+        custo_hora: custo,
+        setup_min: data.setup_min ? parseTimeValue(data.setup_min) * 60 : undefined,
+        velocidade_m2_h: data.velocidade_m2_h
+          ? Number(String(data.velocidade_m2_h).replace(',', '.'))
+          : undefined,
+        eficiencia_percent: data.eficiencia_percent
+          ? Number(String(data.eficiencia_percent).replace(',', '.'))
+          : undefined,
+        setor_id: data.setor_id || undefined,
+        usar_no_pcp: data.usar_no_pcp ?? true,
+        horas_disponiveis_dia: data.horas_disponiveis_dia
+          ? Number(String(data.horas_disponiveis_dia).replace(',', '.'))
+          : undefined,
+        permite_agendamento_simultaneo: Boolean(data.permite_agendamento_simultaneo),
+        tempo_minimo_entre_servicos_min: data.tempo_minimo_entre_servicos_min
+          ? Number(String(data.tempo_minimo_entre_servicos_min).replace(',', '.'))
+          : undefined,
+        considerar_eficiencia_na_capacidade: Boolean(
+          data.considerar_eficiencia_na_capacidade,
+        ),
+      };
+
+      await maquinasApi.update(id, transformedData, token);
       toast.success('Máquina atualizada com sucesso!');
       router.push('/centros-de-trabalho/maquinas');
     } catch (error) {
@@ -88,6 +123,23 @@ export default function EditarMaquinaPage({ params }: { params: Promise<{ id: st
     status: maquina.status,
     capacidade: maquina.capacidade || '',
     observacoes: maquina.observacoes || '',
+    modo_producao: maquina.modo_producao,
+    velocidade_m2_h: maquina.velocidade_m2_h || '',
+    eficiencia_percent: maquina.eficiencia_percent || '',
+    setup_min: maquina.setup_min ? formatTimeDisplay(Number(maquina.setup_min) / 60) : '',
+    setor_id: maquina.setor_id || null,
+    usar_no_pcp: maquina.usar_no_pcp ?? true,
+    horas_disponiveis_dia:
+      maquina.horas_disponiveis_dia != null
+        ? String(maquina.horas_disponiveis_dia)
+        : '8',
+    permite_agendamento_simultaneo: maquina.permite_agendamento_simultaneo ?? false,
+    tempo_minimo_entre_servicos_min:
+      maquina.tempo_minimo_entre_servicos_min != null
+        ? String(maquina.tempo_minimo_entre_servicos_min)
+        : '',
+    considerar_eficiencia_na_capacidade:
+      maquina.considerar_eficiencia_na_capacidade ?? true,
   } : undefined;
 
   if (loading) {

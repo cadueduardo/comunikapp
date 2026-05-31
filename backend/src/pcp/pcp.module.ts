@@ -10,6 +10,8 @@ import { NotificacoesController } from './controllers/notificacoes.controller';
 import { PCPKanbanController } from './controllers/pcp-kanban.controller';
 import { PCPConfiguracaoController } from './controllers/pcp-configuracao.controller';
 import { PCPDashboardController } from './controllers/pcp-dashboard.controller';
+import { PCPCapacidadeController } from './controllers/pcp-capacidade.controller';
+import { PCPRelatoriosController } from './controllers/pcp-relatorios.controller';
 import { WorkflowService } from './services/workflow.service';
 import { WorkflowAssignmentService } from './services/workflow-assignment.service';
 import { EtapaService } from './services/etapa.service';
@@ -19,6 +21,8 @@ import { NotificacoesPCPService } from './services/notificacoes-pcp.service';
 import { PCPKanbanService } from './services/pcp-kanban.service';
 import { PCPConfiguracaoService } from './services/pcp-configuracao.service';
 import { PCPDashboardService } from './services/pcp-dashboard.service';
+import { PCPCapacidadeService } from './services/pcp-capacidade.service';
+import { PCPRelatoriosService } from './services/pcp-relatorios.service';
 import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-estoque.service';
 
 @Module({
@@ -32,6 +36,8 @@ import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-est
     PCPKanbanController,
     PCPConfiguracaoController,
     PCPDashboardController,
+    PCPCapacidadeController,
+    PCPRelatoriosController,
   ],
   providers: [
     WorkflowService,
@@ -43,6 +49,8 @@ import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-est
     PCPKanbanService,
     PCPConfiguracaoService,
     PCPDashboardService,
+    PCPCapacidadeService,
+    PCPRelatoriosService,
     ValidacaoEstoqueService,
   ],
   exports: [
@@ -55,6 +63,8 @@ import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-est
     PCPKanbanService,
     PCPConfiguracaoService,
     PCPDashboardService,
+    PCPCapacidadeService,
+    PCPRelatoriosService,
     ValidacaoEstoqueService,
   ],
 })

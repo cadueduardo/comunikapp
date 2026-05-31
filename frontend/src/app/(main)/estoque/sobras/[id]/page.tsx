@@ -6,9 +6,19 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { ArrowLeft, Package } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiRequest } from '@/lib/api'
+import { estoqueApi } from '@/lib/api-client'
 import { useUser } from '@/contexts/UserContext'
 
 interface SobraDetalhe {
@@ -37,6 +47,12 @@ export default function VerSobraPage() {
   const { user, loading: userLoading } = useUser()
   const [loading, setLoading] = useState(true)
   const [sobra, setSobra] = useState<SobraDetalhe | null>(null)
+  const [dialogAproveitar, setDialogAproveitar] = useState(false)
+  const [dialogDescartar, setDialogDescartar] = useState(false)
+  const [quantidadeAproveitada, setQuantidadeAproveitada] = useState('')
+  const [economiaGerada, setEconomiaGerada] = useState('')
+  const [motivoDescarte, setMotivoDescarte] = useState('')
+  const [actionLoading, setActionLoading] = useState(false)
 
   const carregar = async () => {
     setLoading(true)
@@ -110,6 +126,62 @@ export default function VerSobraPage() {
   const formatDate = (v?: string | null) => (v ? new Date(v).toLocaleDateString('pt-BR') : '-')
   const money = (n?: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(n || 0))
 
+  const podeAproveitar =
+    sobra &&
+    ['DISPONIVEL', 'PARCIALMENTE_APROVEITADA'].includes(sobra.status)
+  const podeDescartar = sobra && sobra.status !== 'APROVEITADA' && sobra.status !== 'DESCARTADA'
+
+  const handleAproveitar = async () => {
+    const token = localStorage.getItem('access_token')
+    if (!token || !sobra) return
+    const quantidade = Number(quantidadeAproveitada.replace(',', '.'))
+    const economia = Number(economiaGerada.replace(',', '.'))
+    if (!Number.isFinite(quantidade) || quantidade <= 0) {
+      toast.error('Informe a quantidade ou área aproveitada')
+      return
+    }
+    setActionLoading(true)
+    try {
+      await estoqueApi.aproveitarSobra(
+        sobra.id,
+        {
+          quantidadeAproveitada: quantidade,
+          economiaGerada: Number.isFinite(economia) ? economia : 0,
+        },
+        token,
+      )
+      toast.success('Aproveitamento registrado')
+      setDialogAproveitar(false)
+      await carregar()
+    } catch (e) {
+      console.error(e)
+      toast.error('Erro ao aproveitar sobra')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleDescartar = async () => {
+    const token = localStorage.getItem('access_token')
+    if (!token || !sobra) return
+    if (!motivoDescarte.trim()) {
+      toast.error('Informe o motivo do descarte')
+      return
+    }
+    setActionLoading(true)
+    try {
+      await estoqueApi.descartarSobra(sobra.id, { motivo: motivoDescarte.trim() }, token)
+      toast.success('Sobra descartada')
+      setDialogDescartar(false)
+      await carregar()
+    } catch (e) {
+      console.error(e)
+      toast.error('Erro ao descartar sobra')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -123,7 +195,29 @@ export default function VerSobraPage() {
             <Package className="h-6 w-6" /> Sobra {sobra.codigoSobra}
           </h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {podeAproveitar && (
+            <Button
+              onClick={() => {
+                setQuantidadeAproveitada(String(sobra.quantidade ?? ''))
+                setEconomiaGerada('')
+                setDialogAproveitar(true)
+              }}
+            >
+              Aproveitar
+            </Button>
+          )}
+          {podeDescartar && (
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setMotivoDescarte('')
+                setDialogDescartar(true)
+              }}
+            >
+              Descartar
+            </Button>
+          )}
           <Link href={`/estoque/sobras/${sobra.id}/editar`}>
             <Button variant="outline">Editar</Button>
           </Link>
@@ -173,6 +267,66 @@ export default function VerSobraPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={dialogAproveitar} onOpenChange={setDialogAproveitar}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Aproveitar retalho</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Quantidade / área aproveitada</label>
+              <Input
+                value={quantidadeAproveitada}
+                onChange={(e) => setQuantidadeAproveitada(e.target.value)}
+                placeholder="Ex: 1.5"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Economia gerada (R$)</label>
+              <Input
+                value={economiaGerada}
+                onChange={(e) => setEconomiaGerada(e.target.value)}
+                placeholder="Ex: 120,00"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogAproveitar(false)}>
+              Cancelar
+            </Button>
+            <Button disabled={actionLoading} onClick={() => void handleAproveitar()}>
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogDescartar} onOpenChange={setDialogDescartar}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Descartar sobra</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            placeholder="Motivo do descarte (obrigatório)"
+            value={motivoDescarte}
+            onChange={(e) => setMotivoDescarte(e.target.value)}
+            className="min-h-[100px]"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogDescartar(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={actionLoading}
+              onClick={() => void handleDescartar()}
+            >
+              Confirmar descarte
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -15,13 +15,18 @@ import {
 import { cn } from '@/lib/utils';
 import { WorkflowCardInfo } from '@/components/pcp/WorkflowCardInfo';
 import type { ItemFila } from '@/hooks/useMeuSetor';
+import { IniciarProducaoMaquinaDialog } from '@/components/pcp/IniciarProducaoMaquinaDialog';
 
 export interface FilaOperadorProps {
   fila: ItemFila[];
   loading?: boolean;
   setorAtualId: string;
   setoresDestino?: Array<{ id: string; nome: string }>;
-  onIniciarProducao: (itemId: string, observacoes?: string) => Promise<void>;
+  onIniciarProducao: (
+    itemId: string,
+    observacoes?: string,
+    maquinaId?: string,
+  ) => Promise<void>;
   onConcluirEtapa: (
     itemId: string,
     observacoes?: string,
@@ -72,6 +77,10 @@ export function FilaOperador({
   onAbrirOs,
 }: FilaOperadorProps) {
   const [acaoItemId, setAcaoItemId] = useState<string | null>(null);
+  const [dialogMaquina, setDialogMaquina] = useState<{
+    itemId: string;
+    titulo: string;
+  } | null>(null);
 
   async function executarAcao(
     itemId: string,
@@ -83,6 +92,14 @@ export function FilaOperador({
     } finally {
       setAcaoItemId(null);
     }
+  }
+
+  function solicitarInicio(item: ItemFila) {
+    if (item.maquina_prevista?.id) {
+      void executarAcao(item.id, () => onIniciarProducao(item.id));
+      return;
+    }
+    setDialogMaquina({ itemId: item.id, titulo: item.titulo });
   }
 
   if (loading && fila.length === 0) {
@@ -164,6 +181,16 @@ export function FilaOperador({
                 <IconClock className="h-3.5 w-3.5" />
                 {item.data_prazo || 'Sem prazo'}
               </span>
+              {Number(item.tempo_previsto_min ?? 0) > 0 && (
+                <span>
+                  Tempo previsto: {formatarTempoPrevisto(item.tempo_previsto_min)}
+                </span>
+              )}
+              {item.maquina_prevista && (
+                <span>
+                  Maquina: {item.maquina_prevista.nome || item.maquina_prevista.id}
+                </span>
+              )}
               {item.operador_atual && (
                 <span>Operador: {item.operador_atual}</span>
               )}
@@ -193,9 +220,7 @@ export function FilaOperador({
                   size="sm"
                   className="h-8"
                   disabled={executando}
-                  onClick={() =>
-                    void executarAcao(item.id, () => onIniciarProducao(item.id))
-                  }
+                  onClick={() => solicitarInicio(item)}
                 >
                   <IconPlayerPlay className="mr-1 h-3.5 w-3.5" />
                   Iniciar
@@ -208,9 +233,7 @@ export function FilaOperador({
                   size="sm"
                   className="h-8"
                   disabled={executando}
-                  onClick={() =>
-                    void executarAcao(item.id, () => onIniciarProducao(item.id))
-                  }
+                  onClick={() => solicitarInicio(item)}
                 >
                   <IconPlayerPlay className="mr-1 h-3.5 w-3.5" />
                   Retomar
@@ -289,6 +312,36 @@ export function FilaOperador({
           </article>
         );
       })}
+
+      <IniciarProducaoMaquinaDialog
+        open={dialogMaquina != null}
+        onOpenChange={(open) => !open && setDialogMaquina(null)}
+        setorId={setorAtualId}
+        itemTitulo={dialogMaquina?.titulo}
+        onConfirm={async (maquinaId) => {
+          if (!dialogMaquina) return;
+          await executarAcao(dialogMaquina.itemId, () =>
+            onIniciarProducao(dialogMaquina.itemId, undefined, maquinaId),
+          );
+        }}
+      />
     </div>
   );
+}
+
+function formatarTempoPrevisto(minutos?: number): string {
+  const total = Number(minutos ?? 0);
+  if (!Number.isFinite(total) || total <= 0) {
+    return '-';
+  }
+
+  const horas = Math.floor(total / 60);
+  const restante = Math.round(total % 60);
+  if (horas <= 0) {
+    return `${restante}min`;
+  }
+  if (restante <= 0) {
+    return `${horas}h`;
+  }
+  return `${horas}h ${restante}min`;
 }

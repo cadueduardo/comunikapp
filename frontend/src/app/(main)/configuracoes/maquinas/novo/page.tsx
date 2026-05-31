@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { MaquinaForm, MaquinaFormValues } from '../maquina-form';
 import { maquinasApi } from '@/lib/api-client';
+import { parseTimeValue } from '@/components/ui/time-input';
 
 export default function NovaMaquinaPage() {
   const router = useRouter();
@@ -37,10 +38,27 @@ export default function NovaMaquinaPage() {
       const requestData = {
         ...data,
         custo_hora: custo,
+        setup_min: data.setup_min ? parseTimeValue(data.setup_min) * 60 : undefined,
+        velocidade_m2_h: data.velocidade_m2_h
+          ? Number(String(data.velocidade_m2_h).replace(',', '.'))
+          : undefined,
+        eficiencia_percent: data.eficiencia_percent
+          ? Number(String(data.eficiencia_percent).replace(',', '.'))
+          : undefined,
+        setor_id: data.setor_id || undefined,
+        usar_no_pcp: data.usar_no_pcp ?? true,
+        horas_disponiveis_dia: data.horas_disponiveis_dia
+          ? Number(String(data.horas_disponiveis_dia).replace(',', '.'))
+          : undefined,
+        permite_agendamento_simultaneo: Boolean(data.permite_agendamento_simultaneo),
+        tempo_minimo_entre_servicos_min: data.tempo_minimo_entre_servicos_min
+          ? Number(String(data.tempo_minimo_entre_servicos_min).replace(',', '.'))
+          : undefined,
+        considerar_eficiencia_na_capacidade: Boolean(
+          data.considerar_eficiencia_na_capacidade,
+        ),
       };
 
-      console.log('Dados sendo enviados:', requestData);
-        
       await maquinasApi.create(requestData, token);
 
       toast.success('Máquina criada com sucesso!');

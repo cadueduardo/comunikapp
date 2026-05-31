@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { FilaOperador } from '@/components/pcp/FilaOperador';
 import { useMeuSetor } from '@/hooks/useMeuSetor';
+import { pcpApi } from '@/lib/api-client';
 import { filtrarFilaPorStatus, type FiltroStatusFila } from '@/lib/pcp/pcp.utils';
 import {
   IconBuilding,
@@ -24,6 +25,32 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+
+interface CargaSetor {
+  setor_id: string;
+  nome: string;
+  horas_disponiveis: number;
+  horas_programadas: number;
+  horas_livres: number;
+  ocupacao_percent: number;
+  status_carga: 'normal' | 'atencao' | 'cheia' | 'sobrecarregada';
+  itens_programados: unknown[];
+}
+
+interface MaquinaCapacidade {
+  maquina_id: string | null;
+  nome: string;
+  horas_disponiveis?: number;
+  horas_programadas: number;
+  ocupacao_percent?: number;
+  status_carga?: CargaSetor['status_carga'];
+  itens_programados: unknown[];
+}
+
+interface MaquinasCapacidadeResponse {
+  maquinas: MaquinaCapacidade[];
+  sem_maquina_definida?: MaquinaCapacidade | null;
+}
 
 function StatPill({
   label,
@@ -55,6 +82,10 @@ export default function MeuSetorPage() {
   const router = useRouter();
   const [pcpNivel, setPcpNivel] = useState<string | null>(null);
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatusFila>('TODOS');
+  const [cargaSetor, setCargaSetor] = useState<CargaSetor | null>(null);
+  const [maquinasSetor, setMaquinasSetor] =
+    useState<MaquinasCapacidadeResponse | null>(null);
+  const [loadingCapacidade, setLoadingCapacidade] = useState(false);
 
   const {
     setor,
@@ -100,6 +131,38 @@ export default function MeuSetorPage() {
 
     carregarNivelPcp();
   }, []);
+
+  useEffect(() => {
+    const carregarCapacidadeSetor = async () => {
+      if (!setor?.id) {
+        setCargaSetor(null);
+        setMaquinasSetor(null);
+        return;
+      }
+
+      try {
+        setLoadingCapacidade(true);
+        const token = localStorage.getItem('access_token');
+        if (!token) return;
+
+        const [carga, maquinas] = await Promise.all([
+          pcpApi.getCargaSetor(setor.id, token) as Promise<CargaSetor | null>,
+          pcpApi.getCapacidadeMaquinas(token, {
+            setorId: setor.id,
+          }) as Promise<MaquinasCapacidadeResponse>,
+        ]);
+
+        setCargaSetor(carga);
+        setMaquinasSetor(maquinas);
+      } catch (capacidadeError) {
+        console.error('Erro ao carregar capacidade do setor:', capacidadeError);
+      } finally {
+        setLoadingCapacidade(false);
+      }
+    };
+
+    void carregarCapacidadeSetor();
+  }, [setor?.id, lastRefresh]);
 
   const filaFiltrada = useMemo(
     () => filtrarFilaPorStatus(fila, filtroStatus),
@@ -250,6 +313,19 @@ export default function MeuSetorPage() {
           <StatPill label="pend." value={itensPendentes} tone="muted" />
           <StatPill label="rodando" value={itensEmAndamento} />
           <StatPill label="atras." value={itensAtrasados} tone="warn" />
+          {cargaSetor && (
+            <>
+              <StatPill
+                label="horas"
+                value={Number(cargaSetor.horas_programadas.toFixed(1))}
+              />
+              <StatPill
+                label="ocup."
+                value={Math.round(cargaSetor.ocupacao_percent)}
+                tone={cargaSetor.ocupacao_percent >= 90 ? 'warn' : 'default'}
+              />
+            </>
+          )}
         </div>
 
         <div className="ml-auto flex flex-wrap items-center gap-3">
@@ -298,6 +374,12 @@ export default function MeuSetorPage() {
           Modo Completo habilita movimentação entre setores na fila.
         </p>
       )}
+
+      <ResumoCapacidadeSetor
+        carga={cargaSetor}
+        maquinas={maquinasSetor}
+        loading={loadingCapacidade}
+      />
 
       {error && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-700">
@@ -350,4 +432,112 @@ export default function MeuSetorPage() {
       </section>
     </div>
   );
+}
+
+function ResumoCapacidadeSetor({
+  carga,
+  maquinas,
+  loading,
+}: {
+  carga: CargaSetor | null;
+  maquinas: MaquinasCapacidadeResponse | null;
+  loading: boolean;
+}) {
+  if (loading && !carga) {
+    return (
+      <div className="rounded-lg border bg-card px-3 py-2 text-xs text-muted-foreground">
+        Carregando capacidade do setor...
+      </div>
+    );
+  }
+
+  if (!carga) {
+    return (
+      <div className="rounded-lg border bg-card px-3 py-2 text-xs text-muted-foreground">
+        Carga do setor indisponivel para o setor selecionado.
+      </div>
+    );
+  }
+
+  const ocupacao = Math.min(Math.max(carga.ocupacao_percent, 0), 100);
+  const maquinasComCarga = (maquinas?.maquinas ?? [])
+    .filter((maquina) => maquina.horas_programadas > 0)
+    .sort((a, b) => (b.ocupacao_percent ?? 0) - (a.ocupacao_percent ?? 0));
+  const semMaquina = maquinas?.sem_maquina_definida;
+
+  return (
+    <div className="rounded-lg border bg-card px-3 py-2 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-[220px] flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium">Carga do setor</span>
+            <Badge variant="outline" className={statusCargaClassName(carga.status_carga)}>
+              {statusCargaLabel(carga.status_carga)}
+            </Badge>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn('h-full rounded-full', statusCargaBarClassName(carga.status_carga))}
+              style={{ width: `${ocupacao}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 text-xs">
+          <span>{carga.horas_programadas}h previstas</span>
+          <span>{carga.horas_disponiveis}h disponiveis</span>
+          <span>{carga.ocupacao_percent}% ocupacao</span>
+          <span>{carga.itens_programados.length} itens</span>
+        </div>
+      </div>
+
+      {(maquinasComCarga.length > 0 || (semMaquina?.itens_programados.length ?? 0) > 0) && (
+        <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+          {maquinasComCarga.map((maquina) => (
+            <span key={maquina.maquina_id ?? maquina.nome} className="rounded-md bg-muted px-2 py-1">
+              {maquina.nome}: {maquina.horas_programadas}h
+            </span>
+          ))}
+          {semMaquina && semMaquina.itens_programados.length > 0 && (
+            <span className="rounded-md bg-amber-50 px-2 py-1 text-amber-700">
+              Sem maquina definida: {semMaquina.itens_programados.length}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function statusCargaLabel(status: CargaSetor['status_carga']) {
+  const labels: Record<CargaSetor['status_carga'], string> = {
+    normal: 'Normal',
+    atencao: 'Atencao',
+    cheia: 'Cheia',
+    sobrecarregada: 'Sobrecarregada',
+  };
+
+  return labels[status];
+}
+
+function statusCargaClassName(status: CargaSetor['status_carga']) {
+  const classes: Record<CargaSetor['status_carga'], string> = {
+    normal: 'border-emerald-200 text-emerald-700',
+    atencao: 'border-amber-200 text-amber-700',
+    cheia: 'border-orange-200 text-orange-700',
+    sobrecarregada: 'border-red-200 text-red-700',
+  };
+
+  return classes[status];
+}
+
+function statusCargaBarClassName(status: CargaSetor['status_carga']) {
+  const classes: Record<CargaSetor['status_carga'], string> = {
+    normal: 'bg-emerald-500',
+    atencao: 'bg-amber-500',
+    cheia: 'bg-orange-500',
+    sobrecarregada: 'bg-red-500',
+  };
+
+  return classes[status];
 }

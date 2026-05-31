@@ -23,6 +23,7 @@ import { getRequiredJwtSecret } from '../auth/jwt-secret';
 
 // Controllers (<= 200 linhas cada)
 import { OSController } from './controllers/os.controller';
+import { OSMateriaisController } from './controllers/os-materiais.controller';
 import { ImpressaoOSController } from './controllers/impressao-os.controller';
 import { WorkflowController } from './controllers/workflow.controller';
 import { OSDiretaInternaController } from './controllers/os-direta-interna.controller';
@@ -94,6 +95,7 @@ const debugControllers =
   ],
   controllers: [
     OSController,
+    OSMateriaisController,
     ImpressaoOSController,
     WorkflowController,
     OSDiretaInternaController,

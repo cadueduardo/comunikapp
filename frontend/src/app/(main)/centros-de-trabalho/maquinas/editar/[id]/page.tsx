@@ -21,6 +21,11 @@ interface Maquina {
   eficiencia_percent?: number | string;
   setup_min?: number | string;
   setor_id?: string | null;
+  usar_no_pcp?: boolean;
+  horas_disponiveis_dia?: number | string | null;
+  permite_agendamento_simultaneo?: boolean;
+  tempo_minimo_entre_servicos_min?: number | string | null;
+  considerar_eficiencia_na_capacidade?: boolean;
 }
 
 export default function EditarMaquinaCTPage({ params }: { params: Promise<{ id: string }> }) {
@@ -81,6 +86,17 @@ export default function EditarMaquinaCTPage({ params }: { params: Promise<{ id: 
         velocidade_m2_h: data.velocidade_m2_h ? Number(String(data.velocidade_m2_h).replace(',', '.')) : undefined,
         eficiencia_percent: data.eficiencia_percent ? Number(String(data.eficiencia_percent).replace(',', '.')) : undefined,
         setor_id: data.setor_id || undefined,
+        usar_no_pcp: data.usar_no_pcp ?? true,
+        horas_disponiveis_dia: data.horas_disponiveis_dia
+          ? Number(String(data.horas_disponiveis_dia).replace(',', '.'))
+          : undefined,
+        permite_agendamento_simultaneo: Boolean(data.permite_agendamento_simultaneo),
+        tempo_minimo_entre_servicos_min: data.tempo_minimo_entre_servicos_min
+          ? Number(String(data.tempo_minimo_entre_servicos_min).replace(',', '.'))
+          : undefined,
+        considerar_eficiencia_na_capacidade: Boolean(
+          data.considerar_eficiencia_na_capacidade,
+        ),
       };
 
       await maquinasApi.update(id, transformedData, token);
@@ -107,6 +123,18 @@ export default function EditarMaquinaCTPage({ params }: { params: Promise<{ id: 
     // Converter setup_min de minutos para HH:MM
     setup_min: maquina.setup_min ? formatTimeDisplay(Number(maquina.setup_min) / 60) : '',
     setor_id: maquina.setor_id || null,
+    usar_no_pcp: maquina.usar_no_pcp ?? true,
+    horas_disponiveis_dia:
+      maquina.horas_disponiveis_dia != null
+        ? String(maquina.horas_disponiveis_dia)
+        : '8',
+    permite_agendamento_simultaneo: maquina.permite_agendamento_simultaneo ?? false,
+    tempo_minimo_entre_servicos_min:
+      maquina.tempo_minimo_entre_servicos_min != null
+        ? String(maquina.tempo_minimo_entre_servicos_min)
+        : '',
+    considerar_eficiencia_na_capacidade:
+      maquina.considerar_eficiencia_na_capacidade ?? true,
   } : undefined;
 
   if (loading) {

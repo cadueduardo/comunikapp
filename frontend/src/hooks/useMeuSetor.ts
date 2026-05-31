@@ -22,6 +22,12 @@ export interface ItemFila {
   workflow_setores_nomes?: string[];
   instancia_setor_id?: string;
   proximos_setores_ids?: string[];
+  tempo_previsto_min?: number;
+  tempo_previsto_horas?: number;
+  maquina_prevista?: {
+    id?: string;
+    nome?: string;
+  } | null;
 }
 
 export interface SetorOperador {
@@ -48,7 +54,11 @@ export interface UseMeuSetorReturn {
 
   // Handlers
   refreshData: () => Promise<void>;
-  iniciarProducao: (itemId: string, observacoes?: string) => Promise<void>;
+  iniciarProducao: (
+    itemId: string,
+    observacoes?: string,
+    maquinaId?: string,
+  ) => Promise<void>;
   concluirEtapa: (
     itemId: string,
     observacoes?: string,
@@ -416,7 +426,7 @@ export function useMeuSetor(): UseMeuSetorReturn {
   );
 
   const iniciarProducao = useCallback(
-    async (itemId: string, observacoes?: string) => {
+    async (itemId: string, observacoes?: string, maquinaId?: string) => {
       try {
         if (!operadorId) {
           toast.error('Operador não identificado para iniciar a produção.');
@@ -434,6 +444,7 @@ export function useMeuSetor(): UseMeuSetorReturn {
           body: JSON.stringify({
             operadorId,
             observacoes,
+            ...(maquinaId ? { maquinaId } : {}),
           }),
         });
 

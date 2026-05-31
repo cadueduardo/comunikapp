@@ -27,10 +27,12 @@ import {
   insumoExigeProfundidade,
 } from '../utils/calculo.utils';
 import { NovoInsumoModal } from '@/components/orcamentos-v2/NovoInsumoModal';
+import { CalculoChapaMaterialPanel } from '@/components/orcamentos-v2/CalculoChapaMaterialPanel';
 
 interface MaterialSectionProps {
   variant?: 'orcamento' | 'produto';
   itemIndex: number;
+  orcamentoId?: string;
   insumos: Insumo[];
   onAddMaterial?: (itemIndex: number) => void;
   onRemoveMaterial?: (itemIndex: number, materialIndex: number) => void;
@@ -46,7 +48,9 @@ interface MaterialSectionProps {
 }
 
 export function MaterialSection({ 
+  variant = 'orcamento',
   itemIndex,
+  orcamentoId,
   insumos,
   onAddMaterial,
   onRemoveMaterial,
@@ -305,7 +309,13 @@ export function MaterialSection({
         </Button>
       </div>
       
-      {form.watch(`itens_produto.${itemIndex}.materiais`)?.map((material: { insumo_id: string; quantidade: string; material_do_cliente?: boolean }, materialIndex: number) => {
+      {form.watch(`itens_produto.${itemIndex}.materiais`)?.map((material: {
+        insumo_id: string;
+        quantidade: string;
+        material_do_cliente?: boolean;
+        item_insumo_id?: string;
+        calculo_chapa?: Record<string, unknown> | null;
+      }, materialIndex: number) => {
         const insumoSelecionado = insumos.find(insumo => insumo.id === material.insumo_id);
         const campoQuantidade = getCampoQuantidade(insumoSelecionado);
         const custoPorUnidade = insumoSelecionado ? calcularCustoPorUnidadeUso(insumoSelecionado) : 0;
@@ -845,6 +855,16 @@ export function MaterialSection({
                   </div>
                 </div>
               </div>
+            )}
+
+            {variant === 'orcamento' && insumoSelecionado && (
+              <CalculoChapaMaterialPanel
+                insumo={insumoSelecionado as Insumo}
+                larguraPeca={larguraProduto}
+                alturaPeca={alturaProduto}
+                quantidadePeca={quantidadeProduto}
+                unidadeGeometria={unidadeGeometria}
+              />
             )}
 
             {/* Campos customizados específicos do módulo */}

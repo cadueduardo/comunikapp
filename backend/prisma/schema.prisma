@@ -36,6 +36,19 @@ model Insumo {
   tipoMaterialId     String?
   logica_consumo     LogicaConsumoInsumo    @default(area)
   parametros_consumo String?                @db.LongText
+  formato_material   String?                @db.VarChar(32)
+  largura_comercial  Decimal?               @db.Decimal(10, 3)
+  altura_comercial   Decimal?               @db.Decimal(10, 3)
+  comprimento_comercial Decimal?            @db.Decimal(10, 3)
+  area_comercial     Decimal?               @db.Decimal(10, 4)
+  perda_padrao_percent Decimal?             @db.Decimal(5, 2)
+  permite_simulacao_chapa Boolean           @default(false)
+  controla_estoque   Boolean                @default(false)
+  permite_registrar_sobra Boolean           @default(false)
+  retalho_min_largura Decimal?              @db.Decimal(10, 3)
+  retalho_min_altura Decimal?               @db.Decimal(10, 3)
+  retalho_min_area   Decimal?               @db.Decimal(10, 4)
+  metodo_cobranca_padrao String?            @db.VarChar(32)
   historico_precos   HistoricoPrecoInsumo[]
   categoria          Categoria              @relation(fields: [categoriaId], references: [id])
   fornecedor         fornecedor             @relation(fields: [fornecedorId], references: [id])
@@ -642,6 +655,12 @@ model maquina {
   // Tipico para router CNC, plotter de corte, laser etc. (Fase 2)
   velocidade_ml_h    Decimal?                 @db.Decimal(10, 2)
   eficiencia_percent Decimal?                 @db.Decimal(5, 2)
+  usar_no_pcp                         Boolean  @default(true)
+  horas_disponiveis_dia               Decimal? @db.Decimal(5, 2)
+  dias_produtivos                     String?  @db.LongText
+  permite_agendamento_simultaneo      Boolean  @default(false)
+  tempo_minimo_entre_servicos_min     Int?
+  considerar_eficiencia_na_capacidade Boolean  @default(true)
   modos              modo_impressao[]
 
   @@index([loja_id], map: "Maquina_loja_id_idx")
@@ -890,6 +909,7 @@ model ItemInsumo {
   material_do_cliente Boolean  @default(false)
   estoque_disponivel  Decimal? @db.Decimal(10, 3)
   alerta_estoque      Boolean  @default(false)
+  calculo_chapa       String?  @db.LongText
   criado_em           DateTime @default(now())
   data_criacao        DateTime @default(now())
 
@@ -1396,7 +1416,12 @@ model estoque_aproveitamentos {
   quantidade_aproveitada Decimal   @db.Decimal(10, 2)
   projeto_destino        String?   @db.VarChar(255)
   orcamento_destino      String?
+  os_destino_id          String?
+  item_os_destino_id     String?
+  insumo_id              String?
+  area_aproveitada       Decimal?  @db.Decimal(10, 4)
   observacoes            String?   @db.Text
+  economia_gerada        Decimal?  @default(0.00) @db.Decimal(12, 2)
   loja_id                String
   usuario_id             String?
   data_aproveitamento    DateTime? @default(now())
@@ -1411,11 +1436,18 @@ model estoque_aproveitamentos {
 
 model estoque_sobras {
   id                     String                 @id
-  estoque_id             String
+  estoque_id             String?
+  insumo_id              String?
   codigo_sobra           String                 @unique(map: "codigo_sobra")
   descricao              String?                @db.Text
   dimensoes              String?                @db.VarChar(255)
+  largura                Decimal?               @db.Decimal(10, 3)
+  altura                 Decimal?               @db.Decimal(10, 3)
+  espessura              Decimal?               @db.Decimal(10, 3)
+  unidade_dimensao       String?                @db.VarChar(16)
   area                   Decimal?               @db.Decimal(10, 2)
+  area_disponivel        Decimal?               @db.Decimal(10, 4)
+  area_original          Decimal?               @db.Decimal(10, 4)
   quantidade             Decimal                @db.Decimal(10, 2)
   unidade_medida         String?                @db.VarChar(50)
   material               String?                @db.VarChar(255)
@@ -1425,6 +1457,9 @@ model estoque_sobras {
   origem                 String?                @db.VarChar(255)
   data_geracao           DateTime?              @default(now())
   orcamento_origem       String?
+  os_origem_id           String?
+  item_os_origem_id      String?
+  observacao_interna     String?                @db.Text
   data_aproveitamento    DateTime?
   quantidade_aproveitada Decimal?               @default(0.00) @db.Decimal(10, 2)
   economia_gerada        Decimal?               @default(0.00) @db.Decimal(12, 2)
@@ -1435,7 +1470,9 @@ model estoque_sobras {
   @@index([codigo_sobra], map: "idx_codigo_sobra")
   @@index([data_geracao], map: "idx_data_geracao")
   @@index([estoque_id], map: "idx_estoque_id")
+  @@index([insumo_id], map: "idx_insumo_id")
   @@index([loja_id], map: "idx_loja_id")
+  @@index([os_origem_id], map: "idx_os_origem_id")
   @@index([status], map: "idx_status")
 }
 
@@ -1531,6 +1568,7 @@ enum estoque_transferencias_status {
 
 enum estoque_sobras_status {
   DISPONIVEL
+  PARCIALMENTE_APROVEITADA
   APROVEITADA
   DESCARTADA
 }
@@ -1674,6 +1712,9 @@ model ItemOS {
   insumos_necessarios  String?  @db.LongText // JSON calculado
   materiais_disponivel Boolean  @default(false)
   observacoes          String?  @db.Text
+  sobra_acao           String?  @db.VarChar(32)
+  sobra_observacao     String?  @db.Text
+  sobra_registrada_id  String?
   criado_em            DateTime @default(now())
 
   // Geometria herdada do ProdutoOrcamento para PCP/produção

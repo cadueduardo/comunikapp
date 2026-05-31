@@ -10,6 +10,13 @@ import { CreateInsumoDto } from './dto/create-insumo.dto';
 import { UpdateInsumoDto } from './dto/update-insumo.dto';
 import { loja } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
+import { SimularChapaDto } from '../common/calculo-chapa/simular-chapa.dto';
+import {
+  calcularChapa,
+  inferirCustoM2Insumo,
+  resolverMedidasComerciaisInsumo,
+} from '../common/calculo-chapa/calculo-chapa.util';
+import { MetodoCobrancaChapa } from '../common/calculo-chapa/calculo-chapa.types';
 
 @Injectable()
 export class InsumosService {
@@ -33,6 +40,24 @@ export class InsumosService {
     }
 
     return date;
+  }
+
+  private inferirCustoM2(
+    custoUnitario: unknown,
+    larguraChapa: number,
+    alturaChapa: number,
+    unidadeDimensao?: string,
+  ): number {
+    const custo = this.toNumberOrZero(custoUnitario);
+    if (custo <= 0) return 0;
+
+    const unidade = (unidadeDimensao || 'm').toLowerCase();
+    const fator = unidade === 'mm' ? 1000 : unidade === 'cm' ? 100 : 1;
+    const larguraM = larguraChapa / fator;
+    const alturaM = alturaChapa / fator;
+    const area = larguraM * alturaM;
+
+    return area > 0 ? custo / area : custo;
   }
 
   private async buscarOuCriarLocalizacaoPadrao(
@@ -173,7 +198,9 @@ export class InsumosService {
     return item;
   }
 
-  private worksheetToObjects(worksheet: ExcelJS.Worksheet): Record<string, unknown>[] {
+  private worksheetToObjects(
+    worksheet: ExcelJS.Worksheet,
+  ): Record<string, unknown>[] {
     const headerRow = worksheet.getRow(1);
     const headers = headerRow.values as ExcelJS.CellValue[];
     const normalizedHeaders = headers
@@ -229,7 +256,10 @@ export class InsumosService {
       worksheet.addRow(columns.map((column) => row[column] ?? null));
     });
     worksheet.columns.forEach((column) => {
-      column.width = Math.min(Math.max(String(column.header ?? '').length + 4, 16), 48);
+      column.width = Math.min(
+        Math.max(String(column.header ?? '').length + 4, 16),
+        48,
+      );
     });
     return worksheet;
   }
@@ -810,6 +840,30 @@ export class InsumosService {
       largura: insumo.largura ? Number(insumo.largura) : null,
       altura: insumo.altura ? Number(insumo.altura) : null,
       gramatura: insumo.gramatura ? Number(insumo.gramatura) : null,
+      largura_comercial: insumo.largura_comercial
+        ? Number(insumo.largura_comercial)
+        : null,
+      altura_comercial: insumo.altura_comercial
+        ? Number(insumo.altura_comercial)
+        : null,
+      comprimento_comercial: insumo.comprimento_comercial
+        ? Number(insumo.comprimento_comercial)
+        : null,
+      area_comercial: insumo.area_comercial
+        ? Number(insumo.area_comercial)
+        : null,
+      perda_padrao_percent: insumo.perda_padrao_percent
+        ? Number(insumo.perda_padrao_percent)
+        : null,
+      retalho_min_largura: insumo.retalho_min_largura
+        ? Number(insumo.retalho_min_largura)
+        : null,
+      retalho_min_altura: insumo.retalho_min_altura
+        ? Number(insumo.retalho_min_altura)
+        : null,
+      retalho_min_area: insumo.retalho_min_area
+        ? Number(insumo.retalho_min_area)
+        : null,
       estoque_controlado: Boolean(estoqueItem),
       estoque_item_id: estoqueItem?.id ?? null,
     };
@@ -838,6 +892,18 @@ export class InsumosService {
         largura: insumo.largura ? Number(insumo.largura) : null,
         altura: insumo.altura ? Number(insumo.altura) : null,
         gramatura: insumo.gramatura ? Number(insumo.gramatura) : null,
+        largura_comercial: insumo.largura_comercial
+          ? Number(insumo.largura_comercial)
+          : null,
+        altura_comercial: insumo.altura_comercial
+          ? Number(insumo.altura_comercial)
+          : null,
+        comprimento_comercial: insumo.comprimento_comercial
+          ? Number(insumo.comprimento_comercial)
+          : null,
+        perda_padrao_percent: insumo.perda_padrao_percent
+          ? Number(insumo.perda_padrao_percent)
+          : null,
       };
 
       // Processar parametros_consumo se existir
@@ -983,6 +1049,57 @@ export class InsumosService {
     });
 
     return resultado;
+  }
+
+  async getConfiguracaoCalculoChapa(id: string, loja: loja) {
+    const insumo = await this.findOne(id, loja);
+
+    return {
+      insumo_id: insumo.id,
+      nome: insumo.nome,
+      permite_simulacao_chapa: Boolean(insumo.permite_simulacao_chapa),
+      formato_material: insumo.formato_material ?? null,
+      largura_chapa: insumo.largura_comercial ?? insumo.largura ?? null,
+      altura_chapa: insumo.altura_comercial ?? insumo.altura ?? null,
+      unidade_dimensao: insumo.unidade_dimensao ?? 'm',
+      perda_percent: insumo.perda_padrao_percent ?? 0,
+      metodo_cobranca:
+        insumo.metodo_cobranca_padrao ?? MetodoCobrancaChapa.AREA_COM_PERDA,
+      controla_estoque: Boolean(insumo.controla_estoque),
+      permite_registrar_sobra: Boolean(insumo.permite_registrar_sobra),
+    };
+  }
+
+  async simularChapa(id: string, dto: SimularChapaDto, loja: loja) {
+    const insumo = await this.findOne(id, loja);
+    const medidas = resolverMedidasComerciaisInsumo(insumo);
+    const larguraChapa = dto.larguraChapa ?? medidas.largura;
+    const alturaChapa = dto.alturaChapa ?? medidas.alturaChapa;
+    const unidadeDimensaoPeca =
+      dto.unidadeDimensaoPeca ?? dto.unidadeDimensao ?? 'm';
+    const unidadeDimensaoChapa =
+      dto.unidadeDimensaoChapa ?? (insumo.unidade_dimensao as any) ?? 'm';
+    const custoM2 = dto.custoM2 ?? inferirCustoM2Insumo(insumo);
+
+    try {
+      return calcularChapa({
+        ...dto,
+        insumoId: id,
+        larguraChapa,
+        alturaChapa,
+        perdaPercent:
+          dto.perdaPercent ?? Number(insumo.perda_padrao_percent ?? 0),
+        metodoCobranca:
+          dto.metodoCobranca ??
+          (insumo.metodo_cobranca_padrao as MetodoCobrancaChapa) ??
+          MetodoCobrancaChapa.AREA_COM_PERDA,
+        unidadeDimensaoPeca,
+        unidadeDimensaoChapa,
+        custoM2,
+      });
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
   }
 
   async update(id: string, updateInsumoDto: UpdateInsumoDto, loja: loja) {

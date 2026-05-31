@@ -30,6 +30,13 @@ import {
 import { CobrancasService } from '../../financeiro/services/cobrancas.service';
 import { CobrancaVencimentoService } from '../../financeiro/services/cobranca-vencimento.service';
 import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
+import { SimularChapaDto } from '../../common/calculo-chapa/simular-chapa.dto';
+import {
+  calcularChapa,
+  inferirCustoM2Insumo,
+  resolverMedidasComerciaisInsumo,
+} from '../../common/calculo-chapa/calculo-chapa.util';
+import { MetodoCobrancaChapa } from '../../common/calculo-chapa/calculo-chapa.types';
 
 /**
  * ServiÃ§o Principal de Orçamentos V2
@@ -1010,7 +1017,122 @@ export class OrcamentosV2Service {
     }
   }
 
+  async simularChapaItem(
+    orcamentoId: string,
+    itemId: string,
+    dto: SimularChapaDto,
+    lojaId: string,
+  ) {
+    const item = await this.buscarItemInsumoDoOrcamento(
+      orcamentoId,
+      itemId,
+      lojaId,
+    );
+
+    return this.calcularChapaParaItem(item, dto);
+  }
+
+  async salvarCalculoChapaItem(
+    orcamentoId: string,
+    itemId: string,
+    dto: SimularChapaDto,
+    lojaId: string,
+    usuarioId?: string,
+  ) {
+    const item = await this.buscarItemInsumoDoOrcamento(
+      orcamentoId,
+      itemId,
+      lojaId,
+    );
+    const calculo = this.calcularChapaParaItem(item, dto);
+
+    await this.prisma.itemInsumo.update({
+      where: { id: itemId },
+      data: {
+        calculo_chapa: JSON.stringify({
+          ...calculo,
+          congelado_em: new Date().toISOString(),
+          congelado_por: usuarioId ?? null,
+        }),
+      },
+    });
+
+    return calculo;
+  }
+
   // MÃ©todos privados auxiliares
+
+  private async buscarItemInsumoDoOrcamento(
+    orcamentoId: string,
+    itemId: string,
+    lojaId: string,
+  ) {
+    const item = await this.prisma.itemInsumo.findFirst({
+      where: {
+        id: itemId,
+        produto: {
+          orcamento_id: orcamentoId,
+          orcamento: {
+            loja_id: lojaId,
+            excluido_em: null,
+          },
+        },
+      },
+      include: {
+        insumo: true,
+        produto: {
+          include: {
+            orcamento: {
+              select: { id: true, loja_id: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!item) {
+      throw new NotFoundException(
+        'Item de material não encontrado neste orçamento.',
+      );
+    }
+
+    if (item.insumo.loja_id !== lojaId) {
+      throw new BadRequestException('Insumo não pertence à loja autenticada.');
+    }
+
+    return item;
+  }
+
+  private calcularChapaParaItem(item: any, dto: SimularChapaDto) {
+    const medidas = resolverMedidasComerciaisInsumo(item.insumo);
+    const larguraChapa = dto.larguraChapa ?? medidas.largura;
+    const alturaChapa = dto.alturaChapa ?? medidas.alturaChapa;
+    const unidadeDimensaoPeca =
+      dto.unidadeDimensaoPeca ?? dto.unidadeDimensao ?? 'm';
+    const unidadeDimensaoChapa =
+      dto.unidadeDimensaoChapa ?? item.insumo.unidade_dimensao ?? 'm';
+    const custoM2 = dto.custoM2 ?? inferirCustoM2Insumo(item.insumo);
+
+    try {
+      return calcularChapa({
+        ...dto,
+        insumoId: item.insumo_id,
+        larguraChapa,
+        alturaChapa,
+        perdaPercent:
+          dto.perdaPercent ?? Number(item.insumo.perda_padrao_percent ?? 0),
+        metodoCobranca:
+          dto.metodoCobranca ??
+          (item.insumo.metodo_cobranca_padrao as MetodoCobrancaChapa) ??
+          MetodoCobrancaChapa.AREA_COM_PERDA,
+        unidadeDimensaoPeca,
+        unidadeDimensaoChapa,
+        custoM2,
+      });
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
 
   private async atualizarCustosCalculados(
     orcamentoId: string,

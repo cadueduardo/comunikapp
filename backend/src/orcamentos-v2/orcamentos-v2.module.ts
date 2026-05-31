@@ -34,6 +34,7 @@ import { InsumosAutocompleteService } from './services/insumos-autocomplete.serv
 import { AnexoGeometriaService } from './services/anexo-geometria.service';
 import { DxfParserService } from './services/dxf-parser.service';
 import { DxfSugestaoInsumoService } from './services/dxf-sugestao-insumo.service';
+import { OrcamentoOrigemSobraService } from './services/orcamento-origem-sobra.service';
 
 // Repositories
 import { OrcamentosV2Repository } from './repositories/orcamentos-v2.repository';
@@ -84,6 +85,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     AnexoGeometriaService,
     DxfParserService,
     DxfSugestaoInsumoService,
+    OrcamentoOrigemSobraService,
 
     // Repositories
     OrcamentosV2Repository,
@@ -100,6 +102,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     ImpressaoV2Service,
     ValidacaoEstoqueService,
     InsumosAutocompleteService,
+    OrcamentoOrigemSobraService,
   ],
 })
 export class OrcamentosV2Module {}

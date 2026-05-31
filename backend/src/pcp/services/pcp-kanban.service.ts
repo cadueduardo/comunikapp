@@ -365,6 +365,7 @@ export class PCPKanbanService {
     operadorId: string,
     observacoes?: string,
     usuario?: AuthenticatedUser,
+    maquinaId?: string,
   ): Promise<void> {
     try {
       await this.validarOperadorDaAcao(lojaId, operadorId, usuario);
@@ -381,6 +382,15 @@ export class PCPKanbanService {
       if (!etapa) {
         throw new BadRequestException(
           'Etapa nao disponivel para inicio (aguardando liberacao ou ja iniciada).',
+        );
+      }
+
+      const itemOsReferencia = etapa.item_os_id ?? itemOsId;
+      if (maquinaId) {
+        await this.vincularMaquinaPrevistaItemOS(
+          itemOsReferencia,
+          lojaId,
+          maquinaId,
         );
       }
 
@@ -985,6 +995,78 @@ export class PCPKanbanService {
       return 'MEDIO';
     }
     return 'BAIXO';
+  }
+
+  private async vincularMaquinaPrevistaItemOS(
+    itemOsId: string,
+    lojaId: string,
+    maquinaId: string,
+  ): Promise<void> {
+    const maquina = await this.prisma.maquina.findFirst({
+      where: {
+        id: maquinaId,
+        loja_id: lojaId,
+        ativo: true,
+      },
+      select: { id: true, nome: true },
+    });
+
+    if (!maquina) {
+      throw new BadRequestException(
+        'Máquina não encontrada ou inativa para esta loja.',
+      );
+    }
+
+    const item = await this.prisma.itemOS.findFirst({
+      where: {
+        id: itemOsId,
+        os: { loja_id: lojaId },
+      },
+      select: { id: true, parametros_tecnicos: true },
+    });
+
+    if (!item) {
+      throw new BadRequestException('Item da OS não encontrado.');
+    }
+
+    let parametros: Record<string, unknown> = {};
+    if (item.parametros_tecnicos) {
+      try {
+        parametros =
+          typeof item.parametros_tecnicos === 'string'
+            ? JSON.parse(item.parametros_tecnicos)
+            : (item.parametros_tecnicos as Record<string, unknown>);
+      } catch {
+        parametros = {};
+      }
+    }
+
+    const maquinasExistentes = Array.isArray(parametros.maquinas)
+      ? (parametros.maquinas as Array<Record<string, unknown>>)
+      : [];
+    const horasExistentes =
+      maquinasExistentes[0]?.horas_utilizadas ??
+      maquinasExistentes[0]?.horas_uso ??
+      null;
+
+    parametros.maquina_id = maquina.id;
+    parametros.maquinas = [
+      {
+        maquina_id: maquina.id,
+        nome: maquina.nome,
+        horas_utilizadas: horasExistentes,
+      },
+      ...maquinasExistentes.filter(
+        (m) => (m.maquina_id ?? m.id) !== maquina.id,
+      ),
+    ];
+
+    await this.prisma.itemOS.update({
+      where: { id: item.id },
+      data: {
+        parametros_tecnicos: JSON.stringify(parametros),
+      },
+    });
   }
 
   private async buscarInstanciaSetorPorReferencia(

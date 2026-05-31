@@ -96,8 +96,15 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
       quantidade_compra: insumo.quantidade_compra?.toString() ?? '',
       
       // Campos de dimensões
-      largura: insumo.largura?.toString() ?? '',
-      altura: insumo.altura?.toString() ?? '',
+      largura:
+        insumo.largura?.toString() ??
+        (insumo as any).largura_comercial?.toString() ??
+        '',
+      altura:
+        insumo.altura?.toString() ??
+        (insumo as any).comprimento_comercial?.toString() ??
+        (insumo as any).altura_comercial?.toString() ??
+        '',
       unidade_dimensao: insumo.unidade_dimensao ?? '',
       tipo_calculo: insumo.tipo_calculo ?? '',
       gramatura: insumo.gramatura?.toString() ?? '',
@@ -124,6 +131,14 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
       descricao_tecnica: insumo.descricao_tecnica ?? '',
       observacoes: insumo.observacoes ?? '',
       ativo: Boolean(insumo.ativo),
+      formato_material: (insumo as any).formato_material ?? '',
+      largura_comercial: (insumo as any).largura_comercial?.toString() ?? '',
+      altura_comercial: (insumo as any).altura_comercial?.toString() ?? '',
+      comprimento_comercial: (insumo as any).comprimento_comercial?.toString() ?? '',
+      perda_padrao_percent: (insumo as any).perda_padrao_percent?.toString() ?? '',
+      permite_simulacao_chapa: Boolean((insumo as any).permite_simulacao_chapa),
+      permite_registrar_sobra: Boolean((insumo as any).permite_registrar_sobra),
+      metodo_cobranca_padrao: (insumo as any).metodo_cobranca_padrao ?? 'AREA_LIQUIDA',
   } : undefined;
 
   if (loading) {

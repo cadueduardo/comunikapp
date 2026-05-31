@@ -46,6 +46,9 @@ interface Metricas {
   sobrasAproveitadas: number;
   economiaTotal: number;
   taxaAproveitamento: number;
+  sobrasDisponiveis?: number;
+  areaDisponivelM2?: number;
+  economiaUltimos30Dias?: number;
 }
 
 export default function SobrasPage() {
@@ -275,7 +278,37 @@ export default function SobrasPage() {
 
       {/* Cards de Métricas */}
       {metricas && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Disponíveis</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{metricas.sobrasDisponiveis ?? '—'}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Área em estoque</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {metricas.areaDisponivelM2 != null
+                  ? `${metricas.areaDisponivelM2.toFixed(1)} m²`
+                  : '—'}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Economia (30 dias)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                {formatarMoeda(metricas.economiaUltimos30Dias ?? 0)}
+              </div>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total de Sobras</CardTitle>
@@ -294,20 +327,15 @@ export default function SobrasPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Economia Total</CardTitle>
+              <CardTitle className="text-sm font-medium">Economia acumulada</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
                 {formatarMoeda(metricas.economiaTotal)}
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Taxa Aproveitamento</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metricas.taxaAproveitamento}%</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Taxa {metricas.taxaAproveitamento}%
+              </p>
             </CardContent>
           </Card>
         </div>

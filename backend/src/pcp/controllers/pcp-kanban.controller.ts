@@ -87,6 +87,7 @@ export class PCPKanbanController {
       data.operadorId,
       data.observacoes,
       usuario,
+      data.maquinaId,
     );
     return { message: 'Produção iniciada com sucesso' };
   }

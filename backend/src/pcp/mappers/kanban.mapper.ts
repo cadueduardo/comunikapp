@@ -44,6 +44,7 @@ export class KanbanMapper {
     const os =
       instancia.item_os?.os ?? instancia.workflow_instancia?.os ?? null;
     const workflowInfo = this.extrairWorkflowInfo(instancia.workflow_instancia);
+    const tempoPrevistoMin = Number(instancia.tempo_estimado ?? 0);
 
     return {
       id: instancia.item_os_id ?? instancia.id,
@@ -71,6 +72,9 @@ export class KanbanMapper {
       ...workflowInfo,
       setor_atual: instancia.setor?.nome,
       operador_atual: instancia.operador?.nome,
+      tempo_previsto_min: tempoPrevistoMin,
+      tempo_previsto_horas: this.arredondar(tempoPrevistoMin / 60),
+      maquina_prevista: this.extrairMaquinaPrevista(instancia.item_os),
     };
   }
 
@@ -431,5 +435,54 @@ export class KanbanMapper {
       workflow_nome: workflow.nome,
       workflow_setores_nomes: setoresNomes,
     };
+  }
+
+  private static extrairMaquinaPrevista(itemOS: any): { id?: string; nome?: string } | null {
+    const parametros = this.parseJsonObject(itemOS?.parametros_tecnicos);
+    const maquinas = Array.isArray(parametros?.maquinas)
+      ? parametros.maquinas
+      : [];
+    const maquina =
+      maquinas.find((item: any) => item?.maquina_id || item?.id || item?.nome) ??
+      null;
+
+    const id =
+      parametros?.maquina_id ??
+      parametros?.maquinaId ??
+      maquina?.maquina_id ??
+      maquina?.id ??
+      undefined;
+    const nome =
+      parametros?.maquina_nome ??
+      parametros?.maquinaNome ??
+      maquina?.nome ??
+      maquina?.maquina_nome ??
+      undefined;
+
+    if (!id && !nome) {
+      return null;
+    }
+
+    return { id, nome };
+  }
+
+  private static parseJsonObject(valor: unknown): any {
+    if (!valor) {
+      return null;
+    }
+
+    if (typeof valor !== 'string') {
+      return valor;
+    }
+
+    try {
+      return JSON.parse(valor);
+    } catch {
+      return null;
+    }
+  }
+
+  private static arredondar(valor: number): number {
+    return Math.round((valor + Number.EPSILON) * 100) / 100;
   }
 }

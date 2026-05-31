@@ -48,6 +48,7 @@ import { MaterialSection, MaquinaSection, FuncaoSection, ServicoSection } from '
 
 interface ProdutoSectionProps {
   mode: 'novo' | 'editar' | 'template';
+  orcamentoId?: string;
   onCarregarProduto?: (itemIndex: number) => void;
   insumos?: Array<{
     id: string;
@@ -290,7 +291,7 @@ function SincronizadorGeometriaProduto({ itemIndex }: { itemIndex: number }) {
   );
 }
 
-export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas = [], funcoes = [], servicos = [], onInsumoCriado }: ProdutoSectionProps) {
+export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, insumos = [], maquinas = [], funcoes = [], servicos = [], onInsumoCriado }: ProdutoSectionProps) {
   const form = useFormContext();
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -982,6 +983,7 @@ export function ProdutoSection({ mode, onCarregarProduto, insumos = [], maquinas
                     <MaterialSection
                       variant="orcamento"
                       itemIndex={index}
+                      orcamentoId={orcamentoId}
                       insumos={insumos}
                       onInsumoCriado={onInsumoCriado}
                     />

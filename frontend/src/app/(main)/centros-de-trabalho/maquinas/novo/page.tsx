@@ -38,6 +38,18 @@ export default function NovaMaquinaCTPage() {
         // Converter outros campos numéricos
         velocidade_m2_h: data.velocidade_m2_h ? Number(String(data.velocidade_m2_h).replace(',', '.')) : undefined,
         eficiencia_percent: data.eficiencia_percent ? Number(String(data.eficiencia_percent).replace(',', '.')) : undefined,
+        setor_id: data.setor_id || undefined,
+        usar_no_pcp: data.usar_no_pcp ?? true,
+        horas_disponiveis_dia: data.horas_disponiveis_dia
+          ? Number(String(data.horas_disponiveis_dia).replace(',', '.'))
+          : undefined,
+        permite_agendamento_simultaneo: Boolean(data.permite_agendamento_simultaneo),
+        tempo_minimo_entre_servicos_min: data.tempo_minimo_entre_servicos_min
+          ? Number(String(data.tempo_minimo_entre_servicos_min).replace(',', '.'))
+          : undefined,
+        considerar_eficiencia_na_capacidade: Boolean(
+          data.considerar_eficiencia_na_capacidade,
+        ),
       };
 
       await maquinasApi.create(transformedData, token);

@@ -62,6 +62,12 @@ export interface OSCardKanban {
   workflow_setores_nomes?: string[];
   setor_atual?: string;
   operador_atual?: string;
+  tempo_previsto_min?: number;
+  tempo_previsto_horas?: number;
+  maquina_prevista?: {
+    id?: string;
+    nome?: string;
+  } | null;
   /** ID da linha WorkflowInstanciaSetor (usar em mover-setor). */
   instancia_setor_id?: string;
   setor_id?: string;

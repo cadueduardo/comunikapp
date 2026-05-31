@@ -23,6 +23,7 @@ import { EventosAutomaticosService } from './eventos-automaticos.service';
 import { OSValidacoesService } from './os-validacoes.service';
 import { WorkflowAssignmentService } from '../../pcp/services/workflow-assignment.service';
 import { CreateOSDto } from '../dto/create-os.dto';
+import { AnotarSobraDto, RegistrarSobraDto } from '../dto/os-materiais.dto';
 import { CorrecaoMateriaisHelper } from '../helpers/correcao-materiais.helper';
 import { UpdateOSDto, AvancarEtapaDto } from '../dto/update-os.dto';
 import {
@@ -490,6 +491,236 @@ export class OSService {
       this.logger.error('Erro ao buscar OSs por status:', error);
       throw error;
     }
+  }
+
+  async listarMateriaisOS(osId: string, lojaId: string) {
+    const os = await this.prisma.ordemServico.findFirst({
+      where: { id: osId, loja_id: lojaId },
+      include: {
+        itens: true,
+      },
+    });
+
+    if (!os) {
+      throw new NotFoundException(`OS com ID ${osId} não encontrada`);
+    }
+
+    const materiaisBase = this.parseJsonArray<any>(
+      os.insumos_calculados,
+      `insumos_calculados para OS ${os.id}`,
+    );
+    const materiaisPorInsumo = new Map(
+      materiaisBase.map((material) => [material.insumo_id, material]),
+    );
+    const insumoIds = Array.from(
+      new Set(
+        [
+          ...materiaisBase.map((material) => material.insumo_id),
+          ...os.itens.flatMap((item) =>
+            this.parseJsonArray<any>(
+              item.insumos_necessarios,
+              `insumos_necessarios para ItemOS ${item.id}`,
+            ).map((material) => material.insumo_id),
+          ),
+        ].filter(Boolean),
+      ),
+    );
+
+    const insumos = await this.prisma.insumo.findMany({
+      where: { id: { in: insumoIds }, loja_id: lojaId },
+      select: {
+        id: true,
+        nome: true,
+        controla_estoque: true,
+        permite_registrar_sobra: true,
+      },
+    });
+    const insumosPorId = new Map(insumos.map((insumo) => [insumo.id, insumo]));
+
+    const itens = os.itens.map((item) => {
+      const materiaisItem = this.parseJsonArray<any>(
+        item.insumos_necessarios,
+        `insumos_necessarios para ItemOS ${item.id}`,
+      ).map((material) => {
+        const materialBase = materiaisPorInsumo.get(material.insumo_id) ?? {};
+        const insumo = insumosPorId.get(material.insumo_id);
+        const calculoChapa =
+          material.calculo_chapa ?? materialBase.calculo_chapa ?? null;
+
+        return {
+          item_os_id: item.id,
+          produto: item.produto_servico,
+          insumo_id: material.insumo_id,
+          nome: material.nome ?? insumo?.nome,
+          quantidade_necessaria: material.quantidade_necessaria,
+          unidade: material.unidade,
+          custo_total: material.custo_total,
+          controle_estoque: insumo?.controla_estoque
+            ? 'UTILIZADO'
+            : 'NAO_UTILIZADO',
+          permite_registrar_sobra: Boolean(insumo?.permite_registrar_sobra),
+          calculo_chapa: calculoChapa,
+          area_considerada:
+            calculoChapa?.area_considerada_custo_m2 ?? null,
+          aproveitamento_previsto:
+            calculoChapa?.aproveitamento_percent ?? null,
+          sobra_estimada: calculoChapa?.sobra_area_m2 ?? null,
+          sobra_acao: item.sobra_acao,
+          sobra_observacao: item.sobra_observacao,
+          sobra_registrada_id: item.sobra_registrada_id,
+        };
+      });
+
+      return {
+        item_os_id: item.id,
+        produto: item.produto_servico,
+        sobra_acao: item.sobra_acao,
+        sobra_observacao: item.sobra_observacao,
+        sobra_registrada_id: item.sobra_registrada_id,
+        materiais: materiaisItem,
+      };
+    });
+
+    return {
+      os_id: os.id,
+      numero: os.numero,
+      controle_estoque: insumos.some((insumo) => insumo.controla_estoque)
+        ? 'PARCIAL_OU_COMPLETO'
+        : 'NAO_UTILIZADO',
+      itens,
+    };
+  }
+
+  async ignorarSobraOS(
+    osId: string,
+    itemId: string,
+    lojaId: string,
+    usuarioId?: string,
+  ) {
+    const item = await this.buscarItemOSDaLoja(osId, itemId, lojaId);
+    await this.atualizarDecisaoSobra(
+      item.id,
+      'IGNORADA',
+      'Sobra ignorada pelo usuário.',
+      null,
+    );
+    await this.registrarLogOS(
+      osId,
+      'SOBRA_IGNORADA',
+      `Sobra ignorada no item ${item.produto_servico}.`,
+      usuarioId,
+    );
+    return { success: true, acao: 'IGNORADA' };
+  }
+
+  async anotarSobraOS(
+    osId: string,
+    itemId: string,
+    lojaId: string,
+    usuarioId: string | undefined,
+    dto: AnotarSobraDto,
+  ) {
+    const item = await this.buscarItemOSDaLoja(osId, itemId, lojaId);
+    const observacao =
+      dto.observacao?.trim() || 'Sobra anotada para avaliação futura.';
+    await this.atualizarDecisaoSobra(item.id, 'ANOTADA', observacao, null);
+    await this.registrarLogOS(
+      osId,
+      'SOBRA_ANOTADA',
+      `Sobra anotada no item ${item.produto_servico}.`,
+      usuarioId,
+    );
+    return { success: true, acao: 'ANOTADA', observacao };
+  }
+
+  async registrarSobraOS(
+    osId: string,
+    itemId: string,
+    lojaId: string,
+    usuarioId: string | undefined,
+    dto: RegistrarSobraDto,
+  ) {
+    const item = await this.buscarItemOSDaLoja(osId, itemId, lojaId);
+    const material = this.buscarMaterialDoItemOS(item, dto.insumoId);
+    const insumo = await this.prisma.insumo.findFirst({
+      where: { id: dto.insumoId, loja_id: lojaId },
+      select: { id: true, nome: true, unidade_dimensao: true },
+    });
+
+    if (!insumo) {
+      throw new BadRequestException('Insumo não pertence à loja autenticada.');
+    }
+
+    if (dto.estoqueId) {
+      const estoque = await this.prisma.$queryRaw<any[]>`
+        SELECT id FROM estoque_itens
+        WHERE id = ${dto.estoqueId} AND lojaId = ${lojaId}
+        LIMIT 1
+      `;
+      if (!estoque[0]) {
+        throw new BadRequestException(
+          'Item de estoque não pertence à loja autenticada.',
+        );
+      }
+    }
+
+    const calculoChapa = material.calculo_chapa ?? null;
+    const area = Number(dto.area ?? calculoChapa?.sobra_area_m2 ?? 0);
+    if (!Number.isFinite(area) || area <= 0) {
+      throw new BadRequestException(
+        'Informe uma área de sobra maior que zero.',
+      );
+    }
+
+    const codigoSobra = await this.gerarCodigoSobraOS(lojaId);
+    const largura = dto.largura ?? calculoChapa?.parametros?.largura_chapa;
+    const altura = dto.altura ?? calculoChapa?.parametros?.altura_chapa;
+    const unidadeDimensao =
+      dto.unidadeDimensao ??
+      calculoChapa?.unidade_dimensao ??
+      insumo.unidade_dimensao ??
+      'm';
+
+    await this.prisma.$executeRaw`
+      INSERT INTO estoque_sobras (
+        id, estoque_id, insumo_id, codigo_sobra, descricao, dimensoes,
+        largura, altura, unidade_dimensao, area, area_disponivel,
+        area_original, quantidade, unidade_medida, material, status, origem,
+        os_origem_id, item_os_origem_id, observacao_interna, loja_id,
+        created_at, updated_at
+      ) VALUES (
+        UUID(), ${dto.estoqueId ?? null}, ${dto.insumoId}, ${codigoSobra},
+        ${`Retalho gerado pela OS ${item.os.numero}`},
+        ${largura && altura ? `${largura} x ${altura} ${unidadeDimensao}` : null},
+        ${largura ?? null}, ${altura ?? null}, ${unidadeDimensao},
+        ${area}, ${area}, ${area}, ${area}, 'm2', ${insumo.nome},
+        'DISPONIVEL', 'OS', ${osId}, ${itemId}, ${dto.observacao ?? null},
+        ${lojaId}, NOW(), NOW()
+      )
+    `;
+
+    const sobra = await this.prisma.$queryRaw<any[]>`
+      SELECT * FROM estoque_sobras
+      WHERE codigo_sobra = ${codigoSobra} AND loja_id = ${lojaId}
+      LIMIT 1
+    `;
+
+    const sobraCriada = sobra[0];
+    await this.atualizarDecisaoSobra(
+      item.id,
+      'REGISTRADA',
+      dto.observacao ?? 'Sobra registrada como retalho.',
+      sobraCriada?.id ?? null,
+    );
+    await this.registrarLogOS(
+      osId,
+      'SOBRA_REGISTRADA',
+      `Sobra registrada como retalho no item ${item.produto_servico}.`,
+      usuarioId,
+      { sobra_id: sobraCriada?.id, codigo_sobra: codigoSobra },
+    );
+
+    return { success: true, acao: 'REGISTRADA', sobra: sobraCriada };
   }
 
   async atualizarStatus(
@@ -1645,6 +1876,103 @@ export class OSService {
     }
   }
 
+  private async buscarItemOSDaLoja(
+    osId: string,
+    itemId: string,
+    lojaId: string,
+  ) {
+    const item = await this.prisma.itemOS.findFirst({
+      where: {
+        id: itemId,
+        os_id: osId,
+        os: { loja_id: lojaId },
+      },
+      include: {
+        os: {
+          select: {
+            id: true,
+            numero: true,
+            loja_id: true,
+          },
+        },
+      },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Item da OS não encontrado nesta loja.');
+    }
+
+    return item;
+  }
+
+  private buscarMaterialDoItemOS(item: any, insumoId: string) {
+    const materiais = this.parseJsonArray<any>(
+      item.insumos_necessarios,
+      `insumos_necessarios para ItemOS ${item.id}`,
+    );
+    const material = materiais.find(
+      (itemMaterial) => itemMaterial.insumo_id === insumoId,
+    );
+
+    if (!material) {
+      throw new BadRequestException('Material não previsto neste item da OS.');
+    }
+
+    return material;
+  }
+
+  private async atualizarDecisaoSobra(
+    itemId: string,
+    acao: string,
+    observacao: string | null,
+    sobraId: string | null,
+  ) {
+    return this.prisma.itemOS.update({
+      where: { id: itemId },
+      data: {
+        sobra_acao: acao,
+        sobra_observacao: observacao,
+        sobra_registrada_id: sobraId,
+      },
+    });
+  }
+
+  private async registrarLogOS(
+    osId: string,
+    tipoAcao: string,
+    descricao: string,
+    usuarioId?: string,
+    dadosExtras?: any,
+  ): Promise<void> {
+    try {
+      await this.prisma.ordemServicoLog.create({
+        data: {
+          os_id: osId,
+          tipo_acao: tipoAcao,
+          descricao,
+          usuario_id: usuarioId ?? null,
+          dados_extras: dadosExtras ? JSON.stringify(dadosExtras) : null,
+        },
+      });
+    } catch (error) {
+      this.logger.warn(`Erro ao registrar log da OS ${osId}:`, error);
+    }
+  }
+
+  private async gerarCodigoSobraOS(lojaId: string): Promise<string> {
+    const ano = new Date().getFullYear();
+    const likePattern = `SOB-${ano}-%`;
+    const result = await this.prisma.$queryRaw<any[]>`
+      SELECT COUNT(*) as count
+      FROM estoque_sobras
+      WHERE loja_id = ${lojaId}
+        AND codigo_sobra LIKE ${likePattern}
+    `;
+    const count = Number(result[0]?.count ?? 0);
+
+    return `SOB-${ano}-${(count + 1).toString().padStart(3, '0')}`;
+  }
+
   private formatarOrdemServico(
     os: any,
     extras?: Partial<
@@ -1747,6 +2075,11 @@ export class OSService {
             custo_unitario:
               insumoCalculado?.custo_unitario || itemInsumo.custo_unitario,
             custo_total: insumoCalculado?.custo_total || itemInsumo.custo_total,
+            calculo_chapa:
+              insumoCalculado?.calculo_chapa ||
+              (itemInsumo.calculo_chapa
+                ? this.parseJsonObject(itemInsumo.calculo_chapa, 'calculo_chapa')
+                : null),
             // Informações de estoque
             disponivel_estoque: insumoCalculado?.disponivel_estoque ?? true,
             quantidade_disponivel: insumoCalculado?.quantidade_disponivel,
@@ -1884,6 +2217,9 @@ export class OSService {
         status_liberacao_pcp: item.status_liberacao_pcp,
         liberado_pcp_por: item.liberado_pcp_por,
         liberado_pcp_em: item.liberado_pcp_em,
+        sobra_acao: item.sobra_acao,
+        sobra_observacao: item.sobra_observacao,
+        sobra_registrada_id: item.sobra_registrada_id,
         prioridade_produto: item.prioridade_produto,
         ordem_producao: item.ordem_producao,
       })),
@@ -2790,6 +3126,19 @@ export class OSService {
       arquivo_geometria_url: produto.arquivo_geometria_url ?? null,
       categoria: produto.categoria ?? null,
       observacoes: produto.observacoes ?? null,
+      maquinas: Array.isArray(produto.maquinas)
+        ? produto.maquinas
+            .map((itemMaquina: any) => ({
+              maquina_id:
+                itemMaquina.maquina_id ?? itemMaquina.maquina?.id ?? null,
+              nome: itemMaquina.maquina?.nome ?? null,
+              horas_utilizadas:
+                itemMaquina.horas_uso?.toString?.() ??
+                itemMaquina.horas_utilizadas?.toString?.() ??
+                null,
+            }))
+            .filter((maquina: any) => maquina.maquina_id)
+        : [],
     };
   }
 
@@ -3168,6 +3517,9 @@ export class OSService {
               'parametros_consumo',
             )
           : null,
+        calculo_chapa: itemInsumo.calculo_chapa
+          ? this.parseJsonObject(itemInsumo.calculo_chapa, 'calculo_chapa')
+          : null,
         origem: 'orcamento' as const,
         orcamento_id: orcamento.id,
         data_calculo: orcamento.data_ultimo_calculo || orcamento.criado_em,
@@ -3285,6 +3637,9 @@ export class OSService {
             ? typeof itemInsumo.insumo.parametros_consumo === 'string'
               ? JSON.parse(itemInsumo.insumo.parametros_consumo)
               : itemInsumo.insumo.parametros_consumo
+            : null,
+          calculo_chapa: itemInsumo.calculo_chapa
+            ? this.parseJsonObject(itemInsumo.calculo_chapa, 'calculo_chapa')
             : null,
           origem: 'orcamento',
           orcamento_id: orcamento.id,

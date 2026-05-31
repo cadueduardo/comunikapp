@@ -22,6 +22,7 @@ import { ListaProdutosComPrazo } from "@/components/os/ListaProdutosComPrazo";
 import { ArteAprovacaoTab } from "@/components/os/arte-aprovacao/ArteAprovacaoTab";
 import { ArteAprovacaoSidebar } from "@/components/os/arte-aprovacao/ArteAprovacaoSidebar";
 import { ResumoOSSidebar } from "@/components/os/ResumoOSSidebar";
+import { OSMateriaisPanel } from "@/components/os/OSMateriaisPanel";
 import { useOsStatus } from "@/hooks/use-os-status";
 
 interface OSDetalhada extends OrdemServico {
@@ -245,15 +246,7 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed, statusDi
               
               {/* Conteúdo Central */}
               <div className="w-full lg:flex-1 lg:px-6">
-                <div className="text-center py-12">
-                  <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h2 className="text-lg font-medium text-gray-900 mb-2">
-                    Aba "Materiais" Selecionada
-                  </h2>
-                  <p className="text-gray-600">
-                    Conteúdo da aba será implementado nas próximas etapas.
-                  </p>
-                </div>
+                <OSMateriaisPanel osId={os.id} />
               </div>
             </div>
           )}

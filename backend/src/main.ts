@@ -11,8 +11,12 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
   // Configurar codificação UTF-8 para caracteres especiais
-  process.stdout.setEncoding('utf8');
-  process.stderr.setEncoding('utf8');
+  if (typeof process.stdout.setEncoding === 'function') {
+    process.stdout.setEncoding('utf8');
+  }
+  if (typeof process.stderr.setEncoding === 'function') {
+    process.stderr.setEncoding('utf8');
+  }
 
   // Configurar timezone - padrão Brasil, mas configurável via .env
   process.env.TZ = process.env.TZ || 'America/Sao_Paulo';

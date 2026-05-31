@@ -477,16 +477,31 @@ export function OrcamentoV2Form({
                 geometria_origem: produto.geometria_origem || 'MANUAL',
                 arquivo_geometria_url: String(produto.arquivo_geometria_url || ''),
                 unidade_geometria: produto.unidade_geometria || undefined,
-                materiais: (produto.insumos || []).map((ins: any) => ({
-                  insumo_id: ins.insumo_id,
-                  quantidade: ajustarQuantidadeMaterialParaFormulario(
-                    ins.quantidade,
-                    ins.unidade || ins.unidade_consumo,
-                    quantidadeProdutoNumero,
-                  ),
-                  unidade: ins.unidade || ins.unidade_consumo,
-                  material_do_cliente: Boolean(ins.material_do_cliente),
-                })),
+                materiais: (produto.insumos || []).map((ins: any) => {
+                  let calculoChapa: Record<string, unknown> | null = null;
+                  if (ins.calculo_chapa) {
+                    try {
+                      calculoChapa =
+                        typeof ins.calculo_chapa === 'string'
+                          ? JSON.parse(ins.calculo_chapa)
+                          : ins.calculo_chapa;
+                    } catch {
+                      calculoChapa = null;
+                    }
+                  }
+                  return {
+                    item_insumo_id: ins.id,
+                    insumo_id: ins.insumo_id,
+                    quantidade: ajustarQuantidadeMaterialParaFormulario(
+                      ins.quantidade,
+                      ins.unidade || ins.unidade_consumo,
+                      quantidadeProdutoNumero,
+                    ),
+                    unidade: ins.unidade || ins.unidade_consumo,
+                    material_do_cliente: Boolean(ins.material_do_cliente),
+                    calculo_chapa: calculoChapa,
+                  };
+                }),
                 maquinas: (produto.maquinas || []).map((maq: any) => ({
                   maquina_id: maq.maquina_id,
                   horas_utilizadas: String(maq.horas_utilizadas || maq.tempo_horas || '1'),
@@ -1852,6 +1867,7 @@ export function OrcamentoV2Form({
                   {/* Seção de Produtos */}
                   <ProdutoSection 
                     mode={mode}
+                    orcamentoId={orcamentoId}
                     onCarregarProduto={handleCarregarProduto}
                     insumos={insumos}
                     maquinas={maquinas}
@@ -2029,6 +2045,7 @@ export function OrcamentoV2Form({
               {/* Seção de Produtos */}
               <ProdutoSection 
                 mode={mode}
+                orcamentoId={orcamentoId}
                 onCarregarProduto={handleCarregarProduto}
                 insumos={insumos}
                 maquinas={maquinas}

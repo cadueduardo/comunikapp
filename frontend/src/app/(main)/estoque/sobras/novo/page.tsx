@@ -1,397 +1,436 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Save, Plus } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { ArrowLeft, Package, Search, SkipForward } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { estoqueApi, orcamentosApi } from '@/lib/api-client';
 
-interface ItemEstoque {
+interface OrcamentoResumo {
   id: string;
-  codigo: string;
-  nome?: string;
-  insumoNome?: string;
-  quantidade?: number;
-  quantidadeAtual?: number;
-  unidadeMedida?: string;
-  unidadeCompra?: string;
-  localizacao?: {
-    codigo?: string;
-    nome?: string;
-  };
-  localizacaoCodigo?: string;
+  numero: string;
+  titulo: string;
+  cliente_nome: string;
+  status: string;
 }
 
+interface CandidatoSobra {
+  item_insumo_id: string;
+  insumo_id: string;
+  insumo_nome: string;
+  produto_nome: string;
+  sobra_estimada_m2: number | null;
+  permite_registrar_sobra: boolean;
+  sugestao: {
+    descricao: string;
+    dimensoes: string | null;
+    area: number | null;
+    quantidade: number;
+    unidade_medida: string;
+    material: string;
+    orcamento_origem: string;
+    orcamento_numero: string;
+  };
+}
+
+type EstadoCandidato = 'pendente' | 'ignorado' | 'registrado';
+
 export default function NovaSobraPage() {
-  const [loading, setLoading] = useState(false);
-  const [itensEstoque, setItensEstoque] = useState<ItemEstoque[]>([]);
-  const [itemSelecionado, setItemSelecionado] = useState<ItemEstoque | null>(null);
-  const [formData, setFormData] = useState({
-    estoqueId: '',
-    descricao: '',
-    dimensoes: '',
-    area: '',
-    quantidade: '',
-    unidadeMedida: '',
-    material: '',
-    cor: '',
-    acabamento: '',
-    origem: '',
-    orcamentoOrigem: '',
-  });
   const router = useRouter();
+  const [busca, setBusca] = useState('');
+  const [buscando, setBuscando] = useState(false);
+  const [orcamentos, setOrcamentos] = useState<OrcamentoResumo[]>([]);
+  const [orcamentoSelecionado, setOrcamentoSelecionado] =
+    useState<OrcamentoResumo | null>(null);
+  const [candidatos, setCandidatos] = useState<CandidatoSobra[]>([]);
+  const [estados, setEstados] = useState<Record<string, EstadoCandidato>>({});
+  const [formularios, setFormularios] = useState<
+    Record<string, CandidatoSobra['sugestao'] & { observacao?: string }>
+  >({});
+  const [carregandoCandidatos, setCarregandoCandidatos] = useState(false);
+  const [salvandoId, setSalvandoId] = useState<string | null>(null);
 
-  useEffect(() => {
-    carregarItensEstoque();
-  }, []);
+  const buscarOrcamentos = useCallback(async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
 
-  const carregarItensEstoque = async () => {
+    setBuscando(true);
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('/api/estoque/itens', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setItensEstoque((data as any).data || data);
-      } else {
-        console.error('Erro ao carregar itens de estoque');
-      }
+      const lista = (await orcamentosApi.buscarOrigemSobra(
+        busca,
+        token,
+      )) as OrcamentoResumo[];
+      setOrcamentos(lista);
     } catch (error) {
-      console.error('Erro ao carregar itens de estoque:', error);
-    }
-  };
-
-  const handleItemChange = (itemId: string) => {
-    const item = itensEstoque.find(i => i.id === itemId);
-    setItemSelecionado(item || null);
-    setFormData(prev => ({
-      ...prev,
-      estoqueId: itemId,
-      unidadeMedida: item?.unidadeMedida || item?.unidadeCompra || '',
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('/api/estoque/sobras', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ...formData,
-          quantidade: parseFloat(formData.quantidade),
-          area: formData.area ? parseFloat(formData.area) : null,
-        }),
-      });
-
-      if (response.ok) {
-        await response.json();
-        toast.success('Sobra criada com sucesso!');
-        router.push('/estoque/sobras');
-      } else {
-        const error = await response.json().catch(() => ({}));
-        toast.error(`Erro ao criar sobra: ${error.message || 'Falha ao salvar'}`);
-      }
-    } catch (error) {
-      console.error('Erro ao criar sobra:', error);
-      toast.error('Erro ao criar sobra');
+      console.error(error);
+      toast.error('Erro ao buscar orçamentos');
     } finally {
-      setLoading(false);
+      setBuscando(false);
+    }
+  }, [busca]);
+
+  const selecionarOrcamento = async (orcamento: OrcamentoResumo) => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    setOrcamentoSelecionado(orcamento);
+    setCarregandoCandidatos(true);
+    try {
+      const res = (await orcamentosApi.getCandidatosSobra(
+        orcamento.id,
+        token,
+      )) as { candidatos: CandidatoSobra[] };
+
+      const lista = res.candidatos ?? [];
+      setCandidatos(lista);
+      const novoEstado: Record<string, EstadoCandidato> = {};
+      const novosForms: Record<string, CandidatoSobra['sugestao']> = {};
+      for (const c of lista) {
+        novoEstado[c.item_insumo_id] = 'pendente';
+        novosForms[c.item_insumo_id] = { ...c.sugestao };
+      }
+      setEstados(novoEstado);
+      setFormularios(novosForms);
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao carregar materiais do orçamento');
+      setOrcamentoSelecionado(null);
+    } finally {
+      setCarregandoCandidatos(false);
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
+  const atualizarForm = (
+    itemId: string,
+    campo: string,
+    valor: string | number,
+  ) => {
+    setFormularios((prev) => ({
       ...prev,
-      [field]: value,
+      [itemId]: { ...prev[itemId], [campo]: valor },
     }));
   };
+
+  const ignorar = (itemId: string) => {
+    setEstados((prev) => ({ ...prev, [itemId]: 'ignorado' }));
+  };
+
+  const registrar = async (candidato: CandidatoSobra) => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    const form = formularios[candidato.item_insumo_id];
+    if (!form?.descricao?.trim()) {
+      toast.error('Informe a descrição do retalho');
+      return;
+    }
+
+    setSalvandoId(candidato.item_insumo_id);
+    try {
+      await estoqueApi.createSobra(
+        {
+          insumoId: candidato.insumo_id,
+          descricao: form.descricao,
+          dimensoes: form.dimensoes,
+          area: form.area,
+          quantidade: form.quantidade,
+          unidadeMedida: form.unidade_medida,
+          material: form.material,
+          orcamentoOrigem: form.orcamento_origem,
+          origem: 'ORCAMENTO',
+          observacao: form.observacao,
+        },
+        token,
+      );
+      setEstados((prev) => ({
+        ...prev,
+        [candidato.item_insumo_id]: 'registrado',
+      }));
+      toast.success(`Retalho registrado: ${candidato.insumo_nome}`);
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error ? error.message : 'Erro ao registrar sobra',
+      );
+    } finally {
+      setSalvandoId(null);
+    }
+  };
+
+  const pendentes = candidatos.filter(
+    (c) => estados[c.item_insumo_id] === 'pendente',
+  ).length;
+  const registrados = candidatos.filter(
+    (c) => estados[c.item_insumo_id] === 'registrado',
+  ).length;
 
   return (
-    <div className="container mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
+    <div className="container mx-auto max-w-5xl pb-10">
+      <div className="mb-6 flex items-center gap-4">
         <Link href="/estoque/sobras">
           <Button variant="outline" size="sm">
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Nova Sobra</h1>
-          <p className="text-muted-foreground">Registrar nova sobra ou retalho</p>
+          <h1 className="text-2xl font-bold">Nova sobra / retalho</h1>
+          <p className="text-sm text-muted-foreground">
+            Comece pelo orçamento de origem — os dados do material são
+            preenchidos automaticamente.
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Formulário */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações da Sobra</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Seleção do Item de Estoque */}
-                <div className="space-y-2">
-                  <Label htmlFor="estoqueId">Item de Estoque *</Label>
-                  <Select value={formData.estoqueId} onValueChange={handleItemChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um item de estoque" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {itensEstoque.map((item) => {
-                        const nome = item.nome ?? item.insumoNome ?? '';
-                        const qtd = (item.quantidade ?? item.quantidadeAtual) ?? undefined;
-                        const un = item.unidadeMedida ?? item.unidadeCompra ?? '';
-                        return (
-                          <SelectItem key={item.id} value={item.id}>
-                            {item.codigo} - {nome} {qtd !== undefined ? `(${qtd} ${un})` : ''}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
+      {!orcamentoSelecionado ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">1. Orçamento de origem</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Número, cliente ou descrição do orçamento"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && void buscarOrcamentos()}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={buscando}
+                onClick={() => void buscarOrcamentos()}
+              >
+                <Search className="mr-2 h-4 w-4" />
+                Buscar
+              </Button>
+            </div>
 
-                {/* Informações do Item Selecionado */}
-                {itemSelecionado && (
-                  <Card className="bg-muted/50">
-                    <CardContent className="pt-4">
-                      <h4 className="font-medium mb-2">Item Selecionado:</h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="font-medium">Código:</span> {itemSelecionado.codigo}
-                        </div>
-                        <div>
-                          <span className="font-medium">Nome:</span> {itemSelecionado.nome ?? itemSelecionado.insumoNome}
-                        </div>
-                        <div>
-                          <span className="font-medium">Quantidade:</span> {(itemSelecionado.quantidade ?? itemSelecionado.quantidadeAtual) ?? '-'} {itemSelecionado.unidadeMedida ?? itemSelecionado.unidadeCompra ?? ''}
-                        </div>
+            {orcamentos.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Busque um orçamento para listar os materiais usados.
+              </p>
+            ) : (
+              <ul className="divide-y rounded-md border">
+                {orcamentos.map((o) => (
+                  <li key={o.id}>
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/50"
+                      onClick={() => void selecionarOrcamento(o)}
+                    >
                       <div>
-                          <span className="font-medium">Localização:</span> {itemSelecionado.localizacao?.codigo ?? itemSelecionado.localizacaoCodigo ?? '-'}
+                        <p className="font-medium">
+                          {o.numero} — {o.titulo}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {o.cliente_nome}
+                        </p>
                       </div>
-                      </div>
+                      <Badge variant="outline">{o.status}</Badge>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+              <div>
+                <p className="text-sm text-muted-foreground">Orçamento</p>
+                <p className="font-semibold">
+                  {orcamentoSelecionado.numero} — {orcamentoSelecionado.titulo}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {orcamentoSelecionado.cliente_nome}
+                </p>
+              </div>
+              <div className="flex gap-2 text-sm">
+                <Badge variant="secondary">{registrados} registrados</Badge>
+                <Badge variant="outline">{pendentes} pendentes</Badge>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setOrcamentoSelecionado(null);
+                  setCandidatos([]);
+                }}
+              >
+                Trocar orçamento
+              </Button>
+            </CardContent>
+          </Card>
+
+          {carregandoCandidatos ? (
+            <p className="text-sm text-muted-foreground">Carregando materiais…</p>
+          ) : candidatos.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                Este orçamento não tem materiais cadastrados.
+              </CardContent>
+            </Card>
+          ) : (
+            candidatos.map((c) => {
+              const estado = estados[c.item_insumo_id];
+              const form = formularios[c.item_insumo_id];
+
+              if (estado === 'ignorado') {
+                return (
+                  <Card key={c.item_insumo_id} className="opacity-50">
+                    <CardContent className="flex items-center justify-between py-4">
+                      <span className="text-sm line-through">
+                        {c.insumo_nome} — {c.produto_nome}
+                      </span>
+                      <Badge variant="outline">Ignorado</Badge>
                     </CardContent>
                   </Card>
-                )}
+                );
+              }
 
-                {/* Descrição */}
-                <div className="space-y-2">
-                  <Label htmlFor="descricao">Descrição da Sobra *</Label>
-                  <Textarea
-                    id="descricao"
-                    value={formData.descricao}
-                    onChange={(e) => handleInputChange('descricao', e.target.value)}
-                    placeholder="Descreva detalhadamente a sobra (ex: Retalho de PVC branco, restante de banner)"
-                    required
-                  />
-                </div>
+              if (estado === 'registrado') {
+                return (
+                  <Card
+                    key={c.item_insumo_id}
+                    className="border-emerald-200 bg-emerald-50/40"
+                  >
+                    <CardContent className="flex items-center justify-between py-4">
+                      <span className="text-sm font-medium">
+                        {c.insumo_nome} — registrado no estoque
+                      </span>
+                      <Badge className="bg-emerald-600">Registrado</Badge>
+                    </CardContent>
+                  </Card>
+                );
+              }
 
-                {/* Dimensões e Área */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="dimensoes">Dimensões</Label>
-                    <Input
-                      id="dimensoes"
-                      value={formData.dimensoes}
-                      onChange={(e) => handleInputChange('dimensoes', e.target.value)}
-                      placeholder="Ex: 100x50cm, 2mx1m"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="area">Área (m²)</Label>
-                    <Input
-                      id="area"
-                      type="number"
-                      step="0.01"
-                      value={formData.area}
-                      onChange={(e) => handleInputChange('area', e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
+              return (
+                <Card key={c.item_insumo_id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <Package className="h-4 w-4" />
+                          {c.insumo_nome}
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground">
+                          Produto: {c.produto_nome}
+                          {c.sobra_estimada_m2 != null && (
+                            <> · Sobra estimada: {c.sobra_estimada_m2.toFixed(2)} m²</>
+                          )}
+                        </p>
+                      </div>
+                      {!c.permite_registrar_sobra && (
+                        <Badge variant="outline" className="text-amber-700">
+                          Insumo sem flag de retalho
+                        </Badge>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="space-y-2">
+                      <Label>Descrição</Label>
+                      <Textarea
+                        value={form?.descricao ?? ''}
+                        onChange={(e) =>
+                          atualizarForm(
+                            c.item_insumo_id,
+                            'descricao',
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div>
+                        <Label>Dimensões</Label>
+                        <Input
+                          value={form?.dimensoes ?? ''}
+                          onChange={(e) =>
+                            atualizarForm(
+                              c.item_insumo_id,
+                              'dimensoes',
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Label>Área (m²)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={form?.area ?? ''}
+                          onChange={(e) =>
+                            atualizarForm(
+                              c.item_insumo_id,
+                              'area',
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Label>Quantidade</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={form?.quantidade ?? ''}
+                          onChange={(e) =>
+                            atualizarForm(
+                              c.item_insumo_id,
+                              'quantidade',
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={salvandoId === c.item_insumo_id}
+                        onClick={() => void registrar(c)}
+                      >
+                        Registrar retalho
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => ignorar(c.item_insumo_id)}
+                      >
+                        <SkipForward className="mr-2 h-4 w-4" />
+                        Ignorar
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
 
-                {/* Quantidade e Unidade */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="quantidade">Quantidade *</Label>
-                    <Input
-                      id="quantidade"
-                      type="number"
-                      step="0.01"
-                      value={formData.quantidade}
-                      onChange={(e) => handleInputChange('quantidade', e.target.value)}
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="unidadeMedida">Unidade de Medida *</Label>
-                    <Select value={formData.unidadeMedida} onValueChange={(value) => handleInputChange('unidadeMedida', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione a unidade" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="m²">m²</SelectItem>
-                        <SelectItem value="m">m</SelectItem>
-                        <SelectItem value="un">unidade</SelectItem>
-                        <SelectItem value="kg">kg</SelectItem>
-                        <SelectItem value="l">litro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Material e Cor */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="material">Material *</Label>
-                    <Select value={formData.material} onValueChange={(value) => handleInputChange('material', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o material" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PVC">PVC</SelectItem>
-                        <SelectItem value="ADESIVO">Adesivo</SelectItem>
-                        <SelectItem value="TECIDO">Tecido</SelectItem>
-                        <SelectItem value="LONA">Lona</SelectItem>
-                        <SelectItem value="PAPEL">Papel</SelectItem>
-                        <SelectItem value="ACRILICO">Acrílico</SelectItem>
-                        <SelectItem value="MDF">MDF</SelectItem>
-                        <SelectItem value="OUTRO">Outro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="cor">Cor</Label>
-                    <Input
-                      id="cor"
-                      value={formData.cor}
-                      onChange={(e) => handleInputChange('cor', e.target.value)}
-                      placeholder="Ex: Branco, Preto, Azul"
-                    />
-                  </div>
-                </div>
-
-                {/* Acabamento e Origem */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="acabamento">Acabamento</Label>
-                    <Select value={formData.acabamento} onValueChange={(value) => handleInputChange('acabamento', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o acabamento" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="LAMINADO">Laminado</SelectItem>
-                        <SelectItem value="FOSCO">Fosco</SelectItem>
-                        <SelectItem value="BRILHANTE">Brilhante</SelectItem>
-                        <SelectItem value="TEXTURIZADO">Texturizado</SelectItem>
-                        <SelectItem value="SEM_ACABAMENTO">Sem acabamento</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="origem">Origem</Label>
-                    <Input
-                      id="origem"
-                      value={formData.origem}
-                      onChange={(e) => handleInputChange('origem', e.target.value)}
-                      placeholder="Ex: Projeto ABC, Cliente XYZ"
-                    />
-                  </div>
-                </div>
-
-                {/* Orçamento de Origem */}
-                <div className="space-y-2">
-                  <Label htmlFor="orcamentoOrigem">Orçamento de Origem</Label>
-                  <Input
-                    id="orcamentoOrigem"
-                    value={formData.orcamentoOrigem}
-                    onChange={(e) => handleInputChange('orcamentoOrigem', e.target.value)}
-                    placeholder="Código do orçamento que gerou a sobra"
-                  />
-                </div>
-
-                {/* Botões */}
-                <div className="flex gap-4 pt-4">
-                  <Button type="submit" disabled={loading}>
-                    <Save className="w-4 h-4 mr-2" />
-                    {loading ? 'Salvando...' : 'Salvar Sobra'}
-                  </Button>
-                  <Link href="/estoque/sobras">
-                    <Button type="button" variant="outline">
-                      Cancelar
-                    </Button>
-                  </Link>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+          {registrados > 0 && pendentes === 0 && (
+            <div className="flex justify-end">
+              <Button onClick={() => router.push('/estoque/sobras')}>
+                Concluir e ver sobras
+              </Button>
+            </div>
+          )}
         </div>
-
-        {/* Sidebar com Informações */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h4 className="font-medium mb-2">Como registrar sobras:</h4>
-                <ul className="text-sm space-y-1 text-muted-foreground">
-                  <li>• Selecione o item de estoque de origem</li>
-                  <li>• Descreva detalhadamente a sobra</li>
-                  <li>• Informe as dimensões e área quando possível</li>
-                  <li>• Especifique o material e características</li>
-                  <li>• Registre a origem para rastreabilidade</li>
-                </ul>
-              </div>
-              
-              <div>
-                <h4 className="font-medium mb-2">Benefícios:</h4>
-                <ul className="text-sm space-y-1 text-muted-foreground">
-                  <li>• Redução de custos com materiais</li>
-                  <li>• Melhor aproveitamento de recursos</li>
-                  <li>• Rastreabilidade completa</li>
-                  <li>• Sugestões automáticas para novos projetos</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Dicas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm space-y-2 text-muted-foreground">
-                <p>• Sempre meça as dimensões quando possível</p>
-                <p>• Registre a cor e acabamento para facilitar buscas</p>
-                <p>• Use descrições detalhadas para facilitar o aproveitamento</p>
-                <p>• Mantenha as sobras organizadas por localização</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

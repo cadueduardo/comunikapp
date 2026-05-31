@@ -1,277 +1,329 @@
 'use client';
 
+import { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  IconChartBar, 
-  IconDownload,
-  IconCalendar,
-  IconTrendingUp,
-  IconTrendingDown,
+import {
+  IconChartBar,
+  IconRefresh,
   IconClock,
-  IconUsers,
-  IconBuilding
+  IconBuildingFactory,
 } from '@tabler/icons-react';
+import { pcpApi } from '@/lib/api-client';
+import Link from 'next/link';
+
+interface MaquinaOcupacao {
+  maquina_id: string;
+  nome: string;
+  setor?: { id: string; nome: string } | null;
+  setor_nome?: string;
+  horas_disponiveis: number;
+  horas_programadas: number;
+  horas_livres: number;
+  ocupacao_percent: number;
+  status_carga: string;
+}
+
+interface CapacidadeMaquinasResponse {
+  maquinas: MaquinaOcupacao[];
+  sem_maquina?: { itens: unknown[]; horas_programadas: number };
+  gerado_em?: string;
+}
+
+interface ItemPrevistoRealizado {
+  id: string;
+  os_numero: string;
+  os_titulo: string;
+  setor_nome: string;
+  item_descricao: string | null;
+  status: string;
+  tempo_previsto_min: number;
+  tempo_realizado_min: number;
+  desvio_min: number;
+  desvio_percent: number | null;
+}
+
+interface PrevistoRealizadoResponse {
+  resumo: {
+    total_itens: number;
+    tempo_previsto_min: number;
+    tempo_realizado_min: number;
+    desvio_min: number;
+    desvio_percent: number | null;
+  };
+  por_setor: Array<{
+    setor_nome: string;
+    itens: number;
+    previsto_min: number;
+    realizado_min: number;
+    desvio_percent: number | null;
+  }>;
+  itens: ItemPrevistoRealizado[];
+}
+
+function minutosParaHoras(min: number): string {
+  if (min <= 0) return '0h';
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m > 0 ? `${h}h ${m}min` : `${h}h`;
+}
+
+function badgeCarga(status: string) {
+  const map: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+    normal: 'secondary',
+    atencao: 'outline',
+    cheia: 'default',
+    sobrecarregada: 'destructive',
+  };
+  const labels: Record<string, string> = {
+    normal: 'Normal',
+    atencao: 'Atenção',
+    cheia: 'Cheia',
+    sobrecarregada: 'Sobrecarregada',
+  };
+  return (
+    <Badge variant={map[status] ?? 'outline'}>
+      {labels[status] ?? status}
+    </Badge>
+  );
+}
 
 export default function RelatoriosPage() {
-  const relatorios = [
-    {
-      id: '1',
-      nome: 'Eficiência por Etapa',
-      descricao: 'Análise de eficiência de cada etapa do workflow',
-      tipo: 'performance',
-      dados: {
-        total_etapas: 15,
-        eficiencia_media: 87.5,
-        tendencia: 'up',
-        variacao: '+5.2%'
-      }
-    },
-    {
-      id: '2',
-      nome: 'Tempo Médio de Produção',
-      descricao: 'Tempo médio gasto em cada tipo de produto',
-      tipo: 'tempo',
-      dados: {
-        tempo_medio: 4.5,
-        unidade: 'horas',
-        tendencia: 'down',
-        variacao: '-12%'
-      }
-    },
-    {
-      id: '3',
-      nome: 'Apontamentos por Usuário',
-      descricao: 'Quantidade de apontamentos realizados por usuário',
-      tipo: 'usuarios',
-      dados: {
-        total_usuarios: 8,
-        apontamentos_por_usuario: 12.5,
-        tendencia: 'up',
-        variacao: '+8%'
-      }
-    },
-    {
-      id: '4',
-      nome: 'Refugo e Qualidade',
-      descricao: 'Análise de refugo e indicadores de qualidade',
-      tipo: 'qualidade',
-      dados: {
-        taxa_refugo: 2.3,
-        unidade: '%',
-        tendencia: 'down',
-        variacao: '-15%'
-      }
+  const [maquinas, setMaquinas] = useState<MaquinaOcupacao[]>([]);
+  const [previsto, setPrevisto] = useState<PrevistoRealizadoResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const carregar = useCallback(async () => {
+    setLoading(true);
+    setErro(null);
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) throw new Error('Sessão expirada');
+
+      const [ocupacao, comparativo] = await Promise.all([
+        pcpApi.getOcupacaoMaquinasRelatorio(token) as Promise<CapacidadeMaquinasResponse>,
+        pcpApi.getPrevistoRealizado(token, { limite: '80' }) as Promise<PrevistoRealizadoResponse>,
+      ]);
+
+      setMaquinas(ocupacao.maquinas ?? []);
+      setPrevisto(comparativo);
+    } catch (e) {
+      console.error(e);
+      setErro('Não foi possível carregar os relatórios.');
+    } finally {
+      setLoading(false);
     }
-  ];
+  }, []);
 
-  const getTendenciaIcon = (tendencia: string) => {
-    return tendencia === 'up' ? 
-      <IconTrendingUp className="h-4 w-4 text-green-600" /> : 
-      <IconTrendingDown className="h-4 w-4 text-red-600" />;
-  };
+  useEffect(() => {
+    void carregar();
+  }, [carregar]);
 
-  const getTendenciaColor = (tendencia: string) => {
-    return tendencia === 'up' ? 'text-green-600' : 'text-red-600';
-  };
-
-  const getTipoIcon = (tipo: string) => {
-    switch (tipo) {
-      case 'performance':
-        return <IconChartBar className="h-6 w-6" />;
-      case 'tempo':
-        return <IconClock className="h-6 w-6" />;
-      case 'usuarios':
-        return <IconUsers className="h-6 w-6" />;
-      case 'qualidade':
-        return <IconBuilding className="h-6 w-6" />;
-      default:
-        return <IconChartBar className="h-6 w-6" />;
-    }
-  };
+  const resumo = previsto?.resumo;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Relatórios PCP
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Análise e relatórios de produção
+            Ocupação por máquina e comparativo previsto × realizado
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <IconCalendar className="h-4 w-4 mr-2" />
-            Filtrar Período
-          </Button>
-          <Button>
-            <IconDownload className="h-4 w-4 mr-2" />
-            Exportar Todos
+          <Link href="/pcp">
+            <Button variant="outline">Voltar ao PCP</Button>
+          </Link>
+          <Button onClick={() => void carregar()} disabled={loading}>
+            <IconRefresh className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Atualizar
           </Button>
         </div>
       </div>
 
-      {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Eficiência Média</CardTitle>
-            <IconChartBar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">87.5%</div>
-            <p className="text-xs text-green-600 flex items-center">
-              <IconTrendingUp className="h-3 w-3 mr-1" />
-              +5.2% vs mês anterior
-            </p>
-          </CardContent>
+      {erro && (
+        <Card className="border-destructive/50">
+          <CardContent className="pt-6 text-sm text-destructive">{erro}</CardContent>
         </Card>
+      )}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tempo Médio</CardTitle>
-            <IconClock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">4.5h</div>
-            <p className="text-xs text-green-600 flex items-center">
-              <IconTrendingDown className="h-3 w-3 mr-1" />
-              -12% vs mês anterior
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Apontamentos</CardTitle>
-            <IconUsers className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">156</div>
-            <p className="text-xs text-green-600 flex items-center">
-              <IconTrendingUp className="h-3 w-3 mr-1" />
-              +8% vs mês anterior
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Taxa de Refugo</CardTitle>
-            <IconBuilding className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">2.3%</div>
-            <p className="text-xs text-green-600 flex items-center">
-              <IconTrendingDown className="h-3 w-3 mr-1" />
-              -15% vs mês anterior
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Lista de Relatórios */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {relatorios.map((relatorio) => (
-          <Card key={relatorio.id}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {getTipoIcon(relatorio.tipo)}
-                  <div>
-                    <CardTitle className="text-xl">{relatorio.nome}</CardTitle>
-                    <CardDescription>{relatorio.descricao}</CardDescription>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm">
-                  <IconDownload className="h-4 w-4 mr-2" />
-                  Exportar
-                </Button>
-              </div>
+      {resumo && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Itens analisados</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-sm font-medium text-gray-500">
-                      {relatorio.tipo === 'performance' ? 'Etapas Analisadas' :
-                       relatorio.tipo === 'tempo' ? 'Tempo Médio' :
-                       relatorio.tipo === 'usuarios' ? 'Usuários Ativos' :
-                       'Taxa de Refugo'}
-                    </div>
-                    <div className="text-2xl font-bold">
-                      {relatorio.dados.total_etapas || relatorio.dados.tempo_medio || relatorio.dados.total_usuarios || relatorio.dados.taxa_refugo}
-                      {relatorio.dados.unidade && ` ${relatorio.dados.unidade}`}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-500">Variação</div>
-                    <div className={`text-lg font-semibold flex items-center ${getTendenciaColor(relatorio.dados.tendencia)}`}>
-                      {getTendenciaIcon(relatorio.dados.tendencia)}
-                      {relatorio.dados.variacao}
-                    </div>
-                  </div>
-                </div>
-                
-                {relatorio.tipo === 'performance' && (
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full" 
-                      style={{ width: `${relatorio.dados.eficiencia_media}%` }}
-                    />
-                  </div>
-                )}
-                
-                {relatorio.tipo === 'usuarios' && (
-                  <div className="text-sm text-gray-500">
-                    {relatorio.dados.apontamentos_por_usuario} apontamentos por usuário
-                  </div>
-                )}
+              <div className="text-2xl font-bold">{resumo.total_itens}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-1">
+                <IconClock className="h-4 w-4" /> Tempo previsto
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {minutosParaHoras(resumo.tempo_previsto_min)}
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Tempo realizado</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {minutosParaHoras(resumo.tempo_realizado_min)}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Desvio total</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div
+                className={`text-2xl font-bold ${
+                  resumo.desvio_min > 0 ? 'text-amber-600' : 'text-green-600'
+                }`}
+              >
+                {resumo.desvio_percent != null
+                  ? `${resumo.desvio_percent > 0 ? '+' : ''}${resumo.desvio_percent}%`
+                  : minutosParaHoras(resumo.desvio_min)}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-      {/* Gráficos e Análises */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <IconBuildingFactory className="h-5 w-5" />
+            Ocupação por máquina
+          </CardTitle>
+          <CardDescription>
+            Horas programadas vs capacidade diária (máquinas ativas no PCP)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Carregando...</p>
+          ) : maquinas.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma máquina com PCP ativo. Cadastre horas/dia e marque &quot;Usar no PCP&quot;.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="py-2 pr-4">Máquina</th>
+                    <th className="py-2 pr-4">Setor</th>
+                    <th className="py-2 pr-4">Programado</th>
+                    <th className="py-2 pr-4">Disponível</th>
+                    <th className="py-2 pr-4">Ocupação</th>
+                    <th className="py-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {maquinas.map((m) => (
+                    <tr key={m.maquina_id} className="border-b last:border-0">
+                      <td className="py-2 pr-4 font-medium">{m.nome}</td>
+                      <td className="py-2 pr-4">{m.setor?.nome ?? m.setor_nome ?? '—'}</td>
+                      <td className="py-2 pr-4">{m.horas_programadas.toFixed(1)} h</td>
+                      <td className="py-2 pr-4">{m.horas_disponiveis.toFixed(1)} h</td>
+                      <td className="py-2 pr-4">{m.ocupacao_percent.toFixed(0)}%</td>
+                      <td className="py-2">{badgeCarga(m.status_carga)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Eficiência por Período</CardTitle>
-            <CardDescription>
-              Evolução da eficiência nos últimos 30 dias
-            </CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <IconChartBar className="h-5 w-5" />
+              Previsto × realizado por setor
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-64 flex items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <div className="text-center">
-                <IconChartBar className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-500">Gráfico de eficiência</p>
-                <p className="text-sm text-gray-400">(Implementar gráfico)</p>
-              </div>
-            </div>
+          <CardContent className="space-y-3">
+            {!previsto?.por_setor?.length ? (
+              <p className="text-sm text-muted-foreground">
+                Sem dados com tempo previsto ou realizado registrado.
+              </p>
+            ) : (
+              previsto.por_setor.map((s) => (
+                <div key={s.setor_nome} className="flex justify-between items-center text-sm border-b pb-2">
+                  <div>
+                    <div className="font-medium">{s.setor_nome}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {s.itens} itens · prev. {minutosParaHoras(s.previsto_min)} · real.{' '}
+                      {minutosParaHoras(s.realizado_min)}
+                    </div>
+                  </div>
+                  {s.desvio_percent != null && (
+                    <span
+                      className={
+                        s.desvio_percent > 10
+                          ? 'text-amber-600 font-medium'
+                          : 'text-muted-foreground'
+                      }
+                    >
+                      {s.desvio_percent > 0 ? '+' : ''}
+                      {s.desvio_percent}%
+                    </span>
+                  )}
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Distribuição de Tempo</CardTitle>
-            <CardDescription>
-              Tempo gasto em cada etapa do workflow
-            </CardDescription>
+            <CardTitle>Últimos itens com desvio</CardTitle>
+            <CardDescription>Baseado em tempo estimado e tempo real do setor na OS</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="h-64 flex items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <div className="text-center">
-                <IconClock className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-500">Gráfico de distribuição</p>
-                <p className="text-sm text-gray-400">(Implementar gráfico)</p>
-              </div>
-            </div>
+          <CardContent className="max-h-80 overflow-y-auto space-y-2 text-sm">
+            {!previsto?.itens?.length ? (
+              <p className="text-muted-foreground">Nenhum registro.</p>
+            ) : (
+              previsto.itens
+                .filter((i) => i.tempo_realizado_min > 0 || i.tempo_previsto_min > 0)
+                .slice(0, 15)
+                .map((i) => (
+                  <div key={i.id} className="border-b pb-2">
+                    <div className="font-medium">
+                      OS {i.os_numero} · {i.setor_nome}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {i.item_descricao || i.os_titulo}
+                    </div>
+                    <div className="text-xs mt-1">
+                      Prev. {minutosParaHoras(i.tempo_previsto_min)} → Real.{' '}
+                      {minutosParaHoras(i.tempo_realizado_min)}
+                      {i.desvio_percent != null && (
+                        <span className="ml-2">
+                          ({i.desvio_percent > 0 ? '+' : ''}
+                          {i.desvio_percent}%)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+            )}
           </CardContent>
         </Card>
       </div>

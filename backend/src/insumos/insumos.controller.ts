@@ -18,6 +18,7 @@ import { UpdateInsumoDto } from './dto/update-insumo.dto';
 import { GetLoja } from '../auth/decorators';
 import { loja } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SimularChapaDto } from '../common/calculo-chapa/simular-chapa.dto';
 
 @Controller('insumos')
 @UseGuards(JwtAuthGuard)
@@ -55,6 +56,20 @@ export class InsumosController {
   @Get(':id')
   findOne(@Param('id') id: string, @GetLoja() loja: loja) {
     return this.insumosService.findOne(id, loja);
+  }
+
+  @Get(':id/calculo-chapa')
+  getCalculoChapa(@Param('id') id: string, @GetLoja() loja: loja) {
+    return this.insumosService.getConfiguracaoCalculoChapa(id, loja);
+  }
+
+  @Post(':id/simular-chapa')
+  simularChapa(
+    @Param('id') id: string,
+    @Body() dto: SimularChapaDto,
+    @GetLoja() loja: loja,
+  ) {
+    return this.insumosService.simularChapa(id, dto, loja);
   }
 
   @Patch(':id')

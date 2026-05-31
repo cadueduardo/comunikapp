@@ -146,6 +146,47 @@ export class SobrasController {
     );
   }
 
+  @Post(':id/aproveitar')
+  @ApiOperation({ summary: 'Aproveitar sobra ou retalho' })
+  @ApiResponse({
+    status: 201,
+    description: 'Aproveitamento registrado com sucesso',
+  })
+  @ApiResponse({ status: 400, description: 'Dados inválidos' })
+  @ApiParam({ name: 'id', description: 'ID da sobra' })
+  async aproveitarSobra(
+    @Req() req: EstoqueRequest,
+    @Param('id') id: string,
+    @Body() data: any,
+  ) {
+    const context = {
+      lojaId: req.estoque.lojaId,
+      usuarioId: req.estoque.usuarioId,
+    };
+    return withLogReturn(this.logger, 'Erro ao aproveitar sobra', () =>
+      this.sobrasService.registrarAproveitamento(context, id, data),
+    );
+  }
+
+  @Post(':id/descartar')
+  @ApiOperation({ summary: 'Descartar sobra ou retalho' })
+  @ApiResponse({ status: 200, description: 'Sobra descartada com sucesso' })
+  @ApiResponse({ status: 400, description: 'Dados inválidos' })
+  @ApiParam({ name: 'id', description: 'ID da sobra' })
+  async descartarSobra(
+    @Req() req: EstoqueRequest,
+    @Param('id') id: string,
+    @Body() data: any,
+  ) {
+    const context = {
+      lojaId: req.estoque.lojaId,
+      usuarioId: req.estoque.usuarioId,
+    };
+    return withLogReturn(this.logger, 'Erro ao descartar sobra', () =>
+      this.sobrasService.descartarSobra(context, id, data),
+    );
+  }
+
   @Get('sugestoes/buscar')
   @ApiOperation({ summary: 'Buscar sugestões de sobras' })
   @ApiResponse({ status: 200, description: 'Sugestões retornadas com sucesso' })
@@ -164,6 +205,11 @@ export class SobrasController {
     name: 'areaMaxima',
     required: false,
     description: 'Área máxima em m²',
+  })
+  @ApiQuery({
+    name: 'insumoId',
+    required: false,
+    description: 'Filtrar pelo mesmo insumo do orçamento',
   })
   async buscarSugestoes(@Req() req: EstoqueRequest, @Query() query: any) {
     const context = {

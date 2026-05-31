@@ -9,6 +9,13 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -19,13 +26,13 @@ import {
 import { KanbanBoard } from '@/components/ui/kanban-board';
 import type { KanbanColumn } from '@/components/ui/kanban-board';
 import { useKanbanData } from '@/hooks/useKanbanData';
+import { pcpApi } from '@/lib/api-client';
+import { cn } from '@/lib/utils';
 import {
   alternarSetoresVisiveis,
   cardPrecisaAtribuirWorkflow,
   cardSemSetoresProdutivos,
   montarQueryKanbanPorSetores,
-  montarTopGargalos,
-  nivelGargaloClassName,
   resumoSelecaoSetores,
 } from '@/lib/pcp/pcp.utils';
 import type { OSCard } from '@/components/ui/kanban-board';
@@ -37,6 +44,7 @@ import {
   IconClipboardList,
   IconClock,
   IconChevronDown,
+  IconChartBar,
   IconRefresh,
   IconSettings,
   IconUser,
@@ -133,6 +141,41 @@ interface KanbanPorSetoresResponse {
   gerado_em: string;
 }
 
+interface CapacidadeSetor {
+  setor_id: string;
+  nome: string;
+  cor?: string | null;
+  horas_disponiveis: number;
+  horas_programadas: number;
+  horas_livres: number;
+  ocupacao_percent: number;
+  status_carga: 'normal' | 'atencao' | 'cheia' | 'sobrecarregada';
+  itens_programados: unknown[];
+}
+
+interface CapacidadeSetoresResponse {
+  setores: CapacidadeSetor[];
+  gerado_em: string;
+}
+
+interface CapacidadeMaquina {
+  maquina_id: string | null;
+  nome: string;
+  setor?: { id: string; nome: string } | null;
+  horas_disponiveis?: number;
+  horas_programadas: number;
+  horas_livres?: number;
+  ocupacao_percent?: number;
+  status_carga?: CapacidadeSetor['status_carga'];
+  itens_programados: unknown[];
+}
+
+interface CapacidadeMaquinasResponse {
+  maquinas: CapacidadeMaquina[];
+  sem_maquina_definida?: CapacidadeMaquina | null;
+  gerado_em: string;
+}
+
 type PrazoBucket =
   | 'atrasados'
   | 'vence_hoje'
@@ -180,6 +223,13 @@ export default function PCPPage() {
   });
   const [loadingSetores, setLoadingSetores] = useState(false);
   const [erroSetores, setErroSetores] = useState<string | null>(null);
+  const [capacidadeSetores, setCapacidadeSetores] =
+    useState<CapacidadeSetoresResponse | null>(null);
+  const [capacidadeMaquinas, setCapacidadeMaquinas] =
+    useState<CapacidadeMaquinasResponse | null>(null);
+  const [loadingCapacidade, setLoadingCapacidade] = useState(false);
+  const [erroCapacidade, setErroCapacidade] = useState<string | null>(null);
+  const [cargaModalAberto, setCargaModalAberto] = useState(false);
   const {
     cards,
     stats,
@@ -247,6 +297,40 @@ export default function PCPPage() {
     }
   }, [filtrosSetores]);
 
+  const carregarCapacidadeSetores = useCallback(async () => {
+    setLoadingCapacidade(true);
+    setErroCapacidade(null);
+
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        throw new Error('Sessao expirada');
+      }
+
+      const params: Record<string, string> = {};
+      if (filtrosSetores.operadorId) params.operadorId = filtrosSetores.operadorId;
+      if (filtrosSetores.prioridade) params.prioridade = filtrosSetores.prioridade;
+      if (filtrosSetores.dataInicial) params.dataInicial = filtrosSetores.dataInicial;
+      if (filtrosSetores.dataFinal) params.dataFinal = filtrosSetores.dataFinal;
+
+      const data = (await pcpApi.getCapacidadeSetores(
+        token,
+        params,
+      )) as CapacidadeSetoresResponse;
+      const maquinas = (await pcpApi.getCapacidadeMaquinas(
+        token,
+        params,
+      )) as CapacidadeMaquinasResponse;
+      setCapacidadeSetores(data);
+      setCapacidadeMaquinas(maquinas);
+    } catch (capacidadeError) {
+      console.error('Erro ao carregar capacidade dos setores:', capacidadeError);
+      setErroCapacidade('Nao foi possivel carregar a carga produtiva.');
+    } finally {
+      setLoadingCapacidade(false);
+    }
+  }, [filtrosSetores]);
+
   useEffect(() => {
     void carregarDashboard();
   }, [carregarDashboard]);
@@ -271,8 +355,18 @@ export default function PCPPage() {
     }
 
     setKanbanSetores(null);
+    setCapacidadeSetores(null);
+    setCapacidadeMaquinas(null);
     setErroSetores(null);
+    setErroCapacidade(null);
+    setCargaModalAberto(false);
   }, [carregarKanbanPorSetores, nivel]);
+
+  useEffect(() => {
+    if (nivel === 'COMPLETO' && cargaModalAberto) {
+      void carregarCapacidadeSetores();
+    }
+  }, [cargaModalAberto, carregarCapacidadeSetores, nivel]);
 
   const cardsAtencao = useMemo(() => {
     if (dashboard?.cards_atencao?.length) {
@@ -339,6 +433,20 @@ export default function PCPPage() {
     }));
   }, [kanbanSetores]);
 
+  const itensNosSetores = useMemo(
+    () =>
+      (kanbanSetores?.colunas ?? []).reduce(
+        (total, coluna) => total + coluna.total,
+        0,
+      ),
+    [kanbanSetores],
+  );
+
+  const aguardandoProducaoCount = useMemo(
+    () => cards.filter((card) => card.status === 'FILA').length,
+    [cards],
+  );
+
   const opcoesOperadores = useMemo(() => {
     const mapa = new Map<string, string>();
     for (const coluna of kanbanSetores?.colunas ?? []) {
@@ -357,6 +465,7 @@ export default function PCPPage() {
     if (nivel === 'COMPLETO') {
       return [
         { label: 'Meu Setor', href: '/pcp/meu-setor', icon: <IconUser className="h-4 w-4" /> },
+        { label: 'Relatórios', href: '/pcp/relatorios', icon: <IconChartBar className="h-4 w-4" /> },
         { label: 'Setores', href: '/centros-de-trabalho/setores-produtivos', icon: <IconBuildingFactory className="h-4 w-4" /> },
         { label: 'Workflows', href: '/pcp/workflows', icon: <IconClipboardList className="h-4 w-4" /> },
       ];
@@ -481,6 +590,9 @@ export default function PCPPage() {
       refreshData(),
       carregarDashboard(),
       nivel === 'COMPLETO' ? carregarKanbanPorSetores() : Promise.resolve(),
+      nivel === 'COMPLETO' && cargaModalAberto
+        ? carregarCapacidadeSetores()
+        : Promise.resolve(),
     ]);
   }
 
@@ -554,8 +666,8 @@ export default function PCPPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={atualizar} disabled={loading || loadingDashboard || loadingSetores}>
-            <IconRefresh className={`mr-2 h-4 w-4 ${loading || loadingSetores ? 'animate-spin' : ''}`} />
+          <Button variant="outline" size="sm" onClick={atualizar} disabled={loading || loadingDashboard || loadingSetores || loadingCapacidade}>
+            <IconRefresh className={`mr-2 h-4 w-4 ${loading || loadingSetores || loadingCapacidade ? 'animate-spin' : ''}`} />
             Atualizar
           </Button>
           <Button asChild size="sm" variant={nivel ? 'outline' : 'default'}>
@@ -589,42 +701,87 @@ export default function PCPPage() {
         </section>
       )}
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Indicador
-          label="Na fila"
-          valor={statsExibir.fila}
-          detalhe={
-            osAguardandoWorkflow > 0
-              ? `${osAguardandoWorkflow} aguardando workflow`
-              : 'Aguardando produção'
-          }
-        />
-        <Indicador label="Em produção" valor={statsExibir.producao} detalhe="Em andamento" />
-        <Indicador label="Atrasadas" valor={statsExibir.atrasadas} detalhe="Precisam de ação" destaque={statsExibir.atrasadas > 0} />
-        <Indicador label="Prontas" valor={statsExibir.concluida} detalhe="Concluídas no PCP" />
+      <section
+        className={cn(
+          'grid gap-3',
+          nivel === 'COMPLETO' ? 'sm:grid-cols-3' : 'sm:grid-cols-2 lg:grid-cols-4',
+        )}
+      >
+        {nivel === 'COMPLETO' ? (
+          <>
+            <Indicador
+              label="Aguardando produção"
+              valor={aguardandoProducaoCount}
+              detalhe={
+                osAguardandoWorkflow > 0
+                  ? `${osAguardandoWorkflow} sem workflow`
+                  : 'Na fila de entrada'
+              }
+            />
+            <Indicador
+              label="Nos setores agora"
+              valor={itensNosSetores}
+              detalhe="OS distribuídas por setor"
+            />
+            <Indicador
+              label="Atrasadas"
+              valor={statsExibir.atrasadas}
+              detalhe="Prazo vencido"
+              destaque={statsExibir.atrasadas > 0}
+            />
+          </>
+        ) : (
+          <>
+            <Indicador
+              label="Na fila"
+              valor={statsExibir.fila}
+              detalhe={
+                osAguardandoWorkflow > 0
+                  ? `${osAguardandoWorkflow} aguardando workflow`
+                  : 'Aguardando produção'
+              }
+            />
+            <Indicador
+              label="Em produção"
+              valor={statsExibir.producao}
+              detalhe="Em andamento"
+            />
+            <Indicador
+              label="Atrasadas"
+              valor={statsExibir.atrasadas}
+              detalhe="Precisam de ação"
+              destaque={statsExibir.atrasadas > 0}
+            />
+            <Indicador
+              label="Prontas"
+              valor={statsExibir.concluida}
+              detalhe="Concluídas no PCP"
+            />
+          </>
+        )}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <section
+        className={cn(
+          'grid gap-6',
+          nivel === 'COMPLETO'
+            ? 'xl:grid-cols-[minmax(0,1fr)_260px]'
+            : 'xl:grid-cols-[minmax(0,1fr)_340px]',
+        )}
+      >
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">
                 {nivel === 'COMPLETO'
-                  ? 'Visão de produção'
+                  ? 'Onde estão as OS'
                   : 'Quadro de produção'}
               </h2>
               <p className="text-sm text-muted-foreground">
-                Última atualização: {lastRefresh.toLocaleTimeString('pt-BR')}
+                {nivel === 'COMPLETO'
+                  ? `Aguardando produção e posição em cada setor · atualizado ${lastRefresh.toLocaleTimeString('pt-BR')}`
+                  : `Última atualização: ${lastRefresh.toLocaleTimeString('pt-BR')}`}
               </p>
-              {nivel === 'COMPLETO' && statsExibir.fila > 0 && (
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {statsExibir.fila} OS na fila de entrada
-                  {osAguardandoWorkflow > 0
-                    ? ` — ${osAguardandoWorkflow} aguardando workflow`
-                    : ''}
-                  .
-                </p>
-              )}
               {nivel !== 'COMPLETO' && osAguardandoWorkflow > 0 && (
                 <p className="mt-1 text-sm text-amber-800">
                   {osAguardandoWorkflow}{' '}
@@ -664,11 +821,13 @@ export default function PCPPage() {
               )}
 
               <div className="space-y-3">
-                <div>
-                  <h3 className="text-base font-semibold">Produção por setores</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Itens já em execução, distribuídos pelos setores produtivos.
-                  </p>
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold">Em produção — por setor</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Cada coluna é o setor onde a OS está neste momento.
+                    </p>
+                  </div>
                 </div>
 
               <FiltrosKanbanSetores
@@ -734,70 +893,70 @@ export default function PCPPage() {
         </div>
 
         <aside className="space-y-4">
-          {nivel === 'COMPLETO' && (dashboard?.gargalos?.length ?? 0) > 0 && (
+          {nivel === 'COMPLETO' && (
             <section className="rounded-lg border bg-white p-4">
-              <h2 className="text-sm font-semibold">Gargalos por setor</h2>
-              <div className="mt-3 space-y-2">
-                {dashboard!.gargalos.map((gargalo) => (
-                  <div
-                    key={gargalo.setor_id}
-                    className="rounded-md border px-3 py-2 text-xs"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium">{gargalo.titulo}</span>
-                      <Badge
-                        variant="outline"
-                        className={nivelGargaloClassName(gargalo.nivel_gargalo)}
-                      >
-                        {gargalo.nivel_gargalo}
-                      </Badge>
-                    </div>
-                    <p className="mt-1 text-muted-foreground">
-                      Score {gargalo.score_gargalo} · Fila {gargalo.pendentes} ·
-                      Pausado {gargalo.pausadas} · Atrasado {gargalo.atrasadas}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              <h2 className="text-sm font-semibold">Consultas</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Capacidade, máquinas e análises fora da visão principal.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-3 w-full justify-start"
+                onClick={() => setCargaModalAberto(true)}
+              >
+                <IconChartBar className="mr-2 h-4 w-4" />
+                Carga produtiva
+              </Button>
+              <Button asChild variant="outline" className="mt-2 w-full justify-start">
+                <Link href="/pcp/relatorios">
+                  <IconClipboardList className="mr-2 h-4 w-4" />
+                  Relatórios (ocupação e previsto × realizado)
+                </Link>
+              </Button>
             </section>
           )}
 
-          <section className="rounded-lg border bg-white p-4">
-            <h2 className="text-sm font-semibold">Precisa de atenção</h2>
-            <div className="mt-3 space-y-3">
-              {cardsAtencao.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhuma OS crítica no momento.</p>
-              ) : (
-                cardsAtencao.map((card) => (
-                  <button
-                    key={card.id}
-                    type="button"
-                    className="block w-full rounded-md border p-3 text-left transition-colors hover:bg-muted"
-                    onClick={() => handleCardAtencaoClick(card)}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-medium">{card.numero}</p>
-                        <p className="text-xs text-muted-foreground">{card.cliente}</p>
+          {nivel !== 'COMPLETO' && (
+            <section className="rounded-lg border bg-white p-4">
+              <h2 className="text-sm font-semibold">Precisa de atenção</h2>
+              <div className="mt-3 space-y-3">
+                {cardsAtencao.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhuma OS crítica no momento.
+                  </p>
+                ) : (
+                  cardsAtencao.map((card) => (
+                    <button
+                      key={card.id}
+                      type="button"
+                      className="block w-full rounded-md border p-3 text-left transition-colors hover:bg-muted"
+                      onClick={() => handleCardAtencaoClick(card)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium">{card.numero}</p>
+                          <p className="text-xs text-muted-foreground">{card.cliente}</p>
+                        </div>
+                        <Badge variant="outline">{card.prioridade}</Badge>
                       </div>
-                      <Badge variant="outline">{card.prioridade}</Badge>
-                    </div>
-                    <p className="mt-2 line-clamp-2 text-sm">{card.titulo}</p>
-                    {cardPrecisaAtribuirWorkflow(card) ? (
-                      <p className="mt-1 text-xs font-medium text-amber-800">
-                        Aguardando workflow — clique para atribuir
-                      </p>
-                    ) : (
-                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                        <IconClock className="h-3.5 w-3.5" />
-                        {card.data_prazo || 'Sem prazo definido'}
-                      </p>
-                    )}
-                  </button>
-                ))
-              )}
-            </div>
-          </section>
+                      <p className="mt-2 line-clamp-2 text-sm">{card.titulo}</p>
+                      {cardPrecisaAtribuirWorkflow(card) ? (
+                        <p className="mt-1 text-xs font-medium text-amber-800">
+                          Aguardando workflow — clique para atribuir
+                        </p>
+                      ) : (
+                        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                          <IconClock className="h-3.5 w-3.5" />
+                          {card.data_prazo || 'Sem prazo definido'}
+                        </p>
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
+            </section>
+          )}
 
           <section className="rounded-lg border bg-white p-4">
             <h2 className="text-sm font-semibold">Atalhos do modo {nivel ? nivelLabel[nivel] : 'PCP'}</h2>
@@ -822,6 +981,32 @@ export default function PCPPage() {
         onClose={fecharDialogAtribuirWorkflow}
         onAssigned={() => void handleWorkflowAtribuido()}
       />
+
+      {nivel === 'COMPLETO' && (
+        <Dialog open={cargaModalAberto} onOpenChange={setCargaModalAberto}>
+          <DialogContent fullscreen showCloseButton>
+            <DialogHeader className="shrink-0 border-b px-6 py-4 text-left">
+              <DialogTitle>Carga produtiva</DialogTitle>
+              <DialogDescription>
+                Horas programadas por setor e ocupação por máquina — consulta
+                gerencial, separada da posição das OS.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4 space-y-6">
+              <CargaProdutivaSetores
+                data={capacidadeSetores}
+                loading={loadingCapacidade}
+                error={erroCapacidade}
+              />
+              <OcupacaoMaquinas
+                data={capacidadeMaquinas}
+                loading={loadingCapacidade}
+                error={erroCapacidade}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
@@ -1070,10 +1255,10 @@ function FilaEntradaPCP({
     <section className="rounded-lg border bg-white p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold">Fila de entrada</h3>
+          <h3 className="text-sm font-semibold">Aguardando para produzir</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            OS liberadas para o PCP. Atribua o workflow aqui antes de distribuir
-            nos setores.
+            OS na fila do PCP — atribua workflow se necessário; depois entram nos
+            setores abaixo.
           </p>
         </div>
         <Badge variant="secondary">{cards.length}</Badge>
@@ -1144,6 +1329,205 @@ function FilaEntradaPCP({
   );
 }
 
+function CargaProdutivaSetores({
+  data,
+  loading,
+  error,
+}: {
+  data: CapacidadeSetoresResponse | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  if (loading && !data) {
+    return (
+      <section className="rounded-lg border bg-white p-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <IconRefresh className="h-4 w-4 animate-spin" />
+          Carregando carga produtiva
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        {error}
+      </section>
+    );
+  }
+
+  const setores = data?.setores ?? [];
+
+  if (setores.length === 0) {
+    return (
+      <section className="rounded-lg border bg-white p-4">
+        <h3 className="text-sm font-semibold">Carga produtiva por setor</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Nenhum setor ativo encontrado para calcular capacidade.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-lg border bg-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold">Carga produtiva por setor</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Horas previstas comparadas com a capacidade diaria configurada.
+          </p>
+        </div>
+        {data?.gerado_em && (
+          <span className="text-xs text-muted-foreground">
+            {new Date(data.gerado_em).toLocaleTimeString('pt-BR')}
+          </span>
+        )}
+      </div>
+
+      <div className="mt-3 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+        {setores.map((setor) => {
+          const ocupacao = Math.min(Math.max(setor.ocupacao_percent, 0), 100);
+
+          return (
+            <div key={setor.setor_id} className="rounded-md border p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: setor.cor || '#71717a' }}
+                  />
+                  <span className="truncate text-sm font-medium">{setor.nome}</span>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={statusCargaClassName(setor.status_carga)}
+                >
+                  {statusCargaLabel(setor.status_carga)}
+                </Badge>
+              </div>
+
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className={cn(
+                    'h-full rounded-full',
+                    statusCargaBarClassName(setor.status_carga),
+                  )}
+                  style={{ width: `${ocupacao}%` }}
+                />
+              </div>
+
+              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                <ResumoCarga label="Carga" valor={`${setor.horas_programadas}h`} />
+                <ResumoCarga label="Disp." valor={`${setor.horas_disponiveis}h`} />
+                <ResumoCarga label="Ocup." valor={`${setor.ocupacao_percent}%`} />
+              </div>
+
+              <p className="mt-2 text-xs text-muted-foreground">
+                Livre: {setor.horas_livres}h | Itens: {setor.itens_programados.length}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function ResumoCarga({ label, valor }: { label: string; valor: string }) {
+  return (
+    <div className="rounded-md bg-muted px-2 py-1.5">
+      <p className="font-semibold tabular-nums">{valor}</p>
+      <p className="text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function OcupacaoMaquinas({
+  data,
+  loading,
+  error,
+}: {
+  data: CapacidadeMaquinasResponse | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  if (loading && !data) {
+    return null;
+  }
+
+  if (error || !data) {
+    return null;
+  }
+
+  const maquinasComCarga = [...data.maquinas]
+    .sort((a, b) => (b.ocupacao_percent ?? 0) - (a.ocupacao_percent ?? 0))
+    .slice(0, 6);
+  const semMaquina = data.sem_maquina_definida;
+
+  if (maquinasComCarga.length === 0 && !semMaquina?.itens_programados.length) {
+    return null;
+  }
+
+  return (
+    <section className="rounded-lg border bg-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold">Ocupacao por maquina</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Maquinas ordenadas por maior ocupacao programada.
+          </p>
+        </div>
+        {semMaquina && semMaquina.itens_programados.length > 0 && (
+          <Badge variant="outline" className="border-amber-200 text-amber-700">
+            {semMaquina.itens_programados.length} sem maquina
+          </Badge>
+        )}
+      </div>
+
+      <div className="mt-3 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+        {maquinasComCarga.map((maquina) => {
+          const status = maquina.status_carga ?? 'normal';
+          const ocupacao = Math.min(
+            Math.max(Number(maquina.ocupacao_percent ?? 0), 0),
+            100,
+          );
+
+          return (
+            <div key={maquina.maquina_id ?? maquina.nome} className="rounded-md border p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{maquina.nome}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {maquina.setor?.nome ?? 'Sem setor'}
+                  </p>
+                </div>
+                <Badge variant="outline" className={statusCargaClassName(status)}>
+                  {statusCargaLabel(status)}
+                </Badge>
+              </div>
+
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className={cn('h-full rounded-full', statusCargaBarClassName(status))}
+                  style={{ width: `${ocupacao}%` }}
+                />
+              </div>
+
+              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                <ResumoCarga label="Prog." valor={`${maquina.horas_programadas}h`} />
+                <ResumoCarga label="Disp." valor={`${maquina.horas_disponiveis ?? 0}h`} />
+                <ResumoCarga label="Ocup." valor={`${maquina.ocupacao_percent ?? 0}%`} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function KanbanPorSetores({
   data,
   loading,
@@ -1208,35 +1592,8 @@ function KanbanPorSetores({
     );
   }
 
-  const gargalos = montarTopGargalos(colunasFiltradas, 3);
-
   return (
     <div className="space-y-3 pb-2">
-      {gargalos.length > 0 && (
-        <section className="rounded-lg border bg-white p-3">
-          <h3 className="text-sm font-semibold">Gargalos por setor</h3>
-          <div className="mt-2 grid gap-2 md:grid-cols-3">
-            {gargalos.map((coluna) => (
-              <div key={`gargalo-${coluna.id}`} className="rounded-md border p-2">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-sm font-medium">{coluna.titulo}</p>
-                  <Badge
-                    variant="outline"
-                    className={nivelGargaloClassName(coluna.nivel_gargalo)}
-                  >
-                    {coluna.nivel_gargalo}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Score: {coluna.score_gargalo} | Fila: {coluna.pendentes} | Pausado:{' '}
-                  {coluna.pausadas} | Atrasado: {coluna.atrasadas}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       <div className={gridColunasSetoresClass(colunasFiltradas.length)}>
         {colunasFiltradas.map((coluna) => (
           <section key={coluna.id} className="rounded-lg border bg-white">
@@ -1250,17 +1607,6 @@ function KanbanPorSetores({
                   <h3 className="truncate text-sm font-semibold">{coluna.titulo}</h3>
                 </div>
                 <Badge variant="secondary">{coluna.total}</Badge>
-              </div>
-              <div className="mt-2 flex items-center justify-between">
-                <Badge
-                  variant="outline"
-                  className={nivelGargaloClassName(coluna.nivel_gargalo)}
-                >
-                  Gargalo {coluna.nivel_gargalo}
-                </Badge>
-                <span className="text-xs text-muted-foreground">
-                  Score {coluna.score_gargalo}
-                </span>
               </div>
               <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
                 <ResumoSetor label="Fila" valor={coluna.pendentes} />
@@ -1294,20 +1640,6 @@ function KanbanPorSetores({
                     </div>
 
                     <p className="mt-2 line-clamp-2 text-sm">{card.titulo}</p>
-
-                    {card.workflow_nome && (
-                      <div
-                        className="mt-2"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <WorkflowCardInfo
-                          compact
-                          workflowId={card.workflow_id}
-                          workflowNome={card.workflow_nome}
-                          setoresNomes={card.workflow_setores_nomes}
-                        />
-                      </div>
-                    )}
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <Badge variant="secondary">{statusSetorLabel(card.status)}</Badge>
@@ -1444,6 +1776,39 @@ function prioridadeClassName(prioridade: KanbanSetorCard['prioridade']) {
   };
 
   return classes[prioridade];
+}
+
+function statusCargaLabel(status: CapacidadeSetor['status_carga']) {
+  const labels: Record<CapacidadeSetor['status_carga'], string> = {
+    normal: 'Normal',
+    atencao: 'Atencao',
+    cheia: 'Cheia',
+    sobrecarregada: 'Sobrecarregada',
+  };
+
+  return labels[status];
+}
+
+function statusCargaClassName(status: CapacidadeSetor['status_carga']) {
+  const classes: Record<CapacidadeSetor['status_carga'], string> = {
+    normal: 'border-emerald-200 text-emerald-700',
+    atencao: 'border-amber-200 text-amber-700',
+    cheia: 'border-orange-200 text-orange-700',
+    sobrecarregada: 'border-red-200 text-red-700',
+  };
+
+  return classes[status];
+}
+
+function statusCargaBarClassName(status: CapacidadeSetor['status_carga']) {
+  const classes: Record<CapacidadeSetor['status_carga'], string> = {
+    normal: 'bg-emerald-500',
+    atencao: 'bg-amber-500',
+    cheia: 'bg-orange-500',
+    sobrecarregada: 'bg-red-500',
+  };
+
+  return classes[status];
 }
 
 function Indicador({

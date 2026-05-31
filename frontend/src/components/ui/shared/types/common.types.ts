@@ -30,6 +30,15 @@ export interface Insumo {
   categoria: {
     nome: string;
   };
+  formato_material?: string | null;
+  largura_comercial?: number | null;
+  altura_comercial?: number | null;
+  comprimento_comercial?: number | null;
+  perda_padrao_percent?: number | null;
+  permite_simulacao_chapa?: boolean;
+  permite_registrar_sobra?: boolean;
+  metodo_cobranca_padrao?: string | null;
+  controla_estoque?: boolean;
 }
 
 export interface Maquina {

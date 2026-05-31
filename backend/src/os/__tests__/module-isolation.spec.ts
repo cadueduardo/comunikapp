@@ -33,7 +33,9 @@ describe('Modulo OS - Testes de Isolamento', () => {
   });
 
   afterEach(async () => {
-    await module.close();
+    if (module) {
+      await module.close();
+    }
   });
 
   describe('Isolamento de Modulo', () => {

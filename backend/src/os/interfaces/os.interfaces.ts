@@ -95,6 +95,9 @@ export interface ItemOSData {
   status_liberacao_pcp?: string;
   liberado_pcp_por?: string;
   liberado_pcp_em?: Date;
+  sobra_acao?: string;
+  sobra_observacao?: string;
+  sobra_registrada_id?: string;
   prioridade_produto?: string;
   ordem_producao?: number;
 }
@@ -133,6 +136,7 @@ export interface MaterialProdutoData {
   localizacao_estoque?: string;
   custo_unitario?: number;
   custo_total?: number;
+  calculo_chapa?: any;
 }
 
 export interface MaquinaProdutoData {
@@ -301,6 +305,7 @@ export interface InsumoCalculado {
   produto_nome: string; // Nome do produto para rastreabilidade
   logica_consumo?: string; // Lógica de consumo do insumo
   parametros_consumo?: any; // Parâmetros de consumo do insumo
+  calculo_chapa?: any;
   origem: 'orcamento' | 'os'; // Origem do cálculo
   orcamento_id?: string; // ID do orçamento de origem
   data_calculo?: Date; // Data do cálculo do orçamento

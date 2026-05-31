@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsIn } from 'class-validator';
+import { IsBoolean, IsInt, IsString, IsNumber, IsOptional, IsIn, Min } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 // Lista de tipos de máquinas válidos
@@ -153,6 +153,31 @@ export class CreateMaquinaDto {
   @IsOptional()
   @IsNumber()
   eficiencia_percent?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  usar_no_pcp?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  horas_disponiveis_dia?: number;
+
+  @IsOptional()
+  dias_produtivos?: Record<string, unknown> | string;
+
+  @IsOptional()
+  @IsBoolean()
+  permite_agendamento_simultaneo?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  tempo_minimo_entre_servicos_min?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  considerar_eficiencia_na_capacidade?: boolean;
 
   @IsOptional()
   @IsIn(['M2_H', 'ML_H', 'MANUAL'])

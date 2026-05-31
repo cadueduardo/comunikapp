@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/popover';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { TimeInput, parseTimeValue, formatTimeDisplay } from '@/components/ui/time-input';
+import { Switch } from '@/components/ui/switch';
 
 const formSchema = z.object({
   nome: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
@@ -58,6 +59,11 @@ const formSchema = z.object({
   eficiencia_percent: z.any().optional(),
   setup_min: z.any().optional(),
   setor_id: z.string().optional(),
+  usar_no_pcp: z.boolean().optional(),
+  horas_disponiveis_dia: z.any().optional(),
+  permite_agendamento_simultaneo: z.boolean().optional(),
+  tempo_minimo_entre_servicos_min: z.any().optional(),
+  considerar_eficiencia_na_capacidade: z.boolean().optional(),
 });
 
 export type MaquinaFormValues = z.infer<typeof formSchema>;
@@ -76,6 +82,11 @@ interface MaquinaFormProps {
     eficiencia_percent?: number | string;
     setup_min?: number | string;
     setor_id?: string | null;
+    usar_no_pcp?: boolean;
+    horas_disponiveis_dia?: number | string;
+    permite_agendamento_simultaneo?: boolean;
+    tempo_minimo_entre_servicos_min?: number | string;
+    considerar_eficiencia_na_capacidade?: boolean;
   };
   loading?: boolean;
 }
@@ -241,6 +252,11 @@ export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFor
       eficiencia_percent: '',
       setup_min: '',
       setor_id: '',
+      usar_no_pcp: true,
+      horas_disponiveis_dia: '8',
+      permite_agendamento_simultaneo: false,
+      tempo_minimo_entre_servicos_min: '',
+      considerar_eficiencia_na_capacidade: true,
     },
   });
 
@@ -478,6 +494,100 @@ export function MaquinaForm({ onSave, initialData, loading = false }: MaquinaFor
                         </SelectContent>
                       </Select>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold">Planejamento / PCP</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Define como a máquina entra na carga produtiva e na ocupação por setor.
+                  </p>
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="usar_no_pcp"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-md border bg-background px-3 py-2">
+                      <div className="space-y-0.5">
+                        <FormLabel>Usar no PCP</FormLabel>
+                        <FormDescription>
+                          Inclui esta máquina no cálculo de ocupação e carga do setor.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="horas_disponiveis_dia"
+                    render={({ field }) => (
+                      <FormItem>
+                        <InfoTooltip content="Capacidade diária para planejamento. Se vazio, usa o fallback do setor ou 8h.">
+                          <FormLabel>Horas disponíveis por dia</FormLabel>
+                        </InfoTooltip>
+                        <FormControl>
+                          <Input placeholder="Ex: 8" {...field} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="tempo_minimo_entre_servicos_min"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Intervalo mínimo entre serviços (min)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: 15" {...field} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="permite_agendamento_simultaneo"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-md border bg-background px-3 py-2">
+                      <div className="space-y-0.5">
+                        <FormLabel>Permite agendamento simultâneo</FormLabel>
+                        <FormDescription>
+                          Para máquinas que podem receber mais de um job ao mesmo tempo.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="considerar_eficiencia_na_capacidade"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-md border bg-background px-3 py-2">
+                      <div className="space-y-0.5">
+                        <FormLabel>Considerar eficiência na capacidade</FormLabel>
+                        <FormDescription>
+                          Aplica o percentual de eficiência sobre as horas disponíveis.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} />
+                      </FormControl>
                     </FormItem>
                   )}
                 />

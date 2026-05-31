@@ -12,10 +12,23 @@ import { loja } from '@prisma/client';
 export class MaquinasService {
   constructor(private prisma: PrismaService) {}
 
+  private normalizarDiasProdutivos(valor: unknown): string | undefined {
+    if (valor === undefined) {
+      return undefined;
+    }
+
+    if (valor === null || typeof valor === 'string') {
+      return valor as string | undefined;
+    }
+
+    return JSON.stringify(valor);
+  }
+
   async create(createMaquinaDto: CreateMaquinaDto, loja: loja) {
-    const { setor_id, ...rest } = createMaquinaDto;
+    const { setor_id, dias_produtivos, ...rest } = createMaquinaDto;
     const data: any = {
       ...rest,
+      dias_produtivos: this.normalizarDiasProdutivos(dias_produtivos),
       loja: { connect: { id: loja.id } },
       status: createMaquinaDto.status || 'ATIVA',
       atualizado_em: new Date(),
@@ -57,11 +70,15 @@ export class MaquinasService {
   async update(id: string, updateMaquinaDto: UpdateMaquinaDto, loja: loja) {
     await this.findOne(id, loja); // Garante que a máquina existe e pertence à loja
 
-    const { setor_id, ...rest } = updateMaquinaDto;
+    const { setor_id, dias_produtivos, ...rest } = updateMaquinaDto;
     const dataToUpdate: any = {
       ...rest,
       atualizado_em: new Date(),
     };
+    if (dias_produtivos !== undefined) {
+      dataToUpdate.dias_produtivos =
+        this.normalizarDiasProdutivos(dias_produtivos);
+    }
     if (setor_id !== undefined) {
       dataToUpdate.setor = setor_id
         ? { connect: { id: setor_id } }

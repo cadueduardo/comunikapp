@@ -200,6 +200,8 @@ export const platformApi = {
 export const insumosApi = {
   getAll: (token: string) => ApiClient.get('/insumos', token),
   getById: (id: string, token: string) => ApiClient.get(`/insumos/${id}`, token),
+  getCalculoChapa: (id: string, token: string) => ApiClient.get(`/insumos/${id}/calculo-chapa`, token),
+  simularChapa: (id: string, data: Record<string, unknown>, token: string) => ApiClient.post(`/insumos/${id}/simular-chapa`, data, token),
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/insumos', data, token),
   update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/insumos/${id}`, data, token),
   delete: (id: string, token: string) => ApiClient.delete(`/insumos/${id}`, token),
@@ -249,6 +251,17 @@ export const estoqueApi = {
   updateLote: (id: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/api/estoque/lotes/${id}`, data, token),
   deleteLote: (id: string, token: string) => ApiClient.delete(`/api/estoque/lotes/${id}`, token),
   createTransferencia: (data: Record<string, unknown>, token: string) => ApiClient.post('/api/estoque/transferencias', data, token),
+  getSobras: (token: string) => ApiClient.get('/api/estoque/sobras', token),
+  getSobraById: (id: string, token: string) => ApiClient.get(`/api/estoque/sobras/${id}`, token),
+  createSobra: (data: Record<string, unknown>, token: string) => ApiClient.post('/api/estoque/sobras', data, token),
+  aproveitarSobra: (id: string, data: Record<string, unknown>, token: string) => ApiClient.post(`/api/estoque/sobras/${id}/aproveitar`, data, token),
+  descartarSobra: (id: string, data: Record<string, unknown>, token: string) => ApiClient.post(`/api/estoque/sobras/${id}/descartar`, data, token),
+  buscarSugestoesSobras: (params: Record<string, string>, token: string) => {
+    const search = new URLSearchParams(params).toString();
+    return ApiClient.get(`/api/estoque/sobras/sugestoes/buscar${search ? `?${search}` : ''}`, token);
+  },
+  getMetricasEconomia: (token: string) =>
+    ApiClient.get('/api/estoque/sobras/metricas/economia', token),
 };
 
 export const produtosApi = {
@@ -271,6 +284,15 @@ export const orcamentosApi = {
     ApiClient.post(`/orcamentos-v2/${id}/fechar-pedido`, { observacoes }, token),
   aprovar: (codigo: string, token: string) => ApiClient.post('/orcamentos-v2/aprovar', { codigo }, token),
   reenviarCodigo: (id: string, token: string) => ApiClient.post(`/orcamentos-v2/${id}/reenviar-codigo`, {}, token),
+  simularChapaItem: (id: string, itemId: string, data: Record<string, unknown>, token: string) => ApiClient.post(`/orcamentos-v2/${id}/itens/${itemId}/simular-chapa`, data, token),
+  salvarCalculoChapaItem: (id: string, itemId: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/orcamentos-v2/${id}/itens/${itemId}/calculo-chapa`, data, token),
+  buscarOrigemSobra: (q: string, token: string) =>
+    ApiClient.get(
+      `/orcamentos-v2/origem-sobra/busca${q ? `?q=${encodeURIComponent(q)}` : ''}`,
+      token,
+    ),
+  getCandidatosSobra: (orcamentoId: string, token: string) =>
+    ApiClient.get(`/orcamentos-v2/${orcamentoId}/candidatos-sobra`, token),
   getMensagens: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}/mensagens`, token),
   getMensagensNaoVisualizadas: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}/mensagens/nao-visualizadas`, token),
   marcarMensagemVisualizada: (orcamentoId: string, mensagemId: string, token: string) => 
@@ -331,6 +353,40 @@ export const orcamentosApi = {
     // Estatísticas V2
     getEstatisticas: (token: string) => ApiClient.get('/motor-calculo-v2/estatisticas', token),
     healthCheck: () => ApiClient.get('/motor-calculo-v2/health'),
+  },
+};
+
+export const osApi = {
+  getMateriais: (id: string, token: string) =>
+    ApiClient.get(`/os/${id}/materiais`, token),
+  ignorarSobra: (id: string, itemId: string, token: string) =>
+    ApiClient.post(`/os/${id}/itens/${itemId}/ignorar-sobra`, {}, token),
+  anotarSobra: (id: string, itemId: string, data: Record<string, unknown>, token: string) =>
+    ApiClient.post(`/os/${id}/itens/${itemId}/anotar-sobra`, data, token),
+  registrarSobra: (id: string, itemId: string, data: Record<string, unknown>, token: string) =>
+    ApiClient.post(`/os/${id}/itens/${itemId}/registrar-sobra`, data, token),
+};
+
+export const pcpApi = {
+  getCapacidadeSetores: (token: string, params?: Record<string, string>) => {
+    const search = new URLSearchParams(params ?? {}).toString();
+    return ApiClient.get(`/pcp/capacidade/setores${search ? `?${search}` : ''}`, token);
+  },
+  getCapacidadeMaquinas: (token: string, params?: Record<string, string>) => {
+    const search = new URLSearchParams(params ?? {}).toString();
+    return ApiClient.get(`/pcp/capacidade/maquinas${search ? `?${search}` : ''}`, token);
+  },
+  getCargaSetor: (setorId: string, token: string, params?: Record<string, string>) => {
+    const search = new URLSearchParams(params ?? {}).toString();
+    return ApiClient.get(`/pcp/capacidade/setores/${setorId}/carga${search ? `?${search}` : ''}`, token);
+  },
+  getOcupacaoMaquinasRelatorio: (token: string, params?: Record<string, string>) => {
+    const search = new URLSearchParams(params ?? {}).toString();
+    return ApiClient.get(`/pcp/relatorios/ocupacao-maquinas${search ? `?${search}` : ''}`, token);
+  },
+  getPrevistoRealizado: (token: string, params?: Record<string, string>) => {
+    const search = new URLSearchParams(params ?? {}).toString();
+    return ApiClient.get(`/pcp/relatorios/previsto-realizado${search ? `?${search}` : ''}`, token);
   },
 };
 

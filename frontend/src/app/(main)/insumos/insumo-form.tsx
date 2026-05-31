@@ -82,6 +82,14 @@ const formSchema = z.object({
   descricao_tecnica: z.string().optional().nullable(),
   observacoes: z.string().optional().nullable(),
   ativo: z.boolean().optional(),
+  formato_material: z.string().optional(),
+  largura_comercial: z.any().optional(),
+  altura_comercial: z.any().optional(),
+  comprimento_comercial: z.any().optional(),
+  perda_padrao_percent: z.any().optional(),
+  permite_simulacao_chapa: z.boolean().optional(),
+  permite_registrar_sobra: z.boolean().optional(),
+  metodo_cobranca_padrao: z.string().optional(),
 });
 
 export type InsumoFormValues = z.infer<typeof formSchema>;
@@ -155,6 +163,14 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
       descricao_tecnica: '',
       observacoes: '',
       ativo: true,
+      formato_material: '',
+      largura_comercial: '',
+      altura_comercial: '',
+      comprimento_comercial: '',
+      perda_padrao_percent: '',
+      permite_simulacao_chapa: false,
+      permite_registrar_sobra: false,
+      metodo_cobranca_padrao: 'AREA_LIQUIDA',
       ...initialData,
     },
   });
@@ -218,6 +234,10 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
   const fatorConversao = form.watch('fator_conversao');
   const unidadeUso = form.watch('unidade_uso');
   const controlarEstoque = form.watch('controlar_estoque');
+  const formatoMaterial = form.watch('formato_material');
+  const larguraCadastro = form.watch('largura');
+  const alturaCadastro = form.watch('altura');
+  const unidadeDimensaoCadastro = form.watch('unidade_dimensao');
   const converterParaMetros = (valor: number, unidade: string) => {
     switch (unidade) {
       case 'CENTÍMETROS':
@@ -579,6 +599,41 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
     }
   };
 
+  function parseDimensao(valor: unknown): number | undefined {
+    const num = Number(String(valor ?? '').replace(',', '.'));
+    return Number.isFinite(num) && num > 0 ? num : undefined;
+  }
+
+  function sincronizarCamposComerciaisMaterial(data: InsumoFormValues) {
+    const formato = data.formato_material?.trim();
+    if (!formato) {
+      return {
+        formato_material: undefined,
+        largura_comercial: undefined,
+        altura_comercial: undefined,
+        comprimento_comercial: undefined,
+      };
+    }
+
+    const largura = parseDimensao(data.largura);
+    const altura = parseDimensao(data.altura);
+    const usaComprimento =
+      formato === 'ROLO' || formato === 'METRO_LINEAR' || formato === 'BARRA';
+
+    return {
+      formato_material: formato,
+      largura_comercial: largura,
+      altura_comercial: usaComprimento ? undefined : altura,
+      comprimento_comercial: usaComprimento ? altura : undefined,
+      perda_padrao_percent: data.perda_padrao_percent
+        ? Number(String(data.perda_padrao_percent).replace(',', '.'))
+        : undefined,
+      permite_simulacao_chapa: Boolean(data.permite_simulacao_chapa),
+      permite_registrar_sobra: Boolean(data.permite_registrar_sobra),
+      metodo_cobranca_padrao: data.metodo_cobranca_padrao || undefined,
+    };
+  }
+
   function onSubmit(data: InsumoFormValues) {
     console.log('🔍 Dados do formulário antes da limpeza:', data);
     const profundidadeNumerica = Number(data.profundidade || 0);
@@ -629,6 +684,10 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
       tipo_material_id: data.tipo_material_id || '',
       parametros_consumo: Object.keys(parametrosConsumo).length > 0 ? parametrosConsumo : null,
       ativo: data.ativo ?? true,
+      ...sincronizarCamposComerciaisMaterial(data),
+      perda_padrao_percent: data.perda_padrao_percent
+        ? Number(String(data.perda_padrao_percent).replace(',', '.'))
+        : undefined,
     }
     delete cleanedData.tem_profundidade;
     delete cleanedData.profundidade;
@@ -1191,6 +1250,143 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                 <FormItem><FormLabel>Observações</FormLabel><FormControl><Textarea {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
             )} />
 
+           </CardContent>
+         </Card>
+
+         <Card>
+           <CardHeader>
+             <CardTitle>Aproveitamento e cobrança no orçamento</CardTitle>
+             <p className="text-sm text-muted-foreground font-normal">
+               Complementa o cadastro acima. As medidas comerciais vêm de{' '}
+               <strong>Largura</strong> e <strong>Altura/Comprimento</strong> — não precisa repetir.
+               Chapa: peça em uma folha. Rolo/bobina: largura da mídia × metragem do rolo (ex.: banner em rolo de 50 m).
+             </p>
+           </CardHeader>
+           <CardContent className="space-y-4">
+             <FormField
+               control={form.control}
+               name="formato_material"
+               render={({ field }) => (
+                 <FormItem>
+                   <FormLabel>Como você compra este material</FormLabel>
+                   <Select value={field.value || 'none'} onValueChange={(v) => field.onChange(v === 'none' ? '' : v)}>
+                     <FormControl>
+                       <SelectTrigger>
+                         <SelectValue placeholder="Opcional — só se usar simulação no orçamento" />
+                       </SelectTrigger>
+                     </FormControl>
+                     <SelectContent>
+                       <SelectItem value="none">Não usar simulação de aproveitamento</SelectItem>
+                       <SelectItem value="CHAPA">Chapa / placa (área fixa)</SelectItem>
+                       <SelectItem value="ROLO">Rolo / bobina</SelectItem>
+                       <SelectItem value="BARRA">Barra</SelectItem>
+                       <SelectItem value="UNIDADE">Unidade</SelectItem>
+                       <SelectItem value="METRO_LINEAR">Metro linear</SelectItem>
+                       <SelectItem value="LIQUIDO">Líquido</SelectItem>
+                       <SelectItem value="PESO">Peso</SelectItem>
+                       <SelectItem value="SERVICO">Serviço</SelectItem>
+                     </SelectContent>
+                   </Select>
+                   <FormMessage />
+                 </FormItem>
+               )}
+             />
+
+             {formatoMaterial && formatoMaterial !== 'none' && (
+               <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground space-y-1">
+                 <p className="font-medium text-foreground">Medidas que o orçamento vai usar</p>
+                 {parseDimensao(larguraCadastro) ? (
+                   <p>
+                     Largura: {larguraCadastro} {unidadeDimensaoCadastro || ''}
+                     {(formatoMaterial === 'ROLO' ||
+                       formatoMaterial === 'METRO_LINEAR' ||
+                       formatoMaterial === 'BARRA') &&
+                     parseDimensao(alturaCadastro)
+                       ? ` · Comprimento do rolo/barra: ${alturaCadastro} ${unidadeDimensaoCadastro || ''}`
+                       : parseDimensao(alturaCadastro)
+                         ? ` · Altura/comprimento: ${alturaCadastro} ${unidadeDimensaoCadastro || ''}`
+                         : ' · Informe Altura/Comprimento no cadastro acima'}
+                   </p>
+                 ) : (
+                   <p className="text-amber-700">
+                     Preencha Largura (e Altura/Comprimento) na seção &quot;Dados do Insumo&quot; para habilitar a simulação.
+                   </p>
+                 )}
+                 {formatoMaterial === 'ROLO' && (
+                   <p>
+                     No mercado, rolo costuma ser orçado por m² consumido ou por metro linear impresso; aqui a simulação estima área e sobra com base na bobina.
+                   </p>
+                 )}
+               </div>
+             )}
+
+             {formatoMaterial && formatoMaterial !== 'none' && (
+               <>
+                 <FormField control={form.control} name="perda_padrao_percent" render={({ field }) => (
+                   <FormItem>
+                     <FormLabel>Perda padrão na produção (%)</FormLabel>
+                     <FormControl>
+                       <Input placeholder="Ex: 5 (sangria, refilo, setup)" {...field} value={field.value ?? ''} />
+                     </FormControl>
+                     <FormMessage />
+                   </FormItem>
+                 )} />
+
+                 <FormField
+                   control={form.control}
+                   name="metodo_cobranca_padrao"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel>Como cobrar este material no orçamento (padrão)</FormLabel>
+                       <Select value={field.value || 'AREA_LIQUIDA'} onValueChange={field.onChange}>
+                         <FormControl>
+                           <SelectTrigger>
+                             <SelectValue />
+                           </SelectTrigger>
+                         </FormControl>
+                         <SelectContent>
+                           <SelectItem value="AREA_LIQUIDA">Área líquida usada (m² da peça)</SelectItem>
+                           <SelectItem value="AREA_COM_PERDA">Área usada + perda padrão</SelectItem>
+                           {(formatoMaterial === 'CHAPA' || !formatoMaterial) && (
+                             <SelectItem value="CHAPA_INTEIRA">Chapa / unidade comercial inteira</SelectItem>
+                           )}
+                           <SelectItem value="MANUAL">Valor manual</SelectItem>
+                         </SelectContent>
+                       </Select>
+                       <FormMessage />
+                     </FormItem>
+                   )}
+                 />
+
+                 <div className="flex flex-col gap-3">
+                   <FormField control={form.control} name="permite_simulacao_chapa" render={({ field }) => (
+                     <FormItem className="flex flex-row items-center gap-2 space-y-0">
+                       <FormControl>
+                         <input type="checkbox" checked={Boolean(field.value)} onChange={field.onChange} className="h-4 w-4 rounded border-gray-300" />
+                       </FormControl>
+                       <FormLabel className="text-sm font-normal">
+                         Mostrar simulação de aproveitamento e sobra no orçamento
+                       </FormLabel>
+                     </FormItem>
+                   )} />
+                   <FormField control={form.control} name="permite_registrar_sobra" render={({ field }) => (
+                     <FormItem className="flex flex-row items-center gap-2 space-y-0">
+                       <FormControl>
+                         <input type="checkbox" checked={Boolean(field.value)} onChange={field.onChange} className="h-4 w-4 rounded border-gray-300" />
+                       </FormControl>
+                       <FormLabel className="text-sm font-normal">
+                         Permitir registrar sobra/retalho na OS (após produção)
+                       </FormLabel>
+                     </FormItem>
+                   )} />
+                 </div>
+               </>
+             )}
+           </CardContent>
+         </Card>
+
+         <Card>
+           <CardContent className="pt-6 space-y-4">
             <div className="flex items-center space-x-2">
                 <FormField control={form.control} name="ativo" render={({ field }) => (
                     <FormItem className="flex flex-row items-center space-x-2 space-y-0">
