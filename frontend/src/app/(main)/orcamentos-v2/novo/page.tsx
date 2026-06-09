@@ -13,6 +13,7 @@ interface OrcamentoData extends Record<string, unknown> {
   quantidade_produto: string;
   margem_lucro_customizada: string;
   impostos_customizados: string;
+  valor_final_manual: string;
   tipo_margem_lucro: 'markup' | 'margem_por_dentro' | '';
   condicoes_comerciais: string;
   prazo_entrega: string;
@@ -207,6 +208,14 @@ export default function NovoOrcamentoV2Page() {
             tipoMargemRaw === 'markup' || tipoMargemRaw === 'margem_por_dentro'
               ? (tipoMargemRaw as 'markup' | 'margem_por_dentro')
               : '';
+          const valorFinalManualRaw =
+            (orcamentoData as any).valor_final_manual ??
+            config.valor_final_manual;
+          const valorFinalManual =
+            valorFinalManualRaw != null &&
+            Number.isFinite(Number(valorFinalManualRaw))
+              ? String(valorFinalManualRaw)
+              : '';
 
           const formData: any = {
             cliente_id: orcamentoData.cliente_id || '',
@@ -219,9 +228,20 @@ export default function NovoOrcamentoV2Page() {
             forma_pagamento: orcamentoData.forma_pagamento || '50% entrada, restante na entrega',
             validade_proposta: orcamentoData.validade_proposta || '30 dias',
             atendente: orcamentoData.atendente || 'Equipe Comercial',
+            condicao_pagamento_tipo: orcamentoData.condicao_pagamento_tipo ?? undefined,
+            condicao_pagamento_entrada_pct:
+              orcamentoData.condicao_pagamento_entrada_pct != null
+                ? String(orcamentoData.condicao_pagamento_entrada_pct)
+                : '',
+            condicao_pagamento_parcelas:
+              orcamentoData.condicao_pagamento_parcelas != null
+                ? String(orcamentoData.condicao_pagamento_parcelas)
+                : '',
+            condicao_pagamento_descricao: orcamentoData.condicao_pagamento_descricao ?? '',
             // Campos que não existem no backend mas são necessários para o form
             margem_lucro_customizada: margemPercentual,
             impostos_customizados: impostosPercentual,
+            valor_final_manual: valorFinalManual,
             comissao_percentual: comissaoPercentual,
             tipo_margem_lucro: tipoMargemLucro,
             // Transformar produtos se existirem
@@ -335,6 +355,7 @@ export default function NovoOrcamentoV2Page() {
           quantidade_produto: '1',
           margem_lucro_customizada: '',
           impostos_customizados: '',
+          valor_final_manual: '',
           tipo_margem_lucro: '',
           condicoes_comerciais: '',
           prazo_entrega: '',
@@ -353,6 +374,7 @@ export default function NovoOrcamentoV2Page() {
           quantidade_produto: '1',
           margem_lucro_customizada: '',
           impostos_customizados: '',
+          valor_final_manual: '',
           tipo_margem_lucro: '',
           condicoes_comerciais: '',
           prazo_entrega: '',

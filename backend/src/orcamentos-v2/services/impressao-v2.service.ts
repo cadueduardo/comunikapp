@@ -570,13 +570,17 @@ export class ImpressaoV2Service {
     const dadosBase = {
       orcamento: {
         id: orcamento.id,
+        numero: orcamento.numero,
         titulo: orcamento.titulo,
         descricao: orcamento.descricao,
         valor_total: orcamento.valor_total,
         status: orcamento.status,
         data_criacao: orcamento.data_criacao,
+        prazo_entrega: orcamento.prazo_entrega,
+        validade_proposta: orcamento.validade_proposta,
         cliente: orcamento.cliente,
       },
+      loja: orcamento.loja,
       produtos: orcamento.produtos || [],
       custos: orcamento.custos || {},
       configuracoes: orcamento.configuracoes || {},

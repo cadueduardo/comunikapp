@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
@@ -9,7 +9,7 @@ import { Form } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Calculator, CheckCircle2, Save } from 'lucide-react';
-import { orcamentosApi } from '@/lib/api-client';
+import { orcamentosApi, produtosApi } from '@/lib/api-client';
 import { createFormSchema, FormValues } from '../orcamento/schemas/orcamento.schema';
 import { useOrcamentoData } from '../orcamento/hooks/useOrcamentoData';
 import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
@@ -168,6 +168,7 @@ export function OrcamentoV2Form({
   initialData, 
   orcamentoId, 
   showPreview = false,
+  onSuccess,
   orcamentoStatus,
   statusAprovacao,
 }: OrcamentoFormProps) {
@@ -236,6 +237,7 @@ export function OrcamentoV2Form({
       titulo: '',
       margem_lucro_customizada: '30',
       impostos_customizados: '25',
+      valor_final_manual: '',
       tipo_margem_lucro: '',
       condicoes_comerciais: '',
       prazo_entrega: '10 a 15 dias úteis',
@@ -246,6 +248,20 @@ export function OrcamentoV2Form({
       condicao_pagamento_entrada_pct: '',
       condicao_pagamento_parcelas: '',
       condicao_pagamento_descricao: '',
+      entrega_modalidade_id: '',
+      entrega_usar_endereco_cliente: true,
+      entrega_endereco_snapshot: '',
+      entrega_cep: '',
+      entrega_logradouro: '',
+      entrega_numero: '',
+      entrega_complemento: '',
+      entrega_bairro: '',
+      entrega_cidade: '',
+      entrega_estado: '',
+      entrega_prazo_dias: '',
+      entrega_valor_cobrado: '',
+      entrega_custo_estimado: '',
+      entrega_observacoes: '',
       atendente: 'Equipe Comercial',
       comissao_percentual: '5',
       itens_produto: [
@@ -257,7 +273,7 @@ export function OrcamentoV2Form({
           altura_produto: '',
           profundidade_produto: '',
           tem_profundidade: false,
-          unidade_medida_produto: '',
+          unidade_medida_produto: 'un',
           area_produto: '',
           perimetro_produto: '',
           geometria_origem: 'MANUAL',
@@ -267,6 +283,25 @@ export function OrcamentoV2Form({
           maquinas: [{ maquina_id: '', horas_utilizadas: '1' }],
           funcoes: [{ funcao_id: '', horas_trabalhadas: '1' }],
           servicos: [{ servico_id: '', horas_trabalhadas: '1' }],
+          instalacao_necessaria: false,
+          instalacao_tipo_id: '',
+          instalacao_regra_cobranca: 'FIXO',
+          instalacao_valor_unitario: '',
+          instalacao_usar_endereco_entrega: true,
+          instalacao_endereco_snapshot: '',
+          instalacao_cep: '',
+          instalacao_logradouro: '',
+          instalacao_numero: '',
+          instalacao_complemento: '',
+          instalacao_bairro: '',
+          instalacao_cidade: '',
+          instalacao_estado: '',
+          instalacao_preco_cobrado: '',
+          instalacao_custo_mao_obra: '',
+          instalacao_custo_deslocamento: '',
+          instalacao_tempo_estimado_min: '',
+          instalacao_quantidade_pessoas: '',
+          instalacao_observacoes: '',
         }
       ],
     },
@@ -355,9 +390,9 @@ export function OrcamentoV2Form({
     });
   }, [mode, initialData, orcamentoId, orcamentoStatus]);
 
-  // Carregar dados iniciais se for edição
+  // Carregar dados iniciais se for edição/template
   useEffect(() => {
-    if (mode === 'editar' && initialData) {
+    if ((mode === 'editar' || mode === 'template') && initialData) {
       // Debug logs removidos para limpar terminal
       // console.log('🔍 Debug - OrcamentoForm - Dados recebidos para reset:', initialData);
       // console.log('🔍 Debug - OrcamentoForm - Cliente ID recebido:', initialData.cliente_id);
@@ -372,6 +407,10 @@ export function OrcamentoV2Form({
         titulo: String(initialData.titulo || ''),
         margem_lucro_customizada: String(initialData.margem_lucro_customizada ?? '30'),
         impostos_customizados: String(initialData.impostos_customizados ?? '25'),
+        valor_final_manual:
+          initialData.valor_final_manual != null
+            ? String(initialData.valor_final_manual)
+            : '',
         comissao_percentual: String(initialData.comissao_percentual ?? '5'),
         tipo_margem_lucro: String(
           initialData.tipo_margem_lucro ?? configuracoesIniciais?.tipo_margem_lucro ?? '',
@@ -399,6 +438,30 @@ export function OrcamentoV2Form({
             ? String(initialData.condicao_pagamento_parcelas)
             : '',
         condicao_pagamento_descricao: String(initialData.condicao_pagamento_descricao ?? ''),
+        entrega_modalidade_id: String(initialData.entrega_modalidade_id ?? ''),
+        entrega_usar_endereco_cliente:
+          initialData.entrega_usar_endereco_cliente !== false,
+        entrega_endereco_snapshot: String(initialData.entrega_endereco_snapshot ?? ''),
+        entrega_cep: String(initialData.entrega_cep ?? ''),
+        entrega_logradouro: String(initialData.entrega_logradouro ?? ''),
+        entrega_numero: String(initialData.entrega_numero ?? ''),
+        entrega_complemento: String(initialData.entrega_complemento ?? ''),
+        entrega_bairro: String(initialData.entrega_bairro ?? ''),
+        entrega_cidade: String(initialData.entrega_cidade ?? ''),
+        entrega_estado: String(initialData.entrega_estado ?? ''),
+        entrega_prazo_dias:
+          initialData.entrega_prazo_dias != null
+            ? String(initialData.entrega_prazo_dias)
+            : '',
+        entrega_valor_cobrado:
+          initialData.entrega_valor_cobrado != null
+            ? String(initialData.entrega_valor_cobrado)
+            : '',
+        entrega_custo_estimado:
+          initialData.entrega_custo_estimado != null
+            ? String(initialData.entrega_custo_estimado)
+            : '',
+        entrega_observacoes: String(initialData.entrega_observacoes ?? ''),
         atendente: String(initialData.atendente || 'Equipe Comercial'),
         itens_produto: (() => {
           // Se tem itens_produto no initialData, usar eles
@@ -421,7 +484,7 @@ export function OrcamentoV2Form({
                 profundidade_produto: profundidadeRaw,
                 tem_profundidade: temProfundidade,
                 unidade_medida_produto: String(
-                  produto.unidade_medida_produto || produto.unidade_medida || produto.unidade || '',
+                  produto.unidade_medida_produto || produto.unidade_medida || produto.unidade || 'un',
                 ),
                 area_produto: String(produto.area_produto?.toString() || produto.area?.toString() || ''),
                 perimetro_produto: String(produto.perimetro_produto?.toString() || ''),
@@ -441,6 +504,45 @@ export function OrcamentoV2Form({
                 maquinas: produto.maquinas || [],
                 funcoes: produto.funcoes || [],
                 servicos: produto.servicos || [],
+                instalacao_necessaria: Boolean(produto.instalacao_necessaria),
+                instalacao_tipo_id: String(produto.instalacao_tipo_id ?? ''),
+                instalacao_regra_cobranca: String(produto.instalacao_regra_cobranca ?? 'FIXO'),
+                instalacao_valor_unitario:
+                  produto.instalacao_valor_unitario != null
+                    ? String(produto.instalacao_valor_unitario)
+                    : '',
+                instalacao_usar_endereco_entrega:
+                  produto.instalacao_usar_endereco_entrega !== false,
+                instalacao_endereco_snapshot:
+                  String(produto.instalacao_endereco_snapshot ?? ''),
+                instalacao_cep: String(produto.instalacao_cep ?? ''),
+                instalacao_logradouro: String(produto.instalacao_logradouro ?? ''),
+                instalacao_numero: String(produto.instalacao_numero ?? ''),
+                instalacao_complemento: String(produto.instalacao_complemento ?? ''),
+                instalacao_bairro: String(produto.instalacao_bairro ?? ''),
+                instalacao_cidade: String(produto.instalacao_cidade ?? ''),
+                instalacao_estado: String(produto.instalacao_estado ?? ''),
+                instalacao_preco_cobrado:
+                  produto.instalacao_preco_cobrado != null
+                    ? String(produto.instalacao_preco_cobrado)
+                    : '',
+                instalacao_custo_mao_obra:
+                  produto.instalacao_custo_mao_obra != null
+                    ? String(produto.instalacao_custo_mao_obra)
+                    : '',
+                instalacao_custo_deslocamento:
+                  produto.instalacao_custo_deslocamento != null
+                    ? String(produto.instalacao_custo_deslocamento)
+                    : '',
+                instalacao_tempo_estimado_min:
+                  produto.instalacao_tempo_estimado_min != null
+                    ? String(produto.instalacao_tempo_estimado_min)
+                    : '',
+                instalacao_quantidade_pessoas:
+                  produto.instalacao_quantidade_pessoas != null
+                    ? String(produto.instalacao_quantidade_pessoas)
+                    : '',
+                instalacao_observacoes: String(produto.instalacao_observacoes ?? ''),
               };
             });
           }
@@ -471,7 +573,7 @@ export function OrcamentoV2Form({
                 altura_produto: String(produto.altura?.toString() || ''),
                 profundidade_produto: profundidadeRaw,
                 tem_profundidade: temProfundidade,
-                unidade_medida_produto: String(produto.unidade_medida || ''),
+                unidade_medida_produto: String(produto.unidade_medida || 'un'),
                 area_produto: String(produto.area_produto?.toString() || produto.area?.toString() || ''),
                 perimetro_produto: String(produto.perimetro_produto?.toString() || ''),
                 geometria_origem: produto.geometria_origem || 'MANUAL',
@@ -514,6 +616,45 @@ export function OrcamentoV2Form({
                   servico_id: serv.servico_id,
                   horas_trabalhadas: String(serv.horas_trabalhadas || serv.tempo_horas || '1'),
                 })),
+                instalacao_necessaria: Boolean(produto.instalacao_necessaria),
+                instalacao_tipo_id: String(produto.instalacao_tipo_id ?? ''),
+                instalacao_regra_cobranca: String(produto.instalacao_regra_cobranca ?? 'FIXO'),
+                instalacao_valor_unitario:
+                  produto.instalacao_valor_unitario != null
+                    ? String(produto.instalacao_valor_unitario)
+                    : '',
+                instalacao_usar_endereco_entrega:
+                  produto.instalacao_usar_endereco_entrega !== false,
+                instalacao_endereco_snapshot:
+                  String(produto.instalacao_endereco_snapshot ?? ''),
+                instalacao_cep: String(produto.instalacao_cep ?? ''),
+                instalacao_logradouro: String(produto.instalacao_logradouro ?? ''),
+                instalacao_numero: String(produto.instalacao_numero ?? ''),
+                instalacao_complemento: String(produto.instalacao_complemento ?? ''),
+                instalacao_bairro: String(produto.instalacao_bairro ?? ''),
+                instalacao_cidade: String(produto.instalacao_cidade ?? ''),
+                instalacao_estado: String(produto.instalacao_estado ?? ''),
+                instalacao_preco_cobrado:
+                  produto.instalacao_preco_cobrado != null
+                    ? String(produto.instalacao_preco_cobrado)
+                    : '',
+                instalacao_custo_mao_obra:
+                  produto.instalacao_custo_mao_obra != null
+                    ? String(produto.instalacao_custo_mao_obra)
+                    : '',
+                instalacao_custo_deslocamento:
+                  produto.instalacao_custo_deslocamento != null
+                    ? String(produto.instalacao_custo_deslocamento)
+                    : '',
+                instalacao_tempo_estimado_min:
+                  produto.instalacao_tempo_estimado_min != null
+                    ? String(produto.instalacao_tempo_estimado_min)
+                    : '',
+                instalacao_quantidade_pessoas:
+                  produto.instalacao_quantidade_pessoas != null
+                    ? String(produto.instalacao_quantidade_pessoas)
+                    : '',
+                instalacao_observacoes: String(produto.instalacao_observacoes ?? ''),
               };
             });
           }
@@ -528,7 +669,7 @@ export function OrcamentoV2Form({
               altura_produto: '',
               profundidade_produto: '',
               tem_profundidade: false,
-              unidade_medida_produto: '',
+              unidade_medida_produto: 'un',
               area_produto: '',
               perimetro_produto: '',
               geometria_origem: 'MANUAL',
@@ -538,6 +679,25 @@ export function OrcamentoV2Form({
               maquinas: [],
               funcoes: [],
               servicos: [],
+              instalacao_necessaria: false,
+              instalacao_tipo_id: '',
+              instalacao_regra_cobranca: 'FIXO',
+              instalacao_valor_unitario: '',
+              instalacao_usar_endereco_entrega: true,
+              instalacao_endereco_snapshot: '',
+              instalacao_cep: '',
+              instalacao_logradouro: '',
+              instalacao_numero: '',
+              instalacao_complemento: '',
+              instalacao_bairro: '',
+              instalacao_cidade: '',
+              instalacao_estado: '',
+              instalacao_preco_cobrado: '',
+              instalacao_custo_mao_obra: '',
+              instalacao_custo_deslocamento: '',
+              instalacao_tempo_estimado_min: '',
+              instalacao_quantidade_pessoas: '',
+              instalacao_observacoes: '',
             }
           ];
         })(),
@@ -585,8 +745,12 @@ export function OrcamentoV2Form({
     const normalizarNumero = (valor: unknown): number => {
       if (typeof valor === 'number') return valor;
       if (typeof valor === 'string') {
-        const cleaned = valor.replace(/[^0-9,.-]/g, '').replace(',', '.');
-        const parsed = Number(cleaned);
+        const cleaned = valor.replace(/[^0-9,.-]/g, '');
+        const normalized =
+          cleaned.includes(',') && cleaned.includes('.')
+            ? cleaned.replace(/\./g, '').replace(',', '.')
+            : cleaned.replace(',', '.');
+        const parsed = Number(normalized);
         return Number.isFinite(parsed) ? parsed : 0;
       }
       if (valor && typeof (valor as any).toString === 'function') {
@@ -604,6 +768,17 @@ export function OrcamentoV2Form({
       const fator = 10 ** precision;
       return Math.round((numero + Number.EPSILON) * fator) / fator;
     };
+
+    const valorFinalManualTexto =
+      typeof data.valor_final_manual === 'string'
+        ? data.valor_final_manual.trim()
+        : data.valor_final_manual != null
+          ? String(data.valor_final_manual).trim()
+          : '';
+    const temValorFinalManual = valorFinalManualTexto.length > 0;
+    const valorFinalManual = fixDecimal(normalizarNumero(valorFinalManualTexto));
+    const resolverPrecoFinal = (precoCalculado: number): number =>
+      temValorFinalManual ? valorFinalManual : fixDecimal(precoCalculado);
 
     const vazioParaUndefined = <T,>(lista: T[] | undefined): T[] | undefined =>
       Array.isArray(lista) && lista.length > 0 ? lista : undefined;
@@ -681,6 +856,70 @@ export function OrcamentoV2Form({
 
       return vazioParaUndefined(itens);
     };
+
+    const montarInstalacaoProduto = (produto: FormValues['itens_produto'][number]) => {
+      const item = produto as any;
+      const instalacaoNecessaria = Boolean(item.instalacao_necessaria);
+      return {
+        instalacao_necessaria: instalacaoNecessaria,
+        instalacao_tipo_id: item.instalacao_tipo_id || undefined,
+        instalacao_regra_cobranca:
+          item.instalacao_regra_cobranca || (instalacaoNecessaria ? 'FIXO' : undefined),
+        instalacao_valor_unitario: instalacaoNecessaria
+          ? fixDecimal(normalizarNumero(item.instalacao_valor_unitario))
+          : undefined,
+        instalacao_usar_endereco_entrega:
+          item.instalacao_usar_endereco_entrega !== false,
+        instalacao_endereco_snapshot:
+          item.instalacao_endereco_snapshot || undefined,
+        instalacao_cep: item.instalacao_cep || undefined,
+        instalacao_logradouro: item.instalacao_logradouro || undefined,
+        instalacao_numero: item.instalacao_numero || undefined,
+        instalacao_complemento: item.instalacao_complemento || undefined,
+        instalacao_bairro: item.instalacao_bairro || undefined,
+        instalacao_cidade: item.instalacao_cidade || undefined,
+        instalacao_estado: item.instalacao_estado || undefined,
+        instalacao_preco_cobrado: instalacaoNecessaria
+          ? fixDecimal(normalizarNumero(item.instalacao_preco_cobrado))
+          : 0,
+        instalacao_custo_mao_obra: instalacaoNecessaria
+          ? fixDecimal(normalizarNumero(item.instalacao_custo_mao_obra))
+          : 0,
+        instalacao_custo_deslocamento: instalacaoNecessaria
+          ? fixDecimal(normalizarNumero(item.instalacao_custo_deslocamento))
+          : 0,
+        instalacao_tempo_estimado_min: instalacaoNecessaria
+          ? normalizarNumero(item.instalacao_tempo_estimado_min) || undefined
+          : undefined,
+        instalacao_quantidade_pessoas: instalacaoNecessaria
+          ? normalizarNumero(item.instalacao_quantidade_pessoas) || undefined
+          : undefined,
+        instalacao_observacoes: item.instalacao_observacoes || undefined,
+      };
+    };
+
+    const montarEntregaOrcamento = () => ({
+      entrega_modalidade_id: data.entrega_modalidade_id || undefined,
+      entrega_usar_endereco_cliente: data.entrega_usar_endereco_cliente !== false,
+      entrega_endereco_snapshot: data.entrega_endereco_snapshot || undefined,
+      entrega_cep: data.entrega_cep || undefined,
+      entrega_logradouro: data.entrega_logradouro || undefined,
+      entrega_numero: data.entrega_numero || undefined,
+      entrega_complemento: data.entrega_complemento || undefined,
+      entrega_bairro: data.entrega_bairro || undefined,
+      entrega_cidade: data.entrega_cidade || undefined,
+      entrega_estado: data.entrega_estado || undefined,
+      entrega_prazo_dias: data.entrega_prazo_dias
+        ? normalizarNumero(data.entrega_prazo_dias)
+        : undefined,
+      entrega_valor_cobrado: fixDecimal(
+        normalizarNumero(data.entrega_valor_cobrado),
+      ),
+      entrega_custo_estimado: fixDecimal(
+        normalizarNumero(data.entrega_custo_estimado),
+      ),
+      entrega_observacoes: data.entrega_observacoes || undefined,
+    });
 
     const somarCampo = (lista: unknown[] | undefined, campo: string): number => {
       if (!Array.isArray(lista)) {
@@ -879,13 +1118,27 @@ export function OrcamentoV2Form({
         const custoFuncoesProduto = somarCampo(funcoes, 'custo_total');
         const custoServicosProduto = somarCampo(servicos, 'custo_total');
 
-        const custoTotalProducao = fixDecimal(
+        const instalacao = montarInstalacaoProduto(produtoFormulario);
+        const custoInstalacaoProduto = fixDecimal(
+          Number(instalacao.instalacao_custo_mao_obra || 0) +
+            Number(instalacao.instalacao_custo_deslocamento || 0),
+        );
+        const precoInstalacaoProduto = fixDecimal(
+          Number(instalacao.instalacao_preco_cobrado || 0),
+        );
+
+        const custoTotalProducaoBase = fixDecimal(
           previewProduto?.custo_total_producao ??
             custoMateriaisProduto + custoMaquinasProduto + custoFuncoesProduto + custoServicosProduto,
         );
+        const custoTotalProducao = fixDecimal(
+          custoTotalProducaoBase + custoInstalacaoProduto,
+        );
 
         const precoTotalProduto = fixDecimal(
-          previewProduto?.preco_venda_total ?? previewProduto?.preco_total ?? custoTotalProducao,
+          (previewProduto?.preco_venda_total ??
+            previewProduto?.preco_total ??
+            custoTotalProducaoBase) + precoInstalacaoProduto,
         );
         const precoUnitarioProduto = fixDecimal(
           previewProduto?.preco_venda_unitario ??
@@ -934,6 +1187,7 @@ export function OrcamentoV2Form({
           preco_total: precoTotalProduto,
           margem_lucro: margemLucroProduto,
           impostos: impostosProduto,
+          ...instalacao,
         };
 
         if (materiais) {
@@ -986,10 +1240,32 @@ export function OrcamentoV2Form({
           resumoPreview?.total_custo_indireto ??
           0,
       );
-      const custoMaoObra = fixDecimal(custoMaquinas + custoFuncoes + custoServicos);
-      let custoTotal = fixDecimal(
-        resumoPreview?.total_custo_producao ?? custoMaterial + custoMaoObra + custoIndiretos,
+      const custoInstalacoes = fixDecimal(
+        produtosTransformadosPreview.reduce(
+          (total, produto) =>
+            total +
+            Number(produto.instalacao_custo_mao_obra || 0) +
+            Number(produto.instalacao_custo_deslocamento || 0),
+          0,
+        ),
       );
+      const precoInstalacoes = fixDecimal(
+        produtosTransformadosPreview.reduce(
+          (total, produto) =>
+            total + Number(produto.instalacao_preco_cobrado || 0),
+          0,
+        ),
+      );
+      const entrega = montarEntregaOrcamento();
+      const entregaValor = Number(entrega.entrega_valor_cobrado || 0);
+      const entregaCusto = Number(entrega.entrega_custo_estimado || 0);
+      const custoMaoObraProducao = fixDecimal(custoMaquinas + custoFuncoes + custoServicos);
+      const custoMaoObra = fixDecimal(custoMaoObraProducao + custoInstalacoes);
+      const custoProducaoBase = fixDecimal(
+        resumoPreview?.total_custo_producao ??
+          custoMaterial + custoMaoObraProducao + custoIndiretos,
+      );
+      const custoTotal = fixDecimal(custoProducaoBase + custoInstalacoes + entregaCusto);
 
       const tipoMargemLucroEfetivo =
         data.tipo_margem_lucro
@@ -1003,16 +1279,18 @@ export function OrcamentoV2Form({
         const divisorMarkup = 1 - percentualImpostosDecimal - percentualComissaoDecimal;
         precoFinal = fixDecimal(
           divisorMarkup > 0
-            ? (custoTotal * (1 + percentualMargemDecimal)) / divisorMarkup
-            : custoTotal * (1 + percentualMargemDecimal),
+            ? (custoProducaoBase * (1 + percentualMargemDecimal)) / divisorMarkup
+            : custoProducaoBase * (1 + percentualMargemDecimal),
         );
       } else {
         const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
-        precoFinal = fixDecimal(divisor > 0 ? custoTotal / divisor : custoTotal);
+        precoFinal = fixDecimal(divisor > 0 ? custoProducaoBase / divisor : custoProducaoBase);
       }
       if (!Number.isFinite(precoFinal) || precoFinal <= 0) {
-        precoFinal = fixDecimal(custoTotal);
+        precoFinal = fixDecimal(custoProducaoBase);
       }
+      precoFinal = fixDecimal(precoFinal + entregaValor + precoInstalacoes);
+      precoFinal = resolverPrecoFinal(precoFinal);
 
       const margemLucro = fixDecimal(
         resumoPreview?.total_margem_lucro ?? precoFinal * percentualMargemDecimal,
@@ -1065,6 +1343,7 @@ export function OrcamentoV2Form({
         impostos,
         preco_final: precoFinal,
         produtos: produtosTransformadosPreview,
+        ...entrega,
         largura_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.largura : undefined,
         altura_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.altura : undefined,
         area_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.area : undefined,
@@ -1075,7 +1354,10 @@ export function OrcamentoV2Form({
         margem_lucro_customizada: margemPercentual,
         impostos_customizados: impostosPercentual,
         tipo_margem_lucro: tipoMargemLucroEfetivo,
-        configuracoes: { tipo_margem_lucro: tipoMargemLucroEfetivo },
+        configuracoes: {
+          tipo_margem_lucro: tipoMargemLucroEfetivo,
+          valor_final_manual: temValorFinalManual ? valorFinalManual : null,
+        },
       };
 
       return dadosTransformados;
@@ -1163,6 +1445,7 @@ export function OrcamentoV2Form({
         preco_total: 0, // Será calculado abaixo
         margem_lucro: 0, // Será calculado abaixo
         impostos: 0, // Será calculado abaixo
+        ...montarInstalacaoProduto(produto),
       };
 
       if (produtoTransformado.insumos && produtoTransformado.insumos.length === 0) {
@@ -1201,8 +1484,24 @@ export function OrcamentoV2Form({
     const custoFuncoes = dadosCalculados?.totais?.funcoes || 0;
     const custoServicos = dadosCalculados?.totais?.servicos || 0;
     const custoIndiretos = dadosCalculados?.totais?.indiretos || 0;
-    const custoMaoObra = custoMaquinas + custoFuncoes + custoServicos;
-    const custoTotal = custoMaterial + custoMaoObra + custoIndiretos;
+    const custoInstalacoes = produtosTransformados.reduce(
+      (total, produto) =>
+        total +
+        Number(produto.instalacao_custo_mao_obra || 0) +
+        Number(produto.instalacao_custo_deslocamento || 0),
+      0,
+    );
+    const precoInstalacoes = produtosTransformados.reduce(
+      (total, produto) => total + Number(produto.instalacao_preco_cobrado || 0),
+      0,
+    );
+    const entrega = montarEntregaOrcamento();
+    const entregaValor = Number(entrega.entrega_valor_cobrado || 0);
+    const entregaCusto = Number(entrega.entrega_custo_estimado || 0);
+    const custoMaoObraProducao = custoMaquinas + custoFuncoes + custoServicos;
+    const custoMaoObra = custoMaoObraProducao + custoInstalacoes;
+    const custoProducaoBase = custoMaterial + custoMaoObraProducao + custoIndiretos;
+    const custoTotal = custoProducaoBase + custoInstalacoes + entregaCusto;
     
     // Calcular preço final com margem, impostos e comissão
     // (variáveis já definidas acima na função transformarDadosParaBackend)
@@ -1233,12 +1532,16 @@ export function OrcamentoV2Form({
       // Markup: margem por fora sobre o custo. Preço = Custo*(1+margem) / (1 - impostos - comissão)
       const divisorMarkup = 1 - percentualImpostosDecimal - percentualComissaoDecimal;
       precoFinal = divisorMarkup > 0
-        ? (custoTotal * (1 + percentualMargemDecimal)) / divisorMarkup
-        : custoTotal * (1 + percentualMargemDecimal);
+        ? (custoProducaoBase * (1 + percentualMargemDecimal)) / divisorMarkup
+        : custoProducaoBase * (1 + percentualMargemDecimal);
     } else {
       // Margem por dentro: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
-      precoFinal = divisorMargemPorDentro > 0 ? custoTotal / divisorMargemPorDentro : custoTotal;
+      precoFinal = divisorMargemPorDentro > 0
+        ? custoProducaoBase / divisorMargemPorDentro
+        : custoProducaoBase;
     }
+    precoFinal = precoFinal + precoInstalacoes + entregaValor;
+    precoFinal = resolverPrecoFinal(precoFinal);
 
     const margemLucro = precoFinal * percentualMargemDecimal;
     const impostos = precoFinal * percentualImpostosDecimal;
@@ -1296,13 +1599,13 @@ export function OrcamentoV2Form({
       const custoMaquinaProduto = produto.maquinas?.reduce((total: number, maquina: any) => {
         const maquinaEncontrada = maquinas.find(m => m.id === maquina.maquina_id);
         const custoHora = maquinaEncontrada ? maquinaEncontrada.custo_hora : 0;
-        return total + (maquina.horas_utilizadas * custoHora);
+        return total + (normalizarNumero(maquina.tempo_horas ?? maquina.horas_utilizadas) * custoHora);
       }, 0) || 0;
 
       const custoFuncaoProduto = produto.funcoes?.reduce((total: number, funcao: any) => {
         const funcaoEncontrada = funcoes.find(f => f.id === funcao.funcao_id);
         const custoHora = funcaoEncontrada ? funcaoEncontrada.custo_hora : 0;
-        return total + (funcao.horas_trabalhadas * custoHora);
+        return total + (normalizarNumero(funcao.tempo_horas ?? funcao.horas_trabalhadas) * custoHora);
       }, 0) || 0;
 
       const custoBaseProduto = custoMaterialProduto + custoMaquinaProduto + custoFuncaoProduto;
@@ -1341,16 +1644,25 @@ export function OrcamentoV2Form({
               : divisorMargemPorDentro > 0
                 ? custoTotalProduto / divisorMargemPorDentro
                 : custoTotalProduto;
-          const precoUnitarioVenda = precoVendaProduto / produto.quantidade;
+          const custoInstalacaoProduto =
+            Number(produto.instalacao_custo_mao_obra || 0) +
+            Number(produto.instalacao_custo_deslocamento || 0);
+          const precoInstalacaoProduto = Number(produto.instalacao_preco_cobrado || 0);
+          const precoVendaProdutoComInstalacao =
+            precoVendaProduto + precoInstalacaoProduto;
+          const custoTotalProdutoComInstalacao =
+            custoTotalProduto + custoInstalacaoProduto;
+          const precoUnitarioVenda =
+            precoVendaProdutoComInstalacao / produto.quantidade;
           
           // Calcular componentes individuais
-          const margemLucroProduto = precoVendaProduto * percentualMargemDecimal;
-          const impostosProduto = precoVendaProduto * percentualImpostosDecimal;
-          const comissaoProduto = precoVendaProduto * percentualComissaoDecimal;
+          const margemLucroProduto = precoVendaProdutoComInstalacao * percentualMargemDecimal;
+          const impostosProduto = precoVendaProdutoComInstalacao * percentualImpostosDecimal;
+          const comissaoProduto = precoVendaProdutoComInstalacao * percentualComissaoDecimal;
 
-          produto.custo_total_producao = custoTotalProduto;
+          produto.custo_total_producao = custoTotalProdutoComInstalacao;
           produto.preco_unitario = precoUnitarioVenda;
-          produto.preco_total = precoVendaProduto;
+          produto.preco_total = precoVendaProdutoComInstalacao;
           produto.margem_lucro = margemLucroProduto;
           produto.impostos = impostosProduto;
         
@@ -1441,6 +1753,7 @@ export function OrcamentoV2Form({
       impostos: impostos,
       preco_final: precoFinal,
       produtos: produtosTransformados,
+      ...entrega,
       largura_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.largura : undefined,
       altura_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.altura : undefined,
       area_produto: primeiroProdutoTransformado ? primeiroProdutoTransformado.area : undefined,
@@ -1450,7 +1763,10 @@ export function OrcamentoV2Form({
       impostos_customizados: impostosPercentual,
       comissao_percentual: comissaoPercentual,
       tipo_margem_lucro: tipoMargemLucroEfetivo,
-      configuracoes: { tipo_margem_lucro: tipoMargemLucroEfetivo },
+      configuracoes: {
+        tipo_margem_lucro: tipoMargemLucroEfetivo,
+        valor_final_manual: temValorFinalManual ? valorFinalManual : null,
+      },
     };
 
     // Log detalhado removido para limpar terminal
@@ -1459,6 +1775,51 @@ export function OrcamentoV2Form({
     // console.log('🔍 Debug - Produtos transformados:', dadosTransformados.produtos);
 
     return dadosTransformados;
+  };
+
+  const transformarDadosParaProdutoTemplate = (dados: any) => {
+    const primeiroProduto = Array.isArray(dados?.produtos) ? dados.produtos[0] : null;
+    const toNumber = (value: unknown): number => {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    return {
+      nome: primeiroProduto?.nome_servico || primeiroProduto?.nome || dados.nome_servico || dados.titulo,
+      categoria: primeiroProduto?.categoria || 'Produto',
+      nome_servico: primeiroProduto?.nome_servico || primeiroProduto?.nome || dados.nome_servico || dados.titulo,
+      descricao: dados.descricao || primeiroProduto?.descricao || '',
+      descricao_produto: primeiroProduto?.descricao || dados.descricao || '',
+      horas_producao: Math.max(toNumber(dados.horas_producao), 0.1),
+      largura_produto: primeiroProduto?.largura || undefined,
+      altura_produto: primeiroProduto?.altura || undefined,
+      area_produto: primeiroProduto?.area_produto || primeiroProduto?.area || undefined,
+      unidade_medida_produto: primeiroProduto?.unidade_medida || primeiroProduto?.unidade || 'un',
+      quantidade_padrao: Math.max(toNumber(primeiroProduto?.quantidade), 1),
+      ativo: true,
+      itens: (primeiroProduto?.insumos || [])
+        .filter((item: any) => item?.insumo_id)
+        .map((item: any) => ({
+          insumo_id: item.insumo_id,
+          quantidade: Math.max(toNumber(item.quantidade), 0.001),
+          custo_unitario: Math.max(toNumber(item.preco_unitario ?? item.custo_unitario), 0),
+          custo_total: Math.max(toNumber(item.preco_total ?? item.custo_total), 0),
+        })),
+      maquinas: (primeiroProduto?.maquinas || [])
+        .filter((item: any) => item?.maquina_id)
+        .map((item: any) => ({
+          maquina_id: item.maquina_id,
+          horas_utilizadas: Math.max(toNumber(item.tempo_horas ?? item.horas_utilizadas), 0),
+          custo_total: Math.max(toNumber(item.custo_total), 0),
+        })),
+      funcoes: (primeiroProduto?.funcoes || [])
+        .filter((item: any) => item?.funcao_id)
+        .map((item: any) => ({
+          funcao_id: item.funcao_id,
+          horas_trabalhadas: Math.max(toNumber(item.tempo_horas ?? item.horas_trabalhadas), 0),
+          custo_total: Math.max(toNumber(item.custo_total), 0),
+        })),
+    };
   };
 
   const handleSubmit = async (data: FormValues) => {
@@ -1496,18 +1857,40 @@ export function OrcamentoV2Form({
         }
       }
       
-        const dadosTransformados = transformarDadosParaBackend(data, dadosCalculados);
+      const dadosTransformados = transformarDadosParaBackend(data, dadosCalculados);
       console.log('🔍 Dados transformados para backend:', dadosTransformados);
 
-      if (mode === 'editar' && orcamentoId) {
+      if (mode === 'template') {
+        const produtoTemplate = transformarDadosParaProdutoTemplate(dadosTransformados);
+        if (orcamentoId) {
+          await produtosApi.update(orcamentoId, produtoTemplate, token);
+          toast.success('Produto atualizado com sucesso!');
+        } else {
+          await produtosApi.create(produtoTemplate, token);
+          toast.success('Produto criado com sucesso!');
+        }
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          router.push('/produtos');
+        }
+      } else if (mode === 'editar' && orcamentoId) {
         await orcamentosApi.v2.update(orcamentoId, dadosTransformados, token);
-        toast.success('Orçamento atualizado com sucesso!');
+        toast.success('Orcamento atualizado com sucesso!');
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          router.push('/orcamentos-v2');
+        }
       } else {
         await orcamentosApi.v2.create(dadosTransformados, token);
-        toast.success('Orçamento criado com sucesso!');
+        toast.success('Orcamento criado com sucesso!');
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          router.push('/orcamentos-v2');
+        }
       }
-
-      router.push('/orcamentos-v2');
     } catch (error) {
       console.error('Erro ao salvar orçamento:', error);
       
@@ -1799,7 +2182,7 @@ export function OrcamentoV2Form({
         altura_produto: produto.altura_produto?.toString() || '',
         profundidade_produto: profundidadeTemplateRaw,
         tem_profundidade: temProfundidadeTemplate,
-        unidade_medida_produto: produto.unidade_medida_produto || '',
+        unidade_medida_produto: produto.unidade_medida_produto || 'un',
         area_produto: produto.area_produto?.toString() || '',
         perimetro_produto: '',
         geometria_origem: 'MANUAL' as const,
@@ -1833,8 +2216,6 @@ export function OrcamentoV2Form({
       toast.error('Erro ao carregar produto. Tente novamente.');
     }
   };
-
-
   return (
     <div>
       <Form {...form}>
@@ -1905,12 +2286,16 @@ export function OrcamentoV2Form({
                       <Button
                         type="button"
                         onClick={() => handleSubmit(form.getValues())}
-                        disabled={loading}
+                        disabled={loading || isAtualizando}
                         className="flex items-center space-x-2"
                       >
                         <Save className="w-4 h-4" />
                         <span>
-                          {loading ? 'Salvando...' : 'Criar Produto Template'}
+                          {loading || isAtualizando
+                            ? 'Salvando...'
+                            : orcamentoId
+                              ? 'Salvar Produto Template'
+                              : 'Criar Produto Template'}
                         </span>
                       </Button>
                     )}
@@ -2020,7 +2405,7 @@ export function OrcamentoV2Form({
 
               {/* Sidebar com preview de cálculo */}
               <div className="w-full lg:w-3/10 lg:flex-shrink-0">
-                <div className="sticky top-6">
+                <div className="sticky top-6 space-y-3">
                   <PreviewCalculoV2 />
                 </div>
               </div>
@@ -2082,12 +2467,16 @@ export function OrcamentoV2Form({
               {!isAprovado && mode === 'template' && (
                 <Button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || isAtualizando}
                   className="flex items-center space-x-2"
                 >
                   <Save className="w-4 h-4" />
                   <span>
-                    {loading ? 'Salvando...' : 'Criar Produto Template'}
+                    {loading || isAtualizando
+                      ? 'Salvando...'
+                      : orcamentoId
+                        ? 'Salvar Produto Template'
+                        : 'Criar Produto Template'}
                   </span>
                 </Button>
               )}

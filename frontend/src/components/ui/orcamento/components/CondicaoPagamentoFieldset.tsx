@@ -45,14 +45,19 @@ const OPCOES_TIPO = [
   { value: 'PERSONALIZADO', label: 'Personalizado (descrever)' },
 ] as const;
 
-export function CondicaoPagamentoFieldset() {
+interface CondicaoPagamentoFieldsetProps {
+  mode?: 'novo' | 'editar' | 'template';
+}
+
+export function CondicaoPagamentoFieldset({ mode = 'novo' }: CondicaoPagamentoFieldsetProps) {
   const form = useFormContext();
   const { user } = useUser();
 
   const tipoAtual = useWatch({ control: form.control, name: 'condicao_pagamento_tipo' });
 
-  // Pre-preenche com o default da loja na primeira carga, caso esteja vazio.
+  // Pre-preenche com o default da loja apenas em orcamento novo (nao sobrescreve edicao).
   useEffect(() => {
+    if (mode === 'editar') return;
     const tipoForm = form.getValues('condicao_pagamento_tipo');
     if (!tipoForm && user?.loja?.condicao_pagamento_padrao_tipo) {
       form.setValue(
@@ -74,7 +79,7 @@ export function CondicaoPagamentoFieldset() {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.loja?.condicao_pagamento_padrao_tipo]);
+  }, [mode, user?.loja?.condicao_pagamento_padrao_tipo]);
 
   return (
     <div className="space-y-4 rounded-md border p-4">
@@ -94,7 +99,7 @@ export function CondicaoPagamentoFieldset() {
               <FormLabel>Tipo *</FormLabel>
               <Select
                 onValueChange={field.onChange}
-                value={field.value ?? ''}
+                value={field.value ? String(field.value) : undefined}
               >
                 <FormControl>
                   <SelectTrigger>

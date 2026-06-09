@@ -63,6 +63,16 @@ function resolverMedidasInsumo(insumo: InsumoChapaInfo) {
       : insumo.formato_material === 'CHAPA'
         ? 'Chapa'
         : insumo.formato_material || 'Material',
+    unidadeComercialLabel: linear
+      ? 'Rolo/bobina'
+      : insumo.formato_material === 'CHAPA'
+        ? 'Chapa'
+        : 'Unidade comercial',
+    unidadeComercialLabelMinuscula: linear
+      ? 'rolo/bobina'
+      : insumo.formato_material === 'CHAPA'
+        ? 'chapa'
+        : 'unidade comercial',
   };
 }
 
@@ -192,15 +202,20 @@ export function CalculoChapaMaterialPanel({
             const areaComPerda = Number(
               resultado.area_com_perda_m2 ?? resultado.areaComPerdaM2 ?? areaPecas,
             );
-            const areaBobina = Number(
+            const areaUnidadeComercial = Number(
               resultado.area_chapa_m2 ?? resultado.areaChapaM2 ?? 0,
             );
             const unidades =
               resultado.chapas_necessarias ?? resultado.chapasNecessarias ?? 1;
-            const areaBobinaTotal = areaBobina * Number(unidades);
+            const areaUnidadeComercialTotal =
+              areaUnidadeComercial * Number(unidades);
             const custoTotal = Number(
               resultado.custo_material ?? resultado.custoMaterial ?? 0,
             );
+            const unidadeComercialLabel =
+              medidasInsumo?.unidadeComercialLabel ?? 'Unidade comercial';
+            const unidadeComercialLabelMinuscula =
+              medidasInsumo?.unidadeComercialLabelMinuscula ?? 'unidade comercial';
 
             return (
               <>
@@ -212,18 +227,21 @@ export function CalculoChapaMaterialPanel({
                   )}
                 </div>
                 <div>
-                  <span className="font-medium text-foreground">Bobina considerada:</span>{' '}
-                  {Number(unidades)} × {areaBobina.toFixed(2)} m² = {areaBobinaTotal.toFixed(2)}{' '}
+                  <span className="font-medium text-foreground">
+                    {unidadeComercialLabel} considerada:
+                  </span>{' '}
+                  {Number(unidades)} x {areaUnidadeComercial.toFixed(2)} m² ={' '}
+                  {areaUnidadeComercialTotal.toFixed(2)}
                   m²
                 </div>
                 <div>
-                  Aproveitamento da bobina:{' '}
+                  Aproveitamento da {unidadeComercialLabelMinuscula}:{' '}
                   {Number(
                     resultado.aproveitamento_percent ??
                       resultado.aproveitamentoPercent ??
                       0,
                   ).toFixed(1)}
-                  % · Sobra na bobina:{' '}
+                  % · Sobra na {unidadeComercialLabelMinuscula}:{' '}
                   {Number(resultado.sobra_area_m2 ?? resultado.sobraAreaM2 ?? 0).toFixed(2)}{' '}
                   m²
                 </div>
@@ -250,8 +268,8 @@ export function CalculoChapaMaterialPanel({
           })()}
           <div>
             {(resultado.peca_cabe_na_chapa ?? resultado.pecaCabeNaChapa)
-              ? 'Cada peça cabe na largura do rolo.'
-              : 'Alguma peça não cabe na largura do rolo.'}
+              ? `Cada peça cabe na ${medidasInsumo?.unidadeComercialLabelMinuscula ?? 'unidade comercial'}.`
+              : `Alguma peça não cabe na ${medidasInsumo?.unidadeComercialLabelMinuscula ?? 'unidade comercial'}.`}
           </div>
         </div>
       ) : (

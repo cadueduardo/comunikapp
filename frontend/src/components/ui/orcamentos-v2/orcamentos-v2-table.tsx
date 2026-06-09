@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/utils';
 import { orcamentosApi } from '@/lib/api-client';
-import { Copy, Edit, Filter, Loader2, MoreHorizontal, Search, Share2, Trash2 } from 'lucide-react';
+import { Copy, Edit, FileText, Filter, Loader2, MoreHorizontal, Search, Share2, Trash2 } from 'lucide-react';
 import { OrcamentoV2, useOrcamentosV2 } from './hooks/useOrcamentosV2';
 import { useDuplicarOrcamento } from '@/hooks/use-duplicar-orcamento';
 
@@ -226,6 +226,10 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
     }
   };
 
+  const handlePdf = (orcamento: OrcamentoV2) => {
+    window.open(`/orcamento-v2/${orcamento.id}?salvarPdf=1`, '_blank', 'noopener,noreferrer');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -288,23 +292,24 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
           <table>
             <thead>
               <tr>
-                <th>Numero</th>
-                <th>Servico</th>
+                <th>Número</th>
+                <th>Serviço</th>
                 <th>Cliente</th>
                 <th>Valor</th>
                 <th>Status</th>
+                <th>PDF</th>
                 <th>Criado em</th>
                 <th>Atualizado em</th>
-                <th className="text-right">Acoes</th>
+                <th className="text-right">Ações</th>
               </tr>
             </thead>
             <tbody>
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground">
+                  <td colSpan={9} className="px-6 py-12 text-center text-muted-foreground">
                     <div className="space-y-2">
-                      <div className="text-lg font-medium">Nenhum orcamento encontrado</div>
-                      <div className="text-sm">Ajuste os filtros ou crie um novo orcamento.</div>
+                      <div className="text-lg font-medium">Nenhum orçamento encontrado</div>
+                      <div className="text-sm">Ajuste os filtros ou crie um novo orçamento.</div>
                     </div>
                   </td>
                 </tr>
@@ -347,6 +352,17 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
                             </Badge>
                           </Link>
                     </td>
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handlePdf(orcamento)}
+                          title="Gerar PDF com o layout do orçamento"
+                        >
+                          <FileText className="mr-2 h-4 w-4" />
+                          Gerar PDF
+                        </Button>
+                      </td>
                       <td className="whitespace-nowrap px-6 py-4">
                         {orcamento.criado_em ?? '-'}
                     </td>

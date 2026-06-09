@@ -611,6 +611,22 @@ export class OrcamentosV2Repository {
       prioridade: orcamento.prioridade,
       responsavel_id: orcamento.responsavel_id,
       ativo: orcamento.ativo,
+      comissao_percentual:
+        orcamento.comissao_percentual != null
+          ? Number(orcamento.comissao_percentual)
+          : undefined,
+      prazo_entrega: orcamento.prazo_entrega ?? undefined,
+      validade_proposta: orcamento.validade_proposta ?? undefined,
+      condicoes_comerciais: orcamento.condicoes_comerciais ?? undefined,
+      atendente: orcamento.atendente ?? undefined,
+      condicao_pagamento_tipo: orcamento.condicao_pagamento_tipo ?? undefined,
+      condicao_pagamento_entrada_pct:
+        orcamento.condicao_pagamento_entrada_pct != null
+          ? Number(orcamento.condicao_pagamento_entrada_pct)
+          : undefined,
+      condicao_pagamento_parcelas: orcamento.condicao_pagamento_parcelas ?? undefined,
+      condicao_pagamento_descricao: orcamento.condicao_pagamento_descricao ?? undefined,
+      tipo_margem_lucro: orcamento.tipo_margem_lucro ?? undefined,
 
       // Relacionados
       cliente: orcamento.cliente,

@@ -5,10 +5,11 @@ import { useFormContext } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ChevronDown, ChevronUp, Eye, Calculator, Clock, Package } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, Eye, Calculator, Clock, Package } from 'lucide-react';
 import { calcularProdutosPreview } from '../utils/preview-calculo.helpers';
 import { useOrcamentoData } from '../../orcamento/hooks/useOrcamentoData';
 import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
+import { useUser } from '@/contexts/UserContext';
 
 interface PreviewCalculoV2Props {
   variant?: 'orcamento' | 'produto';
@@ -69,6 +70,21 @@ type PreviewProduto = {
   margem_lucro_produto?: number;
   impostos_produto?: number;
   comissao_produto?: number;
+  instalacao_necessaria?: boolean;
+  instalacao_regra_cobranca?: string;
+  instalacao_valor_unitario?: number;
+  instalacao_preco_cobrado?: number;
+  instalacao_custo_mao_obra?: number;
+  instalacao_custo_deslocamento?: number;
+  instalacao_tempo_estimado_min?: number;
+  instalacao_quantidade_pessoas?: number;
+  instalacao_usar_endereco_entrega?: boolean;
+  instalacao_cep?: string;
+  instalacao_logradouro?: string;
+  instalacao_numero?: string;
+  instalacao_bairro?: string;
+  instalacao_cidade?: string;
+  instalacao_estado?: string;
 };
 
 type PreviewData = {
@@ -82,6 +98,15 @@ type PreviewData = {
     total_margem_lucro: number;
     total_impostos: number;
     preco_final: number;
+    preco_final_calculado?: number;
+    valor_final_manual?: number;
+    preco_final_manual?: boolean;
+    preco_abaixo_custo?: boolean;
+    margem_planejada_valor?: number;
+    margem_manual_valor?: number;
+    margem_manual_percentual?: number;
+    margem_consumida_valor?: number;
+    margem_consumida_percentual?: number;
     tempo_total_producao: number;
     margem_lucro_percentual: number;
     impostos_percentual: number;
@@ -89,6 +114,19 @@ type PreviewData = {
     comissao_total: number;
   };
   produtos: PreviewProduto[];
+  entrega?: {
+    modalidade_id?: string;
+    usar_endereco_cliente: boolean;
+    cep?: string;
+    logradouro?: string;
+    numero?: string;
+    bairro?: string;
+    cidade?: string;
+    estado?: string;
+    prazo_dias?: number;
+    valor_cobrado: number;
+    custo_estimado: number;
+  };
   custosIndiretos: PreviewCustoIndireto[];
   custosIndiretosResumo?: {
     totalMensal: number;
@@ -111,6 +149,15 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   const [showIndirectCosts, setShowIndirectCosts] = useState(false);
   const [formSnapshot, setFormSnapshot] = useState<Record<string, unknown> | null>(null);
   const form = useFormContext<Record<string, unknown>>();
+  const { user } = useUser();
+
+  const resolverTipoMargemLucro = (formData: Record<string, unknown>): 'markup' | 'margem_por_dentro' => {
+    const raw = formData?.tipo_margem_lucro;
+    if (raw === 'markup' || raw === 'margem_por_dentro') {
+      return raw;
+    }
+    return user?.loja?.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro';
+  };
 
   useEffect(() => {
     if (!form) {
@@ -241,9 +288,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     ],
     custosIndiretos: [
       { id: '1', nome: "Aluguel", categoria: "Infraestrutura", valor_mensal: 2000.00, valor_rateado: 1730.40, percentual_rateio: 57.97, ativo: true },
-      { id: '2', nome: "Energia Eletrica", categoria: "Servicos", valor_mensal: 800.00, valor_rateado: 692.16, percentual_rateio: 23.19, ativo: true },
-      { id: '3', nome: "Agua", categoria: "Servicos", valor_mensal: 200.00, valor_rateado: 173.04, percentual_rateio: 5.80, ativo: true },
-      { id: '4', nome: "Internet", categoria: "Servicos", valor_mensal: 150.00, valor_rateado: 129.78, percentual_rateio: 4.35, ativo: true },
+      { id: '2', nome: "Energia Elétrica", categoria: "Serviços", valor_mensal: 800.00, valor_rateado: 692.16, percentual_rateio: 23.19, ativo: true },
+      { id: '3', nome: "Água", categoria: "Serviços", valor_mensal: 200.00, valor_rateado: 173.04, percentual_rateio: 5.80, ativo: true },
+      { id: '4', nome: "Internet", categoria: "Serviços", valor_mensal: 150.00, valor_rateado: 129.78, percentual_rateio: 4.35, ativo: true },
       { id: '5', nome: "Seguro", categoria: "Seguros", valor_mensal: 300.00, valor_rateado: 266.62, percentual_rateio: 8.70, ativo: true }
     ],
     custosIndiretosResumo: {
@@ -252,9 +299,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       totalRateado: 2992.00,
       itens: [
         { id: '1', nome: "Aluguel", categoria: "Infraestrutura", valor_mensal: 2000.00, valor_rateado: 1730.40, percentual_rateio: 57.97 },
-        { id: '2', nome: "Energia Eletrica", categoria: "Servicos", valor_mensal: 800.00, valor_rateado: 692.16, percentual_rateio: 23.19 },
-        { id: '3', nome: "Agua", categoria: "Servicos", valor_mensal: 200.00, valor_rateado: 173.04, percentual_rateio: 5.80 },
-        { id: '4', nome: "Internet", categoria: "Servicos", valor_mensal: 150.00, valor_rateado: 129.78, percentual_rateio: 4.35 },
+        { id: '2', nome: "Energia Elétrica", categoria: "Serviços", valor_mensal: 800.00, valor_rateado: 692.16, percentual_rateio: 23.19 },
+        { id: '3', nome: "Água", categoria: "Serviços", valor_mensal: 200.00, valor_rateado: 173.04, percentual_rateio: 5.80 },
+        { id: '4', nome: "Internet", categoria: "Serviços", valor_mensal: 150.00, valor_rateado: 129.78, percentual_rateio: 4.35 },
         { id: '5', nome: "Seguro", categoria: "Seguros", valor_mensal: 300.00, valor_rateado: 266.62, percentual_rateio: 8.70 }
       ]
     },
@@ -368,6 +415,37 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     return fallback;
   };
 
+  const parseNumero = (value: unknown): number => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === 'string') {
+      const cleaned = value.replace(/[^0-9,.-]/g, '');
+      const normalizedText =
+        cleaned.includes(',') && cleaned.includes('.')
+          ? cleaned.replace(/\./g, '').replace(',', '.')
+          : cleaned.replace(',', '.');
+      const normalized = Number(normalizedText);
+      if (Number.isFinite(normalized)) {
+        return normalized;
+      }
+    }
+
+    return 0;
+  };
+
+  const parseInteiroOpcional = (value: unknown): number | undefined => {
+    const parsed = parseNumero(value);
+    return parsed > 0 ? Math.trunc(parsed) : undefined;
+  };
+
+  const parseTextoOpcional = (value: unknown): string | undefined => {
+    return typeof value === 'string' && value.trim().length > 0
+      ? value.trim()
+      : undefined;
+  };
+
   const sanitizeDescricao = (descricao: unknown, fallback: string): string => {
     if (typeof descricao !== 'string') {
       return fallback.trim();
@@ -375,7 +453,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
 
     const normalized = descricao
       .normalize('NFC')
-      .replace(/[ --ÂŸ]/g, '')
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
 
@@ -388,14 +466,18 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       return null;
     }
 
+    const loja = user?.loja as Record<string, unknown> | undefined;
     const custosIndiretosPercentual = parsePercentual(formData?.custos_indiretos_percentual, 15);
-    const margemPercentual = parsePercentual(formData?.margem_lucro_customizada, 30);
-    const impostosPercentual = parsePercentual(formData?.impostos_customizados, 18);
+    const margemPercentual = parsePercentual(
+      formData?.margem_lucro_customizada,
+      parsePercentual(loja?.margem_lucro_padrao, 30),
+    );
+    const impostosPercentual = parsePercentual(
+      formData?.impostos_customizados,
+      parsePercentual(loja?.impostos_padrao, 18),
+    );
     const comissaoPercentual = parsePercentual(formData?.comissao_percentual, 5);
-    const tipoMargemLucro =
-      (formData?.tipo_margem_lucro && formData.tipo_margem_lucro !== '')
-        ? (formData.tipo_margem_lucro as 'markup' | 'margem_por_dentro')
-        : 'margem_por_dentro';
+    const tipoMargemLucro = resolverTipoMargemLucro(formData);
 
     const previewCalculado = calcularProdutosPreview(
       itensFormulario,
@@ -421,12 +503,67 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     };
 
     const produtosNormalizados = produtosPreview.map((produto, index) => {
-      const fallbackDescricao = itensFormulario[index]?.descricao?.trim() || `Descrição do produto ${index + 1}`;
+      const itemFormulario = itensFormulario[index] as Record<string, unknown> | undefined;
+      const fallbackDescricao =
+        itemFormulario?.descricao && typeof itemFormulario.descricao === 'string'
+          ? itemFormulario.descricao.trim()
+          : `Descrição do produto ${index + 1}`;
       return {
         ...produto,
         descricao: sanitizeDescricao(produto.descricao, fallbackDescricao),
+        instalacao_necessaria: Boolean(itemFormulario?.instalacao_necessaria),
+        instalacao_regra_cobranca:
+          parseTextoOpcional(itemFormulario?.instalacao_regra_cobranca) || 'FIXO',
+        instalacao_valor_unitario: parseNumero(itemFormulario?.instalacao_valor_unitario),
+        instalacao_preco_cobrado: parseNumero(itemFormulario?.instalacao_preco_cobrado),
+        instalacao_custo_mao_obra: parseNumero(itemFormulario?.instalacao_custo_mao_obra),
+        instalacao_custo_deslocamento: parseNumero(itemFormulario?.instalacao_custo_deslocamento),
+        instalacao_tempo_estimado_min: parseInteiroOpcional(itemFormulario?.instalacao_tempo_estimado_min),
+        instalacao_quantidade_pessoas: parseInteiroOpcional(itemFormulario?.instalacao_quantidade_pessoas),
+        instalacao_usar_endereco_entrega: itemFormulario?.instalacao_usar_endereco_entrega !== false,
+        instalacao_cep: parseTextoOpcional(itemFormulario?.instalacao_cep),
+        instalacao_logradouro: parseTextoOpcional(itemFormulario?.instalacao_logradouro),
+        instalacao_numero: parseTextoOpcional(itemFormulario?.instalacao_numero),
+        instalacao_bairro: parseTextoOpcional(itemFormulario?.instalacao_bairro),
+        instalacao_cidade: parseTextoOpcional(itemFormulario?.instalacao_cidade),
+        instalacao_estado: parseTextoOpcional(itemFormulario?.instalacao_estado),
       };
     });
+
+    const totalCustoInstalacao = produtosNormalizados.reduce(
+      (total, produto) =>
+        produto.instalacao_necessaria
+          ? total +
+            (produto.instalacao_custo_mao_obra ?? 0) +
+            (produto.instalacao_custo_deslocamento ?? 0)
+          : total,
+      0,
+    );
+    const totalPrecoInstalacao = produtosNormalizados.reduce(
+      (total, produto) =>
+        produto.instalacao_necessaria
+          ? total + (produto.instalacao_preco_cobrado ?? 0)
+          : total,
+      0,
+    );
+    const entrega = {
+      modalidade_id: parseTextoOpcional(formData?.entrega_modalidade_id),
+      usar_endereco_cliente: formData?.entrega_usar_endereco_cliente !== false,
+      cep: parseTextoOpcional(formData?.entrega_cep),
+      logradouro: parseTextoOpcional(formData?.entrega_logradouro),
+      numero: parseTextoOpcional(formData?.entrega_numero),
+      bairro: parseTextoOpcional(formData?.entrega_bairro),
+      cidade: parseTextoOpcional(formData?.entrega_cidade),
+      estado: parseTextoOpcional(formData?.entrega_estado),
+      prazo_dias: parseInteiroOpcional(formData?.entrega_prazo_dias),
+      valor_cobrado: parseNumero(formData?.entrega_valor_cobrado),
+      custo_estimado: parseNumero(formData?.entrega_custo_estimado),
+    };
+    const temEntrega =
+      Boolean(entrega.modalidade_id) ||
+      entrega.valor_cobrado > 0 ||
+      entrega.custo_estimado > 0 ||
+      entrega.usar_endereco_cliente === false;
 
     const totalCustoMaterial = totais.materiais;
     const totalCustoMaquinaria = totais.maquinas;
@@ -435,8 +572,20 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     const totalCustoIndireto = resumoIndiretos.totalRateado ?? totais.indiretos;
     const totalHoras = totais.horas;
 
+    const totalCustoProducaoBase =
+      totalCustoMaterial +
+      totalCustoMaquinaria +
+      totalCustoFuncoes +
+      totalCustoServicos +
+      totalCustoIndireto;
     const totalCustoProducao =
-      totalCustoMaterial + totalCustoMaquinaria + totalCustoFuncoes + totalCustoServicos + totalCustoIndireto;
+      totalCustoMaterial +
+      totalCustoMaquinaria +
+      totalCustoFuncoes +
+      totalCustoServicos +
+      totalCustoIndireto +
+      totalCustoInstalacao +
+      entrega.custo_estimado;
 
     const percentualMargemDecimal = margemPercentual / 100;
     const percentualImpostosDecimal = impostosPercentual / 100;
@@ -447,13 +596,44 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     if (tipoMargemLucro === 'markup') {
       divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal;
       precoFinal = divisor > 0
-        ? (totalCustoProducao * (1 + percentualMargemDecimal)) / divisor
-        : totalCustoProducao * (1 + percentualMargemDecimal);
+        ? (totalCustoProducaoBase * (1 + percentualMargemDecimal)) / divisor
+        : totalCustoProducaoBase * (1 + percentualMargemDecimal);
     } else {
       divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
-      precoFinal = divisor > 0 ? totalCustoProducao / divisor : totalCustoProducao;
+      precoFinal = divisor > 0 ? totalCustoProducaoBase / divisor : totalCustoProducaoBase;
     }
-    precoFinal = roundMoney(precoFinal);
+    const precoFinalCalculado = roundMoney(
+      precoFinal + totalPrecoInstalacao + entrega.valor_cobrado,
+    );
+    precoFinal = precoFinalCalculado;
+    const valorFinalManualTexto =
+      typeof formData?.valor_final_manual === 'string'
+        ? formData.valor_final_manual.trim()
+        : formData?.valor_final_manual != null
+          ? String(formData.valor_final_manual).trim()
+          : '';
+    const temValorFinalManual = valorFinalManualTexto.length > 0;
+    const valorFinalManual = roundMoney(parseNumero(valorFinalManualTexto));
+    if (temValorFinalManual) {
+      precoFinal = valorFinalManual;
+    }
+    const margemPlanejadaValor = roundMoney(precoFinalCalculado - totalCustoProducao);
+    const margemManualValor = temValorFinalManual
+      ? roundMoney(valorFinalManual - totalCustoProducao)
+      : undefined;
+    const margemManualPercentual =
+      temValorFinalManual && valorFinalManual > 0 && margemManualValor !== undefined
+        ? roundMoney((margemManualValor / valorFinalManual) * 100)
+        : undefined;
+    const margemConsumidaValor = temValorFinalManual
+      ? roundMoney(precoFinalCalculado - valorFinalManual)
+      : undefined;
+    const margemConsumidaPercentual =
+      temValorFinalManual &&
+      margemConsumidaValor !== undefined &&
+      margemPlanejadaValor > 0
+        ? roundMoney((margemConsumidaValor / margemPlanejadaValor) * 100)
+        : undefined;
 
     const totalImpostos = roundMoney(precoFinal * percentualImpostosDecimal);
     const comissaoTotal = roundMoney(precoFinal * percentualComissaoDecimal);
@@ -493,6 +673,15 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         total_margem_lucro: totalMargemLucro,
         total_impostos: totalImpostos,
         preco_final: precoFinal,
+        preco_final_calculado: temValorFinalManual ? precoFinalCalculado : undefined,
+        valor_final_manual: temValorFinalManual ? valorFinalManual : undefined,
+        preco_final_manual: temValorFinalManual,
+        preco_abaixo_custo: temValorFinalManual && valorFinalManual < totalCustoProducao,
+        margem_planejada_valor: temValorFinalManual ? margemPlanejadaValor : undefined,
+        margem_manual_valor: margemManualValor,
+        margem_manual_percentual: margemManualPercentual,
+        margem_consumida_valor: margemConsumidaValor,
+        margem_consumida_percentual: margemConsumidaPercentual,
         tempo_total_producao: totalHoras,
         margem_lucro_percentual: margemPercentual,
         impostos_percentual: impostosPercentual,
@@ -500,6 +689,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         comissao_total: comissaoTotal,
       },
       produtos: produtosComPrecos,
+      entrega: temEntrega ? entrega : undefined,
       custosIndiretos: resumoIndiretos.itens.map((custo) => ({
         id: custo.id,
         nome: custo.nome,
@@ -528,11 +718,21 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     return resultado;
   };
 
-  const processarDadosReais = () => {
-    if (resultadoOrcamento?.resultado) {
-      console.debug('[PreviewCalculoV2] Usando resultado do motor V2', resultadoOrcamento);
-      const resultadoMotor = resultadoOrcamento.resultado as Partial<PreviewData>;
+  const processarDadosReais = (): PreviewData => {
+    if (form) {
+      try {
+        const formData = (formSnapshot ?? form.getValues()) as Record<string, unknown>;
+        const previewFormulario = montarPreviewFormulario(formData);
+        if (previewFormulario) {
+          return previewFormulario;
+        }
+      } catch (error) {
+        console.error('[PreviewCalculoV2] Erro no preview local', error);
+      }
+    }
 
+    if (resultadoOrcamento?.resultado) {
+      const resultadoMotor = resultadoOrcamento.resultado as Partial<PreviewData>;
       if (
         resultadoMotor &&
         typeof resultadoMotor === 'object' &&
@@ -540,7 +740,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         Array.isArray(resultadoMotor.produtos)
       ) {
         const metadataMotor = (resultadoMotor.metadata ?? {}) as Partial<PreviewData['metadata']>;
-        const dadosProcessados: PreviewData = {
+        return {
           ...mockData,
           ...resultadoMotor,
           metadata: {
@@ -553,34 +753,10 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
               resultadoOrcamento.tempo_execucao_ms ?? metadataMotor.tempo_execucao_ms ?? 0,
           },
         };
-        
-        // Dados processados com sucesso
-        return dadosProcessados;
       }
-
-      console.debug('[PreviewCalculoV2] Estrutura do motor inesperada, usando fallback do formulario');
     }
 
-    if (!form) {
-      console.debug('[PreviewCalculoV2] Sem formulario, usando mockData');
-      return mockData;
-    }
-
-    try {
-      const formData = (formSnapshot ?? form.getValues()) as Record<string, unknown>;
-      const previewFormulario = montarPreviewFormulario(formData);
-
-      if (previewFormulario) {
-        // Dados calculados localmente com sucesso
-        return previewFormulario;
-      }
-
-      console.debug('[PreviewCalculoV2] Nenhum dado calculado a partir do formulario, usando mockData');
-      return mockData;
-    } catch (error) {
-      console.error('[PreviewCalculoV2] Erro ao processar dados reais', error);
-      return mockData;
-    }
+    return mockData;
   };
   // Usar dados reais se disponíveis, senão usar mockados
   const data: PreviewData = (() => {
@@ -628,6 +804,26 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         }
         return total;
       }, 0);
+
+  const enderecoEntrega = data.entrega
+    ? [
+        data.entrega.logradouro,
+        data.entrega.numero,
+        data.entrega.bairro,
+        data.entrega.cidade,
+        data.entrega.estado,
+        data.entrega.cep,
+      ].filter(Boolean).join(', ')
+    : '';
+
+  const regraInstalacaoLabel: Record<string, string> = {
+    FIXO: 'Valor fixo',
+    POR_M2: 'Por m² instalado',
+    POR_ML: 'Por metro linear',
+    POR_UNIDADE: 'Por unidade',
+    POR_HORA: 'Por hora/equipe',
+    MANUAL: 'Manual',
+  };
 
   // Se nao ha dados, mostrar estado vazio
   if (!data) {
@@ -692,6 +888,64 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                 R$ {formatarValor(data.resumo.preco_final)}
               </span>
             </div>
+            {data.resumo.preco_final_manual && (
+              <div
+                className={`rounded-md border p-3 text-sm ${
+                  data.resumo.preco_abaixo_custo
+                    ? 'border-red-200 bg-red-50 text-red-800'
+                    : (data.resumo.margem_consumida_valor ?? 0) > 0
+                      ? 'border-amber-200 bg-amber-50 text-amber-800'
+                      : 'border-green-200 bg-green-50 text-green-800'
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                  <div className="space-y-1">
+                    <p className="font-medium">
+                      {data.resumo.preco_abaixo_custo
+                        ? 'Valor final manual abaixo do custo de produção.'
+                        : (data.resumo.margem_consumida_valor ?? 0) > 0
+                          ? 'Valor manual reduziu a margem prevista.'
+                          : 'Valor manual preserva ou aumenta a margem prevista.'}
+                    </p>
+                    <div className="space-y-0.5 text-xs">
+                      {data.resumo.preco_final_calculado !== undefined && (
+                        <p>
+                          Preço calculado: R$ {formatarValor(data.resumo.preco_final_calculado)}
+                        </p>
+                      )}
+                      {data.resumo.margem_planejada_valor !== undefined && (
+                        <p>
+                          Margem prevista: R$ {formatarValor(data.resumo.margem_planejada_valor)}
+                        </p>
+                      )}
+                      {data.resumo.margem_consumida_valor !== undefined && (
+                        <p>
+                          {data.resumo.margem_consumida_valor > 0
+                            ? 'Margem consumida'
+                            : 'Margem adicional'}
+                          : R$ {formatarValor(Math.abs(data.resumo.margem_consumida_valor))}
+                          {data.resumo.margem_consumida_percentual !== undefined
+                            ? ` (${formatarNumero(Math.abs(data.resumo.margem_consumida_percentual))}% da margem prevista)`
+                            : ''}
+                        </p>
+                      )}
+                      {data.resumo.margem_manual_valor !== undefined && (
+                        <p>
+                          {data.resumo.margem_manual_valor >= 0
+                            ? 'Margem restante'
+                            : 'Prejuízo estimado'}
+                          : R$ {formatarValor(Math.abs(data.resumo.margem_manual_valor))}
+                          {data.resumo.margem_manual_percentual !== undefined
+                            ? ` (${formatarNumero(data.resumo.margem_manual_percentual)}% sobre a venda)`
+                            : ''}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Preços de venda por produto */}
             <div className="space-y-2 text-sm">
@@ -801,6 +1055,59 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                     <span>{formatarNumero(produto.horas_producao)}h</span>
                   </div>
                 </div>
+
+                {produto.instalacao_necessaria && (
+                  <div className="mt-3 rounded-md border border-gray-100 bg-gray-50 p-2 text-xs">
+                    <div className="mb-1 flex items-center justify-between gap-3 font-semibold text-gray-900">
+                      <span>Instalação</span>
+                      <span>R$ {formatarValor(produto.instalacao_preco_cobrado ?? 0)}</span>
+                    </div>
+                    <div className="space-y-1 text-gray-600">
+                      <div className="flex justify-between gap-3">
+                        <span>Regra</span>
+                        <span>
+                          {regraInstalacaoLabel[produto.instalacao_regra_cobranca || 'FIXO'] || 'Valor fixo'}
+                          {produto.instalacao_valor_unitario
+                            ? ` / R$ ${formatarValor(produto.instalacao_valor_unitario)}`
+                            : ''}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span>Custo de mão de obra</span>
+                        <span>R$ {formatarValor(produto.instalacao_custo_mao_obra ?? 0)}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span>Custo de deslocamento</span>
+                        <span>R$ {formatarValor(produto.instalacao_custo_deslocamento ?? 0)}</span>
+                      </div>
+                      {(produto.instalacao_tempo_estimado_min || produto.instalacao_quantidade_pessoas) && (
+                        <div className="flex justify-between gap-3">
+                          <span>Equipe e tempo</span>
+                          <span>
+                            {produto.instalacao_quantidade_pessoas
+                              ? `${produto.instalacao_quantidade_pessoas} pessoa(s)`
+                              : 'Equipe não informada'}
+                            {produto.instalacao_tempo_estimado_min
+                              ? ` / ${produto.instalacao_tempo_estimado_min}min`
+                              : ''}
+                          </span>
+                        </div>
+                      )}
+                      {produto.instalacao_usar_endereco_entrega === false && (
+                        <div className="pt-1 text-gray-500">
+                          {[
+                            produto.instalacao_logradouro,
+                            produto.instalacao_numero,
+                            produto.instalacao_bairro,
+                            produto.instalacao_cidade,
+                            produto.instalacao_estado,
+                            produto.instalacao_cep,
+                          ].filter(Boolean).join(', ')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <Button
                   variant="ghost"
@@ -914,6 +1221,41 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         {/* Separador */}
         <Separator className="my-6" />
 
+        {data.entrega && (
+          <>
+            <div>
+              <div className="pb-3">
+                <h3 className="text-base font-semibold">Entrega</h3>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-600">Valor cobrado</span>
+                  <span className="font-semibold">
+                    R$ {formatarValor(data.entrega.valor_cobrado)}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3 text-xs text-gray-600">
+                  <span>Custo estimado</span>
+                  <span>R$ {formatarValor(data.entrega.custo_estimado)}</span>
+                </div>
+                {data.entrega.prazo_dias && (
+                  <div className="flex justify-between gap-3 text-xs text-gray-600">
+                    <span>Prazo</span>
+                    <span>{data.entrega.prazo_dias} dia(s)</span>
+                  </div>
+                )}
+                <div className="text-xs text-gray-500">
+                  {data.entrega.usar_endereco_cliente
+                    ? 'Endereço do cliente'
+                    : enderecoEntrega || 'Endereço de entrega não informado'}
+                </div>
+              </div>
+            </div>
+
+            <Separator className="my-6" />
+          </>
+        )}
+
         {/* Custos Indiretos Globais */}
         <div>
           <div className="pb-3">
@@ -979,20 +1321,6 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
 };
 
 export default PreviewCalculoV2;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

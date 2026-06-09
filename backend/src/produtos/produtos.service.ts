@@ -21,6 +21,16 @@ export class ProdutosService {
   ) {}
 
   async create(createProdutoDto: CreateProdutoDto, lojaId: string) {
+    const itensPayload = Array.isArray(createProdutoDto.itens)
+      ? createProdutoDto.itens.filter((item) => item?.insumo_id)
+      : [];
+    const maquinasPayload = Array.isArray(createProdutoDto.maquinas)
+      ? createProdutoDto.maquinas.filter((maquina) => maquina?.maquina_id)
+      : [];
+    const funcoesPayload = Array.isArray(createProdutoDto.funcoes)
+      ? createProdutoDto.funcoes.filter((funcao) => funcao?.funcao_id)
+      : [];
+
     // Validar se já existe um produto com o mesmo nome na loja
     const produtoExistente = await this.prisma.templateProduto.findFirst({
       where: {
@@ -36,7 +46,7 @@ export class ProdutosService {
     }
 
     // Validar se os insumos existem
-    const insumoIds = createProdutoDto.itens.map((item) => item.insumo_id);
+    const insumoIds = itensPayload.map((item) => item.insumo_id);
     const insumos = await this.prisma.insumo.findMany({
       where: {
         id: { in: insumoIds },
@@ -51,8 +61,8 @@ export class ProdutosService {
     }
 
     // Validar se as máquinas existem (se fornecidas)
-    if (createProdutoDto.maquinas && createProdutoDto.maquinas.length > 0) {
-      const maquinaIds = createProdutoDto.maquinas.map(
+    if (maquinasPayload.length > 0) {
+      const maquinaIds = maquinasPayload.map(
         (maquina) => maquina.maquina_id,
       );
       const maquinas = await this.prisma.maquina.findMany({
@@ -70,8 +80,8 @@ export class ProdutosService {
     }
 
     // Validar se as funções existem (se fornecidas)
-    if (createProdutoDto.funcoes && createProdutoDto.funcoes.length > 0) {
-      const funcaoIds = createProdutoDto.funcoes.map(
+    if (funcoesPayload.length > 0) {
+      const funcaoIds = funcoesPayload.map(
         (funcao) => funcao.funcao_id,
       );
       const funcoes = await this.prisma.funcao.findMany({
@@ -110,9 +120,9 @@ export class ProdutosService {
       });
 
       // Criar os itens do produto
-      if (createProdutoDto.itens.length > 0) {
+      if (itensPayload.length > 0) {
         await prisma.itemTemplateProduto.createMany({
-          data: createProdutoDto.itens.map((item) => ({
+          data: itensPayload.map((item) => ({
             template_id: produtoCriado.id,
             insumo_id: item.insumo_id,
             quantidade: item.quantidade,
@@ -123,9 +133,9 @@ export class ProdutosService {
       }
 
       // Criar as máquinas do produto (se fornecidas)
-      if (createProdutoDto.maquinas && createProdutoDto.maquinas.length > 0) {
+      if (maquinasPayload.length > 0) {
         await prisma.maquinaTemplateProduto.createMany({
-          data: createProdutoDto.maquinas.map((maquina) => ({
+          data: maquinasPayload.map((maquina) => ({
             template_id: produtoCriado.id,
             maquina_id: maquina.maquina_id,
             horas_utilizadas: maquina.horas_utilizadas,
@@ -135,9 +145,9 @@ export class ProdutosService {
       }
 
       // Criar as funções do produto (se fornecidas)
-      if (createProdutoDto.funcoes && createProdutoDto.funcoes.length > 0) {
+      if (funcoesPayload.length > 0) {
         await prisma.funcaoTemplateProduto.createMany({
-          data: createProdutoDto.funcoes.map((funcao) => ({
+          data: funcoesPayload.map((funcao) => ({
             template_id: produtoCriado.id,
             funcao_id: funcao.funcao_id,
             horas_trabalhadas: funcao.horas_trabalhadas,
@@ -254,12 +264,7 @@ export class ProdutosService {
             nome_servico: produto.nome_servico,
             descricao: produto.descricao_produto || undefined,
             horas_producao: Number(produto.horas_producao) || 0,
-            // IMPORTANTE: Usar área do produto se quantidade_padrao for null
-            // Para produtos como banners, a área é a quantidade real
-            quantidade_produto:
-              Number(produto.quantidade_padrao) ||
-              Number(produto.area_produto) ||
-              1,
+            quantidade_produto: Number(produto.quantidade_padrao) || 1,
             itens: itensComCustosRecalculados.map((item) => ({
               insumo_id: item.insumo_id,
               quantidade: Number(item.quantidade) || 0,
@@ -357,6 +362,16 @@ export class ProdutosService {
   }
 
   async update(id: string, updateProdutoDto: UpdateProdutoDto, lojaId: string) {
+    const itensPayload = Array.isArray(updateProdutoDto.itens)
+      ? updateProdutoDto.itens.filter((item) => item?.insumo_id)
+      : undefined;
+    const maquinasPayload = Array.isArray(updateProdutoDto.maquinas)
+      ? updateProdutoDto.maquinas.filter((maquina) => maquina?.maquina_id)
+      : undefined;
+    const funcoesPayload = Array.isArray(updateProdutoDto.funcoes)
+      ? updateProdutoDto.funcoes.filter((funcao) => funcao?.funcao_id)
+      : undefined;
+
     // Verificar se o produto existe
     const produtoExistente = await this.prisma.templateProduto.findFirst({
       where: {
@@ -411,16 +426,16 @@ export class ProdutosService {
       });
 
       // Se itens foram fornecidos, atualizar
-      if (updateProdutoDto.itens) {
+      if (itensPayload) {
         // Remover itens existentes
         await prisma.itemTemplateProduto.deleteMany({
           where: { template_id: id },
         });
 
         // Criar novos itens
-        if (updateProdutoDto.itens.length > 0) {
+        if (itensPayload.length > 0) {
           await prisma.itemTemplateProduto.createMany({
-            data: updateProdutoDto.itens.map((item) => ({
+            data: itensPayload.map((item) => ({
               template_id: id,
               insumo_id: item.insumo_id,
               quantidade: item.quantidade,
@@ -432,16 +447,16 @@ export class ProdutosService {
       }
 
       // Se máquinas foram fornecidas, atualizar
-      if (updateProdutoDto.maquinas) {
+      if (maquinasPayload) {
         // Remover máquinas existentes
         await prisma.maquinaTemplateProduto.deleteMany({
           where: { template_id: id },
         });
 
         // Criar novas máquinas
-        if (updateProdutoDto.maquinas.length > 0) {
+        if (maquinasPayload.length > 0) {
           await prisma.maquinaTemplateProduto.createMany({
-            data: updateProdutoDto.maquinas.map((maquina) => ({
+            data: maquinasPayload.map((maquina) => ({
               template_id: id,
               maquina_id: maquina.maquina_id,
               horas_utilizadas: maquina.horas_utilizadas,
@@ -452,16 +467,16 @@ export class ProdutosService {
       }
 
       // Se funções foram fornecidas, atualizar
-      if (updateProdutoDto.funcoes) {
+      if (funcoesPayload) {
         // Remover funções existentes
         await prisma.funcaoTemplateProduto.deleteMany({
           where: { template_id: id },
         });
 
         // Criar novas funções
-        if (updateProdutoDto.funcoes.length > 0) {
+        if (funcoesPayload.length > 0) {
           await prisma.funcaoTemplateProduto.createMany({
-            data: updateProdutoDto.funcoes.map((funcao) => ({
+            data: funcoesPayload.map((funcao) => ({
               template_id: id,
               funcao_id: funcao.funcao_id,
               horas_trabalhadas: funcao.horas_trabalhadas,
@@ -639,7 +654,7 @@ export class ProdutosService {
       altura_produto: produto.altura_produto,
       area_produto: produto.area_produto,
       unidade_medida_produto: produto.unidade_medida_produto,
-      quantidade_produto: produto.quantidade_padrao,
+      quantidade_produto: produto.quantidade_padrao || 1,
       itens: produto.itens.map((item) => ({
         insumo_id: item.insumo_id,
         quantidade: item.quantidade,

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -26,7 +27,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Plus, Package, Loader2, Trash2 } from 'lucide-react';
+import { CalendarClock, Plus, Package, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -45,6 +46,7 @@ import {
 } from '@/components/orcamentos-v2/DxfRevisaoCard';
 import { NovoInsumoModal } from '@/components/orcamentos-v2/NovoInsumoModal';
 import { MaterialSection, MaquinaSection, FuncaoSection, ServicoSection } from '../../shared/sections';
+import { tiposInstalacaoApi } from '@/lib/api-client';
 
 interface ProdutoSectionProps {
   mode: 'novo' | 'editar' | 'template';
@@ -106,6 +108,27 @@ interface ProdutoSectionProps {
    */
   onInsumoCriado?: () => void | Promise<void>;
 }
+
+interface TipoInstalacaoOption {
+  id: string;
+  nome: string;
+  regra_cobranca?: 'FIXO' | 'POR_M2' | 'POR_ML' | 'POR_UNIDADE' | 'POR_HORA' | 'MANUAL' | string | null;
+  preco_padrao?: string | number | null;
+  custo_mao_obra_padrao?: string | number | null;
+  custo_deslocamento_padrao?: string | number | null;
+  tempo_estimado_min?: string | number | null;
+  quantidade_pessoas_padrao?: string | number | null;
+  exige_agendamento?: boolean | null;
+}
+
+const regraCobrancaLabel: Record<string, string> = {
+  FIXO: 'Valor fixo',
+  POR_M2: 'Por m² instalado',
+  POR_ML: 'Por metro linear',
+  POR_UNIDADE: 'Por unidade',
+  POR_HORA: 'Por hora/equipe',
+  MANUAL: 'Manual',
+};
 
 /**
  * Componente interno que, para um produto específico do array, mantém
@@ -297,6 +320,10 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, insumos =
     control: form.control,
     name: 'itens_produto',
   });
+  const itensProdutoWatch = useWatch({
+    control: form.control,
+    name: 'itens_produto',
+  });
 
   // Sub-fase 7.B: metadados extraídos de DXFs anexados, por índice de produto.
   // Quando há entrada aqui o card "Valores detectados no DXF" é exibido
@@ -324,6 +351,27 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, insumos =
     nomeSugerido: string;
     nomeCamada: string;
   }>({ aberto: false, itemIndex: null, nomeSugerido: '', nomeCamada: '' });
+  const [tiposInstalacao, setTiposInstalacao] = useState<TipoInstalacaoOption[]>([]);
+
+  useEffect(() => {
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('access_token')
+        : null;
+    if (!token) return;
+
+    tiposInstalacaoApi
+      .getAll(token, true)
+      .then((data: unknown) => {
+        const lista = Array.isArray(data)
+          ? data
+          : Array.isArray((data as { data?: unknown })?.data)
+            ? (data as { data: TipoInstalacaoOption[] }).data
+            : [];
+        setTiposInstalacao(lista as TipoInstalacaoOption[]);
+      })
+      .catch(() => setTiposInstalacao([]));
+  }, []);
 
   const sincronizarMateriaisComSugestoes = (
     itemIndex: number,
@@ -490,7 +538,7 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, insumos =
       altura_produto: '',
       profundidade_produto: '',
       tem_profundidade: false,
-      unidade_medida_produto: '',
+      unidade_medida_produto: 'un',
       area_produto: '',
       perimetro_produto: '',
       geometria_origem: 'MANUAL',
@@ -500,6 +548,25 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, insumos =
       maquinas: [{ maquina_id: '', horas_utilizadas: '1' }],
       funcoes: [{ funcao_id: '', horas_trabalhadas: '1' }],
       servicos: [{ servico_id: '', horas_trabalhadas: '1' }],
+      instalacao_necessaria: false,
+      instalacao_tipo_id: '',
+      instalacao_regra_cobranca: 'FIXO',
+      instalacao_valor_unitario: '',
+      instalacao_usar_endereco_entrega: true,
+      instalacao_endereco_snapshot: '',
+      instalacao_cep: '',
+      instalacao_logradouro: '',
+      instalacao_numero: '',
+      instalacao_complemento: '',
+      instalacao_bairro: '',
+      instalacao_cidade: '',
+      instalacao_estado: '',
+      instalacao_preco_cobrado: '',
+      instalacao_custo_mao_obra: '',
+      instalacao_custo_deslocamento: '',
+      instalacao_tempo_estimado_min: '',
+      instalacao_quantidade_pessoas: '',
+      instalacao_observacoes: '',
     });
   };
 
@@ -693,6 +760,129 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, insumos =
       maximumFractionDigits: casas,
     });
   };
+
+  const parseNumeroFormulario = (valor: unknown): number => {
+    if (typeof valor === 'number' && Number.isFinite(valor)) return valor;
+    if (typeof valor === 'string') {
+      const parsed = Number(valor.replace(',', '.'));
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  };
+
+  const calcularBaseInstalacao = (itemIndex: number, regra?: string | null): number => {
+    const quantidade = Math.max(
+      parseNumeroFormulario(form.getValues(`itens_produto.${itemIndex}.quantidade_produto`)),
+      1,
+    );
+    const area = parseNumeroFormulario(form.getValues(`itens_produto.${itemIndex}.area_produto`));
+    const perimetroMm = parseNumeroFormulario(form.getValues(`itens_produto.${itemIndex}.perimetro_produto`));
+    const tempoMin = parseNumeroFormulario(form.getValues(`itens_produto.${itemIndex}.instalacao_tempo_estimado_min`));
+
+    switch (regra) {
+      case 'POR_M2':
+        return Math.max(area * quantidade, 0);
+      case 'POR_ML':
+        return Math.max((perimetroMm / 1000) * quantidade, 0);
+      case 'POR_UNIDADE':
+        return quantidade;
+      case 'POR_HORA':
+        return tempoMin > 0 ? tempoMin / 60 : 0;
+      case 'FIXO':
+      default:
+        return 1;
+    }
+  };
+
+  const formatarNumeroCalculo = (valor: number): string => {
+    if (!Number.isFinite(valor) || valor <= 0) return '';
+    return Number(valor.toFixed(2)).toString();
+  };
+
+  const aplicarCalculoInstalacao = (
+    itemIndex: number,
+    tipo: TipoInstalacaoOption,
+    options?: { preservarEdicoesManuais?: boolean },
+  ) => {
+    const regra = tipo.regra_cobranca || 'FIXO';
+    const valorUnitario = parseNumeroFormulario(tipo.preco_padrao);
+    const custoMaoObraUnitario = parseNumeroFormulario(tipo.custo_mao_obra_padrao);
+    const custoDeslocamento = parseNumeroFormulario(tipo.custo_deslocamento_padrao);
+    type CampoInstalacaoProduto =
+      | 'instalacao_regra_cobranca'
+      | 'instalacao_valor_unitario'
+      | 'instalacao_tempo_estimado_min'
+      | 'instalacao_quantidade_pessoas'
+      | 'instalacao_preco_cobrado'
+      | 'instalacao_custo_mao_obra'
+      | 'instalacao_custo_deslocamento';
+    const isRecord = (value: unknown): value is Record<string, unknown> =>
+      typeof value === 'object' && value !== null;
+    const campoFoiEditadoManualmente = (campo: CampoInstalacaoProduto): boolean => {
+      const itensProduto = form.formState.dirtyFields?.itens_produto;
+      if (!Array.isArray(itensProduto)) return false;
+      const item = itensProduto[itemIndex];
+      return isRecord(item) && item[campo] === true;
+    };
+    const campoEstaEmFoco = (campo: CampoInstalacaoProduto): boolean => {
+      if (typeof document === 'undefined') return false;
+      const elementoAtivo = document.activeElement;
+      if (!(elementoAtivo instanceof HTMLElement)) return false;
+      return elementoAtivo.getAttribute('name') === `itens_produto.${itemIndex}.${campo}`;
+    };
+    const setValorSeMudou = (campo: CampoInstalacaoProduto, valor: string) => {
+      const path = `itens_produto.${itemIndex}.${campo}` as const;
+      if (
+        options?.preservarEdicoesManuais &&
+        (campoFoiEditadoManualmente(campo) || campoEstaEmFoco(campo))
+      ) {
+        return;
+      }
+      if (String(form.getValues(path) ?? '') !== valor) {
+        form.setValue(path, valor);
+      }
+    };
+
+    setValorSeMudou('instalacao_regra_cobranca', regra);
+    setValorSeMudou('instalacao_valor_unitario', valorUnitario > 0 ? String(valorUnitario) : '');
+
+    if (
+      !form.getValues(`itens_produto.${itemIndex}.instalacao_tempo_estimado_min`) &&
+      tipo.tempo_estimado_min != null
+    ) {
+      setValorSeMudou('instalacao_tempo_estimado_min', String(tipo.tempo_estimado_min));
+    }
+    if (
+      !form.getValues(`itens_produto.${itemIndex}.instalacao_quantidade_pessoas`) &&
+      tipo.quantidade_pessoas_padrao != null
+    ) {
+      setValorSeMudou('instalacao_quantidade_pessoas', String(tipo.quantidade_pessoas_padrao));
+    }
+
+    if (regra === 'MANUAL') return;
+
+    const base = calcularBaseInstalacao(itemIndex, regra);
+    setValorSeMudou('instalacao_preco_cobrado', formatarNumeroCalculo(valorUnitario * base));
+    setValorSeMudou('instalacao_custo_mao_obra', formatarNumeroCalculo(custoMaoObraUnitario * base));
+    setValorSeMudou('instalacao_custo_deslocamento', formatarNumeroCalculo(custoDeslocamento));
+  };
+
+  useEffect(() => {
+    if (!Array.isArray(itensProdutoWatch)) return;
+
+    itensProdutoWatch.forEach((item, itemIndex) => {
+      if (!item?.instalacao_necessaria || !item?.instalacao_tipo_id) return;
+      const tipo = tiposInstalacao.find((entry) => entry.id === item.instalacao_tipo_id);
+      if (!tipo || tipo.regra_cobranca === 'MANUAL') return;
+      aplicarCalculoInstalacao(itemIndex, tipo, { preservarEdicoesManuais: true });
+    });
+    // A função de cálculo é declarada no componente e mudaria a cada render.
+    // As dependências observadas abaixo são as que devem disparar recálculo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    itensProdutoWatch,
+    tiposInstalacao,
+  ]);
 
   return (
     <div className="space-y-6">
@@ -1008,6 +1198,293 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, insumos =
                       itemIndex={index}
                       servicos={servicos}
                     />
+
+                    <div className="space-y-4 border-t pt-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <h4 className="text-sm font-medium">Instalação</h4>
+                        </div>
+                        <FormField
+                          control={form.control}
+                          name={`itens_produto.${index}.instalacao_necessaria`}
+                          render={({ field }) => (
+                            <FormItem className="flex items-center gap-3">
+                              <FormLabel className="m-0 text-sm">Necessária</FormLabel>
+                              <FormControl>
+                                <Switch
+                                  checked={Boolean(field.value)}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      {Boolean(form.watch(`itens_produto.${index}.instalacao_necessaria`)) && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <FormField
+                              control={form.control}
+                              name={`itens_produto.${index}.instalacao_tipo_id`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Tipo</FormLabel>
+                                  <Select
+                                    value={field.value || 'sem_tipo'}
+                                    onValueChange={(value) => {
+                                      const id = value === 'sem_tipo' ? '' : value;
+                                      field.onChange(id);
+                                      if (!id) {
+                                        form.setValue(`itens_produto.${index}.instalacao_regra_cobranca`, 'FIXO');
+                                        form.setValue(`itens_produto.${index}.instalacao_valor_unitario`, '');
+                                        return;
+                                      }
+                                      const tipo = tiposInstalacao.find((item) => item.id === id);
+                                      if (!tipo) return;
+                                      aplicarCalculoInstalacao(index, tipo);
+                                    }}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Selecione" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="sem_tipo">Sem tipo</SelectItem>
+                                      {tiposInstalacao.map((tipo) => (
+                                        <SelectItem key={tipo.id} value={tipo.id}>
+                                          {tipo.nome}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name={`itens_produto.${index}.instalacao_preco_cobrado`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Preço cobrado</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="text"
+                                      placeholder="0,00"
+                                      {...field}
+                                      value={field.value ?? ''}
+                                      onChange={(e) => field.onChange(e.target.value.replace(/[^0-9,.-]/g, ''))}
+                                    />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name={`itens_produto.${index}.instalacao_custo_mao_obra`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Custo mão de obra</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="text"
+                                      placeholder="0,00"
+                                      {...field}
+                                      value={field.value ?? ''}
+                                      onChange={(e) => field.onChange(e.target.value.replace(/[^0-9,.-]/g, ''))}
+                                    />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name={`itens_produto.${index}.instalacao_custo_deslocamento`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Deslocamento</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="text"
+                                      placeholder="0,00"
+                                      {...field}
+                                      value={field.value ?? ''}
+                                      onChange={(e) => field.onChange(e.target.value.replace(/[^0-9,.-]/g, ''))}
+                                    />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          {form.watch(`itens_produto.${index}.instalacao_regra_cobranca`) && (
+                            <div className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                              Cobrança:{' '}
+                              {regraCobrancaLabel[
+                                String(form.watch(`itens_produto.${index}.instalacao_regra_cobranca`) || 'FIXO')
+                              ] || 'Valor fixo'}
+                              {form.watch(`itens_produto.${index}.instalacao_valor_unitario`) && (
+                                <span>
+                                  {' '}a R$ {form.watch(`itens_produto.${index}.instalacao_valor_unitario`)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {tiposInstalacao.find((tipo) => tipo.id === form.watch(`itens_produto.${index}.instalacao_tipo_id`))?.exige_agendamento && (
+                            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                              <CalendarClock className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                              <span>
+                                Este tipo de instalação exige agendamento. Confirme a data com o cliente antes de aprovar a produção; a OS poderá receber a data de instalação no fluxo operacional.
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <FormField
+                              control={form.control}
+                              name={`itens_produto.${index}.instalacao_usar_endereco_entrega`}
+                              render={({ field }) => (
+                                <FormItem className="flex items-center gap-3 rounded border p-3">
+                                  <FormControl>
+                                    <Switch checked={field.value !== false} onCheckedChange={field.onChange} />
+                                  </FormControl>
+                                  <FormLabel className="m-0">Usar endereço da entrega</FormLabel>
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name={`itens_produto.${index}.instalacao_tempo_estimado_min`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Tempo estimado (min)</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="text"
+                                      {...field}
+                                      value={field.value ?? ''}
+                                      onChange={(e) => field.onChange(e.target.value.replace(/[^0-9]/g, ''))}
+                                    />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name={`itens_produto.${index}.instalacao_quantidade_pessoas`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Pessoas</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="text"
+                                      {...field}
+                                      value={field.value ?? ''}
+                                      onChange={(e) => field.onChange(e.target.value.replace(/[^0-9]/g, ''))}
+                                    />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          {form.watch(`itens_produto.${index}.instalacao_usar_endereco_entrega`) === false && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <FormField
+                                control={form.control}
+                                name={`itens_produto.${index}.instalacao_cep`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>CEP</FormLabel>
+                                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`itens_produto.${index}.instalacao_logradouro`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Endereço</FormLabel>
+                                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`itens_produto.${index}.instalacao_numero`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Número</FormLabel>
+                                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`itens_produto.${index}.instalacao_complemento`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Complemento</FormLabel>
+                                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`itens_produto.${index}.instalacao_bairro`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Bairro</FormLabel>
+                                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`itens_produto.${index}.instalacao_cidade`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Cidade</FormLabel>
+                                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`itens_produto.${index}.instalacao_estado`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>UF</FormLabel>
+                                    <FormControl><Input maxLength={2} {...field} value={field.value ?? ''} /></FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          )}
+
+                          <FormField
+                            control={form.control}
+                            name={`itens_produto.${index}.instalacao_observacoes`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Observações da instalação</FormLabel>
+                                <FormControl>
+                                  <Textarea rows={2} {...field} value={field.value ?? ''} />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </AccordionContent>

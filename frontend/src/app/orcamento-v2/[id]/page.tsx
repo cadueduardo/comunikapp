@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
-import { CheckCircle, XCircle, MessageCircle, FileText, Phone, Mail, Share2 } from 'lucide-react';
+import { CheckCircle, XCircle, MessageCircle, FileText, Phone, Mail, Printer, Share2, X } from 'lucide-react';
 import { ChatFlutuante } from '@/components/ui/chat-flutuante';
 import { ShareButton } from '@/components/ui/share-button';
 
@@ -73,6 +73,8 @@ interface OrcamentoV2 {
 
 export default function OrcamentoV2PublicoPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
+  const modoSalvarPdf = searchParams.get('salvarPdf') === '1';
   const [orcamento, setOrcamento] = useState<OrcamentoV2 | null>(null);
   const [loading, setLoading] = useState(true);
   const [aprovando, setAprovando] = useState(false);
@@ -351,6 +353,37 @@ export default function OrcamentoV2PublicoPage() {
       `}</style>
       
       {/* Página A4 para Impressão */}
+      {modoSalvarPdf && (
+        <header className="print:hidden sticky top-0 z-50 border-b bg-white shadow-sm">
+          <div className="mx-auto flex max-w-[210mm] flex-col items-stretch justify-between gap-3 px-4 py-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-3">
+              <FileText className="h-5 w-5 text-primary" />
+              <div>
+                <h1 className="font-semibold text-foreground">Salvar PDF</h1>
+                <p className="text-xs text-muted-foreground">
+                  Revise o orçamento e use o botão ao lado para salvar o PDF.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="button" onClick={() => window.print()}>
+                <Printer className="mr-2 h-4 w-4" />
+                Salvar como PDF
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => window.close()}
+                title="Fechar"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </header>
+      )}
+
       <div className="min-h-screen bg-gray-100 p-4 print:p-0 print:bg-white">
         <div className="max-w-[210mm] mx-auto bg-white shadow-lg print:shadow-none print:max-w-none" style={{ minHeight: '297mm' }}>
           {/* Header da Empresa */}

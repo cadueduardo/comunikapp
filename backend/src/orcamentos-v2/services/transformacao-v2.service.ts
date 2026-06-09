@@ -63,6 +63,7 @@ export class TransformacaoV2Service {
       numeroValido(config.custos_indiretos_padrao) ||
       numeroValido(config.horas_produtivas_mensais) ||
       numeroValido(config.custos_indiretos_mensais) ||
+      numeroValido(config.valor_final_manual) ||
       (Array.isArray(config.regras_especiais) && config.regras_especiais.length > 0)
     );
   }
@@ -155,6 +156,23 @@ export class TransformacaoV2Service {
     }
     delete dadosPreparados.configuracoes;
 
+    if (dados.condicao_pagamento_tipo !== undefined) {
+      dadosPreparados.condicao_pagamento_tipo = dados.condicao_pagamento_tipo || null;
+    }
+    if (dados.condicao_pagamento_entrada_pct !== undefined) {
+      dadosPreparados.condicao_pagamento_entrada_pct =
+        dados.condicao_pagamento_entrada_pct ?? null;
+    }
+    if (dados.condicao_pagamento_parcelas !== undefined) {
+      dadosPreparados.condicao_pagamento_parcelas =
+        dados.condicao_pagamento_parcelas ?? null;
+    }
+    if (dados.condicao_pagamento_descricao !== undefined) {
+      dadosPreparados.condicao_pagamento_descricao =
+        dados.condicao_pagamento_descricao || null;
+    }
+    this.aplicarCamposEntrega(dadosPreparados, dados);
+
     // Preparar tags: schema usa tags (String), converter array para JSON string
     if (dados.tags && Array.isArray(dados.tags)) {
       const tagsFiltradas = dados.tags.filter(
@@ -181,6 +199,9 @@ export class TransformacaoV2Service {
       'impostos_customizados',
       'configuracoes',
       'profundidade_produto',
+      'valor_final_manual',
+      'preco_final_manual',
+      'alerta_preco_abaixo_custo',
     ];
     camposProibidos.forEach((c) => delete dadosPreparados[c]);
 
@@ -297,6 +318,7 @@ export class TransformacaoV2Service {
       'preco_final', 'custo_total', 'margem_lucro', 'impostos',
       'custo_material', 'custo_mao_obra', 'custo_indireto', 'data_ultimo_calculo',
       'margem_lucro_customizada', 'impostos_customizados',
+      'valor_final_manual', 'preco_final_manual', 'alerta_preco_abaixo_custo',
     ];
     camposProibidos.forEach((campo) => delete dadosPreparados[campo]);
 
@@ -304,6 +326,34 @@ export class TransformacaoV2Service {
       dadosPreparados.cliente = dados.cliente_id
         ? { connect: { id: dados.cliente_id } }
         : { disconnect: true };
+    }
+
+    if (dados.condicao_pagamento_tipo !== undefined) {
+      dadosPreparados.condicao_pagamento_tipo = dados.condicao_pagamento_tipo || null;
+    }
+    if (dados.condicao_pagamento_entrada_pct !== undefined) {
+      dadosPreparados.condicao_pagamento_entrada_pct =
+        dados.condicao_pagamento_entrada_pct ?? null;
+    }
+    if (dados.condicao_pagamento_parcelas !== undefined) {
+      dadosPreparados.condicao_pagamento_parcelas =
+        dados.condicao_pagamento_parcelas ?? null;
+    }
+    if (dados.condicao_pagamento_descricao !== undefined) {
+      dadosPreparados.condicao_pagamento_descricao =
+        dados.condicao_pagamento_descricao || null;
+    }
+    this.aplicarCamposEntrega(dadosPreparados, dados);
+    if (
+      Object.prototype.hasOwnProperty.call(
+        dadosPreparados,
+        'entrega_modalidade_id',
+      )
+    ) {
+      dadosPreparados.entrega_modalidade = dadosPreparados.entrega_modalidade_id
+        ? { connect: { id: dadosPreparados.entrega_modalidade_id } }
+        : { disconnect: true };
+      delete dadosPreparados.entrega_modalidade_id;
     }
 
     // Garantir que campos JSON sejam strings (Prisma/MySQL)
@@ -361,6 +411,11 @@ export class TransformacaoV2Service {
         dados.comissao_percentual != null
           ? Number(dados.comissao_percentual)
           : undefined,
+      valor_final_manual:
+        configuracoesPersistidas?.valor_final_manual != null &&
+        Number.isFinite(Number(configuracoesPersistidas.valor_final_manual))
+          ? Number(configuracoesPersistidas.valor_final_manual)
+          : undefined,
 
       // Campos do produto principal
       largura_produto: dados.largura_produto,
@@ -392,6 +447,38 @@ export class TransformacaoV2Service {
         const normalized = String(t).trim().toLowerCase();
         return normalized === 'markup' || normalized === 'margem_por_dentro' ? normalized : undefined;
       })(),
+      prazo_entrega: dados.prazo_entrega ?? undefined,
+      validade_proposta: dados.validade_proposta ?? undefined,
+      condicoes_comerciais: dados.condicoes_comerciais ?? undefined,
+      atendente: dados.atendente ?? undefined,
+      condicao_pagamento_tipo: dados.condicao_pagamento_tipo ?? undefined,
+      condicao_pagamento_entrada_pct:
+        dados.condicao_pagamento_entrada_pct != null
+          ? Number(dados.condicao_pagamento_entrada_pct)
+          : undefined,
+      condicao_pagamento_parcelas: dados.condicao_pagamento_parcelas ?? undefined,
+      condicao_pagamento_descricao: dados.condicao_pagamento_descricao ?? undefined,
+      entrega_modalidade_id: dados.entrega_modalidade_id ?? undefined,
+      entrega_usar_endereco_cliente:
+        dados.entrega_usar_endereco_cliente ?? undefined,
+      entrega_endereco_snapshot: dados.entrega_endereco_snapshot ?? undefined,
+      entrega_cep: dados.entrega_cep ?? undefined,
+      entrega_logradouro: dados.entrega_logradouro ?? undefined,
+      entrega_numero: dados.entrega_numero ?? undefined,
+      entrega_complemento: dados.entrega_complemento ?? undefined,
+      entrega_bairro: dados.entrega_bairro ?? undefined,
+      entrega_cidade: dados.entrega_cidade ?? undefined,
+      entrega_estado: dados.entrega_estado ?? undefined,
+      entrega_prazo_dias: dados.entrega_prazo_dias ?? undefined,
+      entrega_valor_cobrado:
+        dados.entrega_valor_cobrado != null
+          ? Number(dados.entrega_valor_cobrado)
+          : undefined,
+      entrega_custo_estimado:
+        dados.entrega_custo_estimado != null
+          ? Number(dados.entrega_custo_estimado)
+          : undefined,
+      entrega_observacoes: dados.entrega_observacoes ?? undefined,
       versoes: this.transformarVersoes(dados.versoes),
       historicoOrcamento: this.transformarHistorico(dados.historicoOrcamento),
       aprovacoes: this.transformarAprovacoes(dados.aprovacoes),
@@ -470,6 +557,181 @@ export class TransformacaoV2Service {
 
   // Métodos privados de transformação
 
+  private normalizarTextoOpcional(valor: any, maxLength: number): string | null {
+    if (valor === null || valor === undefined) return null;
+    const texto = String(valor).trim();
+    if (!texto) return null;
+    return texto.slice(0, maxLength);
+  }
+
+  private normalizarNumeroOpcional(valor: any): number | null {
+    if (valor === null || valor === undefined || valor === '') return null;
+    const normalizado =
+      typeof valor === 'string' ? valor.trim().replace(',', '.') : valor;
+    const numero = Number(normalizado);
+    return Number.isFinite(numero) ? numero : null;
+  }
+
+  private normalizarInteiroOpcional(valor: any): number | null {
+    const numero = this.normalizarNumeroOpcional(valor);
+    return numero === null ? null : Math.trunc(numero);
+  }
+
+  private normalizarBooleanOpcional(valor: any, fallback: boolean): boolean {
+    if (valor === null || valor === undefined || valor === '') return fallback;
+    return Boolean(valor);
+  }
+
+  private aplicarCamposEntrega(destino: any, origem: any): void {
+    const camposEntrega = [
+      'entrega_modalidade_id',
+      'entrega_usar_endereco_cliente',
+      'entrega_endereco_snapshot',
+      'entrega_cep',
+      'entrega_logradouro',
+      'entrega_numero',
+      'entrega_complemento',
+      'entrega_bairro',
+      'entrega_cidade',
+      'entrega_estado',
+      'entrega_prazo_dias',
+      'entrega_valor_cobrado',
+      'entrega_custo_estimado',
+      'entrega_observacoes',
+    ];
+    const possuiCampoEntrega = camposEntrega.some((campo) =>
+      Object.prototype.hasOwnProperty.call(origem, campo),
+    );
+
+    if (!possuiCampoEntrega) return;
+
+    destino.entrega_modalidade_id = this.normalizarTextoOpcional(
+      origem.entrega_modalidade_id,
+      191,
+    );
+    destino.entrega_usar_endereco_cliente = this.normalizarBooleanOpcional(
+      origem.entrega_usar_endereco_cliente,
+      true,
+    );
+    destino.entrega_endereco_snapshot = this.normalizarTextoOpcional(
+      origem.entrega_endereco_snapshot,
+      300000,
+    );
+    destino.entrega_cep = this.normalizarTextoOpcional(origem.entrega_cep, 16);
+    destino.entrega_logradouro = this.normalizarTextoOpcional(
+      origem.entrega_logradouro,
+      255,
+    );
+    destino.entrega_numero = this.normalizarTextoOpcional(
+      origem.entrega_numero,
+      32,
+    );
+    destino.entrega_complemento = this.normalizarTextoOpcional(
+      origem.entrega_complemento,
+      255,
+    );
+    destino.entrega_bairro = this.normalizarTextoOpcional(
+      origem.entrega_bairro,
+      120,
+    );
+    destino.entrega_cidade = this.normalizarTextoOpcional(
+      origem.entrega_cidade,
+      120,
+    );
+    destino.entrega_estado = this.normalizarTextoOpcional(
+      origem.entrega_estado,
+      2,
+    )?.toUpperCase();
+    destino.entrega_prazo_dias = this.normalizarInteiroOpcional(
+      origem.entrega_prazo_dias,
+    );
+    destino.entrega_valor_cobrado = this.normalizarNumeroOpcional(
+      origem.entrega_valor_cobrado,
+    );
+    destino.entrega_custo_estimado = this.normalizarNumeroOpcional(
+      origem.entrega_custo_estimado,
+    );
+    destino.entrega_observacoes = this.normalizarTextoOpcional(
+      origem.entrega_observacoes,
+      500_000,
+    );
+  }
+
+  private prepararCamposInstalacao(produto: any): any {
+    return {
+      instalacao_necessaria: this.normalizarBooleanOpcional(
+        produto.instalacao_necessaria,
+        false,
+      ),
+      instalacao_tipo_id: this.normalizarTextoOpcional(
+        produto.instalacao_tipo_id,
+        191,
+      ),
+      instalacao_regra_cobranca: this.normalizarTextoOpcional(
+        produto.instalacao_regra_cobranca,
+        24,
+      ),
+      instalacao_valor_unitario: this.normalizarNumeroOpcional(
+        produto.instalacao_valor_unitario,
+      ),
+      instalacao_usar_endereco_entrega: this.normalizarBooleanOpcional(
+        produto.instalacao_usar_endereco_entrega,
+        true,
+      ),
+      instalacao_endereco_snapshot: this.normalizarTextoOpcional(
+        produto.instalacao_endereco_snapshot,
+        30000,
+      ),
+      instalacao_cep: this.normalizarTextoOpcional(
+        produto.instalacao_cep,
+        16,
+      ),
+      instalacao_logradouro: this.normalizarTextoOpcional(
+        produto.instalacao_logradouro,
+        255,
+      ),
+      instalacao_numero: this.normalizarTextoOpcional(
+        produto.instalacao_numero,
+        32,
+      ),
+      instalacao_complemento: this.normalizarTextoOpcional(
+        produto.instalacao_complemento,
+        255,
+      ),
+      instalacao_bairro: this.normalizarTextoOpcional(
+        produto.instalacao_bairro,
+        120,
+      ),
+      instalacao_cidade: this.normalizarTextoOpcional(
+        produto.instalacao_cidade,
+        120,
+      ),
+      instalacao_estado: this.normalizarTextoOpcional(
+        produto.instalacao_estado,
+        2,
+      )?.toUpperCase(),
+      instalacao_preco_cobrado: this.normalizarNumeroOpcional(
+        produto.instalacao_preco_cobrado,
+      ),
+      instalacao_custo_mao_obra: this.normalizarNumeroOpcional(
+        produto.instalacao_custo_mao_obra,
+      ),
+      instalacao_custo_deslocamento: this.normalizarNumeroOpcional(
+        produto.instalacao_custo_deslocamento,
+      ),
+      instalacao_tempo_estimado_min: this.normalizarInteiroOpcional(
+        produto.instalacao_tempo_estimado_min,
+      ),
+      instalacao_quantidade_pessoas: this.normalizarInteiroOpcional(
+        produto.instalacao_quantidade_pessoas,
+      ),
+      instalacao_observacoes: this.normalizarTextoOpcional(
+        produto.instalacao_observacoes,
+        50_000,
+      ),
+    };
+  }
+
   private prepararProdutoCriacao(produto: any, index: number): any {
     const nomeProduto = (
       produto.nome_servico ||
@@ -547,6 +809,7 @@ export class TransformacaoV2Service {
       margem_lucro: toNumber(produto.margem_lucro),
       impostos: toNumber(produto.impostos),
       ativo: true,
+      ...this.prepararCamposInstalacao(produto),
     };
 
     if (produto.insumos && produto.insumos.length > 0) {
@@ -702,6 +965,10 @@ export class TransformacaoV2Service {
       horas_produtivas_mensais: configuracoes.horas_produtivas_mensais || 0,
       custos_indiretos_mensais: configuracoes.custos_indiretos_mensais,
       regras_especiais: configuracoes.regras_especiais || [],
+      valor_final_manual:
+        configuracoes.valor_final_manual === null
+          ? null
+          : this.normalizarNumeroOpcional(configuracoes.valor_final_manual),
     };
     const tipoRaw = configuracoes.tipo_margem_lucro != null
       ? String(configuracoes.tipo_margem_lucro).trim().toLowerCase()
@@ -826,6 +1093,41 @@ export class TransformacaoV2Service {
         margem_lucro: produto.margem_lucro || 0,
         impostos: produto.impostos || 0,
         observacoes: produto.observacoes,
+        instalacao_necessaria: Boolean(produto.instalacao_necessaria),
+        instalacao_tipo_id: produto.instalacao_tipo_id ?? null,
+        instalacao_regra_cobranca: produto.instalacao_regra_cobranca ?? null,
+        instalacao_valor_unitario:
+          produto.instalacao_valor_unitario != null
+            ? Number(produto.instalacao_valor_unitario)
+            : null,
+        instalacao_usar_endereco_entrega:
+          produto.instalacao_usar_endereco_entrega ?? true,
+        instalacao_endereco_snapshot:
+          produto.instalacao_endereco_snapshot ?? null,
+        instalacao_cep: produto.instalacao_cep ?? null,
+        instalacao_logradouro: produto.instalacao_logradouro ?? null,
+        instalacao_numero: produto.instalacao_numero ?? null,
+        instalacao_complemento: produto.instalacao_complemento ?? null,
+        instalacao_bairro: produto.instalacao_bairro ?? null,
+        instalacao_cidade: produto.instalacao_cidade ?? null,
+        instalacao_estado: produto.instalacao_estado ?? null,
+        instalacao_preco_cobrado:
+          produto.instalacao_preco_cobrado != null
+            ? Number(produto.instalacao_preco_cobrado)
+            : null,
+        instalacao_custo_mao_obra:
+          produto.instalacao_custo_mao_obra != null
+            ? Number(produto.instalacao_custo_mao_obra)
+            : null,
+        instalacao_custo_deslocamento:
+          produto.instalacao_custo_deslocamento != null
+            ? Number(produto.instalacao_custo_deslocamento)
+            : null,
+        instalacao_tempo_estimado_min:
+          produto.instalacao_tempo_estimado_min ?? null,
+        instalacao_quantidade_pessoas:
+          produto.instalacao_quantidade_pessoas ?? null,
+        instalacao_observacoes: produto.instalacao_observacoes ?? null,
 
         insumos:
           produto.insumos?.map((insumo) => ({
@@ -915,6 +1217,30 @@ export class TransformacaoV2Service {
       preco_total: produto?.preco_total,
       margem_lucro: produto?.margem_lucro,
       impostos: produto?.impostos,
+      instalacao_necessaria: Boolean(produto?.instalacao_necessaria),
+      instalacao_tipo_id: produto?.instalacao_tipo_id ?? null,
+      instalacao_regra_cobranca: produto?.instalacao_regra_cobranca ?? null,
+      instalacao_valor_unitario: produto?.instalacao_valor_unitario ?? null,
+      instalacao_usar_endereco_entrega:
+        produto?.instalacao_usar_endereco_entrega ?? true,
+      instalacao_endereco_snapshot:
+        produto?.instalacao_endereco_snapshot ?? null,
+      instalacao_cep: produto?.instalacao_cep ?? null,
+      instalacao_logradouro: produto?.instalacao_logradouro ?? null,
+      instalacao_numero: produto?.instalacao_numero ?? null,
+      instalacao_complemento: produto?.instalacao_complemento ?? null,
+      instalacao_bairro: produto?.instalacao_bairro ?? null,
+      instalacao_cidade: produto?.instalacao_cidade ?? null,
+      instalacao_estado: produto?.instalacao_estado ?? null,
+      instalacao_preco_cobrado: produto?.instalacao_preco_cobrado ?? null,
+      instalacao_custo_mao_obra: produto?.instalacao_custo_mao_obra ?? null,
+      instalacao_custo_deslocamento:
+        produto?.instalacao_custo_deslocamento ?? null,
+      instalacao_tempo_estimado_min:
+        produto?.instalacao_tempo_estimado_min ?? null,
+      instalacao_quantidade_pessoas:
+        produto?.instalacao_quantidade_pessoas ?? null,
+      instalacao_observacoes: produto?.instalacao_observacoes ?? null,
       insumos: (produto?.insumos || [])
         .filter((i: any) => i?.insumo_id)
         .map((insumo: any) => ({
@@ -1005,6 +1331,11 @@ export class TransformacaoV2Service {
       horas_produtivas_mensais: configuracoes.horas_produtivas_mensais || 0,
       custos_indiretos_mensais: configuracoes.custos_indiretos_mensais,
       regras_especiais: configuracoes.regras_especiais || [],
+      valor_final_manual:
+        configuracoes.valor_final_manual != null &&
+        Number.isFinite(Number(configuracoes.valor_final_manual))
+          ? Number(configuracoes.valor_final_manual)
+          : undefined,
     };
     const tipoRaw = configuracoes.tipo_margem_lucro != null
       ? String(configuracoes.tipo_margem_lucro).trim().toLowerCase()

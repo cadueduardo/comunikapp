@@ -25,6 +25,7 @@ export interface OrcamentoBase {
   alertas?: any[];
   data_ultimo_calculo?: Date;
   comissao_percentual?: number;
+  valor_final_manual?: number;
 
   // Campos do produto principal
   largura_produto?: number;
@@ -33,11 +34,33 @@ export interface OrcamentoBase {
   quantidade_produto?: number;
   unidade_medida_produto?: string;
 
+  // Comercial
+  prazo_entrega?: string;
+  validade_proposta?: string;
+  condicoes_comerciais?: string;
+  atendente?: string;
+
   // Fase 6 - Condicao de pagamento estruturada
   condicao_pagamento_tipo?: string;
   condicao_pagamento_entrada_pct?: number;
   condicao_pagamento_parcelas?: number;
   condicao_pagamento_descricao?: string;
+
+  // Entrega estruturada
+  entrega_modalidade_id?: string;
+  entrega_usar_endereco_cliente?: boolean;
+  entrega_endereco_snapshot?: string;
+  entrega_cep?: string;
+  entrega_logradouro?: string;
+  entrega_numero?: string;
+  entrega_complemento?: string;
+  entrega_bairro?: string;
+  entrega_cidade?: string;
+  entrega_estado?: string;
+  entrega_prazo_dias?: number;
+  entrega_valor_cobrado?: number;
+  entrega_custo_estimado?: number;
+  entrega_observacoes?: string;
 }
 
 export interface OrcamentoCompleto extends OrcamentoBase {
@@ -101,6 +124,27 @@ export interface ProdutoOrcamento {
   margem_lucro: number;
   impostos: number;
   observacoes?: string;
+
+  // Instalacao estruturada
+  instalacao_necessaria?: boolean;
+  instalacao_tipo_id?: string | null;
+  instalacao_regra_cobranca?: string | null;
+  instalacao_valor_unitario?: number | null;
+  instalacao_usar_endereco_entrega?: boolean;
+  instalacao_endereco_snapshot?: string | null;
+  instalacao_cep?: string | null;
+  instalacao_logradouro?: string | null;
+  instalacao_numero?: string | null;
+  instalacao_complemento?: string | null;
+  instalacao_bairro?: string | null;
+  instalacao_cidade?: string | null;
+  instalacao_estado?: string | null;
+  instalacao_preco_cobrado?: number | null;
+  instalacao_custo_mao_obra?: number | null;
+  instalacao_custo_deslocamento?: number | null;
+  instalacao_tempo_estimado_min?: number | null;
+  instalacao_quantidade_pessoas?: number | null;
+  instalacao_observacoes?: string | null;
 }
 
 export interface ItemInsumo {
