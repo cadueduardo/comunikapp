@@ -465,7 +465,6 @@ export default function PCPPage() {
     if (nivel === 'COMPLETO') {
       return [
         { label: 'Meu Setor', href: '/pcp/meu-setor', icon: <IconUser className="h-4 w-4" /> },
-        { label: 'Relatórios', href: '/pcp/relatorios', icon: <IconChartBar className="h-4 w-4" /> },
         { label: 'Setores', href: '/centros-de-trabalho/setores-produtivos', icon: <IconBuildingFactory className="h-4 w-4" /> },
         { label: 'Workflows', href: '/pcp/workflows', icon: <IconClipboardList className="h-4 w-4" /> },
       ];
@@ -911,7 +910,7 @@ export default function PCPPage() {
               <Button asChild variant="outline" className="mt-2 w-full justify-start">
                 <Link href="/pcp/relatorios">
                   <IconClipboardList className="mr-2 h-4 w-4" />
-                  Relatórios (ocupação e previsto × realizado)
+                  Relatórios
                 </Link>
               </Button>
             </section>

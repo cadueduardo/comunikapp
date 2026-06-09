@@ -50,6 +50,7 @@ describe('PCPDashboardService', () => {
           data_prazo: '',
           progresso: 0,
           alertas: ['Sem prazo'],
+          tem_workflow: false,
         },
       ],
       stats: {

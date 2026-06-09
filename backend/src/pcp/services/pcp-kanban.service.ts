@@ -106,7 +106,10 @@ export class PCPKanbanService {
           },
           itens: true,
         },
-        orderBy: { data_prazo: 'asc' },
+        orderBy: [
+          { aprovacao_tecnica_em: 'desc' },
+          { criado_em: 'desc' },
+        ],
       });
 
       // Converter para formato do kanban

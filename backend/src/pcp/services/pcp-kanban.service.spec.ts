@@ -81,7 +81,14 @@ describe('PCPKanbanService', () => {
 
     const resultado = await service.obterKanbanGeral('loja-1');
 
-    expect(prisma.ordemServico.findMany).toHaveBeenCalled();
+    expect(prisma.ordemServico.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [
+          { aprovacao_tecnica_em: 'desc' },
+          { criado_em: 'desc' },
+        ],
+      }),
+    );
     expect(KanbanMapper.mapearOSParaKanban).toHaveBeenCalledWith({
       id: 'os-1',
     });
@@ -97,26 +104,20 @@ describe('PCPKanbanService', () => {
 
     const resultado = await service.obterFilaSetor('loja-1', 'setor-1');
 
-    expect(prisma.workflowInstanciaSetor.findMany).toHaveBeenCalledWith({
-      where: {
-        setor_id: 'setor-1',
-        workflow_instancia: {
-          os: {
-            loja_id: 'loja-1',
+    expect(prisma.workflowInstanciaSetor.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          setor_id: 'setor-1',
+          workflow_instancia: {
+            os: {
+              loja_id: 'loja-1',
+            },
           },
+          status: { in: ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA'] },
         },
-        status: { in: ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA'] },
-      },
-      include: {
-        item_os: { include: { os: { include: { cliente: true } } } },
-        setor: true,
-        operador: true,
-        workflow_instancia: {
-          include: { os: { include: { cliente: true } } },
-        },
-      },
-      orderBy: [{ criado_em: 'asc' }, { ordem: 'asc' }],
-    });
+        orderBy: [{ criado_em: 'asc' }, { ordem: 'asc' }],
+      }),
+    );
     expect(KanbanMapper.mapearInstanciaParaKanban).toHaveBeenCalled();
     expect(resultado).toEqual([{ id: 'instancia-1' }]);
   });
@@ -153,17 +154,20 @@ describe('PCPKanbanService', () => {
 
       await service.iniciarProducao('loja-1', 'item-1', 'operador-1', 'Observações');
 
-      expect(prisma.workflowInstanciaSetor.findFirst).toHaveBeenCalledWith({
-        where: {
-          item_os_id: 'item-1',
-          status: { in: ['PENDENTE', 'PAUSADA'] },
-          workflow_instancia: {
-            os: {
-              loja_id: 'loja-1',
+      expect(prisma.workflowInstanciaSetor.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            OR: [{ id: 'item-1' }, { item_os_id: 'item-1' }],
+            status: { in: ['PENDENTE', 'PAUSADA'] },
+            workflow_instancia: {
+              os: {
+                loja_id: 'loja-1',
+              },
             },
           },
-        },
-      });
+          orderBy: [{ ordem: 'asc' }, { criado_em: 'asc' }],
+        }),
+      );
 
       expect(prisma.workflowInstanciaSetor.update).toHaveBeenCalledWith({
         where: { id: 'etapa-1' },

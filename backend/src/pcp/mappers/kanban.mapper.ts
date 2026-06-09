@@ -59,10 +59,10 @@ export class KanbanMapper {
         instancia.item_os?.produto_servico ||
         instancia.workflow_instancia?.os?.nome_servico ||
         'Produto',
-      cliente: os?.cliente?.nome || 'Cliente nÃ£o informado',
+      cliente: os?.cliente?.nome || 'Cliente não informado',
       status: instancia.status,
       prioridade: os?.prioridade || 'MEDIA',
-      responsavel: instancia.operador?.nome || 'NÃ£o atribuÃ­do',
+      responsavel: instancia.operador?.nome || 'Não atribuído',
       data_prazo: os?.data_prazo
         ? new Date(os.data_prazo).toISOString().split('T')[0]
         : '',
