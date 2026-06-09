@@ -35,6 +35,10 @@ describe('OSService - OS Direta/Interna', () => {
     movimentacaoOS: {
       create: jest.fn(),
     },
+    itemOS: {
+      findMany: jest.fn().mockResolvedValue([]),
+      update: jest.fn(),
+    },
   };
 
   const mockDocumentCodeService = {
@@ -323,7 +327,8 @@ describe('OSService - OS Direta/Interna', () => {
           aprovacao_tecnica_por: usuarioId,
           aprovacao_tecnica_obs: 'Aprovado',
           modificado_por: usuarioId,
-          motivo_modificacao: 'Aprovação técnica aprovada',
+          motivo_modificacao: 'Aprovação técnica aprovada e OS liberada para PCP',
+          status: 'LIBERADA_PARA_PCP',
           versao: { increment: 1 },
         }),
       });

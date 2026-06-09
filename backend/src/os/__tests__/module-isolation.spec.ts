@@ -16,12 +16,14 @@ describe('Modulo OS - Testes de Isolamento', () => {
   let workflowService: WorkflowService;
 
   beforeEach(async () => {
-    process.env.JWT_SECRET = 'test-secret';
+    process.env.JWT_SECRET = 'test-secret-with-at-least-32-characters';
     module = await Test.createTestingModule({
       imports: [ConfigModule.forRoot({ isGlobal: true }), OSModule],
     })
       .overrideProvider(ConfigService)
-      .useValue({ get: jest.fn().mockReturnValue('test-secret') })
+      .useValue({
+        get: jest.fn().mockReturnValue('test-secret-with-at-least-32-characters'),
+      })
       .overrideProvider(DocumentCodeService)
       .useValue({
         gerarCodigoOS: jest.fn().mockResolvedValue('OS-2025-001'),

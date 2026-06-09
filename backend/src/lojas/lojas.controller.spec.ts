@@ -4,6 +4,13 @@ import { LojasService } from './lojas.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { AuthService } from '../auth/auth.service';
+import { TwoFactorService } from '../auth/two-factor.service';
+import { PendingSignupService } from './pending-signup.service';
+
+jest.mock('uuid', () => ({ v4: jest.fn(() => 'arquivo-id') }));
+jest.mock('../auth/two-factor.service', () => ({
+  TwoFactorService: class TwoFactorService {},
+}));
 
 describe('LojasController', () => {
   let controller: LojasController;
@@ -24,6 +31,14 @@ describe('LojasController', () => {
         {
           provide: AuthService,
           useValue: { generateToken: jest.fn().mockResolvedValue('token') },
+        },
+        {
+          provide: TwoFactorService,
+          useValue: {},
+        },
+        {
+          provide: PendingSignupService,
+          useValue: {},
         },
       ],
     }).compile();
