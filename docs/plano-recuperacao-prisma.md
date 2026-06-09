@@ -1,17 +1,25 @@
-# Plano de Revers„o Tempor·ria da NumeraÁ„o de Documentos
+# Plano de Revers√£o Tempor√°ria da Numera√ß√£o de Documentos
 
 ## Contexto
 - Commit base: feature/preview-calculo-multiplos-produtos@c09cef7
-- Problema: introspecÁ„o do Prisma gerou modelos snake_case e removeu `@default(cuid())`, quebrando serviÁos (`prisma.categoria`, `prisma.insumo`, etc.) do orÁamento V2.
-- Objetivo: restaurar o schema anterior sem perder melhorias do orÁamento V2 e retirar a implementaÁ„o experimental do `CodigoDocumentoService`.
+- Problema: introspec√ß√£o do Prisma gerou modelos snake_case e removeu `@default(cuid())`, quebrando servi√ßos (`prisma.categoria`, `prisma.insumo`, etc.) do or√ßamento V2.
+- Objetivo: restaurar o schema anterior sem perder melhorias do or√ßamento V2 e retirar a implementa√ß√£o experimental do `CodigoDocumentoService`.
 
-## Checklist de AÁ„o
-- [x] Restaurar `backend/prisma/schema.prisma` para a vers„o prÈ-introspecÁ„o (commit 810b4e0).
+## Checklist de A√ß√£o
+- [x] Restaurar `backend/prisma/schema.prisma` para a vers√£o pr√©-introspec√ß√£o (commit 810b4e0).
 - [x] Executar `npm run db:generate` no backend para reconstruir o Prisma Client com os modelos antigos.
-- [x] Remover diretÛrio `backend/src/shared/` criado para o `CodigoDocumentoService` (arquivos `shared.module.ts`, `codigo-documento.service.ts`, `codigo-documento.service.spec.ts`).
-- [ ] Validar `npm run start:dev --prefix backend` para garantir que o backend volta a iniciar sem erros de compilaÁ„o.
-- [ ] Revisar impactos residuais no frontend relacionados a cÛdigos/documentaÁ„o e alinhar nova estratÈgia antes de reintroduzir a numeraÁ„o.
+- [x] Remover diret√≥rio `backend/src/shared/` criado para o `CodigoDocumentoService` (arquivos `shared.module.ts`, `codigo-documento.service.ts`, `codigo-documento.service.spec.ts`).
+- [ ] Validar `npm run start:dev --prefix backend` para garantir que o backend volta a iniciar sem erros de compila√ß√£o.
+- [ ] Revisar impactos residuais no frontend relacionados a c√≥digos/documenta√ß√£o e alinhar nova estrat√©gia antes de reintroduzir a numera√ß√£o.
 
-## ObservaÁıes
-- As alteraÁıes do orÁamento V2 permanecem intactas; nenhuma modificaÁ„o foi feita nos mÛdulos `orcamentos-v2`.
-- Caso seja necess·rio reimplantar a numeraÁ„o de documentos, planejar migraÁ„o incremental do schema (novas tabelas e serviÁos dedicados) sem alterar nomes/IDs existentes.\r\n## Atualizacao set/2025\r\n- [x] Adicionar tabela document_sequences e indice unico Orcamento_loja_id_numero_key.\r\n- [x] Implementar DocumentCodeService isolado e integrar com OrcamentosService.\r\n- [x] Criar modulo DocumentosModule para compartilhar o servico.\r\n- [x] Injetar dependencia nos testes de OrcamentosService.\r\n- [ ] Executar script de backfill das sequencias existentes antes de migrar dados reais.\r\n
+## Observa√ß√µes
+- As altera√ß√µes do or√ßamento V2 permanecem intactas; nenhuma modifica√ß√£o foi feita nos m√≥dulos `orcamentos-v2`.
+- Caso seja necess√°rio reimplantar a numera√ß√£o de documentos, planejar migra√ß√£o incremental do schema (novas tabelas e servi√ßos dedicados) sem alterar nomes/IDs existentes.
+
+## Atualiza√ß√£o set/2025
+
+- [x] Adicionar tabela `document_sequences` e √≠ndice √∫nico `Orcamento_loja_id_numero_key`.
+- [x] Implementar DocumentCodeService isolado e integrar com OrcamentosService.
+- [x] Criar m√≥dulo DocumentosModule para compartilhar o servi√ßo.
+- [x] Injetar depend√™ncia nos testes de OrcamentosService.
+- [ ] Executar script de backfill das sequ√™ncias existentes antes de migrar dados reais.
