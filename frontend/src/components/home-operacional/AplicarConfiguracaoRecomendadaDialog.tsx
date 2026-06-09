@@ -56,11 +56,13 @@ export function AplicarConfiguracaoRecomendadaDialog({
             <li>Categorias iniciais (Acrílico, ACM, PVC, Lona, Vinil, Tinta, Acabamento, Outros)</li>
             <li>Tipos de material padrão (Chapa, Lona, Vinil, Unitário)</li>
             <li>Setores produtivos (Corte, Impressão, Acabamento, Montagem, Entrega)</li>
+            <li>Modalidades de entrega padrão (retirada, entrega própria, motoboy, transportadora, Correios e outro)</li>
+            <li>Tipos de instalação padrão, sem valores definidos, para ajuste no CRUD ou no orçamento</li>
             <li>Workflow padrão de OS (6 etapas)</li>
             <li>3 regras de validação básicas</li>
           </ul>
           <p className="text-xs text-muted-foreground">
-            Categorias, tipos, setores e workflow só são criados se a loja ainda não tiver nenhum desses dados.
+            Categorias, tipos, setores, entrega, instalação e workflow só criam o que ainda não existir na loja.
           </p>
         </div>
 

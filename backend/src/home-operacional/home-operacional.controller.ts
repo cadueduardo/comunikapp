@@ -73,6 +73,15 @@ export class HomeOperacionalController {
     return this.envelope(data);
   }
 
+  @Post('onboarding/aplicar-entrega-instalacao')
+  async aplicarEntregaInstalacao(@CurrentLojaId() lojaId: string) {
+    const data =
+      await this.configuracaoRecomendadaService.aplicarSomenteEntregaInstalacao(
+        lojaId,
+      );
+    return this.envelope(data);
+  }
+
   @Get('banner-estado')
   async banner(@CurrentLojaId() lojaId: string) {
     const mensagens = await this.systemStateService.listarMensagens(lojaId);

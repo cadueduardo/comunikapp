@@ -62,6 +62,8 @@ export interface AplicarConfiguracaoRecomendadaResposta {
     categorias_criadas: string[];
     tipos_material_criados: string[];
     setores_criados: string[];
+    modalidades_entrega_criadas: string[];
+    tipos_instalacao_criados: string[];
     workflow_criado: string | null;
     regras_validacao_criadas: number;
   };
@@ -70,6 +72,8 @@ export interface AplicarConfiguracaoRecomendadaResposta {
     categorias?: string;
     tipos_material?: string;
     setores?: string;
+    modalidades_entrega?: string;
+    tipos_instalacao?: string;
     workflow?: string;
   };
   etapas_marcadas_concluidas: string[];
@@ -126,6 +130,14 @@ export async function postAplicarConfiguracaoRecomendada(opcoes?: {
       confirmar: true,
       sobrescrever_existentes: opcoes?.sobrescrever_existentes === true,
     }),
+  });
+  return unwrap<AplicarConfiguracaoRecomendadaResposta>(r);
+}
+
+export async function postAplicarEntregaInstalacao(): Promise<AplicarConfiguracaoRecomendadaResposta> {
+  const r = await apiRequest('/home-operacional/onboarding/aplicar-entrega-instalacao', {
+    method: 'POST',
+    body: JSON.stringify({ confirmar: true }),
   });
   return unwrap<AplicarConfiguracaoRecomendadaResposta>(r);
 }

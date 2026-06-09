@@ -12,6 +12,8 @@ export interface ResultadoAplicado {
   categorias_criadas: string[];
   tipos_material_criados: string[];
   setores_criados: string[];
+  modalidades_entrega_criadas: string[];
+  tipos_instalacao_criados: string[];
   workflow_criado: string | null;
   regras_validacao_criadas: number;
 }
@@ -21,6 +23,8 @@ export interface ResultadoIgnorado {
   categorias?: string;
   tipos_material?: string;
   setores?: string;
+  modalidades_entrega?: string;
+  tipos_instalacao?: string;
   workflow?: string;
 }
 
@@ -85,6 +89,115 @@ export class ConfiguracaoRecomendadaService {
     { nome: 'Entrega/Instalação', cor: '#6B7280', ordem: 5 },
   ];
 
+  private readonly MODALIDADES_ENTREGA_DEFAULT: Array<{
+    nome: string;
+    descricao: string;
+    exige_endereco: boolean;
+    exige_valor: boolean;
+    permite_retirada: boolean;
+  }> = [
+    {
+      nome: 'Retirada no balcão',
+      descricao: 'Cliente retira o pedido na empresa.',
+      exige_endereco: false,
+      exige_valor: false,
+      permite_retirada: true,
+    },
+    {
+      nome: 'Entrega própria',
+      descricao: 'Entrega realizada pela equipe da empresa.',
+      exige_endereco: true,
+      exige_valor: true,
+      permite_retirada: false,
+    },
+    {
+      nome: 'Motoboy',
+      descricao: 'Entrega por motoboy ou serviço local terceirizado.',
+      exige_endereco: true,
+      exige_valor: true,
+      permite_retirada: false,
+    },
+    {
+      nome: 'Transportadora',
+      descricao: 'Envio por transportadora.',
+      exige_endereco: true,
+      exige_valor: true,
+      permite_retirada: false,
+    },
+    {
+      nome: 'Correios / envio externo',
+      descricao: 'Envio por Correios ou outro serviço externo.',
+      exige_endereco: true,
+      exige_valor: true,
+      permite_retirada: false,
+    },
+    {
+      nome: 'Outro',
+      descricao: 'Modalidade de entrega definida manualmente no orçamento.',
+      exige_endereco: false,
+      exige_valor: false,
+      permite_retirada: false,
+    },
+  ];
+
+  private readonly TIPOS_INSTALACAO_DEFAULT: Array<{
+    nome: string;
+    descricao: string;
+    regra_cobranca: 'FIXO' | 'POR_M2' | 'POR_ML' | 'POR_UNIDADE' | 'POR_HORA' | 'MANUAL';
+    exige_endereco: boolean;
+    exige_agendamento: boolean;
+  }> = [
+    {
+      nome: 'Aplicação simples',
+      descricao: 'Aplicação ou instalação leve, normalmente sem equipe especializada.',
+      regra_cobranca: 'FIXO',
+      exige_endereco: true,
+      exige_agendamento: false,
+    },
+    {
+      nome: 'Instalação em fachada',
+      descricao: 'Instalação de placa, letreiro ou comunicação visual em fachada.',
+      regra_cobranca: 'POR_M2',
+      exige_endereco: true,
+      exige_agendamento: true,
+    },
+    {
+      nome: 'Adesivação de vitrine',
+      descricao: 'Aplicação de adesivo em vitrine, porta ou vidro.',
+      regra_cobranca: 'POR_M2',
+      exige_endereco: true,
+      exige_agendamento: true,
+    },
+    {
+      nome: 'Adesivação de veículo',
+      descricao: 'Aplicação de adesivo, envelopamento parcial ou comunicação em veículo.',
+      regra_cobranca: 'POR_M2',
+      exige_endereco: true,
+      exige_agendamento: true,
+    },
+    {
+      nome: 'Instalação em altura',
+      descricao: 'Instalação que exige cuidado operacional adicional por altura ou acesso.',
+      regra_cobranca: 'MANUAL',
+      exige_endereco: true,
+      exige_agendamento: true,
+    },
+    {
+      nome: 'Instalação elétrica',
+      descricao: 'Instalação com ligação elétrica ou componente luminoso.',
+      regra_cobranca: 'MANUAL',
+      exige_endereco: true,
+      exige_agendamento: true,
+    },
+    {
+      nome: 'Outro',
+      descricao: 'Tipo de instalação definido manualmente no orçamento.',
+      regra_cobranca: 'MANUAL',
+      exige_endereco: true,
+      exige_agendamento: false,
+    },
+  ];
+
   private readonly WORKFLOW_DEFAULT_NOME = 'Workflow Padrão';
   private readonly WORKFLOW_DEFAULT_ETAPAS = [
     { nome: 'Revisão técnica', ordem: 1 },
@@ -147,6 +260,8 @@ export class ConfiguracaoRecomendadaService {
       categorias_criadas: [],
       tipos_material_criados: [],
       setores_criados: [],
+      modalidades_entrega_criadas: [],
+      tipos_instalacao_criados: [],
       workflow_criado: null,
       regras_validacao_criadas: 0,
     };
@@ -165,13 +280,41 @@ export class ConfiguracaoRecomendadaService {
     // 4. Setores produtivos (so cria se nao houver nenhum)
     await this.garantirSetoresPadrao(lojaId, aplicado, ignorado);
 
-    // 5. Workflow padrao de OS (cria ou repara vinculos com setores)
+    // 5. Entrega e instalacao para orientar orcamento e OS
+    await this.aplicarEntregaInstalacao(lojaId, aplicado, ignorado, etapasParaConcluir);
+
+    // 6. Workflow padrao de OS (cria ou repara vinculos com setores)
     await this.aplicarWorkflow(lojaId, aplicado, ignorado);
 
-    // 6. Regras de validacao (cria por nome unico)
+    // 7. Regras de validacao (cria por nome unico)
     await this.aplicarRegrasValidacao(lojaId, aplicado);
 
-    // 7. Marcar etapas correspondentes como concluidas
+    // 8. Marcar etapas correspondentes como concluidas
+    if (etapasParaConcluir.length > 0) {
+      await this.onboardingService.marcarStepsComoConcluidos(lojaId, etapasParaConcluir);
+    }
+
+    return { aplicado, ignorado, etapas_marcadas_concluidas: etapasParaConcluir };
+  }
+
+  async aplicarSomenteEntregaInstalacao(
+    lojaId: string,
+  ): Promise<AplicarConfiguracaoRecomendadaResultado> {
+    const aplicado: ResultadoAplicado = {
+      loja: {},
+      categorias_criadas: [],
+      tipos_material_criados: [],
+      setores_criados: [],
+      modalidades_entrega_criadas: [],
+      tipos_instalacao_criados: [],
+      workflow_criado: null,
+      regras_validacao_criadas: 0,
+    };
+    const ignorado: ResultadoIgnorado = { loja: [] };
+    const etapasParaConcluir: OnboardingStepId[] = [];
+
+    await this.aplicarEntregaInstalacao(lojaId, aplicado, ignorado, etapasParaConcluir);
+
     if (etapasParaConcluir.length > 0) {
       await this.onboardingService.marcarStepsComoConcluidos(lojaId, etapasParaConcluir);
     }
@@ -373,6 +516,87 @@ export class ConfiguracaoRecomendadaService {
     });
 
     return vinculosExistentes.length + novosVinculos.length;
+  }
+
+  private async aplicarEntregaInstalacao(
+    lojaId: string,
+    aplicado: ResultadoAplicado,
+    ignorado: ResultadoIgnorado,
+    etapasParaConcluir: OnboardingStepId[],
+  ): Promise<void> {
+    const [modalidadesExistentes, tiposExistentes] = await Promise.all([
+      this.prisma.modalidadeEntrega.findMany({
+        where: { loja_id: lojaId },
+        select: { nome: true },
+      }),
+      this.prisma.tipoInstalacao.findMany({
+        where: { loja_id: lojaId },
+        select: { nome: true },
+      }),
+    ]);
+
+    const nomesModalidades = new Set(
+      modalidadesExistentes.map((item) => item.nome.trim().toLowerCase()),
+    );
+    const modalidadesParaCriar = this.MODALIDADES_ENTREGA_DEFAULT.filter(
+      (item) => !nomesModalidades.has(item.nome.trim().toLowerCase()),
+    );
+
+    if (modalidadesParaCriar.length > 0) {
+      await this.prisma.modalidadeEntrega.createMany({
+        data: modalidadesParaCriar.map((item) => ({
+          loja_id: lojaId,
+          nome: item.nome,
+          descricao: item.descricao,
+          ativo: true,
+          exige_endereco: item.exige_endereco,
+          exige_valor: item.exige_valor,
+          permite_retirada: item.permite_retirada,
+        })),
+        skipDuplicates: true,
+      });
+      aplicado.modalidades_entrega_criadas = modalidadesParaCriar.map(
+        (item) => item.nome,
+      );
+    } else {
+      ignorado.modalidades_entrega =
+        'modalidades de entrega recomendadas ja existem na loja';
+    }
+
+    const nomesTipos = new Set(
+      tiposExistentes.map((item) => item.nome.trim().toLowerCase()),
+    );
+    const tiposParaCriar = this.TIPOS_INSTALACAO_DEFAULT.filter(
+      (item) => !nomesTipos.has(item.nome.trim().toLowerCase()),
+    );
+
+    if (tiposParaCriar.length > 0) {
+      await this.prisma.tipoInstalacao.createMany({
+        data: tiposParaCriar.map((item) => ({
+          loja_id: lojaId,
+          nome: item.nome,
+          descricao: item.descricao,
+          ativo: true,
+          regra_cobranca: item.regra_cobranca,
+          exige_endereco: item.exige_endereco,
+          exige_agendamento: item.exige_agendamento,
+        })),
+        skipDuplicates: true,
+      });
+      aplicado.tipos_instalacao_criados = tiposParaCriar.map(
+        (item) => item.nome,
+      );
+    } else {
+      ignorado.tipos_instalacao =
+        'tipos de instalacao recomendados ja existem na loja';
+    }
+
+    const temModalidade =
+      modalidadesExistentes.length > 0 || modalidadesParaCriar.length > 0;
+    const temTipo = tiposExistentes.length > 0 || tiposParaCriar.length > 0;
+    if (temModalidade && temTipo) {
+      etapasParaConcluir.push(OnboardingStepId.CONFIGURAR_ENTREGA_INSTALACAO);
+    }
   }
 
   private async aplicarWorkflow(

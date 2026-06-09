@@ -7,6 +7,7 @@ export enum OnboardingStepId {
   PRIMEIRO_MATERIAL = 'primeiro_material',
   PRIMEIRA_MAQUINA = 'primeira_maquina',
   CONFIGURAR_PRODUCAO = 'configurar_producao',
+  CONFIGURAR_ENTREGA_INSTALACAO = 'configurar_entrega_instalacao',
   MARGEM_IMPOSTO = 'margem_imposto',
   CONDICAO_PAGAMENTO = 'condicao_pagamento',
   PRIMEIRO_ORCAMENTO = 'primeiro_orcamento',

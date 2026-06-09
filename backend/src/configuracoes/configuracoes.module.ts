@@ -1,6 +1,6 @@
 /**
- * Módulo de Configurações
- * Inclui: Parâmetros, Validações Automáticas, Usuários, Lojas, Integrações
+ * Modulo de Configuracoes
+ * Inclui: parametros, validacoes automaticas, usuarios, lojas e integracoes.
  */
 
 import { Module } from '@nestjs/common';
@@ -17,6 +17,8 @@ import { CamposValidacaoController } from './controllers/campos-validacao.contro
 import { TestValidacoesController } from './controllers/test-validacoes.controller';
 import { TestCamposValidacaoController } from './controllers/test-campos-validacao.controller';
 import { SetoresProdutivosController } from './controllers/centros-de-trabalho/setores-produtivos.controller';
+import { ModalidadesEntregaController } from './controllers/centros-de-trabalho/modalidades-entrega.controller';
+import { TiposInstalacaoController } from './controllers/centros-de-trabalho/tipos-instalacao.controller';
 
 // Services
 import { ParametrosService } from './services/parametros.service';
@@ -24,6 +26,8 @@ import { ValidacoesAutomaticasService } from './services/validacoes-automaticas.
 import { RegrasValidacaoService } from './services/regras-validacao.service';
 import { ExecucaoRegraService } from './services/execucao-regra.service';
 import { SetoresProdutivosService } from './services/centros-de-trabalho/setores-produtivos.service';
+import { ModalidadesEntregaService } from './services/centros-de-trabalho/modalidades-entrega.service';
+import { TiposInstalacaoService } from './services/centros-de-trabalho/tipos-instalacao.service';
 
 const testControllers =
   process.env.NODE_ENV === 'production'
@@ -48,6 +52,8 @@ const testControllers =
     CamposValidacaoController,
     ...testControllers,
     SetoresProdutivosController,
+    ModalidadesEntregaController,
+    TiposInstalacaoController,
   ],
   providers: [
     ParametrosService,
@@ -55,11 +61,15 @@ const testControllers =
     RegrasValidacaoService,
     ExecucaoRegraService,
     SetoresProdutivosService,
+    ModalidadesEntregaService,
+    TiposInstalacaoService,
   ],
   exports: [
-    ValidacoesAutomaticasService, // Para uso no módulo OS
+    ValidacoesAutomaticasService,
     RegrasValidacaoService,
-    SetoresProdutivosService, // Para uso no módulo PCP
+    SetoresProdutivosService,
+    ModalidadesEntregaService,
+    TiposInstalacaoService,
   ],
 })
 export class ConfiguracoesModule {}

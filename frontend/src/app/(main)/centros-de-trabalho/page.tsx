@@ -1,12 +1,21 @@
 'use client';
+
 import Link from 'next/link';
 import {
   Card,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from '@/components/ui/card';
-import { Wrench, Users, Hand, DollarSign, Building2 } from 'lucide-react';
+import {
+  Building2,
+  DollarSign,
+  Hammer,
+  Hand,
+  Truck,
+  Users,
+  Wrench,
+} from 'lucide-react';
 
 export default function CentrosDeTrabalhoPage() {
   const options = [
@@ -35,6 +44,18 @@ export default function CentrosDeTrabalhoPage() {
       href: '/centros-de-trabalho/servicos',
     },
     {
+      title: 'Modalidades de Entrega',
+      description: 'Configure retirada, motoboy, transportadora e entrega própria.',
+      icon: Truck,
+      href: '/centros-de-trabalho/modalidades-entrega',
+    },
+    {
+      title: 'Tipos de Instalação',
+      description: 'Configure padrões de instalação por produto.',
+      icon: Hammer,
+      href: '/centros-de-trabalho/tipos-instalacao',
+    },
+    {
       title: 'Custos Indiretos',
       description: 'Configure custos indiretos e alocação.',
       icon: DollarSign,
@@ -60,7 +81,9 @@ export default function CentrosDeTrabalhoPage() {
                   </div>
                   <div>
                     <CardTitle className="text-base">{opt.title}</CardTitle>
-                    <CardDescription className="text-sm">{opt.description}</CardDescription>
+                    <CardDescription className="text-sm">
+                      {opt.description}
+                    </CardDescription>
                   </div>
                 </div>
               </CardHeader>
@@ -71,5 +94,3 @@ export default function CentrosDeTrabalhoPage() {
     </div>
   );
 }
-
-

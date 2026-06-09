@@ -56,8 +56,17 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     acao_href: '/pcp/configuracao',
   },
   {
-    step_id: OnboardingStepId.MARGEM_IMPOSTO,
+    step_id: OnboardingStepId.CONFIGURAR_ENTREGA_INSTALACAO,
     ordem: 6,
+    obrigatoria: false,
+    titulo: 'Configurar entrega e instalação',
+    descricao_curta: 'Crie modalidades de entrega e tipos de instalação para orientar o orçamento sem complicar a operação.',
+    acao_label: 'Abrir Centros de Trabalho',
+    acao_href: '/centros-de-trabalho',
+  },
+  {
+    step_id: OnboardingStepId.MARGEM_IMPOSTO,
+    ordem: 7,
     obrigatoria: true,
     titulo: 'Definir margem e impostos',
     descricao_curta: 'Sem isso, todo orçamento parte do zero. Você pode usar nossa configuração recomendada.',
@@ -66,7 +75,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
   },
   {
     step_id: OnboardingStepId.CONDICAO_PAGAMENTO,
-    ordem: 7,
+    ordem: 8,
     obrigatoria: false,
     titulo: 'Configurar condição de pagamento padrão',
     descricao_curta: 'Ex.: 50% na assinatura, 50% na entrega. Vira sugestão automática nos orçamentos.',
@@ -75,7 +84,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
   },
   {
     step_id: OnboardingStepId.PRIMEIRO_ORCAMENTO,
-    ordem: 8,
+    ordem: 9,
     obrigatoria: true,
     titulo: 'Criar primeiro orçamento',
     descricao_curta: 'Coloque tudo em prática gerando uma proposta real.',
@@ -84,7 +93,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
   },
   {
     step_id: OnboardingStepId.PRIMEIRA_APROVACAO,
-    ordem: 9,
+    ordem: 10,
     obrigatoria: true,
     titulo: 'Aprovar orçamento e gerar OS',
     descricao_curta: 'Quando o cliente aceita, o orçamento vira ordem de serviço.',
@@ -93,7 +102,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
   },
   {
     step_id: OnboardingStepId.PRIMEIRA_PRODUCAO,
-    ordem: 10,
+    ordem: 11,
     obrigatoria: false,
     titulo: 'Liberar OS para produção',
     descricao_curta: 'Acompanhe a produção pelo PCP.',
@@ -102,7 +111,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
   },
   {
     step_id: OnboardingStepId.PRIMEIRO_RECEBIMENTO,
-    ordem: 11,
+    ordem: 12,
     obrigatoria: false,
     titulo: 'Registrar primeiro recebimento',
     descricao_curta: 'Marque entrada e saldo recebidos para acompanhar seu caixa.',

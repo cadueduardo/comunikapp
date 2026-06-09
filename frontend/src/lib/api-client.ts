@@ -419,7 +419,7 @@ export const custosIndiretosApi = {
   getAll: (token: string) => ApiClient.get('/custos-indiretos', token),
   getById: (id: string, token: string) => ApiClient.get(`/custos-indiretos/${id}`, token),
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/custos-indiretos', data, token),
-  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/custos-indiretos/${id}`, data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/custos-indiretos/${id}`, data, token),
   delete: (id: string, token: string) => ApiClient.delete(`/custos-indiretos/${id}`, token),
 };
 
@@ -429,6 +429,42 @@ export const servicosManuaisApi = {
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/servicos-manuais', data, token),
   update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/servicos-manuais/${id}`, data, token),
   delete: (id: string, token: string) => ApiClient.delete(`/servicos-manuais/${id}`, token),
+};
+
+export const modalidadesEntregaApi = {
+  getAll: (token: string, ativo?: boolean) =>
+    ApiClient.get(
+      `/centros-de-trabalho/modalidades-entrega${
+        typeof ativo === 'boolean' ? `?ativo=${ativo}` : ''
+      }`,
+      token,
+    ),
+  getById: (id: string, token: string) =>
+    ApiClient.get(`/centros-de-trabalho/modalidades-entrega/${id}`, token),
+  create: (data: Record<string, unknown>, token: string) =>
+    ApiClient.post('/centros-de-trabalho/modalidades-entrega', data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    ApiClient.put(`/centros-de-trabalho/modalidades-entrega/${id}`, data, token),
+  delete: (id: string, token: string) =>
+    ApiClient.delete(`/centros-de-trabalho/modalidades-entrega/${id}`, token),
+};
+
+export const tiposInstalacaoApi = {
+  getAll: (token: string, ativo?: boolean) =>
+    ApiClient.get(
+      `/centros-de-trabalho/tipos-instalacao${
+        typeof ativo === 'boolean' ? `?ativo=${ativo}` : ''
+      }`,
+      token,
+    ),
+  getById: (id: string, token: string) =>
+    ApiClient.get(`/centros-de-trabalho/tipos-instalacao/${id}`, token),
+  create: (data: Record<string, unknown>, token: string) =>
+    ApiClient.post('/centros-de-trabalho/tipos-instalacao', data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    ApiClient.put(`/centros-de-trabalho/tipos-instalacao/${id}`, data, token),
+  delete: (id: string, token: string) =>
+    ApiClient.delete(`/centros-de-trabalho/tipos-instalacao/${id}`, token),
 };
 
 export const tiposMaterialApi = {

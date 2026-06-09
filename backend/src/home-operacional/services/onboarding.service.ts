@@ -177,7 +177,18 @@ export class OnboardingService {
   ): Promise<Partial<Record<OnboardingStepId, boolean>>> {
     const resultado: Partial<Record<OnboardingStepId, boolean>> = {};
 
-    const [loja, clientesCount, insumosCount, maquinasCount, servicosCount, orcamentosCount, aprovadosCount, producaoCount] =
+    const [
+      loja,
+      clientesCount,
+      insumosCount,
+      maquinasCount,
+      servicosCount,
+      modalidadesEntregaCount,
+      tiposInstalacaoCount,
+      orcamentosCount,
+      aprovadosCount,
+      producaoCount,
+    ] =
       await Promise.all([
         this.prisma.loja.findUnique({
           where: { id: lojaId },
@@ -196,6 +207,12 @@ export class OnboardingService {
         this.prisma.insumo.count({ where: { loja_id: lojaId, ativo: true } }),
         this.prisma.maquina.count({ where: { loja_id: lojaId, ativo: true } }),
         this.prisma.servico_manual.count({
+          where: { loja_id: lojaId, ativo: true },
+        }),
+        this.prisma.modalidadeEntrega.count({
+          where: { loja_id: lojaId, ativo: true },
+        }),
+        this.prisma.tipoInstalacao.count({
           where: { loja_id: lojaId, ativo: true },
         }),
         this.prisma.orcamento.count({ where: { loja_id: lojaId } }),
@@ -227,6 +244,8 @@ export class OnboardingService {
     resultado[OnboardingStepId.PRIMEIRO_MATERIAL] = insumosCount > 0;
     resultado[OnboardingStepId.PRIMEIRA_MAQUINA] =
       maquinasCount > 0 || servicosCount > 0;
+    resultado[OnboardingStepId.CONFIGURAR_ENTREGA_INSTALACAO] =
+      modalidadesEntregaCount > 0 && tiposInstalacaoCount > 0;
     resultado[OnboardingStepId.PRIMEIRO_ORCAMENTO] = orcamentosCount > 0;
     resultado[OnboardingStepId.PRIMEIRA_APROVACAO] = aprovadosCount > 0;
     resultado[OnboardingStepId.PRIMEIRA_PRODUCAO] = producaoCount > 0;
