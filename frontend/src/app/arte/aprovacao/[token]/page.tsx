@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/arte-public';
 import { ArteApprovalModal } from '@/components/ui/arte-public/ArteApprovalModal';
 import { useArtePublicApproval } from '@/components/ui/arte-public/hooks/useArtePublicApproval';
+import { resolveArtePublicFileUrl } from '@/lib/arte-assets';
 
 export default function ArtePublicApprovalPage() {
   const params = useParams();
@@ -59,49 +60,29 @@ export default function ArtePublicApprovalPage() {
     if (versaoAtual?.arquivos?.[0]) {
       const arquivo = versaoAtual.arquivos[0];
       try {
-        // Extrair o nome do arquivo da URL
-        const filename = arquivo.url_arquivo.split('/').pop();
-        // Obter versaoId da URL do arquivo
-        const urlParts = arquivo.url_arquivo.split('/');
-        const versaoIndex = urlParts.findIndex(part => part === 'versoes');
-        const versaoId = versaoIndex !== -1 ? urlParts[versaoIndex + 1] : null;
-        
-        if (versaoId && filename) {
-          const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-          const downloadUrl = arquivo.url_arquivo.startsWith('http')
-            ? arquivo.url_arquivo
-            : `${baseUrl}${arquivo.url_arquivo}`;
-          
-          // Fazer fetch do arquivo para forçar download
-          const response = await fetch(downloadUrl);
-          if (!response.ok) {
-            throw new Error('Erro ao baixar arquivo');
-          }
-          
-          // Obter o blob do arquivo
-          const blob = await response.blob();
-          
-          // Criar URL temporária para o blob
-          const blobUrl = window.URL.createObjectURL(blob);
-          
-          // Criar link temporário para download
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = arquivo.nome_original;
-          link.style.display = 'none';
-          
-          // Adicionar ao DOM, clicar e remover
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          
-          // Limpar a URL temporária
-          window.URL.revokeObjectURL(blobUrl);
-          
-          toast.success('Download iniciado');
-        } else {
+        const downloadUrl = resolveArtePublicFileUrl(arquivo, token);
+        if (!downloadUrl) {
           toast.error('Erro ao preparar download');
+          return;
         }
+
+        const response = await fetch(downloadUrl);
+        if (!response.ok) {
+          throw new Error('Erro ao baixar arquivo');
+        }
+        
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = arquivo.nome_original;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+        
+        toast.success('Download iniciado');
       } catch (error) {
         console.error('Erro no download:', error);
         toast.error('Erro ao fazer download do arquivo');

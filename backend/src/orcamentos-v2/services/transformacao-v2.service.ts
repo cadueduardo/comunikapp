@@ -92,7 +92,7 @@ export class TransformacaoV2Service {
       data_atualizacao: new Date(),
       atualizado_em: new Date(),
       numero: dados.numero,
-      horas_producao: dados.horas_producao ?? 0,
+      horas_producao: Math.max(Number(dados.horas_producao ?? 0), 0.01),
       custo_material: dados.custo_material ?? 0,
       custo_mao_obra: dados.custo_mao_obra ?? 0,
       custo_indireto: dados.custo_indireto ?? 0,
@@ -362,6 +362,13 @@ export class TransformacaoV2Service {
     }
     if (dadosPreparados.tags != null && Array.isArray(dadosPreparados.tags)) {
       dadosPreparados.tags = JSON.stringify(dadosPreparados.tags);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(dadosPreparados, 'horas_producao')) {
+      dadosPreparados.horas_producao = Math.max(
+        Number(dadosPreparados.horas_producao ?? 0),
+        0.01,
+      );
     }
 
     this.logger.log(`✅ Dados preparados para atualização`);
@@ -834,6 +841,19 @@ export class TransformacaoV2Service {
               preco_unitario: precoUnitario,
               preco_total: precoTotal,
               material_do_cliente: Boolean(insumo.material_do_cliente),
+              usa_medida_propria: Boolean(insumo.usa_medida_propria),
+              largura_material: insumo.usa_medida_propria
+                ? toNumber(insumo.largura_material)
+                : null,
+              altura_material: insumo.usa_medida_propria
+                ? toNumber(insumo.altura_material)
+                : null,
+              profundidade_material: insumo.usa_medida_propria
+                ? toNumber(insumo.profundidade_material)
+                : null,
+              unidade_medida_material: insumo.usa_medida_propria
+                ? insumo.unidade_medida_material || null
+                : null,
             };
           }),
       };
@@ -1139,6 +1159,11 @@ export class TransformacaoV2Service {
             preco_unitario: insumo.preco_unitario || 0,
             preco_total: insumo.preco_total || 0,
             material_do_cliente: Boolean(insumo.material_do_cliente),
+            usa_medida_propria: Boolean(insumo.usa_medida_propria),
+            largura_material: insumo.largura_material ?? null,
+            altura_material: insumo.altura_material ?? null,
+            profundidade_material: insumo.profundidade_material ?? null,
+            unidade_medida_material: insumo.unidade_medida_material ?? null,
             estoque_disponivel: insumo.estoque_disponivel,
             alerta_estoque: insumo.alerta_estoque || false,
           })) || [],
@@ -1250,6 +1275,11 @@ export class TransformacaoV2Service {
           preco_unitario: insumo.preco_unitario,
           preco_total: insumo.preco_total,
           material_do_cliente: Boolean(insumo.material_do_cliente),
+          usa_medida_propria: Boolean(insumo.usa_medida_propria),
+          largura_material: insumo.largura_material ?? null,
+          altura_material: insumo.altura_material ?? null,
+          profundidade_material: insumo.profundidade_material ?? null,
+          unidade_medida_material: insumo.unidade_medida_material ?? null,
         })),
       maquinas: (produto?.maquinas || [])
         .filter((m: any) => m?.maquina_id)

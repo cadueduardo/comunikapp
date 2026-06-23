@@ -74,7 +74,11 @@ const FATOR_PARA_MM: Record<UnidadeEntrada, number> = {
 
 function parseNumero(input: string): number {
   if (!input) return 0;
-  const limpo = String(input).trim().replace(/\./g, '').replace(',', '.');
+  const texto = String(input).trim().replace(/[^0-9,.-]/g, '');
+  const temVirgula = texto.includes(',');
+  const limpo = temVirgula
+    ? texto.replace(/\./g, '').replace(',', '.')
+    : texto;
   const n = Number(limpo);
   return Number.isFinite(n) && n > 0 ? n : 0;
 }

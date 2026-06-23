@@ -31,6 +31,7 @@ export interface ArteWebSocketHook {
   connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error';
   isConnected: boolean;
   novaMensagem: any | null;
+  contadorAtualizado: any | null;
   mensagensLidas: string[];
   usuariosTyping: Array<{ clientId: string; tipo: string; isTyping: boolean }>;
   marcarMensagemLida: (mensagemId: string) => void;
@@ -48,6 +49,7 @@ export const useArteWebSocket = (
   );
   const [isConnected, setIsConnected] = useState(false);
   const [novaMensagem, setNovaMensagem] = useState<any | null>(null);
+  const [contadorAtualizado, setContadorAtualizado] = useState<any | null>(null);
   const [mensagensLidas, setMensagensLidas] = useState<string[]>([]);
   const [usuariosTyping, setUsuariosTyping] = useState<Array<{ clientId: string; tipo: string; isTyping: boolean }>>([]);
 
@@ -207,7 +209,8 @@ export const useArteWebSocket = (
 
     socket.on('contador_atualizado', (data) => {
       console.log('🔢 Contador atualizado:', data);
-      // Este evento pode ser usado para atualizar contadores de mensagens não lidas
+      setContadorAtualizado(data);
+      setTimeout(() => setContadorAtualizado(null), 100);
     });
 
     socket.on('pong_arte', (data) => {
@@ -302,6 +305,7 @@ export const useArteWebSocket = (
     connectionStatus,
     isConnected,
     novaMensagem,
+    contadorAtualizado,
     mensagensLidas,
     usuariosTyping,
     marcarMensagemLida,

@@ -38,6 +38,7 @@ const mapProdutoParaOrcamento = (initialData?: Record<string, unknown>) => {
   const itens = Array.isArray(initialData.itens) ? initialData.itens : [];
   const maquinas = Array.isArray(initialData.maquinas) ? initialData.maquinas : [];
   const funcoes = Array.isArray(initialData.funcoes) ? initialData.funcoes : [];
+  const servicos = Array.isArray(initialData.servicos) ? initialData.servicos : [];
 
   const nomeServico = toStringValue(initialData.nome_servico || initialData.nome);
   const descricao = toStringValue(initialData.descricao_produto || initialData.descricao);
@@ -71,6 +72,14 @@ const mapProdutoParaOrcamento = (initialData?: Record<string, unknown>) => {
                 insumo_id: getNestedId(material, 'insumo'),
                 quantidade: toStringValue(material.quantidade, '1'),
                 material_do_cliente: Boolean(material.material_do_cliente),
+                usa_medida_propria: Boolean(material.usa_medida_propria),
+                largura_material: toStringValue(material.largura_material),
+                altura_material: toStringValue(material.altura_material),
+                profundidade_material: toStringValue(material.profundidade_material),
+                unidade_medida_material: toStringValue(
+                  material.unidade_medida_material,
+                  toStringValue(initialData.unidade_geometria, 'mm'),
+                ),
               };
             })
           : [{ insumo_id: '', quantidade: '1', material_do_cliente: false }],
@@ -92,7 +101,15 @@ const mapProdutoParaOrcamento = (initialData?: Record<string, unknown>) => {
               };
             })
           : [{ funcao_id: '', horas_trabalhadas: '1' }],
-        servicos: [{ servico_id: '', horas_trabalhadas: '1' }],
+        servicos: servicos.length > 0
+          ? servicos.map((item) => {
+              const servico = item as Record<string, unknown>;
+              return {
+                servico_id: getNestedId(servico, 'servico'),
+                horas_trabalhadas: toStringValue(servico.horas_trabalhadas, '1'),
+              };
+            })
+          : [{ servico_id: '', horas_trabalhadas: '1' }],
         instalacao_necessaria: false,
         instalacao_regra_cobranca: 'FIXO',
         instalacao_usar_endereco_entrega: true,

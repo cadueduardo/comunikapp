@@ -268,7 +268,7 @@ export const produtosApi = {
   getAll: (token: string) => ApiClient.get('/produtos', token),
   getById: (id: string, token: string) => ApiClient.get(`/produtos/${id}`, token),
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/produtos', data, token),
-  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/produtos/${id}`, data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/produtos/${id}`, data, token),
   delete: (id: string, token: string) => ApiClient.delete(`/produtos/${id}`, token),
 };
 

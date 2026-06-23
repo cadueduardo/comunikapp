@@ -91,7 +91,7 @@ export function BetaFeedbackButton() {
 
     const token = localStorage.getItem('access_token');
     if (!token) {
-      toast.error('Sessao expirada. Faca login novamente.');
+      toast.error('Sessão expirada. Faça login novamente.');
       return;
     }
 
@@ -110,7 +110,7 @@ export function BetaFeedbackButton() {
       setOpen(false);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : 'Nao foi possivel enviar o feedback.',
+        error instanceof Error ? error.message : 'Não foi possível enviar o feedback.',
       );
     } finally {
       setLoading(false);
@@ -140,15 +140,15 @@ export function BetaFeedbackButton() {
 
   return (
     <>
-      <div className="fixed bottom-4 right-4 z-50 print:hidden">
+      <div className="fixed bottom-6 right-6 z-50 print:hidden">
         <Button
           type="button"
           onClick={() => setOpen(true)}
-          className="h-auto rounded-full px-4 py-2.5 shadow-lg"
-          aria-label="Beta Feedback"
+          className="h-10 w-10 rounded-full p-0 shadow-lg"
+          aria-label="Beta — feedback"
+          title="Beta — feedback"
         >
-          <MessageCircleWarning className="mr-2 h-4 w-4" />
-          Beta · Feedback
+          <MessageCircleWarning className="h-5 w-5" />
         </Button>
       </div>
 

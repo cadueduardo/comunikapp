@@ -13,6 +13,8 @@ import { formatCurrency } from '@/lib/utils';
 import { CheckCircle, XCircle, MessageCircle, FileText, Phone, Mail, Printer, Share2, X } from 'lucide-react';
 import { ChatFlutuante } from '@/components/ui/chat-flutuante';
 import { ShareButton } from '@/components/ui/share-button';
+import { resolverTextoCondicaoPagamento } from '@/lib/condicao-pagamento-descricao';
+import { resolveAssetUrl } from '@/lib/config';
 
 interface ProdutoOrcamento {
   id: string;
@@ -66,6 +68,10 @@ interface OrcamentoV2 {
   // Condições comerciais
   prazo_entrega?: string;
   forma_pagamento?: string;
+  condicao_pagamento_tipo?: string;
+  condicao_pagamento_entrada_pct?: number;
+  condicao_pagamento_parcelas?: number;
+  condicao_pagamento_descricao?: string;
   validade_proposta?: string;
   atendente?: string;
   observacoes?: string;
@@ -390,9 +396,9 @@ export default function OrcamentoV2PublicoPage() {
           <div className="border-b-2 border-gray-300 p-6 print:p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                {orcamento.loja?.logo_url ? (
+                {resolveAssetUrl(orcamento.loja?.logo_url) ? (
                   <img 
-                    src={orcamento.loja.logo_url} 
+                    src={resolveAssetUrl(orcamento.loja?.logo_url)!} 
                     alt="Logo" 
                     className="h-16 w-16 object-contain"
                   />
@@ -558,7 +564,7 @@ export default function OrcamentoV2PublicoPage() {
                       FORMA DE PAGAMENTO
                     </td>
                     <td className="border border-gray-400 px-3 py-2">
-                      {orcamento.forma_pagamento || '50% entrada, restante na entrega'}
+                      {resolverTextoCondicaoPagamento(orcamento)}
                     </td>
                   </tr>
                   <tr>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -21,10 +21,55 @@ import {
 } from 'lucide-react';
 import { ArteMessagesModal } from './ArteMessagesModal';
 import { ArtePreviewModalProps, ArteStatus, ComentarioTipo } from '../types/arte-types';
+import {
+  fetchArteFileBlob,
+  openArteFilePreview,
+  resolveArteAuthenticatedFileUrl,
+} from '@/lib/arte-assets';
 
 export function ArtePreviewModal({ versao, isOpen, onClose, osId, produtoId }: ArtePreviewModalProps) {
-  const [selectedArquivo, setSelectedArquivo] = useState<string | null>(null);
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [previewFailed, setPreviewFailed] = useState(false);
   const [showMessagesModal, setShowMessagesModal] = useState(false);
+
+  const firstImageFile = versao?.arquivos.find((arquivo) =>
+    ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(arquivo.tipo_arquivo.toLowerCase()),
+  );
+
+  useEffect(() => {
+    if (!isOpen || !firstImageFile) {
+      setPreviewSrc(null);
+      setPreviewFailed(false);
+      return;
+    }
+
+    let objectUrl: string | null = null;
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const url = resolveArteAuthenticatedFileUrl(firstImageFile, false);
+        if (!url) {
+          if (!cancelled) setPreviewFailed(true);
+          return;
+        }
+        objectUrl = await fetchArteFileBlob(url);
+        if (!cancelled) {
+          setPreviewSrc(objectUrl);
+          setPreviewFailed(false);
+        }
+      } catch {
+        if (!cancelled) setPreviewFailed(true);
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [isOpen, firstImageFile?.id, firstImageFile?.url_arquivo]);
 
   if (!versao) return null;
 
@@ -100,22 +145,17 @@ export function ArtePreviewModal({ versao, isOpen, onClose, osId, produtoId }: A
     return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(tipo.toLowerCase());
   };
 
-  const handleDownload = (arquivo: any) => {
-    // TODO: Implementar download real
-    window.open(arquivo.url_arquivo, '_blank');
+  const handleDownload = async (arquivo: (typeof versao.arquivos)[number]) => {
+    try {
+      await openArteFilePreview(arquivo, { preferThumbnail: false });
+    } catch {
+      window.open(resolveArteAuthenticatedFileUrl(arquivo, false), '_blank');
+    }
   };
-
-  const handleViewArquivo = (arquivo: any) => {
-    setSelectedArquivo(arquivo.url_arquivo);
-  };
-
-  // Encontrar o primeiro arquivo de imagem
-  const firstImageFile = versao.arquivos.find(arquivo => isImageFile(arquivo.tipo_arquivo));
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[95vh] p-0">
-        {/* Header compacto */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center space-x-3">
             <h2 className="text-lg font-semibold">
@@ -131,33 +171,30 @@ export function ArtePreviewModal({ versao, isOpen, onClose, osId, produtoId }: A
         </div>
 
         <div className="flex h-[calc(95vh-80px)]">
-          {/* Área principal - Imagem ampliada */}
           <div className="flex-1 flex items-center justify-center bg-gray-50 p-4">
             {firstImageFile ? (
-              <div className="relative max-w-full max-h-full">
-                <img
-                  src={`${firstImageFile.url_arquivo}?token=${localStorage.getItem('access_token')}`}
-                  alt={firstImageFile.nome_original}
-                  className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.parentElement!.innerHTML = `
-                      <div class="text-center text-gray-500">
-                        <FileText class="h-16 w-16 mx-auto mb-4 opacity-50" />
-                        <p>Erro ao carregar imagem</p>
-                      </div>
-                    `;
-                  }}
-                />
-                
-                {/* Informações sobrepostas */}
-                <div className="absolute bottom-4 left-4 bg-black bg-opacity-70 text-white px-3 py-2 rounded-lg">
-                  <p className="text-sm font-medium">{firstImageFile.nome_original}</p>
-                  <p className="text-xs opacity-75">
-                    {formatFileSize(firstImageFile.tamanho)} • {firstImageFile.tipo_arquivo.toUpperCase()}
-                  </p>
+              previewSrc ? (
+                <div className="relative max-w-full max-h-full">
+                  <img
+                    src={previewSrc}
+                    alt={firstImageFile.nome_original}
+                    className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+                  />
+                  <div className="absolute bottom-4 left-4 bg-black bg-opacity-70 text-white px-3 py-2 rounded-lg">
+                    <p className="text-sm font-medium">{firstImageFile.nome_original}</p>
+                    <p className="text-xs opacity-75">
+                      {formatFileSize(firstImageFile.tamanho)} • {firstImageFile.tipo_arquivo.toUpperCase()}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              ) : previewFailed ? (
+                <div className="text-center text-gray-500">
+                  <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p>Erro ao carregar imagem</p>
+                </div>
+              ) : (
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+              )
             ) : (
               <div className="text-center text-gray-500">
                 <FileText className="h-24 w-24 mx-auto mb-4 opacity-50" />
@@ -167,10 +204,8 @@ export function ArtePreviewModal({ versao, isOpen, onClose, osId, produtoId }: A
             )}
           </div>
 
-          {/* Sidebar com informações */}
           <div className="w-80 border-l bg-white overflow-y-auto">
             <div className="p-4 space-y-6">
-              {/* Informações da versão */}
               <div className="space-y-3">
                 <h3 className="font-medium text-gray-900">Informações</h3>
                 <div className="space-y-2 text-sm">
@@ -191,7 +226,6 @@ export function ArtePreviewModal({ versao, isOpen, onClose, osId, produtoId }: A
                 </div>
               </div>
 
-              {/* Arquivos */}
               <div className="space-y-3">
                 <h3 className="font-medium text-gray-900">Arquivos ({versao.arquivos.length})</h3>
                 {versao.arquivos.length > 0 ? (
@@ -216,7 +250,7 @@ export function ArtePreviewModal({ versao, isOpen, onClose, osId, produtoId }: A
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleViewArquivo(arquivo)}
+                              onClick={() => void openArteFilePreview(arquivo, { preferThumbnail: false })}
                               className="h-6 w-6 p-0"
                             >
                               <Eye className="h-3 w-3" />
@@ -224,7 +258,7 @@ export function ArtePreviewModal({ versao, isOpen, onClose, osId, produtoId }: A
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDownload(arquivo)}
+                              onClick={() => void handleDownload(arquivo)}
                               className="h-6 w-6 p-0"
                             >
                               <Download className="h-3 w-3" />
@@ -242,7 +276,6 @@ export function ArtePreviewModal({ versao, isOpen, onClose, osId, produtoId }: A
                 )}
               </div>
 
-              {/* Mensagens - Botão para abrir modal */}
               <div className="p-4 border-t border-gray-200">
                 <Button
                   onClick={() => setShowMessagesModal(true)}
@@ -254,7 +287,6 @@ export function ArtePreviewModal({ versao, isOpen, onClose, osId, produtoId }: A
                 </Button>
               </div>
               
-              {/* Modal de Mensagens */}
               {showMessagesModal && osId && produtoId && (
                 <ArteMessagesModal
                   isOpen={showMessagesModal}
@@ -272,4 +304,3 @@ export function ArtePreviewModal({ versao, isOpen, onClose, osId, produtoId }: A
     </Dialog>
   );
 }
-

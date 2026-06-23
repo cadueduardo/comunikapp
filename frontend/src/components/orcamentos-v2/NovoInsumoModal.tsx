@@ -68,7 +68,14 @@ export interface NovoInsumoModalProps {
    * do insumo criado (vindo da API) + nome final escolhido. Caller usa
    * esse callback para atrelar o insumo ao produto / linha de material.
    */
-  onCriado: (insumoCriado: { id: string; nome: string }) => void;
+  onCriado: (insumoCriado: {
+    id: string;
+    nome: string;
+    unidade_uso?: string;
+    logica_consumo?: string;
+    custo_unitario?: number;
+    fator_conversao?: number;
+  }) => void;
   /**
    * Disparado após criação bem-sucedida para que o caller atualize sua
    * lista global de insumos (ex.: `fetchInsumos` do `useOrcamentoData`).
@@ -262,7 +269,14 @@ export function NovoInsumoModal({
           // retornado e o caller pode atrelar mesmo sem a lista atualizada.
         }
       }
-      onCriado({ id: criado.id, nome: criado.nome });
+      onCriado({
+        id: criado.id,
+        nome: criado.nome,
+        unidade_uso: unidadeUso.trim(),
+        logica_consumo: logicaConsumo,
+        custo_unitario: parseDecimalInput(custoUnitario),
+        fator_conversao: Number(fatorConversao.replace(',', '.')),
+      });
       onOpenChange(false);
     } catch (error) {
       const msg =

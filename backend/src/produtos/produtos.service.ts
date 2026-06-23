@@ -30,6 +30,9 @@ export class ProdutosService {
     const funcoesPayload = Array.isArray(createProdutoDto.funcoes)
       ? createProdutoDto.funcoes.filter((funcao) => funcao?.funcao_id)
       : [];
+    const servicosPayload = Array.isArray(createProdutoDto.servicos)
+      ? createProdutoDto.servicos.filter((servico) => servico?.servico_id)
+      : [];
 
     // Validar se já existe um produto com o mesmo nome na loja
     const produtoExistente = await this.prisma.templateProduto.findFirst({
@@ -98,6 +101,22 @@ export class ProdutosService {
       }
     }
 
+    if (servicosPayload.length > 0) {
+      const servicoIds = servicosPayload.map((servico) => servico.servico_id);
+      const servicos = await this.prisma.servico_manual.findMany({
+        where: {
+          id: { in: servicoIds },
+          loja_id: lojaId,
+        },
+      });
+
+      if (servicos.length !== servicoIds.length) {
+        throw new BadRequestException(
+          'Um ou mais serviços manuais não foram encontrados.',
+        );
+      }
+    }
+
     // Criar o produto com transação para garantir consistência
     const produto = await this.prisma.$transaction(async (prisma) => {
       // Criar o produto principal
@@ -111,7 +130,12 @@ export class ProdutosService {
           horas_producao: createProdutoDto.horas_producao,
           largura_produto: createProdutoDto.largura_produto,
           altura_produto: createProdutoDto.altura_produto,
+          profundidade_produto: createProdutoDto.profundidade_produto,
           area_produto: createProdutoDto.area_produto,
+          perimetro_produto: createProdutoDto.perimetro_produto,
+          unidade_geometria: createProdutoDto.unidade_geometria,
+          geometria_origem: createProdutoDto.geometria_origem,
+          arquivo_geometria_url: createProdutoDto.arquivo_geometria_url,
           unidade_medida_produto: createProdutoDto.unidade_medida_produto,
           quantidade_padrao: createProdutoDto.quantidade_padrao,
           ativo: createProdutoDto.ativo ?? true,
@@ -128,6 +152,11 @@ export class ProdutosService {
             quantidade: item.quantidade,
             custo_unitario: item.custo_unitario,
             custo_total: item.custo_total,
+            usa_medida_propria: item.usa_medida_propria ?? false,
+            largura_material: item.largura_material,
+            altura_material: item.altura_material,
+            profundidade_material: item.profundidade_material,
+            unidade_medida_material: item.unidade_medida_material,
           })),
         });
       }
@@ -152,6 +181,17 @@ export class ProdutosService {
             funcao_id: funcao.funcao_id,
             horas_trabalhadas: funcao.horas_trabalhadas,
             custo_total: funcao.custo_total,
+          })),
+        });
+      }
+
+      if (servicosPayload.length > 0) {
+        await prisma.servicoTemplateProduto.createMany({
+          data: servicosPayload.map((servico) => ({
+            template_id: produtoCriado.id,
+            servico_id: servico.servico_id,
+            horas_trabalhadas: servico.horas_trabalhadas,
+            custo_total: servico.custo_total,
           })),
         });
       }
@@ -190,6 +230,11 @@ export class ProdutosService {
                 maquina: true,
               },
             },
+          },
+        },
+        servicos: {
+          include: {
+            servico: true,
           },
         },
       },
@@ -348,6 +393,11 @@ export class ProdutosService {
             },
           },
         },
+        servicos: {
+          include: {
+            servico: true,
+          },
+        },
       },
     });
 
@@ -370,6 +420,9 @@ export class ProdutosService {
       : undefined;
     const funcoesPayload = Array.isArray(updateProdutoDto.funcoes)
       ? updateProdutoDto.funcoes.filter((funcao) => funcao?.funcao_id)
+      : undefined;
+    const servicosPayload = Array.isArray(updateProdutoDto.servicos)
+      ? updateProdutoDto.servicos.filter((servico) => servico?.servico_id)
       : undefined;
 
     // Verificar se o produto existe
@@ -418,7 +471,12 @@ export class ProdutosService {
           horas_producao: updateProdutoDto.horas_producao,
           largura_produto: updateProdutoDto.largura_produto,
           altura_produto: updateProdutoDto.altura_produto,
+          profundidade_produto: updateProdutoDto.profundidade_produto,
           area_produto: updateProdutoDto.area_produto,
+          perimetro_produto: updateProdutoDto.perimetro_produto,
+          unidade_geometria: updateProdutoDto.unidade_geometria,
+          geometria_origem: updateProdutoDto.geometria_origem,
+          arquivo_geometria_url: updateProdutoDto.arquivo_geometria_url,
           unidade_medida_produto: updateProdutoDto.unidade_medida_produto,
           quantidade_padrao: updateProdutoDto.quantidade_padrao,
           ativo: updateProdutoDto.ativo,
@@ -441,6 +499,11 @@ export class ProdutosService {
               quantidade: item.quantidade,
               custo_unitario: item.custo_unitario,
               custo_total: item.custo_total,
+              usa_medida_propria: item.usa_medida_propria ?? false,
+              largura_material: item.largura_material,
+              altura_material: item.altura_material,
+              profundidade_material: item.profundidade_material,
+              unidade_medida_material: item.unidade_medida_material,
             })),
           });
         }
@@ -481,6 +544,23 @@ export class ProdutosService {
               funcao_id: funcao.funcao_id,
               horas_trabalhadas: funcao.horas_trabalhadas,
               custo_total: funcao.custo_total,
+            })),
+          });
+        }
+      }
+
+      if (servicosPayload) {
+        await prisma.servicoTemplateProduto.deleteMany({
+          where: { template_id: id },
+        });
+
+        if (servicosPayload.length > 0) {
+          await prisma.servicoTemplateProduto.createMany({
+            data: servicosPayload.map((servico) => ({
+              template_id: id,
+              servico_id: servico.servico_id,
+              horas_trabalhadas: servico.horas_trabalhadas,
+              custo_total: servico.custo_total,
             })),
           });
         }

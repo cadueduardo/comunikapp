@@ -64,7 +64,7 @@ import { CancelarCobrancaDialog } from '@/components/financeiro/CancelarCobranca
 const FUNCOES_COM_VISAO_FINANCEIRA = new Set(['ADMINISTRADOR', 'FINANCEIRO']);
 
 const STATUS_OPCOES: { value: string; label: string }[] = [
-  { value: 'PREVISTA', label: 'Em prospeccao' },
+  { value: 'PREVISTA', label: 'Prevista' },
   { value: 'PARCIAL_PAGO', label: 'Parcial pago' },
   { value: 'VENCIDO', label: 'Vencido' },
   { value: 'LIQUIDADO', label: 'Liquidado' },
@@ -75,7 +75,7 @@ const STATUS_VARIANTE: Record<
   string,
   { label: string; classe: string }
 > = {
-  PREVISTA: { label: 'Em prospeccao', classe: 'bg-blue-100 text-blue-700 border-blue-200' },
+  PREVISTA: { label: 'Prevista', classe: 'bg-blue-100 text-blue-700 border-blue-200' },
   PARCIAL_PAGO: { label: 'Parcial pago', classe: 'bg-amber-100 text-amber-800 border-amber-200' },
   VENCIDO: { label: 'Vencido', classe: 'bg-red-100 text-red-700 border-red-200' },
   LIQUIDADO: { label: 'Liquidado', classe: 'bg-emerald-100 text-emerald-700 border-emerald-200' },

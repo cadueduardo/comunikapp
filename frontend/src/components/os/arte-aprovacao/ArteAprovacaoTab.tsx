@@ -53,6 +53,8 @@ import { ArteVersao, ArteStatus } from './types/arte-types';
 import { ArteAprovacaoTabProps } from './types/arte-types';
 import { ArteFileUpload } from './components/ArteFileUpload';
 import { ArtePreviewModal } from './components/ArtePreviewModal';
+import { ArteAuthenticatedImage } from './components/ArteAuthenticatedImage';
+import { openArteFilePreview, resolveArteAuthenticatedFileUrl, fetchArteFileBlob } from '@/lib/arte-assets';
 import { ArteCreateVersionModal } from './components/ArteCreateVersionModal';
 import { ArteDesignerApprovalModal } from './components/ArteDesignerApprovalModal';
 
@@ -189,10 +191,24 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
   // Listener para contador atualizado via WebSocket
   useEffect(() => {
     if (contadorAtualizado) {
-      // Atualizar contadores quando mensagens forem marcadas como lidas
       refreshMessages();
+      refreshVersoes();
+      refreshProdutos();
     }
-  }, [contadorAtualizado]); // Removido refreshMessages das dependências
+  }, [contadorAtualizado]);
+
+  // Polling leve: reflete aprovação do cliente sem F5 quando WebSocket não dispara
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      refreshVersoes();
+      refreshProdutos();
+    }, 20_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [refreshVersoes, refreshProdutos]);
 
   // ✅ Entrar nas salas de todas as versões para receber mensagens em tempo real (otimizado)
   useEffect(() => {
@@ -337,40 +353,49 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     toast.success('Arquivo enviado com sucesso!');
   };
 
-  const handleViewFile = async (url: string, filename: string, tipoArquivo: string) => {
+  const handleViewFile = async (
+    url: string,
+    filename: string,
+    tipoArquivo: string,
+    arquivo?: { url_arquivo?: string; url_thumbnail?: string },
+  ) => {
     try {
-      const token = localStorage.getItem('access_token');
-      
-      // Para PNG, JPG, PDF - abrir em nova aba
-      const tiposPreview = ['png', 'jpg', 'jpeg', 'pdf'];
       const extensao = tipoArquivo.toLowerCase();
-      
-      if (tiposPreview.includes(extensao)) {
-        // Criar URL com token como query param para preview
-        const previewUrl = `${url}?token=${token}`;
-        window.open(previewUrl, '_blank');
-      } else {
-        // Para outros tipos, fazer download
-        const response = await fetch(url, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
+      const isPreviewable =
+        extensao.startsWith('image/') ||
+        extensao === 'application/pdf' ||
+        ['png', 'jpg', 'jpeg', 'pdf', 'gif', 'webp'].includes(extensao);
 
-        if (!response.ok) {
-          throw new Error('Erro ao baixar arquivo');
-        }
-
-        const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(downloadUrl);
+      if (isPreviewable) {
+        await openArteFilePreview(
+          arquivo ?? { url_arquivo: url },
+          { preferThumbnail: false },
+        );
+        return;
       }
+
+      const token = localStorage.getItem('access_token');
+      const fetchUrl = resolveArteAuthenticatedFileUrl(
+        arquivo ?? { url_arquivo: url },
+        false,
+      );
+      const response = await fetch(fetchUrl, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao baixar arquivo');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
       console.error('Erro ao visualizar arquivo:', error);
       toast.error('Erro ao visualizar arquivo');
@@ -987,20 +1012,16 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Preview/Thumbnail */}
                   <div className="space-y-2">
-                    {versao.arquivos.length > 0 && versao.arquivos[0].url_thumbnail ? (
+                    {versao.arquivos.length > 0 ? (
                       <div 
                         className="bg-gray-100 rounded-lg overflow-hidden border border-gray-300 cursor-pointer hover:opacity-90 transition-opacity"
                         onClick={() => handleViewVersao(versao)}
                       >
-                        <img 
-                          src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${versao.arquivos[0].url_thumbnail}`}
+                        <ArteAuthenticatedImage
+                          arquivo={versao.arquivos[0]}
                           alt={`Preview ${versao.versao}`}
                           className="w-full h-32 object-cover"
-                          onError={(e) => {
-                            // Se falhar, mostrar ícone de arquivo
-                            e.currentTarget.style.display = 'none';
-                            e.currentTarget.parentElement!.innerHTML = '<div class="flex items-center justify-center h-32"><svg class="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg></div>';
-                          }}
+                          preferThumbnail={Boolean(versao.arquivos[0].url_thumbnail)}
                         />
                       </div>
                     ) : versao.arquivos.length > 0 ? (
@@ -1052,7 +1073,12 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleViewFile(arquivo.url_arquivo, arquivo.nome_original, arquivo.tipo_arquivo);
+                                  handleViewFile(
+                                    arquivo.url_arquivo,
+                                    arquivo.nome_original,
+                                    arquivo.tipo_arquivo,
+                                    arquivo,
+                                  );
                                 }}
                                 className="ml-2 text-blue-600 hover:text-blue-800 flex-shrink-0"
                                 title="Visualizar arquivo"

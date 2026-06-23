@@ -372,7 +372,12 @@ model TemplateProduto {
   horas_producao         Decimal                  @db.Decimal(10, 2)
   largura_produto        Decimal?                 @db.Decimal(10, 2)
   altura_produto         Decimal?                 @db.Decimal(10, 2)
+  profundidade_produto   Decimal?                 @db.Decimal(10, 2)
   area_produto           Decimal?                 @db.Decimal(10, 2)
+  perimetro_produto      Decimal?                 @db.Decimal(10, 2)
+  unidade_geometria      String?                  @db.VarChar(4)
+  geometria_origem       String?                  @db.VarChar(16)
+  arquivo_geometria_url  String?                  @db.VarChar(512)
   unidade_medida_produto String?
   quantidade_padrao      Decimal?                 @db.Decimal(10, 2)
   ativo                  Boolean                  @default(true)
@@ -381,6 +386,7 @@ model TemplateProduto {
   funcoes                FuncaoTemplateProduto[]
   itens                  ItemTemplateProduto[]
   maquinas               MaquinaTemplateProduto[]
+  servicos               ServicoTemplateProduto[]
   loja                   loja                     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
 
   @@unique([loja_id, nome])
@@ -390,14 +396,19 @@ model TemplateProduto {
 }
 
 model ItemTemplateProduto {
-  id             String          @id @default(cuid())
-  template_id    String
-  insumo_id      String
-  quantidade     Decimal         @db.Decimal(10, 3)
-  custo_unitario Decimal         @db.Decimal(10, 2)
-  custo_total    Decimal         @db.Decimal(10, 2)
-  insumo         Insumo          @relation(fields: [insumo_id], references: [id])
-  template       TemplateProduto @relation(fields: [template_id], references: [id], onDelete: Cascade)
+  id                     String          @id @default(cuid())
+  template_id            String
+  insumo_id              String
+  quantidade             Decimal         @db.Decimal(10, 3)
+  custo_unitario         Decimal         @db.Decimal(10, 2)
+  custo_total            Decimal         @db.Decimal(10, 2)
+  usa_medida_propria     Boolean         @default(false)
+  largura_material       Decimal?        @db.Decimal(10, 2)
+  altura_material        Decimal?        @db.Decimal(10, 2)
+  profundidade_material  Decimal?        @db.Decimal(10, 2)
+  unidade_medida_material String?        @db.VarChar(4)
+  insumo                 Insumo          @relation(fields: [insumo_id], references: [id])
+  template               TemplateProduto @relation(fields: [template_id], references: [id], onDelete: Cascade)
 
   @@index([template_id])
   @@index([insumo_id])
@@ -430,6 +441,20 @@ model FuncaoTemplateProduto {
   @@index([template_id])
   @@index([funcao_id])
   @@map("funcao_template_produtos")
+}
+
+model ServicoTemplateProduto {
+  id               String          @id @default(cuid())
+  template_id      String
+  servico_id       String
+  horas_trabalhadas Decimal        @db.Decimal(10, 2)
+  custo_total      Decimal         @db.Decimal(10, 2)
+  servico          servico_manual  @relation(fields: [servico_id], references: [id])
+  template         TemplateProduto @relation(fields: [template_id], references: [id], onDelete: Cascade)
+
+  @@index([template_id])
+  @@index([servico_id])
+  @@map("servico_template_produtos")
 }
 
 model anexomensagem {
@@ -994,15 +1019,20 @@ model ProdutoOrcamento {
 }
 
 model ItemInsumo {
-  id                  String   @id @default(cuid())
-  produto_id          String
-  insumo_id           String
-  quantidade          Decimal  @db.Decimal(10, 3)
-  unidade             String
-  preco_unitario      Decimal  @db.Decimal(10, 2)
-  preco_total         Decimal  @db.Decimal(10, 2)
-  material_do_cliente Boolean  @default(false)
-  estoque_disponivel  Decimal? @db.Decimal(10, 3)
+  id                     String   @id @default(cuid())
+  produto_id             String
+  insumo_id              String
+  quantidade             Decimal  @db.Decimal(10, 3)
+  unidade                String
+  preco_unitario         Decimal  @db.Decimal(10, 2)
+  preco_total            Decimal  @db.Decimal(10, 2)
+  material_do_cliente    Boolean  @default(false)
+  usa_medida_propria     Boolean  @default(false)
+  largura_material       Decimal? @db.Decimal(10, 2)
+  altura_material        Decimal? @db.Decimal(10, 2)
+  profundidade_material  Decimal? @db.Decimal(10, 2)
+  unidade_medida_material String? @db.VarChar(4)
+  estoque_disponivel     Decimal? @db.Decimal(10, 3)
   alerta_estoque      Boolean  @default(false)
   calculo_chapa       String?  @db.LongText
   criado_em           DateTime @default(now())
@@ -1281,6 +1311,7 @@ model servico_manual {
   loja              loja                @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "ServicoManual_loja_id_fkey")
   setor             SetorProdutivo?     @relation(fields: [setor_id], references: [id], onDelete: SetNull, map: "ServicoManual_setor_id_fkey")
   itemServicoManual ItemServicoManual[]
+  servicos_template ServicoTemplateProduto[]
 
   @@unique([loja_id, nome])
   @@index([loja_id], map: "ServicoManual_loja_id_idx")

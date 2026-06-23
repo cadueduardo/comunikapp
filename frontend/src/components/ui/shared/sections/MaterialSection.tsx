@@ -139,6 +139,66 @@ export function MaterialSection({
   const temProfundidadeValida = (): boolean =>
     normalizarNumero(profundidadeProduto) > 0;
 
+  const obterDimensoesMaterial = (materialIndex: number) => {
+    const usaPropria = Boolean(
+      form.getValues(`itens_produto.${itemIndex}.materiais.${materialIndex}.usa_medida_propria`),
+    );
+    if (!usaPropria) {
+      return {
+        largura: normalizarNumero(larguraProduto),
+        altura: normalizarNumero(alturaProduto),
+        profundidade: normalizarNumero(profundidadeProduto),
+        unidade: unidadeGeometria,
+      };
+    }
+    return {
+      largura: normalizarNumero(
+        form.getValues(`itens_produto.${itemIndex}.materiais.${materialIndex}.largura_material`),
+      ),
+      altura: normalizarNumero(
+        form.getValues(`itens_produto.${itemIndex}.materiais.${materialIndex}.altura_material`),
+      ),
+      profundidade: normalizarNumero(
+        form.getValues(`itens_produto.${itemIndex}.materiais.${materialIndex}.profundidade_material`),
+      ),
+      unidade:
+        form.getValues(`itens_produto.${itemIndex}.materiais.${materialIndex}.unidade_medida_material`) ||
+        unidadeGeometria,
+    };
+  };
+
+  const obterAreaM2Material = (materialIndex: number): number => {
+    const dims = obterDimensoesMaterial(materialIndex);
+    if (dims.largura > 0 && dims.altura > 0) {
+      return calcularArea(dims.largura, dims.altura, dims.unidade);
+    }
+    return obterAreaM2();
+  };
+
+  const obterPerimetroMMaterial = (materialIndex: number): number => {
+    const dims = obterDimensoesMaterial(materialIndex);
+    if (dims.largura > 0 && dims.altura > 0) {
+      const larguraEmMetros = converterParaMetros(dims.largura, dims.unidade);
+      const alturaEmMetros = converterParaMetros(dims.altura, dims.unidade);
+      return 2 * (larguraEmMetros + alturaEmMetros);
+    }
+    return obterPerimetroM();
+  };
+
+  const obterVolumeM3Material = (materialIndex: number): number => {
+    const dims = obterDimensoesMaterial(materialIndex);
+    if (dims.profundidade <= 0) return 0;
+    return calcularVolume(dims.largura, dims.altura, dims.profundidade, dims.unidade);
+  };
+
+  const obterAreaLateralM2Material = (materialIndex: number): number => {
+    const dims = obterDimensoesMaterial(materialIndex);
+    if (dims.profundidade <= 0) return 0;
+    return calcularAreaLateral(dims.largura, dims.altura, dims.profundidade, dims.unidade);
+  };
+
+  const materiaisWatch = form.watch(`itens_produto.${itemIndex}.materiais`) || [];
+
   const formatarNumeroMedida = (
     valor: unknown,
     casas: number,
@@ -166,6 +226,130 @@ export function MaterialSection({
     return formatarNumeroMedida(valor, casas, usarVirgula);
   };
 
+  const calcularSugestaoQuantidadeInsumo = (
+    materialIndex: number,
+    insumoSelecionado: Insumo,
+  ): string => {
+    let sugestao = '';
+    const quantidadeProdutoNum = Number(quantidadeProduto) || 1;
+    const areaProdutoNum = obterAreaM2Material(materialIndex);
+    const perimetroProdutoM = obterPerimetroMMaterial(materialIndex);
+    const perimetroProdutoCm = perimetroProdutoM * 100;
+
+    if (insumoSelecionado.logica_consumo === 'custom' && insumoSelecionado.tipoMaterial) {
+      const parametros = insumoSelecionado.tipoMaterial.parametros_padrao;
+
+      if (parametros && parametros.tipo_calculo) {
+        switch (parametros.tipo_calculo) {
+          case 'espacamento':
+            if (parametros.espacamento && perimetroProdutoCm > 0) {
+              const perimetro = perimetroProdutoCm;
+              const espacamento = Number(parametros.espacamento);
+              sugestao = (Math.ceil(perimetro / espacamento) * quantidadeProdutoNum).toString();
+            }
+            break;
+
+          case 'quantidade_por_m2':
+            if (parametros.quantidade_por_m2 && areaProdutoNum > 0) {
+              sugestao = (areaProdutoNum * Number(parametros.quantidade_por_m2) * quantidadeProdutoNum).toString();
+            }
+            break;
+
+          case 'multiplicador':
+            if (parametros.multiplicador) {
+              sugestao = (1 * Number(parametros.multiplicador) * quantidadeProdutoNum).toString();
+            }
+            break;
+
+          case 'quantidade_fixa':
+            if (parametros.quantidade_fixa) {
+              sugestao = (Number(parametros.quantidade_fixa) * quantidadeProdutoNum).toString();
+            }
+            break;
+        }
+      }
+    } else {
+      switch (insumoSelecionado.unidade_uso) {
+        case 'M2':
+          if (areaProdutoNum > 0) {
+            sugestao = formatarQuantidadeAutomatica(
+              areaProdutoNum * quantidadeProdutoNum,
+              insumoSelecionado.unidade_uso,
+            );
+          }
+          break;
+        case 'M':
+          if (perimetroProdutoM > 0) {
+            sugestao = formatarQuantidadeAutomatica(
+              perimetroProdutoM * quantidadeProdutoNum,
+              insumoSelecionado.unidade_uso,
+            );
+          }
+          break;
+        case 'M3': {
+          const volumeM3 = obterVolumeM3Material(materialIndex);
+          if (volumeM3 > 0) {
+            sugestao = formatarQuantidadeAutomatica(
+              volumeM3 * quantidadeProdutoNum,
+              insumoSelecionado.unidade_uso,
+            );
+          }
+          break;
+        }
+        case 'M2_LATERAL': {
+          const areaLateralM2 = obterAreaLateralM2Material(materialIndex);
+          if (areaLateralM2 > 0) {
+            sugestao = formatarQuantidadeAutomatica(
+              areaLateralM2 * quantidadeProdutoNum,
+              insumoSelecionado.unidade_uso,
+            );
+          }
+          break;
+        }
+      }
+    }
+
+    return sugestao;
+  };
+
+  const aplicarInsumoNaLinhaMaterial = (
+    materialIndex: number,
+    insumoId: string,
+    insumoFallback?: Partial<Insumo>,
+  ) => {
+    form.setValue(
+      `itens_produto.${itemIndex}.materiais.${materialIndex}.insumo_id`,
+      insumoId,
+    );
+
+    const insumo =
+      insumos.find((item) => item.id === insumoId) ??
+      (insumoFallback
+        ? ({
+            id: insumoId,
+            nome: insumoFallback.nome ?? '',
+            unidade_compra: insumoFallback.unidade_compra ?? 'UN',
+            custo_unitario: insumoFallback.custo_unitario ?? 0,
+            quantidade_compra: insumoFallback.quantidade_compra ?? 1,
+            unidade_uso: insumoFallback.unidade_uso ?? 'UN',
+            fator_conversao: insumoFallback.fator_conversao ?? 1,
+            logica_consumo: insumoFallback.logica_consumo ?? 'area',
+            categoria: insumoFallback.categoria ?? { nome: '' },
+            tipoMaterial: insumoFallback.tipoMaterial ?? null,
+          } as Insumo)
+        : undefined);
+
+    if (!insumo) return;
+
+    const sugestao = calcularSugestaoQuantidadeInsumo(materialIndex, insumo);
+    if (sugestao) {
+      form.setValue(
+        `itens_produto.${itemIndex}.materiais.${materialIndex}.quantidade`,
+        sugestao,
+      );
+    }
+  };
+
   useEffect(() => {
     // Recalcular automaticamente as quantidades de materiais quando as dimensões ou quantidade do produto mudarem
     const materiais = form.getValues(`itens_produto.${itemIndex}.materiais`) || [];
@@ -174,92 +358,8 @@ export function MaterialSection({
       if (material.insumo_id) {
         const insumoSelecionado = insumos.find(insumo => insumo.id === material.insumo_id);
         if (insumoSelecionado) {
-          let novaQuantidade = '';
-          const quantidadeProdutoNum = Number(quantidadeProduto) || 1;
-          const areaProdutoNum = obterAreaM2();
-          const perimetroProdutoM = obterPerimetroM();
-          
-          // Verificar se tem lógica personalizada
-          if (insumoSelecionado.logica_consumo === 'custom' && insumoSelecionado.tipoMaterial) {
-            const parametros = insumoSelecionado.tipoMaterial.parametros_padrao;
-            
-            if (parametros && parametros.tipo_calculo) {
-              switch (parametros.tipo_calculo) {
-                case 'espacamento':
-                  if (parametros.espacamento && perimetroProdutoM > 0) {
-                    const perimetro = perimetroProdutoM * 100;
-                    const espacamento = Number(parametros.espacamento);
-                    novaQuantidade = (Math.ceil(perimetro / espacamento) * quantidadeProdutoNum).toString();
-                  }
-                  break;
-                
-                case 'quantidade_por_m2':
-                  if (parametros.quantidade_por_m2 && areaProdutoNum > 0) {
-                    novaQuantidade = (areaProdutoNum * Number(parametros.quantidade_por_m2) * quantidadeProdutoNum).toString();
-                  }
-                  break;
-                
-                case 'multiplicador':
-                  if (parametros.multiplicador) {
-                    novaQuantidade = (1 * Number(parametros.multiplicador) * quantidadeProdutoNum).toString();
-                  }
-                  break;
-                
-                case 'quantidade_fixa':
-                  if (parametros.quantidade_fixa) {
-                    novaQuantidade = (Number(parametros.quantidade_fixa) * quantidadeProdutoNum).toString();
-                  }
-                  break;
-              }
-            }
-          } else {
-            // Lógica padrão baseada na unidade de uso
-            switch (insumoSelecionado.unidade_uso) {
-              case 'M2':
-                if (areaProdutoNum > 0) {
-                  novaQuantidade = formatarQuantidadeAutomatica(
-                    areaProdutoNum * quantidadeProdutoNum,
-                    insumoSelecionado.unidade_uso,
-                  );
-                }
-                break;
-              case 'M':
-                if (perimetroProdutoM > 0) {
-                  novaQuantidade = formatarQuantidadeAutomatica(
-                    perimetroProdutoM * quantidadeProdutoNum,
-                    insumoSelecionado.unidade_uso,
-                  );
-                }
-                break;
-              // Fase 11: volume (LxAxP em m3) para produtos 3D. obterVolumeM3 ja retorna 0
-              // quando profundidade <= 0; nesse caso o operador ve o aviso amarelo abaixo.
-              // Precisao 6 casas porque produtos pequenos em mm (ex.: letra caixa 50x50x50 mm)
-              // dao volume = 0.000125 m3, que arredondado a 3 casas vira 0.000 (silencioso).
-              case 'M3': {
-                const volumeM3 = obterVolumeM3();
-                if (volumeM3 > 0) {
-                  novaQuantidade = formatarQuantidadeAutomatica(
-                    volumeM3 * quantidadeProdutoNum,
-                    insumoSelecionado.unidade_uso,
-                  );
-                }
-                break;
-              }
-              // Fase 11: area lateral (caixa aberta, 4 laterais sem tampa/fundo) em m2.
-              // Precisao 4 casas para acomodar produtos pequenos (laterais finas).
-              case 'M2_LATERAL': {
-                const areaLateralM2 = obterAreaLateralM2();
-                if (areaLateralM2 > 0) {
-                  novaQuantidade = formatarQuantidadeAutomatica(
-                    areaLateralM2 * quantidadeProdutoNum,
-                    insumoSelecionado.unidade_uso,
-                  );
-                }
-                break;
-              }
-            }
-          }
-          
+          const novaQuantidade = calcularSugestaoQuantidadeInsumo(materialIndex, insumoSelecionado);
+
           // Atualizar apenas se a nova quantidade for diferente e válida
           if (novaQuantidade && novaQuantidade !== material.quantidade) {
             form.setValue(`itens_produto.${itemIndex}.materiais.${materialIndex}.quantidade`, novaQuantidade);
@@ -267,7 +367,7 @@ export function MaterialSection({
         }
       }
     });
-  }, [quantidadeProduto, areaProduto, larguraProduto, alturaProduto, unidadeGeometria, perimetroProduto, profundidadeProduto, form, itemIndex, insumos]);
+  }, [quantidadeProduto, areaProduto, larguraProduto, alturaProduto, unidadeGeometria, perimetroProduto, profundidadeProduto, materiaisWatch, form, itemIndex, insumos]);
 
   const handleAddMaterial = () => {
     if (onAddMaterial) {
@@ -276,7 +376,16 @@ export function MaterialSection({
       const currentMaterials = form.getValues(`itens_produto.${itemIndex}.materiais`);
       const hasEmpty = currentMaterials.some((m: { insumo_id: string; quantidade: string }) => !m.insumo_id || !m.quantidade);
       if (!hasEmpty) {
-        const newMaterials = [...currentMaterials, { insumo_id: '', quantidade: '1', material_do_cliente: false }];
+        const newMaterials = [...currentMaterials, {
+          insumo_id: '',
+          quantidade: '1',
+          material_do_cliente: false,
+          usa_medida_propria: false,
+          largura_material: '',
+          altura_material: '',
+          profundidade_material: '',
+          unidade_medida_material: unidadeGeometria || 'mm',
+        }];
         form.setValue(`itens_produto.${itemIndex}.materiais`, newMaterials);
       }
     }
@@ -567,98 +676,8 @@ export function MaterialSection({
                     <FormLabel>Material</FormLabel>
                     <Select onValueChange={(value) => {
                       field.onChange(value);
-                      
-                      // Aplicar sugestão automática quando um insumo é selecionado
                       if (value) {
-                        const insumoSelecionado = insumos.find(insumo => insumo.id === value);
-                        if (insumoSelecionado) {
-                          const areaProduto = obterAreaM2();
-                          const perimetroProdutoM = obterPerimetroM();
-                          const perimetroProdutoCm = perimetroProdutoM * 100;
-                          
-                          let sugestao = '';
-                          
-                          // Obter quantidade do produto para cálculo total
-                          const quantidadeProduto = Number(form.watch(`itens_produto.${itemIndex}.quantidade_produto`)) || 1;
-                          
-                          // Verificar se tem lógica personalizada
-                          if (insumoSelecionado.logica_consumo === 'custom' && insumoSelecionado.tipoMaterial) {
-                            const parametros = insumoSelecionado.tipoMaterial.parametros_padrao;
-                            if (parametros && parametros.tipo_calculo) {
-                              switch (parametros.tipo_calculo) {
-                                case 'espacamento':
-                                  if (parametros.espacamento && perimetroProdutoCm > 0) {
-                                    const perimetro = perimetroProdutoCm;
-                                    const espacamento = Number(parametros.espacamento);
-                                    sugestao = (Math.ceil(perimetro / espacamento) * quantidadeProduto).toString();
-                                  }
-                                  break;
-                                
-                                case 'quantidade_por_m2':
-                                  if (parametros.quantidade_por_m2 && areaProduto > 0) {
-                                    sugestao = (areaProduto * Number(parametros.quantidade_por_m2) * quantidadeProduto).toString();
-                                  }
-                                  break;
-                                
-                                case 'multiplicador':
-                                  if (parametros.multiplicador) {
-                                    sugestao = (1 * Number(parametros.multiplicador) * quantidadeProduto).toString();
-                                  }
-                                  break;
-                                
-                                case 'quantidade_fixa':
-                                  if (parametros.quantidade_fixa) {
-                                    sugestao = (Number(parametros.quantidade_fixa) * quantidadeProduto).toString();
-                                  }
-                                  break;
-                              }
-                            }
-                          } else {
-                            // Lógica padrão baseada na unidade de uso
-                            switch (insumoSelecionado.unidade_uso) {
-                              case 'M2':
-                                if (areaProduto > 0) {
-                                  sugestao = formatarQuantidadeAutomatica(
-                                    areaProduto * quantidadeProduto,
-                                    insumoSelecionado.unidade_uso,
-                                  );
-                                }
-                                break;
-                              case 'M':
-                                if (perimetroProdutoM > 0) {
-                                  sugestao = formatarQuantidadeAutomatica(
-                                    perimetroProdutoM * quantidadeProduto,
-                                    insumoSelecionado.unidade_uso,
-                                  );
-                                }
-                                break;
-                              case 'M3': {
-                                const volumeM3 = obterVolumeM3();
-                                if (volumeM3 > 0) {
-                                  sugestao = formatarQuantidadeAutomatica(
-                                    volumeM3 * quantidadeProduto,
-                                    insumoSelecionado.unidade_uso,
-                                  );
-                                }
-                                break;
-                              }
-                              case 'M2_LATERAL': {
-                                const areaLateralM2 = obterAreaLateralM2();
-                                if (areaLateralM2 > 0) {
-                                  sugestao = formatarQuantidadeAutomatica(
-                                    areaLateralM2 * quantidadeProduto,
-                                    insumoSelecionado.unidade_uso,
-                                  );
-                                }
-                                break;
-                              }
-                            }
-                          }
-                          
-                          if (sugestao) {
-                            form.setValue(`itens_produto.${itemIndex}.materiais.${materialIndex}.quantidade`, sugestao);
-                          }
-                        }
+                        aplicarInsumoNaLinhaMaterial(materialIndex, value);
                       }
                     }} value={field.value}>
                       <FormControl>
@@ -796,6 +815,86 @@ export function MaterialSection({
                 </Button>
               </div>
             </div>
+
+            <FormField
+              control={form.control}
+              name={`itens_produto.${itemIndex}.materiais.${materialIndex}.usa_medida_propria`}
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={Boolean(field.value)}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormLabel className="text-sm font-normal cursor-pointer">
+                    Medidas próprias deste material (L × A × P)
+                  </FormLabel>
+                </FormItem>
+              )}
+            />
+
+            {Boolean(form.watch(`itens_produto.${itemIndex}.materiais.${materialIndex}.usa_medida_propria`)) && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 rounded-md border bg-muted/30 p-3">
+                <FormField
+                  control={form.control}
+                  name={`itens_produto.${itemIndex}.materiais.${materialIndex}.largura_material`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Largura</FormLabel>
+                      <FormControl>
+                        <Input type="text" placeholder="Ex.: 9" {...field} value={field.value || ''} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`itens_produto.${itemIndex}.materiais.${materialIndex}.altura_material`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Altura</FormLabel>
+                      <FormControl>
+                        <Input type="text" placeholder="Ex.: 9" {...field} value={field.value || ''} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`itens_produto.${itemIndex}.materiais.${materialIndex}.profundidade_material`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Profundidade</FormLabel>
+                      <FormControl>
+                        <Input type="text" placeholder="Opcional" {...field} value={field.value || ''} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`itens_produto.${itemIndex}.materiais.${materialIndex}.unidade_medida_material`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Unidade</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || unidadeGeometria || 'mm'}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Unidade" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="mm">mm</SelectItem>
+                          <SelectItem value="cm">cm</SelectItem>
+                          <SelectItem value="m">m</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
             
             {/* Fase 11: salvaguarda anti-erro - se o insumo exige profundidade mas o produto
                 nao tem profundidade preenchida, avisar o operador em vez de calcular com 0
@@ -894,27 +993,13 @@ export function MaterialSection({
           onCriado={(insumoCriado) => {
             const materialIndex = novoInsumoModal.materialIndex;
             if (materialIndex === null) return;
-            // Atrela o insumo recém-criado naquela linha específica do
-            // array de materiais. A sugestão automática de quantidade
-            // (que normalmente roda no onValueChange do Select) é
-            // reproduzida aqui de forma simplificada: M2 usa area, M usa
-            // perimetro, e o resto fica em '1' como placeholder.
-            form.setValue(
-              `itens_produto.${itemIndex}.materiais.${materialIndex}.insumo_id`,
-              insumoCriado.id,
-            );
-            // Quantidade padrão pós-cadastro: deixa em branco para a
-            // sugestão automática rodar quando o useEffect reagir à
-            // mudança em insumos. Se já houver valor, não sobrescreve.
-            const qtdAtual = form.getValues(
-              `itens_produto.${itemIndex}.materiais.${materialIndex}.quantidade`,
-            );
-            if (!qtdAtual || String(qtdAtual).trim().length === 0) {
-              form.setValue(
-                `itens_produto.${itemIndex}.materiais.${materialIndex}.quantidade`,
-                '1',
-              );
-            }
+            aplicarInsumoNaLinhaMaterial(materialIndex, insumoCriado.id, {
+              nome: insumoCriado.nome,
+              unidade_uso: insumoCriado.unidade_uso,
+              logica_consumo: insumoCriado.logica_consumo,
+              custo_unitario: insumoCriado.custo_unitario,
+              fator_conversao: insumoCriado.fator_conversao,
+            });
           }}
         />
       ) : null}

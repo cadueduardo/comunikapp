@@ -3,7 +3,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
+import {
   CheckCircle, 
   Clock, 
   XCircle,
@@ -13,6 +13,7 @@ import {
   X,
   Maximize2
 } from 'lucide-react';
+import { resolveArtePublicFileUrl } from '@/lib/arte-assets';
 // Removido useIsMobile para evitar erro do React
 
 interface VersaoArte {
@@ -107,9 +108,7 @@ export function ArtePublicMainSimple({
   };
 
   const isPdfFile = (tipo: string, nome: string) => {
-    const isPdf = tipo === 'application/pdf' || nome.toLowerCase().endsWith('.pdf');
-    console.log('🔍 [isPdfFile] Verificando se é PDF:', { tipo, nome, isPdf });
-    return isPdf;
+    return tipo === 'application/pdf' || nome.toLowerCase().endsWith('.pdf');
   };
 
   if (loading) {
@@ -135,80 +134,11 @@ export function ArtePublicMainSimple({
   }
 
   const arquivoPrincipal = versaoAtual.arquivos[0];
-  const resolvePublicFileUrl = (url?: string) => {
-    if (!url) return '';
-    if (url.startsWith('http')) return url;
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-    return `${baseUrl}${url}`;
-  };
-  
-  // Construir URL do arquivo para visualização
-  let imageSrc = '';
-  console.log('🔍 [ArtePublicMainSimple] Arquivo principal:', arquivoPrincipal);
-  
-  if (arquivoPrincipal?.url_arquivo) {
-    console.log('🔍 [ArtePublicMainSimple] URL do arquivo original:', arquivoPrincipal.url_arquivo);
-    
-    // Se a URL já é completa (começa com http), usar diretamente
-    if (arquivoPrincipal.url_arquivo.startsWith('http')) {
-      imageSrc = arquivoPrincipal.url_arquivo;
-      console.log('✅ [ArtePublicMainSimple] URL completa detectada:', imageSrc);
-    } else {
-      // Se é uma URL relativa, construir a URL completa
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      console.log('🔍 [ArtePublicMainSimple] Base URL:', baseUrl);
-      
-      // Se a URL começa com /uploads, adicionar apenas o baseUrl
-      if (arquivoPrincipal.url_arquivo.startsWith('/uploads')) {
-        imageSrc = `${baseUrl}${arquivoPrincipal.url_arquivo}`;
-        console.log('✅ [ArtePublicMainSimple] URL com /uploads:', imageSrc);
-      } else {
-        // Extrair o nome do arquivo da URL
-        const filename = arquivoPrincipal.url_arquivo.split('/').pop();
-        // Obter versaoId da URL do arquivo
-        const urlParts = arquivoPrincipal.url_arquivo.split('/');
-        const versaoIndex = urlParts.findIndex(part => part === 'versoes');
-        const versaoId = versaoIndex !== -1 ? urlParts[versaoIndex + 1] : null;
-        
-        console.log('🔍 [ArtePublicMainSimple] Construindo URL:', { filename, versaoId, urlParts });
-        
-        if (versaoId && filename) {
-          imageSrc = `${baseUrl}/api/arte-aprovacao/versoes/${versaoId}/arquivos/public/download/${filename}?token=${encodeURIComponent(token)}`;
-          console.log('✅ [ArtePublicMainSimple] URL construída:', imageSrc);
-        } else {
-          console.warn('⚠️ [ArtePublicMainSimple] Não foi possível construir URL:', { versaoId, filename });
-        }
-      }
-    }
-    if (arquivoPrincipal.url_arquivo.startsWith('/api/')) {
-      imageSrc = resolvePublicFileUrl(arquivoPrincipal.url_arquivo);
-    }
-  } else if (arquivoPrincipal?.url_thumbnail) {
-    // Fallback para thumbnail se não houver arquivo original
-    imageSrc = resolvePublicFileUrl(arquivoPrincipal.url_thumbnail);
-    console.log('✅ [ArtePublicMainSimple] Usando thumbnail:', imageSrc);
-  } else {
-    console.warn('⚠️ [ArtePublicMainSimple] Nenhuma URL de arquivo encontrada');
-  }
-  
-  console.log('🎯 [ArtePublicMainSimple] URL final para visualização:', imageSrc);
-  
-  // Testar se a URL está acessível
-  if (imageSrc) {
-    fetch(imageSrc, { method: 'HEAD' })
-      .then(response => {
-        console.log('🔍 [ArtePublicMainSimple] Teste de acesso à URL:', {
-          url: imageSrc,
-          status: response.status,
-          statusText: response.statusText,
-          contentType: response.headers.get('content-type'),
-          contentDisposition: response.headers.get('content-disposition')
-        });
-      })
-      .catch(error => {
-        console.error('❌ [ArtePublicMainSimple] Erro ao acessar URL:', error);
-      });
-  }
+  const imageSrc = resolveArtePublicFileUrl(arquivoPrincipal, token);
+  const thumbnailSrc = resolveArtePublicFileUrl(arquivoPrincipal, token, {
+    preferThumbnail: true,
+  });
+  const previewSrc = imageSrc || thumbnailSrc;
 
   const [showModal, setShowModal] = React.useState(false);
   const [showMobileModal, setShowMobileModal] = React.useState(false);
@@ -248,26 +178,23 @@ export function ArtePublicMainSimple({
         {/* Preview da Arte - Desktop */}
         <div className="hidden lg:flex lg:flex-1 bg-gray-50 min-h-0 overflow-auto">
           <div className="w-full h-full flex items-center justify-center p-4">
-            {imageSrc ? (
+            {previewSrc ? (
               isPdfFile(arquivoPrincipal.tipo_arquivo, arquivoPrincipal.nome_original) ? (
                 <div className="w-full h-full flex items-center justify-center">
                   <iframe
-                    src={imageSrc}
+                    src={previewSrc}
                     className="w-full h-full rounded-lg shadow-lg"
                     title={arquivoPrincipal.nome_original}
                     onError={(e) => {
-                      console.error('❌ [ArtePublicMainSimple] Erro ao carregar PDF no iframe:', e);
-                      console.error('❌ [ArtePublicMainSimple] URL que falhou:', imageSrc);
+                      console.error('Erro ao carregar PDF no iframe:', e);
                     }}
-                    onLoad={() => {
-                      console.log('✅ [ArtePublicMainSimple] PDF carregado com sucesso:', imageSrc);
-                    }}
+                    onLoad={() => {}}
                   />
                 </div>
               ) : isImageFile(arquivoPrincipal.tipo_arquivo) ? (
                 <div className="relative">
                   <img
-                    src={imageSrc}
+                    src={previewSrc}
                     alt={arquivoPrincipal.nome_original}
                     className="max-w-full max-h-full object-contain rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition-shadow duration-300"
                     onClick={() => setShowModal(true)}
@@ -318,16 +245,16 @@ export function ArtePublicMainSimple({
               </button>
             </div>
             <div className="p-4">
-              {imageSrc && (
+              {previewSrc && (
                 isPdfFile(arquivoPrincipal.tipo_arquivo, arquivoPrincipal.nome_original) ? (
                   <iframe
-                    src={imageSrc}
+                    src={previewSrc}
                     className="w-full h-[80vh] rounded-lg"
                     title={arquivoPrincipal.nome_original}
                   />
                 ) : (
                   <img
-                    src={imageSrc}
+                    src={previewSrc}
                     alt={arquivoPrincipal.nome_original}
                     className="max-w-full max-h-[80vh] object-contain"
                   />
@@ -364,16 +291,16 @@ export function ArtePublicMainSimple({
 
           {/* Conteúdo da Arte em Tela Cheia */}
           <div className="flex-1 bg-black flex items-center justify-center p-4">
-            {imageSrc && (
+            {previewSrc && (
               isPdfFile(arquivoPrincipal.tipo_arquivo, arquivoPrincipal.nome_original) ? (
                 <iframe
-                  src={imageSrc}
+                  src={previewSrc}
                   className="w-full h-full rounded-lg"
                   title={arquivoPrincipal.nome_original}
                 />
               ) : (
                 <img
-                  src={imageSrc}
+                  src={previewSrc}
                   alt={arquivoPrincipal.nome_original}
                   className="max-w-full max-h-full object-contain"
                   onClick={(e) => e.stopPropagation()}

@@ -16,6 +16,7 @@ import {
   Maximize2
 } from 'lucide-react';
 import { ArtePublicChatWithMentions } from './ArtePublicChatWithMentions';
+import { resolveArtePublicFileUrl } from '@/lib/arte-assets';
 // Removido useIsMobile para evitar erro do React
 
 interface VersaoArte {
@@ -31,6 +32,7 @@ interface VersaoArte {
   arquivos?: Array<{
     id: string;
     nome_original: string;
+    url_arquivo?: string;
     url_thumbnail?: string;
   }>;
 }
@@ -66,12 +68,6 @@ export function ArtePublicSidebarNew({
 
   const [showMobileModal, setShowMobileModal] = useState(false);
   const [versaoModal, setVersaoModal] = useState<VersaoArte | null>(null);
-  const resolvePublicFileUrl = (url?: string) => {
-    if (!url) return '';
-    if (url.startsWith('http')) return url;
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-    return `${baseUrl}${url}`;
-  };
 
   // Função para formatar datas
   const formatarData = (dataString: any): string => {
@@ -287,9 +283,11 @@ export function ArtePublicSidebarNew({
 
           {/* Conteúdo da Arte em Tela Cheia */}
           <div className="flex-1 bg-black flex items-center justify-center p-4">
-            {versaoModal.arquivos?.[0]?.url_thumbnail ? (
+            {versaoModal.arquivos?.[0] ? (
               <img
-                src={resolvePublicFileUrl(versaoModal.arquivos[0].url_thumbnail)}
+                src={resolveArtePublicFileUrl(versaoModal.arquivos[0], token, {
+                  preferThumbnail: true,
+                })}
                 alt={versaoModal.arquivos[0].nome_original}
                 className="max-w-full max-h-full object-contain"
                 onClick={(e) => e.stopPropagation()}

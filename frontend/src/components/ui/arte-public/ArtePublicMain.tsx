@@ -11,6 +11,8 @@ import {
   Calendar
 } from 'lucide-react';
 
+import { resolveArtePublicFileUrl } from '@/lib/arte-assets';
+
 // Componente para carregar imagem com fallback
 function ImageWithFallback({ arquivo, token }: { arquivo: any, token: string }) {
   const [currentSrc, setCurrentSrc] = useState<string>('');
@@ -18,29 +20,24 @@ function ImageWithFallback({ arquivo, token }: { arquivo: any, token: string }) 
   const [loading, setLoading] = useState(true);
 
   React.useEffect(() => {
-    // Tentar primeiro com url_arquivo
-    const urlPrincipal = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${arquivo.url_arquivo}?token=${token}`;
-    console.log('🖼️ Tentando carregar imagem principal:', urlPrincipal);
-    setCurrentSrc(urlPrincipal);
+    const urlPrincipal = resolveArtePublicFileUrl(arquivo, token, {
+      preferThumbnail: false,
+    });
+    const urlThumbnail = resolveArtePublicFileUrl(arquivo, token, {
+      preferThumbnail: true,
+    });
+    setCurrentSrc(urlPrincipal || urlThumbnail);
     setLoading(true);
     setHasError(false);
   }, [arquivo, token]);
 
   const handleError = () => {
-    console.error('❌ Erro ao carregar imagem:', {
-      url: currentSrc,
-      arquivo: arquivo,
-      tentando_thumbnail: currentSrc.includes('thumb_')
+    const urlThumbnail = resolveArtePublicFileUrl(arquivo, token, {
+      preferThumbnail: true,
     });
-
-    // Se não está tentando thumbnail ainda, tentar com thumbnail
-    if (!currentSrc.includes('thumb_') && arquivo.url_thumbnail) {
-      const urlThumbnail = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${arquivo.url_thumbnail}?token=${token}`;
-      console.log('🔄 Tentando com thumbnail:', urlThumbnail);
+    if (urlThumbnail && currentSrc !== urlThumbnail) {
       setCurrentSrc(urlThumbnail);
     } else {
-      // Se falhou com ambos, mostrar erro
-      console.error('❌ Falhou com ambos os URLs');
       setHasError(true);
       setLoading(false);
     }

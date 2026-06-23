@@ -29,6 +29,7 @@ import {
 } from '../interfaces/orcamento.interface';
 import { CobrancasService } from '../../financeiro/services/cobrancas.service';
 import { CobrancaVencimentoService } from '../../financeiro/services/cobranca-vencimento.service';
+import { ParcelasBuilderService } from '../../financeiro/services/parcelas-builder.service';
 import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
 import { SimularChapaDto } from '../../common/calculo-chapa/simular-chapa.dto';
 import {
@@ -66,6 +67,7 @@ export class OrcamentosV2Service {
     // Fase 6 - Financeiro minimo
     private readonly cobrancasService: CobrancasService,
     private readonly cobrancaVencimentoService: CobrancaVencimentoService,
+    private readonly parcelasBuilder: ParcelasBuilderService,
     private readonly homeCacheService: HomeCacheService,
   ) {}
 
@@ -1628,7 +1630,25 @@ export class OrcamentosV2Service {
 
       // Condições comerciais
       prazo_entrega: orcamento.prazo_entrega,
-      forma_pagamento: orcamento.forma_pagamento,
+      condicao_pagamento_tipo: orcamento.condicao_pagamento_tipo ?? undefined,
+      condicao_pagamento_entrada_pct:
+        orcamento.condicao_pagamento_entrada_pct != null
+          ? Number(orcamento.condicao_pagamento_entrada_pct)
+          : undefined,
+      condicao_pagamento_parcelas: orcamento.condicao_pagamento_parcelas ?? undefined,
+      condicao_pagamento_descricao: orcamento.condicao_pagamento_descricao ?? undefined,
+      forma_pagamento:
+        orcamento.condicao_pagamento_descricao?.trim() ||
+        this.parcelasBuilder.gerarDescricao({
+          tipo: orcamento.condicao_pagamento_tipo ?? '',
+          entradaPct:
+            orcamento.condicao_pagamento_entrada_pct != null
+              ? Number(orcamento.condicao_pagamento_entrada_pct)
+              : null,
+          parcelas: orcamento.condicao_pagamento_parcelas ?? null,
+        }) ||
+        orcamento.forma_pagamento ||
+        undefined,
       validade_proposta: orcamento.validade_proposta,
       atendente: orcamento.atendente,
       observacoes: orcamento.observacoes_internas,

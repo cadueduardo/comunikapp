@@ -279,7 +279,16 @@ export function OrcamentoV2Form({
           geometria_origem: 'MANUAL',
           arquivo_geometria_url: '',
           unidade_geometria: 'mm',
-          materiais: [{ insumo_id: '', quantidade: '1', material_do_cliente: false }],
+          materiais: [{
+            insumo_id: '',
+            quantidade: '1',
+            material_do_cliente: false,
+            usa_medida_propria: false,
+            largura_material: '',
+            altura_material: '',
+            profundidade_material: '',
+            unidade_medida_material: 'mm',
+          }],
           maquinas: [{ maquina_id: '', horas_utilizadas: '1' }],
           funcoes: [{ funcao_id: '', horas_trabalhadas: '1' }],
           servicos: [{ servico_id: '', horas_trabalhadas: '1' }],
@@ -601,6 +610,11 @@ export function OrcamentoV2Form({
                     ),
                     unidade: ins.unidade || ins.unidade_consumo,
                     material_do_cliente: Boolean(ins.material_do_cliente),
+                    usa_medida_propria: Boolean(ins.usa_medida_propria),
+                    largura_material: ins.largura_material?.toString() || '',
+                    altura_material: ins.altura_material?.toString() || '',
+                    profundidade_material: ins.profundidade_material?.toString() || '',
+                    unidade_medida_material: ins.unidade_medida_material || produto.unidade_geometria || 'mm',
                     calculo_chapa: calculoChapa,
                   };
                 }),
@@ -1334,7 +1348,7 @@ export function OrcamentoV2Form({
         comissao_percentual: comissaoPercentualEfetiva,
         tipo: 'produto_servico',
         tipo_orcamento: 'produto_servico',
-        horas_producao: horasProducao,
+        horas_producao: Math.max(horasProducao, 0.01),
         custo_material: custoMaterial,
         custo_mao_obra: custoMaoObra,
         custo_indireto: custoIndiretos,
@@ -1406,6 +1420,20 @@ export function OrcamentoV2Form({
               unidade: (material as any)?.unidade || undefined,
               preco_unitario: 0,
               preco_total: 0,
+              material_do_cliente: Boolean(material.material_do_cliente),
+              usa_medida_propria: Boolean((material as any)?.usa_medida_propria),
+              largura_material: (material as any)?.usa_medida_propria
+                ? normalizarNumero((material as any)?.largura_material)
+                : undefined,
+              altura_material: (material as any)?.usa_medida_propria
+                ? normalizarNumero((material as any)?.altura_material)
+                : undefined,
+              profundidade_material: (material as any)?.usa_medida_propria
+                ? normalizarNumero((material as any)?.profundidade_material)
+                : undefined,
+              unidade_medida_material: (material as any)?.usa_medida_propria
+                ? (material as any)?.unidade_medida_material || produto.unidade_geometria || 'mm'
+                : undefined,
             }))
           : undefined,
         maquinas: Array.isArray(produto.maquinas)
@@ -1738,12 +1766,15 @@ export function OrcamentoV2Form({
       atendente: data.atendente,
       tipo: tipoOrcamento,
       tipo_orcamento: tipoOrcamento,
-      horas_producao: produtosTransformados.reduce((total, produto) => {
-        const horasMaquinas = (produto.maquinas || []).reduce((acc, maquina) => acc + (maquina.tempo_horas || 0), 0);
-        const horasFuncoes = (produto.funcoes || []).reduce((acc, funcao) => acc + (funcao.tempo_horas || 0), 0);
-        const horasServicos = (produto.servicos_manuais || []).reduce((acc, servico) => acc + (servico.tempo_horas || 0), 0);
-        return total + horasMaquinas + horasFuncoes + horasServicos;
-      }, 0),
+      horas_producao: Math.max(
+        produtosTransformados.reduce((total, produto) => {
+          const horasMaquinas = (produto.maquinas || []).reduce((acc, maquina) => acc + (maquina.tempo_horas || 0), 0);
+          const horasFuncoes = (produto.funcoes || []).reduce((acc, funcao) => acc + (funcao.tempo_horas || 0), 0);
+          const horasServicos = (produto.servicos_manuais || []).reduce((acc, servico) => acc + (servico.tempo_horas || 0), 0);
+          return total + horasMaquinas + horasFuncoes + horasServicos;
+        }, 0),
+        0.01,
+      ),
       // Usar dados calculados do preview se disponíveis, senão usar zeros
       custo_material: custoMaterial,
       custo_mao_obra: custoMaoObra,
@@ -1793,7 +1824,12 @@ export function OrcamentoV2Form({
       horas_producao: Math.max(toNumber(dados.horas_producao), 0.1),
       largura_produto: primeiroProduto?.largura || undefined,
       altura_produto: primeiroProduto?.altura || undefined,
+      profundidade_produto: primeiroProduto?.profundidade ?? undefined,
       area_produto: primeiroProduto?.area_produto || primeiroProduto?.area || undefined,
+      perimetro_produto: primeiroProduto?.perimetro_produto || undefined,
+      unidade_geometria: primeiroProduto?.unidade_geometria || 'mm',
+      geometria_origem: primeiroProduto?.geometria_origem || 'MANUAL',
+      arquivo_geometria_url: primeiroProduto?.arquivo_geometria_url || undefined,
       unidade_medida_produto: primeiroProduto?.unidade_medida || primeiroProduto?.unidade || 'un',
       quantidade_padrao: Math.max(toNumber(primeiroProduto?.quantidade), 1),
       ativo: true,
@@ -1804,6 +1840,13 @@ export function OrcamentoV2Form({
           quantidade: Math.max(toNumber(item.quantidade), 0.001),
           custo_unitario: Math.max(toNumber(item.preco_unitario ?? item.custo_unitario), 0),
           custo_total: Math.max(toNumber(item.preco_total ?? item.custo_total), 0),
+          usa_medida_propria: Boolean(item.usa_medida_propria),
+          largura_material: item.usa_medida_propria ? toNumber(item.largura_material) : undefined,
+          altura_material: item.usa_medida_propria ? toNumber(item.altura_material) : undefined,
+          profundidade_material: item.usa_medida_propria ? toNumber(item.profundidade_material) : undefined,
+          unidade_medida_material: item.usa_medida_propria
+            ? item.unidade_medida_material || primeiroProduto?.unidade_geometria || 'mm'
+            : undefined,
         })),
       maquinas: (primeiroProduto?.maquinas || [])
         .filter((item: any) => item?.maquina_id)
@@ -1816,6 +1859,13 @@ export function OrcamentoV2Form({
         .filter((item: any) => item?.funcao_id)
         .map((item: any) => ({
           funcao_id: item.funcao_id,
+          horas_trabalhadas: Math.max(toNumber(item.tempo_horas ?? item.horas_trabalhadas), 0),
+          custo_total: Math.max(toNumber(item.custo_total), 0),
+        })),
+      servicos: (primeiroProduto?.servicos_manuais || [])
+        .filter((item: any) => item?.servico_id)
+        .map((item: any) => ({
+          servico_id: item.servico_id,
           horas_trabalhadas: Math.max(toNumber(item.tempo_horas ?? item.horas_trabalhadas), 0),
           custo_total: Math.max(toNumber(item.custo_total), 0),
         })),
@@ -1947,6 +1997,19 @@ export function OrcamentoV2Form({
         impostos: dadosTransformados.impostos,
         custo_total: dadosTransformados.custo_total
       });
+
+      if (mode === 'template') {
+        const produtoTemplate = transformarDadosParaProdutoTemplate(dadosTransformados);
+        if (orcamentoId) {
+          await produtosApi.update(orcamentoId, produtoTemplate, token);
+          toast.success('Produto atualizado com sucesso!');
+        } else {
+          await produtosApi.create(produtoTemplate, token);
+          toast.success('Produto criado com sucesso!');
+        }
+        router.push('/produtos');
+        return;
+      }
       
       // Se for edição, usar update; se for criação, usar salvarRascunho
       if (mode === 'editar' && orcamentoId) {
@@ -2166,6 +2229,10 @@ export function OrcamentoV2Form({
       funcao: { id: string };
       horas_trabalhadas: number;
     }>;
+    servicos?: Array<{
+      servico: { id: string };
+      horas_trabalhadas: number;
+    }>;
   }) => {
     try {
       // Mapear dados do produto template para o formato do orçamento
@@ -2184,13 +2251,18 @@ export function OrcamentoV2Form({
         tem_profundidade: temProfundidadeTemplate,
         unidade_medida_produto: produto.unidade_medida_produto || 'un',
         area_produto: produto.area_produto?.toString() || '',
-        perimetro_produto: '',
-        geometria_origem: 'MANUAL' as const,
-        arquivo_geometria_url: '',
-        unidade_geometria: 'mm' as const,
+        perimetro_produto: (produto as any).perimetro_produto?.toString() || '',
+        geometria_origem: ((produto as any).geometria_origem || 'MANUAL') as const,
+        arquivo_geometria_url: (produto as any).arquivo_geometria_url?.toString() || '',
+        unidade_geometria: ((produto as any).unidade_geometria || 'mm') as const,
         materiais: produto.itens?.map((item) => ({
           insumo_id: item.insumo.id,
-          quantidade: item.quantidade.toString()
+          quantidade: item.quantidade.toString(),
+          usa_medida_propria: Boolean((item as any).usa_medida_propria),
+          largura_material: (item as any).largura_material?.toString() || '',
+          altura_material: (item as any).altura_material?.toString() || '',
+          profundidade_material: (item as any).profundidade_material?.toString() || '',
+          unidade_medida_material: (item as any).unidade_medida_material || (produto as any).unidade_geometria || 'mm',
         })) || [],
         maquinas: produto.maquinas?.map((maq) => ({
           maquina_id: maq.maquina.id,
@@ -2200,7 +2272,10 @@ export function OrcamentoV2Form({
           funcao_id: func.funcao.id,
           horas_trabalhadas: func.horas_trabalhadas.toString()
         })) || [],
-        servicos: [] // Produtos template não têm serviços por enquanto
+        servicos: produto.servicos?.map((serv) => ({
+          servico_id: serv.servico.id,
+          horas_trabalhadas: serv.horas_trabalhadas.toString(),
+        })) || [{ servico_id: '', horas_trabalhadas: '1' }],
       };
 
       // Atualizar o item do produto no formulário
@@ -2406,7 +2481,15 @@ export function OrcamentoV2Form({
               {/* Sidebar com preview de cálculo */}
               <div className="w-full lg:w-3/10 lg:flex-shrink-0">
                 <div className="sticky top-6 space-y-3">
-                  <PreviewCalculoV2 />
+                  <PreviewCalculoV2
+                    datasets={{
+                      insumos,
+                      maquinas,
+                      funcoes,
+                      servicos,
+                      custosIndiretos,
+                    }}
+                  />
                 </div>
               </div>
             </div>

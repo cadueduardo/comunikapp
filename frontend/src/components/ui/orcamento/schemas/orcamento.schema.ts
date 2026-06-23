@@ -108,6 +108,11 @@ export const createFormSchema = (mode: 'novo' | 'editar' | 'template') =>
                   'Quantidade deve ser um numero valido maior que zero',
                 ),
                 material_do_cliente: z.boolean().optional(),
+                usa_medida_propria: z.boolean().optional(),
+                largura_material: numeroOpcional,
+                altura_material: numeroOpcional,
+                profundidade_material: numeroOpcional,
+                unidade_medida_material: z.enum(['mm', 'cm', 'm']).optional(),
               }),
             )
             .min(1, 'Adicione pelo menos um material'),

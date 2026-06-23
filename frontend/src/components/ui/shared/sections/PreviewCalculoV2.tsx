@@ -10,11 +10,22 @@ import { calcularProdutosPreview } from '../utils/preview-calculo.helpers';
 import { useOrcamentoData } from '../../orcamento/hooks/useOrcamentoData';
 import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
 import { useUser } from '@/contexts/UserContext';
+import { Cliente, Insumo, Maquina, Funcao, ServicoManual } from '../types/common.types';
+
+interface PreviewCalculoDatasets {
+  insumos: Insumo[];
+  maquinas: Maquina[];
+  funcoes: Funcao[];
+  servicos: ServicoManual[];
+  custosIndiretos?: unknown[];
+}
 
 interface PreviewCalculoV2Props {
   variant?: 'orcamento' | 'produto';
   showAllProducts?: boolean;
   dadosCarregados?: boolean;
+  /** Quando informado, o preview usa a mesma lista do formulário (evita estado duplicado após cadastro inline de insumo). */
+  datasets?: PreviewCalculoDatasets;
 }
 
 type PreviewCustoIndireto = {
@@ -143,13 +154,21 @@ type PreviewData = {
 };
 
 const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
-  dadosCarregados = true
+  dadosCarregados = true,
+  datasets,
 }) => {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [showIndirectCosts, setShowIndirectCosts] = useState(false);
   const [formSnapshot, setFormSnapshot] = useState<Record<string, unknown> | null>(null);
   const form = useFormContext<Record<string, unknown>>();
   const { user } = useUser();
+
+  const hookData = useOrcamentoData();
+  const insumos = datasets?.insumos ?? hookData.insumos;
+  const maquinas = datasets?.maquinas ?? hookData.maquinas;
+  const funcoes = datasets?.funcoes ?? hookData.funcoes;
+  const servicos = datasets?.servicos ?? hookData.servicos;
+  const custosIndiretos = datasets?.custosIndiretos ?? hookData.custosIndiretos;
 
   const resolverTipoMargemLucro = (formData: Record<string, unknown>): 'markup' | 'margem_por_dentro' => {
     const raw = formData?.tipo_margem_lucro;
@@ -182,8 +201,6 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   }, [form]);
 
   // Hook para dados auxiliares (insumos, maquinas, etc.)
-  const { insumos, maquinas, funcoes, servicos, custosIndiretos } = useOrcamentoData();
-
   // Hook para WebSocket em tempo real
   const { 
     connectionStatus,
