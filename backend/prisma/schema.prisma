@@ -613,6 +613,7 @@ model loja {
   custos_indiretos_mensais Decimal?    @db.Decimal(10, 2)
   data_inicio_trial        DateTime?
   impostos_padrao          Decimal?    @db.Decimal(5, 2)
+  comissao_padrao          Decimal?    @db.Decimal(5, 2)
   logo_url                 String?
   margem_lucro_padrao      Decimal?    @db.Decimal(5, 2)
   tipo_margem_lucro        String?     @db.VarChar(24) // 'markup' | 'margem_por_dentro'; padrão da loja

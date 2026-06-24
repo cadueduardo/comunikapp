@@ -51,6 +51,8 @@ export class ConfiguracaoRecomendadaService {
   // valores no futuro, mexer apenas aqui.
   private readonly DEFAULT_MARGEM_PCT = 45.0;
   private readonly DEFAULT_IMPOSTO_PCT = 6.0;
+  /** Microempresas frequentemente não pagam comissão ao vendedor — default 0% no onboarding. */
+  private readonly DEFAULT_COMISSAO_PCT = 0.0;
   private readonly DEFAULT_TIPO_MARGEM = 'markup';
   private readonly DEFAULT_HORAS_PRODUTIVAS_MES = 352;
   private readonly DEFAULT_CONDICAO_TIPO = 'ENTRADA_SALDO';
@@ -362,6 +364,13 @@ export class ConfiguracaoRecomendadaService {
       ignorado.loja.push('impostos_padrao');
     }
 
+    if (podeEscrever(loja.comissao_padrao)) {
+      atualizacoes.comissao_padrao = this.DEFAULT_COMISSAO_PCT;
+      aplicado.loja['comissao_padrao'] = this.DEFAULT_COMISSAO_PCT;
+    } else {
+      ignorado.loja.push('comissao_padrao');
+    }
+
     if (podeEscrever(loja.horas_produtivas_mensais)) {
       atualizacoes.horas_produtivas_mensais = this.DEFAULT_HORAS_PRODUTIVAS_MES;
       aplicado.loja['horas_produtivas_mensais'] = this.DEFAULT_HORAS_PRODUTIVAS_MES;
@@ -386,10 +395,11 @@ export class ConfiguracaoRecomendadaService {
       await this.prisma.loja.update({ where: { id: lojaId }, data: atualizacoes });
     }
 
-    // Marca margem_imposto como concluida se ambos ficaram preenchidos.
+    // Marca margem_imposto como concluida se margem, imposto e comissão ficaram preenchidos.
     const margemOk = aplicado.loja['margem_lucro_padrao'] !== undefined || loja.margem_lucro_padrao !== null;
     const impostoOk = aplicado.loja['impostos_padrao'] !== undefined || loja.impostos_padrao !== null;
-    if (margemOk && impostoOk) {
+    const comissaoOk = aplicado.loja['comissao_padrao'] !== undefined || loja.comissao_padrao !== null;
+    if (margemOk && impostoOk && comissaoOk) {
       etapasParaConcluir.push(OnboardingStepId.MARGEM_IMPOSTO);
     }
 

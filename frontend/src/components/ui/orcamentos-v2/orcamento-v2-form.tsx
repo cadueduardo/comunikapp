@@ -103,6 +103,14 @@ const percentualOuPadrao = (valor: unknown, fallback: number): number => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+/** Comissão padrão da loja; se não configurada, mantém 5% (legado). */
+const comissaoPadraoDaLoja = (loja?: { comissao_padrao?: unknown } | null): number => {
+  const raw = loja?.comissao_padrao;
+  if (raw === null || raw === undefined || raw === '') return 5;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : 5;
+};
+
 const deveMultiplicarMaterialPreview = (unidade?: string | null): boolean => {
   if (!unidade || typeof unidade !== 'string') {
     return false;
@@ -187,6 +195,7 @@ export function OrcamentoV2Form({
   const [selectedProdutoIndex, setSelectedProdutoIndex] = useState<number>(0);
   const { clientes, insumos, maquinas, funcoes, servicos, custosIndiretos, fetchInsumos } = useOrcamentoData();
   const { user } = useUser();
+  const comissaoPadraoLoja = comissaoPadraoDaLoja(user?.loja);
   const funcaoUsuario = String(user?.funcao || '').toLowerCase();
   const podeFecharPedido = ['admin', 'administrador', 'gerente', 'vendedor'].includes(funcaoUsuario);
 
@@ -207,7 +216,7 @@ export function OrcamentoV2Form({
       const custosIndiretosPercentual = 15;
       const margemPercentual = percentualOuPadrao(formData?.margem_lucro_customizada, 30);
       const impostosPercentual = percentualOuPadrao(formData?.impostos_customizados, 18);
-      const comissaoPercentual = percentualOuPadrao(formData?.comissao_percentual, 5);
+      const comissaoPercentual = percentualOuPadrao(formData?.comissao_percentual, comissaoPadraoLoja);
       const tipoMargemLucro =
         formData?.tipo_margem_lucro
           ? (formData.tipo_margem_lucro as 'markup' | 'margem_por_dentro')
@@ -335,11 +344,12 @@ export function OrcamentoV2Form({
         percentualOuPadrao(loja.impostos_padrao, 25),
         2,
       ),
+      comissao_percentual: formatNumeroFormulario(comissaoPadraoDaLoja(loja), 2),
       tipo_margem_lucro:
         loja.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro',
     });
     lojaDefaultsAplicadosRef.current = true;
-  }, [form, mode, user?.loja]);
+  }, [form, mode, user?.loja, comissaoPadraoLoja]);
 
   const calcularDadosQuandoNecessario = () => {
     const formData = form.getValues();
@@ -374,7 +384,7 @@ export function OrcamentoV2Form({
     );
     const margemInicial = percentualOuPadrao(formData.margem_lucro_customizada, 30);
     const impostosInicial = percentualOuPadrao(formData.impostos_customizados, 18);
-    const comissaoInicial = percentualOuPadrao(formData.comissao_percentual, 5);
+    const comissaoInicial = percentualOuPadrao(formData.comissao_percentual, comissaoPadraoLoja);
     const tipoInicial =
       formData.tipo_margem_lucro ||
       (user?.loja?.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro');
@@ -420,7 +430,9 @@ export function OrcamentoV2Form({
           initialData.valor_final_manual != null
             ? String(initialData.valor_final_manual)
             : '',
-        comissao_percentual: String(initialData.comissao_percentual ?? '5'),
+        comissao_percentual: String(
+          initialData.comissao_percentual ?? comissaoPadraoLoja,
+        ),
         tipo_margem_lucro: String(
           initialData.tipo_margem_lucro ?? configuracoesIniciais?.tipo_margem_lucro ?? '',
         ),
@@ -754,7 +766,7 @@ export function OrcamentoV2Form({
     const custosIndiretosPercentual = 15; // Valor padrão
     const margemPercentual = percentualOuPadrao(data?.margem_lucro_customizada, 30);
     const impostosPercentual = percentualOuPadrao(data?.impostos_customizados, 25);
-    const comissaoPercentual = percentualOuPadrao(data?.comissao_percentual, 5);
+    const comissaoPercentual = percentualOuPadrao(data?.comissao_percentual, comissaoPadraoLoja);
 
     const normalizarNumero = (valor: unknown): number => {
       if (typeof valor === 'number') return valor;

@@ -51,6 +51,7 @@ export function AplicarConfiguracaoRecomendadaDialog({
           <ul className="list-disc list-inside space-y-1 text-muted-foreground">
             <li>Margem de lucro: 45% (markup)</li>
             <li>Impostos padrão: 6% (Simples Nacional inicial)</li>
+            <li>Comissão do vendedor: 0% (ajuste depois se sua loja paga comissão)</li>
             <li>Horas produtivas mensais: 352</li>
             <li>Condição de pagamento: 50% na assinatura + 50% na entrega</li>
             <li>Categorias iniciais (Acrílico, ACM, PVC, Lona, Vinil, Tinta, Acabamento, Outros)</li>
@@ -74,7 +75,7 @@ export function AplicarConfiguracaoRecomendadaDialog({
             className="mt-0.5"
           />
           <span>
-            Sobrescrever valores já preenchidos (margem, imposto e condição de pagamento)
+            Sobrescrever valores já preenchidos (margem, imposto, comissão e condição de pagamento)
             <span className="block text-xs text-muted-foreground">
               Por padrão, nada que você já configurou será alterado.
             </span>

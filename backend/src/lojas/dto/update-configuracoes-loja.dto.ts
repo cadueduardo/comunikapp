@@ -26,6 +26,11 @@ export class UpdateConfiguracoesLojaDto {
   @IsOptional()
   impostos_padrao?: string;
 
+  /** Comissão padrão do vendedor (%) aplicada em novos orçamentos. Use 0 para desativar. */
+  @IsString()
+  @IsOptional()
+  comissao_padrao?: string;
+
   @IsString()
   @IsOptional()
   horas_produtivas_mensais?: string;

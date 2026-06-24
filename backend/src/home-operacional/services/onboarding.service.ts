@@ -199,6 +199,7 @@ export class OnboardingService {
             cpf: true,
             margem_lucro_padrao: true,
             impostos_padrao: true,
+            comissao_padrao: true,
             condicao_pagamento_padrao_tipo: true,
             pcp_nivel: true,
           },
@@ -231,7 +232,9 @@ export class OnboardingService {
       resultado[OnboardingStepId.DADOS_EMPRESA] =
         !!loja.nome && !!loja.telefone && (!!loja.cnpj || !!loja.cpf);
       resultado[OnboardingStepId.MARGEM_IMPOSTO] =
-        loja.margem_lucro_padrao !== null && loja.impostos_padrao !== null;
+        loja.margem_lucro_padrao !== null &&
+        loja.impostos_padrao !== null &&
+        loja.comissao_padrao !== null;
       resultado[OnboardingStepId.CONDICAO_PAGAMENTO] =
         !!loja.condicao_pagamento_padrao_tipo;
       resultado[OnboardingStepId.CONFIGURAR_PRODUCAO] =

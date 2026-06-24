@@ -754,6 +754,7 @@ export class LojasService {
       'custos_indiretos_mensais',
       'margem_lucro_padrao',
       'impostos_padrao',
+      'comissao_padrao',
       'horas_produtivas_mensais',
     ];
     // tipo_margem_lucro é string ('markup' | 'margem_por_dentro'), não numérico

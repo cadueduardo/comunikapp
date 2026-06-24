@@ -65,6 +65,7 @@ const formSchema = z.object({
   cabecalho_orcamento: z.string().optional(),
   margem_lucro_padrao: z.string().optional(),
   impostos_padrao: z.string().optional(),
+  comissao_padrao: z.string().optional(),
   horas_produtivas_mensais: z.string().optional(),
   tipo_margem_lucro: z.enum(['markup', 'margem_por_dentro']).optional(),
 });
@@ -83,6 +84,7 @@ export default function ConfiguracoesLojaPage() {
       cabecalho_orcamento: '',
       margem_lucro_padrao: '',
       impostos_padrao: '',
+      comissao_padrao: '',
       horas_produtivas_mensais: '',
       tipo_margem_lucro: 'margem_por_dentro',
     },
@@ -96,6 +98,7 @@ export default function ConfiguracoesLojaPage() {
         cabecalho_orcamento: loja.cabecalho_orcamento ?? '',
         margem_lucro_padrao: formatPercentage(loja.margem_lucro_padrao),
         impostos_padrao: formatPercentage(loja.impostos_padrao),
+        comissao_padrao: formatPercentage(loja.comissao_padrao),
         horas_produtivas_mensais: String(loja.horas_produtivas_mensais ?? 352),
         tipo_margem_lucro: (loja.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro') as 'markup' | 'margem_por_dentro',
       };
@@ -141,8 +144,10 @@ export default function ConfiguracoesLojaPage() {
       if (values.cabecalho_orcamento) payload.cabecalho_orcamento = values.cabecalho_orcamento;
       const margemLucroPadrao = parsePercentage(values.margem_lucro_padrao);
       const impostosPadrao = parsePercentage(values.impostos_padrao);
+      const comissaoPadrao = parsePercentage(values.comissao_padrao);
       if (margemLucroPadrao !== null) payload.margem_lucro_padrao = String(margemLucroPadrao);
       if (impostosPadrao !== null) payload.impostos_padrao = String(impostosPadrao);
+      if (comissaoPadrao !== null) payload.comissao_padrao = String(comissaoPadrao);
       if (values.horas_produtivas_mensais) payload.horas_produtivas_mensais = String(parseInt(values.horas_produtivas_mensais));
       if (values.tipo_margem_lucro) payload.tipo_margem_lucro = values.tipo_margem_lucro;
 
@@ -302,6 +307,29 @@ export default function ConfiguracoesLojaPage() {
                         onChange={(e) => field.onChange(normalizePercentageInput(e.target.value))}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="comissao_padrao"
+                render={({ field }) => (
+                  <FormItem>
+                    <InfoTooltip content="Percentual aplicado automaticamente em novos orçamentos. Use 0 se não paga comissão ao vendedor.">
+                      <FormLabel>Comissão do vendedor padrão (%)</FormLabel>
+                    </InfoTooltip>
+                    <FormControl>
+                      <Input
+                        placeholder="0"
+                        {...field}
+                        inputMode="decimal"
+                        onChange={(e) => field.onChange(normalizePercentageInput(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Valor inicial do campo Comissão ao criar um orçamento.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

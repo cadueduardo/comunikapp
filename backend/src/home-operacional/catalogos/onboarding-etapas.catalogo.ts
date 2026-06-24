@@ -68,9 +68,10 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     step_id: OnboardingStepId.MARGEM_IMPOSTO,
     ordem: 7,
     obrigatoria: true,
-    titulo: 'Definir margem e impostos',
-    descricao_curta: 'Sem isso, todo orçamento parte do zero. Você pode usar nossa configuração recomendada.',
-    acao_label: 'Configurar margem e impostos',
+    titulo: 'Definir margem, impostos e comissão',
+    descricao_curta:
+      'Parâmetros padrão dos orçamentos. Use 0% em comissão se não paga vendedor — ou aplique a configuração recomendada.',
+    acao_label: 'Configurar parâmetros de negócio',
     acao_href: '/configuracoes/loja',
   },
   {

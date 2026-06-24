@@ -321,21 +321,22 @@ Ao carregar um **template de produto** no orçamento, os boxes de preview devem 
 
 ---
 
-### Comissão — configuração na loja (não é bug) · P3 / onboarding
+### Comissão — configuração na loja · P3 / onboarding
 
-- [ ] _(Opcional)_ **Facilitar discoverability da comissão padrão em Configurações → Loja**
+- [x] **Campo de comissão padrão do vendedor em Configurações → Loja** ✅ *Implementado 23/06/2026*
 
 #### Contexto (reunião + esclarecimento)
 - Jonatan comentou: *"Comissão eu nunca dou"*
-- Ele **não configurou** comissão zero nos defaults da loja — por isso precisa **ajustar manualmente** em cada orçamento
-- Ele **sabe** que pode alterar/configurar; não é falta de funcionalidade, é **configuração não feita**
+- Orientação dada ao cliente: definir **comissão 0%** em **Configurações → Loja** — o campo **não existia** na UI (só margem/impostos)
 
-#### Ação imediata (sem código)
-- Orientar Jonatan a definir **comissão 0%** (ou valor desejado) em **Configurações → Loja** como padrão para novos orçamentos
+#### Implementação (23/06/2026)
+- Campo `comissao_padrao` em `loja` (migration `20260623140000_loja_comissao_padrao`)
+- UI em **Configurações → Loja → Parâmetros de Negócio → Comissão do vendedor padrão (%)**
+- Novos orçamentos herdam o valor (inclui **0**); se não configurado, mantém **5%** (legado)
+- **Onboarding:** etapa *margem_imposto* renomeada para margem/impostos/comissão; detecção automática exige `comissao_padrao` preenchido; *Aplicar configuração recomendada* define **0%**
 
-#### Melhoria opcional (se fizer sentido depois)
-- Tornar mais visível onde configurar o default de comissão no onboarding ou empty state do orçamento
-- **Não** alterar default global do sistema sem decisão de produto — depende da loja
+#### Melhoria opcional (futuro)
+- Destacar no onboarding ou empty state do orçamento onde configurar o default
 
 ---
 
@@ -675,7 +676,7 @@ Jonatan validou objetivo: cliente → orçamento → imagem/arte → OS → PCP/
 | Preview delay insumo | ✅ implementado | P2 |
 | Arte aprovação sync F5 + preview imagem | ✅ implementado | P2 |
 | Logo PDF | ✅ implementado | P2 |
-| Comissão (config loja, não bug) | ✅ documentado | P3 / onboarding |
+| Comissão (config loja) | ✅ campo comissao_padrao | P3 |
 | Badge beta (ícone + hover) | ✅ implementado | P2 |
 | Editar OS entregue | ⏳ pendente | P2 |
 | PCP agente / workflow externo | ⏳ discovery | P2 |
@@ -699,3 +700,5 @@ npx prisma migrate deploy
 ```
 
 Migration: `20260623120000_template_servicos_geometria_medidas_insumo` (serviços no template, geometria/foto, medidas por insumo).
+
+Migration: `20260623140000_loja_comissao_padrao` (comissão padrão do vendedor na loja).
