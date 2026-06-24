@@ -95,6 +95,7 @@ interface Produto {
     horas_trabalhadas: number;
     custo_total: number;
   }>;
+  itens_orcamento?: Array<Record<string, unknown>>;
 }
 
 interface ProdutoSelectionModalProps {

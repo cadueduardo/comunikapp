@@ -48,6 +48,7 @@ export interface OrcamentoBase {
 
   // Entrega estruturada
   entrega_modalidade_id?: string;
+  entrega_modalidade_nome?: string;
   entrega_usar_endereco_cliente?: boolean;
   entrega_endereco_snapshot?: string;
   entrega_cep?: string;
@@ -124,6 +125,16 @@ export interface ProdutoOrcamento {
   margem_lucro: number;
   impostos: number;
   observacoes?: string;
+
+  tipo_item?: 'SOB_DEMANDA' | 'PRODUTO_FINITO';
+  produto_finito_id?: string | null;
+  sku_snapshot?: string | null;
+  produto_finito?: {
+    id: string;
+    sku: string;
+    ean?: string | null;
+    nome: string;
+  } | null;
 
   // Instalacao estruturada
   instalacao_necessaria?: boolean;
@@ -210,6 +221,8 @@ export interface ConfiguracaoCalculo {
   horas_produtivas_mensais: number;
   custos_indiretos_mensais?: number;
   regras_especiais?: RegraCalculo[];
+  valor_final_manual?: number | null;
+  entrega_modalidade_nome?: string;
 }
 
 export interface RegraCalculo {

@@ -171,10 +171,15 @@ export class CreateProdutoDto {
   @IsBoolean()
   ativo?: boolean;
 
+  @IsOptional()
+  @IsString()
+  itens_orcamento_json?: string;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateItemProdutoDto)
-  itens: CreateItemProdutoDto[];
+  itens?: CreateItemProdutoDto[];
 
   @IsOptional()
   @IsArray()

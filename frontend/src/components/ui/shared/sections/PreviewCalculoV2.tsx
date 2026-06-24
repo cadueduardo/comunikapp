@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { AlertTriangle, ChevronDown, ChevronUp, Eye, Calculator, Clock, Package } from 'lucide-react';
 import { calcularProdutosPreview } from '../utils/preview-calculo.helpers';
+import { truncarDescricaoResumida } from '@/components/produtos-finitos/descricao-produto-finito.helpers';
 import { useOrcamentoData } from '../../orcamento/hooks/useOrcamentoData';
 import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
 import { useUser } from '@/contexts/UserContext';
@@ -66,6 +67,7 @@ type PreviewProduto = {
   nome_servico: string;
   descricao: string;
   quantidade: number;
+  tipo_item?: 'SOB_DEMANDA' | 'PRODUTO_FINITO';
   dimensoes: Record<string, unknown>;
   materiais: PreviewMaterial[];
   maquinas: PreviewMaquina[];
@@ -474,7 +476,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       .replace(/\s+/g, ' ')
       .trim();
 
-    return normalized.length > 0 ? normalized : fallback.trim();
+    return normalized.length > 0 ? truncarDescricaoResumida(normalized) : fallback.trim();
   };
 
   const montarPreviewFormulario = (formData: Record<string, unknown>): PreviewData | null => {
@@ -582,6 +584,12 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       entrega.custo_estimado > 0 ||
       entrega.usar_endereco_cliente === false;
 
+    const totalPrecoPrateleira = roundMoney(
+      produtosPreview
+        .filter((produto) => produto.tipo_item === 'PRODUTO_FINITO')
+        .reduce((total, produto) => total + (Number(produto.preco_total) || 0), 0),
+    );
+
     const totalCustoMaterial = totais.materiais;
     const totalCustoMaquinaria = totais.maquinas;
     const totalCustoServicos = totais.servicos;
@@ -620,7 +628,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       precoFinal = divisor > 0 ? totalCustoProducaoBase / divisor : totalCustoProducaoBase;
     }
     const precoFinalCalculado = roundMoney(
-      precoFinal + totalPrecoInstalacao + entrega.valor_cobrado,
+      precoFinal + totalPrecoInstalacao + entrega.valor_cobrado + totalPrecoPrateleira,
     );
     precoFinal = precoFinalCalculado;
     const valorFinalManualTexto =
@@ -657,6 +665,20 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     const totalMargemLucro = roundMoney(precoFinal * percentualMargemDecimal);
 
     const produtosComPrecos = produtosNormalizados.map((produto) => {
+      if (produto.tipo_item === 'PRODUTO_FINITO') {
+        const precoVendaTotal = roundMoney(Number(produto.preco_total) || 0);
+        return {
+          ...produto,
+          preco_venda_unitario: roundMoney(
+            precoVendaTotal / Math.max(produto.quantidade, 1),
+          ),
+          preco_venda_total: precoVendaTotal,
+          margem_lucro_produto: 0,
+          impostos_produto: 0,
+          comissao_produto: 0,
+        };
+      }
+
       const custoBaseProduto = produto.custo_total_producao;
       const precoVendaProduto =
         tipoMargemLucro === 'markup'

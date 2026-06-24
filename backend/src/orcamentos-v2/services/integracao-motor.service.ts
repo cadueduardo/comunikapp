@@ -2,6 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MotorCalculoV2Service } from '../../motor-calculo-v2/services/motor-calculo-v2.service';
 import {
+  isProdutoFinitoItem,
+} from '../../produtos-finitos/utils/preco-produto-finito.util';
+import {
   OrcamentoCompleto,
   ProdutoOrcamento,
   CustosOrcamento,
@@ -41,8 +44,48 @@ export class IntegracaoMotorService {
     this.logger.log(`🚀 Calculando orçamento completo para loja ${lojaId}`);
 
     try {
-      // 1. Preparar dados para o motor
-      const dadosMotor = this.prepararDadosParaMotor(dadosOrcamento, lojaId);
+      const produtos = dadosOrcamento.produtos || [];
+      const produtosMotor = produtos.filter(
+        (produto: any) => !isProdutoFinitoItem(produto),
+      );
+      const totaisPrateleira = this.somarTotaisProdutosPrateleira(produtos);
+
+      if (produtosMotor.length === 0) {
+        const custos: CustosOrcamento = {
+          preco_final: totaisPrateleira.preco_total,
+          custo_total: totaisPrateleira.custo_total,
+          margem_lucro: 0,
+          impostos: 0,
+          custos_diretos: {
+            insumos: 0,
+            maquinas: 0,
+            funcoes: 0,
+            servicos_manuais: 0,
+            subtotal: totaisPrateleira.custo_total,
+          },
+          custos_indiretos: 0,
+          lucro_estimado:
+            totaisPrateleira.preco_total - totaisPrateleira.custo_total,
+        };
+
+        return {
+          orcamento: {
+            ...dadosOrcamento,
+            custos_calculados: custos,
+            detalhamento: { produtos_prateleira: produtos.length },
+            alertas: [],
+          },
+          custos,
+          detalhamento: { produtos_prateleira: produtos.length },
+          alertas: [],
+        };
+      }
+
+      // 1. Preparar dados para o motor (somente SOB_DEMANDA)
+      const dadosMotor = this.prepararDadosParaMotor(
+        { ...dadosOrcamento, produtos: produtosMotor },
+        lojaId,
+      );
 
       // 2. Executar cálculo via motor V2 (já funcionando)
       const resultadoMotor =
@@ -54,6 +97,19 @@ export class IntegracaoMotorService {
         dadosOrcamento,
         lojaId,
       );
+
+      if (totaisPrateleira.preco_total > 0) {
+        resultadoProcessado.custos.preco_final =
+          Number(resultadoProcessado.custos.preco_final || 0) +
+          totaisPrateleira.preco_total;
+        resultadoProcessado.custos.valor_total =
+          resultadoProcessado.custos.preco_final;
+        resultadoProcessado.custos.custo_total =
+          Number(resultadoProcessado.custos.custo_total || 0) +
+          totaisPrateleira.custo_total;
+        resultadoProcessado.orcamento.custos_calculados =
+          resultadoProcessado.custos;
+      }
 
       // 4. Validar e retornar
       const resultadoFinal = await this.validarResultadoFinal(
@@ -85,6 +141,29 @@ export class IntegracaoMotorService {
     this.logger.log(`🔧 Calculando produto individual via motor V2`);
 
     try {
+      if (isProdutoFinitoItem(produto)) {
+        const precoTotal = Number(produto.preco_total || 0);
+        const precoUnitario = Number(
+          produto.preco_unitario ||
+            precoTotal / Math.max(1, Number(produto.quantidade || 1)),
+        );
+        return {
+          produto: {
+            ...produto,
+            preco_unitario: precoUnitario,
+            preco_total: precoTotal,
+            custo_total_producao: Number(produto.custo_total_producao || 0),
+            margem_lucro: 0,
+            impostos: 0,
+          },
+          custos: {
+            preco_total: precoTotal,
+            custo_total: Number(produto.custo_total_producao || 0),
+          },
+          alertas: [],
+        };
+      }
+
       // Usar motor V2 para cálculo de produto
       const resultadoProduto = await this.motorCalculoV2Service.calcularProduto(
         produto,
@@ -118,7 +197,9 @@ export class IntegracaoMotorService {
       // Usar sistema de validação do motor V2 (validar contexto)
       const dto = {
         lojaId,
-        produtos: orcamento?.produtos || [],
+        produtos: (orcamento?.produtos || []).filter(
+          (produto: any) => !isProdutoFinitoItem(produto),
+        ),
         configuracoes: orcamento?.configuracoes || {},
       } as any;
       const resultadoValidacao =
@@ -454,7 +535,9 @@ export class IntegracaoMotorService {
    * Prepara produtos para o motor V2
    */
   private prepararProdutosParaMotor(produtos: any[]): any[] {
-    return produtos.map((produto) => ({
+    return produtos
+      .filter((produto) => !isProdutoFinitoItem(produto))
+      .map((produto) => ({
       id: produto.id,
       nome: produto.nome || 'Produto sem nome',
       quantidade: parseFloat(produto.quantidade || '1'),
@@ -507,5 +590,24 @@ export class IntegracaoMotorService {
         }),
       ),
     }));
+  }
+
+  private somarTotaisProdutosPrateleira(produtos: any[]): {
+    preco_total: number;
+    custo_total: number;
+  } {
+    return produtos
+      .filter((produto) => isProdutoFinitoItem(produto))
+      .reduce(
+        (acc, produto) => {
+          const precoTotal = Number(produto.preco_total || 0);
+          const custoTotal = Number(produto.custo_total_producao || 0);
+          return {
+            preco_total: acc.preco_total + precoTotal,
+            custo_total: acc.custo_total + custoTotal,
+          };
+        },
+        { preco_total: 0, custo_total: 0 },
+      );
   }
 }

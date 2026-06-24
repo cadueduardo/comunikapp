@@ -215,6 +215,19 @@ export class OrcamentosV2Service {
               ativo: true,
               ordem: true,
               categoria: true,
+              tipo_item: true,
+              produto_finito_id: true,
+              produto_finito: {
+                select: {
+                  id: true,
+                  nome: true,
+                  sku: true,
+                  estoque_atual: true,
+                  preco_venda: true,
+                  preco_promocional: true,
+                  imagens: { orderBy: { ordem: 'asc' }, take: 1 },
+                },
+              },
               insumos: true,
               maquinas: true,
               funcoes: true,
@@ -246,6 +259,9 @@ export class OrcamentosV2Service {
       const todosProdutosTemInsumos =
         produtosPayload.length > 0 &&
         produtosPayload.every((produto: any) => {
+          if (String(produto?.tipo_item || 'SOB_DEMANDA').toUpperCase() === 'PRODUTO_FINITO') {
+            return true;
+          }
           const insumos = Array.isArray(produto?.insumos) ? produto.insumos : [];
           const materiais = Array.isArray(produto?.materiais)
             ? produto.materiais
@@ -444,6 +460,19 @@ export class OrcamentosV2Service {
               ativo: true,
               ordem: true,
               categoria: true,
+              tipo_item: true,
+              produto_finito_id: true,
+              produto_finito: {
+                select: {
+                  id: true,
+                  nome: true,
+                  sku: true,
+                  estoque_atual: true,
+                  preco_venda: true,
+                  preco_promocional: true,
+                  imagens: { orderBy: { ordem: 'asc' }, take: 1 },
+                },
+              },
               insumos: true,
               maquinas: true,
               funcoes: true,
@@ -461,6 +490,12 @@ export class OrcamentosV2Service {
           linksPublicos: true,
           mensagensChat: {
             orderBy: { data_envio: 'desc' },
+          },
+          entrega_modalidade: {
+            select: {
+              id: true,
+              nome: true,
+            },
           },
         },
       });
@@ -509,6 +544,17 @@ export class OrcamentosV2Service {
         const produtosManual = await this.prisma.produtoOrcamento.findMany({
           where: { orcamento_id: orcamento.id },
           include: {
+            produto_finito: {
+              select: {
+                id: true,
+                nome: true,
+                sku: true,
+                estoque_atual: true,
+                preco_venda: true,
+                preco_promocional: true,
+                imagens: { orderBy: { ordem: 'asc' }, take: 1 },
+              },
+            },
             insumos: true,
             maquinas: true,
             funcoes: true,
@@ -758,6 +804,19 @@ export class OrcamentosV2Service {
               ativo: true,
               ordem: true,
               categoria: true,
+              tipo_item: true,
+              produto_finito_id: true,
+              produto_finito: {
+                select: {
+                  id: true,
+                  nome: true,
+                  sku: true,
+                  estoque_atual: true,
+                  preco_venda: true,
+                  preco_promocional: true,
+                  imagens: { orderBy: { ordem: 'asc' }, take: 1 },
+                },
+              },
               insumos: true,
               maquinas: true,
               funcoes: true,
@@ -1474,6 +1533,12 @@ export class OrcamentosV2Service {
             email: true,
           },
         },
+        entrega_modalidade: {
+          select: {
+            id: true,
+            nome: true,
+          },
+        },
         produtos: {
           select: {
             id: true,
@@ -1545,9 +1610,11 @@ export class OrcamentosV2Service {
       valorFinalManual >= 0
         ? valorFinalManual
         : Number(orcamento.preco_final) || 0;
+    const entregaValorCobrado = Number(orcamento.entrega_valor_cobrado) || 0;
+    const precoFinalProdutos = Math.max(0, precoFinalEfetivo - entregaValorCobrado);
     const precosDistribuidos = distribuirPrecoFinal(
       orcamento.produtos || [],
-      precoFinalEfetivo,
+      precoFinalProdutos,
     );
 
     // Retornar apenas os dados necessários para visualização pública do cliente
@@ -1652,6 +1719,12 @@ export class OrcamentosV2Service {
       validade_proposta: orcamento.validade_proposta,
       atendente: orcamento.atendente,
       observacoes: orcamento.observacoes_internas,
+      entrega_valor_cobrado: entregaValorCobrado,
+      entrega_modalidade_nome:
+        orcamento.entrega_modalidade?.nome?.trim() ||
+        (typeof configuracaoCalculo.entrega_modalidade_nome === 'string'
+          ? configuracaoCalculo.entrega_modalidade_nome.trim()
+          : null),
     };
   }
 

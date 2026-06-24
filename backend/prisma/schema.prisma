@@ -383,6 +383,7 @@ model TemplateProduto {
   ativo                  Boolean                  @default(true)
   loja_id                String
   valor_calculado        Decimal?                 @db.Decimal(10, 2)
+  itens_orcamento_json   String?                  @db.Text
   funcoes                FuncaoTemplateProduto[]
   itens                  ItemTemplateProduto[]
   maquinas               MaquinaTemplateProduto[]
@@ -396,19 +397,19 @@ model TemplateProduto {
 }
 
 model ItemTemplateProduto {
-  id                     String          @id @default(cuid())
-  template_id            String
-  insumo_id              String
-  quantidade             Decimal         @db.Decimal(10, 3)
-  custo_unitario         Decimal         @db.Decimal(10, 2)
-  custo_total            Decimal         @db.Decimal(10, 2)
-  usa_medida_propria     Boolean         @default(false)
-  largura_material       Decimal?        @db.Decimal(10, 2)
-  altura_material        Decimal?        @db.Decimal(10, 2)
-  profundidade_material  Decimal?        @db.Decimal(10, 2)
-  unidade_medida_material String?        @db.VarChar(4)
-  insumo                 Insumo          @relation(fields: [insumo_id], references: [id])
-  template               TemplateProduto @relation(fields: [template_id], references: [id], onDelete: Cascade)
+  id                      String          @id @default(cuid())
+  template_id             String
+  insumo_id               String
+  quantidade              Decimal         @db.Decimal(10, 3)
+  custo_unitario          Decimal         @db.Decimal(10, 2)
+  custo_total             Decimal         @db.Decimal(10, 2)
+  usa_medida_propria      Boolean         @default(false)
+  largura_material        Decimal?        @db.Decimal(10, 2)
+  altura_material         Decimal?        @db.Decimal(10, 2)
+  profundidade_material   Decimal?        @db.Decimal(10, 2)
+  unidade_medida_material String?         @db.VarChar(4)
+  insumo                  Insumo          @relation(fields: [insumo_id], references: [id])
+  template                TemplateProduto @relation(fields: [template_id], references: [id], onDelete: Cascade)
 
   @@index([template_id])
   @@index([insumo_id])
@@ -444,13 +445,13 @@ model FuncaoTemplateProduto {
 }
 
 model ServicoTemplateProduto {
-  id               String          @id @default(cuid())
-  template_id      String
-  servico_id       String
-  horas_trabalhadas Decimal        @db.Decimal(10, 2)
-  custo_total      Decimal         @db.Decimal(10, 2)
-  servico          servico_manual  @relation(fields: [servico_id], references: [id])
-  template         TemplateProduto @relation(fields: [template_id], references: [id], onDelete: Cascade)
+  id                String          @id @default(cuid())
+  template_id       String
+  servico_id        String
+  horas_trabalhadas Decimal         @db.Decimal(10, 2)
+  custo_total       Decimal         @db.Decimal(10, 2)
+  servico           servico_manual  @relation(fields: [servico_id], references: [id])
+  template          TemplateProduto @relation(fields: [template_id], references: [id], onDelete: Cascade)
 
   @@index([template_id])
   @@index([servico_id])
@@ -630,30 +631,32 @@ model loja {
   condicao_pagamento_padrao_entrada_pct Decimal? @db.Decimal(5, 2)
   condicao_pagamento_padrao_descricao   String?  @db.VarChar(255)
 
-  categorias             Categoria[]
-  cliente                cliente[]
-  custoindireto          custoindireto[]
-  fornecedor             fornecedor[]
-  funcao                 funcao[]
-  insumos                Insumo[]
-  maquina                maquina[]
-  notificacao            notificacao[]
-  orcamento              orcamento[]
-  perfis_acesso          perfil_acesso[]
-  template_produtos      TemplateProduto[]
-  tipomaterial           tipomaterial[]
-  usuario                usuario[]
-  servico_manual         servico_manual[]
-  modo_impressao         modo_impressao[]
-  modalidades_entrega    ModalidadeEntrega[]
-  tipos_instalacao       TipoInstalacao[]
-  ordens_servico         OrdemServico[]
-  workflows_os           WorkflowOS[]
-  workflow_categorias    WorkflowCategoria[]
-  regras_validacao       RegraValidacao[]
-  setores_produtivos     SetorProdutivo[]
-  onboarding_operacional OnboardingOperacional[]
-  cobrancas              Cobranca[] // Fase 6 - financeiro minimo
+  categorias                Categoria[]
+  cliente                   cliente[]
+  custoindireto             custoindireto[]
+  fornecedor                fornecedor[]
+  funcao                    funcao[]
+  insumos                   Insumo[]
+  maquina                   maquina[]
+  notificacao               notificacao[]
+  orcamento                 orcamento[]
+  perfis_acesso             perfil_acesso[]
+  template_produtos         TemplateProduto[]
+  tipomaterial              tipomaterial[]
+  usuario                   usuario[]
+  servico_manual            servico_manual[]
+  modo_impressao            modo_impressao[]
+  modalidades_entrega       ModalidadeEntrega[]
+  tipos_instalacao          TipoInstalacao[]
+  ordens_servico            OrdemServico[]
+  workflows_os              WorkflowOS[]
+  workflow_categorias       WorkflowCategoria[]
+  regras_validacao          RegraValidacao[]
+  setores_produtivos        SetorProdutivo[]
+  onboarding_operacional    OnboardingOperacional[]
+  cobrancas                 Cobranca[] // Fase 6 - financeiro minimo
+  categorias_produto_finito CategoriaProdutoFinito[]
+  produtos_finitos          ProdutoFinito[]
 }
 
 model maquina {
@@ -1004,9 +1007,16 @@ model ProdutoOrcamento {
   arquivo_geometria_url       String?  @db.VarChar(512)
   arquivo_geometria_metadados String?  @db.LongText // JSON
 
+  // Módulo Produtos (prateleira) — integração com orçamento V2
+  // SOB_DEMANDA: cálculo via motor V2 (padrão legado)
+  // PRODUTO_FINITO: preço snapshot em preco_unitario/preco_total; bypass do motor
+  tipo_item         String  @default("SOB_DEMANDA") @db.VarChar(20)
+  produto_finito_id String?
+
   // Relacionamentos
   orcamento        orcamento           @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
   instalacao_tipo  TipoInstalacao?     @relation(fields: [instalacao_tipo_id], references: [id])
+  produto_finito   ProdutoFinito?      @relation(fields: [produto_finito_id], references: [id], onDelete: SetNull)
   insumos          ItemInsumo[]
   maquinas         ItemMaquina[]
   funcoes          ItemFuncao[]
@@ -1017,27 +1027,29 @@ model ProdutoOrcamento {
   @@index([instalacao_tipo_id])
   @@index([ativo])
   @@index([profundidade])
+  @@index([produto_finito_id])
+  @@index([tipo_item])
 }
 
 model ItemInsumo {
-  id                     String   @id @default(cuid())
-  produto_id             String
-  insumo_id              String
-  quantidade             Decimal  @db.Decimal(10, 3)
-  unidade                String
-  preco_unitario         Decimal  @db.Decimal(10, 2)
-  preco_total            Decimal  @db.Decimal(10, 2)
-  material_do_cliente    Boolean  @default(false)
-  usa_medida_propria     Boolean  @default(false)
-  largura_material       Decimal? @db.Decimal(10, 2)
-  altura_material        Decimal? @db.Decimal(10, 2)
-  profundidade_material  Decimal? @db.Decimal(10, 2)
-  unidade_medida_material String? @db.VarChar(4)
-  estoque_disponivel     Decimal? @db.Decimal(10, 3)
-  alerta_estoque      Boolean  @default(false)
-  calculo_chapa       String?  @db.LongText
-  criado_em           DateTime @default(now())
-  data_criacao        DateTime @default(now())
+  id                      String   @id @default(cuid())
+  produto_id              String
+  insumo_id               String
+  quantidade              Decimal  @db.Decimal(10, 3)
+  unidade                 String
+  preco_unitario          Decimal  @db.Decimal(10, 2)
+  preco_total             Decimal  @db.Decimal(10, 2)
+  material_do_cliente     Boolean  @default(false)
+  usa_medida_propria      Boolean  @default(false)
+  largura_material        Decimal? @db.Decimal(10, 2)
+  altura_material         Decimal? @db.Decimal(10, 2)
+  profundidade_material   Decimal? @db.Decimal(10, 2)
+  unidade_medida_material String?  @db.VarChar(4)
+  estoque_disponivel      Decimal? @db.Decimal(10, 3)
+  alerta_estoque          Boolean  @default(false)
+  calculo_chapa           String?  @db.LongText
+  criado_em               DateTime @default(now())
+  data_criacao            DateTime @default(now())
 
   // Relacionamentos
   produto ProdutoOrcamento @relation(fields: [produto_id], references: [id], onDelete: Cascade)
@@ -1309,8 +1321,8 @@ model servico_manual {
   setup_min          Decimal?            @db.Decimal(10, 2)
   categorias         String?             @db.LongText
 
-  loja              loja                @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "ServicoManual_loja_id_fkey")
-  setor             SetorProdutivo?     @relation(fields: [setor_id], references: [id], onDelete: SetNull, map: "ServicoManual_setor_id_fkey")
+  loja              loja                     @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "ServicoManual_loja_id_fkey")
+  setor             SetorProdutivo?          @relation(fields: [setor_id], references: [id], onDelete: SetNull, map: "ServicoManual_setor_id_fkey")
   itemServicoManual ItemServicoManual[]
   servicos_template ServicoTemplateProduto[]
 
@@ -2363,4 +2375,68 @@ model OnboardingOperacional {
   @@index([loja_id])
   @@index([status])
   @@map("onboarding_operacional")
+}
+
+// ==========================================
+// MÓDULO PRODUTOS (PRATELEIRA / REVENDA)
+// ==========================================
+
+model CategoriaProdutoFinito {
+  id            String   @id @default(uuid())
+  loja_id       String
+  nome          String   @db.VarChar(100)
+  ativo         Boolean  @default(true)
+  criado_em     DateTime @default(now())
+  atualizado_em DateTime @updatedAt
+
+  loja     loja            @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  produtos ProdutoFinito[]
+
+  @@unique([loja_id, nome])
+  @@index([loja_id])
+  @@map("categorias_produto_finito")
+}
+
+model ProdutoFinito {
+  id                String   @id @default(uuid())
+  loja_id           String
+  categoria_id      String?
+  sku               String   @db.VarChar(50)
+  ean               String?  @db.VarChar(13)
+  nome              String   @db.VarChar(255)
+  descricao_resumida String? @db.VarChar(500)
+  descricao         String?  @db.Text
+  preco_venda       Decimal  @db.Decimal(10, 2)
+  preco_promocional Decimal? @db.Decimal(10, 2)
+  peso_kg           Decimal  @default(0) @db.Decimal(10, 3)
+  largura_cm        Int      @default(0)
+  altura_cm         Int      @default(0)
+  profundidade_cm   Int      @default(0)
+  estoque_atual     Int      @default(0)
+  estoque_minimo    Int      @default(0)
+  ativo             Boolean  @default(true)
+  criado_em         DateTime @default(now())
+  atualizado_em     DateTime @updatedAt
+
+  loja            loja                    @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  categoria       CategoriaProdutoFinito? @relation(fields: [categoria_id], references: [id], onDelete: SetNull)
+  imagens         GaleriaProdutoFinito[]
+  itens_orcamento ProdutoOrcamento[]
+
+  @@unique([loja_id, sku])
+  @@index([loja_id])
+  @@index([categoria_id])
+  @@map("produtos_finitos")
+}
+
+model GaleriaProdutoFinito {
+  id                String @id @default(uuid())
+  produto_finito_id String
+  url_imagem        String @db.Text
+  ordem             Int    @default(0)
+
+  produto ProdutoFinito @relation(fields: [produto_finito_id], references: [id], onDelete: Cascade)
+
+  @@index([produto_finito_id])
+  @@map("galeria_produto_finito")
 }

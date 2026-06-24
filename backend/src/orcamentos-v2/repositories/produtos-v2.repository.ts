@@ -74,6 +74,10 @@ export class ProdutosV2Repository {
           impostos: rest.impostos,
           observacoes: rest.observacoes,
           ativo: true,
+          tipo_item: rest.tipo_item || 'SOB_DEMANDA',
+          ...(rest.produto_finito_id
+            ? { produto_finito: { connect: { id: rest.produto_finito_id } } }
+            : {}),
           data_criacao: new Date(),
           data_atualizacao: new Date(),
         },
@@ -676,6 +680,9 @@ export class ProdutosV2Repository {
       margem_lucro: produto.margem_lucro,
       impostos: produto.impostos,
       observacoes: produto.observacoes,
+      tipo_item: produto.tipo_item || 'SOB_DEMANDA',
+      produto_finito_id: produto.produto_finito_id || null,
+      produto_finito: produto.produto_finito || null,
       insumos: produto.insumos || [],
       maquinas: produto.maquinas || [],
       funcoes: produto.funcoes || [],

@@ -75,6 +75,8 @@ interface OrcamentoV2 {
   validade_proposta?: string;
   atendente?: string;
   observacoes?: string;
+  entrega_valor_cobrado?: number;
+  entrega_modalidade_nome?: string | null;
 }
 
 export default function OrcamentoV2PublicoPage() {
@@ -316,6 +318,9 @@ export default function OrcamentoV2PublicoPage() {
   const produtosComPrecosCorretos = orcamento.produtos && orcamento.produtos.length > 0 
     ? usarValoresCorretosDoBanco(orcamento.produtos)
     : [];
+  const valorEntrega = Number(orcamento.entrega_valor_cobrado) || 0;
+  const nomeModalidadeEntrega = orcamento.entrega_modalidade_nome?.trim() || '';
+  const exibirLinhaEntrega = valorEntrega > 0;
   
   const jaAprovado = orcamento.status_aprovacao === 'APROVADO';
   const jaRejeitado = orcamento.status_aprovacao === 'REJEITADO';
@@ -526,10 +531,34 @@ export default function OrcamentoV2PublicoPage() {
                         )}
                       </td>
                       <td className="border border-gray-400 px-3 py-2 text-center">
-                        {formatCurrency(Number(orcamento.preco_final) / (orcamento.quantidade_produto || 1))}
+                        {formatCurrency(
+                          Math.max(
+                            0,
+                            Number(orcamento.preco_final) - valorEntrega,
+                          ) / (orcamento.quantidade_produto || 1),
+                        )}
                       </td>
                       <td className="border border-gray-400 px-3 py-2 text-right font-medium">
-                        {formatCurrency(orcamento.preco_final)}
+                        {formatCurrency(Math.max(0, Number(orcamento.preco_final) - valorEntrega))}
+                      </td>
+                    </tr>
+                  )}
+                  {exibirLinhaEntrega && (
+                    <tr>
+                      <td className="border border-gray-400 px-3 py-2 text-center">01</td>
+                      <td className="border border-gray-400 px-3 py-2">
+                        <div className="font-bold text-gray-900">Entrega</div>
+                        {nomeModalidadeEntrega ? (
+                          <div className="text-sm text-gray-600 mt-1">
+                            {nomeModalidadeEntrega}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="border border-gray-400 px-3 py-2 text-center">
+                        {formatCurrency(valorEntrega)}
+                      </td>
+                      <td className="border border-gray-400 px-3 py-2 text-right font-medium">
+                        {formatCurrency(valorEntrega)}
                       </td>
                     </tr>
                   )}

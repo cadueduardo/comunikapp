@@ -42,6 +42,21 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
   const form = useFormContext();
   const { user } = useUser();
   const [modalidadesEntrega, setModalidadesEntrega] = useState<ModalidadeEntregaOption[]>([]);
+  const LABEL_SEM_ENTREGA = 'Sem entrega / retirada';
+
+  const sincronizarNomeModalidadeEntrega = (modalidadeId: string) => {
+    if (!modalidadeId?.trim()) {
+      form.setValue('entrega_modalidade_nome', LABEL_SEM_ENTREGA, {
+        shouldDirty: true,
+      });
+      return;
+    }
+    const modalidade = modalidadesEntrega.find((item) => item.id === modalidadeId);
+    form.setValue('entrega_modalidade_nome', modalidade?.nome?.trim() || '', {
+      shouldDirty: true,
+    });
+  };
+
   const usarEnderecoCliente = form.watch('entrega_usar_endereco_cliente') !== false;
   const padraoLojaLegend =
     user?.loja?.tipo_margem_lucro === 'markup'
@@ -68,6 +83,14 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
       })
       .catch(() => setModalidadesEntrega([]));
   }, []);
+
+  useEffect(() => {
+    if (modalidadesEntrega.length === 0) return;
+    const nomeAtual = String(form.getValues('entrega_modalidade_nome') || '').trim();
+    if (nomeAtual) return;
+    const modalidadeId = String(form.getValues('entrega_modalidade_id') || '').trim();
+    sincronizarNomeModalidadeEntrega(modalidadeId);
+  }, [modalidadesEntrega, form]);
 
   if (mode === 'template') {
     return null;
@@ -284,6 +307,7 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
                       onValueChange={(value) => {
                         const id = value === 'sem_entrega' ? '' : value;
                         field.onChange(id);
+                        sincronizarNomeModalidadeEntrega(id);
                         const modalidade = modalidadesEntrega.find((item) => item.id === id);
                         if (!modalidade) return;
                         if (!form.getValues('entrega_valor_cobrado')) {

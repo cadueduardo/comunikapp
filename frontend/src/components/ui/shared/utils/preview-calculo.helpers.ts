@@ -1,4 +1,5 @@
 
+import { truncarDescricaoResumida } from '@/components/produtos-finitos/descricao-produto-finito.helpers';
 import { Insumo, Maquina, Funcao, ServicoManual } from '../types/common.types';
 import { calcularCustoPorUnidadeUso, calcularArea } from './calculo.utils';
 
@@ -648,6 +649,7 @@ export interface ProdutoPreviewCalculo {
   nome_servico: string;
   descricao: string;
   quantidade: number;
+  tipo_item?: 'SOB_DEMANDA' | 'PRODUTO_FINITO';
   dimensoes: {
     largura: number;
     altura: number;
@@ -701,6 +703,37 @@ export const calcularProdutosPreview = (
   let totalHoras = 0;
 
   const produtos = (itensProduto || []).map((item: any, index: number) => {
+    const tipoItem = String(item?.tipo_item || 'SOB_DEMANDA').toUpperCase();
+
+    if (tipoItem === 'PRODUTO_FINITO') {
+      const quantidade = Math.max(parseNumber(item?.quantidade_produto) || 1, 1);
+      const precoUnitario = parseNumber(item?.preco_unitario_snapshot);
+      const precoTotal = precoUnitario * quantidade;
+
+      return {
+        id: `produto_${index}`,
+        tipo_item: 'PRODUTO_FINITO' as const,
+        nome_servico: item?.nome_servico || `Produto ${index + 1}`,
+        descricao: truncarDescricaoResumida(item?.descricao || ''),
+        quantidade,
+        dimensoes: {
+          largura: 0,
+          altura: 0,
+          area_produto: 0,
+          unidade_medida: 'un',
+        },
+        materiais: [],
+        maquinas: [],
+        funcoes: [],
+        servicos: [],
+        custo_total_producao: 0,
+        preco_unitario: precoUnitario,
+        preco_total: precoTotal,
+        horas_producao: 0,
+        custos_indiretos_rateados: 0,
+      };
+    }
+
     const contexto = buildProdutoContexto(item);
 
     const materiais = calcularMateriais(item?.materiais || [], datasets.insumos, contexto.quantidade);
@@ -762,7 +795,9 @@ export const calcularProdutosPreview = (
     return {
       id: `produto_${index}`,
       nome_servico: item?.nome_servico || `Produto ${index + 1}`,
-      descricao: item?.descricao || `Descrição do produto ${index + 1}`,
+      descricao: truncarDescricaoResumida(
+        item?.descricao || `Descrição do produto ${index + 1}`,
+      ),
       quantidade: contexto.quantidade,
       dimensoes: {
         largura: contexto.largura,

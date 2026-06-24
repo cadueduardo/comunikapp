@@ -8,9 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Calculator, CheckCircle2, Save } from 'lucide-react';
+import { Calculator, CheckCircle2, Save, LayoutTemplate } from 'lucide-react';
 import { orcamentosApi, produtosApi } from '@/lib/api-client';
-import { createFormSchema, FormValues } from '../orcamento/schemas/orcamento.schema';
+import { createFormSchema, FormValues, validarMateriaisItensProduto } from '../orcamento/schemas/orcamento.schema';
 import { useOrcamentoData } from '../orcamento/hooks/useOrcamentoData';
 import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
 import { calcularProdutosPreview } from '../shared/utils/preview-calculo.helpers';
@@ -19,9 +19,12 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 // Função para calcular custo por unidade de uso
 const calcularCustoPorUnidadeUso = (insumo: any): number => {
@@ -32,10 +35,23 @@ const calcularCustoPorUnidadeUso = (insumo: any): number => {
   
   return custoUnitario / fatorConversao;
 };
+
+import { mapCamposPrateleiraFormulario } from '../orcamento/utils/map-campos-prateleira';
+import {
+  deserializarItensModeloOrcamento,
+  encontrarIndiceReferenciaModelo,
+  itensProntosParaModelo,
+  serializarItensModeloOrcamento,
+} from '../orcamento/utils/modelo-orcamento.helpers';
 import { ClienteSection, ProdutoSection, ConfiguracoesSection, TituloOrcamentoSection } from '../orcamento/components';
 import { PreviewCalculoV2 } from '../shared/sections';
 
 import { ProdutoSelectionModal } from '../../../app/(main)/produtos/components/produto-selection-modal';
+import { ProdutoPrateleiraSelectionModal } from '../../../app/(main)/produtos-finitos/components/produto-prateleira-selection-modal';
+import {
+  resolverDescricaoDetalhadaProdutoFinito,
+  resolverDescricaoResumidaProdutoFinito,
+} from '@/components/produtos-finitos/descricao-produto-finito.helpers';
 import { ChatFlutuante } from '@/components/ui/chat-flutuante';
 import { useUser } from '@/contexts/UserContext';
 
@@ -190,9 +206,14 @@ export function OrcamentoV2Form({
   const [isAtualizando, setIsAtualizando] = useState(false);
   const [isFechandoPedido, setIsFechandoPedido] = useState(false);
   const [showProdutoModal, setShowProdutoModal] = useState(false);
+  const [showProdutoPrateleiraModal, setShowProdutoPrateleiraModal] = useState(false);
   const [showSimuladorModal, setShowSimuladorModal] = useState(false);
   const [simuladorSeed, setSimuladorSeed] = useState<SimuladorSeed | null>(null);
   const [selectedProdutoIndex, setSelectedProdutoIndex] = useState<number>(0);
+  const [showSalvarModeloDialog, setShowSalvarModeloDialog] = useState(false);
+  const [nomeModeloOrcamento, setNomeModeloOrcamento] = useState('');
+  const [salvandoModelo, setSalvandoModelo] = useState(false);
+  const [produtosSectionKey, setProdutosSectionKey] = useState(0);
   const { clientes, insumos, maquinas, funcoes, servicos, custosIndiretos, fetchInsumos } = useOrcamentoData();
   const { user } = useUser();
   const comissaoPadraoLoja = comissaoPadraoDaLoja(user?.loja);
@@ -258,6 +279,7 @@ export function OrcamentoV2Form({
       condicao_pagamento_parcelas: '',
       condicao_pagamento_descricao: '',
       entrega_modalidade_id: '',
+      entrega_modalidade_nome: '',
       entrega_usar_endereco_cliente: true,
       entrega_endereco_snapshot: '',
       entrega_cep: '',
@@ -320,6 +342,12 @@ export function OrcamentoV2Form({
           instalacao_tempo_estimado_min: '',
           instalacao_quantidade_pessoas: '',
           instalacao_observacoes: '',
+          tipo_item: 'SOB_DEMANDA',
+          produto_finito_id: '',
+          sku_snapshot: '',
+          preco_unitario_snapshot: '',
+          estoque_catalogo: 0,
+          imagem_snapshot_url: '',
         }
       ],
     },
@@ -460,6 +488,7 @@ export function OrcamentoV2Form({
             : '',
         condicao_pagamento_descricao: String(initialData.condicao_pagamento_descricao ?? ''),
         entrega_modalidade_id: String(initialData.entrega_modalidade_id ?? ''),
+        entrega_modalidade_nome: String(initialData.entrega_modalidade_nome ?? ''),
         entrega_usar_endereco_cliente:
           initialData.entrega_usar_endereco_cliente !== false,
         entrega_endereco_snapshot: String(initialData.entrega_endereco_snapshot ?? ''),
@@ -485,6 +514,133 @@ export function OrcamentoV2Form({
         entrega_observacoes: String(initialData.entrega_observacoes ?? ''),
         atendente: String(initialData.atendente || 'Equipe Comercial'),
         itens_produto: (() => {
+          if (
+            Array.isArray(initialData.itens_produto) &&
+            initialData.itens_produto.length > 0
+          ) {
+            return initialData.itens_produto;
+          }
+
+          const mapProdutoBackendParaFormulario = (produto: any) => {
+            const quantidadeProdutoNumero = parseNumeroInicial(produto.quantidade || '1');
+            const profundidadeRaw = produto.profundidade?.toString() || '';
+            const profundidadeNum = Number(String(profundidadeRaw).replace(',', '.'));
+            const temProfundidade = !!profundidadeRaw && !isNaN(profundidadeNum) && profundidadeNum > 0;
+            const isPrateleira =
+              String(produto.tipo_item || 'SOB_DEMANDA').toUpperCase() === 'PRODUTO_FINITO';
+
+            return {
+              nome_servico: String(produto.nome_servico || produto.nome || ''),
+              descricao: String(produto.descricao || ''),
+              quantidade_produto: String(produto.quantidade || '1'),
+              largura_produto: String(produto.largura?.toString() || ''),
+              altura_produto: String(produto.altura?.toString() || ''),
+              profundidade_produto: profundidadeRaw,
+              tem_profundidade: temProfundidade,
+              unidade_medida_produto: String(produto.unidade_medida || 'un'),
+              area_produto: String(produto.area_produto?.toString() || produto.area?.toString() || ''),
+              perimetro_produto: String(produto.perimetro_produto?.toString() || ''),
+              geometria_origem: produto.geometria_origem || 'MANUAL',
+              arquivo_geometria_url: String(produto.arquivo_geometria_url || ''),
+              unidade_geometria: produto.unidade_geometria || undefined,
+              materiais: isPrateleira
+                ? []
+                : (produto.insumos || []).map((ins: any) => {
+                    let calculoChapa: Record<string, unknown> | null = null;
+                    if (ins.calculo_chapa) {
+                      try {
+                        calculoChapa =
+                          typeof ins.calculo_chapa === 'string'
+                            ? JSON.parse(ins.calculo_chapa)
+                            : ins.calculo_chapa;
+                      } catch {
+                        calculoChapa = null;
+                      }
+                    }
+                    return {
+                      item_insumo_id: ins.id,
+                      insumo_id: ins.insumo_id,
+                      quantidade: ajustarQuantidadeMaterialParaFormulario(
+                        ins.quantidade,
+                        ins.unidade || ins.unidade_consumo,
+                        quantidadeProdutoNumero,
+                      ),
+                      unidade: ins.unidade || ins.unidade_consumo,
+                      material_do_cliente: Boolean(ins.material_do_cliente),
+                      usa_medida_propria: Boolean(ins.usa_medida_propria),
+                      largura_material: ins.largura_material?.toString() || '',
+                      altura_material: ins.altura_material?.toString() || '',
+                      profundidade_material: ins.profundidade_material?.toString() || '',
+                      unidade_medida_material:
+                        ins.unidade_medida_material || produto.unidade_geometria || 'mm',
+                      calculo_chapa: calculoChapa,
+                    };
+                  }),
+              maquinas: isPrateleira
+                ? []
+                : (produto.maquinas || []).map((maq: any) => ({
+                    maquina_id: maq.maquina_id,
+                    horas_utilizadas: String(maq.horas_utilizadas || maq.tempo_horas || '1'),
+                  })),
+              funcoes: isPrateleira
+                ? []
+                : (produto.funcoes || []).map((func: any) => ({
+                    funcao_id: func.funcao_id,
+                    horas_trabalhadas: String(func.horas_trabalhadas || func.tempo_horas || '1'),
+                  })),
+              servicos: isPrateleira
+                ? []
+                : (produto.servicos_manuais || []).map((serv: any) => ({
+                    servico_id: serv.servico_id,
+                    horas_trabalhadas: String(serv.horas_trabalhadas || serv.tempo_horas || '1'),
+                  })),
+              instalacao_necessaria: Boolean(produto.instalacao_necessaria),
+              instalacao_tipo_id: String(produto.instalacao_tipo_id ?? ''),
+              instalacao_regra_cobranca: String(produto.instalacao_regra_cobranca ?? 'FIXO'),
+              instalacao_valor_unitario:
+                produto.instalacao_valor_unitario != null
+                  ? String(produto.instalacao_valor_unitario)
+                  : '',
+              instalacao_usar_endereco_entrega:
+                produto.instalacao_usar_endereco_entrega !== false,
+              instalacao_endereco_snapshot: String(produto.instalacao_endereco_snapshot ?? ''),
+              instalacao_cep: String(produto.instalacao_cep ?? ''),
+              instalacao_logradouro: String(produto.instalacao_logradouro ?? ''),
+              instalacao_numero: String(produto.instalacao_numero ?? ''),
+              instalacao_complemento: String(produto.instalacao_complemento ?? ''),
+              instalacao_bairro: String(produto.instalacao_bairro ?? ''),
+              instalacao_cidade: String(produto.instalacao_cidade ?? ''),
+              instalacao_estado: String(produto.instalacao_estado ?? ''),
+              instalacao_preco_cobrado:
+                produto.instalacao_preco_cobrado != null
+                  ? String(produto.instalacao_preco_cobrado)
+                  : '',
+              instalacao_custo_mao_obra:
+                produto.instalacao_custo_mao_obra != null
+                  ? String(produto.instalacao_custo_mao_obra)
+                  : '',
+              instalacao_custo_deslocamento:
+                produto.instalacao_custo_deslocamento != null
+                  ? String(produto.instalacao_custo_deslocamento)
+                  : '',
+              instalacao_tempo_estimado_min:
+                produto.instalacao_tempo_estimado_min != null
+                  ? String(produto.instalacao_tempo_estimado_min)
+                  : '',
+              instalacao_quantidade_pessoas:
+                produto.instalacao_quantidade_pessoas != null
+                  ? String(produto.instalacao_quantidade_pessoas)
+                  : '',
+              instalacao_observacoes: String(produto.instalacao_observacoes ?? ''),
+              ...mapCamposPrateleiraFormulario(produto),
+            };
+          };
+
+          // Preferir produtos do backend (fonte completa, com tipo_item e produto_finito)
+          if (initialData.produtos && Array.isArray(initialData.produtos) && initialData.produtos.length > 0) {
+            return (initialData.produtos as any[]).map(mapProdutoBackendParaFormulario);
+          }
+
           // Se tem itens_produto no initialData, usar eles
           if (initialData.itens_produto && Array.isArray(initialData.itens_produto) && initialData.itens_produto.length > 0) {
             return (initialData.itens_produto as any[]).map((produto: any) => {
@@ -564,123 +720,7 @@ export function OrcamentoV2Form({
                     ? String(produto.instalacao_quantidade_pessoas)
                     : '',
                 instalacao_observacoes: String(produto.instalacao_observacoes ?? ''),
-              };
-            });
-          }
-          
-          // Se tem produtos no initialData (formato do backend V2)
-          if (initialData.produtos && Array.isArray(initialData.produtos) && initialData.produtos.length > 0) {
-            console.log('🔍 Debug - Carregando produtos do backend V2:', initialData.produtos);
-            console.log('🔍 Debug - Dados completos do initialData:', initialData);
-            console.log('🔍 Debug - Medidas dos produtos do backend:', initialData.produtos.map((p: any) => ({
-              nome: p.nome_servico || p.nome,
-              largura: p.largura,
-              altura: p.altura,
-              area: p.area_produto || p.area,
-              larguraType: typeof p.largura,
-              alturaType: typeof p.altura,
-              areaType: typeof (p.area_produto || p.area)
-            })));
-            return (initialData.produtos as any[]).map((produto: any) => {
-              const quantidadeProdutoNumero = parseNumeroInicial(produto.quantidade || '1');
-              const profundidadeRaw = produto.profundidade?.toString() || '';
-              const profundidadeNum = Number(String(profundidadeRaw).replace(',', '.'));
-              const temProfundidade = !!profundidadeRaw && !isNaN(profundidadeNum) && profundidadeNum > 0;
-              return {
-                nome_servico: String(produto.nome_servico || produto.nome || ''),
-                descricao: String(produto.descricao || ''),
-                quantidade_produto: String(produto.quantidade || '1'),
-                largura_produto: String(produto.largura?.toString() || ''),
-                altura_produto: String(produto.altura?.toString() || ''),
-                profundidade_produto: profundidadeRaw,
-                tem_profundidade: temProfundidade,
-                unidade_medida_produto: String(produto.unidade_medida || 'un'),
-                area_produto: String(produto.area_produto?.toString() || produto.area?.toString() || ''),
-                perimetro_produto: String(produto.perimetro_produto?.toString() || ''),
-                geometria_origem: produto.geometria_origem || 'MANUAL',
-                arquivo_geometria_url: String(produto.arquivo_geometria_url || ''),
-                unidade_geometria: produto.unidade_geometria || undefined,
-                materiais: (produto.insumos || []).map((ins: any) => {
-                  let calculoChapa: Record<string, unknown> | null = null;
-                  if (ins.calculo_chapa) {
-                    try {
-                      calculoChapa =
-                        typeof ins.calculo_chapa === 'string'
-                          ? JSON.parse(ins.calculo_chapa)
-                          : ins.calculo_chapa;
-                    } catch {
-                      calculoChapa = null;
-                    }
-                  }
-                  return {
-                    item_insumo_id: ins.id,
-                    insumo_id: ins.insumo_id,
-                    quantidade: ajustarQuantidadeMaterialParaFormulario(
-                      ins.quantidade,
-                      ins.unidade || ins.unidade_consumo,
-                      quantidadeProdutoNumero,
-                    ),
-                    unidade: ins.unidade || ins.unidade_consumo,
-                    material_do_cliente: Boolean(ins.material_do_cliente),
-                    usa_medida_propria: Boolean(ins.usa_medida_propria),
-                    largura_material: ins.largura_material?.toString() || '',
-                    altura_material: ins.altura_material?.toString() || '',
-                    profundidade_material: ins.profundidade_material?.toString() || '',
-                    unidade_medida_material: ins.unidade_medida_material || produto.unidade_geometria || 'mm',
-                    calculo_chapa: calculoChapa,
-                  };
-                }),
-                maquinas: (produto.maquinas || []).map((maq: any) => ({
-                  maquina_id: maq.maquina_id,
-                  horas_utilizadas: String(maq.horas_utilizadas || maq.tempo_horas || '1'),
-                })),
-                funcoes: (produto.funcoes || []).map((func: any) => ({
-                  funcao_id: func.funcao_id,
-                  horas_trabalhadas: String(func.horas_trabalhadas || func.tempo_horas || '1'),
-                })),
-                servicos: (produto.servicos_manuais || []).map((serv: any) => ({
-                  servico_id: serv.servico_id,
-                  horas_trabalhadas: String(serv.horas_trabalhadas || serv.tempo_horas || '1'),
-                })),
-                instalacao_necessaria: Boolean(produto.instalacao_necessaria),
-                instalacao_tipo_id: String(produto.instalacao_tipo_id ?? ''),
-                instalacao_regra_cobranca: String(produto.instalacao_regra_cobranca ?? 'FIXO'),
-                instalacao_valor_unitario:
-                  produto.instalacao_valor_unitario != null
-                    ? String(produto.instalacao_valor_unitario)
-                    : '',
-                instalacao_usar_endereco_entrega:
-                  produto.instalacao_usar_endereco_entrega !== false,
-                instalacao_endereco_snapshot:
-                  String(produto.instalacao_endereco_snapshot ?? ''),
-                instalacao_cep: String(produto.instalacao_cep ?? ''),
-                instalacao_logradouro: String(produto.instalacao_logradouro ?? ''),
-                instalacao_numero: String(produto.instalacao_numero ?? ''),
-                instalacao_complemento: String(produto.instalacao_complemento ?? ''),
-                instalacao_bairro: String(produto.instalacao_bairro ?? ''),
-                instalacao_cidade: String(produto.instalacao_cidade ?? ''),
-                instalacao_estado: String(produto.instalacao_estado ?? ''),
-                instalacao_preco_cobrado:
-                  produto.instalacao_preco_cobrado != null
-                    ? String(produto.instalacao_preco_cobrado)
-                    : '',
-                instalacao_custo_mao_obra:
-                  produto.instalacao_custo_mao_obra != null
-                    ? String(produto.instalacao_custo_mao_obra)
-                    : '',
-                instalacao_custo_deslocamento:
-                  produto.instalacao_custo_deslocamento != null
-                    ? String(produto.instalacao_custo_deslocamento)
-                    : '',
-                instalacao_tempo_estimado_min:
-                  produto.instalacao_tempo_estimado_min != null
-                    ? String(produto.instalacao_tempo_estimado_min)
-                    : '',
-                instalacao_quantidade_pessoas:
-                  produto.instalacao_quantidade_pessoas != null
-                    ? String(produto.instalacao_quantidade_pessoas)
-                    : '',
-                instalacao_observacoes: String(produto.instalacao_observacoes ?? ''),
+                ...mapCamposPrateleiraFormulario(produto),
               };
             });
           }
@@ -734,14 +774,8 @@ export function OrcamentoV2Form({
       
       // Tentar reset com delay para garantir que o formulário esteja pronto
       setTimeout(() => {
-        // console.log('🔍 Debug - OrcamentoForm - Executando reset com delay...');
         form.reset(dadosFormatados as FormValues);
-        
-        // Verificar se os valores foram aplicados
-        setTimeout(() => {
-          // const currentValues = form.getValues();
-          // console.log('🔍 Debug - OrcamentoForm - Valores atuais do form após reset:', currentValues);
-        }, 50);
+        setProdutosSectionKey((k) => k + 1);
       }, 100);
     }
   }, [mode, initialData]);
@@ -756,6 +790,42 @@ export function OrcamentoV2Form({
   }, [mode, orcamentoStatus, initialData]);
 
   // Função auxiliar para transformar dados do frontend para o formato do backend
+  const montarProdutoPrateleiraBackend = (
+    produto: FormValues['itens_produto'][number],
+    index: number,
+    fixDecimalFn: (valor: unknown, precision?: number) => number,
+    normalizarNumeroFn: (valor: unknown) => number,
+  ) => {
+    const quantidade = Math.max(
+      Math.floor(normalizarNumeroFn(produto.quantidade_produto) || 1),
+      1,
+    );
+    const precoUnitario = fixDecimalFn(
+      normalizarNumeroFn(
+        (produto as any)?.preco_unitario_snapshot || (produto as any)?.preco_unitario,
+      ),
+    );
+    const precoTotal = fixDecimalFn(precoUnitario * quantidade);
+    const nomeProduto = produto.nome_servico?.trim() || `Produto ${index + 1}`;
+
+    return {
+      nome_servico: nomeProduto,
+      nome: nomeProduto,
+      descricao: produto.descricao || '',
+      quantidade,
+      unidade: 'un',
+      unidade_medida: 'un',
+      tipo_item: 'PRODUTO_FINITO' as const,
+      produto_finito_id: (produto as any)?.produto_finito_id || undefined,
+      sku_snapshot: (produto as any)?.sku_snapshot || undefined,
+      custo_total_producao: 0,
+      preco_unitario: precoUnitario,
+      preco_total: precoTotal,
+      margem_lucro: 0,
+      impostos: 0,
+    };
+  };
+
   const transformarDadosParaBackend = (data: FormValues, dadosCalculados?: any) => {
     console.log('🔍 Debug - transformarDadosParaBackend - dadosCalculados:', dadosCalculados);
     const itensProduto = (Array.isArray(data.itens_produto) ? data.itens_produto : []).filter(
@@ -981,6 +1051,18 @@ export function OrcamentoV2Form({
       let horasTotalPreview = 0;
 
       const produtosTransformadosPreview = itensProduto.map((produtoFormulario, index) => {
+        if (
+          String((produtoFormulario as any)?.tipo_item || 'SOB_DEMANDA').toUpperCase() ===
+          'PRODUTO_FINITO'
+        ) {
+          return montarProdutoPrateleiraBackend(
+            produtoFormulario,
+            index,
+            fixDecimal,
+            normalizarNumero,
+          );
+        }
+
         const previewProduto = produtosPreview[index];
 
         const nomeBase =
@@ -1316,6 +1398,20 @@ export function OrcamentoV2Form({
         precoFinal = fixDecimal(custoProducaoBase);
       }
       precoFinal = fixDecimal(precoFinal + entregaValor + precoInstalacoes);
+
+      const temProdutoPrateleira = produtosTransformadosPreview.some(
+        (produto) => produto.tipo_item === 'PRODUTO_FINITO',
+      );
+      if (temProdutoPrateleira) {
+        const somaPrecosProdutos = fixDecimal(
+          produtosTransformadosPreview.reduce(
+            (total, produto) => total + (Number(produto.preco_total) || 0),
+            0,
+          ),
+        );
+        precoFinal = fixDecimal(somaPrecosProdutos + entregaValor);
+      }
+
       precoFinal = resolverPrecoFinal(precoFinal);
 
       const margemLucro = fixDecimal(
@@ -1383,6 +1479,7 @@ export function OrcamentoV2Form({
         configuracoes: {
           tipo_margem_lucro: tipoMargemLucroEfetivo,
           valor_final_manual: temValorFinalManual ? valorFinalManual : null,
+          entrega_modalidade_nome: data.entrega_modalidade_nome?.trim() || undefined,
         },
       };
 
@@ -1390,6 +1487,12 @@ export function OrcamentoV2Form({
     }
 
     const produtosTransformados = itensProduto.map((produto, index) => {
+      if (
+        String((produto as any)?.tipo_item || 'SOB_DEMANDA').toUpperCase() === 'PRODUTO_FINITO'
+      ) {
+        return montarProdutoPrateleiraBackend(produto, index, fixDecimal, normalizarNumero);
+      }
+
       const quantidade = Math.max(normalizarNumero(produto.quantidade_produto) || 1, 1);
       const largura = normalizarNumero(produto.largura_produto);
       const altura = normalizarNumero(produto.altura_produto);
@@ -1581,6 +1684,19 @@ export function OrcamentoV2Form({
         : custoProducaoBase;
     }
     precoFinal = precoFinal + precoInstalacoes + entregaValor;
+
+    const temProdutoPrateleiraFallback = produtosTransformados.some(
+      (produto) => produto.tipo_item === 'PRODUTO_FINITO',
+    );
+    if (temProdutoPrateleiraFallback) {
+      precoFinal = fixDecimal(
+        produtosTransformados.reduce(
+          (total, produto) => total + (Number(produto.preco_total) || 0),
+          0,
+        ) + entregaValor,
+      );
+    }
+
     precoFinal = resolverPrecoFinal(precoFinal);
 
     const margemLucro = precoFinal * percentualMargemDecimal;
@@ -1671,6 +1787,10 @@ export function OrcamentoV2Form({
         console.log('🔍 Debug - Calculando preços individuais para cada produto');
         custosProdutos.forEach((item, index) => {
           const { produto, custoTotalProduto } = item;
+
+          if (produto.tipo_item === 'PRODUTO_FINITO') {
+            return;
+          }
           
           // Aplicar mesma fórmula do total: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
           const precoVendaProduto =
@@ -1719,6 +1839,9 @@ export function OrcamentoV2Form({
     
     // Atualizar a lista original com os valores calculados
     produtosTransformados.forEach((produto, index) => {
+      if (produto.tipo_item === 'PRODUTO_FINITO') {
+        return;
+      }
       const produtoComPeso = produtosComPeso[index];
       produto.custo_total_producao = produtoComPeso.custo_total_producao;
       produto.preco_unitario = produtoComPeso.preco_unitario;
@@ -1809,6 +1932,7 @@ export function OrcamentoV2Form({
       configuracoes: {
         tipo_margem_lucro: tipoMargemLucroEfetivo,
         valor_final_manual: temValorFinalManual ? valorFinalManual : null,
+        entrega_modalidade_nome: data.entrega_modalidade_nome?.trim() || undefined,
       },
     };
 
@@ -1820,19 +1944,48 @@ export function OrcamentoV2Form({
     return dadosTransformados;
   };
 
-  const transformarDadosParaProdutoTemplate = (dados: any) => {
-    const primeiroProduto = Array.isArray(dados?.produtos) ? dados.produtos[0] : null;
+  const transformarDadosParaProdutoTemplate = (
+    dados: any,
+    opcoes?: { produtoIndex?: number; nome?: string },
+  ) => {
+    const truncarTexto = (valor: unknown, max: number): string => {
+      const texto = String(valor ?? '').trim();
+      if (!texto) return '';
+      return texto.length > max ? texto.slice(0, max) : texto;
+    };
+
+    const indice =
+      typeof opcoes?.produtoIndex === 'number' && opcoes.produtoIndex >= 0
+        ? opcoes.produtoIndex
+        : 0;
+    const primeiroProduto = Array.isArray(dados?.produtos)
+      ? dados.produtos[indice]
+      : null;
     const toNumber = (value: unknown): number => {
       const n = Number(value);
       return Number.isFinite(n) ? n : 0;
     };
+    const nomeModelo = truncarTexto(
+      opcoes?.nome?.trim() || dados.titulo || 'Modelo de orçamento',
+      255,
+    );
+    const nomeProdutoLegado = truncarTexto(
+      primeiroProduto?.nome_servico ||
+        primeiroProduto?.nome ||
+        dados.nome_servico ||
+        nomeModelo,
+      255,
+    );
+    const descricaoProduto = String(primeiroProduto?.descricao ?? '').trim();
+    const descricaoOrcamento = String(dados.descricao ?? '').trim();
+    const descricaoResumo = descricaoProduto || descricaoOrcamento;
 
     return {
-      nome: primeiroProduto?.nome_servico || primeiroProduto?.nome || dados.nome_servico || dados.titulo,
-      categoria: primeiroProduto?.categoria || 'Produto',
-      nome_servico: primeiroProduto?.nome_servico || primeiroProduto?.nome || dados.nome_servico || dados.titulo,
-      descricao: dados.descricao || primeiroProduto?.descricao || '',
-      descricao_produto: primeiroProduto?.descricao || dados.descricao || '',
+      nome: nomeModelo,
+      categoria: truncarTexto(primeiroProduto?.categoria || 'Produto', 100),
+      nome_servico: nomeProdutoLegado,
+      descricao: truncarTexto(descricaoResumo, 500),
+      descricao_produto: truncarTexto(descricaoProduto || descricaoResumo, 1000),
       horas_producao: Math.max(toNumber(dados.horas_producao), 0.1),
       largura_produto: primeiroProduto?.largura || undefined,
       altura_produto: primeiroProduto?.altura || undefined,
@@ -1884,6 +2037,28 @@ export function OrcamentoV2Form({
     };
   };
 
+  const montarPayloadSalvarTemplate = (
+    formData: FormValues,
+    dadosTransformados: ReturnType<typeof transformarDadosParaBackend>,
+  ) => {
+    const itensSnapshot = serializarItensModeloOrcamento(
+      formData.itens_produto as Array<Record<string, unknown>>,
+    );
+    const indiceModelo = encontrarIndiceReferenciaModelo(formData.itens_produto);
+    const nomeModelo =
+      formData.titulo?.trim() ||
+      formData.nome_servico?.trim() ||
+      'Modelo de orçamento';
+
+    return {
+      ...transformarDadosParaProdutoTemplate(dadosTransformados, {
+        produtoIndex: indiceModelo,
+        nome: nomeModelo,
+      }),
+      itens_orcamento_json: JSON.stringify(itensSnapshot),
+    };
+  };
+
   const handleSubmit = async (data: FormValues) => {
     if (isAtualizando) return;
     setIsAtualizando(true);
@@ -1894,15 +2069,9 @@ export function OrcamentoV2Form({
         return;
       }
 
-      // Validar dados antes de transformar
-      if (!data.itens_produto || data.itens_produto.length === 0) {
-        toast.error('Adicione pelo menos um produto ao orçamento');
-        return;
-      }
-
-      const primeiroProduto = data.itens_produto[0];
-      if (!primeiroProduto.materiais || primeiroProduto.materiais.length === 0) {
-        toast.error('O primeiro produto deve ter pelo menos um material');
+      const erroItens = validarMateriaisItensProduto(data.itens_produto);
+      if (erroItens) {
+        toast.error(erroItens);
         return;
       }
 
@@ -1923,7 +2092,7 @@ export function OrcamentoV2Form({
       console.log('🔍 Dados transformados para backend:', dadosTransformados);
 
       if (mode === 'template') {
-        const produtoTemplate = transformarDadosParaProdutoTemplate(dadosTransformados);
+        const produtoTemplate = montarPayloadSalvarTemplate(data, dadosTransformados);
         if (orcamentoId) {
           await produtosApi.update(orcamentoId, produtoTemplate, token);
           toast.success('Produto atualizado com sucesso!');
@@ -1967,6 +2136,82 @@ export function OrcamentoV2Form({
     }
   };
 
+  const abrirDialogSalvarModelo = () => {
+    const formData = form.getValues();
+
+    if (!itensProntosParaModelo(formData.itens_produto as Array<Record<string, unknown>>)) {
+      toast.error(
+        'Configure pelo menos um produto (customizado ou de prateleira) antes de salvar o modelo.',
+      );
+      return;
+    }
+
+    const indiceReferencia = encontrarIndiceReferenciaModelo(formData.itens_produto);
+    const itemReferencia = formData.itens_produto[indiceReferencia];
+
+    const nomePadrao =
+      formData.titulo?.trim() ||
+      itemReferencia?.nome_servico?.trim() ||
+      'Modelo de orçamento';
+    setNomeModeloOrcamento(nomePadrao);
+    setShowSalvarModeloDialog(true);
+  };
+
+  const handleSalvarComoModelo = async () => {
+    const nomeModelo = nomeModeloOrcamento.trim();
+    if (!nomeModelo) {
+      toast.error('Informe um nome para o modelo.');
+      return;
+    }
+
+    try {
+      setSalvandoModelo(true);
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        toast.error('Token de autenticação não encontrado');
+        return;
+      }
+
+      const formData = form.getValues();
+      const indiceModelo = encontrarIndiceReferenciaModelo(formData.itens_produto);
+      const itensSnapshot = serializarItensModeloOrcamento(
+        formData.itens_produto as Array<Record<string, unknown>>,
+      );
+      if (itensSnapshot.length === 0) {
+        toast.error('Adicione pelo menos um produto configurado antes de salvar o modelo.');
+        return;
+      }
+
+      const dadosCalculados =
+        calcularDadosQuandoNecessario() || resultadoOrcamento?.resultado;
+      const dadosTransformados = transformarDadosParaBackend(formData, dadosCalculados);
+      const produtoTemplate = {
+        ...transformarDadosParaProdutoTemplate(dadosTransformados, {
+          produtoIndex: indiceModelo,
+          nome: nomeModelo,
+        }),
+        itens_orcamento_json: JSON.stringify(itensSnapshot),
+      };
+
+      await produtosApi.create(produtoTemplate, token);
+      setShowSalvarModeloDialog(false);
+      toast.success('Modelo de orçamento salvo com sucesso!', {
+        description: 'Disponível em Modelos de orçamento.',
+        action: {
+          label: 'Ver modelos',
+          onClick: () => router.push('/produtos'),
+        },
+      });
+    } catch (error) {
+      console.error('Erro ao salvar modelo:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Erro ao salvar modelo de orçamento',
+      );
+    } finally {
+      setSalvandoModelo(false);
+    }
+  };
+
   const handleSalvarRascunho = async () => {
     try {
       const token = localStorage.getItem('access_token');
@@ -1977,15 +2222,9 @@ export function OrcamentoV2Form({
 
       const formData = form.getValues();
       
-      // Validar dados antes de transformar
-      if (!formData.itens_produto || formData.itens_produto.length === 0) {
-        toast.error('Adicione pelo menos um produto ao orçamento');
-        return;
-      }
-
-      const primeiroProduto = formData.itens_produto[0];
-      if (!primeiroProduto.materiais || primeiroProduto.materiais.length === 0) {
-        toast.error('O primeiro produto deve ter pelo menos um material');
+      const erroItens = validarMateriaisItensProduto(formData.itens_produto);
+      if (erroItens) {
+        toast.error(erroItens);
         return;
       }
 
@@ -2011,7 +2250,7 @@ export function OrcamentoV2Form({
       });
 
       if (mode === 'template') {
-        const produtoTemplate = transformarDadosParaProdutoTemplate(dadosTransformados);
+        const produtoTemplate = montarPayloadSalvarTemplate(formData, dadosTransformados);
         if (orcamentoId) {
           await produtosApi.update(orcamentoId, produtoTemplate, token);
           toast.success('Produto atualizado com sucesso!');
@@ -2074,15 +2313,9 @@ export function OrcamentoV2Form({
 
       const formData = form.getValues();
       
-      // Validar dados antes de transformar
-      if (!formData.itens_produto || formData.itens_produto.length === 0) {
-        toast.error('Adicione pelo menos um produto ao orçamento');
-        return;
-      }
-
-      const primeiroProduto = formData.itens_produto[0];
-      if (!primeiroProduto.materiais || primeiroProduto.materiais.length === 0) {
-        toast.error('O primeiro produto deve ter pelo menos um material');
+      const erroItens = validarMateriaisItensProduto(formData.itens_produto);
+      if (erroItens) {
+        toast.error(erroItens);
         return;
       }
 
@@ -2158,14 +2391,9 @@ export function OrcamentoV2Form({
 
       const formData = form.getValues();
 
-      if (!formData.itens_produto || formData.itens_produto.length === 0) {
-        toast.error('Adicione pelo menos um produto ao orçamento');
-        return;
-      }
-
-      const primeiroProduto = formData.itens_produto[0];
-      if (!primeiroProduto.materiais || primeiroProduto.materiais.length === 0) {
-        toast.error('O primeiro produto deve ter pelo menos um material');
+      const erroItens = validarMateriaisItensProduto(formData.itens_produto);
+      if (erroItens) {
+        toast.error(erroItens);
         return;
       }
 
@@ -2220,7 +2448,75 @@ export function OrcamentoV2Form({
     setShowProdutoModal(true);
   };
 
-  const handleProdutoSelected = (produto: {
+  const handleAdicionarProdutoPrateleira = (itemIndex: number) => {
+    setSelectedProdutoIndex(itemIndex);
+    setShowProdutoPrateleiraModal(true);
+  };
+
+  const handleProdutoPrateleiraSelected = (produto: {
+    id: string;
+    nome: string;
+    sku: string;
+    descricao?: string | null;
+    descricao_resumida?: string | null;
+    preco_unitario?: number;
+    estoque_atual: number;
+    imagens?: Array<{ id: string; url_imagem: string; ordem: number }>;
+  }) => {
+    try {
+      const index = selectedProdutoIndex;
+      if (index == null || index < 0) return;
+
+      const quantidade = 1;
+      const precoUnitario = Number(produto.preco_unitario || 0);
+      const imagemUrl = produto.imagens?.[0]?.url_imagem || '';
+      const descricaoResumida = resolverDescricaoResumidaProdutoFinito(produto);
+      const descricaoDetalhada = resolverDescricaoDetalhadaProdutoFinito(produto);
+
+      const produtoData = {
+        tipo_item: 'PRODUTO_FINITO',
+        produto_finito_id: produto.id,
+        sku_snapshot: produto.sku,
+        nome_servico: produto.nome,
+        descricao: descricaoResumida,
+        descricao_detalhada: descricaoDetalhada,
+        quantidade_produto: String(quantidade),
+        unidade_medida_produto: 'un',
+        preco_unitario_snapshot: String(precoUnitario),
+        estoque_catalogo: produto.estoque_atual,
+        imagem_snapshot_url: imagemUrl,
+        materiais: [],
+        maquinas: [],
+        funcoes: [],
+        servicos: [],
+        largura_produto: '',
+        altura_produto: '',
+        profundidade_produto: '',
+        tem_profundidade: false,
+        area_produto: '',
+        perimetro_produto: '',
+        arquivo_geometria_url: '',
+        instalacao_necessaria: false,
+      };
+
+      form.setValue(
+        `itens_produto.${index}`,
+        {
+          ...form.getValues(`itens_produto.${index}`),
+          ...produtoData,
+        } as any,
+        { shouldDirty: true, shouldValidate: true },
+      );
+
+      setShowProdutoPrateleiraModal(false);
+      toast.success('Produto de prateleira adicionado ao orçamento.');
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao adicionar produto de prateleira.');
+    }
+  };
+
+  const handleProdutoSelected = async (produto: {
     id: string;
     nome: string;
     nome_servico: string;
@@ -2245,59 +2541,106 @@ export function OrcamentoV2Form({
       servico: { id: string };
       horas_trabalhadas: number;
     }>;
+    itens_orcamento?: Array<Record<string, unknown>>;
   }) => {
     try {
-      // Mapear dados do produto template para o formato do orçamento
+      const token = localStorage.getItem('access_token');
+      let produtoCompleto = produto;
+
+      if (token && produto.id) {
+        try {
+          const detalhe = (await produtosApi.getById(produto.id, token)) as typeof produto;
+          produtoCompleto = { ...produto, ...detalhe };
+        } catch (error) {
+          console.warn('Não foi possível carregar detalhes do modelo; usando dados da lista.', error);
+        }
+      }
+
+      const snapshot = produtoCompleto.itens_orcamento;
+      if (Array.isArray(snapshot) && snapshot.length > 0) {
+        const itensRestaurados = deserializarItensModeloOrcamento(snapshot);
+        form.setValue('itens_produto', itensRestaurados as any, {
+          shouldDirty: true,
+          shouldValidate: false,
+        });
+        setProdutosSectionKey((k) => k + 1);
+        setShowProdutoModal(false);
+        toast.success(
+          `Modelo "${produtoCompleto.nome}" carregado com ${itensRestaurados.length} produto(s).`,
+        );
+        return;
+      }
+
+      // Mapear dados do produto template para o formato do orçamento (legado: 1 produto)
+      const tituloModelo = produtoCompleto.nome?.trim() || '';
+      const nomeServicoTemplate = produtoCompleto.nome_servico?.trim() || '';
+      const nomeProdutoLegado =
+        nomeServicoTemplate && nomeServicoTemplate !== tituloModelo
+          ? nomeServicoTemplate
+          : nomeServicoTemplate;
       // Fase 11: profundidade do template e propagada quando preenchida (template 3D).
-      const profundidadeTemplateRaw = (produto as any)?.profundidade_produto?.toString() || '';
+      const profundidadeTemplateRaw = (produtoCompleto as any)?.profundidade_produto?.toString() || '';
       const profundidadeTemplateNum = Number(String(profundidadeTemplateRaw).replace(',', '.'));
       const temProfundidadeTemplate =
         !!profundidadeTemplateRaw && !isNaN(profundidadeTemplateNum) && profundidadeTemplateNum > 0;
       const produtoData = {
-        nome_servico: produto.nome_servico || '',
-        descricao: produto.descricao_produto || '',
+        tipo_item: 'SOB_DEMANDA',
+        produto_finito_id: '',
+        sku_snapshot: '',
+        preco_unitario_snapshot: '',
+        estoque_catalogo: 0,
+        imagem_snapshot_url: '',
+        nome_servico: nomeProdutoLegado,
+        descricao: produtoCompleto.descricao_produto || '',
+        descricao_detalhada: '',
         quantidade_produto: '1', // Quantidade padrão
-        largura_produto: produto.largura_produto?.toString() || '',
-        altura_produto: produto.altura_produto?.toString() || '',
+        largura_produto: produtoCompleto.largura_produto?.toString() || '',
+        altura_produto: produtoCompleto.altura_produto?.toString() || '',
         profundidade_produto: profundidadeTemplateRaw,
         tem_profundidade: temProfundidadeTemplate,
-        unidade_medida_produto: produto.unidade_medida_produto || 'un',
-        area_produto: produto.area_produto?.toString() || '',
-        perimetro_produto: (produto as any).perimetro_produto?.toString() || '',
-        geometria_origem: ((produto as any).geometria_origem || 'MANUAL') as const,
-        arquivo_geometria_url: (produto as any).arquivo_geometria_url?.toString() || '',
-        unidade_geometria: ((produto as any).unidade_geometria || 'mm') as const,
-        materiais: produto.itens?.map((item) => ({
+        unidade_medida_produto: produtoCompleto.unidade_medida_produto || 'un',
+        area_produto: produtoCompleto.area_produto?.toString() || '',
+        perimetro_produto: (produtoCompleto as any).perimetro_produto?.toString() || '',
+        geometria_origem: ((produtoCompleto as any).geometria_origem || 'MANUAL') as const,
+        arquivo_geometria_url: (produtoCompleto as any).arquivo_geometria_url?.toString() || '',
+        unidade_geometria: ((produtoCompleto as any).unidade_geometria || 'mm') as const,
+        materiais: produtoCompleto.itens?.map((item) => ({
           insumo_id: item.insumo.id,
           quantidade: item.quantidade.toString(),
           usa_medida_propria: Boolean((item as any).usa_medida_propria),
           largura_material: (item as any).largura_material?.toString() || '',
           altura_material: (item as any).altura_material?.toString() || '',
           profundidade_material: (item as any).profundidade_material?.toString() || '',
-          unidade_medida_material: (item as any).unidade_medida_material || (produto as any).unidade_geometria || 'mm',
+          unidade_medida_material: (item as any).unidade_medida_material || (produtoCompleto as any).unidade_geometria || 'mm',
         })) || [],
-        maquinas: produto.maquinas?.map((maq) => ({
+        maquinas: produtoCompleto.maquinas?.map((maq) => ({
           maquina_id: maq.maquina.id,
           horas_utilizadas: maq.horas_utilizadas.toString()
         })) || [],
-        funcoes: produto.funcoes?.map((func) => ({
+        funcoes: produtoCompleto.funcoes?.map((func) => ({
           funcao_id: func.funcao.id,
           horas_trabalhadas: func.horas_trabalhadas.toString()
         })) || [],
-        servicos: produto.servicos?.map((serv) => ({
+        servicos: produtoCompleto.servicos?.map((serv) => ({
           servico_id: serv.servico.id,
           horas_trabalhadas: serv.horas_trabalhadas.toString(),
         })) || [{ servico_id: '', horas_trabalhadas: '1' }],
       };
 
-      // Atualizar o item do produto no formulário
+      // Atualizar o item do produto no formulário (legado: substitui apenas o slot selecionado)
       const currentItems = form.getValues('itens_produto');
       const updatedItems = [...currentItems];
       updatedItems[selectedProdutoIndex] = produtoData;
       form.setValue('itens_produto', updatedItems);
 
       setShowProdutoModal(false);
-      toast.success(`Produto "${produto.nome}" carregado com sucesso!`);
+      if (!Array.isArray(snapshot) || snapshot.length === 0) {
+        toast.warning(
+          `Modelo "${produtoCompleto.nome}" carregado em modo legado (1 produto). Salve o modelo novamente para preservar todos os itens, inclusive de prateleira.`,
+        );
+      } else {
+        toast.success(`Produto "${produtoCompleto.nome}" carregado com sucesso!`);
+      }
     } catch (error) {
       console.error('Erro ao carregar produto:', error);
       toast.error('Erro ao carregar produto. Tente novamente.');
@@ -2334,9 +2677,11 @@ export function OrcamentoV2Form({
 
                   {/* Seção de Produtos */}
                   <ProdutoSection 
+                    key={produtosSectionKey}
                     mode={mode}
                     orcamentoId={orcamentoId}
                     onCarregarProduto={handleCarregarProduto}
+                    onAdicionarProdutoPrateleira={handleAdicionarProdutoPrateleira}
                     insumos={insumos}
                     maquinas={maquinas}
                     funcoes={funcoes}
@@ -2392,6 +2737,16 @@ export function OrcamentoV2Form({
                         <Button
                           type="button"
                           variant="outline"
+                          onClick={abrirDialogSalvarModelo}
+                          disabled={loading || salvandoModelo}
+                          className="flex items-center space-x-2"
+                        >
+                          <LayoutTemplate className="w-4 h-4" />
+                          <span>Salvar como modelo de orçamento</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
                           onClick={() => handleSalvarRascunho()}
                           disabled={loading}
                           className="flex items-center space-x-2"
@@ -2428,6 +2783,16 @@ export function OrcamentoV2Form({
                           console.log('🔍 Debug - Status:', orcamentoStatus);
                           return orcamentoStatus === 'rascunho' ? (
                             <>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={abrirDialogSalvarModelo}
+                                disabled={loading || salvandoModelo}
+                                className="flex items-center space-x-2"
+                              >
+                                <LayoutTemplate className="w-4 h-4" />
+                                <span>Salvar como modelo de orçamento</span>
+                              </Button>
                               <Button
                                 type="button"
                                 variant="outline"
@@ -2524,9 +2889,11 @@ export function OrcamentoV2Form({
 
               {/* Seção de Produtos */}
               <ProdutoSection 
+                key={produtosSectionKey}
                 mode={mode}
                 orcamentoId={orcamentoId}
                 onCarregarProduto={handleCarregarProduto}
+                onAdicionarProdutoPrateleira={handleAdicionarProdutoPrateleira}
                 insumos={insumos}
                 maquinas={maquinas}
                 funcoes={funcoes}
@@ -2581,6 +2948,16 @@ export function OrcamentoV2Form({
                   <Button
                     type="button"
                     variant="outline"
+                    onClick={abrirDialogSalvarModelo}
+                    disabled={loading || salvandoModelo}
+                    className="flex items-center space-x-2"
+                  >
+                    <LayoutTemplate className="w-4 h-4" />
+                    <span>Salvar como modelo de orçamento</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => handleSalvarRascunho()}
                     disabled={loading}
                     className="flex items-center space-x-2"
@@ -2617,6 +2994,16 @@ export function OrcamentoV2Form({
                     console.log('🔍 Debug - Status:', orcamentoStatus);
                     return orcamentoStatus === 'rascunho' ? (
                       <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={abrirDialogSalvarModelo}
+                          disabled={loading || salvandoModelo}
+                          className="flex items-center space-x-2"
+                        >
+                          <LayoutTemplate className="w-4 h-4" />
+                          <span>Salvar como modelo de orçamento</span>
+                        </Button>
                         <Button
                           type="button"
                           variant="outline"
@@ -2687,6 +3074,58 @@ export function OrcamentoV2Form({
           onSelect={handleProdutoSelected}
         />
       )}
+
+      {showProdutoPrateleiraModal && (
+        <ProdutoPrateleiraSelectionModal
+          open={showProdutoPrateleiraModal}
+          onClose={() => setShowProdutoPrateleiraModal(false)}
+          onSelect={handleProdutoPrateleiraSelected}
+        />
+      )}
+
+      <Dialog open={showSalvarModeloDialog} onOpenChange={setShowSalvarModeloDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Salvar como modelo de orçamento</DialogTitle>
+            <DialogDescription>
+              Todos os produtos configurados no orçamento (customizados e de prateleira)
+              serão salvos no modelo para reutilizar depois.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="nome-modelo-orcamento">Nome do modelo</Label>
+            <Input
+              id="nome-modelo-orcamento"
+              value={nomeModeloOrcamento}
+              onChange={(e) => setNomeModeloOrcamento(e.target.value)}
+              placeholder="Ex.: Banner 3x1 com lona front"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void handleSalvarComoModelo();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowSalvarModeloDialog(false)}
+              disabled={salvandoModelo}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleSalvarComoModelo()}
+              disabled={salvandoModelo}
+            >
+              {salvandoModelo ? 'Salvando...' : 'Salvar modelo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Chat Flutuante - mostrar para todos os status exceto rascunho e aprovado (aprovado = somente visualização) */}
       <Dialog open={showSimuladorModal} onOpenChange={setShowSimuladorModal}>

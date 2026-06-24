@@ -296,6 +296,25 @@ export class ValidacaoV2Service {
     produtos.forEach((produto, index) => this.validarProduto(produto, index));
 
     for (const produto of produtos) {
+      if (String(produto?.tipo_item || 'SOB_DEMANDA').toUpperCase() === 'PRODUTO_FINITO') {
+        if (!produto.produto_finito_id) {
+          throw new BadRequestException(
+            'Produto de prateleira deve referenciar um item do catálogo.',
+          );
+        }
+        const catalogo = await this.prisma.produtoFinito.findFirst({
+          where: {
+            id: produto.produto_finito_id,
+            loja_id: lojaId,
+            ativo: true,
+          },
+        });
+        if (!catalogo) {
+          throw new BadRequestException('Produto de prateleira inválido ou inativo.');
+        }
+        continue;
+      }
+
       await this.validarInsumosProduto(produto.insumos, lojaId);
       await this.validarMaquinasProduto(produto.maquinas, lojaId);
       await this.validarFuncoesProduto(produto.funcoes, lojaId);

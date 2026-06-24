@@ -64,6 +64,8 @@ export class TransformacaoV2Service {
       numeroValido(config.horas_produtivas_mensais) ||
       numeroValido(config.custos_indiretos_mensais) ||
       numeroValido(config.valor_final_manual) ||
+      (typeof config.entrega_modalidade_nome === 'string' &&
+        config.entrega_modalidade_nome.trim().length > 0) ||
       (Array.isArray(config.regras_especiais) && config.regras_especiais.length > 0)
     );
   }
@@ -486,6 +488,11 @@ export class TransformacaoV2Service {
           ? Number(dados.entrega_custo_estimado)
           : undefined,
       entrega_observacoes: dados.entrega_observacoes ?? undefined,
+      entrega_modalidade_nome:
+        dados.entrega_modalidade?.nome?.trim() ||
+        (typeof configuracoesPersistidas?.entrega_modalidade_nome === 'string'
+          ? configuracoesPersistidas.entrega_modalidade_nome.trim()
+          : undefined),
       versoes: this.transformarVersoes(dados.versoes),
       historicoOrcamento: this.transformarHistorico(dados.historicoOrcamento),
       aprovacoes: this.transformarAprovacoes(dados.aprovacoes),
@@ -816,6 +823,8 @@ export class TransformacaoV2Service {
       margem_lucro: toNumber(produto.margem_lucro),
       impostos: toNumber(produto.impostos),
       ativo: true,
+      tipo_item: produto.tipo_item || 'SOB_DEMANDA',
+      produto_finito_id: produto.produto_finito_id || null,
       ...this.prepararCamposInstalacao(produto),
     };
 
@@ -996,6 +1005,13 @@ export class TransformacaoV2Service {
     if (tipoRaw === 'markup' || tipoRaw === 'margem_por_dentro') {
       (base as any).tipo_margem_lucro = tipoRaw;
     }
+    const nomeModalidadeEntrega =
+      typeof configuracoes.entrega_modalidade_nome === 'string'
+        ? configuracoes.entrega_modalidade_nome.trim()
+        : '';
+    if (nomeModalidadeEntrega) {
+      (base as any).entrega_modalidade_nome = nomeModalidadeEntrega;
+    }
     return base;
   }
 
@@ -1148,6 +1164,10 @@ export class TransformacaoV2Service {
         instalacao_quantidade_pessoas:
           produto.instalacao_quantidade_pessoas ?? null,
         instalacao_observacoes: produto.instalacao_observacoes ?? null,
+
+        tipo_item: produto.tipo_item || 'SOB_DEMANDA',
+        produto_finito_id: produto.produto_finito_id ?? null,
+        produto_finito: produto.produto_finito ?? null,
 
         insumos:
           produto.insumos?.map((insumo) => ({
@@ -1372,6 +1392,13 @@ export class TransformacaoV2Service {
       : '';
     if (tipoRaw === 'markup' || tipoRaw === 'margem_por_dentro') {
       (base as any).tipo_margem_lucro = tipoRaw;
+    }
+    const nomeModalidadeEntrega =
+      typeof configuracoes.entrega_modalidade_nome === 'string'
+        ? configuracoes.entrega_modalidade_nome.trim()
+        : '';
+    if (nomeModalidadeEntrega) {
+      (base as any).entrega_modalidade_nome = nomeModalidadeEntrega;
     }
     return base;
   }

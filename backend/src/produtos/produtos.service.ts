@@ -49,18 +49,20 @@ export class ProdutosService {
     }
 
     // Validar se os insumos existem
-    const insumoIds = itensPayload.map((item) => item.insumo_id);
-    const insumos = await this.prisma.insumo.findMany({
-      where: {
-        id: { in: insumoIds },
-        loja_id: lojaId,
-      },
-    });
+    if (itensPayload.length > 0) {
+      const insumoIds = itensPayload.map((item) => item.insumo_id);
+      const insumos = await this.prisma.insumo.findMany({
+        where: {
+          id: { in: insumoIds },
+          loja_id: lojaId,
+        },
+      });
 
-    if (insumos.length !== insumoIds.length) {
-      throw new BadRequestException(
-        'Um ou mais insumos não foram encontrados.',
-      );
+      if (insumos.length !== insumoIds.length) {
+        throw new BadRequestException(
+          'Um ou mais insumos não foram encontrados.',
+        );
+      }
     }
 
     // Validar se as máquinas existem (se fornecidas)
@@ -139,6 +141,9 @@ export class ProdutosService {
           unidade_medida_produto: createProdutoDto.unidade_medida_produto,
           quantidade_padrao: createProdutoDto.quantidade_padrao,
           ativo: createProdutoDto.ativo ?? true,
+          itens_orcamento_json: this.normalizarItensOrcamentoJson(
+            createProdutoDto.itens_orcamento_json,
+          ),
           loja_id: lojaId,
         },
       });
@@ -199,7 +204,7 @@ export class ProdutosService {
       return produtoCriado;
     });
 
-    return produto;
+    return this.anexarItensOrcamento(produto);
   }
 
   async findAll(lojaId: string) {
@@ -340,7 +345,7 @@ export class ProdutosService {
           });
 
           return {
-            ...produto,
+            ...this.anexarItensOrcamento(produto),
             itens: itensComCustosRecalculados,
             maquinas: maquinasComCustosRecalculados,
             funcoes: funcoesComCustosRecalculados,
@@ -352,7 +357,7 @@ export class ProdutosService {
             error,
           );
           return {
-            ...produto,
+            ...this.anexarItensOrcamento(produto),
             valor_calculado: 0,
           };
         }
@@ -408,7 +413,50 @@ export class ProdutosService {
     // IMPORTANTE: Não recalcular custos aqui para evitar inconsistências
     // Os custos já estão calculados e salvos no banco
     // Apenas retornar os dados como estão
-    return produto;
+    return this.anexarItensOrcamento(produto);
+  }
+
+  private normalizarItensOrcamentoJson(
+    valor?: string | null,
+  ): string | null {
+    if (!valor || !String(valor).trim()) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(valor);
+      if (!Array.isArray(parsed)) {
+        return null;
+      }
+      return JSON.stringify(parsed);
+    } catch {
+      return null;
+    }
+  }
+
+  private anexarItensOrcamento<T extends { itens_orcamento_json?: string | null }>(
+    produto: T,
+  ): T & { itens_orcamento: Record<string, unknown>[] } {
+    let itensOrcamento: Record<string, unknown>[] = [];
+    if (produto.itens_orcamento_json) {
+      try {
+        const parsed = JSON.parse(produto.itens_orcamento_json);
+        if (Array.isArray(parsed)) {
+          itensOrcamento = parsed;
+        }
+      } catch {
+        itensOrcamento = [];
+      }
+    }
+
+    const { itens_orcamento_json: _omit, ...rest } = produto as T & {
+      itens_orcamento_json?: string | null;
+    };
+
+    return {
+      ...(rest as T),
+      itens_orcamento: itensOrcamento,
+    };
   }
 
   async update(id: string, updateProdutoDto: UpdateProdutoDto, lojaId: string) {
@@ -480,6 +528,13 @@ export class ProdutosService {
           unidade_medida_produto: updateProdutoDto.unidade_medida_produto,
           quantidade_padrao: updateProdutoDto.quantidade_padrao,
           ativo: updateProdutoDto.ativo,
+          ...(updateProdutoDto.itens_orcamento_json !== undefined
+            ? {
+                itens_orcamento_json: this.normalizarItensOrcamentoJson(
+                  updateProdutoDto.itens_orcamento_json,
+                ),
+              }
+            : {}),
         },
       });
 

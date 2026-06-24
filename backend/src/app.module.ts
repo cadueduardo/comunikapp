@@ -13,6 +13,7 @@ import { FuncoesModule } from './funcoes/funcoes.module';
 import { CustosIndiretosModule } from './custos-indiretos/custos-indiretos.module';
 import { TiposMaterialModule } from './tipos-material/tipos-material.module';
 import { ProdutosModule } from './produtos/produtos.module';
+import { ProdutosFinitosModule } from './produtos-finitos/produtos-finitos.module';
 import { MaquinasModule } from './maquinas/maquinas.module';
 import { MailModule } from './mail/mail.module';
 import { EstoqueModule } from './estoque/estoque.module';
@@ -53,6 +54,7 @@ import { PlatformModule } from './platform/platform.module';
     EstoqueModule,
     TiposMaterialModule,
     ProdutosModule,
+    ProdutosFinitosModule,
     MaquinasModule,
     FuncoesModule,
     CustosIndiretosModule,

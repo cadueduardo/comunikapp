@@ -276,6 +276,30 @@ export class ProdutoOrcamentoDto {
   @IsNumber()
   @Min(1)
   ordem?: number;
+
+  @ApiPropertyOptional({
+    description: 'Tipo do item no orçamento',
+    enum: ['SOB_DEMANDA', 'PRODUTO_FINITO'],
+    example: 'SOB_DEMANDA',
+  })
+  @IsOptional()
+  @IsIn(['SOB_DEMANDA', 'PRODUTO_FINITO'])
+  tipo_item?: 'SOB_DEMANDA' | 'PRODUTO_FINITO';
+
+  @ApiPropertyOptional({
+    description: 'ID do produto de prateleira vinculado',
+  })
+  @IsOptional()
+  @IsString()
+  produto_finito_id?: string;
+
+  @ApiPropertyOptional({
+    description: 'SKU snapshot do produto de prateleira',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  sku_snapshot?: string;
 }
 
 /**

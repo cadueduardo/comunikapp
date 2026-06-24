@@ -5,6 +5,10 @@ import { useSearchParams } from 'next/navigation';
 import { OrcamentoV2Form } from '@/components/ui/orcamentos-v2/orcamento-v2-form';
 import { Loader2 } from 'lucide-react';
 import { orcamentosApi, clientesApi } from '@/lib/api-client';
+import {
+  isProdutoPrateleira,
+  mapCamposPrateleiraFormulario,
+} from '@/components/ui/orcamento/utils/map-campos-prateleira';
 
 interface OrcamentoData extends Record<string, unknown> {
   cliente_id: string;
@@ -238,12 +242,46 @@ export default function NovoOrcamentoV2Page() {
                 ? String(orcamentoData.condicao_pagamento_parcelas)
                 : '',
             condicao_pagamento_descricao: orcamentoData.condicao_pagamento_descricao ?? '',
+            entrega_modalidade_id: String(orcamentoData.entrega_modalidade_id ?? ''),
+            entrega_modalidade_nome: String(
+              orcamentoData.entrega_modalidade_nome ??
+                (orcamentoData as { entrega_modalidade?: { nome?: string } }).entrega_modalidade
+                  ?.nome ??
+                '',
+            ),
+            entrega_usar_endereco_cliente:
+              orcamentoData.entrega_usar_endereco_cliente !== false,
+            entrega_endereco_snapshot: String(
+              orcamentoData.entrega_endereco_snapshot ?? '',
+            ),
+            entrega_cep: String(orcamentoData.entrega_cep ?? ''),
+            entrega_logradouro: String(orcamentoData.entrega_logradouro ?? ''),
+            entrega_numero: String(orcamentoData.entrega_numero ?? ''),
+            entrega_complemento: String(orcamentoData.entrega_complemento ?? ''),
+            entrega_bairro: String(orcamentoData.entrega_bairro ?? ''),
+            entrega_cidade: String(orcamentoData.entrega_cidade ?? ''),
+            entrega_estado: String(orcamentoData.entrega_estado ?? ''),
+            entrega_prazo_dias:
+              orcamentoData.entrega_prazo_dias != null
+                ? String(orcamentoData.entrega_prazo_dias)
+                : '',
+            entrega_valor_cobrado:
+              orcamentoData.entrega_valor_cobrado != null
+                ? String(orcamentoData.entrega_valor_cobrado)
+                : '',
+            entrega_custo_estimado:
+              orcamentoData.entrega_custo_estimado != null
+                ? String(orcamentoData.entrega_custo_estimado)
+                : '',
+            entrega_observacoes: String(orcamentoData.entrega_observacoes ?? ''),
             // Campos que não existem no backend mas são necessários para o form
             margem_lucro_customizada: margemPercentual,
             impostos_customizados: impostosPercentual,
             valor_final_manual: valorFinalManual,
             comissao_percentual: comissaoPercentual,
             tipo_margem_lucro: tipoMargemLucro,
+            // Manter produtos brutos da API para o form reconstruir prateleira corretamente
+            produtos: orcamentoData.produtos || [],
             // Transformar produtos se existirem
             itens_produto: orcamentoData.produtos ? orcamentoData.produtos.map((produto: any, index: number) => {
               console.log(`🔍 Debug - Produto ${index}:`, {
@@ -264,6 +302,7 @@ export default function NovoOrcamentoV2Page() {
               const profundidadeNum = Number(String(profundidadeRaw).replace(',', '.'));
               const temProfundidade =
                 !!profundidadeRaw && Number.isFinite(profundidadeNum) && profundidadeNum > 0;
+              const isPrateleira = isProdutoPrateleira(produto);
               return ({
               nome_servico: produto.nome_servico || produto.nome || '',
               descricao: produto.descricao || '',
@@ -278,24 +317,41 @@ export default function NovoOrcamentoV2Page() {
               geometria_origem: produto.geometria_origem || 'MANUAL',
               arquivo_geometria_url: String(produto.arquivo_geometria_url || ''),
               unidade_geometria: produto.unidade_geometria || undefined,
-              materiais: produto.insumos ? produto.insumos.map((insumo: any) => ({
-                insumo_id: insumo.insumo_id,
-                quantidade: String(insumo.quantidade || 1),
-                unidade: insumo.unidade || 'un',
-                material_do_cliente: Boolean(insumo.material_do_cliente),
-              })) : [{ insumo_id: '', quantidade: '1', material_do_cliente: false }],
-              maquinas: produto.maquinas ? produto.maquinas.map((maquina: any) => ({
-                maquina_id: maquina.maquina_id,
-                horas_utilizadas: String(maquina.tempo_horas || 1)
-              })) : [{ maquina_id: '', horas_utilizadas: '1' }],
-              funcoes: produto.funcoes ? produto.funcoes.map((funcao: any) => ({
-                funcao_id: funcao.funcao_id,
-                horas_trabalhadas: String(funcao.tempo_horas || 1)
-              })) : [{ funcao_id: '', horas_trabalhadas: '1' }],
-              servicos: produto.servicos_manuais ? produto.servicos_manuais.map((servico: any) => ({
-                servico_id: servico.servico_id,
-                horas_trabalhadas: String(servico.tempo_horas || 1)
-              })) : [{ servico_id: '', horas_trabalhadas: '1' }],
+              materiais: isPrateleira
+                ? []
+                : produto.insumos
+                  ? produto.insumos.map((insumo: any) => ({
+                      insumo_id: insumo.insumo_id,
+                      quantidade: String(insumo.quantidade || 1),
+                      unidade: insumo.unidade || 'un',
+                      material_do_cliente: Boolean(insumo.material_do_cliente),
+                    }))
+                  : [{ insumo_id: '', quantidade: '1', material_do_cliente: false }],
+              maquinas: isPrateleira
+                ? []
+                : produto.maquinas
+                  ? produto.maquinas.map((maquina: any) => ({
+                      maquina_id: maquina.maquina_id,
+                      horas_utilizadas: String(maquina.tempo_horas || 1),
+                    }))
+                  : [{ maquina_id: '', horas_utilizadas: '1' }],
+              funcoes: isPrateleira
+                ? []
+                : produto.funcoes
+                  ? produto.funcoes.map((funcao: any) => ({
+                      funcao_id: funcao.funcao_id,
+                      horas_trabalhadas: String(funcao.tempo_horas || 1),
+                    }))
+                  : [{ funcao_id: '', horas_trabalhadas: '1' }],
+              servicos: isPrateleira
+                ? []
+                : produto.servicos_manuais
+                  ? produto.servicos_manuais.map((servico: any) => ({
+                      servico_id: servico.servico_id,
+                      horas_trabalhadas: String(servico.tempo_horas || 1),
+                    }))
+                  : [{ servico_id: '', horas_trabalhadas: '1' }],
+              ...mapCamposPrateleiraFormulario(produto),
               });
             }) : [
               {

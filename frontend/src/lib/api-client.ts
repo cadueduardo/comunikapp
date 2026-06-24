@@ -272,6 +272,64 @@ export const produtosApi = {
   delete: (id: string, token: string) => ApiClient.delete(`/produtos/${id}`, token),
 };
 
+export const produtosFinitosApi = {
+  getAll: (
+    token: string,
+    params?: {
+      page?: number;
+      limit?: number;
+      categoria_id?: string;
+      busca?: string;
+      ativo?: boolean;
+    },
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.page) search.set('page', String(params.page));
+    if (params?.limit) search.set('limit', String(params.limit));
+    if (params?.categoria_id) search.set('categoria_id', params.categoria_id);
+    if (params?.busca) search.set('busca', params.busca);
+    if (typeof params?.ativo === 'boolean') search.set('ativo', String(params.ativo));
+    const qs = search.toString();
+    return ApiClient.get(`/produtos-finitos${qs ? `?${qs}` : ''}`, token);
+  },
+  getById: (id: string, token: string) =>
+    ApiClient.get(`/produtos-finitos/${id}`, token),
+  getParaOrcamento: (id: string, token: string) =>
+    ApiClient.get(`/produtos-finitos/${id}/para-orcamento`, token),
+  create: (data: Record<string, unknown>, token: string) =>
+    ApiClient.post('/produtos-finitos', data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    ApiClient.patch(`/produtos-finitos/${id}`, data, token),
+  delete: (id: string, token: string) =>
+    ApiClient.delete(`/produtos-finitos/${id}`, token),
+  listarCategorias: (token: string, ativo?: boolean) =>
+    ApiClient.get(
+      `/produtos-finitos/categorias${
+        typeof ativo === 'boolean' ? `?ativo=${ativo}` : ''
+      }`,
+      token,
+    ),
+  criarCategoria: (nome: string, token: string) =>
+    ApiClient.post('/produtos-finitos/categorias', { nome }, token),
+  uploadImagem: (id: string, file: File, token: string) => {
+    const formData = new FormData();
+    formData.append('arquivo', file);
+    return ApiClient.post(`/produtos-finitos/${id}/imagens`, formData, token);
+  },
+  removerImagem: (produtoId: string, imagemId: string, token: string) =>
+    ApiClient.delete(`/produtos-finitos/${produtoId}/imagens/${imagemId}`, token),
+  reordenarImagens: (
+    produtoId: string,
+    imagemIds: string[],
+    token: string,
+  ) =>
+    ApiClient.patch(
+      `/produtos-finitos/${produtoId}/imagens/reordenar`,
+      { imagem_ids: imagemIds },
+      token,
+    ),
+};
+
 export const orcamentosApi = {
   getAll: (token: string) => ApiClient.get('/orcamentos-v2', token),
   getById: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}`, token),

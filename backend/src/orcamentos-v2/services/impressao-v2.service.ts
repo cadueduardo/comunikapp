@@ -10,6 +10,7 @@ import {
   ItemCustoIndireto,
   CustosOrcamento,
 } from '../interfaces/orcamento.interface';
+import { truncarDescricaoResumida } from '../../common/utils/descricao-resumida.util';
 
 /**
  * Serviço de Impressão V2 para Orçamentos
@@ -394,6 +395,14 @@ export class ImpressaoV2Service {
             funcoes: true,
             servicos_manuais: true,
             custos_indiretos: true,
+            produto_finito: {
+              select: {
+                id: true,
+                sku: true,
+                ean: true,
+                nome: true,
+              },
+            },
           },
         },
         // configuracoes não é relação no schema atual
@@ -452,6 +461,14 @@ export class ImpressaoV2Service {
             funcoes: true,
             servicos_manuais: true,
             custos_indiretos: true,
+            produto_finito: {
+              select: {
+                id: true,
+                sku: true,
+                ean: true,
+                nome: true,
+              },
+            },
           },
         },
       },
@@ -581,7 +598,10 @@ export class ImpressaoV2Service {
         cliente: orcamento.cliente,
       },
       loja: orcamento.loja,
-      produtos: orcamento.produtos || [],
+      produtos: (orcamento.produtos || []).map((produto: any) => ({
+        ...produto,
+        descricao: truncarDescricaoResumida(produto.descricao),
+      })),
       custos: orcamento.custos || {},
       configuracoes: orcamento.configuracoes || {},
       opcoes: opcoes || {},
@@ -590,14 +610,31 @@ export class ImpressaoV2Service {
     // Adicionar dados específicos do template
     switch (template) {
       case 'detalhado':
-        dadosBase.produtos = dadosBase.produtos.map((produto: any) => ({
-          ...produto,
-          insumos: produto.insumos || [],
-          maquinas: produto.maquinas || [],
-          funcoes: produto.funcoes || [],
-          servicos_manuais: produto.servicos_manuais || [],
-          custos_indiretos: produto.custos_indiretos || [],
-        }));
+        dadosBase.produtos = dadosBase.produtos.map((produto: any) => {
+          if (String(produto.tipo_item || 'SOB_DEMANDA').toUpperCase() === 'PRODUTO_FINITO') {
+            return {
+              ...produto,
+              tipo_item: 'PRODUTO_FINITO',
+              sku: produto.produto_finito?.sku || produto.sku_snapshot || null,
+              ean: produto.produto_finito?.ean || null,
+              insumos: [],
+              maquinas: [],
+              funcoes: [],
+              servicos_manuais: [],
+              custos_indiretos: [],
+              detalhe_prateleira: true,
+            };
+          }
+
+          return {
+            ...produto,
+            insumos: produto.insumos || [],
+            maquinas: produto.maquinas || [],
+            funcoes: produto.funcoes || [],
+            servicos_manuais: produto.servicos_manuais || [],
+            custos_indiretos: produto.custos_indiretos || [],
+          };
+        });
         break;
 
       case 'executivo':

@@ -27,7 +27,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { CalendarClock, Plus, Package, Loader2, Trash2 } from 'lucide-react';
+import { CalendarClock, Plus, Package, Loader2, Trash2, X } from 'lucide-react';
+import { ProdutoFinitoThumb } from '@/components/produtos-finitos/ProdutoFinitoThumb';
+import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 
 import {
@@ -52,6 +54,7 @@ interface ProdutoSectionProps {
   mode: 'novo' | 'editar' | 'template';
   orcamentoId?: string;
   onCarregarProduto?: (itemIndex: number) => void;
+  onAdicionarProdutoPrateleira?: (itemIndex: number) => void;
   insumos?: Array<{
     id: string;
     nome: string;
@@ -314,7 +317,7 @@ function SincronizadorGeometriaProduto({ itemIndex }: { itemIndex: number }) {
   );
 }
 
-export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, insumos = [], maquinas = [], funcoes = [], servicos = [], onInsumoCriado }: ProdutoSectionProps) {
+export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, onAdicionarProdutoPrateleira, insumos = [], maquinas = [], funcoes = [], servicos = [], onInsumoCriado }: ProdutoSectionProps) {
   const form = useFormContext();
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -529,45 +532,67 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, insumos =
     );
   };
 
+  const criarProdutoCustomizadoVazio = () => ({
+    nome_servico: '',
+    descricao: '',
+    quantidade_produto: '1',
+    largura_produto: '',
+    altura_produto: '',
+    profundidade_produto: '',
+    tem_profundidade: false,
+    unidade_medida_produto: 'un',
+    area_produto: '',
+    perimetro_produto: '',
+    geometria_origem: 'MANUAL' as const,
+    arquivo_geometria_url: '',
+    unidade_geometria: 'mm' as const,
+    materiais: [{ insumo_id: '', quantidade: '1', material_do_cliente: false }],
+    maquinas: [{ maquina_id: '', horas_utilizadas: '1' }],
+    funcoes: [{ funcao_id: '', horas_trabalhadas: '1' }],
+    servicos: [{ servico_id: '', horas_trabalhadas: '1' }],
+    instalacao_necessaria: false,
+    instalacao_tipo_id: '',
+    instalacao_regra_cobranca: 'FIXO',
+    instalacao_valor_unitario: '',
+    instalacao_usar_endereco_entrega: true,
+    instalacao_endereco_snapshot: '',
+    instalacao_cep: '',
+    instalacao_logradouro: '',
+    instalacao_numero: '',
+    instalacao_complemento: '',
+    instalacao_bairro: '',
+    instalacao_cidade: '',
+    instalacao_estado: '',
+    instalacao_preco_cobrado: '',
+    instalacao_custo_mao_obra: '',
+    instalacao_custo_deslocamento: '',
+    instalacao_tempo_estimado_min: '',
+    instalacao_quantidade_pessoas: '',
+    instalacao_observacoes: '',
+    tipo_item: 'SOB_DEMANDA',
+    produto_finito_id: '',
+    sku_snapshot: '',
+    preco_unitario_snapshot: '',
+    estoque_catalogo: 0,
+    imagem_snapshot_url: '',
+  });
+
   const handleAddProduto = () => {
-    append({
-      nome_servico: '',
-      descricao: '',
-      quantidade_produto: '1',
-      largura_produto: '',
-      altura_produto: '',
-      profundidade_produto: '',
-      tem_profundidade: false,
-      unidade_medida_produto: 'un',
-      area_produto: '',
-      perimetro_produto: '',
-      geometria_origem: 'MANUAL',
-      arquivo_geometria_url: '',
-      unidade_geometria: 'mm',
-      materiais: [{ insumo_id: '', quantidade: '1', material_do_cliente: false }],
-      maquinas: [{ maquina_id: '', horas_utilizadas: '1' }],
-      funcoes: [{ funcao_id: '', horas_trabalhadas: '1' }],
-      servicos: [{ servico_id: '', horas_trabalhadas: '1' }],
-      instalacao_necessaria: false,
-      instalacao_tipo_id: '',
-      instalacao_regra_cobranca: 'FIXO',
-      instalacao_valor_unitario: '',
-      instalacao_usar_endereco_entrega: true,
-      instalacao_endereco_snapshot: '',
-      instalacao_cep: '',
-      instalacao_logradouro: '',
-      instalacao_numero: '',
-      instalacao_complemento: '',
-      instalacao_bairro: '',
-      instalacao_cidade: '',
-      instalacao_estado: '',
-      instalacao_preco_cobrado: '',
-      instalacao_custo_mao_obra: '',
-      instalacao_custo_deslocamento: '',
-      instalacao_tempo_estimado_min: '',
-      instalacao_quantidade_pessoas: '',
-      instalacao_observacoes: '',
+    append(criarProdutoCustomizadoVazio());
+  };
+
+  const handleRemoverProdutoPrateleira = (index: number) => {
+    form.setValue(`itens_produto.${index}`, criarProdutoCustomizadoVazio() as any, {
+      shouldDirty: true,
+      shouldValidate: false,
     });
+    form.clearErrors(`itens_produto.${index}.nome_servico`);
+    form.clearErrors(`itens_produto.${index}.materiais`);
+    form.clearErrors(`itens_produto.${index}.quantidade_produto`);
+    form.clearErrors(`itens_produto.${index}.produto_finito_id`);
+    toast.success(
+      'Produto de prateleira removido. Use Carregar Modelo ou Adicionar Produto.',
+    );
   };
 
   const handleRemoveProduto = (index: number) => {
@@ -902,7 +927,22 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, insumos =
       </div>
 
       <Accordion type="multiple" className="space-y-4">
-        {fields.map((field, index) => (
+        {fields.map((field, index) => {
+          const tipoItem = form.watch(`itens_produto.${index}.tipo_item`);
+          const isPrateleira = tipoItem === 'PRODUTO_FINITO';
+          const estoqueCatalogo = Number(
+            form.watch(`itens_produto.${index}.estoque_catalogo`) || 0,
+          );
+          const quantidadeItem = Math.floor(
+            Number(
+              String(form.watch(`itens_produto.${index}.quantidade_produto`) || '1').replace(
+                ',',
+                '.',
+              ),
+            ) || 1,
+          );
+
+          return (
           <AccordionItem key={field.id} value={`item-${index}`}>
             <Card>
               <AccordionTrigger className="px-6 !py-0">
@@ -928,6 +968,124 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, insumos =
               </AccordionTrigger>
               <AccordionContent>
                 <CardContent className="space-y-6">
+                  {isPrateleira ? (
+                    <div className="space-y-4">
+                      <div className="relative rounded-md border bg-muted/40 p-4">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-2 top-2 h-8 gap-1 px-2 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleRemoverProdutoPrateleira(index)}
+                          title="Remover produto de prateleira"
+                        >
+                          <X className="h-4 w-4" />
+                          <span className="sr-only sm:not-sr-only sm:inline">Remover</span>
+                        </Button>
+                        <div className="flex gap-4 pr-20">
+                        <ProdutoFinitoThumb
+                          url={
+                            (form.watch(
+                              `itens_produto.${index}.imagem_snapshot_url`,
+                            ) as string) || null
+                          }
+                          alt={String(
+                            form.watch(`itens_produto.${index}.nome_servico`) || '',
+                          )}
+                          className="h-24 w-24 shrink-0"
+                        />
+                        <div className="min-w-0 flex-1 space-y-1 text-sm">
+                          <p className="font-medium">Produto de prateleira</p>
+                          <p className="text-muted-foreground">
+                            SKU:{' '}
+                            {form.watch(`itens_produto.${index}.sku_snapshot`) || '-'}
+                          </p>
+                          <p className="text-muted-foreground">
+                            Preço unitário:{' '}
+                            <span className="font-medium text-foreground">
+                              {formatCurrency(
+                                Number(
+                                  form.watch(
+                                    `itens_produto.${index}.preco_unitario_snapshot`,
+                                  ) || 0,
+                                ),
+                              )}
+                            </span>
+                          </p>
+                          <p className="text-muted-foreground">
+                            Subtotal ({quantidadeItem} un.):{' '}
+                            <span className="font-medium text-foreground">
+                              {formatCurrency(
+                                Number(
+                                  form.watch(
+                                    `itens_produto.${index}.preco_unitario_snapshot`,
+                                  ) || 0,
+                                ) * quantidadeItem,
+                              )}
+                            </span>
+                          </p>
+                        </div>
+                        </div>
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name={`itens_produto.${index}.quantidade_produto`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Quantidade (unidades)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={1}
+                                step={1}
+                                {...field}
+                                onChange={(e) => {
+                                  const onlyInt = e.target.value.replace(/[^0-9]/g, '');
+                                  field.onChange(onlyInt || '1');
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      {quantidadeItem > estoqueCatalogo ? (
+                        <p className="text-sm font-medium text-amber-700">
+                          Estoque insuficiente (disponível: {estoqueCatalogo})
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                  <>
+                  {(onCarregarProduto || onAdicionarProdutoPrateleira) ? (
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {onCarregarProduto ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onCarregarProduto(index)}
+                          className="flex items-center gap-2"
+                        >
+                          <Loader2 className="h-4 w-4" />
+                          <span>Carregar Modelo</span>
+                        </Button>
+                      ) : null}
+                      {onAdicionarProdutoPrateleira ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onAdicionarProdutoPrateleira(index)}
+                          className="flex items-center gap-2"
+                        >
+                          <Package className="h-4 w-4" />
+                          <span>Adicionar Produto</span>
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   {/* Anexo de geometria (imagem ou DXF) — sempre no TOPO do
                       card. Aceita Ctrl+V, drag-and-drop e clique. A imagem
                       anexada aqui vira a arte da OS gerada (decisão da
@@ -974,7 +1132,7 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, insumos =
                   </div>
 
                   {/* Informações do Produto */}
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                   <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_7rem]">
                      <FormField
                        control={form.control}
                        name={`itens_produto.${index}.nome_servico`}
@@ -999,38 +1157,22 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, insumos =
                              <Input 
                                type="text" 
                                placeholder="1"
-                               {...field}
+                               value={field.value ?? ''}
                                onChange={(e) => {
                                  const value = e.target.value.replace(/[^0-9,.-]/g, '');
                                  field.onChange(value);
                                  // Força re-render do disclaimer para atualizar área total
                                  setTimeout(() => form.trigger(`itens_produto.${index}.quantidade_produto`), 0);
                                }}
+                               onBlur={field.onBlur}
+                               name={field.name}
+                               ref={field.ref}
                              />
                            </FormControl>
                            <FormMessage />
                          </FormItem>
                        )}
                      />
-
-                     {/* Botão Carregar Produto */}
-                     {onCarregarProduto && (
-                       <FormItem>
-                         <FormLabel>&nbsp;</FormLabel>
-                         <FormControl>
-                           <Button
-                             type="button"
-                             variant="outline"
-                             size="sm"
-                             onClick={() => onCarregarProduto(index)}
-                             className="w-full flex items-center space-x-2"
-                           >
-                             <Loader2 className="w-4 h-4" />
-                             <span>Carregar Produto</span>
-                           </Button>
-                         </FormControl>
-                       </FormItem>
-                     )}
                    </div>
 
                   <FormField
@@ -1486,11 +1628,14 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, insumos =
                       )}
                     </div>
                   </div>
+                  </>
+                  )}
                 </CardContent>
               </AccordionContent>
             </Card>
           </AccordionItem>
-        ))}
+          );
+        })}
       </Accordion>
 
       <NovoInsumoModal

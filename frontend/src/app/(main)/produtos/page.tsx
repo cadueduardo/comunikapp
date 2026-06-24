@@ -94,8 +94,8 @@ export default function ProdutosPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Gerenciar Produtos</h1>
-          <p className="text-gray-600">Adicione, edite ou remova os templates de produtos do seu negócio.</p>
+          <h1 className="text-2xl font-bold">Modelos de Orçamento</h1>
+          <p className="text-gray-600">Adicione, edite ou remova os modelos de orçamento do seu negócio.</p>
         </div>
         <div className="flex items-center gap-2">
           {/* Switch de visualização apenas no desktop */}
@@ -124,7 +124,7 @@ export default function ProdutosPage() {
           <Link href="/produtos/novo">
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" />
-              Adicionar Produto
+              Adicionar modelo
             </Button>
           </Link>
         </div>

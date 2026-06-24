@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { OrcamentoV2Form } from '@/components/ui/orcamentos-v2/orcamento-v2-form';
+import { deserializarItensModeloOrcamento } from '@/components/ui/orcamento/utils/modelo-orcamento.helpers';
 
 interface ProdutoTemplateFormProps {
   mode: 'novo' | 'editar';
@@ -35,6 +36,26 @@ const mapProdutoParaOrcamento = (initialData?: Record<string, unknown>) => {
     return undefined;
   }
 
+  const nomeModelo = toStringValue(initialData.nome);
+  const margemPadrao = {
+    margem_lucro_customizada: initialData.margem_lucro_customizada ?? '30',
+    impostos_customizados: initialData.impostos_customizados ?? '25',
+    comissao_percentual: initialData.comissao_percentual ?? '5',
+  };
+
+  const snapshot = initialData.itens_orcamento;
+  if (Array.isArray(snapshot) && snapshot.length > 0) {
+    return {
+      titulo: nomeModelo,
+      nome_servico: nomeModelo,
+      descricao: toStringValue(initialData.descricao_produto || initialData.descricao),
+      ...margemPadrao,
+      itens_produto: deserializarItensModeloOrcamento(
+        snapshot as Array<Record<string, unknown>>,
+      ),
+    };
+  }
+
   const itens = Array.isArray(initialData.itens) ? initialData.itens : [];
   const maquinas = Array.isArray(initialData.maquinas) ? initialData.maquinas : [];
   const funcoes = Array.isArray(initialData.funcoes) ? initialData.funcoes : [];
@@ -44,12 +65,10 @@ const mapProdutoParaOrcamento = (initialData?: Record<string, unknown>) => {
   const descricao = toStringValue(initialData.descricao_produto || initialData.descricao);
 
   return {
-    titulo: nomeServico,
+    titulo: nomeModelo || nomeServico,
     nome_servico: nomeServico,
     descricao,
-    margem_lucro_customizada: initialData.margem_lucro_customizada ?? '30',
-    impostos_customizados: initialData.impostos_customizados ?? '25',
-    comissao_percentual: initialData.comissao_percentual ?? '5',
+    ...margemPadrao,
     itens_produto: [
       {
         nome_servico: nomeServico,
