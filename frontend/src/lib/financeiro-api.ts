@@ -1,4 +1,14 @@
-import { apiRequest } from './api';
+function getAuthHeaders(): HeadersInit {
+  const token =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('access_token')
+      : null;
+
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
 
 // ============================================================================
 // Tipos compartilhados com o backend (Fase 6 - Financeiro minimo)
@@ -134,7 +144,9 @@ export async function fetchCobrancas(
     pagina: filtros.pagina,
     por_pagina: filtros.por_pagina,
   });
-  const response = await apiRequest(`/financeiro/cobrancas${qs}`);
+  const response = await fetch(`/api/financeiro/cobrancas${qs}`, {
+    headers: getAuthHeaders(),
+  });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.message ?? 'Erro ao listar cobranças');
@@ -143,7 +155,9 @@ export async function fetchCobrancas(
 }
 
 export async function fetchCobrancaDetalhe(id: string): Promise<CobrancaDetalhe> {
-  const response = await apiRequest(`/financeiro/cobrancas/${id}`);
+  const response = await fetch(`/api/financeiro/cobrancas/${id}`, {
+    headers: getAuthHeaders(),
+  });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.message ?? 'Erro ao carregar cobrança');
@@ -155,10 +169,14 @@ export async function registrarRecebimento(
   cobrancaId: string,
   payload: RegistrarRecebimentoPayload,
 ): Promise<CobrancaDetalhe> {
-  const response = await apiRequest(`/financeiro/cobrancas/${cobrancaId}/recebimentos`, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+  const response = await fetch(
+    `/api/financeiro/cobrancas/${cobrancaId}/recebimentos`,
+    {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    },
+  );
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.message ?? 'Erro ao registrar recebimento');
@@ -170,10 +188,14 @@ export async function cancelarCobranca(
   cobrancaId: string,
   motivo?: string,
 ): Promise<CobrancaDetalhe> {
-  const response = await apiRequest(`/financeiro/cobrancas/${cobrancaId}/cancelar`, {
-    method: 'POST',
-    body: JSON.stringify({ motivo }),
-  });
+  const response = await fetch(
+    `/api/financeiro/cobrancas/${cobrancaId}/cancelar`,
+    {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ motivo }),
+    },
+  );
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.message ?? 'Erro ao cancelar cobrança');
@@ -192,7 +214,13 @@ export async function exportarCobrancasCsv(filtros: FiltrosCobranca = {}): Promi
     data_inicio: filtros.data_inicio,
     data_fim: filtros.data_fim,
   });
-  const response = await apiRequest(`/financeiro/cobrancas/export.csv${qs}`);
+  const token =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('access_token')
+      : null;
+  const response = await fetch(`/api/financeiro/cobrancas/export.csv${qs}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.message ?? 'Erro ao exportar CSV');

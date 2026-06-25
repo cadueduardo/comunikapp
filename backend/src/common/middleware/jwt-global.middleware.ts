@@ -15,10 +15,10 @@ export class JwtGlobalMiddleware implements NestMiddleware {
 
   use(req: Request, res: Response, next: NextFunction) {
     this.logger.debug(
-      `ðŸ”’ Middleware JWT executado para: ${req.method} ${req.path}`,
+      `Middleware JWT executado para: ${req.method} ${req.path}`,
     );
 
-    // Lista de rotas que nÃ£o precisam de autenticaÃ§Ã£o
+    // Lista de rotas que nao precisam de autenticacao
     const publicRoutes = [
       '/api/lojas/login',
       '/api/lojas/login/2fa',
@@ -44,11 +44,11 @@ export class JwtGlobalMiddleware implements NestMiddleware {
       '/usuarios/redefinir-senha',
       '/api/estoque/health',
       '/favicon.ico',
-      '/arte-aprovacao/links/public', // Rotas pÃºblicas de aprovaÃ§Ã£o de arte
+      '/arte-aprovacao/links/public',
       '/api/arte-aprovacao/links/public',
-      '/arte-aprovacao/comentarios/public', // Rotas pÃºblicas de comentÃ¡rios
+      '/arte-aprovacao/comentarios/public',
       '/api/arte-aprovacao/comentarios/public',
-      '/arte-aprovacao/mensagens/publico', // Rotas pÃºblicas de mensagens
+      '/arte-aprovacao/mensagens/publico',
       '/api/arte-aprovacao/mensagens/publico',
     ];
 
@@ -65,54 +65,43 @@ export class JwtGlobalMiddleware implements NestMiddleware {
     const isPublicOnboardingCreate =
       req.method === 'POST' && (req.path === '/lojas' || req.path === '/api/lojas');
 
-    // Verificar se a rota Ã© pÃºblica
     if (
       isPublicOnboardingCreate ||
       publicRoutes.some((route) => req.path === route || req.path.startsWith(`${route}/`))
     ) {
-      this.logger.debug(`âœ… Rota pÃºblica: ${req.path}`);
+      this.logger.debug(`Rota publica: ${req.path}`);
       return next();
     }
 
-    // Verificar rotas pÃºblicas especÃ­ficas do orÃ§amento V2
-    // Suporta tanto /orcamentos-v2 quanto /api/orcamentos-v2
     const isPublicOrcamento =
       /^\/(?:api\/)?orcamentos-v2\/[^/]+\/publico(?:\/acao)?$/.test(req.path) ||
       /^\/(?:api\/)?orcamentos-v2\/[^/]+\/reenviar-codigo$/.test(req.path);
     if (isPublicOrcamento) {
-      this.logger.debug(`âœ… Rota pÃºblica do orÃ§amento V2: ${req.path}`);
+      this.logger.debug(`Rota publica do orcamento V2: ${req.path}`);
       return next();
     }
 
-    // Download pÃºblico de arte exige token no prÃ³prio endpoint.
     if (/^\/(?:api\/)?arte-aprovacao\/versoes\/[^/]+\/arquivos\/public\/download\/[^/]+$/.test(req.path)) {
       if (!req.query?.token || typeof req.query.token !== 'string') {
-        throw new UnauthorizedException('Token pÃºblico obrigatÃ³rio');
+        throw new UnauthorizedException('Token público obrigatório');
       }
       return next();
     }
 
-    this.logger.debug(`ðŸ” Rota protegida: ${req.path}`);
+    this.logger.debug(`Rota protegida: ${req.path}`);
 
-    // Extrair token do header Authorization
     const authHeader = req.headers.authorization;
-    // this.logger.debug(`ðŸ“‹ Header Authorization: ${authHeader ? 'Presente' : 'Ausente'}`);
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      this.logger.warn(`âŒ Token nÃ£o fornecido para rota: ${req.path}`);
-      throw new UnauthorizedException('Token de autenticaÃ§Ã£o nÃ£o fornecido');
+      this.logger.warn(`Token nao fornecido para rota: ${req.path}`);
+      throw new UnauthorizedException('Token de autenticação não fornecido');
     }
 
     const token = authHeader.substring(7);
-    // this.logger.debug(`ðŸ”‘ Token extraÃ­do: ${token.substring(0, 20)}...`);
 
     try {
-      // Validar token JWT
-      // this.logger.debug('ðŸ” Validando token JWT...');
       const payload = this.jwtService.verify(token);
-      // this.logger.debug(`âœ… Token vÃ¡lido para usuÃ¡rio: ${payload.sub} (${payload.email})`);
 
-      // Adicionar informaÃ§Ãµes do usuÃ¡rio ao request
       req['user'] = {
         sub: payload.sub,
         email: payload.email,
@@ -121,20 +110,18 @@ export class JwtGlobalMiddleware implements NestMiddleware {
         nome_completo: payload.nome_completo,
         loja: {
           id: payload.loja_id,
-          // Outras propriedades da loja podem ser adicionadas aqui
         },
       };
 
-      // this.logger.debug(`ðŸ‘¤ UsuÃ¡rio autenticado: ${payload.nome_completo} (Loja: ${payload.loja_id})`);
       next();
     } catch (error) {
       if (process.env.NODE_ENV === 'production') {
-        this.logger.warn(`JWT invÃ¡lido: ${req.method} ${req.path}`);
+        this.logger.warn(`JWT invalido: ${req.method} ${req.path}`);
       } else {
-        this.logger.error(`âŒ Erro na validaÃ§Ã£o JWT: ${error.message}`);
-        this.logger.error(`ðŸ” Debug trace: ${error.stack}`);
+        this.logger.error(`Erro na validacao JWT: ${error.message}`);
+        this.logger.error(`Debug trace: ${error.stack}`);
       }
-      throw new UnauthorizedException('Token invÃ¡lido ou expirado');
+      throw new UnauthorizedException('Token inválido ou expirado');
     }
   }
 }
