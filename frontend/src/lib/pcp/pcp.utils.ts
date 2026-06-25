@@ -67,6 +67,13 @@ export function montarTopGargalos<T extends ColunaGargaloInput>(
     .slice(0, limite);
 }
 
+export function cardTemRetrabalho(card: {
+  retrabalho?: boolean;
+  alertas?: string[];
+}): boolean {
+  return Boolean(card.retrabalho) || card.alertas?.includes('retrabalho') === true;
+}
+
 export function montarQueryKanbanPorSetores(
   filtros: FiltrosKanbanSetoresInput,
 ): string {

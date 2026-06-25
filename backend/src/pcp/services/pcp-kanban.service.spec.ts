@@ -3,6 +3,7 @@ import { PCPKanbanService } from './pcp-kanban.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SetoresProdutivosService } from '../../configuracoes/services/centros-de-trabalho/setores-produtivos.service';
 import { OSPCPIntegrationService } from './os-pcp-integration.service';
+import { ExpedicaoCriacaoService } from '../../expedicao/services/expedicao-criacao.service';
 
 jest.mock('../mappers/kanban.mapper', () => ({
   KanbanMapper: {
@@ -17,6 +18,7 @@ const { KanbanMapper } = jest.requireMock('../mappers/kanban.mapper');
 describe('PCPKanbanService', () => {
   let service: PCPKanbanService;
   let prisma: any;
+  let expedicaoCriacaoService: { criarSeElegivel: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -51,6 +53,10 @@ describe('PCPKanbanService', () => {
       },
     } as unknown as jest.Mocked<PrismaService>;
 
+    expedicaoCriacaoService = {
+      criarSeElegivel: jest.fn().mockResolvedValue({ criado: true }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PCPKanbanService,
@@ -64,6 +70,10 @@ describe('PCPKanbanService', () => {
           useValue: {
             notificarStatusAlterado: jest.fn().mockResolvedValue(undefined),
           },
+        },
+        {
+          provide: ExpedicaoCriacaoService,
+          useValue: expedicaoCriacaoService,
         },
       ],
     }).compile();
@@ -95,6 +105,69 @@ describe('PCPKanbanService', () => {
     expect(KanbanMapper.calcularEstatisticas).toHaveBeenCalled();
     expect(resultado.cards).toEqual([{ id: 'card-1' }]);
     expect(resultado.stats).toEqual({ total: 1 });
+  });
+
+  it('deve criar expedição ao mover OS para CONCLUIDA no kanban geral', async () => {
+    prisma.ordemServico.updateMany.mockResolvedValueOnce({ count: 1 });
+
+    await service.atualizarStatusOS('loja-1', 'os-1', 'CONCLUIDA');
+
+    expect(prisma.ordemServico.updateMany).toHaveBeenCalledWith({
+      where: { id: 'os-1', loja_id: 'loja-1' },
+      data: expect.objectContaining({ status: 'FINALIZADA' }),
+    });
+    expect(expedicaoCriacaoService.criarSeElegivel).toHaveBeenCalledWith(
+      'os-1',
+      'loja-1',
+    );
+  });
+
+  it('não deve criar expedição ao mover OS para PRODUCAO no kanban geral', async () => {
+    prisma.ordemServico.updateMany.mockResolvedValueOnce({ count: 1 });
+
+    await service.atualizarStatusOS('loja-1', 'os-1', 'PRODUCAO');
+
+    expect(expedicaoCriacaoService.criarSeElegivel).not.toHaveBeenCalled();
+  });
+
+  it('remove cards CONCLUIDA fora da janela de 24h UTC', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-06-25T15:00:00.000Z'));
+
+    KanbanMapper.mapearOSParaKanban
+      .mockReturnValueOnce({ id: 'os-recente', status: 'CONCLUIDA' } as any)
+      .mockReturnValueOnce({ id: 'os-antiga', status: 'CONCLUIDA' } as any);
+    KanbanMapper.calcularEstatisticas.mockImplementation((cards: any[]) => ({
+      total: cards.length,
+    }));
+
+    prisma.ordemServico.findMany.mockResolvedValueOnce([
+      {
+        id: 'os-recente',
+        status: 'FINALIZADA',
+        atualizado_em: new Date('2026-06-25T14:00:00.000Z'),
+        workflow_instancia: {
+          data_fim: new Date('2026-06-25T14:00:00.000Z'),
+          instancias_setor: [],
+        },
+      },
+      {
+        id: 'os-antiga',
+        status: 'FINALIZADA',
+        atualizado_em: new Date('2026-06-20T10:00:00.000Z'),
+        workflow_instancia: {
+          data_fim: new Date('2026-06-20T10:00:00.000Z'),
+          instancias_setor: [],
+        },
+      },
+    ]);
+
+    const resultado = await service.obterKanbanGeral('loja-1');
+
+    expect(resultado.cards).toHaveLength(1);
+    expect(resultado.cards[0].id).toBe('os-recente');
+
+    jest.useRealTimers();
   });
 
   it('deve obter fila do setor e mapear instâncias', async () => {
@@ -321,6 +394,7 @@ describe('PCPKanbanService', () => {
       } as any);
       prisma.workflowInstancia.findUnique.mockResolvedValueOnce({
         os_id: 'os-1',
+        os: { loja_id: 'loja-1' },
       } as any);
       prisma.workflowInstancia.update.mockResolvedValueOnce({
         id: 'instancia-1',
@@ -522,6 +596,7 @@ describe('PCPKanbanService', () => {
       } as any);
       prisma.workflowInstancia.findUnique.mockResolvedValueOnce({
         os_id: 'os-1',
+        os: { loja_id: 'loja-1' },
       } as any);
       prisma.workflowInstancia.update.mockResolvedValueOnce({
         id: 'instancia-1',

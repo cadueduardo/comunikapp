@@ -30,6 +30,7 @@ export class KanbanMapper {
         : '',
       progresso: this.calcularProgresso(os),
       alertas: this.gerarAlertas(os),
+      retrabalho: Boolean(os.retrabalho),
       tem_workflow: Boolean(workflowAtivo),
       ...workflowInfo,
       setor_atual: instanciaAtiva?.setor?.nome,
@@ -67,7 +68,8 @@ export class KanbanMapper {
         ? new Date(os.data_prazo).toISOString().split('T')[0]
         : '',
       progresso: this.calcularProgressoInstancia(instancia),
-      alertas: [],
+      alertas: this.gerarAlertasInstancia(os),
+      retrabalho: Boolean(os?.retrabalho),
       tem_workflow: true,
       ...workflowInfo,
       setor_atual: instancia.setor?.nome,
@@ -390,6 +392,10 @@ export class KanbanMapper {
   private static gerarAlertas(os: any): string[] {
     const alertas: string[] = [];
 
+    if (os.retrabalho) {
+      alertas.push('retrabalho');
+    }
+
     if (!os.workflow_instancia) {
       alertas.unshift('sem_workflow');
     } else {
@@ -408,6 +414,14 @@ export class KanbanMapper {
       alertas.push(...os.alertas_estoque);
     }
 
+    return alertas;
+  }
+
+  private static gerarAlertasInstancia(os: any): string[] {
+    const alertas: string[] = [];
+    if (os?.retrabalho) {
+      alertas.push('retrabalho');
+    }
     return alertas;
   }
 

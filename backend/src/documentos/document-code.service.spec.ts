@@ -242,4 +242,31 @@ describe('DocumentCodeService', () => {
 
     expect(codigo).toBe(`OS-${anoAtual}-002`);
   });
+
+  it('deve derivar OS com o mesmo número do orçamento', () => {
+    expect(service.derivarCodigoOSDeOrcamento('ORC-2026-010')).toBe(
+      'OS-2026-010',
+    );
+    expect(service.derivarCodigoOSDeOrcamento('orc-2026-12')).toBe(
+      'OS-2026-012',
+    );
+    expect(service.derivarCodigoOSDeOrcamento('INVALIDO')).toBeNull();
+  });
+
+  it('deve resolver número OS de orçamento e sincronizar sequência', async () => {
+    findUniqueMock.mockResolvedValue({ ultimo_numero: 5 });
+
+    const codigo = await service.resolverNumeroOSDeOrcamento(
+      'loja-001',
+      'ORC-2026-010',
+    );
+
+    expect(codigo).toBe('OS-2026-010');
+    expect(prismaMock.document_sequence.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: { ultimo_numero: 10 },
+        create: expect.objectContaining({ ultimo_numero: 10 }),
+      }),
+    );
+  });
 });

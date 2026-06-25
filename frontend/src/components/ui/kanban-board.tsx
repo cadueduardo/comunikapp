@@ -52,6 +52,7 @@ export interface OSCard {
   progresso: number;
   alertas: string[];
   tem_workflow?: boolean;
+  retrabalho?: boolean;
   workflow_id?: string;
   workflow_nome?: string;
   workflow_setores_nomes?: string[];
@@ -94,6 +95,8 @@ function DraggableCard({ card, index, onCardClick, getPrioridadeColor, getAlerta
 }) {
   const aguardandoWorkflow =
     card.tem_workflow === false || card.alertas?.includes('sem_workflow');
+  const emRetrabalho =
+    card.retrabalho === true || card.alertas?.includes('retrabalho');
 
   return (
     <Draggable draggableId={card.id} index={index}>
@@ -106,7 +109,9 @@ function DraggableCard({ card, index, onCardClick, getPrioridadeColor, getAlerta
         >
           <Card
             className={`cursor-pointer hover:shadow-md transition-shadow ${
-              aguardandoWorkflow
+              emRetrabalho
+                ? 'border-fuchsia-400 bg-fuchsia-50/50 hover:border-fuchsia-500'
+                : aguardandoWorkflow
                 ? 'border-amber-300 bg-amber-50/40 hover:border-amber-400'
                 : ''
             } ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-blue-500' : ''}`}
@@ -124,6 +129,11 @@ function DraggableCard({ card, index, onCardClick, getPrioridadeColor, getAlerta
                       <Badge className={getPrioridadeColor(card.prioridade)}>
                         {card.prioridade}
                       </Badge>
+                      {emRetrabalho && (
+                        <Badge className="bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200">
+                          Retrabalho
+                        </Badge>
+                      )}
                     </div>
                     <h3 className="font-semibold text-base mb-1">{card.titulo}</h3>
                     <p className="text-sm text-gray-600 mb-2">{card.cliente}</p>
@@ -310,6 +320,7 @@ export function KanbanBoard({
       case 'estoque_baixo': return <IconAlertTriangle className="h-3 w-3" />;
       case 'prazo_proximo': return <IconHourglass className="h-3 w-3" />;
       case 'dados_faltantes': return <IconFlag className="h-3 w-3" />;
+      case 'retrabalho': return <IconRefresh className="h-3 w-3" />;
       case 'Urgente': return <IconAlertTriangle className="h-3 w-3" />;
       case 'Material atrasado': return <IconAlertTriangle className="h-3 w-3" />;
       default: return <IconAlertTriangle className="h-3 w-3" />;
@@ -322,6 +333,7 @@ export function KanbanBoard({
       case 'estoque_baixo': return 'Estoque baixo';
       case 'prazo_proximo': return 'Prazo próximo';
       case 'dados_faltantes': return 'Dados faltantes';
+      case 'retrabalho': return 'Retrabalho (devolvida da expedição)';
       default: return alerta;
     }
   };

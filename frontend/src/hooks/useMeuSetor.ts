@@ -22,6 +22,7 @@ export interface ItemFila {
   workflow_setores_nomes?: string[];
   instancia_setor_id?: string;
   proximos_setores_ids?: string[];
+  retrabalho?: boolean;
   tempo_previsto_min?: number;
   tempo_previsto_horas?: number;
   maquina_prevista?: {

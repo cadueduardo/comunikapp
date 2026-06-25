@@ -33,6 +33,11 @@ import { VencimentoCobrancasJob } from './jobs/vencimento-cobrancas.job';
     CobrancaVencimentoService,
     VencimentoCobrancasJob, // Fase 6.E - cron job diario de vencimento
   ],
-  exports: [CobrancasService, CobrancaVencimentoService, ParcelasBuilderService],
+  exports: [
+    CobrancasService,
+    CobrancaVencimentoService,
+    ParcelasBuilderService,
+    StatusRollupService,
+  ],
 })
 export class FinanceiroModule {}

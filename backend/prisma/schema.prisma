@@ -657,6 +657,7 @@ model loja {
   cobrancas                 Cobranca[] // Fase 6 - financeiro minimo
   categorias_produto_finito CategoriaProdutoFinito[]
   produtos_finitos          ProdutoFinito[]
+  expedicoes_logistica      ExpedicaoLogistica[]
 }
 
 model maquina {
@@ -1802,19 +1803,23 @@ model OrdemServico {
   motivo_modificacao String? @db.Text // Motivo da última modificação
   versao             Int     @default(1) // Controle de versão da OS
 
+  // Módulo Expedição — badge de retrabalho após devolução da expedição para o PCP
+  retrabalho Boolean @default(false)
+
   // Relacionamentos
   loja      loja       @relation(fields: [loja_id], references: [id])
   cliente   cliente    @relation(fields: [cliente_id], references: [id])
   orcamento orcamento? @relation(fields: [orcamento_id], references: [id])
 
   // Relacionamentos internos do módulo
-  itens              ItemOS[]
-  movimentacoes      MovimentacaoOS[]
-  checklists         ChecklistOS[]
-  workflow_instancia WorkflowInstancia?
-  apontamentos       Apontamento[]
-  logs               OrdemServicoLog[]
-  execucoes_regras   ExecucaoRegra[]
+  itens                ItemOS[]
+  movimentacoes        MovimentacaoOS[]
+  checklists           ChecklistOS[]
+  workflow_instancia   WorkflowInstancia?
+  apontamentos         Apontamento[]
+  logs                 OrdemServicoLog[]
+  execucoes_regras     ExecucaoRegra[]
+  expedicoes_logistica ExpedicaoLogistica[]
 
   // Relacionamentos Arte & Aprovação
   artes_versoes   ArteVersao[]
@@ -1822,6 +1827,7 @@ model OrdemServico {
 
   @@unique([loja_id, numero])
   @@index([loja_id, status])
+  @@index([loja_id, retrabalho])
   @@index([cliente_id])
   @@index([responsavel_id])
   @@index([data_abertura])
@@ -2199,6 +2205,55 @@ model WorkflowInstanciaSetor {
 }
 
 // ==========================================
+// MÓDULO EXPEDIÇÃO E PÓS-PRODUÇÃO
+// ==========================================
+
+enum StatusExpedicao {
+  AGUARDANDO_SEPARACAO
+  PRONTO_PARA_RETIRADA
+  EM_ROTA_DE_ENTREGA
+  AGUARDANDO_INSTALACAO
+  ENTREGUE_FINALIZADO
+  ARQUIVADO
+  DEVOLVIDA
+}
+
+enum ModalidadeExpedicao {
+  RETIRADA_CLIENTE
+  ENTREGA_TRANSPORTADORA
+  ENTREGA_FROTA_PROPRIA
+  INSTALACAO_NO_LOCAL
+}
+
+model ExpedicaoLogistica {
+  id              String              @id @default(cuid())
+  loja_id         String
+  os_id           String
+  modalidade      ModalidadeExpedicao @default(RETIRADA_CLIENTE)
+  status          StatusExpedicao     @default(AGUARDANDO_SEPARACAO)
+  codigo_rastreio String?             @db.VarChar(100)
+  data_expedida   DateTime?
+  data_conclusao  DateTime?
+  recebedor_nome  String?             @db.VarChar(150)
+  recebedor_doc   String?             @db.VarChar(50)
+  url_assinatura  String?             @db.Text
+  observacoes     String?             @db.Text
+  criado_em       DateTime            @default(now())
+  atualizado_em   DateTime            @updatedAt
+
+  loja          loja         @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  ordem_servico OrdemServico @relation(fields: [os_id], references: [id], onDelete: Cascade)
+
+  // os_id sem @unique: permite histórico DEVOLVIDA e nova expedição após retrabalho.
+  // Regra de negócio: no máximo um registro ativo (status != DEVOLVIDA) por OS.
+  @@index([loja_id])
+  @@index([loja_id, status])
+  @@index([loja_id, os_id])
+  @@index([os_id])
+  @@map("expedicoes_logistica")
+}
+
+// ==========================================
 // MÓDULO ARTE & APROVAÇÃO
 // ==========================================
 
@@ -2398,25 +2453,25 @@ model CategoriaProdutoFinito {
 }
 
 model ProdutoFinito {
-  id                String   @id @default(uuid())
-  loja_id           String
-  categoria_id      String?
-  sku               String   @db.VarChar(50)
-  ean               String?  @db.VarChar(13)
-  nome              String   @db.VarChar(255)
-  descricao_resumida String? @db.VarChar(500)
-  descricao         String?  @db.Text
-  preco_venda       Decimal  @db.Decimal(10, 2)
-  preco_promocional Decimal? @db.Decimal(10, 2)
-  peso_kg           Decimal  @default(0) @db.Decimal(10, 3)
-  largura_cm        Int      @default(0)
-  altura_cm         Int      @default(0)
-  profundidade_cm   Int      @default(0)
-  estoque_atual     Int      @default(0)
-  estoque_minimo    Int      @default(0)
-  ativo             Boolean  @default(true)
-  criado_em         DateTime @default(now())
-  atualizado_em     DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  loja_id            String
+  categoria_id       String?
+  sku                String   @db.VarChar(50)
+  ean                String?  @db.VarChar(13)
+  nome               String   @db.VarChar(255)
+  descricao_resumida String?  @db.VarChar(500)
+  descricao          String?  @db.Text
+  preco_venda        Decimal  @db.Decimal(10, 2)
+  preco_promocional  Decimal? @db.Decimal(10, 2)
+  peso_kg            Decimal  @default(0) @db.Decimal(10, 3)
+  largura_cm         Int      @default(0)
+  altura_cm          Int      @default(0)
+  profundidade_cm    Int      @default(0)
+  estoque_atual      Int      @default(0)
+  estoque_minimo     Int      @default(0)
+  ativo              Boolean  @default(true)
+  criado_em          DateTime @default(now())
+  atualizado_em      DateTime @updatedAt
 
   loja            loja                    @relation(fields: [loja_id], references: [id], onDelete: Cascade)
   categoria       CategoriaProdutoFinito? @relation(fields: [categoria_id], references: [id], onDelete: SetNull)

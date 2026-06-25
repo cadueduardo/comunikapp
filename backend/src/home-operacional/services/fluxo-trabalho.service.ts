@@ -321,7 +321,8 @@ export class FluxoTrabalhoService {
 
     const cards: CardFluxo[] = registros.map((os) =>
       this.montarCardOS(os, 'Pronto para entrega', [
-        { id: 'abrir', label: 'Abrir', href: `/os/${os.id}` },
+        { id: 'expedicao', label: 'Expedição', href: `/expedicao?os=${os.id}` },
+        { id: 'abrir', label: 'Abrir OS', href: `/os/${os.id}` },
       ]),
     );
 

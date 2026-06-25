@@ -18,6 +18,7 @@ import { DocumentosModule } from '../documentos/documentos.module';
 import { WebsocketsModule } from '../websockets/websockets.module';
 import { PCPModule } from '../pcp/pcp.module';
 import { ConfiguracoesModule } from '../configuracoes/configuracoes.module';
+import { ExpedicaoModule } from '../expedicao/expedicao.module';
 import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-estoque.service';
 import { getRequiredJwtSecret } from '../auth/jwt-secret';
 
@@ -83,6 +84,7 @@ const debugControllers =
     WebsocketsModule, // Para eventos automáticos
     PCPModule, // Para integração OS ↔ PCP
     ConfiguracoesModule, // Para validações automáticas
+    ExpedicaoModule, // Gatilho de expedição ao finalizar OS manualmente
     // JWT Module proprio (conforme premissas de autenticacao)
     JwtModule.registerAsync({
       imports: [ConfigModule],

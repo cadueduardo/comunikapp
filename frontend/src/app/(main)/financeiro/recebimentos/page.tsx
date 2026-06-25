@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   Banknote,
@@ -45,6 +46,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useUser } from '@/contexts/UserContext';
+import {
+  numerosDocumentoAlinhados,
+  osEsperadaDeOrcamento,
+} from '@/lib/expedicao/rastreio-documento.util';
 import {
   exportarCobrancasCsv,
   fetchCobrancas,
@@ -117,6 +122,9 @@ export default function RecebimentosPage() {
   const [filtroInicio, setFiltroInicio] = useState<string>('');
   const [filtroFim, setFiltroFim] = useState<string>('');
   const [busca, setBusca] = useState<string>(''); // busca local por orcamento/cliente
+  const [cobrancaDestaqueId, setCobrancaDestaqueId] = useState<string | null>(null);
+  const [contextoOsId, setContextoOsId] = useState<string | null>(null);
+  const [contextoOsNumero, setContextoOsNumero] = useState<string | null>(null);
   const [exportando, setExportando] = useState(false);
 
   // modais
@@ -124,12 +132,18 @@ export default function RecebimentosPage() {
   const [modoForcado, setModoForcado] = useState(false);
   const [cancelarTarget, setCancelarTarget] = useState<CobrancaResumo | null>(null);
 
-  // Le query string inicial (?status=VENCIDO etc) — usado por links da Home.
+  // Le query string inicial (?status=VENCIDO, ?cobranca=uuid, ?os=uuid&ref=OS-...) — Expedição e Home.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const status = params.get('status');
+    const cobrancaId = params.get('cobranca');
+    const osId = params.get('os');
+    const ref = params.get('ref');
     if (status) setFiltroStatus(status);
+    if (cobrancaId) setCobrancaDestaqueId(cobrancaId);
+    if (osId) setContextoOsId(osId);
+    if (ref) setContextoOsNumero(decodeURIComponent(ref));
   }, []);
 
   const filtrosBackend: FiltrosCobranca = useMemo(
@@ -166,6 +180,12 @@ export default function RecebimentosPage() {
     }
   }, [userLoading, user, carregar]);
 
+  useEffect(() => {
+    if (!cobrancaDestaqueId || loading || cobrancas.length === 0) return;
+    const elemento = document.getElementById(`cobranca-${cobrancaDestaqueId}`);
+    elemento?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [cobrancaDestaqueId, loading, cobrancas]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await carregar();
@@ -188,14 +208,25 @@ export default function RecebimentosPage() {
   // Busca client-side por numero do orcamento ou cliente.
   const cobrancasFiltradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    if (!q) return cobrancas;
-    return cobrancas.filter(
-      (c) =>
-        c.orcamento_numero.toLowerCase().includes(q) ||
-        (c.cliente_nome ?? '').toLowerCase().includes(q) ||
-        (c.orcamento_titulo ?? '').toLowerCase().includes(q),
-    );
-  }, [busca, cobrancas]);
+    let filtradas = !q
+      ? cobrancas
+      : cobrancas.filter(
+          (c) =>
+            c.orcamento_numero.toLowerCase().includes(q) ||
+            (c.cliente_nome ?? '').toLowerCase().includes(q) ||
+            (c.orcamento_titulo ?? '').toLowerCase().includes(q) ||
+            (c.ordens_servico ?? []).some((os) =>
+              os.numero.toLowerCase().includes(q),
+            ),
+        );
+
+    if (cobrancaDestaqueId && !filtradas.some((c) => c.id === cobrancaDestaqueId)) {
+      const destaque = cobrancas.find((c) => c.id === cobrancaDestaqueId);
+      if (destaque) filtradas = [destaque, ...filtradas];
+    }
+
+    return filtradas;
+  }, [busca, cobrancas, cobrancaDestaqueId]);
 
   // Totais agregados das linhas filtradas (visualizadas).
   const totais = useMemo(() => {
@@ -264,6 +295,26 @@ export default function RecebimentosPage() {
           </div>
         }
       />
+
+      {contextoOsNumero && (
+        <Card className="border-amber-300 bg-amber-50/80">
+          <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-amber-950">
+              <p className="font-semibold">
+                Liberação para expedição — {contextoOsNumero}
+              </p>
+              <p className="mt-1 text-amber-900">
+                Regularize a cobrança destacada abaixo para liberar a entrega.
+                Orçamento e OS ficam na mesma linha; se o badge da OS mostrar
+                «legado», a numeração foi gerada antes da regra ORC-010 → OS-010.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" asChild className="shrink-0 border-amber-400">
+              <Link href="/expedicao">Voltar à expedição</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Resumo de totais visiveis */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -421,7 +472,17 @@ export default function RecebimentosPage() {
                 </TableHeader>
                 <TableBody>
                   {cobrancasFiltradas.map((c) => (
-                    <TableRow key={c.id}>
+                    <TableRow
+                      key={c.id}
+                      id={`cobranca-${c.id}`}
+                      className={
+                        cobrancaDestaqueId === c.id ||
+                        (contextoOsId &&
+                          c.ordens_servico?.some((os) => os.id === contextoOsId))
+                          ? 'bg-amber-50 ring-2 ring-amber-300 ring-inset'
+                          : undefined
+                      }
+                    >
                       <TableCell className="align-top">
                         <div className="font-medium">
                           {c.cliente_nome ?? <span className="text-muted-foreground italic">sem cliente</span>}
@@ -430,6 +491,39 @@ export default function RecebimentosPage() {
                           {c.orcamento_numero}
                           {c.orcamento_titulo ? ` · ${c.orcamento_titulo}` : ''}
                         </div>
+                        {(c.ordens_servico?.length ?? 0) > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {c.ordens_servico.map((os) => {
+                              const alinhado = numerosDocumentoAlinhados(
+                                c.orcamento_numero,
+                                os.numero,
+                              );
+                              return (
+                                <Badge
+                                  key={os.id}
+                                  variant={
+                                    contextoOsId === os.id ? 'default' : 'secondary'
+                                  }
+                                  className={
+                                    contextoOsId === os.id
+                                      ? 'bg-amber-600 hover:bg-amber-600'
+                                      : !alinhado
+                                        ? 'border-amber-400 bg-amber-50 text-amber-900'
+                                        : 'text-xs'
+                                  }
+                                  title={
+                                    !alinhado
+                                      ? `Numeração legada: esperado ${osEsperadaDeOrcamento(c.orcamento_numero) ?? 'OS com mesmo sufixo do ORC'}`
+                                      : undefined
+                                  }
+                                >
+                                  {os.numero}
+                                  {!alinhado ? ' · legado' : ''}
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="align-top text-sm max-w-[220px]">
                         <div>{c.descricao}</div>

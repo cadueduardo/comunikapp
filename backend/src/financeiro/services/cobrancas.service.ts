@@ -198,7 +198,16 @@ export class CobrancasService {
         skip: (pagina - 1) * porPagina,
         take: porPagina,
         include: {
-          orcamento: { select: { numero: true, titulo: true } },
+          orcamento: {
+            select: {
+              numero: true,
+              titulo: true,
+              ordens_servico: {
+                select: { id: true, numero: true },
+                orderBy: { criado_em: 'desc' },
+              },
+            },
+          },
           cliente: { select: { nome: true } },
           parcelas: {
             where: {
@@ -223,7 +232,7 @@ export class CobrancasService {
     const row = await this.prisma.cobranca.findFirst({
       where: { id: cobrancaId, loja_id: lojaId },
       include: {
-        orcamento: { select: { numero: true, titulo: true } },
+        orcamento: { select: { numero: true, titulo: true, ordens_servico: { select: { id: true, numero: true }, orderBy: { criado_em: 'desc' } } } },
         cliente: { select: { nome: true } },
         parcelas: { orderBy: { ordem: 'asc' } },
         recebimentos: {
@@ -473,7 +482,7 @@ export class CobrancasService {
       orderBy: { data_aprovacao: 'desc' },
       take: 5000,
       include: {
-        orcamento: { select: { numero: true, titulo: true } },
+        orcamento: { select: { numero: true, titulo: true, ordens_servico: { select: { id: true, numero: true }, orderBy: { criado_em: 'desc' } } } },
         cliente: { select: { nome: true } },
         parcelas: {
           where: {
@@ -704,7 +713,13 @@ export class CobrancasService {
   private mapearResumo(
     row: Prisma.CobrancaGetPayload<{
       include: {
-        orcamento: { select: { numero: true; titulo: true } };
+        orcamento: {
+          select: {
+            numero: true;
+            titulo: true;
+            ordens_servico: { select: { id: true; numero: true } };
+          };
+        };
         cliente: { select: { nome: true } };
         parcelas: true;
         _count: { select: { parcelas: true } };
@@ -717,6 +732,10 @@ export class CobrancasService {
       orcamento_id: row.orcamento_id,
       orcamento_numero: row.orcamento.numero,
       orcamento_titulo: row.orcamento.titulo ?? null,
+      ordens_servico: row.orcamento.ordens_servico.map((os) => ({
+        id: os.id,
+        numero: os.numero,
+      })),
       cliente_id: row.cliente_id,
       cliente_nome: row.cliente?.nome ?? null,
       tipo: row.tipo,

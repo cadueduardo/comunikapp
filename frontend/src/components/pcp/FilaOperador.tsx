@@ -13,6 +13,7 @@ import {
   IconCheck,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
+import { cardTemRetrabalho } from '@/lib/pcp/pcp.utils';
 import { WorkflowCardInfo } from '@/components/pcp/WorkflowCardInfo';
 import type { ItemFila } from '@/hooks/useMeuSetor';
 import { IniciarProducaoMaquinaDialog } from '@/components/pcp/IniciarProducaoMaquinaDialog';
@@ -131,6 +132,7 @@ export function FilaOperador({
           !!item.data_prazo &&
           new Date(item.data_prazo) < new Date() &&
           item.status !== 'CONCLUIDA';
+        const emRetrabalho = cardTemRetrabalho(item);
         const destinosMovimento = setoresDestino.filter((setor) => {
           if (setor.id === setorAtualId) {
             return false;
@@ -146,6 +148,7 @@ export function FilaOperador({
             key={item.id}
             className={cn(
               'rounded-md border bg-background p-3 shadow-sm',
+              emRetrabalho && 'border-fuchsia-400 bg-fuchsia-50/50',
               atrasado && 'border-orange-300 bg-orange-50/40',
             )}
           >
@@ -157,6 +160,11 @@ export function FilaOperador({
                     {item.prioridade}
                   </Badge>
                   <Badge variant="secondary">{statusLabel(item.status)}</Badge>
+                  {emRetrabalho && (
+                    <Badge className="bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200">
+                      Retrabalho
+                    </Badge>
+                  )}
                 </div>
                 <p className="mt-1 line-clamp-2 text-sm">{item.titulo}</p>
                 <p className="text-xs text-muted-foreground">{item.cliente}</p>

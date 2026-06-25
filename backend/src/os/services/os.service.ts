@@ -22,6 +22,7 @@ import { AlcadasOrcamentoService } from './alcadas-orcamento.service';
 import { EventosAutomaticosService } from './eventos-automaticos.service';
 import { OSValidacoesService } from './os-validacoes.service';
 import { WorkflowAssignmentService } from '../../pcp/services/workflow-assignment.service';
+import { ExpedicaoCriacaoService } from '../../expedicao/services/expedicao-criacao.service';
 import { CreateOSDto } from '../dto/create-os.dto';
 import { AnotarSobraDto, RegistrarSobraDto } from '../dto/os-materiais.dto';
 import { CorrecaoMateriaisHelper } from '../helpers/correcao-materiais.helper';
@@ -74,6 +75,7 @@ export class OSService {
     private readonly osApprovalPermissionsService: OSApprovalPermissionsService,
     private readonly osValidacoesService: OSValidacoesService,
     private readonly workflowAssignmentService: WorkflowAssignmentService,
+    private readonly expedicaoCriacaoService: ExpedicaoCriacaoService,
   ) {}
 
   // ===== CRUD BÁSICO =====
@@ -236,8 +238,8 @@ export class OSService {
     try {
       this.logger.log(`Criando nova OS para loja ${lojaId}`);
 
-      // 1. Gerar numero sequencial
-      const numero = await this.gerarNumeroOS(lojaId);
+      // 1. Numeração: OS herdada do ORC (ORC-AAAA-NNN → OS-AAAA-NNN) ou sequencial avulsa
+      const numero = await this.resolverNumeroParaCriacao(lojaId, createOSDto);
 
       // 2. Validar dados basicos
       await this.validarDadosOS(lojaId, createOSDto);
@@ -978,6 +980,47 @@ export class OSService {
       );
       throw error;
     }
+  }
+
+  /**
+   * ORC-2026-010 → OS-2026-010 quando a OS nasce de orçamento aprovado.
+   */
+  private async resolverNumeroParaCriacao(
+    lojaId: string,
+    createOSDto: CreateOSDto,
+  ): Promise<string> {
+    if (!createOSDto.orcamento_id) {
+      return this.gerarNumeroOS(lojaId);
+    }
+
+    const orcamento = await this.prisma.orcamento.findFirst({
+      where: { id: createOSDto.orcamento_id, loja_id: lojaId },
+      select: { numero: true },
+    });
+
+    if (!orcamento?.numero) {
+      return this.gerarNumeroOS(lojaId);
+    }
+
+    const numero =
+      await this.documentCodeService.resolverNumeroOSDeOrcamento(
+        lojaId,
+        orcamento.numero,
+      );
+
+    const conflito = await this.prisma.ordemServico.findFirst({
+      where: { loja_id: lojaId, numero },
+      select: { id: true, orcamento_id: true },
+    });
+
+    if (conflito && conflito.orcamento_id !== createOSDto.orcamento_id) {
+      throw new BadRequestException(
+        `O número ${numero} já está em uso por outra OS. ` +
+          `Verifique a numeração do orçamento ${orcamento.numero}.`,
+      );
+    }
+
+    return numero;
   }
 
   // ===== MÉTODOS ESPECÍFICOS PARA OS DIRETA/INTERNA =====
@@ -2415,6 +2458,24 @@ export class OSService {
       this.logger.log(
         `OS ${os.numero} transicionada de ${os.status} para ${novoStatus}`,
       );
+
+      if (
+        novoStatus === StatusOS.FINALIZADA &&
+        String(os.tipo_os).toUpperCase() !== TipoOSInterface.INTERNA
+      ) {
+        try {
+          await this.expedicaoCriacaoService.criarSeElegivel(
+            osId,
+            os.loja_id,
+          );
+        } catch (error) {
+          this.logger.error(
+            `Falha ao criar expedição para OS ${osId} após finalização manual:`,
+            error,
+          );
+        }
+      }
+
       return this.formatarOrdemServico(osAtualizada);
     } catch (error) {
       this.logger.error(`Erro ao transicionar OS ${osId}:`, error);

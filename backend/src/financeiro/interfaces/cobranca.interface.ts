@@ -22,6 +22,7 @@ export interface CobrancaResumo {
   orcamento_id: string;
   orcamento_numero: string;
   orcamento_titulo: string | null;
+  ordens_servico: { id: string; numero: string }[];
   cliente_id: string | null;
   cliente_nome: string | null;
   tipo: string; // CondicaoPagamentoTipo

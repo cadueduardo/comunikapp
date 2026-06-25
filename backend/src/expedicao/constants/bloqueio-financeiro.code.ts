@@ -1,0 +1,3 @@
+export const BLOQUEIO_FINANCEIRO_CODE = 'BLOQUEIO_FINANCEIRO' as const;
+
+export const EXPEDICAO_JA_ATIVA_CODE = 'EXPEDICAO_JA_ATIVA' as const;

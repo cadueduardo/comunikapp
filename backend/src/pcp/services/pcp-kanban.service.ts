@@ -21,6 +21,12 @@ import { KanbanMapper } from '../mappers/kanban.mapper';
 import { SetoresProdutivosService } from '../../configuracoes/services/centros-de-trabalho/setores-produtivos.service';
 import { AuthenticatedUser } from '../../auth/auth.service';
 import { OSPCPIntegrationService } from './os-pcp-integration.service';
+import { ExpedicaoCriacaoService } from '../../expedicao/services/expedicao-criacao.service';
+import { obterLimiarHorasAtrasUtc } from '../../common/utils/utc-time.util';
+import { deveExibirCardConcluidoPronto24h } from '../utils/pronto-24h-kanban.util';
+
+/** Janela UTC da coluna «Pronto» (`CONCLUIDA`) no kanban geral do PCP. */
+const JANELA_HORAS_COLUNA_PRONTO = 24;
 
 @Injectable()
 export class PCPKanbanService {
@@ -34,6 +40,7 @@ export class PCPKanbanService {
     private prisma: PrismaService,
     private setoresProdutivosService: SetoresProdutivosService,
     private osPcpIntegration: OSPCPIntegrationService,
+    private expedicaoCriacaoService: ExpedicaoCriacaoService,
   ) {}
 
   /**
@@ -113,9 +120,11 @@ export class PCPKanbanService {
       });
 
       // Converter para formato do kanban
-      const cards: OSCardKanban[] = osLiberadas.map((os) =>
+      const cardsBrutos: OSCardKanban[] = osLiberadas.map((os) =>
         KanbanMapper.mapearOSParaKanban(os),
       );
+
+      const cards = this.filtrarCardsColunaConcluida24h(osLiberadas, cardsBrutos);
 
       // Calcular estatísticas
       const stats = KanbanMapper.calcularEstatisticas(cards);
@@ -350,6 +359,17 @@ export class PCPKanbanService {
 
       if (resultado.count === 0) {
         throw new NotFoundException(`OS ${osId} nao encontrada nesta loja.`);
+      }
+
+      if (statusPersistido === 'FINALIZADA') {
+        try {
+          await this.expedicaoCriacaoService.criarSeElegivel(osId, lojaId);
+        } catch (error) {
+          this.logger.error(
+            `Falha ao criar expedição para OS ${osId} após conclusão no kanban PCP:`,
+            error,
+          );
+        }
       }
 
       this.logger.log(`Status da OS ${osId} atualizado para ${statusPersistido}`);
@@ -709,7 +729,10 @@ export class PCPKanbanService {
     if (!proximoGrupo) {
       const workflowInstancia = await this.prisma.workflowInstancia.findUnique({
         where: { id: workflowInstanciaId },
-        select: { os_id: true },
+        select: {
+          os_id: true,
+          os: { select: { loja_id: true } },
+        },
       });
 
       await this.prisma.workflowInstancia.update({
@@ -722,11 +745,23 @@ export class PCPKanbanService {
         },
       });
 
-      if (workflowInstancia?.os_id) {
+      if (workflowInstancia?.os_id && workflowInstancia.os?.loja_id) {
         await this.osPcpIntegration.notificarStatusAlterado(
           workflowInstancia.os_id,
           'CONCLUIDO',
         );
+
+        try {
+          await this.expedicaoCriacaoService.criarSeElegivel(
+            workflowInstancia.os_id,
+            workflowInstancia.os.loja_id,
+          );
+        } catch (error) {
+          this.logger.error(
+            `Falha ao criar expedição para OS ${workflowInstancia.os_id} após conclusão do PCP:`,
+            error,
+          );
+        }
       }
       return;
     }
@@ -1105,5 +1140,39 @@ export class PCPKanbanService {
     return (
       instancia?.item_os?.os_id ?? instancia?.workflow_instancia?.os_id ?? null
     );
+  }
+
+  /**
+   * Coluna «Pronto» (`CONCLUIDA`): exibe somente OS concluídas nas últimas 24h UTC.
+   * Comparação em instantes UTC — independente do TZ do servidor (§2.7.3 do plano).
+   */
+  private filtrarCardsColunaConcluida24h(
+    osLiberadas: Array<{
+      id: string;
+      status: string;
+      atualizado_em: Date;
+      workflow_instancia?: {
+        status?: string;
+        data_fim?: Date | null;
+        instancias_setor?: Array<{ data_conclusao?: Date | null }>;
+      } | null;
+    }>,
+    cards: OSCardKanban[],
+  ): OSCardKanban[] {
+    const limiarUtc = obterLimiarHorasAtrasUtc(JANELA_HORAS_COLUNA_PRONTO);
+    const osPorId = new Map(osLiberadas.map((os) => [os.id, os]));
+
+    return cards.filter((card) => {
+      if (card.status !== 'CONCLUIDA') {
+        return true;
+      }
+
+      const os = osPorId.get(card.id);
+      if (!os) {
+        return false;
+      }
+
+      return deveExibirCardConcluidoPronto24h(os, limiarUtc);
+    });
   }
 }

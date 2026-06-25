@@ -74,6 +74,8 @@ export interface OSCardKanban {
   etapa_ordem?: number;
   /** Setores permitidos como destino na proxima movimentacao. */
   proximos_setores_ids?: string[];
+  /** OS devolvida da expedição para retrabalho no PCP. */
+  retrabalho?: boolean;
 }
 
 export interface KanbanStats {

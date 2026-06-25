@@ -88,6 +88,83 @@ export class DocumentCodeService {
     });
   }
 
+  /**
+   * Deriva OS-AAAA-NNN a partir de ORC-AAAA-NNN (mesma sequência, prefixo diferente).
+   * Regra de rastreabilidade orçamento → OS.
+   */
+  derivarCodigoOSDeOrcamento(numeroOrcamento: string): string | null {
+    const match = numeroOrcamento.trim().match(/^ORC-(\d{4})-(\d+)$/i);
+    if (!match) {
+      return null;
+    }
+
+    const ano = match[1];
+    const sequencia = match[2].padStart(PADRAO_NUMERO, '0');
+    return `${DOCUMENTO_OS}-${ano}-${sequencia}`;
+  }
+
+  /**
+   * Ao criar OS a partir de orçamento, reutiliza o número do ORC e sincroniza a sequência OS.
+   */
+  async resolverNumeroOSDeOrcamento(
+    lojaId: string,
+    numeroOrcamento: string,
+  ): Promise<string> {
+    const derivado = this.derivarCodigoOSDeOrcamento(numeroOrcamento);
+    if (!derivado) {
+      this.logger.warn(
+        `Orçamento ${numeroOrcamento} fora do padrão ORC-AAAA-NNN — gerando OS sequencial`,
+      );
+      return this.gerarCodigoOS(lojaId);
+    }
+
+    await this.sincronizarSequenciaOSComCodigo(lojaId, derivado);
+    return derivado;
+  }
+
+  private async sincronizarSequenciaOSComCodigo(
+    lojaId: string,
+    codigoOS: string,
+  ): Promise<void> {
+    const info = this.extrairInformacoesCodigo(codigoOS);
+    if (!info || info.tipo !== TipoOS.COMERCIAL) {
+      return;
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const existente = await tx.document_sequence.findUnique({
+        where: {
+          loja_id_tipo_ano: {
+            loja_id: lojaId,
+            tipo: DOCUMENTO_OS,
+            ano: info.ano,
+          },
+        },
+      });
+
+      if (existente && existente.ultimo_numero >= info.numero) {
+        return;
+      }
+
+      await tx.document_sequence.upsert({
+        where: {
+          loja_id_tipo_ano: {
+            loja_id: lojaId,
+            tipo: DOCUMENTO_OS,
+            ano: info.ano,
+          },
+        },
+        update: { ultimo_numero: info.numero },
+        create: {
+          loja_id: lojaId,
+          tipo: DOCUMENTO_OS,
+          ano: info.ano,
+          ultimo_numero: info.numero,
+        },
+      });
+    });
+  }
+
   private async gerarCodigo({
     tipoDocumento,
     lojaId,
