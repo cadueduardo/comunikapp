@@ -14,6 +14,7 @@
 #   APPLY_FAIL2BAN=1|0
 #   INSTALL_SYSTEM_PACKAGES=1|0
 #   RUN_AUDIT=1|0
+#   SKIP_HEALTH_CHECKS=1|0
 
 set -euo pipefail
 
@@ -26,6 +27,7 @@ APPLY_NGINX="${APPLY_NGINX:-1}"
 APPLY_FAIL2BAN="${APPLY_FAIL2BAN:-1}"
 INSTALL_SYSTEM_PACKAGES="${INSTALL_SYSTEM_PACKAGES:-1}"
 RUN_AUDIT="${RUN_AUDIT:-1}"
+SKIP_HEALTH_CHECKS="${SKIP_HEALTH_CHECKS:-0}"
 BACKEND_SERVICE="${BACKEND_SERVICE:-comunikapp-backend}"
 FRONTEND_SERVICE="${FRONTEND_SERVICE:-comunikapp-frontend}"
 
@@ -361,14 +363,31 @@ restart_apps() {
 }
 
 health_checks() {
+  if [ "$SKIP_HEALTH_CHECKS" = '1' ]; then
+    log 'Health checks ignorados (SKIP_HEALTH_CHECKS=1).'
+    return
+  fi
+
   local backend_port frontend_port docs_status uploads_status front_status
+  local backend_health front_body_file pm2_frontend_status
+
   backend_port="$(env_value "$BACKEND_ENV" PORT)"
-  frontend_port="$(env_value "$FRONTEND_ENV" PORT)"
   backend_port="${backend_port:-4001}"
-  frontend_port="${frontend_port:-3001}"
+  # O PM2 inicia o Next com "-p 3001" fixo em ecosystem.config.js (nao usar PORT do .env).
+  frontend_port=3001
 
   log 'Validando portas locais...'
   ss -tlnp | grep -E "127\\.0\\.0\\.1:(${backend_port}|${frontend_port})" || true
+
+  pm2_frontend_status="$(run_as_app "pm2 describe comunikapp-frontend 2>/dev/null | awk '/status/{print \$4; exit}'" || true)"
+  log "PM2 comunikapp-frontend: ${pm2_frontend_status:-desconhecido}"
+  [ "$pm2_frontend_status" = 'online' ] || fail 'comunikapp-frontend nao esta online no PM2.'
+
+  backend_health="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${backend_port}/lojas/health" || true)"
+  case "$backend_health" in
+    200) log "Backend local /lojas/health: HTTP ${backend_health}." ;;
+    *) fail "Backend local nao respondeu /lojas/health. HTTP ${backend_health}." ;;
+  esac
 
   docs_status="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${backend_port}/api/docs" || true)"
   [ "$docs_status" != '200' ] || fail 'Swagger esta acessivel em producao (/api/docs retornou 200).'
@@ -376,7 +395,14 @@ health_checks() {
   uploads_status="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${backend_port}/uploads/arte/health-check" || true)"
   [ "$uploads_status" != '200' ] || fail '/uploads/arte esta acessivel diretamente no backend.'
 
-  front_status="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${frontend_port}" || true)"
+  front_body_file="$(mktemp)"
+  front_status="$(curl -s -o "$front_body_file" -w '%{http_code}' "http://127.0.0.1:${frontend_port}/" || true)"
+  if grep -q '"statusCode":401' "$front_body_file" 2>/dev/null; then
+    rm -f "$front_body_file"
+    fail "Porta ${frontend_port} respondeu JSON 401 do NestJS. O frontend Next.js nao esta servindo essa porta."
+  fi
+  rm -f "$front_body_file"
+
   case "$front_status" in
     2*|3*) log "Frontend local respondeu HTTP ${front_status}." ;;
     *) fail "Frontend local nao respondeu corretamente. HTTP ${front_status}." ;;
