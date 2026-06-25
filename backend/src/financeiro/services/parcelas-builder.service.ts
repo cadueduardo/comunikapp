@@ -169,7 +169,7 @@ export class ParcelasBuilderService {
     const somaParcelas = manuais.reduce((acc, p) => acc + p.valor_previsto, 0);
     if (Math.abs(somaParcelas - params.valorTotal) > 0.02) {
       throw new BadRequestException(
-        `Soma das parcelas (${somaParcelas.toFixed(2)}) deve ser igual ao valor_total (${params.valorTotal.toFixed(2)})`,
+        `Soma das parcelas (R$ ${this.formatarMoeda(somaParcelas)}) deve ser igual ao valor_total (R$ ${this.formatarMoeda(params.valorTotal)})`,
       );
     }
     return manuais
@@ -196,23 +196,23 @@ export class ParcelasBuilderService {
     const tipo = params.tipo as CondicaoPagamentoTipo;
     switch (tipo) {
       case CondicaoPagamentoTipo.A_VISTA:
-        return 'Pagamento a vista na aprovacao';
+        return 'Pagamento à vista na aprovação';
       case CondicaoPagamentoTipo.ENTRADA_SALDO: {
         const pct = params.entradaPct ?? 50;
         return `${pct.toFixed(0)}% de entrada e ${(100 - pct).toFixed(0)}% no saldo (entrega)`;
       }
       case CondicaoPagamentoTipo.FATURADO_30:
-        return 'Faturado 30 dias apos aprovacao';
+        return 'Faturado 30 dias após aprovação';
       case CondicaoPagamentoTipo.FATURADO_60:
-        return 'Faturado 60 dias apos aprovacao';
+        return 'Faturado 60 dias após aprovação';
       case CondicaoPagamentoTipo.FATURADO_90:
-        return 'Faturado 90 dias apos aprovacao';
+        return 'Faturado 90 dias após aprovação';
       case CondicaoPagamentoTipo.PARCELADO:
         return `Parcelado em ${params.parcelas ?? 2}x sem juros`;
       case CondicaoPagamentoTipo.PERSONALIZADO:
-        return 'Condicao personalizada';
+        return 'Condição personalizada';
       default:
-        return 'Condicao nao especificada';
+        return 'Condição não especificada';
     }
   }
 
@@ -227,5 +227,12 @@ export class ParcelasBuilderService {
 
   private arredondar(valor: number): number {
     return Math.round(valor * 100) / 100;
+  }
+
+  private formatarMoeda(valor: number): string {
+    return valor.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   }
 }

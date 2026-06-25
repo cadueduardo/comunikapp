@@ -50,6 +50,7 @@ import {
   numerosDocumentoAlinhados,
   osEsperadaDeOrcamento,
 } from '@/lib/expedicao/rastreio-documento.util';
+import { formatarMoeda } from '@/lib/financeiro/financeiro-format';
 import {
   exportarCobrancasCsv,
   fetchCobrancas,
@@ -86,15 +87,6 @@ const STATUS_VARIANTE: Record<
   LIQUIDADO: { label: 'Liquidado', classe: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
   CANCELADA: { label: 'Cancelada', classe: 'bg-zinc-100 text-zinc-600 border-zinc-200' },
 };
-
-function formatarMoeda(valor: number): string {
-  return valor.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
 
 function formatarData(iso: string | null): string {
   if (!iso) return '-';
@@ -166,7 +158,7 @@ export default function RecebimentosPage() {
       setCobrancas(res.data);
       setMeta(res.meta);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Erro ao carregar cobrancas';
+      const msg = e instanceof Error ? e.message : 'Erro ao carregar cobranças';
       toast.error(msg);
       setCobrancas([]);
     } finally {
@@ -264,11 +256,11 @@ export default function RecebimentosPage() {
           title="Auditoria de recebimentos"
           backHref="/dashboard"
           icon={<Banknote className="h-8 w-8" />}
-          subtitle="Acompanhe cobrancas e recebimentos por cliente"
+          subtitle="Acompanhe cobranças e recebimentos por cliente"
         />
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Voce nao tem permissao para acessar a auditoria financeira.
+            Você não tem permissão para acessar a auditoria financeira.
           </CardContent>
         </Card>
       </div>
@@ -281,7 +273,7 @@ export default function RecebimentosPage() {
         title="Auditoria de recebimentos"
         backHref="/dashboard"
         icon={<Banknote className="h-8 w-8" />}
-        subtitle="Acompanhe cobrancas e recebimentos por cliente"
+        subtitle="Acompanhe cobranças e recebimentos por cliente"
         actions={
           <div className="flex gap-2">
             <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
@@ -392,7 +384,7 @@ export default function RecebimentosPage() {
             </div>
             <div className="space-y-1">
               <Label htmlFor="data-fim" className="text-xs">
-                Aprovado ate
+                Aprovado até
               </Label>
               <Input
                 id="data-fim"
@@ -403,14 +395,14 @@ export default function RecebimentosPage() {
             </div>
             <div className="space-y-1 md:col-span-2">
               <Label htmlFor="busca" className="text-xs">
-                Busca rapida
+                Busca rápida
               </Label>
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="busca"
                   className="pl-8"
-                  placeholder="Cliente, orcamento ou titulo..."
+                  placeholder="Cliente, orçamento ou título..."
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
                 />
@@ -420,9 +412,9 @@ export default function RecebimentosPage() {
           <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
             <span>
               <CalendarRange className="h-3 w-3 inline mr-1" />
-              {meta.total} cobranca(s) carregada(s){' '}
+              {meta.total} cobrança(s) carregada(s){' '}
               {cobrancasFiltradas.length !== cobrancas.length
-                ? `(${cobrancasFiltradas.length} apos busca local)`
+                ? `(${cobrancasFiltradas.length} após busca local)`
                 : ''}
             </span>
             <Button
@@ -448,26 +440,26 @@ export default function RecebimentosPage() {
           {loading ? (
             <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              Carregando cobrancas...
+              Carregando cobranças...
             </div>
           ) : cobrancasFiltradas.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-sm text-muted-foreground">
               <Banknote className="h-10 w-10 mb-2 opacity-40" />
-              Nenhuma cobranca encontrada com os filtros atuais.
+              Nenhuma cobrança encontrada com os filtros atuais.
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Cliente / Orcamento</TableHead>
-                    <TableHead>Condicao</TableHead>
+                    <TableHead>Cliente / Orçamento</TableHead>
+                    <TableHead>Condição</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                     <TableHead className="text-right">Recebido</TableHead>
                     <TableHead className="text-right">Saldo</TableHead>
-                    <TableHead>Proxima parcela</TableHead>
+                    <TableHead>Próxima parcela</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Acoes</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -654,23 +646,23 @@ function AcoesCobranca({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm">
-          Acoes
+          Ações
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel className="text-xs">Cobranca</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-xs">Cobrança</DropdownMenuLabel>
         <DropdownMenuItem onClick={onRegistrar} disabled={!podeReceber}>
           <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-600" />
           Registrar pagamento
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onForcar} disabled={!podeReceber}>
           <Zap className="h-4 w-4 mr-2 text-amber-600" />
-          Forcar recebimento total
+          Forçar recebimento total
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onCancelar} disabled={!podeCancelar}>
           <XCircle className="h-4 w-4 mr-2 text-red-600" />
-          Cancelar cobranca
+          Cancelar cobrança
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -37,13 +37,13 @@ export function CancelarCobrancaDialog({
   const handleSubmit = async () => {
     if (!cobranca) return;
     if (motivo.trim().length < 5) {
-      toast.error('Informe um motivo (minimo 5 caracteres)');
+      toast.error('Informe um motivo (mínimo 5 caracteres)');
       return;
     }
     setSubmitting(true);
     try {
       await cancelarCobranca(cobranca.id, motivo.trim());
-      toast.success('Cobranca cancelada');
+      toast.success('Cobrança cancelada');
       onSuccess();
       onOpenChange(false);
       setMotivo('');
@@ -61,18 +61,18 @@ export function CancelarCobrancaDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Cancelar cobranca</DialogTitle>
+          <DialogTitle>Cancelar cobrança</DialogTitle>
           <DialogDescription>
-            Cobranca <strong>{cobranca.orcamento_numero}</strong> &middot;{' '}
-            {cobranca.cliente_nome ?? 'cliente nao informado'}
+            Cobrança <strong>{cobranca.orcamento_numero}</strong> &middot;{' '}
+            {cobranca.cliente_nome ?? 'cliente não informado'}
           </DialogDescription>
         </DialogHeader>
 
         <Alert className="border-red-300 bg-red-50">
           <AlertTriangle className="h-4 w-4 text-red-600" />
           <AlertDescription className="text-red-900 text-xs">
-            Acao sensivel: cancela a cobranca e marca todas as parcelas em aberto
-            como canceladas. Esta acao nao pode ser desfeita e fica registrada no
+            Ação sensível: cancela a cobrança e marca todas as parcelas em aberto
+            como canceladas. Esta ação não pode ser desfeita e fica registrada no
             log de auditoria.
           </AlertDescription>
         </Alert>
@@ -83,7 +83,7 @@ export function CancelarCobrancaDialog({
             id="motivo"
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
-            placeholder="Descreva o motivo (sera registrado no log)"
+            placeholder="Descreva o motivo (será registrado no log)"
             rows={3}
             required
           />

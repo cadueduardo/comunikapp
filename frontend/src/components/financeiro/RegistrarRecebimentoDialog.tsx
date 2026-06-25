@@ -29,6 +29,11 @@ import type {
   RecebimentoMetodo,
 } from '@/lib/financeiro-api';
 import { registrarRecebimento } from '@/lib/financeiro-api';
+import {
+  formatarMoeda,
+  formatarValorInput,
+  parseValorMoedaBr,
+} from '@/lib/financeiro/financeiro-format';
 
 interface Props {
   cobranca: CobrancaResumo | null;
@@ -49,9 +54,9 @@ interface Props {
 const METODOS: { value: RecebimentoMetodo; label: string }[] = [
   { value: 'PIX', label: 'PIX' },
   { value: 'DINHEIRO', label: 'Dinheiro' },
-  { value: 'TRANSFERENCIA', label: 'Transferencia' },
-  { value: 'CARTAO_DEBITO', label: 'Cartao de debito' },
-  { value: 'CARTAO_CREDITO', label: 'Cartao de credito' },
+  { value: 'TRANSFERENCIA', label: 'Transferência' },
+  { value: 'CARTAO_DEBITO', label: 'Cartão de débito' },
+  { value: 'CARTAO_CREDITO', label: 'Cartão de crédito' },
   { value: 'BOLETO', label: 'Boleto' },
   { value: 'OUTRO', label: 'Outro' },
 ];
@@ -64,11 +69,14 @@ export function RegistrarRecebimentoDialog({
   modoForcado = false,
 }: Props) {
   const proxima = cobranca?.proxima_parcela ?? null;
-  const saldoSugerido = proxima
+  const saldoParcelaAberta = proxima
     ? Number(proxima.valor_previsto) - Number(proxima.valor_recebido)
     : Number(cobranca?.valor_saldo ?? 0);
+  const valorInicial = modoForcado
+    ? Number(cobranca?.valor_saldo ?? 0)
+    : saldoParcelaAberta;
 
-  const [valor, setValor] = useState<string>(saldoSugerido.toFixed(2));
+  const [valor, setValor] = useState<string>(formatarValorInput(valorInicial));
   const [dataRecebimento, setDataRecebimento] = useState<string>(
     new Date().toISOString().slice(0, 10),
   );
@@ -86,9 +94,9 @@ export function RegistrarRecebimentoDialog({
 
   const handleSubmit = async () => {
     if (!cobranca) return;
-    const valorNumerico = Number(valor.replace(',', '.'));
+    const valorNumerico = parseValorMoedaBr(valor);
     if (Number.isNaN(valorNumerico) || valorNumerico <= 0) {
-      toast.error('Informe um valor valido maior que zero');
+      toast.error('Informe um valor válido maior que zero');
       return;
     }
     if (!dataRecebimento) {
@@ -106,7 +114,7 @@ export function RegistrarRecebimentoDialog({
         forcado,
       });
       toast.success(
-        forcado ? 'Recebimento forcado registrado' : 'Recebimento registrado',
+        forcado ? 'Recebimento forçado registrado' : 'Recebimento registrado',
       );
       onSuccess();
       onOpenChange(false);
@@ -125,19 +133,21 @@ export function RegistrarRecebimentoDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {modoForcado ? 'Forcar recebimento total' : 'Registrar recebimento'}
+            {modoForcado ? 'Forçar recebimento total' : 'Registrar recebimento'}
           </DialogTitle>
           <DialogDescription>
-            Cobranca <strong>{cobranca.orcamento_numero}</strong> &middot;{' '}
-            {cobranca.cliente_nome ?? 'cliente nao informado'}
+            Cobrança <strong>{cobranca.orcamento_numero}</strong> &middot;{' '}
+            {cobranca.cliente_nome ?? 'cliente não informado'}
             <br />
             Saldo atual:{' '}
-            <strong>
-              {Number(cobranca.valor_saldo).toLocaleString('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
-              })}
-            </strong>
+            <strong>{formatarMoeda(Number(cobranca.valor_saldo))}</strong>
+            {proxima && saldoParcelaAberta < Number(cobranca.valor_saldo) && (
+              <>
+                <br />
+                Parcela em aberto:{' '}
+                <strong>{formatarMoeda(saldoParcelaAberta)}</strong>
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -145,8 +155,8 @@ export function RegistrarRecebimentoDialog({
           <Alert className="border-red-300 bg-red-50">
             <AlertTriangle className="h-4 w-4 text-red-600" />
             <AlertDescription className="text-red-900 text-xs">
-              Acao sensivel: forcar recebimento total liquida o saldo independente
-              do real recebimento. Sera registrado log com sua identidade.
+              Ação sensível: forçar recebimento total liquida o saldo independente
+              do real recebimento. Será registrado log com sua identidade.
             </AlertDescription>
           </Alert>
         )}
@@ -176,7 +186,7 @@ export function RegistrarRecebimentoDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="metodo">Metodo</Label>
+            <Label htmlFor="metodo">Método</Label>
             <Select
               value={metodo}
               onValueChange={(v) => setMetodo(v as RecebimentoMetodo)}
@@ -195,12 +205,12 @@ export function RegistrarRecebimentoDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="obs">Observacoes</Label>
+            <Label htmlFor="obs">Observações</Label>
             <Textarea
               id="obs"
               value={observacoes}
               onChange={(e) => setObservacoes(e.target.value)}
-              placeholder="Opcional (ex.: comprovante PIX, referencia interna...)"
+              placeholder="Opcional (ex.: comprovante PIX, referência interna...)"
               rows={2}
             />
           </div>
@@ -216,7 +226,7 @@ export function RegistrarRecebimentoDialog({
                 htmlFor="forcado"
                 className="text-xs text-amber-900 leading-tight cursor-pointer"
               >
-                Forcar recebimento total (registra como{' '}
+                Forçar recebimento total (registra como{' '}
                 <code>FORCADA_LIQUIDACAO</code> no log de auditoria)
               </Label>
             </div>

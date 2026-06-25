@@ -83,7 +83,7 @@ export class CobrancasService {
 
     if (!dados.tipo) {
       throw new BadRequestException(
-        'Orcamento sem condicao de pagamento estruturada (condicao_pagamento_tipo)',
+        'Orçamento sem condição de pagamento estruturada (condicao_pagamento_tipo)',
       );
     }
 
@@ -134,7 +134,7 @@ export class CobrancasService {
             create: [
               {
                 tipo_acao: CobrancaLogAcao.COBRANCA_CRIADA,
-                descricao: `Cobranca criada automaticamente apos aprovacao do orcamento. Tipo: ${dados.tipo}. ${parcelas.length} parcela(s).`,
+                descricao: `Cobrança criada automaticamente após aprovação do orçamento. Tipo: ${dados.tipo}. ${parcelas.length} parcela(s).`,
                 status_novo: CobrancaStatus.PREVISTA,
                 valor_movimentado: new Prisma.Decimal(dados.valor_total),
                 usuario_id: usuarioId,
@@ -243,7 +243,7 @@ export class CobrancasService {
       },
     });
     if (!row) {
-      throw new NotFoundException('Cobranca nao encontrada');
+      throw new NotFoundException('Cobrança não encontrada');
     }
 
     // Recalcula status na leitura (recategoriza vencidas + rollup).
@@ -294,16 +294,16 @@ export class CobrancasService {
       where: { id: cobrancaId, loja_id: lojaId },
       include: { parcelas: { orderBy: { ordem: 'asc' } } },
     });
-    if (!cobranca) throw new NotFoundException('Cobranca nao encontrada');
+    if (!cobranca) throw new NotFoundException('Cobrança não encontrada');
     if (cobranca.status === CobrancaStatus.CANCELADA) {
-      throw new BadRequestException('Cobranca cancelada nao aceita recebimentos');
+      throw new BadRequestException('Cobrança cancelada não aceita recebimentos');
     }
 
     // Identifica a parcela alvo.
     let parcelaAlvo: (typeof cobranca.parcelas)[number] | undefined;
     if (dto.parcela_id) {
       parcelaAlvo = cobranca.parcelas.find((p) => p.id === dto.parcela_id);
-      if (!parcelaAlvo) throw new NotFoundException('Parcela nao encontrada na cobranca');
+      if (!parcelaAlvo) throw new NotFoundException('Parcela não encontrada na cobrança');
     } else {
       // Primeira parcela em aberto (PREVISTO, PARCIAL_PAGO ou VENCIDO).
       parcelaAlvo = cobranca.parcelas.find((p) =>
@@ -314,7 +314,7 @@ export class CobrancasService {
         ].includes(p.status as ParcelaStatus),
       );
       if (!parcelaAlvo) {
-        throw new BadRequestException('Nao ha parcela em aberto para receber');
+        throw new BadRequestException('Não há parcela em aberto para receber');
       }
     }
 
@@ -322,7 +322,7 @@ export class CobrancasService {
       Number(parcelaAlvo.valor_previsto) - Number(parcelaAlvo.valor_recebido);
     if (dto.valor - saldoParcela > 0.01) {
       throw new BadRequestException(
-        `Valor (${dto.valor.toFixed(2)}) excede o saldo da parcela (${saldoParcela.toFixed(2)})`,
+        `Valor (R$ ${this.formatarMoeda(dto.valor)}) excede o saldo da parcela (R$ ${this.formatarMoeda(saldoParcela)})`,
       );
     }
 
@@ -362,7 +362,7 @@ export class CobrancasService {
           tipo_acao: dto.forcado
             ? CobrancaLogAcao.FORCADA_LIQUIDACAO
             : CobrancaLogAcao.RECEBIMENTO_REGISTRADO,
-          descricao: `Recebimento de R$ ${dto.valor.toFixed(2)} via ${dto.metodo} na parcela ordem=${parcelaAlvo!.ordem} (${parcelaAlvo!.tipo}). ${dto.forcado ? '[FORCADO]' : ''}`,
+          descricao: `Recebimento de R$ ${this.formatarMoeda(dto.valor)} via ${dto.metodo} na parcela ordem=${parcelaAlvo!.ordem} (${parcelaAlvo!.tipo}). ${dto.forcado ? '[FORÇADO]' : ''}`,
           status_anterior: parcelaAlvo!.status,
           status_novo: novoStatusParcela,
           valor_movimentado: new Prisma.Decimal(dto.valor),
@@ -394,13 +394,13 @@ export class CobrancasService {
       where: { id: cobrancaId, loja_id: lojaId },
       include: { parcelas: true },
     });
-    if (!cobranca) throw new NotFoundException('Cobranca nao encontrada');
+    if (!cobranca) throw new NotFoundException('Cobrança não encontrada');
     if (cobranca.status === CobrancaStatus.CANCELADA) {
-      throw new BadRequestException('Cobranca ja cancelada');
+      throw new BadRequestException('Cobrança já cancelada');
     }
     if (cobranca.status === CobrancaStatus.LIQUIDADO) {
       throw new BadRequestException(
-        'Cobranca liquidada nao pode ser cancelada. Estorne os recebimentos manualmente.',
+        'Cobrança liquidada não pode ser cancelada. Estorne os recebimentos manualmente.',
       );
     }
 
@@ -432,7 +432,7 @@ export class CobrancasService {
         data: {
           cobranca_id: cobrancaId,
           tipo_acao: CobrancaLogAcao.CANCELADA,
-          descricao: `Cobranca cancelada. Motivo: ${motivo ?? '(sem motivo informado)'}`,
+          descricao: `Cobrança cancelada. Motivo: ${motivo ?? '(sem motivo informado)'}`,
           status_anterior: cobranca.status,
           status_novo: CobrancaStatus.CANCELADA,
           usuario_id: usuarioId,
@@ -546,7 +546,10 @@ export class CobrancasService {
   }
 
   private formatarMoeda(valor: number): string {
-    return valor.toFixed(2).replace('.', ',');
+    return valor.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   }
 
   private formatarData(data: Date): string {

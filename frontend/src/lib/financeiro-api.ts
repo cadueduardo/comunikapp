@@ -137,7 +137,7 @@ export async function fetchCobrancas(
   const response = await apiRequest(`/financeiro/cobrancas${qs}`);
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.message ?? 'Erro ao listar cobrancas');
+    throw new Error(err.message ?? 'Erro ao listar cobranças');
   }
   return response.json();
 }
@@ -146,7 +146,7 @@ export async function fetchCobrancaDetalhe(id: string): Promise<CobrancaDetalhe>
   const response = await apiRequest(`/financeiro/cobrancas/${id}`);
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.message ?? 'Erro ao carregar cobranca');
+    throw new Error(err.message ?? 'Erro ao carregar cobrança');
   }
   return response.json();
 }
@@ -176,7 +176,7 @@ export async function cancelarCobranca(
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.message ?? 'Erro ao cancelar cobranca');
+    throw new Error(err.message ?? 'Erro ao cancelar cobrança');
   }
   return response.json();
 }
