@@ -31,6 +31,7 @@ import { ArquivarExpedicaoDialog } from '@/components/expedicao/ArquivarExpedica
 import { TransformarTemplateDialog } from '@/components/expedicao/TransformarTemplateDialog';
 import { IconArchive, IconRefresh, IconTruckDelivery } from '@tabler/icons-react';
 import { toast } from 'sonner';
+import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
 
 const FUNCOES_EXPEDICAO = new Set(['ADMINISTRADOR', 'PRODUCAO', 'ESTOQUE']);
 
@@ -173,6 +174,7 @@ export default function ExpedicaoPage() {
     try {
       await expedicaoApi.devolverProducao(expedicaoId, motivo);
       toast.success('OS devolvida para produção');
+      solicitarAtualizacaoBadgesSidebar();
       removerCard(expedicaoId);
       setDevolverAberto(false);
       setDetalheAberto(false);
@@ -199,6 +201,7 @@ export default function ExpedicaoPage() {
     try {
       await expedicaoApi.concluirEntrega(detalheAcao.id, dados);
       toast.success('Entrega concluída com sucesso');
+      solicitarAtualizacaoBadgesSidebar();
       setConcluirAberto(false);
       setDetalheAberto(false);
       setDetalheAcao(null);

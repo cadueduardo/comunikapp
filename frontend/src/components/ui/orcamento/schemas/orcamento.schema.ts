@@ -65,6 +65,7 @@ const itemProdutoSchema = z
     produto_finito_id: z.string().optional(),
     sku_snapshot: z.string().optional(),
     preco_unitario_snapshot: z.string().optional(),
+    preco_custo_snapshot: z.string().optional(),
     estoque_catalogo: z.number().optional(),
     imagem_snapshot_url: z.string().optional(),
     nome_servico: z.string().optional(),

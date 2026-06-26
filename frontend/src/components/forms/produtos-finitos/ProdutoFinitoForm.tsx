@@ -45,6 +45,7 @@ const formSchema = z.object({
   categoriaId: z.string().optional(),
   preco_venda: z.string().min(1, 'Informe o preço de venda.'),
   preco_promocional: z.string().optional(),
+  preco_custo: z.string().optional(),
   peso_kg: z.string().optional(),
   largura_cm: z.string().optional(),
   altura_cm: z.string().optional(),
@@ -120,6 +121,7 @@ export function ProdutoFinitoForm({
       categoriaId: initialData?.categoriaId ?? initialData?.categoria?.id ?? '',
       preco_venda: initialData?.preco_venda ?? '',
       preco_promocional: initialData?.preco_promocional ?? '',
+      preco_custo: formatCampoNumerico(initialData?.preco_custo),
       peso_kg: formatCampoNumerico(initialData?.peso_kg),
       largura_cm: formatCampoNumerico(initialData?.largura_cm),
       altura_cm: formatCampoNumerico(initialData?.altura_cm),
@@ -164,6 +166,7 @@ export function ProdutoFinitoForm({
     categoria_id: values.categoriaId || undefined,
     preco_venda: parseNumero(values.preco_venda) ?? 0,
     preco_promocional: parseNumero(values.preco_promocional),
+    preco_custo: parseNumero(values.preco_custo),
     peso_kg: parseNumero(values.peso_kg) ?? 0,
     largura_cm: Math.floor(parseNumero(values.largura_cm) ?? 0),
     altura_cm: Math.floor(parseNumero(values.altura_cm) ?? 0),
@@ -411,6 +414,28 @@ export function ProdutoFinitoForm({
                           </FormControl>
                           <FormDescription>
                             Opcional. Deve ser menor que o preço de venda.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="preco_custo"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel>Preço de custo</FormLabel>
+                          <FormControl>
+                            <CustomCurrencyInput
+                              placeholder="R$ 0,00"
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Quanto o produto custa para a loja (compra ou fabricação). Usado no orçamento para calcular margem.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>

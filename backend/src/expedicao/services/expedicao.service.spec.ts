@@ -25,6 +25,7 @@ describe('ExpedicaoService', () => {
   let financeiro: {
     verificarBloqueioEntrega: jest.Mock;
     assertEntregaLiberada: jest.Mock;
+    assertMovimentoKanbanLiberado: jest.Mock;
   };
   let notificacao: { emitirAtualizada: jest.Mock };
   let tx: Record<string, any>;
@@ -102,6 +103,7 @@ describe('ExpedicaoService', () => {
     financeiro = {
       verificarBloqueioEntrega: jest.fn().mockResolvedValue({ bloqueado: false }),
       assertEntregaLiberada: jest.fn().mockResolvedValue(undefined),
+      assertMovimentoKanbanLiberado: jest.fn().mockResolvedValue(undefined),
     };
 
     notificacao = { emitirAtualizada: jest.fn() };
@@ -196,6 +198,35 @@ describe('ExpedicaoService', () => {
       status_novo: StatusExpedicao.PRONTO_PARA_RETIRADA,
     });
     expect(resultado.status_novo).toBe(StatusExpedicao.PRONTO_PARA_RETIRADA);
+    expect(financeiro.assertMovimentoKanbanLiberado).toHaveBeenCalledWith(
+      'os-1',
+      'loja-1',
+    );
+  });
+
+  it('bloqueia mudança de status no kanban com pendência financeira', async () => {
+    tx.expedicaoLogistica.findFirst.mockResolvedValue({
+      id: 'exp-1',
+      os_id: 'os-1',
+      status: StatusExpedicao.AGUARDANDO_SEPARACAO,
+      data_expedida: null,
+    });
+    financeiro.assertMovimentoKanbanLiberado.mockRejectedValueOnce(
+      new ConflictException({
+        code: BLOQUEIO_FINANCEIRO_CODE,
+        message: 'Parcelas em aberto',
+      }),
+    );
+
+    await expect(
+      service.atualizarStatus(
+        'exp-1',
+        'loja-1',
+        StatusExpedicao.PRONTO_PARA_RETIRADA,
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(tx.expedicaoLogistica.update).not.toHaveBeenCalled();
   });
 
   it('rejeita patch de status para ENTREGUE_FINALIZADO', async () => {

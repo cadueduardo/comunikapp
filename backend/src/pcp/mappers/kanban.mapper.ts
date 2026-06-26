@@ -265,6 +265,13 @@ export class KanbanMapper {
   }
 
   private static resolverStatusKanbanOS(os: any): string {
+    // Conclusão explícita (drag para «Pronto» ou fluxo formal) tem prioridade
+    // sobre setores parcialmente concluídos — comum em retrabalho após devolução
+    // da expedição, onde setores antigos permanecem CONCLUIDA e o último reabre.
+    if (os.status === 'FINALIZADA') {
+      return 'CONCLUIDA';
+    }
+
     const workflowInstancia = os.workflow_instancia;
     if (workflowInstancia?.status === 'CONCLUIDO') {
       return 'CONCLUIDA';

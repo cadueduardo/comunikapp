@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
+import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
 
 export interface OSCardKanban {
   id: string;
@@ -168,17 +169,27 @@ export function useKanbanData(lojaId?: string): UseKanbanDataReturn {
         throw new Error('Erro ao atualizar status');
       }
 
-      // Atualizar card localmente
+      const payload = (await response.json().catch(() => ({}))) as {
+        expedicao_criada?: boolean;
+        expedicao_cancelada?: boolean;
+      };
+
       setCards(prevCards => 
         prevCards.map(card => 
           card.id === osId ? { ...card, status: newStatus } : card
         )
       );
 
+      solicitarAtualizacaoBadgesSidebar();
+      if (payload.expedicao_criada || payload.expedicao_cancelada) {
+        window.setTimeout(() => solicitarAtualizacaoBadgesSidebar(), 600);
+      }
+
       toast.success('Status atualizado com sucesso');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao atualizar status:', error);
       toast.error('Erro ao atualizar status');
+      throw error;
     }
   }, []);
 

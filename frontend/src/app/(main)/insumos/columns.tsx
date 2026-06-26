@@ -64,7 +64,10 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export const createColumns = (onDelete: (id: string, nome: string) => void): ColumnDef<Insumo>[] => [
+export const createColumns = (
+  onDelete: (id: string, nome: string) => void,
+  onDuplicate?: (id: string) => void,
+): ColumnDef<Insumo>[] => [
   {
     accessorKey: 'nome',
     header: ({ column }) => {
@@ -235,6 +238,11 @@ export const createColumns = (onDelete: (id: string, nome: string) => void): Col
               <DropdownMenuItem asChild>
                 <Link href={`/insumos/editar/${insumo.id}`}>Editar</Link>
               </DropdownMenuItem>
+              {onDuplicate && (
+                <DropdownMenuItem onClick={() => onDuplicate(insumo.id)}>
+                  Duplicar
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => onDelete(insumo.id, insumo.nome)}>
                 Excluir

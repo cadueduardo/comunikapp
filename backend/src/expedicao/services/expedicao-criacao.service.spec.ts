@@ -4,18 +4,24 @@ import { ModalidadeExpedicao } from '../enums/modalidade-expedicao.enum';
 import { StatusExpedicao } from '../enums/status-expedicao.enum';
 import { ExpedicaoModalidadeMapper } from './expedicao-modalidade.mapper';
 import { ExpedicaoCriacaoService } from './expedicao-criacao.service';
+import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
 
 describe('ExpedicaoCriacaoService', () => {
   let service: ExpedicaoCriacaoService;
   let prisma: {
     ordemServico: { findFirst: jest.Mock };
     orcamento: { findFirst: jest.Mock };
+    expedicaoLogistica: {
+      findFirst: jest.Mock;
+      update: jest.Mock;
+    };
     $transaction: jest.Mock;
   };
   let tx: {
     expedicaoLogistica: {
       findFirst: jest.Mock;
       create: jest.Mock;
+      update: jest.Mock;
     };
   };
 
@@ -24,12 +30,17 @@ describe('ExpedicaoCriacaoService', () => {
       expedicaoLogistica: {
         findFirst: jest.fn(),
         create: jest.fn(),
+        update: jest.fn(),
       },
     };
 
     prisma = {
       ordemServico: { findFirst: jest.fn() },
       orcamento: { findFirst: jest.fn() },
+      expedicaoLogistica: {
+        findFirst: jest.fn(),
+        update: jest.fn(),
+      },
       $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
     };
 
@@ -38,6 +49,10 @@ describe('ExpedicaoCriacaoService', () => {
         ExpedicaoCriacaoService,
         ExpedicaoModalidadeMapper,
         { provide: PrismaService, useValue: prisma },
+        {
+          provide: HomeCacheService,
+          useValue: { invalidarPorPrefixo: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -58,14 +73,15 @@ describe('ExpedicaoCriacaoService', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('retorna idempotente quando já existe expedição não devolvida', async () => {
+  it('retorna idempotente quando já existe expedição ativa não devolvida', async () => {
     prisma.ordemServico.findFirst.mockResolvedValue({
       id: 'os-1',
       loja_id: 'loja-1',
       tipo_os: 'COMERCIAL',
       orcamento_id: null,
     });
-    tx.expedicaoLogistica.findFirst.mockResolvedValue({ id: 'exp-existente' });
+    tx.expedicaoLogistica.findFirst
+      .mockResolvedValueOnce({ id: 'exp-existente' });
 
     const resultado = await service.criarSeElegivel('os-1', 'loja-1');
 
@@ -73,6 +89,36 @@ describe('ExpedicaoCriacaoService', () => {
       criado: false,
       expedicao_id: 'exp-existente',
       motivo_skip: 'JA_EXISTE',
+    });
+    expect(tx.expedicaoLogistica.create).not.toHaveBeenCalled();
+    expect(tx.expedicaoLogistica.update).not.toHaveBeenCalled();
+  });
+
+  it('reativa expedição ARQUIVADA ao reconcluir OS no PCP', async () => {
+    prisma.ordemServico.findFirst.mockResolvedValue({
+      id: 'os-1',
+      loja_id: 'loja-1',
+      tipo_os: 'COMERCIAL',
+      orcamento_id: null,
+    });
+    tx.expedicaoLogistica.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 'exp-arquivada' });
+    tx.expedicaoLogistica.update.mockResolvedValue({ id: 'exp-arquivada' });
+
+    const resultado = await service.criarSeElegivel('os-1', 'loja-1');
+
+    expect(resultado).toEqual({
+      criado: true,
+      reativado: true,
+      expedicao_id: 'exp-arquivada',
+    });
+    expect(tx.expedicaoLogistica.update).toHaveBeenCalledWith({
+      where: { id: 'exp-arquivada' },
+      data: {
+        status: StatusExpedicao.AGUARDANDO_SEPARACAO,
+        atualizado_em: expect.any(Date),
+      },
     });
     expect(tx.expedicaoLogistica.create).not.toHaveBeenCalled();
   });
@@ -128,5 +174,24 @@ describe('ExpedicaoCriacaoService', () => {
         }),
       }),
     );
+  });
+
+  it('arquiva expedição em AGUARDANDO_SEPARACAO ao reverter conclusão no PCP', async () => {
+    prisma.expedicaoLogistica.findFirst.mockResolvedValue({ id: 'exp-1' });
+    prisma.expedicaoLogistica.update.mockResolvedValue({ id: 'exp-1' });
+
+    const resultado = await service.cancelarPorReversaoConclusaoPcp(
+      'os-1',
+      'loja-1',
+    );
+
+    expect(resultado).toEqual({ cancelada: true, expedicao_id: 'exp-1' });
+    expect(prisma.expedicaoLogistica.update).toHaveBeenCalledWith({
+      where: { id: 'exp-1' },
+      data: {
+        status: StatusExpedicao.ARQUIVADO,
+        atualizado_em: expect.any(Date),
+      },
+    });
   });
 });

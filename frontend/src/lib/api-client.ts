@@ -200,6 +200,7 @@ export const platformApi = {
 export const insumosApi = {
   getAll: (token: string) => ApiClient.get('/insumos', token),
   getById: (id: string, token: string) => ApiClient.get(`/insumos/${id}`, token),
+  duplicar: (id: string, token: string) => duplicarInsumo(id, token),
   getCalculoChapa: (id: string, token: string) => ApiClient.get(`/insumos/${id}/calculo-chapa`, token),
   simularChapa: (id: string, data: Record<string, unknown>, token: string) => ApiClient.post(`/insumos/${id}/simular-chapa`, data, token),
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/insumos', data, token),
@@ -230,6 +231,10 @@ export const insumosApi = {
     window.URL.revokeObjectURL(downloadUrl);
   },
 };
+
+export function duplicarInsumo(id: string, token: string) {
+  return ApiClient.post<{ id?: string }>(`/insumos/${id}/duplicar`, {}, token);
+}
 
 export const estoqueApi = {
   getItens: (token: string) => ApiClient.get('/api/estoque/itens', token),

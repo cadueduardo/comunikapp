@@ -53,6 +53,11 @@ export class InsumosController {
     return this.insumosService.findAll(loja);
   }
 
+  @Post(':id/duplicar')
+  duplicar(@Param('id') id: string, @GetLoja() loja: loja) {
+    return this.insumosService.duplicar(id, loja);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @GetLoja() loja: loja) {
     return this.insumosService.findOne(id, loja);

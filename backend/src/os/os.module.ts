@@ -19,6 +19,8 @@ import { WebsocketsModule } from '../websockets/websockets.module';
 import { PCPModule } from '../pcp/pcp.module';
 import { ConfiguracoesModule } from '../configuracoes/configuracoes.module';
 import { ExpedicaoModule } from '../expedicao/expedicao.module';
+import { FinanceiroModule } from '../financeiro/financeiro.module';
+import { HomeOperacionalModule } from '../home-operacional/home-operacional.module';
 import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-estoque.service';
 import { getRequiredJwtSecret } from '../auth/jwt-secret';
 
@@ -62,6 +64,7 @@ import { CalculoMaterialUnidadeService } from './services/calculo-material-unida
 import { OSPrazoService } from './services/os-prazo.service';
 import { OSProdutoPrazoService } from './services/os-produto-prazo.service';
 import { OSAdminService } from './services/os-admin.service';
+import { OSInativacaoService } from './services/os-inativacao.service';
 import { CorrecaoMateriaisHelper } from './helpers/correcao-materiais.helper';
 // import { NotificacoesOSService } from './services/notificacoes-os.service'; // TODO: Implementar
 // import { IntegracaoService } from './services/integracao.service'; // TODO: Implementar
@@ -85,6 +88,8 @@ const debugControllers =
     PCPModule, // Para integração OS ↔ PCP
     ConfiguracoesModule, // Para validações automáticas
     ExpedicaoModule, // Gatilho de expedição ao finalizar OS manualmente
+    FinanceiroModule, // Cancelamento de cobrança ao inativar OS
+    HomeOperacionalModule, // HomeCacheService para invalidar badges após inativar/reativar
     // JWT Module proprio (conforme premissas de autenticacao)
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -136,6 +141,7 @@ const debugControllers =
     OSPrazoService,
     OSProdutoPrazoService,
     OSAdminService,
+    OSInativacaoService,
     CorrecaoMateriaisHelper,
     // NotificacoesOSService, // TODO: Implementar
     // IntegracaoService, // TODO: Implementar
@@ -178,6 +184,7 @@ const debugControllers =
     CalculoMaterialUnidadeService,
     OSPrazoService,
     OSProdutoPrazoService,
+    OSInativacaoService,
     // NotificacoesOSService, // TODO: Implementar
     // IntegracaoService, // TODO: Implementar
     OSPermissionsGuard,

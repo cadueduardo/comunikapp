@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { WorkflowAssignmentDialog } from '@/components/pcp/WorkflowAssignmentDialog';
 import { WorkflowCardInfo } from '@/components/pcp/WorkflowCardInfo';
 import { toast } from 'sonner';
+import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -874,6 +875,7 @@ export default function PCPPage() {
                     (typeof payload.message === 'string' && payload.message) ||
                       'Item movido com sucesso',
                   );
+                  solicitarAtualizacaoBadgesSidebar();
                   await carregarKanbanPorSetores();
                 }}
                 onCardClick={(osId) => router.push(`/os/${osId}`)}

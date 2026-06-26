@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
 import { StatusExpedicao } from '../enums/status-expedicao.enum';
 import { ExpedicaoModalidadeMapper } from './expedicao-modalidade.mapper';
 
@@ -10,6 +11,7 @@ export type MotivoSkipExpedicaoCriacao =
 
 export interface ResultadoCriacaoExpedicao {
   criado: boolean;
+  reativado?: boolean;
   expedicao_id?: string;
   motivo_skip?: MotivoSkipExpedicaoCriacao;
 }
@@ -27,6 +29,7 @@ export class ExpedicaoCriacaoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly modalidadeMapper: ExpedicaoModalidadeMapper,
+    private readonly homeCacheService: HomeCacheService,
   ) {}
 
   /**
@@ -65,23 +68,57 @@ export class ExpedicaoCriacaoService {
     );
 
     return this.prisma.$transaction(async (tx) => {
-      const existente = await tx.expedicaoLogistica.findFirst({
+      const existenteAtivo = await tx.expedicaoLogistica.findFirst({
         where: {
           os_id: osId,
           loja_id: lojaId,
-          status: { not: StatusExpedicao.DEVOLVIDA },
+          status: {
+            notIn: [StatusExpedicao.DEVOLVIDA, StatusExpedicao.ARQUIVADO],
+          },
         },
         select: { id: true },
       });
 
-      if (existente) {
+      if (existenteAtivo) {
         this.logger.debug(
-          `Expedição já existe para OS ${osId} (${existente.id}) — idempotente`,
+          `Expedição já existe para OS ${osId} (${existenteAtivo.id}) — idempotente`,
         );
         return {
           criado: false,
-          expedicao_id: existente.id,
+          expedicao_id: existenteAtivo.id,
           motivo_skip: 'JA_EXISTE' as const,
+        };
+      }
+
+      const arquivadaPorReversaoPcp = await tx.expedicaoLogistica.findFirst({
+        where: {
+          os_id: osId,
+          loja_id: lojaId,
+          status: StatusExpedicao.ARQUIVADO,
+        },
+        orderBy: { atualizado_em: 'desc' },
+        select: { id: true },
+      });
+
+      if (arquivadaPorReversaoPcp) {
+        await tx.expedicaoLogistica.update({
+          where: { id: arquivadaPorReversaoPcp.id },
+          data: {
+            status: StatusExpedicao.AGUARDANDO_SEPARACAO,
+            atualizado_em: new Date(),
+          },
+        });
+
+        this.homeCacheService.invalidarPorPrefixo(`${lojaId}:`);
+
+        this.logger.log(
+          `Expedição ${arquivadaPorReversaoPcp.id} reativada para OS ${osId} após nova conclusão no PCP`,
+        );
+
+        return {
+          criado: true,
+          reativado: true,
+          expedicao_id: arquivadaPorReversaoPcp.id,
         };
       }
 
@@ -99,11 +136,47 @@ export class ExpedicaoCriacaoService {
         `Expedição ${criada.id} criada para OS ${osId} (modalidade ${modalidade})`,
       );
 
+      this.homeCacheService.invalidarPorPrefixo(`${lojaId}:`);
+
       return {
         criado: true,
         expedicao_id: criada.id,
       };
     });
+  }
+
+  async cancelarPorReversaoConclusaoPcp(
+    osId: string,
+    lojaId: string,
+  ): Promise<{ cancelada: boolean; expedicao_id?: string }> {
+    const expedicao = await this.prisma.expedicaoLogistica.findFirst({
+      where: {
+        os_id: osId,
+        loja_id: lojaId,
+        status: StatusExpedicao.AGUARDANDO_SEPARACAO,
+      },
+      select: { id: true },
+    });
+
+    if (!expedicao) {
+      return { cancelada: false };
+    }
+
+    await this.prisma.expedicaoLogistica.update({
+      where: { id: expedicao.id },
+      data: {
+        status: StatusExpedicao.ARQUIVADO,
+        atualizado_em: new Date(),
+      },
+    });
+
+    this.homeCacheService.invalidarPorPrefixo(`${lojaId}:`);
+
+    this.logger.log(
+      `Expedição ${expedicao.id} arquivada — OS ${osId} revertida para produção no PCP`,
+    );
+
+    return { cancelada: true, expedicao_id: expedicao.id };
   }
 
   private async resolverModalidadeInicial(

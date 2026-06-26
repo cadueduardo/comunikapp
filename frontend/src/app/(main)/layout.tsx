@@ -35,6 +35,9 @@ import { MainHeader } from '@/components/ui/main-header';
 import { SidebarThemeToggle } from '@/components/theme/SidebarThemeToggle';
 import { usuariosApi } from '@/lib/api-client';
 import { BetaFeedbackButton } from '@/components/feedback/BetaFeedbackButton';
+import { SidebarIconWithBadge } from '@/components/layout/SidebarIconWithBadge';
+import { SidebarBadgeSync } from '@/components/layout/SidebarBadgeSync';
+import { useSidebarContadores } from '@/hooks/use-sidebar-contadores';
 
 // Componente customizado para SidebarLink com Next.js Link
 const SidebarLink = ({
@@ -47,6 +50,7 @@ const SidebarLink = ({
     label: string;
     href: string;
     icon: React.JSX.Element | React.ReactNode;
+    badgeCount?: number;
   };
   className?: string;
   onClick?: () => void;
@@ -54,6 +58,12 @@ const SidebarLink = ({
   const { open, animate, setOpen } = useSidebar();
 
   const closeMenu = () => setOpen(false);
+
+  const iconComBadge = (
+    <SidebarIconWithBadge count={link.badgeCount}>
+      {link.icon}
+    </SidebarIconWithBadge>
+  );
 
   if (onClick) {
     return (
@@ -68,7 +78,7 @@ const SidebarLink = ({
         )}
         {...props}
       >
-        {link.icon}
+        {iconComBadge}
 
         <motion.span
           animate={{
@@ -93,7 +103,7 @@ const SidebarLink = ({
       )}
       {...props}
     >
-      {link.icon}
+      {iconComBadge}
 
       <motion.span
         animate={{
@@ -120,6 +130,10 @@ export default function DashboardLayout({
   const { user, getFirstName, logout, loading } = useUser();
   const router = useRouter();
   const [twoFactorReminderOpen, setTwoFactorReminderOpen] = useState(false);
+  const { contadores, recarregar } = useSidebarContadores(
+    Boolean(user) && !loading,
+    user?.id,
+  );
 
   useEffect(() => {
     // Se o carregamento terminou e não há usuário, redireciona para o login.
@@ -272,6 +286,7 @@ export default function DashboardLayout({
     {
       label: 'Ordens de Serviço',
       href: '/os',
+      badgeCount: contadores.os,
       icon: (
         <IconClipboardList className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
       ),
@@ -281,6 +296,7 @@ export default function DashboardLayout({
           {
             label: 'Financeiro',
             href: '/financeiro/recebimentos',
+            badgeCount: contadores.financeiro,
             icon: (
               <IconCash className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
             ),
@@ -290,6 +306,7 @@ export default function DashboardLayout({
     {
       label: 'PCP',
       href: '/pcp',
+      badgeCount: contadores.pcp,
       icon: (
         <IconBuilding className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
       ),
@@ -325,6 +342,7 @@ export default function DashboardLayout({
           {
             label: 'Expedição',
             href: '/expedicao',
+            badgeCount: contadores.expedicao,
             icon: (
               <IconTruckDelivery className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
             ),
@@ -356,6 +374,7 @@ export default function DashboardLayout({
 
   return (
     <div className="app-shell flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-background lg:flex-row">
+      <SidebarBadgeSync userId={user.id} onModuloVisto={recarregar} />
       {/* O Sidebar agora gerencia seu próprio estado */}
       <Sidebar> 
         <SidebarBody className="justify-between gap-6">

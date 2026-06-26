@@ -26,15 +26,20 @@ import { OSService } from '../services/os.service';
 import { OrdemServicoResponseDto } from '../dto/os-response.dto';
 import { CreateOSDto } from '../dto/create-os.dto';
 import { UpdateOSDto } from '../dto/update-os.dto';
+import { InativarOSDto } from '../dto/inativar-os.dto';
 import { OSPermissionsGuard } from '../guards/os-permissions.guard';
 import { StatusOS } from '../interfaces/os.interfaces';
+import { OSInativacaoService } from '../services/os-inativacao.service';
 
 @ApiTags('Ordens de Serviço')
 @ApiBearerAuth()
 @Controller('os')
 @UseGuards(OSPermissionsGuard)
 export class OSController {
-  constructor(private readonly osService: OSService) {}
+  constructor(
+    private readonly osService: OSService,
+    private readonly osInativacaoService: OSInativacaoService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Criar nova ordem de serviço' })
@@ -60,15 +65,23 @@ export class OSController {
     @Query('limit') limit: string = '10',
     @Query('status') status?: string,
     @Query('cliente_id') cliente_id?: string,
+    @Query('ativo') ativo?: string,
   ) {
     const user = req['user'] || req.user;
     const loja_id = user.loja_id;
+    const filtroAtivo =
+      ativo === 'false' || ativo === '0'
+        ? false
+        : ativo === 'all' || ativo === 'todos'
+          ? undefined
+          : true;
     const resultado = await this.osService.findAll(
       loja_id,
       parseInt(page),
       parseInt(limit),
       status,
       cliente_id,
+      filtroAtivo,
     );
 
     return {
@@ -191,14 +204,46 @@ export class OSController {
     return OrdemServicoResponseDto.fromDomain(resultado);
   }
 
+  @Patch(':id/inativar')
+  @ApiOperation({ summary: 'Inativar OS (soft delete)' })
+  @ApiResponse({ status: 200, description: 'OS inativada com sucesso' })
+  async inativarOS(
+    @Param('id') id: string,
+    @Body() body: InativarOSDto,
+    @Request() req: any,
+  ) {
+    const user = req['user'] || req.user;
+    return this.osInativacaoService.inativar(
+      id,
+      user.loja_id,
+      user.sub || user.id,
+      body.motivo,
+    );
+  }
+
+  @Patch(':id/reativar')
+  @ApiOperation({ summary: 'Reativar OS inativada' })
+  @ApiResponse({ status: 200, description: 'OS reativada com sucesso' })
+  async reativarOS(@Param('id') id: string, @Request() req: any) {
+    const user = req['user'] || req.user;
+    return this.osInativacaoService.reativar(
+      id,
+      user.loja_id,
+      user.sub || user.id,
+    );
+  }
+
   @Delete(':id')
-  @ApiOperation({ summary: 'Excluir OS' })
-  @ApiResponse({ status: 200, description: 'OS excluída com sucesso' })
+  @ApiOperation({ summary: 'Inativar OS (legado — use PATCH /inativar)' })
+  @ApiResponse({ status: 200, description: 'OS inativada com sucesso' })
   @ApiResponse({ status: 404, description: 'OS não encontrada' })
   async excluirOS(@Param('id') id: string, @Request() req: any) {
     const user = req['user'] || req.user;
-    const loja_id = user.loja_id;
-    const user_id = user.sub || user.id;
-    return await this.osService.remove(id, loja_id, user_id);
+    return this.osInativacaoService.inativar(
+      id,
+      user.loja_id,
+      user.sub || user.id,
+      'Inativação solicitada pelo usuário',
+    );
   }
 }

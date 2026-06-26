@@ -1,7 +1,7 @@
 
 import { truncarDescricaoResumida } from '@/components/produtos-finitos/descricao-produto-finito.helpers';
 import { Insumo, Maquina, Funcao, ServicoManual } from '../types/common.types';
-import { calcularCustoPorUnidadeUso, calcularArea } from './calculo.utils';
+import { calcularCustoPorUnidadeUso, calcularArea, insumoQuantidadeJaIncluiProduto } from './calculo.utils';
 
 type NumericLike = number | string | null | undefined;
 
@@ -225,10 +225,11 @@ const calcularMateriais = (
     // Verificar se o insumo precisa de correção
     const precisaCorrecao = deveAplicarMultiplicacaoMaterial(insumo?.unidade_uso);
 
-    // IMPORTANTE: Se o material tem lógica personalizada (custom), 
-    // o MaterialSection já calculou a quantidade total incluindo multiplicação
-    // Não devemos multiplicar novamente aqui
-    const jaCalculadoPeloMaterialSection = insumo?.logica_consumo === 'custom' && insumo?.tipoMaterial;
+    // IMPORTANTE: Se o material tem lógica personalizada (custom), ou consumo
+    // geométrico automático (área/perímetro/volume), o MaterialSection já
+    // calculou a quantidade total incluindo multiplicação por quantidade_produto.
+    const jaCalculadoPeloMaterialSection =
+      insumoQuantidadeJaIncluiProduto(insumo);
 
     // Aplicar multiplicação apenas se necessário E não foi calculado pelo MaterialSection
     const quantidadeFinal = (precisaCorrecao && !jaCalculadoPeloMaterialSection)
@@ -709,6 +710,10 @@ export const calcularProdutosPreview = (
       const quantidade = Math.max(parseNumber(item?.quantidade_produto) || 1, 1);
       const precoUnitario = parseNumber(item?.preco_unitario_snapshot);
       const precoTotal = precoUnitario * quantidade;
+      const precoCustoUnitario = parseNumber(item?.preco_custo_snapshot);
+      const custoTotalProducao = precoCustoUnitario * quantidade;
+
+      totalMateriais += custoTotalProducao;
 
       return {
         id: `produto_${index}`,
@@ -726,7 +731,8 @@ export const calcularProdutosPreview = (
         maquinas: [],
         funcoes: [],
         servicos: [],
-        custo_total_producao: 0,
+        custo_total_producao: custoTotalProducao,
+        preco_custo_unitario: precoCustoUnitario,
         preco_unitario: precoUnitario,
         preco_total: precoTotal,
         horas_producao: 0,

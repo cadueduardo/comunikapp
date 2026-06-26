@@ -12,7 +12,7 @@ import { ArrowLeft, Save } from 'lucide-react';
 import { orcamentosApi } from '@/lib/api-client';
 import { createFormSchema, FormValues } from './schemas/orcamento.schema';
 import { useOrcamentoData } from './hooks/useOrcamentoData';
-import { ClienteSection, ProdutoSection, ConfiguracoesSection } from './components';
+import { ClienteSection, ProdutoSection, ConfiguracoesSection, ModeloOrcamentoSection } from './components';
 import { CalculoPreview } from '../shared/sections';
 import { ProdutoSelectionModal } from '../../../app/(main)/produtos/components/produto-selection-modal';
 
@@ -445,8 +445,8 @@ export function OrcamentoForm({
     }
   };
 
-  const handleCarregarProduto = (itemIndex: number) => {
-    setSelectedProdutoIndex(itemIndex);
+  const handleCarregarModelo = () => {
+    setSelectedProdutoIndex(0);
     setShowProdutoModal(true);
   };
 
@@ -578,10 +578,13 @@ export function OrcamentoForm({
 
             <Separator />
 
+            <ModeloOrcamentoSection modo={mode} onCarregarModelo={handleCarregarModelo} />
+
+            <Separator />
+
                           {/* Seção de Produtos */}
               <ProdutoSection 
                 mode={mode}
-                onCarregarProduto={handleCarregarProduto}
                 insumos={insumos}
                 maquinas={maquinas}
                 funcoes={funcoes}

@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useUser } from '@/contexts/UserContext';
@@ -47,6 +48,8 @@ export interface ConcluirEntregaDialogProps {
     recebedor_doc?: string;
     url_assinatura?: string;
     observacoes?: string;
+    override_financeiro?: boolean;
+    motivo_override_financeiro?: string;
   }) => Promise<void>;
 }
 
@@ -63,6 +66,8 @@ export function ConcluirEntregaDialog({
   const [recebedorDoc, setRecebedorDoc] = useState('');
   const [urlAssinatura, setUrlAssinatura] = useState('');
   const [observacoes, setObservacoes] = useState('');
+  const [overrideFinanceiro, setOverrideFinanceiro] = useState(false);
+  const [motivoOverride, setMotivoOverride] = useState('');
   const [enviandoAssinatura, setEnviandoAssinatura] = useState(false);
   const [erroAssinatura, setErroAssinatura] = useState<string | null>(null);
 
@@ -70,7 +75,11 @@ export function ConcluirEntregaDialog({
     String(user?.funcao ?? '').toUpperCase() === 'ADMINISTRADOR';
   const assinaturaObrigatoria = !isAdmin;
   const isBloqueado = Boolean(detalhe?.bloqueio_financeiro?.bloqueado);
-  const formValido = recebedorNome.trim().length > 0;
+  const podeOverride = isBloqueado && isAdmin;
+  const overrideValido =
+    !overrideFinanceiro || motivoOverride.trim().length >= 10;
+  const formValido = recebedorNome.trim().length > 0 && overrideValido;
+  const bloqueioImpedeEnvio = isBloqueado && !podeOverride;
 
   useEffect(() => {
     if (!open) {
@@ -78,6 +87,8 @@ export function ConcluirEntregaDialog({
       setRecebedorDoc('');
       setUrlAssinatura('');
       setObservacoes('');
+      setOverrideFinanceiro(false);
+      setMotivoOverride('');
       setErroAssinatura(null);
       canvasRef.current?.limpar();
     }
@@ -108,7 +119,10 @@ export function ConcluirEntregaDialog({
   }
 
   async function handleConfirm() {
-    if (!formValido || isBloqueado) return;
+    if (!formValido || bloqueioImpedeEnvio) return;
+    if (podeOverride && overrideFinanceiro && motivoOverride.trim().length < 10) {
+      return;
+    }
 
     let assinaturaFinal = urlAssinatura.trim() || undefined;
     if (!assinaturaFinal && !canvasRef.current?.isEmpty()) {
@@ -130,6 +144,12 @@ export function ConcluirEntregaDialog({
       recebedor_doc: recebedorDoc.trim() || undefined,
       url_assinatura: assinaturaFinal,
       observacoes: observacoes.trim() || undefined,
+      override_financeiro:
+        podeOverride && overrideFinanceiro ? true : undefined,
+      motivo_override_financeiro:
+        podeOverride && overrideFinanceiro
+          ? motivoOverride.trim()
+          : undefined,
     });
   }
 
@@ -155,7 +175,7 @@ export function ConcluirEntregaDialog({
         </DialogHeader>
 
         <div className="max-h-[60vh] space-y-4 overflow-y-auto px-6 py-5">
-          {isBloqueado && detalhe ? (
+          {isBloqueado && detalhe && (
             <div className="rounded-md border border-red-200 bg-red-50 p-4 text-red-800">
               <div className="flex items-start gap-3">
                 <IconLock className="mt-0.5 h-5 w-5 shrink-0" />
@@ -165,7 +185,45 @@ export function ConcluirEntregaDialog({
                 </div>
               </div>
             </div>
-          ) : (
+          )}
+
+          {podeOverride && (
+            <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50/80 p-4">
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="override-financeiro"
+                  checked={overrideFinanceiro}
+                  onCheckedChange={(v) => setOverrideFinanceiro(v === true)}
+                  disabled={processando}
+                />
+                <Label
+                  htmlFor="override-financeiro"
+                  className="cursor-pointer text-sm font-medium leading-tight text-amber-950"
+                >
+                  Liberar entrega mesmo com pendência financeira (override
+                  administrativo)
+                </Label>
+              </div>
+              {overrideFinanceiro && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="motivo-override" className="text-xs">
+                    Motivo obrigatório (mín. 10 caracteres)
+                  </Label>
+                  <Textarea
+                    id="motivo-override"
+                    value={motivoOverride}
+                    onChange={(e) => setMotivoOverride(e.target.value)}
+                    rows={3}
+                    maxLength={500}
+                    placeholder="Ex.: Cliente pagou em dinheiro na retirada; acordo comercial..."
+                    disabled={processando}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {(!isBloqueado || (podeOverride && overrideFinanceiro)) && (
             <>
               <Alert>
                 <IconAlertTriangle className="h-4 w-4" />
@@ -256,14 +314,16 @@ export function ConcluirEntregaDialog({
           </Button>
           <Button
             type="button"
-            disabled={isBloqueado || !formValido || processando}
+            disabled={bloqueioImpedeEnvio || !formValido || processando}
             onClick={() => void handleConfirm()}
           >
-            {isBloqueado
+            {bloqueioImpedeEnvio
               ? 'Bloqueado por financeiro'
               : processando
                 ? 'Concluindo...'
-                : 'Confirmar conclusão'}
+                : overrideFinanceiro
+                  ? 'Confirmar com override'
+                  : 'Confirmar conclusão'}
           </Button>
         </DialogFooter>
       </DialogContent>

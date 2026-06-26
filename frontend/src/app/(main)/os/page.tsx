@@ -27,6 +27,16 @@ import { useUser } from '@/contexts/UserContext';
 import { OSCard } from '@/components/ui/os-card';
 import { AprovarOSModal } from '@/components/ui/os/AprovarOSModal';
 import { createColumns, type OrdemServico } from './columns';
+import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+type FiltroAtivoOS = 'ativas' | 'inativas' | 'todas';
 
 export default function OSPage() {
   const { user, loading: userLoading } = useUser();
@@ -34,6 +44,7 @@ export default function OSPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivoOS>('ativas');
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [estatisticas, setEstatisticas] = useState<any>(null);
@@ -52,12 +63,18 @@ export default function OSPage() {
       fetchOrdens();
       fetchEstatisticas();
     }
-  }, [userLoading, user]);
+  }, [userLoading, user, filtroAtivo]);
 
   const fetchOrdens = async () => {
     try {
       setLoading(true);
-      const response = await apiRequest('/os');
+      const ativoParam =
+        filtroAtivo === 'inativas'
+          ? 'false'
+          : filtroAtivo === 'todas'
+            ? 'all'
+            : 'true';
+      const response = await apiRequest(`/os?ativo=${ativoParam}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -94,22 +111,47 @@ export default function OSPage() {
   };
 
 
-  const handleDelete = async (id: string, numero: string) => {
+  const handleInativar = async (id: string, motivo: string) => {
     try {
-      const response = await apiRequest(`/os/${id}`, {
-        method: 'DELETE',
+      const response = await apiRequest(`/os/${id}/inativar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motivo }),
       });
 
-      if (response.ok) {
-        toast.success(`OS #${numero} excluída com sucesso`);
-        fetchOrdens();
-        fetchEstatisticas();
-      } else {
-        throw new Error('Erro ao excluir OS');
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error((data as { message?: string }).message || 'Erro ao inativar OS');
       }
+
+      toast.success('OS inativada com sucesso');
+      solicitarAtualizacaoBadgesSidebar();
+      await Promise.all([fetchOrdens(), fetchEstatisticas()]);
     } catch (error) {
-      console.error('Erro ao excluir OS:', error);
-      toast.error('Erro ao excluir ordem de serviço');
+      console.error('Erro ao inativar OS:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao inativar ordem de serviço');
+      throw error;
+    }
+  };
+
+  const handleReativar = async (id: string) => {
+    try {
+      const response = await apiRequest(`/os/${id}/reativar`, {
+        method: 'PATCH',
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error((data as { message?: string }).message || 'Erro ao reativar OS');
+      }
+
+      toast.success('OS reativada com sucesso');
+      solicitarAtualizacaoBadgesSidebar();
+      await Promise.all([fetchOrdens(), fetchEstatisticas()]);
+    } catch (error) {
+      console.error('Erro ao reativar OS:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao reativar ordem de serviço');
+      throw error;
     }
   };
 
@@ -199,6 +241,20 @@ export default function OSPage() {
         />
       </div>
 
+      <Select
+        value={filtroAtivo}
+        onValueChange={(value) => setFiltroAtivo(value as FiltroAtivoOS)}
+      >
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Visibilidade" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ativas">Somente ativas</SelectItem>
+          <SelectItem value="inativas">Somente inativas</SelectItem>
+          <SelectItem value="todas">Todas</SelectItem>
+        </SelectContent>
+      </Select>
+
       {!isMobile && (
         <div className="flex items-center gap-2">
           <Button
@@ -248,10 +304,8 @@ export default function OSPage() {
   ) : viewMode === 'table' ? (
     <DataTable
       columns={createColumns(
-        (id: string) => {
-          const os = ordens.find((o) => o.id === id);
-          handleDelete(id, os?.numero || '');
-        },
+        handleInativar,
+        handleReativar,
         (os: OrdemServico) => {
           setAprovarTarget(os);
           setAprovarModalOpen(true);
@@ -265,7 +319,7 @@ export default function OSPage() {
         <OSCard 
           key={os.id} 
           os={os} 
-          onDelete={() => handleDelete(os.id, os.numero)}
+          onDelete={() => handleInativar(os.id, 'Inativação via visualização em cards')}
         />
       ))}
     </div>

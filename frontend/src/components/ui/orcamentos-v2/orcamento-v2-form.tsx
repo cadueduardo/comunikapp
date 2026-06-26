@@ -13,7 +13,11 @@ import { orcamentosApi, produtosApi } from '@/lib/api-client';
 import { createFormSchema, FormValues, validarMateriaisItensProduto } from '../orcamento/schemas/orcamento.schema';
 import { useOrcamentoData } from '../orcamento/hooks/useOrcamentoData';
 import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
-import { calcularProdutosPreview } from '../shared/utils/preview-calculo.helpers';
+import {
+  montarPreviewOrcamento,
+  resolverTipoMargemLucroOrcamento,
+} from '../shared/utils/montar-preview-orcamento';
+import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
 import { SimuladorPrecificacao } from '@/components/orcamentos-v2/SimuladorPrecificacao';
 import {
   Dialog,
@@ -38,12 +42,16 @@ const calcularCustoPorUnidadeUso = (insumo: any): number => {
 
 import { mapCamposPrateleiraFormulario } from '../orcamento/utils/map-campos-prateleira';
 import {
+  mapInstalacaoProdutoBackendParaFormulario,
+  mapInstalacaoProdutoFormularioParaBackend,
+} from '../orcamento/utils/map-instalacao-formulario';
+import {
   deserializarItensModeloOrcamento,
   encontrarIndiceReferenciaModelo,
   itensProntosParaModelo,
   serializarItensModeloOrcamento,
 } from '../orcamento/utils/modelo-orcamento.helpers';
-import { ClienteSection, ProdutoSection, ConfiguracoesSection, TituloOrcamentoSection } from '../orcamento/components';
+import { ClienteSection, ProdutoSection, ConfiguracoesSection, TituloOrcamentoSection, ModeloOrcamentoSection } from '../orcamento/components';
 import { PreviewCalculoV2 } from '../shared/sections';
 
 import { ProdutoSelectionModal } from '../../../app/(main)/produtos/components/produto-selection-modal';
@@ -229,31 +237,17 @@ export function OrcamentoV2Form({
   // Função para calcular dados localmente quando WebSocket não estiver disponível
   const calcularDadosLocalmente = (formData: FormValues) => {
     try {
-      const itensFormulario = Array.isArray(formData?.itens_produto) ? formData.itens_produto : [];
-      if (itensFormulario.length === 0) {
-        return null;
-      }
-
-      const custosIndiretosPercentual = 15;
-      const margemPercentual = percentualOuPadrao(formData?.margem_lucro_customizada, 30);
-      const impostosPercentual = percentualOuPadrao(formData?.impostos_customizados, 18);
-      const comissaoPercentual = percentualOuPadrao(formData?.comissao_percentual, comissaoPadraoLoja);
-      const tipoMargemLucro =
-        formData?.tipo_margem_lucro
-          ? (formData.tipo_margem_lucro as 'markup' | 'margem_por_dentro')
-          : (user?.loja?.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro');
-
-      const previewCalculado = calcularProdutosPreview(
-        itensFormulario,
-        { insumos, maquinas, funcoes, servicos, custosIndiretos: Array.isArray(custosIndiretos) ? custosIndiretos : [] },
-        custosIndiretosPercentual,
-        margemPercentual,
-        impostosPercentual,
-        comissaoPercentual,
-        tipoMargemLucro,
-      );
-
-      return previewCalculado;
+      return montarPreviewOrcamento(formData as Record<string, unknown>, {
+        datasets: {
+          insumos,
+          maquinas,
+          funcoes,
+          servicos,
+          custosIndiretos: Array.isArray(custosIndiretos) ? custosIndiretos : [],
+        },
+        loja: user?.loja,
+        comissaoPadrao: comissaoPadraoLoja,
+      });
     } catch (error) {
       console.error('Erro ao calcular dados localmente:', error);
       return null;
@@ -346,6 +340,7 @@ export function OrcamentoV2Form({
           produto_finito_id: '',
           sku_snapshot: '',
           preco_unitario_snapshot: '',
+          preco_custo_snapshot: '',
           estoque_catalogo: 0,
           imagem_snapshot_url: '',
         }
@@ -514,13 +509,6 @@ export function OrcamentoV2Form({
         entrega_observacoes: String(initialData.entrega_observacoes ?? ''),
         atendente: String(initialData.atendente || 'Equipe Comercial'),
         itens_produto: (() => {
-          if (
-            Array.isArray(initialData.itens_produto) &&
-            initialData.itens_produto.length > 0
-          ) {
-            return initialData.itens_produto;
-          }
-
           const mapProdutoBackendParaFormulario = (produto: any) => {
             const quantidadeProdutoNumero = parseNumeroInicial(produto.quantidade || '1');
             const profundidadeRaw = produto.profundidade?.toString() || '';
@@ -594,44 +582,7 @@ export function OrcamentoV2Form({
                     servico_id: serv.servico_id,
                     horas_trabalhadas: String(serv.horas_trabalhadas || serv.tempo_horas || '1'),
                   })),
-              instalacao_necessaria: Boolean(produto.instalacao_necessaria),
-              instalacao_tipo_id: String(produto.instalacao_tipo_id ?? ''),
-              instalacao_regra_cobranca: String(produto.instalacao_regra_cobranca ?? 'FIXO'),
-              instalacao_valor_unitario:
-                produto.instalacao_valor_unitario != null
-                  ? String(produto.instalacao_valor_unitario)
-                  : '',
-              instalacao_usar_endereco_entrega:
-                produto.instalacao_usar_endereco_entrega !== false,
-              instalacao_endereco_snapshot: String(produto.instalacao_endereco_snapshot ?? ''),
-              instalacao_cep: String(produto.instalacao_cep ?? ''),
-              instalacao_logradouro: String(produto.instalacao_logradouro ?? ''),
-              instalacao_numero: String(produto.instalacao_numero ?? ''),
-              instalacao_complemento: String(produto.instalacao_complemento ?? ''),
-              instalacao_bairro: String(produto.instalacao_bairro ?? ''),
-              instalacao_cidade: String(produto.instalacao_cidade ?? ''),
-              instalacao_estado: String(produto.instalacao_estado ?? ''),
-              instalacao_preco_cobrado:
-                produto.instalacao_preco_cobrado != null
-                  ? String(produto.instalacao_preco_cobrado)
-                  : '',
-              instalacao_custo_mao_obra:
-                produto.instalacao_custo_mao_obra != null
-                  ? String(produto.instalacao_custo_mao_obra)
-                  : '',
-              instalacao_custo_deslocamento:
-                produto.instalacao_custo_deslocamento != null
-                  ? String(produto.instalacao_custo_deslocamento)
-                  : '',
-              instalacao_tempo_estimado_min:
-                produto.instalacao_tempo_estimado_min != null
-                  ? String(produto.instalacao_tempo_estimado_min)
-                  : '',
-              instalacao_quantidade_pessoas:
-                produto.instalacao_quantidade_pessoas != null
-                  ? String(produto.instalacao_quantidade_pessoas)
-                  : '',
-              instalacao_observacoes: String(produto.instalacao_observacoes ?? ''),
+              ...mapInstalacaoProdutoBackendParaFormulario(produto),
               ...mapCamposPrateleiraFormulario(produto),
             };
           };
@@ -681,45 +632,7 @@ export function OrcamentoV2Form({
                 maquinas: produto.maquinas || [],
                 funcoes: produto.funcoes || [],
                 servicos: produto.servicos || [],
-                instalacao_necessaria: Boolean(produto.instalacao_necessaria),
-                instalacao_tipo_id: String(produto.instalacao_tipo_id ?? ''),
-                instalacao_regra_cobranca: String(produto.instalacao_regra_cobranca ?? 'FIXO'),
-                instalacao_valor_unitario:
-                  produto.instalacao_valor_unitario != null
-                    ? String(produto.instalacao_valor_unitario)
-                    : '',
-                instalacao_usar_endereco_entrega:
-                  produto.instalacao_usar_endereco_entrega !== false,
-                instalacao_endereco_snapshot:
-                  String(produto.instalacao_endereco_snapshot ?? ''),
-                instalacao_cep: String(produto.instalacao_cep ?? ''),
-                instalacao_logradouro: String(produto.instalacao_logradouro ?? ''),
-                instalacao_numero: String(produto.instalacao_numero ?? ''),
-                instalacao_complemento: String(produto.instalacao_complemento ?? ''),
-                instalacao_bairro: String(produto.instalacao_bairro ?? ''),
-                instalacao_cidade: String(produto.instalacao_cidade ?? ''),
-                instalacao_estado: String(produto.instalacao_estado ?? ''),
-                instalacao_preco_cobrado:
-                  produto.instalacao_preco_cobrado != null
-                    ? String(produto.instalacao_preco_cobrado)
-                    : '',
-                instalacao_custo_mao_obra:
-                  produto.instalacao_custo_mao_obra != null
-                    ? String(produto.instalacao_custo_mao_obra)
-                    : '',
-                instalacao_custo_deslocamento:
-                  produto.instalacao_custo_deslocamento != null
-                    ? String(produto.instalacao_custo_deslocamento)
-                    : '',
-                instalacao_tempo_estimado_min:
-                  produto.instalacao_tempo_estimado_min != null
-                    ? String(produto.instalacao_tempo_estimado_min)
-                    : '',
-                instalacao_quantidade_pessoas:
-                  produto.instalacao_quantidade_pessoas != null
-                    ? String(produto.instalacao_quantidade_pessoas)
-                    : '',
-                instalacao_observacoes: String(produto.instalacao_observacoes ?? ''),
+                ...mapInstalacaoProdutoBackendParaFormulario(produto),
                 ...mapCamposPrateleiraFormulario(produto),
               };
             });
@@ -805,7 +718,11 @@ export function OrcamentoV2Form({
         (produto as any)?.preco_unitario_snapshot || (produto as any)?.preco_unitario,
       ),
     );
+    const precoCustoUnitario = fixDecimalFn(
+      normalizarNumeroFn((produto as any)?.preco_custo_snapshot),
+    );
     const precoTotal = fixDecimalFn(precoUnitario * quantidade);
+    const custoTotalProducao = fixDecimalFn(precoCustoUnitario * quantidade);
     const nomeProduto = produto.nome_servico?.trim() || `Produto ${index + 1}`;
 
     return {
@@ -818,11 +735,16 @@ export function OrcamentoV2Form({
       tipo_item: 'PRODUTO_FINITO' as const,
       produto_finito_id: (produto as any)?.produto_finito_id || undefined,
       sku_snapshot: (produto as any)?.sku_snapshot || undefined,
-      custo_total_producao: 0,
+      custo_total_producao: custoTotalProducao,
       preco_unitario: precoUnitario,
       preco_total: precoTotal,
       margem_lucro: 0,
       impostos: 0,
+      ...mapInstalacaoProdutoFormularioParaBackend(
+        produto as Record<string, unknown>,
+        normalizarNumeroFn,
+        fixDecimalFn,
+      ),
     };
   };
 
@@ -953,46 +875,12 @@ export function OrcamentoV2Form({
       return vazioParaUndefined(itens);
     };
 
-    const montarInstalacaoProduto = (produto: FormValues['itens_produto'][number]) => {
-      const item = produto as any;
-      const instalacaoNecessaria = Boolean(item.instalacao_necessaria);
-      return {
-        instalacao_necessaria: instalacaoNecessaria,
-        instalacao_tipo_id: item.instalacao_tipo_id || undefined,
-        instalacao_regra_cobranca:
-          item.instalacao_regra_cobranca || (instalacaoNecessaria ? 'FIXO' : undefined),
-        instalacao_valor_unitario: instalacaoNecessaria
-          ? fixDecimal(normalizarNumero(item.instalacao_valor_unitario))
-          : undefined,
-        instalacao_usar_endereco_entrega:
-          item.instalacao_usar_endereco_entrega !== false,
-        instalacao_endereco_snapshot:
-          item.instalacao_endereco_snapshot || undefined,
-        instalacao_cep: item.instalacao_cep || undefined,
-        instalacao_logradouro: item.instalacao_logradouro || undefined,
-        instalacao_numero: item.instalacao_numero || undefined,
-        instalacao_complemento: item.instalacao_complemento || undefined,
-        instalacao_bairro: item.instalacao_bairro || undefined,
-        instalacao_cidade: item.instalacao_cidade || undefined,
-        instalacao_estado: item.instalacao_estado || undefined,
-        instalacao_preco_cobrado: instalacaoNecessaria
-          ? fixDecimal(normalizarNumero(item.instalacao_preco_cobrado))
-          : 0,
-        instalacao_custo_mao_obra: instalacaoNecessaria
-          ? fixDecimal(normalizarNumero(item.instalacao_custo_mao_obra))
-          : 0,
-        instalacao_custo_deslocamento: instalacaoNecessaria
-          ? fixDecimal(normalizarNumero(item.instalacao_custo_deslocamento))
-          : 0,
-        instalacao_tempo_estimado_min: instalacaoNecessaria
-          ? normalizarNumero(item.instalacao_tempo_estimado_min) || undefined
-          : undefined,
-        instalacao_quantidade_pessoas: instalacaoNecessaria
-          ? normalizarNumero(item.instalacao_quantidade_pessoas) || undefined
-          : undefined,
-        instalacao_observacoes: item.instalacao_observacoes || undefined,
-      };
-    };
+    const montarInstalacaoProduto = (produto: FormValues['itens_produto'][number]) =>
+      mapInstalacaoProdutoFormularioParaBackend(
+        produto as Record<string, unknown>,
+        normalizarNumero,
+        fixDecimal,
+      );
 
     const montarEntregaOrcamento = () => ({
       entrega_modalidade_id: data.entrega_modalidade_id || undefined,
@@ -1028,12 +916,27 @@ export function OrcamentoV2Form({
       }, 0);
     };
 
-    const produtosPreview = Array.isArray(dadosCalculados?.produtos) ? dadosCalculados.produtos : undefined;
-    const totaisPreview = dadosCalculados?.totais;
-    const resumoPreview = dadosCalculados?.resumo;
-    const custosIndiretosPreview = dadosCalculados?.custosIndiretosResumo;
+    const previewUnificado =
+      dadosCalculados?.resumo && Array.isArray(dadosCalculados?.produtos)
+        ? dadosCalculados
+        : montarPreviewOrcamento(data as Record<string, unknown>, {
+            datasets: {
+              insumos,
+              maquinas,
+              funcoes,
+              servicos,
+              custosIndiretos: Array.isArray(custosIndiretos) ? custosIndiretos : [],
+            },
+            loja: user?.loja,
+            comissaoPadrao: comissaoPadraoLoja,
+          });
 
-    if (produtosPreview && produtosPreview.length > 0) {
+    const produtosPreview = previewUnificado?.produtos;
+    const totaisPreview = previewUnificado?.totais;
+    const resumoPreview = previewUnificado?.resumo;
+    const custosIndiretosPreview = previewUnificado?.custosIndiretosResumo;
+
+    if (previewUnificado && produtosPreview && produtosPreview.length > 0) {
       const margemPercentualEfetiva = fixDecimal(
         resumoPreview?.margem_lucro_percentual ?? margemPercentual,
       );
@@ -1375,50 +1278,19 @@ export function OrcamentoV2Form({
       );
       const custoTotal = fixDecimal(custoProducaoBase + custoInstalacoes + entregaCusto);
 
-      const tipoMargemLucroEfetivo =
-        data.tipo_margem_lucro
-          ? data.tipo_margem_lucro
-          : (user?.loja?.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro');
-
-      let precoFinal: number;
-      if (resumoPreview?.preco_final != null && Number.isFinite(resumoPreview.preco_final)) {
-        precoFinal = fixDecimal(resumoPreview.preco_final);
-      } else if (tipoMargemLucroEfetivo === 'markup') {
-        const divisorMarkup = 1 - percentualImpostosDecimal - percentualComissaoDecimal;
-        precoFinal = fixDecimal(
-          divisorMarkup > 0
-            ? (custoProducaoBase * (1 + percentualMargemDecimal)) / divisorMarkup
-            : custoProducaoBase * (1 + percentualMargemDecimal),
-        );
-      } else {
-        const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
-        precoFinal = fixDecimal(divisor > 0 ? custoProducaoBase / divisor : custoProducaoBase);
-      }
-      if (!Number.isFinite(precoFinal) || precoFinal <= 0) {
-        precoFinal = fixDecimal(custoProducaoBase);
-      }
-      precoFinal = fixDecimal(precoFinal + entregaValor + precoInstalacoes);
-
-      const temProdutoPrateleira = produtosTransformadosPreview.some(
-        (produto) => produto.tipo_item === 'PRODUTO_FINITO',
+      const tipoMargemLucroEfetivo = resolverTipoMargemLucroOrcamento(
+        data as Record<string, unknown>,
+        user?.loja,
       );
-      if (temProdutoPrateleira) {
-        const somaPrecosProdutos = fixDecimal(
-          produtosTransformadosPreview.reduce(
-            (total, produto) => total + (Number(produto.preco_total) || 0),
-            0,
-          ),
-        );
-        precoFinal = fixDecimal(somaPrecosProdutos + entregaValor);
-      }
 
-      precoFinal = resolverPrecoFinal(precoFinal);
-
-      const margemLucro = fixDecimal(
-        resumoPreview?.total_margem_lucro ?? precoFinal * percentualMargemDecimal,
+      // Fonte única: totais do mesmo motor do PreviewCalculoV2
+      const precoFinal = fixDecimal(resumoPreview?.preco_final ?? 0);
+      const margemLucro = fixDecimal(resumoPreview?.total_margem_lucro ?? 0);
+      const impostos = fixDecimal(resumoPreview?.total_impostos ?? 0);
+      const horasProducao = fixDecimal(
+        resumoPreview?.tempo_total_producao ?? horasTotalPreview,
+        3,
       );
-      const impostos = fixDecimal(resumoPreview?.total_impostos ?? precoFinal * percentualImpostosDecimal);
-      const horasProducao = fixDecimal(horasTotalPreview, 3);
 
       const primeiroProdutoFormulario = data.itens_produto?.[0];
       const primeiroProdutoTransformado = produtosTransformadosPreview[0];
@@ -1646,62 +1518,62 @@ export function OrcamentoV2Form({
     const custoProducaoBase = custoMaterial + custoMaoObraProducao + custoIndiretos;
     const custoTotal = custoProducaoBase + custoInstalacoes + entregaCusto;
     
-    // Calcular preço final com margem, impostos e comissão
-    // (variáveis já definidas acima na função transformarDadosParaBackend)
-    
-    console.log('🔍 Debug - Percentuais do formulário:', {
-      margem_lucro_customizada: data?.margem_lucro_customizada,
-      impostos_customizados: data?.impostos_customizados,
-      comissao_percentual: data?.comissao_percentual,
-      margemPercentual,
-      impostosPercentual,
-      comissaoPercentual
-    });
-    
-    // Resolver tipo de margem: do orçamento ou padrão da loja
-    const tipoMargemLucroEfetivo =
-      data.tipo_margem_lucro
-        ? data.tipo_margem_lucro
-        : (user?.loja?.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro');
+    // Calcular preço final com margem, impostos e comissão (fonte única: montarPreviewOrcamento)
+    const previewFallback =
+      previewUnificado ??
+      montarPreviewOrcamento(data as Record<string, unknown>, {
+        datasets: {
+          insumos,
+          maquinas,
+          funcoes,
+          servicos,
+          custosIndiretos: Array.isArray(custosIndiretos) ? custosIndiretos : [],
+        },
+        loja: user?.loja,
+        comissaoPadrao: comissaoPadraoLoja,
+      });
 
+    const resumoFallback = previewFallback?.resumo;
     const percentualMargemDecimal = margemPercentual / 100;
     const percentualImpostosDecimal = impostosPercentual / 100;
     const percentualComissaoDecimal = comissaoPercentual / 100;
 
-    const divisorMargemPorDentro =
-      1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
     let precoFinal: number;
-    if (tipoMargemLucroEfetivo === 'markup') {
-      // Markup: margem por fora sobre o custo. Preço = Custo*(1+margem) / (1 - impostos - comissão)
-      const divisorMarkup = 1 - percentualImpostosDecimal - percentualComissaoDecimal;
-      precoFinal = divisorMarkup > 0
-        ? (custoProducaoBase * (1 + percentualMargemDecimal)) / divisorMarkup
-        : custoProducaoBase * (1 + percentualMargemDecimal);
+    let margemLucro: number;
+    let impostos: number;
+
+    if (resumoFallback) {
+      precoFinal = fixDecimal(resumoFallback.preco_final);
+      margemLucro = fixDecimal(resumoFallback.total_margem_lucro);
+      impostos = fixDecimal(resumoFallback.total_impostos);
     } else {
-      // Margem por dentro: Preço = Custo / (1 - %Imposto - %Comissão - %Lucro)
-      precoFinal = divisorMargemPorDentro > 0
-        ? custoProducaoBase / divisorMargemPorDentro
-        : custoProducaoBase;
-    }
-    precoFinal = precoFinal + precoInstalacoes + entregaValor;
-
-    const temProdutoPrateleiraFallback = produtosTransformados.some(
-      (produto) => produto.tipo_item === 'PRODUTO_FINITO',
-    );
-    if (temProdutoPrateleiraFallback) {
-      precoFinal = fixDecimal(
-        produtosTransformados.reduce(
-          (total, produto) => total + (Number(produto.preco_total) || 0),
-          0,
-        ) + entregaValor,
+      const tipoMargemLucroEfetivo = resolverTipoMargemLucroOrcamento(
+        data as Record<string, unknown>,
+        user?.loja,
       );
+      const divisorMargemPorDentro =
+        1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
+      if (tipoMargemLucroEfetivo === 'markup') {
+        const divisorMarkup = 1 - percentualImpostosDecimal - percentualComissaoDecimal;
+        precoFinal =
+          divisorMarkup > 0
+            ? (custoProducaoBase * (1 + percentualMargemDecimal)) / divisorMarkup
+            : custoProducaoBase * (1 + percentualMargemDecimal);
+      } else {
+        precoFinal =
+          divisorMargemPorDentro > 0
+            ? custoProducaoBase / divisorMargemPorDentro
+            : custoProducaoBase;
+      }
+      precoFinal = fixDecimal(precoFinal + precoInstalacoes + entregaValor);
+      precoFinal = resolverPrecoFinal(precoFinal);
+      margemLucro = fixDecimal(precoFinal * percentualMargemDecimal);
+      impostos = fixDecimal(precoFinal * percentualImpostosDecimal);
     }
 
-    precoFinal = resolverPrecoFinal(precoFinal);
-
-    const margemLucro = precoFinal * percentualMargemDecimal;
-    const impostos = precoFinal * percentualImpostosDecimal;
-    const comissao = precoFinal * percentualComissaoDecimal;
+    const comissao = fixDecimal(
+      resumoFallback?.comissao_total ?? precoFinal * percentualComissaoDecimal,
+    );
     
     console.log('🔍 Debug - Cálculo de preço final:', {
       custoTotal,
@@ -2430,6 +2302,7 @@ export function OrcamentoV2Form({
           ? `Pedido fechado. OS ${resultado.os_numero} gerada.`
           : 'Pedido fechado e OS gerada com sucesso.',
       );
+      solicitarAtualizacaoBadgesSidebar();
       router.push('/orcamentos-v2');
     } catch (error) {
       console.error('Erro ao aprovar e gerar OS:', error);
@@ -2443,8 +2316,8 @@ export function OrcamentoV2Form({
     }
   };
 
-  const handleCarregarProduto = (itemIndex: number) => {
-    setSelectedProdutoIndex(itemIndex);
+  const handleCarregarModelo = () => {
+    setSelectedProdutoIndex(0);
     setShowProdutoModal(true);
   };
 
@@ -2460,6 +2333,7 @@ export function OrcamentoV2Form({
     descricao?: string | null;
     descricao_resumida?: string | null;
     preco_unitario?: number;
+    preco_custo?: number | null;
     estoque_atual: number;
     imagens?: Array<{ id: string; url_imagem: string; ordem: number }>;
   }) => {
@@ -2469,6 +2343,7 @@ export function OrcamentoV2Form({
 
       const quantidade = 1;
       const precoUnitario = Number(produto.preco_unitario || 0);
+      const precoCustoUnitario = Number(produto.preco_custo || 0);
       const imagemUrl = produto.imagens?.[0]?.url_imagem || '';
       const descricaoResumida = resolverDescricaoResumidaProdutoFinito(produto);
       const descricaoDetalhada = resolverDescricaoDetalhadaProdutoFinito(produto);
@@ -2483,6 +2358,7 @@ export function OrcamentoV2Form({
         quantidade_produto: String(quantidade),
         unidade_medida_produto: 'un',
         preco_unitario_snapshot: String(precoUnitario),
+        preco_custo_snapshot: precoCustoUnitario > 0 ? String(precoCustoUnitario) : '',
         estoque_catalogo: produto.estoque_atual,
         imagem_snapshot_url: imagemUrl,
         materiais: [],
@@ -2673,6 +2549,12 @@ export function OrcamentoV2Form({
                   {/* Título do Orçamento */}
                   <TituloOrcamentoSection modo={mode} />
 
+                  <ModeloOrcamentoSection
+                    modo={mode}
+                    desabilitado={isAprovado}
+                    onCarregarModelo={handleCarregarModelo}
+                  />
+
                   <Separator />
 
                   {/* Seção de Produtos */}
@@ -2680,7 +2562,6 @@ export function OrcamentoV2Form({
                     key={produtosSectionKey}
                     mode={mode}
                     orcamentoId={orcamentoId}
-                    onCarregarProduto={handleCarregarProduto}
                     onAdicionarProdutoPrateleira={handleAdicionarProdutoPrateleira}
                     insumos={insumos}
                     maquinas={maquinas}
@@ -2887,12 +2768,21 @@ export function OrcamentoV2Form({
 
               <Separator />
 
+              <TituloOrcamentoSection modo={mode} />
+
+              <ModeloOrcamentoSection
+                modo={mode}
+                desabilitado={isAprovado}
+                onCarregarModelo={handleCarregarModelo}
+              />
+
+              <Separator />
+
               {/* Seção de Produtos */}
               <ProdutoSection 
                 key={produtosSectionKey}
                 mode={mode}
                 orcamentoId={orcamentoId}
-                onCarregarProduto={handleCarregarProduto}
                 onAdicionarProdutoPrateleira={handleAdicionarProdutoPrateleira}
                 insumos={insumos}
                 maquinas={maquinas}

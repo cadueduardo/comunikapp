@@ -72,6 +72,22 @@ export class HomeCacheService {
     }
   }
 
+  /** Remove todas as entradas cuja chave começa com o prefixo informado. */
+  invalidarPorPrefixo(prefixo: string): void {
+    let removidos = 0;
+    for (const chave of [...this.store.keys()]) {
+      if (chave.startsWith(prefixo)) {
+        this.store.delete(chave);
+        removidos++;
+      }
+    }
+    if (removidos > 0) {
+      this.logger.debug(
+        `Cache invalidado para ${removidos} chave(s) com prefixo "${prefixo}".`,
+      );
+    }
+  }
+
   /**
    * Util para testes ou diagnostico. Nao expor em rota HTTP.
    */

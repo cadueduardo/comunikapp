@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -7,7 +8,10 @@ import {
 import { Prisma } from '@prisma/client';
 import { AuthenticatedUser } from '../../auth/auth.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { LOG_TIPO_EXPEDICAO_CONCLUSAO_SEM_ASSINATURA } from '../constants/expedicao-log.constants';
+import {
+  LOG_TIPO_EXPEDICAO_CONCLUSAO_SEM_ASSINATURA,
+  LOG_TIPO_EXPEDICAO_OVERRIDE_FINANCEIRO,
+} from '../constants/expedicao-log.constants';
 import {
   STATUS_EXPEDICAO_IMUTAVEIS,
   STATUS_EXPEDICAO_KANBAN_PATCH,
@@ -176,6 +180,11 @@ export class ExpedicaoService {
         };
       }
 
+      await this.financeiroService.assertMovimentoKanbanLiberado(
+        expedicao.os_id,
+        lojaId,
+      );
+
       const dataUpdate: Prisma.ExpedicaoLogisticaUpdateInput = {
         status: statusNovo,
         atualizado_em: new Date(),
@@ -241,9 +250,11 @@ export class ExpedicaoService {
 
     this.assertExpedicaoEditavel(expedicaoPre.status);
 
-    await this.financeiroService.assertEntregaLiberada(
+    await this.validarFinanceiroParaEntrega(
       expedicaoPre.os_id,
       lojaId,
+      dto,
+      usuario,
     );
 
     const agora = new Date();
@@ -280,9 +291,11 @@ export class ExpedicaoService {
         );
       }
 
-      await this.financeiroService.assertEntregaLiberada(
+      await this.validarFinanceiroParaEntrega(
         expedicao.os_id,
         lojaId,
+        dto,
+        usuario,
       );
 
       const dataExpedicao: Prisma.ExpedicaoLogisticaUpdateInput = {
@@ -328,6 +341,26 @@ export class ExpedicaoService {
               recebedor_nome: dto.recebedor_nome,
               recebedor_doc: dto.recebedor_doc?.trim() || null,
               sem_assinatura: true,
+            }),
+          },
+        });
+      }
+
+      if (dto.override_financeiro && usuario?.id) {
+        const nomeOperador =
+          usuario.nome_completo?.trim() || usuario.email || usuario.id;
+        const motivo = dto.motivo_override_financeiro?.trim() ?? '';
+
+        await tx.ordemServicoLog.create({
+          data: {
+            os_id: expedicao.os_id,
+            tipo_acao: LOG_TIPO_EXPEDICAO_OVERRIDE_FINANCEIRO,
+            descricao: `Entrega liberada com override financeiro por ${nomeOperador}. Motivo: ${motivo}`,
+            usuario_id: usuario.id,
+            dados_extras: JSON.stringify({
+              expedicao_id: expedicao.id,
+              motivo_override_financeiro: motivo,
+              recebedor_nome: dto.recebedor_nome,
             }),
           },
         });
@@ -473,6 +506,34 @@ export class ExpedicaoService {
       },
       bloqueio_financeiro,
     };
+  }
+
+  private async validarFinanceiroParaEntrega(
+    osId: string,
+    lojaId: string,
+    dto: ConcluirEntregaDto,
+    usuario?: AuthenticatedUser,
+  ): Promise<void> {
+    if (dto.override_financeiro) {
+      const isAdmin =
+        String(usuario?.funcao ?? '').toUpperCase() === 'ADMINISTRADOR';
+      if (!isAdmin) {
+        throw new ForbiddenException(
+          'Apenas administradores podem liberar entrega com override financeiro.',
+        );
+      }
+
+      const motivo = dto.motivo_override_financeiro?.trim() ?? '';
+      if (motivo.length < 10) {
+        throw new BadRequestException(
+          'Informe o motivo do override financeiro (mínimo 10 caracteres).',
+        );
+      }
+
+      return;
+    }
+
+    await this.financeiroService.assertEntregaLiberada(osId, lojaId);
   }
 
   private assertExpedicaoEditavel(status: string): void {

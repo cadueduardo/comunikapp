@@ -10,6 +10,7 @@ import { HomeCacheService } from './services/home-cache.service';
 import { AlertasOperacionaisService } from './services/alertas-operacionais.service';
 import { KpiDashboardService } from './services/kpi-dashboard.service';
 import { ResumoFinanceiroService } from './services/resumo-financeiro.service';
+import { ContadoresMenuService } from './services/contadores-menu.service';
 
 /**
  * Modulo da Home operacional.
@@ -39,6 +40,7 @@ import { ResumoFinanceiroService } from './services/resumo-financeiro.service';
     AlertasOperacionaisService,
     KpiDashboardService,
     ResumoFinanceiroService, // Fase 6.C
+    ContadoresMenuService,
   ],
   exports: [OnboardingService, HomeCacheService],
 })

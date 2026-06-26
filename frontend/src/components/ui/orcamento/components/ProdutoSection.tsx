@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useFormContext, useFieldArray } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,6 +11,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { CustomCurrencyInput } from '@/components/ui/currency-input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -27,7 +28,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { CalendarClock, Plus, Package, Loader2, Trash2, X } from 'lucide-react';
+import { CalendarClock, Plus, Package, Trash2, X } from 'lucide-react';
 import { ProdutoFinitoThumb } from '@/components/produtos-finitos/ProdutoFinitoThumb';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -53,7 +54,6 @@ import { tiposInstalacaoApi } from '@/lib/api-client';
 interface ProdutoSectionProps {
   mode: 'novo' | 'editar' | 'template';
   orcamentoId?: string;
-  onCarregarProduto?: (itemIndex: number) => void;
   onAdicionarProdutoPrateleira?: (itemIndex: number) => void;
   insumos?: Array<{
     id: string;
@@ -132,6 +132,27 @@ const regraCobrancaLabel: Record<string, string> = {
   POR_HORA: 'Por hora/equipe',
   MANUAL: 'Manual',
 };
+
+function formatarTarifaUnitariaInstalacao(
+  regra: string,
+  valorUnitario: number,
+  formatarMoeda: (valor: number) => string,
+): string {
+  if (valorUnitario <= 0 || regra === 'MANUAL') return '';
+  switch (regra) {
+    case 'POR_M2':
+      return ` a ${formatarMoeda(valorUnitario)}/m²`;
+    case 'POR_ML':
+      return ` a ${formatarMoeda(valorUnitario)}/m`;
+    case 'POR_UNIDADE':
+      return ` a ${formatarMoeda(valorUnitario)}/un`;
+    case 'POR_HORA':
+      return ` a ${formatarMoeda(valorUnitario)}/h`;
+    case 'FIXO':
+    default:
+      return ` de ${formatarMoeda(valorUnitario)}`;
+  }
+}
 
 /**
  * Componente interno que, para um produto específico do array, mantém
@@ -317,7 +338,7 @@ function SincronizadorGeometriaProduto({ itemIndex }: { itemIndex: number }) {
   );
 }
 
-export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, onAdicionarProdutoPrateleira, insumos = [], maquinas = [], funcoes = [], servicos = [], onInsumoCriado }: ProdutoSectionProps) {
+export function ProdutoSection({ mode, orcamentoId, onAdicionarProdutoPrateleira, insumos = [], maquinas = [], funcoes = [], servicos = [], onInsumoCriado }: ProdutoSectionProps) {
   const form = useFormContext();
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -591,7 +612,7 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, onAdicion
     form.clearErrors(`itens_produto.${index}.quantidade_produto`);
     form.clearErrors(`itens_produto.${index}.produto_finito_id`);
     toast.success(
-      'Produto de prateleira removido. Use Carregar Modelo ou Adicionar Produto.',
+      'Produto de prateleira removido. Use Adicionar Produto para incluir outro item de catálogo.',
     );
   };
 
@@ -892,8 +913,68 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, onAdicion
     setValorSeMudou('instalacao_custo_deslocamento', formatarNumeroCalculo(custoDeslocamento));
   };
 
+  const sincronizarMetadadosInstalacaoDoTipo = (
+    itemIndex: number,
+    tipo: TipoInstalacaoOption,
+  ) => {
+    const regraPath = `itens_produto.${itemIndex}.instalacao_regra_cobranca` as const;
+    const valorPath = `itens_produto.${itemIndex}.instalacao_valor_unitario` as const;
+
+    if (!form.getValues(regraPath)) {
+      form.setValue(regraPath, tipo.regra_cobranca || 'FIXO', { shouldDirty: false });
+    }
+
+    const valorAtual = parseNumeroFormulario(form.getValues(valorPath));
+    const valorTipo = parseNumeroFormulario(tipo.preco_padrao);
+    if (valorAtual <= 0 && valorTipo > 0) {
+      form.setValue(valorPath, String(valorTipo), { shouldDirty: false });
+    }
+  };
+
+  const resolverValorUnitarioInstalacao = (itemIndex: number): number => {
+    const doFormulario = parseNumeroFormulario(
+      form.getValues(`itens_produto.${itemIndex}.instalacao_valor_unitario`),
+    );
+    if (doFormulario > 0) return doFormulario;
+
+    const tipoId = form.getValues(`itens_produto.${itemIndex}.instalacao_tipo_id`);
+    const tipo = tiposInstalacao.find((entry) => entry.id === tipoId);
+    return parseNumeroFormulario(tipo?.preco_padrao);
+  };
+
+  const triggersInstalacaoAnterioresRef = useRef<string>('');
+
   useEffect(() => {
-    if (!Array.isArray(itensProdutoWatch)) return;
+    triggersInstalacaoAnterioresRef.current = '';
+  }, [orcamentoId]);
+
+  useEffect(() => {
+    if (!Array.isArray(itensProdutoWatch) || tiposInstalacao.length === 0) return;
+
+    const snapshot = JSON.stringify(
+      itensProdutoWatch.map((item) => ({
+        necessaria: Boolean(item?.instalacao_necessaria),
+        tipoId: item?.instalacao_tipo_id || '',
+        quantidade: item?.quantidade_produto || '',
+        area: item?.area_produto || '',
+        perimetro: item?.perimetro_produto || '',
+        tempo: item?.instalacao_tempo_estimado_min || '',
+      })),
+    );
+
+    if (triggersInstalacaoAnterioresRef.current === '') {
+      triggersInstalacaoAnterioresRef.current = snapshot;
+      itensProdutoWatch.forEach((item, itemIndex) => {
+        if (!item?.instalacao_necessaria || !item?.instalacao_tipo_id) return;
+        const tipo = tiposInstalacao.find((entry) => entry.id === item.instalacao_tipo_id);
+        if (tipo) sincronizarMetadadosInstalacaoDoTipo(itemIndex, tipo);
+      });
+      return;
+    }
+
+    if (triggersInstalacaoAnterioresRef.current === snapshot) return;
+
+    triggersInstalacaoAnterioresRef.current = snapshot;
 
     itensProdutoWatch.forEach((item, itemIndex) => {
       if (!item?.instalacao_necessaria || !item?.instalacao_tipo_id) return;
@@ -901,13 +982,9 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, onAdicion
       if (!tipo || tipo.regra_cobranca === 'MANUAL') return;
       aplicarCalculoInstalacao(itemIndex, tipo, { preservarEdicoesManuais: true });
     });
-    // A função de cálculo é declarada no componente e mudaria a cada render.
-    // As dependências observadas abaixo são as que devem disparar recálculo.
+    // aplicarCalculoInstalacao é estável o suficiente para este efeito de recálculo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    itensProdutoWatch,
-    tiposInstalacao,
-  ]);
+  }, [itensProdutoWatch, tiposInstalacao]);
 
   return (
     <div className="space-y-6">
@@ -1057,32 +1134,18 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, onAdicion
                     </div>
                   ) : (
                   <>
-                  {(onCarregarProduto || onAdicionarProdutoPrateleira) ? (
+                  {onAdicionarProdutoPrateleira ? (
                     <div className="flex flex-wrap justify-end gap-2">
-                      {onCarregarProduto ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onCarregarProduto(index)}
-                          className="flex items-center gap-2"
-                        >
-                          <Loader2 className="h-4 w-4" />
-                          <span>Carregar Modelo</span>
-                        </Button>
-                      ) : null}
-                      {onAdicionarProdutoPrateleira ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onAdicionarProdutoPrateleira(index)}
-                          className="flex items-center gap-2"
-                        >
-                          <Package className="h-4 w-4" />
-                          <span>Adicionar Produto</span>
-                        </Button>
-                      ) : null}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onAdicionarProdutoPrateleira(index)}
+                        className="flex items-center gap-2"
+                      >
+                        <Package className="h-4 w-4" />
+                        <span>Adicionar Produto</span>
+                      </Button>
                     </div>
                   ) : null}
 
@@ -1412,12 +1475,13 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, onAdicion
                                 <FormItem>
                                   <FormLabel>Preço cobrado</FormLabel>
                                   <FormControl>
-                                    <Input
-                                      type="text"
-                                      placeholder="0,00"
-                                      {...field}
+                                    <CustomCurrencyInput
+                                      placeholder="R$ 0,00"
+                                      name={field.name}
                                       value={field.value ?? ''}
-                                      onChange={(e) => field.onChange(e.target.value.replace(/[^0-9,.-]/g, ''))}
+                                      onValueChange={field.onChange}
+                                      onBlur={field.onBlur}
+                                      ref={field.ref}
                                     />
                                   </FormControl>
                                 </FormItem>
@@ -1431,12 +1495,13 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, onAdicion
                                 <FormItem>
                                   <FormLabel>Custo mão de obra</FormLabel>
                                   <FormControl>
-                                    <Input
-                                      type="text"
-                                      placeholder="0,00"
-                                      {...field}
+                                    <CustomCurrencyInput
+                                      placeholder="R$ 0,00"
+                                      name={field.name}
                                       value={field.value ?? ''}
-                                      onChange={(e) => field.onChange(e.target.value.replace(/[^0-9,.-]/g, ''))}
+                                      onValueChange={field.onChange}
+                                      onBlur={field.onBlur}
+                                      ref={field.ref}
                                     />
                                   </FormControl>
                                 </FormItem>
@@ -1450,12 +1515,13 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, onAdicion
                                 <FormItem>
                                   <FormLabel>Deslocamento</FormLabel>
                                   <FormControl>
-                                    <Input
-                                      type="text"
-                                      placeholder="0,00"
-                                      {...field}
+                                    <CustomCurrencyInput
+                                      placeholder="R$ 0,00"
+                                      name={field.name}
                                       value={field.value ?? ''}
-                                      onChange={(e) => field.onChange(e.target.value.replace(/[^0-9,.-]/g, ''))}
+                                      onValueChange={field.onChange}
+                                      onBlur={field.onBlur}
+                                      ref={field.ref}
                                     />
                                   </FormControl>
                                 </FormItem>
@@ -1463,19 +1529,35 @@ export function ProdutoSection({ mode, orcamentoId, onCarregarProduto, onAdicion
                             />
                           </div>
 
-                          {form.watch(`itens_produto.${index}.instalacao_regra_cobranca`) && (
-                            <div className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-                              Cobrança:{' '}
-                              {regraCobrancaLabel[
-                                String(form.watch(`itens_produto.${index}.instalacao_regra_cobranca`) || 'FIXO')
-                              ] || 'Valor fixo'}
-                              {form.watch(`itens_produto.${index}.instalacao_valor_unitario`) && (
-                                <span>
-                                  {' '}a R$ {form.watch(`itens_produto.${index}.instalacao_valor_unitario`)}
-                                </span>
-                              )}
-                            </div>
-                          )}
+                          {(() => {
+                            const regra = String(
+                              form.watch(`itens_produto.${index}.instalacao_regra_cobranca`) || 'FIXO',
+                            );
+                            if (regra === 'MANUAL') return null;
+
+                            const valorUnitario = resolverValorUnitarioInstalacao(index);
+                            const tarifa = formatarTarifaUnitariaInstalacao(
+                              regra,
+                              valorUnitario,
+                              formatCurrency,
+                            );
+
+                            return (
+                              <div className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                                <span className="font-medium text-foreground/80">
+                                  Regra de cobrança:
+                                </span>{' '}
+                                {regraCobrancaLabel[regra] || 'Valor fixo'}
+                                {tarifa}
+                                {valorUnitario <= 0 && (
+                                  <span className="mt-1 block text-amber-800">
+                                    Tarifa unitária não cadastrada no tipo de instalação.
+                                    Use &quot;Preço cobrado&quot; para o valor total deste item.
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
 
                           {tiposInstalacao.find((tipo) => tipo.id === form.watch(`itens_produto.${index}.instalacao_tipo_id`))?.exige_agendamento && (
                             <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">

@@ -2,4 +2,5 @@
 export { ClienteSection } from './ClienteSection';
 export { ProdutoSection } from './ProdutoSection';
 export { ConfiguracoesSection } from './ConfiguracoesSection';
-export { TituloOrcamentoSection } from './TituloOrcamentoSection'; 
+export { TituloOrcamentoSection } from './TituloOrcamentoSection';
+export { ModeloOrcamentoSection } from './ModeloOrcamentoSection'; 

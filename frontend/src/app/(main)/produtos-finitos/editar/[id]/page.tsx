@@ -32,6 +32,7 @@ export default function EditarProdutoFinitoPage() {
           categoria: produto.categoria,
           preco_venda: String(produto.preco_venda ?? ''),
           preco_promocional: String(produto.preco_promocional ?? ''),
+          preco_custo: formatCampoNumerico(produto.preco_custo),
           peso_kg: formatCampoNumerico(produto.peso_kg),
           largura_cm: formatCampoNumerico(produto.largura_cm),
           altura_cm: formatCampoNumerico(produto.altura_cm),

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
 import type { OSCard } from '@/components/ui/kanban-board';
 import { expedicaoApi } from '@/lib/expedicao/expedicao-api';
 import {
@@ -116,7 +117,16 @@ export function useExpedicaoKanban(): UseExpedicaoKanbanReturn {
         return;
       }
 
-      const statusAnterior = cardsRaw.find((c) => c.id === expedicaoId)?.status;
+      const cardAtual = cardsRaw.find((c) => c.id === expedicaoId);
+      if (cardAtual?.bloqueado_financeiro) {
+        toast.error(
+          'Movimento bloqueado — regularize a pendência financeira antes de avançar a expedição.',
+        );
+        await fetchData(false);
+        return;
+      }
+
+      const statusAnterior = cardAtual?.status;
 
       setCardsRaw((prev) =>
         prev.map((card) =>
@@ -132,6 +142,7 @@ export function useExpedicaoKanban(): UseExpedicaoKanbanReturn {
           newStatus as StatusExpedicao,
         );
         toast.success('Status da expedição atualizado');
+        solicitarAtualizacaoBadgesSidebar();
       } catch (err) {
         if (statusAnterior) {
           setCardsRaw((prev) =>

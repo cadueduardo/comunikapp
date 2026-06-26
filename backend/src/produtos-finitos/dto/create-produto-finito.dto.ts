@@ -70,6 +70,16 @@ export class CreateProdutoFinitoDto {
   @Min(0)
   preco_promocional?: number;
 
+  @ApiPropertyOptional({
+    description: 'Custo de aquisição ou fabricação (para margem no orçamento)',
+    example: 35.5,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  preco_custo?: number;
+
   @ApiPropertyOptional({ example: 0.45 })
   @IsOptional()
   @Type(() => Number)

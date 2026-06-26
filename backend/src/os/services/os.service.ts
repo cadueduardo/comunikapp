@@ -351,14 +351,15 @@ export class OSService {
     limit = 20,
     status?: string,
     responsavel?: string,
+    ativo: boolean | undefined = true,
   ): Promise<PaginatedResponse<OrdemServicoData>> {
     try {
       const skip = (page - 1) * limit;
 
-      // Filtros opcionais
-      const where: any = { loja_id: lojaId };
+      const where: Record<string, unknown> = { loja_id: lojaId };
       if (status) where.status = status;
       if (responsavel) where.responsavel_id = responsavel;
+      if (ativo !== undefined) where.ativo = ativo;
 
       // Buscar com paginação
       const [total, ordens] = await Promise.all([
@@ -814,6 +815,12 @@ export class OSService {
       // Verificar se OS existe e pertence à loja
       const osExistente = await this.findOne(id, lojaId);
 
+      if (osExistente.ativo === false) {
+        throw new BadRequestException(
+          'OS inativa não pode ser editada. Reative-a primeiro.',
+        );
+      }
+
       // Preparar dados para atualização
       const dadosAtualizacao: any = {};
 
@@ -892,35 +899,9 @@ export class OSService {
   }
 
   async remove(id: string, lojaId: string, usuarioId: string): Promise<void> {
-    try {
-      // Verificar se OS existe e pertence à loja
-      const os = await this.findOne(id, lojaId);
-
-      // Validar se pode ser excluída
-      if (os.status === StatusOS.FINALIZADA) {
-        throw new BadRequestException('Não é possível excluir OS finalizada');
-      }
-
-      // Registrar movimentação de cancelamento
-      await this.adicionarMovimentacao(
-        id,
-        TipoMovimentacaoOS.CANCELAR,
-        os.status,
-        StatusOS.CANCELADA,
-        usuarioId,
-        'OS cancelada/excluída',
-      );
-
-      // Excluir OS (cascade irá remover relacionamentos)
-      await this.prisma.ordemServico.delete({
-        where: { id },
-      });
-
-      this.logger.log(`[OK] OS #${os.numero} excluída com sucesso`);
-    } catch (error) {
-      this.logger.error(`Erro ao excluir OS ${id}:`, error);
-      throw error;
-    }
+    throw new BadRequestException(
+      'Exclusão física descontinuada. Use PATCH /os/:id/inativar para inativar a OS.',
+    );
   }
 
   // ===== MÉTODOS ESPECÍFICOS =====
@@ -1010,14 +991,21 @@ export class OSService {
 
     const conflito = await this.prisma.ordemServico.findFirst({
       where: { loja_id: lojaId, numero },
-      select: { id: true, orcamento_id: true },
+      select: { id: true, orcamento_id: true, ativo: true },
     });
 
-    if (conflito && conflito.orcamento_id !== createOSDto.orcamento_id) {
-      throw new BadRequestException(
-        `O número ${numero} já está em uso por outra OS. ` +
-          `Verifique a numeração do orçamento ${orcamento.numero}.`,
+    if (conflito) {
+      if (conflito.orcamento_id === createOSDto.orcamento_id) {
+        return numero;
+      }
+
+      this.logger.warn(
+        `Número ${numero} já usado pela OS ${conflito.id} ` +
+          `(orçamento ${conflito.orcamento_id ?? 'n/d'}, ` +
+          `ativo=${conflito.ativo ?? true}); ` +
+          'usando próximo número sequencial.',
       );
+      return this.gerarNumeroOS(lojaId);
     }
 
     return numero;
@@ -2213,6 +2201,9 @@ export class OSService {
       prioridade: os.prioridade,
       criado_em: os.criado_em,
       atualizado_em: os.atualizado_em,
+      ativo: os.ativo !== false,
+      inativado_em: os.inativado_em ?? undefined,
+      motivo_inativacao: os.motivo_inativacao ?? undefined,
       cliente: os.cliente
         ? {
             id: os.cliente.id,
@@ -2346,35 +2337,33 @@ export class OSService {
       const proximaSemana = new Date();
       proximaSemana.setDate(hoje.getDate() + 7);
 
+      const filtroAtivo = { loja_id: lojaId, ativo: true };
+
       const [total, porStatus, prazoVencendo, atrasadas] = await Promise.all([
-        // Total de OS ativas
         this.prisma.ordemServico.count({
           where: {
-            loja_id: lojaId,
+            ...filtroAtivo,
             status: { notIn: [StatusOS.FINALIZADA, StatusOS.CANCELADA] },
           },
         }),
 
-        // Agrupamento por status
         this.prisma.ordemServico.groupBy({
           by: ['status'],
-          where: { loja_id: lojaId },
+          where: filtroAtivo,
           _count: { status: true },
         }),
 
-        // Prazo vencendo (próximos 7 dias)
         this.prisma.ordemServico.count({
           where: {
-            loja_id: lojaId,
+            ...filtroAtivo,
             data_prazo: { lte: proximaSemana, gte: hoje },
             status: { notIn: [StatusOS.FINALIZADA, StatusOS.CANCELADA] },
           },
         }),
 
-        // Atrasadas
         this.prisma.ordemServico.count({
           where: {
-            loja_id: lojaId,
+            ...filtroAtivo,
             data_prazo: { lt: hoje },
             status: { notIn: [StatusOS.FINALIZADA, StatusOS.CANCELADA] },
           },

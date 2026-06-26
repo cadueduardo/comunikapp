@@ -161,13 +161,17 @@ export class PCPKanbanController {
     @Param('osId') osId: string,
     @Body() data: AtualizarStatusOSDto,
   ) {
-    await this.pcpKanbanService.atualizarStatusOS(
+    const resultado = await this.pcpKanbanService.atualizarStatusOS(
       lojaId,
       osId,
       data.status,
       usuario,
     );
-    return { message: 'Status atualizado com sucesso' };
+    return {
+      message: 'Status atualizado com sucesso',
+      expedicao_criada: resultado.expedicao_criada,
+      expedicao_cancelada: resultado.expedicao_cancelada,
+    };
   }
 
   @Get('stats')

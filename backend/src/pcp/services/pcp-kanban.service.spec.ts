@@ -18,12 +18,16 @@ const { KanbanMapper } = jest.requireMock('../mappers/kanban.mapper');
 describe('PCPKanbanService', () => {
   let service: PCPKanbanService;
   let prisma: any;
-  let expedicaoCriacaoService: { criarSeElegivel: jest.Mock };
+  let expedicaoCriacaoService: {
+    criarSeElegivel: jest.Mock;
+    cancelarPorReversaoConclusaoPcp: jest.Mock;
+  };
 
   beforeEach(async () => {
     prisma = {
       ordemServico: {
         findMany: jest.fn(),
+        findFirst: jest.fn(),
         update: jest.fn(),
         updateMany: jest.fn(),
       },
@@ -38,6 +42,7 @@ describe('PCPKanbanService', () => {
       workflowInstancia: {
         update: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
       },
       workflowSetor: {
         count: jest.fn(),
@@ -51,10 +56,18 @@ describe('PCPKanbanService', () => {
       usuario: {
         findFirst: jest.fn().mockResolvedValue({ id: 'operador-1' }),
       },
+      $transaction: jest.fn(async (ops: unknown[]) => {
+        for (const op of ops) {
+          await op;
+        }
+      }),
     } as unknown as jest.Mocked<PrismaService>;
 
     expedicaoCriacaoService = {
       criarSeElegivel: jest.fn().mockResolvedValue({ criado: true }),
+      cancelarPorReversaoConclusaoPcp: jest
+        .fn()
+        .mockResolvedValue({ cancelada: false }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -108,26 +121,93 @@ describe('PCPKanbanService', () => {
   });
 
   it('deve criar expedição ao mover OS para CONCLUIDA no kanban geral', async () => {
+    prisma.ordemServico.findFirst.mockResolvedValueOnce({ status: 'PRODUCAO' });
     prisma.ordemServico.updateMany.mockResolvedValueOnce({ count: 1 });
+    prisma.workflowInstancia.findFirst.mockResolvedValueOnce({
+      id: 'wf-1',
+      status: 'ATIVO',
+    });
+    prisma.workflowInstanciaSetor.updateMany.mockResolvedValueOnce({ count: 1 });
+    prisma.workflowInstancia.update.mockResolvedValueOnce({ id: 'wf-1' });
 
-    await service.atualizarStatusOS('loja-1', 'os-1', 'CONCLUIDA');
+    const resultado = await service.atualizarStatusOS('loja-1', 'os-1', 'CONCLUIDA');
 
     expect(prisma.ordemServico.updateMany).toHaveBeenCalledWith({
       where: { id: 'os-1', loja_id: 'loja-1' },
       data: expect.objectContaining({ status: 'FINALIZADA' }),
     });
+    expect(prisma.workflowInstancia.findFirst).toHaveBeenCalled();
     expect(expedicaoCriacaoService.criarSeElegivel).toHaveBeenCalledWith(
       'os-1',
       'loja-1',
     );
+    expect(resultado).toEqual({
+      expedicao_criada: true,
+      expedicao_cancelada: false,
+    });
   });
 
   it('não deve criar expedição ao mover OS para PRODUCAO no kanban geral', async () => {
+    prisma.ordemServico.findFirst.mockResolvedValueOnce({ status: 'PRODUCAO' });
     prisma.ordemServico.updateMany.mockResolvedValueOnce({ count: 1 });
 
-    await service.atualizarStatusOS('loja-1', 'os-1', 'PRODUCAO');
+    const resultado = await service.atualizarStatusOS('loja-1', 'os-1', 'PRODUCAO');
 
     expect(expedicaoCriacaoService.criarSeElegivel).not.toHaveBeenCalled();
+    expect(
+      expedicaoCriacaoService.cancelarPorReversaoConclusaoPcp,
+    ).not.toHaveBeenCalled();
+    expect(resultado).toEqual({
+      expedicao_criada: false,
+      expedicao_cancelada: false,
+    });
+  });
+
+  it('deve reativar expedição arquivada ao mover OS de PRODUCAO para CONCLUIDA novamente', async () => {
+    prisma.ordemServico.findFirst.mockResolvedValueOnce({ status: 'PRODUCAO' });
+    prisma.ordemServico.updateMany.mockResolvedValueOnce({ count: 1 });
+    prisma.workflowInstancia.findFirst.mockResolvedValueOnce({
+      id: 'wf-1',
+      status: 'ATIVO',
+    });
+    prisma.workflowInstanciaSetor.updateMany.mockResolvedValueOnce({ count: 1 });
+    prisma.workflowInstancia.update.mockResolvedValueOnce({ id: 'wf-1' });
+    expedicaoCriacaoService.criarSeElegivel.mockResolvedValueOnce({
+      criado: true,
+      reativado: true,
+      expedicao_id: 'exp-1',
+    });
+
+    const resultado = await service.atualizarStatusOS('loja-1', 'os-1', 'CONCLUIDA');
+
+    expect(expedicaoCriacaoService.criarSeElegivel).toHaveBeenCalledWith(
+      'os-1',
+      'loja-1',
+    );
+    expect(resultado).toEqual({
+      expedicao_criada: true,
+      expedicao_cancelada: false,
+    });
+  });
+
+  it('deve arquivar expedição inicial ao reverter OS de CONCLUIDA para PRODUCAO', async () => {
+    prisma.ordemServico.findFirst.mockResolvedValueOnce({ status: 'FINALIZADA' });
+    prisma.ordemServico.updateMany.mockResolvedValueOnce({ count: 1 });
+    expedicaoCriacaoService.cancelarPorReversaoConclusaoPcp.mockResolvedValueOnce({
+      cancelada: true,
+      expedicao_id: 'exp-1',
+    });
+
+    const resultado = await service.atualizarStatusOS('loja-1', 'os-1', 'PRODUCAO');
+
+    expect(
+      expedicaoCriacaoService.cancelarPorReversaoConclusaoPcp,
+    ).toHaveBeenCalledWith('os-1', 'loja-1');
+    expect(expedicaoCriacaoService.criarSeElegivel).not.toHaveBeenCalled();
+    expect(resultado).toEqual({
+      expedicao_criada: false,
+      expedicao_cancelada: true,
+    });
   });
 
   it('remove cards CONCLUIDA fora da janela de 24h UTC', async () => {

@@ -20,11 +20,12 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get('limit') || '20';
     const status = searchParams.get('status');
     const responsavel = searchParams.get('responsavel');
+    const ativo = searchParams.get('ativo');
 
-    // Construir URL com parametros
     let url = `${BACKEND_URL}/os?page=${page}&limit=${limit}`;
     if (status) url += `&status=${status}`;
     if (responsavel) url += `&responsavel=${responsavel}`;
+    if (ativo) url += `&ativo=${ativo}`;
 
     const response = await fetch(url, {
       method: 'GET',

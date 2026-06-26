@@ -18,6 +18,7 @@ import { HomeCacheService } from './services/home-cache.service';
 import { AlertasOperacionaisService } from './services/alertas-operacionais.service';
 import { KpiDashboardService } from './services/kpi-dashboard.service';
 import { ResumoFinanceiroService } from './services/resumo-financeiro.service';
+import { ContadoresMenuService } from './services/contadores-menu.service';
 import { AtualizarOnboardingStepDto } from './dto/atualizar-onboarding-step.dto';
 import { AplicarConfiguracaoRecomendadaDto } from './dto/aplicar-configuracao-recomendada.dto';
 import { FluxoResponseData } from './interfaces/fluxo.interface';
@@ -44,6 +45,7 @@ export class HomeOperacionalController {
     private readonly alertasOperacionaisService: AlertasOperacionaisService,
     private readonly kpiDashboardService: KpiDashboardService,
     private readonly resumoFinanceiroService: ResumoFinanceiroService,
+    private readonly contadoresMenuService: ContadoresMenuService,
   ) {}
 
   @Get('onboarding')
@@ -199,6 +201,39 @@ export class HomeOperacionalController {
   ) {
     const bypass = refresh === '1' || refresh === 'true';
     return this.resumoFinanceiroService.obterResumo(lojaId, bypass);
+  }
+
+  /**
+   * GET /home-operacional/contadores-menu
+   *
+   * Badges do menu lateral: itens NOVOS desde a última visita ao módulo.
+   * Query: os_desde, pcp_desde, expedicao_desde, financeiro_desde (ISO 8601).
+   * Cache: 60s por loja + timestamps. `?refresh=1` força recomputação.
+   */
+  @Get('contadores-menu')
+  async contadoresMenu(
+    @CurrentLojaId() lojaId: string,
+    @Query('refresh') refresh?: string,
+    @Query('os_desde') osDesde?: string,
+    @Query('pcp_desde') pcpDesde?: string,
+    @Query('expedicao_desde') expedicaoDesde?: string,
+    @Query('financeiro_desde') financeiroDesde?: string,
+  ) {
+    const bypass = refresh === '1' || refresh === 'true';
+    const data = await this.contadoresMenuService.obter(lojaId, {
+      forcar: bypass,
+      osDesde: this.parseDesdeQuery(osDesde),
+      pcpDesde: this.parseDesdeQuery(pcpDesde),
+      expedicaoDesde: this.parseDesdeQuery(expedicaoDesde),
+      financeiroDesde: this.parseDesdeQuery(financeiroDesde),
+    });
+    return this.envelope(data);
+  }
+
+  private parseDesdeQuery(valor?: string): Date | undefined {
+    if (!valor?.trim()) return undefined;
+    const data = new Date(valor);
+    return Number.isNaN(data.getTime()) ? undefined : data;
   }
 
   private envelope<T>(data: T, metaExtra?: Record<string, unknown>) {

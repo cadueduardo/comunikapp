@@ -16,6 +16,7 @@ import {
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
+import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
 
 interface OSWorkflowActionsProps {
   os: {
@@ -45,6 +46,7 @@ export function OSWorkflowActions({ os, onStatusChange }: OSWorkflowActionsProps
 
       if (response.ok) {
         toast.success(`OS ${aprovado ? 'aprovada' : 'rejeitada'} tecnicamente`);
+        solicitarAtualizacaoBadgesSidebar();
         onStatusChange();
       } else {
         const errorData = await response.json().catch(() => null);
@@ -72,6 +74,7 @@ export function OSWorkflowActions({ os, onStatusChange }: OSWorkflowActionsProps
 
       if (response.ok) {
         toast.success(`OS ${aprovado ? 'aprovada' : 'rejeitada'} orçamentariamente`);
+        solicitarAtualizacaoBadgesSidebar();
         onStatusChange();
       } else {
         const errorData = await response.json().catch(() => null);
@@ -99,6 +102,7 @@ export function OSWorkflowActions({ os, onStatusChange }: OSWorkflowActionsProps
 
       if (response.ok) {
         toast.success(`OS transicionada para ${novoStatus}`);
+        solicitarAtualizacaoBadgesSidebar();
         onStatusChange();
       } else {
         const errorData = await response.json().catch(() => null);

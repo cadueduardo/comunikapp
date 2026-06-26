@@ -77,6 +77,7 @@ export class PCPKanbanService {
       const osLiberadas = await this.prisma.ordemServico.findMany({
         where: {
           loja_id: lojaId,
+          ativo: true,
           aprovacao_tecnica_status: 'APROVADA',
           status: {
             in: [
@@ -344,11 +345,16 @@ export class PCPKanbanService {
     osId: string,
     status: string,
     usuario?: AuthenticatedUser,
-  ): Promise<void> {
+  ): Promise<{ expedicao_criada: boolean; expedicao_cancelada: boolean }> {
     this.validarPermissaoOperacional(usuario);
     const statusPersistido = this.mapearStatusKanbanParaOS(status);
 
     try {
+      const osAtual = await this.prisma.ordemServico.findFirst({
+        where: { id: osId, loja_id: lojaId },
+        select: { status: true },
+      });
+
       const resultado = await this.prisma.ordemServico.updateMany({
         where: { id: osId, loja_id: lojaId },
         data: {
@@ -361,21 +367,91 @@ export class PCPKanbanService {
         throw new NotFoundException(`OS ${osId} nao encontrada nesta loja.`);
       }
 
+      let expedicaoCriada = false;
+      let expedicaoCancelada = false;
+
       if (statusPersistido === 'FINALIZADA') {
+        await this.finalizarWorkflowDaOs(osId);
+
         try {
-          await this.expedicaoCriacaoService.criarSeElegivel(osId, lojaId);
+          const criacao = await this.expedicaoCriacaoService.criarSeElegivel(
+            osId,
+            lojaId,
+          );
+          expedicaoCriada = criacao.criado === true;
         } catch (error) {
           this.logger.error(
             `Falha ao criar expedição para OS ${osId} após conclusão no kanban PCP:`,
             error,
           );
         }
+      } else if (osAtual?.status === 'FINALIZADA') {
+        const cancelamento =
+          await this.expedicaoCriacaoService.cancelarPorReversaoConclusaoPcp(
+            osId,
+            lojaId,
+          );
+        expedicaoCancelada = cancelamento.cancelada;
       }
 
       this.logger.log(`Status da OS ${osId} atualizado para ${statusPersistido}`);
+      return {
+        expedicao_criada: expedicaoCriada,
+        expedicao_cancelada: expedicaoCancelada,
+      };
     } catch (error) {
       this.logger.error(`Erro ao atualizar status da OS ${osId}:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Encerra workflow e setores pendentes quando a OS é marcada como FINALIZADA
+   * via drag no kanban (inclui retrabalho devolvido da expedição).
+   */
+  private async finalizarWorkflowDaOs(osId: string): Promise<void> {
+    const workflowInstancia = await this.prisma.workflowInstancia.findFirst({
+      where: { os_id: osId },
+      select: { id: true, status: true },
+    });
+
+    if (!workflowInstancia || workflowInstancia.status === 'CONCLUIDO') {
+      return;
+    }
+
+    const agora = new Date();
+
+    await this.prisma.$transaction([
+      this.prisma.workflowInstanciaSetor.updateMany({
+        where: {
+          workflow_instancia_id: workflowInstancia.id,
+          status: { notIn: ['CONCLUIDA', 'CANCELADA'] },
+        },
+        data: {
+          status: 'CONCLUIDA',
+          data_conclusao: agora,
+          atualizado_em: agora,
+        },
+      }),
+      this.prisma.workflowInstancia.update({
+        where: { id: workflowInstancia.id },
+        data: {
+          status: 'CONCLUIDO',
+          data_fim: agora,
+          etapa_atual: null,
+          atualizado_em: agora,
+        },
+      }),
+    ]);
+
+    try {
+      await this.osPcpIntegration.notificarStatusAlterado(osId, 'CONCLUIDO');
+    } catch (error) {
+      this.logger.warn(
+        `Workflow finalizado para OS ${osId}, mas notificação PCP falhou: ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
     }
   }
 

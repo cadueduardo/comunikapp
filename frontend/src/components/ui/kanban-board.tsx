@@ -71,7 +71,7 @@ interface KanbanBoardProps {
   data?: OSCard[];
   loading?: boolean;
   columns?: KanbanColumn[];
-  onStatusChange?: (osId: string, newStatus: string) => void;
+  onStatusChange?: (osId: string, newStatus: string) => void | Promise<void>;
   onCardClick?: (card: OSCard) => void;
   onCardsChange?: (cards: OSCard[]) => void;
 }
@@ -266,16 +266,22 @@ export function KanbanBoard({
 
     // Se mudou de coluna
     if (source.droppableId !== destination.droppableId) {
+      const snapshot = localCards;
       const newCards = [...localCards];
       const card = newCards.find(c => c.id === draggableId);
       
       if (card) {
-        // Atualizar status do card
         card.status = destColumn.status;
         
         setLocalCards(newCards);
-        onStatusChange?.(draggableId, destColumn.status);
         onCardsChange?.(newCards);
+
+        void Promise.resolve(onStatusChange?.(draggableId, destColumn.status)).catch(
+          () => {
+            setLocalCards(snapshot);
+            onCardsChange?.(snapshot);
+          },
+        );
       }
     } else {
       // Reordenação na mesma coluna

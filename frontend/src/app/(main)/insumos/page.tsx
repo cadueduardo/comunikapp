@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Grid3X3, List, Upload } from 'lucide-react';
 import Link from 'next/link';
@@ -10,10 +11,11 @@ import { DataTable } from '@/components/data-table/data-table';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { InsumoCard } from '@/components/ui/insumo-card';
 import { useIsMobile } from '@/hooks/use-media-query';
-import { insumosApi } from '@/lib/api-client';
+import { insumosApi, duplicarInsumo } from '@/lib/api-client';
 import { BulkImportDialog } from '@/components/crud/BulkImportDialog';
 
 export default function InsumosPage() {
+  const router = useRouter();
   const [data, setData] = useState<Insumo[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
@@ -76,6 +78,26 @@ export default function InsumosPage() {
     } catch (error) {
       console.error('Erro ao excluir insumo:', error);
       toast.error('Erro ao excluir insumo');
+    }
+  };
+
+  const handleDuplicate = async (id: string) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        toast.error('Você precisa estar autenticado.');
+        return;
+      }
+      const copia = await duplicarInsumo(id, token);
+      toast.success('Insumo duplicado com sucesso!');
+      if (copia?.id) {
+        router.push(`/insumos/editar/${copia.id}`);
+        return;
+      }
+      await fetchInsumos();
+    } catch (error) {
+      console.error('Erro ao duplicar insumo:', error);
+      toast.error('Erro ao duplicar insumo');
     }
   };
 
@@ -162,11 +184,15 @@ export default function InsumosPage() {
                   key={insumo.id}
                   insumo={insumo}
                   onDelete={openDeleteDialog}
+                  onDuplicate={handleDuplicate}
                 />
               ))}
             </div>
           ) : (
-            <DataTable columns={createColumns(openDeleteDialog)} data={data} />
+            <DataTable
+              columns={createColumns(openDeleteDialog, handleDuplicate)}
+              data={data}
+            />
           )}
         </>
       )}

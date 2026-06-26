@@ -963,8 +963,8 @@ model ProdutoOrcamento {
   custo_total_producao Decimal  @db.Decimal(10, 2)
   preco_unitario       Decimal  @db.Decimal(10, 2)
   preco_total          Decimal  @db.Decimal(10, 2)
-  margem_lucro         Decimal  @db.Decimal(5, 2)
-  impostos             Decimal  @db.Decimal(5, 2)
+  margem_lucro         Decimal  @db.Decimal(10, 2)
+  impostos             Decimal  @db.Decimal(10, 2)
   observacoes          String?  @db.Text
   ativo                Boolean  @default(true)
   criado_em            DateTime @default(now())
@@ -1806,6 +1806,14 @@ model OrdemServico {
   // Módulo Expedição — badge de retrabalho após devolução da expedição para o PCP
   retrabalho Boolean @default(false)
 
+  // Soft inativação (substitui delete físico — OS de teste / limpeza operacional)
+  ativo                       Boolean   @default(true)
+  inativado_em                DateTime?
+  inativado_por               String?
+  motivo_inativacao           String?   @db.Text
+  status_antes_inativacao     String?
+  snapshot_antes_inativacao   String?   @db.LongText // JSON para reativação
+
   // Relacionamentos
   loja      loja       @relation(fields: [loja_id], references: [id])
   cliente   cliente    @relation(fields: [cliente_id], references: [id])
@@ -1827,6 +1835,7 @@ model OrdemServico {
 
   @@unique([loja_id, numero])
   @@index([loja_id, status])
+  @@index([loja_id, ativo])
   @@index([loja_id, retrabalho])
   @@index([cliente_id])
   @@index([responsavel_id])
@@ -2463,6 +2472,7 @@ model ProdutoFinito {
   descricao          String?  @db.Text
   preco_venda        Decimal  @db.Decimal(10, 2)
   preco_promocional  Decimal? @db.Decimal(10, 2)
+  preco_custo        Decimal? @db.Decimal(10, 2)
   peso_kg            Decimal  @default(0) @db.Decimal(10, 3)
   largura_cm         Int      @default(0)
   altura_cm          Int      @default(0)

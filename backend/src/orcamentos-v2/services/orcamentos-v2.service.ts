@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
   InternalServerErrorException,
+  HttpException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { IntegracaoMotorService } from './integracao-motor.service';
@@ -17,6 +18,7 @@ import {
 import { ValidacaoEstoqueService } from './validacao-estoque.service';
 import { DocumentCodeService } from '../../documentos/document-code.service';
 import { OSService } from '../../os/services/os.service';
+import { OSInativacaoService } from '../../os/services/os-inativacao.service';
 import { ChatV2Service } from './chat-v2.service';
 import { MailService } from '../../mail/mail.service';
 import {
@@ -62,6 +64,7 @@ export class OrcamentosV2Service {
     private readonly validacaoEstoque: ValidacaoEstoqueService,
     private readonly chatService: ChatV2Service,
     private readonly osService: OSService,
+    private readonly osInativacaoService: OSInativacaoService,
     private readonly documentCodeService: DocumentCodeService,
     private readonly mailService: MailService,
     // Fase 6 - Financeiro minimo
@@ -225,6 +228,7 @@ export class OrcamentosV2Service {
                   estoque_atual: true,
                   preco_venda: true,
                   preco_promocional: true,
+                  preco_custo: true,
                   imagens: { orderBy: { ordem: 'asc' }, take: 1 },
                 },
               },
@@ -470,6 +474,7 @@ export class OrcamentosV2Service {
                   estoque_atual: true,
                   preco_venda: true,
                   preco_promocional: true,
+                  preco_custo: true,
                   imagens: { orderBy: { ordem: 'asc' }, take: 1 },
                 },
               },
@@ -552,6 +557,7 @@ export class OrcamentosV2Service {
                 estoque_atual: true,
                 preco_venda: true,
                 preco_promocional: true,
+                preco_custo: true,
                 imagens: { orderBy: { ordem: 'asc' }, take: 1 },
               },
             },
@@ -814,6 +820,7 @@ export class OrcamentosV2Service {
                   estoque_atual: true,
                   preco_venda: true,
                   preco_promocional: true,
+                  preco_custo: true,
                   imagens: { orderBy: { ordem: 'asc' }, take: 1 },
                 },
               },
@@ -2612,18 +2619,47 @@ export class OrcamentosV2Service {
       select: {
         id: true,
         numero: true,
+        ativo: true,
       },
     });
 
     if (osExistente) {
+      if (osExistente.ativo === false) {
+        await this.osInativacaoService.reativar(
+          osExistente.id,
+          lojaId,
+          userId,
+        );
+      }
+
+      const statusAprovado =
+        String(orcamento.status).toLowerCase() === 'aprovado';
+
+      if (!statusAprovado) {
+        await this.prisma.orcamento.update({
+          where: { id },
+          data: {
+            status: 'aprovado',
+            status_aprovacao: 'APROVADO' as any,
+            observacoes_cliente:
+              observacoes?.trim() ||
+              'Orçamento aprovado internamente pelo usuário ' + userId,
+            data_atualizacao: new Date(),
+          },
+        });
+      }
+
       return {
         success: true,
-        message: 'Orçamento já estava aprovado e possui OS gerada.',
+        message:
+          osExistente.ativo === false
+            ? 'OS reativada e orçamento aprovado.'
+            : 'Orçamento já estava aprovado e possui OS gerada.',
         orcamento_id: id,
         os_id: osExistente.id,
         os_numero: osExistente.numero,
-        status: orcamento.status,
-        status_aprovacao: orcamento.status_aprovacao,
+        status: 'aprovado',
+        status_aprovacao: 'APROVADO',
       };
     }
 
@@ -2735,8 +2771,12 @@ export class OrcamentosV2Service {
         '[APROVACAO_INTERNA] Falha ao aprovar e gerar OS para o orcamento ' +
           id +
           ': ' +
-          error.message,
+          (error instanceof Error ? error.message : error),
       );
+
+      if (error instanceof HttpException) {
+        throw error;
+      }
 
       throw new InternalServerErrorException(
         'Falha ao aprovar e gerar OS. O orçamento foi revertido.',

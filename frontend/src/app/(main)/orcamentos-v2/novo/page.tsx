@@ -9,6 +9,7 @@ import {
   isProdutoPrateleira,
   mapCamposPrateleiraFormulario,
 } from '@/components/ui/orcamento/utils/map-campos-prateleira';
+import { mapInstalacaoProdutoBackendParaFormulario } from '@/components/ui/orcamento/utils/map-instalacao-formulario';
 
 interface OrcamentoData extends Record<string, unknown> {
   cliente_id: string;
@@ -352,6 +353,7 @@ export default function NovoOrcamentoV2Page() {
                     }))
                   : [{ servico_id: '', horas_trabalhadas: '1' }],
               ...mapCamposPrateleiraFormulario(produto),
+              ...mapInstalacaoProdutoBackendParaFormulario(produto),
               });
             }) : [
               {

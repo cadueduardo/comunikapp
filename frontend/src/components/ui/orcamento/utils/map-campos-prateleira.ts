@@ -3,10 +3,19 @@ export const mapCamposPrateleiraFormulario = (produto: Record<string, unknown>) 
     | {
         sku?: string;
         estoque_atual?: number;
+        preco_custo?: number | string | null;
         imagens?: Array<{ url_imagem?: string }>;
       }
     | null
     | undefined;
+
+  const precoCustoCatalogo = produtoFinito?.preco_custo;
+  const quantidade = Number(produto.quantidade) || 1;
+  const custoTotalSalvo = Number(produto.custo_total_producao) || 0;
+  const precoCustoUnitario =
+    produto.preco_custo_snapshot ??
+    precoCustoCatalogo ??
+    (custoTotalSalvo > 0 && quantidade > 0 ? custoTotalSalvo / quantidade : '');
 
   return {
     tipo_item: String(produto.tipo_item || 'SOB_DEMANDA'),
@@ -15,6 +24,7 @@ export const mapCamposPrateleiraFormulario = (produto: Record<string, unknown>) 
     preco_unitario_snapshot: String(
       produto.preco_unitario_snapshot ?? produto.preco_unitario ?? '',
     ),
+    preco_custo_snapshot: String(precoCustoUnitario ?? ''),
     estoque_catalogo: Number(
       produto.estoque_catalogo ?? produtoFinito?.estoque_atual ?? 0,
     ),

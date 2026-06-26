@@ -116,6 +116,29 @@ export class ExpedicaoFinanceiroService {
    * Usado por `concluir-entrega`. Lança 409 com payload estruturado se bloqueado.
    */
   async assertEntregaLiberada(osId: string, lojaId: string): Promise<void> {
+    await this.assertOperacaoLiberada(
+      osId,
+      lojaId,
+      'Existem parcelas em aberto que impedem a conclusão da entrega. Regularize o financeiro antes de liberar o material.',
+    );
+  }
+
+  async assertMovimentoKanbanLiberado(
+    osId: string,
+    lojaId: string,
+  ): Promise<void> {
+    await this.assertOperacaoLiberada(
+      osId,
+      lojaId,
+      'Existem parcelas em aberto que impedem mover esta expedição. Regularize o financeiro antes de continuar.',
+    );
+  }
+
+  private async assertOperacaoLiberada(
+    osId: string,
+    lojaId: string,
+    mensagem: string,
+  ): Promise<void> {
     const resultado = await this.verificarBloqueioEntrega(osId, lojaId);
 
     if (!resultado.bloqueado) {
@@ -124,8 +147,7 @@ export class ExpedicaoFinanceiroService {
 
     throw new ConflictException({
       code: BLOQUEIO_FINANCEIRO_CODE,
-      message:
-        'Existem parcelas em aberto que impedem a conclusão da entrega. Regularize o financeiro antes de liberar o material.',
+      message: mensagem,
       parcelas: resultado.parcelas ?? [],
       link_financeiro: resultado.link_financeiro ?? '',
     });

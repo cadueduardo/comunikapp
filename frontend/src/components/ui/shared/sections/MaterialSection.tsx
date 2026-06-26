@@ -25,6 +25,12 @@ import {
   calcularAreaLateral,
   converterParaMetros,
   insumoExigeProfundidade,
+  resolverDimensaoConsumoMaterial,
+  calcularQuantidadeConsumoGeometrico,
+  unidadeFormatacaoPorDimensao,
+  gerarTextoExplicacaoConsumoGeometrico,
+  insumoTemQuantidadeCalculadaAutomaticamente,
+  labelUnidadeCustoInsumo,
 } from '../utils/calculo.utils';
 import { NovoInsumoModal } from '@/components/orcamentos-v2/NovoInsumoModal';
 import { CalculoChapaMaterialPanel } from '@/components/orcamentos-v2/CalculoChapaMaterialPanel';
@@ -269,43 +275,19 @@ export function MaterialSection({
         }
       }
     } else {
-      switch (insumoSelecionado.unidade_uso) {
-        case 'M2':
-          if (areaProdutoNum > 0) {
-            sugestao = formatarQuantidadeAutomatica(
-              areaProdutoNum * quantidadeProdutoNum,
-              insumoSelecionado.unidade_uso,
-            );
-          }
-          break;
-        case 'M':
-          if (perimetroProdutoM > 0) {
-            sugestao = formatarQuantidadeAutomatica(
-              perimetroProdutoM * quantidadeProdutoNum,
-              insumoSelecionado.unidade_uso,
-            );
-          }
-          break;
-        case 'M3': {
-          const volumeM3 = obterVolumeM3Material(materialIndex);
-          if (volumeM3 > 0) {
-            sugestao = formatarQuantidadeAutomatica(
-              volumeM3 * quantidadeProdutoNum,
-              insumoSelecionado.unidade_uso,
-            );
-          }
-          break;
-        }
-        case 'M2_LATERAL': {
-          const areaLateralM2 = obterAreaLateralM2Material(materialIndex);
-          if (areaLateralM2 > 0) {
-            sugestao = formatarQuantidadeAutomatica(
-              areaLateralM2 * quantidadeProdutoNum,
-              insumoSelecionado.unidade_uso,
-            );
-          }
-          break;
-        }
+      const dimensao = resolverDimensaoConsumoMaterial(insumoSelecionado);
+      const quantidadeGeometrica = calcularQuantidadeConsumoGeometrico(dimensao, {
+        areaM2: areaProdutoNum,
+        perimetroM: perimetroProdutoM,
+        volumeM3: obterVolumeM3Material(materialIndex),
+        areaLateralM2: obterAreaLateralM2Material(materialIndex),
+        quantidadeProduto: quantidadeProdutoNum,
+      });
+      if (quantidadeGeometrica > 0) {
+        sugestao = formatarQuantidadeAutomatica(
+          quantidadeGeometrica,
+          unidadeFormatacaoPorDimensao(dimensao) || insumoSelecionado.unidade_uso,
+        );
       }
     }
 
@@ -528,47 +510,19 @@ export function MaterialSection({
               }
             }
           } else {
-            // Lógica padrão baseada na unidade de uso
-            switch (insumoSelecionado.unidade_uso) {
-              case 'M2':
-                if (areaProduto > 0) {
-                  sugestao = formatarQuantidadeAutomatica(
-                    areaProduto * quantidadeProduto,
-                    insumoSelecionado.unidade_uso,
-                  );
-                }
-                break;
-              case 'M':
-                if (perimetroProdutoM > 0) {
-                  sugestao = formatarQuantidadeAutomatica(
-                    perimetroProdutoM * quantidadeProduto,
-                    insumoSelecionado.unidade_uso,
-                  );
-                }
-                break;
-              // Fase 11: volume e area lateral para produtos 3D.
-              // Mesma precisao dos campos auto-preenchidos (6 casas para M3, 4 para M2_LATERAL)
-              // para evitar exibir "Sugestao: 0.000 m3" em produtos pequenos.
-              case 'M3': {
-                const volumeM3 = obterVolumeM3();
-                if (volumeM3 > 0) {
-                  sugestao = formatarQuantidadeAutomatica(
-                    volumeM3 * quantidadeProduto,
-                    insumoSelecionado.unidade_uso,
-                  );
-                }
-                break;
-              }
-              case 'M2_LATERAL': {
-                const areaLateralM2 = obterAreaLateralM2();
-                if (areaLateralM2 > 0) {
-                  sugestao = formatarQuantidadeAutomatica(
-                    areaLateralM2 * quantidadeProduto,
-                    insumoSelecionado.unidade_uso,
-                  );
-                }
-                break;
-              }
+            const dimensao = resolverDimensaoConsumoMaterial(insumoSelecionado);
+            const quantidadeGeometrica = calcularQuantidadeConsumoGeometrico(dimensao, {
+              areaM2: areaProduto,
+              perimetroM: perimetroProdutoM,
+              volumeM3: obterVolumeM3(),
+              areaLateralM2: obterAreaLateralM2(),
+              quantidadeProduto,
+            });
+            if (quantidadeGeometrica > 0) {
+              sugestao = formatarQuantidadeAutomatica(
+                quantidadeGeometrica,
+                unidadeFormatacaoPorDimensao(dimensao) || insumoSelecionado.unidade_uso,
+              );
             }
           }
           
@@ -624,41 +578,31 @@ export function MaterialSection({
               }
             }
           } else {
-            // Lógica padrão
-            // Fase 11: M3 e M2_LATERAL precedem M2/M porque o switch precisa caso a caso.
-            if (insumoSelecionado.unidade_uso === 'M3') {
-              const volumeM3 = obterVolumeM3();
-              if (volumeM3 > 0) {
-                const volumeTotal = volumeM3 * quantidadeProduto;
-                return `Volume: L x A x P = ${formatarNumeroMedida(volumeM3, 3)}m³ × ${quantidadeProduto} unidades = ${formatarNumeroMedida(volumeTotal, 3)}m³`;
-              }
-              if (!temProfundidadeValida()) {
-                return 'Este insumo requer profundidade. Preencha o campo Profundidade em Geometria de produção.';
-              }
+            const dimensao = resolverDimensaoConsumoMaterial(insumoSelecionado);
+            const explicacao = gerarTextoExplicacaoConsumoGeometrico(
+              dimensao,
+              {
+                areaM2: areaProduto,
+                perimetroM: perimetroProdutoM,
+                volumeM3: obterVolumeM3(),
+                areaLateralM2: obterAreaLateralM2(),
+                quantidadeProduto,
+              },
+              formatarNumeroMedida,
+            );
+            if (explicacao) return explicacao;
+
+            if (
+              (dimensao === 'volume' || insumoSelecionado.unidade_uso === 'M3') &&
+              !temProfundidadeValida()
+            ) {
+              return 'Este insumo requer profundidade. Preencha o campo Profundidade em Geometria de produção.';
             }
-            if (insumoSelecionado.unidade_uso === 'M2_LATERAL') {
-              const areaLateralM2 = obterAreaLateralM2();
-              if (areaLateralM2 > 0) {
-                const areaTotal = areaLateralM2 * quantidadeProduto;
-                return `Área lateral (caixa aberta): (2L+2A) x P = ${formatarNumeroMedida(areaLateralM2, 2)}m² × ${quantidadeProduto} unidades = ${formatarNumeroMedida(areaTotal, 2)}m²`;
-              }
-              if (!temProfundidadeValida()) {
-                return 'Este insumo requer profundidade. Preencha o campo Profundidade em Geometria de produção.';
-              }
-            }
-            switch (insumoSelecionado.unidade_uso) {
-              case 'M2':
-                if (areaProduto > 0) {
-                  const areaTotal = areaProduto * quantidadeProduto;
-                  return `Área calculada: ${formatarNumeroMedida(areaProduto, 2)}m² × ${quantidadeProduto} unidades = ${formatarNumeroMedida(areaTotal, 2)}m²`;
-                }
-                break;
-              case 'M':
-                if (perimetroProdutoM > 0) {
-                  const perimetroTotal = perimetroProdutoM * quantidadeProduto;
-                  return `Perímetro calculado: ${formatarNumeroMedida(perimetroProdutoM, 2)}m × ${quantidadeProduto} unidades = ${formatarNumeroMedida(perimetroTotal, 2)}m`;
-                }
-                break;
+            if (
+              (dimensao === 'area_lateral' || insumoSelecionado.unidade_uso === 'M2_LATERAL') &&
+              !temProfundidadeValida()
+            ) {
+              return 'Este insumo requer profundidade. Preencha o campo Profundidade em Geometria de produção.';
             }
           }
           
@@ -739,14 +683,7 @@ export function MaterialSection({
                 name={`itens_produto.${itemIndex}.materiais.${materialIndex}.quantidade`}
                 render={({ field }) => {
                   // Verificar se o material é calculado por área (M2) ou tem lógica personalizada baseada em área
-                  const isQuantidadeCalculada = insumoSelecionado && (
-                    insumoSelecionado.unidade_uso === 'M2' ||
-                    insumoSelecionado.unidade_uso === 'M' ||
-                    insumoSelecionado.unidade_uso === 'M3' ||
-                    insumoSelecionado.unidade_uso === 'M2_LATERAL' ||
-                    (insumoSelecionado.logica_consumo === 'custom' &&
-                     insumoSelecionado.tipoMaterial?.parametros_padrao?.tipo_calculo === 'quantidade_por_m2')
-                  );
+                  const isQuantidadeCalculada = insumoTemQuantidadeCalculadaAutomaticamente(insumoSelecionado);
                   const quantidadeCasas =
                     insumoSelecionado?.unidade_uso === 'M3'
                       ? 3
@@ -943,7 +880,7 @@ export function MaterialSection({
                       <div>Material do cliente — custo zerado no orçamento</div>
                     ) : (
                       <>
-                        <div>Custo: {formatCurrency(custoCalculado)} ({formatCurrency(custoPorUnidade)} por {insumoSelecionado.unidade_uso.toLowerCase()})</div>
+                        <div>Custo: {formatCurrency(custoCalculado)} ({formatCurrency(custoPorUnidade)} por {labelUnidadeCustoInsumo(insumoSelecionado)})</div>
                         {gerarExplicacaoCalculo() && (
                           <div className="text-green-700 mt-1 font-medium">
                             {gerarExplicacaoCalculo()}

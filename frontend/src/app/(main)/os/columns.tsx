@@ -31,8 +31,11 @@ import {
   ShieldCheck,
   CheckCircle2,
   XCircle,
+  RotateCcw,
 } from 'lucide-react';
 import Link from 'next/link';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 export interface OrdemServico {
   id: string;
@@ -56,6 +59,9 @@ export interface OrdemServico {
   aprovacao_tecnica_em?: string | null;
   aprovacao_tecnica_obs?: string | null;
   tipo_os?: string | null;
+  ativo?: boolean;
+  motivo_inativacao?: string | null;
+  inativado_em?: string | null;
 }
 
 // Função para obter configuração de status
@@ -245,21 +251,37 @@ function AprovacaoCell({
 // Componente: dropdown de acoes secundarias
 function AcoesDropdown({
   os,
-  onDelete,
+  onInativar,
+  onReativar,
 }: {
   os: OrdemServico;
-  onDelete: (id: string) => void;
+  onInativar: (id: string, motivo: string) => Promise<void>;
+  onReativar: (id: string) => Promise<void>;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [excluindo, setExcluindo] = useState(false);
+  const [processando, setProcessando] = useState(false);
+  const [motivo, setMotivo] = useState('');
+  const inativa = os.ativo === false;
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmInativar = async () => {
+    const motivoLimpo = motivo.trim();
+    if (!motivoLimpo) return;
     try {
-      setExcluindo(true);
-      await onDelete(os.id);
+      setProcessando(true);
+      await onInativar(os.id, motivoLimpo);
       setConfirmOpen(false);
+      setMotivo('');
     } finally {
-      setExcluindo(false);
+      setProcessando(false);
+    }
+  };
+
+  const handleReativar = async () => {
+    try {
+      setProcessando(true);
+      await onReativar(os.id);
+    } finally {
+      setProcessando(false);
     }
   };
 
@@ -276,62 +298,82 @@ function AcoesDropdown({
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuItem asChild>
             <Link href={`/os/${os.id}`}>
               <Eye className="h-4 w-4 mr-2" />
               Visualizar
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href={`/os/${os.id}/editar`}>
-              <Edit className="h-4 w-4 mr-2" />
-              Editar
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href={`/os/${os.id}/imprimir`}>
-              <Printer className="h-4 w-4 mr-2" />
-              Imprimir
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="text-destructive focus:text-destructive"
-            onSelect={(e) => {
-              e.preventDefault();
-              setConfirmOpen(true);
-            }}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Excluir
-          </DropdownMenuItem>
+          {!inativa && (
+            <>
+              <DropdownMenuItem asChild>
+                <Link href={`/os/${os.id}/editar`}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/os/${os.id}/imprimir`}>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Imprimir
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setConfirmOpen(true);
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Inativar
+              </DropdownMenuItem>
+            </>
+          )}
+          {inativa && (
+            <DropdownMenuItem onClick={() => void handleReativar()} disabled={processando}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              {processando ? 'Reativando...' : 'Reativar'}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Excluir Ordem de Serviço</DialogTitle>
+            <DialogTitle>Inativar Ordem de Serviço</DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja excluir a OS #{os.numero}? Esta ação não
-              pode ser desfeita.
+              A OS #{os.numero} sairá do PCP, expedição e alertas. Os dados
+              permanecem no sistema e podem ser reativados depois.
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor={`motivo-inativar-${os.id}`}>Motivo</Label>
+            <Textarea
+              id={`motivo-inativar-${os.id}`}
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Ex.: OS de teste — limpeza solicitada"
+              rows={3}
+            />
+          </div>
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
               onClick={() => setConfirmOpen(false)}
-              disabled={excluindo}
+              disabled={processando}
             >
               Cancelar
             </Button>
             <Button
               variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={excluindo}
+              onClick={() => void handleConfirmInativar()}
+              disabled={processando || !motivo.trim()}
             >
-              {excluindo ? 'Excluindo...' : 'Excluir'}
+              {processando ? 'Inativando...' : 'Inativar OS'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -341,7 +383,8 @@ function AcoesDropdown({
 }
 
 export const createColumns = (
-  onDelete: (id: string) => void,
+  onInativar: (id: string, motivo: string) => Promise<void>,
+  onReativar: (id: string) => Promise<void>,
   onAprovar: (os: OrdemServico) => void,
 ): ColumnDef<OrdemServico>[] => [
   {
@@ -379,11 +422,19 @@ export const createColumns = (
     cell: ({ row }) => {
       const status = row.getValue('status') as string;
       const config = getStatusConfig(status);
+      const inativa = row.original.ativo === false;
 
       return (
-        <Badge variant={config.variant} className={config.color}>
-          {config.label}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant={config.variant} className={config.color}>
+            {config.label}
+          </Badge>
+          {inativa && (
+            <Badge variant="outline" className="text-muted-foreground">
+              Inativa
+            </Badge>
+          )}
+        </div>
       );
     },
   },
@@ -445,7 +496,7 @@ export const createColumns = (
     header: 'Ações',
     cell: ({ row }) => {
       const os = row.original;
-      return <AcoesDropdown os={os} onDelete={onDelete} />;
+      return <AcoesDropdown os={os} onInativar={onInativar} onReativar={onReativar} />;
     },
   },
 ];

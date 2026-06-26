@@ -68,6 +68,8 @@ export interface ConcluirEntregaPayload {
   recebedor_doc?: string;
   url_assinatura?: string;
   observacoes?: string;
+  override_financeiro?: boolean;
+  motivo_override_financeiro?: string;
 }
 
 export interface ConcluirEntregaResult {

@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
+import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
 
 // Formata Date em 'YYYY-MM-DD' no fuso local (input type=date espera esse
 // formato). NÃO usa toISOString() porque ela converte para UTC e pode pular
@@ -379,6 +380,7 @@ export function AprovarOSModal({
       }
 
       toast.success(`OS ${osNumero ? `#${osNumero} ` : ''}aprovada com sucesso`);
+      solicitarAtualizacaoBadgesSidebar();
       onAprovado?.();
       onOpenChange(false);
     } catch (error) {

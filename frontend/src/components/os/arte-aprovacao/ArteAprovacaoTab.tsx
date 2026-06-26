@@ -55,6 +55,7 @@ import { ArteFileUpload } from './components/ArteFileUpload';
 import { ArtePreviewModal } from './components/ArtePreviewModal';
 import { ArteAuthenticatedImage } from './components/ArteAuthenticatedImage';
 import { openArteFilePreview, resolveArteAuthenticatedFileUrl, fetchArteFileBlob } from '@/lib/arte-assets';
+import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
 import { ArteCreateVersionModal } from './components/ArteCreateVersionModal';
 import { ArteDesignerApprovalModal } from './components/ArteDesignerApprovalModal';
 
@@ -548,6 +549,7 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
       });
 
       toast.success(`Versão ${versaoForApproval.versao} aprovada e liberada para PCP com sucesso!`);
+      solicitarAtualizacaoBadgesSidebar();
       
       // Fechar modal e limpar estado
       setShowDesignerApprovalModal(false);
@@ -592,6 +594,7 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
         toast.dismiss(toastId);
       }
       toast.success('Arte liberada para PCP com sucesso!');
+      solicitarAtualizacaoBadgesSidebar();
       refreshVersoes();
     } catch (error: any) {
       console.error('Erro ao liberar arte para PCP:', error);

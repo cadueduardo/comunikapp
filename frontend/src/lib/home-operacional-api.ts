@@ -365,3 +365,48 @@ export async function fetchResumoFinanceiro(opcoes?: {
   const json = (await r.json()) as ResumoFinanceiroResponse;
   return json;
 }
+
+// ====================================================================
+// Contadores do menu lateral (badges)
+// ====================================================================
+
+export interface ContadoresMenu {
+  os: number;
+  pcp: number;
+  expedicao: number;
+  financeiro: number;
+}
+
+export async function fetchContadoresMenu(
+  opcoes?: {
+    refresh?: boolean;
+    os_desde?: string;
+    pcp_desde?: string;
+    expedicao_desde?: string;
+    financeiro_desde?: string;
+  },
+): Promise<ContadoresMenu> {
+  const params = new URLSearchParams();
+  if (opcoes?.refresh) params.set('refresh', '1');
+  if (opcoes?.os_desde) params.set('os_desde', opcoes.os_desde);
+  if (opcoes?.pcp_desde) params.set('pcp_desde', opcoes.pcp_desde);
+  if (opcoes?.expedicao_desde) params.set('expedicao_desde', opcoes.expedicao_desde);
+  if (opcoes?.financeiro_desde) params.set('financeiro_desde', opcoes.financeiro_desde);
+
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  const token =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('access_token')
+      : null;
+
+  const response = await fetch(`/api/home-operacional/contadores-menu${qs}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!response.ok) {
+    throw new Error(`Falha ao carregar contadores do menu (HTTP ${response.status})`);
+  }
+
+  const json = (await response.json()) as { data: ContadoresMenu };
+  return json.data;
+}

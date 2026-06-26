@@ -1051,6 +1051,116 @@ export class InsumosService {
     return resultado;
   }
 
+  private async gerarNomeCopiaInsumo(
+    nomeBase: string,
+    fornecedorId: string,
+    lojaId: string,
+  ): Promise<string> {
+    const base = nomeBase.trim() || 'Insumo';
+    let candidato = `${base} (Cópia)`;
+    let contador = 2;
+
+    while (
+      await this.prisma.insumo.findFirst({
+        where: {
+          loja_id: lojaId,
+          nome: candidato,
+          fornecedorId,
+        },
+        select: { id: true },
+      })
+    ) {
+      candidato = `${base} (Cópia ${contador})`;
+      contador += 1;
+    }
+
+    return candidato;
+  }
+
+  async duplicar(id: string, loja: loja) {
+    const original = await this.prisma.insumo.findFirst({
+      where: { id, loja_id: loja.id },
+    });
+
+    if (!original) {
+      throw new NotFoundException(`Insumo com ID "${id}" não encontrado.`);
+    }
+
+    let parametrosConsumo: unknown = original.parametros_consumo;
+    if (typeof parametrosConsumo === 'string' && parametrosConsumo.trim()) {
+      try {
+        parametrosConsumo = JSON.parse(parametrosConsumo);
+      } catch {
+        parametrosConsumo = null;
+      }
+    }
+
+    const nomeCopia = await this.gerarNomeCopiaInsumo(
+      original.nome,
+      original.fornecedorId,
+      loja.id,
+    );
+
+    const dto: CreateInsumoDto = {
+      nome: nomeCopia,
+      categoriaId: original.categoriaId,
+      fornecedorId: original.fornecedorId,
+      unidade_compra: original.unidade_compra,
+      custo_unitario: Number(original.custo_unitario),
+      quantidade_compra: Number(original.quantidade_compra),
+      unidade_uso: original.unidade_uso,
+      fator_conversao: Number(original.fator_conversao),
+      largura: original.largura ? Number(original.largura) : undefined,
+      altura: original.altura ? Number(original.altura) : undefined,
+      unidade_dimensao: original.unidade_dimensao ?? undefined,
+      tipo_calculo: original.tipo_calculo ?? undefined,
+      gramatura: original.gramatura ? Number(original.gramatura) : undefined,
+      logica_consumo: original.logica_consumo,
+      tipo_material_id: original.tipoMaterialId ?? undefined,
+      parametros_consumo: parametrosConsumo,
+      formato_material: original.formato_material ?? undefined,
+      largura_comercial: original.largura_comercial
+        ? Number(original.largura_comercial)
+        : undefined,
+      altura_comercial: original.altura_comercial
+        ? Number(original.altura_comercial)
+        : undefined,
+      comprimento_comercial: original.comprimento_comercial
+        ? Number(original.comprimento_comercial)
+        : undefined,
+      area_comercial: original.area_comercial
+        ? Number(original.area_comercial)
+        : undefined,
+      perda_padrao_percent: original.perda_padrao_percent
+        ? Number(original.perda_padrao_percent)
+        : undefined,
+      permite_simulacao_chapa: original.permite_simulacao_chapa,
+      controla_estoque: original.controla_estoque,
+      permite_registrar_sobra: original.permite_registrar_sobra,
+      retalho_min_largura: original.retalho_min_largura
+        ? Number(original.retalho_min_largura)
+        : undefined,
+      retalho_min_altura: original.retalho_min_altura
+        ? Number(original.retalho_min_altura)
+        : undefined,
+      retalho_min_area: original.retalho_min_area
+        ? Number(original.retalho_min_area)
+        : undefined,
+      metodo_cobranca_padrao:
+        (original.metodo_cobranca_padrao as CreateInsumoDto['metodo_cobranca_padrao']) ??
+        undefined,
+      codigo_interno: original.codigo_interno ?? undefined,
+      estoque_minimo: original.estoque_minimo ?? undefined,
+      controlar_estoque: original.controla_estoque,
+      estoque_quantidade_inicial: original.controla_estoque ? 0 : undefined,
+      ativo: original.ativo,
+      descricao_tecnica: original.descricao_tecnica ?? undefined,
+      observacoes: original.observacoes ?? undefined,
+    };
+
+    return this.create(dto, loja);
+  }
+
   async getConfiguracaoCalculoChapa(id: string, loja: loja) {
     const insumo = await this.findOne(id, loja);
 

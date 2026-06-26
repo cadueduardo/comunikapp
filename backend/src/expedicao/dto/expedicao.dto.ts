@@ -7,6 +7,7 @@ import {
   IsString,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { StatusExpedicao } from '../enums/status-expedicao.enum';
 import { ModalidadeExpedicao } from '../enums/modalidade-expedicao.enum';
@@ -77,6 +78,19 @@ export class ConcluirEntregaDto {
   @IsString()
   @MaxLength(5000)
   observacoes?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === true || value === 'true')
+  override_financeiro?: boolean;
+
+  @ValidateIf((dto) => dto.override_financeiro === true)
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(10)
+  @MaxLength(500)
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  motivo_override_financeiro?: string;
 }
 
 export class DevolverProducaoDto {

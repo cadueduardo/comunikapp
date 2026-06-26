@@ -26,6 +26,7 @@ export type ProdutoPrateleira = {
   descricao_resumida?: string | null;
   preco_venda: number | string;
   preco_promocional?: number | string | null;
+  preco_custo?: number | string | null;
   estoque_atual: number;
   categoria?: { id: string; nome: string } | null;
   preco_unitario?: number;
@@ -147,7 +148,7 @@ export function ProdutoPrateleiraSelectionModal({
                     <Button
                       type="button"
                       onClick={() => {
-                        onSelect({ ...produto, preco_unitario: preco });
+                        onSelect({ ...produto, preco_unitario: preco, preco_custo: produto.preco_custo });
                         onClose();
                       }}
                     >

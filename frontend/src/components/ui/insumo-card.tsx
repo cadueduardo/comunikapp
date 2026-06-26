@@ -16,6 +16,7 @@ import Link from 'next/link';
 interface InsumoCardProps {
   insumo: Insumo;
   onDelete: (id: string, nome: string) => void;
+  onDuplicate?: (id: string) => void;
 }
 
 const formatCurrency = (value: number) => {
@@ -25,7 +26,7 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export function InsumoCard({ insumo, onDelete }: InsumoCardProps) {
+export function InsumoCard({ insumo, onDelete, onDuplicate }: InsumoCardProps) {
   const formatUnidadeCompra = () => {
     return `1 ${insumo.unidade_compra}`;
   };
@@ -128,6 +129,11 @@ export function InsumoCard({ insumo, onDelete }: InsumoCardProps) {
             <DropdownMenuItem asChild>
               <Link href={`/insumos/editar/${insumo.id}`}>Editar</Link>
             </DropdownMenuItem>
+            {onDuplicate && (
+              <DropdownMenuItem onClick={() => onDuplicate(insumo.id)}>
+                Duplicar
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => onDelete(insumo.id, insumo.nome)}>
               Excluir

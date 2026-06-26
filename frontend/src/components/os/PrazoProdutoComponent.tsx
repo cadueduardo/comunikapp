@@ -39,6 +39,7 @@ import {
   Image
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
 
 interface PrazoProdutoComponentProps {
   osId: string;
@@ -354,6 +355,7 @@ export function PrazoProdutoComponent({
       if (result.success) {
         onPrazoChange?.();
         toast.success('Produto liberado para PCP com sucesso!');
+        solicitarAtualizacaoBadgesSidebar();
       } else {
         toast.error(result.message || 'Erro ao liberar produto para PCP');
       }

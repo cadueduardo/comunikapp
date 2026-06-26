@@ -88,9 +88,177 @@ export function insumoExigeProfundidade(unidadeUso: string | undefined | null): 
   return unidadeUso === 'M3' || unidadeUso === 'M2_LATERAL';
 }
 
+export type DimensaoConsumoMaterial =
+  | 'area'
+  | 'perimetro'
+  | 'volume'
+  | 'area_lateral';
+
+type InsumoConsumoRef = Pick<Insumo, 'logica_consumo' | 'unidade_uso' | 'tipoMaterial'>;
+
+/**
+ * Resolve se o consumo do insumo deve seguir área, perímetro, volume etc.
+ * `logica_consumo` tem prioridade sobre `unidade_uso` (cadastro pode ter M com lógica area).
+ */
+export function resolverDimensaoConsumoMaterial(
+  insumo: InsumoConsumoRef | null | undefined,
+): DimensaoConsumoMaterial | null {
+  if (!insumo) return null;
+
+  if (insumo.logica_consumo === 'custom' && insumo.tipoMaterial?.parametros_padrao?.tipo_calculo) {
+    const tipo = insumo.tipoMaterial.parametros_padrao.tipo_calculo;
+    if (tipo === 'quantidade_por_m2') return 'area';
+    if (tipo === 'espacamento') return 'perimetro';
+    return null;
+  }
+
+  switch (insumo.logica_consumo) {
+    case 'area':
+      return 'area';
+    case 'perimetro':
+      return 'perimetro';
+    default:
+      break;
+  }
+
+  switch (insumo.unidade_uso) {
+    case 'M2':
+      return 'area';
+    case 'M':
+      return 'perimetro';
+    case 'M3':
+      return 'volume';
+    case 'M2_LATERAL':
+      return 'area_lateral';
+    default:
+      return null;
+  }
+}
+
+export interface ConsumoGeometricoContexto {
+  areaM2: number;
+  perimetroM: number;
+  volumeM3: number;
+  areaLateralM2: number;
+  quantidadeProduto: number;
+}
+
+export function calcularQuantidadeConsumoGeometrico(
+  dimensao: DimensaoConsumoMaterial | null,
+  ctx: ConsumoGeometricoContexto,
+): number {
+  if (!dimensao || ctx.quantidadeProduto <= 0) return 0;
+
+  switch (dimensao) {
+    case 'area':
+      return ctx.areaM2 > 0 ? ctx.areaM2 * ctx.quantidadeProduto : 0;
+    case 'perimetro':
+      return ctx.perimetroM > 0 ? ctx.perimetroM * ctx.quantidadeProduto : 0;
+    case 'volume':
+      return ctx.volumeM3 > 0 ? ctx.volumeM3 * ctx.quantidadeProduto : 0;
+    case 'area_lateral':
+      return ctx.areaLateralM2 > 0 ? ctx.areaLateralM2 * ctx.quantidadeProduto : 0;
+    default:
+      return 0;
+  }
+}
+
+export function unidadeFormatacaoPorDimensao(
+  dimensao: DimensaoConsumoMaterial | null,
+): string {
+  switch (dimensao) {
+    case 'area':
+      return 'M2';
+    case 'perimetro':
+      return 'M';
+    case 'volume':
+      return 'M3';
+    case 'area_lateral':
+      return 'M2_LATERAL';
+    default:
+      return '';
+  }
+}
+
+export function gerarTextoExplicacaoConsumoGeometrico(
+  dimensao: DimensaoConsumoMaterial | null,
+  ctx: ConsumoGeometricoContexto,
+  formatarNumero: (valor: number, casas: number) => string,
+): string {
+  const q = ctx.quantidadeProduto;
+  if (!dimensao || q <= 0) return '';
+
+  switch (dimensao) {
+    case 'area': {
+      if (ctx.areaM2 <= 0) return '';
+      const total = ctx.areaM2 * q;
+      return `Área calculada: ${formatarNumero(ctx.areaM2, 2)}m² × ${q} unidades = ${formatarNumero(total, 2)}m²`;
+    }
+    case 'perimetro': {
+      if (ctx.perimetroM <= 0) return '';
+      const total = ctx.perimetroM * q;
+      return `Perímetro calculado: ${formatarNumero(ctx.perimetroM, 2)}m × ${q} unidades = ${formatarNumero(total, 2)}m`;
+    }
+    case 'volume': {
+      if (ctx.volumeM3 <= 0) return '';
+      const total = ctx.volumeM3 * q;
+      return `Volume: L x A x P = ${formatarNumero(ctx.volumeM3, 3)}m³ × ${q} unidades = ${formatarNumero(total, 3)}m³`;
+    }
+    case 'area_lateral': {
+      if (ctx.areaLateralM2 <= 0) return '';
+      const total = ctx.areaLateralM2 * q;
+      return `Área lateral (caixa aberta): (2L+2A) x P = ${formatarNumero(ctx.areaLateralM2, 2)}m² × ${q} unidades = ${formatarNumero(total, 2)}m²`;
+    }
+    default:
+      return '';
+  }
+}
+
+/** Quantidade já inclui `quantidade_produto` (MaterialSection auto-calculou o total). */
+export function insumoQuantidadeJaIncluiProduto(
+  insumo: InsumoConsumoRef | null | undefined,
+): boolean {
+  if (!insumo) return false;
+  if (insumo.logica_consumo === 'custom' && insumo.tipoMaterial) return true;
+  return resolverDimensaoConsumoMaterial(insumo) !== null;
+}
+
+export function insumoTemQuantidadeCalculadaAutomaticamente(
+  insumo: Insumo | undefined,
+): boolean {
+  if (!insumo) return false;
+  if (resolverDimensaoConsumoMaterial(insumo) !== null) return true;
+  return (
+    insumo.logica_consumo === 'custom' &&
+    insumo.tipoMaterial?.parametros_padrao?.tipo_calculo === 'quantidade_por_m2'
+  );
+}
+
+export function labelUnidadeCustoInsumo(insumo: Insumo | undefined): string {
+  const dimensao = resolverDimensaoConsumoMaterial(insumo);
+  if (dimensao === 'area' || dimensao === 'area_lateral') return 'm²';
+  if (dimensao === 'perimetro') return 'm';
+  if (dimensao === 'volume') return 'm³';
+  return insumo?.unidade_uso?.toLowerCase() ?? '';
+}
+
 // Função para obter o tipo de campo baseado na unidade de uso
 export function getCampoQuantidade(insumo: Insumo | undefined) {
   if (!insumo) return { label: 'Quantidade', placeholder: '0.00', step: '0.01' };
+
+  const dimensao = resolverDimensaoConsumoMaterial(insumo);
+  if (dimensao === 'area') {
+    return { label: 'Área (m²)', placeholder: '0.00', step: '0.01' };
+  }
+  if (dimensao === 'perimetro') {
+    return { label: 'Comprimento (metros)', placeholder: '0.00', step: '0.001' };
+  }
+  if (dimensao === 'area_lateral') {
+    return { label: 'Área lateral (m²)', placeholder: '0.00', step: '0.01' };
+  }
+  if (dimensao === 'volume') {
+    return { label: 'Volume (m³)', placeholder: '0.00', step: '0.001' };
+  }
 
   switch (insumo.unidade_uso) {
     case 'M':
@@ -230,7 +398,9 @@ export function calcularCustoPorUnidadeUso(insumo: Insumo): number {
     const unidadeUsoNormalizada = (insumo.unidade_uso || '').toUpperCase();
     const unidadeUsoEhMetroQuadrado =
       unidadeUsoNormalizada === 'M2' ||
-      unidadeUsoNormalizada === 'METRO QUADRADO';
+      unidadeUsoNormalizada === 'METRO QUADRADO' ||
+      insumo.logica_consumo === 'area' ||
+      resolverDimensaoConsumoMaterial(insumo) === 'area';
     // Se temos dimensões e tipo de cálculo, usar a lógica específica
     if (insumo.altura && insumo.unidade_dimensao && insumo.tipo_calculo) {
       const alturaNum = Number(insumo.altura);

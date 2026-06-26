@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { FinanceiroModule } from '../financeiro/financeiro.module';
 import { WebsocketsModule } from '../websockets/websockets.module';
 import { ProdutosModule } from '../produtos/produtos.module';
+import { HomeOperacionalModule } from '../home-operacional/home-operacional.module';
 import { ExpedicaoController } from './controllers/expedicao.controller';
 import { ExpedicaoAssinaturaController } from './controllers/expedicao-assinatura.controller';
 import { ExpedicaoFinanceiroService } from './services/expedicao-financeiro.service';
@@ -27,6 +28,7 @@ import { ExpedicaoTemplateService } from './services/expedicao-template.service'
     FinanceiroModule,
     WebsocketsModule,
     ProdutosModule,
+    HomeOperacionalModule,
   ],
   controllers: [ExpedicaoController, ExpedicaoAssinaturaController],
   providers: [

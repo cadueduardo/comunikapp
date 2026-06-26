@@ -46,6 +46,9 @@ export interface OrdemServicoData {
   satisfacao_cliente?: number;
   observacoes_cliente?: string;
   criado_por?: string;
+  ativo?: boolean;
+  inativado_em?: Date;
+  motivo_inativacao?: string;
   modificado_por?: string;
   motivo_modificacao?: string;
   versao?: number;

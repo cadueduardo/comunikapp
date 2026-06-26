@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { CustomCurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -31,8 +32,6 @@ import type {
 import { registrarRecebimento } from '@/lib/financeiro-api';
 import {
   formatarMoeda,
-  formatarValorInput,
-  parseValorMoedaBr,
 } from '@/lib/financeiro/financeiro-format';
 
 interface Props {
@@ -76,7 +75,7 @@ export function RegistrarRecebimentoDialog({
     ? Number(cobranca?.valor_saldo ?? 0)
     : saldoParcelaAberta;
 
-  const [valor, setValor] = useState<string>(formatarValorInput(valorInicial));
+  const [valor, setValor] = useState<string>(String(valorInicial));
   const [dataRecebimento, setDataRecebimento] = useState<string>(
     new Date().toISOString().slice(0, 10),
   );
@@ -94,8 +93,8 @@ export function RegistrarRecebimentoDialog({
 
   const handleSubmit = async () => {
     if (!cobranca) return;
-    const valorNumerico = parseValorMoedaBr(valor);
-    if (Number.isNaN(valorNumerico) || valorNumerico <= 0) {
+    const valorNumerico = Number.parseFloat(valor);
+    if (!Number.isFinite(valorNumerico) || valorNumerico <= 0) {
       toast.error('Informe um valor válido maior que zero');
       return;
     }
@@ -164,14 +163,12 @@ export function RegistrarRecebimentoDialog({
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="valor">Valor (R$)</Label>
-              <Input
+              <Label htmlFor="valor">Valor</Label>
+              <CustomCurrencyInput
                 id="valor"
-                type="text"
-                inputMode="decimal"
                 value={valor}
-                onChange={(e) => setValor(e.target.value)}
-                placeholder="0,00"
+                onValueChange={setValor}
+                placeholder="R$ 0,00"
               />
             </div>
             <div className="space-y-1.5">

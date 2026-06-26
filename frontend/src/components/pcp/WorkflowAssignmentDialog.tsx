@@ -21,6 +21,7 @@ import {
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
 
 interface WorkflowTemplate {
   id: string;
@@ -376,6 +377,7 @@ export function WorkflowAssignmentDialog({
 
       const data: WorkflowAssignmentResponse = await response.json();
       toast.success(data.mensagem || 'Workflow atribuido com sucesso.');
+      solicitarAtualizacaoBadgesSidebar();
       onAssigned?.(data);
       onClose();
     } catch (submitError: unknown) {

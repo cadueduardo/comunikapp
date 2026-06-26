@@ -121,6 +121,7 @@ export class ExpedicaoKanbanService {
     const where: Prisma.ExpedicaoLogisticaWhereInput = {
       loja_id: lojaId,
       status: { in: statusPermitidos },
+      ordem_servico: { ativo: true },
     };
 
     if (filtros?.modalidade) {

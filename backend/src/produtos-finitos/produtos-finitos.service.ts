@@ -133,6 +133,7 @@ export class ProdutosFinitosService {
         descricao: dto.descricao?.trim() || null,
         preco_venda: dto.preco_venda,
         preco_promocional: dto.preco_promocional ?? null,
+        preco_custo: dto.preco_custo ?? null,
         peso_kg: dto.peso_kg ?? 0,
         largura_cm: dto.largura_cm ?? 0,
         altura_cm: dto.altura_cm ?? 0,
@@ -187,6 +188,8 @@ export class ProdutosFinitosService {
         preco_venda: dto.preco_venda,
         preco_promocional:
           dto.preco_promocional !== undefined ? dto.preco_promocional : undefined,
+        preco_custo:
+          dto.preco_custo !== undefined ? dto.preco_custo : undefined,
         peso_kg: dto.peso_kg,
         largura_cm: dto.largura_cm,
         altura_cm: dto.altura_cm,
