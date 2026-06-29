@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ArteArquivoResponseDto } from '../dto/arte-response.dto';
+import { normalizeMultipartFilename } from '../../../common/utils/multipart-filename.util';
 
 @Injectable()
 export class ArteArquivoService {
@@ -194,7 +195,7 @@ export class ArteArquivoService {
     return {
       id: arquivo.id,
       nome_arquivo: arquivo.nome_arquivo,
-      nome_original: arquivo.nome_original,
+      nome_original: normalizeMultipartFilename(arquivo.nome_original),
       tipo_arquivo: arquivo.tipo_arquivo,
       tamanho: Number(arquivo.tamanho), // Converter BigInt para Number
       url_arquivo: arquivo.url_arquivo,

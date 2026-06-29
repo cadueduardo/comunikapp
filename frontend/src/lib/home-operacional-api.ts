@@ -375,6 +375,7 @@ export interface ContadoresMenu {
   pcp: number;
   expedicao: number;
   financeiro: number;
+  arte: number;
 }
 
 export async function fetchContadoresMenu(
@@ -384,6 +385,7 @@ export async function fetchContadoresMenu(
     pcp_desde?: string;
     expedicao_desde?: string;
     financeiro_desde?: string;
+    arte_desde?: string;
   },
 ): Promise<ContadoresMenu> {
   const params = new URLSearchParams();
@@ -392,6 +394,7 @@ export async function fetchContadoresMenu(
   if (opcoes?.pcp_desde) params.set('pcp_desde', opcoes.pcp_desde);
   if (opcoes?.expedicao_desde) params.set('expedicao_desde', opcoes.expedicao_desde);
   if (opcoes?.financeiro_desde) params.set('financeiro_desde', opcoes.financeiro_desde);
+  if (opcoes?.arte_desde) params.set('arte_desde', opcoes.arte_desde);
 
   const qs = params.toString() ? `?${params.toString()}` : '';
   const token =

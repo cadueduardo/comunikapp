@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,14 @@ import { ShareButton } from '@/components/ui/share-button';
 import { resolverTextoCondicaoPagamento } from '@/lib/condicao-pagamento-descricao';
 import { resolveAssetUrl } from '@/lib/config';
 
+interface LinhaArtePdf {
+  descricao: string;
+  horas?: number | null;
+  custo_hora?: number | null;
+  preco_unitario: number;
+  preco_total: number;
+}
+
 interface ProdutoOrcamento {
   id: string;
   nome: string;
@@ -30,6 +38,7 @@ interface ProdutoOrcamento {
   margem_lucro: number;
   impostos: number;
   observacoes?: string;
+  linha_arte?: LinhaArtePdf | null;
 }
 
 interface OrcamentoV2 {
@@ -311,6 +320,21 @@ export default function OrcamentoV2PublicoPage() {
       ...produto,
       preco_unitario: Number(produto.preco_unitario) || 0,
       preco_total: Number(produto.preco_total) || 0,
+      linha_arte: produto.linha_arte
+        ? {
+            ...produto.linha_arte,
+            preco_unitario: Number(produto.linha_arte.preco_unitario) || 0,
+            preco_total: Number(produto.linha_arte.preco_total) || 0,
+            horas:
+              produto.linha_arte.horas != null
+                ? Number(produto.linha_arte.horas)
+                : null,
+            custo_hora:
+              produto.linha_arte.custo_hora != null
+                ? Number(produto.linha_arte.custo_hora)
+                : null,
+          }
+        : null,
     }));
   };
 
@@ -484,39 +508,65 @@ export default function OrcamentoV2PublicoPage() {
                   {/* Se há produtos específicos, mostrar cada um */}
                   {produtosComPrecosCorretos && produtosComPrecosCorretos.length > 0 ? (
                     produtosComPrecosCorretos.map((produto, index) => (
-                      <tr key={produto.id || index}>
-                        <td className="border border-gray-400 px-3 py-2 text-center">
-                          {String(produto.quantidade || 1).padStart(2, '0')}
-                        </td>
-                        <td className="border border-gray-400 px-3 py-2">
-                          <div className="font-bold text-gray-900">{produto.nome}</div>
-                          {produto.descricao && (
-                            <div className="text-sm text-gray-600 mt-1">{produto.descricao}</div>
-                          )}
-                          {/* Dimensões se disponíveis */}
-                          {(produto.largura || produto.altura) && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              {produto.largura && produto.altura 
-                                ? `${produto.largura} x ${produto.altura} cm`
-                                : produto.largura 
-                                  ? `Largura: ${produto.largura} cm`
-                                  : `Altura: ${produto.altura} cm`
-                              }
-                            </div>
-                          )}
-                          {produto.observacoes && (
-                            <div className="text-xs text-gray-500 mt-1 italic">
-                              Obs: {produto.observacoes}
-                            </div>
-                          )}
-                        </td>
-                        <td className="border border-gray-400 px-3 py-2 text-center">
-                          {formatCurrency(produto.preco_unitario)}
-                        </td>
-                        <td className="border border-gray-400 px-3 py-2 text-right font-medium">
-                          {formatCurrency(produto.preco_total)}
-                        </td>
-                      </tr>
+                      <Fragment key={produto.id || index}>
+                        <tr>
+                          <td className="border border-gray-400 px-3 py-2 text-center">
+                            {String(produto.quantidade || 1).padStart(2, '0')}
+                          </td>
+                          <td className="border border-gray-400 px-3 py-2">
+                            <div className="font-bold text-gray-900">{produto.nome}</div>
+                            {produto.descricao && (
+                              <div className="text-sm text-gray-600 mt-1">{produto.descricao}</div>
+                            )}
+                            {/* Dimensões se disponíveis */}
+                            {(produto.largura || produto.altura) && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {produto.largura && produto.altura 
+                                  ? `${produto.largura} x ${produto.altura} cm`
+                                  : produto.largura 
+                                    ? `Largura: ${produto.largura} cm`
+                                    : `Altura: ${produto.altura} cm`
+                                }
+                              </div>
+                            )}
+                            {produto.observacoes && (
+                              <div className="text-xs text-gray-500 mt-1 italic">
+                                Obs: {produto.observacoes}
+                              </div>
+                            )}
+                          </td>
+                          <td className="border border-gray-400 px-3 py-2 text-center">
+                            {formatCurrency(produto.preco_unitario)}
+                          </td>
+                          <td className="border border-gray-400 px-3 py-2 text-right font-medium">
+                            {formatCurrency(produto.preco_total)}
+                          </td>
+                        </tr>
+                        {produto.linha_arte && (
+                          <tr>
+                            <td className="border border-gray-400 px-3 py-2 text-center">01</td>
+                            <td className="border border-gray-400 px-3 py-2">
+                              <div className="font-bold text-gray-900">
+                                {produto.linha_arte.descricao}
+                              </div>
+                              {produto.linha_arte.horas != null && produto.linha_arte.horas > 0 && (
+                                <div className="text-sm text-gray-600 mt-1">
+                                  {produto.linha_arte.custo_hora != null &&
+                                  produto.linha_arte.custo_hora > 0
+                                    ? `${produto.linha_arte.horas} h × ${formatCurrency(produto.linha_arte.custo_hora)}`
+                                    : `${produto.linha_arte.horas} h`}
+                                </div>
+                              )}
+                            </td>
+                            <td className="border border-gray-400 px-3 py-2 text-center">
+                              {formatCurrency(produto.linha_arte.preco_unitario)}
+                            </td>
+                            <td className="border border-gray-400 px-3 py-2 text-right font-medium">
+                              {formatCurrency(produto.linha_arte.preco_total)}
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     ))
                   ) : (
                     /* Fallback para orçamento legado (produto único) */

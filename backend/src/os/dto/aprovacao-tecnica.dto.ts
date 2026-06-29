@@ -6,6 +6,7 @@ import {
   IsString,
   MaxLength,
   ValidateNested,
+  ArrayNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -45,6 +46,13 @@ export class AprovarTecnicaDto {
   @ValidateNested({ each: true })
   @Type(() => PrazoItemAprovacaoDto)
   prazos_itens?: PrazoItemAprovacaoDto[];
+
+  /** Se informado, libera apenas estes itens (liberação parcial). */
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  item_ids?: string[];
 }
 
 export class AgendarInstalacaoDto {
@@ -63,6 +71,10 @@ export class ItemAprovacaoInfo {
   data_inicio_producao?: Date | null;
   data_prazo_produto?: Date | null;
   status_liberacao_pcp?: string | null;
+  responsabilidade_arte?: string | null;
+  status_arte?: string | null;
+  elegivel_pcp?: boolean;
+  motivos_bloqueio?: string[];
 }
 
 export class AprovacaoTecnicaResponseDto {

@@ -28,6 +28,7 @@ import {
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
 import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Formata Date em 'YYYY-MM-DD' no fuso local (input type=date espera esse
 // formato). NÃO usa toISOString() porque ela converte para UTC e pode pular
@@ -63,6 +64,7 @@ interface AprovarOSModalProps {
 const STATUS_FLUXO_PADRAO = new Set([
   'AGUARDANDO_APROVACAO_TECNICA',
   'FILA',
+  'PARCIALMENTE_LIBERADA',
 ]);
 
 interface ValidacoesAprovacao {
@@ -79,6 +81,10 @@ interface ItemAprovacaoInfo {
   data_inicio_producao?: string | null;
   data_prazo_produto?: string | null;
   status_liberacao_pcp?: string | null;
+  responsabilidade_arte?: string | null;
+  status_arte?: string | null;
+  elegivel_pcp?: boolean;
+  motivos_bloqueio?: string[];
 }
 
 interface AprovacaoStatusResponse {
@@ -145,12 +151,15 @@ export function AprovarOSModal({
   const statusUpper = (osStatus || '').toUpperCase();
   const eAprovacaoRetroativa =
     !!statusUpper && !STATUS_FLUXO_PADRAO.has(statusUpper);
+  const eLiberarRestante = statusUpper === 'PARCIALMENTE_LIBERADA';
   const [carregando, setCarregando] = useState(false);
   const [aprovando, setAprovando] = useState(false);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
   const [validacoes, setValidacoes] = useState<ValidacoesAprovacao | null>(
     null,
   );
+  const [itensInfo, setItensInfo] = useState<ItemAprovacaoInfo[]>([]);
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
 
   // Prazos por serviço (1 par início/fim por ItemOS). Pré-preenchido a partir
   // do response GET /aprovacao-tecnica/status.
@@ -169,6 +178,8 @@ export function AprovarOSModal({
       setValidacoes(null);
       setErroCarga(null);
       setItensPrazo([]);
+      setItensInfo([]);
+      setSelecionados(new Set());
       setPrazoOS(null);
       setPrazoMaeInicio('');
       setPrazoMaeFim('');
@@ -204,6 +215,20 @@ export function AprovarOSModal({
         );
 
         setPrazoOS(data.data_prazo ?? null);
+        const itensApi = data.itens ?? [];
+        setItensInfo(itensApi);
+
+        const pendentes = itensApi.filter(
+          (it) =>
+            (it.status_liberacao_pcp || 'PENDENTE').toUpperCase() !==
+            'LIBERADO',
+        );
+        const elegiveis = pendentes.filter((it) => it.elegivel_pcp !== false);
+        const idsIniciais =
+          pendentes.length === 1
+            ? pendentes.map((it) => it.item_id)
+            : elegiveis.map((it) => it.item_id);
+        setSelecionados(new Set(idsIniciais));
 
         // Pré-preenche os campos de prazo de cada serviço:
         //  - Data início: data_inicio_producao do item OU hoje
@@ -340,12 +365,61 @@ export function AprovarOSModal({
     );
   };
 
+  const itensPendentes = useMemo(
+    () =>
+      itensInfo.filter(
+        (it) =>
+          (it.status_liberacao_pcp || 'PENDENTE').toUpperCase() !== 'LIBERADO',
+      ),
+    [itensInfo],
+  );
+
+  const multiProduto = itensPendentes.length > 1;
+  const idsSelecionados = useMemo(
+    () => Array.from(selecionados),
+    [selecionados],
+  );
+
+  const toggleSelecionado = (itemId: string, checked: boolean) => {
+    setSelecionados((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(itemId);
+      else next.delete(itemId);
+      return next;
+    });
+  };
+
+  const selecionarTodosElegiveis = () => {
+    const ids = itensPendentes
+      .filter((it) => it.elegivel_pcp !== false)
+      .map((it) => it.item_id);
+    setSelecionados(new Set(ids));
+  };
+
   const handleAprovar = async () => {
     if (!osId) return;
 
-    if (!eAprovacaoRetroativa && algumItemInvalido) {
+    const alvoIds =
+      multiProduto && !eAprovacaoRetroativa
+        ? idsSelecionados
+        : itensPendentes.map((it) => it.item_id);
+
+    if (!eAprovacaoRetroativa && alvoIds.length === 0) {
+      toast.error('Selecione ao menos um produto para liberar.');
+      return;
+    }
+
+    const itensAlvoPrazo =
+      multiProduto && !eAprovacaoRetroativa
+        ? itensValidados.filter((it) => alvoIds.includes(it.item_id))
+        : itensValidados;
+
+    if (
+      !eAprovacaoRetroativa &&
+      itensAlvoPrazo.some((it) => !!it.erro)
+    ) {
       toast.error(
-        'Ajuste os prazos dos serviços antes de aprovar (veja os campos em vermelho).',
+        'Ajuste os prazos dos serviços selecionados antes de continuar.',
       );
       return;
     }
@@ -357,18 +431,23 @@ export function AprovarOSModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           aprovado: true,
-          observacoes: eAprovacaoRetroativa
-            ? 'Aprovada via grid de OS (retroativa)'
-            : 'Aprovada via grid de OS',
-          // Envia um par (início, fim) por serviço. Strings vazias são
-          // omitidas para que o backend mantenha o valor atual.
-          prazos_itens: itensPrazo.map((it) => ({
+          observacoes: eLiberarRestante
+            ? 'Liberação restante via grid de OS'
+            : eAprovacaoRetroativa
+              ? 'Aprovada via grid de OS (retroativa)'
+              : multiProduto
+                ? 'Liberação parcial via grid de OS'
+                : 'Aprovada via grid de OS',
+          prazos_itens: itensAlvoPrazo.map((it) => ({
             item_id: it.item_id,
             ...(it.data_inicio
               ? { data_inicio_producao: it.data_inicio }
               : {}),
             ...(it.data_fim ? { data_prazo_produto: it.data_fim } : {}),
           })),
+          ...(multiProduto && !eAprovacaoRetroativa
+            ? { item_ids: Array.from(alvoIds) }
+            : {}),
         }),
       });
 
@@ -379,7 +458,13 @@ export function AprovarOSModal({
         );
       }
 
-      toast.success(`OS ${osNumero ? `#${osNumero} ` : ''}aprovada com sucesso`);
+      toast.success(
+        eLiberarRestante
+          ? `Produtos restantes liberados${osNumero ? ` — OS #${osNumero}` : ''}`
+          : multiProduto
+            ? `${alvoIds.length} produto(s) liberado(s)${osNumero ? ` — OS #${osNumero}` : ''}`
+            : `OS ${osNumero ? `#${osNumero} ` : ''}aprovada com sucesso`,
+      );
       solicitarAtualizacaoBadgesSidebar();
       onAprovado?.();
       onOpenChange(false);
@@ -433,12 +518,18 @@ export function AprovarOSModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" />
-            Aprovar OS{osNumero ? ` #${osNumero}` : ''}
+            {eLiberarRestante
+              ? `Liberar restante${osNumero ? ` — OS #${osNumero}` : ''}`
+              : `Aprovar OS${osNumero ? ` #${osNumero}` : ''}`}
           </DialogTitle>
           <DialogDescription>
-            {eAprovacaoRetroativa
-              ? 'Esta OS já avançou no operacional. Aprovar agora registra a decisão retroativamente, sem alterar o status atual.'
-              : 'Esta ação aprova tecnicamente a OS e libera o avanço para produção. Confira os critérios abaixo antes de prosseguir.'}
+            {eLiberarRestante
+              ? 'Selecione os produtos elegíveis que ainda não foram liberados para o PCP.'
+              : eAprovacaoRetroativa
+                ? 'Esta OS já avançou no operacional. Aprovar agora registra a decisão retroativamente, sem alterar o status atual.'
+                : multiProduto
+                  ? 'Selecione os produtos a liberar para produção. Cada um precisa de prazo e elegibilidade (arte, materiais).'
+                  : 'Esta ação aprova tecnicamente a OS e libera o avanço para produção. Confira os critérios abaixo antes de prosseguir.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -554,16 +645,58 @@ export function AprovarOSModal({
                 </div>
               ) : (
                 <div className="space-y-2 pt-1">
-                  {itensValidados.map((it) => (
+                  {multiProduto && !eAprovacaoRetroativa && (
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={selecionarTodosElegiveis}
+                        disabled={aprovando}
+                      >
+                        Selecionar todos elegíveis
+                      </Button>
+                    </div>
+                  )}
+                  {itensValidados.map((it) => {
+                    const info = itensInfo.find((i) => i.item_id === it.item_id);
+                    const jaLiberado =
+                      (info?.status_liberacao_pcp || 'PENDENTE').toUpperCase() ===
+                      'LIBERADO';
+                    if (jaLiberado) return null;
+                    return (
                     <div
                       key={it.item_id}
                       className={`rounded-md border p-2 ${
                         it.erro ? 'border-destructive/40 bg-destructive/5' : ''
                       }`}
                     >
-                      <div className="flex items-center gap-2 text-sm font-medium mb-2">
-                        <Package className="h-3.5 w-3.5 text-muted-foreground" />
-                        {it.produto_servico}
+                      <div className="flex items-start gap-2 mb-2">
+                        {multiProduto && !eAprovacaoRetroativa && (
+                          <Checkbox
+                            checked={selecionados.has(it.item_id)}
+                            disabled={
+                              aprovando || info?.elegivel_pcp === false
+                            }
+                            onCheckedChange={(c) =>
+                              toggleSelecionado(it.item_id, c === true)
+                            }
+                            className="mt-0.5"
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 text-sm font-medium">
+                            <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            {it.produto_servico}
+                          </div>
+                          {info?.motivos_bloqueio &&
+                            info.motivos_bloqueio.length > 0 && (
+                              <p className="text-xs text-amber-700 mt-1">
+                                {info.motivos_bloqueio.join(' · ')}
+                              </p>
+                            )}
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
@@ -620,7 +753,8 @@ export function AprovarOSModal({
                         </p>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -715,19 +849,30 @@ export function AprovarOSModal({
               aprovando ||
               carregando ||
               dadosIncompletos ||
-              // Em fluxo padrão, prazos inválidos bloqueiam. Retroativo não.
-              (!eAprovacaoRetroativa && algumItemInvalido)
+              (!eAprovacaoRetroativa &&
+                (multiProduto
+                  ? idsSelecionados.length === 0 ||
+                    itensValidados
+                      .filter((it) => selecionados.has(it.item_id))
+                      .some((it) => !!it.erro)
+                  : algumItemInvalido))
             }
           >
             {aprovando ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Aprovando...
+                Processando...
               </>
             ) : (
               <>
                 <ShieldCheck className="h-4 w-4 mr-2" />
-                {totalAlertas > 0 ? 'Aprovar mesmo assim' : 'Aprovar OS'}
+                {eLiberarRestante
+                  ? 'Liberar restante'
+                  : multiProduto && !eAprovacaoRetroativa
+                    ? `Liberar selecionados (${idsSelecionados.length})`
+                    : totalAlertas > 0
+                      ? 'Aprovar mesmo assim'
+                      : 'Aprovar OS'}
               </>
             )}
           </Button>

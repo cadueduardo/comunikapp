@@ -9,9 +9,16 @@ import { UpdateArteVersaoDto } from '../dto/update-arte-versao.dto';
 import { ArteVersaoResponseDto } from '../dto/arte-response.dto';
 import { ArteStatus } from '@prisma/client';
 
+import { ArteFilaTransicaoService } from './arte-fila-transicao.service';
+import { StatusArte } from '../constants/arte.enums';
+import { normalizeMultipartFilename } from '../../../common/utils/multipart-filename.util';
+
 @Injectable()
 export class ArteVersaoService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly arteFilaTransicaoService: ArteFilaTransicaoService,
+  ) {}
 
   /**
    * Cria uma nova versão de arte
@@ -57,46 +64,66 @@ export class ArteVersaoService {
       );
     }
 
-    // Criar a versão
-    const versao = await this.prisma.arteVersao.create({
-      data: {
-        os_id: createDto.os_id,
-        servico_id: createDto.servico_id,
-        versao: createDto.versao,
-        status: createDto.status,
-        autor_id: usuarioId,
-        descricao: createDto.descricao,
-        observacoes: createDto.observacoes,
-        loja_id: lojaId,
-      },
-      include: {
-        autor: {
-          select: {
-            id: true,
-            nome_completo: true,
-          },
+    // Criar a versão (transação com sincronização de status na fila)
+    const versao = await this.prisma.$transaction(async (tx) => {
+      const criada = await tx.arteVersao.create({
+        data: {
+          os_id: createDto.os_id,
+          servico_id: createDto.servico_id,
+          versao: createDto.versao,
+          status: createDto.status,
+          autor_id: usuarioId,
+          descricao: createDto.descricao,
+          observacoes: createDto.observacoes,
+          loja_id: lojaId,
         },
-        aprovador: {
-          select: {
-            id: true,
-            nome_completo: true,
-          },
-        },
-        arquivos: true,
-        comentarios: {
-          include: {
-            usuario: {
-              select: {
-                id: true,
-                nome_completo: true,
-              },
+        include: {
+          autor: {
+            select: {
+              id: true,
+              nome_completo: true,
             },
           },
-          orderBy: {
-            data_comentario: 'desc',
+          aprovador: {
+            select: {
+              id: true,
+              nome_completo: true,
+            },
+          },
+          arquivos: true,
+          comentarios: {
+            include: {
+              usuario: {
+                select: {
+                  id: true,
+                  nome_completo: true,
+                },
+              },
+            },
+            orderBy: {
+              data_comentario: 'desc',
+            },
           },
         },
-      },
+      });
+
+      if (createDto.servico_id) {
+        const item = await tx.itemOS.findFirst({
+          where: {
+            id: createDto.servico_id,
+            os: { loja_id: lojaId, id: createDto.os_id },
+          },
+          select: { id: true, status_arte: true },
+        });
+        if (item && item.status_arte !== 'EM_CRIACAO') {
+          await tx.itemOS.update({
+            where: { id: createDto.servico_id },
+            data: { status_arte: 'EM_CRIACAO' },
+          });
+        }
+      }
+
+      return criada;
     });
 
     console.log('✅ Versão criada com sucesso:', versao.id);
@@ -573,6 +600,14 @@ export class ArteVersaoService {
 
     console.log('✅ Arte liberada para PCP com sucesso');
 
+    if (versao.servico_id) {
+      await this.arteFilaTransicaoService.sincronizarStatusAposVersao(
+        versao.servico_id,
+        lojaId,
+        StatusArte.LIBERADA_PCP,
+      );
+    }
+
     return this.formatVersaoResponse(versaoAtualizada);
   }
 
@@ -602,7 +637,7 @@ export class ArteVersaoService {
       arquivos: versao.arquivos.map((arquivo: any) => ({
         id: arquivo.id,
         nome_arquivo: arquivo.nome_arquivo,
-        nome_original: arquivo.nome_original,
+        nome_original: normalizeMultipartFilename(arquivo.nome_original),
         tipo_arquivo: arquivo.tipo_arquivo,
         tamanho: Number(arquivo.tamanho), // Converter BigInt para Number
         url_arquivo: arquivo.url_arquivo,

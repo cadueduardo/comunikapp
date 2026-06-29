@@ -16,7 +16,8 @@ import {
   Building2,
   Package,
   Shield,
-  Grid3x3
+  Grid3x3,
+  Palette,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { usuariosApi } from '@/lib/api-client';
@@ -251,6 +252,13 @@ export default function ConfiguracoesPage() {
       href: '/configuracoes/tipos-material',
       icone: Package,
       cor: 'bg-pink-100 text-pink-600'
+    },
+    {
+      titulo: 'Arte & Aprovação',
+      descricao: 'Precificação automática e fila de arte',
+      href: '/configuracoes/arte-aprovacao',
+      icone: Palette,
+      cor: 'bg-violet-100 text-violet-600'
     }
   ];
 

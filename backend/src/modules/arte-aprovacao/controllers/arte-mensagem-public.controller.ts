@@ -23,7 +23,7 @@ export class ArteMensagemPublicController {
 
       // Validar token de aprovação
       const linkAprovacao =
-        await this.linkAprovacaoService.getVersaoByToken(token);
+        await this.linkAprovacaoService.getLinkContextParaMensagemPublica(token);
 
       if (!linkAprovacao) {
         throw new Error('Token de aprovação inválido ou expirado');
@@ -109,20 +109,17 @@ export class ArteMensagemPublicController {
 
       // Validar token de aprovação
       const linkAprovacao =
-        await this.linkAprovacaoService.getVersaoByToken(token);
+        await this.linkAprovacaoService.getLinkContextParaMensagemPublica(token);
 
-      this.logger.log(
-        `Link de aprovação encontrado: ${JSON.stringify({ id: linkAprovacao?.id, ativo: linkAprovacao?.ativo, versao_id: linkAprovacao?.versao_id })}`,
+      const versao = await this.mensagemService.validarVersaoMesmaOsDoLink(
+        versaoId,
+        linkAprovacao.versao.os_id,
+        linkAprovacao.versao.loja_id,
       );
 
-      if (!linkAprovacao) {
-        throw new Error('Token de aprovação inválido ou expirado');
+      if (!versao) {
+        throw new Error('Versão não pertence a esta ordem de serviço');
       }
-
-      // Verificar se o link está ativo - DESABILITADO temporariamente para debug
-      // if (!linkAprovacao.ativo) {
-      //   throw new Error('Link de aprovação não está mais ativo');
-      // }
 
       // Buscar mensagens da versão específica
       const mensagens = await this.mensagemService.listarMensagensVersao(

@@ -19,14 +19,18 @@ export function useArteProdutos(osId: string) {
   const [loading, setLoading] = useState(true);
 
   // Buscar versões de arte para cada produto
-  const fetchVersoesPorProduto = useCallback(async () => {
+  const fetchVersoesPorProduto = useCallback(async (options?: { silencioso?: boolean }) => {
     if (!osId || produtosOS.length === 0) {
-      setLoading(false);
+      if (!options?.silencioso) {
+        setLoading(false);
+      }
       return;
     }
 
     try {
-      setLoading(true);
+      if (!options?.silencioso) {
+        setLoading(true);
+      }
 
       // Buscar todas as versões de arte da OS
       const token = localStorage.getItem('access_token');
@@ -125,6 +129,6 @@ export function useArteProdutos(osId: string) {
     produtos: produtosArte,
     loading: loading || loadingOS,
     error: errorOS,
-    refresh: fetchVersoesPorProduto
+    refresh: (silencioso?: boolean) => fetchVersoesPorProduto({ silencioso })
   };
 }

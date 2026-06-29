@@ -136,6 +136,7 @@ export function ArteFileUploadMultiple({
   const uploadFile = async (uploadFile: UploadFile): Promise<any> => {
     const formData = new FormData();
     formData.append('arquivo', uploadFile.file);
+    formData.append('nome_original', uploadFile.file.name);
 
       const response = await fetch(`/api/arte-aprovacao/versoes/${versaoId}/arquivos/upload`, {
       method: 'POST',

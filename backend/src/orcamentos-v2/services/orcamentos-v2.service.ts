@@ -41,6 +41,7 @@ import {
 } from '../../common/calculo-chapa/calculo-chapa.util';
 import { MetodoCobrancaChapa } from '../../common/calculo-chapa/calculo-chapa.types';
 import { distribuirPrecoFinal } from '../utils/distribuicao-preco.util';
+import { resolverPrecosPdfComArte } from '../utils/pdf-arte-linha.util';
 
 /**
  * Serviço Principal de Orçamentos V2
@@ -196,6 +197,14 @@ export class OrcamentosV2Service {
               margem_lucro: true,
               impostos: true,
               observacoes: true,
+              responsabilidade_arte: true,
+              politica_cobranca_arte: true,
+              finalidade_anexo: true,
+              complexidade_arte: true,
+              arte_custo_automatico: true,
+              arte_referencia_servico_id: true,
+              arte_horas_calculadas: true,
+              arte_custo_calculado: true,
               instalacao_necessaria: true,
               instalacao_tipo_id: true,
               instalacao_regra_cobranca: true,
@@ -442,6 +451,14 @@ export class OrcamentosV2Service {
               margem_lucro: true,
               impostos: true,
               observacoes: true,
+              responsabilidade_arte: true,
+              politica_cobranca_arte: true,
+              finalidade_anexo: true,
+              complexidade_arte: true,
+              arte_custo_automatico: true,
+              arte_referencia_servico_id: true,
+              arte_horas_calculadas: true,
+              arte_custo_calculado: true,
               instalacao_necessaria: true,
               instalacao_tipo_id: true,
               instalacao_regra_cobranca: true,
@@ -788,6 +805,14 @@ export class OrcamentosV2Service {
               margem_lucro: true,
               impostos: true,
               observacoes: true,
+              responsabilidade_arte: true,
+              politica_cobranca_arte: true,
+              finalidade_anexo: true,
+              complexidade_arte: true,
+              arte_custo_automatico: true,
+              arte_referencia_servico_id: true,
+              arte_horas_calculadas: true,
+              arte_custo_calculado: true,
               instalacao_necessaria: true,
               instalacao_tipo_id: true,
               instalacao_regra_cobranca: true,
@@ -1572,10 +1597,23 @@ export class OrcamentosV2Service {
             ativo: true,
             ordem: true,
             categoria: true,
+            responsabilidade_arte: true,
+            politica_cobranca_arte: true,
+            arte_custo_calculado: true,
+            arte_horas_calculadas: true,
             insumos: true,
             maquinas: true,
             funcoes: true,
-            servicos_manuais: true,
+            servicos_manuais: {
+              select: {
+                origem: true,
+                exibir_no_pdf: true,
+                descricao: true,
+                custo_total: true,
+                custo_hora: true,
+                tempo_horas: true,
+              },
+            },
             custos_indiretos: true,
           },
         },
@@ -1660,6 +1698,13 @@ export class OrcamentosV2Service {
             `🔍 Debug - custo_total_producao: ${produto.custo_total_producao} (tipo: ${typeof produto.custo_total_producao}) → ${custoTotalProducaoConvertido} (tipo: ${typeof custoTotalProducaoConvertido})`,
           );
 
+          const precoTotalDistribuido =
+            precosDistribuidos[indice]?.preco_total || 0;
+          const precosPdf = resolverPrecosPdfComArte(
+            produto,
+            precoTotalDistribuido,
+          );
+
           return {
             id: produto.id,
             nome: produto.nome_servico || produto.nome,
@@ -1673,8 +1718,9 @@ export class OrcamentosV2Service {
             area: produto.area_produto,
             // Distribuir o preço comercial final entre os produtos para que
             // os itens impressos somem exatamente o total do orçamento.
-            preco_unitario: precosDistribuidos[indice]?.preco_unitario || 0,
-            preco_total: precosDistribuidos[indice]?.preco_total || 0,
+            preco_unitario: precosPdf.preco_unitario,
+            preco_total: precosPdf.preco_total,
+            linha_arte: precosPdf.linha_arte,
             custo_total_producao: custoTotalProducaoConvertido,
             margem_lucro: Number(produto.margem_lucro) || 0,
             impostos: Number(produto.impostos) || 0,

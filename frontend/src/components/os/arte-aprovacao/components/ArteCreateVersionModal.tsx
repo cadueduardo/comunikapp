@@ -110,6 +110,7 @@ export function ArteCreateVersionModal({
   const uploadFileToServer = async (uploadFile: UploadFile, versaoId: string): Promise<boolean> => {
     const formData = new FormData();
     formData.append('arquivo', uploadFile.file);
+    formData.append('nome_original', uploadFile.file.name);
 
     try {
       const token = localStorage.getItem('access_token');

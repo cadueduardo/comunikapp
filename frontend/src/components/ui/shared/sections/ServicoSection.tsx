@@ -1,7 +1,6 @@
 'use client';
 
 import { useFormContext, useWatch } from 'react-hook-form';
-import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   FormControl,
@@ -54,7 +53,17 @@ export function ServicoSection({
   const form = useFormContext();
   
   // Hooks devem ser chamados sempre na mesma ordem - movidos para fora do map
-  const servicosData = useWatch({ control: form.control, name: `itens_produto.${itemIndex}.servicos` }) || [];
+  const servicosData =
+    (useWatch({
+      control: form.control,
+      name: `itens_produto.${itemIndex}.servicos`,
+    }) as Array<{ origem?: string }> | undefined) || [];
+
+  const servicosEditaveis = servicosData
+    .map((servico, servicoIndex) => ({ servico, servicoIndex }))
+    .filter(
+      ({ servico }) => servico?.origem !== 'ARTE_AUTOMATICA',
+    );
   
   // Usar watch para obter todos os valores de uma vez
   const allFormValues = useWatch({ control: form.control });
@@ -64,10 +73,21 @@ export function ServicoSection({
       onAddServico(itemIndex);
     } else {
       const currentServicos = form.getValues(`itens_produto.${itemIndex}.servicos`) || [];
-      const hasEmpty = currentServicos.some((s: { servico_id: string; horas_trabalhadas: string }) => !s.servico_id || !s.horas_trabalhadas);
+      const editaveis = currentServicos.filter(
+        (s: { origem?: string }) => s?.origem !== 'ARTE_AUTOMATICA',
+      );
+      const hasEmpty = editaveis.some(
+        (s: { servico_id?: string; horas_trabalhadas?: string }) =>
+          !s.servico_id || !s.horas_trabalhadas,
+      );
       if (!hasEmpty) {
-        const newServicos = [...currentServicos, { servico_id: '', horas_trabalhadas: '1' }];
-        form.setValue(`itens_produto.${itemIndex}.servicos`, newServicos);
+        const newServicos = [
+          ...currentServicos,
+          { servico_id: '', horas_trabalhadas: '1', origem: 'MANUAL' },
+        ];
+        form.setValue(`itens_produto.${itemIndex}.servicos`, newServicos, {
+          shouldDirty: true,
+        });
       }
     }
   };
@@ -99,7 +119,7 @@ export function ServicoSection({
         </Button>
       </div>
       
-      {servicosData.map((servico: { servico_id: string; horas_trabalhadas: string }, servicoIndex: number) => {
+      {servicosEditaveis.map(({ servico, servicoIndex }) => {
         const servicoSelecionado = servicos.find(s => s.id === servico.servico_id);
         const horasTrabalhadas = Number(String(servico.horas_trabalhadas).replace(',', '.')) || 0;
 
@@ -283,7 +303,7 @@ export function ServicoSection({
                   size="sm"
                   onClick={() => handleRemoveServico(servicoIndex)}
                   className="text-red-500 hover:text-red-700"
-                  disabled={(form.watch(`itens_produto.${itemIndex}.servicos`) || [])?.length === 1}
+                  disabled={servicosEditaveis.length <= 1}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>

@@ -52,11 +52,13 @@ export class ArteNotificacaoController {
     @Request() req,
   ) {
     try {
-      await this.notificacaoService.notificarAprovacaoSolicitada(dto);
+      const resultado =
+        await this.notificacaoService.notificarAprovacaoSolicitada(dto);
 
       return {
         success: true,
         message: 'Notificação de aprovação solicitada enviada com sucesso',
+        preview_url: resultado.previewUrl || null,
       };
     } catch (error) {
       throw new HttpException(

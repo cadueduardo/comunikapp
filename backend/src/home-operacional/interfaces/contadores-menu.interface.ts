@@ -7,4 +7,5 @@ export interface ContadoresMenuResponse {
   pcp: number;
   expedicao: number;
   financeiro: number;
+  arte: number;
 }

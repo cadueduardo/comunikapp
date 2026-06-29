@@ -18,6 +18,7 @@ import {
   TipoOS,
 } from '../../documentos/document-code.service';
 import { ValidacaoEstoqueService } from '../../orcamentos-v2/services/validacao-estoque.service';
+import { resolverStatusArteInicial } from '../../modules/arte-aprovacao/utils/arte-os-propagacao.util';
 import { AlcadasOrcamentoService } from './alcadas-orcamento.service';
 import { EventosAutomaticosService } from './eventos-automaticos.service';
 import { OSValidacoesService } from './os-validacoes.service';
@@ -36,6 +37,13 @@ import {
   EstoqueValidacaoDetalhe,
   InsumoCalculado,
 } from '../interfaces/os.interfaces';
+import {
+  computeArteResumoGrid,
+  computeLiberacaoResumoGrid,
+  getMotivosBloqueioPcp,
+  isElegivelPcp,
+  resolveIdsAlvoLiberacao,
+} from '../utils/os-liberacao-pcp.util';
 import {
   TipoOS as TipoOSInterface,
   OrigemOS,
@@ -2260,6 +2268,20 @@ export class OSService {
       materiais_consolidados: Array.from(materiaisConsolidados.values()),
     };
 
+    if (itensOS.length > 0) {
+      const ctxItens = itensOS.map((item: any) => ({
+        id: item.id,
+        produto_servico: item.produto_servico,
+        data_prazo_produto: item.data_prazo_produto,
+        status_liberacao_pcp: item.status_liberacao_pcp,
+        responsabilidade_arte: item.responsabilidade_arte,
+        status_arte: item.status_arte,
+        materiais_disponivel: item.materiais_disponivel,
+      }));
+      data.arte_resumo = computeArteResumoGrid(ctxItens);
+      data.liberacao_resumo = computeLiberacaoResumoGrid(ctxItens);
+    }
+
     if (extras) {
       if (Object.prototype.hasOwnProperty.call(extras, 'alertas_estoque')) {
         data.alertas_estoque = extras.alertas_estoque;
@@ -2618,6 +2640,7 @@ export class OSService {
       data_inicio_producao?: Date;
       data_prazo_produto?: Date;
     }>,
+    itemIds?: string[],
   ): Promise<OrdemServicoData> {
     try {
       const os = await this.prisma.ordemServico.findUnique({
@@ -2692,43 +2715,89 @@ export class OSService {
         );
       }
 
-      const statusAprovacao = aprovado ? 'APROVADA' : 'REJEITADA';
-
-      // Status que representam o ciclo padrao de aprovacao - nestes casos a
-      // aprovacao promove a OS direto para LIBERADA_PARA_PCP (decisao de
-      // produto tomada em 2026-05-25): o status APROVADA_TECNICA deixa de ser
-      // estado de repouso porque a etapa seguinte (liberar para PCP) era
-      // sempre manual e ninguem fazia, deixando a OS invisivel para o
-      // kanban. Em qualquer outro status (ex.: PRODUCAO, ACABAMENTO),
-      // aprovar e retroativo: registra a decisao mas MANTEM o status
-      // operacional atual para nao retroceder o workflow.
       const statusFluxoPadrao: string[] = [
         StatusOS.AGUARDANDO_APROVACAO_TECNICA,
         StatusOS.FILA,
+        StatusOS.PARCIALMENTE_LIBERADA,
       ];
       const eFluxoPadrao = statusFluxoPadrao.includes(os.status);
 
+      const itensOS = await this.prisma.itemOS.findMany({
+        where: { os_id: osId },
+      });
+      const todosIds = itensOS.map((i) => i.id);
+      const idsPrazos = (prazosItens ?? []).map((p) => p.item_id);
+      const idsAlvo = resolveIdsAlvoLiberacao(
+        todosIds,
+        itemIds,
+        idsPrazos,
+      );
+      const eLiberacaoParcial =
+        aprovado &&
+        eFluxoPadrao &&
+        idsAlvo.length > 0 &&
+        idsAlvo.length < itensOS.length;
+
+      if (aprovado && eFluxoPadrao) {
+        for (const itemId of idsAlvo) {
+          const item = itensOS.find((i) => i.id === itemId);
+          if (!item) {
+            throw new BadRequestException(`Item ${itemId} não pertence à OS`);
+          }
+          if (
+            (item.status_liberacao_pcp || 'PENDENTE').toUpperCase() ===
+            'LIBERADO'
+          ) {
+            continue;
+          }
+          const motivos = getMotivosBloqueioPcp(
+            {
+              id: item.id,
+              produto_servico: item.produto_servico,
+              data_prazo_produto: item.data_prazo_produto,
+              status_liberacao_pcp: item.status_liberacao_pcp,
+              responsabilidade_arte: item.responsabilidade_arte,
+              status_arte: item.status_arte,
+              materiais_disponivel: item.materiais_disponivel,
+            },
+            os.materiais_disponivel,
+          );
+          if (motivos.length > 0) {
+            throw new BadRequestException(
+              `Produto "${item.produto_servico}" não elegível: ${motivos.map((m) => m.mensagem).join('; ')}`,
+            );
+          }
+        }
+      }
+
       let novoStatus: StatusOS;
-      if (aprovado) {
-        novoStatus = eFluxoPadrao
-          ? StatusOS.LIBERADA_PARA_PCP
-          : (os.status as StatusOS); // retroativo: mantem status atual
+      let statusAprovacao: string;
+      if (!aprovado) {
+        novoStatus = StatusOS.REJEITADA;
+        statusAprovacao = 'REJEITADA';
+      } else if (eFluxoPadrao) {
+        novoStatus = eLiberacaoParcial
+          ? StatusOS.PARCIALMENTE_LIBERADA
+          : StatusOS.LIBERADA_PARA_PCP;
+        statusAprovacao = eLiberacaoParcial ? 'PENDENTE' : 'APROVADA';
       } else {
-        novoStatus = StatusOS.REJEITADA; // rejeicao sempre marca status
+        novoStatus = os.status as StatusOS;
+        statusAprovacao = 'APROVADA';
       }
 
       const motivoModificacao = aprovado
-        ? eFluxoPadrao
-          ? 'Aprovação técnica aprovada e OS liberada para PCP'
-          : 'Aprovação técnica aprovada (retroativa)'
+        ? eLiberacaoParcial
+          ? 'Liberação parcial de produtos para PCP'
+          : eFluxoPadrao
+            ? 'Aprovação técnica aprovada e OS liberada para PCP'
+            : 'Aprovação técnica aprovada (retroativa)'
         : 'Aprovação técnica rejeitada';
 
-      // Valida e prepara prazos por item. Em fluxo padrão todos os itens
-      // precisam ter data_prazo_produto. Em retroativo, o array é opcional.
       const prazosPreparados = await this.validarEPrepararPrazosItens(
         osId,
         prazosItens || [],
         eFluxoPadrao && aprovado,
+        eLiberacaoParcial ? idsAlvo : itemIds,
       );
 
       // Atualiza prazo guarda-chuva da OS se ainda não existir (usa max
@@ -2789,13 +2858,49 @@ export class OSService {
       // workflow inteligente. Falhas aqui são apenas registradas em log; não
       // revertem a aprovação técnica.
       if (aprovado && eFluxoPadrao) {
-        await this.promoverAprovacaoParaPCP(osId, os.loja_id, usuarioId);
+        await this.promoverAprovacaoParaPCP(
+          osId,
+          os.loja_id,
+          usuarioId,
+          eLiberacaoParcial ? idsAlvo : undefined,
+        );
+
+        const liberados = await this.prisma.itemOS.count({
+          where: { os_id: osId, status_liberacao_pcp: 'LIBERADO' },
+        });
+        const total = itensOS.length;
+        if (liberados >= total && total > 0) {
+          await this.prisma.ordemServico.update({
+            where: { id: osId },
+            data: {
+              status: StatusOS.LIBERADA_PARA_PCP,
+              aprovacao_tecnica_status: 'APROVADA',
+            },
+          });
+        } else if (liberados > 0 && liberados < total) {
+          await this.prisma.ordemServico.update({
+            where: { id: osId },
+            data: {
+              status: StatusOS.PARCIALMENTE_LIBERADA,
+              aprovacao_tecnica_status: 'PENDENTE',
+            },
+          });
+        }
       }
 
       this.logger.log(
         `OS ${os.numero} aprovada tecnicamente: ${statusAprovacao}`,
       );
-      return this.formatarOrdemServico(osAtualizada);
+      const osFinal = await this.prisma.ordemServico.findUnique({
+        where: { id: osId },
+        include: {
+          cliente: {
+            select: { id: true, nome: true, email: true, telefone: true },
+          },
+          itens: true,
+        },
+      });
+      return this.formatarOrdemServico(osFinal ?? osAtualizada);
     } catch (error) {
       this.logger.error(`Erro ao aprovar OS técnica ${osId}:`, error);
       throw error;
@@ -2821,25 +2926,58 @@ export class OSService {
     osId: string,
     lojaId: string,
     usuarioId: string,
+    itemIds?: string[],
   ): Promise<void> {
+    const os = await this.prisma.ordemServico.findFirst({
+      where: { id: osId, loja_id: lojaId },
+      include: { itens: true },
+    });
+    if (!os) return;
+
+    const candidatos = os.itens.filter((item) => {
+      if (
+        (item.status_liberacao_pcp || 'PENDENTE').toUpperCase() === 'LIBERADO'
+      ) {
+        return false;
+      }
+      if (itemIds && itemIds.length > 0 && !itemIds.includes(item.id)) {
+        return false;
+      }
+      return isElegivelPcp(
+        {
+          id: item.id,
+          produto_servico: item.produto_servico,
+          data_prazo_produto: item.data_prazo_produto,
+          status_liberacao_pcp: item.status_liberacao_pcp,
+          responsabilidade_arte: item.responsabilidade_arte,
+          status_arte: item.status_arte,
+          materiais_disponivel: item.materiais_disponivel,
+        },
+        os.materiais_disponivel,
+      );
+    });
+
     try {
-      await this.prisma.itemOS.updateMany({
-        where: {
-          os_id: osId,
-          status_liberacao_pcp: 'PENDENTE',
-        },
-        data: {
-          status_liberacao_pcp: 'LIBERADO',
-          liberado_pcp_por: usuarioId,
-          liberado_pcp_em: new Date(),
-        },
-      });
+      for (const item of candidatos) {
+        await this.prisma.itemOS.update({
+          where: { id: item.id },
+          data: {
+            status_liberacao_pcp: 'LIBERADO',
+            liberado_pcp_por: usuarioId,
+            liberado_pcp_em: new Date(),
+          },
+        });
+      }
     } catch (error) {
       this.logger.warn(
         `Falha ao liberar itens da OS ${osId} após aprovação técnica: ${
           error instanceof Error ? error.message : error
         }`,
       );
+    }
+
+    if (candidatos.length === 0) {
+      return;
     }
 
     try {
@@ -2884,6 +3022,7 @@ export class OSService {
       data_prazo_produto?: Date;
     }>,
     exigirCompleto: boolean,
+    apenasItemIds?: string[],
   ): Promise<
     Array<{
       item_id: string;
@@ -2901,6 +3040,9 @@ export class OSService {
     if (exigirCompleto) {
       const semPrazo: string[] = [];
       for (const item of itensDaOS) {
+        if (apenasItemIds && !apenasItemIds.includes(item.id)) {
+          continue;
+        }
         const p = indexPrazos.get(item.id);
         if (!p?.data_prazo_produto) {
           semPrazo.push(item.produto_servico);
@@ -3197,7 +3339,12 @@ export class OSService {
       ? orcamento.produtos
       : [];
 
-    return produtos.map((produto: any, index: number) => ({
+    return produtos.map((produto: any, index: number) => {
+      const arteInicial = resolverStatusArteInicial(
+        produto.responsabilidade_arte,
+      );
+
+      return {
       id: produto.id,
       produto_servico:
         produto.nome || produto.nome_servico || `Produto ${index + 1}`,
@@ -3210,9 +3357,6 @@ export class OSService {
       observacoes: produto.descricao || produto.observacoes || null,
       largura: produto.largura ?? null,
       altura: produto.altura ?? null,
-      // Fase 11: profundidade propagada do ProdutoOrcamento para ItemOS (produtos 3D).
-      // Coluna adicionada via migration 20260526090000_add_profundidade_item_os.
-      // Quando o produto e 2D, vai null (campo opcional).
       profundidade: produto.profundidade ?? null,
       area: produto.area_produto ?? produto.area ?? null,
       perimetro: produto.perimetro_produto ?? null,
@@ -3222,10 +3366,19 @@ export class OSService {
       arquivo_geometria_url: produto.arquivo_geometria_url ?? null,
       arquivo_geometria_metadados:
         produto.arquivo_geometria_metadados ?? null,
+      responsabilidade_arte:
+        produto.responsabilidade_arte ?? 'NAO_APLICAVEL',
+      politica_cobranca_arte:
+        produto.politica_cobranca_arte ?? 'NAO_APLICAVEL',
+      finalidade_anexo: produto.finalidade_anexo ?? null,
+      complexidade_arte: produto.complexidade_arte ?? null,
+      status_arte: arteInicial.status_arte,
+      arte_fila_desde: arteInicial.arte_fila_desde,
       status_liberacao_pcp: 'PENDENTE',
       prioridade_produto: 'NORMAL',
       ordem_producao: index + 1,
-    }));
+    };
+    });
   }
 
   async criarOSDeOrcamento(

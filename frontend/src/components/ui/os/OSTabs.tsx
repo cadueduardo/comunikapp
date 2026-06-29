@@ -18,8 +18,6 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import MateriaisTab from '@/components/os/materiais/MateriaisTab';
-import { ArteAprovacaoTab } from '@/components/os/arte-aprovacao/ArteAprovacaoTab';
-
 interface MaterialPrincipal {
   nome: string;
   quantidade: number;
@@ -79,7 +77,7 @@ interface OSTabsProps {
   }>;
 }
 
-type TabType = 'resumo' | 'arte-aprovacao' | 'materiais' | 'analise-inteligente';
+type TabType = 'resumo' | 'materiais' | 'analise-inteligente';
 
 export function OSTabs({ os, dadosTransformados, movimentacoes }: OSTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>('resumo');
@@ -96,7 +94,6 @@ export function OSTabs({ os, dadosTransformados, movimentacoes }: OSTabsProps) {
 
   const tabs = [
     { id: 'resumo' as TabType, label: 'Resumo', icon: Package },
-    { id: 'arte-aprovacao' as TabType, label: '🎨 Arte & Aprovação', icon: CheckCircle },
     { id: 'materiais' as TabType, label: 'Materiais', icon: Package },
     { id: 'analise-inteligente' as TabType, label: 'Análise Inteligente', icon: Settings },
   ];
@@ -326,12 +323,6 @@ export function OSTabs({ os, dadosTransformados, movimentacoes }: OSTabsProps) {
     </div>
   );
 
-  // Renderização da aba Arte & Aprovação
-  const renderArteAprovacaoTab = () => {
-    console.log('🎨 Renderizando aba Arte & Aprovação, OS ID:', os.id);
-    return <ArteAprovacaoTab osId={os.id} readonly={readonly} />;
-  };
-
   // Renderização da aba Materiais
   const renderMateriaisTab = () => (
     <MateriaisTab osData={os} dadosTransformados={dadosTransformados} />
@@ -458,9 +449,6 @@ export function OSTabs({ os, dadosTransformados, movimentacoes }: OSTabsProps) {
     switch (activeTab) {
       case 'resumo':
         return renderResumoTab();
-      case 'arte-aprovacao':
-        console.log('🎨 Caso arte-aprovacao detectado');
-        return renderArteAprovacaoTab();
       case 'materiais':
         return renderMateriaisTab();
       case 'analise-inteligente':

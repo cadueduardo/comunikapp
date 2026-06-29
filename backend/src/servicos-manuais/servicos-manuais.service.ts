@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { loja } from '@prisma/client';
 
@@ -46,9 +46,12 @@ export class ServicosManuaisService {
     return this.prisma.servico_manual.create({ data: payload });
   }
 
-  async findAll(lojaCtx: loja) {
+  async findAll(lojaCtx: loja, incluirSistema = false) {
     const servicos = await this.prisma.servico_manual.findMany({
-      where: { loja_id: lojaCtx.id },
+      where: {
+        loja_id: lojaCtx.id,
+        ...(incluirSistema ? {} : { sistema: false }),
+      },
       orderBy: { criado_em: 'desc' },
     });
 
@@ -77,6 +80,18 @@ export class ServicosManuaisService {
   }
 
   async update(id: string, dto: any, lojaCtx: loja) {
+    const existente = await this.prisma.servico_manual.findFirst({
+      where: { id, loja_id: lojaCtx.id },
+    });
+    if (!existente) {
+      throw new BadRequestException('Serviço não encontrado');
+    }
+    if (existente.sistema) {
+      throw new BadRequestException(
+        'Serviço sistêmico não pode ser editado por esta tela',
+      );
+    }
+
     const data: any = {
       nome: dto.nome,
       descricao: dto.descricao ?? null,
@@ -105,11 +120,15 @@ export class ServicosManuaisService {
   }
 
   async remove(id: string, lojaCtx: loja) {
-    // Garantir que pertence à loja
     const exists = await this.prisma.servico_manual.findFirst({
       where: { id, loja_id: lojaCtx.id },
     });
     if (!exists) return { ok: true };
+    if (exists.sistema) {
+      throw new BadRequestException(
+        'Serviço sistêmico não pode ser excluído',
+      );
+    }
     await this.prisma.servico_manual.delete({ where: { id } });
     return { ok: true };
   }

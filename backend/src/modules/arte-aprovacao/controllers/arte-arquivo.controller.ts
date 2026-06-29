@@ -15,6 +15,7 @@ import {
   StreamableFile,
   SetMetadata,
   Query,
+  Body,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -33,6 +34,7 @@ import { ArteLinkAprovacaoService } from '../services/arte-link-aprovacao.servic
 import { ArteArquivoResponseDto } from '../dto/arte-response.dto';
 import { JwtAuthGuard, IS_PUBLIC_KEY } from '../../../auth/jwt-auth.guard';
 import { multerConfig } from '../../../config/multer.config';
+import { normalizeMultipartFilename } from '../../../common/utils/multipart-filename.util';
 
 // Decorator para marcar rotas públicas
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
@@ -85,11 +87,16 @@ export class ArteArquivoController {
   async uploadArquivo(
     @Param('versaoId') versaoId: string,
     @UploadedFile() arquivo: Express.Multer.File,
+    @Body('nome_original') nomeOriginalInformado: string | undefined,
     @Request() req: any,
   ): Promise<ArteArquivoResponseDto> {
+    const nomeOriginal = normalizeMultipartFilename(
+      nomeOriginalInformado?.trim() || arquivo.originalname,
+    );
+
     console.log('📤 [Controller] Upload de arquivo:', {
       versaoId,
-      nomeArquivo: arquivo?.originalname,
+      nomeArquivo: nomeOriginal,
       tamanho: arquivo?.size,
       path: arquivo?.path,
       lojaId: req.user.loja_id,
@@ -118,7 +125,7 @@ export class ArteArquivoController {
     // Preparar dados do arquivo
     const arquivoData = {
       nome_arquivo: arquivo.filename, // Nome gerado pelo multer
-      nome_original: arquivo.originalname,
+      nome_original: nomeOriginal,
       tipo_arquivo: arquivo.mimetype.split('/')[1] || 'unknown',
       tamanho: BigInt(arquivo.size),
       url_arquivo: `/api/arte-aprovacao/versoes/${versaoId}/arquivos/download/${arquivo.filename}`,
@@ -171,17 +178,32 @@ export class ArteArquivoController {
   async downloadArquivoPublico(
     @Param('versaoId') versaoId: string,
     @Param('filename') filename: string,
-    @Query('token') token: string,
+    @Query('token') token: string | string[],
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
-    const safeFilename = basename(filename);
-    if (safeFilename !== filename) {
+    const approvalToken = Array.isArray(token) ? token[0] : token;
+    if (!approvalToken) {
+      throw new BadRequestException('Token público obrigatório');
+    }
+    let safeFilename: string;
+    try {
+      safeFilename = basename(decodeURIComponent(filename));
+    } catch {
+      throw new BadRequestException('Nome de arquivo inválido');
+    }
+
+    if (
+      !safeFilename ||
+      safeFilename.includes('..') ||
+      safeFilename.includes('/') ||
+      safeFilename.includes('\\')
+    ) {
       throw new BadRequestException('Nome de arquivo inválido');
     }
 
     const arquivoAutorizado =
       await this.linkAprovacaoService.validarDownloadPublicoArquivo(
-        token,
+        approvalToken,
         versaoId,
         safeFilename,
       );

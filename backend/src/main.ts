@@ -78,17 +78,18 @@ async function bootstrap() {
       frameguard: false, // Permite iframes para visualização de PDFs
     }),
   );
-  app.use(
-    rateLimit({
-      windowMs: 15 * 60 * 1000,
-      max: 1000,
-      standardHeaders: true,
-      legacyHeaders: false,
-      skip: (req: any) => req.method === 'OPTIONS',
-      // Atrás de nginx: desativa validação estrita do X-Forwarded-For (trust proxy já configurado acima)
-      validate: { xForwardedForHeader: false },
-    }) as any,
-  );
+  if (isProd) {
+    app.use(
+      rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 1000,
+        standardHeaders: true,
+        legacyHeaders: false,
+        skip: (req: any) => req.method === 'OPTIONS',
+        validate: { xForwardedForHeader: false },
+      }) as any,
+    );
+  }
 
   app.useGlobalPipes(
     new ValidationPipe({

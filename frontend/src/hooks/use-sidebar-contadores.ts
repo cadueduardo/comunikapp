@@ -20,6 +20,7 @@ export function useSidebarContadores(enabled: boolean, userId?: string) {
     pcp: 0,
     expedicao: 0,
     financeiro: 0,
+    arte: 0,
   });
 
   const carregar = useCallback(async (forcarCache = false) => {
@@ -32,6 +33,7 @@ export function useSidebarContadores(enabled: boolean, userId?: string) {
         pcp_desde: visto.pcp,
         expedicao_desde: visto.expedicao,
         financeiro_desde: visto.financeiro,
+        arte_desde: visto.arte,
       });
       setContadores(data);
     } catch {

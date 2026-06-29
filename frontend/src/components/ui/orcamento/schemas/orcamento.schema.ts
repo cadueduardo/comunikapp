@@ -79,7 +79,7 @@ const itemProdutoSchema = z
     unidade_medida_produto: z.string().optional(),
     area_produto: numeroOpcional,
     perimetro_produto: numeroOpcional,
-    geometria_origem: z.enum(['MANUAL', 'IMAGEM', 'DXF']).optional(),
+    geometria_origem: z.enum(['MANUAL', 'IMAGEM', 'PDF', 'DXF']).optional(),
     arquivo_geometria_url: z.string().optional(),
     unidade_geometria: z.enum(['mm', 'cm', 'm']).optional(),
 
@@ -113,8 +113,21 @@ const itemProdutoSchema = z
       z.object({
         servico_id: z.string().optional(),
         horas_trabalhadas: z.string().optional(),
+        origem: z.string().optional(),
+        custo_hora: z.union([z.string(), z.number()]).optional(),
+        custo_total: z.union([z.string(), z.number()]).optional(),
+        descricao: z.string().optional(),
       }),
     ).optional(),
+
+    responsabilidade_arte: z.string().optional(),
+    politica_cobranca_arte: z.string().optional(),
+    finalidade_anexo: z.string().optional(),
+    complexidade_arte: z.string().optional(),
+    arte_custo_automatico: z.boolean().optional(),
+    arte_horas_calculadas: z.number().nullable().optional(),
+    arte_custo_calculado: z.number().nullable().optional(),
+    arte_referencia_servico_id: z.string().nullable().optional(),
 
     instalacao_necessaria: z.boolean().optional(),
     instalacao_tipo_id: z.string().optional(),

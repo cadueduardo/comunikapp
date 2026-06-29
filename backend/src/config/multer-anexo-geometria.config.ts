@@ -10,10 +10,10 @@ import type { Request } from 'express';
  *    quem decide o caminho final (por loja_id) e grava o arquivo em disco.
  *    Manter o arquivo na memória até esse ponto evita criar arquivos em
  *    diretórios temporários que precisariam ser limpos depois.
- *  - Aceita imagens (PNG/JPG/WEBP/GIF) **e** DXF — formatos esperados pela
- *    Fase 7 do plano-mãe e pelo HTML do cliente.
+ *  - Aceita imagens (PNG/JPG/WEBP/GIF), PDF **e** DXF — formatos esperados
+ *    pela Fase 7 do plano-mãe e pelo HTML do cliente.
  *  - Limite global de 20 MB (tamanho máximo do DXF). A validação por
- *    categoria (5 MB para imagem, 20 MB para DXF) é feita no service, depois
+ *    categoria (5 MB imagem, 10 MB PDF, 20 MB DXF) é feita no service, depois
  *    de inspecionar o mime type real do arquivo.
  */
 
@@ -24,7 +24,11 @@ interface MulterFileLike {
 
 export const ANEXO_GEOMETRIA_LIMITE_GLOBAL_BYTES = 20 * 1024 * 1024;
 export const ANEXO_GEOMETRIA_LIMITE_IMAGEM_BYTES = 5 * 1024 * 1024;
+export const ANEXO_GEOMETRIA_LIMITE_PDF_BYTES = 10 * 1024 * 1024;
 export const ANEXO_GEOMETRIA_LIMITE_DXF_BYTES = 20 * 1024 * 1024;
+
+export const MENSAGEM_FORMATOS_ANEXO_GEOMETRIA =
+  'Formato de arquivo não permitido. Aceitos: PNG, JPG, WEBP, GIF, PDF, DXF.';
 
 export const MIMES_IMAGEM_ACEITOS = new Set<string>([
   'image/png',
@@ -41,12 +45,41 @@ export const MIMES_DXF_ACEITOS = new Set<string>([
   'image/vnd.dxf',
 ]);
 
-export const EXTENSOES_DXF = new Set<string>(['.dxf']);
+export const MIMES_PDF_ACEITOS = new Set<string>(['application/pdf']);
 
-export type CategoriaAnexoGeometria = 'IMAGEM' | 'DXF';
+export const EXTENSOES_DXF = new Set<string>(['.dxf']);
+export const EXTENSOES_PDF = new Set<string>(['.pdf']);
+
+export type CategoriaAnexoGeometria = 'IMAGEM' | 'PDF' | 'DXF';
+
+export function limiteBytesPorCategoria(
+  categoria: CategoriaAnexoGeometria,
+): number {
+  switch (categoria) {
+    case 'IMAGEM':
+      return ANEXO_GEOMETRIA_LIMITE_IMAGEM_BYTES;
+    case 'PDF':
+      return ANEXO_GEOMETRIA_LIMITE_PDF_BYTES;
+    case 'DXF':
+      return ANEXO_GEOMETRIA_LIMITE_DXF_BYTES;
+  }
+}
+
+export function rotuloCategoriaAnexoGeometria(
+  categoria: CategoriaAnexoGeometria,
+): string {
+  switch (categoria) {
+    case 'IMAGEM':
+      return 'imagem';
+    case 'PDF':
+      return 'PDF';
+    case 'DXF':
+      return 'DXF';
+  }
+}
 
 /**
- * Classifica o arquivo recebido em IMAGEM, DXF ou inválido. O DXF tem mime
+ * Classifica o arquivo recebido em IMAGEM, PDF, DXF ou inválido. O DXF tem mime
  * inconsistente entre exportadores (alguns enviam application/octet-stream),
  * por isso o fallback por extensão é obrigatório.
  */
@@ -58,10 +91,16 @@ export function classificarAnexoGeometria(
   if (MIMES_IMAGEM_ACEITOS.has(mimeLower)) {
     return 'IMAGEM';
   }
+  if (MIMES_PDF_ACEITOS.has(mimeLower)) {
+    return 'PDF';
+  }
   if (MIMES_DXF_ACEITOS.has(mimeLower)) {
     return 'DXF';
   }
   const ext = extname(nomeOriginal || '').toLowerCase();
+  if (EXTENSOES_PDF.has(ext)) {
+    return 'PDF';
+  }
   if (EXTENSOES_DXF.has(ext)) {
     return 'DXF';
   }
@@ -87,9 +126,7 @@ export const multerAnexoGeometriaConfig = {
       return;
     }
     cb(
-      new Error(
-        'Formato de arquivo não permitido. Aceitos: PNG, JPG, WEBP, GIF, DXF.',
-      ),
+      new Error(MENSAGEM_FORMATOS_ANEXO_GEOMETRIA),
       false,
     );
   },

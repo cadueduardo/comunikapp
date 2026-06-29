@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MotorCalculoV2Service } from '../../motor-calculo-v2/services/motor-calculo-v2.service';
+import { ArteOrcamentoInjecaoService } from '../../modules/arte-aprovacao/services/arte-orcamento-injecao.service';
 import {
   isProdutoFinitoItem,
 } from '../../produtos-finitos/utils/preco-produto-finito.util';
@@ -26,6 +27,7 @@ export class IntegracaoMotorService {
   constructor(
     private readonly motorCalculoV2Service: MotorCalculoV2Service,
     private readonly prisma: PrismaService,
+    private readonly arteOrcamentoInjecaoService: ArteOrcamentoInjecaoService,
   ) {}
 
   /**
@@ -45,9 +47,19 @@ export class IntegracaoMotorService {
 
     try {
       const produtos = dadosOrcamento.produtos || [];
+      const alertasArte: string[] = [];
       const produtosMotor = produtos.filter(
         (produto: any) => !isProdutoFinitoItem(produto),
       );
+
+      for (const produto of produtosMotor) {
+        const sync = await this.arteOrcamentoInjecaoService.syncProduto(
+          produto,
+          lojaId,
+        );
+        alertasArte.push(...sync.alertas);
+      }
+
       const totaisPrateleira = this.somarTotaisProdutosPrateleira(produtos);
 
       if (produtosMotor.length === 0) {
@@ -73,11 +85,11 @@ export class IntegracaoMotorService {
             ...dadosOrcamento,
             custos_calculados: custos,
             detalhamento: { produtos_prateleira: produtos.length },
-            alertas: [],
+            alertas: [...alertasArte],
           },
           custos,
           detalhamento: { produtos_prateleira: produtos.length },
-          alertas: [],
+          alertas: [...alertasArte],
         };
       }
 
@@ -116,6 +128,14 @@ export class IntegracaoMotorService {
         resultadoProcessado,
         lojaId,
       );
+
+      resultadoFinal.alertas = [
+        ...(resultadoFinal.alertas || []),
+        ...alertasArte,
+      ];
+      if (resultadoFinal.orcamento) {
+        resultadoFinal.orcamento.alertas = resultadoFinal.alertas;
+      }
 
       this.logger.log(`✅ Orçamento calculado com sucesso via motor V2`);
       return resultadoFinal;
@@ -164,13 +184,23 @@ export class IntegracaoMotorService {
         };
       }
 
-      // Usar motor V2 para cálculo de produto
+      const syncArte = await this.arteOrcamentoInjecaoService.syncProduto(
+        produto,
+        lojaId,
+      );
+
       const resultadoProduto = await this.motorCalculoV2Service.calcularProduto(
         produto,
         lojaId,
       );
 
-      return this.processarProdutoMotor(resultadoProduto, produto, lojaId);
+      const processado = await this.processarProdutoMotor(
+        resultadoProduto,
+        produto,
+        lojaId,
+      );
+      processado.alertas = [...(processado.alertas || []), ...syncArte.alertas];
+      return processado;
     } catch (error) {
       this.logger.error(
         `❌ Erro ao calcular produto via motor V2: ${error.message}`,

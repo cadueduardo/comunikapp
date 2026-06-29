@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import * as nodemailer from 'nodemailer';
 
@@ -25,40 +25,60 @@ export interface NotificacaoArteDto {
 }
 
 @Injectable()
-export class ArteNotificacaoService {
+export class ArteNotificacaoService implements OnModuleInit {
+  private readonly logger = new Logger(ArteNotificacaoService.name);
   private transporter: nodemailer.Transporter;
+  private modoEthereal = false;
 
-  constructor(private prisma: PrismaService) {
-    // Configurar ETHEREAL EMAIL para testes
-    if (process.env.NODE_ENV === 'development' || !process.env.SMTP_HOST) {
-      // Usar ETHEREAL EMAIL para desenvolvimento
-      this.transporter = nodemailer.createTransport({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: {
-          user: 'a3ej5gb3cjyx2iuy@ethereal.email',
-          pass: 'tq3cnQcJFmW2YpCUSF',
-        },
-      });
+  constructor(private prisma: PrismaService) {}
 
-      console.log(
-        '📧 [ArteNotificacaoService] Configurado ETHEREAL EMAIL para testes',
+  async onModuleInit() {
+    const host = process.env.SMTP_HOST || process.env.MAIL_HOST;
+    const smtpUser = process.env.SMTP_USER || process.env.MAIL_USER;
+    const useEthereal =
+      process.env.ARTE_USE_ETHEREAL === 'true' ||
+      !host ||
+      host.includes('ethereal.email') ||
+      (process.env.NODE_ENV !== 'production' && !smtpUser);
+
+    if (!useEthereal && host) {
+      const port = parseInt(
+        process.env.SMTP_PORT || process.env.MAIL_PORT || '587',
+        10,
       );
-    } else {
-      // Usar configuração SMTP de produção
-      this.transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: false,
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      });
+      const secure =
+        port === 465 ||
+        (process.env.SMTP_SECURE || process.env.MAIL_SECURE) === 'true';
 
-      console.log('📧 [ArteNotificacaoService] Configurado SMTP de produção');
+      this.transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure,
+        auth: {
+          user: process.env.SMTP_USER || process.env.MAIL_USER,
+          pass: process.env.SMTP_PASS || process.env.MAIL_PASS,
+        },
+        greetingTimeout: 10000,
+        connectionTimeout: 10000,
+      });
+      this.logger.log(`SMTP arte configurado: ${host}:${port}`);
+      return;
     }
+
+    const testAccount = await nodemailer.createTestAccount();
+    this.transporter = nodemailer.createTransport({
+      host: 'smtp.ethereal.email',
+      port: 587,
+      secure: false,
+      auth: {
+        user: testAccount.user,
+        pass: testAccount.pass,
+      },
+    });
+    this.modoEthereal = true;
+    this.logger.warn(
+      `E-mail arte em modo Ethereal (preview no console). Conta: ${testAccount.user}`,
+    );
   }
 
   /**
@@ -111,10 +131,15 @@ export class ArteNotificacaoService {
   /**
    * Envia notificação de solicitação de aprovação
    */
-  async notificarAprovacaoSolicitada(dto: NotificacaoArteDto) {
+  async notificarAprovacaoSolicitada(
+    dto: NotificacaoArteDto,
+  ): Promise<{ previewUrl?: string }> {
     const { versao_id, destinatarios, dados } = dto;
 
-    // Buscar dados da versão
+    if (!versao_id) {
+      throw new Error('versao_id é obrigatório');
+    }
+
     const versao = await this.prisma.arteVersao.findUnique({
       where: { id: versao_id },
       include: {
@@ -126,20 +151,9 @@ export class ArteNotificacaoService {
         autor: {
           select: {
             nome: true,
+            nome_completo: true,
             email: true,
           },
-        },
-        links_aprovacao: {
-          where: {
-            ativo: true,
-            expira_em: {
-              gt: new Date(),
-            },
-          },
-          orderBy: {
-            data_aprovacao: 'desc',
-          },
-          take: 1,
         },
       },
     });
@@ -148,27 +162,73 @@ export class ArteNotificacaoService {
       throw new Error('Versão não encontrada');
     }
 
-    const link = versao.links_aprovacao[0];
+    const link = await this.resolverLinkAprovacaoParaEmail(versao_id, dados?.link_id);
     if (!link) {
-      throw new Error('Link de aprovação não encontrado');
+      throw new Error(
+        'Link de aprovação não encontrado. Envie a arte ao cliente antes de reenviar o e-mail.',
+      );
     }
 
+    const destinatariosFinais =
+      destinatarios?.filter((email) => Boolean(email?.trim())).length > 0
+        ? destinatarios
+        : versao.os.cliente?.email
+          ? [versao.os.cliente.email]
+          : [];
+
+    if (destinatariosFinais.length === 0) {
+      throw new Error('E-mail do cliente não encontrado na OS');
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const assunto = `Aprovação de arte solicitada - OS #${versao.os.numero}`;
     const template = 'aprovacao-solicitada';
+    const autorNome =
+      versao.autor?.nome_completo || versao.autor?.nome || 'Equipe';
 
-    await this.enviarEmail({
-      destinatarios,
+    return this.enviarEmail({
+      destinatarios: destinatariosFinais,
       assunto,
       template,
       dados: {
         ...dados,
         versao: versao.versao,
         os_numero: versao.os.numero,
-        cliente_nome: versao.os.cliente.nome,
-        autor_nome: versao.autor.nome,
-        link_aprovacao: `${process.env.FRONTEND_URL}/arte/aprovacao/${link.token_publico}`,
+        cliente_nome: versao.os.cliente?.nome || 'Cliente',
+        autor_nome: autorNome,
+        link_aprovacao: `${frontendUrl}/arte/aprovacao/${link.token_publico}`,
         expira_em: link.expira_em,
       },
+    });
+  }
+
+  private async resolverLinkAprovacaoParaEmail(
+    versaoId: string,
+    linkId?: string,
+  ) {
+    if (linkId) {
+      const linkPorId = await this.prisma.arteLinkAprovacao.findFirst({
+        where: {
+          id: linkId,
+          versao_id: versaoId,
+        },
+      });
+      if (linkPorId) return linkPorId;
+    }
+
+    const linkAtivo = await this.prisma.arteLinkAprovacao.findFirst({
+      where: {
+        versao_id: versaoId,
+        ativo: true,
+        expira_em: { gt: new Date() },
+      },
+      orderBy: { expira_em: 'desc' },
+    });
+    if (linkAtivo) return linkAtivo;
+
+    return this.prisma.arteLinkAprovacao.findFirst({
+      where: { versao_id: versaoId },
+      orderBy: { expira_em: 'desc' },
     });
   }
 
@@ -314,23 +374,34 @@ export class ArteNotificacaoService {
   /**
    * Envia email usando template
    */
-  private async enviarEmail(dto: NotificacaoEmailDto) {
+  private async enviarEmail(
+    dto: NotificacaoEmailDto,
+  ): Promise<{ previewUrl?: string }> {
     const { destinatarios, assunto, template, dados } = dto;
+
+    if (!this.transporter) {
+      throw new Error('Serviço de e-mail não inicializado');
+    }
 
     const html = this.gerarTemplateHTML(template, dados);
 
     try {
       const info = await this.transporter.sendMail({
-        from: process.env.SMTP_FROM || 'noreply@comunikapp.com',
+        from: process.env.SMTP_FROM || process.env.MAIL_FROM || 'noreply@comunikapp.com',
         to: destinatarios.join(', '),
         subject: assunto,
         html,
       });
 
-      console.log('📧 Email enviado:', info.messageId);
-      return info;
+      const previewUrl = nodemailer.getTestMessageUrl(info) || undefined;
+      if (this.modoEthereal && previewUrl) {
+        this.logger.log(`📧 Preview Ethereal (arte): ${previewUrl}`);
+      } else {
+        this.logger.log(`📧 Email arte enviado: ${info.messageId}`);
+      }
+      return { previewUrl };
     } catch (error) {
-      console.error('❌ Erro ao enviar email:', error);
+      this.logger.error('❌ Erro ao enviar email:', error);
       throw error;
     }
   }
@@ -338,6 +409,28 @@ export class ArteNotificacaoService {
   /**
    * Gera HTML do template de email
    */
+  private stripHtmlParaEmail(html: string): string {
+    if (!html) return '';
+    return html
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   private gerarTemplateHTML(
     template: string,
     dados: Record<string, any>,
@@ -541,6 +634,97 @@ export class ArteNotificacaoService {
           </html>
         `;
 
+      case 'nova-mensagem-cliente':
+        return `
+          <!DOCTYPE html>
+          <html>
+          <head>${baseStyles}</head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>💬 Nova mensagem da equipe</h1>
+              </div>
+              <div class="content">
+                <h2>Olá ${dados.cliente_nome}!</h2>
+                <p>A equipe enviou uma nova mensagem sobre sua arte:</p>
+
+                <div class="info-box">
+                  <h3>📋 Detalhes</h3>
+                  <p><strong>OS:</strong> #${dados.os_numero}</p>
+                  <p><strong>Enviado por:</strong> ${dados.autor_nome || 'Equipe'}</p>
+                  <p><strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
+                </div>
+
+                <div class="info-box" style="border-left-color: #2563eb;">
+                  <h3>💬 Mensagem</h3>
+                  <p style="white-space: pre-wrap;">${dados.mensagem_texto || ''}</p>
+                </div>
+
+                ${
+                  dados.link_aprovacao
+                    ? `
+                <div style="text-align: center;">
+                  <a href="${dados.link_aprovacao}" class="button">Ver conversa e responder</a>
+                </div>
+                `
+                    : ''
+                }
+
+                <div class="footer">
+                  <p>Este é um email automático do sistema Comunikapp.</p>
+                </div>
+              </div>
+            </div>
+          </body>
+          </html>
+        `;
+
+      case 'nova-mensagem-equipe':
+        return `
+          <!DOCTYPE html>
+          <html>
+          <head>${baseStyles}</head>
+          <body>
+            <div class="container">
+              <div class="header" style="background: #7c3aed;">
+                <h1>💬 Nova mensagem do cliente</h1>
+              </div>
+              <div class="content">
+                <h2>Olá!</h2>
+                <p>O cliente enviou uma nova mensagem no chat de arte:</p>
+
+                <div class="info-box">
+                  <h3>📋 Detalhes</h3>
+                  <p><strong>OS:</strong> #${dados.os_numero}</p>
+                  <p><strong>Cliente:</strong> ${dados.cliente_nome}</p>
+                  <p><strong>Enviado por:</strong> ${dados.autor_nome || dados.cliente_nome}</p>
+                  <p><strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
+                </div>
+
+                <div class="info-box" style="border-left-color: #7c3aed;">
+                  <h3>💬 Mensagem</h3>
+                  <p style="white-space: pre-wrap;">${dados.mensagem_texto || ''}</p>
+                </div>
+
+                ${
+                  dados.link_os
+                    ? `
+                <div style="text-align: center;">
+                  <a href="${dados.link_os}" class="button">Abrir chat no sistema</a>
+                </div>
+                `
+                    : ''
+                }
+
+                <div class="footer">
+                  <p>Este é um email automático do sistema Comunikapp.</p>
+                </div>
+              </div>
+            </div>
+          </body>
+          </html>
+        `;
+
       default:
         return `
           <!DOCTYPE html>
@@ -602,7 +786,7 @@ export class ArteNotificacaoService {
    * Envia notificação de nova mensagem para cliente
    */
   async notificarNovaMensagemCliente(dto: NotificacaoArteDto) {
-    const { os_id, destinatarios, dados } = dto;
+    const { os_id, versao_id, destinatarios, dados } = dto;
 
     // Buscar dados da OS
     const os = await this.prisma.ordemServico.findUnique({
@@ -616,6 +800,20 @@ export class ArteNotificacaoService {
       throw new Error('OS não encontrada');
     }
 
+    const link = await this.prisma.arteLinkAprovacao.findFirst({
+      where: {
+        versao: { os_id },
+      },
+      orderBy: { expira_em: 'desc' },
+    });
+
+    const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+    const linkAprovacao = link
+      ? `${frontendUrl}/arte/aprovacao/${link.token_publico}`
+      : `${frontendUrl}/arte/aprovacao`;
+
+    const mensagemTexto = this.stripHtmlParaEmail(String(dados.mensagem || ''));
+
     const assunto = `Nova mensagem - OS #${os.numero}`;
     const template = 'nova-mensagem-cliente';
 
@@ -627,7 +825,8 @@ export class ArteNotificacaoService {
         ...dados,
         os_numero: os.numero,
         cliente_nome: os.cliente.nome,
-        link_aprovacao: `${process.env.FRONTEND_URL}/os/${os_id}?tab=arte-aprovacao`,
+        mensagem_texto: this.escapeHtml(mensagemTexto),
+        link_aprovacao: linkAprovacao,
       },
     });
   }
@@ -650,6 +849,9 @@ export class ArteNotificacaoService {
       throw new Error('OS não encontrada');
     }
 
+    const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+    const mensagemTexto = this.stripHtmlParaEmail(String(dados.mensagem || ''));
+
     const assunto = `Nova mensagem do cliente - OS #${os.numero}`;
     const template = 'nova-mensagem-equipe';
 
@@ -661,7 +863,8 @@ export class ArteNotificacaoService {
         ...dados,
         os_numero: os.numero,
         cliente_nome: os.cliente.nome,
-        link_os: `${process.env.FRONTEND_URL}/os/${os_id}?tab=arte-aprovacao`,
+        mensagem_texto: this.escapeHtml(mensagemTexto),
+        link_os: `${frontendUrl}/arte`,
       },
     });
   }

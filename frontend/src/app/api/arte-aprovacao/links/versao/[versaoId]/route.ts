@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL || 'http://localhost:4000';
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { versaoId: string } }
+  { params }: { params: Promise<{ versaoId: string }> }
 ) {
   try {
-    const { versaoId } = params;
+    const { versaoId } = await params;
     
-    const response = await fetch(`${process.env.BACKEND_URL}/arte-aprovacao/links/versao/${versaoId}`, {
+    const response = await fetch(`${API_BASE_URL}/arte-aprovacao/links/versao/${versaoId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${request.headers.get('authorization')?.replace('Bearer ', '')}`,

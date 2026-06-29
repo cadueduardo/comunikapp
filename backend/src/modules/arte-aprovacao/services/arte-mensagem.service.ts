@@ -8,6 +8,7 @@
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ArteNotificacaoService } from './arte-notificacao.service';
 import { ArteWebSocketGateway } from '../gateways/arte-websocket.gateway';
+import { ArteFilaTransicaoService } from './arte-fila-transicao.service';
 import { CreateMensagemDto, UpdateMensagemDto } from '../dto/mensagem.dto';
 import { AutorTipo } from '@prisma/client';
 import { NotificacoesService } from '../../../notificacoes/notificacoes.service';
@@ -22,6 +23,7 @@ export class ArteMensagemService {
     private readonly notificacoesGlobalService: NotificacoesService,
     @Inject(forwardRef(() => ArteWebSocketGateway))
     private readonly websocketGateway: ArteWebSocketGateway,
+    private readonly filaTransicaoService: ArteFilaTransicaoService,
   ) {}
 
   /**
@@ -231,7 +233,7 @@ export class ArteMensagemService {
       this.logger.log(`Mensagem criada: ${mensagem.id} para OS ${data.os_id}`);
 
       // Emitir evento WebSocket em tempo real
-      if (data.versao_id && this.websocketGateway) {
+      if (this.websocketGateway) {
         await this.websocketGateway.emitirNovaMensagem(data.versao_id, {
           id: mensagem.id,
           os_id: mensagem.os_id,
@@ -244,13 +246,33 @@ export class ArteMensagemService {
           created_at: mensagem.created_at,
           lida: mensagem.lida,
           loja_id: mensagem.loja_id,
-          versoesMencionadas, // Incluir dados das men├º├Áes
-          mensagemOriginal: data.mensagem, // Manter mensagem original para refer├¬ncia
+          versoesMencionadas,
+          mensagemOriginal: data.mensagem,
         });
       }
 
-      // Enviar notifica├º├Áes
-      await this.enviarNotificacoesMensagem(mensagem, data.autor_tipo);
+      // Enviar notificações em background (não bloqueia resposta HTTP)
+      void this.enviarNotificacoesMensagem(mensagem, data.autor_tipo).catch(
+        (err) =>
+          this.logger.error(
+            `Falha ao enviar notificações da mensagem ${mensagem.id}: ${err?.message}`,
+          ),
+      );
+
+      if (data.autor_tipo === AutorTipo.CLIENTE) {
+        void this.filaTransicaoService
+          .sincronizarRevisaoPorMensagemCliente({
+            produtoId: data.produto_id,
+            osId: data.os_id,
+            lojaId: data.loja_id,
+            versaoId: data.versao_id,
+          })
+          .catch((err) =>
+            this.logger.warn(
+              `Não foi possível mover card para revisão: ${err?.message}`,
+            ),
+          );
+      }
 
       return mensagem;
     } catch (error) {
@@ -282,6 +304,22 @@ export class ArteMensagemService {
   /**
    * Listar mensagens de uma vers├úo espec├¡fica
    */
+  async validarVersaoMesmaOsDoLink(
+    versaoId: string,
+    osId: string,
+    lojaId: string,
+  ) {
+    return this.prisma.arteVersao.findFirst({
+      where: {
+        id: versaoId,
+        os_id: osId,
+        loja_id: lojaId,
+        deletado: false,
+      },
+      select: { id: true },
+    });
+  }
+
   async listarMensagensVersao(versaoId: string, lojaId: string) {
     // Log removido para reduzir spam no console
 
@@ -425,6 +463,14 @@ export class ArteMensagemService {
     this.logger.log(
       `✅ [marcarMensagensLidasPorProduto] ${result.count} mensagens marcadas como lidas`,
     );
+
+    if (this.websocketGateway && result.count > 0) {
+      await this.websocketGateway.emitirMensagensLidas(lojaId, {
+        os_id: osId,
+        produto_id: produtoId,
+        versao_id: versaoId,
+      });
+    }
 
     return result;
   }

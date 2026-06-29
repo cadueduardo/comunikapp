@@ -24,6 +24,7 @@ import {
   IconBuilding,
   IconCash,
   IconTruckDelivery,
+  IconPalette,
 } from '@tabler/icons-react';
 import { ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -289,6 +290,14 @@ export default function DashboardLayout({
       badgeCount: contadores.os,
       icon: (
         <IconClipboardList className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      ),
+    },
+    {
+      label: 'Arte & Aprovação',
+      href: '/arte',
+      badgeCount: contadores.arte,
+      icon: (
+        <IconPalette className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
       ),
     },
     ...(podeVerFinanceiro

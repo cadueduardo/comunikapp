@@ -82,9 +82,12 @@ export class JwtGlobalMiddleware implements NestMiddleware {
     }
 
     if (/^\/(?:api\/)?arte-aprovacao\/versoes\/[^/]+\/arquivos\/public\/download\/[^/]+$/.test(req.path)) {
-      if (!req.query?.token || typeof req.query.token !== 'string') {
+      const rawToken = req.query?.token;
+      const token = Array.isArray(rawToken) ? rawToken[0] : rawToken;
+      if (!token || typeof token !== 'string') {
         throw new UnauthorizedException('Token público obrigatório');
       }
+      req.query.token = token;
       return next();
     }
 

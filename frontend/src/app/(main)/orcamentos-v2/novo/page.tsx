@@ -10,6 +10,10 @@ import {
   mapCamposPrateleiraFormulario,
 } from '@/components/ui/orcamento/utils/map-campos-prateleira';
 import { mapInstalacaoProdutoBackendParaFormulario } from '@/components/ui/orcamento/utils/map-instalacao-formulario';
+import {
+  mapArteProdutoBackendParaFormulario,
+  mapArteServicosBackendParaFormulario,
+} from '@/components/orcamentos-v2/arte-produto.helpers';
 
 interface OrcamentoData extends Record<string, unknown> {
   cliente_id: string;
@@ -281,6 +285,10 @@ export default function NovoOrcamentoV2Page() {
             valor_final_manual: valorFinalManual,
             comissao_percentual: comissaoPercentual,
             tipo_margem_lucro: tipoMargemLucro,
+            preco_final_persistido:
+              orcamentoData.preco_final != null
+                ? String(orcamentoData.preco_final)
+                : '',
             // Manter produtos brutos da API para o form reconstruir prateleira corretamente
             produtos: orcamentoData.produtos || [],
             // Transformar produtos se existirem
@@ -347,13 +355,11 @@ export default function NovoOrcamentoV2Page() {
               servicos: isPrateleira
                 ? []
                 : produto.servicos_manuais
-                  ? produto.servicos_manuais.map((servico: any) => ({
-                      servico_id: servico.servico_id,
-                      horas_trabalhadas: String(servico.tempo_horas || 1),
-                    }))
+                  ? mapArteServicosBackendParaFormulario(produto.servicos_manuais)
                   : [{ servico_id: '', horas_trabalhadas: '1' }],
               ...mapCamposPrateleiraFormulario(produto),
               ...mapInstalacaoProdutoBackendParaFormulario(produto),
+              ...mapArteProdutoBackendParaFormulario(produto),
               });
             }) : [
               {

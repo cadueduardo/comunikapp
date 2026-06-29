@@ -83,9 +83,12 @@ export class ArteWebSocketGateway
           );
         }
       } catch (error) {
-        this.logger.warn(
-          `Token inválido para cliente ${client.id}: ${error.message}`,
-        );
+        const autenticado = await this.autenticarTokenLinkPublico(client, token);
+        if (!autenticado) {
+          this.logger.warn(
+            `Token inválido para cliente ${client.id}: ${error.message}`,
+          );
+        }
       }
     } else {
       this.logger.debug(`WS arte sem token socket=${client.id}`);
@@ -127,25 +130,32 @@ export class ArteWebSocketGateway
           return;
         }
       } else if (client.data.tipo === 'cliente') {
-        // Cliente público pode acessar qualquer versão do mesmo produto
-        // Verificar se a versão pertence ao mesmo produto do token
         const linkAprovacao = await this.prisma.arteLinkAprovacao.findFirst({
           where: {
             token_publico: client.data.tokenAprovacao,
-            ativo: true,
           },
           include: {
             versao: true,
           },
         });
 
-        if (
-          !linkAprovacao ||
-          linkAprovacao.versao.servico_id !== versao.servico_id
-        ) {
+        if (!linkAprovacao) {
           client.emit('error', { message: 'Token inválido para esta versão' });
           return;
         }
+
+        if (linkAprovacao.expira_em && linkAprovacao.expira_em < new Date()) {
+          client.emit('error', { message: 'Link de aprovação expirado' });
+          return;
+        }
+
+        if (linkAprovacao.versao.os_id !== versao.os_id) {
+          client.emit('error', { message: 'Token inválido para esta versão' });
+          return;
+        }
+      } else {
+        client.emit('error', { message: 'Autenticação necessária' });
+        return;
       }
 
       // Entrar na sala da versão
@@ -256,20 +266,93 @@ export class ArteWebSocketGateway
     });
   }
 
+  private async autenticarTokenLinkPublico(
+    client: Socket,
+    token: string,
+  ): Promise<boolean> {
+    const link = await this.prisma.arteLinkAprovacao.findUnique({
+      where: { token_publico: token },
+      include: {
+        versao: { select: { os_id: true, loja_id: true } },
+      },
+    });
+
+    if (!link) return false;
+    if (link.expira_em && link.expira_em < new Date()) return false;
+
+    client.data.tipo = 'cliente';
+    client.data.tokenAprovacao = token;
+    client.data.lojaId = link.versao.loja_id;
+
+    this.logger.debug(
+      `WS arte cliente público (link) os=${link.versao.os_id} socket=${client.id}`,
+    );
+    return true;
+  }
+
   /**
-   * Método público para emitir nova mensagem para todos na sala da versão
-   * Será chamado pelo ArteMensagemService quando uma mensagem for criada
+   * Método público para emitir nova mensagem para todos na sala da versão e da loja (kanban).
    */
-  async emitirNovaMensagem(versaoId: string, mensagem: any) {
+  async emitirNovaMensagem(
+    versaoId: string | null | undefined,
+    mensagem: Record<string, unknown>,
+  ) {
     try {
-      this.server.to(`arte_versao_${versaoId}`).emit('nova_mensagem_arte', {
+      const payload = {
         mensagem,
         timestamp: new Date().toISOString(),
-      });
+      };
 
-      this.logger.debug(`WS arte emit nova_mensagem versao=${versaoId}`);
+      if (versaoId) {
+        this.server.to(`arte_versao_${versaoId}`).emit('nova_mensagem_arte', payload);
+        this.logger.debug(`WS arte emit nova_mensagem versao=${versaoId}`);
+      }
+
+      const lojaId = mensagem.loja_id as string | undefined;
+      if (lojaId) {
+        this.server.to(`loja_${lojaId}`).emit('nova_mensagem_arte', payload);
+        this.logger.debug(`WS arte emit nova_mensagem loja=${lojaId}`);
+      }
     } catch (error) {
       this.logger.error('Erro ao emitir nova mensagem:', error);
+    }
+  }
+
+  /**
+   * Notifica equipe (kanban) que mensagens do cliente foram lidas em um produto.
+   */
+  async emitirMensagensLidas(
+    lojaId: string,
+    data: { os_id: string; produto_id: string; versao_id?: string | null },
+  ) {
+    try {
+      this.server.to(`loja_${lojaId}`).emit('mensagens_lidas_arte', {
+        ...data,
+        timestamp: new Date().toISOString(),
+      });
+      this.logger.debug(
+        `WS arte emit mensagens_lidas loja=${lojaId} produto=${data.produto_id}`,
+      );
+    } catch (error) {
+      this.logger.error('Erro ao emitir mensagens lidas:', error);
+    }
+  }
+
+  async emitirStatusArteAtualizado(
+    lojaId: string,
+    data: { item_id: string; os_id: string; status_arte: string },
+  ) {
+    try {
+      const payload = {
+        ...data,
+        timestamp: new Date().toISOString(),
+      };
+      this.server.to(`loja_${lojaId}`).emit('status_arte_atualizado', payload);
+      this.logger.debug(
+        `WS arte emit status_arte item=${data.item_id} status=${data.status_arte}`,
+      );
+    } catch (error) {
+      this.logger.error('Erro ao emitir status arte:', error);
     }
   }
 
@@ -280,14 +363,24 @@ export class ArteWebSocketGateway
   async emitirContadorAtualizado(
     versaoId: string,
     produtoId: string,
-    dadosContador: any,
+    dadosContador: Record<string, unknown>,
+    lojaId?: string,
   ) {
     try {
-      this.server.to(`arte_versao_${versaoId}`).emit('contador_atualizado', {
+      const payload = {
         produtoId,
         dadosContador,
         timestamp: new Date().toISOString(),
-      });
+      };
+
+      this.server.to(`arte_versao_${versaoId}`).emit('contador_atualizado', payload);
+
+      if (lojaId) {
+        this.server.to(`loja_${lojaId}`).emit('contador_atualizado', {
+          ...payload,
+          versaoId,
+        });
+      }
 
       this.logger.debug(`WS arte emit contador versao=${versaoId}`);
     } catch (error) {

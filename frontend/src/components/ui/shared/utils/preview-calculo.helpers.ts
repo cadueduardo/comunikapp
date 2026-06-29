@@ -607,7 +607,14 @@ const calcularHorasServico = (
 };
 
 const calcularServicos = (
-  servicosEntrada: Array<{ servico_id: string; horas_trabalhadas?: NumericLike }>,
+  servicosEntrada: Array<{
+    servico_id?: string;
+    horas_trabalhadas?: NumericLike;
+    origem?: string;
+    custo_hora?: NumericLike;
+    custo_total?: NumericLike;
+    descricao?: string;
+  }>,
   servicos: ServicoManual[],
   contexto: ProdutoContexto,
 ): { itens: ServicoPreview[]; total: number; horas: number } => {
@@ -617,21 +624,39 @@ const calcularServicos = (
     }
 
     const servico = servicos.find((s) => s.id === entrada.servico_id);
-    if (!servico) {
+    const isArteAutomatica = entrada.origem === 'ARTE_AUTOMATICA';
+
+    if (!servico && !isArteAutomatica) {
       return acc;
     }
 
-    const horas = calcularHorasServico(entrada, servico, contexto);
-    if (horas <= 0) {
+    const horas = isArteAutomatica
+      ? parseNumber(entrada.horas_trabalhadas)
+      : calcularHorasServico(
+          { servico_id: entrada.servico_id, horas_trabalhadas: entrada.horas_trabalhadas },
+          servico,
+          contexto,
+        );
+
+    if (horas <= 0 && !isArteAutomatica) {
       return acc;
     }
 
-    const custoPorHora = parseNumber(servico?.custo_hora);
-    const custoTotal = custoPorHora * horas;
+    const custoPorHora = isArteAutomatica
+      ? parseNumber(entrada.custo_hora)
+      : parseNumber(servico?.custo_hora);
+    const custoTotalInformado = parseNumber(entrada.custo_total);
+    const custoTotal =
+      custoTotalInformado > 0
+        ? custoTotalInformado
+        : custoPorHora * horas;
 
     acc.push({
       servico_id: entrada.servico_id,
-      nome: servico?.nome || 'Serviço manual',
+      nome:
+        entrada.descricao ||
+        servico?.nome ||
+        (isArteAutomatica ? 'Criação de arte (automática)' : 'Serviço manual'),
       horas_trabalhadas: horas,
       custo_por_hora: custoPorHora,
       custo_total: custoTotal,

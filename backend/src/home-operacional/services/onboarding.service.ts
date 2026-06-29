@@ -8,6 +8,7 @@ import {
   OnboardingEtapaEstado,
   OnboardingResumo,
 } from '../interfaces/onboarding.interface';
+import { ConfiguracaoArteService } from '../../modules/arte-aprovacao/services/configuracao-arte.service';
 
 type AcaoStep = 'ignorar' | 'reativar';
 
@@ -23,7 +24,10 @@ type AcaoStep = 'ignorar' | 'reativar';
  */
 @Injectable()
 export class OnboardingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configuracaoArteService: ConfiguracaoArteService,
+  ) {}
 
   async obterResumo(lojaId: string): Promise<OnboardingResumo> {
     const [estadosPersistidos, deteccoes] = await Promise.all([
@@ -188,6 +192,7 @@ export class OnboardingService {
       orcamentosCount,
       aprovadosCount,
       producaoCount,
+      statusArte,
     ] =
       await Promise.all([
         this.prisma.loja.findUnique({
@@ -226,6 +231,7 @@ export class OnboardingService {
             status: { in: ['PRODUCAO', 'ACABAMENTO', 'FINALIZADA'] },
           },
         }),
+        this.configuracaoArteService.obterStatus(lojaId),
       ]);
 
     if (loja) {
@@ -249,6 +255,8 @@ export class OnboardingService {
       maquinasCount > 0 || servicosCount > 0;
     resultado[OnboardingStepId.CONFIGURAR_ENTREGA_INSTALACAO] =
       modalidadesEntregaCount > 0 && tiposInstalacaoCount > 0;
+    resultado[OnboardingStepId.CONFIGURAR_ARTE_APROVACAO] =
+      statusArte.configurado === true;
     resultado[OnboardingStepId.PRIMEIRO_ORCAMENTO] = orcamentosCount > 0;
     resultado[OnboardingStepId.PRIMEIRA_APROVACAO] = aprovadosCount > 0;
     resultado[OnboardingStepId.PRIMEIRA_PRODUCAO] = producaoCount > 0;

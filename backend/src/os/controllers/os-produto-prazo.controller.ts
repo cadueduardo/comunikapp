@@ -172,6 +172,31 @@ export class OSProdutoPrazoController {
     }
   }
 
+  @Get(':osId/liberacao-pcp/detalhe')
+  @ApiOperation({ summary: 'Detalhe de liberação PCP por produto da OS' })
+  async getDetalheLiberacaoPCP(
+    @Param('osId') osId: string,
+    @Request() req: any,
+  ) {
+    const lojaId = req.user.loja_id;
+    const data = await this.osProdutoPrazoService.getDetalheLiberacaoPCP(
+      osId,
+      lojaId,
+    );
+    return { success: true, data };
+  }
+
+  @Get(':osId/arte-resumo')
+  @ApiOperation({ summary: 'Resumo de arte por produto da OS' })
+  async getDetalheArteOS(@Param('osId') osId: string, @Request() req: any) {
+    const lojaId = req.user.loja_id;
+    const data = await this.osProdutoPrazoService.getDetalheArteOS(
+      osId,
+      lojaId,
+    );
+    return { success: true, data };
+  }
+
   @Post(':osId/item/:itemId/liberar-pcp')
   @ApiOperation({ summary: 'Liberar produto específico para PCP' })
   @ApiParam({ name: 'osId', description: 'ID da OS' })

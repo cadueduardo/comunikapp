@@ -1,4 +1,4 @@
-﻿import { Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -7,6 +7,7 @@ import { MailModule } from '../mail/mail.module';
 import { DocumentosModule } from '../documentos/documentos.module';
 import { MotorCalculoV2Module } from '../motor-calculo-v2/motor-calculo-v2.module';
 import { OSModule } from '../os/os.module';
+import { ArteAprovacaoModule } from '../modules/arte-aprovacao/arte-aprovacao.module';
 import { FinanceiroModule } from '../financeiro/financeiro.module';
 import { HomeOperacionalModule } from '../home-operacional/home-operacional.module';
 import { getRequiredJwtSecret } from '../auth/jwt-secret';
@@ -50,6 +51,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     OSModule,
     FinanceiroModule, // Fase 6 - Cobranca/Recebimento (CobrancasService + CobrancaVencimentoService)
     HomeOperacionalModule, // Fase 6 - Invalidar cache da home apos aprovacao
+    ArteAprovacaoModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

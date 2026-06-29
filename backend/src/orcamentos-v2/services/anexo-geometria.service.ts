@@ -11,10 +11,11 @@ import { existsSync, mkdirSync, statSync } from 'fs';
 import { readFile, unlink, writeFile } from 'fs/promises';
 import { extname, join, resolve } from 'path';
 import {
-  ANEXO_GEOMETRIA_LIMITE_DXF_BYTES,
-  ANEXO_GEOMETRIA_LIMITE_IMAGEM_BYTES,
   CategoriaAnexoGeometria,
   classificarAnexoGeometria,
+  limiteBytesPorCategoria,
+  MENSAGEM_FORMATOS_ANEXO_GEOMETRIA,
+  rotuloCategoriaAnexoGeometria,
 } from '../../config/multer-anexo-geometria.config';
 import { DxfExtraido, DxfParserService } from './dxf-parser.service';
 import {
@@ -95,22 +96,15 @@ export class AnexoGeometriaService {
       arquivo.originalname,
     );
     if (!categoria) {
-      throw new BadRequestException(
-        'Formato de arquivo não permitido. Aceitos: PNG, JPG, WEBP, GIF, DXF.',
-      );
+      throw new BadRequestException(MENSAGEM_FORMATOS_ANEXO_GEOMETRIA);
     }
 
-    // Limite por categoria (a config do multer aceita 20MB para cobrir o DXF;
-    // imagem precisa ser menor para evitar abuso de paste).
-    const limiteCategoria =
-      categoria === 'IMAGEM'
-        ? ANEXO_GEOMETRIA_LIMITE_IMAGEM_BYTES
-        : ANEXO_GEOMETRIA_LIMITE_DXF_BYTES;
+    const limiteCategoria = limiteBytesPorCategoria(categoria);
 
     if (arquivo.size > limiteCategoria) {
       const limiteMb = (limiteCategoria / (1024 * 1024)).toFixed(0);
       throw new PayloadTooLargeException(
-        `Arquivo excede o limite de ${limiteMb} MB para ${categoria === 'IMAGEM' ? 'imagem' : 'DXF'}.`,
+        `Arquivo excede o limite de ${limiteMb} MB para ${rotuloCategoriaAnexoGeometria(categoria)}.`,
       );
     }
 
@@ -396,6 +390,9 @@ export class AnexoGeometriaService {
     const ext = extname(nomeOriginal || '').toLowerCase();
     if (categoria === 'DXF') {
       return '.dxf';
+    }
+    if (categoria === 'PDF') {
+      return '.pdf';
     }
     // Imagem: aceita apenas as extensões whitelistadas; cai para .png se vazio.
     const extensoesImagem = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);

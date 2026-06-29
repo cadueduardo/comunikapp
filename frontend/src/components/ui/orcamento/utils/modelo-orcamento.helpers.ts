@@ -2,6 +2,7 @@ import {
   isItemAguardandoConfiguracao,
   isProdutoPrateleiraItem,
 } from '../schemas/orcamento.schema';
+import { ARTE_PRODUTO_DEFAULTS } from '@/components/orcamentos-v2/arte-produto.helpers';
 
 const itemConfiguradoParaModelo = (item: Record<string, unknown>): boolean => {
   if (isProdutoPrateleiraItem(item as { tipo_item?: string })) {
@@ -48,6 +49,12 @@ export const serializarItensModeloOrcamento = (
     maquinas: Array.isArray(item.maquinas) ? item.maquinas : [],
     funcoes: Array.isArray(item.funcoes) ? item.funcoes : [],
     servicos: Array.isArray(item.servicos) ? item.servicos : [],
+    responsabilidade_arte:
+      item.responsabilidade_arte || ARTE_PRODUTO_DEFAULTS.responsabilidade_arte,
+    politica_cobranca_arte:
+      item.politica_cobranca_arte || ARTE_PRODUTO_DEFAULTS.politica_cobranca_arte,
+    finalidade_anexo: item.finalidade_anexo || '',
+    complexidade_arte: item.complexidade_arte || '',
     instalacao_necessaria: Boolean(item.instalacao_necessaria),
     instalacao_tipo_id: item.instalacao_tipo_id || '',
     instalacao_regra_cobranca: item.instalacao_regra_cobranca || 'FIXO',
@@ -89,6 +96,7 @@ const itemModeloVazio = () => ({
   maquinas: [{ maquina_id: '', horas_utilizadas: '1' }],
   funcoes: [{ funcao_id: '', horas_trabalhadas: '1' }],
   servicos: [{ servico_id: '', horas_trabalhadas: '1' }],
+  ...ARTE_PRODUTO_DEFAULTS,
   instalacao_necessaria: false,
   instalacao_tipo_id: '',
   instalacao_regra_cobranca: 'FIXO',

@@ -43,7 +43,7 @@ export interface AnexoGeometriaInputProps {
    */
   onChange: (
     value: string | null,
-    categoria: 'IMAGEM' | 'DXF' | null,
+    categoria: CategoriaAnexo | null,
   ) => void;
   /**
    * Callback opcional ao detectar que o arquivo é DXF e o backend conseguiu
@@ -77,19 +77,48 @@ const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_URL || '/api'
 ).replace(/\/$/, '');
 
+type CategoriaAnexo = 'IMAGEM' | 'PDF' | 'DXF';
+
 const TAMANHO_MAXIMO_IMAGEM_BYTES = 5 * 1024 * 1024;
+const TAMANHO_MAXIMO_PDF_BYTES = 10 * 1024 * 1024;
 const TAMANHO_MAXIMO_DXF_BYTES = 20 * 1024 * 1024;
 
 const EXTENSOES_IMAGEM = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif']);
+const EXTENSOES_PDF = new Set(['pdf']);
 const EXTENSOES_DXF = new Set(['dxf']);
 
-type CategoriaDetectada = 'IMAGEM' | 'DXF' | null;
+type CategoriaDetectada = CategoriaAnexo | null;
+
+function limitePorCategoria(categoria: CategoriaAnexo): number {
+  switch (categoria) {
+    case 'IMAGEM':
+      return TAMANHO_MAXIMO_IMAGEM_BYTES;
+    case 'PDF':
+      return TAMANHO_MAXIMO_PDF_BYTES;
+    case 'DXF':
+      return TAMANHO_MAXIMO_DXF_BYTES;
+  }
+}
+
+function rotuloCategoria(categoria: CategoriaAnexo): string {
+  switch (categoria) {
+    case 'IMAGEM':
+      return 'Imagem';
+    case 'PDF':
+      return 'PDF';
+    case 'DXF':
+      return 'DXF';
+  }
+}
 
 function detectarCategoria(file: File): CategoriaDetectada {
   const mime = (file.type || '').toLowerCase();
   if (mime.startsWith('image/')) {
     const sub = mime.split('/')[1] || '';
     if (EXTENSOES_IMAGEM.has(sub)) return 'IMAGEM';
+  }
+  if (mime === 'application/pdf') {
+    return 'PDF';
   }
   if (mime === 'application/dxf' || mime === 'application/x-dxf') {
     return 'DXF';
@@ -99,6 +128,7 @@ function detectarCategoria(file: File): CategoriaDetectada {
   if (idx >= 0) {
     const ext = nome.slice(idx + 1);
     if (EXTENSOES_IMAGEM.has(ext)) return 'IMAGEM';
+    if (EXTENSOES_PDF.has(ext)) return 'PDF';
     if (EXTENSOES_DXF.has(ext)) return 'DXF';
   }
   return null;
@@ -112,7 +142,7 @@ function obterToken(): string | null {
 interface UploadResponse {
   url: string;
   token: string;
-  categoria: 'IMAGEM' | 'DXF';
+  categoria: CategoriaAnexo;
   metadados: {
     nome_original?: string;
     [key: string]: unknown;
@@ -178,6 +208,8 @@ export function AnexoGeometriaInput({
         let categoriaCarregada: CategoriaDetectada = null;
         if (ct.startsWith('image/')) {
           categoriaCarregada = 'IMAGEM';
+        } else if (ct.includes('pdf')) {
+          categoriaCarregada = 'PDF';
         } else if (ct.includes('dxf') || ct === 'application/octet-stream') {
           categoriaCarregada = 'DXF';
         }
@@ -246,18 +278,15 @@ export function AnexoGeometriaInput({
       const categoria = detectarCategoria(file);
       if (!categoria) {
         toast.error(
-          'Formato não permitido. Use PNG, JPG, WEBP, GIF ou DXF.',
+          'Formato não permitido. Use PNG, JPG, WEBP, GIF, PDF ou DXF.',
         );
         return;
       }
-      const limite =
-        categoria === 'IMAGEM'
-          ? TAMANHO_MAXIMO_IMAGEM_BYTES
-          : TAMANHO_MAXIMO_DXF_BYTES;
+      const limite = limitePorCategoria(categoria);
       if (file.size > limite) {
         const limiteMb = (limite / (1024 * 1024)).toFixed(0);
         toast.error(
-          `Arquivo excede o limite de ${limiteMb} MB para ${categoria === 'IMAGEM' ? 'imagem' : 'DXF'}.`,
+          `Arquivo excede o limite de ${limiteMb} MB para ${rotuloCategoria(categoria).toLowerCase()}.`,
         );
         return;
       }
@@ -286,9 +315,7 @@ export function AnexoGeometriaInput({
         const data = (await resp.json()) as UploadResponse;
         setNomeOriginal(data.metadados?.nome_original || file.name);
         onChange(data.url, data.categoria);
-        toast.success(
-          `${categoria === 'IMAGEM' ? 'Imagem' : 'DXF'} anexado com sucesso.`,
-        );
+        toast.success(`${rotuloCategoria(categoria)} anexado com sucesso.`);
 
         if (categoria === 'DXF') {
           // Sub-fase 7.B: propaga metadados extraídos do DXF + sugestões de
@@ -437,6 +464,7 @@ export function AnexoGeometriaInput({
 
   const temAnexo = !!value;
   const ehImagem = categoriaAtual === 'IMAGEM';
+  const ehPDF = categoriaAtual === 'PDF';
   const ehDXF = categoriaAtual === 'DXF';
 
   return (
@@ -444,7 +472,7 @@ export function AnexoGeometriaInput({
       <input
         ref={inputFileRef}
         type="file"
-        accept="image/png,image/jpeg,image/webp,image/gif,.dxf,application/dxf,application/x-dxf"
+        accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,.pdf,.dxf,application/dxf,application/x-dxf"
         onChange={handleArquivoSelecionado}
         className="hidden"
         disabled={disabled}
@@ -467,7 +495,7 @@ export function AnexoGeometriaInput({
             : 'border-muted-foreground/30 hover:border-muted-foreground/50',
           disabled ? 'opacity-60 cursor-not-allowed' : '',
         ].join(' ')}
-        aria-label="Anexar imagem ou DXF do produto"
+        aria-label="Anexar imagem, PDF ou DXF do produto"
       >
         {temAnexo && previewUrl && ehImagem ? (
           // Preview de imagem.
@@ -495,15 +523,17 @@ export function AnexoGeometriaInput({
               </Button>
             </div>
           </div>
-        ) : temAnexo && ehDXF ? (
-          // Card para DXF (sem preview visual).
+        ) : temAnexo && (ehPDF || ehDXF) ? (
+          // Card para PDF/DXF (sem preview visual de imagem).
           <div className="flex items-center justify-between p-3">
             <div className="flex items-center gap-3">
               <FileText className="h-8 w-8 text-primary" />
               <div className="text-sm">
-                <p className="font-medium">Arquivo DXF anexado</p>
+                <p className="font-medium">
+                  {ehPDF ? 'Arquivo PDF anexado' : 'Arquivo DXF anexado'}
+                </p>
                 <p className="text-xs text-muted-foreground truncate max-w-[24rem]">
-                  {nomeOriginal || 'arquivo.dxf'}
+                  {nomeOriginal || (ehPDF ? 'arquivo.pdf' : 'arquivo.dxf')}
                 </p>
               </div>
             </div>
@@ -539,8 +569,8 @@ export function AnexoGeometriaInput({
                   Arraste, cole (Ctrl+V) ou clique para anexar
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Imagem (PNG, JPG, WEBP, GIF até 5 MB) ou vetor DXF (até 20
-                  MB). A imagem vira a arte da OS.
+                  Imagem (PNG, JPG, WEBP, GIF até 5 MB), PDF (até 10 MB) ou
+                  vetor DXF (até 20 MB).
                 </p>
               </>
             )}

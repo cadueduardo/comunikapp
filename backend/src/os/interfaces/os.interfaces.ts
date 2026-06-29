@@ -70,6 +70,21 @@ export interface OrdemServicoData {
   produtos?: ProdutoOSData[];
   itens_os?: ItemOSData[];
   materiais_consolidados?: MaterialConsolidadoData[];
+  /** Resumo agregado de arte para coluna do grid */
+  arte_resumo?: {
+    status_agregado: string;
+    label: string;
+    total_com_arte: number;
+    aprovadas: number;
+    pendentes: number;
+  };
+  /** Resumo agregado de liberação PCP por item */
+  liberacao_resumo?: {
+    total: number;
+    liberados: number;
+    pendentes: number;
+    parcial: boolean;
+  };
 }
 
 export interface ItemOSData {
@@ -385,6 +400,7 @@ export enum StatusOS {
   APROVADA_ORCAMENTARIA = 'APROVADA_ORCAMENTARIA',
   REJEITADA = 'REJEITADA',
   LIBERADA_PARA_PCP = 'LIBERADA_PARA_PCP',
+  PARCIALMENTE_LIBERADA = 'PARCIALMENTE_LIBERADA',
   EM_WORKFLOW = 'EM_WORKFLOW',
   PRODUCAO = 'PRODUCAO',
   ACABAMENTO = 'ACABAMENTO',

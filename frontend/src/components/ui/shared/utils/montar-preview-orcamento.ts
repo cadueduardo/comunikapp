@@ -330,6 +330,15 @@ export function montarPreviewOrcamento(
       .reduce((total, produto) => total + (Number(produto.preco_total) || 0), 0),
   );
 
+  const custoPrateleiraNoMaterial = roundMoney(
+    produtosPreview
+      .filter((produto) => produto.tipo_item === 'PRODUTO_FINITO')
+      .reduce(
+        (total, produto) => total + (Number(produto.custo_total_producao) || 0),
+        0,
+      ),
+  );
+
   const totalCustoMaterial = totais.materiais;
   const totalCustoMaquinaria = totais.maquinas;
   const totalCustoServicos = totais.servicos;
@@ -342,7 +351,8 @@ export function montarPreviewOrcamento(
     totalCustoMaquinaria +
     totalCustoFuncoes +
     totalCustoServicos +
-    totalCustoIndireto;
+    totalCustoIndireto -
+    custoPrateleiraNoMaterial;
 
   const totalCustoProducao =
     totalCustoProducaoBase + totalCustoInstalacao + entrega.custo_estimado;
@@ -380,6 +390,15 @@ export function montarPreviewOrcamento(
   const valorFinalManual = roundMoney(parseNumeroPreview(valorFinalManualTexto));
   if (temValorFinalManual) {
     precoFinal = valorFinalManual;
+  }
+
+  const precoFinalPersistido = parseNumeroPreview(formData?.preco_final_persistido);
+  if (
+    precoFinalPersistido > 0 &&
+    !temValorFinalManual &&
+    Math.abs(precoFinal - precoFinalPersistido) > 0.05
+  ) {
+    precoFinal = precoFinalPersistido;
   }
 
   const margemPlanejadaValor = roundMoney(precoFinalCalculado - totalCustoProducao);
