@@ -1,2061 +1,652 @@
 # Análise Profunda do Sistema ComunikApp
 
-Data do levantamento: 2026-06-02
+**Data do levantamento:** 2026-06-26  
+**Versão anterior:** 2026-06-02  
+**Base analisada:** repositório local `c:\Projects\comunikapp`
 
-Base analisada: repositório local `c:\Projects\comunikapp`
+**Escopo:** backend NestJS, frontend Next.js, schema Prisma/MySQL, módulos, relações funcionais, integrações, fluxos operacionais e pontos de atenção.
 
-Escopo: backend NestJS, frontend Next.js, schema Prisma/MySQL, módulos, relações funcionais, integrações e pontos de atenção.
+**Schema SQL completo:** [`docs/comunikapp-schema-sql-completo.sql`](./comunikapp-schema-sql-completo.sql) — DDL gerado a partir do `schema.prisma` atual (90 models, ~2.100 linhas).
+
+---
+
+## Resumo das mudanças desde 2026-06-02
+
+| Área | O que mudou |
+|------|-------------|
+| **Produtos finitos** | Módulo `ProdutosFinitosModule`, tabelas `produtos_finitos`, integração em orçamento via `tipo_item` / `produto_finito_id` |
+| **Expedição** | Módulo `ExpedicaoModule`, kanban, assinatura, devolução para PCP (`retrabalho`), tabela `expedicoes_logistica` |
+| **Arte & Aprovação** | Módulo autônomo em `backend/src/modules/arte-aprovacao/` com fila, kanban (`/arte`), workspace por OS, injeção no orçamento |
+| **OS — liberação PCP** | Liberação **por item** (`item_ids`), status `PARCIALMENTE_LIBERADA`, colunas Arte Status e modais de detalhe no grid |
+| **ItemOS** | Campos de arte por produto (`status_arte`, `responsabilidade_arte`, `data_prazo_arte`, designer atribuído) |
+| **Frontend** | Menu: Modelos de Orçamento + Produtos (finitos), Arte & Aprovação, Expedição; badges na sidebar |
+| **Catálogo (planejado)** | RP em `docs/catalogo de produtos/` — hub futuro; **não implementado** no código |
+| **Banco** | ~68 migrations; schema com entrega/instalação, financeiro mínimo, onboarding operacional |
+
+---
 
 ## 1. Visão Executiva
 
-O ComunikApp é uma plataforma SaaS multi-tenant para empresas de comunicação visual. O sistema organiza a operação em torno de uma loja (`loja_id`) e conecta cadastro comercial, catálogo técnico, orçamentos, cálculo de custos, ordens de serviço, arte/aprovação, PCP, estoque, financeiro mínimo e home operacional.
+O ComunikApp é uma plataforma SaaS **multi-tenant** para empresas de comunicação visual. O tenant lógico é a **loja** (`loja_id`). O sistema cobre o ciclo comercial e produtivo: cadastros, orçamento com motor de cálculo V2, aprovação, cobrança, ordem de serviço, arte, PCP, expedição, estoque e home operacional.
 
-A arquitetura real do código é um monorepo com:
+### Arquitetura
 
-- Backend em NestJS 11, TypeScript, Prisma e MySQL.
-- Frontend em Next.js 15 App Router, React 19, TypeScript e Tailwind CSS.
-- Banco MySQL modelado em `backend/prisma/schema.prisma`.
-- Comunicação REST predominante, com WebSocket para cálculo V2, arte/aprovação e eventos operacionais.
-- Autenticação JWT global por middleware.
-- Isolamento multi-tenant aplicado por `loja_id` em praticamente todos os serviços.
+| Camada | Tecnologia |
+|--------|------------|
+| Backend | NestJS 11, TypeScript, Prisma 6.19.3, MySQL |
+| Frontend | Next.js 15.5 App Router, React 19, Tailwind CSS 4 |
+| Tempo real | Socket.IO (cálculo V2, arte, eventos operacionais) |
+| Auth | JWT global via middleware; 2FA opcional |
+| Deploy | Nginx + PM2 (ver `deploy/`, regras em `.cursor/rules/`) |
 
-O fluxo de negócio central é:
+### Fluxo de negócio central (atualizado)
 
-1. Loja e usuários autenticam no sistema.
-2. Cadastros-base alimentam orçamento: clientes, insumos, tipos de material, fornecedores, máquinas, funções, serviços manuais, custos indiretos, setores produtivos e configurações da loja.
-3. Orçamentos V2 usam o motor de cálculo para consolidar materiais, mão de obra, máquinas, serviços, custos indiretos, margem, impostos e preço final.
-4. Orçamento aprovado pode gerar cobrança financeira e Ordem de Serviço.
-5. OS herda dados do orçamento, materiais calculados e regras de validação.
-6. Arte/aprovação versiona arquivos por OS/produto, abre links públicos para cliente, registra mensagens e libera arte para PCP.
-7. PCP organiza OS/itens em workflows, setores, etapas, apontamentos e kanban.
-8. Estoque controla itens, localizações, movimentações, lotes, transferências e sobras/aproveitamentos.
-9. Home operacional resume onboarding, alertas, KPIs, fluxo de trabalho e visão financeira.
+```text
+Loja/usuários
+  → Cadastros (clientes, insumos, máquinas, funções, templates, produtos finitos)
+  → Orçamento V2 (motor de cálculo; itens SOB_DEMANDA ou PRODUTO_FINITO)
+  → Aprovação (interna ou link público) → Cobrança financeira
+  → OS (comercial/direta/interna; múltiplos itens)
+  → Arte por item (fila/kanban; link público cliente) — quando aplicável
+  → Aprovação técnica / liberação PCP (total ou parcial por item)
+  → PCP (workflows, setores, kanban, apontamentos)
+  → Expedição (separação, entrega, assinatura; devolução → retrabalho)
+  → Estoque (movimentações, sobras, aproveitamentos)
+  → Home operacional (KPIs, onboarding, alertas)
+```
+
+### Princípios operacionais
+
+- **Multi-tenancy:** quase todo dado filtrado por `loja_id`.
+- **Orçamento V2 ativo;** módulo legado desabilitado no `AppModule`.
+- **OS multi-item:** cada `ItemOS` pode ter prazos, geometria, arte e liberação PCP independentes.
+- **Arte desacoplada da aba OS:** operação principal em `/arte` (fila + kanban).
+- **Liberação PCP:** exclusivamente via fluxo de aprovação técnica da OS (removido atalho “Liberar PCP” do módulo arte).
+
+---
 
 ## 2. Estrutura do Repositório
 
-Principais diretórios:
+| Diretório | Conteúdo |
+|-----------|----------|
+| `backend/` | API NestJS, Prisma, migrations, testes, Swagger opcional |
+| `frontend/` | Next.js App Router, componentes, hooks, proxies API |
+| `docs/` | Documentação funcional/técnica (este arquivo, RP catálogo, etc.) |
+| `deploy/` | Nginx, CORS, fail2ban |
+| `scripts/` | Automações setup/deploy |
 
-- `backend/`: API NestJS, Prisma, scripts de banco, testes e documentação OpenAPI.
-- `frontend/`: aplicação Next.js, páginas, componentes, hooks e API Routes/proxies.
-- `docs/`: documentação funcional e técnica acumulada do projeto.
-- `deploy/`: configuração Nginx, CORS, fail2ban e deploy.
-- `scripts/`: automações PowerShell e shell para setup/update/deploy.
-- `backup/`, `backup-modulo-usuarios/`, `tmp/`, `temp-build/`: material auxiliar ou histórico.
+**Arquivos-chave**
 
-Arquivos relevantes:
+| Arquivo | Função |
+|---------|--------|
+| `backend/src/app.module.ts` | Composição dos módulos ativos |
+| `backend/src/main.ts` | Bootstrap, CORS, helmet, rate limit, uploads |
+| `backend/prisma/schema.prisma` | Modelo de dados (fonte da verdade) |
+| `backend/prisma/migrations/` | Histórico incremental (68 migrations) |
+| `docs/comunikapp-schema-sql-completo.sql` | DDL completo para análise |
+| `frontend/src/app/(main)/layout.tsx` | Shell autenticado, sidebar, badges |
+| `frontend/src/lib/api-client.ts` | Cliente HTTP centralizado |
 
-- `backend/src/app.module.ts`: composição dos módulos ativos.
-- `backend/src/main.ts`: bootstrap, CORS, helmet, rate limit, static uploads, Swagger opcional e porta.
-- `backend/prisma/schema.prisma`: fonte principal do modelo de banco.
-- `frontend/src/app/(main)/layout.tsx`: shell autenticado, sidebar e navegação principal.
-- `frontend/src/lib/api-client.ts`: cliente HTTP centralizado para módulos.
-- `frontend/src/lib/api.ts`: cliente HTTP alternativo com tratamento de sessão expirada e proxies.
-- `ecosystem.config.js`: provável configuração PM2.
-- `deploy/nginx/*.conf`: configuração de proxy e CORS para produção.
+---
 
 ## 3. Stack Técnica
 
-Backend:
+### Backend
 
-- NestJS 11.
-- TypeScript 5.4.
-- Prisma 6.19.3.
-- MySQL via `DATABASE_URL`.
-- Passport JWT e `@nestjs/jwt`.
-- `class-validator` e `ValidationPipe` global.
-- `helmet` e `express-rate-limit`.
-- `@nestjs/schedule` para jobs, usado no financeiro.
-- `@nestjs/websockets` e Socket.IO.
-- `nodemailer` para e-mail.
-- `sharp` para thumbnails/imagens.
-- `dxf-parser` para anexos de geometria no orçamento.
-- `exceljs` para importação/exportação.
+- NestJS 11, TypeScript 5.4, Prisma 6.19.3
+- Passport JWT, `class-validator`, `ValidationPipe` global
+- `helmet`, `express-rate-limit`, `@nestjs/schedule` (job financeiro)
+- `nodemailer`, `sharp`, `dxf-parser`, `exceljs`
 
-Frontend:
+### Frontend
 
-- Next.js 15.5.18 com App Router e Turbopack em dev.
-- React 19.
-- Tailwind CSS 4.
-- Radix UI, shadcn-like components, Tabler Icons, Lucide.
-- React Hook Form e Zod.
-- Socket.IO client.
-- TipTap/Quill para editores/chat/mensagens.
-- Sentry browser instalado.
+- Next.js 15.5.18, React 19, Tailwind 4
+- Radix/shadcn, Tabler Icons, Framer Motion
+- React Hook Form + Zod, Socket.IO client, TipTap
 
-Banco:
+### Banco
 
-- MySQL.
-- Prisma Client.
-- Migrations em `backend/prisma/migrations`.
-- Há uso misto de Prisma tipado e SQL raw, especialmente no estoque.
+- MySQL via `DATABASE_URL`
+- 90 models Prisma; uso misto de Prisma tipado e SQL raw (estoque)
+
+---
 
 ## 4. Bootstrap, Segurança e Infra HTTP
 
-O backend sobe em `backend/src/main.ts`.
+Arquivo: `backend/src/main.ts`
 
-Configurações principais:
+- Timezone `America/Sao_Paulo`; porta padrão `4000`
+- `trust proxy = 1` (atrás de Nginx)
+- CORS: `CORS_VIA_PROXY`, `CORS_ORIGINS`; origins de produção `comunikapp.com.br`
+- Rate limit: 1000 req / 15 min (ignora `OPTIONS`)
+- Uploads em `/uploads`; arte pública só com `SERVE_PUBLIC_ARTE_UPLOADS=true` em produção
+- Swagger: `ENABLE_SWAGGER=true`
 
-- Timezone padrão `America/Sao_Paulo`.
-- Porta padrão `4000`.
-- Host padrão:
-  - Produção: `127.0.0.1`.
-  - Desenvolvimento: `0.0.0.0`.
-- `trust proxy = 1`, necessário atrás de Nginx.
-- CORS controlado por `CORS_VIA_PROXY` e `CORS_ORIGINS`.
-- Origins fixos incluem `https://comunikapp.com.br` e `https://www.comunikapp.com.br`.
-- Headers CORS aceitos incluem `Authorization`, `x-loja-id`, `x-user-roles` e `x-internal-token`.
-- `helmet` ativo, com CSP desligado em dev e `crossOriginResourcePolicy: cross-origin`.
-- Rate limit de 1000 requisições por 15 minutos, ignorando `OPTIONS`.
-- `ValidationPipe` global com `whitelist`, `forbidNonWhitelisted` e `transform`.
-- Uploads servidos em `/uploads`, com bloqueio de SVG inline por `Content-Disposition: attachment`.
-- `/uploads/arte` em produção só é servido se `SERVE_PUBLIC_ARTE_UPLOADS=true`.
-- Swagger só ativa se `ENABLE_SWAGGER=true`.
+---
 
 ## 5. Autenticação e Multi-Tenant
 
-Autenticação:
+### JWT global
 
-- O `JwtGlobalMiddleware` é aplicado globalmente no `AppModule`.
-- O middleware valida `Authorization: Bearer <token>`.
-- Ao validar, injeta `req.user` com:
-  - `sub`
-  - `email`
-  - `loja_id`
-  - `funcao`
-  - `nome_completo`
-  - `loja.id`
-- `AuthService` gera token com dados do usuário e loja.
-- `AuthService.validateUser` confere `usuario.id`, `usuario.loja_id`, `status === ATIVO` e `email_verificado`.
+`JwtGlobalMiddleware` em todas as rotas. Payload inclui `sub`, `email`, `loja_id`, `funcao`, `nome_completo`.
 
-Rotas públicas principais:
+### Rotas públicas (principais)
 
-- Login e 2FA: `/lojas/login`, `/lojas/login/2fa`.
-- Cadastro/verificação: `/lojas`, `/lojas/verificar-email`, `/lojas/reenviar-verificacao`.
-- Plataforma/beta: `/platform/convites/validar`, `/platform/interesse-beta`.
-- Usuários: redefinição de senha e primeiro acesso.
-- Estoque health: `/api/estoque/health`.
-- Orçamento público V2: `/orcamentos-v2/:id/publico`, `/orcamentos-v2/:id/publico/acao`, `/orcamentos-v2/:id/reenviar-codigo`.
-- Arte pública: links, comentários/mensagens públicas e download público com token.
-- Rotas de teste/debug em desenvolvimento.
+- Login/2FA: `/lojas/login`, `/lojas/login/2fa`
+- Cadastro/verificação de loja
+- Orçamento público V2
+- Arte: links, mensagens e download com token
+- Expedição: assinatura pública (quando configurada)
+- Platform/beta, reset de senha, health estoque
 
-Multi-tenancy:
+### Permissões
 
-- A loja é o tenant lógico.
-- A maioria dos modelos tem `loja_id`, `lojaId` ou relação com `loja`.
-- Controllers obtêm loja via decorators como `@GetLoja()` ou `@CurrentLojaId()`.
-- Serviços filtram consultas por `loja_id`/`lojaId`.
-- O estoque tem um mecanismo adicional que aceita headers `x-loja-id` e `x-user-roles`, além do JWT.
+- Modelo: `perfil_acesso`, `perfil_permissao`, `usuario_perfil`
+- `ModuleActivationGuard` consulta `loja_modulo` (tabela **fora** do schema Prisma principal — risco documentado)
+- Sidebar ainda usa regras por `usuario.funcao` em alguns módulos:
+  - Financeiro: `ADMINISTRADOR`, `FINANCEIRO`
+  - Expedição: `ADMINISTRADOR`, `PRODUCAO`, `ESTOQUE`
 
-Permissões:
-
-- Há modelo `perfil_acesso`, `perfil_permissao` e `usuario_perfil`.
-- Há `ModuleActivationGuard` que consulta via SQL raw a tabela `loja_modulo` para ativação de módulos. Essa tabela é referenciada pelo guard, mas não aparece como modelo Prisma no schema principal analisado.
-- Sidebar do frontend ainda usa regras simples por `user.funcao` em alguns casos, como visibilidade do financeiro para `ADMINISTRADOR` e `FINANCEIRO`.
+---
 
 ## 6. Módulos Backend
 
-### 6.1 AppModule
+### 6.1 AppModule — módulos ativos
+
+Arquivo: `backend/src/app.module.ts`
+
+```
+PrismaModule, AuthModule, LojasModule, ClientesModule, CategoriasModule,
+FornecedoresModule, InsumosModule, NotificacoesModule, EstoqueModule,
+TiposMaterialModule, ProdutosModule, ProdutosFinitosModule, MaquinasModule,
+FuncoesModule, CustosIndiretosModule, MailModule, MensagensNegociacaoModule,
+UsuariosModule, WebsocketsModule, ServicosManuaisModule, OrcamentosV2Module,
+MotorCalculoV2Module, OSModule, PCPModule, ConfiguracoesModule,
+ArteAprovacaoModule, HomeOperacionalModule, EstimativaTempoModule,
+FinanceiroModule, ExpedicaoModule, PlatformModule
+```
+
+**Desabilitado:** `OrcamentosModule` (legado).
+
+### 6.2 Módulos por domínio
+
+#### Comercial e cadastro
+
+| Módulo | Responsabilidade |
+|--------|------------------|
+| `LojasModule` | Tenant, login, onboarding, logo, trial |
+| `ClientesModule` | CRM |
+| `CategoriasModule`, `FornecedoresModule`, `InsumosModule`, `TiposMaterialModule` | Catálogo de materiais |
+| `ProdutosModule` | **Modelos de orçamento** (`TemplateProduto` e itens) |
+| `ProdutosFinitosModule` | **Produtos de prateleira/revenda** (SKU, preço, estoque, galeria) |
+| `MaquinasModule`, `FuncoesModule`, `ServicosManuaisModule`, `CustosIndiretosModule` | Recursos de produção e custo |
+| `OrcamentosV2Module` | Orçamentos multi-produto, chat, links públicos, aprovação |
+| `MotorCalculoV2Module` | Preview e cálculo de custos/preço |
+| `FinanceiroModule` | Cobranças, parcelas, recebimentos, job de vencimento |
+
+#### Produção e operação
+
+| Módulo | Responsabilidade |
+|--------|------------------|
+| `OSModule` | Ordens de serviço (comercial, direta, interna), aprovação técnica, liberação PCP |
+| `ArteAprovacaoModule` | Versões, arquivos, links, fila, kanban, mensagens, config por loja |
+| `PCPModule` | Workflows, instâncias, kanban, apontamentos, setores |
+| `ExpedicaoModule` | Pós-produção: separação, entrega, rastreio, assinatura, devolução |
+| `EstoqueModule` | Localizações, movimentações, lotes, transferências, sobras |
+| `EstimativaTempoModule` | Tempo de máquina, compatibilidade material×máquina |
+
+#### Suporte
+
+| Módulo | Responsabilidade |
+|--------|------------------|
+| `AuthModule`, `UsuariosModule` | Autenticação, perfis, 2FA |
+| `NotificacoesModule`, `MailModule`, `MensagensNegociacaoModule` | Comunicação |
+| `WebsocketsModule` | Gateway geral + namespaces especializados |
+| `ConfiguracoesModule` | Centros de trabalho, modalidades entrega, tipos instalação |
+| `HomeOperacionalModule` | Dashboard operacional, onboarding |
+| `PlatformModule` | Convites beta, interesse plataforma |
+
+### 6.3 ProdutosFinitosModule (novo)
+
+- **Path:** `backend/src/produtos-finitos/`
+- **Tabelas:** `CategoriaProdutoFinito`, `ProdutoFinito`, `GaleriaProdutoFinito`
+- **API:** CRUD de produtos finitos, categorias, upload de imagens
+- **Orçamento:** `ProdutoOrcamento.tipo_item` = `PRODUTO_FINITO` com `produto_finito_id`; preço em snapshot (`preco_unitario`/`preco_total`), bypass do motor de cálculo
+- **Frontend:** `/produtos-finitos`
+
+### 6.4 ExpedicaoModule (novo)
+
+- **Path:** `backend/src/expedicao/`
+- **Controller:** `expedicao`, `expedicao/assinaturas`
+- **Tabela:** `ExpedicaoLogistica` com enums `ModalidadeExpedicao`, `StatusExpedicao`
+- **Modalidades:** retirada, transportadora, frota própria, instalação no local
+- **Fluxo:** OS concluída no PCP → expedição → assinatura/recebimento → conclusão
+- **Devolução:** status `DEVOLVIDA`; OS marcada `retrabalho=true`; nova expedição permitida após retrabalho
+- **Integração:** `FinanceiroModule`, `HomeOperacionalModule`, notificações
+- **Guard:** `ExpedicaoPermissionsGuard`
+- **Frontend:** `/expedicao` (kanban); visível para funções de produção/estoque/admin
+
+### 6.5 ArteAprovacaoModule (evoluído)
+
+- **Path:** `backend/src/modules/arte-aprovacao/` (extraído/refatorado)
+- **Controllers:**
+
+| Prefixo | Função |
+|---------|--------|
+| `arte-aprovacao/versoes` | CRUD versões, status, liberação designer |
+| `arte-aprovacao/versoes/:id/arquivos` | Upload, thumbnail |
+| `arte-aprovacao/links` | Links públicos de aprovação |
+| `arte-aprovacao/mensagens` | Chat interno |
+| `arte-aprovacao/mensagens/publico` | Chat cliente (token) |
+| `arte-aprovacao/fila` | Fila de trabalho do designer |
+| `arte-aprovacao/os` | Contexto OS (itens, prazos arte) |
+| `arte-aprovacao/orcamento` | Injeção de dados arte no orçamento |
+| `arte-aprovacao/configuracao` | `ConfiguracaoArteLoja` por tenant |
+| `arte-aprovacao/notificacoes` | Alertas do módulo |
+
+- **WebSocket:** namespace `/arte-aprovacao`
+- **ItemOS:** `status_arte`, `responsabilidade_arte`, `politica_cobranca_arte`, `designer_atribuido_id`, `data_prazo_arte`, fila (`arte_fila_desde`, `arte_assumido_em`)
+- **Frontend:** `/arte` (fila + kanban), `/arte/aprovacao/[token]` (público)
+- **Regra:** liberação para PCP ocorre na **aprovação técnica da OS**, não no módulo arte
+
+### 6.6 OSModule — liberação parcial PCP (novo)
+
+**Status OS:** inclui `PARCIALMENTE_LIBERADA` quando apenas parte dos itens foi liberada.
 
-Arquivo: `backend/src/app.module.ts`.
+**Campos ItemOS (liberação):**
 
-Módulos ativos importados:
+- `status_liberacao_pcp`: `PENDENTE`, `LIBERADO`, `EM_PRODUCAO`, `CONCLUIDO`
+- `liberado_pcp_por`, `liberado_pcp_em`
 
-- `PrismaModule`
-- `AuthModule`
-- `LojasModule`
-- `ClientesModule`
-- `CategoriasModule`
-- `FornecedoresModule`
-- `InsumosModule`
-- `NotificacoesModule`
-- `EstoqueModule`
-- `TiposMaterialModule`
-- `ProdutosModule`
-- `MaquinasModule`
-- `FuncoesModule`
-- `CustosIndiretosModule`
-- `MailModule`
-- `MensagensNegociacaoModule`
-- `UsuariosModule`
-- `WebsocketsModule`
-- `ServicosManuaisModule`
-- `OrcamentosV2Module`
-- `MotorCalculoV2Module`
-- `OSModule`
-- `PCPModule`
-- `ConfiguracoesModule`
-- `ArteAprovacaoModule`
-- `HomeOperacionalModule`
-- `EstimativaTempoModule`
-- `FinanceiroModule`
-- `PlatformModule`
+**API aprovação técnica:**
 
-Observação: módulo de orçamento legado está explicitamente desabilitado; V2 é o fluxo ativo.
+- `PATCH` com `item_ids?: string[]` — libera apenas itens selecionados
+- Utilitário: `backend/src/os/utils/os-liberacao-pcp.util.ts` (`resolveIdsAlvoLiberacao`, elegibilidade por item)
+- Serviços: `aprovacao-tecnica.service.ts`, `os.service.ts`
+- Controllers: `workflow-comercial.controller.ts`, `os-direta-interna.controller.ts` (ambos repassam `item_ids`)
 
-### 6.2 PrismaModule
+**Frontend:**
 
-Responsabilidade:
+- Grid OS: coluna **Arte Status**, status parcial clicável
+- `AprovarOSModal`: checkboxes por item, “Liberar restante”
+- `OsDetalheModals.tsx`: detalhe liberação e detalhe arte
 
-- Disponibilizar `PrismaService`.
-- `PrismaService` estende `PrismaClient`.
-- Conecta no banco no `onModuleInit`.
+**Elegibilidade PCP por item:** considera arte (quando `responsabilidade_arte` exige aprovação) e status de liberação.
 
-Relações:
+### 6.7 OrcamentosV2Module (destaques atuais)
 
-- É base de quase todos os módulos.
+- Multi-produto via `ProdutoOrcamento`
+- Entrega: `ModalidadeEntrega`, snapshot de endereço
+- Instalação por produto: `TipoInstalacao`, regras de cobrança, endereço snapshot
+- Geometria: largura, altura, profundidade, área, perímetro, anexo DXF
+- Arte no orçamento: campos propagados para `ItemOS` na geração da OS
+- Tipos de item: `SOB_DEMANDA` (motor) vs `PRODUTO_FINITO` (snapshot)
 
-### 6.3 AuthModule
+### 6.8 PCPModule
 
-Responsabilidade:
+- Workflows por categoria de produto
+- `WorkflowInstancia` + `WorkflowInstanciaSetor` por item/setor
+- Kanban, apontamentos, relatórios
+- Integração com status OS e badge `retrabalho` após devolução da expedição
 
-- Gerar JWT.
-- Validar usuário autenticado.
-- Gerar e validar challenge token para 2FA.
-- Prover `JwtStrategy`, `JwtAuthGuard`, `TwoFactorService`.
+### 6.9 FinanceiroModule
 
-Relações:
+- Cobrança 1:1 com orçamento aprovado
+- Parcelas, recebimentos, logs
+- Job `@Cron` para parcelas vencidas
+- Visível na sidebar para admin/financeiro
 
-- Importa Prisma, Passport e JWT.
-- Exporta AuthService, TwoFactorService, JwtAuthGuard e JwtModule.
-- Usado por módulos CRUD e autenticação de WebSocket.
+### 6.10 EstoqueModule
 
-### 6.4 LojasModule
+- CRUD com SQL raw em partes (introspecção de colunas)
+- Sobras vinculadas a OS; aproveitamentos em orçamentos futuros
+- Integração com insumos (`controla_estoque`)
 
-Controllers:
-
-- `LojasController` em `/lojas`.
-
-Services:
-
-- `LojasService`.
-- `PendingSignupService`.
-
-Responsabilidade:
-
-- Cadastro/onboarding de loja.
-- Login.
-- Login com 2FA.
-- Verificação e reenvio de e-mail.
-- Consulta de usuário atual (`/lojas/me`).
-- Consulta/edição da loja atual.
-- Upload de logo.
-- Trial/configurações comerciais.
-
-Relações:
-
-- Loja é raiz de tenant.
-- Cria usuário inicial da loja.
-- Usa MailModule para verificação e comunicação.
-- Usa AuthModule para token.
-- Pode usar convite de plataforma durante cadastro.
-
-### 6.5 UsuariosModule
-
-Controllers:
-
-- `/usuarios`.
-- `/usuarios/perfis`.
-
-Services:
-
-- `UsuariosService`.
-- `PerfisAcessoService`.
-
-Responsabilidade:
-
-- CRUD de usuários da loja.
-- Ativação/desativação.
-- Primeiro acesso/definição de senha.
-- Reenvio de código.
-- Solicitação e confirmação de redefinição de senha.
-- Setup, confirmação e desativação de 2FA.
-- Perfis de acesso e associação usuário-perfil.
-
-Tabelas:
-
-- `usuario`.
-- `password_reset_token`.
-- `perfil_acesso`.
-- `perfil_permissao`.
-- `usuario_perfil`.
-
-Relações:
-
-- Usuário pertence a loja.
-- Usuário é autor/aprovador/liberador em arte.
-- Usuário registra recebimentos financeiros.
-- Usuário pode operar PCP e apontamentos.
-
-### 6.6 PlatformModule
-
-Controller:
-
-- `/platform`.
-
-Services/guards:
-
-- `PlatformService`.
-- `PlatformAdminGuard`.
-
-Responsabilidade:
-
-- Administração de plataforma.
-- Convites de cadastro.
-- Interesse beta.
-- Feedback beta.
-
-Tabelas:
-
-- `convites_cadastro`.
-- Relações com loja/usuário convidado.
-
-Relações:
-
-- Importa Auth, Mail, Prisma e Lojas.
-- Alimenta fluxo de cadastro por convite.
-
-### 6.7 ClientesModule
-
-Controller:
-
-- `/clientes`.
-
-Service:
-
-- `ClientesService`.
-
-Responsabilidade:
-
-- CRUD de clientes.
-- Busca por texto.
-- Dados de pessoa física/jurídica, contato, endereço, origem e segmento.
-
-Tabela:
-
-- `cliente`.
-
-Relações:
-
-- Cliente pertence à loja.
-- Cliente tem orçamentos.
-- Cliente tem ordens de serviço.
-- Cliente pode ter cobranças financeiras.
-
-### 6.8 CategoriasModule
-
-Controller:
-
-- `/categorias`.
-
-Responsabilidade:
-
-- CRUD de categorias de insumos.
-
-Tabela:
-
-- `categorias`.
-
-Relações:
-
-- Categoria pertence à loja.
-- Categoria classifica `Insumo`.
-
-### 6.9 FornecedoresModule
-
-Controller:
-
-- `/fornecedores`.
-
-Responsabilidade:
-
-- CRUD de fornecedores.
-
-Tabela:
-
-- `fornecedor`.
-
-Relações:
-
-- Fornecedor pertence à loja.
-- Fornecedor se relaciona com insumos.
-
-### 6.10 TiposMaterialModule
-
-Controller:
-
-- `/tipos-material`.
-
-Responsabilidade:
-
-- CRUD de tipos de material.
-- Lógica padrão de consumo.
-- Correções específicas como `corrigir-ilhos`.
-
-Tabela:
-
-- `tipomaterial`.
-
-Relações:
-
-- Tipo de material pertence à loja.
-- Tipo de material se relaciona com insumos.
-- Influencia cálculo de consumo, materiais, estoque e orçamento.
-
-### 6.11 InsumosModule
-
-Controller:
-
-- `/insumos`.
-
-Responsabilidade:
-
-- CRUD de insumos.
-- Importação via planilha.
-- Download de template.
-- Simulação de chapa.
-- Configuração de consumo, dimensões comerciais, unidade de compra/uso, controle de estoque e sobras.
-
-Tabelas:
-
-- `insumos`.
-- `historico_preco_insumos`.
-- Relações com `categorias`, `fornecedor`, `tipomaterial`.
-
-Campos importantes:
-
-- `custo_unitario`.
-- `unidade_compra`, `unidade_uso`, `fator_conversao`.
-- `logica_consumo`.
-- `parametros_consumo`.
-- `formato_material`.
-- `largura_comercial`, `altura_comercial`, `comprimento_comercial`, `area_comercial`.
-- `perda_padrao_percent`.
-- `permite_simulacao_chapa`.
-- `controla_estoque`.
-- `permite_registrar_sobra`.
-- `retalho_min_*`.
-- `metodo_cobranca_padrao`.
-
-Relações:
-
-- É insumo de orçamento, produto template e estoque.
-- Pode ser base de cálculo de chapa e sobras.
-- Pode ser controlado ou não pelo estoque.
-
-### 6.12 ProdutosModule
-
-Controller:
-
-- `/produtos`.
-
-Responsabilidade:
-
-- Templates/produtos reutilizáveis.
-- CRUD de `TemplateProduto`.
-- Cálculo de produto.
-- Carregar produto para orçamento.
-
-Tabelas:
-
-- `template_produtos`.
-- `item_template_produtos`.
-- `maquina_template_produtos`.
-- `funcao_template_produtos`.
-
-Relações:
-
-- Produto template pertence à loja.
-- Produto template usa insumos, máquinas e funções.
-- Orçamento V2 pode reaproveitar dados de produto.
-
-### 6.13 MaquinasModule
-
-Controller:
-
-- `/maquinas`.
-
-Responsabilidade:
-
-- CRUD de máquinas.
-- Busca por tipo.
-- Custos/hora, status, capacidade, setor, modos de impressão e velocidades.
-
-Tabelas:
-
-- `maquina`.
-- `historico_custo_maquinas`.
-- `modo_impressao`.
-
-Relações:
-
-- Máquina pertence à loja.
-- Pode pertencer a setor produtivo.
-- Usada em orçamentos, produtos template, estimativa de tempo e PCP.
-
-### 6.14 FuncoesModule
-
-Controller:
-
-- `/funcoes`.
-
-Responsabilidade:
-
-- CRUD de funções/mão de obra.
-- Custo/hora e tipo de cálculo.
-- Associação opcional a máquina e setor.
-
-Tabelas:
-
-- `funcao`.
-- `historico_custo_funcoes`.
-
-Relações:
-
-- Usada em orçamento, produto template e custos de produção.
-
-### 6.15 ServicosManuaisModule
-
-Controller:
-
-- `/servicos-manuais`.
-
-Responsabilidade:
-
-- Serviços manuais que entram no orçamento como custo de produção.
-- Custo/hora, setor e tipo de cálculo.
-
-Tabela:
-
-- `servico_manual`.
-
-Relações:
-
-- Item de `ProdutoOrcamento`.
-- Associável a setor produtivo.
-
-### 6.16 CustosIndiretosModule
-
-Controller:
-
-- `/custos-indiretos`.
-
-Responsabilidade:
-
-- CRUD de custos indiretos.
-- Valor mensal, categoria, regra de rateio e vínculo opcional com setor.
-
-Tabela:
-
-- `custoindireto`.
-
-Relações:
-
-- Usado pelo motor de cálculo.
-- Pode ser rateado geral ou por setor.
-- Relaciona-se com `ItemCustoIndireto` no orçamento.
-
-### 6.17 ConfiguracoesModule
-
-Controllers:
-
-- `/configuracoes/parametros`.
-- `/configuracoes/validacoes-automaticas`.
-- `/configuracoes/regras-validacao`.
-- `/configuracoes/campos-validacao`.
-- `/centros-de-trabalho/setores-produtivos`.
-- Rotas de teste em ambiente não produção.
-
-Services:
-
-- `ParametrosService`.
-- `ValidacoesAutomaticasService`.
-- `RegrasValidacaoService`.
-- `ExecucaoRegraService`.
-- `SetoresProdutivosService`.
-
-Responsabilidade:
-
-- Parâmetros da loja.
-- Regras configuráveis de validação.
-- Execução e histórico de validações.
-- Campos disponíveis para validação.
-- Centros de trabalho/setores produtivos.
-
-Tabelas:
-
-- `regras_validacao`.
-- `execucoes_regras`.
-- `setores_produtivos`.
-
-Relações:
-
-- OS usa validações automáticas.
-- PCP usa setores produtivos.
-- Máquinas, funções, serviços e custos indiretos podem pertencer a setores.
-
-### 6.18 MotorCalculoV2Module
-
-Controller:
-
-- `/motor-calculo-v2`.
-
-Endpoints principais:
-
-- `POST /calcular`.
-- `POST /calcular/simplificado`.
-- `POST /preview`.
-- `POST /validar`.
-- `GET /estatisticas`.
-- `GET /health`.
-
-Services:
-
-- `MotorCalculoV2Service`.
-- `BusinessRulesEngineService`.
-- `PipelineExecutorService`.
-- `RateioCustosIndiretosService`.
-- `EventProducerService`.
-- `InputIntegrationService`.
-- `CalculoWebSocketGateway`.
-
-Responsabilidade:
-
-- Fonte de cálculo de custos e preço de orçamento V2.
-- Validação de input.
-- Pipeline de cálculo.
-- Aplicação de regras de negócio.
-- Rateio de custos indiretos.
-- Eventos e preview via WebSocket.
-
-Relações:
-
-- Usado por `OrcamentosV2Module`.
-- Usado indiretamente por formulário de orçamento no frontend.
-- Alimenta preço final, custo total, margem, impostos e itens calculados.
-
-### 6.19 OrcamentosV2Module
-
-Controllers:
-
-- `/orcamentos-v2`.
-- `/orcamentos-v2/calculo`.
-- `/orcamentos-v2/chat`.
-- `/orcamentos-v2/links`.
-- `/orcamentos-v2/impressao`.
-- `/orcamentos-v2/produto`.
-- `/orcamentos-v2/anexos-geometria`.
-
-Services:
-
-- `OrcamentosV2Service`.
-- `IntegracaoMotorService`.
-- `ValidacaoV2Service`.
-- `TransformacaoV2Service`.
-- `NotificacaoV2Service`.
-- `ChatV2Service`.
-- `LinksV2Service`.
-- `ImpressaoV2Service`.
-- `ValidacaoEstoqueService`.
-- `InsumosAutocompleteService`.
-- `AnexoGeometriaService`.
-- `DxfParserService`.
-- `DxfSugestaoInsumoService`.
-- `OrcamentoOrigemSobraService`.
-
-Repositories:
-
-- `OrcamentosV2Repository`.
-- `ProdutosV2Repository`.
-
-Responsabilidade:
-
-- CRUD de orçamento V2.
-- Duplicação.
-- Rascunho.
-- Cálculo e recálculo.
-- Envio para aprovação.
-- Aprovação/rejeição.
-- Fechamento de pedido.
-- Geração de OS.
-- Criação de cobrança financeira após aprovação.
-- Mensagens/chat de negociação.
-- Links públicos.
-- Versões/histórico.
-- Impressão/relatórios.
-- Anexos de geometria e parsing DXF.
-- Sugestão de insumos baseada em geometria.
-- Busca de origem/candidatos de sobra.
-
-Tabelas principais:
-
-- `orcamento`.
-- `ProdutoOrcamento`.
-- `ItemInsumo`.
-- `ItemMaquina`.
-- `ItemFuncao`.
-- `ItemServicoManual`.
-- `ItemCustoIndireto`.
-- `HistoricoOrcamento`.
-- `VersaoOrcamento`.
-- `MensagemChat`.
-- `LinkPublico`.
-- `AcessoLink`.
-- `aprovacaoOrcamento`.
-- `orcamento_historico`.
-- `orcamento_logs`.
-
-Relações:
-
-- Orçamento pertence à loja e cliente.
-- Orçamento tem produtos.
-- Produto de orçamento tem materiais, máquinas, funções, serviços manuais e custos indiretos.
-- Orçamento pode gerar OS via `OSService`.
-- Orçamento aprovado gera cobrança via `CobrancasService`.
-- Orçamento dispara notificações e e-mails.
-- Orçamento pode consumir estoque para validação e origem de sobras.
-
-Fluxo real de criação:
-
-1. Valida dados de entrada.
-2. Prepara dados para persistência.
-3. Gera número com `DocumentCodeService`.
-4. Cria orçamento e produtos.
-5. Calcula via motor V2 quando aplicável.
-6. Persiste custos calculados.
-7. Cria histórico.
-8. Notifica criação.
-9. Retorna orçamento formatado.
-
-### 6.20 MensagensNegociacaoModule
-
-Controller:
-
-- `/orcamentos/:orcamentoId/mensagens`.
-
-Responsabilidade:
-
-- Mensagens de negociação associadas ao orçamento.
-- Mensagens públicas e autenticadas.
-- Anexos.
-- Marcação de visualização.
-
-Tabelas:
-
-- `mensagemnegociacao`.
-- `anexomensagem`.
-
-Relações:
-
-- Conecta orçamento e notificação.
-- WebSocket está referenciado, mas no serviço há trechos indicando notificação WebSocket desabilitada em algumas rotas.
-
-### 6.21 NotificacoesModule
-
-Controller:
-
-- `/notificacoes`.
-
-Responsabilidade:
-
-- Criar/listar notificações.
-- Contar não visualizadas.
-- Marcar individualmente ou todas como visualizadas.
-- Deletar.
-
-Tabela:
-
-- `notificacao`.
-
-Relações:
-
-- Usado por orçamentos, mensagens, arte e potencialmente PCP/OS.
-
-### 6.22 DocumentosModule
-
-Controller:
-
-- `/documentos`.
-
-Responsabilidade:
-
-- Sequenciamento e validação de códigos.
-- Geração de números para OS e orçamento.
-- Estatísticas e próximo número.
-
-Tabela:
-
-- `document_sequences`.
-
-Relações:
-
-- `OrcamentosV2Service` usa para número de orçamento.
-- `OSService` usa para número de OS.
-
-### 6.23 OSModule
-
-Controllers:
-
-- `/os`.
-- `/os/workflows`.
-- `/os/workflow`.
-- `/os/validacoes`.
-- `/os/calculo-material`.
-- `/os/centro-custo`.
-- `/os/aprovacao-alcada`.
-- `/os/alcadas-orcamento`.
-- `/os/prazo`.
-- `/os/produtos`.
-- `/os/admin`.
-- Rotas de debug/teste em dev.
-
-Services:
-
-- `OSService`.
-- `ImpressaoOSService`.
-- `WorkflowService`.
-- `AprovacaoAlcadaService`.
-- `WorkflowInstanciaService`.
-- `EstoqueApontamentoService`.
-- `AprovacaoTecnicaService`.
-- `AlcadasOrcamentoService`.
-- `CentroCustoService`.
-- `ValidacaoEstoqueService`.
-- `EventosAutomaticosService`.
-- `OSApprovalPermissionsService`.
-- `OSValidacoesService`.
-- `CalculoMaterialUnidadeService`.
-- `OSPrazoService`.
-- `OSProdutoPrazoService`.
-- `OSAdminService`.
-- `CorrecaoMateriaisHelper`.
-
-Responsabilidade:
-
-- CRUD de Ordem de Serviço.
-- Criação direta comercial ou interna.
-- Criação a partir de orçamento.
-- Aprovação técnica.
-- Aprovação gerencial/orçamentária.
-- Agendamento de instalação.
-- Impressão da OS.
-- Movimentação de etapas.
-- Materiais por OS e por item.
-- Decisão sobre sobras: ignorar, anotar ou registrar.
-- Validações automáticas.
-- Integração com PCP.
-- Prazos por OS e por produto.
-- Alçadas e centro de custo.
-- Recuperação administrativa de status.
-
-Tabelas:
-
-- `ordens_servico`.
-- `itens_os`.
-- `movimentacoes_os`.
-- `checklists_os`.
-- `ordem_servico_logs`.
-- `execucoes_regras`.
-- `workflows_os`.
-- `workflow_instancia`.
-- `etapa_instancia`.
-- `checklist_instancia`.
-- `apontamento`.
-
-Relações:
-
-- OS pertence à loja e cliente.
-- OS pode ter orçamento vinculado.
-- OS tem itens.
-- OS tem workflow e movimentações.
-- OS tem artes e mensagens de arte.
-- OS tem apontamentos PCP.
-- OS é destino de sobras/aproveitamentos.
-
-Fluxo real de criação:
-
-1. Gera número sequencial.
-2. Valida dados.
-3. Valida estoque sem bloquear criação.
-4. Define status inicial conforme tipo:
-   - Comercial: aprovação técnica.
-   - Interna: aprovação orçamentária.
-   - Padrão: fila.
-5. Serializa materiais/insumos calculados.
-6. Persiste OS.
-7. Registra movimentação inicial.
-8. Executa regras automáticas de validação.
-9. Retorna OS formatada com alertas de estoque.
-
-### 6.24 PCPModule
-
-Controllers:
-
-- `/pcp`.
-- `/pcp/workflows`.
-- `/pcp/workflow-templates`.
-- `/pcp/setores-produtivos`.
-- `/pcp/etapas`.
-- `/pcp/apontamentos`.
-- `/pcp/notificacoes`.
-- `/pcp/kanban`.
-- `/pcp/configuracao`.
-- `/pcp/capacidade`.
-- `/pcp/relatorios`.
-
-Services:
-
-- `WorkflowService`.
-- `WorkflowAssignmentService`.
-- `EtapaService`.
-- `ApontamentoService`.
-- `OSPCPIntegrationService`.
-- `NotificacoesPCPService`.
-- `PCPKanbanService`.
-- `PCPConfiguracaoService`.
-- `PCPDashboardService`.
-- `PCPCapacidadeService`.
-- `PCPRelatoriosService`.
-- `ValidacaoEstoqueService`.
-
-Responsabilidade:
-
-- Templates e instâncias de workflow.
-- Atribuição de workflow para OS.
-- Setores produtivos.
-- Etapas e checklists.
-- Apontamentos de produção.
-- Kanban geral, por setor e fila do operador.
-- Iniciar, pausar, mover e concluir itens.
-- Dashboard PCP.
-- Capacidade de setores e máquinas.
-- Relatórios de ocupação e previsto vs realizado.
-
-Tabelas:
-
-- `workflows_os`.
-- `workflow_setores`.
-- `workflow_categorias`.
-- `workflow_categoria_regras`.
-- `workflow_instancia`.
-- `workflow_instancia_setor`.
-- `etapa_instancia`.
-- `checklist_instancia`.
-- `apontamento`.
-- `setores_produtivos`.
-- `itens_os`.
-- `ordens_servico`.
-
-Relações:
-
-- PCP consome OS e itens liberados.
-- PCP usa setores do ConfiguracoesModule.
-- PCP emite eventos por WebSocket.
-- `OSPCPIntegrationService` atualiza status da OS para `EM_WORKFLOW`, `PAUSADA`, `FINALIZADA` ou `CANCELADA` conforme workflow.
-
-### 6.25 ArteAprovacaoModule
-
-Controllers:
-
-- `/arte-aprovacao/versoes`.
-- `/arte-aprovacao/versoes/:versaoId/arquivos`.
-- `/arte-aprovacao/links`.
-- `/arte-aprovacao/notificacoes`.
-- `/arte-aprovacao/mensagens`.
-- `/arte-aprovacao/mensagens/publico`.
-
-Services:
-
-- `ArteVersaoService`.
-- `ArteArquivoService`.
-- `ArteThumbnailService`.
-- `ArteLinkAprovacaoService`.
-- `ArteNotificacaoService`.
-- `ArteMensagemService`.
-- `ArteWebSocketGateway`.
-
-Responsabilidade:
-
-- Criar versões de arte por OS e opcionalmente por produto/serviço.
-- Upload/download de arquivos.
-- Geração de thumbnails.
-- Soft delete e restore de versões.
-- Link público para aprovação pelo cliente.
-- Aprovação/revisão/rejeição.
-- Aprovação múltipla.
-- Mensagens internas e públicas por OS/produto/versão.
-- Notificações por e-mail.
-- WebSocket em namespace de arte.
-- Liberação final da arte para PCP pelo designer.
-
-Tabelas:
-
-- `arte_versoes`.
-- `arte_arquivos`.
-- `arte_comentarios`.
-- `arte_links_aprovacao`.
-- `arte_mensagens`.
-
-Relações:
-
-- Arte pertence à OS.
-- Arte pode apontar para produto/serviço pelo `servico_id`.
-- Arte tem autor, aprovador, liberador e excluidor como usuários.
-- Link público tem token, expiração, aprovação e comentário do cliente.
-- Mensagem de arte se liga a OS, produto e opcionalmente versão.
-
-Regra importante:
-
-- `liberarParaPCP` exige que a arte tenha sido aprovada pelo cliente, ainda não esteja liberada e tenha arquivos associados.
-
-### 6.26 EstoqueModule
-
-Controllers:
-
-- `/api/estoque/health`.
-- `/api/estoque/localizacoes`.
-- `/api/estoque/itens`.
-- `/api/estoque/movimentacoes`.
-- `/api/estoque/relatorios`.
-- `/api/estoque/lotes`.
-- `/api/estoque/transferencias`.
-- `/api/estoque/sobras`.
-
-Services:
-
-- `SobrasService`.
-- `MovimentacoesService`.
-- `LotesService`.
-- `TransferenciasService`.
-- `ItensEstoqueService`.
-- `LocalizacoesService`.
-- `DashboardEstoqueService`.
-- `RelatoriosEstoqueService`.
-- `EstoqueAccessGuard`.
-
-Responsabilidade:
-
-- Endereçamento hierárquico.
-- Cadastro de itens de estoque.
-- Movimentações de entrada, saída e ajuste.
-- Relatórios de baixo estoque e vencimento.
-- Lotes.
-- Transferências entre localizações.
-- Sobras/retalhos.
-- Aproveitamento de sobras.
-- Métricas de economia.
-
-Tabelas:
-
-- `estoque_localizacoes`.
-- `estoque_itens`.
-- `estoque_movimentacoes`.
-- `estoque_lotes`.
-- `estoque_transferencias`.
-- `estoque_sobras`.
-- `estoque_aproveitamentos`.
-- Tabela legada `estoque`.
-
-Ponto técnico importante:
-
-- O módulo de estoque usa bastante SQL raw e introspecção de `information_schema` para tolerar variações de colunas (`insumoId` vs `insumo_id`, `unidadeMedida` vs `unidade_medida`, etc.).
-- Isso indica histórico de migrações/compatibilidade e aumenta risco de divergência entre schema Prisma e banco real.
-
-Relações:
-
-- Estoque se liga a insumos.
-- Movimentações podem referenciar orçamento.
-- Sobras podem se ligar a OS, item de OS e insumo.
-- OS pode registrar sobras geradas pelo material.
-- Orçamento pode buscar origem/candidatos de sobra.
-
-### 6.27 FinanceiroModule
-
-Controller:
-
-- `/financeiro`.
-
-Endpoints principais:
-
-- `GET /financeiro/cobrancas`.
-- `GET /financeiro/cobrancas/export.csv`.
-- `GET /financeiro/cobrancas/:id`.
-- `POST /financeiro/cobrancas/:id/recebimentos`.
-- `POST /financeiro/cobrancas/:id/cancelar`.
-
-Services:
-
-- `CobrancasService`.
-- `ParcelasBuilderService`.
-- `StatusRollupService`.
-- `CobrancaVencimentoService`.
-- `VencimentoCobrancasJob`.
-
-Responsabilidade:
-
-- Financeiro mínimo de recebíveis.
-- Criar cobrança automaticamente quando orçamento é aprovado.
-- Construir parcelas conforme condição de pagamento.
-- Registrar recebimentos.
-- Calcular status consolidado.
-- Cancelar cobrança com auditoria.
-- Exportar CSV.
-- Job diário de vencimentos.
-
-Tabelas:
-
-- `cobrancas`.
-- `cobranca_parcelas`.
-- `cobranca_recebimentos`.
-- `cobranca_logs`.
-
-Relações:
-
-- Cobrança é 1:1 com orçamento.
-- Cobrança pertence à loja.
-- Pode apontar para cliente.
-- Recebimento pode apontar para usuário.
-- Home operacional consome resumo financeiro.
-
-Status:
-
-- Cobrança: `PREVISTA`, `PARCIAL_PAGO`, `LIQUIDADO`, `VENCIDO`, `CANCELADA`.
-- Parcela: `PREVISTO`, `PARCIAL_PAGO`, `LIQUIDADO`, `VENCIDO`, `CANCELADA`.
-
-### 6.28 HomeOperacionalModule
-
-Controller:
-
-- `/home-operacional`.
-
-Services:
-
-- `OnboardingService`.
-- `ConfiguracaoRecomendadaService`.
-- `SystemStateService`.
-- `FluxoTrabalhoService`.
-- `HomeCacheService`.
-- `AlertasOperacionaisService`.
-- `KpiDashboardService`.
-- `ResumoFinanceiroService`.
-
-Responsabilidade:
-
-- Onboarding operacional por loja.
-- Aplicar configuração recomendada.
-- Banner de estado do sistema.
-- Fluxo de trabalho operacional.
-- Alertas.
-- KPIs.
-- Resumo financeiro simples.
-- Cache da home.
-
-Tabela:
-
-- `onboarding_operacional`.
-
-Relações:
-
-- Consome dados de orçamentos, OS, estoque, financeiro e configurações.
-- Financeiro e orçamento invalidam cache em ações relevantes.
-
-### 6.29 EstimativaTempoModule
-
-Controller:
-
-- `/estimativa-tempo`.
-
-Services:
-
-- `EstimativaTempoService`.
-- `CompatibilidadeMaterialMaquinaService`.
-
-Responsabilidade:
-
-- Estimativa de tempo de máquina.
-- Compatibilidade material-máquina.
-
-Relações:
-
-- Usa máquinas, materiais/tipos e parâmetros de produção.
-- Complementa cálculo e planejamento.
-
-### 6.30 WebsocketsModule
-
-Providers:
-
-- `WebsocketsGateway`.
-- `WebsocketsService`.
-
-Responsabilidade:
-
-- Gateway geral Socket.IO.
-- Rooms por loja.
-- Emissão de eventos operacionais para tenants.
-
-Relações:
-
-- Usado por OS, PCP e mensagens.
-- Arte e cálculo V2 têm gateways próprios.
-
-### 6.31 MailModule
-
-Provider:
-
-- `MailService`.
-
-Responsabilidade:
-
-- Envio de e-mail via Nodemailer.
-- Usado em cadastro, convites, arte/aprovação e orçamento.
+---
 
 ## 7. Frontend
 
-### 7.1 Estrutura
+### 7.1 Shell autenticado
 
-O frontend usa Next.js App Router:
+Arquivo: `frontend/src/app/(main)/layout.tsx`
 
-- `frontend/src/app/(main)`: área autenticada.
-- `frontend/src/app/api`: API Routes/proxies.
-- `frontend/src/app/login`, `cadastro`, `primeiro-acesso`, `esqueci-senha`, `redefinir-senha`: autenticação e acesso.
-- `frontend/src/app/orcamento-v2/[id]`: orçamento público/externo.
-- `frontend/src/app/arte/aprovacao/[token]`: aprovação pública de arte.
+- `UserContext` + redirect se não autenticado
+- `SidebarBadgeSync` + `useSidebarContadores` — badges em OS, Arte, PCP, Financeiro, Expedição
+- Lembrete 2FA opcional
 
-Principais diretórios de componentes:
+### 7.2 Navegação principal (sidebar)
 
-- `brand`.
-- `chat`.
-- `clientes`.
-- `configuracoes`.
-- `crud`.
-- `data-table`.
-- `feedback`.
-- `financeiro`.
-- `forms`.
-- `home-operacional`.
-- `layout`.
-- `orcamentos-v2`.
-- `os`.
-- `pcp`.
-- `providers`.
-- `theme`.
-- `ui`.
+| Label | Rota | Observação |
+|-------|------|------------|
+| Dashboard | `/dashboard` | Home operacional |
+| Orçamentos | `/orcamentos-v2` | V2 ativo |
+| Clientes | `/clientes` | |
+| Insumos | `/insumos` | |
+| Estoque | `/estoque` | |
+| Modelos de Orçamento | `/produtos` | Templates (`TemplateProduto`) |
+| Produtos | `/produtos-finitos` | Prateleira/revenda |
+| Ordens de Serviço | `/os` | Badge contador |
+| Arte & Aprovação | `/arte` | Fila + kanban; badge |
+| Financeiro | `/financeiro/recebimentos` | Só admin/financeiro |
+| PCP | `/pcp/*` | Submenu: kanban, workflows, etapas, etc. |
+| Expedição | `/expedicao` | Só admin/produção/estoque |
+| Centros de Trabalho | `/centros-de-trabalho` | |
+| Usuários | `/usuarios` | |
+| Configurações | `/configuracoes` | Inclui arte, 2FA |
 
-### 7.2 Layout Autenticado
+### 7.3 Páginas OS (destaques)
 
-Arquivo: `frontend/src/app/(main)/layout.tsx`.
+- `/os` — grid com status parcial, arte status, modais
+- `/os/[id]` — detalhe multi-aba (produtos, arte, PCP, histórico)
+- Aprovação técnica via modal com seleção de itens
 
-Responsabilidade:
+### 7.4 Arte
 
-- Verificar usuário via `UserContext`.
-- Redirecionar para `/login` se não autenticado.
-- Renderizar shell com sidebar e header.
-- Gerenciar lembrete de 2FA.
-- Exibir botão de feedback beta.
+- `/arte` — operação central (não depende só da aba OS)
+- `/arte/aprovacao/[token]` — aprovação pública cliente
 
-Navegação principal:
+### 7.5 Clientes HTTP
 
-- Dashboard.
-- Orçamentos.
-- Clientes.
-- Insumos.
-- Estoque.
-- Produtos.
-- Ordens de Serviço.
-- Financeiro, se função for `ADMINISTRADOR` ou `FINANCEIRO`.
-- PCP.
-- Centros de Trabalho.
-- Usuários.
-- Configurações.
+- `api-client.ts` — módulos tipados
+- `api.ts` — sessão expirada, proxies Next.js
 
-### 7.3 UserContext
-
-Arquivo: `frontend/src/contexts/UserContext.tsx`.
-
-Responsabilidade:
-
-- Guardar usuário atual.
-- Buscar `/lojas/me`.
-- Persistir `access_token`.
-- Persistir `loja_id`, `user_roles`, `user_id` no localStorage.
-- Logout.
-- Reautenticação quando evento `session-expired` é disparado.
-
-Ponto de atenção:
-
-- O token fica em `localStorage`, o que é simples, mas aumenta exposição a XSS. Não há evidência de cookie HttpOnly para sessão principal.
-
-### 7.4 Clientes HTTP
-
-`frontend/src/lib/api-client.ts`:
-
-- Usa `buildApiUrl`.
-- Métodos estáticos `get`, `post`, `put`, `patch`, `delete`.
-- Recebe token explicitamente.
-- Centraliza helpers por domínio: `categoriasApi`, `fornecedoresApi`, `lojasApi`, `platformApi`, `insumosApi`, `estoqueApi`, `produtosApi`, `orcamentosApi`, `osApi`, `pcpApi`, `clientesApi`, `maquinasApi`, `funcoesApi`, `custosIndiretosApi`, `servicosManuaisApi`, `tiposMaterialApi`, `usuariosApi`.
-
-`frontend/src/lib/api.ts`:
-
-- Usa token do localStorage automaticamente.
-- Dispara evento `session-expired` em 401.
-- Envia `x-loja-id` e `x-user-roles` para endpoints de estoque.
-- Tem `apiRequestServer` para Route Handlers.
-
-`frontend/src/lib/config.ts`:
-
-- `buildApiUrl` usa `NEXT_PUBLIC_API_URL`/`ENV_CONFIG.API_URL`.
-- No server-side, se base URL for relativa, cai para `BACKEND_URL` ou `http://localhost:4000`.
-
-### 7.5 Rotas de UI por Módulo
-
-Área autenticada:
-
-- `/dashboard`: home operacional/dashboard.
-- `/clientes`: lista.
-- `/clientes/novo`, `/clientes/editar/[id]`, `/clientes/[id]`.
-- `/insumos`: lista.
-- `/insumos/novo`, `/insumos/editar/[id]`.
-- `/produtos`, `/produtos/novo`, `/produtos/[id]/editar`.
-- `/orcamentos-v2`: lista.
-- `/orcamentos-v2/novo`: criação/edição por query/id.
-- `/orcamentos-v2/simulador`.
-- `/os`: lista.
-- `/os/novo`, `/os/[id]`, `/os/[id]/imprimir`.
-- `/pcp`: dashboard.
-- `/pcp/kanban`.
-- `/pcp/meu-setor`.
-- `/pcp/workflows`, `/pcp/workflows/novo`, `/pcp/workflows/[id]`, `/pcp/workflows/[id]/editar`.
-- `/pcp/etapas`.
-- `/pcp/apontamentos`.
-- `/pcp/relatorios`.
-- `/pcp/configuracao`.
-- `/estoque`: dashboard.
-- `/estoque/itens`, novo/editar.
-- `/estoque/localizacoes`, novo/editar.
-- `/estoque/lotes`, novo/editar/detalhe.
-- `/estoque/movimentacoes`, entrada/saida/ajuste.
-- `/estoque/sobras`, novo/editar/detalhe.
-- `/estoque/transferencias`, nova.
-- `/estoque/relatorios`.
-- `/financeiro/recebimentos`.
-- `/centros-de-trabalho`: visão central.
-- `/centros-de-trabalho/setores-produtivos`.
-- `/centros-de-trabalho/maquinas`.
-- `/centros-de-trabalho/funcoes`.
-- `/centros-de-trabalho/servicos`.
-- `/centros-de-trabalho/custos-indiretos`.
-- `/usuarios`, `/usuarios/gestao`, `/usuarios/perfis`.
-- `/configuracoes`, categorias, fornecedores, tipos de material, máquinas, funções, custos indiretos, loja e validações automáticas.
-- `/admin-plataforma/convites`.
-
-Rotas públicas:
-
-- `/`.
-- `/login`.
-- `/cadastro`, `/cadastro/verificar`.
-- `/primeiro-acesso`.
-- `/esqueci-senha`.
-- `/redefinir-senha`.
-- `/orcamento-v2/[id]`.
-- `/arte/aprovacao/[token]`.
-- `/arte/aprovacao/sucesso`.
-- `/beta`.
-
-Rotas de teste/debug:
-
-- `/test-api`, `/test-cep`, `/test-insumo`, `/test-login`, `/test-produtos`, `/chat-demo`, `/debug-logs`.
-
-### 7.6 API Routes do Next
-
-O frontend contém proxies/handlers para:
-
-- Arte/aprovação: comentários, links, mensagens, notificações, versões, uploads.
-- Centros de trabalho/setores produtivos.
-- Configurações/regras/campos.
-- Estoque: itens, localizações, lotes, movimentações, sobras, transferências.
-- Fornecedores.
-- Insumos.
-- Lojas/login/me/verificação.
-- Orçamento público V2.
-- OS e validações.
-- PCP: configuração, dashboard, kanban, workflows.
-- Produtos.
-
-Função prática:
-
-- Compatibilizar chamadas do frontend, preservar URLs `/api/*` e encaminhar ao backend.
-- Em alguns módulos, o frontend também chama diretamente o backend via `NEXT_PUBLIC_API_URL`.
+---
 
 ## 8. Banco de Dados
 
 ### 8.1 Convenções
 
-- Banco MySQL.
-- IDs majoritariamente `String @id @default(cuid())`.
-- Multi-tenancy por `loja_id` ou `lojaId`.
-- Muitas tabelas usam `criado_em`/`atualizado_em`.
-- Alguns modelos usam nomes legados em minúsculo (`loja`, `usuario`, `orcamento`), outros PascalCase (`Insumo`, `OrdemServico`, `ArteVersao`).
-- Há `@@map` para algumas tabelas; outras usam o nome do modelo como tabela.
-- Há enums Prisma para status, tipos e funções.
+- MySQL; IDs majoritariamente `cuid()` ou `uuid()`
+- Multi-tenant: `loja_id` / `lojaId`
+- Nomenclatura mista legada (`orcamento`, `usuario`) e PascalCase (`OrdemServico`)
+- Enums Prisma para status de arte, expedição, cobrança, etc.
 
-### 8.2 Modelos por Domínio
+### 8.2 Arquivo SQL completo
 
-Tenant e usuários:
+**[`docs/comunikapp-schema-sql-completo.sql`](./comunikapp-schema-sql-completo.sql)**
 
-- `loja`
-- `usuario`
-- `PasswordResetToken`
-- `ConviteCadastro`
-- `perfil_acesso`
-- `perfil_permissao`
-- `usuario_perfil`
+Gerado com:
 
-CRM:
+```bash
+cd backend
+npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script -o ../docs/comunikapp-schema-sql-completo.sql
+```
 
-- `cliente`
+Contém: `CREATE TABLE`, índices, FKs e enums — estado **consolidado** do schema, não o histórico de migrations.
 
-Catálogo e precificação:
+### 8.3 Modelos por domínio (90 models)
 
-- `Insumo`
-- `Categoria`
-- `fornecedor`
-- `categoriaInsumo`
-- `tipomaterial`
-- `TemplateProduto`
-- `ItemTemplateProduto`
-- `MaquinaTemplateProduto`
-- `FuncaoTemplateProduto`
-- `maquina`
-- `modo_impressao`
-- `funcao`
-- `servico_manual`
-- `custoindireto`
-- `HistoricoPrecoInsumo`
-- `HistoricoCustoMaquina`
-- `HistoricoCustoFuncao`
+#### Tenant e acesso
 
-Orçamentos:
+`loja`, `usuario`, `PasswordResetToken`, `ConviteCadastro`, `perfil_acesso`, `perfil_permissao`, `usuario_perfil`, `OnboardingOperacional`
 
-- `orcamento`
-- `ProdutoOrcamento`
-- `ItemInsumo`
-- `ItemMaquina`
-- `ItemFuncao`
-- `ItemServicoManual`
-- `ItemCustoIndireto`
-- `funcaoorcamento`
-- `maquinaorcamento`
-- `itemorcamento`
-- `aprovacaoOrcamento`
-- `HistoricoOrcamento`
-- `VersaoOrcamento`
-- `OrcamentoHistorico`
-- `OrcamentoLog`
-- `MensagemChat`
-- `LinkPublico`
-- `AcessoLink`
-- `mensagemnegociacao`
-- `anexomensagem`
-- `notificacao`
+#### CRM e catálogo
 
-Financeiro:
+`cliente`, `Insumo`, `Categoria`, `fornecedor`, `categoriaInsumo`, `tipomaterial`, `TemplateProduto`, `ItemTemplateProduto`, `MaquinaTemplateProduto`, `FuncaoTemplateProduto`, `ServicoTemplateProduto`, `maquina`, `modo_impressao`, `funcao`, `servico_manual`, `custoindireto`, históricos de preço/custo
 
-- `Cobranca`
-- `CobrancaParcela`
-- `CobrancaRecebimento`
-- `CobrancaLog`
+#### Produtos finitos (novo)
 
-Documentos:
+`CategoriaProdutoFinito`, `ProdutoFinito`, `GaleriaProdutoFinito`
 
-- `document_sequence`
+#### Orçamentos
 
-OS:
+`orcamento`, `ProdutoOrcamento`, `ItemInsumo`, `ItemMaquina`, `ItemFuncao`, `ItemServicoManual`, `ItemCustoIndireto`, `aprovacaoOrcamento`, `HistoricoOrcamento`, `VersaoOrcamento`, `OrcamentoHistorico`, `OrcamentoLog`, `MensagemChat`, `LinkPublico`, `AcessoLink`, `mensagemnegociacao`, `anexomensagem`, `notificacao`, `ModalidadeEntrega`, `TipoInstalacao`
 
-- `OrdemServico`
-- `ItemOS`
-- `MovimentacaoOS`
-- `ChecklistOS`
-- `OrdemServicoLog`
+#### Financeiro
 
-Workflow e PCP:
+`Cobranca`, `CobrancaParcela`, `CobrancaRecebimento`, `CobrancaLog`
 
-- `WorkflowOS`
-- `WorkflowSetor`
-- `WorkflowCategoria`
-- `WorkflowCategoriaRegra`
-- `WorkflowInstancia`
-- `WorkflowInstanciaSetor`
-- `EtapaInstancia`
-- `ChecklistInstancia`
-- `Apontamento`
-- `SetorProdutivo`
+#### OS e produção
 
-Estoque:
+`document_sequence`, `OrdemServico`, `ItemOS`, `MovimentacaoOS`, `ChecklistOS`, `OrdemServicoLog`, `RegraValidacao`, `ExecucaoRegra`
 
-- `estoque`
-- `estoque_localizacoes`
-- `estoque_itens`
-- `estoque_movimentacoes`
-- `estoque_lotes`
-- `estoque_transferencias`
-- `estoque_sobras`
-- `estoque_aproveitamentos`
+#### PCP / workflow
 
-Arte/aprovação:
+`WorkflowOS`, `WorkflowSetor`, `WorkflowCategoria`, `WorkflowCategoriaRegra`, `WorkflowInstancia`, `WorkflowInstanciaSetor`, `EtapaInstancia`, `ChecklistInstancia`, `Apontamento`, `SetorProdutivo`
 
-- `ArteVersao`
-- `ArteArquivo`
-- `ArteComentario`
-- `ArteLinkAprovacao`
-- `ArteMensagem`
+#### Expedição (novo)
 
-Configurações e home:
+`ExpedicaoLogistica` (+ enums `ModalidadeExpedicao`, `StatusExpedicao`)
 
-- `RegraValidacao`
-- `ExecucaoRegra`
-- `OnboardingOperacional`
+#### Arte (expandido)
 
-### 8.3 Relações Principais
+`ConfiguracaoArteLoja`, `ArteVersao`, `ArteArquivo`, `ArteComentario`, `ArteLinkAprovacao`, `ArteMensagem`
 
-Loja:
+#### Estoque
 
-- `loja` é raiz de tenant.
-- Relaciona-se com clientes, usuários, insumos, categorias, fornecedores, máquinas, funções, serviços, custos indiretos, orçamentos, OS, estoque, perfis, workflows, setores, arte e financeiro.
+`estoque`, `estoque_localizacoes`, `estoque_itens`, `estoque_movimentacoes`, `estoque_lotes`, `estoque_transferencias`, `estoque_sobras`, `estoque_aproveitamentos`
 
-Cliente:
+### 8.4 Campos relevantes — OrdemServico
 
-- `cliente.loja_id -> loja.id`.
-- `cliente` tem muitos `orcamento`.
-- `cliente` tem muitas `OrdemServico`.
-- `cliente` pode ter muitas `Cobranca`.
+- Tipos: `tipo_os` (COMERCIAL/INTERNA), `origem_os`, `prioridade`
+- Aprovação técnica: `aprovacao_tecnica_status`, auditoria
+- Aprovação gerencial (OS interna)
+- Instalação: `data_instalacao_agendada`
+- Comercial: valores, margem, satisfação
+- **Expedição:** `retrabalho` (boolean)
+- Soft delete: `ativo`, `inativado_em`, snapshot
 
-Orçamento:
+### 8.5 Campos relevantes — ItemOS
 
-- `orcamento.loja_id -> loja.id`.
-- `orcamento.cliente_id -> cliente.id`.
-- `orcamento` tem muitos `ProdutoOrcamento`.
-- `orcamento` tem histórico, versões, mensagens, links, aprovações e logs.
-- `orcamento` tem uma `Cobranca` por `orcamento_id @unique`.
-- `orcamento` pode ter muitas `OrdemServico` associadas.
+- Geometria: largura, altura, profundidade, área, perímetro, anexo DXF
+- Prazos: `data_inicio_producao`, `data_prazo_produto`, `data_prazo_arte`
+- PCP: `status_liberacao_pcp`, `liberado_pcp_*`
+- Arte: `responsabilidade_arte`, `status_arte`, `designer_atribuido_id`, fila
+- Sobras: `sobra_acao`, `sobra_registrada_id`
 
-Produto de orçamento:
+### 8.6 Campos relevantes — ProdutoOrcamento
 
-- `ProdutoOrcamento.orcamento_id -> orcamento.id`.
-- Tem `ItemInsumo`, `ItemMaquina`, `ItemFuncao`, `ItemServicoManual`, `ItemCustoIndireto`.
-- Pode carregar geometria: largura, altura, profundidade, área, perímetro, unidade, origem e arquivo.
+- `tipo_item`: `SOB_DEMANDA` | `PRODUTO_FINITO`
+- `produto_finito_id` → `ProdutoFinito`
+- Instalação completa (snapshot endereço, custos, tempo)
+- Campos de arte (propagados para ItemOS)
 
-Insumo:
-
-- `Insumo.loja_id -> loja.id`.
-- `Insumo.categoriaId -> Categoria.id`.
-- `Insumo.fornecedorId -> fornecedor.id`.
-- `Insumo.tipoMaterialId -> tipomaterial.id`.
-- Usado em orçamento, template de produto e estoque.
-
-OS:
-
-- `OrdemServico.loja_id -> loja.id`.
-- `OrdemServico.cliente_id -> cliente.id`.
-- `OrdemServico.orcamento_id -> orcamento.id` opcional.
-- Tem `ItemOS`.
-- Tem `WorkflowInstancia` 1:1.
-- Tem `MovimentacaoOS`, `ChecklistOS`, `Apontamento`, `OrdemServicoLog`.
-- Tem `ArteVersao` e `ArteMensagem`.
-
-PCP:
-
-- `WorkflowOS.loja_id -> loja.id`.
-- `WorkflowInstancia.os_id -> OrdemServico.id`.
-- `WorkflowInstancia.workflow_id -> WorkflowOS.id`.
-- `EtapaInstancia.workflow_instancia_id -> WorkflowInstancia.id`.
-- `WorkflowInstanciaSetor.workflow_instancia_id -> WorkflowInstancia.id`.
-- `WorkflowInstanciaSetor.setor_id -> SetorProdutivo.id`.
-- `WorkflowInstanciaSetor.item_os_id -> ItemOS.id` opcional.
-- `WorkflowInstanciaSetor.operador_id -> usuario.id` opcional.
-- `Apontamento.os_id -> OrdemServico.id`.
-- `Apontamento.etapa_instancia_id -> EtapaInstancia.id` opcional.
-
-Arte:
-
-- `ArteVersao.os_id -> OrdemServico.id`.
-- `ArteVersao.autor_id/aprovado_por/liberado_por/excluido_por -> usuario.id`.
-- `ArteArquivo.versao_id -> ArteVersao.id`.
-- `ArteComentario.versao_id -> ArteVersao.id`.
-- `ArteComentario.usuario_id -> usuario.id`.
-- `ArteLinkAprovacao.versao_id -> ArteVersao.id`.
-- `ArteMensagem.os_id -> OrdemServico.id`.
-- `ArteMensagem.versao_id -> ArteVersao.id` opcional.
-
-Estoque:
-
-- `estoque_itens.insumoId -> Insumo.id` na intenção funcional.
-- `estoque_itens.localizacaoId -> estoque_localizacoes.id`.
-- `estoque_movimentacoes.estoqueId -> estoque_itens.id`.
-- `estoque_lotes.estoqueId -> estoque_itens.id`.
-- `estoque_transferencias.estoqueId -> estoque_itens.id`.
-- Sobras se ligam a insumo, estoque, OS e item de OS conforme campos.
-
-Financeiro:
-
-- `Cobranca.loja_id -> loja.id`.
-- `Cobranca.orcamento_id -> orcamento.id` com unicidade.
-- `Cobranca.cliente_id -> cliente.id` opcional.
-- `Cobranca` tem parcelas, recebimentos e logs.
-- `CobrancaRecebimento.usuario_id -> usuario.id` opcional.
-
-Validações:
-
-- `RegraValidacao.loja_id -> loja.id`.
-- `ExecucaoRegra.regra_id -> RegraValidacao.id`.
-- `ExecucaoRegra.os_id -> OrdemServico.id` opcional.
-- `ExecucaoRegra.orcamento_id -> orcamento.id` opcional.
+---
 
 ## 9. Fluxos de Negócio Integrados
 
-### 9.1 Cadastro da Loja e Acesso
+### 9.1 Cadastro e acesso
 
-1. Usuário cria loja por `/lojas`.
-2. Sistema cria loja e usuário inicial.
-3. Verificação de e-mail é exigida.
-4. Login em `/lojas/login`.
-5. Se 2FA estiver ativo, retorna challenge e exige `/lojas/login/2fa`.
-6. JWT passa a carregar `loja_id`.
-7. Frontend persiste token e dados básicos no localStorage.
+1. Criação de loja → verificação e-mail → login (2FA opcional)
+2. JWT com `loja_id` → localStorage no frontend
+3. Onboarding operacional na home
 
-### 9.2 Configuração Inicial
+### 9.2 Orçamento V2
 
-Cadastros necessários para operação:
+1. `/orcamentos-v2/novo` — produtos sob demanda (motor) ou produto finito (snapshot)
+2. Preview: WebSocket `/calculo-v2` ou HTTP motor
+3. Persistência multi-produto + itens de custo
+4. Envio, negociação, aprovação interna ou pública
+5. Fechamento → OS + cobrança
 
-- Clientes.
-- Categorias.
-- Fornecedores.
-- Tipos de material.
-- Insumos.
-- Máquinas.
-- Funções.
-- Serviços manuais.
-- Custos indiretos.
-- Setores produtivos.
-- Configurações da loja.
-- Regras de validação.
+### 9.3 Geração de OS
 
-A Home Operacional mostra onboarding e pode aplicar configurações recomendadas.
+1. Herda produtos → `ItemOS` com geometria, prazos, arte
+2. Validação de estoque e regras (`RegraValidacao`)
+3. Status inicial conforme tipo (fila, pendências arte, etc.)
 
-### 9.3 Orçamento V2
+### 9.4 Arte (fluxo atual)
 
-1. Usuário abre `/orcamentos-v2/novo`.
-2. Frontend consulta catálogos e envia produtos, materiais e parâmetros.
-3. Preview pode usar WebSocket `/calculo-v2` ou HTTP `/motor-calculo-v2/preview`.
-4. `OrcamentosV2Service` valida e transforma dados.
-5. `DocumentCodeService` gera número.
-6. Prisma cria orçamento e produtos.
-7. `IntegracaoMotorService` chama motor V2.
-8. Custos calculados são persistidos.
-9. Histórico e notificações são gerados.
-10. Orçamento pode ser enviado para aprovação.
+1. Itens com `responsabilidade_arte` ≠ `NAO_APLICAVEL` entram na fila (`/arte`)
+2. Designer assume item → cria `ArteVersao` + arquivos
+3. Link público → cliente aprova/revisa (`ArteMensagem`)
+4. `status_arte` no item atualizado
+5. **Não** libera PCP diretamente no módulo arte
 
-### 9.4 Aprovação do Orçamento e Pedido
+### 9.5 Liberação PCP (total ou parcial)
 
-Fluxos possíveis:
+1. Gestor abre aprovação técnica na OS
+2. Seleciona itens (`item_ids`) elegíveis (arte ok quando exigida)
+3. Itens liberados: `status_liberacao_pcp = LIBERADO`
+4. OS: `LIBERADA` (todos) ou `PARCIALMENTE_LIBERADA` (subset)
+5. PCP recebe itens no kanban/workflow
+6. “Liberar restante” no modal para itens pendentes
 
-- Interno/autenticado: vendedor/usuário aprova ou fecha pedido.
-- Público: cliente acessa link/código e aprova/rejeita/negocia.
+### 9.6 PCP → Expedição
 
-Ao fechar pedido:
+1. Item/setor concluído no workflow
+2. OS pronta para expedição
+3. `ExpedicaoLogistica` criada (modalidade, status kanban)
+4. Assinatura/recebimento → conclusão
+5. Devolução → `DEVOLVIDA`, OS `retrabalho=true`, retorno ao PCP
 
-- Status de orçamento muda.
-- Pode ser gerada OS.
-- Financeiro cria cobrança e parcelas.
-- Home operacional tem cache invalidado.
-- Notificações são enviadas.
+### 9.7 Estoque e financeiro
 
-### 9.5 OS a partir de Orçamento
+- Movimentações por consumo/OS; sobras e aproveitamentos
+- Cobrança parcelada; recebimentos na UI financeiro
 
-1. Orçamento aprovado é usado como origem.
-2. OS herda cliente, produtos, materiais, geometria, valores e prioridade.
-3. `OSService` gera número de OS.
-4. Materiais calculados são serializados em JSON.
-5. OS valida estoque e regras automáticas.
-6. Itens de OS podem carregar dados por produto.
-7. OS entra no fluxo de aprovação, fila ou workflow conforme tipo.
-
-### 9.6 Arte e Aprovação
-
-1. Designer cria `ArteVersao` para OS/produto.
-2. Upload de arquivos cria `ArteArquivo` e thumbnail.
-3. Link público é criado com token.
-4. Cliente acessa `/arte/aprovacao/[token]`.
-5. Cliente aprova ou solicita revisão.
-6. Mensagens públicas e internas ficam em `ArteMensagem`.
-7. WebSocket atualiza chat/notificações em tempo real.
-8. Após aprovação do cliente, designer libera para PCP.
-
-### 9.7 PCP
-
-1. OS ou item é liberado para PCP.
-2. PCP sugere ou atribui workflow.
-3. Instância de workflow é criada.
-4. Setores/etapas/checklists são criados.
-5. Kanban lista itens por setor.
-6. Operador inicia, pausa, move ou conclui item.
-7. Apontamentos registram tempo, quantidade produzida e refugo.
-8. Status da OS é atualizado por integração.
-9. Relatórios consolidam capacidade, ocupação e previsto/realizado.
-
-### 9.8 Estoque
-
-1. Insumos com `controla_estoque` alimentam estoque.
-2. Itens de estoque ficam em localizações.
-3. Movimentações alteram saldo atual.
-4. Lotes controlam validade/fabricação/status.
-5. Transferências movem quantidade entre localizações.
-6. OS pode registrar sobras.
-7. Sobras podem ser aproveitadas em orçamento/OS futuros.
-
-### 9.9 Financeiro
-
-1. Orçamento aprovado chama `criarCobrancaParaOrcamento`.
-2. Serviço de parcelas calcula entradas/saldos/parcelamento.
-3. Cobrança, parcelas e log são criados em transação.
-4. Tela `/financeiro/recebimentos` lista cobranças.
-5. Recebimento atualiza parcela, cobrança e log.
-6. Status rollup recalcula saldo, liquidação e vencimento.
-7. Job diário recategoriza vencidas.
+---
 
 ## 10. WebSockets
 
-Gateways identificados:
+| Namespace | Uso |
+|-----------|-----|
+| `/calculo-v2` | Preview de orçamento em tempo real |
+| `/arte-aprovacao` | Mensagens e notificações de arte |
+| Gateway geral | Eventos operacionais (PCP, etc.) |
 
-- Geral: `backend/src/websockets`.
-- Cálculo V2: namespace `/calculo-v2`.
-- Arte/aprovação: namespace `/arte-aprovacao`.
-
-Uso:
-
-- Cálculo em tempo real no formulário de orçamento.
-- Mensagens e contador de arte.
-- Eventos por loja, como workflow iniciado.
-
-Frontend:
-
-- `use-calculo-websocket.ts`.
-- `use-arte-websocket.ts`.
-- `use-websocket.ts`, com fallback/polling para chat legado.
-
-Ponto de atenção:
-
-- Há serviços com comentários indicando WebSocket futuro ou temporariamente desabilitado. Nem todo evento prometido por comentários está necessariamente ativo.
+---
 
 ## 11. Arquivos, Uploads e Mídia
 
-Backend:
+- Uploads: `backend/uploads/` servidos em `/uploads`
+- Arte: thumbnails via `sharp`
+- Geometria: `dxf-parser` no orçamento
+- Produtos finitos: galeria de imagens
+- SVG em uploads: `Content-Disposition: attachment`
 
-- Uploads servidos por `/uploads`.
-- Arte usa `/uploads/arte` e pode ser bloqueada em produção.
-- `sharp` gera thumbnails.
-- Downloads públicos de arte exigem token query.
-- SVGs recebem header para download/sandbox.
-
-Frontend:
-
-- Componentes de upload em arte/aprovação.
-- Logos da marca em `frontend/public/brand`.
+---
 
 ## 12. Observações de Qualidade e Riscos
 
-### 12.1 Schema e SQL raw
+| Risco | Detalhe |
+|-------|---------|
+| Schema legado misto | PascalCase/minúsculo, `loja_id`/`lojaId`, Prisma + raw SQL |
+| `loja_modulo` fora do Prisma | Guard de ativação pode divergir de migrations |
+| JWT em localStorage | Exposição XSS; cookies HttpOnly exigiriam refactor |
+| Serviços grandes | `OrcamentosV2Service`, `OSService` — alta complexidade |
+| Docs vs código | Vários RPs em `docs/`; validar sempre no código |
+| Liberação parcial | Dois controllers OS devem repassar `item_ids` (bug corrigido em 2026-06) |
+| Expedição | Regra “um ativo por OS” é de negócio, não UNIQUE no banco |
 
-O schema Prisma é grande e parcialmente legado. Há mistura de:
-
-- Modelos PascalCase e minúsculos.
-- `loja_id` e `lojaId`.
-- Prisma tipado e SQL raw.
-- Estoque com introspecção dinâmica de colunas.
-
-Risco:
-
-- Divergência entre banco real, migrations e Prisma.
-- Refactors podem quebrar estoque se colunas reais diferirem do schema.
-
-### 12.2 Guard de módulo sem modelo Prisma explícito
-
-`ModuleActivationGuard` consulta `loja_modulo`, mas o modelo não aparece no schema analisado.
-
-Risco:
-
-- Ativação modular pode depender de tabela criada fora do Prisma.
-- Migrações novas podem não preservar esse contrato.
-
-### 12.3 Token em localStorage
-
-Frontend guarda JWT em localStorage.
-
-Risco:
-
-- Maior exposição em caso de XSS.
-- Uma estratégia com cookie HttpOnly reduziria exposição, mas exigiria ajuste de CORS/SSR/API Routes.
-
-### 12.4 Codificação de texto
-
-Há arquivos com caracteres mojibake em README e código, indicando histórico de encoding.
-
-Risco:
-
-- Documentos e mensagens podem renderizar incorretamente.
-- Logs e strings de UI podem sair quebrados.
-
-### 12.5 Módulos extensos
-
-`OrcamentosV2Service` e `OSService` concentram muita regra, apesar de comentários citarem limite de linhas.
-
-Risco:
-
-- Alta complexidade para manutenção.
-- Maior chance de efeitos colaterais ao ajustar cálculo, materiais ou status.
-
-### 12.6 Estado real vs documentação
-
-O repositório contém muita documentação de planos, handoffs e fases. Alguns módulos descritos em docs podem estar parcial ou totalmente implementados; este relatório prioriza código e schema atuais.
+---
 
 ## 13. Mapa de Dependências Funcionais
 
-Dependências principais:
-
-- `Lojas` -> raiz de todos os módulos.
-- `Usuarios/Auth` -> autenticação e autorização.
-- `Clientes` -> orçamentos, OS e financeiro.
-- `Insumos/Categorias/Fornecedores/TiposMaterial` -> orçamento, estoque e produtos.
-- `Maquinas/Funcoes/ServicosManuais/CustosIndiretos` -> motor de cálculo e PCP.
-- `MotorCalculoV2` -> orçamento.
-- `OrcamentosV2` -> OS, financeiro, notificações, e-mail, documentos, estoque.
-- `OS` -> PCP, arte, estoque, validações, documentos.
-- `ArteAprovacao` -> OS, usuários, notificações, e-mail, WebSocket.
-- `PCP` -> OS, setores produtivos, WebSocket.
-- `Estoque` -> insumos, OS, orçamento.
-- `Financeiro` -> orçamento, cliente, usuário, home operacional.
-- `HomeOperacional` -> leitura agregada de vários módulos.
-
-Diagrama textual:
-
 ```text
 loja
-  -> usuario/auth/perfis
-  -> cliente
-      -> orcamento
-          -> produto_orcamento
-              -> itens: insumo, maquina, funcao, servico_manual, custo_indireto
-          -> motor_calculo_v2
-          -> mensagem/chat/link/publico
-          -> cobranca -> parcelas -> recebimentos/logs
-          -> ordem_servico
-              -> item_os
-              -> validacoes/logs/movimentacoes
-              -> arte_versao -> arquivos/links/mensagens
-              -> workflow_instancia -> etapas/checklists/apontamentos
-              -> workflow_instancia_setor -> setor_produtivo
-              -> sobras/aproveitamentos
-  -> estoque
-      -> localizacoes
-      -> itens -> movimentacoes/lotes/transferencias/sobras
-  -> home_operacional
+  ├── usuario / auth / perfis
+  ├── cliente
+  │     └── orcamento
+  │           ├── produto_orcamento (SOB_DEMANDA | PRODUTO_FINITO)
+  │           │     ├── produto_finito (opcional)
+  │           │     └── itens: insumo, maquina, funcao, servico, custo_indireto
+  │           ├── motor_calculo_v2
+  │           ├── cobranca → parcelas → recebimentos
+  │           └── ordem_servico
+  │                 ├── item_os (arte, liberação PCP, geometria)
+  │                 ├── arte_versao → arquivos / links / mensagens
+  │                 ├── workflow_instancia → setores / etapas / apontamentos
+  │                 ├── expedicoes_logistica
+  │                 └── sobras → aproveitamentos
+  ├── produtos_finitos / categorias / galeria
+  ├── configuracao_arte_loja
+  ├── estoque → localizações / movimentações / lotes
+  └── home_operacional / onboarding
 ```
 
-## 14. Inventário de Tabelas Principais
+---
 
-| Domínio | Tabelas/modelos |
-|---|---|
-| Tenant e acesso | `loja`, `usuario`, `password_reset_token`, `convites_cadastro`, `perfil_acesso`, `perfil_permissao`, `usuario_perfil` |
-| CRM | `cliente` |
-| Catálogo | `insumos`, `categorias`, `fornecedor`, `tipomaterial`, `categoriaInsumo` |
-| Produto/template | `template_produtos`, `item_template_produtos`, `maquina_template_produtos`, `funcao_template_produtos` |
-| Produção/custos | `maquina`, `modo_impressao`, `funcao`, `servico_manual`, `custoindireto`, históricos de custo |
-| Orçamento | `orcamento`, `ProdutoOrcamento`, `ItemInsumo`, `ItemMaquina`, `ItemFuncao`, `ItemServicoManual`, `ItemCustoIndireto`, históricos, versões, links e mensagens |
-| OS | `ordens_servico`, `itens_os`, `movimentacoes_os`, `checklists_os`, `ordem_servico_logs` |
-| PCP/workflow | `workflows_os`, `workflow_setores`, `workflow_categorias`, `workflow_categoria_regras`, `workflow_instancia`, `workflow_instancia_setor`, `etapa_instancia`, `checklist_instancia`, `apontamento`, `setores_produtivos` |
-| Arte | `arte_versoes`, `arte_arquivos`, `arte_comentarios`, `arte_links_aprovacao`, `arte_mensagens` |
-| Estoque | `estoque`, `estoque_localizacoes`, `estoque_itens`, `estoque_movimentacoes`, `estoque_lotes`, `estoque_transferencias`, `estoque_sobras`, `estoque_aproveitamentos` |
-| Financeiro | `cobrancas`, `cobranca_parcelas`, `cobranca_recebimentos`, `cobranca_logs` |
-| Configuração | `regras_validacao`, `execucoes_regras`, `onboarding_operacional`, `document_sequences` |
+## 14. Inventário de Rotas Backend (resumo)
 
-## 15. Inventário de Rotas Backend por Domínio
+### OS e liberação
 
-Autenticação/lojas:
+- `GET/PATCH /os/*` — CRUD, status, aprovação técnica com `item_ids`
+- `GET /os/liberacao-pcp/*` — filas por status incl. `PARCIALMENTE_LIBERADA`
+- Detalhes liberação/arte por OS (endpoints de detalhe no módulo OS)
 
-- `/lojas`
-- `/lojas/login`
-- `/lojas/login/2fa`
-- `/lojas/verificar-email`
-- `/lojas/reenviar-verificacao`
-- `/lojas/me`
-- `/lojas/minha-loja`
-- `/lojas/logo`
+### Arte
 
-Usuários:
+- `arte-aprovacao/versoes`, `fila`, `os`, `orcamento`, `configuracao`, `links`, `mensagens`
 
-- `/usuarios`
-- `/usuarios/:id`
-- `/usuarios/:id/desativar`
-- `/usuarios/2fa/status`
-- `/usuarios/2fa/setup`
-- `/usuarios/2fa/confirm`
-- `/usuarios/2fa/disable`
-- `/usuarios/perfis`
+### Expedição
 
-Cadastros:
+- `expedicao/*` — kanban, transições, criação a partir da OS
+- `expedicao/assinaturas/*` — captura de assinatura
 
-- `/clientes`
-- `/clientes/search`
-- `/categorias`
-- `/fornecedores`
-- `/insumos`
-- `/insumos/importar`
-- `/insumos/template`
-- `/insumos/:id/calculo-chapa`
-- `/insumos/:id/simular-chapa`
-- `/tipos-material`
-- `/produtos`
-- `/produtos/calcular`
-- `/produtos/:id/carregar-para-orcamento`
-- `/maquinas`
-- `/maquinas/tipo/:tipo`
-- `/funcoes`
-- `/servicos-manuais`
-- `/custos-indiretos`
+### Produtos finitos
 
-Configurações:
+- `produtos-finitos/*` — CRUD, categorias, imagens
 
-- `/configuracoes/parametros`
-- `/configuracoes/validacoes-automaticas/dashboard`
-- `/configuracoes/validacoes-automaticas/executar`
-- `/configuracoes/regras-validacao`
-- `/configuracoes/campos-validacao`
-- `/centros-de-trabalho/setores-produtivos`
+### Demais (inalterados em essência)
 
-Orçamentos e cálculo:
+- `lojas`, `usuarios`, `clientes`, `insumos`, `orcamentos-v2`, `motor-calculo-v2`, `pcp/*`, `financeiro/*`, `estoque/*`, `home-operacional/*`
 
-- `/orcamentos-v2`
-- `/orcamentos-v2/:id`
-- `/orcamentos-v2/:id/status`
-- `/orcamentos-v2/:id/calcular`
-- `/orcamentos-v2/:id/validar-estoque`
-- `/orcamentos-v2/:id/enviar`
-- `/orcamentos-v2/:id/fechar-pedido`
-- `/orcamentos-v2/:id/duplicar`
-- `/orcamentos-v2/:id/publico`
-- `/orcamentos-v2/:id/publico/acao`
-- `/orcamentos-v2/:id/exportar/:formato`
-- `/orcamentos-v2/chat/:orcamentoId/mensagens`
-- `/orcamentos-v2/links`
-- `/orcamentos-v2/impressao`
-- `/orcamentos-v2/anexos-geometria`
-- `/motor-calculo-v2/calcular`
-- `/motor-calculo-v2/preview`
-- `/motor-calculo-v2/validar`
+*Lista exaustiva de endpoints: Swagger com `ENABLE_SWAGGER=true` ou inspeção dos controllers.*
 
-OS:
+---
 
-- `/os`
-- `/os/:id`
-- `/os/:id/avancar-etapa`
-- `/os/:id/imprimir`
-- `/os/:id/materiais`
-- `/os/:id/liberar-para-pcp`
-- `/os/:id/retirar-do-pcp`
-- `/os/:id/aprovar-tecnica`
-- `/os/:id/agendar-instalacao`
-- `/os/comercial`
-- `/os/interna`
-- `/os/workflows`
-- `/os/workflow/instancia`
-- `/os/validacoes/:id/executar`
-- `/os/calculo-material/:id`
-- `/os/prazo/:id`
-- `/os/produtos/:osId/item/:itemId/definir-prazo`
-- `/os/produtos/:osId/item/:itemId/liberar-pcp`
-- `/os/admin/recuperar-status`
+## 15. Roadmap documentado (não implementado)
 
-PCP:
+### Hub Catálogo de Produtos
 
-- `/pcp/dashboard`
-- `/pcp/kanban/geral`
-- `/pcp/kanban/fila-setor/:setorId`
-- `/pcp/kanban/por-setores`
-- `/pcp/kanban/iniciar/:itemOsId`
-- `/pcp/kanban/concluir/:itemOsId`
-- `/pcp/kanban/pausar/:itemOsId`
-- `/pcp/kanban/mover-setor/:itemOsId`
-- `/pcp/configuracao`
-- `/pcp/configuracao/aplicar-padrao`
-- `/pcp/capacidade/setores`
-- `/pcp/capacidade/maquinas`
-- `/pcp/relatorios/ocupacao-maquinas`
-- `/pcp/relatorios/previsto-realizado`
-- `/pcp/workflows`
-- `/pcp/workflow-templates`
-- `/pcp/etapas`
-- `/pcp/apontamentos`
+Documentação em **`docs/catalogo de produtos/`**:
 
-Arte:
+- Hub unificado (finitos, personalização/processos, estampas, conjuntos de campos)
+- **Modelos de Orçamento** permanecem em `/produtos` (menu lateral)
+- Orçamento **preenche variáveis**; cadastro **vincula** templates/processos
+- Plano de implementação em `10-plano-implementacao.md`
 
-- `/arte-aprovacao/versoes`
-- `/arte-aprovacao/versoes/os/:osId`
-- `/arte-aprovacao/versoes/produto/:produtoId`
-- `/arte-aprovacao/versoes/:id/aprovar`
-- `/arte-aprovacao/versoes/:id/rejeitar`
-- `/arte-aprovacao/versoes/aprovar-multiplas`
-- `/arte-aprovacao/versoes/:id/liberar-para-pcp`
-- `/arte-aprovacao/versoes/:versaoId/arquivos`
-- `/arte-aprovacao/links`
-- `/arte-aprovacao/links/public/:token`
-- `/arte-aprovacao/links/public/:token/approve`
-- `/arte-aprovacao/mensagens`
-- `/arte-aprovacao/mensagens/publico/:token`
-- `/arte-aprovacao/notificacoes/*`
+**Status:** planejamento apenas; código atual usa módulos separados (templates + produtos finitos).
 
-Estoque:
-
-- `/api/estoque/health`
-- `/api/estoque/localizacoes`
-- `/api/estoque/itens`
-- `/api/estoque/movimentacoes`
-- `/api/estoque/relatorios`
-- `/api/estoque/lotes`
-- `/api/estoque/transferencias`
-- `/api/estoque/sobras`
-
-Financeiro:
-
-- `/financeiro/cobrancas`
-- `/financeiro/cobrancas/export.csv`
-- `/financeiro/cobrancas/:id`
-- `/financeiro/cobrancas/:id/recebimentos`
-- `/financeiro/cobrancas/:id/cancelar`
-
-Home:
-
-- `/home-operacional/onboarding`
-- `/home-operacional/banner-estado`
-- `/home-operacional/fluxo`
-- `/home-operacional/alertas`
-- `/home-operacional/kpis`
-- `/home-operacional/resumo-financeiro`
+---
 
 ## 16. Conclusão Técnica
 
-O ComunikApp já opera como um sistema modular de gestão completo, com domínio central em orçamento/produção para comunicação visual. A base mais crítica está em quatro eixos:
+O ComunikApp evoluiu de um ERP de comunicação visual com orçamento/OS/PCP para uma plataforma que cobre **produtos de prateleira**, **arte operacional em módulo dedicado**, **liberação PCP granular por item** e **expedição pós-produção** com retrabalho.
 
-- Orçamento V2 e Motor de Cálculo: definem custo, preço e materiais.
-- OS: transforma venda em execução operacional.
-- PCP: organiza execução por workflows, setores e apontamentos.
-- Estoque/Financeiro: fecham controle físico e recebível.
+**Pontos fortes**
 
-As relações de banco e módulos mostram forte acoplamento funcional entre orçamento, OS, PCP, arte e estoque. Isso é coerente com o negócio, mas exige cuidado ao alterar qualquer contrato de materiais, produtos, status ou `loja_id`.
+- Modelo multi-item consistente (orçamento → OS → PCP → expedição)
+- Motor de cálculo V2 maduro para sob demanda
+- Arte com fila, kanban e aprovação pública
+- Financeiro mínimo integrado ao fechamento
+- Schema documentado em SQL completo para análise externa
 
-Os maiores pontos de atenção para evolução são:
+**Prioridades de evolução sugeridas**
 
-- Reduzir uso de SQL raw no estoque ou documentar rigorosamente o contrato real das colunas.
-- Normalizar nomes e padrões entre `loja_id` e `lojaId`.
-- Formalizar tabela/modelo de ativação modular (`loja_modulo`) se ela continuar sendo contrato do sistema.
-- Separar regras grandes de orçamento e OS em serviços menores por fluxo.
-- Fortalecer permissões reais por perfil em vez de lógica por função no frontend.
-- Avaliar sessão via cookie HttpOnly para reduzir risco do token em localStorage.
-- Corrigir encoding/mojibake em arquivos e strings de UI/log.
+1. Implementar hub Catálogo conforme RP (ou consolidar UX atual)
+2. Unificar permissões sidebar → `perfil_permissao`
+3. Modelar `loja_modulo` no Prisma
+4. Continuar decomposição de `OSService` / `OrcamentosV2Service`
+5. Avaliar cookies HttpOnly para JWT
+
+---
+
+## Apêndice A — Comandos úteis
+
+```bash
+# Regenerar SQL completo do schema
+cd backend
+npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script -o ../docs/comunikapp-schema-sql-completo.sql
+
+# Aplicar migrations em ambiente
+npx prisma migrate deploy
+
+# Gerar client após mudança no schema
+npx prisma generate
+```
+
+## Apêndice B — Referências cruzadas
+
+| Documento | Conteúdo |
+|-----------|----------|
+| [`comunikapp-schema-sql-completo.sql`](./comunikapp-schema-sql-completo.sql) | DDL MySQL completo |
+| [`catalogo de produtos/README.md`](./catalogo%20de%20produtos/README.md) | RP hub catálogo (planejado) |
+| `backend/prisma/schema.prisma` | Fonte da verdade do modelo |
+| `backend/src/app.module.ts` | Módulos ativos |
+| `.cursor/rules/deploy-cors-nginx-pm2-guardrails.mdc` | Deploy produção |
+
+---
+
+*Documento gerado por análise do código e schema em 2026-06-26. Para divergências, prevalece o repositório.*
