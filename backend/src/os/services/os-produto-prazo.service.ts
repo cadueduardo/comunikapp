@@ -14,6 +14,15 @@ import {
   StatusPrazoProdutoResponse,
   ValidarPrazoProdutoResponse,
 } from '../dto/os-produto-prazo.dto';
+import {
+  computeArteResumoGrid,
+  computeLiberacaoResumoGrid,
+  computeStatusOSLiberacao,
+  getMotivosBloqueioPcp,
+  isElegivelPcp,
+  labelStatusArte,
+  produtoRequerArte,
+} from '../utils/os-liberacao-pcp.util';
 
 interface DefinirPrazoProdutoRequest {
   itemId: string;
@@ -324,6 +333,9 @@ export class OSProdutoPrazoService {
             data_prazo: true,
           },
         },
+        designer_atribuido: {
+          select: { id: true, nome_completo: true },
+        },
       },
     });
 
@@ -378,6 +390,15 @@ export class OSProdutoPrazoService {
       is_retroativo: isRetroativo,
       mensagem,
       excede_prazo_final: excedePrazoFinal,
+      responsabilidade_arte: item.responsabilidade_arte,
+      status_arte: item.status_arte,
+      data_prazo_arte: item.data_prazo_arte,
+      designer_atribuido: item.designer_atribuido
+        ? {
+            id: item.designer_atribuido.id,
+            nome: item.designer_atribuido.nome_completo,
+          }
+        : null,
     };
   }
 
@@ -496,10 +517,25 @@ export class OSProdutoPrazoService {
       );
     }
 
-    // Validar se produto tem prazo definido
-    if (!item.data_prazo_produto) {
+    const ctx = {
+      id: item.id,
+      produto_servico: item.produto_servico,
+      data_prazo_produto: item.data_prazo_produto,
+      status_liberacao_pcp: item.status_liberacao_pcp,
+      responsabilidade_arte: item.responsabilidade_arte,
+      status_arte: item.status_arte,
+      materiais_disponivel: item.materiais_disponivel,
+    };
+
+    const os = await this.prisma.ordemServico.findFirst({
+      where: { id: osId, loja_id: lojaId },
+      select: { materiais_disponivel: true },
+    });
+
+    const motivos = getMotivosBloqueioPcp(ctx, os?.materiais_disponivel);
+    if (motivos.length > 0) {
       throw new BadRequestException(
-        'Produto não tem prazo definido. Defina o prazo antes de liberar para o PCP.',
+        motivos.map((m) => m.mensagem).join('; '),
       );
     }
 
@@ -521,27 +557,20 @@ export class OSProdutoPrazoService {
       },
     });
 
-    // Se for o primeiro produto liberado, mudar status da OS para LIBERADA_PARA_PCP
-    if (produtosLiberados === 1) {
+    // Sincronizar status agregado da OS
+    const totalItens = await this.prisma.itemOS.count({ where: { os_id: osId } });
+    const agregado = computeStatusOSLiberacao(totalItens, produtosLiberados);
+    if (agregado === 'PARCIAL') {
+      await this.prisma.ordemServico.update({
+        where: { id: osId },
+        data: { status: 'PARCIALMENTE_LIBERADA' },
+      });
+    } else if (agregado === 'COMPLETO') {
       await this.prisma.ordemServico.update({
         where: { id: osId },
         data: {
           status: 'LIBERADA_PARA_PCP',
-        },
-      });
-
-      // Log da mudança de status da OS
-      await this.prisma.ordemServicoLog.create({
-        data: {
-          os_id: osId,
-          tipo_acao: 'MUDANCA_STATUS',
-          descricao: 'OS liberada para PCP (primeiro produto liberado)',
-          dados_extras: JSON.stringify({
-            status_anterior: 'EM_ANDAMENTO',
-            status_novo: 'LIBERADA_PARA_PCP',
-            motivo: 'Primeiro produto liberado para produção',
-          }),
-          usuario_id: usuarioId,
+          aprovacao_tecnica_status: 'APROVADA',
         },
       });
     }
@@ -747,5 +776,121 @@ export class OSProdutoPrazoService {
     } catch (error) {
       console.error('Erro ao criar log de prazo retroativo de produto:', error);
     }
+  }
+
+  async getDetalheLiberacaoPCP(osId: string, lojaId: string) {
+    const os = await this.prisma.ordemServico.findFirst({
+      where: { id: osId, loja_id: lojaId },
+      include: { itens: true },
+    });
+    if (!os) {
+      throw new NotFoundException('OS não encontrada');
+    }
+
+    const liberados: Array<{
+      item_id: string;
+      produto_servico: string;
+      liberado_em?: Date | null;
+    }> = [];
+    const pendentes: Array<{
+      item_id: string;
+      produto_servico: string;
+      motivos: string[];
+    }> = [];
+
+    for (const item of os.itens) {
+      const ctx = {
+        id: item.id,
+        produto_servico: item.produto_servico,
+        data_prazo_produto: item.data_prazo_produto,
+        status_liberacao_pcp: item.status_liberacao_pcp,
+        responsabilidade_arte: item.responsabilidade_arte,
+        status_arte: item.status_arte,
+        materiais_disponivel: item.materiais_disponivel,
+      };
+      if (
+        (item.status_liberacao_pcp || 'PENDENTE').toUpperCase() === 'LIBERADO'
+      ) {
+        liberados.push({
+          item_id: item.id,
+          produto_servico: item.produto_servico,
+          liberado_em: item.liberado_pcp_em,
+        });
+      } else {
+        pendentes.push({
+          item_id: item.id,
+          produto_servico: item.produto_servico,
+          motivos: getMotivosBloqueioPcp(ctx, os.materiais_disponivel).map(
+            (m) => m.mensagem,
+          ),
+        });
+      }
+    }
+
+    return {
+      os_id: osId,
+      os_numero: os.numero,
+      status: os.status,
+      resumo: computeLiberacaoResumoGrid(
+        os.itens.map((i) => ({
+          id: i.id,
+          produto_servico: i.produto_servico,
+          status_liberacao_pcp: i.status_liberacao_pcp,
+        })),
+      ),
+      liberados,
+      pendentes,
+    };
+  }
+
+  async getDetalheArteOS(osId: string, lojaId: string) {
+    const os = await this.prisma.ordemServico.findFirst({
+      where: { id: osId, loja_id: lojaId },
+      include: {
+        itens: {
+          include: {
+            designer_atribuido: {
+              select: { id: true, nome_completo: true },
+            },
+          },
+        },
+      },
+    });
+    if (!os) {
+      throw new NotFoundException('OS não encontrada');
+    }
+
+    const produtos = os.itens.map((item) => ({
+      item_id: item.id,
+      produto_servico: item.produto_servico,
+      responsabilidade_arte: item.responsabilidade_arte,
+      status_arte: item.status_arte,
+      status_arte_label: labelStatusArte(item.status_arte),
+      requer_arte: produtoRequerArte(
+        item.responsabilidade_arte,
+        item.status_arte,
+      ),
+      data_prazo_arte: item.data_prazo_arte,
+      designer: item.designer_atribuido
+        ? {
+            id: item.designer_atribuido.id,
+            nome: item.designer_atribuido.nome_completo,
+          }
+        : null,
+    }));
+
+    return {
+      os_id: osId,
+      os_numero: os.numero,
+      resumo: computeArteResumoGrid(
+        os.itens.map((i) => ({
+          id: i.id,
+          produto_servico: i.produto_servico,
+          responsabilidade_arte: i.responsabilidade_arte,
+          status_arte: i.status_arte,
+        })),
+      ),
+      produtos,
+    };
   }
 }

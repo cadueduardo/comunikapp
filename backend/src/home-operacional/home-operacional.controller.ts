@@ -207,7 +207,7 @@ export class HomeOperacionalController {
    * GET /home-operacional/contadores-menu
    *
    * Badges do menu lateral: itens NOVOS desde a última visita ao módulo.
-   * Query: os_desde, pcp_desde, expedicao_desde, financeiro_desde (ISO 8601).
+   * Query: os_desde, pcp_desde, expedicao_desde, financeiro_desde, arte_desde (ISO 8601).
    * Cache: 60s por loja + timestamps. `?refresh=1` força recomputação.
    */
   @Get('contadores-menu')
@@ -218,6 +218,7 @@ export class HomeOperacionalController {
     @Query('pcp_desde') pcpDesde?: string,
     @Query('expedicao_desde') expedicaoDesde?: string,
     @Query('financeiro_desde') financeiroDesde?: string,
+    @Query('arte_desde') arteDesde?: string,
   ) {
     const bypass = refresh === '1' || refresh === 'true';
     const data = await this.contadoresMenuService.obter(lojaId, {
@@ -226,6 +227,7 @@ export class HomeOperacionalController {
       pcpDesde: this.parseDesdeQuery(pcpDesde),
       expedicaoDesde: this.parseDesdeQuery(expedicaoDesde),
       financeiroDesde: this.parseDesdeQuery(financeiroDesde),
+      arteDesde: this.parseDesdeQuery(arteDesde),
     });
     return this.envelope(data);
   }

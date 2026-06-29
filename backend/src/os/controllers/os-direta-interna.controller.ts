@@ -145,6 +145,7 @@ export class OSDiretaInternaController {
         data_inicio_producao?: string;
         data_prazo_produto?: string;
       }>;
+      item_ids?: string[];
     },
     @Request() req: any,
   ) {
@@ -174,6 +175,7 @@ export class OSDiretaInternaController {
       body.aprovado,
       body.observacoes,
       prazosItens,
+      body.item_ids,
     );
 
     return OrdemServicoResponseDto.fromDomain(resultado);

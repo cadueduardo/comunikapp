@@ -43,6 +43,7 @@ export async function POST(
     // Criar FormData para enviar ao backend
     const backendFormData = new FormData();
     backendFormData.append('arquivo', arquivo);
+    backendFormData.append('nome_original', arquivo.name);
     
     const response = await fetch(`${API_BASE_URL}/arte-aprovacao/versoes/${versaoId}/arquivos/upload`, {
       method: 'POST',

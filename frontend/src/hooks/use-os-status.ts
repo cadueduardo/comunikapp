@@ -1,17 +1,21 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import {
+  arteProdutoPendente,
+  produtoRequerArte,
+  STATUS_ARTE_LABEL,
+} from '@/lib/arte-produto-utils';
 
-interface ArteVersao {
-  id: string;
-  status: string;
-  aprovado_por_cliente: boolean;
-  liberado_para_pcp: boolean;
-  versao: string;
+interface ItemArteContexto {
+  item_id: string;
+  produto_nome: string;
+  responsabilidade_arte: string;
+  status_arte: string;
 }
 
 /**
- * Hook para buscar o status dinâmico da OS baseado nas versões de arte
+ * Status dinâmico da OS com base nos produtos que de fato exigem arte.
  */
 export function useOsStatus(osId: string) {
   const [statusTexto, setStatusTexto] = useState<string>('Carregando...');
@@ -33,65 +37,54 @@ export function useOsStatus(osId: string) {
           return;
         }
 
-        // Buscar versões de arte da OS
-        const response = await fetch(`/api/arte-aprovacao/versoes/os/${osId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
+        const response = await fetch(
+          `/api/arte-aprovacao/os/${osId}/itens-contexto`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
           },
-        });
+        );
 
         if (!response.ok) {
-          throw new Error('Erro ao buscar versões de arte');
+          throw new Error('Erro ao buscar contexto de arte');
         }
 
-        const versoes: ArteVersao[] = await response.json();
+        const json = await response.json();
+        const itens: ItemArteContexto[] = json.data || [];
 
-        // Analisar versões para determinar status
-        let status = 'Em análise de materiais e aguardando aprovação final.';
+        const comArte = itens.filter((i) =>
+          produtoRequerArte(i.responsabilidade_arte, i.status_arte),
+        );
 
-        if (versoes.length === 0) {
-          status = 'Aguardando upload de arte.';
-        } else {
-          // Verificar se há arte aprovada pelo designer mas não pelo cliente
-          const arteAprovadaDesigner = versoes.some(
-            v => v.status === 'APROVADA' && !v.aprovado_por_cliente && !v.liberado_para_pcp
+        if (comArte.length === 0) {
+          setStatusTexto(
+            'Em análise de materiais e aguardando aprovação final.',
           );
-
-          if (arteAprovadaDesigner) {
-            status = 'Arte aprovada pelo designer, aguardando liberação para PCP.';
-          } else {
-            // Verificar se há arte liberada para PCP
-            const arteLiberadaPCP = versoes.some(v => v.liberado_para_pcp);
-
-            if (arteLiberadaPCP) {
-              status = 'Arte liberada para PCP, pronto para produção.';
-            } else {
-              // Verificar se há arte enviada ao cliente
-              const arteEnviadaCliente = versoes.some(v => v.status === 'ENVIADA_CLIENTE');
-
-              if (arteEnviadaCliente) {
-                status = 'Aguardando aprovação do cliente.';
-              } else {
-                // Verificar se há arte em revisão
-                const arteRevisao = versoes.some(v => v.status === 'REVISAO_SOLICITADA');
-
-                if (arteRevisao) {
-                  status = 'Cliente solicitou revisão de arte, aguardando correções.';
-                } else {
-                  // Verificar se há arte em rascunho
-                  const arteRascunho = versoes.some(v => v.status === 'RASCUNHO');
-
-                  if (arteRascunho) {
-                    status = 'Arte em desenvolvimento, aguardando envio ao cliente.';
-                  }
-                }
-              }
-            }
-          }
+          return;
         }
 
-        setStatusTexto(status);
+        const pendentes = comArte.filter((i) =>
+          arteProdutoPendente(i.status_arte),
+        );
+
+        if (pendentes.length === 0) {
+          setStatusTexto('Arte concluída em todos os produtos que exigem arte.');
+          return;
+        }
+
+        if (pendentes.length === 1) {
+          const p = pendentes[0];
+          setStatusTexto(
+            `Arte pendente — ${p.produto_nome}: ${STATUS_ARTE_LABEL[p.status_arte] || p.status_arte}.`,
+          );
+          return;
+        }
+
+        setStatusTexto(
+          `Arte pendente em ${pendentes.length} de ${comArte.length} produto(s).`,
+        );
       } catch (error) {
         console.error('Erro ao buscar status da OS:', error);
         setStatusTexto('Em análise de materiais e aguardando aprovação final.');
@@ -100,14 +93,8 @@ export function useOsStatus(osId: string) {
       }
     };
 
-    buscarStatus();
+    void buscarStatus();
   }, [osId]);
 
   return { statusTexto, loading };
 }
-
-
-
-
-
-

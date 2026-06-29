@@ -815,6 +815,16 @@ export class TransformacaoV2Service {
       arquivo_geometria_url: produto.arquivo_geometria_url ?? null,
       arquivo_geometria_metadados:
         produto.arquivo_geometria_metadados ?? null,
+      responsabilidade_arte:
+        produto.responsabilidade_arte ?? 'NAO_APLICAVEL',
+      politica_cobranca_arte:
+        produto.politica_cobranca_arte ?? 'NAO_APLICAVEL',
+      finalidade_anexo: produto.finalidade_anexo ?? null,
+      complexidade_arte: produto.complexidade_arte ?? null,
+      arte_custo_automatico: Boolean(produto.arte_custo_automatico),
+      arte_referencia_servico_id: produto.arte_referencia_servico_id ?? null,
+      arte_horas_calculadas: produto.arte_horas_calculadas ?? null,
+      arte_custo_calculado: produto.arte_custo_calculado ?? null,
       observacoes: produto.observacoes,
       ordem: index,
       custo_total_producao: toNumber(produto.custo_total_producao, 2),
@@ -941,6 +951,12 @@ export class TransformacaoV2Service {
               tempo_horas: tempoHoras,
               custo_hora: custoHora,
               custo_total: custoTotal,
+              descricao: servico.descricao ?? null,
+              origem: servico.origem ?? 'MANUAL',
+              exibir_no_pdf:
+                servico.exibir_no_pdf !== undefined
+                  ? Boolean(servico.exibir_no_pdf)
+                  : true,
             };
           }),
       };
@@ -1124,6 +1140,23 @@ export class TransformacaoV2Service {
         geometria_origem: produto.geometria_origem,
         arquivo_geometria_url: produto.arquivo_geometria_url,
         arquivo_geometria_metadados: produto.arquivo_geometria_metadados,
+        responsabilidade_arte:
+          produto.responsabilidade_arte ?? 'NAO_APLICAVEL',
+        politica_cobranca_arte:
+          produto.politica_cobranca_arte ?? 'NAO_APLICAVEL',
+        finalidade_anexo: produto.finalidade_anexo ?? null,
+        complexidade_arte: produto.complexidade_arte ?? null,
+        arte_custo_automatico: Boolean(produto.arte_custo_automatico),
+        arte_referencia_servico_id:
+          produto.arte_referencia_servico_id ?? null,
+        arte_horas_calculadas:
+          produto.arte_horas_calculadas != null
+            ? Number(produto.arte_horas_calculadas)
+            : null,
+        arte_custo_calculado:
+          produto.arte_custo_calculado != null
+            ? Number(produto.arte_custo_calculado)
+            : null,
         preco_unitario: produto.preco_unitario || 0,
         preco_total: produto.preco_total || 0,
         margem_lucro: produto.margem_lucro || 0,
@@ -1214,8 +1247,12 @@ export class TransformacaoV2Service {
             servico_id: servico.servico_id,
             nome: servico.nome,
             tempo_horas: servico.tempo_horas,
+            horas_trabalhadas: servico.tempo_horas,
             custo_hora: servico.custo_hora || 0,
             custo_total: servico.custo_total || 0,
+            origem: servico.origem ?? 'MANUAL',
+            exibir_no_pdf: servico.exibir_no_pdf,
+            descricao: servico.descricao ?? null,
           })) || [],
 
         custos_indiretos:
@@ -1256,6 +1293,16 @@ export class TransformacaoV2Service {
       geometria_origem: produto?.geometria_origem ?? null,
       arquivo_geometria_url: produto?.arquivo_geometria_url ?? null,
       arquivo_geometria_metadados: produto?.arquivo_geometria_metadados ?? null,
+      responsabilidade_arte:
+        produto?.responsabilidade_arte ?? 'NAO_APLICAVEL',
+      politica_cobranca_arte:
+        produto?.politica_cobranca_arte ?? 'NAO_APLICAVEL',
+      finalidade_anexo: produto?.finalidade_anexo ?? null,
+      complexidade_arte: produto?.complexidade_arte ?? null,
+      arte_custo_automatico: Boolean(produto?.arte_custo_automatico),
+      arte_referencia_servico_id: produto?.arte_referencia_servico_id ?? null,
+      arte_horas_calculadas: produto?.arte_horas_calculadas ?? null,
+      arte_custo_calculado: produto?.arte_custo_calculado ?? null,
       observacoes: produto?.observacoes,
       custo_total_producao: produto?.custo_total_producao,
       preco_unitario: produto?.preco_unitario,
@@ -1324,6 +1371,9 @@ export class TransformacaoV2Service {
           tempo_horas: servico.tempo_horas ?? servico.horas_trabalhadas,
           custo_hora: servico.custo_hora,
           custo_total: servico.custo_total,
+          origem: servico.origem ?? 'MANUAL',
+          exibir_no_pdf: servico.exibir_no_pdf,
+          descricao: servico.descricao ?? null,
         })),
       custos_indiretos: (produto?.custos_indiretos || [])
         .filter((c: any) => c?.custo_id)

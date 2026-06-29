@@ -112,7 +112,7 @@ export interface ProdutoOrcamento {
   area?: number;
   perimetro_produto?: number;
   unidade_geometria?: 'mm' | 'cm' | 'm';
-  geometria_origem?: 'MANUAL' | 'IMAGEM' | 'DXF';
+  geometria_origem?: 'MANUAL' | 'IMAGEM' | 'PDF' | 'DXF';
   arquivo_geometria_url?: string;
   arquivo_geometria_metadados?: string;
   insumos: ItemInsumo[];

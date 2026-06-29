@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { normalizeArteMensagemSocketPayload } from '@/lib/arte-mensagem-socket';
 
 const resolveSocketBaseUrl = () => {
   const configuredUrl = (process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
@@ -169,8 +170,9 @@ export const useArteWebSocket = (
 
     // Eventos específicos do arte
     socket.on('nova_mensagem_arte', (data) => {
-      console.log('📨 Nova mensagem recebida:', data);
-      setNovaMensagem(data);
+      const normalized = normalizeArteMensagemSocketPayload(data);
+      console.log('📨 Nova mensagem recebida:', normalized);
+      setNovaMensagem(normalized);
       
       // Limpar mensagem após um tempo para permitir nova notificação
       setTimeout(() => {

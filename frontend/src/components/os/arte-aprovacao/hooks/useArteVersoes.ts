@@ -8,7 +8,7 @@ interface UseArteVersoesReturn {
   createVersao: (data: CreateArteVersaoRequest) => Promise<ArteVersao>;
   updateVersao: (id: string, data: UpdateArteVersaoRequest) => Promise<ArteVersao>;
   deleteVersao: (id: string) => Promise<void>;
-  refreshVersoes: () => Promise<void>;
+  refreshVersoes: (silencioso?: boolean) => Promise<void>;
 }
 
 export function useArteVersoes(osId: string): UseArteVersoesReturn {
@@ -16,11 +16,13 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchVersoes = useCallback(async () => {
+  const fetchVersoes = useCallback(async (options?: { silencioso?: boolean }) => {
     if (!osId) return;
     
     try {
-      setLoading(true);
+      if (!options?.silencioso) {
+        setLoading(true);
+      }
       setError(null);
       
       const token = localStorage.getItem('access_token');
@@ -37,7 +39,12 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
       }
 
       const data = await response.json();
-      setVersoes(data);
+      const lista = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.data)
+          ? data.data
+          : [];
+      setVersoes(lista);
     } catch (err) {
       console.error('Erro ao carregar versões:', err);
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
@@ -174,6 +181,11 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
     }
   };
 
+  const refreshVersoes = useCallback(
+    (silencioso?: boolean) => fetchVersoes({ silencioso }),
+    [fetchVersoes],
+  );
+
   useEffect(() => {
     fetchVersoes();
   }, [fetchVersoes]);
@@ -185,6 +197,6 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
     createVersao,
     updateVersao,
     deleteVersao,
-    refreshVersoes: fetchVersoes,
+    refreshVersoes,
   };
 }

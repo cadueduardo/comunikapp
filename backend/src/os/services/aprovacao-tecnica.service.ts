@@ -14,6 +14,16 @@ import {
 } from '../dto/aprovacao-tecnica.dto';
 import { ValidacaoEstoqueService } from '../../orcamentos-v2/services/validacao-estoque.service';
 import { OSService } from './os.service';
+import {
+  computeArteResumoGrid,
+  computeLiberacaoResumoGrid,
+  getMotivosBloqueioPcp,
+  isArteOkParaPcp,
+  isElegivelPcp,
+  labelStatusArte,
+  produtoRequerArte,
+  resolveIdsAlvoLiberacao,
+} from '../utils/os-liberacao-pcp.util';
 
 @Injectable()
 export class AprovacaoTecnicaService {
@@ -67,40 +77,32 @@ export class AprovacaoTecnicaService {
       alertas.push('Erro ao validar estoque');
     }
 
-    // 2. Validar se arte foi anexada / aprovada pelo cliente.
-    //
-    // Leitura B (decisão de 2026-05-26, Fase 7.A): a imagem/DXF anexada ao
-    // produto no orçamento (`ItemOS.arquivo_geometria_url`, propagada da
-    // Fase 3) **conta como arte** para fins desse critério. Isso evita o
-    // duplo trabalho de subir a imagem no orçamento e depois subir uma
-    // `ArteVersao` separada para a OS quando o trabalho é simples (banner,
-    // adesivo, recorte). O módulo `Arte & Aprovação` continua disponível
-    // para casos que precisam de revisão profissional com link público.
-    //
-    // NÃO bloqueia aprovação — serve apenas como alerta, para que o
-    // aprovador decida sob sua responsabilidade.
+    // Arte por item: OK quando todo produto que exige arte está aprovado/recebido
     try {
-      const [versoesArte, itensComGeometria] = await Promise.all([
-        this.prisma.arteVersao.count({
-          where: {
-            os_id: osId,
-            deletado: false,
-          },
-        }),
-        this.prisma.itemOS.count({
-          where: {
-            os_id: osId,
-            arquivo_geometria_url: { not: null },
-          },
-        }),
-      ]);
-      arte_anexada = versoesArte > 0 || itensComGeometria > 0;
+      const itensArte = await this.prisma.itemOS.findMany({
+        where: { os_id: osId },
+        select: {
+          produto_servico: true,
+          responsabilidade_arte: true,
+          status_arte: true,
+        },
+      });
+      const pendentesArte = itensArte.filter(
+        (item) =>
+          produtoRequerArte(item.responsabilidade_arte, item.status_arte) &&
+          !isArteOkParaPcp(item.responsabilidade_arte, item.status_arte),
+      );
+      arte_anexada = pendentesArte.length === 0;
       if (!arte_anexada) {
-        alertas.push('Nenhuma arte ou imagem de geometria anexada a esta OS');
+        for (const item of pendentesArte) {
+          alertas.push(
+            `Arte pendente em "${item.produto_servico}" (${labelStatusArte(item.status_arte)})`,
+          );
+        }
       }
     } catch (error) {
       arte_anexada = false;
-      alertas.push('Erro ao validar arte anexada');
+      alertas.push('Erro ao validar arte por produto');
     }
 
     // 3. Validar dados completos
@@ -221,24 +223,65 @@ export class AprovacaoTecnicaService {
     // - Fluxo retroativo (qualquer outro status): aprovacao apenas registra
     //   a decisao mas MANTEM o status operacional atual.
     // - Rejeicao sempre marca status como REJEITADA.
-    const statusFluxoPadrao = ['AGUARDANDO_APROVACAO_TECNICA', 'FILA'];
+    const statusFluxoPadrao = [
+      'AGUARDANDO_APROVACAO_TECNICA',
+      'FILA',
+      'PARCIALMENTE_LIBERADA',
+    ];
     const eFluxoPadrao = statusFluxoPadrao.includes(os.status);
 
-    let statusNovo: string;
-    if (dto.aprovado) {
-      statusNovo = eFluxoPadrao ? 'LIBERADA_PARA_PCP' : os.status;
-    } else {
-      statusNovo = 'REJEITADA';
+    const itensOS = await this.prisma.itemOS.findMany({
+      where: { os_id: osId },
+    });
+    const todosIds = itensOS.map((i) => i.id);
+    const idsPrazos = (dto.prazos_itens ?? []).map((p) => p.item_id);
+    const idsAlvo = resolveIdsAlvoLiberacao(
+      todosIds,
+      dto.item_ids,
+      idsPrazos,
+    );
+    const eLiberacaoParcial =
+      dto.aprovado &&
+      eFluxoPadrao &&
+      idsAlvo.length > 0 &&
+      idsAlvo.length < itensOS.length;
+
+    if (dto.aprovado && eFluxoPadrao) {
+      for (const itemId of idsAlvo) {
+        const item = itensOS.find((i) => i.id === itemId);
+        if (!item) {
+          throw new BadRequestException(`Item ${itemId} não pertence à OS`);
+        }
+        if (
+          (item.status_liberacao_pcp || 'PENDENTE').toUpperCase() === 'LIBERADO'
+        ) {
+          continue;
+        }
+        const motivos = getMotivosBloqueioPcp(
+          {
+            id: item.id,
+            produto_servico: item.produto_servico,
+            data_prazo_produto: item.data_prazo_produto,
+            status_liberacao_pcp: item.status_liberacao_pcp,
+            responsabilidade_arte: item.responsabilidade_arte,
+            status_arte: item.status_arte,
+            materiais_disponivel: item.materiais_disponivel,
+          },
+          os.materiais_disponivel,
+        );
+        if (motivos.length > 0) {
+          throw new BadRequestException(
+            `Produto "${item.produto_servico}" não elegível: ${motivos.map((m) => m.mensagem).join('; ')}`,
+          );
+        }
+      }
     }
 
-    // Prazos por item da OS, definidos no modal de aprovação. Em fluxo
-    // padrão TODOS os itens precisam ter data_prazo_produto (cobre o caso
-    // histórico em que OS aprovadas sem prazo travavam o PCP). Em fluxo
-    // retroativo o array é opcional.
     const prazosPorItem = await this.validarEPrepararPrazosItens(
       osId,
       dto.prazos_itens || [],
       eFluxoPadrao && dto.aprovado,
+      idsAlvo.length < itensOS.length ? idsAlvo : dto.item_ids,
     );
 
     // Atualiza prazo guarda-chuva da OS, se for o caso. Regra:
@@ -250,11 +293,26 @@ export class AprovacaoTecnicaService {
       prazosPorItem,
     );
 
+    let statusNovo: string;
+    let aprovacaoStatus: string;
+    if (!dto.aprovado) {
+      statusNovo = 'REJEITADA';
+      aprovacaoStatus = 'REJEITADA';
+    } else if (eFluxoPadrao) {
+      statusNovo = eLiberacaoParcial
+        ? 'PARCIALMENTE_LIBERADA'
+        : 'LIBERADA_PARA_PCP';
+      aprovacaoStatus = eLiberacaoParcial ? 'PENDENTE' : 'APROVADA';
+    } else {
+      statusNovo = os.status;
+      aprovacaoStatus = 'APROVADA';
+    }
+
     const osAtualizada = await this.prisma.ordemServico.update({
       where: { id: osId },
       data: {
         status: statusNovo,
-        aprovacao_tecnica_status: dto.aprovado ? 'APROVADA' : 'REJEITADA',
+        aprovacao_tecnica_status: aprovacaoStatus,
         aprovacao_tecnica_por: usuarioId,
         aprovacao_tecnica_em: new Date(),
         aprovacao_tecnica_obs: dto.observacoes,
@@ -291,21 +349,48 @@ export class AprovacaoTecnicaService {
         osId,
         os.loja_id,
         usuarioId,
+        idsAlvo.length < itensOS.length ? idsAlvo : undefined,
       );
+
+      const liberados = await this.prisma.itemOS.count({
+        where: { os_id: osId, status_liberacao_pcp: 'LIBERADO' },
+      });
+      const total = itensOS.length;
+      if (liberados >= total && total > 0) {
+        await this.prisma.ordemServico.update({
+          where: { id: osId },
+          data: {
+            status: 'LIBERADA_PARA_PCP',
+            aprovacao_tecnica_status: 'APROVADA',
+          },
+        });
+      } else if (liberados > 0 && liberados < total) {
+        await this.prisma.ordemServico.update({
+          where: { id: osId },
+          data: {
+            status: 'PARCIALMENTE_LIBERADA',
+            aprovacao_tecnica_status: 'PENDENTE',
+          },
+        });
+      }
     }
 
     // TODO: Enviar notificação se rejeitada
 
+    const osFinal = await this.prisma.ordemServico.findUnique({
+      where: { id: osId },
+    });
+
     return {
-      id: osAtualizada.id,
-      status: osAtualizada.status,
-      aprovacao_tecnica_status: osAtualizada.aprovacao_tecnica_status,
-      aprovacao_tecnica_por: osAtualizada.aprovacao_tecnica_por,
-      aprovacao_tecnica_em: osAtualizada.aprovacao_tecnica_em,
-      aprovacao_tecnica_obs: osAtualizada.aprovacao_tecnica_obs,
-      data_instalacao_agendada: osAtualizada.data_instalacao_agendada,
-      observacoes_instalacao: osAtualizada.observacoes_instalacao,
-      data_prazo: osAtualizada.data_prazo,
+      id: (osFinal ?? osAtualizada).id,
+      status: (osFinal ?? osAtualizada).status,
+      aprovacao_tecnica_status: (osFinal ?? osAtualizada).aprovacao_tecnica_status,
+      aprovacao_tecnica_por: (osFinal ?? osAtualizada).aprovacao_tecnica_por,
+      aprovacao_tecnica_em: (osFinal ?? osAtualizada).aprovacao_tecnica_em,
+      aprovacao_tecnica_obs: (osFinal ?? osAtualizada).aprovacao_tecnica_obs,
+      data_instalacao_agendada: (osFinal ?? osAtualizada).data_instalacao_agendada,
+      observacoes_instalacao: (osFinal ?? osAtualizada).observacoes_instalacao,
+      data_prazo: (osFinal ?? osAtualizada).data_prazo,
       validacoes,
     };
   }
@@ -397,6 +482,9 @@ export class AprovacaoTecnicaService {
             data_inicio_producao: true,
             data_prazo_produto: true,
             status_liberacao_pcp: true,
+            responsabilidade_arte: true,
+            status_arte: true,
+            materiais_disponivel: true,
           },
         },
       },
@@ -418,13 +506,29 @@ export class AprovacaoTecnicaService {
       data_instalacao_agendada: os.data_instalacao_agendada,
       observacoes_instalacao: os.observacoes_instalacao,
       data_prazo: os.data_prazo,
-      itens: os.itens.map((it) => ({
-        item_id: it.id,
-        produto_servico: it.produto_servico,
-        data_inicio_producao: it.data_inicio_producao,
-        data_prazo_produto: it.data_prazo_produto,
-        status_liberacao_pcp: it.status_liberacao_pcp,
-      })),
+      itens: os.itens.map((it) => {
+        const ctx = {
+          id: it.id,
+          produto_servico: it.produto_servico,
+          data_prazo_produto: it.data_prazo_produto,
+          status_liberacao_pcp: it.status_liberacao_pcp,
+          responsabilidade_arte: it.responsabilidade_arte,
+          status_arte: it.status_arte,
+          materiais_disponivel: it.materiais_disponivel,
+        };
+        const motivos = getMotivosBloqueioPcp(ctx, os.materiais_disponivel);
+        return {
+          item_id: it.id,
+          produto_servico: it.produto_servico,
+          data_inicio_producao: it.data_inicio_producao,
+          data_prazo_produto: it.data_prazo_produto,
+          status_liberacao_pcp: it.status_liberacao_pcp,
+          responsabilidade_arte: it.responsabilidade_arte,
+          status_arte: it.status_arte,
+          elegivel_pcp: isElegivelPcp(ctx, os.materiais_disponivel),
+          motivos_bloqueio: motivos.map((m) => m.mensagem),
+        };
+      }),
       validacoes,
     };
   }
@@ -449,6 +553,7 @@ export class AprovacaoTecnicaService {
       data_prazo_produto?: string;
     }>,
     exigirCompleto: boolean,
+    apenasItemIds?: string[],
   ): Promise<
     Array<{
       item_id: string;
@@ -466,6 +571,9 @@ export class AprovacaoTecnicaService {
     if (exigirCompleto) {
       const semPrazo: string[] = [];
       for (const item of itensDaOS) {
+        if (apenasItemIds && !apenasItemIds.includes(item.id)) {
+          continue;
+        }
         const p = indexPrazos.get(item.id);
         if (!p?.data_prazo_produto) {
           semPrazo.push(item.produto_servico);

@@ -6,6 +6,7 @@ import { DashboardKPIs } from '@/components/home-operacional/DashboardKPIs';
 import { FluxoTrabalho } from '@/components/home-operacional/FluxoTrabalho';
 import { OnboardingChecklist } from '@/components/home-operacional/OnboardingChecklist';
 import { NovidadesEntregaInstalacaoModal } from '@/components/home-operacional/NovidadesEntregaInstalacaoModal';
+import { NovidadesArteAprovacaoModal } from '@/components/home-operacional/NovidadesArteAprovacaoModal';
 import { ResumoFinanceiroSimples } from '@/components/home-operacional/ResumoFinanceiroSimples';
 import { SystemStateBanner } from '@/components/home-operacional/SystemStateBanner';
 
@@ -26,6 +27,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-4">
       <NovidadesEntregaInstalacaoModal />
+      <NovidadesArteAprovacaoModal />
       <SystemStateBanner />
 
       <header>

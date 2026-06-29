@@ -385,7 +385,12 @@ export function NotificacoesDropdown() {
                               onClick={() => {
                                 // Navegar para OS se for notificação de arte & aprovação
                                 if (notificacao.dados_extras?.os_id) {
-                                  window.location.href = `/os/${notificacao.dados_extras.os_id}?tab=arte-aprovacao`;
+                                  const itemId = notificacao.dados_extras?.item_id as
+                                    | string
+                                    | undefined;
+                                  window.location.href = itemId
+                                    ? `/arte/trabalho/${notificacao.dados_extras.os_id}/${itemId}`
+                                    : `/arte`;
                                 } else if (notificacao.orcamento_id) {
                                   window.location.href = `/orcamentos-v2/novo?id=${notificacao.orcamento_id}`;
                                 }
@@ -393,7 +398,7 @@ export function NotificacoesDropdown() {
                               }}
                               className="text-xs"
                             >
-                              {notificacao.dados_extras?.os_id ? 'Ver OS' : 'Ver Orçamento'}
+                              {notificacao.dados_extras?.os_id ? 'Abrir arte' : 'Ver Orçamento'}
                             </Button>
                           </div>
                         )}

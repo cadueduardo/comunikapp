@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import { 
   Calendar, 
-  Clock, 
+  Clock,
   AlertTriangle, 
   CheckCircle, 
   Edit3,
@@ -35,11 +35,11 @@ import {
   X,
   Play,
   Package,
-  Eye,
-  Image
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
+import { ArteProdutoResumo } from '@/components/os/arte-aprovacao/components/ArteProdutoResumo';
+import { produtoRequerArte } from '@/lib/arte-produto-utils';
 
 interface PrazoProdutoComponentProps {
   osId: string;
@@ -50,6 +50,10 @@ interface PrazoProdutoComponentProps {
   dataInicio?: Date;
   prioridade?: string;
   statusLiberacao?: string;
+  responsabilidadeArte?: string | null;
+  statusArte?: string | null;
+  dataPrazoArte?: string | null;
+  designerAtribuido?: { id: string; nome: string } | null;
   prazoFinalOS?: Date;
   onPrazoChange?: () => void;
   readonly?: boolean;
@@ -64,6 +68,10 @@ export function PrazoProdutoComponent({
   dataInicio,
   prioridade = 'NORMAL',
   statusLiberacao = 'PENDENTE',
+  responsabilidadeArte,
+  statusArte,
+  dataPrazoArte: dataPrazoArteInicial,
+  designerAtribuido,
   prazoFinalOS,
   onPrazoChange,
   readonly = false 
@@ -73,7 +81,11 @@ export function PrazoProdutoComponent({
   const [showRetroactiveModal, setShowRetroactiveModal] = useState(false);
   const [pendingData, setPendingData] = useState<any>(null);
   const [dadosProduto, setDadosProduto] = useState<any>(null);
-  const [dadosArteAprovada, setDadosArteAprovada] = useState<any>(null);
+  const [dataPrazoArte, setDataPrazoArte] = useState<string | null | undefined>(
+    dataPrazoArteInicial,
+  );
+
+  const requerArte = produtoRequerArte(responsabilidadeArte, statusArte);
   
   // Formulário
   const [formData, setFormData] = useState({
@@ -98,11 +110,14 @@ export function PrazoProdutoComponent({
     }
   }, [isEditing, dataPrazoProduto, dataInicio, prioridade]);
 
-  // Buscar dados detalhados do produto do orçamento e arte aprovada
+  useEffect(() => {
+    setDataPrazoArte(dataPrazoArteInicial);
+  }, [dataPrazoArteInicial]);
+
+  // Buscar dados detalhados do produto do orçamento
   useEffect(() => {
     if (produtoId && osId) {
       carregarDadosProduto();
-      carregarDadosArteAprovada();
     }
   }, [produtoId, osId]);
 
@@ -140,37 +155,6 @@ export function PrazoProdutoComponent({
           { nome: 'Ponteira Para Banner 5/8 Branca - 1000pçs', quantidade: 50, unidade: 'UNID' }
         ]
       });
-    }
-  };
-
-  const carregarDadosArteAprovada = async () => {
-    try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`/api/arte-aprovacao/versoes/os/${osId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result && Array.isArray(result)) {
-          // Filtrar versões aprovadas para este produto específico
-          const versaoAprovada = result.find((versao: any) => 
-            versao.status === 'APROVADA' && 
-            (versao.servico_id === produtoId || versao.servico_id === 'servico-principal')
-          );
-          
-          if (versaoAprovada) {
-            setDadosArteAprovada(versaoAprovada);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Erro ao carregar dados da arte aprovada:', error);
-      // Não definir dados mockados - se não há arte, deixar como null
-      setDadosArteAprovada(null);
     }
   };
 
@@ -289,84 +273,6 @@ export function PrazoProdutoComponent({
     }
   };
 
-  const abrirArteEmNovaAba = async () => {
-    if (!dadosArteAprovada || !dadosArteAprovada.arquivos || dadosArteAprovada.arquivos.length === 0) {
-      toast.error('Arte não encontrada');
-      return;
-    }
-
-    try {
-      const primeiroArquivo = dadosArteAprovada.arquivos[0];
-      const token = localStorage.getItem('access_token');
-      
-      // Extrair filename da URL do arquivo
-      const filename = primeiroArquivo.nome_arquivo || primeiroArquivo.url_arquivo.split('/').pop();
-      
-      // Buscar o arquivo com autenticação
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/arte-aprovacao/versoes/${dadosArteAprovada.id}/arquivos/download/${filename}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        // Se a resposta for o arquivo direto, criar blob e abrir
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        
-        // Limpar o blob URL após um tempo
-        setTimeout(() => window.URL.revokeObjectURL(url), 100);
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Erro ao carregar arquivo:', errorData);
-        toast.error('Erro ao carregar arquivo da arte');
-      }
-    } catch (error) {
-      console.error('Erro ao abrir arte:', error);
-      toast.error('Erro ao abrir arquivo da arte');
-    }
-  };
-
-  const liberarParaPCP = async () => {
-    if (!dataPrazoProduto) {
-      toast.error('Defina o prazo do produto antes de liberar para o PCP');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      const token = localStorage.getItem('access_token');
-      
-      const response = await fetch(`/api/os/produtos/${osId}/item/${itemId}/liberar-pcp`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          motivo: 'Liberação para produção'
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        onPrazoChange?.();
-        toast.success('Produto liberado para PCP com sucesso!');
-        solicitarAtualizacaoBadgesSidebar();
-      } else {
-        toast.error(result.message || 'Erro ao liberar produto para PCP');
-      }
-    } catch (error) {
-      console.error('Erro ao liberar produto para PCP:', error);
-      toast.error('Erro ao liberar produto para PCP');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const getStatusIcon = () => {
     switch (statusLiberacao) {
       case 'LIBERADO':
@@ -429,107 +335,6 @@ export function PrazoProdutoComponent({
     }
     
     return detalhamento || 'Detalhamento técnico não disponível.';
-  };
-
-  // Função para obter status da arte com dados reais
-  const getStatusArte = () => {
-    if (!dadosArteAprovada) {
-      return (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Clock className="h-4 w-4 text-yellow-500" />
-            <span className="text-sm text-gray-600">
-              Aguardando arte
-            </span>
-          </div>
-          <span className="text-sm font-medium text-yellow-600">
-            Pendente
-          </span>
-        </div>
-      );
-    }
-    
-    // Verificar se realmente tem arquivos
-    const temArquivo = dadosArteAprovada.arquivos && dadosArteAprovada.arquivos.length > 0;
-    if (!temArquivo) {
-      return (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Clock className="h-4 w-4 text-yellow-500" />
-            <span className="text-sm text-gray-600">
-              Aguardando arquivos
-            </span>
-          </div>
-          <span className="text-sm font-medium text-yellow-600">
-            Pendente
-          </span>
-        </div>
-      );
-    }
-    const primeiroArquivo = temArquivo ? dadosArteAprovada.arquivos[0] : null;
-
-    return (
-      <div className="space-y-3">
-        {/* Thumbnail e informações da arte */}
-        <div className="flex items-start space-x-3">
-          {/* Thumbnail */}
-          {primeiroArquivo && primeiroArquivo.url_thumbnail ? (
-            <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
-              <img 
-                src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${primeiroArquivo.url_thumbnail}`}
-                alt="Thumbnail da arte"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.parentElement!.innerHTML = '<div class="flex items-center justify-center h-full"><Image class="h-6 w-6 text-gray-400" /></div>';
-                }}
-              />
-            </div>
-          ) : (
-            <div className="w-16 h-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center flex-shrink-0">
-              <Image className="h-6 w-6 text-gray-400" />
-            </div>
-          )}
-          
-          {/* Informações da arte */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium text-gray-900 truncate">
-                  {dadosArteAprovada.versao} - {produtoNome}
-                </div>
-                <div className="text-xs text-gray-500">
-                  Aprovada em {new Date(dadosArteAprovada.data_criacao).toLocaleDateString('pt-BR')}
-                </div>
-              </div>
-              <Button
-                onClick={abrirArteEmNovaAba}
-                variant="outline"
-                size="sm"
-                className="ml-2 flex-shrink-0"
-              >
-                <Eye className="h-3 w-3 mr-1" />
-                Ver Arte
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Status */}
-        <div className="flex items-center">
-          <div className="flex items-center space-x-2">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            <span className="text-sm text-gray-600">
-              {dadosArteAprovada.liberado_para_pcp 
-                ? 'Liberada pelo designer e pronta para PCP' 
-                : dadosArteAprovada.aprovado_por_cliente
-                  ? 'Aprovada pelo cliente - Aguardando liberação do designer'
-                  : 'Aprovada pelo designer e pronta para liberação'}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
   };
 
   // Função para obter materiais baseados nos dados reais do produto
@@ -726,30 +531,23 @@ export function PrazoProdutoComponent({
             {getMateriaisProduto()}
           </div>
 
-          {/* Status da Arte */}
-          <div className="border-t border-gray-100 pt-3">
-            <h5 className="text-sm font-medium text-gray-900 mb-2">Status da Arte</h5>
-            <div className="space-y-2">
-              {getStatusArte()}
-            </div>
-          </div>
-
-          {/* Botão de liberar para PCP - Mostrar se arte aprovada (com ou sem cliente) ou já liberada */}
-          {dataPrazoProduto && statusLiberacao === 'PENDENTE' && !readonly && dadosArteAprovada && 
-           (dadosArteAprovada.status === 'APROVADA' || dadosArteAprovada.liberado_para_pcp) && (
+          {/* Arte — somente produtos que exigem */}
+          {requerArte && (
             <div className="border-t border-gray-100 pt-3">
-              <Button
-                onClick={liberarParaPCP}
-                disabled={isLoading}
-                size="sm"
-                className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700"
-                title="Liberar para PCP"
-              >
-                <CheckCircle className="h-4 w-4" />
-                <span>Liberar para PCP</span>
-              </Button>
+              <ArteProdutoResumo
+                osId={osId}
+                itemId={itemId}
+                produtoNome={produtoNome}
+                responsabilidadeArte={responsabilidadeArte}
+                statusArte={statusArte}
+                dataPrazoArte={dataPrazoArte}
+                designerAtribuido={designerAtribuido}
+                onPrazoAtualizado={setDataPrazoArte}
+                readonly={readonly}
+              />
             </div>
           )}
+
         </div>
       )}
 

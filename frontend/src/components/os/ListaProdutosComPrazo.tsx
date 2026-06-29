@@ -7,17 +7,26 @@
 
 import React, { useState, useEffect } from 'react';
 import { PrazoProdutoComponent } from './PrazoProdutoComponent';
-import { AlertTriangle, Package, CheckCircle } from 'lucide-react';
+import { AlertTriangle, Package, CheckCircle, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { produtoRequerArte } from '@/lib/arte-produto-utils';
 import { toast } from 'sonner';
 
 interface Produto {
   id: string;
+  item_id?: string;
+  produto_id?: string;
   produto_servico: string;
   quantidade: number;
   data_inicio_producao?: Date;
   data_prazo_produto?: Date;
   prioridade_produto?: string;
   status_liberacao_pcp?: string;
+  responsabilidade_arte?: string;
+  status_arte?: string;
+  data_prazo_arte?: string | null;
+  designer_atribuido?: { id: string; nome: string } | null;
 }
 
 interface ListaProdutosComPrazoProps {
@@ -97,6 +106,10 @@ export function ListaProdutosComPrazo({
     );
   }
 
+  const temProdutoComArte = produtos.some((p) =>
+    produtoRequerArte(p.responsabilidade_arte, p.status_arte),
+  );
+
   return (
     <div className="space-y-4">
       {/* Resumo */}
@@ -119,6 +132,14 @@ export function ListaProdutosComPrazo({
             <span className="font-medium text-blue-600">{resumo.liberados_pcp}</span>
           </div>
         </div>
+        {temProdutoComArte && (
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/arte">
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Fila de arte
+            </Link>
+          </Button>
+        )}
       </div>
 
       {/* Disclaimer se houver produtos sem prazo */}
@@ -144,13 +165,17 @@ export function ListaProdutosComPrazo({
           <PrazoProdutoComponent
             key={produto.item_id || `produto-${index}-${produto.produto_servico}`}
             osId={osId}
-            itemId={produto.item_id} // ID do item da OS
-            produtoId={produto.produto_id || produto.item_id} // Usar produto_id se disponível (ID original do orçamento)
+            itemId={produto.item_id!}
+            produtoId={produto.produto_id || produto.item_id}
             produtoNome={produto.produto_servico}
             dataPrazoProduto={produto.data_prazo_produto}
             dataInicio={produto.data_inicio_producao}
             prioridade={produto.prioridade_produto}
             statusLiberacao={produto.status_liberacao_pcp}
+            responsabilidadeArte={produto.responsabilidade_arte}
+            statusArte={produto.status_arte}
+            dataPrazoArte={produto.data_prazo_arte}
+            designerAtribuido={produto.designer_atribuido}
             prazoFinalOS={prazoFinalOS}
             onPrazoChange={carregarProdutos}
             readonly={readonly}

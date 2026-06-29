@@ -140,7 +140,7 @@ export class MailService implements OnModuleInit {
       `E-mail de verificação enviado messageId=${info.messageId} destino=${MailService.maskEmail(to)}`,
     );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      this.logger.debug(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+      this.logger.log(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
     }
 
     return info;
@@ -175,7 +175,7 @@ export class MailService implements OnModuleInit {
       `E-mail de redefinicao de senha enviado messageId=${info.messageId} destino=${MailService.maskEmail(to)}`,
     );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      this.logger.debug(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+      this.logger.log(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
     }
 
     return info;
@@ -230,7 +230,7 @@ export class MailService implements OnModuleInit {
       `Convite de cadastro enviado messageId=${info.messageId} destino=${MailService.maskEmail(to)}`,
     );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      this.logger.debug(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+      this.logger.log(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
     }
 
     return info;
@@ -374,7 +374,7 @@ export class MailService implements OnModuleInit {
       `Orçamento enviado messageId=${info.messageId} destino=${MailService.maskEmail(emailCliente)}`,
     );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      this.logger.debug(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+      this.logger.log(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
     }
 
     return info;
@@ -447,7 +447,7 @@ export class MailService implements OnModuleInit {
       `Orçamento atualizado enviado messageId=${info.messageId} destino=${MailService.maskEmail(emailCliente)}`,
     );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      this.logger.debug(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+      this.logger.log(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
     }
 
     return info;
@@ -509,7 +509,7 @@ export class MailService implements OnModuleInit {
       `Aprovação notificada messageId=${info.messageId} destino=${MailService.maskEmail(emailLoja)}`,
     );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      this.logger.debug(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+      this.logger.log(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
     }
 
     return info;
@@ -590,7 +590,7 @@ export class MailService implements OnModuleInit {
       `Feedback beta enviado messageId=${info.messageId} pagina=${payload.paginaPath} destino=${MailService.maskEmail(payload.to)}`,
     );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      this.logger.debug(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+      this.logger.log(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
     }
 
     return info;

@@ -9,18 +9,16 @@ import {
   Printer,
   ClipboardList,
   Package,
-  CheckCircle,
   Settings,
   ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { apiRequest } from "@/lib/api";
+import { resolverRedirectArteLegado } from "@/lib/arte-navegacao";
 import { OrdemServico } from "../columns";
 import { PrazoOSComponent } from "@/components/os/PrazoOSComponent";
 import { ListaProdutosComPrazo } from "@/components/os/ListaProdutosComPrazo";
-import { ArteAprovacaoTab } from "@/components/os/arte-aprovacao/ArteAprovacaoTab";
-import { ArteAprovacaoSidebar } from "@/components/os/arte-aprovacao/ArteAprovacaoSidebar";
 import { ResumoOSSidebar } from "@/components/os/ResumoOSSidebar";
 import { OSMateriaisPanel } from "@/components/os/OSMateriaisPanel";
 import { useOsStatus } from "@/hooks/use-os-status";
@@ -29,7 +27,7 @@ interface OSDetalhada extends OrdemServico {
   // Mantendo apenas as interfaces essenciais
 }
 
-type TabType = 'resumo' | 'arte-aprovacao' | 'materiais' | 'analise-inteligente';
+type TabType = 'resumo' | 'materiais' | 'analise-inteligente';
 
 // Função para renderizar a aba Resumo
 function renderResumoTab(os: OSDetalhada, isResumoCollapsed: boolean, setIsResumoCollapsed: React.Dispatch<React.SetStateAction<boolean>>, statusDinamico: string) {
@@ -120,7 +118,7 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed, statusDi
   // Obter aba ativa da URL ou usar 'resumo' como padrão
   const getActiveTabFromURL = (): TabType => {
     const tab = searchParams.get('tab') as TabType;
-    return tab && ['resumo', 'arte-aprovacao', 'materiais', 'analise-inteligente'].includes(tab) 
+    return tab && ['resumo', 'materiais', 'analise-inteligente'].includes(tab) 
       ? tab 
       : 'resumo';
   };
@@ -145,7 +143,6 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed, statusDi
 
   const tabs = [
     { id: 'resumo' as TabType, label: 'Resumo', icon: Package },
-    { id: 'arte-aprovacao' as TabType, label: '🎨 Arte & Aprovação', icon: CheckCircle },
     { id: 'materiais' as TabType, label: 'Materiais', icon: Package },
     { id: 'analise-inteligente' as TabType, label: 'Análise Inteligente', icon: Settings },
   ];
@@ -180,110 +177,59 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed, statusDi
       </div>
 
       {/* Conteúdo da Aba Ativa */}
-      {activeTab === 'arte-aprovacao' ? (
-        // Layout especial para Arte & Aprovação: Sidebar Esquerdo (Resumo OS) + Área Principal + Sidebar Direito (Arte)
-        <div className="flex flex-col lg:flex-row h-full p-4 lg:p-6 bg-white">
-          {/* Sidebar Esquerdo - Resumo da OS (25%) */}
-          <ResumoOSSidebar 
-            osId={os.id}
-            clienteNome={os.cliente_nome || "Carla Conceição"}
-            projeto={os.nome_servico}
-            dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
-            prioridade="Normal"
-            status={statusDinamico}
-            isCollapsed={isResumoCollapsed}
-            onCollapsedChange={setIsResumoCollapsed}
-          />
-          
-          {/* Linha Separadora - Desktop only */}
-          <div className="hidden lg:block w-px bg-gray-200 mx-4"></div>
-          
-          {/* Área Principal - Miolo (50% desktop) */}
-          <div className="w-full lg:flex-1 lg:px-4">
-            <ArteAprovacaoTab 
-              osId={os.id} 
-              readonly={false}
-            />
-          </div>
-          
-          {/* Linha Separadora - Desktop only */}
-          <div className="hidden lg:block w-px bg-gray-200 mx-4"></div>
-          
-          {/* Sidebar Direito - Arte & Aprovação (25% desktop) */}
-          <div className="w-full lg:w-[25%] lg:pl-4 mt-6 lg:mt-0 lg:min-w-0">
-            <ArteAprovacaoSidebar 
+      <div className="p-4 lg:p-6 h-full bg-white">
+        {activeTab === 'resumo' && renderResumoTab(os, isResumoCollapsed, setIsResumoCollapsed, statusDinamico)}
+        
+        {activeTab === 'materiais' && (
+          <div className="flex flex-col lg:flex-row h-full">
+            <ResumoOSSidebar 
               osId={os.id}
-              osNumero={os.numero}
-              onEnviarTodasArtes={() => {
-                // Esta função será passada do ArteAprovacaoTab
-                console.log('Enviar todas as artes - implementar integração');
-              }}
-              hasVersoesRascunho={true}
+              clienteNome={os.cliente_nome || "Carla Conceição"}
+              projeto={os.nome_servico}
+              dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
+              prioridade="Normal"
+              status={statusDinamico}
+              isCollapsed={isResumoCollapsed}
+              onCollapsedChange={setIsResumoCollapsed}
             />
+            
+            <div className="hidden lg:block w-px bg-gray-200"></div>
+            
+            <div className="w-full lg:flex-1 lg:px-6">
+              <OSMateriaisPanel osId={os.id} />
+            </div>
           </div>
-        </div>
-      ) : (
-        // Layout padrão para outras abas com Sidebar Esquerdo (Resumo OS) + Conteúdo
-        <div className="p-4 lg:p-6 h-full bg-white">
-          {activeTab === 'resumo' && renderResumoTab(os, isResumoCollapsed, setIsResumoCollapsed, statusDinamico)}
-          
-          {activeTab === 'materiais' && (
-            <div className="flex flex-col lg:flex-row h-full">
-              {/* Sidebar Esquerdo - Resumo da OS (25%) */}
-              <ResumoOSSidebar 
-                osId={os.id}
-                clienteNome={os.cliente_nome || "Carla Conceição"}
-                projeto={os.nome_servico}
-                dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
-                prioridade="Normal"
-                status={statusDinamico}
-                isCollapsed={isResumoCollapsed}
-                onCollapsedChange={setIsResumoCollapsed}
-              />
-              
-              {/* Linha Separadora - Desktop only */}
-              <div className="hidden lg:block w-px bg-gray-200"></div>
-              
-              {/* Conteúdo Central */}
-              <div className="w-full lg:flex-1 lg:px-6">
-                <OSMateriaisPanel osId={os.id} />
+        )}
+        
+        {activeTab === 'analise-inteligente' && (
+          <div className="flex flex-col lg:flex-row h-full">
+            <ResumoOSSidebar 
+              osId={os.id}
+              clienteNome={os.cliente_nome || "Carla Conceição"}
+              projeto={os.nome_servico}
+              dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
+              prioridade="Normal"
+              status={statusDinamico}
+              isCollapsed={isResumoCollapsed}
+              onCollapsedChange={setIsResumoCollapsed}
+            />
+            
+            <div className="hidden lg:block w-px bg-gray-200"></div>
+            
+            <div className="w-full lg:flex-1 lg:px-6">
+              <div className="text-center py-12">
+                <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h2 className="text-lg font-medium text-gray-900 mb-2">
+                  Aba &quot;Análise Inteligente&quot; Selecionada
+                </h2>
+                <p className="text-gray-600">
+                  Conteúdo da aba será implementado nas próximas etapas.
+                </p>
               </div>
             </div>
-          )}
-          
-          {activeTab === 'analise-inteligente' && (
-            <div className="flex flex-col lg:flex-row h-full">
-              {/* Sidebar Esquerdo - Resumo da OS (25%) */}
-              <ResumoOSSidebar 
-                osId={os.id}
-                clienteNome={os.cliente_nome || "Carla Conceição"}
-                projeto={os.nome_servico}
-                dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
-                prioridade="Normal"
-                status={statusDinamico}
-                isCollapsed={isResumoCollapsed}
-                onCollapsedChange={setIsResumoCollapsed}
-              />
-              
-              {/* Linha Separadora - Desktop only */}
-              <div className="hidden lg:block w-px bg-gray-200"></div>
-              
-              {/* Conteúdo Central */}
-              <div className="w-full lg:flex-1 lg:px-6">
-                <div className="text-center py-12">
-                  <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h2 className="text-lg font-medium text-gray-900 mb-2">
-                    Aba "Análise Inteligente" Selecionada
-                  </h2>
-                  <p className="text-gray-600">
-                    Conteúdo da aba será implementado nas próximas etapas.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -291,12 +237,19 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed, statusDi
 export default function OSDetalhePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [os, setOS] = useState<OSDetalhada | null>(null);
   const [loading, setLoading] = useState(true);
   const [isResumoCollapsed, setIsResumoCollapsed] = useState(false);
   
-  // Hook para buscar status dinâmico da OS baseado nas versões de arte
   const { statusTexto: statusDinamico } = useOsStatus(os?.id || '');
+
+  useEffect(() => {
+    if (!os?.id || searchParams.get('tab') !== 'arte-aprovacao') return;
+    void resolverRedirectArteLegado(os.id).then((destino) => {
+      router.replace(destino);
+    });
+  }, [os?.id, searchParams, router]);
 
   useEffect(() => {
     if (params.id) {

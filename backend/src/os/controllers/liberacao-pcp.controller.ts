@@ -86,12 +86,13 @@ export class LiberacaoPCPController {
     const user = req['user'] || req.user;
     const lojaId = user.loja_id;
 
-    const [ossLiberadas, ossEmWorkflow] = await Promise.all([
+    const [ossLiberadas, ossParciais, ossEmWorkflow] = await Promise.all([
       this.osService.findByStatus(lojaId, StatusOS.LIBERADA_PARA_PCP),
+      this.osService.findByStatus(lojaId, StatusOS.PARCIALMENTE_LIBERADA),
       this.osService.findByStatus(lojaId, StatusOS.EM_WORKFLOW),
     ]);
 
-    const ossCandidatas = [...ossLiberadas, ...ossEmWorkflow];
+    const ossCandidatas = [...ossLiberadas, ...ossParciais, ...ossEmWorkflow];
 
     const ossComStatusWorkflow = await Promise.all(
       ossCandidatas.map(async (os) => {

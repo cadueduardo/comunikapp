@@ -243,12 +243,12 @@ export class ProdutoOrcamentoDto {
 
   @ApiPropertyOptional({
     description: 'Origem da geometria do produto',
-    enum: ['MANUAL', 'IMAGEM', 'DXF'],
+    enum: ['MANUAL', 'IMAGEM', 'PDF', 'DXF'],
     example: 'MANUAL',
   })
   @IsOptional()
-  @IsIn(['MANUAL', 'IMAGEM', 'DXF'])
-  geometria_origem?: 'MANUAL' | 'IMAGEM' | 'DXF';
+  @IsIn(['MANUAL', 'IMAGEM', 'PDF', 'DXF'])
+  geometria_origem?: 'MANUAL' | 'IMAGEM' | 'PDF' | 'DXF';
 
   @ApiPropertyOptional({
     description: 'URL do arquivo de geometria associado ao produto',

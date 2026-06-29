@@ -95,6 +95,7 @@ export function ArteFileUpload({
       for (const file of selectedFiles) {
         const formData = new FormData();
         formData.append('arquivo', file);
+        formData.append('nome_original', file.name);
         
         const token = localStorage.getItem('access_token');
         const response = await fetch(`/api/arte-aprovacao/versoes/${versaoId}/arquivos/upload`, {

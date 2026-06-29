@@ -45,13 +45,14 @@ export class AnexoGeometriaController {
   constructor(private readonly anexoService: AnexoGeometriaService) {}
 
   /**
-   * Upload de imagem ou DXF. Aceita formatos:
+   * Upload de imagem, PDF ou DXF. Aceita formatos:
    *  - Imagem: PNG, JPG, WEBP, GIF (até 5 MB)
+   *  - PDF: até 10 MB
    *  - Vetor:  DXF (até 20 MB)
    */
   @Post()
   @UseInterceptors(FileInterceptor('arquivo', multerAnexoGeometriaConfig))
-  @ApiOperation({ summary: 'Faz upload de imagem ou DXF para um produto do orçamento' })
+  @ApiOperation({ summary: 'Faz upload de imagem, PDF ou DXF para um produto do orçamento' })
   @ApiConsumes('multipart/form-data')
   async upload(
     @UploadedFile() arquivo: Express.Multer.File,
@@ -59,7 +60,7 @@ export class AnexoGeometriaController {
   ): Promise<{
     url: string;
     token: string;
-    categoria: 'IMAGEM' | 'DXF';
+    categoria: 'IMAGEM' | 'PDF' | 'DXF';
     metadados: Record<string, unknown>;
     dxf_extraido: DxfExtraido | null;
     sugestoes_insumo: SugestoesPorCamada[];
@@ -123,8 +124,9 @@ export class AnexoGeometriaController {
       await this.anexoService.ler({ token, lojaId });
 
     res.setHeader('Content-Type', mimeType || 'application/octet-stream');
-    // Inline para imagem (preview), attachment para DXF (download).
-    const disposition = categoria === 'IMAGEM' ? 'inline' : 'attachment';
+    // Inline para imagem/PDF (visualização), attachment para DXF (download).
+    const disposition =
+      categoria === 'IMAGEM' || categoria === 'PDF' ? 'inline' : 'attachment';
     const nomeSanitizado = nomeOriginal.replace(/["\r\n]/g, '_');
     res.setHeader(
       'Content-Disposition',

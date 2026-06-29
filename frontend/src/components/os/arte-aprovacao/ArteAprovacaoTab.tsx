@@ -56,8 +56,10 @@ import { ArtePreviewModal } from './components/ArtePreviewModal';
 import { ArteAuthenticatedImage } from './components/ArteAuthenticatedImage';
 import { openArteFilePreview, resolveArteAuthenticatedFileUrl, fetchArteFileBlob } from '@/lib/arte-assets';
 import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
+import { enviarVersaoParaCliente } from '@/lib/arte-links-api';
 import { ArteCreateVersionModal } from './components/ArteCreateVersionModal';
 import { ArteDesignerApprovalModal } from './components/ArteDesignerApprovalModal';
+import { ArteReferenciaBriefingCard } from './components/ArteReferenciaBriefingCard';
 
 // Interface para produtos/componentes da OS
 interface ProdutoArte {
@@ -68,13 +70,18 @@ interface ProdutoArte {
   cor: string;
 }
 
-export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabProps) {
+export function ArteAprovacaoTab({
+  osId,
+  readonly = false,
+  itemIdFoco,
+  onMutacao,
+}: ArteAprovacaoTabProps) {
   // Memoizar osId para evitar re-renders desnecessários
   const memoizedOsId = useMemo(() => osId, [osId]);
   
   // TESTE 2: Reativar useArteVersoes + useArteProdutos com correções
   const { versoes, loading, error, createVersao, updateVersao, deleteVersao, refreshVersoes } = useArteVersoes(memoizedOsId);
-  const { produtos, loading: loadingProdutos, error: errorProdutos, refreshProdutos } = useArteProdutos(memoizedOsId);
+  const { produtos, loading: loadingProdutos, error: errorProdutos, refresh: refreshProdutos } = useArteProdutos(memoizedOsId);
   
   // Hook para carregar mensagens não lidas
   const { produtosMessages, loading: loadingMessages, refreshMessages } = useArteMessages(osId);
@@ -157,10 +164,18 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
 
   // Definir produto selecionado quando os produtos carregarem
   useEffect(() => {
+    if (itemIdFoco) {
+      setSelectedProduto(itemIdFoco);
+      return;
+    }
     if (produtos.length > 0 && !selectedProduto) {
       setSelectedProduto(produtos[0].id);
     }
-  }, [produtos, selectedProduto]);
+  }, [produtos, selectedProduto, itemIdFoco]);
+
+  const produtosVisiveis = itemIdFoco
+    ? produtos.filter((p) => p.id === itemIdFoco)
+    : produtos;
 
   // Listener para novas mensagens via WebSocket (otimizado)
   useEffect(() => {
@@ -189,27 +204,14 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
     }
   }, [novaMensagemWS]); // Removido refreshMessages das dependências
 
-  // Listener para contador atualizado via WebSocket
+  // Atualiza via WebSocket (ex.: mensagem do cliente) — sem polling na tela de criação
   useEffect(() => {
     if (contadorAtualizado) {
       refreshMessages();
-      refreshVersoes();
-      refreshProdutos();
+      void refreshVersoes(true);
+      void refreshProdutos(true);
     }
-  }, [contadorAtualizado]);
-
-  // Polling leve: reflete aprovação do cliente sem F5 quando WebSocket não dispara
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-
-    const intervalId = window.setInterval(() => {
-      if (document.visibilityState !== 'visible') return;
-      refreshVersoes();
-      refreshProdutos();
-    }, 20_000);
-
-    return () => window.clearInterval(intervalId);
-  }, [refreshVersoes, refreshProdutos]);
+  }, [contadorAtualizado, refreshMessages, refreshVersoes, refreshProdutos]);
 
   // ✅ Entrar nas salas de todas as versões para receber mensagens em tempo real (otimizado)
   useEffect(() => {
@@ -317,11 +319,10 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
   };
 
   const handleCreateSuccess = (versaoId: string) => {
-    // Atualizar lista de versões
     refreshVersoes();
-    
-    // Auto-selecionar nova versão criada
+    refreshProdutos();
     setVersoesSelecionadas(prev => new Set([...prev, versaoId]));
+    onMutacao?.();
   };
 
   const handleDeleteVersao = (versaoId: string) => {
@@ -446,20 +447,17 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
       const produto = produtos.find(p => p.id === produtoId);
       const produtoNome = produto?.nome || 'Produto';
 
-      // Atualizar status de cada versão para ENVIADA_CLIENTE
       for (const versao of versoesSelecionadasProduto) {
-        await updateVersao(versao.id, {
-          status: 'ENVIADA_CLIENTE',
-          descricao: versao.descricao,
-          observacoes: versao.observacoes
-        });
+        await enviarVersaoParaCliente(versao.id);
       }
 
-      toast.success(`${versoesSelecionadasProduto.length} versão(ões) de ${produtoNome} enviada(s) para o cliente!`);
+      await refreshVersoes(true);
+      onMutacao?.();
+      toast.success(`${versoesSelecionadasProduto.length} versão(ões) de ${produtoNome} enviada(s) ao cliente!`);
       
     } catch (error) {
       console.error('Erro ao enviar produto:', error);
-      toast.error('Erro ao enviar versões para o cliente');
+      toast.error(error instanceof Error ? error.message : 'Erro ao enviar versões para o cliente');
     }
   };
 
@@ -507,16 +505,13 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
   // Função para enviar uma versão específica para aprovação
   const handleSendForApproval = async (versao: ArteVersao) => {
     try {
-      await updateVersao(versao.id, {
-        status: 'ENVIADA_CLIENTE',
-        descricao: versao.descricao,
-        observacoes: versao.observacoes
-      });
-
+      await enviarVersaoParaCliente(versao.id);
+      await refreshVersoes(true);
+      onMutacao?.();
       toast.success(`Versão ${versao.versao} enviada para o cliente!`);
     } catch (error) {
       console.error('Erro ao enviar versão para aprovação:', error);
-      toast.error('Erro ao enviar versão para aprovação');
+      toast.error(error instanceof Error ? error.message : 'Erro ao enviar versão para aprovação');
     }
   };
 
@@ -752,11 +747,13 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
   return (
     <div className="space-y-6">
       {/* Header - Solto na página */}
+      {!itemIdFoco && (
       <div>
         <h2 className="text-lg font-semibold text-gray-900">Arte & Aprovação</h2>
       </div>
+      )}
 
-      {/* Seleção de Produtos/Componentes */}
+      {!itemIdFoco && (
       <div className="flex flex-wrap gap-2">
         {loadingProdutos ? (
           <div className="flex items-center space-x-2 text-gray-500">
@@ -767,12 +764,12 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
           <div className="text-red-600 text-sm">
             Erro ao carregar produtos: {errorProdutos}
           </div>
-        ) : produtos.length === 0 ? (
+        ) : produtosVisiveis.length === 0 ? (
           <div className="text-gray-500 text-sm">
             Nenhum produto encontrado para esta OS
           </div>
         ) : (
-          produtos.map((produto) => (
+          produtosVisiveis.map((produto) => (
             <button
               key={produto.id}
               onClick={() => setSelectedProduto(produto.id)}
@@ -793,22 +790,22 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
           ))
         )}
       </div>
+      )}
 
       {/* Controle de Versões - Solto na página */}
       {selectedProduto && (
         <div>
-          {/* Título e subtítulo */}
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              {produtos.find(p => p.id === selectedProduto)?.nome}
-            </h3>
-            <p className="text-sm text-gray-600">
-              Gerencie as versões de arte para este produto
-            </p>
-          </div>
-          
-          {/* Botões */}
-          <div className="flex gap-2">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {produtos.find(p => p.id === selectedProduto)?.nome}
+              </h3>
+              <p className="text-sm text-gray-600">
+                Gerencie as versões de arte para este produto
+              </p>
+            </div>
+
+            <div className="flex flex-wrap justify-end gap-2">
             {!readonly && (
               <Button 
                 onClick={handleCreateVersao}
@@ -819,7 +816,6 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
               </Button>
             )}
             
-            {/* Botões de seleção */}
             {versoesDoProduto.length > 0 && versoesDoProduto.some(v => v.status === 'RASCUNHO') && (
               <>
                 <Button 
@@ -846,31 +842,36 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                 </Button>
               </>
             )}
+            </div>
           </div>
         </div>
       )}
 
       {/* Lista de versões do produto selecionado */}
-      {versoesDoProduto.length === 0 ? (
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center text-gray-500">
-              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium mb-2">Nenhuma versão criada</p>
-              <p className="text-sm mb-4">
-                Comece criando a primeira versão da arte para <strong>{produtos.find(p => p.id === selectedProduto)?.nome}</strong>.
-              </p>
-              {!readonly && (
-                <Button onClick={handleCreateVersao}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Criar Primeira Versão
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
+      {selectedProduto && versoesDoProduto.length === 0 ? (
         <div className="space-y-4">
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center text-gray-500">
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium mb-2">Nenhuma versão criada</p>
+                <p className="text-sm mb-4">
+                  Comece criando a primeira versão da arte para <strong>{produtos.find(p => p.id === selectedProduto)?.nome}</strong>.
+                </p>
+                {!readonly && (
+                  <Button onClick={handleCreateVersao}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Criar Primeira Versão
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          <ArteReferenciaBriefingCard osId={memoizedOsId} itemId={selectedProduto} />
+        </div>
+      ) : selectedProduto && versoesDoProduto.length > 0 ? (
+        <div className="space-y-4">
+          <div className="space-y-4">
           {versoesDoProduto.map((versao) => (
             <Card key={versao.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
@@ -980,19 +981,6 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
                         title="Aprovar Arte (Designer)"
                       >
                         <CheckCircle className="h-4 w-4" />
-                      </Button>
-                    )}
-
-                    {/* Botão para liberar para PCP - apenas se aprovada pelo cliente mas não liberada pelo designer */}
-                    {!readonly && versao.aprovado_por_cliente && !versao.liberado_para_pcp && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleLiberarParaPCP(versao.id)}
-                        className="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
-                        title="Liberar para PCP"
-                      >
-                        <ArrowRight className="h-4 w-4" />
                       </Button>
                     )}
 
@@ -1107,8 +1095,10 @@ export function ArteAprovacaoTab({ osId, readonly = false }: ArteAprovacaoTabPro
               </CardContent>
             </Card>
           ))}
+          </div>
+          <ArteReferenciaBriefingCard osId={memoizedOsId} itemId={selectedProduto} />
         </div>
-      )}
+      ) : null}
 
       {/* Modal de Upload */}
       {showUploadModal && selectedVersao && (

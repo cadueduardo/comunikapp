@@ -3,9 +3,20 @@
  * Badge = itens que entraram na fila do módulo DEPOIS desse instante.
  */
 
-export type ModuloSidebarBadge = 'os' | 'pcp' | 'expedicao' | 'financeiro';
+export type ModuloSidebarBadge =
+  | 'os'
+  | 'pcp'
+  | 'expedicao'
+  | 'financeiro'
+  | 'arte';
 
-const MODULOS: ModuloSidebarBadge[] = ['os', 'pcp', 'expedicao', 'financeiro'];
+const MODULOS: ModuloSidebarBadge[] = [
+  'os',
+  'pcp',
+  'expedicao',
+  'financeiro',
+  'arte',
+];
 
 const storageKey = (userId: string, modulo: ModuloSidebarBadge) =>
   `comunikapp:sidebar-visto:${userId}:${modulo}`;
@@ -57,6 +68,7 @@ export const ROTA_PARA_MODULO_BADGE: Array<{
 }> = [
   { prefixo: '/financeiro', modulo: 'financeiro' },
   { prefixo: '/expedicao', modulo: 'expedicao' },
+  { prefixo: '/arte', modulo: 'arte' },
   { prefixo: '/pcp', modulo: 'pcp' },
   { prefixo: '/os', modulo: 'os' },
 ];

@@ -157,6 +157,18 @@ export class StatusPrazoProdutoResponse {
     example: false,
   })
   excede_prazo_final: boolean;
+
+  @ApiProperty({ required: false })
+  responsabilidade_arte?: string;
+
+  @ApiProperty({ required: false })
+  status_arte?: string;
+
+  @ApiProperty({ required: false })
+  data_prazo_arte?: Date | null;
+
+  @ApiProperty({ required: false })
+  designer_atribuido?: { id: string; nome: string } | null;
 }
 
 export class ValidarPrazoProdutoResponse {

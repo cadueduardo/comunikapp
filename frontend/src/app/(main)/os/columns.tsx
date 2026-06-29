@@ -32,10 +32,12 @@ import {
   CheckCircle2,
   XCircle,
   RotateCcw,
+  Palette,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { OsDetalheModals } from '@/components/ui/os/OsDetalheModals';
 
 export interface OrdemServico {
   id: string;
@@ -62,6 +64,19 @@ export interface OrdemServico {
   ativo?: boolean;
   motivo_inativacao?: string | null;
   inativado_em?: string | null;
+  arte_resumo?: {
+    status_agregado: string;
+    label: string;
+    total_com_arte: number;
+    aprovadas: number;
+    pendentes: number;
+  };
+  liberacao_resumo?: {
+    total: number;
+    liberados: number;
+    pendentes: number;
+    parcial: boolean;
+  };
 }
 
 // Função para obter configuração de status
@@ -117,6 +132,16 @@ const getStatusConfig = (status: string) => {
       label: 'Rejeitada',
       color: 'bg-red-100 text-red-800',
     },
+    PARCIALMENTE_LIBERADA: {
+      variant: 'outline' as const,
+      label: 'Parcialmente liberada',
+      color: 'bg-purple-100 text-purple-800',
+    },
+    LIBERADA_PARA_PCP: {
+      variant: 'default' as const,
+      label: 'Liberada para PCP',
+      color: 'bg-indigo-100 text-indigo-800',
+    },
   };
 
   return configs[status as keyof typeof configs] || {
@@ -164,7 +189,92 @@ const STATUS_BLOQUEIA_APROVACAO = new Set([
 const STATUS_FLUXO_PADRAO = new Set([
   'AGUARDANDO_APROVACAO_TECNICA',
   'FILA',
+  'PARCIALMENTE_LIBERADA',
 ]);
+
+function StatusCell({ os }: { os: OrdemServico }) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const status = (os.status || '').toUpperCase();
+  const config = getStatusConfig(status);
+  const inativa = os.ativo === false;
+  const clicavel = status === 'PARCIALMENTE_LIBERADA';
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {clicavel ? (
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="inline-flex"
+            title="Ver detalhe da liberação por produto"
+          >
+            <Badge variant={config.variant} className={`${config.color} cursor-pointer hover:opacity-90`}>
+              {config.label}
+            </Badge>
+          </button>
+        ) : (
+          <Badge variant={config.variant} className={config.color}>
+            {config.label}
+          </Badge>
+        )}
+        {inativa && (
+          <Badge variant="outline" className="text-muted-foreground">
+            Inativa
+          </Badge>
+        )}
+      </div>
+      <OsDetalheModals
+        osId={os.id}
+        osNumero={os.numero}
+        tipo="liberacao"
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+      />
+    </>
+  );
+}
+
+function ArteStatusCell({ os }: { os: OrdemServico }) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const resumo = os.arte_resumo;
+
+  if (!resumo || resumo.status_agregado === 'NAO_APLICA') {
+    return <span className="text-muted-foreground text-sm">—</span>;
+  }
+
+  const cores: Record<string, string> = {
+    OK: 'bg-green-50 text-green-700 border-green-200',
+    PENDENTE: 'bg-amber-50 text-amber-800 border-amber-200',
+    PARCIAL: 'bg-blue-50 text-blue-800 border-blue-200',
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setModalOpen(true)}
+        className="inline-flex"
+        title="Ver status de arte por produto"
+      >
+        <Badge
+          variant="outline"
+          className={`cursor-pointer hover:opacity-90 ${cores[resumo.status_agregado] || ''}`}
+        >
+          <Palette className="h-3 w-3 mr-1" />
+          {resumo.label}
+        </Badge>
+      </button>
+      <OsDetalheModals
+        osId={os.id}
+        osNumero={os.numero}
+        tipo="arte"
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+      />
+    </>
+  );
+}
 
 // Componente: celula da coluna "Aprovacao"
 function AprovacaoCell({
@@ -229,6 +339,22 @@ function AprovacaoCell({
   }
 
   const eFluxoPadrao = STATUS_FLUXO_PADRAO.has(statusOs);
+  const eLiberarRestante = statusOs === 'PARCIALMENTE_LIBERADA';
+
+  if (eLiberarRestante && aprovacao === 'PENDENTE') {
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => onAprovar(os)}
+        className="h-8"
+        title="Liberar produtos restantes para produção"
+      >
+        <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
+        Liberar restante
+      </Button>
+    );
+  }
 
   return (
     <Button
@@ -419,24 +545,12 @@ export const createColumns = (
   {
     accessorKey: 'status',
     header: 'Status',
-    cell: ({ row }) => {
-      const status = row.getValue('status') as string;
-      const config = getStatusConfig(status);
-      const inativa = row.original.ativo === false;
-
-      return (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant={config.variant} className={config.color}>
-            {config.label}
-          </Badge>
-          {inativa && (
-            <Badge variant="outline" className="text-muted-foreground">
-              Inativa
-            </Badge>
-          )}
-        </div>
-      );
-    },
+    cell: ({ row }) => <StatusCell os={row.original} />,
+  },
+  {
+    id: 'arte_status',
+    header: 'Arte Status',
+    cell: ({ row }) => <ArteStatusCell os={row.original} />,
   },
   {
     accessorKey: 'data_abertura',

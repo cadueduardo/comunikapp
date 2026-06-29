@@ -51,6 +51,13 @@ import {
   itensProntosParaModelo,
   serializarItensModeloOrcamento,
 } from '../orcamento/utils/modelo-orcamento.helpers';
+import {
+  ARTE_PRODUTO_DEFAULTS,
+  mapArteProdutoBackendParaFormulario,
+  mapArteProdutoFormularioParaBackend,
+  mapArteServicosBackendParaFormulario,
+  mapArteServicoFormularioParaBackend,
+} from '@/components/orcamentos-v2/arte-produto.helpers';
 import { ClienteSection, ProdutoSection, ConfiguracoesSection, TituloOrcamentoSection, ModeloOrcamentoSection } from '../orcamento/components';
 import { PreviewCalculoV2 } from '../shared/sections';
 
@@ -222,6 +229,7 @@ export function OrcamentoV2Form({
   const [nomeModeloOrcamento, setNomeModeloOrcamento] = useState('');
   const [salvandoModelo, setSalvandoModelo] = useState(false);
   const [produtosSectionKey, setProdutosSectionKey] = useState(0);
+  const [dadosCarregados, setDadosCarregados] = useState(mode !== 'editar');
   const { clientes, insumos, maquinas, funcoes, servicos, custosIndiretos, fetchInsumos } = useOrcamentoData();
   const { user } = useUser();
   const comissaoPadraoLoja = comissaoPadraoDaLoja(user?.loja);
@@ -317,6 +325,7 @@ export function OrcamentoV2Form({
           maquinas: [{ maquina_id: '', horas_utilizadas: '1' }],
           funcoes: [{ funcao_id: '', horas_trabalhadas: '1' }],
           servicos: [{ servico_id: '', horas_trabalhadas: '1' }],
+          ...ARTE_PRODUTO_DEFAULTS,
           instalacao_necessaria: false,
           instalacao_tipo_id: '',
           instalacao_regra_cobranca: 'FIXO',
@@ -459,6 +468,7 @@ export function OrcamentoV2Form({
         tipo_margem_lucro: String(
           initialData.tipo_margem_lucro ?? configuracoesIniciais?.tipo_margem_lucro ?? '',
         ),
+        preco_final_persistido: String(initialData.preco_final_persistido ?? ''),
         condicoes_comerciais: String(initialData.condicoes_comerciais || ''),
         prazo_entrega: String(initialData.prazo_entrega || '10 a 15 dias úteis'),
         forma_pagamento: String(initialData.forma_pagamento || ''),
@@ -578,10 +588,8 @@ export function OrcamentoV2Form({
                   })),
               servicos: isPrateleira
                 ? []
-                : (produto.servicos_manuais || []).map((serv: any) => ({
-                    servico_id: serv.servico_id,
-                    horas_trabalhadas: String(serv.horas_trabalhadas || serv.tempo_horas || '1'),
-                  })),
+                : mapArteServicosBackendParaFormulario(produto.servicos_manuais),
+              ...mapArteProdutoBackendParaFormulario(produto),
               ...mapInstalacaoProdutoBackendParaFormulario(produto),
               ...mapCamposPrateleiraFormulario(produto),
             };
@@ -603,6 +611,8 @@ export function OrcamentoV2Form({
               const profundidadeRaw = produto.profundidade_produto?.toString() || produto.profundidade?.toString() || '';
               const profundidadeNum = Number(String(profundidadeRaw).replace(',', '.'));
               const temProfundidade = !!profundidadeRaw && !isNaN(profundidadeNum) && profundidadeNum > 0;
+              const isPrateleira =
+                String(produto.tipo_item || 'SOB_DEMANDA').toUpperCase() === 'PRODUTO_FINITO';
               return {
                 nome_servico: String(produto.nome_servico || produto.nome || ''),
                 descricao: String(produto.descricao || ''),
@@ -631,7 +641,12 @@ export function OrcamentoV2Form({
                   : [],
                 maquinas: produto.maquinas || [],
                 funcoes: produto.funcoes || [],
-                servicos: produto.servicos || [],
+                servicos: isPrateleira
+                ? []
+                : mapArteServicosBackendParaFormulario(
+                    produto.servicos_manuais || produto.servicos,
+                  ),
+                ...mapArteProdutoBackendParaFormulario(produto),
                 ...mapInstalacaoProdutoBackendParaFormulario(produto),
                 ...mapCamposPrateleiraFormulario(produto),
               };
@@ -689,9 +704,17 @@ export function OrcamentoV2Form({
       setTimeout(() => {
         form.reset(dadosFormatados as FormValues);
         setProdutosSectionKey((k) => k + 1);
+        setDadosCarregados(false);
+        setTimeout(() => setDadosCarregados(true), 450);
       }, 100);
     }
   }, [mode, initialData]);
+
+  useEffect(() => {
+    if (mode === 'editar' && initialData && insumos.length > 0) {
+      setDadosCarregados(true);
+    }
+  }, [mode, initialData, insumos.length]);
 
   // Debug: verificar se o status está sendo recebido
   useEffect(() => {
@@ -867,8 +890,14 @@ export function OrcamentoV2Form({
         .map((servico) => ({
           servico_id: servico.servico_id,
           tempo_horas: fixDecimal(normalizarNumero(servico.horas_trabalhadas), 3),
-          custo_hora: 0,
-          custo_total: 0,
+          horas_trabalhadas: fixDecimal(
+            normalizarNumero(servico.horas_trabalhadas),
+            3,
+          ),
+          custo_hora: fixDecimal(normalizarNumero((servico as any).custo_hora)),
+          custo_total: fixDecimal(normalizarNumero((servico as any).custo_total)),
+          origem: (servico as any).origem,
+          descricao: (servico as any).descricao,
         }))
         .filter((servico) => servico.tempo_horas > 0);
 
@@ -1193,6 +1222,9 @@ export function OrcamentoV2Form({
           geometria_origem: produtoFormulario.geometria_origem || 'MANUAL',
           arquivo_geometria_url:
             produtoFormulario.arquivo_geometria_url || undefined,
+          ...mapArteProdutoFormularioParaBackend(
+            produtoFormulario as Record<string, unknown>,
+          ),
           custo_total_producao: custoTotalProducao,
           preco_unitario: precoUnitarioProduto,
           preco_total: precoTotalProduto,
@@ -1398,6 +1430,9 @@ export function OrcamentoV2Form({
         unidade_geometria: produto.unidade_geometria,
         geometria_origem: produto.geometria_origem || 'MANUAL',
         arquivo_geometria_url: produto.arquivo_geometria_url || undefined,
+        ...mapArteProdutoFormularioParaBackend(
+          produto as Record<string, unknown>,
+        ),
         insumos: Array.isArray(produto.materiais)
           ? (produto.materiais || [])
             .filter((material) => material?.insumo_id)
@@ -1446,12 +1481,12 @@ export function OrcamentoV2Form({
         servicos_manuais: Array.isArray(produto.servicos)
           ? (produto.servicos || [])
             .filter((servico) => servico?.servico_id)
-            .map((servico) => ({
-              servico_id: servico.servico_id,
-              tempo_horas: normalizarNumero(servico.horas_trabalhadas),
-              custo_hora: 0,
-              custo_total: 0,
-            }))
+            .map((servico) =>
+              mapArteServicoFormularioParaBackend(
+                servico as Record<string, unknown>,
+                normalizarNumero,
+              ),
+            )
           : undefined,
         custos_indiretos: undefined,
         custo_total_producao: 0,
@@ -2554,14 +2589,16 @@ export function OrcamentoV2Form({
                     desabilitado={isAprovado}
                     onCarregarModelo={handleCarregarModelo}
                   />
+                  </div>
 
                   <Separator />
 
-                  {/* Seção de Produtos */}
+                  {/* Seção de Produtos — accordion liberado em modo leitura */}
                   <ProdutoSection 
                     key={produtosSectionKey}
                     mode={mode}
                     orcamentoId={orcamentoId}
+                    somenteLeitura={isAprovado}
                     onAdicionarProdutoPrateleira={handleAdicionarProdutoPrateleira}
                     insumos={insumos}
                     maquinas={maquinas}
@@ -2572,6 +2609,7 @@ export function OrcamentoV2Form({
 
                   <Separator />
 
+                  <div className={isAprovado ? 'pointer-events-none select-none opacity-95 space-y-6' : 'space-y-6'}>
                   {/* Configurações Comerciais */}
                   <ConfiguracoesSection mode={mode} />
                   </div>
@@ -2740,6 +2778,7 @@ export function OrcamentoV2Form({
               <div className="w-full lg:w-3/10 lg:flex-shrink-0">
                 <div className="sticky top-6 space-y-3">
                   <PreviewCalculoV2
+                    dadosCarregados={dadosCarregados}
                     datasets={{
                       insumos,
                       maquinas,
@@ -2775,14 +2814,15 @@ export function OrcamentoV2Form({
                 desabilitado={isAprovado}
                 onCarregarModelo={handleCarregarModelo}
               />
+              </div>
 
               <Separator />
 
-              {/* Seção de Produtos */}
               <ProdutoSection 
                 key={produtosSectionKey}
                 mode={mode}
                 orcamentoId={orcamentoId}
+                somenteLeitura={isAprovado}
                 onAdicionarProdutoPrateleira={handleAdicionarProdutoPrateleira}
                 insumos={insumos}
                 maquinas={maquinas}
@@ -2793,7 +2833,7 @@ export function OrcamentoV2Form({
 
               <Separator />
 
-              {/* Configurações Comerciais */}
+              <div className={isAprovado ? 'pointer-events-none select-none opacity-95 space-y-6' : 'space-y-6'}>
               <ConfiguracoesSection mode={mode} />
               </div>
 

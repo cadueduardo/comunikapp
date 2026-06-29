@@ -40,6 +40,8 @@ import {
 } from '@/components/orcamentos-v2/QuickGeometryInput';
 import { useWatch } from 'react-hook-form';
 import { AnexoGeometriaInput } from '@/components/orcamentos-v2/AnexoGeometriaInput';
+import { ArteProdutoSection } from '@/components/orcamentos-v2/ArteProdutoSection';
+import { ARTE_PRODUTO_DEFAULTS, resolverFinalidadeAnexoDefault } from '@/components/orcamentos-v2/arte-produto.helpers';
 import {
   DxfRevisaoCard,
   type DxfExtraido,
@@ -54,6 +56,7 @@ import { tiposInstalacaoApi } from '@/lib/api-client';
 interface ProdutoSectionProps {
   mode: 'novo' | 'editar' | 'template';
   orcamentoId?: string;
+  somenteLeitura?: boolean;
   onAdicionarProdutoPrateleira?: (itemIndex: number) => void;
   insumos?: Array<{
     id: string;
@@ -338,7 +341,7 @@ function SincronizadorGeometriaProduto({ itemIndex }: { itemIndex: number }) {
   );
 }
 
-export function ProdutoSection({ mode, orcamentoId, onAdicionarProdutoPrateleira, insumos = [], maquinas = [], funcoes = [], servicos = [], onInsumoCriado }: ProdutoSectionProps) {
+export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAdicionarProdutoPrateleira, insumos = [], maquinas = [], funcoes = [], servicos = [], onInsumoCriado }: ProdutoSectionProps) {
   const form = useFormContext();
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -571,6 +574,7 @@ export function ProdutoSection({ mode, orcamentoId, onAdicionarProdutoPrateleira
     maquinas: [{ maquina_id: '', horas_utilizadas: '1' }],
     funcoes: [{ funcao_id: '', horas_trabalhadas: '1' }],
     servicos: [{ servico_id: '', horas_trabalhadas: '1' }],
+    ...ARTE_PRODUTO_DEFAULTS,
     instalacao_necessaria: false,
     instalacao_tipo_id: '',
     instalacao_regra_cobranca: 'FIXO',
@@ -677,7 +681,7 @@ export function ProdutoSection({ mode, orcamentoId, onAdicionarProdutoPrateleira
     const origemAtual = form.getValues(
       `itens_produto.${itemIndex}.geometria_origem`,
     );
-    if (origemAtual !== 'IMAGEM' && origemAtual !== 'DXF') {
+    if (origemAtual !== 'IMAGEM' && origemAtual !== 'PDF' && origemAtual !== 'DXF') {
       form.setValue(`itens_produto.${itemIndex}.geometria_origem`, 'MANUAL', {
         shouldDirty: true,
       });
@@ -691,7 +695,7 @@ export function ProdutoSection({ mode, orcamentoId, onAdicionarProdutoPrateleira
   const atualizarAnexoGeometria = (
     itemIndex: number,
     url: string | null,
-    categoria: 'IMAGEM' | 'DXF' | null,
+    categoria: 'IMAGEM' | 'PDF' | 'DXF' | null,
   ) => {
     form.setValue(`itens_produto.${itemIndex}.arquivo_geometria_url`, url || '', {
       shouldDirty: true,
@@ -700,6 +704,27 @@ export function ProdutoSection({ mode, orcamentoId, onAdicionarProdutoPrateleira
     form.setValue(`itens_produto.${itemIndex}.geometria_origem`, novaOrigem, {
       shouldDirty: true,
     });
+
+    if (!url) {
+      form.setValue(`itens_produto.${itemIndex}.finalidade_anexo`, '', {
+        shouldDirty: true,
+      });
+      return;
+    }
+
+    const responsabilidade =
+      form.getValues(`itens_produto.${itemIndex}.responsabilidade_arte`) || '';
+    const atual = form.getValues(`itens_produto.${itemIndex}.finalidade_anexo`);
+    const sugerida = resolverFinalidadeAnexoDefault(
+      responsabilidade,
+      novaOrigem,
+      atual,
+    );
+    if (sugerida) {
+      form.setValue(`itens_produto.${itemIndex}.finalidade_anexo`, sugerida, {
+        shouldDirty: true,
+      });
+    }
   };
 
   // Sugere preenchimento do "Nome do Produto" a partir do nome do arquivo DXF
@@ -997,6 +1022,8 @@ export function ProdutoSection({ mode, orcamentoId, onAdicionarProdutoPrateleira
           type="button"
           onClick={handleAddProduto}
           className="flex items-center space-x-2"
+          disabled={somenteLeitura}
+          style={somenteLeitura ? { display: 'none' } : undefined}
         >
           <Plus className="w-4 h-4" />
           <span>Novo Produto</span>
@@ -1034,17 +1061,23 @@ export function ProdutoSection({ mode, orcamentoId, onAdicionarProdutoPrateleira
                   </div>
                   <span
                     onClick={(e) => {
+                      if (somenteLeitura) return;
                       e.stopPropagation();
                       handleRemoveProduto(index);
                     }}
-                    className="text-red-500 hover:text-red-700 cursor-pointer p-1 rounded hover:bg-red-50"
+                    className={
+                      somenteLeitura
+                        ? 'hidden'
+                        : 'text-red-500 hover:text-red-700 cursor-pointer p-1 rounded hover:bg-red-50'
+                    }
                   >
                     <Trash2 className="w-4 h-4" />
                   </span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent>
+              <AccordionContent forceMount className="data-[state=closed]:hidden">
                 <CardContent className="space-y-6">
+                  <fieldset disabled={somenteLeitura} className="space-y-6 border-0 p-0 m-0 min-w-0">
                   {isPrateleira ? (
                     <div className="space-y-4">
                       <div className="relative rounded-md border bg-muted/40 p-4">
@@ -1149,13 +1182,11 @@ export function ProdutoSection({ mode, orcamentoId, onAdicionarProdutoPrateleira
                     </div>
                   ) : null}
 
-                  {/* Anexo de geometria (imagem ou DXF) — sempre no TOPO do
-                      card. Aceita Ctrl+V, drag-and-drop e clique. A imagem
-                      anexada aqui vira a arte da OS gerada (decisão da
-                      Fase 7.A). */}
+                  {/* Anexo do produto (imagem, PDF ou DXF) — sempre no TOPO do
+                      card. Aceita Ctrl+V, drag-and-drop e clique. */}
                   <div>
                     <h4 className="text-sm font-medium mb-2">
-                      Imagem do produto / DXF
+                      Anexo do produto (imagem, PDF ou DXF)
                     </h4>
                     <AnexoGeometriaInput
                       value={
@@ -1193,6 +1224,8 @@ export function ProdutoSection({ mode, orcamentoId, onAdicionarProdutoPrateleira
                       </div>
                     ) : null}
                   </div>
+
+                  {!isPrateleira && <ArteProdutoSection itemIndex={index} />}
 
                   {/* Informações do Produto */}
                    <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_7rem]">
@@ -1712,6 +1745,7 @@ export function ProdutoSection({ mode, orcamentoId, onAdicionarProdutoPrateleira
                   </div>
                   </>
                   )}
+                  </fieldset>
                 </CardContent>
               </AccordionContent>
             </Card>

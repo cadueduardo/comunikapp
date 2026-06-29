@@ -87,6 +87,10 @@ export interface ArteVersaoListResponse {
 export interface ArteAprovacaoTabProps {
   osId: string;
   readonly?: boolean;
+  /** Quando definido (workspace `/arte/trabalho/...`), foca um único produto. */
+  itemIdFoco?: string;
+  /** Callback após criar versão, enviar ao cliente etc. */
+  onMutacao?: () => void;
 }
 
 export interface ArteVersaoCardProps {

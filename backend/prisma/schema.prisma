@@ -658,6 +658,7 @@ model loja {
   categorias_produto_finito CategoriaProdutoFinito[]
   produtos_finitos          ProdutoFinito[]
   expedicoes_logistica      ExpedicaoLogistica[]
+  configuracao_arte         ConfiguracaoArteLoja?
 }
 
 model maquina {
@@ -1008,6 +1009,16 @@ model ProdutoOrcamento {
   arquivo_geometria_url       String?  @db.VarChar(512)
   arquivo_geometria_metadados String?  @db.LongText // JSON
 
+  // Módulo Arte & Aprovação (orçamento)
+  responsabilidade_arte       String   @default("NAO_APLICAVEL") @db.VarChar(32)
+  politica_cobranca_arte      String   @default("NAO_APLICAVEL") @db.VarChar(32)
+  finalidade_anexo            String?  @db.VarChar(32)
+  complexidade_arte           String?  @db.VarChar(16)
+  arte_custo_automatico       Boolean  @default(false)
+  arte_referencia_servico_id  String?  @db.VarChar(191)
+  arte_horas_calculadas       Decimal? @db.Decimal(10, 2)
+  arte_custo_calculado        Decimal? @db.Decimal(10, 2)
+
   // Módulo Produtos (prateleira) — integração com orçamento V2
   // SOB_DEMANDA: cálculo via motor V2 (padrão legado)
   // PRODUTO_FINITO: preço snapshot em preco_unitario/preco_total; bypass do motor
@@ -1106,6 +1117,8 @@ model ItemServicoManual {
   criado_em    DateTime @default(now())
   data_criacao DateTime @default(now())
   descricao    String?  @db.Text
+  origem       String   @default("MANUAL") @db.VarChar(32)
+  exibir_no_pdf Boolean @default(true)
 
   // Relacionamentos
   produto ProdutoOrcamento @relation(fields: [produto_id], references: [id], onDelete: Cascade)
@@ -1113,6 +1126,7 @@ model ItemServicoManual {
 
   @@index([produto_id])
   @@index([servico_id])
+  @@index([produto_id, origem])
 }
 
 model ItemCustoIndireto {
@@ -1321,14 +1335,17 @@ model servico_manual {
   eficiencia_percent Decimal?            @db.Decimal(5, 2)
   setup_min          Decimal?            @db.Decimal(10, 2)
   categorias         String?             @db.LongText
+  sistema            Boolean             @default(false)
 
   loja              loja                     @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "ServicoManual_loja_id_fkey")
   setor             SetorProdutivo?          @relation(fields: [setor_id], references: [id], onDelete: SetNull, map: "ServicoManual_setor_id_fkey")
   itemServicoManual ItemServicoManual[]
   servicos_template ServicoTemplateProduto[]
+  configuracoes_arte ConfiguracaoArteLoja[]
 
   @@unique([loja_id, nome])
   @@index([loja_id], map: "ServicoManual_loja_id_idx")
+  @@index([loja_id, sistema], map: "ServicoManual_loja_id_sistema_idx")
   @@index([setor_id], map: "ServicoManual_setor_id_idx")
   @@map("servico_manual")
 }
@@ -1364,6 +1381,7 @@ model usuario {
   artes_liberador  ArteVersao[]     @relation("ArteLiberador")
   artes_excluidor  ArteVersao[]     @relation("ArteExcluidor")
   comentarios_arte ArteComentario[]
+  itens_os_designer ItemOS[]        @relation("ItemOSDesigner")
 
   // Relacionamentos PCP
   instancias_setor_operador WorkflowInstanciaSetor[]
@@ -1898,12 +1916,27 @@ model ItemOS {
   prioridade_produto String? @default("NORMAL") // URGENTE, ALTA, NORMAL, BAIXA
   ordem_producao     Int? // Ordem de produção (1, 2, 3...)
 
+  // Módulo Arte & Aprovação (propagado do orçamento)
+  responsabilidade_arte      String    @default("NAO_APLICAVEL") @db.VarChar(32)
+  politica_cobranca_arte     String    @default("NAO_APLICAVEL") @db.VarChar(32)
+  finalidade_anexo           String?   @db.VarChar(32)
+  complexidade_arte          String?   @db.VarChar(16)
+  status_arte                String    @default("NAO_APLICA") @db.VarChar(32)
+  designer_atribuido_id      String?
+  arte_fila_desde            DateTime?
+  arte_assumido_em           DateTime?
+  data_prazo_arte            DateTime?
+
   os               OrdemServico             @relation(fields: [os_id], references: [id], onDelete: Cascade)
   instancias_setor WorkflowInstanciaSetor[]
+  designer_atribuido usuario?               @relation("ItemOSDesigner", fields: [designer_atribuido_id], references: [id], onDelete: SetNull)
 
   @@index([os_id])
   @@index([status_liberacao_pcp])
   @@index([data_inicio_producao])
+  @@index([status_arte])
+  @@index([responsabilidade_arte])
+  @@index([designer_atribuido_id])
   @@map("itens_os")
 }
 
@@ -2265,6 +2298,27 @@ model ExpedicaoLogistica {
 // ==========================================
 // MÓDULO ARTE & APROVAÇÃO
 // ==========================================
+
+model ConfiguracaoArteLoja {
+  id                         String   @id @default(cuid())
+  loja_id                    String   @unique
+  ativo                      Boolean  @default(true)
+  modelo_precificacao        String   @default("HORA") @db.VarChar(24)
+  servico_arte_id            String?
+  cobranca_padrao            String   @default("INCLUIDA_NO_PRODUTO") @db.VarChar(32)
+  horas_padrao_criacao       Decimal  @default(1) @db.Decimal(10, 2)
+  horas_padrao_adaptacao     Decimal  @default(0.5) @db.Decimal(10, 2)
+  exibir_linha_pdf           Boolean  @default(false)
+  permitir_edicao_orcamentista Boolean @default(true)
+  criado_em                  DateTime @default(now())
+  atualizado_em              DateTime @updatedAt
+
+  loja          loja            @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  servico_arte  servico_manual? @relation(fields: [servico_arte_id], references: [id], onDelete: SetNull)
+
+  @@index([servico_arte_id])
+  @@map("configuracao_arte_loja")
+}
 
 model ArteVersao {
   id                   String     @id @default(cuid())

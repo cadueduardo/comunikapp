@@ -35,6 +35,7 @@ export function normalizeArteFilePath(path?: string | null): string {
 
 export function appendQueryToken(url: string, token: string): string {
   if (!token || !url) return url;
+  if (/[?&]token=/.test(url)) return url;
   const separator = url.includes('?') ? '&' : '?';
   return `${url}${separator}token=${encodeURIComponent(token)}`;
 }
@@ -68,6 +69,10 @@ export function resolveArtePublicFileUrl(
 
   let path = normalizeArteFilePath(raw);
   path = toPublicArteDownloadPath(path);
+
+  if (path.includes('/arquivos/public/download/') && /[?&]token=/.test(path)) {
+    return path;
+  }
 
   return appendQueryToken(path, approvalToken);
 }

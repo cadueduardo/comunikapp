@@ -10,6 +10,10 @@ import { ArteLinkAprovacaoController } from './controllers/arte-link-aprovacao.c
 import { ArteNotificacaoController } from './controllers/arte-notificacao.controller';
 import { ArteMensagemController } from './controllers/arte-mensagem.controller';
 import { ArteMensagemPublicController } from './controllers/arte-mensagem-public.controller';
+import { ArteConfiguracaoController } from './controllers/arte-configuracao.controller';
+import { ArteFilaController } from './controllers/arte-fila.controller';
+import { ArteOsContextoController } from './controllers/arte-os-contexto.controller';
+import { ArteOrcamentoController } from './controllers/arte-orcamento.controller';
 import { ArteVersaoService } from './services/arte-versao.service';
 import { ArteArquivoService } from './services/arte-arquivo.service';
 import { ArteThumbnailService } from './services/arte-thumbnail.service';
@@ -17,6 +21,10 @@ import { ArteLinkAprovacaoService } from './services/arte-link-aprovacao.service
 import { ArteNotificacaoService } from './services/arte-notificacao.service';
 import { ArteMensagemService } from './services/arte-mensagem.service';
 import { ArteWebSocketGateway } from './gateways/arte-websocket.gateway';
+import { ConfiguracaoArteService } from './services/configuracao-arte.service';
+import { ArteOrcamentoInjecaoService } from './services/arte-orcamento-injecao.service';
+import { ArteFilaService } from './services/arte-fila.service';
+import { ArteFilaTransicaoService } from './services/arte-fila-transicao.service';
 
 @Module({
   imports: [
@@ -39,6 +47,10 @@ import { ArteWebSocketGateway } from './gateways/arte-websocket.gateway';
     ArteNotificacaoController,
     ArteMensagemController,
     ArteMensagemPublicController,
+    ArteConfiguracaoController,
+    ArteFilaController,
+    ArteOsContextoController,
+    ArteOrcamentoController,
   ],
   providers: [
     ArteVersaoService,
@@ -48,6 +60,10 @@ import { ArteWebSocketGateway } from './gateways/arte-websocket.gateway';
     ArteNotificacaoService,
     ArteMensagemService,
     ArteWebSocketGateway,
+    ConfiguracaoArteService,
+    ArteOrcamentoInjecaoService,
+    ArteFilaService,
+    ArteFilaTransicaoService,
   ],
   exports: [
     ArteVersaoService,
@@ -57,6 +73,10 @@ import { ArteWebSocketGateway } from './gateways/arte-websocket.gateway';
     ArteNotificacaoService,
     ArteMensagemService,
     ArteWebSocketGateway,
+    ConfiguracaoArteService,
+    ArteOrcamentoInjecaoService,
+    ArteFilaService,
+    ArteFilaTransicaoService,
   ],
 })
 export class ArteAprovacaoModule {}

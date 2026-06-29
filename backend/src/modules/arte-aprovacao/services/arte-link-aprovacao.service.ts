@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
 import { dirname, join } from 'path';
 import { ArteNotificacaoService } from './arte-notificacao.service';
+import { ArteFilaTransicaoService } from './arte-fila-transicao.service';
 
 /**
  * Converte BigInt para string em objetos
@@ -39,6 +40,10 @@ export interface CreateLinkAprovacaoDto {
   versao_id: string;
   expira_em?: Date;
   loja_id: string;
+  /** Preview interno: cria/reutiliza link sem enviar e-mail nem alterar status da versão. */
+  preview?: boolean;
+  /** Enviar e-mail ao criar link de envio (default true). */
+  enviar_email?: boolean;
 }
 
 export interface LinkAprovacaoResponse {
@@ -67,6 +72,7 @@ export class ArteLinkAprovacaoService {
   constructor(
     private prisma: PrismaService,
     private notificacaoService: ArteNotificacaoService,
+    private filaTransicaoService: ArteFilaTransicaoService,
   ) {}
 
   /**
@@ -75,6 +81,10 @@ export class ArteLinkAprovacaoService {
   async createLinkAprovacao(
     dto: CreateLinkAprovacaoDto,
   ): Promise<LinkAprovacaoResponse> {
+    if (dto.preview) {
+      return this.obterOuCriarLinkPreview(dto.versao_id, dto.loja_id);
+    }
+
     const { versao_id, loja_id } = dto;
 
     // Verificar se a versÃ£o existe e pertence Ã  loja
@@ -134,33 +144,93 @@ export class ArteLinkAprovacaoService {
       },
     });
 
-    // Atualizar status da versÃ£o para "ENVIADA_CLIENTE"
+    // Atualizar status da versão para "ENVIADA_CLIENTE"
     await this.prisma.arteVersao.update({
       where: { id: versao_id },
       data: { status: ArteStatus.ENVIADA_CLIENTE },
     });
 
-    // Enviar notificaÃ§Ã£o por email
-    try {
+    await this.filaTransicaoService.sincronizarStatusAposVersao(
+      await this.filaTransicaoService.resolverItemOsIdPorVersao(
+        versao_id,
+        loja_id,
+      ),
+      loja_id,
+      ArteStatus.ENVIADA_CLIENTE,
+    );
+
+    // Enviar notificação por email
+    if (dto.enviar_email !== false) {
       await this.notificacaoService.notificarAprovacaoSolicitada({
         tipo: 'APROVACAO_SOLICITADA',
         os_id: versao.os_id,
         versao_id,
-        destinatarios: [versao.os.cliente.email],
+        destinatarios: versao.os.cliente?.email ? [versao.os.cliente.email] : [],
         dados: {
           link_id: link.id,
         },
       });
-    } catch (error) {
-      console.error(
-        'âŒ Erro ao enviar notificaÃ§Ã£o de aprovaÃ§Ã£o solicitada:',
-        error,
-      );
-      // NÃ£o falhar a operaÃ§Ã£o principal por causa da notificaÃ§Ã£o
     }
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    return this.formatLinkResponse(link);
+  }
 
+  /**
+   * Cria ou reutiliza link para preview interno (designer), sem enviar ao cliente.
+   */
+  async obterOuCriarLinkPreview(
+    versao_id: string,
+    loja_id: string,
+  ): Promise<LinkAprovacaoResponse> {
+    const versao = await this.prisma.arteVersao.findFirst({
+      where: {
+        id: versao_id,
+        loja_id,
+        deletado: false,
+      },
+    });
+
+    if (!versao) {
+      throw new Error('Versão não encontrada ou não pertence à loja');
+    }
+
+    const linkExistente = await this.prisma.arteLinkAprovacao.findFirst({
+      where: {
+        versao_id,
+        ativo: true,
+        expira_em: { gt: new Date() },
+      },
+      orderBy: { expira_em: 'desc' },
+    });
+
+    if (linkExistente) {
+      return this.formatLinkResponse(linkExistente);
+    }
+
+    const token_publico = this.generatePublicToken();
+    const expira_em = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const link = await this.prisma.arteLinkAprovacao.create({
+      data: {
+        versao_id,
+        token_publico,
+        expira_em,
+        loja_id,
+        ativo: true,
+      },
+    });
+
+    return this.formatLinkResponse(link);
+  }
+
+  private formatLinkResponse(link: {
+    id: string;
+    token_publico: string;
+    expira_em: Date;
+    ativo: boolean;
+    versao_id: string;
+  }): LinkAprovacaoResponse {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     return {
       id: link.id,
       token_publico: link.token_publico,
@@ -169,6 +239,36 @@ export class ArteLinkAprovacaoService {
       ativo: link.ativo,
       versao_id: link.versao_id,
     };
+  }
+
+  /**
+   * Contexto mínimo do link para envio/listagem de mensagens públicas (sem carregar todas as versões).
+   */
+  async getLinkContextParaMensagemPublica(token_publico: string) {
+    const link = await this.prisma.arteLinkAprovacao.findUnique({
+      where: { token_publico },
+      include: {
+        versao: {
+          include: {
+            os: {
+              include: {
+                cliente: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!link) {
+      throw new Error('Link de aprovação não encontrado');
+    }
+
+    if (link.expira_em && link.expira_em < new Date()) {
+      throw new Error('Link de aprovação expirado');
+    }
+
+    return link;
   }
 
   /**
@@ -676,6 +776,16 @@ export class ArteLinkAprovacaoService {
       },
     });
 
+    const itemOsId = await this.filaTransicaoService.resolverItemOsIdPorVersao(
+      versaoIdParaAtualizar,
+      link.versao.loja_id,
+    );
+    await this.filaTransicaoService.sincronizarStatusAposVersao(
+      itemOsId,
+      link.versao.loja_id,
+      novoStatus,
+    );
+
     // Adicionar comentÃ¡rio do cliente se fornecido
     if (comentario) {
       await this.prisma.arteComentario.create({
@@ -809,8 +919,12 @@ export class ArteLinkAprovacaoService {
       },
     });
 
-    if (!link || !link.ativo || link.expira_em < new Date() || link.versao.deletado) {
-      throw new ForbiddenException('Link pÃºblico invÃ¡lido ou expirado');
+    if (!link || link.versao.deletado) {
+      throw new ForbiddenException('Link público inválido');
+    }
+
+    if (link.expira_em && link.expira_em < new Date()) {
+      throw new ForbiddenException('Link público expirado');
     }
 
     const arquivo = await this.prisma.arteArquivo.findFirst({

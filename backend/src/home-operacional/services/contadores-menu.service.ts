@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { OrcamentoStatus } from '../../orcamentos-v2/enums/orcamento-status.enum';
 import { CobrancaStatus } from '../../financeiro/enums/cobranca-status.enum';
 import { StatusExpedicao } from '../../expedicao/enums/status-expedicao.enum';
+import { ArteFilaService } from '../../modules/arte-aprovacao/services/arte-fila.service';
 import { HomeCacheService } from './home-cache.service';
 import { ContadoresMenuResponse } from '../interfaces/contadores-menu.interface';
 
@@ -13,6 +14,7 @@ export interface ContadoresMenuOpcoes {
   pcpDesde?: Date;
   expedicaoDesde?: Date;
   financeiroDesde?: Date;
+  arteDesde?: Date;
 }
 
 /**
@@ -27,6 +29,7 @@ export class ContadoresMenuService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: HomeCacheService,
+    private readonly arteFilaService: ArteFilaService,
   ) {}
 
   async obter(
@@ -44,7 +47,7 @@ export class ContadoresMenuService {
     }
 
     try {
-      const [os, pcp, expedicao, financeiro] = await Promise.all([
+      const [os, pcp, expedicao, financeiro, arte] = await Promise.all([
         opcoes.osDesde
           ? this.contarNovosOs(lojaId, opcoes.osDesde)
           : Promise.resolve(0),
@@ -57,6 +60,9 @@ export class ContadoresMenuService {
         opcoes.financeiroDesde
           ? this.contarNovasCobrancas(lojaId, opcoes.financeiroDesde)
           : Promise.resolve(0),
+        opcoes.arteDesde
+          ? this.arteFilaService.contarNovosDesde(lojaId, opcoes.arteDesde)
+          : Promise.resolve(0),
       ]);
 
       const resultado: ContadoresMenuResponse = {
@@ -64,6 +70,7 @@ export class ContadoresMenuService {
         pcp,
         expedicao,
         financeiro,
+        arte,
       };
 
       this.cache.gravar(chaveCache, resultado);
@@ -72,7 +79,7 @@ export class ContadoresMenuService {
       this.logger.warn(
         `Falha ao calcular contadores do menu: ${error instanceof Error ? error.message : error}`,
       );
-      return { os: 0, pcp: 0, expedicao: 0, financeiro: 0 };
+      return { os: 0, pcp: 0, expedicao: 0, financeiro: 0, arte: 0 };
     }
   }
 
@@ -87,6 +94,7 @@ export class ContadoresMenuService {
       opcoes.pcpDesde?.toISOString() ?? '0',
       opcoes.expedicaoDesde?.toISOString() ?? '0',
       opcoes.financeiroDesde?.toISOString() ?? '0',
+      opcoes.arteDesde?.toISOString() ?? '0',
     ];
     return partes.join(':');
   }

@@ -18,17 +18,36 @@ import { ArteMessagesModal } from './components/ArteMessagesModal';
 import { useArteProdutos } from './hooks/useArteProdutos';
 import { useArteVersoes } from './hooks/useArteVersoes';
 import { toast } from 'sonner';
+import { ArteVersao } from './types/arte-types';
+import {
+  enviarVersaoParaCliente,
+  reenviarEmailAprovacao,
+  resolverLinkPublicoVersao,
+} from '@/lib/arte-links-api';
 
 interface ArteAprovacaoSidebarProps {
   osId: string;
-  osNumero?: string; // Número da OS (ex: OS-2025-001)
+  osNumero?: string;
+  itemIdFoco?: string;
+  /** Versões compartilhadas pelo painel pai; se ausente, usa o hook interno */
+  versoes?: ArteVersao[];
   onEnviarTodasArtes?: () => void;
   hasVersoesRascunho?: boolean;
+  onMutacao?: () => void;
 }
 
-export function ArteAprovacaoSidebar({ osId, osNumero, onEnviarTodasArtes, hasVersoesRascunho = false }: ArteAprovacaoSidebarProps) {
+export function ArteAprovacaoSidebar({
+  osId,
+  osNumero,
+  itemIdFoco,
+  versoes: versoesProp,
+  onEnviarTodasArtes,
+  hasVersoesRascunho = false,
+  onMutacao,
+}: ArteAprovacaoSidebarProps) {
   const { produtos } = useArteProdutos(osId);
-  const { versoes } = useArteVersoes(osId);
+  const { versoes: versoesHook } = useArteVersoes(osId);
+  const versoes = Array.isArray(versoesProp) ? versoesProp : versoesHook;
   const { ultimasMensagens, loading: loadingMensagens } = useUltimasMensagens(osId);
   
   // Estados para modais
@@ -36,10 +55,23 @@ export function ArteAprovacaoSidebar({ osId, osNumero, onEnviarTodasArtes, hasVe
   const [showMessagesModal, setShowMessagesModal] = useState(false);
   const [selectedProdutoId, setSelectedProdutoId] = useState<string>('');
   const [selectedVersaoId, setSelectedVersaoId] = useState<string>('');
+  const [reenviandoEmail, setReenviandoEmail] = useState(false);
 
   // Verificar se há múltiplos produtos para aprovação
   const produtosParaAprovacao = produtos.filter(p => p.status === 'ENVIADA_CLIENTE');
   const temMultiplosProdutos = produtosParaAprovacao.length > 1;
+
+  const versoesEscopo = itemIdFoco
+    ? versoes.filter((v) => v.servico_id === itemIdFoco)
+    : versoes;
+
+  const versaoParaLinkPublico = () => {
+    if (versoesEscopo.length === 0) return null;
+    return (
+      versoesEscopo.find((v) => v.status === 'ENVIADA_CLIENTE') ||
+      versoesEscopo[0]
+    );
+  };
 
   const handleRegistrarAprovacao = () => {
     if (temMultiplosProdutos) {
@@ -57,7 +89,7 @@ export function ArteAprovacaoSidebar({ osId, osNumero, onEnviarTodasArtes, hasVe
     try {
       // Buscar versões do produto que estão prontas para aprovação
       const versoesProduto = versoes.filter(v => 
-        v.produto_id === produtoId && v.status === 'ENVIADA_CLIENTE'
+        v.servico_id === produtoId && v.status === 'ENVIADA_CLIENTE'
       );
 
       if (versoesProduto.length === 0) {
@@ -156,138 +188,96 @@ export function ArteAprovacaoSidebar({ osId, osNumero, onEnviarTodasArtes, hasVe
 
   const handleCopiarLinkPublico = async () => {
     try {
-      // Buscar versões que precisam de link público
-      const versoesParaLink = versoes.filter(v => v.status === 'ENVIADA_CLIENTE');
-      
-      if (versoesParaLink.length === 0) {
-        toast.error('Nenhuma versão encontrada para gerar link público');
+      const versao = versaoParaLinkPublico();
+      if (!versao) {
+        toast.error('Nenhuma versão encontrada para gerar link');
         return;
       }
 
-      // Para múltiplas versões, vamos criar um link geral da OS
-      // Para uma versão específica, criar link individual
-      const versaoParaLink = versoesParaLink[0]; // Primeira versão
-      
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        throw new Error('Token de autenticação não encontrado');
-      }
+      const preview = versao.status === 'RASCUNHO';
+      const linkPublico = await resolverLinkPublicoVersao(versao.id, preview);
 
-      // Criar link de aprovação
-      const response = await fetch('/api/arte-aprovacao/links', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          versao_id: versaoParaLink.id,
-          expira_em: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 dias
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao gerar link público');
-      }
-
-      const result = await response.json();
-      const linkPublico = `${window.location.origin}/arte/aprovacao/${result.data.token_publico}`;
-      
       await navigator.clipboard.writeText(linkPublico);
-      toast.success('Link público copiado para a área de transferência!');
+      toast.success(
+        preview
+          ? 'Link de preview copiado (versão ainda em rascunho)'
+          : 'Link público copiado para a área de transferência!',
+      );
     } catch (error) {
       console.error('Erro ao copiar link:', error);
       toast.error(error instanceof Error ? error.message : 'Erro ao copiar link');
     }
   };
 
+  const versoesAguardandoCliente = versoesEscopo.filter(
+    (v) =>
+      v.status === 'ENVIADA_CLIENTE' || v.status === 'REVISAO_SOLICITADA',
+  );
+  const versaoRascunhoParaEmail = versoesEscopo.find(
+    (v) => v.status === 'RASCUNHO',
+  );
+  const podeReenviarEmail = versoesAguardandoCliente.length > 0;
+  const podeEnviarEmailInicial =
+    !podeReenviarEmail && Boolean(versaoRascunhoParaEmail);
+
   const handleReenviarEmail = async () => {
+    if (!podeReenviarEmail && !podeEnviarEmailInicial) {
+      toast.error('Nenhuma versão disponível para envio de e-mail');
+      return;
+    }
+
+    setReenviandoEmail(true);
+
     try {
-      // Buscar versões que precisam de notificação
-      const versoesParaEmail = versoes.filter(v => v.status === 'ENVIADA_CLIENTE');
-      
-      if (versoesParaEmail.length === 0) {
-        toast.error('Nenhuma versão encontrada para reenvio de email');
+      if (podeEnviarEmailInicial && versaoRascunhoParaEmail) {
+        await enviarVersaoParaCliente(versaoRascunhoParaEmail.id);
+        onMutacao?.();
+        toast.success(
+          'Arte enviada ao cliente. Confira o preview do e-mail no console do backend (Ethereal).',
+        );
         return;
       }
 
-      const versaoParaEmail = versoesParaEmail[0]; // Primeira versão
-      
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        throw new Error('Token de autenticação não encontrado');
+      const versaoParaEmail = versoesAguardandoCliente[0];
+      const { previewUrl } = await reenviarEmailAprovacao(
+        osId,
+        versaoParaEmail.id,
+      );
+
+      if (previewUrl) {
+        toast.success('E-mail reenviado (modo Ethereal)', {
+          description: 'Clique para abrir o preview do e-mail',
+          action: {
+            label: 'Abrir preview',
+            onClick: () =>
+              window.open(previewUrl, '_blank', 'noopener,noreferrer'),
+          },
+          duration: 15000,
+        });
+      } else {
+        toast.success('E-mail reenviado com sucesso!');
       }
-
-      // Criar link de aprovação e enviar email
-      const response = await fetch('/api/arte-aprovacao/links', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          versao_id: versaoParaEmail.id,
-          expira_em: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 dias
-          enviar_email: true, // Flag para enviar email automaticamente
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao reenviar email');
-      }
-
-      toast.success('Email reenviado com sucesso!');
     } catch (error) {
       console.error('Erro ao reenviar email:', error);
-      toast.error(error instanceof Error ? error.message : 'Erro ao reenviar email');
+      toast.error(
+        error instanceof Error ? error.message : 'Erro ao reenviar email',
+      );
+    } finally {
+      setReenviandoEmail(false);
     }
   };
 
   const handleVerArtePublica = async () => {
     try {
-      // Buscar versões que têm link público ativo
-      const versoesParaLink = versoes.filter(v => v.status === 'ENVIADA_CLIENTE');
-      
-      if (versoesParaLink.length === 0) {
-        toast.error('Nenhuma versão encontrada com link público');
+      const versao = versaoParaLinkPublico();
+      if (!versao) {
+        toast.error('Nenhuma versão encontrada para visualizar');
         return;
       }
 
-      // Se já existe um link, usar ele. Senão, criar um novo
-      let linkPublico = '';
-      
-      // TODO: Verificar se já existe link ativo para esta versão
-      // Por enquanto, vamos criar um novo link
-      const versaoParaLink = versoesParaLink[0];
-      
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        throw new Error('Token de autenticação não encontrado');
-      }
-
-      const response = await fetch('/api/arte-aprovacao/links', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          versao_id: versaoParaLink.id,
-          expira_em: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 dias
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao gerar link público');
-      }
-
-      const result = await response.json();
-      linkPublico = `${window.location.origin}/arte/aprovacao/${result.data.token_publico}`;
-      
-      window.open(linkPublico, '_blank');
+      const preview = versao.status === 'RASCUNHO';
+      const linkPublico = await resolverLinkPublicoVersao(versao.id, preview);
+      window.open(linkPublico, '_blank', 'noopener,noreferrer');
     } catch (error) {
       console.error('Erro ao abrir arte pública:', error);
       toast.error(error instanceof Error ? error.message : 'Erro ao abrir arte pública');
@@ -331,6 +321,7 @@ export function ArteAprovacaoSidebar({ osId, osNumero, onEnviarTodasArtes, hasVe
             variant="outline" 
             className="w-full justify-start text-left min-w-0"
             onClick={handleCopiarLinkPublico}
+            disabled={versoesEscopo.length === 0}
           >
             <Copy className="h-4 w-4 mr-2 flex-shrink-0" />
             <span className="truncate">Copiar link público</span>
@@ -338,10 +329,20 @@ export function ArteAprovacaoSidebar({ osId, osNumero, onEnviarTodasArtes, hasVe
           <Button 
             variant="outline" 
             className="w-full justify-start text-left min-w-0"
-            onClick={handleReenviarEmail}
+            onClick={() => void handleReenviarEmail()}
+            disabled={
+              reenviandoEmail ||
+              (!podeReenviarEmail && !podeEnviarEmailInicial)
+            }
           >
             <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
-            <span className="truncate">Reenviar e-mail</span>
+            <span className="truncate">
+              {reenviandoEmail
+                ? 'Enviando e-mail...'
+                : podeReenviarEmail
+                  ? 'Reenviar e-mail'
+                  : 'Enviar e-mail ao cliente'}
+            </span>
           </Button>
           <Button 
             className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-left min-w-0"
@@ -357,6 +358,7 @@ export function ArteAprovacaoSidebar({ osId, osNumero, onEnviarTodasArtes, hasVe
             variant="outline" 
             className="w-full justify-start text-left min-w-0"
             onClick={handleVerArtePublica}
+            disabled={versoesEscopo.length === 0}
           >
             <ExternalLink className="h-4 w-4 mr-2 flex-shrink-0" />
             <span className="truncate">Ver arte (link público)</span>
