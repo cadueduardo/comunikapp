@@ -10,9 +10,9 @@
 
 | Item | Valor |
 |------|-------|
-| **Fase ativa** | Fase 8 — OS e roteamento operacional |
-| **Status geral** | Orçamento V2 com personalização, VDP/CSV, grade e persistência `PersonalizacaoOrcamento` |
-| **Próximo passo** | Propagação orçamento → ItemOS (Fase 8) |
+| **Fase ativa** | Fase 9 — Arte de produção VDP (refinamento) |
+| **Status geral** | Ecossistema backend pronto para consumo do PCP e da Expedição (propagação OS concluída) |
+| **Próximo passo** | Job merge PDF multi-páginas e `arte_producao_url` print-ready |
 
 ---
 
@@ -161,10 +161,11 @@
 
 ## Fase 8 — OS e roteamento operacional
 
-- [ ] Propagação orçamento → `ItemOS`
-- [ ] `modo_fulfillment` derivado automaticamente
-- [ ] Elegibilidade PCP vs expedição por item
-- [ ] Integração com liberação parcial existente
+- [x] Propagação orçamento → `ItemOS` (`personalizacao_modo`, `estampa_id`, `valores_personalizacao`, `grade_distribuicao`)
+- [x] `modo_fulfillment` derivado automaticamente (`item-os-personalizacao.util.ts`)
+- [x] Elegibilidade PCP vs expedição por item (PICK ignora kanban; MAKE/HIBRIDO seguem fluxo industrial)
+- [x] Snapshot imutável em `ordem_servico_logs` (`PERSONALIZACAO_MIGRADA_ORCAMENTO`)
+- [x] BOLA na conversão (`findFirst` com `loja_id`, validação tenant do produto finito)
 
 ---
 
@@ -207,3 +208,4 @@
 | 2026-06-27 | Vínculos ProdutoFinito + `para-orcamento` enriquecido (transação Prisma, BOLA) | Fase 5 |
 | 2026-06-27 | Aba Personalização no `ProdutoFinitoForm` (modos, estampas, processos, fulfillment) | Fase 6 |
 | 2026-06-27 | Orçamento V2: UI personalização, VDP/CSV, grade, preço industrial, persistência | Fase 7 |
+| 2026-06-27 | Propagação personalização orçamento→OS, motor `modo_fulfillment`, logs imutáveis | Fase 8 |

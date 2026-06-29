@@ -45,6 +45,10 @@ import {
   resolveIdsAlvoLiberacao,
 } from '../utils/os-liberacao-pcp.util';
 import {
+  assertProdutoFinitoTenant,
+  resolverPropagacaoPersonalizacaoItemOS,
+} from '../utils/item-os-personalizacao.util';
+import {
   TipoOS as TipoOSInterface,
   OrigemOS,
   PrioridadeOS,
@@ -3334,7 +3338,7 @@ export class OSService {
     };
   }
 
-  private montarItensOSDoOrcamento(orcamento: any): any[] {
+  private montarItensOSDoOrcamento(orcamento: any, lojaId: string): any[] {
     const produtos = Array.isArray(orcamento?.produtos)
       ? orcamento.produtos
       : [];
@@ -3343,6 +3347,14 @@ export class OSService {
       const arteInicial = resolverStatusArteInicial(
         produto.responsabilidade_arte,
       );
+
+      assertProdutoFinitoTenant(produto.produto_finito, lojaId);
+
+      const propagacao = resolverPropagacaoPersonalizacaoItemOS({
+        tipoItem: produto.tipo_item,
+        produtoFinito: produto.produto_finito ?? null,
+        personalizacao: produto.personalizacao ?? null,
+      });
 
       return {
       id: produto.id,
@@ -3377,6 +3389,12 @@ export class OSService {
       status_liberacao_pcp: 'PENDENTE',
       prioridade_produto: 'NORMAL',
       ordem_producao: index + 1,
+      modo_fulfillment: propagacao.modo_fulfillment,
+      personalizacao_modo: propagacao.personalizacao_modo,
+      estampa_id: propagacao.estampa_id,
+      valores_personalizacao: propagacao.valores_personalizacao,
+      grade_distribuicao: propagacao.grade_distribuicao,
+      _snapshot_personalizacao_auditoria: propagacao.snapshot_auditoria,
     };
     });
   }
@@ -3391,8 +3409,8 @@ export class OSService {
         `Criando OS a partir do orçamento ${dadosOrcamento.orcamento_id}`,
       );
 
-      // 1. Buscar orçamento completo com produtos e insumos
-      const orcamentoCompleto = await this.prisma.orcamento.findUnique({
+      // 1. Buscar orçamento completo com produtos, personalização e insumos (BOLA: loja_id)
+      const orcamentoCompleto = await this.prisma.orcamento.findFirst({
         where: {
           id: dadosOrcamento.orcamento_id,
           loja_id: lojaId,
@@ -3400,6 +3418,15 @@ export class OSService {
         include: {
           produtos: {
             include: {
+              personalizacao: true,
+              produto_finito: {
+                select: {
+                  id: true,
+                  personalizavel: true,
+                  fulfillment_padrao: true,
+                  loja_id: true,
+                },
+              },
               insumos: {
                 include: {
                   insumo: {
@@ -3416,15 +3443,18 @@ export class OSService {
       });
 
       if (!orcamentoCompleto) {
-        throw new Error(
-          `Orçamento ${dadosOrcamento.orcamento_id} não encontrado`,
+        throw new NotFoundException(
+          `Orçamento ${dadosOrcamento.orcamento_id} não encontrado para esta loja.`,
         );
       }
 
       // 2. Extrair materiais exatos do orçamento
       const materiaisOrcamento =
         this.extrairMateriaisDoOrcamento(orcamentoCompleto);
-      const itensOS = this.montarItensOSDoOrcamento(orcamentoCompleto);
+      const itensOS = this.montarItensOSDoOrcamento(
+        orcamentoCompleto,
+        lojaId,
+      );
 
       const createDto: CreateOSDto = {
         tipo_os: TipoOS.COMERCIAL, // OS criada a partir de orçamento é sempre comercial
@@ -3456,12 +3486,48 @@ export class OSService {
       const os = await this.create(lojaId, createDto);
 
       if (itensOS.length > 0) {
-        await this.prisma.itemOS.createMany({
-          data: itensOS.map((item) => ({
-            ...item,
+        const snapshotsAuditoria = itensOS
+          .map((item) => ({
+            item_os_id: item.id,
+            produto_servico: item.produto_servico,
+            snapshot: item._snapshot_personalizacao_auditoria,
+          }))
+          .filter((entry) => entry.snapshot != null);
+
+        const dadosItens = itensOS.map((item) => {
+          const { _snapshot_personalizacao_auditoria: _omit, ...dadosItem } =
+            item;
+          return {
+            ...dadosItem,
             os_id: os.id,
-          })),
-          skipDuplicates: true,
+          };
+        });
+
+        await this.prisma.$transaction(async (tx) => {
+          await tx.itemOS.createMany({
+            data: dadosItens,
+            skipDuplicates: true,
+          });
+
+          if (snapshotsAuditoria.length > 0) {
+            await tx.ordemServicoLog.create({
+              data: {
+                os_id: os.id,
+                tipo_acao: 'PERSONALIZACAO_MIGRADA_ORCAMENTO',
+                descricao:
+                  `Snapshots imutáveis de personalização migrados do orçamento ` +
+                  `${orcamentoCompleto.id} (${snapshotsAuditoria.length} item(ns)).`,
+                usuario_id: usuarioId ?? null,
+                dados_extras: JSON.stringify({
+                  orcamento_id: orcamentoCompleto.id,
+                  orcamento_numero: orcamentoCompleto.numero,
+                  loja_id: lojaId,
+                  imutavel: true,
+                  itens: snapshotsAuditoria,
+                }),
+              },
+            });
+          }
         });
       }
 
