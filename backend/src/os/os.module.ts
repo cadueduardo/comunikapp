@@ -21,6 +21,7 @@ import { ConfiguracoesModule } from '../configuracoes/configuracoes.module';
 import { ExpedicaoModule } from '../expedicao/expedicao.module';
 import { FinanceiroModule } from '../financeiro/financeiro.module';
 import { HomeOperacionalModule } from '../home-operacional/home-operacional.module';
+import { CatalogoModule } from '../catalogo/catalogo.module';
 import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-estoque.service';
 import { getRequiredJwtSecret } from '../auth/jwt-secret';
 
@@ -90,6 +91,7 @@ const debugControllers =
     ExpedicaoModule, // Gatilho de expedição ao finalizar OS manualmente
     FinanceiroModule, // Cancelamento de cobrança ao inativar OS
     HomeOperacionalModule, // HomeCacheService para invalidar badges após inativar/reativar
+    CatalogoModule, // Arte de produção VDP (Fase 9 catálogo)
     // JWT Module proprio (conforme premissas de autenticacao)
     JwtModule.registerAsync({
       imports: [ConfigModule],

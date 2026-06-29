@@ -63,6 +63,7 @@
     "otplib": "^13.4.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "pdf-lib": "^1.17.1",
     "qrcode": "^1.5.4",
     "react-hook-form": "^7.60.0",
     "reflect-metadata": "^0.2.2",

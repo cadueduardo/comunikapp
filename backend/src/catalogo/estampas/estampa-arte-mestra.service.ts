@@ -127,6 +127,24 @@ export class EstampaArteMestraService {
     };
   }
 
+  async obterConteudoArteMestra(
+    token: string,
+    lojaId: string,
+  ): Promise<{ buffer: Buffer; mime_type: string }> {
+    const meta = await this.carregarMeta(token, lojaId);
+    const caminhoFisico = this.resolverCaminhoSeguro(
+      lojaId,
+      meta.nome_fisico,
+    );
+
+    if (!existsSync(caminhoFisico)) {
+      throw new NotFoundException('Arquivo de arte-mestra não encontrado.');
+    }
+
+    const buffer = await readFile(caminhoFisico);
+    return { buffer, mime_type: meta.mime_type };
+  }
+
   async servir(token: string, lojaId: string, res: Response) {
     const meta = await this.carregarMeta(token, lojaId);
     const caminhoFisico = this.resolverCaminhoSeguro(

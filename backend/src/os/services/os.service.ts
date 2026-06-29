@@ -48,6 +48,8 @@ import {
   assertProdutoFinitoTenant,
   resolverPropagacaoPersonalizacaoItemOS,
 } from '../utils/item-os-personalizacao.util';
+import { ArteProducaoService } from '../../catalogo/producao/arte-producao.service';
+import { ModoFulfillmentItem } from '@prisma/client';
 import {
   TipoOS as TipoOSInterface,
   OrigemOS,
@@ -88,6 +90,7 @@ export class OSService {
     private readonly osValidacoesService: OSValidacoesService,
     private readonly workflowAssignmentService: WorkflowAssignmentService,
     private readonly expedicaoCriacaoService: ExpedicaoCriacaoService,
+    private readonly arteProducaoService: ArteProducaoService,
   ) {}
 
   // ===== CRUD BÁSICO =====
@@ -3529,6 +3532,20 @@ export class OSService {
             });
           }
         });
+
+        for (const item of dadosItens) {
+          if (
+            (item.modo_fulfillment === ModoFulfillmentItem.MAKE ||
+              item.modo_fulfillment === ModoFulfillmentItem.HIBRIDO) &&
+            item.valores_personalizacao
+          ) {
+            this.arteProducaoService.agendarGeracaoItemOS(
+              item.id,
+              lojaId,
+              usuarioId,
+            );
+          }
+        }
       }
 
       this.logger.log(

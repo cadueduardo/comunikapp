@@ -10,9 +10,9 @@
 
 | Item | Valor |
 |------|-------|
-| **Fase ativa** | Fase 9 — Arte de produção VDP (refinamento) |
-| **Status geral** | Ecossistema backend pronto para consumo do PCP e da Expedição (propagação OS concluída) |
-| **Próximo passo** | Job merge PDF multi-páginas e `arte_producao_url` print-ready |
+| **Fase ativa** | Catálogo — refinamentos operacionais / Fase 10+ |
+| **Status geral** | Motor VDP print-ready ativo; PCP e Expedição podem consumir `arte_producao_url` |
+| **Próximo passo** | Preview com TTL / integração visual no frontend PCP |
 
 ---
 
@@ -171,9 +171,22 @@
 
 ## Fase 9 — Arte de produção VDP (refinamento)
 
-- [ ] Job merge PDF multi-páginas
-- [ ] `arte_producao_url` print-ready
-- [ ] Preview com TTL / Signed URL (A04)
+- [x] Job merge PDF multi-páginas (`VdpPdfMergeProvider` + `pdf-lib`)
+- [x] `arte_producao_url` print-ready (`ArteProducaoService`, path `uploads/{loja_id}/producao/`)
+- [x] Download autenticado `GET /catalogo/item-os/:id/arte-producao` (BOLA + nomes imprevisíveis anti-IDOR)
+- [x] Logs `ARTE_PRODUCAO_CONSOLIDADA` / `ARTE_PRODUCAO_FALHA` em `ordem_servico_logs`
+- [x] Geração assíncrona ao criar OS com itens `MAKE`/`HIBRIDO`
+- [ ] Preview com TTL / Signed URL (A04) — refinamento futuro
+
+### Arquitetura segura (Fase 9)
+
+| Camada | Implementação |
+|--------|----------------|
+| **Storage** | `uploads/{loja_id}/producao/prod_{uuid}.pdf` — sem ID de OS no nome físico |
+| **URL DB** | Caminho interno `/catalogo/producao/arquivo/{token}` |
+| **Download** | Endpoint tenant-scoped com JWT; validação `item_os_id` no meta JSON |
+| **VDP** | Sanitização `=+-@` antes do merge; limite 500 registros |
+| **Merge** | Provider isolado (`VdpPdfMergeProvider`) — extensível para CLI/canvas |
 
 ---
 
@@ -209,3 +222,4 @@
 | 2026-06-27 | Aba Personalização no `ProdutoFinitoForm` (modos, estampas, processos, fulfillment) | Fase 6 |
 | 2026-06-27 | Orçamento V2: UI personalização, VDP/CSV, grade, preço industrial, persistência | Fase 7 |
 | 2026-06-27 | Propagação personalização orçamento→OS, motor `modo_fulfillment`, logs imutáveis | Fase 8 |
+| 2026-06-27 | Motor arte produção VDP (PDF multipáginas, storage seguro, download autenticado) | Fase 9 |
