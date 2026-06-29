@@ -659,6 +659,9 @@ model loja {
   produtos_finitos          ProdutoFinito[]
   expedicoes_logistica      ExpedicaoLogistica[]
   configuracao_arte         ConfiguracaoArteLoja?
+  processos_decoracao       ProcessoDecoracao[]
+  conjuntos_campos          ConjuntoCampos[]
+  estampas                  Estampa[]
 }
 
 model maquina {
@@ -1029,6 +1032,7 @@ model ProdutoOrcamento {
   orcamento        orcamento           @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
   instalacao_tipo  TipoInstalacao?     @relation(fields: [instalacao_tipo_id], references: [id])
   produto_finito   ProdutoFinito?      @relation(fields: [produto_finito_id], references: [id], onDelete: SetNull)
+  personalizacao   PersonalizacaoOrcamento?
   insumos          ItemInsumo[]
   maquinas         ItemMaquina[]
   funcoes          ItemFuncao[]
@@ -1927,7 +1931,16 @@ model ItemOS {
   arte_assumido_em           DateTime?
   data_prazo_arte            DateTime?
 
+  // Módulo Catálogo — personalização de prateleira (estampa / imprint / VDP)
+  modo_fulfillment        ModoFulfillmentItem?   @default(PICK)
+  personalizacao_modo     ModoPersonalizacao?
+  estampa_id              String?
+  valores_personalizacao  Json? // polimórfico: Record<string,string> | Record<string,string>[]
+  grade_distribuicao      Json? // [{ atributos, quantidade }]
+  arte_producao_url       String?                @db.Text // PDF print-ready (catálogo VDP)
+
   os               OrdemServico             @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  estampa          Estampa?                 @relation(fields: [estampa_id], references: [id], onDelete: SetNull)
   instancias_setor WorkflowInstanciaSetor[]
   designer_atribuido usuario?               @relation("ItemOSDesigner", fields: [designer_atribuido_id], references: [id], onDelete: SetNull)
 
@@ -1937,6 +1950,9 @@ model ItemOS {
   @@index([status_arte])
   @@index([responsabilidade_arte])
   @@index([designer_atribuido_id])
+  @@index([estampa_id])
+  @@index([modo_fulfillment])
+  @@index([personalizacao_modo])
   @@map("itens_os")
 }
 
@@ -2534,6 +2550,8 @@ model ProdutoFinito {
   estoque_atual      Int      @default(0)
   estoque_minimo     Int      @default(0)
   ativo              Boolean  @default(true)
+  personalizavel     Boolean  @default(false)
+  fulfillment_padrao FulfillmentPadrao @default(ESTOQUE)
   criado_em          DateTime @default(now())
   atualizado_em      DateTime @updatedAt
 
@@ -2541,9 +2559,14 @@ model ProdutoFinito {
   categoria       CategoriaProdutoFinito? @relation(fields: [categoria_id], references: [id], onDelete: SetNull)
   imagens         GaleriaProdutoFinito[]
   itens_orcamento ProdutoOrcamento[]
+  modos           ProdutoFinitoModo[]
+  estampas        ProdutoFinitoEstampa[]
+  processos       ProdutoFinitoProcesso[]
 
   @@unique([loja_id, sku])
   @@index([loja_id])
+  @@index([loja_id, id])
+  @@index([loja_id, personalizavel])
   @@index([categoria_id])
   @@map("produtos_finitos")
 }
@@ -2558,4 +2581,207 @@ model GaleriaProdutoFinito {
 
   @@index([produto_finito_id])
   @@map("galeria_produto_finito")
+}
+
+// ==========================================
+// MÓDULO CATÁLOGO — PERSONALIZAÇÃO E ESTAMPAS
+// ==========================================
+
+enum CampoVariavelTipo {
+  TEXTO
+  NUMERO
+  DATA
+}
+
+enum ModoPersonalizacao {
+  NENHUM
+  ESTAMPA
+  IMPRINT_LIVRE
+  ARTE_SOB_MEDIDA
+}
+
+enum FulfillmentPadrao {
+  ESTOQUE
+  PRODUCAO
+  HIBRIDO
+}
+
+enum ModoFulfillmentItem {
+  PICK
+  MAKE
+  HIBRIDO
+}
+
+model ProcessoDecoracao {
+  id                  String   @id @default(cuid())
+  loja_id             String
+  codigo              String?  @db.VarChar(50)
+  nome                String   @db.VarChar(120)
+  descricao           String?  @db.Text
+  exige_arte_aprovada Boolean  @default(false)
+  insumos_aceitos     Json // ["ARQUIVO","TEXTO","VETOR"]
+  preco_base          Decimal? @db.Decimal(10, 2)
+  custo_setup         Decimal  @default(0) @db.Decimal(10, 2)
+  faixas_preco        Json // Quantity Breaks: [{ min, max, preco }]
+  setor_pcp_sugerido  String?  @db.VarChar(120)
+  ativo               Boolean  @default(true)
+  criado_em           DateTime @default(now())
+  atualizado_em       DateTime @updatedAt
+
+  loja                 loja                    @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  estampas             Estampa[]
+  produtos_vinculados  ProdutoFinitoProcesso[]
+  personalizacoes      PersonalizacaoOrcamento[]
+
+  @@unique([loja_id, codigo])
+  @@index([loja_id])
+  @@index([loja_id, id])
+  @@index([loja_id, ativo])
+  @@map("processos_decoracao")
+}
+
+model ConjuntoCampos {
+  id            String   @id @default(cuid())
+  loja_id       String
+  nome          String   @db.VarChar(120)
+  descricao     String?  @db.Text
+  ativo         Boolean  @default(true)
+  criado_em     DateTime @default(now())
+  atualizado_em DateTime @updatedAt
+
+  loja    loja               @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  campos  CampoVariavelDef[]
+  estampas Estampa[]
+
+  @@unique([loja_id, nome])
+  @@index([loja_id])
+  @@index([loja_id, id])
+  @@index([loja_id, ativo])
+  @@map("conjuntos_campos")
+}
+
+model CampoVariavelDef {
+  id             String            @id @default(cuid())
+  conjunto_id    String
+  chave          String            @db.VarChar(64)
+  label          String            @db.VarChar(120)
+  tipo           CampoVariavelTipo @default(TEXTO)
+  obrigatorio    Boolean           @default(true)
+  max_caracteres Int?
+  fonte_sugerida String?           @db.VarChar(120)
+  ordem          Int               @default(0)
+  placeholder    String?           @db.VarChar(255)
+  criado_em      DateTime          @default(now())
+  atualizado_em  DateTime          @updatedAt
+
+  conjunto ConjuntoCampos @relation(fields: [conjunto_id], references: [id], onDelete: Cascade)
+
+  @@unique([conjunto_id, chave])
+  @@index([conjunto_id])
+  @@map("campos_variaveis_def")
+}
+
+model Estampa {
+  id                 String   @id @default(cuid())
+  loja_id            String
+  codigo             String?  @db.VarChar(50)
+  nome               String   @db.VarChar(255)
+  processo_id        String
+  conjunto_campos_id String?
+  arte_mestra_url    String?  @db.Text
+  thumb_url          String?  @db.Text
+  preco_adicional    Decimal  @default(0) @db.Decimal(10, 2)
+  metadados          Json? // âncoras / bounding boxes para VDP
+  ativo              Boolean  @default(true)
+  criado_em          DateTime @default(now())
+  atualizado_em      DateTime @updatedAt
+
+  loja            loja                    @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  processo        ProcessoDecoracao       @relation(fields: [processo_id], references: [id], onDelete: Restrict)
+  conjunto_campos ConjuntoCampos?         @relation(fields: [conjunto_campos_id], references: [id], onDelete: SetNull)
+  produtos        ProdutoFinitoEstampa[]
+  itens_os        ItemOS[]
+  personalizacoes PersonalizacaoOrcamento[]
+
+  @@unique([loja_id, codigo])
+  @@index([loja_id])
+  @@index([loja_id, id])
+  @@index([loja_id, ativo])
+  @@index([processo_id])
+  @@index([conjunto_campos_id])
+  @@map("estampas")
+}
+
+model ProdutoFinitoModo {
+  id                String             @id @default(cuid())
+  loja_id           String
+  produto_finito_id String
+  modo              ModoPersonalizacao
+  habilitado        Boolean            @default(true)
+  criado_em         DateTime           @default(now())
+
+  produto ProdutoFinito @relation(fields: [produto_finito_id], references: [id], onDelete: Cascade)
+
+  @@unique([produto_finito_id, modo])
+  @@index([loja_id])
+  @@index([loja_id, produto_finito_id])
+  @@index([produto_finito_id])
+  @@map("produto_finito_modos")
+}
+
+model ProdutoFinitoEstampa {
+  loja_id           String
+  produto_finito_id String
+  estampa_id        String
+  criado_em         DateTime @default(now())
+
+  produto ProdutoFinito @relation(fields: [produto_finito_id], references: [id], onDelete: Cascade)
+  estampa Estampa       @relation(fields: [estampa_id], references: [id], onDelete: Cascade)
+
+  @@id([produto_finito_id, estampa_id])
+  @@index([loja_id])
+  @@index([loja_id, estampa_id])
+  @@index([estampa_id])
+  @@map("produto_finito_estampas")
+}
+
+model ProdutoFinitoProcesso {
+  loja_id           String
+  produto_finito_id String
+  processo_id       String
+  criado_em         DateTime @default(now())
+
+  produto  ProdutoFinito     @relation(fields: [produto_finito_id], references: [id], onDelete: Cascade)
+  processo ProcessoDecoracao @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  @@id([produto_finito_id, processo_id])
+  @@index([loja_id])
+  @@index([loja_id, processo_id])
+  @@index([processo_id])
+  @@map("produto_finito_processos")
+}
+
+model PersonalizacaoOrcamento {
+  id                   String              @id @default(cuid())
+  loja_id              String
+  produto_orcamento_id String              @unique
+  modo                 ModoPersonalizacao  @default(NENHUM)
+  estampa_id           String?
+  processo_id          String?
+  valores_campos       Json? // polimórfico: Record<string,string> | Record<string,string>[]
+  grade_distribuicao   Json? // matriz de atributos
+  arte_producao_url    String?             @db.Text
+  preview_url          String?             @db.Text
+  criado_em            DateTime            @default(now())
+  atualizado_em        DateTime            @updatedAt
+
+  produto_orcamento ProdutoOrcamento  @relation(fields: [produto_orcamento_id], references: [id], onDelete: Cascade)
+  estampa           Estampa?          @relation(fields: [estampa_id], references: [id], onDelete: SetNull)
+  processo          ProcessoDecoracao? @relation(fields: [processo_id], references: [id], onDelete: SetNull)
+
+  @@index([loja_id])
+  @@index([loja_id, id])
+  @@index([estampa_id])
+  @@index([processo_id])
+  @@map("personalizacao_orcamento")
 }

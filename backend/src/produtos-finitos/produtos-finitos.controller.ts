@@ -91,7 +91,10 @@ export class ProdutosFinitosController {
   }
 
   @Get(':id/para-orcamento')
-  @ApiOperation({ summary: 'Carrega produto com preço efetivo para orçamento' })
+  @ApiOperation({
+    summary:
+      'Carrega produto com preço efetivo e metadados de personalização para orçamento',
+  })
   obterParaOrcamento(
     @Param('id') id: string,
     @CurrentLojaId() lojaId: string,

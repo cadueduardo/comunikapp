@@ -32,6 +32,7 @@ import { HomeOperacionalModule } from './home-operacional/home-operacional.modul
 import { EstimativaTempoModule } from './estimativa-tempo/estimativa-tempo.module';
 import { FinanceiroModule } from './financeiro/financeiro.module';
 import { ExpedicaoModule } from './expedicao/expedicao.module';
+import { CatalogoModule } from './catalogo/catalogo.module';
 import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
 import { PlatformModule } from './platform/platform.module';
 
@@ -75,6 +76,7 @@ import { PlatformModule } from './platform/platform.module';
     EstimativaTempoModule, // Estimativa de tempo de máquina + compatibilidade material×máquina (Fase 2)
     FinanceiroModule, // Módulo do financeiro mínimo (Fase 6)
     ExpedicaoModule, // Módulo de Expedição e Pós-Produção
+    CatalogoModule, // Catálogo de produtos e personalização
     PlatformModule,
   ],
 })

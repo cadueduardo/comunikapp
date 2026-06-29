@@ -538,6 +538,62 @@ export const tiposMaterialApi = {
   delete: (id: string, token: string) => ApiClient.delete(`/tipos-material/${id}`, token),
 };
 
+const catalogoQuery = (params?: { ativo?: boolean; produto_finito_id?: string }) => {
+  const search = new URLSearchParams();
+  if (typeof params?.ativo === 'boolean') {
+    search.set('ativo', String(params.ativo));
+  }
+  if (params?.produto_finito_id) {
+    search.set('produto_finito_id', params.produto_finito_id);
+  }
+  const qs = search.toString();
+  return qs ? `?${qs}` : '';
+};
+
+export const catalogoPersonalizacaoApi = {
+  getAll: (token: string, params?: { ativo?: boolean }) =>
+    ApiClient.get(`/catalogo/personalizacao${catalogoQuery(params)}`, token),
+  getById: (id: string, token: string) =>
+    ApiClient.get(`/catalogo/personalizacao/${id}`, token),
+  create: (data: Record<string, unknown>, token: string) =>
+    ApiClient.post('/catalogo/personalizacao', data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    ApiClient.patch(`/catalogo/personalizacao/${id}`, data, token),
+  delete: (id: string, token: string) =>
+    ApiClient.delete(`/catalogo/personalizacao/${id}`, token),
+};
+
+export const catalogoConjuntosCamposApi = {
+  getAll: (token: string, params?: { ativo?: boolean }) =>
+    ApiClient.get(`/catalogo/conjuntos-campos${catalogoQuery(params)}`, token),
+  getById: (id: string, token: string) =>
+    ApiClient.get(`/catalogo/conjuntos-campos/${id}`, token),
+  create: (data: Record<string, unknown>, token: string) =>
+    ApiClient.post('/catalogo/conjuntos-campos', data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    ApiClient.patch(`/catalogo/conjuntos-campos/${id}`, data, token),
+  delete: (id: string, token: string) =>
+    ApiClient.delete(`/catalogo/conjuntos-campos/${id}`, token),
+};
+
+export const catalogoEstampasApi = {
+  getAll: (token: string, params?: { ativo?: boolean; produto_finito_id?: string }) =>
+    ApiClient.get(`/catalogo/estampas${catalogoQuery(params)}`, token),
+  getById: (id: string, token: string) =>
+    ApiClient.get(`/catalogo/estampas/${id}`, token),
+  create: (data: Record<string, unknown>, token: string) =>
+    ApiClient.post('/catalogo/estampas', data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    ApiClient.patch(`/catalogo/estampas/${id}`, data, token),
+  delete: (id: string, token: string) =>
+    ApiClient.delete(`/catalogo/estampas/${id}`, token),
+  uploadArteMestra: (id: string, arquivo: File, token: string) => {
+    const formData = new FormData();
+    formData.append('arquivo', arquivo);
+    return ApiClient.post(`/catalogo/estampas/${id}/arte-mestra`, formData, token);
+  },
+};
+
 export const usuariosApi = {
   getAll: (token: string) => ApiClient.get('/usuarios', token),
   getById: (id: string, token: string) => ApiClient.get(`/usuarios/${id}`, token),

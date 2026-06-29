@@ -25,6 +25,7 @@ import {
   IconCash,
   IconTruckDelivery,
   IconPalette,
+  IconCategory,
 } from '@tabler/icons-react';
 import { ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -282,6 +283,13 @@ export default function DashboardLayout({
       href: '/produtos-finitos',
       icon: (
         <IconPackage className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      ),
+    },
+    {
+      label: 'Catálogo de produtos',
+      href: '/catalogo',
+      icon: (
+        <IconCategory className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
       ),
     },
     {

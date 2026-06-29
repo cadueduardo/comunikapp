@@ -11,6 +11,13 @@ import { CreateProdutoFinitoDto } from './dto/create-produto-finito.dto';
 import { ListProdutosFinitosQueryDto } from './dto/list-produtos-finitos-query.dto';
 import { UpdateProdutoFinitoDto } from './dto/update-produto-finito.dto';
 import { resolverPrecoUnitarioProdutoFinito } from './utils/preco-produto-finito.util';
+import {
+  assertEstampasAtivasDaLoja,
+  assertProcessosAtivosDaLoja,
+  includePersonalizacaoParaOrcamento,
+  mapearPersonalizacaoParaOrcamento,
+  normalizarModosPersonalizacao,
+} from './utils/produto-finito-personalizacao.util';
 
 @Injectable()
 export class ProdutosFinitosService {
@@ -156,10 +163,6 @@ export class ProdutosFinitosService {
       await this.validarSkuDisponivel(lojaId, dto.sku.trim(), id);
     }
 
-    if (dto.categoria_nome || dto.categoria_id !== undefined) {
-      // noop - handled below
-    }
-
     let categoriaId: string | null | undefined = undefined;
     if (dto.categoria_id !== undefined || dto.categoria_nome) {
       categoriaId = await this.resolverCategoriaId(lojaId, dto);
@@ -172,36 +175,135 @@ export class ProdutosFinitosService {
       this.validarPrecoPromocional(precoVenda, dto.preco_promocional);
     }
 
-    return this.prisma.produtoFinito.update({
-      where: { id },
-      data: {
-        categoria_id: categoriaId,
-        sku: dto.sku?.trim(),
-        ean: dto.ean !== undefined ? dto.ean?.trim() || null : undefined,
-        nome: dto.nome?.trim(),
-        descricao_resumida:
-          dto.descricao_resumida !== undefined
-            ? dto.descricao_resumida?.trim() || null
-            : undefined,
-        descricao:
-          dto.descricao !== undefined ? dto.descricao?.trim() || null : undefined,
-        preco_venda: dto.preco_venda,
-        preco_promocional:
-          dto.preco_promocional !== undefined ? dto.preco_promocional : undefined,
-        preco_custo:
-          dto.preco_custo !== undefined ? dto.preco_custo : undefined,
-        peso_kg: dto.peso_kg,
-        largura_cm: dto.largura_cm,
-        altura_cm: dto.altura_cm,
-        profundidade_cm: dto.profundidade_cm,
-        estoque_atual: dto.estoque_atual,
-        estoque_minimo: dto.estoque_minimo,
-        ativo: dto.ativo,
-      },
-      include: {
-        categoria: { select: { id: true, nome: true } },
-        imagens: { orderBy: { ordem: 'asc' } },
-      },
+    const vinculosPersonalizacao = this.resolverVinculosPersonalizacao(dto);
+
+    if (vinculosPersonalizacao.estampaIds) {
+      await assertEstampasAtivasDaLoja(
+        this.prisma,
+        vinculosPersonalizacao.estampaIds,
+        lojaId,
+      );
+    }
+
+    if (vinculosPersonalizacao.processoIds) {
+      await assertProcessosAtivosDaLoja(
+        this.prisma,
+        vinculosPersonalizacao.processoIds,
+        lojaId,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.produtoFinito.update({
+        where: { id },
+        data: {
+          categoria_id: categoriaId,
+          sku: dto.sku?.trim(),
+          ean: dto.ean !== undefined ? dto.ean?.trim() || null : undefined,
+          nome: dto.nome?.trim(),
+          descricao_resumida:
+            dto.descricao_resumida !== undefined
+              ? dto.descricao_resumida?.trim() || null
+              : undefined,
+          descricao:
+            dto.descricao !== undefined
+              ? dto.descricao?.trim() || null
+              : undefined,
+          preco_venda: dto.preco_venda,
+          preco_promocional:
+            dto.preco_promocional !== undefined
+              ? dto.preco_promocional
+              : undefined,
+          preco_custo:
+            dto.preco_custo !== undefined ? dto.preco_custo : undefined,
+          peso_kg: dto.peso_kg,
+          largura_cm: dto.largura_cm,
+          altura_cm: dto.altura_cm,
+          profundidade_cm: dto.profundidade_cm,
+          estoque_atual: dto.estoque_atual,
+          estoque_minimo: dto.estoque_minimo,
+          ativo: dto.ativo,
+          personalizavel: dto.personalizavel,
+          fulfillment_padrao: dto.fulfillment_padrao,
+        },
+      });
+
+      if (vinculosPersonalizacao.limparVinculos) {
+        await tx.produtoFinitoModo.deleteMany({
+          where: { produto_finito_id: id },
+        });
+        await tx.produtoFinitoEstampa.deleteMany({
+          where: { produto_finito_id: id },
+        });
+        await tx.produtoFinitoProcesso.deleteMany({
+          where: { produto_finito_id: id },
+        });
+      } else {
+        if (vinculosPersonalizacao.modos !== undefined) {
+          await tx.produtoFinitoModo.deleteMany({
+            where: { produto_finito_id: id },
+          });
+          if (vinculosPersonalizacao.modos.length > 0) {
+            await tx.produtoFinitoModo.createMany({
+              data: vinculosPersonalizacao.modos.map((modo) => ({
+                loja_id: lojaId,
+                produto_finito_id: id,
+                modo,
+                habilitado: true,
+              })),
+            });
+          }
+        }
+
+        if (vinculosPersonalizacao.estampaIds !== undefined) {
+          await tx.produtoFinitoEstampa.deleteMany({
+            where: { produto_finito_id: id },
+          });
+          if (vinculosPersonalizacao.estampaIds.length > 0) {
+            await tx.produtoFinitoEstampa.createMany({
+              data: vinculosPersonalizacao.estampaIds.map((estampaId) => ({
+                loja_id: lojaId,
+                produto_finito_id: id,
+                estampa_id: estampaId,
+              })),
+            });
+          }
+        }
+
+        if (vinculosPersonalizacao.processoIds !== undefined) {
+          await tx.produtoFinitoProcesso.deleteMany({
+            where: { produto_finito_id: id },
+          });
+          if (vinculosPersonalizacao.processoIds.length > 0) {
+            await tx.produtoFinitoProcesso.createMany({
+              data: vinculosPersonalizacao.processoIds.map((processoId) => ({
+                loja_id: lojaId,
+                produto_finito_id: id,
+                processo_id: processoId,
+              })),
+            });
+          }
+        }
+      }
+
+      return tx.produtoFinito.findFirstOrThrow({
+        where: { id, loja_id: lojaId },
+        include: {
+          categoria: { select: { id: true, nome: true } },
+          imagens: { orderBy: { ordem: 'asc' } },
+          modos: { where: { habilitado: true }, select: { modo: true } },
+          estampas: {
+            include: {
+              estampa: { select: { id: true, nome: true, codigo: true } },
+            },
+          },
+          processos: {
+            include: {
+              processo: { select: { id: true, nome: true, codigo: true } },
+            },
+          },
+        },
+      });
     });
   }
 
@@ -216,17 +318,52 @@ export class ProdutosFinitosService {
   }
 
   async obterParaOrcamento(id: string, lojaId: string) {
-    const produto = await this.obterPorId(id, lojaId);
+    const produto = await this.prisma.produtoFinito.findFirst({
+      where: { id, loja_id: lojaId },
+      include: {
+        categoria: { select: { id: true, nome: true } },
+        imagens: { orderBy: { ordem: 'asc' } },
+        ...includePersonalizacaoParaOrcamento,
+      },
+    });
+
+    if (!produto) {
+      throw new NotFoundException('Produto não encontrado.');
+    }
+
     if (!produto.ativo) {
       throw new BadRequestException('Produto indisponível no catálogo.');
     }
 
     const preco_unitario = resolverPrecoUnitarioProdutoFinito(produto);
+    const personalizacao = mapearPersonalizacaoParaOrcamento(produto);
 
     return {
       ...produto,
       preco_unitario,
       preco_efetivo: preco_unitario,
+      personalizacao,
+    };
+  }
+
+  private resolverVinculosPersonalizacao(dto: UpdateProdutoFinitoDto) {
+    if (dto.personalizavel === false) {
+      return {
+        limparVinculos: true as const,
+        modos: undefined,
+        estampaIds: undefined,
+        processoIds: undefined,
+      };
+    }
+
+    return {
+      limparVinculos: false as const,
+      modos:
+        dto.modos_personalizacao !== undefined
+          ? normalizarModosPersonalizacao(dto.modos_personalizacao)
+          : undefined,
+      estampaIds: dto.estampa_ids,
+      processoIds: dto.processo_ids,
     };
   }
 

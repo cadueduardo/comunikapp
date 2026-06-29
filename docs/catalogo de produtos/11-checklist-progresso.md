@@ -1,0 +1,207 @@
+# 11 — Checklist de progresso — Catálogo de Produtos e Personalização
+
+**Branch:** `feature/catalogo-escala-e-seguranca`  
+**Documentação base:** v0.2 (2026-06-26)  
+**Última atualização:** 2026-06-27
+
+---
+
+## Status atual
+
+| Item | Valor |
+|------|-------|
+| **Fase ativa** | Fase 6 — Frontend (aba Personalização no ProdutoFinitoForm) |
+| **Status geral** | Backend catálogo + vínculos produto finito concluídos; frontend hub e CRUDs ativos |
+| **Próximo passo** | Aba Personalização no `ProdutoFinitoForm` + orçamento VDP |
+
+---
+
+## Fase 0 — Hub e navegação
+
+- [x] Página hub `/catalogo` com cards (sem KPIs)
+- [x] Menu lateral: **Catálogo de produtos**
+- [x] Card Produtos → grid produtos finitos (`/produtos-finitos`)
+- [x] Cards Personalização, Estampas, Conjuntos (rotas reais)
+- [ ] Redirect `/produtos-finitos` mantido
+- [ ] Modelos de Orçamento sem alteração no menu
+- [ ] Critério: zero regressão em orçamento prateleira
+
+---
+
+## Fase 1 — Modelagem de banco (Prisma)
+
+### 1.1 Schema — entidades novas
+
+- [x] `ProcessoDecoracao` (`processos_decoracao`) — setup, faixas_preco, insumos_aceitos
+- [x] `ConjuntoCampos` (`conjuntos_campos`)
+- [x] `CampoVariavelDef` (`campos_variaveis_def`) + enum `CampoVariavelTipo`
+- [x] `Estampa` (`estampas`) — metadados JSON, vínculos processo/conjunto
+- [x] `ProdutoFinitoModo` (`produto_finito_modos`)
+- [x] `ProdutoFinitoEstampa` (`produto_finito_estampas`)
+- [x] `ProdutoFinitoProcesso` (`produto_finito_processos`)
+- [x] `PersonalizacaoOrcamento` (`personalizacao_orcamento`)
+
+### 1.2 Schema — extensões
+
+- [x] `ProdutoFinito`: `personalizavel`, `fulfillment_padrao`
+- [x] `ProdutoOrcamento`: relação 1:1 com `PersonalizacaoOrcamento`
+- [x] `ItemOS`: `modo_fulfillment`, `personalizacao_modo`, `estampa_id`, `valores_personalizacao`, `grade_distribuicao`, `arte_producao_url` (catálogo)
+
+### 1.3 Enums
+
+- [x] `CampoVariavelTipo` (TEXTO, NUMERO, DATA)
+- [x] `ModoPersonalizacao` (NENHUM, ESTAMPA, IMPRINT_LIVRE, ARTE_SOB_MEDIDA)
+- [x] `FulfillmentPadrao` (ESTOQUE, PRODUCAO, HIBRIDO)
+- [x] `ModoFulfillmentItem` (PICK, MAKE, HIBRIDO)
+
+### 1.4 Índices e segurança (BOLA)
+
+- [x] Índices compostos `(loja_id, id)` em entidades tenant-scoped
+- [x] Índices `(loja_id, ativo)` em processos e estampas
+- [x] `loja_id` em tabelas de vínculo N:M com produto finito
+
+### 1.5 Validação e migration
+
+- [x] `npx prisma validate` sem erros
+- [x] Migration SQL gerada (`20260627120000_modulo_catalogo_personalizacao_fase1`)
+- [x] Schema aplicado ao banco de dev (`prisma db push` + `migrate resolve`)
+- [x] `npx prisma generate` executado
+- [x] Migration registrada no histórico Prisma
+
+---
+
+## Fase 2 — CRUD Backend: Personalização (processos)
+
+- [x] `CatalogoModule` / submódulo NestJS
+- [x] `GET/POST /catalogo/personalizacao`
+- [x] `GET/PATCH/DELETE /catalogo/personalizacao/:id`
+- [x] Validação `faixas_preco` e `insumos_aceitos` (class-validator)
+- [x] Queries sempre com `where: { loja_id }` + `updateMany` tenant-scoped
+- [x] Soft delete (`ativo: false`)
+- [ ] Testes unitários básicos
+
+---
+
+## Fase 3 — CRUD Backend: Conjuntos de campos
+
+- [x] API CRUD `conjuntos_campos` + campos filhos
+- [x] Validação chaves únicas por conjunto
+- [x] Sanitização de chaves (regex snake_case)
+- [x] Soft delete (`ativo: false`)
+- [ ] Testes unitários básicos
+
+---
+
+## Fase 4 — CRUD Backend: Estampas
+
+- [x] API CRUD estampas (`GET/POST /catalogo/estampas`, `GET/PATCH/DELETE /catalogo/estampas/:id`)
+- [x] Filtro `produto_finito_id` na listagem (estampas compatíveis com produto)
+- [x] BOLA: `findOne` / mutações via `assertEstampaDaLoja` + `updateMany` com `loja_id` (404 se ID de outra loja)
+- [x] Validação estrita de `metadados` (âncoras): `Array<{ campoDefId, x, y, width, height }>`
+- [x] Upload arte-mestra (`POST /catalogo/estampas/:id/arte-mestra`)
+- [x] Armazenamento isolado por tenant: `uploads/{loja_id}/estampas/`
+- [x] Whitelist MIME + extensão cruzada (A05): PDF, PNG, JPEG, SVG
+- [x] Limite 15 MB por arquivo (mitigação DoS)
+- [x] Sanitização de nome original (anti path traversal `../`, barras, caracteres perigosos)
+- [x] URL relativa estável em `arte_mestra_url` após upload
+- [x] `GET /catalogo/estampas/arte-mestra/:token` — entrega autenticada tenant-scoped
+- [ ] Testes unitários básicos
+
+### Notas de segurança — upload arte-mestra
+
+| Controle | Implementação |
+|----------|----------------|
+| **A01 BOLA** | Upload e download validam `loja_id` do JWT; estampa inexistente ou de outra loja → 404 |
+| **A03 Injeção** | Metadados de âncoras validados via `class-validator` + validador customizado (chaves estritas, números finitos, `width`/`height` > 0) |
+| **A04 Path traversal** | Diretório fixo `uploads/{loja_id}/estampas/`; nome sanitizado (remove `..`, paths absolutos, chars não permitidos) |
+| **A05 Misconfiguration** | `FileInterceptor` + `fileFilter` Multer: MIME **e** extensão devem coincidir na whitelist |
+| **DoS** | `limits.fileSize` = 15 MB; buffer em memória (`memoryStorage`) com escrita controlada no service |
+
+---
+
+## Fase 5 — Backend: Produto finito (vínculos)
+
+- [x] PATCH produto: `personalizavel`, `fulfillment_padrao`, `modos_personalizacao`, `estampa_ids`, `processo_ids`
+- [x] `GET .../para-orcamento` enriquecido com modos, estampas (conjunto completo) e processos livres
+- [x] Validação cross-tenant nos vínculos (BOLA — 404 genérico se ID de outra loja)
+- [x] Persistência atômica via `prisma.$transaction` (delete + createMany nas tabelas N:M)
+- [x] Limpeza automática dos vínculos quando `personalizavel: false`
+
+### Notas de integridade — Fase 5
+
+| Regra | Implementação |
+|-------|----------------|
+| **BOLA (A01)** | `assertEstampasAtivasDaLoja` / `assertProcessosAtivosDaLoja` antes da transação |
+| **Atomicidade** | `$transaction`: update `ProdutoFinito` + replace `ProdutoFinitoModo` / `Estampa` / `Processo` |
+| **Denormalização** | `loja_id` gravado em cada linha das junções conforme schema |
+| **Orçamento** | `personalizacao` no `para-orcamento`: modos, estampas com `ConjuntoCampos.campos`, processos com faixas/setup |
+
+---
+
+## Fase 6 — Frontend: Hub e CRUDs
+
+- [x] Hub `/catalogo` (cards com tokens de tema — sem CSS inline)
+- [x] Lista + formulário Personalização (setup + faixas) — padrão `CrudPage` + `ProdutoFinitoForm`
+- [x] Lista + formulário Conjuntos de campos
+- [x] Grid Estampas com thumbnails (`ProdutoFinitoThumb` reutilizado)
+- [ ] Aba Personalização no `ProdutoFinitoForm`
+
+---
+
+## Fase 7 — Orçamento (UI + persistência)
+
+- [ ] UI modo estampa / imprint livre
+- [ ] Mini-grade Matriz de Atributos
+- [ ] VDP: alternância Inline vs CSV + mapeamento colunas
+- [ ] Cálculo: base + setup + quantity breaks
+- [ ] Persistência `PersonalizacaoOrcamento` polimórfica
+- [ ] Sanitização fórmulas CSV (A03)
+
+---
+
+## Fase 8 — OS e roteamento operacional
+
+- [ ] Propagação orçamento → `ItemOS`
+- [ ] `modo_fulfillment` derivado automaticamente
+- [ ] Elegibilidade PCP vs expedição por item
+- [ ] Integração com liberação parcial existente
+
+---
+
+## Fase 9 — Arte de produção VDP (refinamento)
+
+- [ ] Job merge PDF multi-páginas
+- [ ] `arte_producao_url` print-ready
+- [ ] Preview com TTL / Signed URL (A04)
+
+---
+
+## Segurança transversal (OWASP)
+
+- [x] Modelo com `loja_id` + índices BOLA documentados no schema
+- [x] Guards/services: `findFirst` / `updateMany` com `id` + `loja_id`
+- [x] Upload isolado por tenant (`uploads/{loja_id}/estampas/`, BOLA no upload/download)
+- [ ] Zod schema `valores_campos` (objeto | array) — orçamento (fase posterior)
+- [ ] Limites CSV (`MAX_CSV_VDP_ROWS`)
+
+---
+
+## Checklist antes de cada PR
+
+- [ ] `loja_id` em todas as queries novas
+- [ ] Produto finito legado (`personalizavel=false`) testado
+- [ ] Migration aditiva apenas
+- [ ] `11-checklist-progresso.md` atualizado
+- [ ] Docs RP atualizados se decisão mudou
+
+---
+
+## Histórico de entregas
+
+| Data | Entrega | Fase |
+|------|---------|------|
+| 2026-06-26 | Checklist criado; schema Prisma Fase 1 completo | Fase 1 |
+| 2026-06-27 | Migration aplicada; CRUD Personalização + Conjuntos de campos | Fase 1–3 |
+| 2026-06-27 | CRUD Estampas + upload seguro arte-mestra (OWASP A01/A03/A04/A05) | Fase 4 |
+| 2026-06-27 | Frontend hub `/catalogo` + CRUDs (componentes globais, tema light/dark) | Fase 0/6 |
+| 2026-06-27 | Vínculos ProdutoFinito + `para-orcamento` enriquecido (transação Prisma, BOLA) | Fase 5 |
