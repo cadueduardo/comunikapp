@@ -109,6 +109,25 @@ export class ProdutosFinitosService {
       include: {
         categoria: { select: { id: true, nome: true } },
         imagens: { orderBy: { ordem: 'asc' } },
+        modos: { where: { habilitado: true }, select: { modo: true } },
+        estampas: {
+          include: {
+            estampa: {
+              select: {
+                id: true,
+                nome: true,
+                codigo: true,
+                arte_mestra_url: true,
+                thumb_url: true,
+              },
+            },
+          },
+        },
+        processos: {
+          include: {
+            processo: { select: { id: true, nome: true, codigo: true } },
+          },
+        },
       },
     });
 

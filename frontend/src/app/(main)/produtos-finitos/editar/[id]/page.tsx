@@ -3,8 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ProdutoFinitoForm, formatCampoNumerico } from '@/components/forms/produtos-finitos/ProdutoFinitoForm';
+import {
+  ProdutoFinitoForm,
+  formatCampoNumerico,
+} from '@/components/forms/produtos-finitos/ProdutoFinitoForm';
 import { produtosFinitosApi } from '@/lib/api-client';
+
+type ModoVinculo = { modo: string };
+type EstampaVinculo = { estampa: { id: string } };
+type ProcessoVinculo = { processo: { id: string } };
 
 export default function EditarProdutoFinitoPage() {
   const params = useParams<{ id: string }>();
@@ -22,6 +29,25 @@ export default function EditarProdutoFinitoPage() {
           params.id,
           token,
         )) as Record<string, unknown>;
+
+        const modos = Array.isArray(produto.modos)
+          ? (produto.modos as ModoVinculo[]).map((m) => m.modo)
+          : [];
+        const estampaIds = Array.isArray(produto.estampas)
+          ? (produto.estampas as EstampaVinculo[]).map((v) => v.estampa.id)
+          : [];
+        const processoIds = Array.isArray(produto.processos)
+          ? (produto.processos as ProcessoVinculo[]).map((v) => v.processo.id)
+          : [];
+
+        const fulfillment = String(produto.fulfillment_padrao || 'HIBRIDO');
+        const fulfillmentPadrao =
+          fulfillment === 'ESTOQUE' ||
+          fulfillment === 'PRODUCAO' ||
+          fulfillment === 'HIBRIDO'
+            ? fulfillment
+            : 'HIBRIDO';
+
         setInitialData({
           nome: String(produto.nome || ''),
           descricao_resumida: String(produto.descricao_resumida || ''),
@@ -41,6 +67,12 @@ export default function EditarProdutoFinitoPage() {
           estoque_minimo: formatCampoNumerico(produto.estoque_minimo),
           ativo: produto.ativo !== false,
           imagens: produto.imagens,
+          personalizavel: produto.personalizavel === true,
+          fulfillment_padrao: fulfillmentPadrao,
+          modo_estampa: modos.includes('ESTAMPA'),
+          modo_imprint_livre: modos.includes('IMPRINT_LIVRE'),
+          estampa_ids: estampaIds,
+          processo_ids: processoIds,
         });
       } catch {
         toast.error('Erro ao carregar produto.');
@@ -56,7 +88,7 @@ export default function EditarProdutoFinitoPage() {
     <div className="p-2 md:p-0">
       <ProdutoFinitoForm
         produtoId={params.id}
-        initialData={initialData as any}
+        initialData={initialData as never}
         onSuccess={() => router.push('/produtos-finitos')}
       />
     </div>

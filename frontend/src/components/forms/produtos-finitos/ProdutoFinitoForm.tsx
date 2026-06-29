@@ -33,27 +33,65 @@ import {
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { produtosFinitosApi } from '@/lib/api-client';
 import { ProdutoFinitoThumb } from '@/components/produtos-finitos/ProdutoFinitoThumb';
+import { ProdutoFinitoPersonalizacaoTab } from './ProdutoFinitoPersonalizacaoTab';
 
-const formSchema = z.object({
-  nome: z.string().min(2, 'Informe o nome do produto.'),
-  descricao_resumida: z.string().max(500, 'Máximo de 500 caracteres.').optional(),
-  descricao: z.string().optional(),
-  sku: z.string().min(1, 'Informe o SKU.'),
-  ean: z.string().max(13).optional(),
-  categoriaId: z.string().optional(),
-  preco_venda: z.string().min(1, 'Informe o preço de venda.'),
-  preco_promocional: z.string().optional(),
-  preco_custo: z.string().optional(),
-  peso_kg: z.string().optional(),
-  largura_cm: z.string().optional(),
-  altura_cm: z.string().optional(),
-  profundidade_cm: z.string().optional(),
-  estoque_atual: z.string().optional(),
-  estoque_minimo: z.string().optional(),
-  ativo: z.boolean(),
-});
+const fulfillmentPadraoEnum = z.enum(['ESTOQUE', 'PRODUCAO', 'HIBRIDO']);
+
+const formSchema = z
+  .object({
+    nome: z.string().min(2, 'Informe o nome do produto.'),
+    descricao_resumida: z.string().max(500, 'Máximo de 500 caracteres.').optional(),
+    descricao: z.string().optional(),
+    sku: z.string().min(1, 'Informe o SKU.'),
+    ean: z.string().max(13).optional(),
+    categoriaId: z.string().optional(),
+    preco_venda: z.string().min(1, 'Informe o preço de venda.'),
+    preco_promocional: z.string().optional(),
+    preco_custo: z.string().optional(),
+    peso_kg: z.string().optional(),
+    largura_cm: z.string().optional(),
+    altura_cm: z.string().optional(),
+    profundidade_cm: z.string().optional(),
+    estoque_atual: z.string().optional(),
+    estoque_minimo: z.string().optional(),
+    ativo: z.boolean(),
+    personalizavel: z.boolean(),
+    modo_estampa: z.boolean(),
+    modo_imprint_livre: z.boolean(),
+    fulfillment_padrao: fulfillmentPadraoEnum,
+    estampa_ids: z.array(z.string()),
+    processo_ids: z.array(z.string()),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.personalizavel) return;
+
+    if (!data.modo_estampa && !data.modo_imprint_livre) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Selecione ao menos um modo de personalização.',
+        path: ['modo_estampa'],
+      });
+    }
+
+    if (data.modo_estampa && data.estampa_ids.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Selecione ao menos uma estampa ou desative o modo Estampa.',
+        path: ['estampa_ids'],
+      });
+    }
+
+    if (data.modo_imprint_livre && data.processo_ids.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Selecione ao menos um processo ou desative o modo Personalização livre.',
+        path: ['processo_ids'],
+      });
+    }
+  });
 
 export type ProdutoFinitoFormValues = z.infer<typeof formSchema>;
 
@@ -75,6 +113,10 @@ interface ProdutoFinitoFormProps {
     imagens?: ImagemGaleria[];
     categoria?: { id: string; nome: string } | null;
     ativo?: boolean;
+    personalizavel?: boolean;
+    fulfillment_padrao?: 'ESTOQUE' | 'PRODUCAO' | 'HIBRIDO';
+    estampa_ids?: string[];
+    processo_ids?: string[];
   };
   onSuccess: () => void;
 }
@@ -129,8 +171,28 @@ export function ProdutoFinitoForm({
       estoque_atual: formatCampoNumerico(initialData?.estoque_atual),
       estoque_minimo: formatCampoNumerico(initialData?.estoque_minimo),
       ativo: initialData?.ativo ?? true,
+      personalizavel: initialData?.personalizavel ?? false,
+      modo_estampa: initialData?.modo_estampa ?? false,
+      modo_imprint_livre: initialData?.modo_imprint_livre ?? false,
+      fulfillment_padrao: initialData?.fulfillment_padrao ?? 'HIBRIDO',
+      estampa_ids: initialData?.estampa_ids ?? [],
+      processo_ids: initialData?.processo_ids ?? [],
     },
   });
+
+  const personalizavel = form.watch('personalizavel');
+  const modoEstampa = form.watch('modo_estampa');
+  const modoImprintLivre = form.watch('modo_imprint_livre');
+  const estampaIds = form.watch('estampa_ids');
+  const processoIds = form.watch('processo_ids');
+
+  const limparPersonalizacao = () => {
+    form.setValue('modo_estampa', false);
+    form.setValue('modo_imprint_livre', false);
+    form.setValue('estampa_ids', []);
+    form.setValue('processo_ids', []);
+    form.setValue('fulfillment_padrao', 'HIBRIDO');
+  };
 
   useEffect(() => {
     (async () => {
@@ -156,6 +218,25 @@ export function ProdutoFinitoForm({
   );
 
   const totalImagens = imagensSalvas.length + imagensPendentes.length;
+
+  const montarPayloadPersonalizacao = (values: ProdutoFinitoFormValues) => {
+    if (!values.personalizavel) {
+      return { personalizavel: false };
+    }
+
+    const modos = [
+      ...(values.modo_estampa ? (['ESTAMPA'] as const) : []),
+      ...(values.modo_imprint_livre ? (['IMPRINT_LIVRE'] as const) : []),
+    ];
+
+    return {
+      personalizavel: true,
+      fulfillment_padrao: values.fulfillment_padrao,
+      modos_personalizacao: modos,
+      estampa_ids: values.modo_estampa ? values.estampa_ids : [],
+      processo_ids: values.modo_imprint_livre ? values.processo_ids : [],
+    };
+  };
 
   const montarPayload = (values: ProdutoFinitoFormValues) => ({
     nome: values.nome.trim(),
@@ -191,16 +272,27 @@ export function ProdutoFinitoForm({
         return;
       }
 
-      const payload = montarPayload(values);
+      const payload = {
+        ...montarPayload(values),
+        ...montarPayloadPersonalizacao(values),
+      };
       let idDestino = produtoId;
 
       if (produtoId) {
         await produtosFinitosApi.update(produtoId, payload, token);
       } else {
-        const criado = (await produtosFinitosApi.create(payload, token)) as {
-          id: string;
-        };
+        const criado = (await produtosFinitosApi.create(
+          montarPayload(values),
+          token,
+        )) as { id: string };
         idDestino = criado.id;
+        if (values.personalizavel) {
+          await produtosFinitosApi.update(
+            criado.id,
+            montarPayloadPersonalizacao(values),
+            token,
+          );
+        }
       }
 
       if (idDestino && imagensPendentes.length > 0) {
@@ -213,7 +305,11 @@ export function ProdutoFinitoForm({
       onSuccess();
     } catch (error) {
       console.error(error);
-      toast.error('Não foi possível salvar o produto.');
+      const mensagem =
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível salvar o produto.';
+      toast.error(mensagem);
     } finally {
       setSalvando(false);
     }
@@ -301,9 +397,18 @@ export function ProdutoFinitoForm({
         <form
           id="produto-finito-form"
           onSubmit={form.handleSubmit(onSubmit)}
-          className="grid grid-cols-1 gap-6 xl:grid-cols-12"
+          className="space-y-6"
         >
-          <div className="space-y-6 xl:col-span-8">
+          <Tabs defaultValue="identificacao" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
+              <TabsTrigger value="identificacao">Identificação</TabsTrigger>
+              <TabsTrigger value="preco">Preço e logística</TabsTrigger>
+              <TabsTrigger value="personalizacao">Personalização</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="identificacao" className="mt-6">
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+                <div className="space-y-6 xl:col-span-8">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
@@ -371,7 +476,197 @@ export function ProdutoFinitoForm({
                     />
                   </CardContent>
                 </Card>
+                </div>
 
+                <div className="space-y-6 xl:col-span-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Imagem principal</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <label className="group relative flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/20 p-6 text-center transition hover:border-primary/40 hover:bg-muted/30">
+                  {thumbnailPendente ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={thumbnailPendente}
+                      alt="Prévia do produto"
+                      className="max-h-48 w-full rounded-lg object-contain"
+                    />
+                  ) : thumbnailSalvaUrl ? (
+                    <ProdutoFinitoThumb
+                      url={thumbnailSalvaUrl}
+                      alt="Prévia do produto"
+                      fit="contain"
+                      className="max-h-48 w-full"
+                    />
+                  ) : (
+                    <>
+                      <ImageIcon className="mb-3 h-10 w-10 text-muted-foreground" />
+                      <p className="text-sm font-medium">Clique para enviar imagens</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        PNG, JPG, WEBP ou GIF — até 5 MB cada (máx. {MAX_IMAGENS})
+                      </p>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept={TIPOS_IMAGEM}
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      adicionarArquivos(e.target.files);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+
+                {totalImagens > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Galeria ({totalImagens}/{MAX_IMAGENS})
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {imagensSalvas.map((imagem) => (
+                        <div
+                          key={imagem.id}
+                          className="relative h-16 w-16 overflow-hidden rounded-md border"
+                        >
+                          <ProdutoFinitoThumb
+                            url={imagem.url_imagem}
+                            alt=""
+                            className="h-full w-full rounded-md"
+                          />
+                          <button
+                              type="button"
+                              className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white"
+                              onClick={() => void removerImagemSalva(imagem.id)}
+                            >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                      {imagensPendentes.map((imagem) => (
+                        <div
+                          key={imagem.id}
+                          className="relative h-16 w-16 overflow-hidden rounded-md border border-primary/30"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={imagem.preview}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                          <Badge className="absolute bottom-0.5 left-0.5 px-1 py-0 text-[10px]">
+                            Nova
+                          </Badge>
+                          <button
+                            type="button"
+                            className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white"
+                            onClick={() => removerImagemPendente(imagem.id)}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-primary">
+                  <Upload className="h-4 w-4" />
+                  Adicionar mais imagens
+                  <input
+                    type="file"
+                    accept={TIPOS_IMAGEM}
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      adicionarArquivos(e.target.files);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+
+                {!produtoId && imagensPendentes.length > 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    As imagens serão enviadas automaticamente ao salvar o produto.
+                  </p>
+                ) : null}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FormField
+                  control={form.control}
+                  name="ativo"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                      <div className="space-y-0.5">
+                        <FormLabel>Produto ativo</FormLabel>
+                        <FormDescription>
+                          {field.value
+                            ? 'Disponível no catálogo e nos orçamentos.'
+                            : 'Oculto do catálogo (inativo).'}
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Categoria de Produtos</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <FormField
+                  control={form.control}
+                  name="categoriaId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Combobox
+                          options={categoriaOptions}
+                          value={field.value}
+                          onChange={field.onChange}
+                          onCreate={criarCategoriaInline}
+                          placeholder="Selecione uma categoria"
+                          searchPlaceholder="Buscar categoria..."
+                          createPlaceholder="Criar categoria"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    const nome = window.prompt('Nome da nova categoria:');
+                    if (nome?.trim()) void criarCategoriaInline(nome.trim());
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Criar nova categoria
+                </Button>
+              </CardContent>
+            </Card>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="preco" className="mt-6 space-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg">Precificação</CardTitle>
@@ -624,193 +919,22 @@ export function ProdutoFinitoForm({
                     />
                   </CardContent>
                 </Card>
-          </div>
+            </TabsContent>
 
-          <div className="space-y-6 xl:col-span-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Imagem principal</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <label className="group relative flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/20 p-6 text-center transition hover:border-primary/40 hover:bg-muted/30">
-                  {thumbnailPendente ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={thumbnailPendente}
-                      alt="Prévia do produto"
-                      className="max-h-48 w-full rounded-lg object-contain"
-                    />
-                  ) : thumbnailSalvaUrl ? (
-                    <ProdutoFinitoThumb
-                      url={thumbnailSalvaUrl}
-                      alt="Prévia do produto"
-                      fit="contain"
-                      className="max-h-48 w-full"
-                    />
-                  ) : (
-                    <>
-                      <ImageIcon className="mb-3 h-10 w-10 text-muted-foreground" />
-                      <p className="text-sm font-medium">Clique para enviar imagens</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        PNG, JPG, WEBP ou GIF — até 5 MB cada (máx. {MAX_IMAGENS})
-                      </p>
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    accept={TIPOS_IMAGEM}
-                    multiple
-                    className="hidden"
-                    onChange={(e) => {
-                      adicionarArquivos(e.target.files);
-                      e.target.value = '';
-                    }}
-                  />
-                </label>
-
-                {totalImagens > 0 ? (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Galeria ({totalImagens}/{MAX_IMAGENS})
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {imagensSalvas.map((imagem) => (
-                        <div
-                          key={imagem.id}
-                          className="relative h-16 w-16 overflow-hidden rounded-md border"
-                        >
-                          <ProdutoFinitoThumb
-                            url={imagem.url_imagem}
-                            alt=""
-                            className="h-full w-full rounded-md"
-                          />
-                          <button
-                              type="button"
-                              className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white"
-                              onClick={() => void removerImagemSalva(imagem.id)}
-                            >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                      {imagensPendentes.map((imagem) => (
-                        <div
-                          key={imagem.id}
-                          className="relative h-16 w-16 overflow-hidden rounded-md border border-primary/30"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={imagem.preview}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                          <Badge className="absolute bottom-0.5 left-0.5 px-1 py-0 text-[10px]">
-                            Nova
-                          </Badge>
-                          <button
-                            type="button"
-                            className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white"
-                            onClick={() => removerImagemPendente(imagem.id)}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-primary">
-                  <Upload className="h-4 w-4" />
-                  Adicionar mais imagens
-                  <input
-                    type="file"
-                    accept={TIPOS_IMAGEM}
-                    multiple
-                    className="hidden"
-                    onChange={(e) => {
-                      adicionarArquivos(e.target.files);
-                      e.target.value = '';
-                    }}
-                  />
-                </label>
-
-                {!produtoId && imagensPendentes.length > 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    As imagens serão enviadas automaticamente ao salvar o produto.
-                  </p>
-                ) : null}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Status</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <FormField
-                  control={form.control}
-                  name="ativo"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center justify-between gap-4 rounded-lg border p-3">
-                      <div className="space-y-0.5">
-                        <FormLabel>Produto ativo</FormLabel>
-                        <FormDescription>
-                          {field.value
-                            ? 'Disponível no catálogo e nos orçamentos.'
-                            : 'Oculto do catálogo (inativo).'}
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Categoria de Produtos</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <FormField
-                  control={form.control}
-                  name="categoriaId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Combobox
-                          options={categoriaOptions}
-                          value={field.value}
-                          onChange={field.onChange}
-                          onCreate={criarCategoriaInline}
-                          placeholder="Selecione uma categoria"
-                          searchPlaceholder="Buscar categoria..."
-                          createPlaceholder="Criar categoria"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => {
-                    const nome = window.prompt('Nome da nova categoria:');
-                    if (nome?.trim()) void criarCategoriaInline(nome.trim());
-                  }}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Criar nova categoria
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+            <TabsContent value="personalizacao" className="mt-6">
+              <ProdutoFinitoPersonalizacaoTab
+                control={form.control}
+                personalizavel={personalizavel}
+                modoEstampa={modoEstampa}
+                modoImprintLivre={modoImprintLivre}
+                estampaIds={estampaIds}
+                processoIds={processoIds}
+                onPersonalizavelChange={(ativo) => {
+                  if (!ativo) limparPersonalizacao();
+                }}
+              />
+            </TabsContent>
+          </Tabs>
         </form>
       </Form>
     </div>

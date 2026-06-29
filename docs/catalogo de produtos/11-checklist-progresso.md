@@ -10,8 +10,8 @@
 
 | Item | Valor |
 |------|-------|
-| **Fase ativa** | Fase 6 — Frontend (aba Personalização no ProdutoFinitoForm) |
-| **Status geral** | Backend catálogo + vínculos produto finito concluídos; frontend hub e CRUDs ativos |
+| **Fase ativa** | Fase 7 — Orçamento V2 (personalização + CSV) |
+| **Status geral** | Catálogo completo no backend e frontend; vínculos de personalização no formulário de produto finito |
 | **Próximo passo** | Aba Personalização no `ProdutoFinitoForm` + orçamento VDP |
 
 ---
@@ -144,7 +144,7 @@
 - [x] Lista + formulário Personalização (setup + faixas) — padrão `CrudPage` + `ProdutoFinitoForm`
 - [x] Lista + formulário Conjuntos de campos
 - [x] Grid Estampas com thumbnails (`ProdutoFinitoThumb` reutilizado)
-- [ ] Aba Personalização no `ProdutoFinitoForm`
+- [x] Aba Personalização no `ProdutoFinitoForm` (switch, modos, estampas com thumb, processos, fulfillment)
 
 ---
 
@@ -205,3 +205,4 @@
 | 2026-06-27 | CRUD Estampas + upload seguro arte-mestra (OWASP A01/A03/A04/A05) | Fase 4 |
 | 2026-06-27 | Frontend hub `/catalogo` + CRUDs (componentes globais, tema light/dark) | Fase 0/6 |
 | 2026-06-27 | Vínculos ProdutoFinito + `para-orcamento` enriquecido (transação Prisma, BOLA) | Fase 5 |
+| 2026-06-27 | Aba Personalização no `ProdutoFinitoForm` (modos, estampas, processos, fulfillment) | Fase 6 |
