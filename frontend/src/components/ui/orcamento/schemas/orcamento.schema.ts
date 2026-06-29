@@ -1,4 +1,29 @@
 import { z } from 'zod';
+import type { CatalogoRegrasOrcamento, GradeDistribuicaoLinha } from '@/lib/catalogo/personalizacao-orcamento.types';
+import { somaGradeDistribuicao } from '@/components/ui/orcamento/catalogo/GradeDistribuicaoMini';
+
+const gradeDistribuicaoSchema = z.object({
+  atributos: z.record(z.string(), z.string()),
+  quantidade: z.number().min(0),
+});
+
+const catalogoRegrasSchema = z
+  .object({
+    personalizavel: z.boolean(),
+    modos_habilitados: z.array(z.string()).optional(),
+    estampas_permitidas: z.array(z.unknown()).optional(),
+    processos_livres_permitidos: z.array(z.unknown()).optional(),
+    grade_atributos_def: z
+      .array(
+        z.object({
+          chave: z.string(),
+          label: z.string(),
+          opcoes: z.array(z.string()),
+        }),
+      )
+      .optional(),
+  })
+  .passthrough();
 
 const numeroOpcional = z.string().optional();
 const parseNumeroFlexivel = (valor: string): number => {
@@ -148,6 +173,17 @@ const itemProdutoSchema = z
     instalacao_tempo_estimado_min: numeroOpcional,
     instalacao_quantidade_pessoas: numeroOpcional,
     instalacao_observacoes: z.string().max(50000).optional(),
+
+    catalogo_regras: catalogoRegrasSchema.optional(),
+    personalizacao_ativa: z.boolean().optional(),
+    personalizacao_modo: z.enum(['ESTAMPA', 'IMPRINT_LIVRE', '']).optional(),
+    personalizacao_estampa_id: z.string().optional(),
+    personalizacao_processo_id: z.string().optional(),
+    personalizacao_valores_campos: z.record(z.string(), z.string()).optional(),
+    personalizacao_valores_campos_vdp: z.array(z.record(z.string(), z.string())).optional(),
+    personalizacao_vdp_modo: z.enum(['INLINE', 'PLANILHA']).optional(),
+    personalizacao_grade_distribuicao: z.array(gradeDistribuicaoSchema).optional(),
+    personalizacao_preco_total_linha: z.string().optional(),
   })
   .superRefine((item, ctx) => {
     if (isProdutoPrateleiraItem(item)) {
@@ -158,6 +194,104 @@ const itemProdutoSchema = z
           path: ['produto_finito_id'],
         });
       }
+
+      const regras = item.catalogo_regras as CatalogoRegrasOrcamento | undefined;
+      if (item.personalizacao_ativa && regras?.personalizavel) {
+        const modo = item.personalizacao_modo;
+        if (!modo) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Selecione o modo de personalização',
+            path: ['personalizacao_modo'],
+          });
+        }
+
+        if (modo === 'ESTAMPA' && !item.personalizacao_estampa_id?.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Selecione uma estampa',
+            path: ['personalizacao_estampa_id'],
+          });
+        }
+
+        if (modo === 'IMPRINT_LIVRE' && !item.personalizacao_processo_id?.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Selecione o processo de decoração',
+            path: ['personalizacao_processo_id'],
+          });
+        }
+
+        const qty = Math.max(
+          Math.floor(Number(String(item.quantidade_produto || '1').replace(',', '.')) || 1),
+          1,
+        );
+        const gradeDef = regras?.grade_atributos_def ?? [];
+        if (gradeDef.length > 0 && qty > 1) {
+          const linhas = (item.personalizacao_grade_distribuicao ?? []) as GradeDistribuicaoLinha[];
+          if (somaGradeDistribuicao(linhas) !== qty) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: 'A soma da grade de atributos deve ser igual à quantidade total',
+              path: ['personalizacao_grade_distribuicao'],
+            });
+          }
+        }
+
+        const estampa = regras?.estampas_permitidas?.find(
+          (e) => e.id === item.personalizacao_estampa_id,
+        );
+        type CampoValidacao = { chave: string; obrigatorio: boolean; label: string };
+        const campos: CampoValidacao[] =
+          modo === 'ESTAMPA'
+            ? (estampa?.conjunto_campos?.campos ?? []).map((c) => ({
+                chave: c.chave,
+                obrigatorio: c.obrigatorio,
+                label: c.label,
+              }))
+            : modo === 'IMPRINT_LIVRE'
+              ? [{ chave: 'texto_personalizacao', obrigatorio: true, label: 'Texto' }]
+              : [];
+
+        if (qty > 1 && campos.length > 0) {
+          const vdpModo = item.personalizacao_vdp_modo || 'INLINE';
+          if (vdpModo === 'PLANILHA') {
+            const vdp = item.personalizacao_valores_campos_vdp ?? [];
+            if (vdp.length !== qty) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `Importe uma planilha com ${qty} linha(s) de dados`,
+                path: ['personalizacao_valores_campos_vdp'],
+              });
+            }
+          } else {
+            for (const campo of campos) {
+              if (!campo.obrigatorio) continue;
+              const val = item.personalizacao_valores_campos?.[campo.chave]?.trim();
+              if (!val) {
+                ctx.addIssue({
+                  code: z.ZodIssueCode.custom,
+                  message: `Preencha o campo: ${campo.label}`,
+                  path: ['personalizacao_valores_campos', campo.chave],
+                });
+              }
+            }
+          }
+        } else if (campos.length > 0) {
+          for (const campo of campos) {
+            if (!campo.obrigatorio) continue;
+            const val = item.personalizacao_valores_campos?.[campo.chave]?.trim();
+            if (!val) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `Preencha o campo: ${campo.label}`,
+                path: ['personalizacao_valores_campos', campo.chave],
+              });
+            }
+          }
+        }
+      }
+
       return;
     }
 

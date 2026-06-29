@@ -18,6 +18,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { OrcamentoStatus } from '../enums/orcamento-status.enum';
 import { OrcamentoTipo } from '../enums/orcamento-tipo.enum';
 import { PrioridadeOrcamento } from '../enums/prioridade-orcamento.enum';
+import { PersonalizacaoOrcamentoDto } from './personalizacao-orcamento.dto';
 
 /**
  * DTO para criação de orçamento
@@ -300,6 +301,15 @@ export class ProdutoOrcamentoDto {
   @IsString()
   @MaxLength(50)
   sku_snapshot?: string;
+
+  @ApiPropertyOptional({
+    description: 'Personalização do item (estampa, VDP, grade)',
+    type: PersonalizacaoOrcamentoDto,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PersonalizacaoOrcamentoDto)
+  personalizacao?: PersonalizacaoOrcamentoDto;
 }
 
 /**

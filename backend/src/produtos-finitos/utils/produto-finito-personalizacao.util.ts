@@ -163,5 +163,10 @@ export function mapearPersonalizacaoParaOrcamento(
     modos_habilitados: produto.modos.map((m) => m.modo),
     estampas_permitidas: estampasPermitidas,
     processos_livres_permitidos: processosLivres,
+    grade_atributos_def: [] as Array<{
+      chave: string;
+      label: string;
+      opcoes: string[];
+    }>,
   };
 }

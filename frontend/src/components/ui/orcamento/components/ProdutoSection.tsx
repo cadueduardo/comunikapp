@@ -30,6 +30,9 @@ import {
 } from '@/components/ui/accordion';
 import { CalendarClock, Plus, Package, Trash2, X } from 'lucide-react';
 import { ProdutoFinitoThumb } from '@/components/produtos-finitos/ProdutoFinitoThumb';
+import { ProdutoFinitoPersonalizacaoOrcamento } from '@/components/ui/orcamento/catalogo/ProdutoFinitoPersonalizacaoOrcamento';
+import { calcularPrecoLinhaPersonalizada } from '@/lib/catalogo/personalizacao-preco';
+import type { CatalogoRegrasOrcamento } from '@/lib/catalogo/personalizacao-orcamento.types';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -1045,6 +1048,43 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
               ),
             ) || 1,
           );
+          const precoBaseSnapshot = Number(
+            form.watch(`itens_produto.${index}.preco_unitario_snapshot`) || 0,
+          );
+          const personalizacaoAtiva = Boolean(
+            form.watch(`itens_produto.${index}.personalizacao_ativa`),
+          );
+          const catalogoRegras = form.watch(
+            `itens_produto.${index}.catalogo_regras`,
+          ) as CatalogoRegrasOrcamento | undefined;
+          const modoPers = form.watch(`itens_produto.${index}.personalizacao_modo`) as string;
+          const estampaIdPers = form.watch(
+            `itens_produto.${index}.personalizacao_estampa_id`,
+          ) as string;
+          const processoIdPers = form.watch(
+            `itens_produto.${index}.personalizacao_processo_id`,
+          ) as string;
+          const precoPersonalizadoTotal = (() => {
+            if (!personalizacaoAtiva || !modoPers) {
+              return precoBaseSnapshot * quantidadeItem;
+            }
+            const estampa =
+              catalogoRegras?.estampas_permitidas?.find((e) => e.id === estampaIdPers) ?? null;
+            const processo =
+              modoPers === 'ESTAMPA'
+                ? estampa?.processo ?? null
+                : catalogoRegras?.processos_livres_permitidos?.find(
+                    (p) => p.id === processoIdPers,
+                  ) ?? null;
+            const precoAdicional =
+              modoPers === 'ESTAMPA' ? Number(estampa?.preco_adicional || 0) : 0;
+            return calcularPrecoLinhaPersonalizada({
+              precoBaseProduto: precoBaseSnapshot,
+              precoAdicionalEstampa: precoAdicional,
+              quantidade: quantidadeItem,
+              processo,
+            }).precoTotalLinha;
+          })();
 
           return (
           <AccordionItem key={field.id} value={`item-${index}`}>
@@ -1125,13 +1165,7 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
                           <p className="text-muted-foreground">
                             Subtotal ({quantidadeItem} un.):{' '}
                             <span className="font-medium text-foreground">
-                              {formatCurrency(
-                                Number(
-                                  form.watch(
-                                    `itens_produto.${index}.preco_unitario_snapshot`,
-                                  ) || 0,
-                                ) * quantidadeItem,
-                              )}
+                              {formatCurrency(precoPersonalizadoTotal)}
                             </span>
                           </p>
                         </div>
@@ -1164,6 +1198,12 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
                           Estoque insuficiente (disponível: {estoqueCatalogo})
                         </p>
                       ) : null}
+                      <ProdutoFinitoPersonalizacaoOrcamento
+                        itemIndex={index}
+                        quantidadeTotal={quantidadeItem}
+                        precoBaseProduto={precoBaseSnapshot}
+                        somenteLeitura={somenteLeitura}
+                      />
                     </div>
                   ) : (
                   <>

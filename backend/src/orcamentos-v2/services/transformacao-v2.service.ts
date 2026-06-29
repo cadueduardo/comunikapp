@@ -114,7 +114,7 @@ export class TransformacaoV2Service {
     if (dados.produtos && Array.isArray(dados.produtos)) {
       dadosPreparados.produtos = {
         create: dados.produtos.map((produto, index) =>
-          this.prepararProdutoCriacao(produto, index),
+          this.prepararProdutoCriacao(produto, index, lojaId),
         ),
       };
     }
@@ -247,6 +247,7 @@ export class TransformacaoV2Service {
       dadosPreparados.produtos = this.prepararProdutosAtualizacao(
         dados.produtos,
         orcamentoExistente.produtos,
+        orcamentoExistente.loja_id,
       );
     }
 
@@ -746,7 +747,7 @@ export class TransformacaoV2Service {
     };
   }
 
-  private prepararProdutoCriacao(produto: any, index: number): any {
+  private prepararProdutoCriacao(produto: any, index: number, lojaId?: string): any {
     const nomeProduto = (
       produto.nome_servico ||
       produto.nome ||
@@ -973,18 +974,33 @@ export class TransformacaoV2Service {
       };
     }
 
+    if (produto.personalizacao && lojaId) {
+      const pers = produto.personalizacao;
+      produtoPreparado.personalizacao = {
+        create: {
+          loja_id: lojaId,
+          modo: pers.modo || 'NENHUM',
+          estampa_id: pers.estampa_id || null,
+          processo_id: pers.processo_id || null,
+          valores_campos: pers.valores_campos ?? null,
+          grade_distribuicao: pers.grade_distribuicao ?? null,
+        },
+      };
+    }
+
     return produtoPreparado;
   }
 
   private prepararProdutosAtualizacao(
     produtosNovos: any[],
     produtosExistentes: any[],
+    lojaId: string,
   ): any {
     // Estratégia: remover todos e recriar
     return {
       deleteMany: {},
       create: produtosNovos.map((produto, index) =>
-        this.prepararProdutoCriacao(produto, index),
+        this.prepararProdutoCriacao(produto, index, lojaId),
       ),
     };
   }

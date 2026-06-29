@@ -10,9 +10,9 @@
 
 | Item | Valor |
 |------|-------|
-| **Fase ativa** | Fase 7 — Orçamento V2 (personalização + CSV) |
-| **Status geral** | Catálogo completo no backend e frontend; vínculos de personalização no formulário de produto finito |
-| **Próximo passo** | Aba Personalização no `ProdutoFinitoForm` + orçamento VDP |
+| **Fase ativa** | Fase 8 — OS e roteamento operacional |
+| **Status geral** | Orçamento V2 com personalização, VDP/CSV, grade e persistência `PersonalizacaoOrcamento` |
+| **Próximo passo** | Propagação orçamento → ItemOS (Fase 8) |
 
 ---
 
@@ -150,12 +150,12 @@
 
 ## Fase 7 — Orçamento (UI + persistência)
 
-- [ ] UI modo estampa / imprint livre
-- [ ] Mini-grade Matriz de Atributos
-- [ ] VDP: alternância Inline vs CSV + mapeamento colunas
-- [ ] Cálculo: base + setup + quantity breaks
-- [ ] Persistência `PersonalizacaoOrcamento` polimórfica
-- [ ] Sanitização fórmulas CSV (A03)
+- [x] UI modo estampa / imprint livre (`ProdutoFinitoPersonalizacaoOrcamento`, `EstampaThumbGrid`)
+- [x] Mini-grade Matriz de Atributos (`GradeDistribuicaoMini` — exibida quando `grade_atributos_def` não vazio)
+- [x] VDP: alternância Inline vs CSV + mapeamento colunas (`VdpModoToggle`, `CsvColumnMapper`)
+- [x] Cálculo: base + setup + quantity breaks (`personalizacao-preco.ts`)
+- [x] Persistência `PersonalizacaoOrcamento` polimórfica (DTO + `transformacao-v2.service`)
+- [x] Sanitização fórmulas CSV (A03) (`csv-sanitizer.ts`)
 
 ---
 
@@ -181,8 +181,8 @@
 - [x] Modelo com `loja_id` + índices BOLA documentados no schema
 - [x] Guards/services: `findFirst` / `updateMany` com `id` + `loja_id`
 - [x] Upload isolado por tenant (`uploads/{loja_id}/estampas/`, BOLA no upload/download)
-- [ ] Zod schema `valores_campos` (objeto | array) — orçamento (fase posterior)
-- [ ] Limites CSV (`MAX_CSV_VDP_ROWS`)
+- [x] Zod schema `valores_campos` (objeto | array) — orçamento
+- [x] Limites CSV (`MAX_CSV_VDP_ROWS` = 500)
 
 ---
 
@@ -206,3 +206,4 @@
 | 2026-06-27 | Frontend hub `/catalogo` + CRUDs (componentes globais, tema light/dark) | Fase 0/6 |
 | 2026-06-27 | Vínculos ProdutoFinito + `para-orcamento` enriquecido (transação Prisma, BOLA) | Fase 5 |
 | 2026-06-27 | Aba Personalização no `ProdutoFinitoForm` (modos, estampas, processos, fulfillment) | Fase 6 |
+| 2026-06-27 | Orçamento V2: UI personalização, VDP/CSV, grade, preço industrial, persistência | Fase 7 |

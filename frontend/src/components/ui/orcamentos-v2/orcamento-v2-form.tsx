@@ -9,7 +9,7 @@ import { Form } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Calculator, CheckCircle2, Save, LayoutTemplate } from 'lucide-react';
-import { orcamentosApi, produtosApi } from '@/lib/api-client';
+import { orcamentosApi, produtosApi, produtosFinitosApi } from '@/lib/api-client';
 import { createFormSchema, FormValues, validarMateriaisItensProduto } from '../orcamento/schemas/orcamento.schema';
 import { useOrcamentoData } from '../orcamento/hooks/useOrcamentoData';
 import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
@@ -69,6 +69,11 @@ import {
 } from '@/components/produtos-finitos/descricao-produto-finito.helpers';
 import { ChatFlutuante } from '@/components/ui/chat-flutuante';
 import { useUser } from '@/contexts/UserContext';
+import {
+  calcularPrecoPrateleiraComPersonalizacao,
+  montarPersonalizacaoBackendPayload,
+} from '@/lib/catalogo/montar-personalizacao-payload';
+import type { CatalogoRegrasOrcamento } from '@/lib/catalogo/personalizacao-orcamento.types';
 
 const unidadesTotaisPreview = ['m²', 'm2', 'metro quadrado', 'metros quadrados'];
 const unidadesPorUnidadePreview = [
@@ -744,9 +749,16 @@ export function OrcamentoV2Form({
     const precoCustoUnitario = fixDecimalFn(
       normalizarNumeroFn((produto as any)?.preco_custo_snapshot),
     );
-    const precoTotal = fixDecimalFn(precoUnitario * quantidade);
+    const precoTotal = fixDecimalFn(
+      calcularPrecoPrateleiraComPersonalizacao(
+        produto as any,
+        quantidade,
+        precoUnitario,
+      ),
+    );
     const custoTotalProducao = fixDecimalFn(precoCustoUnitario * quantidade);
     const nomeProduto = produto.nome_servico?.trim() || `Produto ${index + 1}`;
+    const personalizacao = montarPersonalizacaoBackendPayload(produto as any, quantidade);
 
     return {
       nome_servico: nomeProduto,
@@ -763,12 +775,13 @@ export function OrcamentoV2Form({
       preco_total: precoTotal,
       margem_lucro: 0,
       impostos: 0,
+      ...(personalizacao ? { personalizacao } : {}),
       ...mapInstalacaoProdutoFormularioParaBackend(
         produto as Record<string, unknown>,
         normalizarNumeroFn,
         fixDecimalFn,
       ),
-    };
+    } as Record<string, unknown>;
   };
 
   const transformarDadosParaBackend = (data: FormValues, dadosCalculados?: any) => {
@@ -2361,7 +2374,7 @@ export function OrcamentoV2Form({
     setShowProdutoPrateleiraModal(true);
   };
 
-  const handleProdutoPrateleiraSelected = (produto: {
+  const handleProdutoPrateleiraSelected = async (produto: {
     id: string;
     nome: string;
     sku: string;
@@ -2375,6 +2388,28 @@ export function OrcamentoV2Form({
     try {
       const index = selectedProdutoIndex;
       if (index == null || index < 0) return;
+
+      const token = localStorage.getItem('access_token');
+      let catalogoRegras: CatalogoRegrasOrcamento | undefined;
+      if (token) {
+        try {
+          const paraOrcamento = (await produtosFinitosApi.getParaOrcamento(
+            produto.id,
+            token,
+          )) as { personalizacao?: CatalogoRegrasOrcamento };
+          if (paraOrcamento?.personalizacao) {
+            catalogoRegras = {
+              ...paraOrcamento.personalizacao,
+              grade_atributos_def:
+                paraOrcamento.personalizacao.grade_atributos_def ?? [],
+            };
+          }
+        } catch {
+          toast.warning(
+            'Não foi possível carregar as regras de personalização deste produto.',
+          );
+        }
+      }
 
       const quantidade = 1;
       const precoUnitario = Number(produto.preco_unitario || 0);
@@ -2396,6 +2431,15 @@ export function OrcamentoV2Form({
         preco_custo_snapshot: precoCustoUnitario > 0 ? String(precoCustoUnitario) : '',
         estoque_catalogo: produto.estoque_atual,
         imagem_snapshot_url: imagemUrl,
+        catalogo_regras: catalogoRegras,
+        personalizacao_ativa: false,
+        personalizacao_modo: '',
+        personalizacao_estampa_id: '',
+        personalizacao_processo_id: '',
+        personalizacao_valores_campos: {},
+        personalizacao_valores_campos_vdp: [],
+        personalizacao_vdp_modo: 'INLINE' as const,
+        personalizacao_grade_distribuicao: [],
         materiais: [],
         maquinas: [],
         funcoes: [],
