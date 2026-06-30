@@ -16,6 +16,7 @@ import {
   ConcluirLoteInstaladorDto,
   RegistrarOcorrenciaInstaladorDto,
 } from '../dto/instalador.dto';
+import { AtualizarEnderecoLoteDto } from '../dto/gestao.dto';
 import { InstaladorPermissionsGuard } from '../guards/instalador-permissions.guard';
 import { InstalacaoService } from '../services/instalacao.service';
 
@@ -54,6 +55,17 @@ export class InstaladorController {
     @Body() dto: ConcluirLoteInstaladorDto,
   ) {
     return this.instalacaoService.concluirLote(lojaId, id, dto);
+  }
+
+  @Patch('lotes/:id/endereco')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Atualiza endereço do lote em campo' })
+  async atualizarEndereco(
+    @LojaId() lojaId: string,
+    @Param('id') id: string,
+    @Body() dto: AtualizarEnderecoLoteDto,
+  ) {
+    return this.instalacaoService.atualizarEnderecoLote(lojaId, id, dto);
   }
 
   @Post('ocorrencias')

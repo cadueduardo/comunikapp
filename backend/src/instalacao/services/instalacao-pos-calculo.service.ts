@@ -11,6 +11,9 @@ import {
   ParcelaTipo,
 } from '../../financeiro/enums/cobranca-status.enum';
 import { PrismaService } from '../../prisma/prisma.service';
+import { InstalacaoRelatorioPdfService } from './instalacao-relatorio-pdf.service';
+import { InstalacaoSplitFiscalService } from './instalacao-split-fiscal.service';
+import type { SplitFiscalResultado } from '../utils/split-fiscal.util';
 
 export interface MargemRealOsResultado {
   os_id: string;
@@ -30,17 +33,21 @@ export interface RelatorioTecnicoResultado {
   parcela_extra_id?: string;
   relatorio_gerado_em: string;
   pdf_disponivel: boolean;
+  pdf_url?: string;
+  pdf_token?: string;
+  split_fiscal?: SplitFiscalResultado;
 }
 
 @Injectable()
 export class InstalacaoPosCalculoService {
   private readonly logger = new Logger(InstalacaoPosCalculoService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly relatorioPdfService: InstalacaoRelatorioPdfService,
+    private readonly splitFiscalService: InstalacaoSplitFiscalService,
+  ) {}
 
-  /**
-   * Aplica trava de saldo após aprovação quando o orçamento exige instalação.
-   */
   async aplicarTravaSaldoAposAprovacao(
     cobrancaId: string,
     orcamentoId: string,
@@ -118,15 +125,34 @@ export class InstalacaoPosCalculoService {
     };
   }
 
+  async obterSplitFiscalOs(osId: string, lojaId: string) {
+    return this.splitFiscalService.calcularSplitFiscalOs(osId, lojaId);
+  }
+
+  async obterRelatorioExistente(osId: string, lojaId: string) {
+    return this.prisma.relatorioTecnicoInstalacao.findFirst({
+      where: { os_id: osId, loja_id: lojaId },
+    });
+  }
+
   /**
-   * Encerramento logístico: libera saldo (50%) e cobranças extras de campo.
-   * PDF nativo será entregue na Fase 5 — aqui registramos o evento e liberamos financeiro.
+   * Encerramento logístico: gera PDF, libera saldo (50%) e cobranças extras.
    */
   async gerarRelatorioTecnicoFinal(
     osId: string,
     lojaId: string,
     usuarioId?: string | null,
   ): Promise<RelatorioTecnicoResultado> {
+    const existente = await this.prisma.relatorioTecnicoInstalacao.findFirst({
+      where: { os_id: osId, loja_id: lojaId },
+    });
+
+    if (existente) {
+      throw new BadRequestException(
+        'Relatório técnico já foi emitido para esta OS.',
+      );
+    }
+
     const os = await this.prisma.ordemServico.findFirst({
       where: { id: osId, loja_id: lojaId },
       select: {
@@ -154,6 +180,11 @@ export class InstalacaoPosCalculoService {
       throw new NotFoundException('Cobrança não encontrada para esta OS.');
     }
 
+    const pdfGerado = await this.relatorioPdfService.gerarRelatorioPdf(
+      osId,
+      lojaId,
+    );
+
     const extras = await this.prisma.ocorrenciaInstalacao.aggregate({
       where: { os_id: osId, loja_id: lojaId },
       _sum: { preco_cliente: true },
@@ -175,7 +206,7 @@ export class InstalacaoPosCalculoService {
           status: ParcelaStatus.AGUARDANDO_RELATORIO_TECNICO,
         },
         data: {
-          status: ParcelaStatus.PREVISTO,
+          status: ParcelaStatus.A_FATURAR,
           data_vencimento: vencimentoSaldo,
         },
       });
@@ -199,24 +230,39 @@ export class InstalacaoPosCalculoService {
             valor_previsto: new Prisma.Decimal(valorExtras),
             valor_recebido: new Prisma.Decimal(0),
             data_vencimento: vencimentoExtra,
-            status: ParcelaStatus.PREVISTO,
+            status: ParcelaStatus.A_FATURAR,
           },
         });
 
         parcelaExtraId = parcelaExtra.id;
       }
 
+      await tx.relatorioTecnicoInstalacao.create({
+        data: {
+          loja_id: lojaId,
+          os_id: osId,
+          pdf_token: pdfGerado.pdf_token,
+          pdf_url: pdfGerado.pdf_url,
+          total_nfe: new Prisma.Decimal(pdfGerado.split.total_nfe),
+          total_nfs: new Prisma.Decimal(pdfGerado.split.total_nfs),
+          split_detalhes: pdfGerado.split.detalhes as unknown as Prisma.InputJsonValue,
+          gerado_por: usuarioId ?? null,
+        },
+      });
+
       await tx.ordemServicoLog.create({
         data: {
           os_id: osId,
           tipo_acao: 'RELATORIO_TECNICO_GERADO',
           descricao:
-            'Relatório técnico final emitido. Saldo liberado para faturamento e cobranças extras consolidadas.',
+            'Relatório técnico final emitido em PDF. Saldo liberado para faturamento e cobranças extras consolidadas.',
           usuario_id: usuarioId ?? null,
           dados_extras: JSON.stringify({
             parcela_saldo_liberada: saldoLiberada,
             valor_cobranca_extra: valorExtras,
             parcela_extra_id: parcelaExtraId ?? null,
+            pdf_url: pdfGerado.pdf_url,
+            split_fiscal: pdfGerado.split,
           }),
         },
       });
@@ -225,14 +271,14 @@ export class InstalacaoPosCalculoService {
         data: {
           cobranca_id: cobranca.id,
           tipo_acao: CobrancaLogAcao.EDITADA,
-          descricao: `Saldo liberado após relatório técnico da OS ${osId}. Extra de campo: R$ ${valorExtras.toFixed(2)}.`,
+          descricao: `Saldo liberado (A_FATURAR) após relatório técnico da OS ${osId}. Extra de campo: R$ ${valorExtras.toFixed(2)}.`,
           usuario_id: usuarioId ?? null,
         },
       });
     });
 
     this.logger.log(
-      `Relatório técnico gerado para OS ${osId} — saldo liberado: ${saldoLiberada}`,
+      `Relatório técnico gerado para OS ${osId} — PDF ${pdfGerado.pdf_token} — saldo liberado: ${saldoLiberada}`,
     );
 
     return {
@@ -243,7 +289,10 @@ export class InstalacaoPosCalculoService {
       valor_cobranca_extra: this.arredondar(valorExtras),
       parcela_extra_id: parcelaExtraId,
       relatorio_gerado_em: new Date().toISOString(),
-      pdf_disponivel: false,
+      pdf_disponivel: true,
+      pdf_url: pdfGerado.pdf_url,
+      pdf_token: pdfGerado.pdf_token,
+      split_fiscal: pdfGerado.split,
     };
   }
 

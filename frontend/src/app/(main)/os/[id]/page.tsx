@@ -11,6 +11,7 @@ import {
   Package,
   Settings,
   ChevronDown,
+  MapPin,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -21,13 +22,14 @@ import { PrazoOSComponent } from "@/components/os/PrazoOSComponent";
 import { ListaProdutosComPrazo } from "@/components/os/ListaProdutosComPrazo";
 import { ResumoOSSidebar } from "@/components/os/ResumoOSSidebar";
 import { OSMateriaisPanel } from "@/components/os/OSMateriaisPanel";
+import { InstalacaoOsPainel } from "@/components/instalacao/InstalacaoOsPainel";
 import { useOsStatus } from "@/hooks/use-os-status";
 
 interface OSDetalhada extends OrdemServico {
   // Mantendo apenas as interfaces essenciais
 }
 
-type TabType = 'resumo' | 'materiais' | 'analise-inteligente';
+type TabType = 'resumo' | 'materiais' | 'instalacao' | 'analise-inteligente';
 
 // Função para renderizar a aba Resumo
 function renderResumoTab(os: OSDetalhada, isResumoCollapsed: boolean, setIsResumoCollapsed: React.Dispatch<React.SetStateAction<boolean>>, statusDinamico: string) {
@@ -118,7 +120,7 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed, statusDi
   // Obter aba ativa da URL ou usar 'resumo' como padrão
   const getActiveTabFromURL = (): TabType => {
     const tab = searchParams.get('tab') as TabType;
-    return tab && ['resumo', 'materiais', 'analise-inteligente'].includes(tab) 
+    return tab && ['resumo', 'materiais', 'instalacao', 'analise-inteligente'].includes(tab) 
       ? tab 
       : 'resumo';
   };
@@ -144,6 +146,7 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed, statusDi
   const tabs = [
     { id: 'resumo' as TabType, label: 'Resumo', icon: Package },
     { id: 'materiais' as TabType, label: 'Materiais', icon: Package },
+    { id: 'instalacao' as TabType, label: 'Instalação', icon: MapPin },
     { id: 'analise-inteligente' as TabType, label: 'Análise Inteligente', icon: Settings },
   ];
 
@@ -198,6 +201,12 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed, statusDi
             <div className="w-full lg:flex-1 lg:px-6">
               <OSMateriaisPanel osId={os.id} />
             </div>
+          </div>
+        )}
+
+        {activeTab === 'instalacao' && (
+          <div className="w-full min-w-0 overflow-x-hidden">
+            <InstalacaoOsPainel osId={os.id} />
           </div>
         )}
         

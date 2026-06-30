@@ -40,6 +40,8 @@ export enum ParcelaStatus {
   CANCELADA = 'CANCELADA',
   /** Saldo retido até emissão do Relatório Técnico Final (módulo instalações). */
   AGUARDANDO_RELATORIO_TECNICO = 'AGUARDANDO_RELATORIO_TECNICO',
+  /** Liberado para emissão de NF após relatório técnico (módulo instalações). */
+  A_FATURAR = 'A_FATURAR',
 }
 
 export const PARCELA_STATUS_TERMINAIS = new Set<string>([

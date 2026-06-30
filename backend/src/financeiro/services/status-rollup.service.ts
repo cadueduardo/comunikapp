@@ -38,6 +38,15 @@ export class StatusRollupService {
         return p;
       }
 
+      if (p.status === ParcelaStatus.A_FATURAR) {
+        if (
+          p.data_vencimento.getTime() < agora.getTime()
+        ) {
+          return { ...p, status: ParcelaStatus.VENCIDO };
+        }
+        return p;
+      }
+
       if (
         (p.status === ParcelaStatus.PREVISTO ||
           p.status === ParcelaStatus.PARCIAL_PAGO) &&

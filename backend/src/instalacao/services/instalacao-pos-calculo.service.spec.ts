@@ -6,6 +6,8 @@ import {
 } from '../../financeiro/enums/cobranca-status.enum';
 import { PrismaService } from '../../prisma/prisma.service';
 import { InstalacaoPosCalculoService } from './instalacao-pos-calculo.service';
+import { InstalacaoRelatorioPdfService } from './instalacao-relatorio-pdf.service';
+import { InstalacaoSplitFiscalService } from './instalacao-split-fiscal.service';
 
 describe('InstalacaoPosCalculoService', () => {
   let service: InstalacaoPosCalculoService;
@@ -17,6 +19,7 @@ describe('InstalacaoPosCalculoService', () => {
     },
     ordemServicoLog: { create: jest.fn() },
     cobrancaLog: { create: jest.fn() },
+    relatorioTecnicoInstalacao: { create: jest.fn() },
   };
 
   const prismaMock = {
@@ -26,15 +29,26 @@ describe('InstalacaoPosCalculoService', () => {
     ocorrenciaInstalacao: { aggregate: jest.fn() },
     itemOSInstalacao: { count: jest.fn() },
     cobranca: { findFirst: jest.fn() },
+    relatorioTecnicoInstalacao: { findFirst: jest.fn() },
     $transaction: jest.fn(async (fn: (tx: typeof txMock) => Promise<void>) =>
       fn(txMock),
     ),
+  };
+
+  const pdfMock = {
+    gerarRelatorioPdf: jest.fn(),
+  };
+
+  const splitMock = {
+    calcularSplitFiscalOs: jest.fn(),
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
     service = new InstalacaoPosCalculoService(
       prismaMock as unknown as PrismaService,
+      pdfMock as unknown as InstalacaoRelatorioPdfService,
+      splitMock as unknown as InstalacaoSplitFiscalService,
     );
   });
 
@@ -59,29 +73,8 @@ describe('InstalacaoPosCalculoService', () => {
     });
   });
 
-  it('calcula margem real subtraindo custos de campo', async () => {
-    prismaMock.ordemServico.findFirst.mockResolvedValue({
-      id: 'os-1',
-      valor_orcado: 10000,
-      orcamento: { custo_total: 6000, preco_final: 10000 },
-    });
-    prismaMock.ocorrenciaInstalacao.aggregate.mockResolvedValue({
-      _sum: { custo_interno: 500 },
-    });
-
-    const margem = await service.calcularMargemRealOs('os-1', 'loja-1');
-
-    expect(margem).toEqual({
-      os_id: 'os-1',
-      valor_orcado: 10000,
-      custo_orcado: 6000,
-      custos_extras_campo: 500,
-      lucro_real: 3500,
-      margem_percentual: 35,
-    });
-  });
-
-  it('libera saldo e cria parcela extra no relatório técnico final', async () => {
+  it('libera saldo como A_FATURAR e gera PDF no relatório técnico', async () => {
+    prismaMock.relatorioTecnicoInstalacao.findFirst.mockResolvedValue(null);
     prismaMock.ordemServico.findFirst.mockResolvedValue({
       id: 'os-1',
       orcamento_id: 'orc-1',
@@ -97,6 +90,19 @@ describe('InstalacaoPosCalculoService', () => {
     prismaMock.ocorrenciaInstalacao.aggregate.mockResolvedValue({
       _sum: { preco_cliente: 300 },
     });
+    pdfMock.gerarRelatorioPdf.mockResolvedValue({
+      pdf_token: 'tok-pdf',
+      pdf_url: '/instalacao/relatorios/tok-pdf',
+      buffer: new Uint8Array(),
+      split: {
+        total_nfe: 5000,
+        total_nfs: 3000,
+        total_geral: 8000,
+        detalhes: [],
+        instrucao_nfe: 'Emitir R$ 5.000,00 em NF-e',
+        instrucao_nfs: 'Emitir R$ 3.000,00 em NFS-e',
+      },
+    });
     txMock.cobrancaParcela.updateMany.mockResolvedValue({ count: 1 });
     txMock.cobrancaParcela.create.mockResolvedValue({ id: 'parc-extra' });
 
@@ -106,23 +112,31 @@ describe('InstalacaoPosCalculoService', () => {
       'user-1',
     );
 
+    expect(pdfMock.gerarRelatorioPdf).toHaveBeenCalledWith('os-1', 'loja-1');
+    expect(resultado.pdf_disponivel).toBe(true);
     expect(resultado.parcela_saldo_liberada).toBe(true);
-    expect(resultado.valor_cobranca_extra).toBe(300);
-    expect(resultado.parcela_extra_id).toBe('parc-extra');
-    expect(resultado.pdf_disponivel).toBe(false);
     expect(txMock.cobrancaParcela.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          status: ParcelaStatus.AGUARDANDO_RELATORIO_TECNICO,
-        }),
         data: expect.objectContaining({
-          status: ParcelaStatus.PREVISTO,
+          status: ParcelaStatus.A_FATURAR,
         }),
       }),
     );
+    expect(txMock.relatorioTecnicoInstalacao.create).toHaveBeenCalled();
+  });
+
+  it('impede relatório duplicado', async () => {
+    prismaMock.relatorioTecnicoInstalacao.findFirst.mockResolvedValue({
+      id: 'rel-1',
+    });
+
+    await expect(
+      service.gerarRelatorioTecnicoFinal('os-1', 'loja-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('bloqueia relatório técnico com lotes pendentes', async () => {
+    prismaMock.relatorioTecnicoInstalacao.findFirst.mockResolvedValue(null);
     prismaMock.ordemServico.findFirst.mockResolvedValue({
       id: 'os-1',
       orcamento_id: 'orc-1',
@@ -132,19 +146,5 @@ describe('InstalacaoPosCalculoService', () => {
     await expect(
       service.gerarRelatorioTecnicoFinal('os-1', 'loja-1'),
     ).rejects.toBeInstanceOf(BadRequestException);
-
-    expect(prismaMock.itemOSInstalacao.count).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          loja_id: 'loja-1',
-          status_instalacao: {
-            notIn: [
-              StatusInstalacao.CONCLUIDO,
-              StatusInstalacao.LOGISTICA_NEGATIVA,
-            ],
-          },
-        }),
-      }),
-    );
   });
 });

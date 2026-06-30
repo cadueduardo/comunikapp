@@ -26,6 +26,7 @@ import {
   IconTruckDelivery,
   IconPalette,
   IconCategory,
+  IconMapPin,
 } from '@tabler/icons-react';
 import { ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -235,6 +236,20 @@ export default function DashboardLayout({
     String(user?.funcao ?? '').toUpperCase(),
   );
 
+  const funcoesInstalador = new Set(['ADMINISTRADOR', 'PRODUCAO']);
+  const podeVerInstalador = funcoesInstalador.has(
+    String(user?.funcao ?? '').toUpperCase(),
+  );
+
+  const funcoesInstalacaoGestao = new Set([
+    'ADMINISTRADOR',
+    'FINANCEIRO',
+    'VENDAS',
+  ]);
+  const podeVerInstalacaoGestao = funcoesInstalacaoGestao.has(
+    String(user?.funcao ?? '').toUpperCase(),
+  );
+
   const links = [
     {
       label: 'Dashboard',
@@ -355,6 +370,28 @@ export default function DashboardLayout({
             badgeCount: contadores.expedicao,
             icon: (
               <IconTruckDelivery className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+            ),
+          },
+        ]
+      : []),
+    ...(podeVerInstalacaoGestao
+      ? [
+          {
+            label: 'Instalações',
+            href: '/instalacao',
+            icon: (
+              <IconMapPin className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+            ),
+          },
+        ]
+      : []),
+    ...(podeVerInstalador
+      ? [
+          {
+            label: 'Campo (Instalador)',
+            href: '/instalador',
+            icon: (
+              <IconTools className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
             ),
           },
         ]

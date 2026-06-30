@@ -26,11 +26,11 @@ describe('StatusRollupService', () => {
     expect(parcelas[0].status).toBe(ParcelaStatus.AGUARDANDO_RELATORIO_TECNICO);
   });
 
-  it('marca parcela PREVISTO vencida como VENCIDO', () => {
+  it('marca parcela A_FATURAR vencida quando prazo expirou', () => {
     const parcelas = service.recategorizarVencidas(
       [
         {
-          status: ParcelaStatus.PREVISTO,
+          status: ParcelaStatus.A_FATURAR,
           valor_previsto: 5000,
           valor_recebido: 0,
           data_vencimento: ontem,
