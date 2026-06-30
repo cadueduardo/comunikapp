@@ -19,13 +19,17 @@ export class CreateProdutoFinitoDto {
   @MaxLength(255)
   nome: string;
 
-  @ApiPropertyOptional({ description: 'Breve descrição para preview e PDF (até 500 caracteres)' })
+  @ApiPropertyOptional({
+    description: 'Breve descrição para preview e PDF (até 500 caracteres)',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(500)
   descricao_resumida?: string;
 
-  @ApiPropertyOptional({ description: 'Especificações e detalhes completos do produto' })
+  @ApiPropertyOptional({
+    description: 'Especificações e detalhes completos do produto',
+  })
   @IsOptional()
   @IsString()
   descricao?: string;

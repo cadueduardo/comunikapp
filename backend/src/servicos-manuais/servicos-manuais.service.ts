@@ -125,9 +125,7 @@ export class ServicosManuaisService {
     });
     if (!exists) return { ok: true };
     if (exists.sistema) {
-      throw new BadRequestException(
-        'Serviço sistêmico não pode ser excluído',
-      );
+      throw new BadRequestException('Serviço sistêmico não pode ser excluído');
     }
     await this.prisma.servico_manual.delete({ where: { id } });
     return { ok: true };

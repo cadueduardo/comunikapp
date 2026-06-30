@@ -167,9 +167,7 @@ export class OrcamentoOrigemSobraService {
         const altura = medidas.alturaChapa || null;
 
         const dimensoes =
-          largura && altura
-            ? `${largura} × ${altura} ${unidadeDim}`
-            : null;
+          largura && altura ? `${largura} × ${altura} ${unidadeDim}` : null;
 
         const areaSugestao = sobraM2 ?? null;
         const unidadeMedida =
@@ -189,11 +187,12 @@ export class OrcamentoOrigemSobraService {
           calculo_chapa: calculoChapa,
           sobra_estimada_m2: sobraM2,
           largura_comercial: largura,
-          altura_comercial: insumo.formato_material === 'ROLO' ||
+          altura_comercial:
+            insumo.formato_material === 'ROLO' ||
             insumo.formato_material === 'METRO_LINEAR' ||
             insumo.formato_material === 'BARRA'
-            ? null
-            : altura,
+              ? null
+              : altura,
           comprimento_comercial:
             insumo.formato_material === 'ROLO' ||
             insumo.formato_material === 'METRO_LINEAR' ||
@@ -230,12 +229,12 @@ export class OrcamentoOrigemSobraService {
     }
   }
 
-  private extrairSobraM2(calculo: Record<string, unknown> | null): number | null {
+  private extrairSobraM2(
+    calculo: Record<string, unknown> | null,
+  ): number | null {
     if (!calculo) return null;
     const v =
-      calculo.sobra_area_m2 ??
-      calculo.sobraAreaM2 ??
-      calculo.sobra_estimada_m2;
+      calculo.sobra_area_m2 ?? calculo.sobraAreaM2 ?? calculo.sobra_estimada_m2;
     const n = Number(v);
     return Number.isFinite(n) && n > 0 ? n : null;
   }

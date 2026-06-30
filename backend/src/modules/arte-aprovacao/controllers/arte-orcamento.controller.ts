@@ -15,7 +15,8 @@ export class ArteOrcamentoController {
 
   @Post('sync-produto')
   @ApiOperation({
-    summary: 'Sincroniza linha automática de arte no produto (preview do orçamento)',
+    summary:
+      'Sincroniza linha automática de arte no produto (preview do orçamento)',
   })
   async syncProduto(@Request() req: any, @Body() dto: SyncProdutoArteDto) {
     const lojaId = req.user.loja_id;

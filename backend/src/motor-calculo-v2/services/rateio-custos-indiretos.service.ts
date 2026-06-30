@@ -199,8 +199,7 @@ export class RateioCustosIndiretosService {
       if (horas <= 0) continue;
 
       const setor = setores.find((s) => s.id === setorId);
-      const horasProdutivasSetor =
-        setor?.horas_produtivas_mensais ?? 0;
+      const horasProdutivasSetor = setor?.horas_produtivas_mensais ?? 0;
       const percentualSetor =
         setor?.percentual_rateio_geral != null
           ? Number(setor.percentual_rateio_geral)
@@ -247,7 +246,8 @@ export class RateioCustosIndiretosService {
 
       detalhamentoPorSetor.push({
         setor_id: setorId,
-        setor_nome: setor?.nome ?? custosPorSetor.get(setorId)?.setor_nome ?? 'Setor',
+        setor_nome:
+          setor?.nome ?? custosPorSetor.get(setorId)?.setor_nome ?? 'Setor',
         horas,
         custo_indireto: custoIndiretoSetor,
         custo_por_hora: custoPorHoraSetor,
@@ -279,15 +279,11 @@ export class RateioCustosIndiretosService {
         addHoras(maq.setor_id, horas);
       }
       for (const fn of produto.funcoes || []) {
-        const horas = parseFloat(
-          fn.horas_trabalhadas || fn.horas || '0',
-        );
+        const horas = parseFloat(fn.horas_trabalhadas || fn.horas || '0');
         addHoras(fn.setor_id, horas);
       }
       for (const svc of produto.servicos_manuais || produto.servicos || []) {
-        const horas = parseFloat(
-          svc.horas_trabalhadas || svc.horas || '0',
-        );
+        const horas = parseFloat(svc.horas_trabalhadas || svc.horas || '0');
         addHoras(svc.setor_id, horas);
       }
     }

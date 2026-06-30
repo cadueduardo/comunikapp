@@ -42,7 +42,10 @@ export class PCPDashboardService {
     this.logger.log(`Montando dashboard PCP para loja ${lojaId}`);
 
     const configuracao = await this.configuracaoService.obter(lojaId);
-    const { cards, stats } = await this.kanbanService.obterKanbanGeral(lojaId, {});
+    const { cards, stats } = await this.kanbanService.obterKanbanGeral(
+      lojaId,
+      {},
+    );
     const cards_atencao = this.selecionarCardsAtencao(cards);
 
     let gargalos: GargaloSetorResumo[] = [];
@@ -78,8 +81,7 @@ export class PCPDashboardService {
         const aguardandoEntrada =
           card.status === 'FILA' || card.tem_workflow === false;
         const prazo = card.data_prazo ? new Date(card.data_prazo) : null;
-        const atrasado =
-          !!prazo && prazo < hoje && card.status !== 'CONCLUIDA';
+        const atrasado = !!prazo && prazo < hoje && card.status !== 'CONCLUIDA';
         return temAlerta || atrasado || !card.data_prazo || aguardandoEntrada;
       })
       .slice(0, limite);

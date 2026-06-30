@@ -167,7 +167,9 @@ export class ValidacaoV2Service {
   // Métodos privados de validação
 
   private isStatusRascunho(dados: { status?: string }): boolean {
-    const status = String(dados?.status || OrcamentoStatus.RASCUNHO).toLowerCase();
+    const status = String(
+      dados?.status || OrcamentoStatus.RASCUNHO,
+    ).toLowerCase();
     return status === OrcamentoStatus.RASCUNHO;
   }
 
@@ -318,7 +320,10 @@ export class ValidacaoV2Service {
     produtos.forEach((produto, index) => this.validarProduto(produto, index));
 
     for (const produto of produtos) {
-      if (String(produto?.tipo_item || 'SOB_DEMANDA').toUpperCase() === 'PRODUTO_FINITO') {
+      if (
+        String(produto?.tipo_item || 'SOB_DEMANDA').toUpperCase() ===
+        'PRODUTO_FINITO'
+      ) {
         if (!produto.produto_finito_id) {
           throw new BadRequestException(
             'Produto de prateleira deve referenciar um item do catálogo.',
@@ -332,7 +337,9 @@ export class ValidacaoV2Service {
           },
         });
         if (!catalogo) {
-          throw new BadRequestException('Produto de prateleira inválido ou inativo.');
+          throw new BadRequestException(
+            'Produto de prateleira inválido ou inativo.',
+          );
         }
         continue;
       }
@@ -360,7 +367,10 @@ export class ValidacaoV2Service {
     }
 
     const unidade = String(
-      produto.unidade_medida || produto.unidade || produto.unidade_medida_produto || '',
+      produto.unidade_medida ||
+        produto.unidade ||
+        produto.unidade_medida_produto ||
+        '',
     ).trim();
     if (!unidade) {
       throw new BadRequestException('Produto deve ter unidade válida');

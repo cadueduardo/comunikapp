@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { assertProcessoDecoracaoDaLoja } from '../common/utils/catalogo-tenant.util';
@@ -32,7 +28,8 @@ export class ProcessoDecoracaoService {
         insumos_aceitos: dto.insumos_aceitos as Prisma.InputJsonValue,
         preco_base: dto.preco_base ?? null,
         custo_setup: dto.custo_setup ?? 0,
-        faixas_preco: (dto.faixas_preco ?? []) as unknown as Prisma.InputJsonValue,
+        faixas_preco: (dto.faixas_preco ??
+          []) as unknown as Prisma.InputJsonValue,
         setor_pcp_sugerido: dto.setor_pcp_sugerido?.trim() || null,
         ativo: dto.ativo ?? true,
       },
@@ -91,15 +88,17 @@ export class ProcessoDecoracaoService {
     }
     if (dto.ativo !== undefined) data.ativo = dto.ativo;
 
-    return this.prisma.processoDecoracao.updateMany({
-      where: { id, loja_id: lojaId },
-      data,
-    }).then(async (result) => {
-      if (result.count === 0) {
-        await assertProcessoDecoracaoDaLoja(this.prisma, id, lojaId);
-      }
-      return this.findOne(id, lojaId);
-    });
+    return this.prisma.processoDecoracao
+      .updateMany({
+        where: { id, loja_id: lojaId },
+        data,
+      })
+      .then(async (result) => {
+        if (result.count === 0) {
+          await assertProcessoDecoracaoDaLoja(this.prisma, id, lojaId);
+        }
+        return this.findOne(id, lojaId);
+      });
   }
 
   async remove(id: string, lojaId: string) {
@@ -114,9 +113,7 @@ export class ProcessoDecoracaoService {
       await assertProcessoDecoracaoDaLoja(this.prisma, id, lojaId);
     }
 
-    this.logger.log(
-      `Processo de decoração inativado: id=${id} loja=${lojaId}`,
-    );
+    this.logger.log(`Processo de decoração inativado: id=${id} loja=${lojaId}`);
 
     return { id, ativo: false };
   }

@@ -187,10 +187,7 @@ export class OSInativacaoService {
       });
     });
 
-    if (
-      cobranca &&
-      cobranca.status !== CobrancaStatus.CANCELADA
-    ) {
+    if (cobranca && cobranca.status !== CobrancaStatus.CANCELADA) {
       try {
         await this.cobrancasService.cancelar(
           cobranca.id,

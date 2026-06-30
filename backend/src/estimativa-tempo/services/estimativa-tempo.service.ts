@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   DetalhamentoEstimativa,
@@ -95,7 +99,8 @@ export class EstimativaTempoService {
       detalhamento.unidade_velocidade = 'm/h';
 
       if (velocidade > 0 && entrada.perimetro_mm && entrada.perimetro_mm > 0) {
-        const perimetroTotalM = (entrada.perimetro_mm * entrada.quantidade) / 1000;
+        const perimetroTotalM =
+          (entrada.perimetro_mm * entrada.quantidade) / 1000;
         tempoProcessoHoras = perimetroTotalM / velocidade;
         estimativaPossivel = true;
       } else if (velocidade <= 0) {
@@ -117,7 +122,12 @@ export class EstimativaTempoService {
 
     // Aplicar eficiência (eficiencia < 100% aumenta o tempo real).
     let tempoComEficienciaHoras = tempoProcessoHoras;
-    if (estimativaPossivel && eficienciaPercent && eficienciaPercent > 0 && eficienciaPercent < 100) {
+    if (
+      estimativaPossivel &&
+      eficienciaPercent &&
+      eficienciaPercent > 0 &&
+      eficienciaPercent < 100
+    ) {
       tempoComEficienciaHoras = tempoProcessoHoras / (eficienciaPercent / 100);
     }
     detalhamento.tempo_com_eficiencia_horas = tempoComEficienciaHoras;
@@ -137,7 +147,10 @@ export class EstimativaTempoService {
         ...detalhamento,
         setup_horas: this.arredondar(setupHoras, 4),
         tempo_bruto_horas: this.arredondar(detalhamento.tempo_bruto_horas, 4),
-        tempo_com_eficiencia_horas: this.arredondar(detalhamento.tempo_com_eficiencia_horas, 4),
+        tempo_com_eficiencia_horas: this.arredondar(
+          detalhamento.tempo_com_eficiencia_horas,
+          4,
+        ),
         tempo_total_horas: this.arredondar(detalhamento.tempo_total_horas, 4),
       },
     };
@@ -147,9 +160,10 @@ export class EstimativaTempoService {
     if (value === null || value === undefined) return 0;
     if (typeof value === 'number') return value;
     // Prisma retorna Decimal como objeto com toString
-    const asString = typeof (value as { toString?: () => string }).toString === 'function'
-      ? (value as { toString: () => string }).toString()
-      : String(value);
+    const asString =
+      typeof (value as { toString?: () => string }).toString === 'function'
+        ? (value as { toString: () => string }).toString()
+        : String(value);
     const parsed = Number(asString);
     return Number.isFinite(parsed) ? parsed : 0;
   }

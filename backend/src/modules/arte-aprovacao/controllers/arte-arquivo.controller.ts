@@ -262,7 +262,13 @@ export class ArteArquivoController {
       throw new BadRequestException('Nome de arquivo inválido');
     }
 
-    const filePath = join(process.cwd(), 'uploads', 'arte', versaoId, safeFilename);
+    const filePath = join(
+      process.cwd(),
+      'uploads',
+      'arte',
+      versaoId,
+      safeFilename,
+    );
 
     if (!existsSync(filePath)) {
       throw new BadRequestException('Arquivo não encontrado');

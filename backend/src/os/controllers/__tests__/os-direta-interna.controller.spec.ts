@@ -218,6 +218,7 @@ describe('OSDiretaInternaController', () => {
         true,
         'Aprovado',
         undefined,
+        undefined,
       );
       expect(resultado.aprovacao_tecnica_status).toBe('APROVADA');
     });
@@ -243,6 +244,7 @@ describe('OSDiretaInternaController', () => {
         'user-001',
         false,
         'Rejeitado',
+        undefined,
         undefined,
       );
       expect(resultado.aprovacao_tecnica_status).toBe('REJEITADA');

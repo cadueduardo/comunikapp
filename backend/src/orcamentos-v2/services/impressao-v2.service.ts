@@ -611,7 +611,10 @@ export class ImpressaoV2Service {
     switch (template) {
       case 'detalhado':
         dadosBase.produtos = dadosBase.produtos.map((produto: any) => {
-          if (String(produto.tipo_item || 'SOB_DEMANDA').toUpperCase() === 'PRODUTO_FINITO') {
+          if (
+            String(produto.tipo_item || 'SOB_DEMANDA').toUpperCase() ===
+            'PRODUTO_FINITO'
+          ) {
             return {
               ...produto,
               tipo_item: 'PRODUTO_FINITO',

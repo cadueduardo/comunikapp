@@ -24,10 +24,7 @@ export class ArteOsContextoController {
   @ApiOperation({
     summary: 'Contexto de arte dos itens da OS (referências do orçamento)',
   })
-  async listarItensContexto(
-    @Request() req: any,
-    @Param('osId') osId: string,
-  ) {
+  async listarItensContexto(@Request() req: any, @Param('osId') osId: string) {
     const lojaId = req.user.loja_id;
     const data = await this.arteFilaService.listarContextoPorOs(lojaId, osId);
     return { success: true, data };

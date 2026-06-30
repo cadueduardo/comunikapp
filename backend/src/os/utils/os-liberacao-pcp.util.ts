@@ -85,8 +85,19 @@ export function getMotivosBloqueioPcp(
   osMateriaisDisponivel?: boolean,
 ): MotivoBloqueioPcp[] {
   const motivos: MotivoBloqueioPcp[] = [];
+  const statusLiberacao = (
+    item.status_liberacao_pcp || 'PENDENTE'
+  ).toUpperCase();
 
-  if ((item.status_liberacao_pcp || 'PENDENTE').toUpperCase() === 'LIBERADO') {
+  if (statusLiberacao === 'BLOQUEADO_AGUARDANDO_SINAL') {
+    motivos.push({
+      codigo: 'AGUARDANDO_SINAL',
+      mensagem: 'Aguardando compensação do sinal (50%) para liberar a produção',
+    });
+    return motivos;
+  }
+
+  if (statusLiberacao === 'LIBERADO') {
     motivos.push({
       codigo: 'JA_LIBERADO',
       mensagem: 'Produto já liberado para PCP',

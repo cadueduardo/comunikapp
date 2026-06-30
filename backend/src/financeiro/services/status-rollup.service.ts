@@ -1,14 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import {
-  CobrancaStatus,
-  ParcelaStatus,
-} from '../enums/cobranca-status.enum';
+import { CobrancaStatus, ParcelaStatus } from '../enums/cobranca-status.enum';
 
 export interface ParcelaParaRollup {
   status: string;
   valor_previsto: number;
   valor_recebido: number;
   data_vencimento: Date;
+  aguardando_relatorio_tecnico?: boolean;
 }
 
 /**
@@ -36,6 +34,10 @@ export class StatusRollupService {
     agora: Date = new Date(),
   ): ParcelaParaRollup[] {
     return parcelas.map((p) => {
+      if (p.status === ParcelaStatus.AGUARDANDO_RELATORIO_TECNICO) {
+        return p;
+      }
+
       if (
         (p.status === ParcelaStatus.PREVISTO ||
           p.status === ParcelaStatus.PARCIAL_PAGO) &&

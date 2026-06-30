@@ -67,9 +67,7 @@ export class ProdutosService {
 
     // Validar se as máquinas existem (se fornecidas)
     if (maquinasPayload.length > 0) {
-      const maquinaIds = maquinasPayload.map(
-        (maquina) => maquina.maquina_id,
-      );
+      const maquinaIds = maquinasPayload.map((maquina) => maquina.maquina_id);
       const maquinas = await this.prisma.maquina.findMany({
         where: {
           id: { in: maquinaIds },
@@ -86,9 +84,7 @@ export class ProdutosService {
 
     // Validar se as funções existem (se fornecidas)
     if (funcoesPayload.length > 0) {
-      const funcaoIds = funcoesPayload.map(
-        (funcao) => funcao.funcao_id,
-      );
+      const funcaoIds = funcoesPayload.map((funcao) => funcao.funcao_id);
       const funcoes = await this.prisma.funcao.findMany({
         where: {
           id: { in: funcaoIds },
@@ -416,9 +412,7 @@ export class ProdutosService {
     return this.anexarItensOrcamento(produto);
   }
 
-  private normalizarItensOrcamentoJson(
-    valor?: string | null,
-  ): string | null {
+  private normalizarItensOrcamentoJson(valor?: string | null): string | null {
     if (!valor || !String(valor).trim()) {
       return null;
     }
@@ -434,9 +428,9 @@ export class ProdutosService {
     }
   }
 
-  private anexarItensOrcamento<T extends { itens_orcamento_json?: string | null }>(
-    produto: T,
-  ): T & { itens_orcamento: Record<string, unknown>[] } {
+  private anexarItensOrcamento<
+    T extends { itens_orcamento_json?: string | null },
+  >(produto: T): T & { itens_orcamento: Record<string, unknown>[] } {
     let itensOrcamento: Record<string, unknown>[] = [];
     if (produto.itens_orcamento_json) {
       try {

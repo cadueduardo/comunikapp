@@ -8,13 +8,7 @@ import { CompatibilidadeMaterialMaquinaService } from './services/compatibilidad
 @Module({
   imports: [PrismaModule, AuthModule],
   controllers: [EstimativaTempoController],
-  providers: [
-    EstimativaTempoService,
-    CompatibilidadeMaterialMaquinaService,
-  ],
-  exports: [
-    EstimativaTempoService,
-    CompatibilidadeMaterialMaquinaService,
-  ],
+  providers: [EstimativaTempoService, CompatibilidadeMaterialMaquinaService],
+  exports: [EstimativaTempoService, CompatibilidadeMaterialMaquinaService],
 })
 export class EstimativaTempoModule {}

@@ -11,7 +11,13 @@ const __dirname = path.dirname(__filename);
 
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs', 'src/generated/**', 'src/**/generated/**'],
+    ignores: [
+      'eslint.config.mjs',
+      'eslint.ci.config.mjs',
+      'test/**',
+      'src/generated/**',
+      'src/**/generated/**',
+    ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,

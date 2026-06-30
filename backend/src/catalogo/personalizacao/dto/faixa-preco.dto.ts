@@ -20,7 +20,10 @@ export class FaixaPrecoDto {
   @Min(1)
   max?: number | null;
 
-  @ApiProperty({ example: 5.0, description: 'Preço unitário da personalização na faixa' })
+  @ApiProperty({
+    example: 5.0,
+    description: 'Preço unitário da personalização na faixa',
+  })
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)

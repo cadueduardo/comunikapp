@@ -1,4 +1,8 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import {
   ModeloPrecificacaoArte,
@@ -52,7 +56,10 @@ export class ConfiguracaoArteService {
       throw new ForbiddenException(ARTE_MSG.APENAS_ADMIN_CONFIG);
     }
 
-    const servicoId = await this.ensureServicoSistema(lojaId, dto.custo_hora_servico);
+    const servicoId = await this.ensureServicoSistema(
+      lojaId,
+      dto.custo_hora_servico,
+    );
 
     const config = await this.prisma.configuracaoArteLoja.upsert({
       where: { loja_id: lojaId },

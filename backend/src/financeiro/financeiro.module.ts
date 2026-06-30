@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { HomeOperacionalModule } from '../home-operacional/home-operacional.module';
+import { InstalacaoModule } from '../instalacao/instalacao.module';
 import { FinanceiroController } from './financeiro.controller';
 import { CobrancasService } from './services/cobrancas.service';
 import { ParcelasBuilderService } from './services/parcelas-builder.service';
@@ -24,7 +25,7 @@ import { VencimentoCobrancasJob } from './jobs/vencimento-cobrancas.job';
  * As 5 sub-fases (6.A a 6.E) compartilham este modulo.
  */
 @Module({
-  imports: [PrismaModule, AuthModule, HomeOperacionalModule],
+  imports: [PrismaModule, AuthModule, HomeOperacionalModule, InstalacaoModule],
   controllers: [FinanceiroController],
   providers: [
     CobrancasService,

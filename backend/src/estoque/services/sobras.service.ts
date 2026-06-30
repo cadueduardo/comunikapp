@@ -71,7 +71,8 @@ export class SobrasService {
       const area = data.area != null ? Number(data.area) : null;
       const largura = data.largura != null ? Number(data.largura) : null;
       const altura = data.altura != null ? Number(data.altura) : null;
-      const unidadeDimensao = data.unidadeDimensao || data.unidade_dimensao || null;
+      const unidadeDimensao =
+        data.unidadeDimensao || data.unidade_dimensao || null;
       const origem = data.origem || (insumoId ? 'ORCAMENTO' : null);
       const orcamentoOrigem =
         data.orcamentoOrigem || data.orcamento_origem || null;
@@ -330,9 +331,7 @@ export class SobrasService {
       // Buscar sobra
       const sobra = await this.buscarSobraPorId(context, sobraId);
 
-      if (
-        !['DISPONIVEL', 'PARCIALMENTE_APROVEITADA'].includes(sobra.status)
-      ) {
+      if (!['DISPONIVEL', 'PARCIALMENTE_APROVEITADA'].includes(sobra.status)) {
         throw new BadRequestException(
           'Sobra não está disponível para aproveitamento.',
         );
@@ -344,7 +343,10 @@ export class SobrasService {
       );
       const economiaGerada = Number(data.economiaGerada ?? 0);
 
-      if (!Number.isFinite(quantidadeAproveitada) || quantidadeAproveitada <= 0) {
+      if (
+        !Number.isFinite(quantidadeAproveitada) ||
+        quantidadeAproveitada <= 0
+      ) {
         throw new BadRequestException(
           'Quantidade aproveitada deve ser maior que zero.',
         );
@@ -527,8 +529,11 @@ export class SobrasService {
         taxaAproveitamento: Math.round(taxaAproveitamento * 100) / 100,
         sobrasDisponiveis: Number((disponiveis as any[])[0]?.count ?? 0),
         areaDisponivelM2:
-          Math.round(Number((areaDisponivel as any[])[0]?.total ?? 0) * 100) / 100,
-        economiaUltimos30Dias: Number((economiaRecente as any[])[0]?.total ?? 0),
+          Math.round(Number((areaDisponivel as any[])[0]?.total ?? 0) * 100) /
+          100,
+        economiaUltimos30Dias: Number(
+          (economiaRecente as any[])[0]?.total ?? 0,
+        ),
       };
     } catch (error: any) {
       this.logger.error(`Erro ao calcular métricas: ${error.message}`);
@@ -591,9 +596,7 @@ export class SobrasService {
         select: { id: true },
       });
       if (!os) {
-        throw new NotFoundException(
-          'OS de destino não encontrada nesta loja.',
-        );
+        throw new NotFoundException('OS de destino não encontrada nesta loja.');
       }
     }
 

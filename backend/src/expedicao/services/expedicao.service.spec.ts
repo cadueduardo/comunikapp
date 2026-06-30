@@ -97,11 +97,15 @@ describe('ExpedicaoService', () => {
         update: jest.fn(),
       },
       ordemServico: { update: jest.fn() },
-      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
+      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) =>
+        fn(tx),
+      ),
     };
 
     financeiro = {
-      verificarBloqueioEntrega: jest.fn().mockResolvedValue({ bloqueado: false }),
+      verificarBloqueioEntrega: jest
+        .fn()
+        .mockResolvedValue({ bloqueado: false }),
       assertEntregaLiberada: jest.fn().mockResolvedValue(undefined),
       assertMovimentoKanbanLiberado: jest.fn().mockResolvedValue(undefined),
     };
@@ -165,9 +169,9 @@ describe('ExpedicaoService', () => {
       }),
       include: expect.any(Object),
     });
-    expect(prisma.expedicaoLogistica.update.mock.calls[0][0].data).not.toHaveProperty(
-      'observacoes',
-    );
+    expect(
+      prisma.expedicaoLogistica.update.mock.calls[0][0].data,
+    ).not.toHaveProperty('observacoes');
   });
 
   it('atualiza status no kanban e define data_expedida na primeira saída', async () => {
@@ -318,16 +322,11 @@ describe('ExpedicaoService', () => {
     });
 
     await expect(
-      service.concluirEntrega(
-        'exp-1',
-        'loja-1',
-        { recebedor_nome: 'João' },
-        {
-          id: 'user-prod',
-          funcao: 'PRODUCAO',
-          email: 'prod@test.com',
-        } as any,
-      ),
+      service.concluirEntrega('exp-1', 'loja-1', { recebedor_nome: 'João' }, {
+        id: 'user-prod',
+        funcao: 'PRODUCAO',
+        email: 'prod@test.com',
+      } as any),
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(prisma.$transaction).not.toHaveBeenCalled();
@@ -375,8 +374,8 @@ describe('ExpedicaoService', () => {
   it('lança NotFound ao buscar detalhe inexistente', async () => {
     prisma.expedicaoLogistica.findFirst.mockResolvedValue(null);
 
-    await expect(service.obterDetalhe('exp-x', 'loja-1')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.obterDetalhe('exp-x', 'loja-1'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

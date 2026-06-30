@@ -27,8 +27,7 @@ export function distribuirPrecoFinal(
     Math.max(0, numeroSeguro(item.preco_total)),
   );
   const somaPesos = pesosOriginais.reduce((soma, peso) => soma + peso, 0);
-  const pesos =
-    somaPesos > 0 ? pesosOriginais : itens.map(() => 1);
+  const pesos = somaPesos > 0 ? pesosOriginais : itens.map(() => 1);
   const divisor = pesos.reduce((soma, peso) => soma + peso, 0);
 
   const parcelas = pesos.map((peso, indice) => {

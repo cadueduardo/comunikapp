@@ -83,7 +83,10 @@ export class ArteWebSocketGateway
           );
         }
       } catch (error) {
-        const autenticado = await this.autenticarTokenLinkPublico(client, token);
+        const autenticado = await this.autenticarTokenLinkPublico(
+          client,
+          token,
+        );
         if (!autenticado) {
           this.logger.warn(
             `Token inválido para cliente ${client.id}: ${error.message}`,
@@ -162,9 +165,7 @@ export class ArteWebSocketGateway
       await client.join(`arte_versao_${versaoId}`);
       client.data.versaoId = versaoId;
 
-      this.logger.debug(
-        `WS arte join versao=${versaoId} socket=${client.id}`,
-      );
+      this.logger.debug(`WS arte join versao=${versaoId} socket=${client.id}`);
 
       // Notificar outros clientes na sala
       client.to(`arte_versao_${versaoId}`).emit('user_joined_arte', {
@@ -304,7 +305,9 @@ export class ArteWebSocketGateway
       };
 
       if (versaoId) {
-        this.server.to(`arte_versao_${versaoId}`).emit('nova_mensagem_arte', payload);
+        this.server
+          .to(`arte_versao_${versaoId}`)
+          .emit('nova_mensagem_arte', payload);
         this.logger.debug(`WS arte emit nova_mensagem versao=${versaoId}`);
       }
 
@@ -373,7 +376,9 @@ export class ArteWebSocketGateway
         timestamp: new Date().toISOString(),
       };
 
-      this.server.to(`arte_versao_${versaoId}`).emit('contador_atualizado', payload);
+      this.server
+        .to(`arte_versao_${versaoId}`)
+        .emit('contador_atualizado', payload);
 
       if (lojaId) {
         this.server.to(`loja_${lojaId}`).emit('contador_atualizado', {

@@ -35,7 +35,11 @@ export class TwoFactorService {
 
   private encryptSecret(secret: string): string {
     const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv('aes-256-gcm', this.getEncryptionKey(), iv);
+    const cipher = crypto.createCipheriv(
+      'aes-256-gcm',
+      this.getEncryptionKey(),
+      iv,
+    );
     const encrypted = Buffer.concat([
       cipher.update(secret, 'utf8'),
       cipher.final(),
@@ -127,7 +131,9 @@ export class TwoFactorService {
     });
 
     if (!user?.two_factor_secret) {
-      throw new BadRequestException('Inicie a configuracao 2FA antes de confirmar.');
+      throw new BadRequestException(
+        'Inicie a configuracao 2FA antes de confirmar.',
+      );
     }
 
     if (!this.verifyCode(user.two_factor_secret, code)) {

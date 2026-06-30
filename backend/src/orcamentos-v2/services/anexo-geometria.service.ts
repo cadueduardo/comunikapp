@@ -199,10 +199,7 @@ export class AnexoGeometriaService {
    * As sugestões de insumo são recalculadas a cada chamada (não persistidas)
    * para refletir mudanças no catálogo da loja.
    */
-  async lerDxfExtraido(args: {
-    token: string;
-    lojaId: string;
-  }): Promise<{
+  async lerDxfExtraido(args: { token: string; lojaId: string }): Promise<{
     dxf_extraido: DxfExtraido | null;
     sugestoes_insumo: SugestoesPorCamada[];
   }> {
@@ -239,10 +236,7 @@ export class AnexoGeometriaService {
    * Lê o arquivo persistido para servir ao frontend. Valida que o token
    * pertence à loja_id do JWT.
    */
-  async ler(args: {
-    token: string;
-    lojaId: string;
-  }): Promise<{
+  async ler(args: { token: string; lojaId: string }): Promise<{
     buffer: Buffer;
     mimeType: string;
     nomeOriginal: string;
@@ -297,7 +291,9 @@ export class AnexoGeometriaService {
    */
   extrairToken(url: string | null | undefined): string | null {
     if (!url) return null;
-    const match = url.match(/\/orcamentos-v2\/anexos-geometria\/([0-9a-f-]{36})$/i);
+    const match = url.match(
+      /\/orcamentos-v2\/anexos-geometria\/([0-9a-f-]{36})$/i,
+    );
     return match ? match[1] : null;
   }
 

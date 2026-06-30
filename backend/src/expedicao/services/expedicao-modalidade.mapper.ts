@@ -17,9 +17,7 @@ export class ExpedicaoModalidadeMapper {
     return this.mapearPorPalavraChave(params.nomeModalidadeEntrega);
   }
 
-  private mapearPorPalavraChave(
-    nome?: string | null,
-  ): ModalidadeExpedicao {
+  private mapearPorPalavraChave(nome?: string | null): ModalidadeExpedicao {
     const texto = this.normalizar(nome ?? '');
 
     if (!texto) {
@@ -43,7 +41,11 @@ export class ExpedicaoModalidadeMapper {
       return ModalidadeExpedicao.ENTREGA_FROTA_PROPRIA;
     }
 
-    if (texto.includes('retirada') || texto.includes('balcao') || texto.includes('balcão')) {
+    if (
+      texto.includes('retirada') ||
+      texto.includes('balcao') ||
+      texto.includes('balcão')
+    ) {
       return ModalidadeExpedicao.RETIRADA_CLIENTE;
     }
 

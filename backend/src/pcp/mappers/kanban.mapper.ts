@@ -332,7 +332,8 @@ export class KanbanMapper {
   private static calcularProximosSetoresIds(instancia: any): string[] {
     const ordemAtual = instancia.ordem ?? 0;
     const itemOsId = instancia.item_os_id ?? null;
-    const instanciasSetor = instancia.workflow_instancia?.instancias_setor ?? [];
+    const instanciasSetor =
+      instancia.workflow_instancia?.instancias_setor ?? [];
 
     return instanciasSetor
       .filter((destino: any) => {
@@ -348,8 +349,9 @@ export class KanbanMapper {
         return destino.ordem <= ordemAtual + 1 && destino.ordem >= ordemAtual;
       })
       .map((destino: any) => destino.setor_id as string)
-      .filter((setorId: string, index: number, lista: string[]) =>
-        lista.indexOf(setorId) === index,
+      .filter(
+        (setorId: string, index: number, lista: string[]) =>
+          lista.indexOf(setorId) === index,
       );
   }
 
@@ -462,14 +464,17 @@ export class KanbanMapper {
     };
   }
 
-  private static extrairMaquinaPrevista(itemOS: any): { id?: string; nome?: string } | null {
+  private static extrairMaquinaPrevista(
+    itemOS: any,
+  ): { id?: string; nome?: string } | null {
     const parametros = this.parseJsonObject(itemOS?.parametros_tecnicos);
     const maquinas = Array.isArray(parametros?.maquinas)
       ? parametros.maquinas
       : [];
     const maquina =
-      maquinas.find((item: any) => item?.maquina_id || item?.id || item?.nome) ??
-      null;
+      maquinas.find(
+        (item: any) => item?.maquina_id || item?.id || item?.nome,
+      ) ?? null;
 
     const id =
       parametros?.maquina_id ??

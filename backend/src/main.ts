@@ -123,7 +123,10 @@ async function bootstrap() {
         res.setHeader('Cache-Control', 'public, max-age=86400');
         if (filePath.toLowerCase().endsWith('.svg')) {
           res.setHeader('Content-Disposition', 'attachment');
-          res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+          res.setHeader(
+            'Content-Security-Policy',
+            "default-src 'none'; sandbox",
+          );
         }
       },
     }),
@@ -146,8 +149,7 @@ async function bootstrap() {
   const port = Number(process.env.PORT ?? 4000);
   // Em produção, escuta apenas em 127.0.0.1 por padrão (Nginx fica na frente).
   // Em dev, escuta em 0.0.0.0 para permitir acesso de outros dispositivos da rede local.
-  const host =
-    process.env.HOST ?? (isProd ? '127.0.0.1' : '0.0.0.0');
+  const host = process.env.HOST ?? (isProd ? '127.0.0.1' : '0.0.0.0');
 
   if (!isProd) {
     logger.debug(

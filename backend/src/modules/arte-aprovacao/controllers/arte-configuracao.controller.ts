@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Put,
-  Request,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Put, Request, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 import { ConfiguracaoArteService } from '../services/configuracao-arte.service';
@@ -16,7 +9,9 @@ import { UpsertConfiguracaoArteDto } from '../dto/upsert-configuracao-arte.dto';
 @UseGuards(JwtAuthGuard)
 @Controller('arte-aprovacao/configuracao')
 export class ArteConfiguracaoController {
-  constructor(private readonly configuracaoArteService: ConfiguracaoArteService) {}
+  constructor(
+    private readonly configuracaoArteService: ConfiguracaoArteService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Obter configuração de Arte & Aprovação da loja' })

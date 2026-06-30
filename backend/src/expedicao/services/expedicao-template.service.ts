@@ -116,7 +116,9 @@ export class ExpedicaoTemplateService {
         usa_medida_propria: item.usa_medida_propria,
         largura_material: this.decimalParaNumero(item.largura_material),
         altura_material: this.decimalParaNumero(item.altura_material),
-        profundidade_material: this.decimalParaNumero(item.profundidade_material),
+        profundidade_material: this.decimalParaNumero(
+          item.profundidade_material,
+        ),
         unidade_medida_material: item.unidade_medida_material ?? undefined,
       })),
       maquinas: produto.maquinas.map((maquina) => ({

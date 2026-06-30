@@ -4,7 +4,10 @@ import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 const withHeaders = (req: request.Test, lojaId: string) =>
   req
-    .set('x-internal-token', process.env.ESTOQUE_INTERNAL_API_TOKEN || 'test-internal-token')
+    .set(
+      'x-internal-token',
+      process.env.ESTOQUE_INTERNAL_API_TOKEN || 'test-internal-token',
+    )
     .set('x-loja-id', lojaId)
     .set('x-usuario-id', 'user-perf');
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -26,7 +29,8 @@ describe.skip('EstoqueModule Performance (e2e)', () => {
 
   beforeAll(async () => {
     process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
-    process.env.ESTOQUE_INTERNAL_API_TOKEN = process.env.ESTOQUE_INTERNAL_API_TOKEN || 'test-internal-token';
+    process.env.ESTOQUE_INTERNAL_API_TOKEN =
+      process.env.ESTOQUE_INTERNAL_API_TOKEN || 'test-internal-token';
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
@@ -64,7 +68,10 @@ describe.skip('EstoqueModule Performance (e2e)', () => {
     it('should load dashboard within 3 seconds', async () => {
       const startTime = Date.now();
 
-      await withHeaders(request(app.getHttpServer()).get('/api/estoque/dashboard'), mockLojaId)
+      await withHeaders(
+        request(app.getHttpServer()).get('/api/estoque/dashboard'),
+        mockLojaId,
+      )
         .query({ lojaId: mockLojaId })
         .expect(200);
 
@@ -92,7 +99,10 @@ describe.skip('EstoqueModule Performance (e2e)', () => {
           lojaId: mockLojaId,
         };
 
-        const response = await withHeaders(request(app.getHttpServer()).post('/api/estoque/itens'), mockLojaId)
+        const response = await withHeaders(
+          request(app.getHttpServer()).post('/api/estoque/itens'),
+          mockLojaId,
+        )
           .send(item)
           .expect(201);
 
@@ -110,7 +120,10 @@ describe.skip('EstoqueModule Performance (e2e)', () => {
     it('should list items efficiently with pagination', async () => {
       const startTime = Date.now();
 
-      const response = await withHeaders(request(app.getHttpServer()).get('/api/estoque/itens'), mockLojaId)
+      const response = await withHeaders(
+        request(app.getHttpServer()).get('/api/estoque/itens'),
+        mockLojaId,
+      )
         .query({
           lojaId: mockLojaId,
           page: 1,
@@ -133,8 +146,10 @@ describe.skip('EstoqueModule Performance (e2e)', () => {
 
       // Executar 10 requisições simultâneas
       for (let i = 0; i < concurrentRequests; i++) {
-        const promise = withHeaders(request(app.getHttpServer()).get('/api/estoque/health'), mockLojaId)
-          .expect(200);
+        const promise = withHeaders(
+          request(app.getHttpServer()).get('/api/estoque/health'),
+          mockLojaId,
+        ).expect(200);
 
         promises.push(promise);
       }

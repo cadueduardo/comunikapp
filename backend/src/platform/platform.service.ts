@@ -56,8 +56,7 @@ export class PlatformService {
   }
 
   private getSignupInviteUrl(token: string) {
-    const frontendUrl =
-      process.env.FRONTEND_URL || 'https://comunikapp.com.br';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://comunikapp.com.br';
     return `${frontendUrl.replace(/\/$/, '')}/cadastro?convite=${encodeURIComponent(token)}`;
   }
 
@@ -201,7 +200,9 @@ export class PlatformService {
     }
 
     if (convite.status !== INVITE_STATUS.PENDENTE) {
-      throw new BadRequestException('Apenas convites pendentes podem ser revogados.');
+      throw new BadRequestException(
+        'Apenas convites pendentes podem ser revogados.',
+      );
     }
 
     const updated = await this.prisma.conviteCadastro.update({
@@ -229,7 +230,8 @@ export class PlatformService {
     }
 
     if (convite.status === INVITE_STATUS.USADO) {
-      const canReuse = await this.pendingSignupService.canReuseUsedInvite(convite);
+      const canReuse =
+        await this.pendingSignupService.canReuseUsedInvite(convite);
       if (!canReuse) {
         throw new BadRequestException('Convite nao esta mais disponivel.');
       }
@@ -305,7 +307,9 @@ export class PlatformService {
         ip,
       );
       if (!isCaptchaValid) {
-        throw new BadRequestException('Validacao de seguranca falhou. Tente novamente.');
+        throw new BadRequestException(
+          'Validacao de seguranca falhou. Tente novamente.',
+        );
       }
     }
 
@@ -318,7 +322,10 @@ export class PlatformService {
       where: { email },
       select: { id: true },
     });
-    if (existingLoja && (await this.pendingSignupService.hasVerifiedAccount(email))) {
+    if (
+      existingLoja &&
+      (await this.pendingSignupService.hasVerifiedAccount(email))
+    ) {
       return this.getBetaInterestSuccessMessage();
     }
 
@@ -396,9 +403,7 @@ export class PlatformService {
   }
 
   private getBetaFeedbackRecipientEmail(): string {
-    return (
-      process.env.BETA_FEEDBACK_EMAIL?.trim() || 'cadu.eduardo@gmail.com'
-    );
+    return process.env.BETA_FEEDBACK_EMAIL?.trim() || 'cadu.eduardo@gmail.com';
   }
 
   async submitBetaFeedback(dto: BetaFeedbackDto, user: AuthenticatedUser) {

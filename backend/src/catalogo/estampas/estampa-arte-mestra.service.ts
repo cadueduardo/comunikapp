@@ -132,10 +132,7 @@ export class EstampaArteMestraService {
     lojaId: string,
   ): Promise<{ buffer: Buffer; mime_type: string }> {
     const meta = await this.carregarMeta(token, lojaId);
-    const caminhoFisico = this.resolverCaminhoSeguro(
-      lojaId,
-      meta.nome_fisico,
-    );
+    const caminhoFisico = this.resolverCaminhoSeguro(lojaId, meta.nome_fisico);
 
     if (!existsSync(caminhoFisico)) {
       throw new NotFoundException('Arquivo de arte-mestra não encontrado.');
@@ -147,10 +144,7 @@ export class EstampaArteMestraService {
 
   async servir(token: string, lojaId: string, res: Response) {
     const meta = await this.carregarMeta(token, lojaId);
-    const caminhoFisico = this.resolverCaminhoSeguro(
-      lojaId,
-      meta.nome_fisico,
-    );
+    const caminhoFisico = this.resolverCaminhoSeguro(lojaId, meta.nome_fisico);
 
     if (!existsSync(caminhoFisico)) {
       throw new NotFoundException('Arquivo de arte-mestra não encontrado.');

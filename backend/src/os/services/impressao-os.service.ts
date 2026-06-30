@@ -67,10 +67,7 @@ export class ImpressaoOSService {
         loja: true,
         cliente: true,
         itens: {
-          orderBy: [
-            { ordem_producao: 'asc' },
-            { criado_em: 'asc' },
-          ],
+          orderBy: [{ ordem_producao: 'asc' }, { criado_em: 'asc' }],
         },
         orcamento: {
           include: {
@@ -121,7 +118,8 @@ export class ImpressaoOSService {
     const maquinasImpressao =
       os.orcamento?.produtos?.flatMap((p: any) => p.maquinas ?? []) ?? [];
     const servicosManuaisImpressao =
-      os.orcamento?.produtos?.flatMap((p: any) => p.servicos_manuais ?? []) ?? [];
+      os.orcamento?.produtos?.flatMap((p: any) => p.servicos_manuais ?? []) ??
+      [];
 
     const dadosTransformados = os.orcamento
       ? TransformacaoDadosHelper.transformarDadosCompletos({
@@ -206,8 +204,7 @@ export class ImpressaoOSService {
         for (const insumo of insumosItem) {
           dosItens.push({
             ...insumo,
-            quantidade:
-              insumo.quantidade ?? insumo.quantidade_necessaria ?? 0,
+            quantidade: insumo.quantidade ?? insumo.quantidade_necessaria ?? 0,
           });
         }
       }
@@ -217,9 +214,7 @@ export class ImpressaoOSService {
       return dosItens;
     }
 
-    return (
-      os.orcamento?.produtos?.flatMap((p: any) => p.insumos ?? []) ?? []
-    );
+    return os.orcamento?.produtos?.flatMap((p: any) => p.insumos ?? []) ?? [];
   }
 
   /**

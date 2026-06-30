@@ -44,7 +44,10 @@ export class LojasController {
   @Public()
   @Post('login')
   login(@Body() loginDto: LoginDto, @Req() req: Request) {
-    const clientIp = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim();
+    const clientIp = req.headers['x-forwarded-for']
+      ?.toString()
+      .split(',')[0]
+      ?.trim();
     const userAgent = req.headers['user-agent']?.toString() || 'unknown';
     return this.lojasService.login(loginDto, clientIp || req.ip, userAgent);
   }
@@ -55,7 +58,10 @@ export class LojasController {
     @Body() dto: VerifyTwoFactorLoginDto,
     @Req() req: Request,
   ) {
-    const clientIp = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim();
+    const clientIp = req.headers['x-forwarded-for']
+      ?.toString()
+      .split(',')[0]
+      ?.trim();
     const userAgent = req.headers['user-agent']?.toString() || 'unknown';
     return this.lojasService.verifyTwoFactorLogin(
       dto,

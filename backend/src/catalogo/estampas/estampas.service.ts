@@ -41,11 +41,7 @@ export class EstampasService {
       await this.validarCodigoDisponivel(lojaId, codigo);
     }
 
-    await assertProcessoDecoracaoDaLoja(
-      this.prisma,
-      dto.processo_id,
-      lojaId,
-    );
+    await assertProcessoDecoracaoDaLoja(this.prisma, dto.processo_id, lojaId);
 
     if (dto.conjunto_campos_id) {
       await assertConjuntoCamposDaLoja(
@@ -136,11 +132,7 @@ export class EstampasService {
     }
 
     if (dto.processo_id !== undefined) {
-      await assertProcessoDecoracaoDaLoja(
-        this.prisma,
-        dto.processo_id,
-        lojaId,
-      );
+      await assertProcessoDecoracaoDaLoja(this.prisma, dto.processo_id, lojaId);
     }
 
     const conjuntoId =

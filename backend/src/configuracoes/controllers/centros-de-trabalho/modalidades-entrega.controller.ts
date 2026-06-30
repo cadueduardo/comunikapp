@@ -33,7 +33,10 @@ export class ModalidadesEntregaController {
   @Post()
   @ApiOperation({ summary: 'Cria uma modalidade de entrega' })
   @ApiResponse({ status: 201, description: 'Modalidade criada com sucesso.' })
-  async criar(@LojaId() lojaId: string, @Body() dto: CreateModalidadeEntregaDto) {
+  async criar(
+    @LojaId() lojaId: string,
+    @Body() dto: CreateModalidadeEntregaDto,
+  ) {
     return this.service.criar(lojaId, dto);
   }
 
@@ -62,7 +65,8 @@ export class ModalidadesEntregaController {
 
   @Delete(':id')
   @ApiOperation({
-    summary: 'Remove ou inativa uma modalidade de entrega sem quebrar historico',
+    summary:
+      'Remove ou inativa uma modalidade de entrega sem quebrar historico',
   })
   async remover(@Param('id') id: string, @LojaId() lojaId: string) {
     return this.service.remover(id, lojaId);

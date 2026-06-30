@@ -89,7 +89,12 @@ export class MensagensNegociacaoController {
         files: 1,
       },
       fileFilter: (req, file, callback) => {
-        const tiposPermitidos = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+        const tiposPermitidos = [
+          'image/jpeg',
+          'image/png',
+          'image/jpg',
+          'application/pdf',
+        ];
 
         if (!tiposPermitidos.includes(file.mimetype)) {
           return callback(

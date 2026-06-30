@@ -217,8 +217,8 @@ model CobrancaParcela {
   valor_recebido  Decimal  @default(0) @db.Decimal(12, 2)
   data_vencimento DateTime
 
-  // Status individual: PREVISTO | PARCIAL_PAGO | LIQUIDADO | VENCIDO | CANCELADA.
-  status       String    @default("PREVISTO") @db.VarChar(24)
+  // Status individual: PREVISTO | PARCIAL_PAGO | LIQUIDADO | VENCIDO | CANCELADA | AGUARDANDO_RELATORIO_TECNICO.
+  status       String    @default("PREVISTO") @db.VarChar(32)
   liquidado_em DateTime?
 
   criado_em     DateTime @default(now())
@@ -657,9 +657,13 @@ model loja {
   cobrancas                 Cobranca[] // Fase 6 - financeiro minimo
   categorias_produto_finito CategoriaProdutoFinito[]
   produtos_finitos          ProdutoFinito[]
-  expedicoes_logistica      ExpedicaoLogistica[]
-  configuracao_arte         ConfiguracaoArteLoja?
-  processos_decoracao       ProcessoDecoracao[]
+  expedicoes_logistica        ExpedicaoLogistica[]
+  configuracao_arte           ConfiguracaoArteLoja?
+  configuracao_instalacao     ConfiguracaoInstalacaoLoja?
+  taxas_ocorrencia_instalacao TaxaOcorrenciaLoja[]
+  itens_os_instalacao         ItemOSInstalacao[]
+  ocorrencias_instalacao      OcorrenciaInstalacao[]
+  processos_decoracao         ProcessoDecoracao[]
   conjuntos_campos          ConjuntoCampos[]
   estampas                  Estampa[]
 }
@@ -1849,7 +1853,8 @@ model OrdemServico {
   apontamentos         Apontamento[]
   logs                 OrdemServicoLog[]
   execucoes_regras     ExecucaoRegra[]
-  expedicoes_logistica ExpedicaoLogistica[]
+  expedicoes_logistica   ExpedicaoLogistica[]
+  ocorrencias_instalacao OcorrenciaInstalacao[]
 
   // Relacionamentos Arte & Aprovação
   artes_versoes   ArteVersao[]
@@ -1912,7 +1917,7 @@ model ItemOS {
   data_prazo_produto   DateTime? // Prazo específico deste produto
 
   // LIBERAÇÃO PCP
-  status_liberacao_pcp String?   @default("PENDENTE") // PENDENTE, LIBERADO, EM_PRODUCAO, CONCLUIDO
+  status_liberacao_pcp String?   @default("PENDENTE") // PENDENTE, BLOQUEADO_AGUARDANDO_SINAL, LIBERADO, EM_PRODUCAO, CONCLUIDO
   liberado_pcp_por     String? // usuario_id
   liberado_pcp_em      DateTime? // Data de liberação
 
@@ -1939,10 +1944,11 @@ model ItemOS {
   grade_distribuicao      Json? // [{ atributos, quantidade }]
   arte_producao_url       String?                @db.Text // PDF print-ready (catálogo VDP)
 
-  os               OrdemServico             @relation(fields: [os_id], references: [id], onDelete: Cascade)
-  estampa          Estampa?                 @relation(fields: [estampa_id], references: [id], onDelete: SetNull)
-  instancias_setor WorkflowInstanciaSetor[]
+  os                 OrdemServico             @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  estampa            Estampa?                 @relation(fields: [estampa_id], references: [id], onDelete: SetNull)
+  instancias_setor   WorkflowInstanciaSetor[]
   designer_atribuido usuario?               @relation("ItemOSDesigner", fields: [designer_atribuido_id], references: [id], onDelete: SetNull)
+  lotes_instalacao   ItemOSInstalacao[]
 
   @@index([os_id])
   @@index([status_liberacao_pcp])
@@ -2309,6 +2315,115 @@ model ExpedicaoLogistica {
   @@index([loja_id, os_id])
   @@index([os_id])
   @@map("expedicoes_logistica")
+}
+
+// ==========================================
+// MÓDULO INSTALAÇÕES E PÓS-CÁLCULO (FASE 2)
+// ==========================================
+
+model ConfiguracaoInstalacaoLoja {
+  id                    String   @id @default(cuid())
+  loja_id               String   @unique
+  exigir_sinal_producao Boolean  @default(false)
+  criado_em             DateTime @default(now())
+  atualizado_em         DateTime @updatedAt
+
+  loja loja @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+
+  @@map("configuracao_instalacao_loja")
+}
+
+model ItemOSInstalacao {
+  id                 String           @id @default(cuid())
+  loja_id            String
+  item_os_id         String
+  cep                String?          @db.VarChar(16)
+  logradouro         String           @db.VarChar(255)
+  numero             String           @db.VarChar(32)
+  complemento        String?          @db.VarChar(255)
+  bairro             String           @db.VarChar(120)
+  cidade             String           @db.VarChar(120)
+  uf                 String           @db.VarChar(2)
+  quantidade_alocada Int
+  status_instalacao  StatusInstalacao @default(AGUARDANDO)
+  data_previsao      DateTime?
+  data_execucao      DateTime?
+  fotos_evidencia    Json?
+  assinatura_url     String?          @db.Text
+  criado_em          DateTime         @default(now())
+  atualizado_em      DateTime         @updatedAt
+
+  loja         loja                   @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  item_os      ItemOS                 @relation(fields: [item_os_id], references: [id], onDelete: Cascade)
+  ocorrencias  OcorrenciaInstalacao[]
+
+  @@index([loja_id])
+  @@index([loja_id, status_instalacao])
+  @@index([item_os_id])
+  @@index([status_instalacao])
+  @@map("itens_os_instalacao")
+}
+
+model OcorrenciaInstalacao {
+  id                 String              @id @default(cuid())
+  loja_id            String
+  os_id              String
+  item_instalacao_id String?
+  tipo               TipoOcorrencia
+  categoria          CategoriaOcorrencia
+  quantidade         Decimal             @db.Decimal(10, 2)
+  custo_interno      Decimal             @db.Decimal(10, 2)
+  preco_cliente      Decimal             @db.Decimal(10, 2)
+  descricao          String              @db.Text
+  criado_em          DateTime            @default(now())
+
+  loja            loja              @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  ordem_servico   OrdemServico      @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  item_instalacao ItemOSInstalacao? @relation(fields: [item_instalacao_id], references: [id], onDelete: SetNull)
+
+  @@index([loja_id])
+  @@index([loja_id, os_id])
+  @@index([os_id])
+  @@index([item_instalacao_id])
+  @@index([tipo])
+  @@index([criado_em])
+  @@map("ocorrencias_instalacao")
+}
+
+model TaxaOcorrenciaLoja {
+  id           String         @id @default(cuid())
+  loja_id      String
+  tipo         TipoOcorrencia
+  custo_padrao Decimal        @db.Decimal(10, 2)
+  preco_padrao Decimal        @db.Decimal(10, 2)
+  criado_em    DateTime       @default(now())
+  atualizado_em DateTime      @updatedAt
+
+  loja loja @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+
+  @@unique([loja_id, tipo])
+  @@index([loja_id])
+  @@map("taxas_ocorrencia_loja")
+}
+
+enum StatusInstalacao {
+  AGUARDANDO
+  EM_ANDAMENTO
+  CONCLUIDO
+  LOGISTICA_NEGATIVA
+}
+
+enum TipoOcorrencia {
+  VISITA_IMPRODUTIVA
+  MATERIAL_EXTRA
+  SERVICO_ADICIONAL
+  RETRABALHO
+}
+
+enum CategoriaOcorrencia {
+  PRODUCAO
+  INSTALACAO
+  LOGISTICA
 }
 
 // ==========================================

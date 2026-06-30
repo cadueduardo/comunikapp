@@ -4,10 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  ModoFulfillmentItem,
-  ModoPersonalizacao,
-} from '@prisma/client';
+import { ModoFulfillmentItem, ModoPersonalizacao } from '@prisma/client';
 import type { Response } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EstampaArteMestraService } from '../estampas/estampa-arte-mestra.service';
@@ -95,7 +92,7 @@ export class ArteProducaoService {
 
     const quantidade = Math.max(Number(item.quantidade) || 1, 1);
     let caminhoParcial: string | null = null;
-    let tokenAnterior =
+    const tokenAnterior =
       this.storage.extrairTokenDaUrl(item.arte_producao_url) ?? null;
 
     try {
@@ -128,10 +125,11 @@ export class ArteProducaoService {
           item.estampa.arte_mestra_url,
         );
         if (tokenMestra) {
-          const mestra = await this.estampaArteMestraService.obterConteudoArteMestra(
-            tokenMestra,
-            lojaId,
-          );
+          const mestra =
+            await this.estampaArteMestraService.obterConteudoArteMestra(
+              tokenMestra,
+              lojaId,
+            );
           arteMestraBytes = mestra.buffer;
           arteMestraMime = mestra.mime_type;
         }
@@ -269,7 +267,9 @@ export class ArteProducaoService {
     );
   }
 
-  private extrairTokenArteMestra(url: string | null | undefined): string | null {
+  private extrairTokenArteMestra(
+    url: string | null | undefined,
+  ): string | null {
     if (!url) return null;
     const partes = url.split('/');
     return partes[partes.length - 1] || null;

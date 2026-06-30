@@ -74,7 +74,9 @@ export class TiposInstalacaoService {
       data: {
         nome: dto.nome?.trim(),
         descricao:
-          dto.descricao !== undefined ? dto.descricao?.trim() || null : undefined,
+          dto.descricao !== undefined
+            ? dto.descricao?.trim() || null
+            : undefined,
         ativo: dto.ativo,
         regra_cobranca: dto.regra_cobranca,
         preco_padrao: dto.preco_padrao,

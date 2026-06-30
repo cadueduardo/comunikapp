@@ -195,10 +195,7 @@ export class OSAdminService {
     };
   }
 
-  private inferirStatusCorreto(
-    aprovacao: string,
-    tipoOs: string,
-  ): StatusOS {
+  private inferirStatusCorreto(aprovacao: string, tipoOs: string): StatusOS {
     if (aprovacao === 'APROVADA') {
       return StatusOS.LIBERADA_PARA_PCP;
     }

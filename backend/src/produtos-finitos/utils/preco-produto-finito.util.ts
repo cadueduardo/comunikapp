@@ -41,5 +41,8 @@ export function calcularPrecoTotalProdutoFinito(
 export function isProdutoFinitoItem(produto: {
   tipo_item?: string | null;
 }): boolean {
-  return String(produto?.tipo_item || 'SOB_DEMANDA').toUpperCase() === 'PRODUTO_FINITO';
+  return (
+    String(produto?.tipo_item || 'SOB_DEMANDA').toUpperCase() ===
+    'PRODUTO_FINITO'
+  );
 }

@@ -12,13 +12,7 @@ export interface EstampaMetadadoAncoraContrato {
   height: number;
 }
 
-const CHAVES_PERMITIDAS = new Set([
-  'campoDefId',
-  'x',
-  'y',
-  'width',
-  'height',
-]);
+const CHAVES_PERMITIDAS = new Set(['campoDefId', 'x', 'y', 'width', 'height']);
 
 @ValidatorConstraint({ name: 'metadadosAncorasEstampa', async: false })
 export class MetadadosAncorasEstampaValidator

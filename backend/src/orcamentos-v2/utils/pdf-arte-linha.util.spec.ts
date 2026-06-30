@@ -49,9 +49,9 @@ describe('resolverPrecosPdfComArte', () => {
     });
     expect(resultado.preco_total).toBe(370.9);
     expect(resultado.preco_unitario).toBeCloseTo(74.18, 2);
-    expect(resultado.preco_total + (resultado.linha_arte?.preco_total ?? 0)).toBe(
-      520.9,
-    );
+    expect(
+      resultado.preco_total + (resultado.linha_arte?.preco_total ?? 0),
+    ).toBe(520.9);
   });
 
   it('usa arte_custo_calculado quando não há serviço persistido', () => {

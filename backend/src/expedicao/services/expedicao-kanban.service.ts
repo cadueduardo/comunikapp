@@ -71,7 +71,11 @@ export class ExpedicaoKanbanService {
       orderBy: [{ atualizado_em: 'desc' }, { criado_em: 'desc' }],
     });
 
-    return this.montarResposta(expedicoes, COLUNAS_KANBAN_EXPEDICAO_ATIVO, lojaId);
+    return this.montarResposta(
+      expedicoes,
+      COLUNAS_KANBAN_EXPEDICAO_ATIVO,
+      lojaId,
+    );
   }
 
   async listarArquivo(

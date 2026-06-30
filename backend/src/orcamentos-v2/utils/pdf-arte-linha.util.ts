@@ -76,7 +76,7 @@ export function resolverPrecosPdfComArte(
   const horas = horasRaw > 0 ? horasRaw : null;
   const custoHora = numeroSeguro(linhaArte?.custo_hora);
 
-  let arteValorListado =
+  const arteValorListado =
     horas != null && custoHora > 0
       ? arredondarMoeda(horas * custoHora)
       : arredondarMoeda(

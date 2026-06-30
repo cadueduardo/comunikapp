@@ -333,8 +333,7 @@ export class ExpedicaoService {
           data: {
             os_id: expedicao.os_id,
             tipo_acao: LOG_TIPO_EXPEDICAO_CONCLUSAO_SEM_ASSINATURA,
-            descricao:
-              `Entrega concluída sem assinatura por ${nomeOperador} (perfil administrador).`,
+            descricao: `Entrega concluída sem assinatura por ${nomeOperador} (perfil administrador).`,
             usuario_id: usuario.id,
             dados_extras: JSON.stringify({
               expedicao_id: expedicao.id,
@@ -464,7 +463,10 @@ export class ExpedicaoService {
     const card = ExpedicaoKanbanMapper.mapearParaCard(expedicao);
 
     const bloqueio_financeiro =
-      await this.financeiroService.verificarBloqueioEntrega(os.id, expedicao.loja_id);
+      await this.financeiroService.verificarBloqueioEntrega(
+        os.id,
+        expedicao.loja_id,
+      );
 
     return {
       id: expedicao.id,

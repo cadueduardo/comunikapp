@@ -37,9 +37,11 @@ export class VdpPdfMergeProvider {
       }
     }
 
-    let imagemEmbed: Awaited<ReturnType<PDFDocument['embedPng']>> | null =
-      null;
-    if (args.arteMestraBytes?.length && args.arteMestraMime?.startsWith('image/')) {
+    let imagemEmbed: Awaited<ReturnType<PDFDocument['embedPng']>> | null = null;
+    if (
+      args.arteMestraBytes?.length &&
+      args.arteMestraMime?.startsWith('image/')
+    ) {
       try {
         if (args.arteMestraMime.includes('png')) {
           imagemEmbed = await pdfDoc.embedPng(args.arteMestraBytes);
@@ -59,10 +61,7 @@ export class VdpPdfMergeProvider {
 
     for (let i = 0; i < args.registros.length; i += 1) {
       const registro = args.registros[i];
-      const page = pdfDoc.addPage([
-        this.pageSize.width,
-        this.pageSize.height,
-      ]);
+      const page = pdfDoc.addPage([this.pageSize.width, this.pageSize.height]);
 
       if (masterPdf && masterPdf.getPageCount() > 0) {
         const [copiedPage] = await pdfDoc.embedPdf(masterPdf, [0]);
@@ -103,7 +102,10 @@ export class VdpPdfMergeProvider {
             this.pageSize.height -
             (ancora.y + ancora.height) * this.pageSize.height;
           const boxW = ancora.width * this.pageSize.width;
-          const fontSize = Math.min(ancora.height * this.pageSize.height * 0.75, 28);
+          const fontSize = Math.min(
+            ancora.height * this.pageSize.height * 0.75,
+            28,
+          );
 
           page.drawText(texto, {
             x: boxX + 2,

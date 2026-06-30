@@ -62,7 +62,11 @@ export class AuthService {
   }
 
   verifyTwoFactorChallengeToken(token: string): { sub: string; email: string } {
-    const payload = this.jwtService.verify<{ sub: string; email: string; purpose?: string }>(token);
+    const payload = this.jwtService.verify<{
+      sub: string;
+      email: string;
+      purpose?: string;
+    }>(token);
     if (payload.purpose !== '2fa') {
       throw new Error('Token de segundo fator invalido');
     }

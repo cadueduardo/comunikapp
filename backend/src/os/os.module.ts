@@ -19,6 +19,7 @@ import { WebsocketsModule } from '../websockets/websockets.module';
 import { PCPModule } from '../pcp/pcp.module';
 import { ConfiguracoesModule } from '../configuracoes/configuracoes.module';
 import { ExpedicaoModule } from '../expedicao/expedicao.module';
+import { InstalacaoModule } from '../instalacao/instalacao.module';
 import { FinanceiroModule } from '../financeiro/financeiro.module';
 import { HomeOperacionalModule } from '../home-operacional/home-operacional.module';
 import { CatalogoModule } from '../catalogo/catalogo.module';
@@ -89,6 +90,7 @@ const debugControllers =
     PCPModule, // Para integração OS ↔ PCP
     ConfiguracoesModule, // Para validações automáticas
     ExpedicaoModule, // Gatilho de expedição ao finalizar OS manualmente
+    InstalacaoModule, // Trava de sinal e lotes de instalação
     FinanceiroModule, // Cancelamento de cobrança ao inativar OS
     HomeOperacionalModule, // HomeCacheService para invalidar badges após inativar/reativar
     CatalogoModule, // Arte de produção VDP (Fase 9 catálogo)

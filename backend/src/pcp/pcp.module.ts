@@ -25,9 +25,16 @@ import { PCPCapacidadeService } from './services/pcp-capacidade.service';
 import { PCPRelatoriosService } from './services/pcp-relatorios.service';
 import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-estoque.service';
 import { ExpedicaoModule } from '../expedicao/expedicao.module';
+import { InstalacaoModule } from '../instalacao/instalacao.module';
 
 @Module({
-  imports: [PrismaModule, WebsocketsModule, ConfiguracoesModule, ExpedicaoModule],
+  imports: [
+    PrismaModule,
+    WebsocketsModule,
+    ConfiguracoesModule,
+    ExpedicaoModule,
+    InstalacaoModule,
+  ],
   controllers: [
     WorkflowController,
     WorkflowTemplateController,

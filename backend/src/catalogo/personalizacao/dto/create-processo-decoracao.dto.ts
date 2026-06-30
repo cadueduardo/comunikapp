@@ -55,7 +55,10 @@ export class CreateProcessoDecoracaoDto {
   @Min(0)
   preco_base?: number;
 
-  @ApiPropertyOptional({ example: 45.0, description: 'Custo fixo de setup por linha' })
+  @ApiPropertyOptional({
+    example: 45.0,
+    description: 'Custo fixo de setup por linha',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })

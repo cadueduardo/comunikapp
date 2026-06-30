@@ -28,7 +28,9 @@ describe('PCPConfiguracaoService', () => {
   });
 
   it('deve aplicar padrao Organizado', async () => {
-    prisma.loja.update.mockResolvedValueOnce({ pcp_nivel: NivelPCP.ORGANIZADO });
+    prisma.loja.update.mockResolvedValueOnce({
+      pcp_nivel: NivelPCP.ORGANIZADO,
+    });
 
     const resultado = await service.aplicarPadrao('loja-1', {
       id: 'admin-1',

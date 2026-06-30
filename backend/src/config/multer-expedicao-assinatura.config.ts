@@ -38,7 +38,10 @@ export const multerExpedicaoAssinaturaConfig = {
     file: MulterFileLike,
     cb: (error: Error | null, acceptFile?: boolean) => void,
   ) => {
-    const ext = classificarAssinaturaExpedicao(file.mimetype, file.originalname);
+    const ext = classificarAssinaturaExpedicao(
+      file.mimetype,
+      file.originalname,
+    );
     if (!ext) {
       return cb(
         new Error('Formato não permitido. Aceitos: PNG e WebP (máx. 500 KB).'),

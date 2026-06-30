@@ -624,8 +624,10 @@ export class OrcamentosV2Repository {
         orcamento.condicao_pagamento_entrada_pct != null
           ? Number(orcamento.condicao_pagamento_entrada_pct)
           : undefined,
-      condicao_pagamento_parcelas: orcamento.condicao_pagamento_parcelas ?? undefined,
-      condicao_pagamento_descricao: orcamento.condicao_pagamento_descricao ?? undefined,
+      condicao_pagamento_parcelas:
+        orcamento.condicao_pagamento_parcelas ?? undefined,
+      condicao_pagamento_descricao:
+        orcamento.condicao_pagamento_descricao ?? undefined,
       tipo_margem_lucro: orcamento.tipo_margem_lucro ?? undefined,
 
       // Relacionados

@@ -44,11 +44,12 @@ export class SystemStateService {
   async listarMensagens(lojaId: string): Promise<BannerMensagem[]> {
     const mensagens: BannerMensagem[] = [];
 
-    const [trial, configuracaoIncompleta, insumosChapaIncompletos] = await Promise.all([
-      this.checarTrial(lojaId),
-      this.checarConfiguracaoIncompleta(lojaId),
-      this.checarInsumosChapaSemTamanho(lojaId),
-    ]);
+    const [trial, configuracaoIncompleta, insumosChapaIncompletos] =
+      await Promise.all([
+        this.checarTrial(lojaId),
+        this.checarConfiguracaoIncompleta(lojaId),
+        this.checarInsumosChapaSemTamanho(lojaId),
+      ]);
 
     if (trial) mensagens.push(trial);
     if (configuracaoIncompleta) mensagens.push(configuracaoIncompleta);
@@ -89,8 +90,13 @@ export class SystemStateService {
           id: 'trial_expirado',
           nivel: 'critico',
           titulo: 'Seu período de avaliação encerrou',
-          descricao: 'Ative seu plano para evitar bloqueio das funcionalidades.',
-          acao: { tipo: 'link', label: 'Ativar plano agora', href: '/configuracoes/assinatura' },
+          descricao:
+            'Ative seu plano para evitar bloqueio das funcionalidades.',
+          acao: {
+            tipo: 'link',
+            label: 'Ativar plano agora',
+            href: '/configuracoes/assinatura',
+          },
           dismissable: false,
           prioridade: 1,
         };
@@ -102,7 +108,11 @@ export class SystemStateService {
           nivel: 'atencao',
           titulo: `Seu período de avaliação termina em ${diasRestantes} dia${diasRestantes === 1 ? '' : 's'}`,
           descricao: 'Ative seu plano para continuar usando todos os recursos.',
-          acao: { tipo: 'link', label: 'Ativar plano', href: '/configuracoes/assinatura' },
+          acao: {
+            tipo: 'link',
+            label: 'Ativar plano',
+            href: '/configuracoes/assinatura',
+          },
           dismissable: false,
           prioridade: 10,
         };
@@ -113,7 +123,9 @@ export class SystemStateService {
     }
   }
 
-  private async checarConfiguracaoIncompleta(lojaId: string): Promise<BannerMensagem | null> {
+  private async checarConfiguracaoIncompleta(
+    lojaId: string,
+  ): Promise<BannerMensagem | null> {
     try {
       const resumo = await this.onboardingService.obterResumo(lojaId);
       if (resumo.progresso_pct >= 60) return null;
@@ -121,12 +133,14 @@ export class SystemStateService {
         id: 'configuracao_incompleta',
         nivel: 'informativo',
         titulo: 'Configuração mínima incompleta',
-        descricao: 'Aplique a configuração recomendada para começar mais rápido.',
+        descricao:
+          'Aplique a configuração recomendada para começar mais rápido.',
         acao: {
           tipo: 'endpoint',
           label: 'Aplicar configuração recomendada',
           metodo: 'POST',
-          endpoint: '/home-operacional/onboarding/aplicar-configuracao-recomendada',
+          endpoint:
+            '/home-operacional/onboarding/aplicar-configuracao-recomendada',
         },
         dismissable: true,
         prioridade: 40,
@@ -136,7 +150,9 @@ export class SystemStateService {
     }
   }
 
-  private async checarInsumosChapaSemTamanho(lojaId: string): Promise<BannerMensagem | null> {
+  private async checarInsumosChapaSemTamanho(
+    lojaId: string,
+  ): Promise<BannerMensagem | null> {
     // Os campos largura_chapa_mm / altura_chapa_mm serao criados na Fase 6.
     // Por enquanto usamos os campos legados largura / altura como proxy.
     try {
@@ -175,7 +191,10 @@ export class SystemStateService {
     dataInicio: Date | null,
     diasRestantesArmazenado: number | null,
   ): number | null {
-    if (diasRestantesArmazenado !== null && diasRestantesArmazenado !== undefined) {
+    if (
+      diasRestantesArmazenado !== null &&
+      diasRestantesArmazenado !== undefined
+    ) {
       return diasRestantesArmazenado;
     }
     if (!dataInicio) return null;

@@ -67,9 +67,7 @@ export class EstampasController {
   }
 
   @Post(':id/arte-mestra')
-  @UseInterceptors(
-    FileInterceptor('arquivo', multerEstampaArteMestraConfig),
-  )
+  @UseInterceptors(FileInterceptor('arquivo', multerEstampaArteMestraConfig))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload seguro da arte-mestra (máx. 15 MB)' })
   uploadArteMestra(

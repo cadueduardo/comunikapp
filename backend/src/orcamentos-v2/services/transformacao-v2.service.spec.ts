@@ -94,15 +94,12 @@ describe('TransformacaoV2Service', () => {
       'loja-1',
       'usuario-1',
     );
-    const atualizacao = service.prepararDadosAtualizacao(
-      condicaoPagamento,
-      {
-        id: 'orcamento-1',
-        loja_id: 'loja-1',
-        produtos: [],
-        configuracoes: {},
-      } as any,
-    );
+    const atualizacao = service.prepararDadosAtualizacao(condicaoPagamento, {
+      id: 'orcamento-1',
+      loja_id: 'loja-1',
+      produtos: [],
+      configuracoes: {},
+    } as any);
     const interfaceOrcamento = service.transformarParaInterface({
       id: 'orcamento-1',
       produtos: [],
@@ -113,5 +110,4 @@ describe('TransformacaoV2Service', () => {
     expect(atualizacao).toMatchObject(condicaoPagamento);
     expect(interfaceOrcamento).toMatchObject(condicaoPagamento);
   });
-
 });

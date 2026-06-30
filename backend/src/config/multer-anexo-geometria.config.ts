@@ -125,9 +125,6 @@ export const multerAnexoGeometriaConfig = {
       cb(null, true);
       return;
     }
-    cb(
-      new Error(MENSAGEM_FORMATOS_ANEXO_GEOMETRIA),
-      false,
-    );
+    cb(new Error(MENSAGEM_FORMATOS_ANEXO_GEOMETRIA), false);
   },
 };

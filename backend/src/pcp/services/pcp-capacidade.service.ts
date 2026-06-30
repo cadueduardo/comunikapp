@@ -16,7 +16,10 @@ interface FiltrosCapacidade {
 export class PCPCapacidadeService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async obterCapacidadeSetores(lojaId: string, filtros: FiltrosCapacidade = {}) {
+  async obterCapacidadeSetores(
+    lojaId: string,
+    filtros: FiltrosCapacidade = {},
+  ) {
     const [setores, instancias] = await Promise.all([
       this.prisma.setorProdutivo.findMany({
         where: {
@@ -72,7 +75,10 @@ export class PCPCapacidadeService {
     };
   }
 
-  async obterCapacidadeMaquinas(lojaId: string, filtros: FiltrosCapacidade = {}) {
+  async obterCapacidadeMaquinas(
+    lojaId: string,
+    filtros: FiltrosCapacidade = {},
+  ) {
     const [maquinas, instancias] = await Promise.all([
       this.prisma.maquina.findMany({
         where: {
@@ -88,7 +94,9 @@ export class PCPCapacidadeService {
       this.buscarInstanciasProdutivas(lojaId, filtros),
     ]);
 
-    const maquinasPorId = new Map(maquinas.map((maquina) => [maquina.id, maquina]));
+    const maquinasPorId = new Map(
+      maquinas.map((maquina) => [maquina.id, maquina]),
+    );
     const minutosPorMaquina = new Map<string, number>();
     const itensPorMaquina = new Map<string, any[]>();
     const itensSemMaquina: any[] = [];
@@ -220,9 +228,7 @@ export class PCPCapacidadeService {
         ...(filtros.dataInicial
           ? { gte: this.inicioDoDia(filtros.dataInicial) }
           : {}),
-        ...(filtros.dataFinal
-          ? { lte: this.fimDoDia(filtros.dataFinal) }
-          : {}),
+        ...(filtros.dataFinal ? { lte: this.fimDoDia(filtros.dataFinal) } : {}),
       },
     };
   }
@@ -242,9 +248,7 @@ export class PCPCapacidadeService {
       workflow: instancia.workflow_instancia?.workflow?.nome ?? null,
       setor_atual: instancia.setor?.nome ?? null,
       status: instancia.status,
-      maquina_prevista: maquina
-        ? { id: maquina.id, nome: maquina.nome }
-        : null,
+      maquina_prevista: maquina ? { id: maquina.id, nome: maquina.nome } : null,
       tempo_previsto_min: Number(instancia.tempo_estimado ?? 0),
       tempo_previsto_horas: this.minutosParaHoras(
         Number(instancia.tempo_estimado ?? 0),
@@ -315,7 +319,10 @@ export class PCPCapacidadeService {
     return this.arredondar((programadas / disponiveis) * 100);
   }
 
-  private classificarCarga(programadas: number, disponiveis: number): StatusCarga {
+  private classificarCarga(
+    programadas: number,
+    disponiveis: number,
+  ): StatusCarga {
     const ocupacao = this.calcularOcupacao(programadas, disponiveis);
     if (ocupacao > 100) return 'sobrecarregada';
     if (ocupacao >= 90) return 'cheia';

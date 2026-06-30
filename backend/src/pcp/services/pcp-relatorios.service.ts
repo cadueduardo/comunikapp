@@ -15,7 +15,10 @@ export class PCPRelatoriosService {
     private readonly capacidadeService: PCPCapacidadeService,
   ) {}
 
-  async obterOcupacaoMaquinas(lojaId: string, filtros: Record<string, string> = {}) {
+  async obterOcupacaoMaquinas(
+    lojaId: string,
+    filtros: Record<string, string> = {},
+  ) {
     return this.capacidadeService.obterCapacidadeMaquinas(lojaId, filtros);
   }
 
@@ -23,12 +26,11 @@ export class PCPRelatoriosService {
     const limite = Math.min(Number(filtros.limite ?? 100) || 100, 500);
     const statusFiltro = filtros.status?.trim();
 
-    const where: Parameters<typeof this.prisma.workflowInstanciaSetor.findMany>[0]['where'] = {
+    const where: Parameters<
+      typeof this.prisma.workflowInstanciaSetor.findMany
+    >[0]['where'] = {
       workflow_instancia: { os: { loja_id: lojaId } },
-      OR: [
-        { tempo_estimado: { gt: 0 } },
-        { tempo_real: { gt: 0 } },
-      ],
+      OR: [{ tempo_estimado: { gt: 0 } }, { tempo_real: { gt: 0 } }],
       ...(filtros.setorId ? { setor_id: filtros.setorId } : {}),
       ...(statusFiltro ? { status: statusFiltro } : {}),
     };
@@ -111,7 +113,9 @@ export class PCPRelatoriosService {
         desvio_min: totalRealizado - totalPrevisto,
         desvio_percent:
           totalPrevisto > 0
-            ? Math.round(((totalRealizado - totalPrevisto) / totalPrevisto) * 1000) / 10
+            ? Math.round(
+                ((totalRealizado - totalPrevisto) / totalPrevisto) * 1000,
+              ) / 10
             : null,
       },
       por_setor: Array.from(resumoPorSetor.values()).map((s) => ({
@@ -119,7 +123,9 @@ export class PCPRelatoriosService {
         desvio_min: s.realizado_min - s.previsto_min,
         desvio_percent:
           s.previsto_min > 0
-            ? Math.round(((s.realizado_min - s.previsto_min) / s.previsto_min) * 1000) / 10
+            ? Math.round(
+                ((s.realizado_min - s.previsto_min) / s.previsto_min) * 1000,
+              ) / 10
             : null,
       })),
       itens,

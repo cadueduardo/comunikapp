@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { AutorTipo } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import {
@@ -50,7 +54,10 @@ export class ArteFilaService {
       itens.map((item) => ({ os_id: item.os_id, item_id: item.id })),
     );
     const contagemPorItem = new Map(
-      contagens.map((c) => [`${c.os_id}:${c.produto_id}`, c.mensagens_nao_lidas]),
+      contagens.map((c) => [
+        `${c.os_id}:${c.produto_id}`,
+        c.mensagens_nao_lidas,
+      ]),
     );
 
     return {
@@ -71,12 +78,7 @@ export class ArteFilaService {
 
   async contarPendentes(lojaId: string): Promise<number> {
     return this.prisma.itemOS.count({
-      where: this.buildWhere(
-        lojaId,
-        {},
-        undefined,
-        STATUS_ARTE_FILA_PENDENTES,
-      ),
+      where: this.buildWhere(lojaId, {}, undefined, STATUS_ARTE_FILA_PENDENTES),
     });
   }
 
@@ -182,8 +184,7 @@ export class ArteFilaService {
     statusOverride?: StatusArte[],
   ) {
     const statusFiltro =
-      statusOverride ??
-      (query.status ? [query.status] : STATUS_ARTE_KANBAN);
+      statusOverride ?? (query.status ? [query.status] : STATUS_ARTE_KANBAN);
 
     let designerId = query.designer_id;
     if (query.modo === 'me' && usuarioId) {

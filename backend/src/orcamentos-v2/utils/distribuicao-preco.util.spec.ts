@@ -32,10 +32,12 @@ describe('distribuirPrecoFinal', () => {
       10,
     );
 
-    expect(resultado.map((item) => item.preco_total)).toEqual([3.34, 3.33, 3.33]);
-    expect(
-      resultado.reduce((soma, item) => soma + item.preco_total, 0),
-    ).toBe(10);
+    expect(resultado.map((item) => item.preco_total)).toEqual([
+      3.34, 3.33, 3.33,
+    ]);
+    expect(resultado.reduce((soma, item) => soma + item.preco_total, 0)).toBe(
+      10,
+    );
   });
 
   it('divide igualmente quando os itens nao possuem precos validos', () => {

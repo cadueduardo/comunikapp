@@ -60,11 +60,7 @@ export class ModalidadesEntregaService {
     return modalidade;
   }
 
-  async atualizar(
-    id: string,
-    lojaId: string,
-    dto: UpdateModalidadeEntregaDto,
-  ) {
+  async atualizar(id: string, lojaId: string, dto: UpdateModalidadeEntregaDto) {
     await this.obterPorId(id, lojaId);
 
     if (dto.nome) {
@@ -76,7 +72,9 @@ export class ModalidadesEntregaService {
       data: {
         nome: dto.nome?.trim(),
         descricao:
-          dto.descricao !== undefined ? dto.descricao?.trim() || null : undefined,
+          dto.descricao !== undefined
+            ? dto.descricao?.trim() || null
+            : undefined,
         ativo: dto.ativo,
         exige_endereco: dto.exige_endereco,
         exige_valor: dto.exige_valor,

@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SetoresProdutivosService } from '../../configuracoes/services/centros-de-trabalho/setores-produtivos.service';
 import { OSPCPIntegrationService } from './os-pcp-integration.service';
 import { ExpedicaoCriacaoService } from '../../expedicao/services/expedicao-criacao.service';
+import { ItemOSInstalacaoCriacaoService } from '../../instalacao/services/item-os-instalacao-criacao.service';
 
 jest.mock('../mappers/kanban.mapper', () => ({
   KanbanMapper: {
@@ -76,7 +77,9 @@ describe('PCPKanbanService', () => {
         { provide: PrismaService, useValue: prisma },
         {
           provide: SetoresProdutivosService,
-          useValue: { obterPorId: jest.fn().mockResolvedValue({ id: 'setor-1' }) },
+          useValue: {
+            obterPorId: jest.fn().mockResolvedValue({ id: 'setor-1' }),
+          },
         },
         {
           provide: OSPCPIntegrationService,
@@ -87,6 +90,14 @@ describe('PCPKanbanService', () => {
         {
           provide: ExpedicaoCriacaoService,
           useValue: expedicaoCriacaoService,
+        },
+        {
+          provide: ItemOSInstalacaoCriacaoService,
+          useValue: {
+            processarBaixaProducao: jest
+              .fn()
+              .mockResolvedValue({ criado: false }),
+          },
         },
       ],
     }).compile();
@@ -106,10 +117,7 @@ describe('PCPKanbanService', () => {
 
     expect(prisma.ordemServico.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        orderBy: [
-          { aprovacao_tecnica_em: 'desc' },
-          { criado_em: 'desc' },
-        ],
+        orderBy: [{ aprovacao_tecnica_em: 'desc' }, { criado_em: 'desc' }],
       }),
     );
     expect(KanbanMapper.mapearOSParaKanban).toHaveBeenCalledWith({
@@ -127,10 +135,16 @@ describe('PCPKanbanService', () => {
       id: 'wf-1',
       status: 'ATIVO',
     });
-    prisma.workflowInstanciaSetor.updateMany.mockResolvedValueOnce({ count: 1 });
+    prisma.workflowInstanciaSetor.updateMany.mockResolvedValueOnce({
+      count: 1,
+    });
     prisma.workflowInstancia.update.mockResolvedValueOnce({ id: 'wf-1' });
 
-    const resultado = await service.atualizarStatusOS('loja-1', 'os-1', 'CONCLUIDA');
+    const resultado = await service.atualizarStatusOS(
+      'loja-1',
+      'os-1',
+      'CONCLUIDA',
+    );
 
     expect(prisma.ordemServico.updateMany).toHaveBeenCalledWith({
       where: { id: 'os-1', loja_id: 'loja-1' },
@@ -151,7 +165,11 @@ describe('PCPKanbanService', () => {
     prisma.ordemServico.findFirst.mockResolvedValueOnce({ status: 'PRODUCAO' });
     prisma.ordemServico.updateMany.mockResolvedValueOnce({ count: 1 });
 
-    const resultado = await service.atualizarStatusOS('loja-1', 'os-1', 'PRODUCAO');
+    const resultado = await service.atualizarStatusOS(
+      'loja-1',
+      'os-1',
+      'PRODUCAO',
+    );
 
     expect(expedicaoCriacaoService.criarSeElegivel).not.toHaveBeenCalled();
     expect(
@@ -170,7 +188,9 @@ describe('PCPKanbanService', () => {
       id: 'wf-1',
       status: 'ATIVO',
     });
-    prisma.workflowInstanciaSetor.updateMany.mockResolvedValueOnce({ count: 1 });
+    prisma.workflowInstanciaSetor.updateMany.mockResolvedValueOnce({
+      count: 1,
+    });
     prisma.workflowInstancia.update.mockResolvedValueOnce({ id: 'wf-1' });
     expedicaoCriacaoService.criarSeElegivel.mockResolvedValueOnce({
       criado: true,
@@ -178,7 +198,11 @@ describe('PCPKanbanService', () => {
       expedicao_id: 'exp-1',
     });
 
-    const resultado = await service.atualizarStatusOS('loja-1', 'os-1', 'CONCLUIDA');
+    const resultado = await service.atualizarStatusOS(
+      'loja-1',
+      'os-1',
+      'CONCLUIDA',
+    );
 
     expect(expedicaoCriacaoService.criarSeElegivel).toHaveBeenCalledWith(
       'os-1',
@@ -191,14 +215,22 @@ describe('PCPKanbanService', () => {
   });
 
   it('deve arquivar expedição inicial ao reverter OS de CONCLUIDA para PRODUCAO', async () => {
-    prisma.ordemServico.findFirst.mockResolvedValueOnce({ status: 'FINALIZADA' });
-    prisma.ordemServico.updateMany.mockResolvedValueOnce({ count: 1 });
-    expedicaoCriacaoService.cancelarPorReversaoConclusaoPcp.mockResolvedValueOnce({
-      cancelada: true,
-      expedicao_id: 'exp-1',
+    prisma.ordemServico.findFirst.mockResolvedValueOnce({
+      status: 'FINALIZADA',
     });
+    prisma.ordemServico.updateMany.mockResolvedValueOnce({ count: 1 });
+    expedicaoCriacaoService.cancelarPorReversaoConclusaoPcp.mockResolvedValueOnce(
+      {
+        cancelada: true,
+        expedicao_id: 'exp-1',
+      },
+    );
 
-    const resultado = await service.atualizarStatusOS('loja-1', 'os-1', 'PRODUCAO');
+    const resultado = await service.atualizarStatusOS(
+      'loja-1',
+      'os-1',
+      'PRODUCAO',
+    );
 
     expect(
       expedicaoCriacaoService.cancelarPorReversaoConclusaoPcp,
@@ -305,7 +337,12 @@ describe('PCPKanbanService', () => {
         id: 'apontamento-1',
       } as any);
 
-      await service.iniciarProducao('loja-1', 'item-1', 'operador-1', 'Observações');
+      await service.iniciarProducao(
+        'loja-1',
+        'item-1',
+        'operador-1',
+        'Observações',
+      );
 
       expect(prisma.workflowInstanciaSetor.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -411,7 +448,13 @@ describe('PCPKanbanService', () => {
         id: 'instancia-1',
       } as any);
 
-      await service.concluirEtapa('loja-1', 'item-1', 'operador-1', 'Concluído', 100);
+      await service.concluirEtapa(
+        'loja-1',
+        'item-1',
+        'operador-1',
+        'Concluído',
+        100,
+      );
 
       expect(prisma.workflowInstanciaSetor.update).toHaveBeenCalledWith({
         where: { id: 'etapa-1' },

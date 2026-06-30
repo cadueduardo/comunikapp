@@ -1,4 +1,12 @@
-import { IsBoolean, IsInt, IsString, IsNumber, IsOptional, IsIn, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsInt,
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsIn,
+  Min,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 
 // Lista de tipos de máquinas válidos

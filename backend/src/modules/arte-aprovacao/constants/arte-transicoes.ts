@@ -19,10 +19,7 @@ const TRANSICOES_STATUS: Partial<Record<StatusArte, StatusArte[]>> = {
     StatusArte.REVISAO_SOLICITADA,
     StatusArte.EM_CRIACAO,
   ],
-  [StatusArte.REVISAO_SOLICITADA]: [
-    StatusArte.EM_CRIACAO,
-    StatusArte.APROVADA,
-  ],
+  [StatusArte.REVISAO_SOLICITADA]: [StatusArte.EM_CRIACAO, StatusArte.APROVADA],
   [StatusArte.APROVADA]: [StatusArte.LIBERADA_PCP, StatusArte.EM_CRIACAO],
   [StatusArte.LIBERADA_PCP]: [],
 };

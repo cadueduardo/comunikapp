@@ -11,7 +11,12 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { multerExpedicaoAssinaturaConfig } from '../../config/multer-expedicao-assinatura.config';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
@@ -26,9 +31,7 @@ export class ExpedicaoAssinaturaController {
   constructor(private readonly assinaturaService: ExpedicaoAssinaturaService) {}
 
   @Post('upload')
-  @UseInterceptors(
-    FileInterceptor('arquivo', multerExpedicaoAssinaturaConfig),
-  )
+  @UseInterceptors(FileInterceptor('arquivo', multerExpedicaoAssinaturaConfig))
   @ApiOperation({ summary: 'Upload de assinatura PNG/WebP (máx. 500 KB)' })
   @ApiConsumes('multipart/form-data')
   async upload(
@@ -62,10 +65,12 @@ export class ExpedicaoAssinaturaController {
     @Res() res: Response,
   ): Promise<void> {
     const lojaId = this.lojaIdFromJwt(req);
-    const { buffer, mimeType, nomeOriginal } = await this.assinaturaService.ler({
-      token,
-      lojaId,
-    });
+    const { buffer, mimeType, nomeOriginal } = await this.assinaturaService.ler(
+      {
+        token,
+        lojaId,
+      },
+    );
 
     res.setHeader('Content-Type', mimeType || 'image/png');
     const nomeSanitizado = nomeOriginal.replace(/["\r\n]/g, '_');

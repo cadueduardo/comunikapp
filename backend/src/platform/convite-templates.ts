@@ -18,5 +18,8 @@ export function renderConviteIndividualWhatsapp(
   const nome = params.nome.trim() || 'convidado(a)';
   const link = params.link.trim();
 
-  return template.replace(/\[NOME\]/g, nome).replace(/\[LINK\]/g, link).trim();
+  return template
+    .replace(/\[NOME\]/g, nome)
+    .replace(/\[LINK\]/g, link)
+    .trim();
 }

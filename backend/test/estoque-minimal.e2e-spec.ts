@@ -57,5 +57,3 @@ describe.skip('EstoqueModule Minimal (e2e)', () => {
     ).expect(200);
   });
 });
-
-

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export type NivelCompatibilidade = 'compativel' | 'alerta' | 'bloqueado';
@@ -17,7 +21,11 @@ interface CondicaoCompatibilidade {
   insumo_logica_consumo?: string | string[];
   // Filtro do lado da maquina
   maquina_tipo?: string | string[];
-  maquina_modo_producao?: 'M2_H' | 'ML_H' | 'MANUAL' | Array<'M2_H' | 'ML_H' | 'MANUAL'>;
+  maquina_modo_producao?:
+    | 'M2_H'
+    | 'ML_H'
+    | 'MANUAL'
+    | Array<'M2_H' | 'ML_H' | 'MANUAL'>;
 }
 
 /**
@@ -82,9 +90,11 @@ export class CompatibilidadeMaterialMaquinaService {
     ]);
 
     if (!insumo) throw new NotFoundException('Insumo não encontrado.');
-    if (insumo.loja_id !== lojaId) throw new ForbiddenException('Insumo não pertence a esta loja.');
+    if (insumo.loja_id !== lojaId)
+      throw new ForbiddenException('Insumo não pertence a esta loja.');
     if (!maquina) throw new NotFoundException('Máquina não encontrada.');
-    if (maquina.loja_id !== lojaId) throw new ForbiddenException('Máquina não pertence a esta loja.');
+    if (maquina.loja_id !== lojaId)
+      throw new ForbiddenException('Máquina não pertence a esta loja.');
 
     const contexto = {
       insumo_tipo_material_nome: insumo.tipoMaterial?.nome ?? null,
@@ -101,9 +111,10 @@ export class CompatibilidadeMaterialMaquinaService {
       regrasAvaliadas.push(regra.nome);
       let condicao: CondicaoCompatibilidade;
       try {
-        condicao = typeof regra.condicoes === 'string'
-          ? (JSON.parse(regra.condicoes) as CondicaoCompatibilidade)
-          : (regra.condicoes as unknown as CondicaoCompatibilidade);
+        condicao =
+          typeof regra.condicoes === 'string'
+            ? (JSON.parse(regra.condicoes) as CondicaoCompatibilidade)
+            : (regra.condicoes as unknown as CondicaoCompatibilidade);
       } catch {
         continue;
       }
@@ -142,13 +153,19 @@ export class CompatibilidadeMaterialMaquinaService {
   ): boolean {
     if (
       condicao.insumo_tipo_material_nome !== undefined &&
-      !this.valorCasaFiltro(contexto.insumo_tipo_material_nome, condicao.insumo_tipo_material_nome)
+      !this.valorCasaFiltro(
+        contexto.insumo_tipo_material_nome,
+        condicao.insumo_tipo_material_nome,
+      )
     ) {
       return false;
     }
     if (
       condicao.insumo_logica_consumo !== undefined &&
-      !this.valorCasaFiltro(contexto.insumo_logica_consumo, condicao.insumo_logica_consumo)
+      !this.valorCasaFiltro(
+        contexto.insumo_logica_consumo,
+        condicao.insumo_logica_consumo,
+      )
     ) {
       return false;
     }
@@ -160,7 +177,10 @@ export class CompatibilidadeMaterialMaquinaService {
     }
     if (
       condicao.maquina_modo_producao !== undefined &&
-      !this.valorCasaFiltro(contexto.maquina_modo_producao, condicao.maquina_modo_producao)
+      !this.valorCasaFiltro(
+        contexto.maquina_modo_producao,
+        condicao.maquina_modo_producao,
+      )
     ) {
       return false;
     }
@@ -173,7 +193,9 @@ export class CompatibilidadeMaterialMaquinaService {
   ): boolean {
     if (valor === null || valor === undefined) return false;
     if (Array.isArray(filtro)) {
-      return filtro.map((v) => String(v).toLowerCase()).includes(String(valor).toLowerCase());
+      return filtro
+        .map((v) => String(v).toLowerCase())
+        .includes(String(valor).toLowerCase());
     }
     return String(filtro).toLowerCase() === String(valor).toLowerCase();
   }

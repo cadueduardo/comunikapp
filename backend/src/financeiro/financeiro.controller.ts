@@ -88,7 +88,10 @@ export class FinanceiroController {
   }
 
   @Get('cobrancas/:id')
-  async obterCobranca(@CurrentLojaId() lojaId: string, @Param('id') id: string) {
+  async obterCobranca(
+    @CurrentLojaId() lojaId: string,
+    @Param('id') id: string,
+  ) {
     return this.cobrancasService.obterDetalhe(id, lojaId);
   }
 
@@ -132,7 +135,10 @@ export class FinanceiroController {
     );
   }
 
-  private parseDataOpcional(valor: string | undefined, campo: string): Date | undefined {
+  private parseDataOpcional(
+    valor: string | undefined,
+    campo: string,
+  ): Date | undefined {
     if (!valor) return undefined;
     const data = new Date(valor);
     if (Number.isNaN(data.getTime())) {

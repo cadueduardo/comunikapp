@@ -70,13 +70,7 @@ export interface CamadaExtraida {
   quantidade_entidades: number;
 }
 
-export type UnidadeDxf =
-  | 'mm'
-  | 'cm'
-  | 'm'
-  | 'pol'
-  | 'pe'
-  | 'desconhecida';
+export type UnidadeDxf = 'mm' | 'cm' | 'm' | 'pol' | 'pe' | 'desconhecida';
 
 /**
  * Versão da estrutura `DxfExtraido` persistida nos metadados do anexo.
@@ -240,7 +234,7 @@ export class DxfParserService {
           poligonosFechados: [],
         });
       }
-      const bucket = porCamada.get(nomeCamada)!;
+      const bucket = porCamada.get(nomeCamada);
 
       const contribuicao = this.medirEntidade(entidade, fatorMm);
       if (!contribuicao) continue;
@@ -280,10 +274,7 @@ export class DxfParserService {
       };
     }
 
-    const perimetroTotal = camadas.reduce(
-      (acc, c) => acc + c.perimetro_mm,
-      0,
-    );
+    const perimetroTotal = camadas.reduce((acc, c) => acc + c.perimetro_mm, 0);
 
     let larguraMm: number | null = null;
     let alturaMm: number | null = null;
@@ -322,7 +313,9 @@ export class DxfParserService {
     // Camada sugerida: prioriza nome contendo "CORTE"/"CUT" (case-insensitive);
     // caso contrário, a de maior perímetro (a primeira do array já ordenado).
     const camadaCorte = camadas.find((c) =>
-      /^(corte|cut)/i.test(c.nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '')),
+      /^(corte|cut)/i.test(
+        c.nome.normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      ),
     );
     const camadaSugerida = camadaCorte
       ? camadaCorte.nome
@@ -468,10 +461,7 @@ export class DxfParserService {
     return { perimetro, pontos, poligonoFechado: null };
   }
 
-  private medirLwPolyline(
-    entidade: ILwpolylineEntity,
-    fatorMm: number,
-  ) {
+  private medirLwPolyline(entidade: ILwpolylineEntity, fatorMm: number) {
     const vs = entidade.vertices || [];
     if (vs.length < 2) return null;
     const pontos = vs.map((v) => ({
@@ -495,10 +485,7 @@ export class DxfParserService {
     return { perimetro, pontos, poligonoFechado };
   }
 
-  private medirPolyline(
-    entidade: IPolylineEntity,
-    fatorMm: number,
-  ) {
+  private medirPolyline(entidade: IPolylineEntity, fatorMm: number) {
     const vs = entidade.vertices || [];
     if (vs.length < 2) return null;
     const pontos = vs.map((v) => ({
@@ -552,7 +539,7 @@ export class DxfParserService {
     let delta = endDeg - startDeg;
     while (delta < 0) delta += 360;
     while (delta > 360) delta -= 360;
-    const perimetro = (delta * Math.PI) / 180 * r;
+    const perimetro = ((delta * Math.PI) / 180) * r;
     // Para bbox, amostra 8 pontos ao longo do arco.
     const pontos: { x: number; y: number }[] = [];
     const passos = 8;

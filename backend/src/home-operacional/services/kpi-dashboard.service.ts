@@ -127,7 +127,9 @@ export class KpiDashboardService {
       const soma = resultado._sum.preco_final;
       if (!soma) return 0;
       // preco_final e Prisma Decimal - converter para number seguro.
-      const valor = (soma as unknown as { toNumber?: () => number }).toNumber?.();
+      const valor = (
+        soma as unknown as { toNumber?: () => number }
+      ).toNumber?.();
       if (typeof valor === 'number' && Number.isFinite(valor)) return valor;
       const n = Number(soma);
       return Number.isFinite(n) ? n : 0;
@@ -177,8 +179,24 @@ export class KpiDashboardService {
 
   private calcularPeriodoMes(): { inicio: Date; fim: Date } {
     const agora = new Date();
-    const inicio = new Date(agora.getFullYear(), agora.getMonth(), 1, 0, 0, 0, 0);
-    const fim = new Date(agora.getFullYear(), agora.getMonth() + 1, 1, 0, 0, 0, 0);
+    const inicio = new Date(
+      agora.getFullYear(),
+      agora.getMonth(),
+      1,
+      0,
+      0,
+      0,
+      0,
+    );
+    const fim = new Date(
+      agora.getFullYear(),
+      agora.getMonth() + 1,
+      1,
+      0,
+      0,
+      0,
+      0,
+    );
     return { inicio, fim };
   }
 

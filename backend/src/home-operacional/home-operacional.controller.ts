@@ -60,7 +60,11 @@ export class HomeOperacionalController {
     @Param('stepId') stepId: string,
     @Body() dto: AtualizarOnboardingStepDto,
   ) {
-    const data = await this.onboardingService.atualizarStep(lojaId, stepId, dto.acao);
+    const data = await this.onboardingService.atualizarStep(
+      lojaId,
+      stepId,
+      dto.acao,
+    );
     return this.envelope(data);
   }
 

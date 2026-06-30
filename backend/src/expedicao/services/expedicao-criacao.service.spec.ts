@@ -41,7 +41,9 @@ describe('ExpedicaoCriacaoService', () => {
         findFirst: jest.fn(),
         update: jest.fn(),
       },
-      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
+      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) =>
+        fn(tx),
+      ),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -80,8 +82,9 @@ describe('ExpedicaoCriacaoService', () => {
       tipo_os: 'COMERCIAL',
       orcamento_id: null,
     });
-    tx.expedicaoLogistica.findFirst
-      .mockResolvedValueOnce({ id: 'exp-existente' });
+    tx.expedicaoLogistica.findFirst.mockResolvedValueOnce({
+      id: 'exp-existente',
+    });
 
     const resultado = await service.criarSeElegivel('os-1', 'loja-1');
 

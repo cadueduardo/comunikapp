@@ -26,7 +26,10 @@ export class RegistrarRecebimentoDto {
   @IsString()
   parcela_id?: string;
 
-  @IsNumber({ maxDecimalPlaces: 2 }, { message: 'valor deve ter no maximo 2 casas decimais' })
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: 'valor deve ter no maximo 2 casas decimais' },
+  )
   @Min(0.01, { message: 'valor deve ser maior que zero' })
   @Type(() => Number)
   valor!: number;

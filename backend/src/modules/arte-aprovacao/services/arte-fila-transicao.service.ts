@@ -110,10 +110,7 @@ export class ArteFilaTransicaoService {
       const atual = row.status_arte as StatusArte;
       const proximo = dto.status_arte;
 
-      if (
-        atual !== proximo &&
-        !transicaoStatusArtePermitida(atual, proximo)
-      ) {
+      if (atual !== proximo && !transicaoStatusArtePermitida(atual, proximo)) {
         throw new ConflictException(ARTE_MSG.TRANSICAO_INVALIDA);
       }
 
@@ -181,7 +178,12 @@ export class ArteFilaTransicaoService {
     });
     if (!versao) return null;
     if (!versao.servico_id) return null;
-    return this.resolverItemOsId(versao.servico_id, versao.os_id, lojaId, versaoId);
+    return this.resolverItemOsId(
+      versao.servico_id,
+      versao.os_id,
+      lojaId,
+      versaoId,
+    );
   }
 
   /** Cliente interagiu no chat → card vai para Revisão. */

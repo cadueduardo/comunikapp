@@ -79,8 +79,7 @@ export class FaixasPrecoValidator implements ValidatorConstraintInterface {
       }
       if (i > 0) {
         const anterior = ordenadas[i - 1];
-        const limiteAnterior =
-          anterior.max ?? Number.POSITIVE_INFINITY;
+        const limiteAnterior = anterior.max ?? Number.POSITIVE_INFINITY;
         if (atual.min <= limiteAnterior) {
           return false;
         }

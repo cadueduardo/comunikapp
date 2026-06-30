@@ -73,7 +73,10 @@ describe('OrcamentoOrigemSobraService', () => {
       ],
     });
 
-    const { candidatos } = await service.listarCandidatosSobra('loja-1', 'orc-1');
+    const { candidatos } = await service.listarCandidatosSobra(
+      'loja-1',
+      'orc-1',
+    );
 
     expect(candidatos).toHaveLength(1);
     expect(candidatos[0].sobra_estimada_m2).toBe(68.92);

@@ -52,7 +52,9 @@ function validarPositivo(nome: string, valor: number): void {
 }
 
 function isFormatoLinear(formato?: string | null): boolean {
-  return formato === 'ROLO' || formato === 'METRO_LINEAR' || formato === 'BARRA';
+  return (
+    formato === 'ROLO' || formato === 'METRO_LINEAR' || formato === 'BARRA'
+  );
 }
 
 /** Medidas comerciais do insumo (rolo: comprimento em altura comercial). */
@@ -75,13 +77,12 @@ export function resolverMedidasComerciaisInsumo(insumo: {
   return { largura, alturaChapa };
 }
 
-function dimensaoParaMetros(
-  valor: number,
-  unidade?: string | null,
-): number {
+function dimensaoParaMetros(valor: number, unidade?: string | null): number {
   const u = (unidade || 'm').toLowerCase();
-  if (u === 'mm' || u === 'milímetros' || u === 'milimetros') return valor / 1000;
-  if (u === 'cm' || u === 'centímetros' || u === 'centimetros') return valor / 100;
+  if (u === 'mm' || u === 'milímetros' || u === 'milimetros')
+    return valor / 1000;
+  if (u === 'cm' || u === 'centímetros' || u === 'centimetros')
+    return valor / 100;
   return valor;
 }
 
@@ -105,8 +106,7 @@ export function inferirCustoM2Insumo(insumo: {
 
   const { largura, alturaChapa } = resolverMedidasComerciaisInsumo(insumo);
   const unidadeUso = (insumo.unidade_uso || '').toUpperCase();
-  const unidadeEhM2 =
-    unidadeUso === 'M2' || unidadeUso === 'METRO QUADRADO';
+  const unidadeEhM2 = unidadeUso === 'M2' || unidadeUso === 'METRO QUADRADO';
 
   if (
     unidadeEhM2 &&

@@ -38,6 +38,8 @@ export enum ParcelaStatus {
   LIQUIDADO = 'LIQUIDADO',
   VENCIDO = 'VENCIDO',
   CANCELADA = 'CANCELADA',
+  /** Saldo retido até emissão do Relatório Técnico Final (módulo instalações). */
+  AGUARDANDO_RELATORIO_TECNICO = 'AGUARDANDO_RELATORIO_TECNICO',
 }
 
 export const PARCELA_STATUS_TERMINAIS = new Set<string>([

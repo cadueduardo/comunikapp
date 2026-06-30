@@ -20,12 +20,12 @@ describe('utc-time.util', () => {
 
   it('compara instantes via getTime (UTC)', () => {
     const limiar = obterLimiarHorasAtrasUtc(24);
-    expect(estaDentroDaJanelaUtc(new Date('2026-06-24T16:00:00.000Z'), limiar)).toBe(
-      true,
-    );
-    expect(estaDentroDaJanelaUtc(new Date('2026-06-24T14:00:00.000Z'), limiar)).toBe(
-      false,
-    );
+    expect(
+      estaDentroDaJanelaUtc(new Date('2026-06-24T16:00:00.000Z'), limiar),
+    ).toBe(true);
+    expect(
+      estaDentroDaJanelaUtc(new Date('2026-06-24T14:00:00.000Z'), limiar),
+    ).toBe(false);
     expect(estaDentroDaJanelaUtc(null, limiar)).toBe(false);
   });
 });

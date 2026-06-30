@@ -9,6 +9,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PcpBloqueioSinalService } from '../../instalacao/services/pcp-bloqueio-sinal.service';
+import { StatusLiberacaoPcp } from '../../instalacao/constants/pcp-liberacao.constants';
 import {
   DefinirPrazoProdutoDTO,
   StatusPrazoProdutoResponse,
@@ -41,7 +43,10 @@ interface DefinirPrazoProdutoRequest {
 
 @Injectable()
 export class OSProdutoPrazoService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pcpBloqueioSinalService: PcpBloqueioSinalService,
+  ) {}
 
   /**
    * Define ou atualiza o prazo de um produto específico
@@ -153,6 +158,12 @@ export class OSProdutoPrazoService {
         };
 
         try {
+          const statusInicial =
+            await this.pcpBloqueioSinalService.resolverStatusInicialItem(
+              lojaId,
+              os.orcamento_id,
+            );
+
           const novoItem = await this.prisma.itemOS.create({
             data: {
               id: produtoOrcamento.id, // Manter o mesmo ID do ProdutoOrcamento
@@ -179,7 +190,7 @@ export class OSProdutoPrazoService {
               // Inicializar campos de prazo
               data_inicio_producao: null,
               data_prazo_produto: null,
-              status_liberacao_pcp: 'PENDENTE',
+              status_liberacao_pcp: statusInicial,
               prioridade_produto: 'NORMAL',
               ordem_producao: null,
             },
@@ -254,8 +265,13 @@ export class OSProdutoPrazoService {
       item.os.aprovacao_tecnica_status || ''
     ).toUpperCase();
     const itemPendente =
-      (item.status_liberacao_pcp || 'PENDENTE').toUpperCase() === 'PENDENTE';
-    const deveAutoLiberar = aprovacaoStatus === 'APROVADA' && itemPendente;
+      (item.status_liberacao_pcp || 'PENDENTE').toUpperCase() ===
+      StatusLiberacaoPcp.PENDENTE;
+    const bloqueadoPorSinal =
+      (item.status_liberacao_pcp || '').toUpperCase() ===
+      StatusLiberacaoPcp.BLOQUEADO_AGUARDANDO_SINAL;
+    const deveAutoLiberar =
+      aprovacaoStatus === 'APROVADA' && itemPendente && !bloqueadoPorSinal;
 
     const itemAtualizado = await this.prisma.itemOS.update({
       where: { id: itemId },
@@ -534,9 +550,7 @@ export class OSProdutoPrazoService {
 
     const motivos = getMotivosBloqueioPcp(ctx, os?.materiais_disponivel);
     if (motivos.length > 0) {
-      throw new BadRequestException(
-        motivos.map((m) => m.mensagem).join('; '),
-      );
+      throw new BadRequestException(motivos.map((m) => m.mensagem).join('; '));
     }
 
     // Atualizar status de liberação
@@ -558,7 +572,9 @@ export class OSProdutoPrazoService {
     });
 
     // Sincronizar status agregado da OS
-    const totalItens = await this.prisma.itemOS.count({ where: { os_id: osId } });
+    const totalItens = await this.prisma.itemOS.count({
+      where: { os_id: osId },
+    });
     const agregado = computeStatusOSLiberacao(totalItens, produtosLiberados);
     if (agregado === 'PARCIAL') {
       await this.prisma.ordemServico.update({

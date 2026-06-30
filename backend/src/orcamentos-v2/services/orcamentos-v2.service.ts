@@ -84,10 +84,12 @@ export class OrcamentosV2Service {
         ? dados.entrega_modalidade_id.trim()
         : '';
     if (modalidadeId) {
-      const modalidade = await (this.prisma as any).modalidadeEntrega.findFirst({
-        where: { id: modalidadeId, loja_id: lojaId, ativo: true },
-        select: { id: true },
-      });
+      const modalidade = await (this.prisma as any).modalidadeEntrega.findFirst(
+        {
+          where: { id: modalidadeId, loja_id: lojaId, ativo: true },
+          select: { id: true },
+        },
+      );
       if (!modalidade) {
         throw new BadRequestException(
           'Modalidade de entrega invalida para esta loja.',
@@ -266,7 +268,8 @@ export class OrcamentosV2Service {
         return Number.isFinite(n) ? n : 0;
       };
       const optionalNumber = (value: unknown): number | undefined => {
-        if (value === null || value === undefined || value === '') return undefined;
+        if (value === null || value === undefined || value === '')
+          return undefined;
         const n = Number(value);
         return Number.isFinite(n) ? n : undefined;
       };
@@ -277,14 +280,21 @@ export class OrcamentosV2Service {
       const isRascunho =
         String(dados.status || orcamentoCriado.status || '').toLowerCase() ===
         OrcamentoStatus.RASCUNHO;
-      const produtosPayload = Array.isArray(dados.produtos) ? dados.produtos : [];
+      const produtosPayload = Array.isArray(dados.produtos)
+        ? dados.produtos
+        : [];
       const todosProdutosTemInsumos =
         produtosPayload.length > 0 &&
         produtosPayload.every((produto: any) => {
-          if (String(produto?.tipo_item || 'SOB_DEMANDA').toUpperCase() === 'PRODUTO_FINITO') {
+          if (
+            String(produto?.tipo_item || 'SOB_DEMANDA').toUpperCase() ===
+            'PRODUTO_FINITO'
+          ) {
             return true;
           }
-          const insumos = Array.isArray(produto?.insumos) ? produto.insumos : [];
+          const insumos = Array.isArray(produto?.insumos)
+            ? produto.insumos
+            : [];
           const materiais = Array.isArray(produto?.materiais)
             ? produto.materiais
             : [];
@@ -387,9 +397,7 @@ export class OrcamentosV2Service {
       // 7. Notificar criação
       await this.notificacaoService.notificarCriacao(orcamentoCriado, lojaId);
 
-      this.logger.log(
-        `✅ Orçamento criado com sucesso: ${orcamentoCriado.id}`,
-      );
+      this.logger.log(`✅ Orçamento criado com sucesso: ${orcamentoCriado.id}`);
       return await this.buscarOrcamento(orcamentoCriado.id, lojaId);
     } catch (error) {
       this.logger.error(`❌ Erro ao criar orçamento: ${error.message}`);
@@ -408,9 +416,7 @@ export class OrcamentosV2Service {
   ): Promise<OrcamentoCompleto> {
     const original = await this.buscarOrcamento(id, lojaId);
     const tituloBase =
-      original.titulo ||
-      (original as any).nome_servico ||
-      'Orçamento';
+      original.titulo || (original as any).nome_servico || 'Orçamento';
 
     const produtos = (original.produtos || []).map((produto) =>
       this.transformacaoService.normalizarProdutoParaDuplicacao(produto),
@@ -426,8 +432,7 @@ export class OrcamentosV2Service {
       cliente_id: original.cliente_id,
       titulo: opcoes?.titulo || `${tituloBase} (Cópia)`,
       nome_servico: opcoes?.titulo || `${tituloBase} (Cópia)`,
-      descricao:
-        opcoes?.descricao || `Cópia do orçamento ${tituloBase}`,
+      descricao: opcoes?.descricao || `Cópia do orçamento ${tituloBase}`,
       status: OrcamentoStatus.RASCUNHO,
       produtos,
       margem_lucro_customizada: (original as any).margem_lucro_customizada,
@@ -576,7 +581,7 @@ export class OrcamentosV2Service {
         this.logger.log(`✅ Cliente carregado: ${orcamento.cliente.nome}`);
       } else {
         this.logger.log(
-        `❌ Cliente NÃO carregado para cliente_id: ${orcamento.cliente_id}`,
+          `❌ Cliente NÃO carregado para cliente_id: ${orcamento.cliente_id}`,
         );
         // Tentar buscar cliente manualmente
         if (orcamento.cliente_id) {
@@ -601,7 +606,7 @@ export class OrcamentosV2Service {
           `✅ Produtos carregados: ${orcamento.produtos.length} produtos`,
         );
       } else {
-      this.logger.log(`❌ Produtos NÃO carregados`);
+        this.logger.log(`❌ Produtos NÃO carregados`);
         // Tentar buscar produtos manualmente
         const produtosManual = await this.prisma.produtoOrcamento.findMany({
           where: { orcamento_id: orcamento.id },
@@ -802,8 +807,14 @@ export class OrcamentosV2Service {
       const orcamentoExistente = await this.buscarOrcamento(id, lojaId);
 
       // 1.1. Bloquear alterações em orçamento aprovado
-      const orcExistente = orcamentoExistente as unknown as { status?: string; status_aprovacao?: string };
-      if (orcExistente.status === 'aprovado' || orcExistente.status_aprovacao === 'APROVADO') {
+      const orcExistente = orcamentoExistente as unknown as {
+        status?: string;
+        status_aprovacao?: string;
+      };
+      if (
+        orcExistente.status === 'aprovado' ||
+        orcExistente.status_aprovacao === 'APROVADO'
+      ) {
         throw new BadRequestException(
           'Orçamento aprovado não pode ser alterado. Somente visualização permitida.',
         );
@@ -826,99 +837,99 @@ export class OrcamentosV2Service {
       // 4. Atualizar no banco. Bancos antigos podem não ter ON DELETE CASCADE
       // nas relações dos produtos, então limpamos os filhos explicitamente
       // dentro da mesma transação antes de substituir os produtos.
-      const atualizarOrcamento = (prisma: any) => prisma.orcamento.update({
-        where: { id },
-        data: dadosPreparados,
-        include: {
-          cliente: true,
-          produtos: {
-            select: {
-              id: true,
-              nome_servico: true,
-              nome: true,
-              descricao: true,
-              quantidade: true,
-              largura: true,
-              altura: true,
-              profundidade: true,
-              area_produto: true,
-              perimetro_produto: true,
-              unidade_geometria: true,
-              geometria_origem: true,
-              arquivo_geometria_url: true,
-              arquivo_geometria_metadados: true,
-              unidade_medida: true,
-              custo_total_producao: true,
-              preco_unitario: true,
-              preco_total: true,
-              margem_lucro: true,
-              impostos: true,
-              observacoes: true,
-              responsabilidade_arte: true,
-              politica_cobranca_arte: true,
-              finalidade_anexo: true,
-              complexidade_arte: true,
-              arte_custo_automatico: true,
-              arte_referencia_servico_id: true,
-              arte_horas_calculadas: true,
-              arte_custo_calculado: true,
-              instalacao_necessaria: true,
-              instalacao_tipo_id: true,
-              instalacao_regra_cobranca: true,
-              instalacao_valor_unitario: true,
-              instalacao_usar_endereco_entrega: true,
-              instalacao_endereco_snapshot: true,
-              instalacao_cep: true,
-              instalacao_logradouro: true,
-              instalacao_numero: true,
-              instalacao_complemento: true,
-              instalacao_bairro: true,
-              instalacao_cidade: true,
-              instalacao_estado: true,
-              instalacao_preco_cobrado: true,
-              instalacao_custo_mao_obra: true,
-              instalacao_custo_deslocamento: true,
-              instalacao_tempo_estimado_min: true,
-              instalacao_quantidade_pessoas: true,
-              instalacao_observacoes: true,
-              ativo: true,
-              ordem: true,
-              categoria: true,
-              tipo_item: true,
-              produto_finito_id: true,
-              produto_finito: {
-                select: {
-                  id: true,
-                  nome: true,
-                  sku: true,
-                  estoque_atual: true,
-                  preco_venda: true,
-                  preco_promocional: true,
-                  preco_custo: true,
-                  imagens: { orderBy: { ordem: 'asc' }, take: 1 },
+      const atualizarOrcamento = (prisma: any) =>
+        prisma.orcamento.update({
+          where: { id },
+          data: dadosPreparados,
+          include: {
+            cliente: true,
+            produtos: {
+              select: {
+                id: true,
+                nome_servico: true,
+                nome: true,
+                descricao: true,
+                quantidade: true,
+                largura: true,
+                altura: true,
+                profundidade: true,
+                area_produto: true,
+                perimetro_produto: true,
+                unidade_geometria: true,
+                geometria_origem: true,
+                arquivo_geometria_url: true,
+                arquivo_geometria_metadados: true,
+                unidade_medida: true,
+                custo_total_producao: true,
+                preco_unitario: true,
+                preco_total: true,
+                margem_lucro: true,
+                impostos: true,
+                observacoes: true,
+                responsabilidade_arte: true,
+                politica_cobranca_arte: true,
+                finalidade_anexo: true,
+                complexidade_arte: true,
+                arte_custo_automatico: true,
+                arte_referencia_servico_id: true,
+                arte_horas_calculadas: true,
+                arte_custo_calculado: true,
+                instalacao_necessaria: true,
+                instalacao_tipo_id: true,
+                instalacao_regra_cobranca: true,
+                instalacao_valor_unitario: true,
+                instalacao_usar_endereco_entrega: true,
+                instalacao_endereco_snapshot: true,
+                instalacao_cep: true,
+                instalacao_logradouro: true,
+                instalacao_numero: true,
+                instalacao_complemento: true,
+                instalacao_bairro: true,
+                instalacao_cidade: true,
+                instalacao_estado: true,
+                instalacao_preco_cobrado: true,
+                instalacao_custo_mao_obra: true,
+                instalacao_custo_deslocamento: true,
+                instalacao_tempo_estimado_min: true,
+                instalacao_quantidade_pessoas: true,
+                instalacao_observacoes: true,
+                ativo: true,
+                ordem: true,
+                categoria: true,
+                tipo_item: true,
+                produto_finito_id: true,
+                produto_finito: {
+                  select: {
+                    id: true,
+                    nome: true,
+                    sku: true,
+                    estoque_atual: true,
+                    preco_venda: true,
+                    preco_promocional: true,
+                    preco_custo: true,
+                    imagens: { orderBy: { ordem: 'asc' }, take: 1 },
+                  },
                 },
-              },
-              insumos: true,
-              maquinas: true,
-              funcoes: true,
-              servicos_manuais: true,
-              custos_indiretos: true,
-              personalizacao: {
-                select: {
-                  modo: true,
-                  estampa_id: true,
-                  processo_id: true,
-                  valores_campos: true,
-                  grade_distribuicao: true,
+                insumos: true,
+                maquinas: true,
+                funcoes: true,
+                servicos_manuais: true,
+                custos_indiretos: true,
+                personalizacao: {
+                  select: {
+                    modo: true,
+                    estampa_id: true,
+                    processo_id: true,
+                    valores_campos: true,
+                    grade_distribuicao: true,
+                  },
                 },
               },
             },
           },
-        },
-      });
+        });
       const deveSubstituirProdutos =
-        dados.produtos &&
-        Array.isArray(dados.produtos);
+        dados.produtos && Array.isArray(dados.produtos);
 
       const orcamentoAtualizado = deveSubstituirProdutos
         ? await (this.prisma as any).$transaction(async (tx: any) => {
@@ -939,10 +950,10 @@ export class OrcamentosV2Service {
 
       // Verificar se os dados já têm custos calculados corretamente
       const temCustosValidos =
-        (dados.preco_final > 0) ||
-        (dados.custo_material > 0) ||
-        (dados.custo_mao_obra > 0) ||
-        (dados.custo_total > 0);
+        dados.preco_final > 0 ||
+        dados.custo_material > 0 ||
+        dados.custo_mao_obra > 0 ||
+        dados.custo_total > 0;
 
       const sempreRecalcular = false;
 
@@ -985,8 +996,13 @@ export class OrcamentosV2Service {
               lojaId,
             );
 
-          const custos = (resultadoCalculo?.custos || {}) as Record<string, unknown>;
-          const precoMotor = Number(custos.preco_final || custos.valor_total || 0);
+          const custos = (resultadoCalculo?.custos || {}) as Record<
+            string,
+            unknown
+          >;
+          const precoMotor = Number(
+            custos.preco_final || custos.valor_total || 0,
+          );
 
           if (precoMotor > 0) {
             await this.atualizarCustosCalculados(id, resultadoCalculo);
@@ -1130,7 +1146,10 @@ export class OrcamentosV2Service {
       }
 
       // 5.2 Recalcular após persistir produtos, para usar dados atualizados
-      if (!possuiCustosCalculadosNoPayload && (sempreRecalcular || precisaRecalcular)) {
+      if (
+        !possuiCustosCalculadosNoPayload &&
+        (sempreRecalcular || precisaRecalcular)
+      ) {
         const orcamentoParaCalculo = await this.buscarOrcamento(id, lojaId);
         this.logger.log(`Recalculando orcamento apos persistir produtos ${id}`);
         const dadosCustosFallback = {
@@ -1155,7 +1174,9 @@ export class OrcamentosV2Service {
             string,
             unknown
           >;
-          const precoMotor = Number(custos.preco_final || custos.valor_total || 0);
+          const precoMotor = Number(
+            custos.preco_final || custos.valor_total || 0,
+          );
 
           if (precoMotor > 0) {
             await this.atualizarCustosCalculados(id, resultadoCalculo);
@@ -1216,8 +1237,11 @@ export class OrcamentosV2Service {
           const toNum = (v: unknown) => {
             if (typeof v === 'number' && Number.isFinite(v)) return v;
             if (v != null) {
-              const s = typeof v === 'object' && typeof (v as any).toString === 'function'
-                ? (v as any).toString() : String(v);
+              const s =
+                typeof v === 'object' &&
+                typeof (v as any).toString === 'function'
+                  ? (v as any).toString()
+                  : String(v);
               const n = parseFloat(s.replace(',', '.'));
               if (Number.isFinite(n)) return n;
             }
@@ -1228,7 +1252,7 @@ export class OrcamentosV2Service {
             toNum(orc.preco_final) ||
             toNum(orc.valor_total) ||
             (Array.isArray(orc.produtos)
-              ? (orc.produtos as any[]).reduce((s, p) => s + toNum(p?.preco_total), 0)
+              ? orc.produtos.reduce((s, p) => s + toNum(p?.preco_total), 0)
               : 0);
           const codigoAprovacao = String(orc.codigo_aprovacao ?? '');
           const nomeServico = String(
@@ -1714,7 +1738,10 @@ export class OrcamentosV2Service {
         ? valorFinalManual
         : Number(orcamento.preco_final) || 0;
     const entregaValorCobrado = Number(orcamento.entrega_valor_cobrado) || 0;
-    const precoFinalProdutos = Math.max(0, precoFinalEfetivo - entregaValorCobrado);
+    const precoFinalProdutos = Math.max(
+      0,
+      precoFinalEfetivo - entregaValorCobrado,
+    );
     const precosDistribuidos = distribuirPrecoFinal(
       orcamento.produtos || [],
       precoFinalProdutos,
@@ -1772,7 +1799,8 @@ export class OrcamentosV2Service {
             largura: produto.largura,
             altura: produto.altura,
             // Fase 11: profundidade propagada quando o produto e 3D.
-            profundidade: (produto as { profundidade?: unknown }).profundidade ?? null,
+            profundidade:
+              (produto as { profundidade?: unknown }).profundidade ?? null,
             area: produto.area_produto,
             // Distribuir o preço comercial final entre os produtos para que
             // os itens impressos somem exatamente o total do orçamento.
@@ -1813,8 +1841,10 @@ export class OrcamentosV2Service {
         orcamento.condicao_pagamento_entrada_pct != null
           ? Number(orcamento.condicao_pagamento_entrada_pct)
           : undefined,
-      condicao_pagamento_parcelas: orcamento.condicao_pagamento_parcelas ?? undefined,
-      condicao_pagamento_descricao: orcamento.condicao_pagamento_descricao ?? undefined,
+      condicao_pagamento_parcelas:
+        orcamento.condicao_pagamento_parcelas ?? undefined,
+      condicao_pagamento_descricao:
+        orcamento.condicao_pagamento_descricao ?? undefined,
       forma_pagamento:
         orcamento.condicao_pagamento_descricao?.trim() ||
         this.parcelasBuilder.gerarDescricao({
@@ -2456,9 +2486,7 @@ export class OrcamentosV2Service {
         },
       });
 
-      this.logger.log(
-        `✅ Mensagem pública enviada no chat V2: ${mensagem.id}`,
-      );
+      this.logger.log(`✅ Mensagem pública enviada no chat V2: ${mensagem.id}`);
 
       // Criar notificação para vendedores da loja
       await this.notificarNovaMensagemLegado(
@@ -2729,11 +2757,7 @@ export class OrcamentosV2Service {
 
     if (osExistente) {
       if (osExistente.ativo === false) {
-        await this.osInativacaoService.reativar(
-          osExistente.id,
-          lojaId,
-          userId,
-        );
+        await this.osInativacaoService.reativar(osExistente.id, lojaId, userId);
       }
 
       const statusAprovado =
@@ -2905,7 +2929,9 @@ export class OrcamentosV2Service {
     lojaId: string,
     usuarioId: string,
   ): Promise<void> {
-    const valorTotal = Number(orcamento.preco_final ?? orcamento.valor_total ?? 0);
+    const valorTotal = Number(
+      orcamento.preco_final ?? orcamento.valor_total ?? 0,
+    );
     if (valorTotal <= 0) {
       this.logger.warn(
         `[COBRANCA_AUTO] Orcamento ${orcamentoId} sem valor_total - cobranca nao criada.`,
@@ -3040,12 +3066,9 @@ export class OrcamentosV2Service {
         produtoPrincipal?.altura ?? orcamento.altura_produto ?? undefined,
       area_produto:
         produtoPrincipal?.area ?? orcamento.area_produto ?? undefined,
-      perimetro_produto:
-        produtoPrincipal?.perimetro_produto ?? undefined,
-      unidade_geometria:
-        produtoPrincipal?.unidade_geometria ?? undefined,
-      geometria_origem:
-        produtoPrincipal?.geometria_origem ?? undefined,
+      perimetro_produto: produtoPrincipal?.perimetro_produto ?? undefined,
+      unidade_geometria: produtoPrincipal?.unidade_geometria ?? undefined,
+      geometria_origem: produtoPrincipal?.geometria_origem ?? undefined,
       arquivo_geometria_url:
         produtoPrincipal?.arquivo_geometria_url ?? undefined,
       arquivo_geometria_metadados:
@@ -3128,9 +3151,7 @@ export class OrcamentosV2Service {
    * Reenviar código de aprovação - BASEADO NO LEGADO
    */
   async reenviarCodigoAprovacao(id: string) {
-    this.logger.log(
-      `📧 Reenviando código de aprovação para orçamento: ${id}`,
-    );
+    this.logger.log(`📧 Reenviando código de aprovação para orçamento: ${id}`);
 
     // Verificar se o orçamento existe
     const orcamento = await this.prisma.orcamento.findUnique({
@@ -3155,9 +3176,7 @@ export class OrcamentosV2Service {
         data: { codigo_aprovacao: codigoAprovacao },
       });
 
-      this.logger.log(
-        `📧 Novo código de aprovação gerado: ${codigoAprovacao}`,
-      );
+      this.logger.log(`📧 Novo código de aprovação gerado: ${codigoAprovacao}`);
       console.log(`📧 ==========================================`);
       console.log(`📧 NOVO CÓDIGO DE APROVAÇÃO GERADO!`);
       console.log(`📧 ==========================================`);

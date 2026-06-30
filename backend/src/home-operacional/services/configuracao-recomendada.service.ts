@@ -83,7 +83,11 @@ export class ConfiguracaoRecomendadaService {
     { nome: 'Unitário', logica: 'quantidade_fixa' },
   ];
 
-  private readonly SETORES_DEFAULT: Array<{ nome: string; cor: string; ordem: number }> = [
+  private readonly SETORES_DEFAULT: Array<{
+    nome: string;
+    cor: string;
+    ordem: number;
+  }> = [
     { nome: 'Corte', cor: '#3B82F6', ordem: 1 },
     { nome: 'Impressão', cor: '#10B981', ordem: 2 },
     { nome: 'Acabamento', cor: '#F59E0B', ordem: 3 },
@@ -145,20 +149,28 @@ export class ConfiguracaoRecomendadaService {
   private readonly TIPOS_INSTALACAO_DEFAULT: Array<{
     nome: string;
     descricao: string;
-    regra_cobranca: 'FIXO' | 'POR_M2' | 'POR_ML' | 'POR_UNIDADE' | 'POR_HORA' | 'MANUAL';
+    regra_cobranca:
+      | 'FIXO'
+      | 'POR_M2'
+      | 'POR_ML'
+      | 'POR_UNIDADE'
+      | 'POR_HORA'
+      | 'MANUAL';
     exige_endereco: boolean;
     exige_agendamento: boolean;
   }> = [
     {
       nome: 'Aplicação simples',
-      descricao: 'Aplicação ou instalação leve, normalmente sem equipe especializada.',
+      descricao:
+        'Aplicação ou instalação leve, normalmente sem equipe especializada.',
       regra_cobranca: 'FIXO',
       exige_endereco: true,
       exige_agendamento: false,
     },
     {
       nome: 'Instalação em fachada',
-      descricao: 'Instalação de placa, letreiro ou comunicação visual em fachada.',
+      descricao:
+        'Instalação de placa, letreiro ou comunicação visual em fachada.',
       regra_cobranca: 'POR_M2',
       exige_endereco: true,
       exige_agendamento: true,
@@ -172,14 +184,16 @@ export class ConfiguracaoRecomendadaService {
     },
     {
       nome: 'Adesivação de veículo',
-      descricao: 'Aplicação de adesivo, envelopamento parcial ou comunicação em veículo.',
+      descricao:
+        'Aplicação de adesivo, envelopamento parcial ou comunicação em veículo.',
       regra_cobranca: 'POR_M2',
       exige_endereco: true,
       exige_agendamento: true,
     },
     {
       nome: 'Instalação em altura',
-      descricao: 'Instalação que exige cuidado operacional adicional por altura ou acesso.',
+      descricao:
+        'Instalação que exige cuidado operacional adicional por altura ou acesso.',
       regra_cobranca: 'MANUAL',
       exige_endereco: true,
       exige_agendamento: true,
@@ -271,7 +285,13 @@ export class ConfiguracaoRecomendadaService {
     const etapasParaConcluir: OnboardingStepId[] = [];
 
     // 1. Defaults na loja
-    await this.aplicarDefaultsLoja(lojaId, opcoes, aplicado, ignorado, etapasParaConcluir);
+    await this.aplicarDefaultsLoja(
+      lojaId,
+      opcoes,
+      aplicado,
+      ignorado,
+      etapasParaConcluir,
+    );
 
     // 2. Categorias (so cria se nao houver nenhuma)
     await this.aplicarCategorias(lojaId, aplicado, ignorado);
@@ -283,7 +303,12 @@ export class ConfiguracaoRecomendadaService {
     await this.garantirSetoresPadrao(lojaId, aplicado, ignorado);
 
     // 5. Entrega e instalacao para orientar orcamento e OS
-    await this.aplicarEntregaInstalacao(lojaId, aplicado, ignorado, etapasParaConcluir);
+    await this.aplicarEntregaInstalacao(
+      lojaId,
+      aplicado,
+      ignorado,
+      etapasParaConcluir,
+    );
 
     // 6. Workflow padrao de OS (cria ou repara vinculos com setores)
     await this.aplicarWorkflow(lojaId, aplicado, ignorado);
@@ -293,10 +318,17 @@ export class ConfiguracaoRecomendadaService {
 
     // 8. Marcar etapas correspondentes como concluidas
     if (etapasParaConcluir.length > 0) {
-      await this.onboardingService.marcarStepsComoConcluidos(lojaId, etapasParaConcluir);
+      await this.onboardingService.marcarStepsComoConcluidos(
+        lojaId,
+        etapasParaConcluir,
+      );
     }
 
-    return { aplicado, ignorado, etapas_marcadas_concluidas: etapasParaConcluir };
+    return {
+      aplicado,
+      ignorado,
+      etapas_marcadas_concluidas: etapasParaConcluir,
+    };
   }
 
   async aplicarSomenteEntregaInstalacao(
@@ -315,13 +347,25 @@ export class ConfiguracaoRecomendadaService {
     const ignorado: ResultadoIgnorado = { loja: [] };
     const etapasParaConcluir: OnboardingStepId[] = [];
 
-    await this.aplicarEntregaInstalacao(lojaId, aplicado, ignorado, etapasParaConcluir);
+    await this.aplicarEntregaInstalacao(
+      lojaId,
+      aplicado,
+      ignorado,
+      etapasParaConcluir,
+    );
 
     if (etapasParaConcluir.length > 0) {
-      await this.onboardingService.marcarStepsComoConcluidos(lojaId, etapasParaConcluir);
+      await this.onboardingService.marcarStepsComoConcluidos(
+        lojaId,
+        etapasParaConcluir,
+      );
     }
 
-    return { aplicado, ignorado, etapas_marcadas_concluidas: etapasParaConcluir };
+    return {
+      aplicado,
+      ignorado,
+      etapas_marcadas_concluidas: etapasParaConcluir,
+    };
   }
 
   // ------------------------------------------------------------------
@@ -341,7 +385,9 @@ export class ConfiguracaoRecomendadaService {
     const atualizacoes: Record<string, unknown> = {};
 
     const podeEscrever = (valorExistente: unknown): boolean =>
-      opcoes.sobrescreverExistentes || valorExistente === null || valorExistente === undefined;
+      opcoes.sobrescreverExistentes ||
+      valorExistente === null ||
+      valorExistente === undefined;
 
     if (podeEscrever(loja.margem_lucro_padrao)) {
       atualizacoes.margem_lucro_padrao = this.DEFAULT_MARGEM_PCT;
@@ -373,18 +419,24 @@ export class ConfiguracaoRecomendadaService {
 
     if (podeEscrever(loja.horas_produtivas_mensais)) {
       atualizacoes.horas_produtivas_mensais = this.DEFAULT_HORAS_PRODUTIVAS_MES;
-      aplicado.loja['horas_produtivas_mensais'] = this.DEFAULT_HORAS_PRODUTIVAS_MES;
+      aplicado.loja['horas_produtivas_mensais'] =
+        this.DEFAULT_HORAS_PRODUTIVAS_MES;
     } else {
       ignorado.loja.push('horas_produtivas_mensais');
     }
 
     if (podeEscrever(loja.condicao_pagamento_padrao_tipo)) {
       atualizacoes.condicao_pagamento_padrao_tipo = this.DEFAULT_CONDICAO_TIPO;
-      atualizacoes.condicao_pagamento_padrao_entrada_pct = this.DEFAULT_CONDICAO_ENTRADA_PCT;
-      atualizacoes.condicao_pagamento_padrao_descricao = this.DEFAULT_CONDICAO_DESCRICAO;
-      aplicado.loja['condicao_pagamento_padrao_tipo'] = this.DEFAULT_CONDICAO_TIPO;
-      aplicado.loja['condicao_pagamento_padrao_entrada_pct'] = this.DEFAULT_CONDICAO_ENTRADA_PCT;
-      aplicado.loja['condicao_pagamento_padrao_descricao'] = this.DEFAULT_CONDICAO_DESCRICAO;
+      atualizacoes.condicao_pagamento_padrao_entrada_pct =
+        this.DEFAULT_CONDICAO_ENTRADA_PCT;
+      atualizacoes.condicao_pagamento_padrao_descricao =
+        this.DEFAULT_CONDICAO_DESCRICAO;
+      aplicado.loja['condicao_pagamento_padrao_tipo'] =
+        this.DEFAULT_CONDICAO_TIPO;
+      aplicado.loja['condicao_pagamento_padrao_entrada_pct'] =
+        this.DEFAULT_CONDICAO_ENTRADA_PCT;
+      aplicado.loja['condicao_pagamento_padrao_descricao'] =
+        this.DEFAULT_CONDICAO_DESCRICAO;
       etapasParaConcluir.push(OnboardingStepId.CONDICAO_PAGAMENTO);
     } else {
       ignorado.loja.push('condicao_pagamento_padrao_tipo');
@@ -392,13 +444,22 @@ export class ConfiguracaoRecomendadaService {
 
     if (Object.keys(atualizacoes).length > 0) {
       atualizacoes.atualizado_em = new Date();
-      await this.prisma.loja.update({ where: { id: lojaId }, data: atualizacoes });
+      await this.prisma.loja.update({
+        where: { id: lojaId },
+        data: atualizacoes,
+      });
     }
 
     // Marca margem_imposto como concluida se margem, imposto e comissão ficaram preenchidos.
-    const margemOk = aplicado.loja['margem_lucro_padrao'] !== undefined || loja.margem_lucro_padrao !== null;
-    const impostoOk = aplicado.loja['impostos_padrao'] !== undefined || loja.impostos_padrao !== null;
-    const comissaoOk = aplicado.loja['comissao_padrao'] !== undefined || loja.comissao_padrao !== null;
+    const margemOk =
+      aplicado.loja['margem_lucro_padrao'] !== undefined ||
+      loja.margem_lucro_padrao !== null;
+    const impostoOk =
+      aplicado.loja['impostos_padrao'] !== undefined ||
+      loja.impostos_padrao !== null;
+    const comissaoOk =
+      aplicado.loja['comissao_padrao'] !== undefined ||
+      loja.comissao_padrao !== null;
     if (margemOk && impostoOk && comissaoOk) {
       etapasParaConcluir.push(OnboardingStepId.MARGEM_IMPOSTO);
     }
@@ -414,7 +475,9 @@ export class ConfiguracaoRecomendadaService {
     aplicado: ResultadoAplicado,
     ignorado: ResultadoIgnorado,
   ): Promise<void> {
-    const existentes = await this.prisma.categoria.count({ where: { loja_id: lojaId } });
+    const existentes = await this.prisma.categoria.count({
+      where: { loja_id: lojaId },
+    });
     if (existentes > 0) {
       ignorado.categorias = 'já existem categorias na loja';
       return;
@@ -431,7 +494,9 @@ export class ConfiguracaoRecomendadaService {
     aplicado: ResultadoAplicado,
     ignorado: ResultadoIgnorado,
   ): Promise<void> {
-    const existentes = await this.prisma.tipomaterial.count({ where: { loja_id: lojaId } });
+    const existentes = await this.prisma.tipomaterial.count({
+      where: { loja_id: lojaId },
+    });
     if (existentes > 0) {
       ignorado.tipos_material = 'já existem tipos de material na loja';
       return;
@@ -648,7 +713,10 @@ export class ConfiguracaoRecomendadaService {
       workflowId = workflowCriado.id;
     }
 
-    const totalVinculos = await this.vincularSetoresAoWorkflow(workflowId, lojaId);
+    const totalVinculos = await this.vincularSetoresAoWorkflow(
+      workflowId,
+      lojaId,
+    );
     if (totalVinculos === 0) {
       ignorado.workflow =
         'workflow padrão sem setores produtivos vinculados (cadastre setores ativos)';
@@ -684,6 +752,8 @@ export class ConfiguracaoRecomendadaService {
   }
 
   private gerarId(): string {
-    return 'tm_' + Math.random().toString(36).slice(2, 11) + Date.now().toString(36);
+    return (
+      'tm_' + Math.random().toString(36).slice(2, 11) + Date.now().toString(36)
+    );
   }
 }

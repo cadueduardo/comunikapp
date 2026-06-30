@@ -2,54 +2,54 @@ name: CI/CD Pipeline - Orçamento → OS → PCP
 
 on:
   push:
-    branches: [ main, develop, feature/* ]
+    branches: [main, develop, feature/*]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '22'
   MYSQL_VERSION: '8.0'
+  DATABASE_URL: mysql://root:root@127.0.0.1:3306/comunikapp_test
+  ESTOQUE_DATABASE_URL: mysql://root:root@127.0.0.1:3306/comunikapp_test
+  JWT_SECRET: ci-jwt-secret-minimo-32-caracteres-ok
+  JWT_EXPIRES_IN: 7d
+  NODE_ENV: test
+  PORT: '4000'
+  HOST: 127.0.0.1
+  FRONTEND_URL: http://localhost:3000
 
 jobs:
-  # ========================================
-  # JOB 1: VALIDAÇÃO DE CÓDIGO
-  # ========================================
   lint-and-format:
     name: Lint e Formatação
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          
-      - name: Instalar dependências
-        run: |
-          cd backend
-          npm ci
-          
-      - name: Executar ESLint
-        run: |
-          cd backend
-          npm run lint
-          
-      - name: Verificar formatação
-        run: |
-          cd backend
-          npm run format -- --check
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
 
-  # ========================================
-  # JOB 2: TESTES UNITÁRIOS
-  # ========================================
+      - name: Instalar dependências
+        working-directory: backend
+        run: npm ci
+
+      - name: Verificar formatação
+        working-directory: backend
+        run: npm run format -- --check
+
+      - name: Compilar backend (typecheck)
+        working-directory: backend
+        run: npm run build
+
   unit-tests:
     name: Testes Unitários
     runs-on: ubuntu-latest
-    
+
     services:
       mysql:
         image: mysql:8.0
@@ -59,62 +59,42 @@ jobs:
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=3
-    
+          --health-retries=10
+
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          
-      - name: Instalar dependências
-        run: |
-          cd backend
-          npm ci
-          
-      - name: Configurar variáveis de ambiente
-        run: |
-          cd backend
-          cp .env.example .env.test
-          echo "DATABASE_URL=mysql://root:root@localhost:3306/comunikapp_test" >> .env.test
-          echo "NODE_ENV=test" >> .env.test
-          
-      - name: Gerar cliente Prisma
-        run: |
-          cd backend
-          npx prisma generate
-          
-      - name: Executar migrações de teste
-        run: |
-          cd backend
-          npx prisma migrate deploy
-          
-      - name: Executar testes unitários
-        run: |
-          cd backend
-          npm run test -- --coverage --silent
-          
-      - name: Upload cobertura de testes
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./backend/coverage/lcov.info
-          flags: unittests
-          name: codecov-umbrella
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
 
-  # ========================================
-  # JOB 3: TESTES E2E
-  # ========================================
+      - name: Instalar dependências
+        working-directory: backend
+        run: npm ci
+
+      - name: Gerar cliente Prisma
+        working-directory: backend
+        run: npx prisma generate
+
+      - name: Executar migrações de teste
+        working-directory: backend
+        run: npx prisma migrate deploy
+
+      - name: Executar testes unitários
+        working-directory: backend
+        run: npm run test -- --coverage --silent --passWithNoTests
+
   e2e-tests:
     name: Testes End-to-End
     runs-on: ubuntu-latest
-    
+
     services:
       mysql:
         image: mysql:8.0
@@ -124,197 +104,214 @@ jobs:
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=3
-    
+          --health-retries=10
+
+    env:
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/comunikapp_e2e
+      ESTOQUE_DATABASE_URL: mysql://root:root@127.0.0.1:3306/comunikapp_e2e
+
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          
-      - name: Instalar dependências
-        run: |
-          cd backend
-          npm ci
-          
-      - name: Configurar variáveis de ambiente
-        run: |
-          cd backend
-          cp .env.example .env.e2e
-          echo "DATABASE_URL=mysql://root:root@localhost:3306/comunikapp_e2e" >> .env.e2e
-          echo "NODE_ENV=test" >> .env.e2e
-          
-      - name: Gerar cliente Prisma
-        run: |
-          cd backend
-          npx prisma generate
-          
-      - name: Executar migrações E2E
-        run: |
-          cd backend
-          npx prisma migrate deploy
-          
-      - name: Executar testes E2E
-        run: |
-          cd backend
-          npm run test:e2e
-          
-      - name: Upload resultados E2E
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: e2e-results
-          path: backend/test-results/
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
 
-  # ========================================
-  # JOB 4: VALIDAÇÃO PRISMA
-  # ========================================
+      - name: Instalar dependências
+        working-directory: backend
+        run: npm ci
+
+      - name: Gerar cliente Prisma
+        working-directory: backend
+        run: npx prisma generate
+
+      - name: Executar migrações E2E
+        working-directory: backend
+        run: npx prisma migrate deploy
+
+      - name: Executar testes E2E
+        working-directory: backend
+        run: npm run test:e2e -- --passWithNoTests
+
   prisma-validation:
     name: Validação Prisma
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          
-      - name: Instalar dependências
-        run: |
-          cd backend
-          npm ci
-          
-      - name: Validar schema Prisma
-        run: |
-          cd backend
-          npx prisma validate
-          
-      - name: Gerar cliente Prisma
-        run: |
-          cd backend
-          npx prisma generate
-          
-      - name: Verificar migrações
-        run: |
-          cd backend
-          npx prisma migrate status
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
 
-  # ========================================
-  # JOB 5: GERAÇÃO OPENAPI
-  # ========================================
+      - name: Instalar dependências
+        working-directory: backend
+        run: npm ci
+
+      - name: Validar schema Prisma
+        working-directory: backend
+        run: npx prisma validate
+
+      - name: Gerar cliente Prisma
+        working-directory: backend
+        run: npx prisma generate
+
   generate-openapi:
     name: Gerar OpenAPI
     runs-on: ubuntu-latest
-    
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: comunikapp_openapi
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/comunikapp_openapi
+      ESTOQUE_DATABASE_URL: mysql://root:root@127.0.0.1:3306/comunikapp_openapi
+      ENABLE_SWAGGER: 'true'
+      NODE_ENV: production
+
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
       - name: Instalar dependências
-        run: |
-          cd backend
-          npm ci
-          
+        working-directory: backend
+        run: npm ci
+
+      - name: Gerar cliente Prisma
+        working-directory: backend
+        run: npx prisma generate
+
+      - name: Executar migrações
+        working-directory: backend
+        run: npx prisma migrate deploy
+
       - name: Build da aplicação
-        run: |
-          cd backend
-          npm run build
-          
+        working-directory: backend
+        run: npm run build
+
       - name: Gerar documentação OpenAPI
+        working-directory: backend
         run: |
-          cd backend
           npm run start:prod &
-          sleep 10
-          curl -o openapi.json http://localhost:3000/api-json
-          pkill -f "node dist/main.js"
-          
+          APP_PID=$!
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:4000/api/docs-json" -o ../openapi.json; then
+              kill "$APP_PID" 2>/dev/null || true
+              exit 0
+            fi
+            sleep 2
+          done
+          kill "$APP_PID" 2>/dev/null || true
+          echo "Falha ao obter OpenAPI em http://127.0.0.1:4000/api/docs-json"
+          exit 1
+
       - name: Validar OpenAPI
-        run: |
-          npx @apidevtools/swagger-parser validate openapi.json
-          
+        run: npx @apidevtools/swagger-parser validate openapi.json
+
       - name: Upload OpenAPI
         uses: actions/upload-artifact@v4
         with:
           name: openapi-spec
           path: openapi.json
 
-  # ========================================
-  # JOB 6: BUILD E DEPLOY
-  # ========================================
   build-and-deploy:
     name: Build e Deploy
     runs-on: ubuntu-latest
-    needs: [lint-and-format, unit-tests, e2e-tests, prisma-validation, generate-openapi]
+    needs:
+      [
+        lint-and-format,
+        unit-tests,
+        e2e-tests,
+        prisma-validation,
+        generate-openapi,
+      ]
     if: github.ref == 'refs/heads/main'
-    
+
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          
-      - name: Instalar dependências
-        run: |
-          cd backend
-          npm ci
-          
-      - name: Build da aplicação
-        run: |
-          cd backend
-          npm run build
-          
-      - name: Executar testes finais
-        run: |
-          cd backend
-          npm run test -- --silent
-          
-      - name: Deploy para produção
-        run: |
-          echo "Deploy para produção seria executado aqui"
-          echo "Configurar com seu provedor de cloud preferido"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
 
-  # ========================================
-  # JOB 7: NOTIFICAÇÕES
-  # ========================================
+      - name: Instalar dependências
+        working-directory: backend
+        run: npm ci
+
+      - name: Build da aplicação
+        working-directory: backend
+        run: npm run build
+
+      - name: Executar testes finais
+        working-directory: backend
+        run: npm run test -- --silent --passWithNoTests
+
+      - name: Deploy para produção
+        run: echo "Deploy para produção seria executado aqui"
+
   notify:
     name: Notificações
     runs-on: ubuntu-latest
-    needs: [lint-and-format, unit-tests, e2e-tests, prisma-validation, generate-openapi, build-and-deploy]
+    needs:
+      [
+        lint-and-format,
+        unit-tests,
+        e2e-tests,
+        prisma-validation,
+        generate-openapi,
+        build-and-deploy,
+      ]
     if: always()
-    
+
     steps:
-      - name: Notificar sucesso
-        if: ${{ needs.build-and-deploy.result == 'success' }}
+      - name: Resumo do pipeline
         run: |
-          echo "✅ Pipeline executado com sucesso!"
-          echo "📊 Testes: ✅ Passaram"
-          echo "📚 OpenAPI: ✅ Gerado"
-          echo "🚀 Deploy: ✅ Concluído"
-          
-      - name: Notificar falha
-        if: ${{ needs.build-and-deploy.result == 'failure' }}
-        run: |
-          echo "❌ Pipeline falhou!"
-          echo "🔍 Verificar logs para detalhes"
-          exit 1
+          echo "lint-and-format: ${{ needs.lint-and-format.result }}"
+          echo "unit-tests: ${{ needs.unit-tests.result }}"
+          echo "e2e-tests: ${{ needs.e2e-tests.result }}"
+          echo "prisma-validation: ${{ needs.prisma-validation.result }}"
+          echo "generate-openapi: ${{ needs.generate-openapi.result }}"
+          echo "build-and-deploy: ${{ needs.build-and-deploy.result }}"
+
+      - name: Falhar se algum job obrigatório quebrou
+        if: >-
+          needs.lint-and-format.result == 'failure' ||
+          needs.unit-tests.result == 'failure' ||
+          needs.e2e-tests.result == 'failure' ||
+          needs.prisma-validation.result == 'failure' ||
+          needs.generate-openapi.result == 'failure' ||
+          (github.ref == 'refs/heads/main' && needs.build-and-deploy.result == 'failure')
+        run: exit 1

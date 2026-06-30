@@ -49,6 +49,8 @@ import {
   resolverPropagacaoPersonalizacaoItemOS,
 } from '../utils/item-os-personalizacao.util';
 import { ArteProducaoService } from '../../catalogo/producao/arte-producao.service';
+import { PcpBloqueioSinalService } from '../../instalacao/services/pcp-bloqueio-sinal.service';
+import { StatusLiberacaoPcp } from '../../instalacao/constants/pcp-liberacao.constants';
 import { ModoFulfillmentItem } from '@prisma/client';
 import {
   TipoOS as TipoOSInterface,
@@ -91,6 +93,7 @@ export class OSService {
     private readonly workflowAssignmentService: WorkflowAssignmentService,
     private readonly expedicaoCriacaoService: ExpedicaoCriacaoService,
     private readonly arteProducaoService: ArteProducaoService,
+    private readonly pcpBloqueioSinalService: PcpBloqueioSinalService,
   ) {}
 
   // ===== CRUD BÁSICO =====
@@ -578,10 +581,8 @@ export class OSService {
             : 'NAO_UTILIZADO',
           permite_registrar_sobra: Boolean(insumo?.permite_registrar_sobra),
           calculo_chapa: calculoChapa,
-          area_considerada:
-            calculoChapa?.area_considerada_custo_m2 ?? null,
-          aproveitamento_previsto:
-            calculoChapa?.aproveitamento_percent ?? null,
+          area_considerada: calculoChapa?.area_considerada_custo_m2 ?? null,
+          aproveitamento_previsto: calculoChapa?.aproveitamento_percent ?? null,
           sobra_estimada: calculoChapa?.sobra_area_m2 ?? null,
           sobra_acao: item.sobra_acao,
           sobra_observacao: item.sobra_observacao,
@@ -998,11 +999,10 @@ export class OSService {
       return this.gerarNumeroOS(lojaId);
     }
 
-    const numero =
-      await this.documentCodeService.resolverNumeroOSDeOrcamento(
-        lojaId,
-        orcamento.numero,
-      );
+    const numero = await this.documentCodeService.resolverNumeroOSDeOrcamento(
+      lojaId,
+      orcamento.numero,
+    );
 
     const conflito = await this.prisma.ordemServico.findFirst({
       where: { loja_id: lojaId, numero },
@@ -2124,7 +2124,10 @@ export class OSService {
             calculo_chapa:
               insumoCalculado?.calculo_chapa ||
               (itemInsumo.calculo_chapa
-                ? this.parseJsonObject(itemInsumo.calculo_chapa, 'calculo_chapa')
+                ? this.parseJsonObject(
+                    itemInsumo.calculo_chapa,
+                    'calculo_chapa',
+                  )
                 : null),
             // Informações de estoque
             disponivel_estoque: insumoCalculado?.disponivel_estoque ?? true,
@@ -2482,10 +2485,7 @@ export class OSService {
         String(os.tipo_os).toUpperCase() !== TipoOSInterface.INTERNA
       ) {
         try {
-          await this.expedicaoCriacaoService.criarSeElegivel(
-            osId,
-            os.loja_id,
-          );
+          await this.expedicaoCriacaoService.criarSeElegivel(osId, os.loja_id);
         } catch (error) {
           this.logger.error(
             `Falha ao criar expedição para OS ${osId} após finalização manual:`,
@@ -2734,11 +2734,7 @@ export class OSService {
       });
       const todosIds = itensOS.map((i) => i.id);
       const idsPrazos = (prazosItens ?? []).map((p) => p.item_id);
-      const idsAlvo = resolveIdsAlvoLiberacao(
-        todosIds,
-        itemIds,
-        idsPrazos,
-      );
+      const idsAlvo = resolveIdsAlvoLiberacao(todosIds, itemIds, idsPrazos);
       const eLiberacaoParcial =
         aprovado &&
         eFluxoPadrao &&
@@ -3069,12 +3065,18 @@ export class OSService {
         );
       }
 
-      if (p.data_inicio_producao && Number.isNaN(p.data_inicio_producao.getTime())) {
+      if (
+        p.data_inicio_producao &&
+        Number.isNaN(p.data_inicio_producao.getTime())
+      ) {
         throw new BadRequestException(
           `Data de início inválida no item ${p.item_id}`,
         );
       }
-      if (p.data_prazo_produto && Number.isNaN(p.data_prazo_produto.getTime())) {
+      if (
+        p.data_prazo_produto &&
+        Number.isNaN(p.data_prazo_produto.getTime())
+      ) {
         throw new BadRequestException(
           `Data de entrega inválida no item ${p.item_id}`,
         );
@@ -3341,7 +3343,11 @@ export class OSService {
     };
   }
 
-  private montarItensOSDoOrcamento(orcamento: any, lojaId: string): any[] {
+  private montarItensOSDoOrcamento(
+    orcamento: any,
+    lojaId: string,
+    statusLiberacaoPcpInicial: string = StatusLiberacaoPcp.PENDENTE,
+  ): any[] {
     const produtos = Array.isArray(orcamento?.produtos)
       ? orcamento.produtos
       : [];
@@ -3360,45 +3366,46 @@ export class OSService {
       });
 
       return {
-      id: produto.id,
-      produto_servico:
-        produto.nome || produto.nome_servico || `Produto ${index + 1}`,
-      quantidade: produto.quantidade,
-      parametros_tecnicos: JSON.stringify(this.montarParametrosItemOS(produto)),
-      insumos_necessarios: JSON.stringify(
-        this.extrairMateriaisDoProdutoOrcamento(orcamento, produto),
-      ),
-      materiais_disponivel: false,
-      observacoes: produto.descricao || produto.observacoes || null,
-      largura: produto.largura ?? null,
-      altura: produto.altura ?? null,
-      profundidade: produto.profundidade ?? null,
-      area: produto.area_produto ?? produto.area ?? null,
-      perimetro: produto.perimetro_produto ?? null,
-      unidade_medida: produto.unidade_medida ?? produto.unidade ?? null,
-      unidade_geometria: produto.unidade_geometria ?? null,
-      geometria_origem: produto.geometria_origem ?? null,
-      arquivo_geometria_url: produto.arquivo_geometria_url ?? null,
-      arquivo_geometria_metadados:
-        produto.arquivo_geometria_metadados ?? null,
-      responsabilidade_arte:
-        produto.responsabilidade_arte ?? 'NAO_APLICAVEL',
-      politica_cobranca_arte:
-        produto.politica_cobranca_arte ?? 'NAO_APLICAVEL',
-      finalidade_anexo: produto.finalidade_anexo ?? null,
-      complexidade_arte: produto.complexidade_arte ?? null,
-      status_arte: arteInicial.status_arte,
-      arte_fila_desde: arteInicial.arte_fila_desde,
-      status_liberacao_pcp: 'PENDENTE',
-      prioridade_produto: 'NORMAL',
-      ordem_producao: index + 1,
-      modo_fulfillment: propagacao.modo_fulfillment,
-      personalizacao_modo: propagacao.personalizacao_modo,
-      estampa_id: propagacao.estampa_id,
-      valores_personalizacao: propagacao.valores_personalizacao,
-      grade_distribuicao: propagacao.grade_distribuicao,
-      _snapshot_personalizacao_auditoria: propagacao.snapshot_auditoria,
-    };
+        id: produto.id,
+        produto_servico:
+          produto.nome || produto.nome_servico || `Produto ${index + 1}`,
+        quantidade: produto.quantidade,
+        parametros_tecnicos: JSON.stringify(
+          this.montarParametrosItemOS(produto),
+        ),
+        insumos_necessarios: JSON.stringify(
+          this.extrairMateriaisDoProdutoOrcamento(orcamento, produto),
+        ),
+        materiais_disponivel: false,
+        observacoes: produto.descricao || produto.observacoes || null,
+        largura: produto.largura ?? null,
+        altura: produto.altura ?? null,
+        profundidade: produto.profundidade ?? null,
+        area: produto.area_produto ?? produto.area ?? null,
+        perimetro: produto.perimetro_produto ?? null,
+        unidade_medida: produto.unidade_medida ?? produto.unidade ?? null,
+        unidade_geometria: produto.unidade_geometria ?? null,
+        geometria_origem: produto.geometria_origem ?? null,
+        arquivo_geometria_url: produto.arquivo_geometria_url ?? null,
+        arquivo_geometria_metadados:
+          produto.arquivo_geometria_metadados ?? null,
+        responsabilidade_arte: produto.responsabilidade_arte ?? 'NAO_APLICAVEL',
+        politica_cobranca_arte:
+          produto.politica_cobranca_arte ?? 'NAO_APLICAVEL',
+        finalidade_anexo: produto.finalidade_anexo ?? null,
+        complexidade_arte: produto.complexidade_arte ?? null,
+        status_arte: arteInicial.status_arte,
+        arte_fila_desde: arteInicial.arte_fila_desde,
+        status_liberacao_pcp: statusLiberacaoPcpInicial,
+        prioridade_produto: 'NORMAL',
+        ordem_producao: index + 1,
+        modo_fulfillment: propagacao.modo_fulfillment,
+        personalizacao_modo: propagacao.personalizacao_modo,
+        estampa_id: propagacao.estampa_id,
+        valores_personalizacao: propagacao.valores_personalizacao,
+        grade_distribuicao: propagacao.grade_distribuicao,
+        _snapshot_personalizacao_auditoria: propagacao.snapshot_auditoria,
+      };
     });
   }
 
@@ -3454,9 +3461,15 @@ export class OSService {
       // 2. Extrair materiais exatos do orçamento
       const materiaisOrcamento =
         this.extrairMateriaisDoOrcamento(orcamentoCompleto);
+      const statusLiberacaoInicial =
+        await this.pcpBloqueioSinalService.resolverStatusInicialItem(
+          lojaId,
+          orcamentoCompleto.id,
+        );
       const itensOS = this.montarItensOSDoOrcamento(
         orcamentoCompleto,
         lojaId,
+        statusLiberacaoInicial,
       );
 
       const createDto: CreateOSDto = {
@@ -3795,7 +3808,8 @@ export class OSService {
         }`,
         custo_unitario: parseFloat(itemInsumo.custo_unitario || '0'),
         custo_total: parseFloat(itemInsumo.custo_total || '0'),
-        produto_nome: produto.nome || produto.nome_servico || 'Produto sem nome',
+        produto_nome:
+          produto.nome || produto.nome_servico || 'Produto sem nome',
         logica_consumo: itemInsumo.insumo.logica_consumo || 'area',
         parametros_consumo: itemInsumo.insumo.parametros_consumo
           ? this.parseJsonObject(

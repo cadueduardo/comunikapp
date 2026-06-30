@@ -60,7 +60,9 @@ export class ParcelasBuilderService {
       case CondicaoPagamentoTipo.PERSONALIZADO:
         return this.validarPersonalizado(params);
       default:
-        throw new BadRequestException(`Tipo de condicao de pagamento invalido: ${tipo}`);
+        throw new BadRequestException(
+          `Tipo de condicao de pagamento invalido: ${tipo}`,
+        );
     }
   }
 
@@ -76,7 +78,9 @@ export class ParcelasBuilderService {
     ];
   }
 
-  private construirEntradaSaldo(params: ConstruirParcelasParams): ParcelaParaCriar[] {
+  private construirEntradaSaldo(
+    params: ConstruirParcelasParams,
+  ): ParcelaParaCriar[] {
     const pct = params.entradaPct ?? 50;
     if (pct <= 0 || pct >= 100) {
       throw new BadRequestException(
@@ -124,7 +128,9 @@ export class ParcelasBuilderService {
     ];
   }
 
-  private construirParcelado(params: ConstruirParcelasParams): ParcelaParaCriar[] {
+  private construirParcelado(
+    params: ConstruirParcelasParams,
+  ): ParcelaParaCriar[] {
     const numeroParcelas = params.parcelas ?? 0;
     if (numeroParcelas < 2) {
       throw new BadRequestException(
@@ -135,7 +141,9 @@ export class ParcelasBuilderService {
       throw new BadRequestException('PARCELADO suporta no maximo 36 parcelas');
     }
 
-    const valorParcelaBase = this.arredondar(params.valorTotal / numeroParcelas);
+    const valorParcelaBase = this.arredondar(
+      params.valorTotal / numeroParcelas,
+    );
     const parcelas: ParcelaParaCriar[] = [];
     let valorAcumulado = 0;
     for (let i = 1; i <= numeroParcelas; i++) {
@@ -159,7 +167,9 @@ export class ParcelasBuilderService {
     return parcelas;
   }
 
-  private validarPersonalizado(params: ConstruirParcelasParams): ParcelaParaCriar[] {
+  private validarPersonalizado(
+    params: ConstruirParcelasParams,
+  ): ParcelaParaCriar[] {
     const manuais = params.parcelasManuais ?? [];
     if (manuais.length === 0) {
       throw new BadRequestException(

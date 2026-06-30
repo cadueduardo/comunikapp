@@ -131,7 +131,10 @@ describe('PCPDashboardService', () => {
 
     const resultado = await service.obter('loja-1');
 
-    expect(kanbanService.obterKanbanPorSetores).toHaveBeenCalledWith('loja-1', {});
+    expect(kanbanService.obterKanbanPorSetores).toHaveBeenCalledWith(
+      'loja-1',
+      {},
+    );
     expect(resultado.gargalos).toHaveLength(1);
     expect(resultado.gargalos[0]).toMatchObject({
       setor_id: 'setor-a',

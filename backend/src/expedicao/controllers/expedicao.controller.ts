@@ -115,7 +115,9 @@ export class ExpedicaoController {
 
   @Post(':id/concluir-entrega')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Conclui entrega com assinatura e trava financeira' })
+  @ApiOperation({
+    summary: 'Conclui entrega com assinatura e trava financeira',
+  })
   async concluirEntrega(
     @Param('id') id: string,
     @LojaId() lojaId: string,

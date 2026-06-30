@@ -33,7 +33,7 @@ export function sanitizarNomeOriginal(nome: string): string {
   return nome
     .replace(/\\/g, '/')
     .split('/')
-    .pop()!
+    .pop()
     .replace(/\.\./g, '')
     .replace(/[^\w.\- ()áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]/g, '_')
     .slice(0, 200);
@@ -44,7 +44,9 @@ export function classificarArteMestraEstampa(
   nomeOriginal: string,
 ): string | null {
   const mimeLower = (mimetype || '').toLowerCase();
-  const extOriginal = extname(sanitizarNomeOriginal(nomeOriginal)).toLowerCase();
+  const extOriginal = extname(
+    sanitizarNomeOriginal(nomeOriginal),
+  ).toLowerCase();
 
   if (mimeLower === 'application/pdf' && extOriginal === '.pdf') {
     return '.pdf';
@@ -78,9 +80,7 @@ export const multerEstampaArteMestraConfig = {
     const ext = classificarArteMestraEstampa(file.mimetype, file.originalname);
     if (!ext) {
       return cb(
-        new Error(
-          'Formato não permitido. Aceitos: PDF, PNG, JPEG e SVG.',
-        ),
+        new Error('Formato não permitido. Aceitos: PDF, PNG, JPEG e SVG.'),
       );
     }
     cb(null, true);

@@ -83,10 +83,7 @@ export class ProdutosFinitosController {
 
   @Post()
   @ApiOperation({ summary: 'Cadastra produto de prateleira' })
-  criar(
-    @Body() dto: CreateProdutoFinitoDto,
-    @CurrentLojaId() lojaId: string,
-  ) {
+  criar(@Body() dto: CreateProdutoFinitoDto, @CurrentLojaId() lojaId: string) {
     return this.produtosFinitosService.criar(lojaId, dto);
   }
 
@@ -95,10 +92,7 @@ export class ProdutosFinitosController {
     summary:
       'Carrega produto com preço efetivo e metadados de personalização para orçamento',
   })
-  obterParaOrcamento(
-    @Param('id') id: string,
-    @CurrentLojaId() lojaId: string,
-  ) {
+  obterParaOrcamento(@Param('id') id: string, @CurrentLojaId() lojaId: string) {
     return this.produtosFinitosService.obterParaOrcamento(id, lojaId);
   }
 

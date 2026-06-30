@@ -22,6 +22,7 @@ import { SetoresProdutivosService } from '../../configuracoes/services/centros-d
 import { AuthenticatedUser } from '../../auth/auth.service';
 import { OSPCPIntegrationService } from './os-pcp-integration.service';
 import { ExpedicaoCriacaoService } from '../../expedicao/services/expedicao-criacao.service';
+import { ItemOSInstalacaoCriacaoService } from '../../instalacao/services/item-os-instalacao-criacao.service';
 import { obterLimiarHorasAtrasUtc } from '../../common/utils/utc-time.util';
 import { deveExibirCardConcluidoPronto24h } from '../utils/pronto-24h-kanban.util';
 
@@ -41,6 +42,7 @@ export class PCPKanbanService {
     private setoresProdutivosService: SetoresProdutivosService,
     private osPcpIntegration: OSPCPIntegrationService,
     private expedicaoCriacaoService: ExpedicaoCriacaoService,
+    private itemOSInstalacaoCriacaoService: ItemOSInstalacaoCriacaoService,
   ) {}
 
   /**
@@ -114,10 +116,7 @@ export class PCPKanbanService {
           },
           itens: true,
         },
-        orderBy: [
-          { aprovacao_tecnica_em: 'desc' },
-          { criado_em: 'desc' },
-        ],
+        orderBy: [{ aprovacao_tecnica_em: 'desc' }, { criado_em: 'desc' }],
       });
 
       // Converter para formato do kanban
@@ -125,7 +124,10 @@ export class PCPKanbanService {
         KanbanMapper.mapearOSParaKanban(os),
       );
 
-      const cards = this.filtrarCardsColunaConcluida24h(osLiberadas, cardsBrutos);
+      const cards = this.filtrarCardsColunaConcluida24h(
+        osLiberadas,
+        cardsBrutos,
+      );
 
       // Calcular estatísticas
       const stats = KanbanMapper.calcularEstatisticas(cards);
@@ -294,11 +296,15 @@ export class PCPKanbanService {
 
       const colunas = setores.map((setor) => {
         const cards = cardsPorSetor.get(setor.id) ?? [];
-        const pendentes = cards.filter((card) => card.status === 'PENDENTE').length;
+        const pendentes = cards.filter(
+          (card) => card.status === 'PENDENTE',
+        ).length;
         const emAndamento = cards.filter(
           (card) => card.status === 'EM_ANDAMENTO',
         ).length;
-        const pausadas = cards.filter((card) => card.status === 'PAUSADA').length;
+        const pausadas = cards.filter(
+          (card) => card.status === 'PAUSADA',
+        ).length;
         const atrasadas = cards.filter((card) =>
           this.estaAtrasada(card.data_prazo),
         ).length;
@@ -394,7 +400,9 @@ export class PCPKanbanService {
         expedicaoCancelada = cancelamento.cancelada;
       }
 
-      this.logger.log(`Status da OS ${osId} atualizado para ${statusPersistido}`);
+      this.logger.log(
+        `Status da OS ${osId} atualizado para ${statusPersistido}`,
+      );
       return {
         expedicao_criada: expedicaoCriada,
         expedicao_cancelada: expedicaoCancelada,
@@ -493,7 +501,8 @@ export class PCPKanbanService {
         );
       }
 
-      const tipoApontamento = etapa.status === 'PAUSADA' ? 'RETOMADA' : 'INICIO';
+      const tipoApontamento =
+        etapa.status === 'PAUSADA' ? 'RETOMADA' : 'INICIO';
 
       await this.prisma.workflowInstanciaSetor.update({
         where: { id: etapa.id },
@@ -591,6 +600,26 @@ export class PCPKanbanService {
         etapaAtual.workflow_instancia_id,
         etapaAtual.ordem ?? 0,
       );
+
+      try {
+        const resultadoInstalacao =
+          await this.itemOSInstalacaoCriacaoService.processarBaixaProducao({
+            lojaId,
+            itemOsId,
+            quantidadeProduzida,
+          });
+
+        if (resultadoInstalacao.criado) {
+          this.logger.log(
+            `Lote de instalação ${resultadoInstalacao.item_instalacao_id} criado após baixa de produção do item ${itemOsId}`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          `Falha ao criar lote de instalação para item ${itemOsId}:`,
+          error,
+        );
+      }
 
       this.logger.log(`Etapa concluida com sucesso`);
     } catch (error) {
@@ -715,7 +744,10 @@ export class PCPKanbanService {
       return;
     }
 
-    if (etapaDestino.status === 'CONCLUIDA' || etapaDestino.status === 'CANCELADA') {
+    if (
+      etapaDestino.status === 'CONCLUIDA' ||
+      etapaDestino.status === 'CANCELADA'
+    ) {
       throw new BadRequestException(
         'Setor destino ja esta encerrado para este item.',
       );
@@ -736,7 +768,7 @@ export class PCPKanbanService {
 
     const dataInicioDestino =
       statusDestino === 'EM_ANDAMENTO'
-        ? etapaDestino.data_inicio ?? new Date()
+        ? (etapaDestino.data_inicio ?? new Date())
         : etapaDestino.data_inicio;
 
     await this.prisma.$transaction(async (tx) => {
@@ -1099,9 +1131,7 @@ export class PCPKanbanService {
     return pendentes * 1 + pausadas * 2 + atrasadas * 3;
   }
 
-  private classificarNivelGargalo(
-    score: number,
-  ): 'BAIXO' | 'MEDIO' | 'ALTO' {
+  private classificarNivelGargalo(score: number): 'BAIXO' | 'MEDIO' | 'ALTO' {
     if (score >= 10) {
       return 'ALTO';
     }

@@ -68,7 +68,11 @@ export class AlertasOperacionaisService {
       return b.criado_em.localeCompare(a.criado_em);
     });
 
-    const porNivel: AlertasPorNivel = { critico: 0, atencao: 0, informativo: 0 };
+    const porNivel: AlertasPorNivel = {
+      critico: 0,
+      atencao: 0,
+      informativo: 0,
+    };
     for (const a of alertas) {
       porNivel[a.nivel] += 1;
     }
@@ -125,7 +129,9 @@ export class AlertasOperacionaisService {
         } satisfies Alerta;
       });
     } catch (error) {
-      this.logger.warn(`detectarOrcamentosParados falhou: ${this.descreverErro(error)}`);
+      this.logger.warn(
+        `detectarOrcamentosParados falhou: ${this.descreverErro(error)}`,
+      );
       return [];
     }
   }

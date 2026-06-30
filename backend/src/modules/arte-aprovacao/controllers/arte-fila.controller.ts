@@ -79,7 +79,9 @@ export class ArteFilaController {
   }
 
   @Post(':itemOsId/liberar-pcp')
-  @ApiOperation({ summary: 'Liberar arte aprovada do item para produção (PCP)' })
+  @ApiOperation({
+    summary: 'Liberar arte aprovada do item para produção (PCP)',
+  })
   async liberarParaPcp(
     @Request() req: any,
     @Param('itemOsId') itemOsId: string,

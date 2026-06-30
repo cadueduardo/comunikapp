@@ -104,7 +104,9 @@ describe('Catalogo — fluxo ponta a ponta (integração estrutural)', () => {
 
     const snapshot = item.valores_personalizacao as typeof valoresVdpOriginais;
     expect(snapshot).not.toBe(valoresVdpOriginais);
-    expect(clonarJsonSnapshot(valoresVdpOriginais)).toEqual(valoresVdpOriginais);
+    expect(clonarJsonSnapshot(valoresVdpOriginais)).toEqual(
+      valoresVdpOriginais,
+    );
   });
 
   it('gera PDF de arte de produção no storage isolado do tenant', async () => {
@@ -153,12 +155,12 @@ describe('Catalogo — fluxo ponta a ponta (integração estrutural)', () => {
     const pdf = arquivos.find((f) => f.endsWith('.pdf'));
     expect(pdf).toBeDefined();
 
-    const conteudo = await readFile(join(lojaDir, pdf!), { encoding: null });
+    const conteudo = await readFile(join(lojaDir, pdf), { encoding: null });
     expect(conteudo.subarray(0, 4).toString()).toBe('%PDF');
 
     const metaFile = arquivos.find((f) => f.endsWith('.json'));
     expect(metaFile).toBeDefined();
-    const meta = JSON.parse(await readFile(join(lojaDir, metaFile!), 'utf8'));
+    const meta = JSON.parse(await readFile(join(lojaDir, metaFile), 'utf8'));
     expect(meta.loja_id).toBe(lojaId);
     expect(meta.item_os_id).toBe(itemOsId);
     expect(meta.lote_tamanho).toBe(3);

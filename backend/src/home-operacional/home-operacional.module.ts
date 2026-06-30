@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { ArteAprovacaoModule } from '../modules/arte-aprovacao/arte-aprovacao.module';
+import { InstalacaoModule } from '../instalacao/instalacao.module';
 import { HomeOperacionalController } from './home-operacional.controller';
 import { OnboardingService } from './services/onboarding.service';
 import { ConfiguracaoRecomendadaService } from './services/configuracao-recomendada.service';
@@ -30,7 +31,7 @@ import { ContadoresMenuService } from './services/contadores-menu.service';
  * sem importar o controller.
  */
 @Module({
-  imports: [PrismaModule, AuthModule, ArteAprovacaoModule],
+  imports: [PrismaModule, AuthModule, ArteAprovacaoModule, InstalacaoModule],
   controllers: [HomeOperacionalController],
   providers: [
     OnboardingService,

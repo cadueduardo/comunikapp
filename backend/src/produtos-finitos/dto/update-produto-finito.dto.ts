@@ -11,8 +11,12 @@ import {
 } from 'class-validator';
 import { CreateProdutoFinitoDto } from './create-produto-finito.dto';
 
-export class UpdateProdutoFinitoDto extends PartialType(CreateProdutoFinitoDto) {
-  @ApiPropertyOptional({ description: 'Habilita personalização na venda deste SKU' })
+export class UpdateProdutoFinitoDto extends PartialType(
+  CreateProdutoFinitoDto,
+) {
+  @ApiPropertyOptional({
+    description: 'Habilita personalização na venda deste SKU',
+  })
   @IsOptional()
   @IsBoolean()
   personalizavel?: boolean;

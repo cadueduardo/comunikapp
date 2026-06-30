@@ -42,7 +42,9 @@ export class TransformacaoV2Service {
     return parsed as Record<string, any>;
   }
 
-  private devePersistirConfiguracao(config: Record<string, any> | null): boolean {
+  private devePersistirConfiguracao(
+    config: Record<string, any> | null,
+  ): boolean {
     if (!config) return false;
 
     const numeroValido = (value: unknown): boolean =>
@@ -66,7 +68,8 @@ export class TransformacaoV2Service {
       numeroValido(config.valor_final_manual) ||
       (typeof config.entrega_modalidade_nome === 'string' &&
         config.entrega_modalidade_nome.trim().length > 0) ||
-      (Array.isArray(config.regras_especiais) && config.regras_especiais.length > 0)
+      (Array.isArray(config.regras_especiais) &&
+        config.regras_especiais.length > 0)
     );
   }
 
@@ -137,8 +140,7 @@ export class TransformacaoV2Service {
           ? Number(dados.comissao_percentual)
           : Number(configPayloadCreate.comissao_padrao ?? 0),
       tipo_margem_lucro:
-        dados.tipo_margem_lucro ??
-        configPayloadCreate.tipo_margem_lucro,
+        dados.tipo_margem_lucro ?? configPayloadCreate.tipo_margem_lucro,
     };
     const tipoMargemCreateRaw =
       configMergedCreate.tipo_margem_lucro != null
@@ -152,14 +154,13 @@ export class TransformacaoV2Service {
     dadosPreparados.tipo_margem_lucro = tipoMargemCreate;
     const configuracaoCreate = this.prepararConfiguracoes(configMergedCreate);
     if (this.devePersistirConfiguracao(configuracaoCreate)) {
-      dadosPreparados.configuracao_calculo = JSON.stringify(
-        configuracaoCreate,
-      );
+      dadosPreparados.configuracao_calculo = JSON.stringify(configuracaoCreate);
     }
     delete dadosPreparados.configuracoes;
 
     if (dados.condicao_pagamento_tipo !== undefined) {
-      dadosPreparados.condicao_pagamento_tipo = dados.condicao_pagamento_tipo || null;
+      dadosPreparados.condicao_pagamento_tipo =
+        dados.condicao_pagamento_tipo || null;
     }
     if (dados.condicao_pagamento_entrada_pct !== undefined) {
       dadosPreparados.condicao_pagamento_entrada_pct =
@@ -265,22 +266,24 @@ export class TransformacaoV2Service {
       comissao_padrao?: number;
       tipo_margem_lucro?: string;
     } = configExistenteParsed ?? {};
-    const configPayload = this.parseConfiguracaoCalculo(dados.configuracoes) ?? {};
+    const configPayload =
+      this.parseConfiguracaoCalculo(dados.configuracoes) ?? {};
     const configMerged = {
       ...configExistente,
       ...configPayload,
       margem_lucro_padrao:
         dados.margem_lucro_customizada != null
           ? Number(dados.margem_lucro_customizada)
-          : configPayload.margem_lucro_padrao ?? configExistente.margem_lucro_padrao,
+          : (configPayload.margem_lucro_padrao ??
+            configExistente.margem_lucro_padrao),
       impostos_padrao:
         dados.impostos_customizados != null
           ? Number(dados.impostos_customizados)
-          : configPayload.impostos_padrao ?? configExistente.impostos_padrao,
+          : (configPayload.impostos_padrao ?? configExistente.impostos_padrao),
       comissao_padrao:
         dados.comissao_percentual != null
           ? Number(dados.comissao_percentual)
-          : configPayload.comissao_padrao ?? configExistente.comissao_padrao,
+          : (configPayload.comissao_padrao ?? configExistente.comissao_padrao),
       tipo_margem_lucro:
         dados.tipo_margem_lucro ??
         configPayload.tipo_margem_lucro ??
@@ -300,9 +303,7 @@ export class TransformacaoV2Service {
     }
     const configuracaoUpdate = this.prepararConfiguracoes(configMerged);
     if (this.devePersistirConfiguracao(configuracaoUpdate)) {
-      dadosPreparados.configuracao_calculo = JSON.stringify(
-        configuracaoUpdate,
-      );
+      dadosPreparados.configuracao_calculo = JSON.stringify(configuracaoUpdate);
     }
     delete dadosPreparados.configuracoes;
 
@@ -317,15 +318,38 @@ export class TransformacaoV2Service {
     // Custos: só atualizados pelo motor ou fallback explícito, nunca pelo spread do frontend.
     // margem_lucro_customizada e impostos_customizados não existem no schema; vão em configuracao_calculo.
     const camposProibidos = [
-      'id', 'loja_id', 'data_criacao', 'responsavel_id', 'tipo',
-      'cliente', 'custos', 'itens_produto', 'historicoOrcamento', 'versoes',
-      'aprovacoes', 'linksPublicos', 'mensagensChat', 'anexos', 'numero',
-      'criado_em', 'atualizado_em',
-      'cliente_id', 'profundidade_produto',
-      'preco_final', 'custo_total', 'margem_lucro', 'impostos',
-      'custo_material', 'custo_mao_obra', 'custo_indireto', 'data_ultimo_calculo',
-      'margem_lucro_customizada', 'impostos_customizados',
-      'valor_final_manual', 'preco_final_manual', 'alerta_preco_abaixo_custo',
+      'id',
+      'loja_id',
+      'data_criacao',
+      'responsavel_id',
+      'tipo',
+      'cliente',
+      'custos',
+      'itens_produto',
+      'historicoOrcamento',
+      'versoes',
+      'aprovacoes',
+      'linksPublicos',
+      'mensagensChat',
+      'anexos',
+      'numero',
+      'criado_em',
+      'atualizado_em',
+      'cliente_id',
+      'profundidade_produto',
+      'preco_final',
+      'custo_total',
+      'margem_lucro',
+      'impostos',
+      'custo_material',
+      'custo_mao_obra',
+      'custo_indireto',
+      'data_ultimo_calculo',
+      'margem_lucro_customizada',
+      'impostos_customizados',
+      'valor_final_manual',
+      'preco_final_manual',
+      'alerta_preco_abaixo_custo',
     ];
     camposProibidos.forEach((campo) => delete dadosPreparados[campo]);
 
@@ -336,7 +360,8 @@ export class TransformacaoV2Service {
     }
 
     if (dados.condicao_pagamento_tipo !== undefined) {
-      dadosPreparados.condicao_pagamento_tipo = dados.condicao_pagamento_tipo || null;
+      dadosPreparados.condicao_pagamento_tipo =
+        dados.condicao_pagamento_tipo || null;
     }
     if (dados.condicao_pagamento_entrada_pct !== undefined) {
       dadosPreparados.condicao_pagamento_entrada_pct =
@@ -364,14 +389,21 @@ export class TransformacaoV2Service {
     }
 
     // Garantir que campos JSON sejam strings (Prisma/MySQL)
-    if (dadosPreparados.custos_calculados != null && typeof dadosPreparados.custos_calculados === 'object') {
-      dadosPreparados.custos_calculados = JSON.stringify(dadosPreparados.custos_calculados);
+    if (
+      dadosPreparados.custos_calculados != null &&
+      typeof dadosPreparados.custos_calculados === 'object'
+    ) {
+      dadosPreparados.custos_calculados = JSON.stringify(
+        dadosPreparados.custos_calculados,
+      );
     }
     if (dadosPreparados.tags != null && Array.isArray(dadosPreparados.tags)) {
       dadosPreparados.tags = JSON.stringify(dadosPreparados.tags);
     }
 
-    if (Object.prototype.hasOwnProperty.call(dadosPreparados, 'horas_producao')) {
+    if (
+      Object.prototype.hasOwnProperty.call(dadosPreparados, 'horas_producao')
+    ) {
       dadosPreparados.horas_producao = Math.max(
         Number(dadosPreparados.horas_producao ?? 0),
         0.01,
@@ -456,10 +488,14 @@ export class TransformacaoV2Service {
           ? Number(configuracoesPersistidas.impostos_padrao)
           : undefined,
       tipo_margem_lucro: (() => {
-        const t = dados.tipo_margem_lucro ?? configuracoesPersistidas?.tipo_margem_lucro;
+        const t =
+          dados.tipo_margem_lucro ??
+          configuracoesPersistidas?.tipo_margem_lucro;
         if (t == null || String(t).trim() === '') return undefined;
         const normalized = String(t).trim().toLowerCase();
-        return normalized === 'markup' || normalized === 'margem_por_dentro' ? normalized : undefined;
+        return normalized === 'markup' || normalized === 'margem_por_dentro'
+          ? normalized
+          : undefined;
       })(),
       prazo_entrega: dados.prazo_entrega ?? undefined,
       validade_proposta: dados.validade_proposta ?? undefined,
@@ -470,8 +506,10 @@ export class TransformacaoV2Service {
         dados.condicao_pagamento_entrada_pct != null
           ? Number(dados.condicao_pagamento_entrada_pct)
           : undefined,
-      condicao_pagamento_parcelas: dados.condicao_pagamento_parcelas ?? undefined,
-      condicao_pagamento_descricao: dados.condicao_pagamento_descricao ?? undefined,
+      condicao_pagamento_parcelas:
+        dados.condicao_pagamento_parcelas ?? undefined,
+      condicao_pagamento_descricao:
+        dados.condicao_pagamento_descricao ?? undefined,
       entrega_modalidade_id: dados.entrega_modalidade_id ?? undefined,
       entrega_usar_endereco_cliente:
         dados.entrega_usar_endereco_cliente ?? undefined,
@@ -576,7 +614,10 @@ export class TransformacaoV2Service {
 
   // Métodos privados de transformação
 
-  private normalizarTextoOpcional(valor: any, maxLength: number): string | null {
+  private normalizarTextoOpcional(
+    valor: any,
+    maxLength: number,
+  ): string | null {
     if (valor === null || valor === undefined) return null;
     const texto = String(valor).trim();
     if (!texto) return null;
@@ -701,10 +742,7 @@ export class TransformacaoV2Service {
         produto.instalacao_endereco_snapshot,
         30000,
       ),
-      instalacao_cep: this.normalizarTextoOpcional(
-        produto.instalacao_cep,
-        16,
-      ),
+      instalacao_cep: this.normalizarTextoOpcional(produto.instalacao_cep, 16),
       instalacao_logradouro: this.normalizarTextoOpcional(
         produto.instalacao_logradouro,
         255,
@@ -751,7 +789,11 @@ export class TransformacaoV2Service {
     };
   }
 
-  private prepararProdutoCriacao(produto: any, index: number, lojaId?: string): any {
+  private prepararProdutoCriacao(
+    produto: any,
+    index: number,
+    lojaId?: string,
+  ): any {
     const nomeProduto = (
       produto.nome_servico ||
       produto.nome ||
@@ -787,11 +829,15 @@ export class TransformacaoV2Service {
       produto.profundidade_produto ??
       produto.profundidadeProduto;
     const profundidadeNum =
-      profundidadeInput === null || profundidadeInput === undefined || profundidadeInput === ''
+      profundidadeInput === null ||
+      profundidadeInput === undefined ||
+      profundidadeInput === ''
         ? null
         : toNumber(profundidadeInput, 3);
     const profundidadeNormalizada =
-      profundidadeNum !== null && Number.isFinite(profundidadeNum) && profundidadeNum > 0
+      profundidadeNum !== null &&
+      Number.isFinite(profundidadeNum) &&
+      profundidadeNum > 0
         ? profundidadeNum
         : null;
 
@@ -818,12 +864,9 @@ export class TransformacaoV2Service {
       unidade_geometria: produto.unidade_geometria ?? null,
       geometria_origem: produto.geometria_origem ?? null,
       arquivo_geometria_url: produto.arquivo_geometria_url ?? null,
-      arquivo_geometria_metadados:
-        produto.arquivo_geometria_metadados ?? null,
-      responsabilidade_arte:
-        produto.responsabilidade_arte ?? 'NAO_APLICAVEL',
-      politica_cobranca_arte:
-        produto.politica_cobranca_arte ?? 'NAO_APLICAVEL',
+      arquivo_geometria_metadados: produto.arquivo_geometria_metadados ?? null,
+      responsabilidade_arte: produto.responsabilidade_arte ?? 'NAO_APLICAVEL',
+      politica_cobranca_arte: produto.politica_cobranca_arte ?? 'NAO_APLICAVEL',
       finalidade_anexo: produto.finalidade_anexo ?? null,
       complexidade_arte: produto.complexidade_arte ?? null,
       arte_custo_automatico: Boolean(produto.arte_custo_automatico),
@@ -1022,9 +1065,7 @@ export class TransformacaoV2Service {
           0,
       ),
       comissao_padrao: Number(
-        configuracoes.comissao_padrao ??
-          configuracoes.comissao_percentual ??
-          0,
+        configuracoes.comissao_padrao ?? configuracoes.comissao_percentual ?? 0,
       ),
       custos_indiretos_padrao: configuracoes.custos_indiretos_padrao || 0,
       horas_produtivas_mensais: configuracoes.horas_produtivas_mensais || 0,
@@ -1035,9 +1076,10 @@ export class TransformacaoV2Service {
           ? null
           : this.normalizarNumeroOpcional(configuracoes.valor_final_manual),
     };
-    const tipoRaw = configuracoes.tipo_margem_lucro != null
-      ? String(configuracoes.tipo_margem_lucro).trim().toLowerCase()
-      : '';
+    const tipoRaw =
+      configuracoes.tipo_margem_lucro != null
+        ? String(configuracoes.tipo_margem_lucro).trim().toLowerCase()
+        : '';
     if (tipoRaw === 'markup' || tipoRaw === 'margem_por_dentro') {
       (base as any).tipo_margem_lucro = tipoRaw;
     }
@@ -1160,15 +1202,13 @@ export class TransformacaoV2Service {
         geometria_origem: produto.geometria_origem,
         arquivo_geometria_url: produto.arquivo_geometria_url,
         arquivo_geometria_metadados: produto.arquivo_geometria_metadados,
-        responsabilidade_arte:
-          produto.responsabilidade_arte ?? 'NAO_APLICAVEL',
+        responsabilidade_arte: produto.responsabilidade_arte ?? 'NAO_APLICAVEL',
         politica_cobranca_arte:
           produto.politica_cobranca_arte ?? 'NAO_APLICAVEL',
         finalidade_anexo: produto.finalidade_anexo ?? null,
         complexidade_arte: produto.complexidade_arte ?? null,
         arte_custo_automatico: Boolean(produto.arte_custo_automatico),
-        arte_referencia_servico_id:
-          produto.arte_referencia_servico_id ?? null,
+        arte_referencia_servico_id: produto.arte_referencia_servico_id ?? null,
         arte_horas_calculadas:
           produto.arte_horas_calculadas != null
             ? Number(produto.arte_horas_calculadas)
@@ -1231,7 +1271,8 @@ export class TransformacaoV2Service {
               estampa_id: produto.personalizacao.estampa_id ?? null,
               processo_id: produto.personalizacao.processo_id ?? null,
               valores_campos: produto.personalizacao.valores_campos ?? null,
-              grade_distribuicao: produto.personalizacao.grade_distribuicao ?? null,
+              grade_distribuicao:
+                produto.personalizacao.grade_distribuicao ?? null,
             }
           : undefined,
 
@@ -1326,8 +1367,7 @@ export class TransformacaoV2Service {
       geometria_origem: produto?.geometria_origem ?? null,
       arquivo_geometria_url: produto?.arquivo_geometria_url ?? null,
       arquivo_geometria_metadados: produto?.arquivo_geometria_metadados ?? null,
-      responsabilidade_arte:
-        produto?.responsabilidade_arte ?? 'NAO_APLICAVEL',
+      responsabilidade_arte: produto?.responsabilidade_arte ?? 'NAO_APLICAVEL',
       politica_cobranca_arte:
         produto?.politica_cobranca_arte ?? 'NAO_APLICAVEL',
       finalidade_anexo: produto?.finalidade_anexo ?? null,
@@ -1424,7 +1464,10 @@ export class TransformacaoV2Service {
       Number(dados.preco_final) ||
       Number(dados.valor_total) ||
       (dados.custos_calculados && typeof dados.custos_calculados === 'object'
-        ? Number((dados.custos_calculados as any).preco_final ?? (dados.custos_calculados as any).valor_total)
+        ? Number(
+            dados.custos_calculados.preco_final ??
+              dados.custos_calculados.valor_total,
+          )
         : 0) ||
       (typeof dados.custos_calculados === 'string'
         ? (() => {
@@ -1470,9 +1513,10 @@ export class TransformacaoV2Service {
           ? Number(configuracoes.valor_final_manual)
           : undefined,
     };
-    const tipoRaw = configuracoes.tipo_margem_lucro != null
-      ? String(configuracoes.tipo_margem_lucro).trim().toLowerCase()
-      : '';
+    const tipoRaw =
+      configuracoes.tipo_margem_lucro != null
+        ? String(configuracoes.tipo_margem_lucro).trim().toLowerCase()
+        : '';
     if (tipoRaw === 'markup' || tipoRaw === 'margem_por_dentro') {
       (base as any).tipo_margem_lucro = tipoRaw;
     }

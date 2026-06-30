@@ -99,7 +99,9 @@ export class InputIntegrationService {
       } else {
         if (
           contexto.configuracoes.margem_lucro_padrao == null ||
-          !Number.isFinite(Number(contexto.configuracoes.margem_lucro_padrao)) ||
+          !Number.isFinite(
+            Number(contexto.configuracoes.margem_lucro_padrao),
+          ) ||
           contexto.configuracoes.margem_lucro_padrao < 0
         ) {
           avisos.push('Margem de lucro não configurada - usando padrão (30%)');
@@ -311,9 +313,7 @@ export class InputIntegrationService {
   ): Promise<ContextoCalculo> {
     for (const produto of contexto.produtos) {
       const servicos =
-        produto.servicos_manuais ||
-        (produto as any).servicos ||
-        [];
+        produto.servicos_manuais || (produto as any).servicos || [];
       for (const servico of servicos) {
         try {
           const servicoBanco = await this.prisma.servico_manual.findFirst({

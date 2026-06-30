@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ArteLinkAprovacao, ArteStatus } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
@@ -165,7 +170,9 @@ export class ArteLinkAprovacaoService {
         tipo: 'APROVACAO_SOLICITADA',
         os_id: versao.os_id,
         versao_id,
-        destinatarios: versao.os.cliente?.email ? [versao.os.cliente.email] : [],
+        destinatarios: versao.os.cliente?.email
+          ? [versao.os.cliente.email]
+          : [],
         dados: {
           link_id: link.id,
         },
@@ -430,7 +437,8 @@ export class ArteLinkAprovacaoService {
       url_thumbnail: arquivo.url_thumbnail
         ? this.publicDownloadUrl(
             arquivo.versao_id,
-            this.filenameFromPath(arquivo.url_thumbnail) || arquivo.nome_arquivo,
+            this.filenameFromPath(arquivo.url_thumbnail) ||
+              arquivo.nome_arquivo,
             token_publico,
           )
         : urlArquivo,
@@ -470,7 +478,9 @@ export class ArteLinkAprovacaoService {
     // Se versao_id foi fornecido, buscar link ativo para aquela versÃ£o especÃ­fica OU qualquer link da mesma OS
     // O link pÃºblico Ã© compartilhado para todas as artes da mesma OS
     if (versao_id) {
-      this.logger.log(`ðŸ” Buscando link para versÃ£o especÃ­fica: ${versao_id}`);
+      this.logger.log(
+        `ðŸ” Buscando link para versÃ£o especÃ­fica: ${versao_id}`,
+      );
 
       // Primeiro, buscar versÃ£o para obter os_id
       const versaoSolicitada = await this.prisma.arteVersao.findUnique({
@@ -897,11 +907,19 @@ export class ArteLinkAprovacaoService {
     token_publico: string,
     versaoId: string,
     filename: string,
-  ): Promise<{ storagePath: string; nomeOriginal: string; tipoArquivo: string }> {
+  ): Promise<{
+    storagePath: string;
+    nomeOriginal: string;
+    tipoArquivo: string;
+  }> {
     if (!token_publico || !versaoId || !filename) {
       throw new ForbiddenException('Token pÃºblico obrigatÃ³rio');
     }
-    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    if (
+      filename.includes('..') ||
+      filename.includes('/') ||
+      filename.includes('\\')
+    ) {
       throw new ForbiddenException('Nome de arquivo invalido');
     }
 
@@ -967,7 +985,9 @@ export class ArteLinkAprovacaoService {
       storagePath: isThumbnail
         ? join(dirname(arquivo.storage_path), filename)
         : arquivo.storage_path,
-      nomeOriginal: isThumbnail ? filename : arquivo.nome_original || arquivo.nome_arquivo,
+      nomeOriginal: isThumbnail
+        ? filename
+        : arquivo.nome_original || arquivo.nome_arquivo,
       tipoArquivo: arquivo.tipo_arquivo,
     };
   }

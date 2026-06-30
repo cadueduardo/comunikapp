@@ -51,7 +51,10 @@ export const multerProdutoFinitoImagemConfig = {
     file: MulterFileLike,
     cb: (error: Error | null, acceptFile?: boolean) => void,
   ) => {
-    const ext = classificarImagemProdutoFinito(file.mimetype, file.originalname);
+    const ext = classificarImagemProdutoFinito(
+      file.mimetype,
+      file.originalname,
+    );
     if (!ext) {
       return cb(
         new Error(

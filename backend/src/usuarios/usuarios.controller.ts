@@ -18,10 +18,7 @@ import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { Public } from '../auth/decorators';
 import { TwoFactorService } from '../auth/two-factor.service';
-import {
-  ConfirmTwoFactorDto,
-  DisableTwoFactorDto,
-} from './dto/two-factor.dto';
+import { ConfirmTwoFactorDto, DisableTwoFactorDto } from './dto/two-factor.dto';
 
 @Controller('usuarios')
 export class UsuariosController {
@@ -123,7 +120,9 @@ export class UsuariosController {
   async desativar(@Param('id') id: string, @Request() req: any) {
     const user = this.ensureAdmin(req);
     if (id === user.id) {
-      throw new BadRequestException('Nao e permitido desativar o proprio usuario');
+      throw new BadRequestException(
+        'Nao e permitido desativar o proprio usuario',
+      );
     }
     return this.usuariosService.desativar(id, user.loja_id);
   }
@@ -158,5 +157,4 @@ export class UsuariosController {
   async redefinirSenha(@Body() body: { token: string; senha: string }) {
     return this.usuariosService.redefinirSenha(body.token, body.senha);
   }
-
 }

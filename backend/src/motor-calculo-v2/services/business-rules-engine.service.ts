@@ -201,7 +201,9 @@ export class BusinessRulesEngineService {
         if (
           !contexto.configuracoes ||
           contexto.configuracoes.margem_lucro_padrao == null ||
-          !Number.isFinite(Number(contexto.configuracoes.margem_lucro_padrao)) ||
+          !Number.isFinite(
+            Number(contexto.configuracoes.margem_lucro_padrao),
+          ) ||
           contexto.configuracoes.margem_lucro_padrao < 0
         ) {
           return false;

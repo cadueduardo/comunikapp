@@ -235,11 +235,7 @@ export class AprovacaoTecnicaService {
     });
     const todosIds = itensOS.map((i) => i.id);
     const idsPrazos = (dto.prazos_itens ?? []).map((p) => p.item_id);
-    const idsAlvo = resolveIdsAlvoLiberacao(
-      todosIds,
-      dto.item_ids,
-      idsPrazos,
-    );
+    const idsAlvo = resolveIdsAlvoLiberacao(todosIds, dto.item_ids, idsPrazos);
     const eLiberacaoParcial =
       dto.aprovado &&
       eFluxoPadrao &&
@@ -384,11 +380,13 @@ export class AprovacaoTecnicaService {
     return {
       id: (osFinal ?? osAtualizada).id,
       status: (osFinal ?? osAtualizada).status,
-      aprovacao_tecnica_status: (osFinal ?? osAtualizada).aprovacao_tecnica_status,
+      aprovacao_tecnica_status: (osFinal ?? osAtualizada)
+        .aprovacao_tecnica_status,
       aprovacao_tecnica_por: (osFinal ?? osAtualizada).aprovacao_tecnica_por,
       aprovacao_tecnica_em: (osFinal ?? osAtualizada).aprovacao_tecnica_em,
       aprovacao_tecnica_obs: (osFinal ?? osAtualizada).aprovacao_tecnica_obs,
-      data_instalacao_agendada: (osFinal ?? osAtualizada).data_instalacao_agendada,
+      data_instalacao_agendada: (osFinal ?? osAtualizada)
+        .data_instalacao_agendada,
       observacoes_instalacao: (osFinal ?? osAtualizada).observacoes_instalacao,
       data_prazo: (osFinal ?? osAtualizada).data_prazo,
       validacoes,

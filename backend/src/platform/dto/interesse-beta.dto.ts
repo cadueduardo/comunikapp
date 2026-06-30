@@ -22,7 +22,9 @@ export class InteresseBetaDto {
 
   @IsString()
   @IsNotEmpty({ message: 'Informe o nome da sua empresa ou loja.' })
-  @MaxLength(255, { message: 'O nome da loja deve ter no maximo 255 caracteres.' })
+  @MaxLength(255, {
+    message: 'O nome da loja deve ter no maximo 255 caracteres.',
+  })
   nome_loja: string;
 
   @IsOptional()

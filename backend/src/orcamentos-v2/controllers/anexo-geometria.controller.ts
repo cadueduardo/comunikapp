@@ -14,7 +14,12 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { multerAnexoGeometriaConfig } from '../../config/multer-anexo-geometria.config';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
@@ -52,7 +57,9 @@ export class AnexoGeometriaController {
    */
   @Post()
   @UseInterceptors(FileInterceptor('arquivo', multerAnexoGeometriaConfig))
-  @ApiOperation({ summary: 'Faz upload de imagem, PDF ou DXF para um produto do orçamento' })
+  @ApiOperation({
+    summary: 'Faz upload de imagem, PDF ou DXF para um produto do orçamento',
+  })
   @ApiConsumes('multipart/form-data')
   async upload(
     @UploadedFile() arquivo: Express.Multer.File,

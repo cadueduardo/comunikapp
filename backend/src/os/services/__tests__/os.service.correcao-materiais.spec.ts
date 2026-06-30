@@ -10,6 +10,7 @@ import { WorkflowAssignmentService } from '../../../pcp/services/workflow-assign
 import { OSService } from '../os.service';
 import { CorrecaoMateriaisHelper } from '../../helpers/correcao-materiais.helper';
 import { TipoOS } from '../../../documentos/document-code.service';
+import { osServiceExtraProviders } from './os-service-test.providers';
 
 describe('OSService - Correção de Materiais', () => {
   let service: OSService;
@@ -110,6 +111,7 @@ describe('OSService - Correção de Materiais', () => {
           provide: WorkflowAssignmentService,
           useValue: mockWorkflowAssignmentService,
         },
+        ...osServiceExtraProviders,
       ],
     }).compile();
 

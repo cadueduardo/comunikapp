@@ -228,9 +228,11 @@ describe('TenantIsolationMiddleware', () => {
         authorization: 'Bearer valid-token',
       };
       const jwt = (middleware as any).jwtService;
-      jest
-        .spyOn(jwt, 'verify')
-        .mockReturnValueOnce({ loja_id: 'loja-123', sub: 'user-456', funcao: 'VENDAS' });
+      jest.spyOn(jwt, 'verify').mockReturnValueOnce({
+        loja_id: 'loja-123',
+        sub: 'user-456',
+        funcao: 'VENDAS',
+      });
 
       middleware.use(mockRequest, mockResponse, mockNext);
 

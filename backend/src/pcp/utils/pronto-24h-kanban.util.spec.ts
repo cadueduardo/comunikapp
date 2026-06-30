@@ -6,11 +6,12 @@ import { obterLimiarHorasAtrasUtc } from '../../common/utils/utc-time.util';
 
 describe('pronto-24h-kanban.util', () => {
   const agora = new Date('2026-06-25T15:00:00.000Z');
-  const limiar = obterLimiarHorasAtrasUtc(24);
+  let limiar: Date;
 
   beforeAll(() => {
     jest.useFakeTimers();
     jest.setSystemTime(agora);
+    limiar = obterLimiarHorasAtrasUtc(24);
   });
 
   afterAll(() => {

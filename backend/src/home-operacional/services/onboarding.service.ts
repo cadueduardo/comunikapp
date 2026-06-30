@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ONBOARDING_ETAPAS_CATALOGO } from '../catalogos/onboarding-etapas.catalogo';
 import { OnboardingStatus } from '../enums/onboarding-status.enum';
@@ -31,7 +35,9 @@ export class OnboardingService {
 
   async obterResumo(lojaId: string): Promise<OnboardingResumo> {
     const [estadosPersistidos, deteccoes] = await Promise.all([
-      this.prisma.onboardingOperacional.findMany({ where: { loja_id: lojaId } }),
+      this.prisma.onboardingOperacional.findMany({
+        where: { loja_id: lojaId },
+      }),
       this.detectarConclusoes(lojaId),
     ]);
 
@@ -54,7 +60,10 @@ export class OnboardingService {
         status = OnboardingStatus.CONCLUIDO;
         if (!concluidoEm) {
           // Persiste o momento da deteccao para auditoria, sem bloquear o request.
-          await this.marcarComoConcluidoAutomaticamente(lojaId, catalogo.step_id);
+          await this.marcarComoConcluidoAutomaticamente(
+            lojaId,
+            catalogo.step_id,
+          );
           concluidoEm = new Date();
         }
       } else {
@@ -72,12 +81,18 @@ export class OnboardingService {
     stepId: string,
     acao: AcaoStep,
   ): Promise<OnboardingResumo> {
-    const stepValido = ONBOARDING_ETAPAS_CATALOGO.find((c) => c.step_id === stepId);
+    const stepValido = ONBOARDING_ETAPAS_CATALOGO.find(
+      (c) => c.step_id === stepId,
+    );
     if (!stepValido) {
-      throw new NotFoundException(`Etapa de onboarding desconhecida: ${stepId}`);
+      throw new NotFoundException(
+        `Etapa de onboarding desconhecida: ${stepId}`,
+      );
     }
     if (acao !== 'ignorar' && acao !== 'reativar') {
-      throw new BadRequestException(`Acao invalida: ${acao}. Use 'ignorar' ou 'reativar'.`);
+      throw new BadRequestException(
+        `Acao invalida: ${acao}. Use 'ignorar' ou 'reativar'.`,
+      );
     }
 
     if (acao === 'ignorar') {
@@ -193,46 +208,45 @@ export class OnboardingService {
       aprovadosCount,
       producaoCount,
       statusArte,
-    ] =
-      await Promise.all([
-        this.prisma.loja.findUnique({
-          where: { id: lojaId },
-          select: {
-            nome: true,
-            telefone: true,
-            cnpj: true,
-            cpf: true,
-            margem_lucro_padrao: true,
-            impostos_padrao: true,
-            comissao_padrao: true,
-            condicao_pagamento_padrao_tipo: true,
-            pcp_nivel: true,
-          },
-        }),
-        this.prisma.cliente.count({ where: { loja_id: lojaId } }),
-        this.prisma.insumo.count({ where: { loja_id: lojaId, ativo: true } }),
-        this.prisma.maquina.count({ where: { loja_id: lojaId, ativo: true } }),
-        this.prisma.servico_manual.count({
-          where: { loja_id: lojaId, ativo: true },
-        }),
-        this.prisma.modalidadeEntrega.count({
-          where: { loja_id: lojaId, ativo: true },
-        }),
-        this.prisma.tipoInstalacao.count({
-          where: { loja_id: lojaId, ativo: true },
-        }),
-        this.prisma.orcamento.count({ where: { loja_id: lojaId } }),
-        this.prisma.orcamento.count({
-          where: { loja_id: lojaId, status: 'aprovado' },
-        }),
-        this.prisma.ordemServico.count({
-          where: {
-            loja_id: lojaId,
-            status: { in: ['PRODUCAO', 'ACABAMENTO', 'FINALIZADA'] },
-          },
-        }),
-        this.configuracaoArteService.obterStatus(lojaId),
-      ]);
+    ] = await Promise.all([
+      this.prisma.loja.findUnique({
+        where: { id: lojaId },
+        select: {
+          nome: true,
+          telefone: true,
+          cnpj: true,
+          cpf: true,
+          margem_lucro_padrao: true,
+          impostos_padrao: true,
+          comissao_padrao: true,
+          condicao_pagamento_padrao_tipo: true,
+          pcp_nivel: true,
+        },
+      }),
+      this.prisma.cliente.count({ where: { loja_id: lojaId } }),
+      this.prisma.insumo.count({ where: { loja_id: lojaId, ativo: true } }),
+      this.prisma.maquina.count({ where: { loja_id: lojaId, ativo: true } }),
+      this.prisma.servico_manual.count({
+        where: { loja_id: lojaId, ativo: true },
+      }),
+      this.prisma.modalidadeEntrega.count({
+        where: { loja_id: lojaId, ativo: true },
+      }),
+      this.prisma.tipoInstalacao.count({
+        where: { loja_id: lojaId, ativo: true },
+      }),
+      this.prisma.orcamento.count({ where: { loja_id: lojaId } }),
+      this.prisma.orcamento.count({
+        where: { loja_id: lojaId, status: 'aprovado' },
+      }),
+      this.prisma.ordemServico.count({
+        where: {
+          loja_id: lojaId,
+          status: { in: ['PRODUCAO', 'ACABAMENTO', 'FINALIZADA'] },
+        },
+      }),
+      this.configuracaoArteService.obterStatus(lojaId),
+    ]);
 
     if (loja) {
       resultado[OnboardingStepId.DADOS_EMPRESA] =

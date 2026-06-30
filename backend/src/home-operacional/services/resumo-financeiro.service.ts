@@ -44,7 +44,11 @@ export class ResumoFinanceiroService {
 
     const agora = new Date();
     const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
-    const inicioProxMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 1);
+    const inicioProxMes = new Date(
+      agora.getFullYear(),
+      agora.getMonth() + 1,
+      1,
+    );
 
     // Executa todas as agregacoes em paralelo para reduzir latencia.
     const [
@@ -122,7 +126,9 @@ export class ResumoFinanceiroService {
     return this.toNumber(result._sum.preco_final);
   }
 
-  private async somaCobrancasComOSEmProducao(lojaId: string): Promise<number | null> {
+  private async somaCobrancasComOSEmProducao(
+    lojaId: string,
+  ): Promise<number | null> {
     // Cobrancas cujo orcamento tem OS em PRODUCAO ou ACABAMENTO.
     // Como nao temos relacao direta entre cobranca e OS, vamos via orcamento.
     const cobrancas = await this.prisma.cobranca.findMany({

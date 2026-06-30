@@ -63,11 +63,14 @@ export class JwtGlobalMiddleware implements NestMiddleware {
     }
 
     const isPublicOnboardingCreate =
-      req.method === 'POST' && (req.path === '/lojas' || req.path === '/api/lojas');
+      req.method === 'POST' &&
+      (req.path === '/lojas' || req.path === '/api/lojas');
 
     if (
       isPublicOnboardingCreate ||
-      publicRoutes.some((route) => req.path === route || req.path.startsWith(`${route}/`))
+      publicRoutes.some(
+        (route) => req.path === route || req.path.startsWith(`${route}/`),
+      )
     ) {
       this.logger.debug(`Rota publica: ${req.path}`);
       return next();
@@ -81,7 +84,11 @@ export class JwtGlobalMiddleware implements NestMiddleware {
       return next();
     }
 
-    if (/^\/(?:api\/)?arte-aprovacao\/versoes\/[^/]+\/arquivos\/public\/download\/[^/]+$/.test(req.path)) {
+    if (
+      /^\/(?:api\/)?arte-aprovacao\/versoes\/[^/]+\/arquivos\/public\/download\/[^/]+$/.test(
+        req.path,
+      )
+    ) {
       const rawToken = req.query?.token;
       const token = Array.isArray(rawToken) ? rawToken[0] : rawToken;
       if (!token || typeof token !== 'string') {

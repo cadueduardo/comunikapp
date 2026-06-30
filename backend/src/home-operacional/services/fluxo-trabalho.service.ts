@@ -376,7 +376,9 @@ export class FluxoTrabalhoService {
       orderBy: { atualizado_em: 'desc' },
     });
 
-    const validas = cobrancas.filter((c) => c.orcamento.ordens_servico.length > 0);
+    const validas = cobrancas.filter(
+      (c) => c.orcamento.ordens_servico.length > 0,
+    );
     const total = validas.length;
 
     const cards: CardFluxo[] = validas.slice(0, this.LIMITE_CARDS).map((c) => {
@@ -452,7 +454,9 @@ export class FluxoTrabalhoService {
       orderBy: { liquidado_em: 'desc' },
     });
 
-    const validas = cobrancas.filter((c) => c.orcamento.ordens_servico.length > 0);
+    const validas = cobrancas.filter(
+      (c) => c.orcamento.ordens_servico.length > 0,
+    );
     const total = validas.length;
 
     const cards: CardFluxo[] = validas.slice(0, this.LIMITE_CARDS).map((c) => {
@@ -471,9 +475,7 @@ export class FluxoTrabalhoService {
           c.atualizado_em ??
           osFin.atualizado_em
         ).toISOString(),
-        acoes: [
-          { id: 'abrir_os', label: 'Abrir OS', href: `/os/${osFin.id}` },
-        ],
+        acoes: [{ id: 'abrir_os', label: 'Abrir OS', href: `/os/${osFin.id}` }],
       };
     });
 
@@ -503,10 +505,7 @@ export class FluxoTrabalhoService {
       id: os.id,
       tipo: 'os',
       titulo,
-      subtitulo:
-        os.cliente?.nome ??
-        os.nome_servico ??
-        'Sem cliente vinculado',
+      subtitulo: os.cliente?.nome ?? os.nome_servico ?? 'Sem cliente vinculado',
       status_label: statusLabel,
       valor: this.toNumberSeguro(os.valor_orcado),
       atualizado_em: (os.atualizado_em ?? os.criado_em).toISOString(),

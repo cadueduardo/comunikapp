@@ -415,7 +415,10 @@ export class ProdutosFinitosService {
     return null;
   }
 
-  private validarPrecoPromocional(precoVenda: number, precoPromocional: number) {
+  private validarPrecoPromocional(
+    precoVenda: number,
+    precoPromocional: number,
+  ) {
     if (precoPromocional > 0 && precoPromocional >= precoVenda) {
       throw new BadRequestException(
         'Preço promocional deve ser maior que zero e menor que o preço de venda.',

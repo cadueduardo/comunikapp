@@ -28,7 +28,9 @@ describe('PCPRelatoriosService', () => {
   });
 
   it('deve delegar ocupação de máquinas ao serviço de capacidade', async () => {
-    capacidadeService.obterCapacidadeMaquinas.mockResolvedValue({ maquinas: [] });
+    capacidadeService.obterCapacidadeMaquinas.mockResolvedValue({
+      maquinas: [],
+    });
 
     await service.obterOcupacaoMaquinas('loja-1', { setorId: 's1' });
 

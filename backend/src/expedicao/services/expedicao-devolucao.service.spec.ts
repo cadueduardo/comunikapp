@@ -40,7 +40,9 @@ describe('ExpedicaoDevolucaoService', () => {
     prisma = {
       expedicaoLogistica: { findFirst: jest.fn() },
       usuario: { findFirst: jest.fn() },
-      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
+      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) =>
+        fn(tx),
+      ),
     };
   });
 
@@ -72,7 +74,10 @@ describe('ExpedicaoDevolucaoService', () => {
       os_id: 'os-1',
       status: StatusExpedicao.AGUARDANDO_SEPARACAO,
     });
-    tx.ordemServico.findFirst.mockResolvedValue({ id: 'os-1', numero: 'OS-100' });
+    tx.ordemServico.findFirst.mockResolvedValue({
+      id: 'os-1',
+      numero: 'OS-100',
+    });
     tx.workflowInstancia.findFirst.mockResolvedValue({ id: 'wf-1' });
     tx.workflowInstanciaSetor.findMany.mockResolvedValue([
       { id: 'sis-2', ordem: 2, setor_id: 'setor-2', status: 'CONCLUIDA' },
@@ -172,7 +177,10 @@ describe('ExpedicaoDevolucaoService', () => {
       os_id: 'os-2',
       status: StatusExpedicao.PRONTO_PARA_RETIRADA,
     });
-    tx.ordemServico.findFirst.mockResolvedValue({ id: 'os-2', numero: 'OS-200' });
+    tx.ordemServico.findFirst.mockResolvedValue({
+      id: 'os-2',
+      numero: 'OS-200',
+    });
     tx.workflowInstancia.findFirst.mockResolvedValue(null);
 
     const resultado = await service.devolverParaProducao({

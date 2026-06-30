@@ -23,7 +23,9 @@ export class ArteMensagemPublicController {
 
       // Validar token de aprovação
       const linkAprovacao =
-        await this.linkAprovacaoService.getLinkContextParaMensagemPublica(token);
+        await this.linkAprovacaoService.getLinkContextParaMensagemPublica(
+          token,
+        );
 
       if (!linkAprovacao) {
         throw new Error('Token de aprovação inválido ou expirado');
@@ -109,7 +111,9 @@ export class ArteMensagemPublicController {
 
       // Validar token de aprovação
       const linkAprovacao =
-        await this.linkAprovacaoService.getLinkContextParaMensagemPublica(token);
+        await this.linkAprovacaoService.getLinkContextParaMensagemPublica(
+          token,
+        );
 
       const versao = await this.mensagemService.validarVersaoMesmaOsDoLink(
         versaoId,

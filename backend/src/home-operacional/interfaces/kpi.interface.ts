@@ -14,7 +14,11 @@ export type CorKPI = 'zinc' | 'blue' | 'amber' | 'emerald' | 'red';
 export type IconeKPI = 'orcamento' | 'dinheiro' | 'producao' | 'alerta';
 
 export interface KPI {
-  id: 'orcamentos_abertos' | 'total_orcado_mes' | 'os_em_producao' | 'alertas_criticos';
+  id:
+    | 'orcamentos_abertos'
+    | 'total_orcado_mes'
+    | 'os_em_producao'
+    | 'alertas_criticos';
   label: string;
   valor: number;
   formato: FormatoKPI;

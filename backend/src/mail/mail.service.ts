@@ -13,9 +13,13 @@ export class MailService implements OnModuleInit {
     // Aceita SMTP_* ou MAIL_* (fallback para .env legado)
     const host = process.env.SMTP_HOST || process.env.MAIL_HOST;
     if (host) {
-      const port = parseInt(process.env.SMTP_PORT || process.env.MAIL_PORT || '587');
+      const port = parseInt(
+        process.env.SMTP_PORT || process.env.MAIL_PORT || '587',
+      );
       // Porta 465 = SSL direto (secure: true). Portas 587/25 = STARTTLS (secure: false)
-      const secure = port === 465 || (process.env.SMTP_SECURE || process.env.MAIL_SECURE) === 'true';
+      const secure =
+        port === 465 ||
+        (process.env.SMTP_SECURE || process.env.MAIL_SECURE) === 'true';
 
       this.transporter = nodemailer.createTransport({
         host,
@@ -32,9 +36,7 @@ export class MailService implements OnModuleInit {
           tls: { rejectUnauthorized: false },
         }),
       });
-      this.logger.log(
-        `SMTP configurado: ${host}:${port} (secure=${secure})`,
-      );
+      this.logger.log(`SMTP configurado: ${host}:${port} (secure=${secure})`);
     } else {
       const testAccount = await nodemailer.createTestAccount();
       this.transporter = nodemailer.createTransport({
@@ -89,7 +91,9 @@ export class MailService implements OnModuleInit {
         : 'Seu Código de Verificação Comunikapp';
 
     const titulo =
-      mode === 'convite' ? 'Você recebeu um convite para o Comunikapp' : 'Bem-vindo ao Comunikapp!';
+      mode === 'convite'
+        ? 'Você recebeu um convite para o Comunikapp'
+        : 'Bem-vindo ao Comunikapp!';
 
     const textoAbertura =
       mode === 'convite'
@@ -140,7 +144,9 @@ export class MailService implements OnModuleInit {
       `E-mail de verificação enviado messageId=${info.messageId} destino=${MailService.maskEmail(to)}`,
     );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      this.logger.log(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+      this.logger.log(
+        `Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`,
+      );
     }
 
     return info;
@@ -175,7 +181,9 @@ export class MailService implements OnModuleInit {
       `E-mail de redefinicao de senha enviado messageId=${info.messageId} destino=${MailService.maskEmail(to)}`,
     );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      this.logger.log(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+      this.logger.log(
+        `Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`,
+      );
     }
 
     return info;
@@ -230,7 +238,9 @@ export class MailService implements OnModuleInit {
       `Convite de cadastro enviado messageId=${info.messageId} destino=${MailService.maskEmail(to)}`,
     );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      this.logger.log(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+      this.logger.log(
+        `Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`,
+      );
     }
 
     return info;
@@ -306,7 +316,9 @@ export class MailService implements OnModuleInit {
     const [user, domain] = email.split('@');
     if (!domain) return '[invalid]';
     const u =
-      user.length <= 2 ? `${user[0]}*` : `${user.slice(0, 2)}…${user.slice(-1)}`;
+      user.length <= 2
+        ? `${user[0]}*`
+        : `${user.slice(0, 2)}…${user.slice(-1)}`;
     return `${u}@${domain}`;
   }
 
@@ -374,7 +386,9 @@ export class MailService implements OnModuleInit {
       `Orçamento enviado messageId=${info.messageId} destino=${MailService.maskEmail(emailCliente)}`,
     );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      this.logger.log(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+      this.logger.log(
+        `Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`,
+      );
     }
 
     return info;
@@ -447,7 +461,9 @@ export class MailService implements OnModuleInit {
       `Orçamento atualizado enviado messageId=${info.messageId} destino=${MailService.maskEmail(emailCliente)}`,
     );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      this.logger.log(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+      this.logger.log(
+        `Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`,
+      );
     }
 
     return info;
@@ -509,7 +525,9 @@ export class MailService implements OnModuleInit {
       `Aprovação notificada messageId=${info.messageId} destino=${MailService.maskEmail(emailLoja)}`,
     );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      this.logger.log(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+      this.logger.log(
+        `Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`,
+      );
     }
 
     return info;
@@ -590,7 +608,9 @@ export class MailService implements OnModuleInit {
       `Feedback beta enviado messageId=${info.messageId} pagina=${payload.paginaPath} destino=${MailService.maskEmail(payload.to)}`,
     );
     if (!this.isSmtpConfigurado() && nodemailer.getTestMessageUrl(info)) {
-      this.logger.log(`Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`);
+      this.logger.log(
+        `Preview Ethereal: ${nodemailer.getTestMessageUrl(info)}`,
+      );
     }
 
     return info;

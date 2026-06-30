@@ -38,5 +38,7 @@ export class PlatformAdminGuard implements CanActivate {
 export function isPlatformAdminEmail(email?: string | null) {
   if (process.env.PLATFORM_ADMIN_ENABLED === 'false') return false;
   const normalizedEmail = email?.trim().toLowerCase();
-  return !!normalizedEmail && getPlatformAdminEmails().includes(normalizedEmail);
+  return (
+    !!normalizedEmail && getPlatformAdminEmails().includes(normalizedEmail)
+  );
 }

@@ -41,7 +41,9 @@ export class VencimentoCobrancasJob {
    */
   @Cron('0 15 3 * * *', { name: 'financeiro.recategoriza_vencidas' })
   async executarDiario(): Promise<void> {
-    this.logger.log('[Cron Financeiro] Iniciando recategorizacao diaria de vencimentos');
+    this.logger.log(
+      '[Cron Financeiro] Iniciando recategorizacao diaria de vencimentos',
+    );
     await this.executar();
   }
 
@@ -79,7 +81,8 @@ export class VencimentoCobrancasJob {
 
     for (const loja of lojas) {
       try {
-        const resultado = await this.cobrancasService.recalcularVencimentosDaLoja(loja.id);
+        const resultado =
+          await this.cobrancasService.recalcularVencimentosDaLoja(loja.id);
         totalCobrancas += resultado.cobrancas_atualizadas;
         totalParcelas += resultado.parcelas_vencidas;
 

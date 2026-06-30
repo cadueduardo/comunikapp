@@ -67,7 +67,10 @@ export class LojasService {
     const now = Date.now();
     const existing = this.loginAttempts.get(key);
 
-    if (!existing || now - existing.firstFailureAt > this.loginAttemptWindowMs) {
+    if (
+      !existing ||
+      now - existing.firstFailureAt > this.loginAttemptWindowMs
+    ) {
       const freshState: LoginAttemptState = {
         failedAttempts: 0,
         firstFailureAt: now,
@@ -141,9 +144,7 @@ export class LojasService {
     const configuredCode = process.env.SIGNUP_INVITE_CODE?.trim();
 
     if (!configuredCode) {
-      throw new BadRequestException(
-        'Cadastro disponivel apenas por convite.',
-      );
+      throw new BadRequestException('Cadastro disponivel apenas por convite.');
     }
 
     if (!inviteCode?.trim()) {
@@ -177,7 +178,8 @@ export class LojasService {
     }
 
     if (convite.status === SIGNUP_INVITE_STATUS.USADO) {
-      const canReuse = await this.pendingSignupService.canReuseUsedInvite(convite);
+      const canReuse =
+        await this.pendingSignupService.canReuseUsedInvite(convite);
       if (!canReuse) {
         throw new BadRequestException('Convite nao esta mais disponivel.');
       }
@@ -206,9 +208,7 @@ export class LojasService {
   }
 
   private sanitizeUserAgent(userAgent: string) {
-    return userAgent.length > 240
-      ? `${userAgent.slice(0, 240)}...`
-      : userAgent;
+    return userAgent.length > 240 ? `${userAgent.slice(0, 240)}...` : userAgent;
   }
 
   private validateSignupDocuments(cpf?: string, cnpj?: string) {
@@ -270,7 +270,10 @@ export class LojasService {
         });
       }
 
-      const isCaptchaValid = await this.validateTurnstileToken(captchaToken, ip);
+      const isCaptchaValid = await this.validateTurnstileToken(
+        captchaToken,
+        ip,
+      );
       if (!isCaptchaValid) {
         this.logger.warn(
           `login_blocked captcha_invalid email=${normalizedEmail} ip=${ip} ua="${ua}" attempts=${attemptState.failedAttempts}`,
@@ -375,9 +378,12 @@ export class LojasService {
     const ua = this.sanitizeUserAgent(userAgent);
     let challenge: { sub: string; email: string };
     try {
-      challenge = this.authService.verifyTwoFactorChallengeToken(temporaryToken);
+      challenge =
+        this.authService.verifyTwoFactorChallengeToken(temporaryToken);
     } catch {
-      this.logger.warn(`login_2fa_failed invalid_temporary_token ip=${ip} ua="${ua}"`);
+      this.logger.warn(
+        `login_2fa_failed invalid_temporary_token ip=${ip} ua="${ua}"`,
+      );
       throw new UnauthorizedException('Sessao 2FA expirada ou invalida.');
     }
 
@@ -513,8 +519,7 @@ export class LojasService {
       senha,
       codigo_convite,
       token_convite,
-    } =
-      createOnboardingDto;
+    } = createOnboardingDto;
 
     const normalizedEmail = email.trim().toLowerCase();
     const convite = token_convite?.trim()
@@ -616,7 +621,12 @@ export class LojasService {
       );
 
       // Prisma: violação de unique (ex.: e-mail já cadastrado)
-      if (err && typeof err === 'object' && 'code' in err && err.code === 'P2002') {
+      if (
+        err &&
+        typeof err === 'object' &&
+        'code' in err &&
+        err.code === 'P2002'
+      ) {
         throw new BadRequestException(
           'Nao foi possivel concluir o cadastro com este e-mail. Se voce ja tentou antes, solicite um novo convite ou reenvie o codigo de verificacao.',
         );
@@ -707,11 +717,15 @@ export class LojasService {
     });
 
     if (!usuario) {
-      throw new NotFoundException('Nenhum cadastro pendente encontrado para este e-mail.');
+      throw new NotFoundException(
+        'Nenhum cadastro pendente encontrado para este e-mail.',
+      );
     }
 
     if (usuario.email_verificado) {
-      throw new BadRequestException('Este e-mail ja foi verificado. Faca login.');
+      throw new BadRequestException(
+        'Este e-mail ja foi verificado. Faca login.',
+      );
     }
 
     const emailCode = Math.floor(100000 + Math.random() * 900000).toString();

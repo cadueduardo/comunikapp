@@ -41,12 +41,16 @@ export class CreateOnboardingDto {
   @IsString()
   @IsOptional()
   @IsNotEmpty({ message: 'Informe o codigo de convite.' })
-  @MaxLength(128, { message: 'O codigo de convite deve ter no maximo 128 caracteres.' })
+  @MaxLength(128, {
+    message: 'O codigo de convite deve ter no maximo 128 caracteres.',
+  })
   codigo_convite?: string;
 
   @IsString()
   @IsOptional()
   @IsNotEmpty({ message: 'Informe o token de convite.' })
-  @MaxLength(256, { message: 'O token de convite deve ter no maximo 256 caracteres.' })
+  @MaxLength(256, {
+    message: 'O token de convite deve ter no maximo 256 caracteres.',
+  })
   token_convite?: string;
 }

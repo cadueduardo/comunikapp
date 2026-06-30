@@ -1,7 +1,4 @@
-import {
-  ResponsabilidadeArte,
-  StatusArte,
-} from '../constants/arte.enums';
+import { ResponsabilidadeArte, StatusArte } from '../constants/arte.enums';
 
 export interface StatusArteInicialResult {
   status_arte: StatusArte;

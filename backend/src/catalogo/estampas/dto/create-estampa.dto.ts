@@ -32,7 +32,9 @@ export class CreateEstampaDto {
   @MinLength(1)
   processo_id: string;
 
-  @ApiPropertyOptional({ description: 'Conjunto de campos variáveis (mesma loja)' })
+  @ApiPropertyOptional({
+    description: 'Conjunto de campos variáveis (mesma loja)',
+  })
   @IsOptional()
   @IsString()
   @MinLength(1)

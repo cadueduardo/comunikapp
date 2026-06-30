@@ -14,8 +14,11 @@ import {
   CobrancaStatus,
   CobrancaLogAcao,
   ParcelaStatus,
+  ParcelaTipo,
   RecebimentoMetodo,
 } from '../enums/cobranca-status.enum';
+import { PcpBloqueioSinalService } from '../../instalacao/services/pcp-bloqueio-sinal.service';
+import { InstalacaoPosCalculoService } from '../../instalacao/services/instalacao-pos-calculo.service';
 import { CondicaoPagamentoTipo } from '../enums/condicao-pagamento-tipo.enum';
 import {
   CobrancaDetalhe,
@@ -49,6 +52,8 @@ export class CobrancasService {
     private readonly parcelasBuilder: ParcelasBuilderService,
     private readonly statusRollup: StatusRollupService,
     private readonly vencimentoService: CobrancaVencimentoService,
+    private readonly pcpBloqueioSinalService: PcpBloqueioSinalService,
+    private readonly instalacaoPosCalculoService: InstalacaoPosCalculoService,
   ) {}
 
   // --------------------------------------------------------------------------
@@ -160,6 +165,19 @@ export class CobrancasService {
       `[Cobranca] Criada ${cobrancaCriada.id} para orcamento ${orcamentoId} (${parcelas.length} parcela(s), R$ ${dados.valor_total.toFixed(2)})`,
     );
 
+    try {
+      await this.instalacaoPosCalculoService.aplicarTravaSaldoAposAprovacao(
+        cobrancaCriada.id,
+        orcamentoId,
+        lojaId,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Falha ao aplicar trava de saldo pós-instalação na cobrança ${cobrancaCriada.id}:`,
+        error,
+      );
+    }
+
     return this.obterDetalhe(cobrancaCriada.id, lojaId);
   }
 
@@ -211,7 +229,9 @@ export class CobrancasService {
           cliente: { select: { nome: true } },
           parcelas: {
             where: {
-              status: { in: [ParcelaStatus.PREVISTO, ParcelaStatus.PARCIAL_PAGO] },
+              status: {
+                in: [ParcelaStatus.PREVISTO, ParcelaStatus.PARCIAL_PAGO],
+              },
             },
             orderBy: { data_vencimento: 'asc' },
             take: 1,
@@ -228,11 +248,23 @@ export class CobrancasService {
     };
   }
 
-  async obterDetalhe(cobrancaId: string, lojaId: string): Promise<CobrancaDetalhe> {
+  async obterDetalhe(
+    cobrancaId: string,
+    lojaId: string,
+  ): Promise<CobrancaDetalhe> {
     const row = await this.prisma.cobranca.findFirst({
       where: { id: cobrancaId, loja_id: lojaId },
       include: {
-        orcamento: { select: { numero: true, titulo: true, ordens_servico: { select: { id: true, numero: true }, orderBy: { criado_em: 'desc' } } } },
+        orcamento: {
+          select: {
+            numero: true,
+            titulo: true,
+            ordens_servico: {
+              select: { id: true, numero: true },
+              orderBy: { criado_em: 'desc' },
+            },
+          },
+        },
         cliente: { select: { nome: true } },
         parcelas: { orderBy: { ordem: 'asc' } },
         recebimentos: {
@@ -255,12 +287,18 @@ export class CobrancasService {
     }));
     const parcelasAtualizadas =
       this.statusRollup.recategorizarVencidas(parcelasParaRollup);
-    const statusCalculado = this.statusRollup.calcularStatusCobranca(parcelasAtualizadas);
+    const statusCalculado =
+      this.statusRollup.calcularStatusCobranca(parcelasAtualizadas);
 
     // Se houve mudanca de status (ex.: PREVISTA -> VENCIDO sob demanda),
     // grava no banco para nao "esquecer" a transicao no proximo @Cron.
     if (statusCalculado !== row.status) {
-      await this.aplicarStatusRecalculado(row.id, statusCalculado, parcelasAtualizadas, row.parcelas);
+      await this.aplicarStatusRecalculado(
+        row.id,
+        statusCalculado,
+        parcelasAtualizadas,
+        row.parcelas,
+      );
     }
 
     return {
@@ -274,7 +312,11 @@ export class CobrancasService {
         this.mapearParcela(p, parcelasAtualizadas[idx].status),
       ),
       recebimentos: row.recebimentos.map((r) =>
-        this.mapearRecebimento(r as Prisma.CobrancaRecebimentoGetPayload<{ include: { usuario: { select: { nome_completo: true } } } }>),
+        this.mapearRecebimento(
+          r as Prisma.CobrancaRecebimentoGetPayload<{
+            include: { usuario: { select: { nome_completo: true } } };
+          }>,
+        ),
       ),
     };
   }
@@ -296,14 +338,17 @@ export class CobrancasService {
     });
     if (!cobranca) throw new NotFoundException('Cobrança não encontrada');
     if (cobranca.status === CobrancaStatus.CANCELADA) {
-      throw new BadRequestException('Cobrança cancelada não aceita recebimentos');
+      throw new BadRequestException(
+        'Cobrança cancelada não aceita recebimentos',
+      );
     }
 
     // Identifica a parcela alvo.
     let parcelaAlvo: (typeof cobranca.parcelas)[number] | undefined;
     if (dto.parcela_id) {
       parcelaAlvo = cobranca.parcelas.find((p) => p.id === dto.parcela_id);
-      if (!parcelaAlvo) throw new NotFoundException('Parcela não encontrada na cobrança');
+      if (!parcelaAlvo)
+        throw new NotFoundException('Parcela não encontrada na cobrança');
     } else {
       // Primeira parcela em aberto (PREVISTO, PARCIAL_PAGO ou VENCIDO).
       parcelaAlvo = cobranca.parcelas.find((p) =>
@@ -337,10 +382,10 @@ export class CobrancasService {
       await tx.cobrancaRecebimento.create({
         data: {
           cobranca_id: cobrancaId,
-          parcela_id: parcelaAlvo!.id,
+          parcela_id: parcelaAlvo.id,
           valor: new Prisma.Decimal(dto.valor),
           data_recebimento: new Date(dto.data_recebimento),
-          metodo: dto.metodo as RecebimentoMetodo,
+          metodo: dto.metodo,
           observacoes: dto.observacoes ?? null,
           forcado: dto.forcado ?? false,
           usuario_id: usuarioId,
@@ -348,7 +393,7 @@ export class CobrancasService {
       });
 
       await tx.cobrancaParcela.update({
-        where: { id: parcelaAlvo!.id },
+        where: { id: parcelaAlvo.id },
         data: {
           valor_recebido: new Prisma.Decimal(novoValorRecebido),
           status: novoStatusParcela,
@@ -362,8 +407,8 @@ export class CobrancasService {
           tipo_acao: dto.forcado
             ? CobrancaLogAcao.FORCADA_LIQUIDACAO
             : CobrancaLogAcao.RECEBIMENTO_REGISTRADO,
-          descricao: `Recebimento de R$ ${this.formatarMoeda(dto.valor)} via ${dto.metodo} na parcela ordem=${parcelaAlvo!.ordem} (${parcelaAlvo!.tipo}). ${dto.forcado ? '[FORÇADO]' : ''}`,
-          status_anterior: parcelaAlvo!.status,
+          descricao: `Recebimento de R$ ${this.formatarMoeda(dto.valor)} via ${dto.metodo} na parcela ordem=${parcelaAlvo.ordem} (${parcelaAlvo.tipo}). ${dto.forcado ? '[FORÇADO]' : ''}`,
+          status_anterior: parcelaAlvo.status,
           status_novo: novoStatusParcela,
           valor_movimentado: new Prisma.Decimal(dto.valor),
           usuario_id: usuarioId,
@@ -375,6 +420,30 @@ export class CobrancasService {
 
     // Recalcula rollup da cobranca.
     await this.recalcularEPersistir(cobrancaId);
+
+    if (
+      liquidouParcela &&
+      novoStatusParcela === ParcelaStatus.LIQUIDADO &&
+      parcelaAlvo.tipo === ParcelaTipo.ENTRADA
+    ) {
+      try {
+        const desbloqueio =
+          await this.pcpBloqueioSinalService.processarEntradaLiquidadaCobranca(
+            lojaId,
+            cobrancaId,
+          );
+        if (desbloqueio.itens_desbloqueados > 0) {
+          this.logger.log(
+            `PCP desbloqueado para ${desbloqueio.itens_desbloqueados} item(ns) após liquidação do sinal — orçamento ${desbloqueio.orcamento_id}`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          `Falha ao desbloquear PCP após liquidação do sinal da cobrança ${cobrancaId}:`,
+          error,
+        );
+      }
+    }
 
     return this.obterDetalhe(cobrancaId, lojaId);
   }
@@ -482,11 +551,26 @@ export class CobrancasService {
       orderBy: { data_aprovacao: 'desc' },
       take: 5000,
       include: {
-        orcamento: { select: { numero: true, titulo: true, ordens_servico: { select: { id: true, numero: true }, orderBy: { criado_em: 'desc' } } } },
+        orcamento: {
+          select: {
+            numero: true,
+            titulo: true,
+            ordens_servico: {
+              select: { id: true, numero: true },
+              orderBy: { criado_em: 'desc' },
+            },
+          },
+        },
         cliente: { select: { nome: true } },
         parcelas: {
           where: {
-            status: { in: [ParcelaStatus.PREVISTO, ParcelaStatus.PARCIAL_PAGO, ParcelaStatus.VENCIDO] },
+            status: {
+              in: [
+                ParcelaStatus.PREVISTO,
+                ParcelaStatus.PARCIAL_PAGO,
+                ParcelaStatus.VENCIDO,
+              ],
+            },
           },
           orderBy: { data_vencimento: 'asc' },
           take: 1,
@@ -600,7 +684,8 @@ export class CobrancasService {
         parcelasParaRollup,
         agora,
       );
-      const novoStatus = this.statusRollup.calcularStatusCobranca(parcelasAtualizadas);
+      const novoStatus =
+        this.statusRollup.calcularStatusCobranca(parcelasAtualizadas);
 
       const houveMudanca =
         novoStatus !== cobranca.status ||
@@ -661,7 +746,9 @@ export class CobrancasService {
           data: {
             status: novoStatusCobranca,
             liquidado_em:
-              novoStatusCobranca === CobrancaStatus.LIQUIDADO ? new Date() : undefined,
+              novoStatusCobranca === CobrancaStatus.LIQUIDADO
+                ? new Date()
+                : undefined,
           },
         });
         await tx.cobrancaLog.create({
@@ -697,7 +784,8 @@ export class CobrancasService {
     }));
     const parcelasAtualizadas =
       this.statusRollup.recategorizarVencidas(parcelasParaRollup);
-    const novoStatus = this.statusRollup.calcularStatusCobranca(parcelasAtualizadas);
+    const novoStatus =
+      this.statusRollup.calcularStatusCobranca(parcelasAtualizadas);
     const totais = this.statusRollup.calcularTotais(parcelasAtualizadas);
 
     await this.prisma.cobranca.update({
@@ -750,9 +838,7 @@ export class CobrancasService {
       data_aprovacao: row.data_aprovacao.toISOString(),
       liquidado_em: row.liquidado_em?.toISOString() ?? null,
       cancelado_em: row.cancelado_em?.toISOString() ?? null,
-      proxima_parcela: proxima
-        ? this.mapearParcela(proxima)
-        : null,
+      proxima_parcela: proxima ? this.mapearParcela(proxima) : null,
       total_parcelas: row._count.parcelas,
       criado_em: row.criado_em.toISOString(),
     };

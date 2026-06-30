@@ -19,7 +19,9 @@ export interface SyncProdutoArteResult {
 
 @Injectable()
 export class ArteOrcamentoInjecaoService {
-  constructor(private readonly configuracaoArteService: ConfiguracaoArteService) {}
+  constructor(
+    private readonly configuracaoArteService: ConfiguracaoArteService,
+  ) {}
 
   /**
    * Sincroniza linha de serviço automática de arte no produto (mutação in-place).
@@ -96,7 +98,10 @@ export class ArteOrcamentoInjecaoService {
       }
     }
 
-    const exibirNoPdf = this.resolverExibirNoPdf(politica, config.exibir_linha_pdf);
+    const exibirNoPdf = this.resolverExibirNoPdf(
+      politica,
+      config.exibir_linha_pdf,
+    );
 
     const linhaAutomatica = {
       servico_id: servico?.id ?? config.servico_arte_id,

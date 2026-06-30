@@ -13,7 +13,8 @@ describe.skip('EstoqueModule Isolated (e2e)', () => {
 
   beforeAll(async () => {
     process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
-    process.env.ESTOQUE_INTERNAL_API_TOKEN = process.env.ESTOQUE_INTERNAL_API_TOKEN || 'test-internal-token';
+    process.env.ESTOQUE_INTERNAL_API_TOKEN =
+      process.env.ESTOQUE_INTERNAL_API_TOKEN || 'test-internal-token';
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [ConfigModule.forRoot({ isGlobal: true }), EstoqueModule],
     })
@@ -209,7 +210,10 @@ describe.skip('EstoqueModule Isolated (e2e)', () => {
 
   const withHeaders = (req: request.Test) =>
     req
-      .set('x-internal-token', process.env.ESTOQUE_INTERNAL_API_TOKEN || 'test-internal-token')
+      .set(
+        'x-internal-token',
+        process.env.ESTOQUE_INTERNAL_API_TOKEN || 'test-internal-token',
+      )
       .set('x-loja-id', mockLojaId)
       .set('x-usuario-id', 'user-e2e');
 
@@ -368,7 +372,9 @@ describe.skip('EstoqueModule Isolated (e2e)', () => {
 
   describe('/api/estoque/dashboard (GET)', () => {
     it('should return dashboard data', () => {
-      return withHeaders(request(app.getHttpServer()).get('/api/estoque/dashboard'))
+      return withHeaders(
+        request(app.getHttpServer()).get('/api/estoque/dashboard'),
+      )
         .query({ lojaId: mockLojaId })
         .expect(200)
         .expect((res) => {

@@ -162,7 +162,10 @@ export class ArteNotificacaoService implements OnModuleInit {
       throw new Error('Versão não encontrada');
     }
 
-    const link = await this.resolverLinkAprovacaoParaEmail(versao_id, dados?.link_id);
+    const link = await this.resolverLinkAprovacaoParaEmail(
+      versao_id,
+      dados?.link_id,
+    );
     if (!link) {
       throw new Error(
         'Link de aprovação não encontrado. Envie a arte ao cliente antes de reenviar o e-mail.',
@@ -387,7 +390,10 @@ export class ArteNotificacaoService implements OnModuleInit {
 
     try {
       const info = await this.transporter.sendMail({
-        from: process.env.SMTP_FROM || process.env.MAIL_FROM || 'noreply@comunikapp.com',
+        from:
+          process.env.SMTP_FROM ||
+          process.env.MAIL_FROM ||
+          'noreply@comunikapp.com',
         to: destinatarios.join(', '),
         subject: assunto,
         html,

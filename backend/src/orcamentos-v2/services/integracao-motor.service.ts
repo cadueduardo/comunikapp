@@ -2,9 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MotorCalculoV2Service } from '../../motor-calculo-v2/services/motor-calculo-v2.service';
 import { ArteOrcamentoInjecaoService } from '../../modules/arte-aprovacao/services/arte-orcamento-injecao.service';
-import {
-  isProdutoFinitoItem,
-} from '../../produtos-finitos/utils/preco-produto-finito.util';
+import { isProdutoFinitoItem } from '../../produtos-finitos/utils/preco-produto-finito.util';
 import {
   OrcamentoCompleto,
   ProdutoOrcamento,
@@ -407,8 +405,7 @@ export class IntegracaoMotorService {
       5;
 
     const tipoMargemRaw =
-      dadosOrcamento.tipo_margem_lucro ??
-      config?.tipo_margem_lucro;
+      dadosOrcamento.tipo_margem_lucro ?? config?.tipo_margem_lucro;
     const tipoMargem =
       tipoMargemRaw != null && String(tipoMargemRaw).trim() !== ''
         ? String(tipoMargemRaw).trim().toLowerCase()
@@ -423,8 +420,7 @@ export class IntegracaoMotorService {
       margem_lucro_padrao: margemPercentual,
       impostos_padrao: impostosPercentual,
       comissao_padrao: comissaoPercentual,
-      custos_indiretos_padrao:
-        toNumber(config?.custos_indiretos_padrao) ?? 15,
+      custos_indiretos_padrao: toNumber(config?.custos_indiretos_padrao) ?? 15,
       incluir_detalhamento: true,
       incluir_validacoes: true,
     };
@@ -533,10 +529,15 @@ export class IntegracaoMotorService {
     return {
       margem_lucro_padrao: toNumber(configuracoesMotor.margem_lucro_padrao),
       impostos_padrao: toNumber(configuracoesMotor.impostos_padrao),
-      custos_indiretos_padrao: toNumber(configuracoesMotor.custos_indiretos_padrao),
-      horas_produtivas_mensais:
-        toNumber(configuracoesMotor.horas_produtivas_mensais),
-      custos_indiretos_mensais: toNumber(configuracoesMotor.custos_indiretos_mensais),
+      custos_indiretos_padrao: toNumber(
+        configuracoesMotor.custos_indiretos_padrao,
+      ),
+      horas_produtivas_mensais: toNumber(
+        configuracoesMotor.horas_produtivas_mensais,
+      ),
+      custos_indiretos_mensais: toNumber(
+        configuracoesMotor.custos_indiretos_mensais,
+      ),
       tipo_margem_lucro: configuracoesMotor.tipo_margem_lucro,
       regras_especiais: configuracoesMotor.regras_especiais || [],
     };
@@ -568,58 +569,58 @@ export class IntegracaoMotorService {
     return produtos
       .filter((produto) => !isProdutoFinitoItem(produto))
       .map((produto) => ({
-      id: produto.id,
-      nome: produto.nome || 'Produto sem nome',
-      quantidade: parseFloat(produto.quantidade || '1'),
-      largura: parseFloat(produto.largura || '0'),
-      altura: parseFloat(produto.altura || '0'),
-      area: parseFloat(produto.area || '0'),
-      unidade_medida: produto.unidade_medida || 'un',
+        id: produto.id,
+        nome: produto.nome || 'Produto sem nome',
+        quantidade: parseFloat(produto.quantidade || '1'),
+        largura: parseFloat(produto.largura || '0'),
+        altura: parseFloat(produto.altura || '0'),
+        area: parseFloat(produto.area || '0'),
+        unidade_medida: produto.unidade_medida || 'un',
 
-      // Insumos - usar insumo_id (ID real do insumo no banco). Prisma: preco_unitario; API: custo_unitario
-      insumos: (produto.insumos || []).map((insumo: any) => ({
-        id: insumo.insumo_id,
-        nome: insumo.nome || 'Insumo sem nome',
-        quantidade: parseFloat(insumo.quantidade || '0'),
-        custo_unitario: parseFloat(
-          insumo.custo_unitario ?? insumo.preco_unitario ?? '0',
-        ),
-      })),
-
-      // Máquinas - Prisma usa tempo_horas; motor espera horas_utilizadas
-      maquinas: (produto.maquinas || []).map((maquina: any) => ({
-        id: maquina.maquina_id,
-        nome: maquina.nome || 'Máquina sem nome',
-        horas_utilizadas: parseFloat(
-          maquina.horas_utilizadas ?? maquina.tempo_horas ?? '0',
-        ),
-        custo_hora: parseFloat(maquina.custo_hora || '0'),
-      })),
-
-      // Funções - Prisma usa tempo_horas; motor espera horas_trabalhadas e valor_hora (ou custo_hora)
-      funcoes: (produto.funcoes || []).map((funcao: any) => ({
-        id: funcao.funcao_id,
-        nome: funcao.nome || 'Função sem nome',
-        horas_trabalhadas: parseFloat(
-          funcao.horas_trabalhadas ?? funcao.tempo_horas ?? '0',
-        ),
-        valor_hora: parseFloat(
-          funcao.valor_hora ?? funcao.custo_hora ?? '0',
-        ),
-      })),
-
-      // Serviços manuais - Prisma usa tempo_horas e custo_hora
-      servicos: (produto.servicos_manuais || produto.servicos || []).map(
-        (servico: any) => ({
-          id: servico.servico_id,
-          nome: servico.nome || 'Serviço sem nome',
-          horas_trabalhadas: parseFloat(
-            servico.horas_trabalhadas ?? servico.tempo_horas ?? '0',
+        // Insumos - usar insumo_id (ID real do insumo no banco). Prisma: preco_unitario; API: custo_unitario
+        insumos: (produto.insumos || []).map((insumo: any) => ({
+          id: insumo.insumo_id,
+          nome: insumo.nome || 'Insumo sem nome',
+          quantidade: parseFloat(insumo.quantidade || '0'),
+          custo_unitario: parseFloat(
+            insumo.custo_unitario ?? insumo.preco_unitario ?? '0',
           ),
-          valor_hora: parseFloat(servico.valor_hora ?? servico.custo_hora ?? '0'),
-        }),
-      ),
-    }));
+        })),
+
+        // Máquinas - Prisma usa tempo_horas; motor espera horas_utilizadas
+        maquinas: (produto.maquinas || []).map((maquina: any) => ({
+          id: maquina.maquina_id,
+          nome: maquina.nome || 'Máquina sem nome',
+          horas_utilizadas: parseFloat(
+            maquina.horas_utilizadas ?? maquina.tempo_horas ?? '0',
+          ),
+          custo_hora: parseFloat(maquina.custo_hora || '0'),
+        })),
+
+        // Funções - Prisma usa tempo_horas; motor espera horas_trabalhadas e valor_hora (ou custo_hora)
+        funcoes: (produto.funcoes || []).map((funcao: any) => ({
+          id: funcao.funcao_id,
+          nome: funcao.nome || 'Função sem nome',
+          horas_trabalhadas: parseFloat(
+            funcao.horas_trabalhadas ?? funcao.tempo_horas ?? '0',
+          ),
+          valor_hora: parseFloat(funcao.valor_hora ?? funcao.custo_hora ?? '0'),
+        })),
+
+        // Serviços manuais - Prisma usa tempo_horas e custo_hora
+        servicos: (produto.servicos_manuais || produto.servicos || []).map(
+          (servico: any) => ({
+            id: servico.servico_id,
+            nome: servico.nome || 'Serviço sem nome',
+            horas_trabalhadas: parseFloat(
+              servico.horas_trabalhadas ?? servico.tempo_horas ?? '0',
+            ),
+            valor_hora: parseFloat(
+              servico.valor_hora ?? servico.custo_hora ?? '0',
+            ),
+          }),
+        ),
+      }));
   }
 
   private somarTotaisProdutosPrateleira(produtos: any[]): {

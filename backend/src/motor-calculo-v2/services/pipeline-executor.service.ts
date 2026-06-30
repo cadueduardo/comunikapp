@@ -346,10 +346,12 @@ export class PipelineExecutorService {
     let detalhamentoRateio: any[] = [];
 
     if (countCustosIndiretos > 0) {
-      const horasPorSetor =
-        this.rateioCustosIndiretos.agruparHorasPorSetor(contexto.produtos);
-      const horasTotais =
-        this.rateioCustosIndiretos.somarHorasTotais(contexto.produtos);
+      const horasPorSetor = this.rateioCustosIndiretos.agruparHorasPorSetor(
+        contexto.produtos,
+      );
+      const horasTotais = this.rateioCustosIndiretos.somarHorasTotais(
+        contexto.produtos,
+      );
 
       const rateio = await this.rateioCustosIndiretos.calcularCustoIndireto(
         contexto.lojaId,
@@ -364,8 +366,7 @@ export class PipelineExecutorService {
         percentualAplicado = (custoIndiretos / custoProducao) * 100;
       }
     } else {
-      percentualAplicado =
-        contexto.configuracoes?.custos_indiretos_padrao || 0;
+      percentualAplicado = contexto.configuracoes?.custos_indiretos_padrao || 0;
       custoIndiretos = custoProducao * (percentualAplicado / 100);
     }
 

@@ -68,7 +68,9 @@ export class ExpedicaoDevolucaoService {
     });
 
     if (!usuario) {
-      throw new NotFoundException('Usuário não encontrado ou sem acesso à loja');
+      throw new NotFoundException(
+        'Usuário não encontrado ou sem acesso à loja',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {

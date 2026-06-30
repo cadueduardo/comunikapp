@@ -129,7 +129,9 @@ export class ProducaoStorageUtil {
     const caminhoFisico = this.resolverCaminhoSeguro(lojaId, meta.nome_fisico);
 
     if (!existsSync(caminhoFisico)) {
-      throw new NotFoundException('Arquivo de arte de produção não encontrado.');
+      throw new NotFoundException(
+        'Arquivo de arte de produção não encontrado.',
+      );
     }
 
     res.setHeader('Content-Type', meta.mime_type);
@@ -145,7 +147,10 @@ export class ProducaoStorageUtil {
   async removerArquivosPorToken(token: string, lojaId: string): Promise<void> {
     try {
       const meta = await this.carregarMeta(token, lojaId);
-      const caminhoFisico = this.resolverCaminhoSeguro(lojaId, meta.nome_fisico);
+      const caminhoFisico = this.resolverCaminhoSeguro(
+        lojaId,
+        meta.nome_fisico,
+      );
       const caminhoMeta = join(
         this.resolverDiretorioLoja(lojaId),
         `${meta.token}.json`,

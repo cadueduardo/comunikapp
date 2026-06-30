@@ -21,7 +21,9 @@ export class PCPRelatoriosController {
   }
 
   @Get('previsto-realizado')
-  @ApiOperation({ summary: 'Comparativo tempo previsto × realizado por setor/OS' })
+  @ApiOperation({
+    summary: 'Comparativo tempo previsto × realizado por setor/OS',
+  })
   async previstoRealizado(
     @LojaId() lojaId: string,
     @Query() filtros: Record<string, string>,

@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OSService } from '../services/os.service';
 import { OSPermissionsGuard } from '../guards/os-permissions.guard';
@@ -30,7 +38,9 @@ export class OSMateriaisController {
   }
 
   @Post(':id/itens/:itemId/anotar-sobra')
-  @ApiOperation({ summary: 'Anotar sobra estimada na OS sem movimentar estoque' })
+  @ApiOperation({
+    summary: 'Anotar sobra estimada na OS sem movimentar estoque',
+  })
   async anotarSobra(
     @Param('id') id: string,
     @Param('itemId') itemId: string,
@@ -38,13 +48,7 @@ export class OSMateriaisController {
     @Request() req: any,
   ) {
     const user = req['user'] || req.user;
-    return this.osService.anotarSobraOS(
-      id,
-      itemId,
-      user.loja_id,
-      user.id,
-      dto,
-    );
+    return this.osService.anotarSobraOS(id, itemId, user.loja_id, user.id, dto);
   }
 
   @Post(':id/itens/:itemId/registrar-sobra')

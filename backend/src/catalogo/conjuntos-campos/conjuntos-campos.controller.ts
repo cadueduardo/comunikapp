@@ -22,7 +22,9 @@ import { UpdateConjuntoCamposDto } from './dto/update-conjunto-campos.dto';
 @UseGuards(JwtAuthGuard)
 @Controller('catalogo/conjuntos-campos')
 export class ConjuntosCamposController {
-  constructor(private readonly conjuntosCamposService: ConjuntosCamposService) {}
+  constructor(
+    private readonly conjuntosCamposService: ConjuntosCamposService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Cadastra conjunto de campos com definições' })
@@ -49,7 +51,9 @@ export class ConjuntosCamposController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Atualiza conjunto e opcionalmente substitui campos' })
+  @ApiOperation({
+    summary: 'Atualiza conjunto e opcionalmente substitui campos',
+  })
   update(
     @Param('id') id: string,
     @Body() dto: UpdateConjuntoCamposDto,

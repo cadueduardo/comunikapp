@@ -12,6 +12,7 @@ import { OSApprovalPermissionsService } from '../os-approval-permissions.service
 import { OSValidacoesService } from '../os-validacoes.service';
 import { WorkflowAssignmentService } from '../../../pcp/services/workflow-assignment.service';
 import { BadRequestException } from '@nestjs/common';
+import { osServiceExtraProviders } from './os-service-test.providers';
 
 describe('OSService - Validações Condicionais', () => {
   let service: OSService;
@@ -121,6 +122,7 @@ describe('OSService - Validações Condicionais', () => {
           provide: WorkflowAssignmentService,
           useValue: mockWorkflowAssignmentService,
         },
+        ...osServiceExtraProviders,
       ],
     }).compile();
 

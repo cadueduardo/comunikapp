@@ -33,7 +33,10 @@ export class ApontamentoController {
 
   @Get('os/:osId/resumo')
   async getResumoOS(@LojaId() lojaId: string, @Param('osId') osId: string) {
-    const apontamentos = await this.apontamentoService.buscarPorOS(lojaId, osId);
+    const apontamentos = await this.apontamentoService.buscarPorOS(
+      lojaId,
+      osId,
+    );
 
     return {
       total_apontamentos: apontamentos.length,

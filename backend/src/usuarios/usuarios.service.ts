@@ -19,7 +19,10 @@ type PasswordResetAttemptState = {
 
 @Injectable()
 export class UsuariosService {
-  private readonly passwordResetAttempts = new Map<string, PasswordResetAttemptState>();
+  private readonly passwordResetAttempts = new Map<
+    string,
+    PasswordResetAttemptState
+  >();
   private readonly passwordResetWindowMs = 15 * 60 * 1000;
   private readonly passwordResetMaxAttempts = 5;
 
@@ -29,7 +32,9 @@ export class UsuariosService {
   ) {}
 
   private normalizeEmail(email: string) {
-    return String(email || '').trim().toLowerCase();
+    return String(email || '')
+      .trim()
+      .toLowerCase();
   }
 
   private hashPasswordResetToken(token: string) {
@@ -41,7 +46,10 @@ export class UsuariosService {
     const now = Date.now();
     const existing = this.passwordResetAttempts.get(key);
 
-    if (!existing || now - existing.firstAttemptAt > this.passwordResetWindowMs) {
+    if (
+      !existing ||
+      now - existing.firstAttemptAt > this.passwordResetWindowMs
+    ) {
       this.passwordResetAttempts.set(key, {
         attempts: 1,
         firstAttemptAt: now,

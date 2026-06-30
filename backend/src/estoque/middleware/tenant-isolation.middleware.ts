@@ -39,7 +39,9 @@ export class TenantIsolationMiddleware implements NestMiddleware {
 
     try {
       // 1. VALIDAÇÃO DE TOKEN INTERNO (comunicação entre módulos)
-      const internalToken = this.headerAsString(req.headers['x-internal-token']);
+      const internalToken = this.headerAsString(
+        req.headers['x-internal-token'],
+      );
       const expectedToken = this.configService.get<string>(
         'ESTOQUE_INTERNAL_API_TOKEN',
       );
@@ -51,7 +53,7 @@ export class TenantIsolationMiddleware implements NestMiddleware {
           );
         }
 
-        if (!this.secureCompare(internalToken, expectedToken as string)) {
+        if (!this.secureCompare(internalToken, expectedToken)) {
           throw new UnauthorizedException('Token interno inválido');
         }
 
@@ -195,7 +197,9 @@ export class TenantIsolationMiddleware implements NestMiddleware {
     return mapeamento[funcao] || [funcao];
   }
 
-  private headerAsString(value: string | string[] | undefined): string | undefined {
+  private headerAsString(
+    value: string | string[] | undefined,
+  ): string | undefined {
     if (Array.isArray(value)) return value[0];
     return value;
   }

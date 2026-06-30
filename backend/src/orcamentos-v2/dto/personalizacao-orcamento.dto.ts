@@ -1,6 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ModoPersonalizacao } from '@prisma/client';
-import { IsEnum, IsObject, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsEnum,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class PersonalizacaoOrcamentoDto {
   @ApiProperty({
@@ -10,13 +16,16 @@ export class PersonalizacaoOrcamentoDto {
   @IsEnum(ModoPersonalizacao)
   modo: ModoPersonalizacao;
 
-  @ApiPropertyOptional({ description: 'ID da estampa selecionada (modo ESTAMPA)' })
+  @ApiPropertyOptional({
+    description: 'ID da estampa selecionada (modo ESTAMPA)',
+  })
   @IsOptional()
   @IsUUID()
   estampa_id?: string | null;
 
   @ApiPropertyOptional({
-    description: 'ID do processo de decoração (modo IMPRINT_LIVRE ou derivado da estampa)',
+    description:
+      'ID do processo de decoração (modo IMPRINT_LIVRE ou derivado da estampa)',
   })
   @IsOptional()
   @IsUUID()

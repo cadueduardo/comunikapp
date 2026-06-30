@@ -22,7 +22,9 @@ describe('Modulo OS - Testes de Isolamento', () => {
     })
       .overrideProvider(ConfigService)
       .useValue({
-        get: jest.fn().mockReturnValue('test-secret-with-at-least-32-characters'),
+        get: jest
+          .fn()
+          .mockReturnValue('test-secret-with-at-least-32-characters'),
       })
       .overrideProvider(DocumentCodeService)
       .useValue({

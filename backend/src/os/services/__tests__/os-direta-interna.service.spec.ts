@@ -13,6 +13,7 @@ import { OSValidacoesService } from '../os-validacoes.service';
 import { WorkflowAssignmentService } from '../../../pcp/services/workflow-assignment.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { TipoOS as TipoOSInterface } from '../../interfaces/os-direta-interna.interface';
+import { osServiceExtraProviders } from './os-service-test.providers';
 
 describe('OSService - OS Direta/Interna', () => {
   let service: OSService;
@@ -22,6 +23,7 @@ describe('OSService - OS Direta/Interna', () => {
     ordemServico: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
@@ -38,6 +40,7 @@ describe('OSService - OS Direta/Interna', () => {
     itemOS: {
       findMany: jest.fn().mockResolvedValue([]),
       update: jest.fn(),
+      count: jest.fn().mockResolvedValue(0),
     },
   };
 
@@ -131,6 +134,7 @@ describe('OSService - OS Direta/Interna', () => {
           provide: WorkflowAssignmentService,
           useValue: mockWorkflowAssignmentService,
         },
+        ...osServiceExtraProviders,
       ],
     }).compile();
 
@@ -297,20 +301,31 @@ describe('OSService - OS Direta/Interna', () => {
         tipo_os: TipoOS.COMERCIAL,
         status: 'AGUARDANDO_APROVACAO_TECNICA',
         aprovacao_tecnica_status: 'PENDENTE',
+        loja_id: 'loja-001',
       };
 
-      mockPrismaService.ordemServico.findUnique.mockResolvedValue(osComercial);
-      mockPrismaService.usuario.findUnique.mockResolvedValue({
-        id: usuarioId,
-        funcao: 'PRODUCAO',
-      });
-      mockPrismaService.ordemServico.update.mockResolvedValue({
+      const osAprovada = {
         ...osComercial,
         aprovacao_tecnica_status: 'APROVADA',
         aprovacao_tecnica_por: usuarioId,
-        aprovacao_tecnica_em: expect.any(Date),
+        aprovacao_tecnica_em: new Date(),
         versao: 2,
+        itens: [],
+      };
+
+      mockPrismaService.ordemServico.findUnique
+        .mockResolvedValueOnce(osComercial)
+        .mockResolvedValueOnce(osAprovada);
+      mockPrismaService.ordemServico.findFirst.mockResolvedValue({
+        ...osComercial,
+        itens: [],
       });
+      mockPrismaService.usuario.findUnique.mockResolvedValue({
+        id: usuarioId,
+        funcao: 'PRODUCAO',
+        loja_id: 'loja-001',
+      });
+      mockPrismaService.ordemServico.update.mockResolvedValue(osAprovada);
       mockPrismaService.movimentacaoOS.create.mockResolvedValue({});
 
       const resultado = await service.aprovarOSTecnica(
@@ -327,7 +342,8 @@ describe('OSService - OS Direta/Interna', () => {
           aprovacao_tecnica_por: usuarioId,
           aprovacao_tecnica_obs: 'Aprovado',
           modificado_por: usuarioId,
-          motivo_modificacao: 'Aprovação técnica aprovada e OS liberada para PCP',
+          motivo_modificacao:
+            'Aprovação técnica aprovada e OS liberada para PCP',
           status: 'LIBERADA_PARA_PCP',
           versao: { increment: 1 },
         }),
@@ -342,17 +358,24 @@ describe('OSService - OS Direta/Interna', () => {
         tipo_os: TipoOS.COMERCIAL,
         status: 'AGUARDANDO_APROVACAO_TECNICA',
         aprovacao_tecnica_status: 'PENDENTE',
+        loja_id: 'loja-001',
       };
 
-      mockPrismaService.ordemServico.findUnique.mockResolvedValue(osComercial);
+      const osRejeitada = {
+        ...osComercial,
+        aprovacao_tecnica_status: 'REJEITADA',
+        itens: [],
+      };
+
+      mockPrismaService.ordemServico.findUnique
+        .mockResolvedValueOnce(osComercial)
+        .mockResolvedValueOnce(osRejeitada);
       mockPrismaService.usuario.findUnique.mockResolvedValue({
         id: usuarioId,
         funcao: 'PRODUCAO',
+        loja_id: 'loja-001',
       });
-      mockPrismaService.ordemServico.update.mockResolvedValue({
-        ...osComercial,
-        aprovacao_tecnica_status: 'REJEITADA',
-      });
+      mockPrismaService.ordemServico.update.mockResolvedValue(osRejeitada);
       mockPrismaService.movimentacaoOS.create.mockResolvedValue({});
 
       const resultado = await service.aprovarOSTecnica(

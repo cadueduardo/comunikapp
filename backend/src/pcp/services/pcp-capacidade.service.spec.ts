@@ -35,7 +35,12 @@ describe('PCPCapacidadeService', () => {
 
   it('deve somar apenas instancias validas por setor', async () => {
     prisma.setorProdutivo.findMany.mockResolvedValue([
-      { id: 'setor-1', nome: 'Corte', cor: '#fff', horas_produtivas_mensais: 176 },
+      {
+        id: 'setor-1',
+        nome: 'Corte',
+        cor: '#fff',
+        horas_produtivas_mensais: 176,
+      },
     ]);
     prisma.workflowInstanciaSetor.findMany.mockResolvedValue([
       {
