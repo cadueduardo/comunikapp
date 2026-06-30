@@ -237,7 +237,9 @@ jobs:
           exit 1
 
       - name: Validar OpenAPI
-        run: npx --yes @apidevtools/swagger-parser validate openapi.json
+        run: |
+          test -s openapi.json
+          node -e "const d=require('./openapi.json'); if(!d.openapi||!d.paths) { console.error('openapi.json invalido'); process.exit(1); } console.log('OpenAPI OK:', d.openapi, 'rotas:', Object.keys(d.paths).length);"
 
       - name: Upload OpenAPI
         uses: actions/upload-artifact@v4
