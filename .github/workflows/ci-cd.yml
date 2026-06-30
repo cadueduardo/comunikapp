@@ -189,7 +189,6 @@ jobs:
       DATABASE_URL: mysql://root:root@127.0.0.1:3306/comunikapp_openapi
       ESTOQUE_DATABASE_URL: mysql://root:root@127.0.0.1:3306/comunikapp_openapi
       ENABLE_SWAGGER: 'true'
-      NODE_ENV: production
 
     steps:
       - name: Checkout código
@@ -220,6 +219,8 @@ jobs:
 
       - name: Gerar documentação OpenAPI
         working-directory: backend
+        env:
+          NODE_ENV: production
         run: |
           npm run start:prod &
           APP_PID=$!

@@ -9,5 +9,8 @@
   "moduleNameMapper": {
     "^otplib$": "<rootDir>/mocks/otplib.mock.ts",
     "^src/(.*)$": "<rootDir>/../src/$1"
-  }
+  },
+  "transformIgnorePatterns": [
+    "node_modules/(?!uuid/)"
+  ]
 }
