@@ -1,0 +1,9 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "../src/catalogo/__tests__",
+  "testEnvironment": "node",
+  "testRegex": "catalogo-ponta-a-ponta\\.e2e-spec\\.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  }
+}

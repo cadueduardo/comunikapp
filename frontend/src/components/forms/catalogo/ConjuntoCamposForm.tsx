@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 const TIPOS_CAMPO = ['TEXTO', 'NUMERO', 'DATA'] as const;
 
@@ -54,6 +55,8 @@ interface ConjuntoCamposFormProps {
   onSave: (data: ConjuntoCamposFormValues) => Promise<void>;
   initialData?: Partial<ConjuntoCamposFormValues>;
   loading?: boolean;
+  embedded?: boolean;
+  onCancel?: () => void;
 }
 
 const parseInteiro = (valor?: string) => {
@@ -83,6 +86,8 @@ export function ConjuntoCamposForm({
   onSave,
   initialData,
   loading = false,
+  embedded = false,
+  onCancel,
 }: ConjuntoCamposFormProps) {
   const form = useForm<ConjuntoCamposFormValues>({
     resolver: zodResolver(formSchema),
@@ -112,27 +117,39 @@ export function ConjuntoCamposForm({
   });
 
   return (
-    <div className="w-full max-w-none">
-      <div className="mb-6">
-        <Link
-          href="/catalogo/conjuntos-campos"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Voltar para Conjuntos de campos
-        </Link>
-      </div>
+    <div className={cn('w-full min-w-0', embedded && 'max-w-full')}>
+      {!embedded ? (
+        <div className="mb-6">
+          <Link
+            href="/catalogo/conjuntos-campos"
+            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar para Conjuntos de campos
+          </Link>
+        </div>
+      ) : null}
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSave)} className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {initialData?.nome ? 'Editar conjunto de campos' : 'Novo conjunto de campos'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <form
+          onSubmit={form.handleSubmit(onSave)}
+          className={cn(embedded ? 'space-y-4' : 'space-y-6')}
+        >
+          <Card className={cn(embedded && 'border-0 shadow-none')}>
+            {!embedded ? (
+              <CardHeader>
+                <CardTitle>
+                  {initialData?.nome ? 'Editar conjunto de campos' : 'Novo conjunto de campos'}
+                </CardTitle>
+              </CardHeader>
+            ) : null}
+            <CardContent className={cn('space-y-6', embedded && 'p-0')}>
+              <div
+                className={cn(
+                  'grid grid-cols-1 gap-6',
+                  !embedded && 'lg:grid-cols-2',
+                )}
+              >
                 <FormField
                   control={form.control}
                   name="nome"
@@ -176,8 +193,13 @@ export function ConjuntoCamposForm({
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+          <Card className={cn(embedded && 'border-0 shadow-none')}>
+            <CardHeader
+              className={cn(
+                'flex flex-row items-center justify-between',
+                embedded && 'px-0',
+              )}
+            >
               <CardTitle>Campos variáveis</CardTitle>
               <Button
                 type="button"
@@ -199,13 +221,18 @@ export function ConjuntoCamposForm({
                 Adicionar campo
               </Button>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={cn('space-y-4', embedded && 'px-0')}>
               {fields.map((field, index) => (
                 <div
                   key={field.id}
                   className="space-y-4 rounded-md border p-4"
                 >
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div
+                    className={cn(
+                      'grid grid-cols-1 gap-4',
+                      !embedded && 'md:grid-cols-2 lg:grid-cols-3',
+                    )}
+                  >
                     <FormField
                       control={form.control}
                       name={`campos.${index}.chave`}
@@ -258,7 +285,12 @@ export function ConjuntoCamposForm({
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div
+                    className={cn(
+                      'grid grid-cols-1 gap-4',
+                      !embedded && 'md:grid-cols-3',
+                    )}
+                  >
                     <FormField
                       control={form.control}
                       name={`campos.${index}.placeholder`}
@@ -318,11 +350,17 @@ export function ConjuntoCamposForm({
           </Card>
 
           <div className="flex justify-end gap-3">
-            <Link href="/catalogo/conjuntos-campos">
-              <Button variant="outline" type="button">
+            {embedded ? (
+              <Button variant="outline" type="button" onClick={onCancel}>
                 Cancelar
               </Button>
-            </Link>
+            ) : (
+              <Link href="/catalogo/conjuntos-campos">
+                <Button variant="outline" type="button">
+                  Cancelar
+                </Button>
+              </Link>
+            )}
             <Button type="submit" disabled={loading}>
               <Save className="mr-2 h-4 w-4" />
               {loading ? 'Salvando...' : 'Salvar conjunto'}

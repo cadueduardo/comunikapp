@@ -5,16 +5,18 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import {
   EstampaForm,
-  serializarEstampa,
+  criarEstampaComArteMestra,
   type EstampaFormValues,
 } from '@/components/forms/catalogo/EstampaForm';
-import { catalogoEstampasApi } from '@/lib/api-client';
 
 export default function NovaEstampaPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const handleSave = async (data: EstampaFormValues) => {
+  const handleSave = async (
+    data: EstampaFormValues,
+    arteMestraPendente?: File | null,
+  ) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('access_token');
@@ -23,12 +25,17 @@ export default function NovaEstampaPage() {
         return;
       }
 
-      const criada = (await catalogoEstampasApi.create(
-        serializarEstampa(data),
+      const criada = await criarEstampaComArteMestra(
+        data,
         token,
-      )) as { id?: string };
+        arteMestraPendente,
+      );
 
-      toast.success('Estampa criada com sucesso.');
+      toast.success(
+        arteMestraPendente
+          ? 'Estampa criada com arte-mestra enviada.'
+          : 'Estampa criada com sucesso.',
+      );
       if (criada.id) {
         router.push(`/catalogo/estampas/editar/${criada.id}`);
       } else {

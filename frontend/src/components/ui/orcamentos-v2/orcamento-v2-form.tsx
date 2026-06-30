@@ -73,6 +73,7 @@ import {
   calcularPrecoPrateleiraComPersonalizacao,
   montarPersonalizacaoBackendPayload,
 } from '@/lib/catalogo/montar-personalizacao-payload';
+import { calcularCustoDecoracao } from '@/lib/catalogo/personalizacao-preco';
 import type { CatalogoRegrasOrcamento } from '@/lib/catalogo/personalizacao-orcamento.types';
 
 const unidadesTotaisPreview = ['m²', 'm2', 'metro quadrado', 'metros quadrados'];
@@ -269,6 +270,7 @@ export function OrcamentoV2Form({
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createFormSchema(mode)),
+    shouldUnregister: false,
     defaultValues: {
       cliente_id: '',
       titulo: '',
@@ -721,6 +723,55 @@ export function OrcamentoV2Form({
     }
   }, [mode, initialData, insumos.length]);
 
+  // Reidratar regras de catálogo para produtos de prateleira ao reabrir rascunho.
+  useEffect(() => {
+    if (mode !== 'editar' || !dadosCarregados) return;
+
+    const itens = form.getValues('itens_produto') || [];
+    const pendentes = itens
+      .map((item, index) => ({ item, index }))
+      .filter(
+        ({ item }) =>
+          String((item as { tipo_item?: string }).tipo_item || '').toUpperCase() ===
+            'PRODUTO_FINITO' &&
+          Boolean((item as { produto_finito_id?: string }).produto_finito_id) &&
+          !(item as { catalogo_regras?: unknown }).catalogo_regras,
+      );
+
+    if (pendentes.length === 0) return;
+
+    void (async () => {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      for (const { item, index } of pendentes) {
+        const produtoFinitoId = String(
+          (item as { produto_finito_id?: string }).produto_finito_id || '',
+        );
+        if (!produtoFinitoId) continue;
+
+        try {
+          const paraOrcamento = (await produtosFinitosApi.getParaOrcamento(
+            produtoFinitoId,
+            token,
+          )) as { personalizacao?: CatalogoRegrasOrcamento };
+          if (!paraOrcamento?.personalizacao) continue;
+
+          form.setValue(
+            `itens_produto.${index}.catalogo_regras`,
+            {
+              ...paraOrcamento.personalizacao,
+              grade_atributos_def: paraOrcamento.personalizacao.grade_atributos_def ?? [],
+            },
+            { shouldDirty: false },
+          );
+        } catch {
+          // Silencioso: preview ainda funciona com snapshots de preço persistidos.
+        }
+      }
+    })();
+  }, [mode, dadosCarregados, form]);
+
   // Debug: verificar se o status está sendo recebido
   useEffect(() => {
     if (mode === 'editar') {
@@ -756,7 +807,32 @@ export function OrcamentoV2Form({
         precoUnitario,
       ),
     );
-    const custoTotalProducao = fixDecimalFn(precoCustoUnitario * quantidade);
+    let custoTotalProducao = fixDecimalFn(precoCustoUnitario * quantidade);
+    const itemPers = produto as {
+      personalizacao_ativa?: boolean;
+      personalizacao_modo?: string;
+      personalizacao_estampa_id?: string;
+      personalizacao_processo_id?: string;
+      catalogo_regras?: CatalogoRegrasOrcamento;
+    };
+    if (itemPers.personalizacao_ativa && itemPers.personalizacao_modo) {
+      const regras = itemPers.catalogo_regras;
+      const modo = itemPers.personalizacao_modo;
+      const estampa =
+        regras?.estampas_permitidas?.find((e) => e.id === itemPers.personalizacao_estampa_id) ??
+        null;
+      const processo =
+        modo === 'ESTAMPA'
+          ? estampa?.processo ?? null
+          : regras?.processos_livres_permitidos?.find(
+              (p) => p.id === itemPers.personalizacao_processo_id,
+            ) ?? null;
+      if (processo) {
+        custoTotalProducao = fixDecimalFn(
+          custoTotalProducao + calcularCustoDecoracao(processo, quantidade).total,
+        );
+      }
+    }
     const nomeProduto = produto.nome_servico?.trim() || `Produto ${index + 1}`;
     const personalizacao = montarPersonalizacaoBackendPayload(produto as any, quantidade);
 
@@ -833,6 +909,11 @@ export function OrcamentoV2Form({
     const valorFinalManual = fixDecimal(normalizarNumero(valorFinalManualTexto));
     const resolverPrecoFinal = (precoCalculado: number): number =>
       temValorFinalManual ? valorFinalManual : fixDecimal(precoCalculado);
+
+    const resolverClienteId = (clienteId?: string) => {
+      const id = String(clienteId || '').trim();
+      return id.length > 0 ? id : undefined;
+    };
 
     const vazioParaUndefined = <T,>(lista: T[] | undefined): T[] | undefined =>
       Array.isArray(lista) && lista.length > 0 ? lista : undefined;
@@ -1355,7 +1436,7 @@ export function OrcamentoV2Form({
         titulo: tituloPrincipal,
         nome_servico: nomeServicoPrincipal,
         descricao: descricaoPrincipal,
-        cliente_id: data.cliente_id,
+        cliente_id: resolverClienteId(data.cliente_id),
         condicoes_comerciais: data.condicoes_comerciais,
         prazo_entrega: data.prazo_entrega,
         // forma_pagamento: DEPRECATED Fase 6 - nao gravamos mais; backend deriva da condicao estruturada
@@ -1804,7 +1885,7 @@ export function OrcamentoV2Form({
       titulo: tituloPrincipal,
       nome_servico: nomeServicoPrincipal,
       descricao: descricaoPrincipal,
-      cliente_id: data.cliente_id,
+      cliente_id: resolverClienteId(data.cliente_id),
       condicoes_comerciais: data.condicoes_comerciais,
       prazo_entrega: data.prazo_entrega,
       // forma_pagamento: DEPRECATED Fase 6 - nao gravamos mais; backend deriva da condicao estruturada
@@ -2159,7 +2240,10 @@ export function OrcamentoV2Form({
       }
       
       // Usar dados calculados localmente se disponíveis, senão usar dados do WebSocket
-      const dadosTransformados = transformarDadosParaBackend(formData, dadosCalculados);
+      const dadosTransformados = {
+        ...transformarDadosParaBackend(formData, dadosCalculados),
+        status: 'rascunho',
+      };
       
       console.log('🔍 Dados transformados para backend (rascunho):', dadosTransformados);
       console.log('🔍 Debug - Valores específicos enviados:', {
@@ -2232,6 +2316,11 @@ export function OrcamentoV2Form({
       }
 
       const formData = form.getValues();
+
+      if (!String(formData.cliente_id || '').trim()) {
+        toast.error('Selecione um cliente antes de enviar o orçamento.');
+        return;
+      }
       
       const erroItens = validarMateriaisItensProduto(formData.itens_produto);
       if (erroItens) {

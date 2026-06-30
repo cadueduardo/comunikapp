@@ -33,6 +33,55 @@ export const mapCamposPrateleiraFormulario = (produto: Record<string, unknown>) 
         produtoFinito?.imagens?.[0]?.url_imagem ||
         '',
     ),
+    ...mapPersonalizacaoBackendParaFormulario(produto),
+  };
+};
+
+type PersonalizacaoPersistida = {
+  modo?: string;
+  estampa_id?: string | null;
+  processo_id?: string | null;
+  valores_campos?: Record<string, string> | Array<Record<string, string>> | null;
+  grade_distribuicao?: Array<Record<string, unknown>> | null;
+};
+
+export const mapPersonalizacaoBackendParaFormulario = (
+  produto: Record<string, unknown>,
+) => {
+  const pers = produto.personalizacao as PersonalizacaoPersistida | null | undefined;
+  const modo = String(pers?.modo || '').toUpperCase();
+  const ativa = modo === 'ESTAMPA' || modo === 'IMPRINT_LIVRE';
+  const valores = pers?.valores_campos;
+  const valoresEmLista = Array.isArray(valores);
+
+  if (!ativa) {
+    return {
+      personalizacao_ativa: false,
+      personalizacao_modo: '' as const,
+      personalizacao_estampa_id: '',
+      personalizacao_processo_id: '',
+      personalizacao_valores_campos: {},
+      personalizacao_valores_campos_vdp: [] as Array<Record<string, string>>,
+      personalizacao_vdp_modo: 'INLINE' as const,
+      personalizacao_grade_distribuicao: [] as Array<Record<string, unknown>>,
+    };
+  }
+
+  return {
+    personalizacao_ativa: true,
+    personalizacao_modo: modo as 'ESTAMPA' | 'IMPRINT_LIVRE',
+    personalizacao_estampa_id: String(pers?.estampa_id || ''),
+    personalizacao_processo_id: String(pers?.processo_id || ''),
+    personalizacao_valores_campos: valoresEmLista
+      ? {}
+      : ((valores as Record<string, string>) ?? {}),
+    personalizacao_valores_campos_vdp: valoresEmLista
+      ? (valores as Array<Record<string, string>>)
+      : [],
+    personalizacao_vdp_modo: valoresEmLista ? ('PLANILHA' as const) : ('INLINE' as const),
+    personalizacao_grade_distribuicao: Array.isArray(pers?.grade_distribuicao)
+      ? pers.grade_distribuicao
+      : [],
   };
 };
 

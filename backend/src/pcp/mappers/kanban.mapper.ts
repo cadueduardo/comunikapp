@@ -77,6 +77,10 @@ export class KanbanMapper {
       tempo_previsto_min: tempoPrevistoMin,
       tempo_previsto_horas: this.arredondar(tempoPrevistoMin / 60),
       maquina_prevista: this.extrairMaquinaPrevista(instancia.item_os),
+      item_os_id: instancia.item_os?.id ?? instancia.item_os_id ?? undefined,
+      modo_fulfillment: instancia.item_os?.modo_fulfillment ?? null,
+      arte_producao_url: instancia.item_os?.arte_producao_url ?? null,
+      personalizacao_modo: instancia.item_os?.personalizacao_modo ?? null,
     };
   }
 

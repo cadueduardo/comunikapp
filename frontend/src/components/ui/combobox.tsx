@@ -67,10 +67,12 @@ export function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className="w-full min-w-0 justify-between"
           disabled={disabled}
         >
-          {selectedOption?.label ?? placeholder}
+          <span className="truncate text-left">
+            {selectedOption?.label ?? placeholder}
+          </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>

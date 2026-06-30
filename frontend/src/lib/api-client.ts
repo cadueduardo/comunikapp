@@ -594,6 +594,31 @@ export const catalogoEstampasApi = {
   },
 };
 
+export const catalogoArteProducaoApi = {
+  downloadArteProducao: async (itemOsId: string, token: string) => {
+    const url = buildApiUrl(`/catalogo/item-os/${itemOsId}/arte-producao`);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getAuthHeaders(token),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      throw new Error(await buildErrorMessage(response));
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `arte-producao-${itemOsId}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+  },
+};
+
 export const usuariosApi = {
   getAll: (token: string) => ApiClient.get('/usuarios', token),
   getById: (id: string, token: string) => ApiClient.get(`/usuarios/${id}`, token),

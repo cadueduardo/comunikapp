@@ -20,6 +20,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 const INSUMOS_OPCOES = ['ARQUIVO', 'TEXTO', 'VETOR'] as const;
 
@@ -50,6 +51,8 @@ interface ProcessoDecoracaoFormProps {
   onSave: (data: ProcessoDecoracaoFormValues) => Promise<void>;
   initialData?: Partial<ProcessoDecoracaoFormValues>;
   loading?: boolean;
+  embedded?: boolean;
+  onCancel?: () => void;
 }
 
 const parseNumero = (valor?: string) => {
@@ -83,6 +86,8 @@ export function ProcessoDecoracaoForm({
   onSave,
   initialData,
   loading = false,
+  embedded = false,
+  onCancel,
 }: ProcessoDecoracaoFormProps) {
   const form = useForm<ProcessoDecoracaoFormValues>({
     resolver: zodResolver(formSchema),
@@ -106,27 +111,42 @@ export function ProcessoDecoracaoForm({
   });
 
   return (
-    <div className="w-full max-w-none">
-      <div className="mb-6">
-        <Link
-          href="/catalogo/personalizacao"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Voltar para Personalização
-        </Link>
-      </div>
+    <div className={cn('w-full min-w-0', embedded && 'max-w-full')}>
+      {!embedded ? (
+        <div className="mb-6">
+          <Link
+            href="/catalogo/personalizacao"
+            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar para Personalização
+          </Link>
+        </div>
+      ) : null}
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSave)} className="space-y-6" id="processo-decoracao-form">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {initialData?.nome ? 'Editar processo de decoração' : 'Novo processo de decoração'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <form
+          onSubmit={form.handleSubmit(onSave)}
+          className={cn(embedded ? 'space-y-4' : 'space-y-6')}
+          id="processo-decoracao-form"
+        >
+          <Card className={cn(embedded && 'border-0 shadow-none')}>
+            {!embedded ? (
+              <CardHeader>
+                <CardTitle>
+                  {initialData?.nome
+                    ? 'Editar processo de decoração'
+                    : 'Novo processo de decoração'}
+                </CardTitle>
+              </CardHeader>
+            ) : null}
+            <CardContent className={cn('space-y-6', embedded && 'p-0')}>
+              <div
+                className={cn(
+                  'grid grid-cols-1 gap-6',
+                  !embedded && 'lg:grid-cols-2',
+                )}
+              >
                 <FormField
                   control={form.control}
                   name="nome"
@@ -169,7 +189,12 @@ export function ProcessoDecoracaoForm({
                 )}
               />
 
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <div
+                className={cn(
+                  'grid grid-cols-1 gap-6',
+                  !embedded && 'lg:grid-cols-3',
+                )}
+              >
                 <FormField
                   control={form.control}
                   name="preco_base"
@@ -249,7 +274,12 @@ export function ProcessoDecoracaoForm({
                 )}
               />
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div
+                className={cn(
+                  'grid grid-cols-1 gap-4',
+                  !embedded && 'md:grid-cols-2',
+                )}
+              >
                 <FormField
                   control={form.control}
                   name="exige_arte_aprovada"
@@ -283,8 +313,13 @@ export function ProcessoDecoracaoForm({
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+          <Card className={cn(embedded && 'border-0 shadow-none')}>
+            <CardHeader
+              className={cn(
+                'flex flex-row items-center justify-between',
+                embedded && 'px-0',
+              )}
+            >
               <CardTitle>Faixas de preço (quantity breaks)</CardTitle>
               <Button
                 type="button"
@@ -296,7 +331,7 @@ export function ProcessoDecoracaoForm({
                 Adicionar faixa
               </Button>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={cn('space-y-4', embedded && 'px-0')}>
               {fields.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   Nenhuma faixa cadastrada. O preço base será usado quando aplicável.
@@ -305,7 +340,10 @@ export function ProcessoDecoracaoForm({
                 fields.map((field, index) => (
                   <div
                     key={field.id}
-                    className="grid grid-cols-1 items-end gap-3 rounded-md border p-3 md:grid-cols-4"
+                    className={cn(
+                      'grid grid-cols-1 items-end gap-3 rounded-md border p-3',
+                      !embedded && 'md:grid-cols-4',
+                    )}
                   >
                     <FormField
                       control={form.control}
@@ -361,11 +399,17 @@ export function ProcessoDecoracaoForm({
           </Card>
 
           <div className="flex justify-end gap-3">
-            <Link href="/catalogo/personalizacao">
-              <Button variant="outline" type="button">
+            {embedded ? (
+              <Button variant="outline" type="button" onClick={onCancel}>
                 Cancelar
               </Button>
-            </Link>
+            ) : (
+              <Link href="/catalogo/personalizacao">
+                <Button variant="outline" type="button">
+                  Cancelar
+                </Button>
+              </Link>
+            )}
             <Button type="submit" disabled={loading}>
               <Save className="mr-2 h-4 w-4" />
               {loading ? 'Salvando...' : 'Salvar processo'}

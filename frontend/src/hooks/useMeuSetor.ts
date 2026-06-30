@@ -29,6 +29,10 @@ export interface ItemFila {
     id?: string;
     nome?: string;
   } | null;
+  item_os_id?: string;
+  modo_fulfillment?: 'PICK' | 'MAKE' | 'HIBRIDO' | null;
+  arte_producao_url?: string | null;
+  personalizacao_modo?: string | null;
 }
 
 export interface SetorOperador {

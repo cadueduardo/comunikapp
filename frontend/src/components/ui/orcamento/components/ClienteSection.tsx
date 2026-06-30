@@ -25,7 +25,7 @@ export function ClienteSection({ clientes, mode }: ClienteSectionProps) {
     return null;
   }
 
-  // Em modo editar, mostrar cliente como informação fixa (não editável)
+  // Em modo editar, mostrar cliente fixo quando já vinculado; senão permitir seleção (rascunho sem cliente).
   if (mode === 'editar') {
     const clienteId = form.watch('cliente_id');
     if (clienteId) {
@@ -46,7 +46,7 @@ export function ClienteSection({ clientes, mode }: ClienteSectionProps) {
     }
   }
 
-  // Em modo novo, permitir seleção
+  // Em modo novo ou rascunho sem cliente, permitir seleção
   return (
     <Card>
       <CardHeader>

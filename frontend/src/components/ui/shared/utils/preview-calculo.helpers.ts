@@ -1,5 +1,10 @@
 
 import { truncarDescricaoResumida } from '@/components/produtos-finitos/descricao-produto-finito.helpers';
+import {
+  calcularPrecoPrateleiraComPersonalizacao,
+} from '@/lib/catalogo/montar-personalizacao-payload';
+import { calcularCustoDecoracao } from '@/lib/catalogo/personalizacao-preco';
+import type { CatalogoRegrasOrcamento } from '@/lib/catalogo/personalizacao-orcamento.types';
 import { Insumo, Maquina, Funcao, ServicoManual } from '../types/common.types';
 import { calcularCustoPorUnidadeUso, calcularArea, insumoQuantidadeJaIncluiProduto } from './calculo.utils';
 
@@ -734,9 +739,31 @@ export const calcularProdutosPreview = (
     if (tipoItem === 'PRODUTO_FINITO') {
       const quantidade = Math.max(parseNumber(item?.quantidade_produto) || 1, 1);
       const precoUnitario = parseNumber(item?.preco_unitario_snapshot);
-      const precoTotal = precoUnitario * quantidade;
+      const precoTotal = calcularPrecoPrateleiraComPersonalizacao(
+        item,
+        quantidade,
+        precoUnitario,
+      );
       const precoCustoUnitario = parseNumber(item?.preco_custo_snapshot);
-      const custoTotalProducao = precoCustoUnitario * quantidade;
+      let custoTotalProducao = precoCustoUnitario * quantidade;
+
+      if (item?.personalizacao_ativa && item?.personalizacao_modo) {
+        const regras = item?.catalogo_regras as CatalogoRegrasOrcamento | undefined;
+        const modo = String(item.personalizacao_modo);
+        const estampa =
+          regras?.estampas_permitidas?.find(
+            (e) => e.id === item.personalizacao_estampa_id,
+          ) ?? null;
+        const processo =
+          modo === 'ESTAMPA'
+            ? estampa?.processo ?? null
+            : regras?.processos_livres_permitidos?.find(
+                (p) => p.id === item.personalizacao_processo_id,
+              ) ?? null;
+        if (processo) {
+          custoTotalProducao += calcularCustoDecoracao(processo, quantidade).total;
+        }
+      }
 
       totalMateriais += custoTotalProducao;
 

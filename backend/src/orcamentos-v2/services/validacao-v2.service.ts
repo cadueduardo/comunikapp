@@ -35,7 +35,13 @@ export class ValidacaoV2Service {
     this.validarValores(dados);
 
     // 2. Validações de negócio
-    await this.validarCliente(dados.cliente_id, lojaId);
+    if (dados.cliente_id) {
+      await this.validarCliente(dados.cliente_id, lojaId);
+    } else if (!this.isStatusRascunho(dados)) {
+      throw new BadRequestException(
+        'Campo obrigatório não informado: cliente_id',
+      );
+    }
     await this.validarProdutos(dados.produtos, lojaId);
     await this.validarConfiguracoes(dados.configuracoes, lojaId);
 
@@ -160,15 +166,31 @@ export class ValidacaoV2Service {
 
   // Métodos privados de validação
 
+  private isStatusRascunho(dados: { status?: string }): boolean {
+    const status = String(dados?.status || OrcamentoStatus.RASCUNHO).toLowerCase();
+    return status === OrcamentoStatus.RASCUNHO;
+  }
+
   private validarCamposObrigatorios(dados: any, criacao: boolean = true): void {
-    const camposObrigatorios = ['titulo', 'cliente_id'];
+    const camposObrigatorios = ['titulo'];
+
+    if (!this.isStatusRascunho(dados)) {
+      camposObrigatorios.push('cliente_id');
+    }
 
     if (criacao) {
       camposObrigatorios.push('produtos');
     }
 
     for (const campo of camposObrigatorios) {
-      if (!dados[campo]) {
+      const valor = dados[campo];
+      const vazio =
+        valor === null ||
+        valor === undefined ||
+        (typeof valor === 'string' && valor.trim() === '') ||
+        (Array.isArray(valor) && valor.length === 0);
+
+      if (vazio) {
         throw new BadRequestException(
           `Campo obrigatório não informado: ${campo}`,
         );

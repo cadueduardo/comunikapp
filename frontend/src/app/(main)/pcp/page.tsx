@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { ArteProducaoVdpControle } from '@/components/pcp/ArteProducaoVdpControle';
 import { WorkflowAssignmentDialog } from '@/components/pcp/WorkflowAssignmentDialog';
 import { WorkflowCardInfo } from '@/components/pcp/WorkflowCardInfo';
 import { toast } from 'sonner';
@@ -118,6 +119,10 @@ interface KanbanSetorCard {
   setor_id?: string;
   etapa_ordem?: number;
   proximos_setores_ids?: string[];
+  item_os_id?: string;
+  modo_fulfillment?: 'PICK' | 'MAKE' | 'HIBRIDO' | null;
+  arte_producao_url?: string | null;
+  personalizacao_modo?: string | null;
 }
 
 interface KanbanSetorColuna {
@@ -1651,6 +1656,12 @@ function KanbanPorSetores({
                         </span>
                       )}
                     </div>
+
+                    <ArteProducaoVdpControle
+                      itemOsId={card.item_os_id ?? card.id}
+                      modoFulfillment={card.modo_fulfillment}
+                      arteProducaoUrl={card.arte_producao_url}
+                    />
 
                     <div className="mt-2">
                       {(() => {

@@ -246,6 +246,15 @@ export class OrcamentosV2Service {
               funcoes: true,
               servicos_manuais: true,
               custos_indiretos: true,
+              personalizacao: {
+                select: {
+                  modo: true,
+                  estampa_id: true,
+                  processo_id: true,
+                  valores_campos: true,
+                  grade_distribuicao: true,
+                },
+              },
             },
           },
           historico: true,
@@ -285,10 +294,19 @@ export class OrcamentosV2Service {
           );
         });
       const deveCalcularViaMotor = !isRascunho || todosProdutosTemInsumos;
+      // Alinhado ao fluxo de update: quando o preview já enviou custos calculados,
+      // não reexecutar o motor (evita 500 por divergência de quantidades/validação).
+      const deveExecutarMotor =
+        deveCalcularViaMotor && !possuiCustosCalculadosNoPayload;
 
-      if (deveCalcularViaMotor) {
-      // 4. Sempre calcular via motor V2 (fonte da verdade para preco_final)
-      this.logger.log(
+      if (deveCalcularViaMotor && possuiCustosCalculadosNoPayload) {
+        this.logger.log(
+          `Orçamento ${orcamentoCriado.id}: custos do preview no payload; motor omitido.`,
+        );
+      }
+
+      if (deveExecutarMotor) {
+        this.logger.log(
           `💰 Calculando custos via motor V2 para novo orcamento: custo_total=${dados.custo_total}, preco_final=${dados.preco_final}`,
         );
 
@@ -307,17 +325,30 @@ export class OrcamentosV2Service {
               dados.tipo_margem_lucro ?? dados.configuracoes?.tipo_margem_lucro,
           },
         };
-        const resultadoCalculo =
-          await this.integracaoMotor.calcularOrcamentoCompleto(
-            orcamentoParaMotor,
-            lojaId,
-          );
 
-      await this.atualizarCustosCalculados(
-        orcamentoCriado.id,
-        resultadoCalculo,
-      );
-      } else {
+        try {
+          const resultadoCalculo =
+            await this.integracaoMotor.calcularOrcamentoCompleto(
+              orcamentoParaMotor,
+              lojaId,
+            );
+
+          await this.atualizarCustosCalculados(
+            orcamentoCriado.id,
+            resultadoCalculo,
+          );
+        } catch (erroMotor) {
+          this.logger.error(
+            `Erro no motor na criação do orçamento ${orcamentoCriado.id}: ${erroMotor?.message}`,
+          );
+          if (!isRascunho) {
+            throw erroMotor;
+          }
+          this.logger.warn(
+            `Rascunho ${orcamentoCriado.id} mantido sem recálculo do motor.`,
+          );
+        }
+      } else if (!deveCalcularViaMotor) {
         this.logger.warn(
           `Rascunho ${orcamentoCriado.id} salvo sem calculo: produto sem insumo informado.`,
         );
@@ -500,6 +531,15 @@ export class OrcamentosV2Service {
               funcoes: true,
               servicos_manuais: true,
               custos_indiretos: true,
+              personalizacao: {
+                select: {
+                  modo: true,
+                  estampa_id: true,
+                  processo_id: true,
+                  valores_campos: true,
+                  grade_distribuicao: true,
+                },
+              },
             },
           },
           historicoOrcamento: {
@@ -583,6 +623,15 @@ export class OrcamentosV2Service {
             funcoes: true,
             servicos_manuais: true,
             custos_indiretos: true,
+            personalizacao: {
+              select: {
+                modo: true,
+                estampa_id: true,
+                processo_id: true,
+                valores_campos: true,
+                grade_distribuicao: true,
+              },
+            },
           },
         });
         if (produtosManual.length > 0) {
@@ -854,6 +903,15 @@ export class OrcamentosV2Service {
               funcoes: true,
               servicos_manuais: true,
               custos_indiretos: true,
+              personalizacao: {
+                select: {
+                  modo: true,
+                  estampa_id: true,
+                  processo_id: true,
+                  valores_campos: true,
+                  grade_distribuicao: true,
+                },
+              },
             },
           },
         },

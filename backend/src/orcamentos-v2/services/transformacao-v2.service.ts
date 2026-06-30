@@ -175,6 +175,10 @@ export class TransformacaoV2Service {
     }
     this.aplicarCamposEntrega(dadosPreparados, dados);
 
+    const clienteId =
+      typeof dados.cliente_id === 'string' ? dados.cliente_id.trim() : '';
+    dadosPreparados.cliente_id = clienteId.length > 0 ? clienteId : null;
+
     // Preparar tags: schema usa tags (String), converter array para JSON string
     if (dados.tags && Array.isArray(dados.tags)) {
       const tagsFiltradas = dados.tags.filter(
@@ -1175,6 +1179,10 @@ export class TransformacaoV2Service {
             : null,
         preco_unitario: produto.preco_unitario || 0,
         preco_total: produto.preco_total || 0,
+        custo_total_producao:
+          produto.custo_total_producao != null
+            ? Number(produto.custo_total_producao)
+            : undefined,
         margem_lucro: produto.margem_lucro || 0,
         impostos: produto.impostos || 0,
         observacoes: produto.observacoes,
@@ -1217,6 +1225,15 @@ export class TransformacaoV2Service {
         tipo_item: produto.tipo_item || 'SOB_DEMANDA',
         produto_finito_id: produto.produto_finito_id ?? null,
         produto_finito: produto.produto_finito ?? null,
+        personalizacao: produto.personalizacao
+          ? {
+              modo: produto.personalizacao.modo,
+              estampa_id: produto.personalizacao.estampa_id ?? null,
+              processo_id: produto.personalizacao.processo_id ?? null,
+              valores_campos: produto.personalizacao.valores_campos ?? null,
+              grade_distribuicao: produto.personalizacao.grade_distribuicao ?? null,
+            }
+          : undefined,
 
         insumos:
           produto.insumos?.map((insumo) => ({

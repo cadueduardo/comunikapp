@@ -71,12 +71,13 @@ export class CriarOrcamentoDto {
   @IsEnum(PrioridadeOrcamento)
   prioridade: PrioridadeOrcamento;
 
-  @ApiProperty({
-    description: 'ID do cliente',
+  @ApiPropertyOptional({
+    description: 'ID do cliente (opcional em rascunho)',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
+  @IsOptional()
   @IsUUID()
-  cliente_id: string;
+  cliente_id?: string;
 
   @ApiPropertyOptional({
     description: 'ID do responsável pelo orçamento',

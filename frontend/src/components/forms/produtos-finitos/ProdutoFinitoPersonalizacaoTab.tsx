@@ -1,9 +1,8 @@
 'use client';
 
-import Link from 'next/link';
-import { Layers, Paintbrush, Sparkles } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import type { Control } from 'react-hook-form';
+import { Layers, Paintbrush, Plus, Sparkles } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import type { Control, UseFormSetValue } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,6 +30,10 @@ import {
   catalogoPersonalizacaoApi,
 } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
+import {
+  CatalogoInlineCadastroModals,
+  type CatalogoModalTipo,
+} from './CatalogoInlineCadastroModals';
 import type { ProdutoFinitoFormValues } from './ProdutoFinitoForm';
 
 type EstampaOpcao = {
@@ -55,6 +58,7 @@ const FULFILLMENT_OPCOES = [
 
 interface ProdutoFinitoPersonalizacaoTabProps {
   control: Control<ProdutoFinitoFormValues>;
+  setValue: UseFormSetValue<ProdutoFinitoFormValues>;
   personalizavel: boolean;
   modoEstampa: boolean;
   modoImprintLivre: boolean;
@@ -65,6 +69,7 @@ interface ProdutoFinitoPersonalizacaoTabProps {
 
 export function ProdutoFinitoPersonalizacaoTab({
   control,
+  setValue,
   personalizavel,
   modoEstampa,
   modoImprintLivre,
@@ -76,45 +81,85 @@ export function ProdutoFinitoPersonalizacaoTab({
   const [processos, setProcessos] = useState<ProcessoOpcao[]>([]);
   const [carregandoEstampas, setCarregandoEstampas] = useState(false);
   const [carregandoProcessos, setCarregandoProcessos] = useState(false);
+  const [modalAberto, setModalAberto] = useState<CatalogoModalTipo>(null);
+
+  const carregarEstampas = useCallback(async () => {
+    setCarregandoEstampas(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+      const lista = await catalogoEstampasApi.getAll(token, { ativo: true });
+      setEstampas(Array.isArray(lista) ? (lista as EstampaOpcao[]) : []);
+    } catch {
+      toast.error('Erro ao carregar estampas do catálogo.');
+    } finally {
+      setCarregandoEstampas(false);
+    }
+  }, []);
+
+  const carregarProcessos = useCallback(async () => {
+    setCarregandoProcessos(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+      const lista = await catalogoPersonalizacaoApi.getAll(token, { ativo: true });
+      setProcessos(Array.isArray(lista) ? (lista as ProcessoOpcao[]) : []);
+    } catch {
+      toast.error('Erro ao carregar processos de decoração.');
+    } finally {
+      setCarregandoProcessos(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!personalizavel || !modoEstampa) return;
-
-    (async () => {
-      setCarregandoEstampas(true);
-      try {
-        const token = localStorage.getItem('access_token');
-        if (!token) return;
-        const lista = await catalogoEstampasApi.getAll(token, { ativo: true });
-        setEstampas(Array.isArray(lista) ? (lista as EstampaOpcao[]) : []);
-      } catch {
-        toast.error('Erro ao carregar estampas do catálogo.');
-      } finally {
-        setCarregandoEstampas(false);
-      }
-    })();
-  }, [personalizavel, modoEstampa]);
+    void carregarEstampas();
+  }, [personalizavel, modoEstampa, carregarEstampas]);
 
   useEffect(() => {
     if (!personalizavel || !modoImprintLivre) return;
+    void carregarProcessos();
+  }, [personalizavel, modoImprintLivre, carregarProcessos]);
 
-    (async () => {
-      setCarregandoProcessos(true);
-      try {
-        const token = localStorage.getItem('access_token');
-        if (!token) return;
-        const lista = await catalogoPersonalizacaoApi.getAll(token, { ativo: true });
-        setProcessos(Array.isArray(lista) ? (lista as ProcessoOpcao[]) : []);
-      } catch {
-        toast.error('Erro ao carregar processos de decoração.');
-      } finally {
-        setCarregandoProcessos(false);
-      }
-    })();
-  }, [personalizavel, modoImprintLivre]);
+  const incluirEstampa = (id: string) => {
+    if (!estampaIds.includes(id)) {
+      setValue('estampa_ids', [...estampaIds, id], { shouldValidate: true });
+    }
+    if (!modoEstampa) {
+      setValue('modo_estampa', true, { shouldValidate: true });
+    }
+  };
+
+  const incluirProcesso = (id: string) => {
+    if (!processoIds.includes(id)) {
+      setValue('processo_ids', [...processoIds, id], { shouldValidate: true });
+    }
+    if (!modoImprintLivre) {
+      setValue('modo_imprint_livre', true, { shouldValidate: true });
+    }
+  };
 
   return (
     <div className="space-y-6">
+      <CatalogoInlineCadastroModals
+        modalAberto={modalAberto}
+        onModalAbertoChange={setModalAberto}
+        onProcessoCriado={(processo) => {
+          setProcessos((prev) => {
+            if (prev.some((p) => p.id === processo.id)) return prev;
+            return [...prev, processo];
+          });
+          incluirProcesso(processo.id);
+        }}
+        onEstampaCriada={(estampa) => {
+          setEstampas((prev) => {
+            if (prev.some((e) => e.id === estampa.id)) return prev;
+            return [...prev, estampa];
+          });
+          incluirEstampa(estampa.id);
+        }}
+      />
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -231,11 +276,15 @@ export function ProdutoFinitoPersonalizacaoTab({
                   <Layers className="h-4 w-4 text-primary" />
                   Estampas compatíveis
                 </CardTitle>
-                <Link href="/catalogo/estampas">
-                  <Button type="button" variant="outline" size="sm">
-                    Cadastrar estampa
-                  </Button>
-                </Link>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setModalAberto('estampa')}
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  Cadastrar estampa
+                </Button>
               </CardHeader>
               <CardContent className="space-y-3">
                 <FormField
@@ -247,16 +296,20 @@ export function ProdutoFinitoPersonalizacaoTab({
                         Selecione as estampas que podem ser vendidas com este produto.
                       </FormDescription>
                       {carregandoEstampas ? (
-                        <p className="text-sm text-muted-foreground">Carregando estampas...</p>
+                        <p className="text-sm text-muted-foreground">
+                          Carregando estampas...
+                        </p>
                       ) : estampas.length === 0 ? (
                         <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                          Nenhuma estampa ativa cadastrada.{' '}
-                          <Link
-                            href="/catalogo/estampas/novo"
-                            className="text-primary underline-offset-4 hover:underline"
+                          <p>Nenhuma estampa ativa cadastrada.</p>
+                          <Button
+                            type="button"
+                            variant="link"
+                            className="mt-2"
+                            onClick={() => setModalAberto('estampa')}
                           >
-                            Cadastrar primeira estampa
-                          </Link>
+                            Cadastrar primeira estampa sem sair desta página
+                          </Button>
                         </div>
                       ) : (
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -327,11 +380,15 @@ export function ProdutoFinitoPersonalizacaoTab({
                   <Paintbrush className="h-4 w-4 text-primary" />
                   Processos para personalização livre
                 </CardTitle>
-                <Link href="/catalogo/personalizacao">
-                  <Button type="button" variant="outline" size="sm">
-                    Cadastrar processo
-                  </Button>
-                </Link>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setModalAberto('processo')}
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  Cadastrar processo
+                </Button>
               </CardHeader>
               <CardContent className="space-y-3">
                 <FormField
@@ -349,13 +406,15 @@ export function ProdutoFinitoPersonalizacaoTab({
                         </p>
                       ) : processos.length === 0 ? (
                         <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                          Nenhum processo ativo cadastrado.{' '}
-                          <Link
-                            href="/catalogo/personalizacao/novo"
-                            className="text-primary underline-offset-4 hover:underline"
+                          <p>Nenhum processo ativo cadastrado.</p>
+                          <Button
+                            type="button"
+                            variant="link"
+                            className="mt-2"
+                            onClick={() => setModalAberto('processo')}
                           >
-                            Cadastrar processo
-                          </Link>
+                            Cadastrar processo sem sair desta página
+                          </Button>
                         </div>
                       ) : (
                         <div className="grid gap-2 sm:grid-cols-2">
@@ -434,8 +493,8 @@ export function ProdutoFinitoPersonalizacaoTab({
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Define como a OS tratará estoque vs produção ao personalizar este
-                      SKU.
+                      Define como a OS tratará estoque vs produção ao personalizar
+                      este SKU.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

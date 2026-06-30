@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useFormContext, useFieldArray } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import {
@@ -354,6 +354,25 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
     control: form.control,
     name: 'itens_produto',
   });
+
+  const fieldsSignature = fields.map((field) => field.id).join('|');
+  const accordionItemIds = useMemo(
+    () => fields.map((_, index) => `item-${index}`),
+    [fieldsSignature, fields.length],
+  );
+  const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (somenteLeitura) return;
+    setOpenAccordionItems((prev) => {
+      const valid = fields.map((_, index) => `item-${index}`);
+      const kept = prev.filter((id) => valid.includes(id));
+      if (kept.length > 0) return kept;
+      return valid.length > 0 ? [valid[0]] : [];
+    });
+  }, [fieldsSignature, somenteLeitura, fields.length]);
+
+  const accordionValue = somenteLeitura ? accordionItemIds : openAccordionItems;
 
   // Sub-fase 7.B: metadados extraídos de DXFs anexados, por índice de produto.
   // Quando há entrada aqui o card "Valores detectados no DXF" é exibido
@@ -1033,37 +1052,30 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
         </Button>
       </div>
 
-      <Accordion type="multiple" className="space-y-4">
+      <Accordion
+        type="multiple"
+        className="space-y-4"
+        value={accordionValue}
+        onValueChange={(next) => {
+          if (!somenteLeitura) {
+            setOpenAccordionItems(next);
+          }
+        }}
+      >
         {fields.map((field, index) => {
-          const tipoItem = form.watch(`itens_produto.${index}.tipo_item`);
+          const item = (itensProdutoWatch?.[index] ?? {}) as Record<string, unknown>;
+          const tipoItem = String(item.tipo_item || 'SOB_DEMANDA');
           const isPrateleira = tipoItem === 'PRODUTO_FINITO';
-          const estoqueCatalogo = Number(
-            form.watch(`itens_produto.${index}.estoque_catalogo`) || 0,
-          );
+          const estoqueCatalogo = Number(item.estoque_catalogo || 0);
           const quantidadeItem = Math.floor(
-            Number(
-              String(form.watch(`itens_produto.${index}.quantidade_produto`) || '1').replace(
-                ',',
-                '.',
-              ),
-            ) || 1,
+            Number(String(item.quantidade_produto || '1').replace(',', '.')) || 1,
           );
-          const precoBaseSnapshot = Number(
-            form.watch(`itens_produto.${index}.preco_unitario_snapshot`) || 0,
-          );
-          const personalizacaoAtiva = Boolean(
-            form.watch(`itens_produto.${index}.personalizacao_ativa`),
-          );
-          const catalogoRegras = form.watch(
-            `itens_produto.${index}.catalogo_regras`,
-          ) as CatalogoRegrasOrcamento | undefined;
-          const modoPers = form.watch(`itens_produto.${index}.personalizacao_modo`) as string;
-          const estampaIdPers = form.watch(
-            `itens_produto.${index}.personalizacao_estampa_id`,
-          ) as string;
-          const processoIdPers = form.watch(
-            `itens_produto.${index}.personalizacao_processo_id`,
-          ) as string;
+          const precoBaseSnapshot = Number(item.preco_unitario_snapshot || 0);
+          const personalizacaoAtiva = Boolean(item.personalizacao_ativa);
+          const catalogoRegras = item.catalogo_regras as CatalogoRegrasOrcamento | undefined;
+          const modoPers = String(item.personalizacao_modo || '');
+          const estampaIdPers = String(item.personalizacao_estampa_id || '');
+          const processoIdPers = String(item.personalizacao_processo_id || '');
           const precoPersonalizadoTotal = (() => {
             if (!personalizacaoAtiva || !modoPers) {
               return precoBaseSnapshot * quantidadeItem;
@@ -1089,14 +1101,16 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
           return (
           <AccordionItem key={field.id} value={`item-${index}`}>
             <Card>
-              <AccordionTrigger className="px-6 !py-0">
+              <AccordionTrigger
+                className={`px-6 !py-0${somenteLeitura ? ' pointer-events-none cursor-default [&>svg]:opacity-40' : ''}`}
+              >
                 <div className="flex items-center justify-between w-full pr-4">
                   <div className="flex items-center space-x-4">
                     <span className="font-medium">
                       Produto {index + 1}
                     </span>
                     <span className="text-sm text-muted-foreground">
-                      {form.watch(`itens_produto.${index}.nome_servico`) || 'Sem nome'}
+                      {String(item.nome_servico || '') || 'Sem nome'}
                     </span>
                   </div>
                   <span
@@ -1115,7 +1129,7 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
                   </span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent forceMount className="data-[state=closed]:hidden">
+              <AccordionContent className="data-[state=closed]:hidden">
                 <CardContent className="space-y-6">
                   <fieldset disabled={somenteLeitura} className="space-y-6 border-0 p-0 m-0 min-w-0">
                   {isPrateleira ? (

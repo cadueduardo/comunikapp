@@ -14,6 +14,7 @@ import {
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { cardTemRetrabalho } from '@/lib/pcp/pcp.utils';
+import { ArteProducaoVdpControle } from '@/components/pcp/ArteProducaoVdpControle';
 import { WorkflowCardInfo } from '@/components/pcp/WorkflowCardInfo';
 import type { ItemFila } from '@/hooks/useMeuSetor';
 import { IniciarProducaoMaquinaDialog } from '@/components/pcp/IniciarProducaoMaquinaDialog';
@@ -220,6 +221,12 @@ export function FilaOperador({
                 />
               </div>
             )}
+
+            <ArteProducaoVdpControle
+              itemOsId={item.item_os_id ?? item.id}
+              modoFulfillment={item.modo_fulfillment}
+              arteProducaoUrl={item.arte_producao_url}
+            />
 
             <div className="mt-3 flex flex-wrap gap-2">
               {item.status === 'PENDENTE' && (

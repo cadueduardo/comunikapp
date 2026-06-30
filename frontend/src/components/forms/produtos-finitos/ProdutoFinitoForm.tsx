@@ -10,13 +10,11 @@ import {
   Save,
   Truck,
   Upload,
-  X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import * as z from 'zod';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Combobox } from '@/components/ui/combobox';
@@ -37,6 +35,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { produtosFinitosApi } from '@/lib/api-client';
 import { ProdutoFinitoThumb } from '@/components/produtos-finitos/ProdutoFinitoThumb';
 import { ProdutoFinitoPersonalizacaoTab } from './ProdutoFinitoPersonalizacaoTab';
+import {
+  ProdutoFinitoGaleriaImagens,
+  type GaleriaItem,
+  type GaleriaItemPendente,
+} from './ProdutoFinitoGaleriaImagens';
 
 const fulfillmentPadraoEnum = z.enum(['ESTOQUE', 'PRODUCAO', 'HIBRIDO']);
 
@@ -101,12 +104,6 @@ type ImagemGaleria = {
   ordem: number;
 };
 
-type ImagemPendente = {
-  id: string;
-  file: File;
-  preview: string;
-};
-
 interface ProdutoFinitoFormProps {
   produtoId?: string;
   initialData?: Partial<ProdutoFinitoFormValues> & {
@@ -121,8 +118,8 @@ interface ProdutoFinitoFormProps {
   onSuccess: () => void;
 }
 
-const parseNumero = (valor?: string) => {
-  if (!valor) return undefined;
+const parseNumero = (valor?: string | number) => {
+  if (valor === null || valor === undefined || valor === '') return undefined;
   const n = Number(String(valor).replace(',', '.'));
   return Number.isFinite(n) ? n : undefined;
 };
@@ -144,16 +141,24 @@ export function ProdutoFinitoForm({
   onSuccess,
 }: ProdutoFinitoFormProps) {
   const [salvando, setSalvando] = useState(false);
+  const [reordenandoImagens, setReordenandoImagens] = useState(false);
   const [categorias, setCategorias] = useState<Array<{ id: string; nome: string }>>(
     [],
   );
-  const [imagensSalvas, setImagensSalvas] = useState<ImagemGaleria[]>(
-    initialData?.imagens || [],
+  const [galeria, setGaleria] = useState<GaleriaItem[]>(() =>
+    [...(initialData?.imagens ?? [])]
+      .sort((a, b) => a.ordem - b.ordem)
+      .map((img) => ({
+        kind: 'salva' as const,
+        id: img.id,
+        url: img.url_imagem,
+      })),
   );
-  const [imagensPendentes, setImagensPendentes] = useState<ImagemPendente[]>([]);
 
   const form = useForm<ProdutoFinitoFormValues>({
     resolver: zodResolver(formSchema),
+    // Campos em abas inativas não podem sumir do submit (ex.: estoque mínimo na aba Preço).
+    shouldUnregister: false,
     defaultValues: {
       nome: initialData?.nome ?? '',
       descricao_resumida: initialData?.descricao_resumida ?? '',
@@ -208,16 +213,67 @@ export function ProdutoFinitoForm({
 
   useEffect(() => {
     return () => {
-      imagensPendentes.forEach((img) => URL.revokeObjectURL(img.preview));
+      galeria.forEach((item) => {
+        if (item.kind === 'pendente') {
+          URL.revokeObjectURL(item.preview);
+        }
+      });
     };
-  }, [imagensPendentes]);
+  }, [galeria]);
 
   const categoriaOptions = useMemo(
     () => categorias.map((c) => ({ label: c.nome, value: c.id })),
     [categorias],
   );
 
-  const totalImagens = imagensSalvas.length + imagensPendentes.length;
+  const totalImagens = galeria.length;
+
+  const persistirOrdemImagensSalvas = async (itens: GaleriaItem[]) => {
+    if (!produtoId) return;
+
+    const idsSalvas = itens
+      .filter((item): item is GaleriaItem & { kind: 'salva' } => item.kind === 'salva')
+      .map((item) => item.id);
+
+    const totalSalvas = itens.filter((item) => item.kind === 'salva').length;
+    if (totalSalvas <= 1) return;
+
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    setReordenandoImagens(true);
+    try {
+      const atualizadas = (await produtosFinitosApi.reordenarImagens(
+        produtoId,
+        idsSalvas,
+        token,
+      )) as ImagemGaleria[];
+
+      const mapaUrl = new Map(atualizadas.map((img) => [img.id, img.url_imagem]));
+      setGaleria((prev) =>
+        prev.map((item) =>
+          item.kind === 'salva'
+            ? { ...item, url: mapaUrl.get(item.id) ?? item.url }
+            : item,
+        ),
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível reordenar as imagens.',
+      );
+    } finally {
+      setReordenandoImagens(false);
+    }
+  };
+
+  const handleReordenarGaleria = (itens: GaleriaItem[]) => {
+    setGaleria(itens);
+    if (produtoId) {
+      void persistirOrdemImagensSalvas(itens);
+    }
+  };
 
   const montarPayloadPersonalizacao = (values: ProdutoFinitoFormValues) => {
     if (!values.personalizavel) {
@@ -257,9 +313,30 @@ export function ProdutoFinitoForm({
     ativo: values.ativo,
   });
 
-  const enviarImagensPendentes = async (id: string, token: string) => {
-    for (const imagem of imagensPendentes) {
-      await produtosFinitosApi.uploadImagem(id, imagem.file, token);
+  const enviarImagensPendentes = async (
+    id: string,
+    token: string,
+    itens: GaleriaItem[],
+  ) => {
+    const idsFinais: string[] = [];
+
+    for (const item of itens) {
+      if (item.kind === 'salva') {
+        idsFinais.push(item.id);
+        continue;
+      }
+
+      const resposta = (await produtosFinitosApi.uploadImagem(
+        id,
+        item.file,
+        token,
+      )) as { id: string; url_imagem?: string; url?: string };
+
+      idsFinais.push(resposta.id);
+    }
+
+    if (idsFinais.length > 1) {
+      await produtosFinitosApi.reordenarImagens(id, idsFinais, token);
     }
   };
 
@@ -295,8 +372,15 @@ export function ProdutoFinitoForm({
         }
       }
 
-      if (idDestino && imagensPendentes.length > 0) {
-        await enviarImagensPendentes(idDestino, token);
+      if (idDestino) {
+        const pendentes = galeria.filter(
+          (item): item is GaleriaItemPendente => item.kind === 'pendente',
+        );
+        if (pendentes.length > 0) {
+          await enviarImagensPendentes(idDestino, token, galeria);
+        } else if (produtoId) {
+          await persistirOrdemImagensSalvas(galeria);
+        }
       }
 
       toast.success(
@@ -336,38 +420,43 @@ export function ProdutoFinitoForm({
       return;
     }
 
-    const novos: ImagemPendente[] = [];
+    const novos: GaleriaItemPendente[] = [];
     Array.from(files)
       .slice(0, restante)
       .forEach((file) => {
         novos.push({
+          kind: 'pendente',
           id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
           file,
           preview: URL.createObjectURL(file),
         });
       });
 
-    setImagensPendentes((prev) => [...prev, ...novos]);
+    setGaleria((prev) => [...prev, ...novos]);
   };
 
-  const removerImagemPendente = (id: string) => {
-    setImagensPendentes((prev) => {
-      const alvo = prev.find((img) => img.id === id);
-      if (alvo) URL.revokeObjectURL(alvo.preview);
-      return prev.filter((img) => img.id !== id);
-    });
-  };
+  const removerItemGaleria = async (id: string) => {
+    const alvo = galeria.find((item) => item.id === id);
+    if (!alvo) return;
 
-  const removerImagemSalva = async (imagemId: string) => {
+    if (alvo.kind === 'pendente') {
+      URL.revokeObjectURL(alvo.preview);
+      setGaleria((prev) => prev.filter((item) => item.id !== id));
+      return;
+    }
+
     if (!produtoId) return;
     const token = localStorage.getItem('access_token');
     if (!token) return;
-    await produtosFinitosApi.removerImagem(produtoId, imagemId, token);
-    setImagensSalvas((prev) => prev.filter((img) => img.id !== imagemId));
+
+    await produtosFinitosApi.removerImagem(produtoId, id, token);
+    setGaleria((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const thumbnailPendente = imagensPendentes[0]?.preview || null;
-  const thumbnailSalvaUrl = imagensSalvas[0]?.url_imagem || null;
+  const capaItem = galeria[0];
+  const thumbnailPendente =
+    capaItem?.kind === 'pendente' ? capaItem.preview : null;
+  const thumbnailSalvaUrl = capaItem?.kind === 'salva' ? capaItem.url : null;
 
   return (
     <div className="space-y-6">
@@ -525,50 +614,12 @@ export function ProdutoFinitoForm({
                     <p className="text-xs font-medium text-muted-foreground">
                       Galeria ({totalImagens}/{MAX_IMAGENS})
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                      {imagensSalvas.map((imagem) => (
-                        <div
-                          key={imagem.id}
-                          className="relative h-16 w-16 overflow-hidden rounded-md border"
-                        >
-                          <ProdutoFinitoThumb
-                            url={imagem.url_imagem}
-                            alt=""
-                            className="h-full w-full rounded-md"
-                          />
-                          <button
-                              type="button"
-                              className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white"
-                              onClick={() => void removerImagemSalva(imagem.id)}
-                            >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                      {imagensPendentes.map((imagem) => (
-                        <div
-                          key={imagem.id}
-                          className="relative h-16 w-16 overflow-hidden rounded-md border border-primary/30"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={imagem.preview}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                          <Badge className="absolute bottom-0.5 left-0.5 px-1 py-0 text-[10px]">
-                            Nova
-                          </Badge>
-                          <button
-                            type="button"
-                            className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white"
-                            onClick={() => removerImagemPendente(imagem.id)}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                    <ProdutoFinitoGaleriaImagens
+                      itens={galeria}
+                      onReorder={handleReordenarGaleria}
+                      onRemover={(id) => void removerItemGaleria(id)}
+                      reordenando={reordenandoImagens}
+                    />
                   </div>
                 ) : null}
 
@@ -587,9 +638,9 @@ export function ProdutoFinitoForm({
                   />
                 </label>
 
-                {!produtoId && imagensPendentes.length > 0 ? (
+                {!produtoId && galeria.some((item) => item.kind === 'pendente') ? (
                   <p className="text-xs text-muted-foreground">
-                    As imagens serão enviadas automaticamente ao salvar o produto.
+                    As imagens serão enviadas na ordem exibida ao salvar o produto.
                   </p>
                 ) : null}
               </CardContent>
@@ -924,6 +975,7 @@ export function ProdutoFinitoForm({
             <TabsContent value="personalizacao" className="mt-6">
               <ProdutoFinitoPersonalizacaoTab
                 control={form.control}
+                setValue={form.setValue}
                 personalizavel={personalizavel}
                 modoEstampa={modoEstampa}
                 modoImprintLivre={modoImprintLivre}
@@ -935,6 +987,13 @@ export function ProdutoFinitoForm({
               />
             </TabsContent>
           </Tabs>
+
+          <div className="flex justify-end border-t pt-6">
+            <Button type="submit" disabled={salvando}>
+              <Save className="mr-2 h-4 w-4" />
+              {salvando ? 'Salvando...' : 'Salvar produto'}
+            </Button>
+          </div>
         </form>
       </Form>
     </div>

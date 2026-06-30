@@ -2,7 +2,7 @@
 
 **Branch:** `feature/catalogo-escala-e-seguranca`  
 **Documentação base:** v0.2 (2026-06-26)  
-**Última atualização:** 2026-06-27
+**Última atualização:** 2026-06-29
 
 ---
 
@@ -10,9 +10,35 @@
 
 | Item | Valor |
 |------|-------|
-| **Fase ativa** | Catálogo — refinamentos operacionais / Fase 10+ |
-| **Status geral** | Motor VDP print-ready ativo; PCP e Expedição podem consumir `arte_producao_url` |
-| **Próximo passo** | Preview com TTL / integração visual no frontend PCP |
+| **Fase ativa** | Encerramento da Epic — homologação |
+| **Status geral** | **FINALIZADO / PRONTO PARA HOMOLOGAÇÃO** |
+| **Próximo passo** | Revisão de PR, deploy em ambiente de homologação e validação comercial |
+
+---
+
+## Fase 10 — Testes, qualidade e encerramento
+
+### 10.1 Testes de integração
+
+- [x] E2E estrutural `catalogo-ponta-a-ponta.e2e-spec.ts` (orçamento VDP → ItemOS → PDF)
+- [x] Script dedicado `npm run test:e2e:catalogo`
+- [x] Cleanup automático de arquivos temporários no disco após testes
+- [x] Asserções: `modo_fulfillment` HIBRIDO/MAKE, snapshot JSON imutável, PDF no storage tenant
+
+### 10.2 Qualidade e preparação de PR
+
+- [x] Varredura de `console.log` / debug nos módulos de catálogo e orçamento V2
+- [x] Template de PR técnico (`99-template-pull-request.md`)
+- [x] `npm run build` backend validado
+- [x] Build frontend validado
+
+### 10.3 Integração UI — Kanban PCP
+
+- [x] `ArteProducaoVdpControle` nos cards do Kanban por setores (`/pcp`)
+- [x] `ArteProducaoVdpControle` na fila do operador (`FilaOperador`)
+- [x] Download seguro via `GET /catalogo/item-os/:id/arte-producao` com Bearer token
+- [x] Badge `⏳ Gerando Arquivo de Produção...` quando `arte_producao_url` nula
+- [x] Backend: `KanbanMapper` expõe `item_os_id`, `modo_fulfillment`, `arte_producao_url`
 
 ---
 
@@ -202,11 +228,11 @@
 
 ## Checklist antes de cada PR
 
-- [ ] `loja_id` em todas as queries novas
-- [ ] Produto finito legado (`personalizavel=false`) testado
-- [ ] Migration aditiva apenas
-- [ ] `11-checklist-progresso.md` atualizado
-- [ ] Docs RP atualizados se decisão mudou
+- [x] `loja_id` em todas as queries novas
+- [x] Produto finito legado (`personalizavel=false`) testado
+- [x] Migration aditiva apenas
+- [x] `11-checklist-progresso.md` atualizado
+- [x] Docs RP atualizados (`99-template-pull-request.md`)
 
 ---
 
@@ -223,3 +249,4 @@
 | 2026-06-27 | Orçamento V2: UI personalização, VDP/CSV, grade, preço industrial, persistência | Fase 7 |
 | 2026-06-27 | Propagação personalização orçamento→OS, motor `modo_fulfillment`, logs imutáveis | Fase 8 |
 | 2026-06-27 | Motor arte produção VDP (PDF multipáginas, storage seguro, download autenticado) | Fase 9 |
+| 2026-06-29 | Encerramento Epic: E2E estrutural, UI Kanban PCP, limpeza, template PR | Fase 10 |
