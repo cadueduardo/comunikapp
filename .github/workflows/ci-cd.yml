@@ -83,9 +83,9 @@ jobs:
         working-directory: backend
         run: npx prisma generate
 
-      - name: Executar migrações de teste
+      - name: Sincronizar schema no banco de teste
         working-directory: backend
-        run: npx prisma migrate deploy
+        run: npx prisma db push --accept-data-loss
 
       - name: Executar testes unitários
         working-directory: backend
@@ -132,9 +132,9 @@ jobs:
         working-directory: backend
         run: npx prisma generate
 
-      - name: Executar migrações E2E
+      - name: Sincronizar schema no banco E2E
         working-directory: backend
-        run: npx prisma migrate deploy
+        run: npx prisma db push --accept-data-loss
 
       - name: Executar testes E2E
         working-directory: backend
@@ -210,9 +210,9 @@ jobs:
         working-directory: backend
         run: npx prisma generate
 
-      - name: Executar migrações
+      - name: Sincronizar schema no banco OpenAPI
         working-directory: backend
-        run: npx prisma migrate deploy
+        run: npx prisma db push --accept-data-loss
 
       - name: Build da aplicação
         working-directory: backend
