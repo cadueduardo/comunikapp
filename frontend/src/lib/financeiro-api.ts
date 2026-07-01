@@ -29,7 +29,9 @@ export type ParcelaStatus =
   | 'PARCIAL_PAGO'
   | 'VENCIDO'
   | 'LIQUIDADO'
-  | 'CANCELADA';
+  | 'CANCELADA'
+  | 'AGUARDANDO_RELATORIO_TECNICO'
+  | 'A_FATURAR';
 
 export type ParcelaTipo = 'AVISTA' | 'ENTRADA' | 'SALDO' | 'PARCELA' | 'FATURADO';
 
@@ -45,11 +47,11 @@ export type RecebimentoMetodo =
 export interface ParcelaResumo {
   id: string;
   ordem: number;
-  tipo: string;
+  tipo: ParcelaTipo;
   valor_previsto: number;
   valor_recebido: number;
   data_vencimento: string;
-  status: string;
+  status: ParcelaStatus;
   liquidado_em: string | null;
 }
 

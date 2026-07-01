@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
+import { InstalacaoRelatorioTecnicoCard } from '@/components/financeiro/InstalacaoRelatorioTecnicoCard';
 import type {
   CobrancaResumo,
   RecebimentoMetodo,
@@ -50,6 +51,23 @@ interface Props {
   modoForcado?: boolean;
 }
 
+function calcularValorSugeridoRecebimento(
+  cobranca: CobrancaResumo,
+  modoForcado: boolean,
+): number {
+  if (modoForcado) {
+    return Number(cobranca.valor_saldo ?? 0);
+  }
+  const proxima = cobranca.proxima_parcela;
+  if (proxima) {
+    return Math.max(
+      0,
+      Number(proxima.valor_previsto) - Number(proxima.valor_recebido),
+    );
+  }
+  return Number(cobranca.valor_saldo ?? 0);
+}
+
 const METODOS: { value: RecebimentoMetodo; label: string }[] = [
   { value: 'PIX', label: 'PIX' },
   { value: 'DINHEIRO', label: 'Dinheiro' },
@@ -71,11 +89,8 @@ export function RegistrarRecebimentoDialog({
   const saldoParcelaAberta = proxima
     ? Number(proxima.valor_previsto) - Number(proxima.valor_recebido)
     : Number(cobranca?.valor_saldo ?? 0);
-  const valorInicial = modoForcado
-    ? Number(cobranca?.valor_saldo ?? 0)
-    : saldoParcelaAberta;
 
-  const [valor, setValor] = useState<string>(String(valorInicial));
+  const [valor, setValor] = useState<string>('0');
   const [dataRecebimento, setDataRecebimento] = useState<string>(
     new Date().toISOString().slice(0, 10),
   );
@@ -84,12 +99,15 @@ export function RegistrarRecebimentoDialog({
   const [forcado, setForcado] = useState<boolean>(modoForcado);
   const [submitting, setSubmitting] = useState(false);
 
-  // Reset quando muda a cobranca alvo
-  if (open && cobranca) {
-    // Nao usamos useEffect aqui de proposito: queremos recalcular o sugerido
-    // sempre que abre o modal com uma cobranca diferente. Como o componente
-    // monta a cada open, isso funciona sem efeito colateral.
-  }
+  useEffect(() => {
+    if (!open || !cobranca) return;
+    const sugerido = calcularValorSugeridoRecebimento(cobranca, modoForcado);
+    setValor(String(sugerido));
+    setDataRecebimento(new Date().toISOString().slice(0, 10));
+    setMetodo('PIX');
+    setObservacoes('');
+    setForcado(modoForcado);
+  }, [open, cobranca, modoForcado]);
 
   const handleSubmit = async () => {
     if (!cobranca) return;
@@ -140,10 +158,10 @@ export function RegistrarRecebimentoDialog({
             <br />
             Saldo atual:{' '}
             <strong>{formatarMoeda(Number(cobranca.valor_saldo))}</strong>
-            {proxima && saldoParcelaAberta < Number(cobranca.valor_saldo) && (
+            {proxima && (
               <>
                 <br />
-                Parcela em aberto:{' '}
+                Próxima parcela ({proxima.tipo === 'ENTRADA' ? 'entrada' : proxima.tipo === 'SALDO' ? 'saldo' : `#${proxima.ordem}`}):{' '}
                 <strong>{formatarMoeda(saldoParcelaAberta)}</strong>
               </>
             )}
@@ -229,6 +247,14 @@ export function RegistrarRecebimentoDialog({
             </div>
           )}
         </div>
+
+        {cobranca?.ordens_servico?.[0] && (
+          <InstalacaoRelatorioTecnicoCard
+            osId={cobranca.ordens_servico[0].id}
+            osNumero={cobranca.ordens_servico[0].numero}
+            onAprovado={onSuccess}
+          />
+        )}
 
         <DialogFooter>
           <Button

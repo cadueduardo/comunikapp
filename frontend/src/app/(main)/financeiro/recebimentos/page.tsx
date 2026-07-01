@@ -53,10 +53,12 @@ import {
 import { formatarMoeda } from '@/lib/financeiro/financeiro-format';
 import {
   exportarCobrancasCsv,
+  fetchCobrancaDetalhe,
   fetchCobrancas,
   type CobrancaResumo,
   type FiltrosCobranca,
 } from '@/lib/financeiro-api';
+import { InstalacaoRelatorioTecnicoCard } from '@/components/financeiro/InstalacaoRelatorioTecnicoCard';
 import { RegistrarRecebimentoDialog } from '@/components/financeiro/RegistrarRecebimentoDialog';
 import { CancelarCobrancaDialog } from '@/components/financeiro/CancelarCobrancaDialog';
 
@@ -117,6 +119,9 @@ export default function RecebimentosPage() {
   const [cobrancaDestaqueId, setCobrancaDestaqueId] = useState<string | null>(null);
   const [contextoOsId, setContextoOsId] = useState<string | null>(null);
   const [contextoOsNumero, setContextoOsNumero] = useState<string | null>(null);
+  const [osRelatorioInstalacaoId, setOsRelatorioInstalacaoId] = useState<
+    string | null
+  >(null);
   const [exportando, setExportando] = useState(false);
 
   // modais
@@ -137,6 +142,33 @@ export default function RecebimentosPage() {
     if (osId) setContextoOsId(osId);
     if (ref) setContextoOsNumero(decodeURIComponent(ref));
   }, []);
+
+  useEffect(() => {
+    if (contextoOsId) {
+      setOsRelatorioInstalacaoId(contextoOsId);
+      return;
+    }
+
+    if (!cobrancaDestaqueId) {
+      setOsRelatorioInstalacaoId(null);
+      return;
+    }
+
+    let ativo = true;
+    fetchCobrancaDetalhe(cobrancaDestaqueId)
+      .then((detalhe) => {
+        if (!ativo) return;
+        const osId = detalhe.ordens_servico?.[0]?.id ?? null;
+        setOsRelatorioInstalacaoId(osId);
+      })
+      .catch(() => {
+        if (ativo) setOsRelatorioInstalacaoId(null);
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [contextoOsId, cobrancaDestaqueId]);
 
   const filtrosBackend: FiltrosCobranca = useMemo(
     () => ({
@@ -306,6 +338,14 @@ export default function RecebimentosPage() {
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {osRelatorioInstalacaoId && (
+        <InstalacaoRelatorioTecnicoCard
+          osId={osRelatorioInstalacaoId}
+          osNumero={contextoOsNumero}
+          onAprovado={() => void carregar()}
+        />
       )}
 
       {/* Resumo de totais visiveis */}
