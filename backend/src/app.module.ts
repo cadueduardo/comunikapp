@@ -1,5 +1,6 @@
 import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { join, resolve } from 'path';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -36,11 +37,18 @@ import { InstalacaoModule } from './instalacao/instalacao.module';
 import { CatalogoModule } from './catalogo/catalogo.module';
 import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
 import { PlatformModule } from './platform/platform.module';
+import { ConexoesModule } from './conexoes/conexoes.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      // Monorepo: npm run dev na raiz pode deixar cwd em comunikapp/; credenciais ficam em backend/.env
+      envFilePath: [
+        resolve(process.cwd(), '.env'),
+        resolve(process.cwd(), 'backend', '.env'),
+        join(__dirname, '..', '.env'),
+      ],
     }),
     // ScheduleModule habilita @Cron / @Interval em todo o app.
     // Usado no minimo pela Fase 6.E (job diario de vencimento de cobrancas).
@@ -80,6 +88,7 @@ import { PlatformModule } from './platform/platform.module';
     InstalacaoModule, // Módulo de Instalações e Pós-Cálculo (Fase 2)
     CatalogoModule, // Catálogo de produtos e personalização
     PlatformModule,
+    ConexoesModule,
   ],
 })
 export class AppModule {

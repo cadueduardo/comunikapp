@@ -24,6 +24,7 @@ import { EventosAutomaticosService } from './eventos-automaticos.service';
 import { OSValidacoesService } from './os-validacoes.service';
 import { WorkflowAssignmentService } from '../../pcp/services/workflow-assignment.service';
 import { ExpedicaoCriacaoService } from '../../expedicao/services/expedicao-criacao.service';
+import { ItemOSInstalacaoCriacaoService } from '../../instalacao/services/item-os-instalacao-criacao.service';
 import { CreateOSDto } from '../dto/create-os.dto';
 import { AnotarSobraDto, RegistrarSobraDto } from '../dto/os-materiais.dto';
 import { CorrecaoMateriaisHelper } from '../helpers/correcao-materiais.helper';
@@ -40,8 +41,11 @@ import {
 import {
   computeArteResumoGrid,
   computeLiberacaoResumoGrid,
+  computeStatusOSLiberacaoFromItens,
+  comTipoItemOrcamento,
   getMotivosBloqueioPcp,
   isElegivelPcp,
+  itemRequerFabricaPcp,
   resolveIdsAlvoLiberacao,
 } from '../utils/os-liberacao-pcp.util';
 import {
@@ -92,6 +96,7 @@ export class OSService {
     private readonly osValidacoesService: OSValidacoesService,
     private readonly workflowAssignmentService: WorkflowAssignmentService,
     private readonly expedicaoCriacaoService: ExpedicaoCriacaoService,
+    private readonly itemOSInstalacaoCriacaoService: ItemOSInstalacaoCriacaoService,
     private readonly arteProducaoService: ArteProducaoService,
     private readonly pcpBloqueioSinalService: PcpBloqueioSinalService,
   ) {}
@@ -2485,6 +2490,18 @@ export class OSService {
         String(os.tipo_os).toUpperCase() !== TipoOSInterface.INTERNA
       ) {
         try {
+          await this.itemOSInstalacaoCriacaoService.processarBaixaProducaoOs(
+            os.loja_id,
+            osId,
+          );
+        } catch (error) {
+          this.logger.error(
+            `Falha ao sincronizar lotes de instalação para OS ${osId} após finalização manual:`,
+            error,
+          );
+        }
+
+        try {
           await this.expedicaoCriacaoService.criarSeElegivel(osId, os.loja_id);
         } catch (error) {
           this.logger.error(
@@ -2732,6 +2749,9 @@ export class OSService {
       const itensOS = await this.prisma.itemOS.findMany({
         where: { os_id: osId },
       });
+      const tipoPorId = await this.carregarTipoItemOrcamentoPorIds(
+        itensOS.map((i) => i.id),
+      );
       const todosIds = itensOS.map((i) => i.id);
       const idsPrazos = (prazosItens ?? []).map((p) => p.item_id);
       const idsAlvo = resolveIdsAlvoLiberacao(todosIds, itemIds, idsPrazos);
@@ -2740,6 +2760,16 @@ export class OSService {
         eFluxoPadrao &&
         idsAlvo.length > 0 &&
         idsAlvo.length < itensOS.length;
+
+      const prazosPreparados = await this.validarEPrepararPrazosItens(
+        osId,
+        prazosItens || [],
+        eFluxoPadrao && aprovado,
+        eLiberacaoParcial ? idsAlvo : itemIds,
+      );
+      const prazoPorItemId = new Map(
+        prazosPreparados.map((p) => [p.item_id, p.data_prazo_produto]),
+      );
 
       if (aprovado && eFluxoPadrao) {
         for (const itemId of idsAlvo) {
@@ -2753,18 +2783,28 @@ export class OSService {
           ) {
             continue;
           }
-          const motivos = getMotivosBloqueioPcp(
-            {
-              id: item.id,
-              produto_servico: item.produto_servico,
-              data_prazo_produto: item.data_prazo_produto,
-              status_liberacao_pcp: item.status_liberacao_pcp,
-              responsabilidade_arte: item.responsabilidade_arte,
-              status_arte: item.status_arte,
-              materiais_disponivel: item.materiais_disponivel,
-            },
-            os.materiais_disponivel,
-          );
+          const enriquecido = comTipoItemOrcamento(item, tipoPorId);
+          const ctx = {
+            id: enriquecido.id,
+            produto_servico: enriquecido.produto_servico,
+            data_prazo_produto:
+              prazoPorItemId.get(itemId) ?? enriquecido.data_prazo_produto,
+            status_liberacao_pcp: enriquecido.status_liberacao_pcp,
+            responsabilidade_arte: enriquecido.responsabilidade_arte,
+            status_arte: enriquecido.status_arte,
+            materiais_disponivel: enriquecido.materiais_disponivel,
+            modo_fulfillment: enriquecido.modo_fulfillment,
+            personalizacao_modo: enriquecido.personalizacao_modo,
+            tipo_item: enriquecido.tipo_item,
+            parametros_tecnicos: enriquecido.parametros_tecnicos,
+            insumos_necessarios: enriquecido.insumos_necessarios,
+          };
+
+          if (!itemRequerFabricaPcp(ctx)) {
+            continue;
+          }
+
+          const motivos = getMotivosBloqueioPcp(ctx, os.materiais_disponivel);
           if (motivos.length > 0) {
             throw new BadRequestException(
               `Produto "${item.produto_servico}" não elegível: ${motivos.map((m) => m.mensagem).join('; ')}`,
@@ -2795,13 +2835,6 @@ export class OSService {
             ? 'Aprovação técnica aprovada e OS liberada para PCP'
             : 'Aprovação técnica aprovada (retroativa)'
         : 'Aprovação técnica rejeitada';
-
-      const prazosPreparados = await this.validarEPrepararPrazosItens(
-        osId,
-        prazosItens || [],
-        eFluxoPadrao && aprovado,
-        eLiberacaoParcial ? idsAlvo : itemIds,
-      );
 
       // Atualiza prazo guarda-chuva da OS se ainda não existir (usa max
       // dos itens). Bloqueia se algum item exceder o prazo atual da OS.
@@ -2867,28 +2900,6 @@ export class OSService {
           usuarioId,
           eLiberacaoParcial ? idsAlvo : undefined,
         );
-
-        const liberados = await this.prisma.itemOS.count({
-          where: { os_id: osId, status_liberacao_pcp: 'LIBERADO' },
-        });
-        const total = itensOS.length;
-        if (liberados >= total && total > 0) {
-          await this.prisma.ordemServico.update({
-            where: { id: osId },
-            data: {
-              status: StatusOS.LIBERADA_PARA_PCP,
-              aprovacao_tecnica_status: 'APROVADA',
-            },
-          });
-        } else if (liberados > 0 && liberados < total) {
-          await this.prisma.ordemServico.update({
-            where: { id: osId },
-            data: {
-              status: StatusOS.PARCIALMENTE_LIBERADA,
-              aprovacao_tecnica_status: 'PENDENTE',
-            },
-          });
-        }
       }
 
       this.logger.log(
@@ -2937,31 +2948,73 @@ export class OSService {
     });
     if (!os) return;
 
+    const tipoPorId = await this.carregarTipoItemOrcamentoPorIds(
+      os.itens.map((i) => i.id),
+    );
+
     const candidatos = os.itens.filter((item) => {
       if (
         (item.status_liberacao_pcp || 'PENDENTE').toUpperCase() === 'LIBERADO'
       ) {
         return false;
       }
-      if (itemIds && itemIds.length > 0 && !itemIds.includes(item.id)) {
+      if ((item.status_liberacao_pcp || '').toUpperCase() === 'NAO_APLICA') {
         return false;
       }
-      return isElegivelPcp(
-        {
-          id: item.id,
-          produto_servico: item.produto_servico,
-          data_prazo_produto: item.data_prazo_produto,
-          status_liberacao_pcp: item.status_liberacao_pcp,
-          responsabilidade_arte: item.responsabilidade_arte,
-          status_arte: item.status_arte,
-          materiais_disponivel: item.materiais_disponivel,
-        },
-        os.materiais_disponivel,
-      );
+      if (itemIds && itemIds.length > 0) {
+        const enriquecido = comTipoItemOrcamento(item, tipoPorId);
+        const requerPcp = itemRequerFabricaPcp({
+          modo_fulfillment: enriquecido.modo_fulfillment,
+          personalizacao_modo: enriquecido.personalizacao_modo,
+          responsabilidade_arte: enriquecido.responsabilidade_arte,
+          tipo_item: enriquecido.tipo_item,
+          parametros_tecnicos: enriquecido.parametros_tecnicos,
+          insumos_necessarios: enriquecido.insumos_necessarios,
+        });
+        if (!requerPcp) {
+          return true;
+        }
+        return itemIds.includes(item.id);
+      }
+      return true;
     });
+
+    let liberadosPcp = 0;
 
     try {
       for (const item of candidatos) {
+        const enriquecido = comTipoItemOrcamento(item, tipoPorId);
+        const ctx = {
+          id: enriquecido.id,
+          produto_servico: enriquecido.produto_servico,
+          data_prazo_produto: enriquecido.data_prazo_produto,
+          status_liberacao_pcp: enriquecido.status_liberacao_pcp,
+          responsabilidade_arte: enriquecido.responsabilidade_arte,
+          status_arte: enriquecido.status_arte,
+          materiais_disponivel: enriquecido.materiais_disponivel,
+          modo_fulfillment: enriquecido.modo_fulfillment,
+          personalizacao_modo: enriquecido.personalizacao_modo,
+          tipo_item: enriquecido.tipo_item,
+          parametros_tecnicos: enriquecido.parametros_tecnicos,
+          insumos_necessarios: enriquecido.insumos_necessarios,
+        };
+
+        if (!itemRequerFabricaPcp(ctx)) {
+          await this.prisma.itemOS.update({
+            where: { id: item.id },
+            data: {
+              status_liberacao_pcp: 'NAO_APLICA',
+              liberado_pcp_em: new Date(),
+              liberado_pcp_por: usuarioId,
+            },
+          });
+          continue;
+        }
+
+        if (!isElegivelPcp(ctx, os.materiais_disponivel)) {
+          continue;
+        }
+
         await this.prisma.itemOS.update({
           where: { id: item.id },
           data: {
@@ -2970,6 +3023,7 @@ export class OSService {
             liberado_pcp_em: new Date(),
           },
         });
+        liberadosPcp += 1;
       }
     } catch (error) {
       this.logger.warn(
@@ -2979,7 +3033,8 @@ export class OSService {
       );
     }
 
-    if (candidatos.length === 0) {
+    if (liberadosPcp === 0) {
+      await this.sincronizarStatusAgregadoLiberacaoPcp(osId);
       return;
     }
 
@@ -3009,6 +3064,55 @@ export class OSService {
           error instanceof Error ? error.message : error
         }`,
       );
+    }
+
+    await this.sincronizarStatusAgregadoLiberacaoPcp(osId);
+  }
+
+  private async sincronizarStatusAgregadoLiberacaoPcp(osId: string): Promise<void> {
+    const itensOs = await this.prisma.itemOS.findMany({ where: { os_id: osId } });
+    if (itensOs.length === 0) {
+      return;
+    }
+
+    const tipoPorId = await this.carregarTipoItemOrcamentoPorIds(
+      itensOs.map((i) => i.id),
+    );
+    const ctxItens = itensOs.map((item) => {
+      const enriquecido = comTipoItemOrcamento(item, tipoPorId);
+      return {
+        id: enriquecido.id,
+        produto_servico: enriquecido.produto_servico,
+        data_prazo_produto: enriquecido.data_prazo_produto,
+        status_liberacao_pcp: enriquecido.status_liberacao_pcp,
+        responsabilidade_arte: enriquecido.responsabilidade_arte,
+        status_arte: enriquecido.status_arte,
+        materiais_disponivel: enriquecido.materiais_disponivel,
+        modo_fulfillment: enriquecido.modo_fulfillment,
+        personalizacao_modo: enriquecido.personalizacao_modo,
+        tipo_item: enriquecido.tipo_item,
+        parametros_tecnicos: enriquecido.parametros_tecnicos,
+        insumos_necessarios: enriquecido.insumos_necessarios,
+      };
+    });
+
+    const agregado = computeStatusOSLiberacaoFromItens(ctxItens);
+    if (agregado === 'PARCIAL') {
+      await this.prisma.ordemServico.update({
+        where: { id: osId },
+        data: {
+          status: StatusOS.PARCIALMENTE_LIBERADA,
+          aprovacao_tecnica_status: 'PENDENTE',
+        },
+      });
+    } else if (agregado === 'COMPLETO') {
+      await this.prisma.ordemServico.update({
+        where: { id: osId },
+        data: {
+          status: StatusOS.LIBERADA_PARA_PCP,
+          aprovacao_tecnica_status: 'APROVADA',
+        },
+      });
     }
   }
 
@@ -3312,6 +3416,8 @@ export class OSService {
 
   private montarParametrosItemOS(produto: any): Record<string, any> {
     return {
+      tipo_item: produto.tipo_item || 'SOB_DEMANDA',
+      produto_finito_id: produto.produto_finito_id || null,
       largura: produto.largura?.toString?.() ?? produto.largura ?? null,
       altura: produto.altura?.toString?.() ?? produto.altura ?? null,
       profundidade:
@@ -4218,6 +4324,19 @@ export class OSService {
   }
 
   // ===== HEALTH CHECK =====
+
+  private async carregarTipoItemOrcamentoPorIds(
+    itemIds: string[],
+  ): Promise<Map<string, string>> {
+    if (itemIds.length === 0) {
+      return new Map();
+    }
+    const rows = await this.prisma.produtoOrcamento.findMany({
+      where: { id: { in: itemIds } },
+      select: { id: true, tipo_item: true },
+    });
+    return new Map(rows.map((row) => [row.id, row.tipo_item]));
+  }
 
   async healthCheck(): Promise<{ status: string; timestamp: string }> {
     try {

@@ -2,9 +2,19 @@ import { BadRequestException } from '@nestjs/common';
 import { CategoriaOcorrencia, TipoOcorrencia } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { InstalacaoService } from './instalacao.service';
+import { InstalacaoFechamentoService } from './instalacao-fechamento.service';
+import { InstalacaoAgendaSyncService } from './instalacao-agenda-sync.service';
 
 describe('InstalacaoService', () => {
   let service: InstalacaoService;
+
+  const fechamentoMock = {
+    reterAposInstalacaoCompleta: jest.fn(),
+  };
+
+  const agendaSyncMock = {
+    sincronizarDataOs: jest.fn(),
+  };
 
   const prismaMock = {
     itemOSInstalacao: {
@@ -12,14 +22,18 @@ describe('InstalacaoService', () => {
       findFirst: jest.fn(),
       update: jest.fn(),
     },
-    ordemServico: { findFirst: jest.fn() },
+    ordemServico: { findFirst: jest.fn(), findMany: jest.fn() },
     taxaOcorrenciaLoja: { findUnique: jest.fn() },
     ocorrenciaInstalacao: { create: jest.fn() },
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new InstalacaoService(prismaMock as unknown as PrismaService);
+    service = new InstalacaoService(
+      prismaMock as unknown as PrismaService,
+      fechamentoMock as unknown as InstalacaoFechamentoService,
+      agendaSyncMock as unknown as InstalacaoAgendaSyncService,
+    );
   });
 
   it('lista lotes sem expor campos financeiros nas ocorrências', async () => {
@@ -104,5 +118,269 @@ describe('InstalacaoService', () => {
         descricao: '   ',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  describe('consultarAgenda', () => {
+    it('retorna lotes no intervalo com dados operacionais do calendário', async () => {
+      const dataPrevisao = new Date('2026-08-10T14:00:00.000Z');
+      prismaMock.itemOSInstalacao.findMany.mockResolvedValue([
+        {
+          id: 'lote-1',
+          data_previsao: dataPrevisao,
+          turno_previsao: 'MANHA',
+          equipe_instalacao: 'Equipe Alpha',
+          status_instalacao: 'AGUARDANDO',
+          cep: '01310100',
+          logradouro: 'Av. Paulista',
+          numero: '1000',
+          complemento: null,
+          bairro: 'Bela Vista',
+          cidade: 'São Paulo',
+          uf: 'SP',
+          item_os: {
+            os: {
+              id: 'os-1',
+              numero: 'OS-2026-001',
+              nome_servico: 'Fachada ACM',
+              status_instalacao_os: 'EM_ANDAMENTO',
+              cliente: { nome: 'Cliente Teste' },
+            },
+          },
+        },
+      ]);
+
+      const resultado = await service.consultarAgenda('loja-1', {
+        data_inicio: '2026-08-01',
+        data_fim: '2026-08-31',
+      });
+
+      expect(prismaMock.itemOSInstalacao.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            loja_id: 'loja-1',
+            data_previsao: expect.objectContaining({
+              not: null,
+              gte: expect.any(Date),
+              lte: expect.any(Date),
+            }),
+            item_os: { os: { loja_id: 'loja-1' } },
+          }),
+        }),
+      );
+
+      expect(resultado.total).toBe(1);
+      expect(resultado.eventos[0]).toEqual(
+        expect.objectContaining({
+          lote_id: 'lote-1',
+          os_id: 'os-1',
+          os_numero: 'OS-2026-001',
+          cliente_nome: 'Cliente Teste',
+          nome_servico: 'Fachada ACM',
+          status_instalacao_os: 'EM_ANDAMENTO',
+          data_previsao: dataPrevisao.toISOString(),
+          turno_previsao: 'MANHA',
+          equipe_instalacao: 'Equipe Alpha',
+          status_instalacao: 'AGUARDANDO',
+          endereco_resumido: expect.stringContaining('Av. Paulista'),
+        }),
+      );
+      expect(resultado.eventos[0].endereco).toEqual(
+        expect.objectContaining({
+          logradouro: 'Av. Paulista',
+          cidade: 'São Paulo',
+        }),
+      );
+    });
+
+    it('retorna lista vazia quando não há instalações no período', async () => {
+      prismaMock.itemOSInstalacao.findMany.mockResolvedValue([]);
+
+      const resultado = await service.consultarAgenda('loja-1', {
+        data_inicio: '2026-09-01',
+        data_fim: '2026-09-30',
+      });
+
+      expect(resultado.total).toBe(0);
+      expect(resultado.eventos).toEqual([]);
+    });
+
+    it('isola tenant — consulta sempre filtra pela loja do contexto', async () => {
+      prismaMock.itemOSInstalacao.findMany.mockResolvedValue([]);
+
+      await service.consultarAgenda('loja-segura', {
+        data_inicio: '2026-08-01',
+        data_fim: '2026-08-31',
+      });
+
+      const where =
+        prismaMock.itemOSInstalacao.findMany.mock.calls[0][0].where;
+      expect(where.loja_id).toBe('loja-segura');
+      expect(where.item_os.os.loja_id).toBe('loja-segura');
+    });
+  });
+
+  describe('consultarConflitosAgenda', () => {
+    it('detecta conflito quando a mesma equipe tem 2+ lotes no mesmo dia', async () => {
+      prismaMock.itemOSInstalacao.findMany.mockResolvedValue([
+        {
+          id: 'lote-1',
+          data_previsao: new Date('2026-08-10T10:00:00.000Z'),
+          equipe_instalacao: 'Equipe Alpha',
+          item_os: {
+            os: {
+              numero: 'OS-2026-001',
+              cliente: { nome: 'Cliente A' },
+            },
+          },
+        },
+        {
+          id: 'lote-2',
+          data_previsao: new Date('2026-08-10T18:00:00.000Z'),
+          equipe_instalacao: 'Equipe Alpha',
+          item_os: {
+            os: {
+              numero: 'OS-2026-005',
+              cliente: { nome: 'Cliente B' },
+            },
+          },
+        },
+      ]);
+
+      const resultado = await service.consultarConflitosAgenda('loja-1', {
+        data_inicio: '2026-08-01',
+        data_fim: '2026-08-31',
+      });
+
+      expect(resultado.total_conflitos).toBe(1);
+      expect(resultado.conflitos[0]).toEqual({
+        data: '2026-08-10',
+        equipe_instalacao: 'Equipe Alpha',
+        total_lotes_sobrepostos: 2,
+        lotes: [
+          {
+            lote_id: 'lote-1',
+            os_numero: 'OS-2026-001',
+            cliente_nome: 'Cliente A',
+          },
+          {
+            lote_id: 'lote-2',
+            os_numero: 'OS-2026-005',
+            cliente_nome: 'Cliente B',
+          },
+        ],
+      });
+    });
+
+    it('não retorna conflito para equipes ou dias diferentes', async () => {
+      prismaMock.itemOSInstalacao.findMany.mockResolvedValue([
+        {
+          id: 'lote-1',
+          data_previsao: new Date('2026-08-10T10:00:00.000Z'),
+          equipe_instalacao: 'Equipe Alpha',
+          item_os: {
+            os: { numero: 'OS-1', cliente: { nome: 'A' } },
+          },
+        },
+        {
+          id: 'lote-2',
+          data_previsao: new Date('2026-08-11T10:00:00.000Z'),
+          equipe_instalacao: 'Equipe Alpha',
+          item_os: {
+            os: { numero: 'OS-2', cliente: { nome: 'B' } },
+          },
+        },
+        {
+          id: 'lote-3',
+          data_previsao: new Date('2026-08-10T14:00:00.000Z'),
+          equipe_instalacao: 'Equipe Beta',
+          item_os: {
+            os: { numero: 'OS-3', cliente: { nome: 'C' } },
+          },
+        },
+      ]);
+
+      const resultado = await service.consultarConflitosAgenda('loja-1', {
+        data_inicio: '2026-08-01',
+        data_fim: '2026-08-31',
+      });
+
+      expect(resultado.total_conflitos).toBe(0);
+      expect(resultado.conflitos).toEqual([]);
+    });
+
+    it('isola tenant na consulta de conflitos', async () => {
+      prismaMock.itemOSInstalacao.findMany.mockResolvedValue([]);
+
+      await service.consultarConflitosAgenda('loja-alfa', {
+        data_inicio: '2026-08-01',
+        data_fim: '2026-08-31',
+      });
+
+      expect(prismaMock.itemOSInstalacao.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            loja_id: 'loja-alfa',
+            status_instalacao: {
+              in: ['AGUARDANDO', 'EM_ANDAMENTO'],
+            },
+            equipe_instalacao: { not: null },
+            item_os: { os: { loja_id: 'loja-alfa' } },
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('listarOsInstalacaoGestao', () => {
+    it('retorna grid de OS com progresso de lotes', async () => {
+      prismaMock.ordemServico.findMany.mockResolvedValue([
+        {
+          id: 'os-1',
+          numero: 'OS-100',
+          nome_servico: 'Fachada',
+          status_instalacao_os: 'EM_ANDAMENTO',
+          data_instalacao_agendada: new Date('2026-08-15T12:00:00.000Z'),
+          cliente: { nome: 'Cliente A' },
+          itens: [
+            {
+              quantidade: 10,
+              lotes_instalacao: [
+                {
+                  status_instalacao: 'CONCLUIDO',
+                  quantidade_alocada: 5,
+                  data_previsao: new Date('2026-08-20T10:00:00.000Z'),
+                },
+                {
+                  status_instalacao: 'AGUARDANDO',
+                  quantidade_alocada: 3,
+                  data_previsao: new Date('2026-08-18T10:00:00.000Z'),
+                },
+              ],
+            },
+          ],
+        },
+      ]);
+
+      const resultado = await service.listarOsInstalacaoGestao('loja-1');
+
+      expect(prismaMock.ordemServico.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ loja_id: 'loja-1' }),
+        }),
+      );
+      expect(resultado.total).toBe(1);
+      expect(resultado.itens[0]).toEqual(
+        expect.objectContaining({
+          os_id: 'os-1',
+          numero: 'OS-100',
+          cliente_nome: 'Cliente A',
+          progresso: expect.objectContaining({
+            concluidos: 1,
+            total: 2,
+            alocados: 8,
+          }),
+        }),
+      );
+    });
   });
 });

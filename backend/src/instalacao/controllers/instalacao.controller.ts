@@ -1,17 +1,22 @@
-import { Body, Controller, Get, NotFoundException, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, BadRequestException, NotFoundException, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { LojaId } from '../../auth/loja-id.decorator';
 import { CurrentUser } from '../../auth/decorators';
 import { AuthenticatedUser } from '../../auth/auth.service';
-import {
-  AtualizarEnderecoLoteDto,
+import { AtualizarEnderecoLoteDto,
+  CriarLoteInstalacaoDto,
   RegistrarOcorrenciaGestaoDto,
 } from '../dto/gestao.dto';
+import { AtualizarStatusLoteDto } from '../dto/atualizar-status-lote.dto';
+import { ConsultarAgendaQueryDto } from '../dto/consultar-agenda-query.dto';
+import { ListarOsInstalacaoQueryDto } from '../dto/listar-os-instalacao-query.dto';
 import { InstalacaoGestaoPermissionsGuard } from '../guards/instalacao-gestao-permissions.guard';
+import { FinanceiroPermissionsGuard } from '../guards/financeiro-permissions.guard';
 import { CepIntegrationService } from '../services/cep-integration.service';
 import { InstalacaoPosCalculoService } from '../services/instalacao-pos-calculo.service';
 import { InstalacaoService } from '../services/instalacao.service';
+import { ItemOSInstalacaoCriacaoService } from '../services/item-os-instalacao-criacao.service';
 @ApiTags('Instalações')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -21,7 +26,43 @@ export class InstalacaoController {
     private readonly cepService: CepIntegrationService,
     private readonly posCalculoService: InstalacaoPosCalculoService,
     private readonly instalacaoService: InstalacaoService,
+    private readonly itemOSInstalacaoCriacaoService: ItemOSInstalacaoCriacaoService,
   ) {}
+
+  @Get('os')
+  @UseGuards(InstalacaoGestaoPermissionsGuard)
+  @ApiOperation({ summary: 'Lista OS com instalação para o grid de gestão' })
+  async listarOsInstalacao(
+    @LojaId() lojaId: string,
+    @Query() query: ListarOsInstalacaoQueryDto,
+  ) {
+    return this.instalacaoService.listarOsInstalacaoGestao(lojaId, query);
+  }
+
+  @Get('agenda')
+  @UseGuards(InstalacaoGestaoPermissionsGuard)
+  @ApiOperation({
+    summary: 'Consulta agenda operacional de instalações no intervalo',
+  })
+  async consultarAgenda(
+    @LojaId() lojaId: string,
+    @Query() query: ConsultarAgendaQueryDto,
+  ) {
+    return this.instalacaoService.consultarAgenda(lojaId, query);
+  }
+
+  @Get('agenda/conflitos')
+  @UseGuards(InstalacaoGestaoPermissionsGuard)
+  @ApiOperation({
+    summary:
+      'Detecta conflitos de equipe com mais de um lote no mesmo dia (UX-04)',
+  })
+  async consultarConflitosAgenda(
+    @LojaId() lojaId: string,
+    @Query() query: ConsultarAgendaQueryDto,
+  ) {
+    return this.instalacaoService.consultarConflitosAgenda(lojaId, query);
+  }
 
   @Get('lotes')
   @UseGuards(InstalacaoGestaoPermissionsGuard)
@@ -35,6 +76,67 @@ export class InstalacaoController {
   @ApiOperation({ summary: 'Painel gerencial da OS (lotes + ocorrências)' })
   async painelOs(@LojaId() lojaId: string, @Param('osId') osId: string) {
     return this.instalacaoService.obterPainelOs(lojaId, osId);
+  }
+
+  @Post('lotes')
+  @UseGuards(InstalacaoGestaoPermissionsGuard)
+  @ApiOperation({ summary: 'Cria lote de instalação (rollout manual)' })
+  async criarLote(
+    @LojaId() lojaId: string,
+    @Body() dto: CriarLoteInstalacaoDto,
+  ) {
+    const resultado = await this.itemOSInstalacaoCriacaoService.criarLoteManual({
+      lojaId,
+      itemOsId: dto.item_os_id,
+      quantidadeAlocada: dto.quantidade_alocada,
+      endereco: {
+        cep: dto.cep,
+        logradouro: dto.logradouro,
+        numero: dto.numero,
+        complemento: dto.complemento,
+        bairro: dto.bairro,
+        cidade: dto.cidade,
+        uf: dto.uf,
+      },
+      dataPrevisao: dto.data_previsao ? new Date(dto.data_previsao) : undefined,
+      turnoPrevisao: dto.turno_previsao,
+      equipeInstalacao: dto.equipe_instalacao,
+    });
+
+    if (!resultado.criado) {
+      const mensagens: Record<string, string> = {
+        ITEM_NAO_ENCONTRADO: 'Item da OS não encontrado.',
+        SEM_ORCAMENTO: 'OS sem orçamento vinculado.',
+        SEM_INSTALACAO: 'Este item não exige instalação.',
+        SEM_SALDO: 'Quantidade excede o saldo disponível para alocação.',
+      };
+      const mensagem =
+        mensagens[resultado.motivo_skip ?? ''] ??
+        'Não foi possível criar o lote de instalação.';
+
+      if (resultado.motivo_skip === 'ITEM_NAO_ENCONTRADO') {
+        throw new NotFoundException(mensagem);
+      }
+
+      throw new BadRequestException(mensagem);
+    }
+
+    return resultado;
+  }
+
+  @Patch('lotes/:id/status')
+  @UseGuards(InstalacaoGestaoPermissionsGuard)
+  @ApiOperation({ summary: 'Atualiza status operacional do lote (Kanban gestão)' })
+  async atualizarStatusLote(
+    @LojaId() lojaId: string,
+    @Param('id') id: string,
+    @Body() dto: AtualizarStatusLoteDto,
+  ) {
+    return this.instalacaoService.atualizarStatusLoteGestao(
+      lojaId,
+      id,
+      dto.status_instalacao,
+    );
   }
 
   @Patch('lotes/:id')
@@ -109,6 +211,24 @@ export class InstalacaoController {
       total_nfs: Number(relatorio.total_nfs),
       gerado_em: relatorio.gerado_em.toISOString(),
     };
+  }
+
+  @Post('os/:osId/aprovar-financeiro')
+  @UseGuards(FinanceiroPermissionsGuard)
+  @ApiOperation({
+    summary:
+      'Aprovação financeira pós-instalação (DEC-04): libera saldo A_FATURAR e finaliza expedição',
+  })
+  async aprovarFinanceiro(
+    @LojaId() lojaId: string,
+    @Param('osId') osId: string,
+    @CurrentUser() usuario: AuthenticatedUser,
+  ) {
+    return this.posCalculoService.aprovarFinanceiroOs(
+      osId,
+      lojaId,
+      usuario.id,
+    );
   }
 
   @Post('os/:osId/relatorio-tecnico')

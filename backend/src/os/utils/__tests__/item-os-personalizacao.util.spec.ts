@@ -73,14 +73,14 @@ describe('item-os-personalizacao.util', () => {
       ).toBe(ModoFulfillmentItem.HIBRIDO);
     });
 
-    it('mantém PICK para item SOB_DEMANDA', () => {
+    it('retorna MAKE para item SOB_DEMANDA (produção no chão de fábrica)', () => {
       expect(
         resolverModoFulfillmentItem({
           tipoItem: 'SOB_DEMANDA',
           produtoFinito: null,
           personalizacao: null,
         }),
-      ).toBe(ModoFulfillmentItem.PICK);
+      ).toBe(ModoFulfillmentItem.MAKE);
     });
   });
 

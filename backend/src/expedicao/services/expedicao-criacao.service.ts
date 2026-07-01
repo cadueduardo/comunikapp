@@ -66,6 +66,10 @@ export class ExpedicaoCriacaoService {
       os.orcamento_id,
       lojaId,
     );
+    const statusInicial = await this.resolverStatusInicial(
+      os.orcamento_id,
+      lojaId,
+    );
 
     return this.prisma.$transaction(async (tx) => {
       const existenteAtivo = await tx.expedicaoLogistica.findFirst({
@@ -104,7 +108,7 @@ export class ExpedicaoCriacaoService {
         await tx.expedicaoLogistica.update({
           where: { id: arquivadaPorReversaoPcp.id },
           data: {
-            status: StatusExpedicao.AGUARDANDO_SEPARACAO,
+            status: statusInicial,
             atualizado_em: new Date(),
           },
         });
@@ -127,7 +131,7 @@ export class ExpedicaoCriacaoService {
           loja_id: lojaId,
           os_id: osId,
           modalidade,
-          status: StatusExpedicao.AGUARDANDO_SEPARACAO,
+          status: statusInicial,
         },
         select: { id: true },
       });
@@ -153,7 +157,12 @@ export class ExpedicaoCriacaoService {
       where: {
         os_id: osId,
         loja_id: lojaId,
-        status: StatusExpedicao.AGUARDANDO_SEPARACAO,
+        status: {
+          in: [
+            StatusExpedicao.AGUARDANDO_SEPARACAO,
+            StatusExpedicao.AGUARDANDO_INSTALACAO,
+          ],
+        },
       },
       select: { id: true },
     });
@@ -179,15 +188,15 @@ export class ExpedicaoCriacaoService {
     return { cancelada: true, expedicao_id: expedicao.id };
   }
 
-  private async resolverModalidadeInicial(
+  private async resolverContextoOrcamento(
     orcamentoId: string | null,
     lojaId: string,
   ) {
     if (!orcamentoId) {
-      return this.modalidadeMapper.resolver({
+      return {
         instalacaoNecessaria: false,
-        nomeModalidadeEntrega: null,
-      });
+        nomeModalidadeEntrega: null as string | null,
+      };
     }
 
     const orcamento = await this.prisma.orcamento.findFirst({
@@ -198,12 +207,45 @@ export class ExpedicaoCriacaoService {
       },
     });
 
-    const instalacaoNecessaria =
-      orcamento?.produtos.some((p) => p.instalacao_necessaria) ?? false;
+    return {
+      instalacaoNecessaria:
+        orcamento?.produtos.some((p) => p.instalacao_necessaria) ?? false,
+      nomeModalidadeEntrega: orcamento?.entrega_modalidade?.nome ?? null,
+    };
+  }
+
+  private async resolverModalidadeInicial(
+    orcamentoId: string | null,
+    lojaId: string,
+  ) {
+    const contexto = await this.resolverContextoOrcamento(
+      orcamentoId,
+      lojaId,
+    );
 
     return this.modalidadeMapper.resolver({
-      instalacaoNecessaria,
-      nomeModalidadeEntrega: orcamento?.entrega_modalidade?.nome ?? null,
+      instalacaoNecessaria: contexto.instalacaoNecessaria,
+      nomeModalidadeEntrega: contexto.nomeModalidadeEntrega,
     });
+  }
+
+  /**
+   * DEC-01 (híbrido): OS com instalação entra em AGUARDANDO_INSTALACAO;
+   * demais modalidades seguem em AGUARDANDO_SEPARACAO.
+   */
+  private async resolverStatusInicial(
+    orcamentoId: string | null,
+    lojaId: string,
+  ): Promise<StatusExpedicao> {
+    const contexto = await this.resolverContextoOrcamento(
+      orcamentoId,
+      lojaId,
+    );
+
+    if (contexto.instalacaoNecessaria) {
+      return StatusExpedicao.AGUARDANDO_INSTALACAO;
+    }
+
+    return StatusExpedicao.AGUARDANDO_SEPARACAO;
   }
 }

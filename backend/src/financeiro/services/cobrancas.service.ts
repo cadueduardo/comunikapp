@@ -230,10 +230,14 @@ export class CobrancasService {
           parcelas: {
             where: {
               status: {
-                in: [ParcelaStatus.PREVISTO, ParcelaStatus.PARCIAL_PAGO],
+                in: [
+                  ParcelaStatus.PREVISTO,
+                  ParcelaStatus.PARCIAL_PAGO,
+                  ParcelaStatus.VENCIDO,
+                ],
               },
             },
-            orderBy: { data_vencimento: 'asc' },
+            orderBy: { ordem: 'asc' },
             take: 1,
           },
           _count: { select: { parcelas: true } },
@@ -305,7 +309,6 @@ export class CobrancasService {
       ...this.mapearResumo({
         ...row,
         status: statusCalculado,
-        parcelas: row.parcelas.slice(0, 1),
       }),
       total_parcelas: row._count.parcelas,
       parcelas: row.parcelas.map((p, idx) =>
@@ -572,7 +575,7 @@ export class CobrancasService {
               ],
             },
           },
-          orderBy: { data_vencimento: 'asc' },
+          orderBy: { ordem: 'asc' },
           take: 1,
         },
       },
@@ -801,6 +804,19 @@ export class CobrancasService {
     });
   }
 
+  private resolverProximaParcelaAberta(
+    parcelas: Prisma.CobrancaParcelaGetPayload<true>[],
+  ): Prisma.CobrancaParcelaGetPayload<true> | undefined {
+    const abertas = new Set<string>([
+      ParcelaStatus.PREVISTO,
+      ParcelaStatus.PARCIAL_PAGO,
+      ParcelaStatus.VENCIDO,
+    ]);
+    return [...parcelas]
+      .sort((a, b) => a.ordem - b.ordem)
+      .find((parcela) => abertas.has(parcela.status));
+  }
+
   private mapearResumo(
     row: Prisma.CobrancaGetPayload<{
       include: {
@@ -817,7 +833,7 @@ export class CobrancasService {
       };
     }>,
   ): CobrancaResumo {
-    const proxima = row.parcelas[0];
+    const proxima = this.resolverProximaParcelaAberta(row.parcelas);
     return {
       id: row.id,
       orcamento_id: row.orcamento_id,

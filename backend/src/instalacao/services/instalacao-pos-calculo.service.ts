@@ -13,6 +13,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { InstalacaoRelatorioPdfService } from './instalacao-relatorio-pdf.service';
 import { InstalacaoSplitFiscalService } from './instalacao-split-fiscal.service';
+import { InstalacaoFechamentoService } from './instalacao-fechamento.service';
 import type { SplitFiscalResultado } from '../utils/split-fiscal.util';
 
 export interface MargemRealOsResultado {
@@ -38,6 +39,27 @@ export interface RelatorioTecnicoResultado {
   split_fiscal?: SplitFiscalResultado;
 }
 
+export interface AprovarFinanceiroResultado extends RelatorioTecnicoResultado {
+  aprovacao_financeira_em: string;
+}
+
+interface LiberacaoComercialTransacaoParams {
+  osId: string;
+  lojaId: string;
+  cobrancaId: string;
+  parcelasOrdemMax: number;
+  valorExtras: number;
+  usuarioId?: string | null;
+  pdfGerado: {
+    pdf_token: string;
+    pdf_url: string;
+    split: SplitFiscalResultado;
+  };
+  registrarRelatorio: boolean;
+  logTipoAcao: 'RELATORIO_TECNICO_GERADO' | 'APROVACAO_FINANCEIRA_INSTALACAO';
+  logDescricao: string;
+}
+
 @Injectable()
 export class InstalacaoPosCalculoService {
   private readonly logger = new Logger(InstalacaoPosCalculoService.name);
@@ -46,6 +68,7 @@ export class InstalacaoPosCalculoService {
     private readonly prisma: PrismaService,
     private readonly relatorioPdfService: InstalacaoRelatorioPdfService,
     private readonly splitFiscalService: InstalacaoSplitFiscalService,
+    private readonly instalacaoFechamentoService: InstalacaoFechamentoService,
   ) {}
 
   async aplicarTravaSaldoAposAprovacao(
@@ -136,6 +159,112 @@ export class InstalacaoPosCalculoService {
   }
 
   /**
+   * Passo 1f (DEC-04): gatilho financeiro — libera saldo A_FATURAR, extras de campo
+   * e conclui OS/expedição via transação atômica.
+   */
+  async aprovarFinanceiroOs(
+    osId: string,
+    lojaId: string,
+    usuarioId?: string | null,
+  ): Promise<AprovarFinanceiroResultado> {
+    const os = await this.prisma.ordemServico.findFirst({
+      where: { id: osId, loja_id: lojaId },
+      select: {
+        id: true,
+        orcamento_id: true,
+        status_instalacao_os: true,
+      },
+    });
+
+    if (!os) {
+      throw new NotFoundException(
+        'Ordem de serviço não encontrada para esta loja.',
+      );
+    }
+
+    if (!os.orcamento_id) {
+      throw new BadRequestException(
+        'OS sem orçamento vinculado não pode ser aprovada financeiramente.',
+      );
+    }
+
+    const relatorioExistente =
+      await this.prisma.relatorioTecnicoInstalacao.findFirst({
+        where: { os_id: osId, loja_id: lojaId },
+      });
+
+    if (relatorioExistente) {
+      throw new BadRequestException(
+        'Liberação financeira já foi registrada para esta OS.',
+      );
+    }
+
+    await this.validarLotesConcluidos(osId, lojaId);
+
+    const cobranca = await this.prisma.cobranca.findFirst({
+      where: { orcamento_id: os.orcamento_id, loja_id: lojaId },
+      include: {
+        parcelas: { orderBy: { ordem: 'asc' } },
+      },
+    });
+
+    if (!cobranca) {
+      throw new NotFoundException('Cobrança não encontrada para esta OS.');
+    }
+
+    const pdfGerado = await this.relatorioPdfService.gerarRelatorioPdf(
+      osId,
+      lojaId,
+    );
+
+    const extras = await this.prisma.ocorrenciaInstalacao.aggregate({
+      where: { os_id: osId, loja_id: lojaId },
+      _sum: { preco_cliente: true },
+    });
+
+    const valorExtras = Number(extras._sum.preco_cliente ?? 0);
+    const ultimaOrdem = cobranca.parcelas.reduce(
+      (max, parcela) => Math.max(max, parcela.ordem),
+      0,
+    );
+
+    const liberacao = await this.executarLiberacaoComercialEmTransacao({
+      osId,
+      lojaId,
+      cobrancaId: cobranca.id,
+      parcelasOrdemMax: ultimaOrdem,
+      valorExtras,
+      usuarioId,
+      pdfGerado,
+      registrarRelatorio: true,
+      logTipoAcao: 'APROVACAO_FINANCEIRA_INSTALACAO',
+      logDescricao:
+        'Aprovação financeira pós-instalação: saldo liberado para faturamento, extras consolidados e expedição finalizada.',
+    });
+
+    this.logger.log(
+      `Aprovação financeira OS ${osId} — saldo liberado: ${liberacao.saldoLiberada}`,
+    );
+
+    const aprovadoEm = new Date().toISOString();
+
+    return {
+      os_id: osId,
+      orcamento_id: os.orcamento_id,
+      cobranca_id: cobranca.id,
+      parcela_saldo_liberada: liberacao.saldoLiberada,
+      valor_cobranca_extra: this.arredondar(valorExtras),
+      parcela_extra_id: liberacao.parcelaExtraId,
+      relatorio_gerado_em: aprovadoEm,
+      aprovacao_financeira_em: aprovadoEm,
+      pdf_disponivel: true,
+      pdf_url: pdfGerado.pdf_url,
+      pdf_token: pdfGerado.pdf_token,
+      split_fiscal: pdfGerado.split,
+    };
+  }
+
+  /**
    * Encerramento logístico: gera PDF, libera saldo (50%) e cobranças extras.
    */
   async gerarRelatorioTecnicoFinal(
@@ -191,6 +320,48 @@ export class InstalacaoPosCalculoService {
     });
 
     const valorExtras = Number(extras._sum.preco_cliente ?? 0);
+
+    const ultimaOrdem = cobranca.parcelas.reduce(
+      (max, parcela) => Math.max(max, parcela.ordem),
+      0,
+    );
+
+    const liberacao = await this.executarLiberacaoComercialEmTransacao({
+      osId,
+      lojaId,
+      cobrancaId: cobranca.id,
+      parcelasOrdemMax: ultimaOrdem,
+      valorExtras,
+      usuarioId,
+      pdfGerado,
+      registrarRelatorio: true,
+      logTipoAcao: 'RELATORIO_TECNICO_GERADO',
+      logDescricao:
+        'Relatório técnico final emitido em PDF. Saldo liberado para faturamento e cobranças extras consolidadas.',
+    });
+
+    this.logger.log(
+      `Relatório técnico gerado para OS ${osId} — PDF ${pdfGerado.pdf_token} — saldo liberado: ${liberacao.saldoLiberada}`,
+    );
+
+    return {
+      os_id: osId,
+      orcamento_id: os.orcamento_id,
+      cobranca_id: cobranca.id,
+      parcela_saldo_liberada: liberacao.saldoLiberada,
+      valor_cobranca_extra: this.arredondar(valorExtras),
+      parcela_extra_id: liberacao.parcelaExtraId,
+      relatorio_gerado_em: new Date().toISOString(),
+      pdf_disponivel: true,
+      pdf_url: pdfGerado.pdf_url,
+      pdf_token: pdfGerado.pdf_token,
+      split_fiscal: pdfGerado.split,
+    };
+  }
+
+  private async executarLiberacaoComercialEmTransacao(
+    params: LiberacaoComercialTransacaoParams,
+  ): Promise<{ saldoLiberada: boolean; parcelaExtraId?: string }> {
     const prazoSaldoDias = 15;
     const vencimentoSaldo = new Date();
     vencimentoSaldo.setDate(vencimentoSaldo.getDate() + prazoSaldoDias);
@@ -201,7 +372,7 @@ export class InstalacaoPosCalculoService {
     await this.prisma.$transaction(async (tx) => {
       const saldoUpdate = await tx.cobrancaParcela.updateMany({
         where: {
-          cobranca_id: cobranca.id,
+          cobranca_id: params.cobrancaId,
           tipo: ParcelaTipo.SALDO,
           status: ParcelaStatus.AGUARDANDO_RELATORIO_TECNICO,
         },
@@ -213,21 +384,16 @@ export class InstalacaoPosCalculoService {
 
       saldoLiberada = saldoUpdate.count > 0;
 
-      if (valorExtras > 0.01) {
-        const ultimaOrdem = cobranca.parcelas.reduce(
-          (max, p) => Math.max(max, p.ordem),
-          0,
-        );
-
+      if (params.valorExtras > 0.01) {
         const vencimentoExtra = new Date();
         vencimentoExtra.setDate(vencimentoExtra.getDate() + prazoSaldoDias);
 
         const parcelaExtra = await tx.cobrancaParcela.create({
           data: {
-            cobranca_id: cobranca.id,
-            ordem: ultimaOrdem + 1,
+            cobranca_id: params.cobrancaId,
+            ordem: params.parcelasOrdemMax + 1,
             tipo: ParcelaTipo.PARCELA,
-            valor_previsto: new Prisma.Decimal(valorExtras),
+            valor_previsto: new Prisma.Decimal(params.valorExtras),
             valor_recebido: new Prisma.Decimal(0),
             data_vencimento: vencimentoExtra,
             status: ParcelaStatus.A_FATURAR,
@@ -237,63 +403,55 @@ export class InstalacaoPosCalculoService {
         parcelaExtraId = parcelaExtra.id;
       }
 
-      await tx.relatorioTecnicoInstalacao.create({
-        data: {
-          loja_id: lojaId,
-          os_id: osId,
-          pdf_token: pdfGerado.pdf_token,
-          pdf_url: pdfGerado.pdf_url,
-          total_nfe: new Prisma.Decimal(pdfGerado.split.total_nfe),
-          total_nfs: new Prisma.Decimal(pdfGerado.split.total_nfs),
-          split_detalhes: pdfGerado.split.detalhes as unknown as Prisma.InputJsonValue,
-          gerado_por: usuarioId ?? null,
-        },
-      });
+      if (params.registrarRelatorio) {
+        await tx.relatorioTecnicoInstalacao.create({
+          data: {
+            loja_id: params.lojaId,
+            os_id: params.osId,
+            pdf_token: params.pdfGerado.pdf_token,
+            pdf_url: params.pdfGerado.pdf_url,
+            total_nfe: new Prisma.Decimal(params.pdfGerado.split.total_nfe),
+            total_nfs: new Prisma.Decimal(params.pdfGerado.split.total_nfs),
+            split_detalhes: params.pdfGerado.split
+              .detalhes as unknown as Prisma.InputJsonValue,
+            gerado_por: params.usuarioId ?? null,
+          },
+        });
+      }
+
+      await this.instalacaoFechamentoService.finalizarAposRelatorioTecnico(
+        tx,
+        params.lojaId,
+        params.osId,
+      );
 
       await tx.ordemServicoLog.create({
         data: {
-          os_id: osId,
-          tipo_acao: 'RELATORIO_TECNICO_GERADO',
-          descricao:
-            'Relatório técnico final emitido em PDF. Saldo liberado para faturamento e cobranças extras consolidadas.',
-          usuario_id: usuarioId ?? null,
+          os_id: params.osId,
+          tipo_acao: params.logTipoAcao,
+          descricao: params.logDescricao,
+          usuario_id: params.usuarioId ?? null,
           dados_extras: JSON.stringify({
             parcela_saldo_liberada: saldoLiberada,
-            valor_cobranca_extra: valorExtras,
+            valor_cobranca_extra: params.valorExtras,
             parcela_extra_id: parcelaExtraId ?? null,
-            pdf_url: pdfGerado.pdf_url,
-            split_fiscal: pdfGerado.split,
+            pdf_url: params.pdfGerado.pdf_url,
+            split_fiscal: params.pdfGerado.split,
           }),
         },
       });
 
       await tx.cobrancaLog.create({
         data: {
-          cobranca_id: cobranca.id,
+          cobranca_id: params.cobrancaId,
           tipo_acao: CobrancaLogAcao.EDITADA,
-          descricao: `Saldo liberado (A_FATURAR) após relatório técnico da OS ${osId}. Extra de campo: R$ ${valorExtras.toFixed(2)}.`,
-          usuario_id: usuarioId ?? null,
+          descricao: `Saldo liberado (A_FATURAR) após aprovação financeira da OS ${params.osId}. Extra de campo: R$ ${params.valorExtras.toFixed(2)}.`,
+          usuario_id: params.usuarioId ?? null,
         },
       });
     });
 
-    this.logger.log(
-      `Relatório técnico gerado para OS ${osId} — PDF ${pdfGerado.pdf_token} — saldo liberado: ${saldoLiberada}`,
-    );
-
-    return {
-      os_id: osId,
-      orcamento_id: os.orcamento_id,
-      cobranca_id: cobranca.id,
-      parcela_saldo_liberada: saldoLiberada,
-      valor_cobranca_extra: this.arredondar(valorExtras),
-      parcela_extra_id: parcelaExtraId,
-      relatorio_gerado_em: new Date().toISOString(),
-      pdf_disponivel: true,
-      pdf_url: pdfGerado.pdf_url,
-      pdf_token: pdfGerado.pdf_token,
-      split_fiscal: pdfGerado.split,
-    };
+    return { saldoLiberada, parcelaExtraId };
   }
 
   private async validarLotesConcluidos(

@@ -15,11 +15,14 @@ import { PcpBloqueioSinalService } from './services/pcp-bloqueio-sinal.service';
 import { ItemOSInstalacaoCriacaoService } from './services/item-os-instalacao-criacao.service';
 import { CepIntegrationService } from './services/cep-integration.service';
 import { InstalacaoService } from './services/instalacao.service';
+import { InstalacaoFechamentoService } from './services/instalacao-fechamento.service';
+import { InstalacaoAgendaSyncService } from './services/instalacao-agenda-sync.service';
 import { InstalacaoPosCalculoService } from './services/instalacao-pos-calculo.service';
 import { InstalacaoRelatorioPdfService } from './services/instalacao-relatorio-pdf.service';
 import { InstalacaoSplitFiscalService } from './services/instalacao-split-fiscal.service';
 import { InstaladorPermissionsGuard } from './guards/instalador-permissions.guard';
 import { InstalacaoGestaoPermissionsGuard } from './guards/instalacao-gestao-permissions.guard';
+import { FinanceiroPermissionsGuard } from './guards/financeiro-permissions.guard';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -37,12 +40,15 @@ import { InstalacaoGestaoPermissionsGuard } from './guards/instalacao-gestao-per
     ItemOSInstalacaoCriacaoService,
     CepIntegrationService,
     InstalacaoService,
+    InstalacaoFechamentoService,
+    InstalacaoAgendaSyncService,
     InstalacaoPosCalculoService,
     InstalacaoAnexoService,
     InstalacaoRelatorioPdfService,
     InstalacaoSplitFiscalService,
     InstaladorPermissionsGuard,
     InstalacaoGestaoPermissionsGuard,
+    FinanceiroPermissionsGuard,
   ],
   exports: [
     ConfiguracaoInstalacaoService,
@@ -50,6 +56,8 @@ import { InstalacaoGestaoPermissionsGuard } from './guards/instalacao-gestao-per
     PcpBloqueioSinalService,
     ItemOSInstalacaoCriacaoService,
     InstalacaoPosCalculoService,
+    InstalacaoFechamentoService,
+    InstalacaoAgendaSyncService,
     InstalacaoService,
   ],
 })

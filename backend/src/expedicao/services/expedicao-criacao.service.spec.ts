@@ -154,7 +154,7 @@ describe('ExpedicaoCriacaoService', () => {
     });
   });
 
-  it('aplica override INSTALACAO_NO_LOCAL quando produto exige instalação', async () => {
+  it('aplica override INSTALACAO_NO_LOCAL e status AGUARDANDO_INSTALACAO quando produto exige instalação', async () => {
     prisma.ordemServico.findFirst.mockResolvedValue({
       id: 'os-2',
       loja_id: 'loja-1',
@@ -174,6 +174,7 @@ describe('ExpedicaoCriacaoService', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           modalidade: ModalidadeExpedicao.INSTALACAO_NO_LOCAL,
+          status: StatusExpedicao.AGUARDANDO_INSTALACAO,
         }),
       }),
     );

@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsDateString,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -9,8 +10,71 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
-import { CategoriaOcorrencia, TipoOcorrencia } from '@prisma/client';
+import {
+  CategoriaOcorrencia,
+  TipoOcorrencia,
+  TurnoPrevisaoInstalacao,
+} from '@prisma/client';
+
+export class CriarLoteInstalacaoDto {
+  @IsString()
+  @IsNotEmpty()
+  item_os_id: string;
+
+  @IsInt()
+  @Min(1)
+  quantidade_alocada: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
+  cep?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  logradouro: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(32)
+  numero: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  complemento?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  bairro: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  cidade: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(2)
+  uf: string;
+
+  @IsOptional()
+  @IsDateString()
+  data_previsao?: string;
+
+  @IsOptional()
+  @IsEnum(TurnoPrevisaoInstalacao)
+  turno_previsao?: TurnoPrevisaoInstalacao;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  equipe_instalacao?: string;
+}
 
 export class AtualizarEnderecoLoteDto {
   @IsOptional()
@@ -52,6 +116,22 @@ export class AtualizarEnderecoLoteDto {
   @IsInt()
   @Min(1)
   quantidade_alocada?: number;
+
+  @ValidateIf((_, valor) => valor !== null)
+  @IsOptional()
+  @IsDateString()
+  data_previsao?: string | null;
+
+  @ValidateIf((_, valor) => valor !== null)
+  @IsOptional()
+  @IsEnum(TurnoPrevisaoInstalacao)
+  turno_previsao?: TurnoPrevisaoInstalacao | null;
+
+  @ValidateIf((_, valor) => valor !== null)
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  equipe_instalacao?: string | null;
 }
 
 export class RegistrarOcorrenciaGestaoDto {

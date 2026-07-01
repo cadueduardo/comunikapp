@@ -660,6 +660,7 @@ model loja {
   expedicoes_logistica        ExpedicaoLogistica[]
   configuracao_arte           ConfiguracaoArteLoja?
   configuracao_instalacao     ConfiguracaoInstalacaoLoja?
+  conexoes                    LojaConexao[]
   taxas_ocorrencia_instalacao TaxaOcorrenciaLoja[]
   itens_os_instalacao         ItemOSInstalacao[]
   ocorrencias_instalacao      OcorrenciaInstalacao[]
@@ -1799,7 +1800,8 @@ model OrdemServico {
   aprovacao_tecnica_obs    String?   @db.Text // observações da aprovação
 
   // Campos de agendamento de instalação
-  data_instalacao_agendada DateTime? // data agendada para instalação (após contato com cliente)
+  data_instalacao_agendada DateTime? // data agendada para instalação (sincronizada dos lotes — UX-02)
+  status_instalacao_os     StatusInstalacaoOs? // rollup operacional DEC-04
   observacoes_instalacao   String?   @db.Text // observações para coordenação de instalação externa
 
   // Campos para diferenciação OS Direta vs Interna
@@ -1937,6 +1939,7 @@ model ItemOS {
   arte_fila_desde            DateTime?
   arte_assumido_em           DateTime?
   data_prazo_arte            DateTime?
+  arte_drive_folder_id       String?   @db.VarChar(191)
 
   // Módulo Catálogo — personalização de prateleira (estampa / imprint / VDP)
   modo_fulfillment        ModoFulfillmentItem?   @default(PICK)
@@ -2279,6 +2282,7 @@ enum StatusExpedicao {
   PRONTO_PARA_RETIRADA
   EM_ROTA_DE_ENTREGA
   AGUARDANDO_INSTALACAO
+  AGUARDANDO_FECHAMENTO
   ENTREGUE_FINALIZADO
   ARQUIVADO
   DEVOLVIDA
@@ -2349,6 +2353,8 @@ model ItemOSInstalacao {
   quantidade_alocada Int
   status_instalacao  StatusInstalacao @default(AGUARDANDO)
   data_previsao      DateTime?
+  turno_previsao     TurnoPrevisaoInstalacao?
+  equipe_instalacao  String?                  @db.VarChar(120)
   data_execucao      DateTime?
   fotos_evidencia    Json?
   assinatura_url     String?          @db.Text
@@ -2435,6 +2441,18 @@ enum StatusInstalacao {
   LOGISTICA_NEGATIVA
 }
 
+enum StatusInstalacaoOs {
+  EM_ANDAMENTO
+  AGUARDANDO_RELATORIO_TECNICO
+  CONCLUIDA
+}
+
+enum TurnoPrevisaoInstalacao {
+  MANHA
+  TARDE
+  INTEIRO
+}
+
 enum TipoOcorrencia {
   VISITA_IMPRODUTIVA
   MATERIAL_EXTRA
@@ -2471,6 +2489,24 @@ model ConfiguracaoArteLoja {
 
   @@index([servico_arte_id])
   @@map("configuracao_arte_loja")
+}
+
+// Hub de integrações externas por loja (OAuth, APIs)
+model LojaConexao {
+  id                String   @id @default(cuid())
+  loja_id           String
+  tipo              String   @db.VarChar(32)
+  status            String   @default("DESCONECTADO") @db.VarChar(32)
+  configuracao_json Json?
+  criado_em         DateTime @default(now())
+  atualizado_em     DateTime @updatedAt
+
+  loja loja @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+
+  @@unique([loja_id, tipo])
+  @@index([loja_id, tipo])
+  @@index([loja_id, status])
+  @@map("loja_conexao")
 }
 
 model ArteVersao {

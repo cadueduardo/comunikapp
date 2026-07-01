@@ -50,7 +50,7 @@ export function resolverModoFulfillmentItem(params: {
     String(params.tipoItem || 'SOB_DEMANDA').toUpperCase() === 'PRODUTO_FINITO';
 
   if (!tipoPrateleira) {
-    return ModoFulfillmentItem.PICK;
+    return ModoFulfillmentItem.MAKE;
   }
 
   const personalizavel = Boolean(params.produtoFinito?.personalizavel);
