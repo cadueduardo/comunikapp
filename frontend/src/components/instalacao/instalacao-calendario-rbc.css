@@ -1,0 +1,96 @@
+/* Ponte de tema: react-big-calendar → variáveis semânticas ComunikApp */
+
+.instalacao-rbc .rbc-calendar {
+  font-family: inherit;
+  color: var(--foreground);
+  background: var(--card);
+}
+
+.instalacao-rbc .rbc-header {
+  padding: 0.5rem 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in oklch, var(--muted) 35%, transparent);
+}
+
+.instalacao-rbc .rbc-month-view,
+.instalacao-rbc .rbc-time-view,
+.instalacao-rbc .rbc-agenda-view {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: var(--card);
+}
+
+.instalacao-rbc .rbc-day-bg + .rbc-day-bg,
+.instalacao-rbc .rbc-month-row + .rbc-month-row,
+.instalacao-rbc .rbc-time-header-content,
+.instalacao-rbc .rbc-time-content > * + * > *,
+.instalacao-rbc .rbc-timeslot-group {
+  border-color: var(--border);
+}
+
+.instalacao-rbc .rbc-off-range-bg {
+  background: color-mix(in oklch, var(--muted) 25%, transparent);
+}
+
+.instalacao-rbc .rbc-today {
+  background: color-mix(in oklch, var(--primary) 6%, transparent);
+}
+
+.instalacao-rbc .rbc-event {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.instalacao-rbc .rbc-event:focus {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.instalacao-rbc .rbc-event-label {
+  display: none;
+}
+
+.instalacao-rbc .rbc-show-more {
+  font-size: 0.65rem;
+  color: var(--primary);
+  background: transparent;
+}
+
+.instalacao-rbc .rbc-toolbar {
+  display: none;
+}
+
+.instalacao-rbc .rbc-time-slot,
+.instalacao-rbc .rbc-time-header-gutter {
+  font-size: 0.65rem;
+  color: var(--muted-foreground);
+}
+
+.instalacao-rbc .rbc-time-gutter {
+  background: color-mix(in oklch, var(--muted) 20%, transparent);
+}
+
+.instalacao-rbc .rbc-current-time-indicator {
+  background-color: var(--destructive);
+}
+
+.instalacao-rbc .rbc-header-rbc-conflict {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  color: var(--destructive);
+}
+
+.instalacao-rbc--compact {
+  font-size: 0.85rem;
+}
+
+.instalacao-rbc--compact .rbc-header {
+  font-size: 0.62rem;
+  padding: 0.35rem 0.15rem;
+}
