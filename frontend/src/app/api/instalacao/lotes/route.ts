@@ -4,3 +4,11 @@ import { proxyBackend } from '../_proxy';
 export async function GET(request: NextRequest) {
   return proxyBackend(request, '/instalacao/lotes');
 }
+
+export async function POST(request: NextRequest) {
+  const body = await request.text();
+  return proxyBackend(request, '/instalacao/lotes', {
+    method: 'POST',
+    body,
+  });
+}

@@ -1,4 +1,7 @@
 import type {
+  CriarLoteInstalacaoPayload,
+  CriarLoteInstalacaoResposta,
+  ListarOsInstalacaoResposta,
   LoteGestao,
   MargemRealOs,
   PainelOsInstalacao,
@@ -6,6 +9,10 @@ import type {
   RelatorioTecnicoResposta,
   ResultadoBuscaCep,
   SplitFiscalOs,
+  StatusInstalacaoOs,
+  StatusInstalacao,
+  ConsultarAgendaResposta,
+  ConsultarConflitosAgendaResposta,
 } from './instalacao.types';
 import { InstaladorApiError } from './instalador-api';
 
@@ -49,9 +56,68 @@ async function tratarResposta<T>(response: Response): Promise<T> {
 }
 
 export const instalacaoApi = {
+  async listarOsInstalacao(filtros?: {
+    status?: StatusInstalacaoOs;
+    busca?: string;
+  }): Promise<ListarOsInstalacaoResposta> {
+    const params = new URLSearchParams();
+    if (filtros?.status) {
+      params.set('status', filtros.status);
+    }
+    if (filtros?.busca?.trim()) {
+      params.set('busca', filtros.busca.trim());
+    }
+    const query = params.toString();
+    const response = await fetch(
+      `/api/instalacao/os${query ? `?${query}` : ''}`,
+      { headers: getAuthHeaders() },
+    );
+    return tratarResposta(response);
+  },
+
+  async consultarAgenda(intervalo: {
+    data_inicio: string;
+    data_fim: string;
+  }): Promise<ConsultarAgendaResposta> {
+    const params = new URLSearchParams({
+      data_inicio: intervalo.data_inicio,
+      data_fim: intervalo.data_fim,
+    });
+    const response = await fetch(`/api/instalacao/agenda?${params}`, {
+      headers: getAuthHeaders(),
+    });
+    return tratarResposta(response);
+  },
+
+  async consultarConflitosAgenda(intervalo: {
+    data_inicio: string;
+    data_fim: string;
+  }): Promise<ConsultarConflitosAgendaResposta> {
+    const params = new URLSearchParams({
+      data_inicio: intervalo.data_inicio,
+      data_fim: intervalo.data_fim,
+    });
+    const response = await fetch(
+      `/api/instalacao/agenda/conflitos?${params}`,
+      { headers: getAuthHeaders() },
+    );
+    return tratarResposta(response);
+  },
+
   async listarLotes(): Promise<LoteGestao[]> {
     const response = await fetch('/api/instalacao/lotes', {
       headers: getAuthHeaders(),
+    });
+    return tratarResposta(response);
+  },
+
+  async criarLote(
+    dados: CriarLoteInstalacaoPayload,
+  ): Promise<CriarLoteInstalacaoResposta> {
+    const response = await fetch('/api/instalacao/lotes', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(dados),
     });
     return tratarResposta(response);
   },
@@ -80,6 +146,18 @@ export const instalacaoApi = {
       method: 'PATCH',
       headers: getAuthHeaders(),
       body: JSON.stringify(dados),
+    });
+    return tratarResposta(response);
+  },
+
+  async atualizarStatusLote(
+    id: string,
+    status_instalacao: StatusInstalacao,
+  ): Promise<{ id: string; status_instalacao: StatusInstalacao }> {
+    const response = await fetch(`/api/instalacao/lotes/${id}/status`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status_instalacao }),
     });
     return tratarResposta(response);
   },
@@ -120,6 +198,19 @@ export const instalacaoApi = {
       method: 'POST',
       headers: getAuthHeaders(),
     });
+    return tratarResposta(response);
+  },
+
+  async aprovarFinanceiroOs(
+    osId: string,
+  ): Promise<RelatorioTecnicoResposta & { aprovacao_financeira_em: string }> {
+    const response = await fetch(
+      `/api/instalacao/os/${osId}/aprovar-financeiro`,
+      {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      },
+    );
     return tratarResposta(response);
   },
 

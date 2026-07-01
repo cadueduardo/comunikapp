@@ -1,190 +1,465 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
+
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import { useRouter, useSearchParams } from 'next/navigation';
+
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  STATUS_INSTALACAO_LABEL,
-  STATUS_INSTALACAO_TONE,
-} from '@/lib/instalacao/instalacao-labels';
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+import { InstalacaoCalendario } from '@/components/instalacao/InstalacaoCalendario';
+
+import { InstalacaoOsGrid } from '@/components/instalacao/InstalacaoOsGrid';
+
+import { InstalacaoWorkspaceModal } from '@/components/instalacao/InstalacaoWorkspaceModal';
+
+import { useMediaQuery } from '@/hooks/use-media-query';
+
 import { instalacaoApi } from '@/lib/instalacao/instalacao-api';
-import type { LoteGestao } from '@/lib/instalacao/instalacao.types';
-import { cn } from '@/lib/utils';
-import { IconLoader2, IconMapPin, IconRefresh } from '@tabler/icons-react';
+
+import type {
+
+  AgendaInstalacaoEvento,
+
+  OsInstalacaoGridItem,
+
+  StatusInstalacaoOs,
+
+} from '@/lib/instalacao/instalacao.types';
+
+import { IconLoader2, IconRefresh } from '@tabler/icons-react';
+
 import { toast } from 'sonner';
 
-const TONE_CLASSES = {
-  default: 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-200',
-  warn: 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200',
-  success:
-    'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200',
-  destructive:
-    'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-200',
-};
+
+
+interface WorkspaceMeta {
+
+  osId: string;
+
+  numero: string;
+
+  nomeServico: string;
+
+  clienteNome: string | null;
+
+}
+
+
 
 export default function InstalacaoGestaoPage() {
-  const [lotes, setLotes] = useState<LoteGestao[]>([]);
+
+  const router = useRouter();
+
+  const searchParams = useSearchParams();
+
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+
+
+
+  const [itens, setItens] = useState<OsInstalacaoGridItem[]>([]);
+
   const [carregando, setCarregando] = useState(true);
 
-  const carregar = useCallback(async () => {
-    setCarregando(true);
-    try {
-      const dados = await instalacaoApi.listarLotes();
-      setLotes(dados);
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Falha ao carregar lotes',
-      );
-    } finally {
-      setCarregando(false);
-    }
-  }, []);
+  const [busca, setBusca] = useState('');
+
+  const [buscaDebounced, setBuscaDebounced] = useState('');
+
+  const [statusFiltro, setStatusFiltro] = useState('todos');
+
+  const [abaAtiva, setAbaAtiva] = useState('lista');
+
+  const [workspaceAberto, setWorkspaceAberto] = useState(false);
+
+  const [workspaceMeta, setWorkspaceMeta] = useState<WorkspaceMeta | null>(null);
+
+  const reidratandoRef = useRef(false);
+  const fechandoWorkspaceRef = useRef(false);
+
+
 
   useEffect(() => {
+
+    const timer = setTimeout(() => setBuscaDebounced(busca.trim()), 400);
+
+    return () => clearTimeout(timer);
+
+  }, [busca]);
+
+
+
+  const carregar = useCallback(async () => {
+
+    setCarregando(true);
+
+    try {
+
+      const statusApi =
+
+        statusFiltro !== 'todos' && statusFiltro !== 'sem_status'
+
+          ? (statusFiltro as StatusInstalacaoOs)
+
+          : undefined;
+
+
+
+      const resposta = await instalacaoApi.listarOsInstalacao({
+
+        status: statusApi,
+
+        busca: buscaDebounced || undefined,
+
+      });
+
+
+
+      let lista = resposta.itens;
+
+      if (statusFiltro === 'sem_status') {
+
+        lista = lista.filter((item) => !item.status_instalacao_os);
+
+      }
+
+
+
+      setItens(lista);
+
+    } catch (err) {
+
+      toast.error(
+
+        err instanceof Error
+
+          ? err.message
+
+          : 'Falha ao carregar ordens de serviço',
+
+      );
+
+    } finally {
+
+      setCarregando(false);
+
+    }
+
+  }, [buscaDebounced, statusFiltro]);
+
+
+
+  const recarregarGrid = useCallback(() => {
+
     void carregar();
+
   }, [carregar]);
 
+
+
+  useEffect(() => {
+
+    void carregar();
+
+  }, [carregar]);
+
+
+
+  const abrirWorkspace = useCallback(
+
+    (item: OsInstalacaoGridItem) => {
+
+      setWorkspaceMeta({
+
+        osId: item.os_id,
+
+        numero: item.numero,
+
+        nomeServico: item.nome_servico,
+
+        clienteNome: item.cliente_nome,
+
+      });
+
+      setWorkspaceAberto(true);
+
+      router.replace(`/instalacao?os=${item.os_id}`, { scroll: false });
+
+    },
+
+    [router],
+
+  );
+
+
+
+  const abrirWorkspacePorEvento = useCallback(
+
+    (evento: AgendaInstalacaoEvento) => {
+
+      setWorkspaceMeta({
+
+        osId: evento.os_id,
+
+        numero: evento.os_numero,
+
+        nomeServico: evento.nome_servico,
+
+        clienteNome: evento.cliente_nome,
+
+      });
+
+      setWorkspaceAberto(true);
+
+      router.replace(`/instalacao?os=${evento.os_id}`, { scroll: false });
+
+    },
+
+    [router],
+
+  );
+
+
+
+  const fecharWorkspace = useCallback(() => {
+    fechandoWorkspaceRef.current = true;
+    setWorkspaceAberto(false);
+    if (searchParams.get('os')) {
+      router.replace('/instalacao', { scroll: false });
+    } else {
+      fechandoWorkspaceRef.current = false;
+      setWorkspaceMeta(null);
+    }
+  }, [router, searchParams]);
+
+  useEffect(() => {
+    const osIdUrl = searchParams.get('os');
+    if (!osIdUrl) {
+      fechandoWorkspaceRef.current = false;
+      setWorkspaceAberto(false);
+      setWorkspaceMeta(null);
+      return;
+    }
+
+    if (fechandoWorkspaceRef.current) {
+      return;
+    }
+
+    if (workspaceMeta?.osId === osIdUrl) {
+      setWorkspaceAberto(true);
+      return;
+    }
+
+    const itemGrid = itens.find((item) => item.os_id === osIdUrl);
+    if (itemGrid) {
+      setWorkspaceMeta({
+        osId: itemGrid.os_id,
+        numero: itemGrid.numero,
+        nomeServico: itemGrid.nome_servico,
+        clienteNome: itemGrid.cliente_nome,
+      });
+      setWorkspaceAberto(true);
+      return;
+    }
+
+    if (reidratandoRef.current) {
+      return;
+    }
+
+    reidratandoRef.current = true;
+    instalacaoApi
+      .obterPainelOs(osIdUrl)
+      .then((painel) => {
+        setWorkspaceMeta({
+          osId: painel.os.id,
+          numero: painel.os.numero,
+          nomeServico: painel.os.nome_servico,
+          clienteNome: painel.os.cliente_nome,
+        });
+        setWorkspaceAberto(true);
+      })
+      .catch(() => {
+        toast.error('Não foi possível abrir a OS de instalação solicitada.');
+        router.replace('/instalacao', { scroll: false });
+      })
+      .finally(() => {
+        reidratandoRef.current = false;
+      });
+  }, [searchParams, itens, workspaceMeta?.osId, router]);
+
+
+
+  const totalExibido = useMemo(() => itens.length, [itens]);
+
+
+
+  const gridOs = (
+
+    <div className="min-w-0 space-y-3">
+
+      {!carregando && (
+
+        <p className="text-xs text-muted-foreground">
+
+          {totalExibido} ordem(ns) de serviço com instalação
+
+        </p>
+
+      )}
+
+      <InstalacaoOsGrid
+
+        itens={itens}
+
+        carregando={carregando}
+
+        busca={busca}
+
+        statusFiltro={statusFiltro}
+
+        onBuscaChange={setBusca}
+
+        onStatusFiltroChange={setStatusFiltro}
+
+        onSelecionarOs={abrirWorkspace}
+
+      />
+
+    </div>
+
+  );
+
+
+
   return (
+
     <div className="flex w-full min-w-0 flex-col gap-6 overflow-x-hidden p-4 md:p-6">
+
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
         <div className="min-w-0">
+
           <h1 className="text-2xl font-bold text-foreground">Instalações</h1>
+
           <p className="text-sm text-muted-foreground">
-            Gestão de lotes, endereços e acompanhamento de campo
+
+            Gestão operacional por ordem de serviço — lotes, agenda e campo
+
           </p>
+
         </div>
+
         <Button
+
           type="button"
+
           variant="outline"
+
           disabled={carregando}
+
           onClick={() => void carregar()}
+
         >
-          <IconRefresh className="mr-2 h-4 w-4" />
-          Atualizar
+
+          {carregando ? (
+
+            <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
+
+          ) : (
+
+            <IconRefresh className="mr-2 h-4 w-4" />
+
+          )}
+
+          Atualizar lista
+
         </Button>
+
       </div>
 
-      {carregando ? (
-        <div className="flex items-center justify-center py-16 text-muted-foreground">
-          <IconLoader2 className="mr-2 h-5 w-5 animate-spin" />
-          Carregando...
-        </div>
-      ) : lotes.length === 0 ? (
-        <Card className="border-border bg-card">
-          <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-            <IconMapPin className="h-10 w-10 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Nenhum lote de instalação cadastrado.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <div className="hidden w-full min-w-0 overflow-x-auto md:block">
-            <Table className="min-w-[720px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>OS</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Endereço</TableHead>
-                  <TableHead>Qtd.</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lotes.map((lote) => {
-                  const os = lote.item_os.os;
-                  const tone =
-                    STATUS_INSTALACAO_TONE[lote.status_instalacao] ?? 'default';
-                  return (
-                    <TableRow key={lote.id}>
-                      <TableCell className="font-medium">
-                        {os.numero}
-                      </TableCell>
-                      <TableCell className="max-w-[160px] truncate">
-                        {os.cliente?.nome ?? '—'}
-                      </TableCell>
-                      <TableCell className="max-w-[220px]">
-                        <p className="truncate">
-                          {lote.logradouro}, {lote.numero}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {lote.bairro} — {lote.cidade}/{lote.uf}
-                        </p>
-                      </TableCell>
-                      <TableCell>{lote.quantidade_alocada}</TableCell>
-                      <TableCell>
-                        <Badge className={cn('whitespace-nowrap', TONE_CLASSES[tone])}>
-                          {STATUS_INSTALACAO_LABEL[lote.status_instalacao]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button type="button" size="sm" variant="outline" asChild>
-                          <Link href={`/os/${os.id}?tab=instalacao`}>
-                            Abrir OS
-                          </Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+
+
+      {isDesktop ? (
+
+        <div className="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+
+          {gridOs}
+
+          <div className="min-w-0 lg:sticky lg:top-4">
+
+            <InstalacaoCalendario
+
+              compacto
+
+              onEventoClick={abrirWorkspacePorEvento}
+
+            />
+
           </div>
 
-          <div className="flex flex-col gap-3 md:hidden">
-            {lotes.map((lote) => {
-              const os = lote.item_os.os;
-              const tone =
-                STATUS_INSTALACAO_TONE[lote.status_instalacao] ?? 'default';
-              return (
-                <Card key={lote.id} className="w-full min-w-0 border-border bg-card">
-                  <CardContent className="space-y-2 p-4">
-                    <div className="flex min-w-0 items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-foreground">
-                          OS {os.numero}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {os.cliente?.nome}
-                        </p>
-                      </div>
-                      <Badge className={cn('shrink-0', TONE_CLASSES[tone])}>
-                        {STATUS_INSTALACAO_LABEL[lote.status_instalacao]}
-                      </Badge>
-                    </div>
-                    <p className="break-words text-sm text-muted-foreground">
-                      {lote.logradouro}, {lote.numero} — {lote.bairro}
-                    </p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="w-full"
-                      asChild
-                    >
-                      <Link href={`/os/${os.id}?tab=instalacao`}>
-                        Ver na OS
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </>
+        </div>
+
+      ) : (
+
+        <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="w-full">
+
+          <TabsList className="border border-border bg-muted">
+
+            <TabsTrigger value="lista">Lista de OS</TabsTrigger>
+
+            <TabsTrigger value="calendario">Calendário</TabsTrigger>
+
+          </TabsList>
+
+
+
+          <TabsContent value="lista" className="mt-4">
+
+            {gridOs}
+
+          </TabsContent>
+
+
+
+          <TabsContent value="calendario" className="mt-4">
+
+            <InstalacaoCalendario onEventoClick={abrirWorkspacePorEvento} />
+
+          </TabsContent>
+
+        </Tabs>
+
       )}
+
+
+
+      {workspaceMeta && (
+
+        <InstalacaoWorkspaceModal
+
+          open={workspaceAberto}
+
+          onClose={fecharWorkspace}
+
+          osId={workspaceMeta.osId}
+
+          osNumero={workspaceMeta.numero}
+
+          nomeServico={workspaceMeta.nomeServico}
+
+          clienteNome={workspaceMeta.clienteNome}
+
+          onMutacao={recarregarGrid}
+
+        />
+
+      )}
+
     </div>
+
   );
+
 }
+

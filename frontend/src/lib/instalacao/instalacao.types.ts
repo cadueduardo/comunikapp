@@ -1,3 +1,31 @@
+export type StatusInstalacaoOs =
+  | 'EM_ANDAMENTO'
+  | 'AGUARDANDO_RELATORIO_TECNICO'
+  | 'CONCLUIDA';
+
+export interface OsInstalacaoGridProgresso {
+  concluidos: number;
+  total: number;
+  alocados: number;
+  saldo: number;
+}
+
+export interface OsInstalacaoGridItem {
+  os_id: string;
+  numero: string;
+  cliente_nome: string | null;
+  nome_servico: string;
+  status_instalacao_os: StatusInstalacaoOs | null;
+  data_instalacao_agendada: string | null;
+  proxima_visita: string | null;
+  progresso: OsInstalacaoGridProgresso;
+}
+
+export interface ListarOsInstalacaoResposta {
+  total: number;
+  itens: OsInstalacaoGridItem[];
+}
+
 export type StatusInstalacao =
   | 'AGUARDANDO'
   | 'EM_ANDAMENTO'
@@ -75,22 +103,107 @@ export interface LoteGestao extends Omit<LoteInstaladorResumo, 'fotos_evidencia'
   };
 }
 
+export interface ItemSaldoInstalacao {
+  item_os_id: string;
+  produto_servico: string | null;
+  quantidade_total: number;
+  quantidade_alocada: number;
+  saldo_disponivel: number;
+}
+
+export interface CriarLoteInstalacaoPayload {
+  item_os_id: string;
+  quantidade_alocada: number;
+  cep?: string;
+  logradouro: string;
+  numero: string;
+  complemento?: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
+}
+
+export interface CriarLoteInstalacaoResposta {
+  criado: boolean;
+  item_os_id?: string;
+  item_instalacao_id?: string;
+  quantidade_alocada?: number;
+}
+
+export type TurnoPrevisaoInstalacao = 'MANHA' | 'TARDE' | 'INTEGRO';
+
+export interface LotePainelOs extends LoteInstaladorResumo {
+  fotos_evidencia: string[];
+  atualizado_em: string;
+  turno_previsao: TurnoPrevisaoInstalacao | null;
+  equipe_instalacao: string | null;
+  item_os: { produto_servico: string | null };
+}
+
 export interface PainelOsInstalacao {
-  os: {
-    id: string;
-    numero: string;
-    nome_servico: string;
-    cliente_nome: string | null;
-  };
-  lotes: Array<
-    LoteInstaladorResumo & {
-      fotos_evidencia: string[];
-      atualizado_em: string;
-      item_os: { produto_servico: string | null };
-    }
-  >;
+      os: {
+        id: string;
+        numero: string;
+        nome_servico: string;
+        cliente_nome: string | null;
+        status_instalacao_os: StatusInstalacaoOs | null;
+      };
+  itens_saldo?: ItemSaldoInstalacao[];
+  lotes: LotePainelOs[];
   ocorrencias: OcorrenciaGestao[];
 }
+
+export interface AgendaInstalacaoEvento {
+  lote_id: string;
+  os_id: string;
+  os_numero: string;
+  cliente_nome: string | null;
+  nome_servico: string;
+  status_instalacao_os: StatusInstalacaoOs | null;
+  data_previsao: string;
+  turno_previsao: TurnoPrevisaoInstalacao | null;
+  equipe_instalacao: string | null;
+  status_instalacao: StatusInstalacao;
+  endereco: {
+    cep: string | null;
+    logradouro: string;
+    numero: string;
+    complemento: string | null;
+    bairro: string;
+    cidade: string;
+    uf: string;
+  };
+  endereco_resumido: string;
+}
+
+export interface ConsultarAgendaResposta {
+  data_inicio: string;
+  data_fim: string;
+  total: number;
+  eventos: AgendaInstalacaoEvento[];
+}
+
+export interface ConflitoAgendaLoteResumo {
+  lote_id: string;
+  os_numero: string;
+  cliente_nome: string | null;
+}
+
+export interface ConflitoAgendaItem {
+  data: string;
+  equipe_instalacao: string;
+  total_lotes_sobrepostos: number;
+  lotes: ConflitoAgendaLoteResumo[];
+}
+
+export interface ConsultarConflitosAgendaResposta {
+  data_inicio: string;
+  data_fim: string;
+  total_conflitos: number;
+  conflitos: ConflitoAgendaItem[];
+}
+
+export type VistaCalendarioInstalacao = 'semana' | 'mes' | 'dia';
 
 export interface EnderecoLoteForm {
   cep: string;
