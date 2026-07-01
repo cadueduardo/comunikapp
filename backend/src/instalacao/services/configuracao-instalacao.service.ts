@@ -42,6 +42,7 @@ export class ConfiguracaoInstalacaoService {
       create: {
         loja_id: lojaId,
         exigir_sinal_producao: false,
+        os_aditiva_habilitada: false,
       },
       update: {},
     });
@@ -80,5 +81,27 @@ export class ConfiguracaoInstalacaoService {
       });
 
     return configuracao?.exigir_sinal_producao === true;
+  }
+
+  async osAditivaHabilitada(lojaId: string): Promise<boolean> {
+    const configuracao =
+      await this.prisma.configuracaoInstalacaoLoja.findUnique({
+        where: { loja_id: lojaId },
+        select: { os_aditiva_habilitada: true },
+      });
+
+    return configuracao?.os_aditiva_habilitada === true;
+  }
+
+  async atualizarOsAditivaHabilitada(
+    lojaId: string,
+    habilitada: boolean,
+  ): Promise<ConfiguracaoInstalacaoLoja> {
+    await this.getOrCreate(lojaId);
+
+    return this.prisma.configuracaoInstalacaoLoja.update({
+      where: { loja_id: lojaId },
+      data: { os_aditiva_habilitada: habilitada },
+    });
   }
 }

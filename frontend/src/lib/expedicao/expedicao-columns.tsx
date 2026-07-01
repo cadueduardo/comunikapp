@@ -2,7 +2,6 @@ import {
   IconCircleCheck,
   IconPackage,
   IconTruck,
-  IconTool,
   IconBuildingStore,
 } from '@tabler/icons-react';
 import type { KanbanColumn } from '@/components/ui/kanban-board';
@@ -29,13 +28,6 @@ export const EXPEDICAO_KANBAN_COLUMNS: KanbanColumn[] = [
     status: 'EM_ROTA_DE_ENTREGA',
     color: 'bg-blue-100',
     icon: <IconTruck className="h-4 w-4" />,
-  },
-  {
-    id: 'aguardando_instalacao',
-    title: 'Aguardando instalação',
-    status: 'AGUARDANDO_INSTALACAO',
-    color: 'bg-violet-100',
-    icon: <IconTool className="h-4 w-4" />,
   },
   {
     id: 'entregue',
@@ -76,5 +68,4 @@ export const STATUS_EXPEDICAO_KANBAN_PATCH = new Set<StatusExpedicao>([
   'AGUARDANDO_SEPARACAO',
   'PRONTO_PARA_RETIRADA',
   'EM_ROTA_DE_ENTREGA',
-  'AGUARDANDO_INSTALACAO',
 ]);

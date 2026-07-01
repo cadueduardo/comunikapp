@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { devePularExpedicao } from '../../os/utils/os-pular-fluxo.util';
 import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
 import { StatusExpedicao } from '../enums/status-expedicao.enum';
 import { ExpedicaoModalidadeMapper } from './expedicao-modalidade.mapper';
@@ -7,7 +8,9 @@ import { ExpedicaoModalidadeMapper } from './expedicao-modalidade.mapper';
 export type MotivoSkipExpedicaoCriacao =
   | 'JA_EXISTE'
   | 'OS_INTERNA'
-  | 'OS_NAO_ENCONTRADA';
+  | 'OS_NAO_ENCONTRADA'
+  | 'SOMENTE_INSTALACAO'
+  | 'OS_ADITIVA';
 
 export interface ResultadoCriacaoExpedicao {
   criado: boolean;
@@ -47,6 +50,8 @@ export class ExpedicaoCriacaoService {
         loja_id: true,
         tipo_os: true,
         orcamento_id: true,
+        pular_expedicao: true,
+        tipo_vinculo_os: true,
       },
     });
 
@@ -57,19 +62,30 @@ export class ExpedicaoCriacaoService {
       return { criado: false, motivo_skip: 'OS_NAO_ENCONTRADA' };
     }
 
+    if (devePularExpedicao(os)) {
+      this.logger.debug(
+        `OS ${osId} (${os.tipo_vinculo_os ?? 'sem vínculo'}) — fora do fluxo de expedição (aditiva/pular_expedicao)`,
+      );
+      return { criado: false, motivo_skip: 'OS_ADITIVA' };
+    }
+
     if (String(os.tipo_os).toUpperCase() === 'INTERNA') {
       this.logger.debug(`OS ${osId} interna — fora do fluxo de expedição`);
       return { criado: false, motivo_skip: 'OS_INTERNA' };
+    }
+
+    if (!(await this.elegivelParaFluxoExpedicao(os.orcamento_id, lojaId))) {
+      this.logger.debug(
+        `OS ${osId} com destino exclusivo em Instalações — sem registro de expedição`,
+      );
+      return { criado: false, motivo_skip: 'SOMENTE_INSTALACAO' };
     }
 
     const modalidade = await this.resolverModalidadeInicial(
       os.orcamento_id,
       lojaId,
     );
-    const statusInicial = await this.resolverStatusInicial(
-      os.orcamento_id,
-      lojaId,
-    );
+    const statusInicial = this.resolverStatusInicial();
 
     return this.prisma.$transaction(async (tx) => {
       const existenteAtivo = await tx.expedicaoLogistica.findFirst({
@@ -188,6 +204,36 @@ export class ExpedicaoCriacaoService {
     return { cancelada: true, expedicao_id: expedicao.id };
   }
 
+  /**
+   * OS cujo orçamento exige apenas instalação no local não entra no kanban de
+   * expedição — o fluxo operacional segue no módulo Instalações.
+   */
+  private async elegivelParaFluxoExpedicao(
+    orcamentoId: string | null,
+    lojaId: string,
+  ): Promise<boolean> {
+    if (!orcamentoId) {
+      return true;
+    }
+
+    const orcamento = await this.prisma.orcamento.findFirst({
+      where: { id: orcamentoId, loja_id: lojaId },
+      select: {
+        produtos: { select: { instalacao_necessaria: true } },
+      },
+    });
+
+    if (!orcamento?.produtos.length) {
+      return true;
+    }
+
+    const todosInstalacao = orcamento.produtos.every(
+      (p) => p.instalacao_necessaria,
+    );
+
+    return !todosInstalacao;
+  }
+
   private async resolverContextoOrcamento(
     orcamentoId: string | null,
     lojaId: string,
@@ -229,23 +275,7 @@ export class ExpedicaoCriacaoService {
     });
   }
 
-  /**
-   * DEC-01 (híbrido): OS com instalação entra em AGUARDANDO_INSTALACAO;
-   * demais modalidades seguem em AGUARDANDO_SEPARACAO.
-   */
-  private async resolverStatusInicial(
-    orcamentoId: string | null,
-    lojaId: string,
-  ): Promise<StatusExpedicao> {
-    const contexto = await this.resolverContextoOrcamento(
-      orcamentoId,
-      lojaId,
-    );
-
-    if (contexto.instalacaoNecessaria) {
-      return StatusExpedicao.AGUARDANDO_INSTALACAO;
-    }
-
+  private resolverStatusInicial(): StatusExpedicao {
     return StatusExpedicao.AGUARDANDO_SEPARACAO;
   }
 }

@@ -104,7 +104,7 @@ const ICONES = {
 
 export function InstalacaoTimeline({
   painel,
-  exibirValoresFinanceiros = true,
+  exibirValoresFinanceiros = false,
 }: InstalacaoTimelineProps) {
   const eventos = useMemo(() => montarEventos(painel), [painel]);
 
@@ -161,9 +161,22 @@ export function InstalacaoTimeline({
 
                 {exibirValoresFinanceiros && ocorrencia && (
                   <p className="text-xs text-muted-foreground">
-                    Custo interno: R${' '}
-                    {ocorrencia.custo_interno.toFixed(2)} · Cliente: R${' '}
-                    {ocorrencia.preco_cliente.toFixed(2)}
+                    {ocorrencia.custo_interno != null ||
+                    ocorrencia.preco_cliente != null ? (
+                      <>
+                        Custo interno: R${' '}
+                        {Number(ocorrencia.custo_interno ?? 0).toFixed(2)} ·
+                        Cliente: R${' '}
+                        {Number(ocorrencia.preco_cliente ?? 0).toFixed(2)}
+                      </>
+                    ) : (
+                      <>
+                        Sugestão: custo R${' '}
+                        {Number(ocorrencia.custo_sugerido ?? 0).toFixed(2)} ·
+                        cliente R${' '}
+                        {Number(ocorrencia.preco_sugerido ?? 0).toFixed(2)}
+                      </>
+                    )}
                   </p>
                 )}
 

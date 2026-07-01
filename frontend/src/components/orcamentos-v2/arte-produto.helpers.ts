@@ -16,23 +16,40 @@ export const ARTE_PRODUTO_DEFAULTS = {
   arte_referencia_servico_id: null as string | null,
 };
 
+/** Exibe o campo de finalidade só com anexo e responsabilidade de arte definida. */
+export function produtoExibeFinalidadeAnexo(
+  responsabilidade: string | null | undefined,
+  arquivoGeometriaUrl: string | null | undefined,
+): boolean {
+  const resp = String(responsabilidade || ResponsabilidadeArte.NAO_APLICAVEL);
+  if (resp === ResponsabilidadeArte.NAO_APLICAVEL) return false;
+  return Boolean(String(arquivoGeometriaUrl || '').trim());
+}
+
 export function mapArteProdutoBackendParaFormulario(produto: Record<string, unknown>) {
+  const responsabilidade = String(
+    produto.responsabilidade_arte || ResponsabilidadeArte.NAO_APLICAVEL,
+  );
+  const arquivoGeometriaUrl = produto.arquivo_geometria_url
+    ? String(produto.arquivo_geometria_url)
+    : '';
+
   return {
-    responsabilidade_arte: String(
-      produto.responsabilidade_arte || ResponsabilidadeArte.NAO_APLICAVEL,
-    ),
+    responsabilidade_arte: responsabilidade,
     politica_cobranca_arte: String(
       produto.politica_cobranca_arte || PoliticaCobrancaArte.NAO_APLICAVEL,
     ),
     finalidade_anexo: (() => {
+      if (!produtoExibeFinalidadeAnexo(responsabilidade, arquivoGeometriaUrl)) {
+        return '';
+      }
       const salva = produto.finalidade_anexo
         ? String(produto.finalidade_anexo)
         : '';
       if (salva) return salva;
-      if (!produto.arquivo_geometria_url) return '';
       return (
         resolverFinalidadeAnexoDefault(
-          String(produto.responsabilidade_arte || ''),
+          responsabilidade,
           String(produto.geometria_origem || ''),
           null,
         ) || ''
@@ -76,19 +93,27 @@ export function mapArteServicosBackendParaFormulario(
 export function mapArteProdutoFormularioParaBackend(
   produto: Record<string, unknown>,
 ) {
+  const responsabilidade = String(
+    produto.responsabilidade_arte || ResponsabilidadeArte.NAO_APLICAVEL,
+  );
+  const arquivoGeometriaUrl = produto.arquivo_geometria_url
+    ? String(produto.arquivo_geometria_url)
+    : '';
   const finalidade = produto.finalidade_anexo
     ? String(produto.finalidade_anexo)
     : null;
+  const finalidadeValida =
+    produtoExibeFinalidadeAnexo(responsabilidade, arquivoGeometriaUrl) &&
+    finalidade &&
+    (Object.values(FinalidadeAnexo) as string[]).includes(finalidade)
+      ? finalidade
+      : null;
 
   return {
-    responsabilidade_arte:
-      produto.responsabilidade_arte || ResponsabilidadeArte.NAO_APLICAVEL,
+    responsabilidade_arte: responsabilidade,
     politica_cobranca_arte:
       produto.politica_cobranca_arte || PoliticaCobrancaArte.NAO_APLICAVEL,
-    finalidade_anexo: finalidade &&
-      (Object.values(FinalidadeAnexo) as string[]).includes(finalidade)
-      ? finalidade
-      : null,
+    finalidade_anexo: finalidadeValida,
     complexidade_arte: produto.complexidade_arte || null,
     arte_custo_automatico: Boolean(produto.arte_custo_automatico),
     arte_referencia_servico_id: produto.arte_referencia_servico_id || null,
@@ -145,6 +170,21 @@ export function resolverFinalidadeAnexoDefault(
     }
   }
 
+  return null;
+}
+
+export function textoAjudaResponsabilidadeArte(
+  responsabilidade: string | null | undefined,
+): string | null {
+  if (responsabilidade === ResponsabilidadeArte.CLIENTE_FORNECE) {
+    return 'O cliente envia o arquivo final. Após a OS, a equipe de arte confere na fila (upload ou link).';
+  }
+  if (responsabilidade === ResponsabilidadeArte.EMPRESA_CRIA) {
+    return 'A equipe cria a arte do zero após a OS.';
+  }
+  if (responsabilidade === ResponsabilidadeArte.EMPRESA_ADAPTA) {
+    return 'A equipe adapta referência ou arquivo base após a OS.';
+  }
   return null;
 }
 

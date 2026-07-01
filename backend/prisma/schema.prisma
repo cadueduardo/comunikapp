@@ -663,8 +663,9 @@ model loja {
   conexoes                    LojaConexao[]
   taxas_ocorrencia_instalacao TaxaOcorrenciaLoja[]
   itens_os_instalacao         ItemOSInstalacao[]
-  ocorrencias_instalacao      OcorrenciaInstalacao[]
+  ocorrencias_instalacao         OcorrenciaInstalacao[]
   relatorios_tecnicos_instalacao RelatorioTecnicoInstalacao[]
+  orcamentos_aditivos_instalacao OrcamentoAditivoInstalacao[]
   processos_decoracao         ProcessoDecoracao[]
   conjuntos_campos          ConjuntoCampos[]
   estampas                  Estampa[]
@@ -939,8 +940,9 @@ model orcamento {
   aprovacoes         aprovacaoOrcamento[]
   execucoes_regras   ExecucaoRegra[]
   custos             String?              @db.LongText // JSON com custos detalhados
-  ordens_servico     OrdemServico[]
-  cobranca           Cobranca? // Fase 6 - relacao 1:1 com cobranca
+  ordens_servico                 OrdemServico[]
+  cobranca                       Cobranca? // Fase 6 - relacao 1:1 com cobranca
+  orcamento_aditivo_instalacao   OrcamentoAditivoInstalacao?
 
   // Campos para soft delete
   excluido_em     DateTime?
@@ -1379,6 +1381,7 @@ model usuario {
   two_factor_secret                  String?              @db.Text
   two_factor_confirmed_at            DateTime?
   ativo                              Boolean              @default(true) // Campo para V2
+  preferencias                       Json?
   loja                               loja                 @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Usuario_loja_id_fkey")
   perfis                             usuario_perfil[]
   password_reset_tokens              PasswordResetToken[]
@@ -1843,10 +1846,20 @@ model OrdemServico {
   status_antes_inativacao     String?
   snapshot_antes_inativacao   String?   @db.LongText // JSON para reativação
 
+  // Split financeiro — OS Aditiva (Fase 5 evolutiva)
+  os_pai_id               String?
+  tipo_vinculo_os         String?  @db.VarChar(24) // PRINCIPAL | ADITIVA_INSTALACAO
+  pular_pcp               Boolean  @default(false)
+  pular_expedicao         Boolean  @default(false)
+  pular_validacao_estoque Boolean  @default(false)
+
   // Relacionamentos
   loja      loja       @relation(fields: [loja_id], references: [id])
   cliente   cliente    @relation(fields: [cliente_id], references: [id])
   orcamento orcamento? @relation(fields: [orcamento_id], references: [id])
+
+  os_pai    OrdemServico?  @relation("OsFilhas", fields: [os_pai_id], references: [id], onDelete: SetNull)
+  os_filhas OrdemServico[] @relation("OsFilhas")
 
   // Relacionamentos internos do módulo
   itens                ItemOS[]
@@ -1857,8 +1870,11 @@ model OrdemServico {
   logs                 OrdemServicoLog[]
   execucoes_regras     ExecucaoRegra[]
   expedicoes_logistica   ExpedicaoLogistica[]
-  ocorrencias_instalacao OcorrenciaInstalacao[]
+  ocorrencias_instalacao OcorrenciaInstalacao[] @relation("OcorrenciasOsPai")
+  ocorrencias_faturadas  OcorrenciaInstalacao[] @relation("OcorrenciasFaturadas")
   relatorio_tecnico_instalacao RelatorioTecnicoInstalacao?
+  orcamentos_aditivos_pai       OrcamentoAditivoInstalacao[] @relation("OrcamentosAditivosPai")
+  orcamento_aditivo_meta       OrcamentoAditivoInstalacao?  @relation("OrcamentoAditivoOsFilha")
 
   // Relacionamentos Arte & Aprovação
   artes_versoes   ArteVersao[]
@@ -1885,6 +1901,8 @@ model OrdemServico {
   @@index([criado_por])
   @@index([modificado_por])
   @@index([versao])
+  @@index([loja_id, os_pai_id])
+  @@index([loja_id, tipo_vinculo_os])
   @@map("ordens_servico")
 }
 
@@ -2331,6 +2349,8 @@ model ConfiguracaoInstalacaoLoja {
   id                    String   @id @default(cuid())
   loja_id               String   @unique
   exigir_sinal_producao Boolean  @default(false)
+  /// Feature flag INSTALACAO_OS_ADITIVA (doc 13 D5): precificação gestor + OS Aditiva
+  os_aditiva_habilitada Boolean  @default(false)
   criado_em             DateTime @default(now())
   atualizado_em         DateTime @updatedAt
 
@@ -2373,30 +2393,63 @@ model ItemOSInstalacao {
 }
 
 model OcorrenciaInstalacao {
-  id                 String              @id @default(cuid())
+  id                 String                      @id @default(cuid())
   loja_id            String
   os_id              String
   item_instalacao_id String?
   tipo               TipoOcorrencia
   categoria          CategoriaOcorrencia
-  quantidade         Decimal             @db.Decimal(10, 2)
-  custo_interno      Decimal             @db.Decimal(10, 2)
-  preco_cliente      Decimal             @db.Decimal(10, 2)
-  descricao          String              @db.Text
+  quantidade         Decimal                     @db.Decimal(10, 2)
+  custo_interno      Decimal?                    @db.Decimal(10, 2)
+  preco_cliente      Decimal?                    @db.Decimal(10, 2)
+  descricao          String                      @db.Text
   fotos_evidencia    Json?
-  criado_em          DateTime            @default(now())
+  criado_em          DateTime                    @default(now())
+
+  status_financeiro   StatusFinanceiroOcorrencia @default(PENDENTE_PRECIFICACAO)
+  custo_sugerido      Decimal?                   @db.Decimal(10, 2)
+  preco_sugerido      Decimal?                   @db.Decimal(10, 2)
+  precificado_por     String?
+  precificado_em      DateTime?
+  observacao_gestor   String?                    @db.Text
+  os_aditiva_id       String?
+  cobranca_parcela_id String?
+  versao              Int                        @default(0)
 
   loja            loja              @relation(fields: [loja_id], references: [id], onDelete: Cascade)
-  ordem_servico   OrdemServico      @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  ordem_servico   OrdemServico      @relation("OcorrenciasOsPai", fields: [os_id], references: [id], onDelete: Cascade)
   item_instalacao ItemOSInstalacao? @relation(fields: [item_instalacao_id], references: [id], onDelete: SetNull)
+  os_aditiva      OrdemServico?     @relation("OcorrenciasFaturadas", fields: [os_aditiva_id], references: [id], onDelete: SetNull)
 
   @@index([loja_id])
   @@index([loja_id, os_id])
+  @@index([loja_id, status_financeiro])
+  @@index([loja_id, status_financeiro, criado_em])
   @@index([os_id])
   @@index([item_instalacao_id])
+  @@index([os_aditiva_id])
   @@index([tipo])
   @@index([criado_em])
   @@map("ocorrencias_instalacao")
+}
+
+model OrcamentoAditivoInstalacao {
+  id                   String   @id @default(cuid())
+  loja_id              String
+  os_pai_id            String
+  os_aditiva_id        String   @unique
+  orcamento_id         String   @unique
+  ocorrencias_snapshot Json
+  criado_em            DateTime @default(now())
+
+  loja       loja         @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  os_pai     OrdemServico @relation("OrcamentosAditivosPai", fields: [os_pai_id], references: [id], onDelete: Cascade)
+  os_aditiva OrdemServico @relation("OrcamentoAditivoOsFilha", fields: [os_aditiva_id], references: [id], onDelete: Cascade)
+  orcamento  orcamento    @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+
+  @@index([loja_id])
+  @@index([loja_id, os_pai_id])
+  @@map("orcamentos_aditivos_instalacao")
 }
 
 model RelatorioTecnicoInstalacao {
@@ -2464,6 +2517,14 @@ enum CategoriaOcorrencia {
   PRODUCAO
   INSTALACAO
   LOGISTICA
+}
+
+enum StatusFinanceiroOcorrencia {
+  PENDENTE_PRECIFICACAO
+  PRECIFICADO
+  FATURADO
+  ABONADO
+  CANCELADO
 }
 
 // ==========================================

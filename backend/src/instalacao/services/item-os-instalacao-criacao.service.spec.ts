@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ItemOSInstalacaoCriacaoService } from './item-os-instalacao-criacao.service';
 import { InstalacaoAgendaSyncService } from './instalacao-agenda-sync.service';
+import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
 
 describe('ItemOSInstalacaoCriacaoService', () => {
   let service: ItemOSInstalacaoCriacaoService;
@@ -38,6 +39,10 @@ describe('ItemOSInstalacaoCriacaoService', () => {
           provide: InstalacaoAgendaSyncService,
           useValue: agendaSyncMock,
         },
+        {
+          provide: HomeCacheService,
+          useValue: { invalidarPorPrefixo: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -62,6 +67,34 @@ describe('ItemOSInstalacaoCriacaoService', () => {
 
     expect(resultado.criado).toBe(false);
     expect(resultado.motivo_skip).toBe('SEM_INSTALACAO');
+  });
+
+  it('não cria lote automático quando endereço do orçamento ainda é placeholder', async () => {
+    prismaMock.itemOS.findFirst.mockResolvedValue({
+      id: 'item-1',
+      quantidade: 10,
+      os: { orcamento_id: 'orc-1' },
+    });
+    prismaMock.produtoOrcamento.findFirst.mockResolvedValue({
+      instalacao_necessaria: true,
+    });
+    prismaMock.itemOSInstalacao.aggregate.mockResolvedValue({
+      _sum: { quantidade_alocada: 0 },
+    });
+    prismaMock.workflowInstanciaSetor.findMany.mockResolvedValue([
+      { status: 'CONCLUIDA' },
+    ]);
+
+    const resultado = await service.processarBaixaProducao({
+      lojaId: 'loja-1',
+      itemOsId: 'item-1',
+    });
+
+    expect(resultado).toEqual({
+      criado: false,
+      motivo_skip: 'ENDERECO_PENDENTE',
+    });
+    expect(prismaMock.itemOSInstalacao.create).not.toHaveBeenCalled();
   });
 
   it('cria lote com baixa parcial informada', async () => {

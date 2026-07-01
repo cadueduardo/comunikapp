@@ -1,3 +1,27 @@
+export const STATUS_FINANCEIRO_OCORRENCIA_LABEL: Record<string, string> = {
+  PENDENTE_PRECIFICACAO: 'Pendente de precificação',
+  PRECIFICADO: 'Precificado',
+  FATURADO: 'Faturado',
+  ABONADO: 'Abonado',
+  CANCELADO: 'Cancelado',
+};
+
+export const STATUS_FINANCEIRO_OCORRENCIA_TONE: Record<
+  string,
+  'default' | 'warn' | 'success' | 'destructive'
+> = {
+  PENDENTE_PRECIFICACAO: 'warn',
+  PRECIFICADO: 'default',
+  FATURADO: 'success',
+  ABONADO: 'destructive',
+  CANCELADO: 'destructive',
+};
+
+export const FILA_PRECIFICACAO_STATUS_FILTROS = [
+  { value: 'PENDENTE_PRECIFICACAO', label: 'Pendentes' },
+  { value: 'PRECIFICADO', label: 'Precificados' },
+] as const;
+
 export const STATUS_INSTALACAO_LABEL: Record<string, string> = {
   AGUARDANDO: 'Aguardando',
   EM_ANDAMENTO: 'Em andamento',

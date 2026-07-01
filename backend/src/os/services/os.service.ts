@@ -61,6 +61,7 @@ import {
   OrigemOS,
   PrioridadeOS,
 } from '../interfaces/os-direta-interna.interface';
+import { materiaisDisponiveisParaFluxo } from '../utils/os-pular-fluxo.util';
 
 interface OSProdutoValidacao {
   id: string;
@@ -411,6 +412,7 @@ export class OSService {
       ]);
 
       const data = ordens.map((os) => this.formatarOrdemServico(os));
+      await this.enriquecerStatusExpedicaoLista(lojaId, data);
 
       return {
         data,
@@ -756,7 +758,7 @@ export class OSService {
       // Buscar OS atual para obter status anterior
       const osAtual = await this.prisma.ordemServico.findUnique({
         where: { id },
-        select: { status: true, loja_id: true },
+        select: { status: true, loja_id: true, pular_pcp: true },
       });
 
       if (!osAtual) {
@@ -796,7 +798,7 @@ export class OSService {
       );
 
       // Notificar liberação para PCP
-      if (dados.status === StatusOS.LIBERADA_PARA_PCP) {
+      if (dados.status === StatusOS.LIBERADA_PARA_PCP && !osAtual.pular_pcp) {
         await this.eventosAutomaticosService.notificarOSLiberadaParaPCP(
           id,
           osAtual.loja_id,
@@ -1803,7 +1805,7 @@ export class OSService {
 
     // Transição para FINALIZADA
     if (novaEtapa === 'FINALIZADA') {
-      if (!os.materiais_disponivel) {
+      if (!materiaisDisponiveisParaFluxo(os)) {
         return {
           valida: false,
           motivo: 'Materiais devem estar disponíveis para finalizar OS',
@@ -2227,6 +2229,7 @@ export class OSService {
       ativo: os.ativo !== false,
       inativado_em: os.inativado_em ?? undefined,
       motivo_inativacao: os.motivo_inativacao ?? undefined,
+      status_instalacao_os: os.status_instalacao_os ?? null,
       cliente: os.cliente
         ? {
             id: os.cliente.id,
@@ -2312,6 +2315,35 @@ export class OSService {
     }
 
     return data;
+  }
+
+  private async enriquecerStatusExpedicaoLista(
+    lojaId: string,
+    itens: OrdemServicoData[],
+  ): Promise<void> {
+    if (itens.length === 0) return;
+
+    const osIds = itens.map((item) => item.id);
+    const expedicoes = await this.prisma.expedicaoLogistica.findMany({
+      where: {
+        loja_id: lojaId,
+        os_id: { in: osIds },
+        status: { not: 'DEVOLVIDA' },
+      },
+      orderBy: { atualizado_em: 'desc' },
+      select: { os_id: true, status: true },
+    });
+
+    const porOs = new Map<string, string>();
+    for (const exp of expedicoes) {
+      if (!porOs.has(exp.os_id)) {
+        porOs.set(exp.os_id, exp.status);
+      }
+    }
+
+    for (const item of itens) {
+      item.status_expedicao = porOs.get(item.id) ?? null;
+    }
   }
 
   // ===== MÉTODOS DE CONSULTA =====
@@ -2948,6 +2980,15 @@ export class OSService {
     });
     if (!os) return;
 
+    if (os.pular_pcp) {
+      this.logger.debug(
+        `OS ${osId} com pular_pcp=true — promoção para PCP ignorada`,
+      );
+      return;
+    }
+
+    const materiaisOk = materiaisDisponiveisParaFluxo(os);
+
     const tipoPorId = await this.carregarTipoItemOrcamentoPorIds(
       os.itens.map((i) => i.id),
     );
@@ -3011,7 +3052,7 @@ export class OSService {
           continue;
         }
 
-        if (!isElegivelPcp(ctx, os.materiais_disponivel)) {
+        if (!isElegivelPcp(ctx, materiaisOk)) {
           continue;
         }
 
@@ -3028,6 +3069,30 @@ export class OSService {
     } catch (error) {
       this.logger.warn(
         `Falha ao liberar itens da OS ${osId} após aprovação técnica: ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
+    }
+
+    try {
+      const temItensExpedicao = os.itens.some((item) => {
+        const enriquecido = comTipoItemOrcamento(item, tipoPorId);
+        return !itemRequerFabricaPcp({
+          modo_fulfillment: enriquecido.modo_fulfillment,
+          personalizacao_modo: enriquecido.personalizacao_modo,
+          responsabilidade_arte: enriquecido.responsabilidade_arte,
+          tipo_item: enriquecido.tipo_item,
+          parametros_tecnicos: enriquecido.parametros_tecnicos,
+          insumos_necessarios: enriquecido.insumos_necessarios,
+        });
+      });
+
+      if (temItensExpedicao) {
+        await this.expedicaoCriacaoService.criarSeElegivel(osId, lojaId);
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao criar expedição para OS ${osId} após aprovação técnica: ${
           error instanceof Error ? error.message : error
         }`,
       );

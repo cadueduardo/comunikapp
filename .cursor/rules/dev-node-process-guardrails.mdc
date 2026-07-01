@@ -1,0 +1,43 @@
+---
+description: Evitar acúmulo de processos Node no Windows (Cursor + Comunikapp)
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Guardrails: processos Node (Windows + Cursor)
+
+Referência: `docs/DEV-GESTAO-PROCESSOS-NODE-WINDOWS.md`
+
+## Antes de comandos pesados
+
+- Se o usuário relatar lentidão ou há suspeita de processos órfãos: sugerir ou executar `.\scripts\cleanup-node-dev.ps1` (não usar `-Force` sem pedido explícito).
+- Não rodar `prisma generate` / `db:migrate` com `npm run dev` ativo.
+
+## Testes (Jest)
+
+- **Proibido:** `npm test` sem filtro de arquivo (dispara suite inteira).
+- **Usar:** `npx jest <caminho/arquivo.spec.ts> --runInBand --forceExit --no-coverage`
+- **Proibido:** `jest --watch` em sessão de agente.
+- Um processo Jest por vez; aguardar término antes de outro.
+
+## Typecheck
+
+- Preferir `read_lints` nos arquivos editados.
+- `npx tsc -p tsconfig.build.json --noEmit` só quando necessário; **nunca** em paralelo com Jest ou segundo `tsc`.
+- Se `tsc` passar de ~3 min sem saída: interromper, rodar cleanup, reduzir escopo.
+
+## Dev servers
+
+- Assumir **no máximo um** `npm run dev` (raiz) ou par frontend/backend dedicados.
+- Não iniciar `npm run dev` se já houver backend na porta 4000 ou frontend na 3000.
+
+## Scripts e auditoria
+
+- Scripts Node de auditoria: **salvar em arquivo** (`backend/scripts/` ou `backend/tmp-*.mjs`), não one-liner PowerShell com `$disconnect` (escape quebra).
+- Deletar scripts temporários após uso.
+
+## Paralelismo em tool calls
+
+- Não disparar em paralelo: `jest` + `tsc` + `npm run dev` + `prisma generate`.
+- `git status` / `git diff` / `git log` podem rodar em paralelo (leves).

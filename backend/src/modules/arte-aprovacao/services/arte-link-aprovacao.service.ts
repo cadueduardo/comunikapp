@@ -909,6 +909,8 @@ export class ArteLinkAprovacaoService {
     filename: string,
   ): Promise<{
     storagePath: string;
+    storageProvider: string;
+    lojaId: string;
     nomeOriginal: string;
     tipoArquivo: string;
   }> {
@@ -985,6 +987,8 @@ export class ArteLinkAprovacaoService {
       storagePath: isThumbnail
         ? join(dirname(arquivo.storage_path), filename)
         : arquivo.storage_path,
+      storageProvider: arquivo.storage_provider,
+      lojaId: arquivo.loja_id,
       nomeOriginal: isThumbnail
         ? filename
         : arquivo.nome_original || arquivo.nome_arquivo,

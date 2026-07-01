@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TurnoPrevisaoInstalacao } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
 import { InstalacaoAgendaSyncService } from './instalacao-agenda-sync.service';
-import { montarEnderecoInstalacaoDoProduto } from '../utils/endereco-instalacao.util';
+import { montarEnderecoInstalacaoDoProduto, enderecoInstalacaoPrecisaConfirmacao } from '../utils/endereco-instalacao.util';
 
 export interface ProcessarBaixaProducaoParams {
   lojaId: string;
@@ -15,7 +16,8 @@ export type MotivoSkipLoteInstalacao =
   | 'ITEM_NAO_ENCONTRADO'
   | 'SEM_SALDO'
   | 'PRODUCAO_INCOMPLETA'
-  | 'SEM_ORCAMENTO';
+  | 'SEM_ORCAMENTO'
+  | 'ENDERECO_PENDENTE';
 
 export interface ResultadoCriacaoLoteInstalacao {
   criado: boolean;
@@ -40,6 +42,7 @@ export class ItemOSInstalacaoCriacaoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly instalacaoAgendaSyncService: InstalacaoAgendaSyncService,
+    private readonly homeCacheService: HomeCacheService,
   ) {}
 
   async processarBaixaProducao(
@@ -115,6 +118,10 @@ export class ItemOSInstalacaoCriacaoService {
 
     const endereco = montarEnderecoInstalacaoDoProduto(produto);
 
+    if (enderecoInstalacaoPrecisaConfirmacao(endereco)) {
+      return { criado: false, motivo_skip: 'ENDERECO_PENDENTE' };
+    }
+
     const lote = await this.prisma.itemOSInstalacao.create({
       data: {
         loja_id: params.lojaId,
@@ -133,6 +140,8 @@ export class ItemOSInstalacaoCriacaoService {
     this.logger.log(
       `Lote de instalação criado (${quantidadeAlocar} un.) para item ${params.itemOsId} — lote ${lote.id}`,
     );
+
+    this.invalidarCacheBadgesMenu(params.lojaId);
 
     return {
       criado: true,
@@ -273,6 +282,8 @@ export class ItemOSInstalacaoCriacaoService {
       `Lote manual criado (${quantidade} un.) para item ${params.itemOsId} — lote ${lote.id}`,
     );
 
+    this.invalidarCacheBadgesMenu(params.lojaId);
+
     return {
       criado: true,
       item_os_id: params.itemOsId,
@@ -316,5 +327,9 @@ export class ItemOSInstalacaoCriacaoService {
       const status = setor.status.toUpperCase();
       return status === 'CONCLUIDA' || status === 'CANCELADA';
     });
+  }
+
+  private invalidarCacheBadgesMenu(lojaId: string): void {
+    this.homeCacheService.invalidarPorPrefixo(`${lojaId}:`);
   }
 }

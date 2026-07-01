@@ -44,7 +44,7 @@ import {
 import { useWatch } from 'react-hook-form';
 import { AnexoGeometriaInput } from '@/components/orcamentos-v2/AnexoGeometriaInput';
 import { ArteProdutoSection } from '@/components/orcamentos-v2/ArteProdutoSection';
-import { ARTE_PRODUTO_DEFAULTS, resolverFinalidadeAnexoDefault } from '@/components/orcamentos-v2/arte-produto.helpers';
+import { ARTE_PRODUTO_DEFAULTS, produtoExibeFinalidadeAnexo, resolverFinalidadeAnexoDefault } from '@/components/orcamentos-v2/arte-produto.helpers';
 import {
   DxfRevisaoCard,
   type DxfExtraido,
@@ -736,6 +736,13 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
 
     const responsabilidade =
       form.getValues(`itens_produto.${itemIndex}.responsabilidade_arte`) || '';
+    if (!produtoExibeFinalidadeAnexo(responsabilidade, url)) {
+      form.setValue(`itens_produto.${itemIndex}.finalidade_anexo`, '', {
+        shouldDirty: true,
+      });
+      return;
+    }
+
     const atual = form.getValues(`itens_produto.${itemIndex}.finalidade_anexo`);
     const sugerida = resolverFinalidadeAnexoDefault(
       responsabilidade,
@@ -1129,7 +1136,7 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
                   </span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="data-[state=closed]:hidden">
+              <AccordionContent forceMount className="data-[state=closed]:hidden">
                 <CardContent className="space-y-6">
                   <fieldset disabled={somenteLeitura} className="space-y-6 border-0 p-0 m-0 min-w-0">
                   {isPrateleira ? (

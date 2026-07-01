@@ -50,6 +50,8 @@ export class JwtGlobalMiddleware implements NestMiddleware {
       '/api/arte-aprovacao/comentarios/public',
       '/arte-aprovacao/mensagens/publico',
       '/api/arte-aprovacao/mensagens/publico',
+      '/conexoes/google/callback',
+      '/api/conexoes/google/callback',
     ];
 
     if (process.env.NODE_ENV !== 'production') {

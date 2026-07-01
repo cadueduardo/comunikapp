@@ -6,7 +6,7 @@ import {
 import { AutorTipo } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import {
-  RESPONSABILIDADES_FILA_INTERNA,
+  RESPONSABILIDADES_FILA_ARTE,
   STATUS_ARTE_FILA_PENDENTES,
   STATUS_ARTE_KANBAN,
   StatusArte,
@@ -116,6 +116,58 @@ export class ArteFilaService {
       },
     });
 
+    const itemIds = itens.map((i) => i.id);
+    const versoesProducao =
+      itemIds.length === 0
+        ? []
+        : await this.prisma.arteVersao.findMany({
+            where: {
+              os_id: osId,
+              servico_id: { in: itemIds },
+              loja_id: lojaId,
+              deletado: false,
+              OR: [{ status: 'APROVADA' }, { liberado_para_pcp: true }],
+            },
+            include: {
+              arquivos: {
+                orderBy: { data_upload: 'desc' },
+                take: 1,
+              },
+            },
+            orderBy: { data_criacao: 'desc' },
+          });
+
+    const producaoPorItem = new Map<
+      string,
+      {
+        versao_id: string;
+        versao: string;
+        arquivo_id: string;
+        nome_arquivo: string;
+        nome_original: string;
+        url_arquivo: string;
+        storage_provider: string;
+      }
+    >();
+
+    for (const versao of versoesProducao) {
+      if (!versao.servico_id || producaoPorItem.has(versao.servico_id)) {
+        continue;
+      }
+      const arquivo = versao.arquivos[0];
+      if (!arquivo) continue;
+
+      producaoPorItem.set(versao.servico_id, {
+        versao_id: versao.id,
+        versao: versao.versao,
+        arquivo_id: arquivo.id,
+        nome_arquivo: arquivo.nome_arquivo,
+        nome_original: arquivo.nome_original,
+        url_arquivo: arquivo.url_arquivo,
+        storage_provider: arquivo.storage_provider,
+      });
+    }
+
     return itens.map((item) => ({
       item_id: item.id,
       produto_nome: item.produto_servico,
@@ -132,6 +184,7 @@ export class ArteFilaService {
             nome: item.designer_atribuido.nome_completo,
           }
         : null,
+      arte_producao: producaoPorItem.get(item.id) ?? null,
     }));
   }
 
@@ -192,7 +245,7 @@ export class ArteFilaService {
     }
 
     return {
-      responsabilidade_arte: { in: RESPONSABILIDADES_FILA_INTERNA },
+      responsabilidade_arte: { in: RESPONSABILIDADES_FILA_ARTE },
       status_arte: { in: statusFiltro },
       ...(designerId ? { designer_atribuido_id: designerId } : {}),
       os: {

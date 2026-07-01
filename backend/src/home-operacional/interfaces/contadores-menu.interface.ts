@@ -8,4 +8,5 @@ export interface ContadoresMenuResponse {
   expedicao: number;
   financeiro: number;
   arte: number;
+  instalacao: number;
 }

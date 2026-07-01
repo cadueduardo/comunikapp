@@ -8,6 +8,8 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AssignWorkflowDto } from '../dto/workflow-assignment.dto';
 import { StatusOS } from '../../os/interfaces/os.interfaces';
+import { itemRequerFabricaPcp } from '../../os/utils/os-liberacao-pcp.util';
+import { devePularPcp } from '../../os/utils/os-pular-fluxo.util';
 
 export interface WorkflowSuggestion {
   workflowId: string;
@@ -50,6 +52,9 @@ type OrdemServicoComOrcamento = Prisma.OrdemServicoGetPayload<{
         status_liberacao_pcp: true;
         data_prazo_produto: true;
         quantidade: true;
+        modo_fulfillment: true;
+        personalizacao_modo: true;
+        responsabilidade_arte: true;
       };
     };
   };
@@ -121,6 +126,22 @@ export class WorkflowAssignmentService {
   }> {
     const { os } = await this.carregarContextoOS(dto.osId, lojaId);
 
+    if (devePularPcp(os)) {
+      this.logger.debug(
+        `OS ${dto.osId} com pular_pcp=true — atribuição de workflow ignorada`,
+      );
+      const instanciaExistenteSkip =
+        await this.prisma.workflowInstancia.findUnique({
+          where: { os_id: dto.osId },
+          select: { id: true, workflow_id: true },
+        });
+      return {
+        workflowId: instanciaExistenteSkip?.workflow_id ?? '',
+        instanciaId: instanciaExistenteSkip?.id ?? '',
+        mensagem: 'OS configurada para não entrar no PCP',
+      };
+    }
+
     // Verificar se já existe instância
     const instanciaExistente = await this.prisma.workflowInstancia.findUnique({
       where: { os_id: dto.osId },
@@ -165,9 +186,16 @@ export class WorkflowAssignmentService {
     }
 
     const itensOS = os.itens ?? [];
-    const itensLiberados = itensOS.filter(
-      (item) => (item.status_liberacao_pcp ?? '').toUpperCase() === 'LIBERADO',
-    );
+    const itensLiberados = itensOS.filter((item) => {
+      if ((item.status_liberacao_pcp ?? '').toUpperCase() !== 'LIBERADO') {
+        return false;
+      }
+      return itemRequerFabricaPcp({
+        modo_fulfillment: item.modo_fulfillment,
+        personalizacao_modo: item.personalizacao_modo,
+        responsabilidade_arte: item.responsabilidade_arte,
+      });
+    });
 
     let itensSelecionados: { id: string | null }[];
 

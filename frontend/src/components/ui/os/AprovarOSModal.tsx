@@ -28,6 +28,8 @@ import {
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
 import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
+import { getMotivosBloqueioPcpFrontend, isArteOkParaPcp, produtoRequerArte } from '@/lib/arte-produto-utils';
+import { itemRequerFabricaPcp, labelModoFulfillmentItem } from '@/lib/os-fulfillment-utils';
 import { Checkbox } from '@/components/ui/checkbox';
 
 // Formata Date em 'YYYY-MM-DD' no fuso local (input type=date espera esse
@@ -83,6 +85,10 @@ interface ItemAprovacaoInfo {
   status_liberacao_pcp?: string | null;
   responsabilidade_arte?: string | null;
   status_arte?: string | null;
+  modo_fulfillment?: string | null;
+  personalizacao_modo?: string | null;
+  tipo_item?: string | null;
+  requer_pcp_fabrica?: boolean;
   elegivel_pcp?: boolean;
   motivos_bloqueio?: string[];
 }
@@ -223,17 +229,7 @@ export function AprovarOSModal({
             (it.status_liberacao_pcp || 'PENDENTE').toUpperCase() !==
             'LIBERADO',
         );
-        const elegiveis = pendentes.filter((it) => it.elegivel_pcp !== false);
-        const idsIniciais =
-          pendentes.length === 1
-            ? pendentes.map((it) => it.item_id)
-            : elegiveis.map((it) => it.item_id);
-        setSelecionados(new Set(idsIniciais));
 
-        // Pré-preenche os campos de prazo de cada serviço:
-        //  - Data início: data_inicio_producao do item OU hoje
-        //  - Data fim: data_prazo_produto do item OU data_prazo da OS OU
-        //    hoje + 7 dias
         const hoje = new Date();
         const hoje7 = new Date();
         hoje7.setDate(hoje7.getDate() + 7);
@@ -241,34 +237,59 @@ export function AprovarOSModal({
           ? new Date(data.data_prazo)
           : hoje7;
 
-        setPrazoMaeInicio(formatarDataInput(hoje));
-        setPrazoMaeFim(formatarDataInput(fallbackFim));
+        const itensPrazoInicial: ItemPrazoState[] = (data.itens ?? []).map(
+          (it) => {
+            const inicioAtual = it.data_inicio_producao
+              ? new Date(it.data_inicio_producao)
+              : null;
+            const fimAtual = it.data_prazo_produto
+              ? new Date(it.data_prazo_produto)
+              : null;
 
-        const itens: ItemPrazoState[] = (data.itens ?? []).map((it) => {
-          const inicioAtual = it.data_inicio_producao
-            ? new Date(it.data_inicio_producao)
-            : null;
-          const fimAtual = it.data_prazo_produto
-            ? new Date(it.data_prazo_produto)
-            : null;
+            return {
+              item_id: it.item_id,
+              produto_servico: it.produto_servico,
+              data_inicio: formatarDataInput(
+                inicioAtual && !Number.isNaN(inicioAtual.getTime())
+                  ? inicioAtual
+                  : hoje,
+              ),
+              data_fim: formatarDataInput(
+                fimAtual && !Number.isNaN(fimAtual.getTime())
+                  ? fimAtual
+                  : fallbackFim,
+              ),
+            };
+          },
+        );
 
-          return {
-            item_id: it.item_id,
-            produto_servico: it.produto_servico,
-            data_inicio: formatarDataInput(
-              inicioAtual && !Number.isNaN(inicioAtual.getTime())
-                ? inicioAtual
-                : hoje,
-            ),
-            data_fim: formatarDataInput(
-              fimAtual && !Number.isNaN(fimAtual.getTime())
-                ? fimAtual
-                : fallbackFim,
-            ),
-          };
+        const osMateriaisOk = data.validacoes?.estoque_ok === true;
+        const elegiveis = pendentes.filter((it) => {
+          const prazoLocal = itensPrazoInicial.find(
+            (p) => p.item_id === it.item_id,
+          );
+          const motivos = getMotivosBloqueioPcpFrontend(
+            {
+              status_liberacao_pcp: it.status_liberacao_pcp,
+              data_prazo_produto:
+                prazoLocal?.data_fim || it.data_prazo_produto,
+              responsabilidade_arte: it.responsabilidade_arte,
+              status_arte: it.status_arte,
+            },
+            osMateriaisOk,
+          );
+          return motivos.length === 0;
         });
 
-        setItensPrazo(itens);
+        const idsIniciais =
+          pendentes.length === 1
+            ? pendentes.map((it) => it.item_id)
+            : elegiveis.map((it) => it.item_id);
+        setSelecionados(new Set(idsIniciais));
+
+        setPrazoMaeInicio(formatarDataInput(hoje));
+        setPrazoMaeFim(formatarDataInput(fallbackFim));
+        setItensPrazo(itensPrazoInicial);
       } catch (error) {
         if (!cancelado) {
           setErroCarga(
@@ -314,6 +335,46 @@ export function AprovarOSModal({
     () => itensValidados.some((it) => !!it.erro),
     [itensValidados],
   );
+
+  /** Elegibilidade no modal: considera prazos preenchidos na UI (ainda não salvos no banco). */
+  const elegibilidadeModal = useMemo(() => {
+    const map = new Map<string, { elegivel: boolean; motivos: string[] }>();
+    const osMateriaisOk = validacoes?.estoque_ok === true;
+
+    for (const it of itensValidados) {
+      const info = itensInfo.find((i) => i.item_id === it.item_id);
+      if (!info) continue;
+
+      if (!itemRequerFabricaPcp(info)) {
+        map.set(it.item_id, { elegivel: true, motivos: [] });
+        continue;
+      }
+
+      const motivos = getMotivosBloqueioPcpFrontend(
+        {
+          status_liberacao_pcp: info.status_liberacao_pcp,
+          data_prazo_produto: it.data_fim || info.data_prazo_produto,
+          responsabilidade_arte: info.responsabilidade_arte,
+          status_arte: info.status_arte,
+          modo_fulfillment: info.modo_fulfillment,
+          personalizacao_modo: info.personalizacao_modo,
+          requer_pcp_fabrica: info.requer_pcp_fabrica,
+        },
+        osMateriaisOk,
+      );
+
+      if (!eAprovacaoRetroativa && it.erro) {
+        motivos.push(it.erro);
+      }
+
+      map.set(it.item_id, {
+        elegivel: motivos.length === 0,
+        motivos,
+      });
+    }
+
+    return map;
+  }, [itensValidados, itensInfo, validacoes, eAprovacaoRetroativa]);
 
   const atualizarItem = (
     itemId: string,
@@ -374,7 +435,16 @@ export function AprovarOSModal({
     [itensInfo],
   );
 
-  const multiProduto = itensPendentes.length > 1;
+  const itensPendentesPcp = useMemo(
+    () =>
+      itensPendentes.filter((it) => {
+        const info = itensInfo.find((i) => i.item_id === it.item_id);
+        return info ? itemRequerFabricaPcp(info) : false;
+      }),
+    [itensPendentes, itensInfo],
+  );
+
+  const multiProduto = itensPendentesPcp.length > 1;
   const idsSelecionados = useMemo(
     () => Array.from(selecionados),
     [selecionados],
@@ -390,18 +460,31 @@ export function AprovarOSModal({
   };
 
   const selecionarTodosElegiveis = () => {
-    const ids = itensPendentes
-      .filter((it) => it.elegivel_pcp !== false)
+    const ids = itensPendentesPcp
+      .filter((it) => elegibilidadeModal.get(it.item_id)?.elegivel !== false)
       .map((it) => it.item_id);
-    setSelecionados(new Set(ids));
+    const idsExpedicao = itensPendentes
+      .filter((it) => {
+        const info = itensInfo.find((i) => i.item_id === it.item_id);
+        return info && !itemRequerFabricaPcp(info);
+      })
+      .map((it) => it.item_id);
+    setSelecionados(new Set([...ids, ...idsExpedicao]));
   };
 
   const handleAprovar = async () => {
     if (!osId) return;
 
+    const idsExpedicao = itensPendentes
+      .filter((it) => {
+        const info = itensInfo.find((i) => i.item_id === it.item_id);
+        return info && !itemRequerFabricaPcp(info);
+      })
+      .map((it) => it.item_id);
+
     const alvoIds =
       multiProduto && !eAprovacaoRetroativa
-        ? idsSelecionados
+        ? Array.from(new Set([...idsSelecionados, ...idsExpedicao]))
         : itensPendentes.map((it) => it.item_id);
 
     if (!eAprovacaoRetroativa && alvoIds.length === 0) {
@@ -477,11 +560,50 @@ export function AprovarOSModal({
     }
   };
 
+  const arteOkNoModal = useMemo(() => {
+    if (itensInfo.length === 0) {
+      return validacoes?.arte_anexada ?? false;
+    }
+    return itensInfo.every((it) => {
+      if (!produtoRequerArte(it.responsabilidade_arte, it.status_arte)) {
+        return true;
+      }
+      return isArteOkParaPcp(it.responsabilidade_arte, it.status_arte);
+    });
+  }, [itensInfo, validacoes?.arte_anexada]);
+
+  /** Prazo viável com base nas datas preenchidas no modal (não só data_prazo da OS). */
+  const prazoViavelNoModal = useMemo(() => {
+    const datasFim = itensValidados
+      .map((it) => it.data_fim)
+      .filter(Boolean) as string[];
+
+    const referenciaStr =
+      datasFim.length > 0
+        ? datasFim.sort().at(-1)!
+        : prazoOS?.slice(0, 10) ?? '';
+
+    if (!referenciaStr) {
+      return validacoes?.prazo_viavel ?? false;
+    }
+
+    const fim = parseDataInput(referenciaStr);
+    if (!fim) return false;
+
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    fim.setHours(0, 0, 0, 0);
+    const diasRestantes = Math.ceil(
+      (fim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    return diasRestantes >= 1;
+  }, [itensValidados, prazoOS, validacoes?.prazo_viavel]);
+
   const totalAlertas = validacoes
     ? [
         !validacoes.estoque_ok,
-        !validacoes.arte_anexada,
-        !validacoes.prazo_viavel,
+        !arteOkNoModal,
+        !prazoViavelNoModal,
       ].filter(Boolean).length
     : 0;
 
@@ -661,9 +783,14 @@ export function AprovarOSModal({
                   )}
                   {itensValidados.map((it) => {
                     const info = itensInfo.find((i) => i.item_id === it.item_id);
+                    const eleg = elegibilidadeModal.get(it.item_id);
+                    const requerPcp = info ? itemRequerFabricaPcp(info) : true;
+                    const statusLiberacao = (
+                      info?.status_liberacao_pcp || 'PENDENTE'
+                    ).toUpperCase();
                     const jaLiberado =
-                      (info?.status_liberacao_pcp || 'PENDENTE').toUpperCase() ===
-                      'LIBERADO';
+                      statusLiberacao === 'LIBERADO' ||
+                      statusLiberacao === 'NAO_APLICA';
                     if (jaLiberado) return null;
                     return (
                     <div
@@ -673,11 +800,11 @@ export function AprovarOSModal({
                       }`}
                     >
                       <div className="flex items-start gap-2 mb-2">
-                        {multiProduto && !eAprovacaoRetroativa && (
+                        {multiProduto && !eAprovacaoRetroativa && requerPcp && (
                           <Checkbox
                             checked={selecionados.has(it.item_id)}
                             disabled={
-                              aprovando || info?.elegivel_pcp === false
+                              aprovando || eleg?.elegivel === false
                             }
                             onCheckedChange={(c) =>
                               toggleSelecionado(it.item_id, c === true)
@@ -686,14 +813,23 @@ export function AprovarOSModal({
                           />
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 text-sm font-medium">
+                          <div className="flex items-center gap-2 text-sm font-medium flex-wrap">
                             <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                             {it.produto_servico}
+                            {info && (
+                              <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                {labelModoFulfillmentItem(info)}
+                              </span>
+                            )}
                           </div>
-                          {info?.motivos_bloqueio &&
-                            info.motivos_bloqueio.length > 0 && (
+                          {!requerPcp && (
+                            <p className="text-xs text-blue-700 mt-1">
+                              Produto de estoque — vai para expedição, não para o PCP.
+                            </p>
+                          )}
+                          {eleg?.motivos && eleg.motivos.length > 0 && (
                               <p className="text-xs text-amber-700 mt-1">
-                                {info.motivos_bloqueio.join(' · ')}
+                                {eleg.motivos.join(' · ')}
                               </p>
                             )}
                         </div>
@@ -796,7 +932,7 @@ export function AprovarOSModal({
                   warnLabel="Dados técnicos incompletos (bloqueia aprovação)"
                 />
                 <CritItem
-                  ok={validacoes.arte_anexada}
+                  ok={arteOkNoModal}
                   okIcon={<ImageIcon className="h-4 w-4" />}
                   warnIcon={<ImageIcon className="h-4 w-4" />}
                   okLabel="Arte anexada"
@@ -810,7 +946,7 @@ export function AprovarOSModal({
                   warnLabel="Materiais ainda não confirmados"
                 />
                 <CritItem
-                  ok={validacoes.prazo_viavel}
+                  ok={prazoViavelNoModal}
                   okIcon={<Calendar className="h-4 w-4" />}
                   warnIcon={<Calendar className="h-4 w-4" />}
                   okLabel="Prazo viável"

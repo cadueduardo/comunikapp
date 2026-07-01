@@ -223,6 +223,7 @@ export class HomeOperacionalController {
     @Query('expedicao_desde') expedicaoDesde?: string,
     @Query('financeiro_desde') financeiroDesde?: string,
     @Query('arte_desde') arteDesde?: string,
+    @Query('instalacao_desde') instalacaoDesde?: string,
   ) {
     const bypass = refresh === '1' || refresh === 'true';
     const data = await this.contadoresMenuService.obter(lojaId, {
@@ -232,6 +233,7 @@ export class HomeOperacionalController {
       expedicaoDesde: this.parseDesdeQuery(expedicaoDesde),
       financeiroDesde: this.parseDesdeQuery(financeiroDesde),
       arteDesde: this.parseDesdeQuery(arteDesde),
+      instalacaoDesde: this.parseDesdeQuery(instalacaoDesde),
     });
     return this.envelope(data);
   }

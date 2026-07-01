@@ -4,48 +4,43 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { InstalacaoLotesTable } from '@/components/instalacao/InstalacaoLotesTable';
+import { InstalacaoLotesConsultaGrid } from '@/components/instalacao/InstalacaoLotesConsultaGrid';
 import { InstalacaoTimeline } from '@/components/instalacao/InstalacaoTimeline';
+import { NovoLoteDialog } from '@/components/instalacao/NovoLoteDialog';
 import { OcorrenciaRapidaDialog } from '@/components/instalacao/OcorrenciaRapidaDialog';
-import { InstalacaoSplitFiscalCard } from '@/components/instalacao/InstalacaoSplitFiscalCard';
 import { instalacaoApi } from '@/lib/instalacao/instalacao-api';
 import type {
   EnderecoLoteForm,
-  MargemRealOs,
   PainelOsInstalacao,
-  RelatorioTecnicoEmitido,
-  SplitFiscalOs,
 } from '@/lib/instalacao/instalacao.types';
-import { IconDownload, IconLoader2, IconRefresh, IconReport } from '@tabler/icons-react';
+import { IconLoader2, IconRefresh, IconExternalLink } from '@tabler/icons-react';
+import Link from 'next/link';
+import { STATUS_INSTALACAO_OS_LABEL } from '@/lib/instalacao/instalacao-labels';
 import { toast } from 'sonner';
 
 interface InstalacaoOsPainelProps {
   osId: string;
+  /** Na OS: somente histórico; edição fica no módulo Instalação. */
+  modo?: 'gestao' | 'consulta';
 }
 
-export function InstalacaoOsPainel({ osId }: InstalacaoOsPainelProps) {
+/**
+ * Visão operacional da instalação na OS (chão de fábrica / logística).
+ * Valores comerciais e fechamento financeiro ficam no módulo Financeiro.
+ */
+export function InstalacaoOsPainel({
+  osId,
+  modo = 'gestao',
+}: InstalacaoOsPainelProps) {
+  const somenteLeitura = modo === 'consulta';
   const [painel, setPainel] = useState<PainelOsInstalacao | null>(null);
-  const [margem, setMargem] = useState<MargemRealOs | null>(null);
-  const [splitFiscal, setSplitFiscal] = useState<SplitFiscalOs | null>(null);
-  const [relatorioEmitido, setRelatorioEmitido] =
-    useState<RelatorioTecnicoEmitido | null>(null);
   const [carregando, setCarregando] = useState(true);
-  const [gerandoRelatorio, setGerandoRelatorio] = useState(false);
-  const [abrindoPdf, setAbrindoPdf] = useState(false);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
     try {
-      const [painelData, margemData, splitData, relatorioData] =
-        await Promise.all([
-          instalacaoApi.obterPainelOs(osId),
-          instalacaoApi.obterMargemReal(osId).catch(() => null),
-          instalacaoApi.obterSplitFiscal(osId).catch(() => null),
-          instalacaoApi.obterRelatorioEmitido(osId).catch(() => null),
-        ]);
+      const painelData = await instalacaoApi.obterPainelOs(osId);
       setPainel(painelData);
-      setMargem(margemData);
-      setSplitFiscal(splitData);
-      setRelatorioEmitido(relatorioData);
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : 'Falha ao carregar instalação',
@@ -58,6 +53,13 @@ export function InstalacaoOsPainel({ osId }: InstalacaoOsPainelProps) {
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  async function handleCriarLote(
+    dados: Parameters<typeof instalacaoApi.criarLote>[0],
+  ) {
+    await instalacaoApi.criarLote(dados);
+    await carregar();
+  }
 
   async function handleAtualizarLote(loteId: string, dados: EnderecoLoteForm) {
     await instalacaoApi.atualizarLote(loteId, {
@@ -85,42 +87,6 @@ export function InstalacaoOsPainel({ osId }: InstalacaoOsPainelProps) {
     await carregar();
   }
 
-  async function handleRelatorioTecnico() {
-    setGerandoRelatorio(true);
-    try {
-      const resultado = await instalacaoApi.gerarRelatorioTecnico(osId);
-      toast.success('Relatório técnico emitido. Saldo liberado para faturamento.');
-      if (resultado.split_fiscal) {
-        setSplitFiscal(resultado.split_fiscal);
-      }
-      await carregar();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Falha ao gerar relatório',
-      );
-    } finally {
-      setGerandoRelatorio(false);
-    }
-  }
-
-  async function handleAbrirPdf() {
-    const token =
-      relatorioEmitido?.pdf_token ??
-      (relatorioEmitido?.pdf_url
-        ? relatorioEmitido.pdf_url.split('/').pop()
-        : null);
-    if (!token) return;
-
-    setAbrindoPdf(true);
-    try {
-      await instalacaoApi.abrirRelatorioPdf(token);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Falha ao abrir PDF');
-    } finally {
-      setAbrindoPdf(false);
-    }
-  }
-
   if (carregando) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground">
@@ -140,14 +106,55 @@ export function InstalacaoOsPainel({ osId }: InstalacaoOsPainelProps) {
     );
   }
 
+  const itensSaldo = painel.itens_saldo ?? [];
+  const quantidadePendenteAlocacao = itensSaldo.reduce(
+    (acc, item) => acc + item.saldo_disponivel,
+    0,
+  );
+
   return (
     <div className="flex w-full min-w-0 flex-col gap-6 overflow-hidden">
+      {somenteLeitura && (
+        <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Visualização somente leitura. Para editar lotes, endereços ou
+            registrar ocorrências, use o módulo Instalação.
+          </p>
+          <Button type="button" size="sm" className="shrink-0" asChild>
+            <Link href={`/instalacao?os=${osId}`}>
+              <IconExternalLink className="mr-1.5 h-4 w-4" />
+              Abrir no módulo Instalação
+            </Link>
+          </Button>
+        </div>
+      )}
+
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h3 className="text-lg font-semibold text-foreground">Instalação</h3>
-          <p className="text-sm text-muted-foreground">
-            Timeline de campo, lotes e fechamento técnico
-          </p>
+          {somenteLeitura ? (
+            <div className="mt-1 space-y-0.5">
+              <p className="text-sm font-medium text-foreground">
+                {painel.os.nome_servico}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                OS {painel.os.numero}
+                {painel.os.cliente_nome
+                  ? ` · ${painel.os.cliente_nome}`
+                  : ''}
+                {painel.os.status_instalacao_os
+                  ? ` · ${STATUS_INSTALACAO_OS_LABEL[painel.os.status_instalacao_os] ?? painel.os.status_instalacao_os}`
+                  : ''}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Clique em um lote para ver ocorrências, evidências e assinatura.
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Lotes, endereços de campo e registro de ocorrências
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Button
@@ -159,96 +166,94 @@ export function InstalacaoOsPainel({ osId }: InstalacaoOsPainelProps) {
             <IconRefresh className="mr-1.5 h-4 w-4" />
             Atualizar
           </Button>
-          <OcorrenciaRapidaDialog
-            osId={osId}
-            painel={painel}
-            onRegistrar={handleRegistrarOcorrencia}
-            onUpload={(arquivo) => instalacaoApi.uploadAnexo(arquivo)}
-          />
-          <Button
-            type="button"
-            size="sm"
-            disabled={gerandoRelatorio || Boolean(relatorioEmitido)}
-            onClick={() => void handleRelatorioTecnico()}
-          >
-            {gerandoRelatorio ? (
-              <IconLoader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : (
-              <IconReport className="mr-1.5 h-4 w-4" />
-            )}
-            {relatorioEmitido ? 'Relatório emitido' : 'Relatório técnico'}
-          </Button>
-          {relatorioEmitido && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={abrindoPdf}
-              onClick={() => void handleAbrirPdf()}
-            >
-              {abrindoPdf ? (
-                <IconLoader2 className="mr-1.5 h-4 w-4 animate-spin" />
-              ) : (
-                <IconDownload className="mr-1.5 h-4 w-4" />
-              )}
-              Baixar PDF
-            </Button>
+          {!somenteLeitura && (
+            <OcorrenciaRapidaDialog
+              osId={osId}
+              painel={painel}
+              onRegistrar={handleRegistrarOcorrencia}
+              onUpload={(arquivo) => instalacaoApi.uploadAnexo(arquivo)}
+            />
           )}
         </div>
       </div>
 
-      {margem && (
+      {itensSaldo.length > 0 && !somenteLeitura && (
         <Card className="border-border bg-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-foreground">
-              Margem real (pós-campo)
+              Quantidade pendente de alocação
             </CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Orçado</p>
-              <p className="font-semibold text-foreground">
-                R$ {margem.valor_orcado.toFixed(2)}
+          <CardContent className="space-y-2 text-sm">
+            {itensSaldo.map((item) => (
+              <div
+                key={item.item_os_id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
+              >
+                <span className="min-w-0 text-foreground">
+                  {item.produto_servico ?? 'Produto'}
+                </span>
+                <span className="shrink-0 text-muted-foreground">
+                  <span
+                    className={
+                      item.saldo_disponivel > 0
+                        ? 'font-semibold text-amber-700 dark:text-amber-300'
+                        : 'font-semibold text-emerald-700 dark:text-emerald-300'
+                    }
+                  >
+                    {item.saldo_disponivel}
+                  </span>
+                  {' / '}
+                  {item.quantidade_total} un. sem endereço de lote
+                </span>
+              </div>
+            ))}
+            {quantidadePendenteAlocacao === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Toda a quantidade já foi distribuída em lotes de instalação.
               </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Extras campo</p>
-              <p className="font-semibold text-foreground">
-                R$ {margem.custos_extras_campo.toFixed(2)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Lucro real</p>
-              <p className="font-semibold text-foreground">
-                R$ {margem.lucro_real.toFixed(2)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Margem</p>
-              <p className="font-semibold text-foreground">
-                {margem.margem_percentual.toFixed(1)}%
-              </p>
-            </div>
+            )}
           </CardContent>
         </Card>
       )}
 
-      <InstalacaoSplitFiscalCard split={splitFiscal} />
-
-      <div className="grid w-full min-w-0 grid-cols-1 gap-6 xl:grid-cols-2">
+      {somenteLeitura ? (
         <div className="min-w-0 space-y-3 overflow-hidden">
-          <h4 className="text-sm font-semibold text-foreground">Timeline</h4>
-          <InstalacaoTimeline painel={painel} />
+          <h4 className="text-sm font-semibold text-foreground">
+            Lotes de entrega
+          </h4>
+          <InstalacaoLotesConsultaGrid painel={painel} />
         </div>
-        <div className="min-w-0 space-y-3 overflow-hidden">
-          <h4 className="text-sm font-semibold text-foreground">Lotes de entrega</h4>
-          <InstalacaoLotesTable
-            painel={painel}
-            buscarCep={(cep) => instalacaoApi.buscarCep(cep)}
-            onAtualizarLote={handleAtualizarLote}
-          />
+      ) : (
+        <div className="grid w-full min-w-0 grid-cols-1 gap-6 xl:grid-cols-2">
+          <div className="min-w-0 space-y-3 overflow-hidden">
+            <h4 className="text-sm font-semibold text-foreground">Timeline</h4>
+            <InstalacaoTimeline
+              painel={painel}
+              exibirValoresFinanceiros={false}
+            />
+          </div>
+          <div className="min-w-0 space-y-3 overflow-hidden">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+              <h4 className="text-sm font-semibold text-foreground">
+                Lotes de entrega
+              </h4>
+              <NovoLoteDialog
+                itensSaldo={itensSaldo}
+                buscarCep={(cep) => instalacaoApi.buscarCep(cep)}
+                onCriar={handleCriarLote}
+                disabled={quantidadePendenteAlocacao <= 0}
+              />
+            </div>
+            <InstalacaoLotesTable
+              painel={painel}
+              buscarCep={(cep) => instalacaoApi.buscarCep(cep)}
+              onAtualizarLote={handleAtualizarLote}
+              somenteLeitura={false}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

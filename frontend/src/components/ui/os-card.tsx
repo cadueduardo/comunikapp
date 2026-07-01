@@ -18,8 +18,8 @@ import {
 import Link from 'next/link';
 import { useState } from 'react';
 
-// Importar interface do arquivo de colunas
 import { OrdemServico } from '@/app/(main)/os/columns';
+import { resolverStatusExibicaoOs } from '@/lib/os-status-exibicao';
 
 interface OSCardProps {
   os: OrdemServico;
@@ -96,7 +96,7 @@ const formatDateTime = (dateString: string) => {
 };
 
 export function OSCard({ os, onDelete }: OSCardProps) {
-  const statusConfig = getStatusConfig(os.status);
+  const statusConfig = resolverStatusExibicaoOs(os);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {

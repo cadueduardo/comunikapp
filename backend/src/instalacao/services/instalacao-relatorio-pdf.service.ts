@@ -11,6 +11,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFImage, type PDFPage } from 'pd
 import { PrismaService } from '../../prisma/prisma.service';
 import { InstalacaoAnexoService } from './instalacao-anexo.service';
 import { InstalacaoSplitFiscalService } from './instalacao-split-fiscal.service';
+import { TIPO_VINCULO_OS_ADITIVA } from '../constants/status-financeiro-ocorrencia.enum';
 import type { SplitFiscalResultado } from '../utils/split-fiscal.util';
 import {
   extrairTokenAnexoInstalacao,
@@ -168,21 +169,43 @@ export class InstalacaoRelatorioPdfService {
       cursorY -= 6;
     }
 
-    // Bloco 4 — Ocorrências
+    // Bloco 4 — Ocorrências (pendentes / não faturadas via aditiva)
     escreverTitulo('4. Ocorrências técnicas e extras de campo');
-    if (dados.ocorrencias.length === 0) {
-      escreverLinha('Nenhuma ocorrência registrada.');
+    if (dados.ocorrenciasAbertas.length === 0) {
+      escreverLinha('Nenhuma ocorrência pendente de faturamento na OS principal.');
     }
-    for (const occ of dados.ocorrencias) {
+    for (const occ of dados.ocorrenciasAbertas) {
       escreverLinha(
-        `${occ.data} — ${occ.tipo}: ${occ.descricao} (Cobrança extra: ${formatarMoedaBrl(occ.precoCliente)})`,
+        `${occ.data} — ${occ.tipo}: ${occ.descricao} (Valor: ${formatarMoedaBrl(occ.precoCliente)})`,
       );
     }
     cursorY -= 8;
 
+    // Bloco 4b — Extras faturados em OS Aditiva
+    if (dados.osAditivas.length > 0) {
+      escreverTitulo('4.1 Extras faturados em OS Aditiva');
+      for (const aditiva of dados.osAditivas) {
+        escreverLinha(
+          `• ${aditiva.numero} — ${formatarMoedaBrl(aditiva.valorOrcado)}`,
+        );
+        for (const item of aditiva.itensResumo) {
+          escreverLinha(`   — ${item}`);
+        }
+      }
+      escreverLinha(
+        `Total em aditivas: ${formatarMoedaBrl(dados.totalAditivas)} (cobrança separada da OS principal).`,
+      );
+      cursorY -= 8;
+    }
+
     // Bloco 5 — Fechamento financeiro
     escreverTitulo('5. Fechamento financeiro e split fiscal');
-    escreverLinha(`Valor total consolidado: ${formatarMoedaBrl(split.total_geral)}`);
+    escreverLinha(`Valor total consolidado (OS principal): ${formatarMoedaBrl(split.total_geral)}`);
+    if (dados.totalAditivas > 0.01) {
+      escreverLinha(
+        `Extras de campo já faturados em OS Aditiva: ${formatarMoedaBrl(dados.totalAditivas)} (fora do split acima).`,
+      );
+    }
     escreverLinha(split.instrucao_nfe);
     escreverLinha(split.instrucao_nfs);
     escreverLinha(
@@ -241,6 +264,34 @@ export class InstalacaoRelatorioPdfService {
       orderBy: { criado_em: 'asc' },
     });
 
+    const osAditivas = await this.prisma.ordemServico.findMany({
+      where: {
+        loja_id: lojaId,
+        os_pai_id: osId,
+        tipo_vinculo_os: TIPO_VINCULO_OS_ADITIVA,
+      },
+      orderBy: { criado_em: 'asc' },
+      select: {
+        id: true,
+        numero: true,
+        valor_orcado: true,
+        orcamento_aditivo_meta: {
+          select: { ocorrencias_snapshot: true },
+        },
+        itens: {
+          select: { produto_servico: true },
+          orderBy: { criado_em: 'asc' },
+        },
+      },
+    });
+
+    const rotuloOcorrencia: Record<string, string> = {
+      VISITA_IMPRODUTIVA: 'Visita improdutiva',
+      MATERIAL_EXTRA: 'Material extra',
+      SERVICO_ADICIONAL: 'Serviço adicional',
+      RETRABALHO: 'Retrabalho',
+    };
+
     const rotuloStatus: Record<string, string> = {
       AGUARDANDO: 'Aguardando',
       EM_ANDAMENTO: 'Em andamento',
@@ -284,13 +335,40 @@ export class InstalacaoRelatorioPdfService {
             extrairTokenAssinaturaExpedicao(lote.assinatura_url),
           fotosTokens: extrairFotos(lote.fotos_evidencia),
         })),
-      ocorrencias: ocorrencias.map((occ) => ({
-        data: occ.criado_em.toLocaleString('pt-BR'),
-        tipo: occ.tipo,
-        descricao: occ.descricao,
-        precoCliente: Number(occ.preco_cliente),
+      ocorrenciasAbertas: ocorrencias
+        .filter((occ) => occ.status_financeiro !== 'FATURADO')
+        .map((occ) => ({
+          data: occ.criado_em.toLocaleString('pt-BR'),
+          tipo: rotuloOcorrencia[occ.tipo] ?? occ.tipo,
+          descricao: occ.descricao,
+          precoCliente: Number(occ.preco_cliente ?? occ.preco_sugerido ?? 0),
+        })),
+      osAditivas: osAditivas.map((aditiva) => ({
+        numero: aditiva.numero,
+        valorOrcado: Number(aditiva.valor_orcado ?? 0),
+        itensResumo:
+          aditiva.itens.length > 0
+            ? aditiva.itens.map((item) => item.produto_servico)
+            : this.extrairResumoSnapshot(aditiva.orcamento_aditivo_meta?.ocorrencias_snapshot),
       })),
+      totalAditivas: osAditivas.reduce(
+        (acc, item) => acc + Number(item.valor_orcado ?? 0),
+        0,
+      ),
     };
+  }
+
+  private extrairResumoSnapshot(snapshot: unknown): string[] {
+    if (!Array.isArray(snapshot)) return [];
+    return snapshot
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null;
+        const registro = item as Record<string, unknown>;
+        const tipo = String(registro.tipo ?? 'Ocorrência');
+        const descricao = String(registro.descricao ?? '').slice(0, 80);
+        return descricao ? `${tipo}: ${descricao}` : tipo;
+      })
+      .filter((linha): linha is string => Boolean(linha));
   }
 
   private async carregarImagemInstalacao(

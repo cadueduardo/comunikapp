@@ -19,6 +19,10 @@ import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { Public } from '../auth/decorators';
 import { TwoFactorService } from '../auth/two-factor.service';
 import { ConfirmTwoFactorDto, DisableTwoFactorDto } from './dto/two-factor.dto';
+import {
+  AtualizarUsuarioPreferenciasDto,
+  UsuarioPreferenciasJson,
+} from './dto/usuario-preferencias.dto';
 
 @Controller('usuarios')
 export class UsuariosController {
@@ -88,6 +92,27 @@ export class UsuariosController {
   ) {
     const user = this.getUserFromRequest(req);
     return this.twoFactorService.disable(user.id, dto.password, dto.code);
+  }
+
+  @Get('me/preferencias')
+  @UseGuards(JwtAuthGuard)
+  async obterMinhasPreferencias(@Request() req: any) {
+    const user = this.getUserFromRequest(req);
+    return this.usuariosService.obterPreferencias(user.id, user.loja_id);
+  }
+
+  @Patch('me/preferencias')
+  @UseGuards(JwtAuthGuard)
+  async atualizarMinhasPreferencias(
+    @Body() dto: AtualizarUsuarioPreferenciasDto,
+    @Request() req: any,
+  ) {
+    const user = this.getUserFromRequest(req);
+    return this.usuariosService.atualizarPreferencias(
+      user.id,
+      user.loja_id,
+      dto,
+    );
   }
 
   @Get(':id')

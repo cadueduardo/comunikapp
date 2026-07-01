@@ -13,7 +13,7 @@ interface SidebarBadgeSyncProps {
 }
 
 /**
- * Ao entrar em OS / PCP / Expedição / Financeiro, marca o módulo como visto
+ * Ao entrar em OS / PCP / Expedição / Instalações / Financeiro, marca o módulo como visto
  * e zera o badge até chegar um item novo na fila.
  */
 export function SidebarBadgeSync({ userId, onModuloVisto }: SidebarBadgeSyncProps) {

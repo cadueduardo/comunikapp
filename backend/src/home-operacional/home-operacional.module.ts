@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { ArteAprovacaoModule } from '../modules/arte-aprovacao/arte-aprovacao.module';
@@ -31,7 +31,7 @@ import { ContadoresMenuService } from './services/contadores-menu.service';
  * sem importar o controller.
  */
 @Module({
-  imports: [PrismaModule, AuthModule, ArteAprovacaoModule, InstalacaoModule],
+  imports: [PrismaModule, AuthModule, ArteAprovacaoModule, forwardRef(() => InstalacaoModule)],
   controllers: [HomeOperacionalController],
   providers: [
     OnboardingService,

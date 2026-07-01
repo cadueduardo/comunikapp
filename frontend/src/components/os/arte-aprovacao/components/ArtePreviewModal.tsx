@@ -49,7 +49,10 @@ export function ArtePreviewModal({
 
     const load = async () => {
       try {
-        const url = resolveArteAuthenticatedFileUrl(firstImageFile, false);
+        const url = resolveArteAuthenticatedFileUrl(
+          { ...firstImageFile, versao_id: versao.id },
+          false,
+        );
         if (!url) {
           if (!cancelled) setPreviewFailed(true);
           return;
@@ -125,7 +128,10 @@ export function ArtePreviewModal({
 
   const handleDownload = async (arquivo: (typeof versao.arquivos)[number]) => {
     try {
-      const url = resolveArteAuthenticatedFileUrl(arquivo, false);
+      const url = resolveArteAuthenticatedFileUrl(
+        { ...arquivo, versao_id: versao.id },
+        false,
+      );
       if (!url) return;
       const blob = await fetchArteFileBlob(url);
       const blobUrl = URL.createObjectURL(blob);
@@ -245,9 +251,10 @@ export function ArtePreviewModal({
                               size="icon"
                               className="h-8 w-8"
                               onClick={() =>
-                                void openArteFilePreview(arquivo, {
-                                  preferThumbnail: false,
-                                })
+                                void openArteFilePreview(
+                                  { ...arquivo, versao_id: versao.id },
+                                  { preferThumbnail: false },
+                                )
                               }
                             >
                               <Eye className="h-4 w-4" />

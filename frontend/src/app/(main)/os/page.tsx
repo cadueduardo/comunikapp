@@ -80,11 +80,20 @@ export default function OSPage() {
         const data = await response.json();
         setOrdens(data.data || []);
       } else {
-        throw new Error('Erro ao carregar OS');
+        let mensagem = 'Erro ao carregar OS';
+        try {
+          const erro = await response.json();
+          mensagem = erro.error || erro.message || mensagem;
+        } catch {
+          mensagem = `Erro ao carregar OS (${response.status})`;
+        }
+        throw new Error(mensagem);
       }
     } catch (error) {
       console.error('Erro ao carregar OS:', error);
-      toast.error('Erro ao carregar ordens de serviço');
+      toast.error(
+        error instanceof Error ? error.message : 'Erro ao carregar ordens de serviço',
+      );
       setOrdens([]);
     } finally {
       setLoading(false);

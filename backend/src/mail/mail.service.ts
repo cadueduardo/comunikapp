@@ -615,4 +615,64 @@ export class MailService implements OnModuleInit {
 
     return info;
   }
+
+  async sendSolicitacaoArteClienteEmail(payload: {
+    to: string;
+    clienteNome: string;
+    lojaNome: string;
+    osNumero: string;
+    produtoNome: string;
+    mensagemExtra?: string;
+  }): Promise<{ messageId?: string; previewUrl?: string }> {
+    const escape = (value: string) =>
+      value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    const mensagemBlock = payload.mensagemExtra?.trim()
+      ? `<p style="margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 6px;">${escape(payload.mensagemExtra).replace(/\n/g, '<br>')}</p>`
+      : '';
+
+    const mailOptions = {
+      from: this.getFromAddress(),
+      to: payload.to,
+      subject: `Arte solicitada — OS #${payload.osNumero}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #0f172a; font-size: 20px;">Arte solicitada</h1>
+          <p>Olá, ${escape(payload.clienteNome)}!</p>
+          <p>
+            A equipe da <strong>${escape(payload.lojaNome)}</strong> está aguardando o arquivo de arte
+            para o produto <strong>${escape(payload.produtoNome)}</strong>
+            (OS <strong>#${escape(payload.osNumero)}</strong>).
+          </p>
+          <p>
+            Envie o arquivo por e-mail em resposta a esta mensagem ou pelo canal combinado com nossa equipe.
+          </p>
+          ${mensagemBlock}
+          <p style="color: #64748b; font-size: 12px; margin-top: 24px;">
+            Este é um lembrete enviado manualmente pela equipe de arte.
+          </p>
+        </div>
+      `,
+    };
+
+    const info = await this.transporter.sendMail(mailOptions);
+
+    this.logger.log(
+      `Solicitação de arte enviada messageId=${info.messageId} os=${payload.osNumero} destino=${MailService.maskEmail(payload.to)}`,
+    );
+
+    let previewUrl: string | undefined;
+    if (!this.isSmtpConfigurado()) {
+      previewUrl = nodemailer.getTestMessageUrl(info) || undefined;
+      if (previewUrl) {
+        this.logger.log(`Preview Ethereal: ${previewUrl}`);
+      }
+    }
+
+    return { messageId: info.messageId, previewUrl };
+  }
 }

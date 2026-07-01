@@ -1,27 +1,19 @@
 'use client';
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
 import { NotificacoesDropdown } from '@/components/ui/notificacoes-dropdown';
-import { LogOut, User } from 'lucide-react';
-import { useUser } from '@/contexts/UserContext';
-import { useRouter } from 'next/navigation';
+import { HeaderUserMenu } from '@/components/layout/HeaderUserMenu';
 import { resolveAssetUrl } from '@/lib/config';
+import { useUser } from '@/contexts/UserContext';
 
 export function MainHeader() {
-  const { user, logout, getFirstName } = useUser();
-  const router = useRouter();
+  const { user } = useUser();
 
   const lojaNome = user?.loja?.nome?.trim() || 'Minha loja';
   const lojaLogoUrl = resolveAssetUrl(user?.loja?.logo_url);
 
-  const handleLogout = () => {
-    logout();
-    router.push('/login');
-  };
-
   return (
-    <header className="border-b border-gray-200 bg-white px-4 py-4 sm:px-6 dark:border-neutral-700 dark:bg-neutral-900">
+    <header className="border-b border-gray-200 bg-white px-4 py-3 sm:px-6 dark:border-neutral-700 dark:bg-neutral-900">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center">
           {lojaLogoUrl ? (
@@ -42,25 +34,9 @@ export function MainHeader() {
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-4">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <NotificacoesDropdown />
-
-          <div className="flex items-center gap-2">
-            <div className="hidden items-center gap-2 text-sm text-gray-700 dark:text-neutral-300 sm:flex">
-              <User className="h-4 w-4" />
-              <span>{getFirstName()}</span>
-            </div>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="text-gray-600 hover:text-gray-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-              aria-label="Sair"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
+          <HeaderUserMenu />
         </div>
       </div>
     </header>

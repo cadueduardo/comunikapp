@@ -206,7 +206,7 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed, statusDi
 
         {activeTab === 'instalacao' && (
           <div className="w-full min-w-0 overflow-x-hidden">
-            <InstalacaoOsPainel osId={os.id} />
+            <InstalacaoOsPainel osId={os.id} modo="consulta" />
           </div>
         )}
         

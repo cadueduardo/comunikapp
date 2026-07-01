@@ -39,7 +39,7 @@ export const RESPONSABILIDADE_ARTE_OPCOES: Array<{
   label: string;
 }> = [
   { value: ResponsabilidadeArte.NAO_APLICAVEL, label: 'Não se aplica' },
-  { value: ResponsabilidadeArte.CLIENTE_FORNECE, label: 'Cliente fornece' },
+  { value: ResponsabilidadeArte.CLIENTE_FORNECE, label: 'Cliente envia arquivo' },
   { value: ResponsabilidadeArte.EMPRESA_CRIA, label: 'Criação interna' },
   { value: ResponsabilidadeArte.EMPRESA_ADAPTA, label: 'Adaptação' },
 ];

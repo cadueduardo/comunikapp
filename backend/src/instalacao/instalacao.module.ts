@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { HomeOperacionalModule } from '../home-operacional/home-operacional.module';
 import { InstalacaoController } from './controllers/instalacao.controller';
 import { InstaladorController } from './controllers/instalador.controller';
 import { InstalacaoRelatorioController } from './controllers/instalacao-relatorio.controller';
@@ -20,12 +21,13 @@ import { InstalacaoAgendaSyncService } from './services/instalacao-agenda-sync.s
 import { InstalacaoPosCalculoService } from './services/instalacao-pos-calculo.service';
 import { InstalacaoRelatorioPdfService } from './services/instalacao-relatorio-pdf.service';
 import { InstalacaoSplitFiscalService } from './services/instalacao-split-fiscal.service';
+import { InstalacaoSplitFinanceiroService } from './services/instalacao-split-financeiro.service';
 import { InstaladorPermissionsGuard } from './guards/instalador-permissions.guard';
 import { InstalacaoGestaoPermissionsGuard } from './guards/instalacao-gestao-permissions.guard';
 import { FinanceiroPermissionsGuard } from './guards/financeiro-permissions.guard';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, forwardRef(() => HomeOperacionalModule)],
   controllers: [
     InstaladorController,
     InstalacaoController,
@@ -46,6 +48,7 @@ import { FinanceiroPermissionsGuard } from './guards/financeiro-permissions.guar
     InstalacaoAnexoService,
     InstalacaoRelatorioPdfService,
     InstalacaoSplitFiscalService,
+    InstalacaoSplitFinanceiroService,
     InstaladorPermissionsGuard,
     InstalacaoGestaoPermissionsGuard,
     FinanceiroPermissionsGuard,
@@ -56,6 +59,7 @@ import { FinanceiroPermissionsGuard } from './guards/financeiro-permissions.guar
     PcpBloqueioSinalService,
     ItemOSInstalacaoCriacaoService,
     InstalacaoPosCalculoService,
+    InstalacaoSplitFinanceiroService,
     InstalacaoFechamentoService,
     InstalacaoAgendaSyncService,
     InstalacaoService,

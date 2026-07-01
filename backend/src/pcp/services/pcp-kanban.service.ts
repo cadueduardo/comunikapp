@@ -23,6 +23,11 @@ import { AuthenticatedUser } from '../../auth/auth.service';
 import { OSPCPIntegrationService } from './os-pcp-integration.service';
 import { ExpedicaoCriacaoService } from '../../expedicao/services/expedicao-criacao.service';
 import { ItemOSInstalacaoCriacaoService } from '../../instalacao/services/item-os-instalacao-criacao.service';
+import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
+import type {
+  ResumoSincronizacaoInstalacaoOs,
+  ResultadoCriacaoLoteInstalacao,
+} from '../../instalacao/services/item-os-instalacao-criacao.service';
 import { obterLimiarHorasAtrasUtc } from '../../common/utils/utc-time.util';
 import { deveExibirCardConcluidoPronto24h } from '../utils/pronto-24h-kanban.util';
 
@@ -43,6 +48,7 @@ export class PCPKanbanService {
     private osPcpIntegration: OSPCPIntegrationService,
     private expedicaoCriacaoService: ExpedicaoCriacaoService,
     private itemOSInstalacaoCriacaoService: ItemOSInstalacaoCriacaoService,
+    private homeCacheService: HomeCacheService,
   ) {}
 
   /**
@@ -351,7 +357,11 @@ export class PCPKanbanService {
     osId: string,
     status: string,
     usuario?: AuthenticatedUser,
-  ): Promise<{ expedicao_criada: boolean; expedicao_cancelada: boolean }> {
+  ): Promise<{
+    expedicao_criada: boolean;
+    expedicao_cancelada: boolean;
+    instalacao: ResumoSincronizacaoInstalacaoOs;
+  }> {
     this.validarPermissaoOperacional(usuario);
     const statusPersistido = this.mapearStatusKanbanParaOS(status);
 
@@ -375,9 +385,18 @@ export class PCPKanbanService {
 
       let expedicaoCriada = false;
       let expedicaoCancelada = false;
+      let instalacao: ResumoSincronizacaoInstalacaoOs = {
+        lotes_criados: 0,
+        resultados: [],
+      };
 
       if (statusPersistido === 'FINALIZADA') {
         await this.finalizarWorkflowDaOs(osId);
+
+        instalacao = await this.sincronizarLotesInstalacaoAposProducao(
+          osId,
+          lojaId,
+        );
 
         try {
           const criacao = await this.expedicaoCriacaoService.criarSeElegivel(
@@ -406,6 +425,7 @@ export class PCPKanbanService {
       return {
         expedicao_criada: expedicaoCriada,
         expedicao_cancelada: expedicaoCancelada,
+        instalacao,
       };
     } catch (error) {
       this.logger.error(`Erro ao atualizar status da OS ${osId}:`, error);
@@ -554,7 +574,7 @@ export class PCPKanbanService {
     observacoes?: string,
     quantidadeProduzida?: number,
     usuario?: AuthenticatedUser,
-  ): Promise<void> {
+  ): Promise<{ instalacao: ResultadoCriacaoLoteInstalacao }> {
     try {
       await this.validarOperadorDaAcao(lojaId, operadorId, usuario);
       this.logger.log(`Concluindo etapa do item ${itemOsId}`);
@@ -601,19 +621,19 @@ export class PCPKanbanService {
         etapaAtual.ordem ?? 0,
       );
 
+      let resultadoInstalacao: ResultadoCriacaoLoteInstalacao = {
+        criado: false,
+      };
+
       try {
-        const resultadoInstalacao =
+        resultadoInstalacao =
           await this.itemOSInstalacaoCriacaoService.processarBaixaProducao({
             lojaId,
             itemOsId,
             quantidadeProduzida,
           });
 
-        if (resultadoInstalacao.criado) {
-          this.logger.log(
-            `Lote de instalação ${resultadoInstalacao.item_instalacao_id} criado após baixa de produção do item ${itemOsId}`,
-          );
-        }
+        this.registrarResultadoInstalacaoItem(itemOsId, resultadoInstalacao);
       } catch (error) {
         this.logger.error(
           `Falha ao criar lote de instalação para item ${itemOsId}:`,
@@ -622,6 +642,7 @@ export class PCPKanbanService {
       }
 
       this.logger.log(`Etapa concluida com sucesso`);
+      return { instalacao: resultadoInstalacao };
     } catch (error) {
       this.logger.error(`Erro ao concluir etapa:`, error);
       throw error;
@@ -854,15 +875,22 @@ export class PCPKanbanService {
       });
 
       if (workflowInstancia?.os_id && workflowInstancia.os?.loja_id) {
+        const lojaOs = workflowInstancia.os.loja_id;
+
         await this.osPcpIntegration.notificarStatusAlterado(
           workflowInstancia.os_id,
           'CONCLUIDO',
         );
 
+        await this.sincronizarLotesInstalacaoAposProducao(
+          workflowInstancia.os_id,
+          lojaOs,
+        );
+
         try {
           await this.expedicaoCriacaoService.criarSeElegivel(
             workflowInstancia.os_id,
-            workflowInstancia.os.loja_id,
+            lojaOs,
           );
         } catch (error) {
           this.logger.error(
@@ -1280,5 +1308,61 @@ export class PCPKanbanService {
 
       return deveExibirCardConcluidoPronto24h(os, limiarUtc);
     });
+  }
+
+  private async sincronizarLotesInstalacaoAposProducao(
+    osId: string,
+    lojaId: string,
+  ): Promise<ResumoSincronizacaoInstalacaoOs> {
+    try {
+      const resumo =
+        await this.itemOSInstalacaoCriacaoService.processarBaixaProducaoOs(
+          lojaId,
+          osId,
+        );
+
+      for (const resultado of resumo.resultados) {
+        if (resultado.item_os_id) {
+          this.registrarResultadoInstalacaoItem(
+            resultado.item_os_id,
+            resultado,
+          );
+        }
+      }
+
+      if (resumo.lotes_criados > 0) {
+        this.homeCacheService.invalidarPorPrefixo(`${lojaId}:`);
+      }
+
+      return resumo;
+    } catch (error) {
+      this.logger.error(
+        `Falha ao sincronizar lotes de instalação para OS ${osId}:`,
+        error,
+      );
+      return { lotes_criados: 0, resultados: [] };
+    }
+  }
+
+  private registrarResultadoInstalacaoItem(
+    itemOsId: string,
+    resultado: ResultadoCriacaoLoteInstalacao,
+  ): void {
+    if (resultado.criado) {
+      this.logger.log(
+        `Lote de instalação ${resultado.item_instalacao_id} (${resultado.quantidade_alocada} un.) criado para item ${itemOsId}`,
+      );
+      return;
+    }
+
+    if (
+      resultado.motivo_skip &&
+      resultado.motivo_skip !== 'SEM_INSTALACAO' &&
+      resultado.motivo_skip !== 'SEM_SALDO'
+    ) {
+      this.logger.warn(
+        `Lote de instalação não criado para item ${itemOsId}: ${resultado.motivo_skip}`,
+      );
+    }
   }
 }

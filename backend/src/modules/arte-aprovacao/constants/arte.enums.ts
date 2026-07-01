@@ -44,16 +44,26 @@ export const RESPONSABILIDADES_FILA_INTERNA: ResponsabilidadeArte[] = [
   ResponsabilidadeArte.EMPRESA_ADAPTA,
 ];
 
+/** Itens visíveis na fila `/arte` (criação interna + arte do cliente). */
+export const RESPONSABILIDADES_FILA_ARTE: ResponsabilidadeArte[] = [
+  ...RESPONSABILIDADES_FILA_INTERNA,
+  ResponsabilidadeArte.CLIENTE_FORNECE,
+];
+
 export const STATUS_ARTE_FILA_PENDENTES: StatusArte[] = [
   StatusArte.AGUARDANDO_INICIO,
   StatusArte.EM_CRIACAO,
   StatusArte.REVISAO_SOLICITADA,
+  StatusArte.AGUARDANDO_ARQUIVO_CLIENTE,
+  StatusArte.ARQUIVO_RECEBIDO,
 ];
 
 /** Colunas do kanban `/arte` — inclui aguardando cliente e concluídas. */
 export const STATUS_ARTE_KANBAN: StatusArte[] = [
   StatusArte.AGUARDANDO_INICIO,
+  StatusArte.AGUARDANDO_ARQUIVO_CLIENTE,
   StatusArte.EM_CRIACAO,
+  StatusArte.ARQUIVO_RECEBIDO,
   StatusArte.AGUARDANDO_CLIENTE,
   StatusArte.REVISAO_SOLICITADA,
   StatusArte.APROVADA,

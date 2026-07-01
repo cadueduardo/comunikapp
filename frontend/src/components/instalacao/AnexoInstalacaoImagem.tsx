@@ -42,7 +42,7 @@ export function AnexoInstalacaoImagem({
       if (!token) return;
 
       try {
-        const response = await fetch(src, {
+        const response = await fetch(urlFetch, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) return;

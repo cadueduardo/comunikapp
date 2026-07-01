@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConcluirLoteDialog } from '@/components/instalacao/ConcluirLoteDialog';
 import { EnderecoInstalacaoForm } from '@/components/instalacao/EnderecoInstalacaoForm';
+import { OcorrenciaRapidaDialog } from '@/components/instalacao/OcorrenciaRapidaDialog';
 import {
   STATUS_INSTALACAO_LABEL,
   STATUS_INSTALACAO_TONE,
@@ -107,6 +108,9 @@ export default function InstaladorLotePage() {
   const tone = STATUS_INSTALACAO_TONE[lote.status_instalacao] ?? 'default';
   const podeIniciar = lote.status_instalacao === 'AGUARDANDO';
   const podeConcluir = lote.status_instalacao === 'EM_ANDAMENTO';
+  const podeRegistrarOcorrencia =
+    lote.status_instalacao === 'AGUARDANDO' ||
+    lote.status_instalacao === 'EM_ANDAMENTO';
   const enderecoSomenteLeitura =
     lote.status_instalacao === 'CONCLUIDO' ||
     lote.status_instalacao === 'LOGISTICA_NEGATIVA';
@@ -153,7 +157,7 @@ export default function InstaladorLotePage() {
         </CardContent>
       </Card>
 
-      {(podeIniciar || podeConcluir) && (
+      {(podeIniciar || podeConcluir || podeRegistrarOcorrencia) && (
         <div className="flex w-full min-w-0 flex-col gap-2">
           {podeIniciar && (
             <Button
@@ -170,6 +174,22 @@ export default function InstaladorLotePage() {
               Iniciar trabalho
             </Button>
           )}
+          {podeRegistrarOcorrencia && (
+            <OcorrenciaRapidaDialog
+              osId={os.id}
+              loteIdFixo={loteId}
+              loteRotuloFixo={`${lote.logradouro}, ${lote.numero}`}
+              rotuloBotao="Registrar ocorrência"
+              varianteBotao="outline"
+              classNameBotao="h-12 w-full min-w-0 text-base"
+              onUpload={(arquivo) => instaladorApi.uploadAnexo(arquivo)}
+              onRegistrar={async (dados) => {
+                await instaladorApi.registrarOcorrencia(dados);
+                toast.success('Ocorrência registrada.');
+                await carregar();
+              }}
+            />
+          )}
           {podeConcluir && (
             <Button
               type="button"
@@ -185,7 +205,7 @@ export default function InstaladorLotePage() {
         </div>
       )}
 
-      {lote.ocorrencias.length > 0 && (
+      {(podeRegistrarOcorrencia || lote.ocorrencias.length > 0) && (
         <Card className="w-full min-w-0 border-border bg-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-base text-foreground">
@@ -193,19 +213,26 @@ export default function InstaladorLotePage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {lote.ocorrencias.map((occ) => (
-              <div
-                key={occ.id}
-                className="rounded-lg border border-border bg-muted/30 p-3"
-              >
-                <p className="text-sm font-medium text-foreground">
-                  {TIPO_OCORRENCIA_LABEL[occ.tipo] ?? occ.tipo}
-                </p>
-                <p className="mt-1 break-words text-xs text-muted-foreground">
-                  {occ.descricao}
-                </p>
-              </div>
-            ))}
+            {lote.ocorrencias.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma ocorrência ainda. Use o botão acima para relatar
+                imprevistos da visita.
+              </p>
+            ) : (
+              lote.ocorrencias.map((occ) => (
+                <div
+                  key={occ.id}
+                  className="rounded-lg border border-border bg-muted/30 p-3"
+                >
+                  <p className="text-sm font-medium text-foreground">
+                    {TIPO_OCORRENCIA_LABEL[occ.tipo] ?? occ.tipo}
+                  </p>
+                  <p className="mt-1 break-words text-xs text-muted-foreground">
+                    {occ.descricao}
+                  </p>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
       )}

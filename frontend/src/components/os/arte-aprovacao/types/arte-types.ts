@@ -89,6 +89,8 @@ export interface ArteAprovacaoTabProps {
   readonly?: boolean;
   /** Quando definido (workspace `/arte/trabalho/...`), foca um único produto. */
   itemIdFoco?: string;
+  /** Arte enviada pelo cliente — fluxo de conferência interna, sem aprovação externa. */
+  responsabilidadeArte?: string;
   /** Callback após criar versão, enviar ao cliente etc. */
   onMutacao?: () => void;
 }

@@ -85,6 +85,10 @@ export interface OrdemServicoData {
     pendentes: number;
     parcial: boolean;
   };
+  /** Rollup DEC-04 — fase de instalação da OS */
+  status_instalacao_os?: string | null;
+  /** Status da expedição ativa (quando existir) */
+  status_expedicao?: string | null;
 }
 
 export interface ItemOSData {

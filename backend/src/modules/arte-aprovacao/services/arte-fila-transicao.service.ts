@@ -6,7 +6,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { StatusArte } from '../constants/arte.enums';
+import { StatusArte, ResponsabilidadeArte } from '../constants/arte.enums';
 import { ARTE_MSG } from '../constants/arte-mensagens';
 import {
   STATUS_PERMITIDOS_ASSUMIR,
@@ -55,7 +55,9 @@ export class ArteFilaTransicaoService {
       }
 
       const proximoStatus =
-        statusAtual === StatusArte.AGUARDANDO_INICIO
+        statusAtual === StatusArte.AGUARDANDO_INICIO ||
+        statusAtual === StatusArte.AGUARDANDO_ARQUIVO_CLIENTE ||
+        statusAtual === StatusArte.ARQUIVO_RECEBIDO
           ? StatusArte.EM_CRIACAO
           : statusAtual;
 
@@ -230,14 +232,25 @@ export class ArteFilaTransicaoService {
     itemOsId: string,
     lojaId: string,
   ): Promise<string> {
+    const item = await this.prisma.itemOS.findFirst({
+      where: {
+        id: itemOsId,
+        os: { loja_id: lojaId, ativo: true },
+      },
+      select: { responsabilidade_arte: true },
+    });
+
+    const arteCliente =
+      item?.responsabilidade_arte === ResponsabilidadeArte.CLIENTE_FORNECE;
+
     const versao = await this.prisma.arteVersao.findFirst({
       where: {
         servico_id: itemOsId,
         loja_id: lojaId,
         deletado: false,
         status: 'APROVADA',
-        aprovado_por_cliente: true,
         liberado_para_pcp: false,
+        ...(arteCliente ? {} : { aprovado_por_cliente: true }),
       },
       orderBy: { data_criacao: 'desc' },
       select: { id: true },

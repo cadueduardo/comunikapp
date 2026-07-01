@@ -8,7 +8,8 @@ export type ModuloSidebarBadge =
   | 'pcp'
   | 'expedicao'
   | 'financeiro'
-  | 'arte';
+  | 'arte'
+  | 'instalacao';
 
 const MODULOS: ModuloSidebarBadge[] = [
   'os',
@@ -16,6 +17,7 @@ const MODULOS: ModuloSidebarBadge[] = [
   'expedicao',
   'financeiro',
   'arte',
+  'instalacao',
 ];
 
 const storageKey = (userId: string, modulo: ModuloSidebarBadge) =>
@@ -68,6 +70,7 @@ export const ROTA_PARA_MODULO_BADGE: Array<{
 }> = [
   { prefixo: '/financeiro', modulo: 'financeiro' },
   { prefixo: '/expedicao', modulo: 'expedicao' },
+  { prefixo: '/instalacao', modulo: 'instalacao' },
   { prefixo: '/arte', modulo: 'arte' },
   { prefixo: '/pcp', modulo: 'pcp' },
   { prefixo: '/os', modulo: 'os' },

@@ -12,5 +12,4 @@ export const STATUS_EXPEDICAO_KANBAN_PATCH = new Set<string>([
   StatusExpedicao.AGUARDANDO_SEPARACAO,
   StatusExpedicao.PRONTO_PARA_RETIRADA,
   StatusExpedicao.EM_ROTA_DE_ENTREGA,
-  StatusExpedicao.AGUARDANDO_INSTALACAO,
 ]);

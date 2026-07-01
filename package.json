@@ -8,6 +8,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "concurrently \"npm:dev:frontend\" \"npm:dev:backend\"",
+    "dev:clean": "powershell -ExecutionPolicy Bypass -File ./scripts/cleanup-node-dev.ps1",
+    "dev:clean:force": "powershell -ExecutionPolicy Bypass -File ./scripts/cleanup-node-dev.ps1 -Force",
     "dev:frontend": "npm run dev --prefix frontend",
     "dev:backend": "npm run start:dev --prefix backend",
     "dev:test": "concurrently \"npm:dev:frontend:test\" \"npm:dev:backend:test\"",

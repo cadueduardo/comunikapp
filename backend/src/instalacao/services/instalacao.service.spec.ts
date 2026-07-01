@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { InstalacaoService } from './instalacao.service';
 import { InstalacaoFechamentoService } from './instalacao-fechamento.service';
 import { InstalacaoAgendaSyncService } from './instalacao-agenda-sync.service';
+import { ConfiguracaoInstalacaoService } from './configuracao-instalacao.service';
 
 describe('InstalacaoService', () => {
   let service: InstalacaoService;
@@ -16,15 +17,21 @@ describe('InstalacaoService', () => {
     sincronizarDataOs: jest.fn(),
   };
 
+  const configuracaoMock = {
+    osAditivaHabilitada: jest.fn().mockResolvedValue(true),
+  };
+
   const prismaMock = {
     itemOSInstalacao: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
+      aggregate: jest.fn(),
     },
     ordemServico: { findFirst: jest.fn(), findMany: jest.fn() },
     taxaOcorrenciaLoja: { findUnique: jest.fn() },
     ocorrenciaInstalacao: { create: jest.fn() },
+    $transaction: jest.fn(),
   };
 
   beforeEach(() => {
@@ -33,6 +40,7 @@ describe('InstalacaoService', () => {
       prismaMock as unknown as PrismaService,
       fechamentoMock as unknown as InstalacaoFechamentoService,
       agendaSyncMock as unknown as InstalacaoAgendaSyncService,
+      configuracaoMock as unknown as ConfiguracaoInstalacaoService,
     );
   });
 
@@ -94,8 +102,11 @@ describe('InstalacaoService', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           loja_id: 'loja-1',
-          custo_interno: expect.anything(),
-          preco_cliente: expect.anything(),
+          status_financeiro: 'PENDENTE_PRECIFICACAO',
+          custo_interno: null,
+          preco_cliente: null,
+          custo_sugerido: expect.anything(),
+          preco_sugerido: expect.anything(),
         }),
         select: expect.not.objectContaining({
           custo_interno: expect.anything(),
@@ -106,6 +117,153 @@ describe('InstalacaoService', () => {
     expect(resposta).not.toHaveProperty('custo_interno');
     expect(resposta).not.toHaveProperty('preco_cliente');
     expect(resposta.quantidade).toBe(2);
+    expect(prismaMock.itemOSInstalacao.update).not.toHaveBeenCalled();
+  });
+
+  it('fluxo legado: precifica automaticamente quando OS Aditiva está desabilitada', async () => {
+    configuracaoMock.osAditivaHabilitada.mockResolvedValueOnce(false);
+    prismaMock.ordemServico.findFirst.mockResolvedValue({ id: 'os-1' });
+    prismaMock.taxaOcorrenciaLoja.findUnique.mockResolvedValue({
+      custo_padrao: 40,
+      preco_padrao: 90,
+    });
+    prismaMock.ocorrenciaInstalacao.create.mockResolvedValue({
+      id: 'occ-legado',
+      tipo: TipoOcorrencia.MATERIAL_EXTRA,
+      categoria: CategoriaOcorrencia.PRODUCAO,
+      quantidade: 1,
+      descricao: 'Extra',
+      criado_em: new Date(),
+    });
+
+    await service.registrarOcorrenciaObra({
+      lojaId: 'loja-1',
+      osId: 'os-1',
+      tipo: TipoOcorrencia.MATERIAL_EXTRA,
+      descricao: 'Extra',
+    });
+
+    expect(prismaMock.ocorrenciaInstalacao.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status_financeiro: 'PRECIFICADO',
+          custo_interno: expect.anything(),
+          preco_cliente: expect.anything(),
+          custo_sugerido: null,
+          preco_sugerido: null,
+        }),
+      }),
+    );
+  });
+
+  it('persiste sugestões de taxa sem valores finais (pendente de precificação)', async () => {
+    prismaMock.ordemServico.findFirst.mockResolvedValue({ id: 'os-1' });
+    prismaMock.taxaOcorrenciaLoja.findUnique.mockResolvedValue({
+      custo_padrao: 40,
+      preco_padrao: 90,
+    });
+    prismaMock.ocorrenciaInstalacao.create.mockResolvedValue({
+      id: 'occ-2',
+      tipo: TipoOcorrencia.MATERIAL_EXTRA,
+      categoria: CategoriaOcorrencia.PRODUCAO,
+      quantidade: 3,
+      descricao: 'Parafuso extra',
+      criado_em: new Date('2026-07-01'),
+    });
+
+    await service.registrarOcorrenciaObra({
+      lojaId: 'loja-1',
+      osId: 'os-1',
+      tipo: TipoOcorrencia.MATERIAL_EXTRA,
+      quantidade: 3,
+      descricao: 'Parafuso extra',
+    });
+
+    expect(prismaMock.ocorrenciaInstalacao.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          loja_id: 'loja-1',
+          os_id: 'os-1',
+          tipo: TipoOcorrencia.MATERIAL_EXTRA,
+          status_financeiro: 'PENDENTE_PRECIFICACAO',
+          custo_interno: null,
+          preco_cliente: null,
+          custo_sugerido: expect.anything(),
+          preco_sugerido: expect.anything(),
+        }),
+      }),
+    );
+  });
+
+  describe('atualizarEnderecoLote', () => {
+    const dadosEndereco = {
+      logradouro: 'Rua A',
+      numero: '10',
+      bairro: 'Centro',
+      cidade: 'Osasco',
+      uf: 'SP',
+    };
+
+    beforeEach(() => {
+      prismaMock.$transaction.mockImplementation(async (callback) =>
+        callback({
+          itemOSInstalacao: {
+            update: prismaMock.itemOSInstalacao.update,
+          },
+        }),
+      );
+    });
+
+    it('rejeita quantidade_alocada que estoura a grade contratual da OS', async () => {
+      prismaMock.itemOSInstalacao.findFirst.mockResolvedValue({
+        id: 'lote-1',
+        status_instalacao: 'AGUARDANDO',
+        quantidade_alocada: 2,
+        item_os_id: 'item-1',
+        item_os: { os_id: 'os-1', quantidade: 20 },
+      });
+      prismaMock.itemOSInstalacao.aggregate.mockResolvedValue({
+        _sum: { quantidade_alocada: 18 },
+      });
+
+      await expect(
+        service.atualizarEnderecoLote('loja-1', 'lote-1', {
+          ...dadosEndereco,
+          quantidade_alocada: 5,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('permite aumentar quantidade do lote dentro do saldo devolvido', async () => {
+      prismaMock.itemOSInstalacao.findFirst.mockResolvedValue({
+        id: 'lote-1',
+        status_instalacao: 'AGUARDANDO',
+        quantidade_alocada: 2,
+        item_os_id: 'item-1',
+        item_os: { os_id: 'os-1', quantidade: 20 },
+      });
+      prismaMock.itemOSInstalacao.aggregate.mockResolvedValue({
+        _sum: { quantidade_alocada: 18 },
+      });
+      prismaMock.itemOSInstalacao.update.mockResolvedValue({
+        id: 'lote-1',
+        quantidade_alocada: 4,
+        status_instalacao: 'AGUARDANDO',
+      });
+
+      await service.atualizarEnderecoLote('loja-1', 'lote-1', {
+        ...dadosEndereco,
+        quantidade_alocada: 4,
+      });
+
+      expect(prismaMock.itemOSInstalacao.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ quantidade_alocada: 4 }),
+        }),
+      );
+    });
   });
 
   it('rejeita ocorrência sem descrição', async () => {

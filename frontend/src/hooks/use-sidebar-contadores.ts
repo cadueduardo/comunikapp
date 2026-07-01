@@ -21,6 +21,7 @@ export function useSidebarContadores(enabled: boolean, userId?: string) {
     expedicao: 0,
     financeiro: 0,
     arte: 0,
+    instalacao: 0,
   });
 
   const carregar = useCallback(async (forcarCache = false) => {
@@ -34,8 +35,16 @@ export function useSidebarContadores(enabled: boolean, userId?: string) {
         expedicao_desde: visto.expedicao,
         financeiro_desde: visto.financeiro,
         arte_desde: visto.arte,
+        instalacao_desde: visto.instalacao,
       });
-      setContadores(data);
+      setContadores({
+        os: data.os ?? 0,
+        pcp: data.pcp ?? 0,
+        expedicao: data.expedicao ?? 0,
+        financeiro: data.financeiro ?? 0,
+        arte: data.arte ?? 0,
+        instalacao: data.instalacao ?? 0,
+      });
     } catch {
       // Silencioso: badge é auxiliar; falha não deve quebrar o layout.
     }

@@ -21,19 +21,30 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { InstalacaoSplitFiscalCard } from '@/components/instalacao/InstalacaoSplitFiscalCard';
 import { instalacaoApi } from '@/lib/instalacao/instalacao-api';
 import {
+  STATUS_FINANCEIRO_OCORRENCIA_LABEL,
+  STATUS_FINANCEIRO_OCORRENCIA_TONE,
   STATUS_INSTALACAO_OS_LABEL,
   STATUS_INSTALACAO_OS_TONE,
   TIPO_OCORRENCIA_LABEL,
 } from '@/lib/instalacao/instalacao-labels';
 import type {
+  MargemRealOs,
+  OsAditivaResumo,
   PainelOsInstalacao,
   RelatorioTecnicoEmitido,
   SplitFiscalOs,
   StatusInstalacaoOs,
 } from '@/lib/instalacao/instalacao.types';
+import {
+  podeGerarOsAditiva,
+  temBloqueioAprovacaoFinanceira,
+  valorCobravelCliente,
+} from '@/lib/instalacao/instalacao-financeiro.util';
 import { formatarMoeda } from '@/lib/financeiro/financeiro-format';
+import { useUser } from '@/contexts/UserContext';
 import { cn } from '@/lib/utils';
 import {
   IconCheck,
@@ -48,6 +59,17 @@ const TONE_BADGE: Record<string, string> = {
   warn: 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200',
   success:
     'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200',
+  destructive:
+    'border-red-500/40 bg-red-500/10 text-red-800 dark:text-red-200',
+};
+
+const TONE_CLASSES = {
+  default: 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-200',
+  warn: 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200',
+  success:
+    'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200',
+  destructive:
+    'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-200',
 };
 
 interface InstalacaoRelatorioTecnicoCardProps {
@@ -63,11 +85,21 @@ export function InstalacaoRelatorioTecnicoCard({
   onAprovado,
   className,
 }: InstalacaoRelatorioTecnicoCardProps) {
+  const { user } = useUser();
+  const podeFinanceiro = ['ADMINISTRADOR', 'FINANCEIRO'].includes(
+    String(user?.funcao ?? '').toUpperCase(),
+  );
+
   const [carregando, setCarregando] = useState(true);
   const [aprovando, setAprovando] = useState(false);
+  const [gerandoAditiva, setGerandoAditiva] = useState(false);
   const [confirmarAberto, setConfirmarAberto] = useState(false);
+  const [confirmarAditivaAberto, setConfirmarAditivaAberto] = useState(false);
   const [painel, setPainel] = useState<PainelOsInstalacao | null>(null);
   const [splitFiscal, setSplitFiscal] = useState<SplitFiscalOs | null>(null);
+  const [margemReal, setMargemReal] = useState<MargemRealOs | null>(null);
+  const [osAditivas, setOsAditivas] = useState<OsAditivaResumo[]>([]);
+  const [osAditivaHabilitada, setOsAditivaHabilitada] = useState(false);
   const [relatorio, setRelatorio] = useState<RelatorioTecnicoEmitido | null>(
     null,
   );
@@ -76,18 +108,31 @@ export function InstalacaoRelatorioTecnicoCard({
   const carregar = useCallback(async () => {
     setCarregando(true);
     try {
-      const [painelData, splitData, relatorioData] = await Promise.all([
-        instalacaoApi.obterPainelOs(osId),
-        instalacaoApi.obterSplitFiscal(osId).catch(() => null),
-        instalacaoApi.obterRelatorioEmitido(osId),
-      ]);
+      const [painelData, splitData, relatorioData, margemData, aditivasData, configData] =
+        await Promise.all([
+          instalacaoApi.obterPainelOs(osId),
+          instalacaoApi.obterSplitFiscal(osId).catch(() => null),
+          instalacaoApi.obterRelatorioEmitido(osId),
+          instalacaoApi.obterMargemReal(osId).catch(() => null),
+          instalacaoApi.listarOsAditivas(osId).catch(() => []),
+          instalacaoApi.obterConfiguracaoInstalacao().catch(() => ({
+            exigir_sinal_producao: false,
+            os_aditiva_habilitada: false,
+          })),
+        ]);
       setPainel(painelData);
       setSplitFiscal(splitData);
       setRelatorio(relatorioData);
+      setMargemReal(margemData);
+      setOsAditivas(aditivasData);
+      setOsAditivaHabilitada(configData.os_aditiva_habilitada === true);
     } catch (err) {
       setPainel(null);
       setSplitFiscal(null);
       setRelatorio(null);
+      setMargemReal(null);
+      setOsAditivas([]);
+      setOsAditivaHabilitada(false);
       toast.error(
         err instanceof Error
           ? err.message
@@ -108,13 +153,35 @@ export function InstalacaoRelatorioTecnicoCard({
   const valorExtrasCampo = useMemo(() => {
     if (!painel) return 0;
     return painel.ocorrencias.reduce(
-      (acc, occ) => acc + Number(occ.preco_cliente ?? 0),
+      (acc, occ) =>
+        occ.status_financeiro === 'PRECIFICADO'
+          ? acc + Number(occ.preco_cliente ?? 0)
+          : acc,
       0,
     );
   }, [painel]);
 
+  const bloqueioFinanceiro = useMemo(
+    () =>
+      osAditivaHabilitada && painel
+        ? temBloqueioAprovacaoFinanceira(painel.ocorrencias)
+        : false,
+    [painel, osAditivaHabilitada],
+  );
+
+  const podeGerarAditiva =
+    osAditivaHabilitada &&
+    podeFinanceiro &&
+    painel != null &&
+    podeGerarOsAditiva(painel.ocorrencias) &&
+    !gerandoAditiva &&
+    !carregando;
+
   const podeAprovar =
-    statusOs === 'AGUARDANDO_RELATORIO_TECNICO' && !aprovando && !carregando;
+    statusOs === 'AGUARDANDO_RELATORIO_TECNICO' &&
+    !aprovando &&
+    !carregando &&
+    !bloqueioFinanceiro;
 
   const jaConcluida =
     statusOs === 'CONCLUIDA' || Boolean(relatorio?.pdf_token);
@@ -148,6 +215,27 @@ export function InstalacaoRelatorioTecnicoCard({
     } finally {
       setAprovando(false);
       setConfirmarAberto(false);
+    }
+  }
+
+  async function handleGerarOsAditiva() {
+    setGerandoAditiva(true);
+    try {
+      const resultado = await instalacaoApi.gerarOsAditiva(osId);
+      toast.success(
+        `OS Aditiva ${resultado.os_aditiva_numero} gerada com ${formatarMoeda(resultado.valor_total)}.`,
+      );
+      setVersaoDados((v) => v + 1);
+      onAprovado?.();
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : 'Falha ao gerar OS Aditiva.',
+      );
+    } finally {
+      setGerandoAditiva(false);
+      setConfirmarAditivaAberto(false);
     }
   }
 
@@ -220,12 +308,43 @@ export function InstalacaoRelatorioTecnicoCard({
               </p>
             </div>
             <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-              <p className="text-xs text-muted-foreground">Extras cobráveis em campo</p>
+              <p className="text-xs text-muted-foreground">Extras precificados (pend. aditiva)</p>
               <p className="text-sm font-medium text-foreground">
                 {formatarMoeda(valorExtrasCampo)}
               </p>
             </div>
           </div>
+
+          {margemReal && (
+            <div className="rounded-md border border-border bg-muted/20 p-3 text-sm">
+              <p className="mb-2 font-medium text-foreground">Margem real da OS</p>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                <p className="text-muted-foreground">
+                  Receita OS aditivas:{' '}
+                  <span className="font-medium text-foreground">
+                    {formatarMoeda(margemReal.receita_os_aditivas ?? 0)}
+                  </span>
+                </p>
+                <p className="text-muted-foreground">
+                  Custo operacional inst.:{' '}
+                  <span className="font-medium text-foreground">
+                    {formatarMoeda(margemReal.custo_operacional_instalacao ?? 0)}
+                  </span>
+                </p>
+                <p className="text-muted-foreground">
+                  Margem:{' '}
+                  <span className="font-medium text-foreground">
+                    {margemReal.margem_percentual.toFixed(1)}%
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
+
+          <InstalacaoSplitFiscalCard
+            split={splitFiscal}
+            osAditivas={osAditivaHabilitada ? osAditivas : []}
+          />
 
           {painel.ocorrencias.length > 0 && (
             <div className="space-y-2">
@@ -233,48 +352,61 @@ export function InstalacaoRelatorioTecnicoCard({
                 Resumo de ocorrências
               </p>
               <ul className="max-h-36 space-y-1.5 overflow-y-auto rounded-md border border-border bg-muted/20 p-2 text-sm">
-                {painel.ocorrencias.map((occ) => (
+                {painel.ocorrencias.map((occ) => {
+                  const tone =
+                    STATUS_FINANCEIRO_OCORRENCIA_TONE[occ.status_financeiro] ??
+                    'default';
+                  const valorExibir =
+                    occ.status_financeiro === 'PRECIFICADO' ||
+                    occ.status_financeiro === 'FATURADO'
+                      ? Number(occ.preco_cliente ?? 0)
+                      : valorCobravelCliente(occ);
+                  return (
                   <li
                     key={occ.id}
                     className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-1.5 last:border-0 last:pb-0"
                   >
-                    <span className="text-foreground">
-                      {TIPO_OCORRENCIA_LABEL[occ.tipo] ?? occ.tipo}
-                      {occ.descricao ? ` — ${occ.descricao}` : ''}
-                    </span>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <span className="text-foreground">
+                        {TIPO_OCORRENCIA_LABEL[occ.tipo] ?? occ.tipo}
+                        {occ.descricao ? ` — ${occ.descricao}` : ''}
+                      </span>
+                      <Badge
+                        className={cn('text-xs', TONE_CLASSES[tone])}
+                        variant="outline"
+                      >
+                        {STATUS_FINANCEIRO_OCORRENCIA_LABEL[
+                          occ.status_financeiro
+                        ] ?? occ.status_financeiro}
+                      </Badge>
+                    </div>
                     <span className="shrink-0 tabular-nums text-muted-foreground">
-                      {formatarMoeda(Number(occ.preco_cliente ?? 0))}
+                      {formatarMoeda(valorExibir)}
                     </span>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </div>
           )}
 
-          {splitFiscal && (
-            <div className="rounded-md border border-border bg-muted/20 p-3 text-sm">
-              <p className="mb-2 font-medium text-foreground">Split fiscal sugerido</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <p className="text-muted-foreground">
-                  NF-e (produto):{' '}
-                  <span className="font-medium text-foreground">
-                    {formatarMoeda(splitFiscal.total_nfe)}
-                  </span>
-                </p>
-                <p className="text-muted-foreground">
-                  NFS-e (serviço):{' '}
-                  <span className="font-medium text-foreground">
-                    {formatarMoeda(splitFiscal.total_nfs)}
-                  </span>
-                </p>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {splitFiscal.instrucao_nfe}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {splitFiscal.instrucao_nfs}
-              </p>
-            </div>
+          {bloqueioFinanceiro && (
+            <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
+              Existem ocorrências pendentes de precificação ou já precificadas sem
+              OS Aditiva. Precifique na aba Pendências e gere a aditiva antes de
+              aprovar o faturamento principal.
+            </p>
+          )}
+
+          {podeGerarAditiva && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full sm:w-auto"
+              onClick={() => setConfirmarAditivaAberto(true)}
+            >
+              Gerar OS Aditiva para extras
+            </Button>
           )}
 
           {relatorio?.pdf_token ? (
@@ -298,6 +430,8 @@ export function InstalacaoRelatorioTecnicoCard({
             <p className="text-xs text-muted-foreground">
               {podeAprovar
                 ? 'Aprovação libera a parcela de saldo para A_FATURAR e finaliza a expedição.'
+                : bloqueioFinanceiro
+                  ? 'Resolva as pendências financeiras de campo antes de aprovar.'
                 : jaConcluida
                   ? 'Encerramento financeiro já registrado para esta OS.'
                   : 'Aguardando conclusão de todos os lotes em campo.'}
@@ -329,11 +463,7 @@ export function InstalacaoRelatorioTecnicoCard({
               <strong className="text-foreground">A_FATURAR</strong>
               {valorExtrasCampo > 0.01 && (
                 <>
-                  , consolidará{' '}
-                  <strong className="text-foreground">
-                    {formatarMoeda(valorExtrasCampo)}
-                  </strong>{' '}
-                  em cobranças extras de campo
+                  . Os extras de campo já foram faturados via OS Aditiva
                 </>
               )}{' '}
               e liberará a entrega na expedição. O relatório técnico em PDF será
@@ -356,6 +486,46 @@ export function InstalacaoRelatorioTecnicoCard({
                 </>
               ) : (
                 'Confirmar aprovação'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmarAditivaAberto}
+        onOpenChange={setConfirmarAditivaAberto}
+      >
+        <AlertDialogContent className="border-border bg-card">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gerar OS Aditiva</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Será criada uma OS Aditiva ({numeroExibicao}-A*) com valor total de{' '}
+              <strong className="text-foreground">
+                {formatarMoeda(valorExtrasCampo)}
+              </strong>{' '}
+              referente às ocorrências precificadas. A cobrança ficará separada da
+              OS principal de produção. Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={gerandoAditiva}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={gerandoAditiva}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleGerarOsAditiva();
+              }}
+            >
+              {gerandoAditiva ? (
+                <>
+                  <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Gerando...
+                </>
+              ) : (
+                'Confirmar geração'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

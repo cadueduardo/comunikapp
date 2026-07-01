@@ -3,16 +3,28 @@ import { StatusArte } from './arte.enums';
 /** Status que permitem a ação "assumir" na fila. */
 export const STATUS_PERMITIDOS_ASSUMIR: StatusArte[] = [
   StatusArte.AGUARDANDO_INICIO,
+  StatusArte.AGUARDANDO_ARQUIVO_CLIENTE,
+  StatusArte.ARQUIVO_RECEBIDO,
   StatusArte.EM_CRIACAO,
   StatusArte.REVISAO_SOLICITADA,
 ];
 
 const TRANSICOES_STATUS: Partial<Record<StatusArte, StatusArte[]>> = {
   [StatusArte.AGUARDANDO_INICIO]: [StatusArte.EM_CRIACAO],
+  [StatusArte.AGUARDANDO_ARQUIVO_CLIENTE]: [
+    StatusArte.ARQUIVO_RECEBIDO,
+    StatusArte.EM_CRIACAO,
+  ],
+  [StatusArte.ARQUIVO_RECEBIDO]: [
+    StatusArte.EM_CRIACAO,
+    StatusArte.APROVADA,
+    StatusArte.AGUARDANDO_ARQUIVO_CLIENTE,
+  ],
   [StatusArte.EM_CRIACAO]: [
     StatusArte.AGUARDANDO_CLIENTE,
     StatusArte.APROVADA,
     StatusArte.LIBERADA_PCP,
+    StatusArte.AGUARDANDO_ARQUIVO_CLIENTE,
   ],
   [StatusArte.AGUARDANDO_CLIENTE]: [
     StatusArte.APROVADA,

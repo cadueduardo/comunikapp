@@ -25,10 +25,13 @@ import {
   resolverLinkPublicoVersao,
 } from '@/lib/arte-links-api';
 
+import { ResponsabilidadeArte } from '@/lib/arte-orcamento.constants';
+
 interface ArteAprovacaoSidebarProps {
   osId: string;
   osNumero?: string;
   itemIdFoco?: string;
+  responsabilidadeArte?: string;
   /** Versões compartilhadas pelo painel pai; se ausente, usa o hook interno */
   versoes?: ArteVersao[];
   onEnviarTodasArtes?: () => void;
@@ -40,11 +43,14 @@ export function ArteAprovacaoSidebar({
   osId,
   osNumero,
   itemIdFoco,
+  responsabilidadeArte,
   versoes: versoesProp,
   onEnviarTodasArtes,
   hasVersoesRascunho = false,
   onMutacao,
 }: ArteAprovacaoSidebarProps) {
+  const arteCliente =
+    responsabilidadeArte === ResponsabilidadeArte.CLIENTE_FORNECE;
   const { produtos } = useArteProdutos(osId);
   const { versoes: versoesHook } = useArteVersoes(osId);
   const versoes = Array.isArray(versoesProp) ? versoesProp : versoesHook;
@@ -301,7 +307,8 @@ export function ArteAprovacaoSidebar({
 
   return (
     <div className="w-full space-y-6 px-2">
-      {/* Aprovação do Cliente */}
+      {/* Aprovação do Cliente — oculto quando a arte é do cliente */}
+      {!arteCliente && (
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Aprovação do Cliente</h3>
         
@@ -365,6 +372,17 @@ export function ArteAprovacaoSidebar({
           </Button>
         </div>
       </div>
+      )}
+
+      {arteCliente && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <h3 className="font-semibold mb-2">Arte do cliente</h3>
+          <p>
+            Após o preflight, use <strong>Conferir e liberar</strong> na versão da arte.
+            Não é necessário enviar link ou e-mail ao cliente.
+          </p>
+        </div>
+      )}
 
       {/* Comentários Recentes */}
       <div>

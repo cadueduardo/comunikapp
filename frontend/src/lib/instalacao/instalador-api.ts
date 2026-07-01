@@ -118,6 +118,7 @@ export const instaladorApi = {
     tipo: string;
     descricao: string;
     quantidade?: number;
+    fotos_evidencia?: string[];
   }): Promise<OcorrenciaInstalador> {
     const response = await fetch('/api/instalador/ocorrencias', {
       method: 'POST',

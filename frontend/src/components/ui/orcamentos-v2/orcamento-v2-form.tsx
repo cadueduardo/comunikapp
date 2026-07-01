@@ -236,6 +236,8 @@ export function OrcamentoV2Form({
   const [salvandoModelo, setSalvandoModelo] = useState(false);
   const [produtosSectionKey, setProdutosSectionKey] = useState(0);
   const [dadosCarregados, setDadosCarregados] = useState(mode !== 'editar');
+  /** Snapshot dos produtos mapeados do backend — preview/save com accordion fechado. */
+  const [itensProdutoCarregados, setItensProdutoCarregados] = useState<FormValues['itens_produto']>([]);
   const { clientes, insumos, maquinas, funcoes, servicos, custosIndiretos, fetchInsumos } = useOrcamentoData();
   const { user } = useUser();
   const comissaoPadraoLoja = comissaoPadraoDaLoja(user?.loja);
@@ -248,20 +250,23 @@ export function OrcamentoV2Form({
   // Estado para armazenar dados calculados localmente
   const [dadosCalculadosLocais, setDadosCalculadosLocais] = useState<any>(null);
   
+  const getOpcoesPreview = () => ({
+    datasets: {
+      insumos,
+      maquinas,
+      funcoes,
+      servicos,
+      custosIndiretos: Array.isArray(custosIndiretos) ? custosIndiretos : [],
+    },
+    loja: user?.loja,
+    comissaoPadrao: comissaoPadraoLoja,
+    itensProdutoCarregados,
+  });
+
   // Função para calcular dados localmente quando WebSocket não estiver disponível
   const calcularDadosLocalmente = (formData: FormValues) => {
     try {
-      return montarPreviewOrcamento(formData as Record<string, unknown>, {
-        datasets: {
-          insumos,
-          maquinas,
-          funcoes,
-          servicos,
-          custosIndiretos: Array.isArray(custosIndiretos) ? custosIndiretos : [],
-        },
-        loja: user?.loja,
-        comissaoPadrao: comissaoPadraoLoja,
-      });
+      return montarPreviewOrcamento(formData as Record<string, unknown>, getOpcoesPreview());
     } catch (error) {
       console.error('Erro ao calcular dados localmente:', error);
       return null;
@@ -450,7 +455,10 @@ export function OrcamentoV2Form({
 
   // Carregar dados iniciais se for edição/template
   useEffect(() => {
-    if ((mode === 'editar' || mode === 'template') && initialData) {
+    if ((mode !== 'editar' && mode !== 'template') || !initialData) {
+      return;
+    }
+
       // Debug logs removidos para limpar terminal
       // console.log('🔍 Debug - OrcamentoForm - Dados recebidos para reset:', initialData);
       // console.log('🔍 Debug - OrcamentoForm - Cliente ID recebido:', initialData.cliente_id);
@@ -707,21 +715,20 @@ export function OrcamentoV2Form({
       // Debug logs removidos para limpar terminal
       // console.log('🔍 Debug - OrcamentoForm - Dados formatados para o form:', dadosFormatados);
       
-      // Tentar reset com delay para garantir que o formulário esteja pronto
-      setTimeout(() => {
+      // Reset após datasets prontos; aguarda field array montar todos os produtos.
+      setDadosCarregados(false);
+      setItensProdutoCarregados(dadosFormatados.itens_produto as FormValues['itens_produto']);
+      const resetTimer = window.setTimeout(() => {
         form.reset(dadosFormatados as FormValues);
-        setProdutosSectionKey((k) => k + 1);
-        setDadosCarregados(false);
-        setTimeout(() => setDadosCarregados(true), 450);
-      }, 100);
-    }
-  }, [mode, initialData]);
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
+            setDadosCarregados(true);
+          });
+        });
+      }, 50);
 
-  useEffect(() => {
-    if (mode === 'editar' && initialData && insumos.length > 0) {
-      setDadosCarregados(true);
-    }
-  }, [mode, initialData, insumos.length]);
+      return () => window.clearTimeout(resetTimer);
+  }, [mode, initialData, form, comissaoPadraoLoja]);
 
   // Reidratar regras de catálogo para produtos de prateleira ao reabrir rascunho.
   useEffect(() => {
@@ -1042,17 +1049,7 @@ export function OrcamentoV2Form({
     const previewUnificado =
       dadosCalculados?.resumo && Array.isArray(dadosCalculados?.produtos)
         ? dadosCalculados
-        : montarPreviewOrcamento(data as Record<string, unknown>, {
-            datasets: {
-              insumos,
-              maquinas,
-              funcoes,
-              servicos,
-              custosIndiretos: Array.isArray(custosIndiretos) ? custosIndiretos : [],
-            },
-            loja: user?.loja,
-            comissaoPadrao: comissaoPadraoLoja,
-          });
+        : montarPreviewOrcamento(data as Record<string, unknown>, getOpcoesPreview());
 
     const produtosPreview = previewUnificado?.produtos;
     const totaisPreview = previewUnificado?.totais;
@@ -1650,17 +1647,7 @@ export function OrcamentoV2Form({
     // Calcular preço final com margem, impostos e comissão (fonte única: montarPreviewOrcamento)
     const previewFallback =
       previewUnificado ??
-      montarPreviewOrcamento(data as Record<string, unknown>, {
-        datasets: {
-          insumos,
-          maquinas,
-          funcoes,
-          servicos,
-          custosIndiretos: Array.isArray(custosIndiretos) ? custosIndiretos : [],
-        },
-        loja: user?.loja,
-        comissaoPadrao: comissaoPadraoLoja,
-      });
+      montarPreviewOrcamento(data as Record<string, unknown>, getOpcoesPreview());
 
     const resumoFallback = previewFallback?.resumo;
     const percentualMargemDecimal = margemPercentual / 100;
@@ -2912,6 +2899,8 @@ export function OrcamentoV2Form({
                 <div className="sticky top-6 space-y-3">
                   <PreviewCalculoV2
                     dadosCarregados={dadosCarregados}
+                    refreshKey={produtosSectionKey}
+                    itensProdutoCarregados={itensProdutoCarregados}
                     datasets={{
                       insumos,
                       maquinas,

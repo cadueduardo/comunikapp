@@ -619,12 +619,22 @@ export const catalogoArteProducaoApi = {
   },
 };
 
+export interface UsuarioPreferencias {
+  sidebar_menu_order?: string[];
+}
+
 export const usuariosApi = {
   getAll: (token: string) => ApiClient.get('/usuarios', token),
   getById: (id: string, token: string) => ApiClient.get(`/usuarios/${id}`, token),
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/usuarios', data, token),
   update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/usuarios/${id}`, data, token),
   delete: (id: string, token: string) => ApiClient.delete(`/usuarios/${id}`, token),
+  getPreferencias: (token: string) =>
+    ApiClient.get<UsuarioPreferencias>('/usuarios/me/preferencias', token),
+  updatePreferencias: (
+    data: UsuarioPreferencias,
+    token: string,
+  ) => ApiClient.patch<UsuarioPreferencias>('/usuarios/me/preferencias', data, token),
   getTwoFactorStatus: (token: string) => ApiClient.get('/usuarios/2fa/status', token),
   setupTwoFactor: (token: string) => ApiClient.post('/usuarios/2fa/setup', {}, token),
   confirmTwoFactor: (code: string, token: string) => ApiClient.post('/usuarios/2fa/confirm', { code }, token),

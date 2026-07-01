@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
+import {
+  solicitarAtualizacaoBadgesSidebar,
+  instalacaoGerouNovidade,
+} from '@/lib/sidebar-badge-refresh';
 
 export interface OSCardKanban {
   id: string;
@@ -172,6 +175,7 @@ export function useKanbanData(lojaId?: string): UseKanbanDataReturn {
       const payload = (await response.json().catch(() => ({}))) as {
         expedicao_criada?: boolean;
         expedicao_cancelada?: boolean;
+        instalacao?: { lotes_criados?: number; criado?: boolean };
       };
 
       setCards(prevCards => 
@@ -181,7 +185,11 @@ export function useKanbanData(lojaId?: string): UseKanbanDataReturn {
       );
 
       solicitarAtualizacaoBadgesSidebar();
-      if (payload.expedicao_criada || payload.expedicao_cancelada) {
+      if (
+        payload.expedicao_criada ||
+        payload.expedicao_cancelada ||
+        instalacaoGerouNovidade(payload.instalacao)
+      ) {
         window.setTimeout(() => solicitarAtualizacaoBadgesSidebar(), 600);
       }
 

@@ -169,6 +169,18 @@ export class StatusPrazoProdutoResponse {
 
   @ApiProperty({ required: false })
   designer_atribuido?: { id: string; nome: string } | null;
+
+  @ApiProperty({ required: false })
+  modo_fulfillment?: string | null;
+
+  @ApiProperty({ required: false })
+  personalizacao_modo?: string | null;
+
+  @ApiProperty({ required: false, example: 'SOB_DEMANDA' })
+  tipo_item?: string | null;
+
+  @ApiProperty({ required: false })
+  requer_pcp_fabrica?: boolean;
 }
 
 export class ValidarPrazoProdutoResponse {

@@ -75,6 +75,20 @@ cd ..
 
 ## 🔧 Outros Scripts Úteis
 
+### Limpar processos Node (dev travado / Cursor com muitas instâncias)
+
+```powershell
+# Na raiz — mata só processos do caminho comunikapp
+npm run dev:clean
+
+# Ou diretamente
+.\scripts\cleanup-node-dev.ps1
+.\scripts\cleanup-node-dev.ps1 -WhatIf   # só listar
+.\scripts\cleanup-node-dev.ps1 -Force    # todos os node.exe (cuidado)
+```
+
+Documentação completa: [`docs/DEV-GESTAO-PROCESSOS-NODE-WINDOWS.md`](../docs/DEV-GESTAO-PROCESSOS-NODE-WINDOWS.md)
+
 ### Limpar Cache Completo
 ```powershell
 # Backend

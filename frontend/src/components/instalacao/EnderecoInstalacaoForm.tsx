@@ -28,6 +28,8 @@ interface EnderecoInstalacaoFormProps {
   onSalvar: (dados: EnderecoLoteForm) => Promise<void>;
   somenteLeitura?: boolean;
   exibirQuantidade?: boolean;
+  quantidadeMaxima?: number;
+  rotuloSalvar?: string;
 }
 
 export function EnderecoInstalacaoForm({
@@ -36,6 +38,8 @@ export function EnderecoInstalacaoForm({
   onSalvar,
   somenteLeitura = false,
   exibirQuantidade = false,
+  quantidadeMaxima,
+  rotuloSalvar = 'Salvar endereço',
 }: EnderecoInstalacaoFormProps) {
   const [form, setForm] = useState<EnderecoLoteForm>(valorInicial);
   const [salvando, setSalvando] = useState(false);
@@ -190,18 +194,29 @@ export function EnderecoInstalacaoForm({
 
         {exibirQuantidade && (
           <div className="min-w-0 space-y-2">
-            <Label htmlFor="quantidade-instalacao">Quantidade alocada</Label>
+            <Label htmlFor="quantidade-instalacao">
+              Quantidade alocada
+              {quantidadeMaxima != null && quantidadeMaxima > 0 && (
+                <span className="ml-1 font-normal text-muted-foreground">
+                  (máx. {quantidadeMaxima})
+                </span>
+              )}
+            </Label>
             <Input
               id="quantidade-instalacao"
               type="number"
               min={1}
+              max={quantidadeMaxima}
               value={form.quantidade_alocada}
               disabled={desabilitado}
-              onChange={(e) =>
-                atualizar({
-                  quantidade_alocada: Math.max(1, Number(e.target.value) || 1),
-                })
-              }
+              onChange={(e) => {
+                const bruto = Math.max(1, Number(e.target.value) || 1);
+                const limitado =
+                  quantidadeMaxima != null && quantidadeMaxima > 0
+                    ? Math.min(bruto, quantidadeMaxima)
+                    : bruto;
+                atualizar({ quantidade_alocada: limitado });
+              }}
               className="w-full min-w-0"
             />
           </div>
@@ -222,7 +237,7 @@ export function EnderecoInstalacaoForm({
           ) : (
             <>
               <IconMapPin className="mr-2 h-4 w-4" />
-              Salvar endereço
+              {rotuloSalvar}
             </>
           )}
         </Button>

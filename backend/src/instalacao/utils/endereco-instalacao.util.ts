@@ -8,6 +8,20 @@ export interface EnderecoInstalacaoMontado {
   uf: string;
 }
 
+/** Endereço ainda não definido no orçamento — lote deve ser liberado manualmente. */
+export function enderecoInstalacaoPrecisaConfirmacao(
+  endereco: Pick<
+    EnderecoInstalacaoMontado,
+    'logradouro' | 'bairro' | 'cidade'
+  >,
+): boolean {
+  return (
+    endereco.logradouro === 'Endereço a confirmar' ||
+    endereco.bairro === 'A definir' ||
+    endereco.cidade === 'A definir'
+  );
+}
+
 interface ProdutoEnderecoInstalacao {
   instalacao_cep?: string | null;
   instalacao_logradouro?: string | null;

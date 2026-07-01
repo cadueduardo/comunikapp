@@ -5,6 +5,7 @@ import { SetoresProdutivosService } from '../../configuracoes/services/centros-d
 import { OSPCPIntegrationService } from './os-pcp-integration.service';
 import { ExpedicaoCriacaoService } from '../../expedicao/services/expedicao-criacao.service';
 import { ItemOSInstalacaoCriacaoService } from '../../instalacao/services/item-os-instalacao-criacao.service';
+import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
 
 jest.mock('../mappers/kanban.mapper', () => ({
   KanbanMapper: {
@@ -97,7 +98,15 @@ describe('PCPKanbanService', () => {
             processarBaixaProducao: jest
               .fn()
               .mockResolvedValue({ criado: false }),
+            processarBaixaProducaoOs: jest.fn().mockResolvedValue({
+              lotes_criados: 0,
+              resultados: [],
+            }),
           },
+        },
+        {
+          provide: HomeCacheService,
+          useValue: { invalidarPorPrefixo: jest.fn() },
         },
       ],
     }).compile();
@@ -158,6 +167,7 @@ describe('PCPKanbanService', () => {
     expect(resultado).toEqual({
       expedicao_criada: true,
       expedicao_cancelada: false,
+      instalacao: { lotes_criados: 0, resultados: [] },
     });
   });
 
@@ -178,6 +188,7 @@ describe('PCPKanbanService', () => {
     expect(resultado).toEqual({
       expedicao_criada: false,
       expedicao_cancelada: false,
+      instalacao: { lotes_criados: 0, resultados: [] },
     });
   });
 
@@ -211,6 +222,7 @@ describe('PCPKanbanService', () => {
     expect(resultado).toEqual({
       expedicao_criada: true,
       expedicao_cancelada: false,
+      instalacao: { lotes_criados: 0, resultados: [] },
     });
   });
 
@@ -239,6 +251,7 @@ describe('PCPKanbanService', () => {
     expect(resultado).toEqual({
       expedicao_criada: false,
       expedicao_cancelada: true,
+      instalacao: { lotes_criados: 0, resultados: [] },
     });
   });
 

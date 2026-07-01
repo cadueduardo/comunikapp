@@ -27,7 +27,7 @@ export function resolverStatusArteInicial(
   if (resp === ResponsabilidadeArte.CLIENTE_FORNECE) {
     return {
       status_arte: StatusArte.AGUARDANDO_ARQUIVO_CLIENTE,
-      arte_fila_desde: null,
+      arte_fila_desde: new Date(),
     };
   }
 

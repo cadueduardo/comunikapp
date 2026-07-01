@@ -11,10 +11,13 @@ const ETAPAS_EMPRESA = [
   { status: 'LIBERADA_PCP', label: 'Liberada' },
 ] as const;
 
-const ETAPAS_CLIENTE = [
-  { status: 'AGUARDANDO_ARQUIVO_CLIENTE', label: 'Aguardando' },
-  { status: 'ARQUIVO_RECEBIDO', label: 'Recebido' },
-] as const;
+const ORDEM_CLIENTE: Record<string, number> = {
+  AGUARDANDO_ARQUIVO_CLIENTE: 0,
+  ARQUIVO_RECEBIDO: 1,
+  EM_CRIACAO: 1,
+  APROVADA: 2,
+  LIBERADA_PCP: 2,
+};
 
 const ORDEM_EMPRESA: Record<string, number> = {
   AGUARDANDO_INICIO: 0,
@@ -37,10 +40,16 @@ export function ArteStatusTracker({
   className,
 }: ArteStatusTrackerProps) {
   const clienteFornece = responsabilidadeArte === 'CLIENTE_FORNECE';
-  const etapas = clienteFornece ? ETAPAS_CLIENTE : ETAPAS_EMPRESA;
+  const etapasEmpresa = ETAPAS_EMPRESA;
+  const etapasCliente = [
+    { status: 'AGUARDANDO_ARQUIVO_CLIENTE', label: 'Aguardando' },
+    { status: 'ARQUIVO_RECEBIDO', label: 'Preflight' },
+    { status: 'LIBERADA_PCP', label: 'Liberada' },
+  ] as const;
+  const etapas = clienteFornece ? etapasCliente : etapasEmpresa;
 
   const indiceAtual = clienteFornece
-    ? etapas.findIndex((e) => e.status === statusArte)
+    ? (ORDEM_CLIENTE[statusArte] ?? -1)
     : (ORDEM_EMPRESA[statusArte] ?? -1);
 
   if (statusArte === 'NAO_APLICA' || responsabilidadeArte === 'NAO_APLICAVEL') {

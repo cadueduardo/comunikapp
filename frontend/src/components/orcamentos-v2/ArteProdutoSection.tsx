@@ -35,8 +35,10 @@ import {
   syncArteProdutoOrcamento,
 } from '@/lib/arte-orcamento-api';
 import {
+  produtoExibeFinalidadeAnexo,
   resolverFinalidadeAnexoDefault,
   textoAjudaFinalidadeAnexo,
+  textoAjudaResponsabilidadeArte,
 } from './arte-produto.helpers';
 
 interface ArteProdutoSectionProps {
@@ -166,8 +168,11 @@ export function ArteProdutoSection({ itemIndex }: ArteProdutoSectionProps) {
   }, []);
 
   useEffect(() => {
+    const resp =
+      responsabilidade || ResponsabilidadeArte.NAO_APLICAVEL;
     const url = String(arquivoGeometria || '').trim();
-    if (!url) {
+
+    if (!produtoExibeFinalidadeAnexo(resp, url)) {
       const atual = form.getValues(`itens_produto.${itemIndex}.finalidade_anexo`);
       if (atual) {
         form.setValue(`itens_produto.${itemIndex}.finalidade_anexo`, '', {
@@ -177,9 +182,6 @@ export function ArteProdutoSection({ itemIndex }: ArteProdutoSectionProps) {
       return;
     }
 
-    const resp =
-      form.getValues(`itens_produto.${itemIndex}.responsabilidade_arte`) ||
-      ResponsabilidadeArte.NAO_APLICAVEL;
     const atual = form.getValues(`itens_produto.${itemIndex}.finalidade_anexo`);
     if (atual) return;
 
@@ -282,7 +284,10 @@ export function ArteProdutoSection({ itemIndex }: ArteProdutoSectionProps) {
   }, [responsabilidade, politica, finalidadeAnexo, sincronizarArte]);
 
   const mostrarPolitica = arteRequerTrabalhoInterno(responsabilidade);
-  const mostrarFinalidade = Boolean(arquivoGeometria?.trim());
+  const mostrarFinalidade = produtoExibeFinalidadeAnexo(
+    responsabilidade,
+    arquivoGeometria,
+  );
 
   return (
     <div className="space-y-4 border-t pt-4">
@@ -323,27 +328,36 @@ export function ArteProdutoSection({ itemIndex }: ArteProdutoSectionProps) {
                     cobrancaPadrao,
                   );
                 }
+
                 const url = String(
                   form.getValues(
                     `itens_produto.${itemIndex}.arquivo_geometria_url`,
                   ) || '',
                 ).trim();
-                if (url) {
-                  const origem = form.getValues(
-                    `itens_produto.${itemIndex}.geometria_origem`,
+
+                if (!produtoExibeFinalidadeAnexo(value, url)) {
+                  form.setValue(
+                    `itens_produto.${itemIndex}.finalidade_anexo`,
+                    '',
+                    { shouldDirty: true },
                   );
-                  const sugerida = resolverFinalidadeAnexoDefault(
-                    value,
-                    origem,
-                    null,
+                  return;
+                }
+
+                const origem = form.getValues(
+                  `itens_produto.${itemIndex}.geometria_origem`,
+                );
+                const sugerida = resolverFinalidadeAnexoDefault(
+                  value,
+                  origem,
+                  null,
+                );
+                if (sugerida) {
+                  form.setValue(
+                    `itens_produto.${itemIndex}.finalidade_anexo`,
+                    sugerida,
+                    { shouldDirty: true },
                   );
-                  if (sugerida) {
-                    form.setValue(
-                      `itens_produto.${itemIndex}.finalidade_anexo`,
-                      sugerida,
-                      { shouldDirty: true },
-                    );
-                  }
                 }
               }}
             >
@@ -360,6 +374,11 @@ export function ArteProdutoSection({ itemIndex }: ArteProdutoSectionProps) {
                 ))}
               </SelectContent>
             </Select>
+            {textoAjudaResponsabilidadeArte(field.value) && (
+              <p className="text-xs text-muted-foreground">
+                {textoAjudaResponsabilidadeArte(field.value)}
+              </p>
+            )}
             <FormMessage />
           </FormItem>
         )}

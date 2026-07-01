@@ -3,6 +3,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { NotificacoesModule } from '../../notificacoes/notificacoes.module';
+import { ConexoesModule } from '../../conexoes/conexoes.module';
+import { MailModule } from '../../mail/mail.module';
 import { getRequiredJwtSecret } from '../../auth/jwt-secret';
 import { ArteVersaoController } from './controllers/arte-versao.controller';
 import { ArteArquivoController } from './controllers/arte-arquivo.controller';
@@ -25,11 +27,16 @@ import { ConfiguracaoArteService } from './services/configuracao-arte.service';
 import { ArteOrcamentoInjecaoService } from './services/arte-orcamento-injecao.service';
 import { ArteFilaService } from './services/arte-fila.service';
 import { ArteFilaTransicaoService } from './services/arte-fila-transicao.service';
+import { ArteStorageService } from './services/arte-storage.service';
+import { ArteDriveFolderService } from './services/arte-drive-folder.service';
+import { ArteClienteArquivoService } from './services/arte-cliente-arquivo.service';
 
 @Module({
   imports: [
     PrismaModule,
     NotificacoesModule,
+    ConexoesModule,
+    MailModule,
     // JwtModule próprio para o módulo (seguindo premissas)
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -64,6 +71,9 @@ import { ArteFilaTransicaoService } from './services/arte-fila-transicao.service
     ArteOrcamentoInjecaoService,
     ArteFilaService,
     ArteFilaTransicaoService,
+    ArteStorageService,
+    ArteDriveFolderService,
+    ArteClienteArquivoService,
   ],
   exports: [
     ArteVersaoService,
@@ -77,6 +87,8 @@ import { ArteFilaTransicaoService } from './services/arte-fila-transicao.service
     ArteOrcamentoInjecaoService,
     ArteFilaService,
     ArteFilaTransicaoService,
+    ArteStorageService,
+    ArteDriveFolderService,
   ],
 })
 export class ArteAprovacaoModule {}

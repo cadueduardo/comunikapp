@@ -9,6 +9,7 @@ import { InstalacaoPosCalculoService } from './instalacao-pos-calculo.service';
 import { InstalacaoRelatorioPdfService } from './instalacao-relatorio-pdf.service';
 import { InstalacaoSplitFiscalService } from './instalacao-split-fiscal.service';
 import { InstalacaoFechamentoService } from './instalacao-fechamento.service';
+import { ConfiguracaoInstalacaoService } from './configuracao-instalacao.service';
 
 describe('InstalacaoPosCalculoService', () => {
   let service: InstalacaoPosCalculoService;
@@ -27,7 +28,7 @@ describe('InstalacaoPosCalculoService', () => {
     produtoOrcamento: { findFirst: jest.fn() },
     cobrancaParcela: { updateMany: jest.fn() },
     ordemServico: { findFirst: jest.fn() },
-    ocorrenciaInstalacao: { aggregate: jest.fn() },
+    ocorrenciaInstalacao: { aggregate: jest.fn(), count: jest.fn() },
     itemOSInstalacao: { count: jest.fn() },
     cobranca: { findFirst: jest.fn() },
     relatorioTecnicoInstalacao: { findFirst: jest.fn() },
@@ -48,13 +49,19 @@ describe('InstalacaoPosCalculoService', () => {
     finalizarAposRelatorioTecnico: jest.fn(),
   };
 
+  const configuracaoMock = {
+    osAditivaHabilitada: jest.fn().mockResolvedValue(true),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    prismaMock.ocorrenciaInstalacao.count.mockResolvedValue(0);
     service = new InstalacaoPosCalculoService(
       prismaMock as unknown as PrismaService,
       pdfMock as unknown as InstalacaoRelatorioPdfService,
       splitMock as unknown as InstalacaoSplitFiscalService,
       fechamentoMock as unknown as InstalacaoFechamentoService,
+      configuracaoMock as unknown as ConfiguracaoInstalacaoService,
     );
   });
 

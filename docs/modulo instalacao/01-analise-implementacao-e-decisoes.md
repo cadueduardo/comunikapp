@@ -277,6 +277,20 @@ Cada item deve ser **fechado por produto/arquitetura** antes de iniciar implemen
 
 ---
 
+### DEC-17 — Imprevistos de campo vs. grade da OS (Dúvida 3)
+
+**Pergunta:** Materiais extras, serviços não previstos ou sobras de execução devem alterar a grade de produtos da OS?
+
+**Decisão fechada (2026-07-01):** **Não.** Imprevistos de campo registram-se **somente** em `OcorrenciaInstalacao` (spec: `OsApontamento`). A grade contratual (`ItemOS`) e o saldo de alocação em lotes (`ItemOSInstalacao`) **não** recebem aditivos automáticos nem saldos negativos.
+
+**Fluxo:** Ocorrências → seção de extras no Relatório Técnico (PDF Fase 5) → pós-cálculo financeiro (cobrança complementar ou abono comercial).
+
+**Documentação completa:** [`12-decisoes-produto-instalacao-comunikapp.md`](./12-decisoes-produto-instalacao-comunikapp.md) § Dúvida 3.
+
+**Decisão:** ☑ Fechada — Responsável: Produto/Operações — Data: 2026-07-01
+
+---
+
 ### DEC-02 — Modelo `ItemOSInstalacao` vs `ExpedicaoLogistica`
 
 **Pergunta:** Como relacionar lotes por endereço com o registro de expedição?
@@ -550,6 +564,7 @@ Após fechamento das decisões:
 | Versão | Data | Autor | Alteração |
 |--------|------|-------|-----------|
 | 1.0 | 2025-06-30 | Análise inicial | Levantamento estado atual, lacunas e 16 decisões pendentes |
+| 1.1 | 2026-07-01 | DEC-17 | Fechamento Dúvida 3 — sobra/aditivos de campo via `OcorrenciaInstalacao` |
 
 ---
 

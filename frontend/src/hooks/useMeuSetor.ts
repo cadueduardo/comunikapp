@@ -1,5 +1,44 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
+import {
+  solicitarAtualizacaoBadgesSidebar,
+  solicitarBadgesAposInstalacao,
+} from '@/lib/sidebar-badge-refresh';
+
+interface ResultadoInstalacaoApi {
+  criado?: boolean;
+  quantidade_alocada?: number;
+  motivo_skip?: string;
+}
+
+const MENSAGENS_SKIP_INSTALACAO: Record<string, string> = {
+  PRODUCAO_INCOMPLETA:
+    'Produção ainda não concluída — o lote de instalação será gerado ao finalizar todas as etapas.',
+  ENDERECO_PENDENTE:
+    'Endereço de instalação pendente — libere o lote manualmente no módulo Instalações.',
+  SEM_ORCAMENTO: 'OS sem orçamento vinculado — instalação não gerada.',
+  ITEM_NAO_ENCONTRADO: 'Item não encontrado para gerar lote de instalação.',
+};
+
+function notificarResultadoInstalacao(instalacao?: ResultadoInstalacaoApi) {
+  if (!instalacao) return;
+
+  if (instalacao.criado) {
+    toast.success(
+      `Lote de instalação criado (${instalacao.quantidade_alocada ?? '?'} un.)`,
+    );
+    return;
+  }
+
+  const skip = instalacao.motivo_skip;
+  if (!skip || skip === 'SEM_INSTALACAO' || skip === 'SEM_SALDO') {
+    return;
+  }
+
+  toast.info(
+    MENSAGENS_SKIP_INSTALACAO[skip] ?? `Instalação não gerada: ${skip}`,
+  );
+}
 
 export interface ItemFila {
   id: string;
@@ -504,7 +543,14 @@ export function useMeuSetor(): UseMeuSetorReturn {
           throw new Error(await extrairErroApi(response, 'Erro ao concluir etapa'));
         }
 
+        const data = (await response.json()) as {
+          instalacao?: ResultadoInstalacaoApi;
+        };
+
         toast.success('Etapa concluída com sucesso');
+        notificarResultadoInstalacao(data.instalacao);
+        solicitarBadgesAposInstalacao(data.instalacao);
+        solicitarAtualizacaoBadgesSidebar();
         await fetchSetorData({ skipLista: true });
       } catch (finishError: unknown) {
         console.error('Erro ao concluir etapa:', finishError);

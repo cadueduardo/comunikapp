@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { TipoOcorrencia } from '@prisma/client';
+import { StatusFinanceiroOcorrencia, TipoOcorrencia } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   SplitFiscalDetalhe,
@@ -41,7 +41,13 @@ export class InstalacaoSplitFiscalService {
     });
 
     const ocorrencias = await this.prisma.ocorrenciaInstalacao.findMany({
-      where: { os_id: osId, loja_id: lojaId },
+      where: {
+        os_id: osId,
+        loja_id: lojaId,
+        status_financeiro: {
+          notIn: [StatusFinanceiroOcorrencia.FATURADO],
+        },
+      },
       orderBy: { criado_em: 'asc' },
     });
 

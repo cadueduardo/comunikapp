@@ -11,6 +11,60 @@ export interface ArteArquivoRef {
   url_thumbnail?: string;
   nome_arquivo?: string;
   nome_original?: string;
+  versao_id?: string;
+  storage_provider?: string;
+}
+
+export function buildArteVersaoDownloadUrl(
+  versaoId: string,
+  storedFileName: string,
+): string {
+  return normalizeArteFilePath(
+    `/arte-aprovacao/versoes/${versaoId}/arquivos/download/${encodeURIComponent(storedFileName)}`,
+  );
+}
+
+function isGoogleDriveWebUrl(url: string): boolean {
+  return url.includes('drive.google.com') || url.includes('docs.google.com');
+}
+
+function isArteApiDownloadPath(urlOrPath: string): boolean {
+  return (
+    urlOrPath.includes('/arte-aprovacao/') &&
+    urlOrPath.includes('/arquivos/download/')
+  );
+}
+
+function resolveDriveProxyUrl(
+  arquivo: ArteArquivoRef,
+  preferThumbnail: boolean,
+): string | null {
+  if (!arquivo.versao_id || !arquivo.nome_arquivo) return null;
+
+  if (preferThumbnail && arquivo.url_thumbnail) {
+    const thumbRaw = arquivo.url_thumbnail;
+    if (isArteApiDownloadPath(thumbRaw)) {
+      return normalizeArteFilePath(thumbRaw);
+    }
+    // Thumb legado com link do Drive: nome no storage não é previsível — fallback no componente
+    if (isGoogleDriveWebUrl(thumbRaw)) {
+      return null;
+    }
+  }
+
+  const raw = arquivo.url_arquivo || '';
+  if (raw && isGoogleDriveWebUrl(raw)) {
+    return buildArteVersaoDownloadUrl(arquivo.versao_id, arquivo.nome_arquivo);
+  }
+
+  if (arquivo.storage_provider === 'google_drive') {
+    if (isArteApiDownloadPath(raw)) {
+      return normalizeArteFilePath(raw);
+    }
+    return buildArteVersaoDownloadUrl(arquivo.versao_id, arquivo.nome_arquivo);
+  }
+
+  return null;
 }
 
 export function normalizeArteFilePath(path?: string | null): string {
@@ -92,9 +146,26 @@ export function resolveArteAuthenticatedFileUrl(
     : arquivo.url_arquivo || arquivo.url_thumbnail;
 
   if (!raw) return '';
-  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+
+  const driveProxy = resolveDriveProxyUrl(arquivo, preferThumbnail);
+  if (driveProxy) return driveProxy;
+
+  if (raw.startsWith('http://') || raw.startsWith('https://')) {
+    // Link externo do Drive sem proxy resolvível — tentar arquivo principal
+    if (preferThumbnail && arquivo.url_arquivo && !isGoogleDriveWebUrl(arquivo.url_arquivo)) {
+      return resolveArteAuthenticatedFileUrl(arquivo, false);
+    }
+    if (isGoogleDriveWebUrl(raw) && arquivo.versao_id && arquivo.nome_arquivo) {
+      return buildArteVersaoDownloadUrl(arquivo.versao_id, arquivo.nome_arquivo);
+    }
+    return raw;
+  }
 
   let path = normalizeArteFilePath(raw);
+
+  if (isArteApiDownloadPath(path)) {
+    return path;
+  }
 
   // Thumbnail aponta para public/download; equipe autenticada usa download com JWT.
   if (path.includes('/public/download/') && arquivo.url_arquivo) {

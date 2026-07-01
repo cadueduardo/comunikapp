@@ -376,6 +376,7 @@ export interface ContadoresMenu {
   expedicao: number;
   financeiro: number;
   arte: number;
+  instalacao: number;
 }
 
 export async function fetchContadoresMenu(
@@ -386,6 +387,7 @@ export async function fetchContadoresMenu(
     expedicao_desde?: string;
     financeiro_desde?: string;
     arte_desde?: string;
+    instalacao_desde?: string;
   },
 ): Promise<ContadoresMenu> {
   const params = new URLSearchParams();
@@ -395,6 +397,7 @@ export async function fetchContadoresMenu(
   if (opcoes?.expedicao_desde) params.set('expedicao_desde', opcoes.expedicao_desde);
   if (opcoes?.financeiro_desde) params.set('financeiro_desde', opcoes.financeiro_desde);
   if (opcoes?.arte_desde) params.set('arte_desde', opcoes.arte_desde);
+  if (opcoes?.instalacao_desde) params.set('instalacao_desde', opcoes.instalacao_desde);
 
   const qs = params.toString() ? `?${params.toString()}` : '';
   const token =

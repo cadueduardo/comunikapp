@@ -36,9 +36,16 @@ export function isArteOkParaPcp(
   if (!produtoRequerArte(responsabilidadeArte, statusArte)) {
     return true;
   }
-  const ok = new Set(['NAO_APLICA', 'APROVADA', 'ARQUIVO_RECEBIDO']);
+  const ok = new Set([
+    'NAO_APLICA',
+    'APROVADA',
+    'LIBERADA_PCP',
+    'ARQUIVO_RECEBIDO',
+  ]);
   return ok.has((statusArte || '').toUpperCase());
 }
+
+import { itemRequerFabricaPcp } from '@/lib/os-fulfillment-utils';
 
 export function getMotivosBloqueioPcpFrontend(item: {
   status_liberacao_pcp?: string | null;
@@ -46,8 +53,14 @@ export function getMotivosBloqueioPcpFrontend(item: {
   responsabilidade_arte?: string | null;
   status_arte?: string | null;
   materiais_disponivel?: boolean | null;
+  modo_fulfillment?: string | null;
+  personalizacao_modo?: string | null;
+  requer_pcp_fabrica?: boolean | null;
 }, osMateriaisDisponivel?: boolean): string[] {
   const motivos: string[] = [];
+  if (!itemRequerFabricaPcp(item)) {
+    return motivos;
+  }
   if ((item.status_liberacao_pcp || 'PENDENTE').toUpperCase() === 'LIBERADO') {
     return ['Produto já liberado'];
   }

@@ -8,9 +8,11 @@ import { InstalacaoOsKanbanBoard } from '@/components/instalacao/InstalacaoOsKan
 import { NovoLoteDialog } from '@/components/instalacao/NovoLoteDialog';
 import { OcorrenciaRapidaDialog } from '@/components/instalacao/OcorrenciaRapidaDialog';
 import { instalacaoApi } from '@/lib/instalacao/instalacao-api';
+import { montarEnderecoResumido } from '@/lib/instalacao/instalacao-lote-utils';
 import type {
   LotePainelOs,
   PainelOsInstalacao,
+  EnderecoLoteForm,
 } from '@/lib/instalacao/instalacao.types';
 import { IconLoader2, IconRefresh } from '@tabler/icons-react';
 import { toast } from 'sonner';
@@ -69,6 +71,25 @@ export function InstalacaoWorkspacePanel({
     notificarMutacao();
   }
 
+  async function handleAtualizarLote(
+    loteId: string,
+    dados: EnderecoLoteForm,
+  ) {
+    await instalacaoApi.atualizarLote(loteId, {
+      cep: dados.cep,
+      logradouro: dados.logradouro,
+      numero: dados.numero,
+      complemento: dados.complemento || undefined,
+      bairro: dados.bairro,
+      cidade: dados.cidade,
+      uf: dados.uf,
+      quantidade_alocada: dados.quantidade_alocada,
+    });
+    toast.success('Endereço do lote atualizado.');
+    await carregar();
+    notificarMutacao();
+  }
+
   async function handleRegistrarOcorrencia(dados: {
     os_id: string;
     item_instalacao_id?: string;
@@ -119,6 +140,17 @@ export function InstalacaoWorkspacePanel({
 
   const exibirKanban = instalacaoComplexa && !loteSelecionado;
   const exibirDetalhe = Boolean(loteSelecionado);
+  const podeCriarLote =
+    itensSaldo.length > 0 && quantidadePendenteAlocacao > 0;
+
+  function resolverQuantidadeMaximaEdicao(lote: LotePainelOs): number {
+    const itemSaldo = itensSaldo.find(
+      (item) => item.item_os_id === lote.item_os.id,
+    );
+    return (
+      (itemSaldo?.saldo_disponivel ?? 0) + (lote.quantidade_alocada ?? 0)
+    );
+  }
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-6 overflow-hidden">
@@ -150,8 +182,14 @@ export function InstalacaoWorkspacePanel({
             painel={painel}
             onRegistrar={handleRegistrarOcorrencia}
             onUpload={(arquivo) => instalacaoApi.uploadAnexo(arquivo)}
+            loteIdFixo={loteSelecionado?.id}
+            loteRotuloFixo={
+              loteSelecionado
+                ? montarEnderecoResumido(loteSelecionado)
+                : undefined
+            }
           />
-          {quantidadePendenteAlocacao > 0 && (
+          {podeCriarLote && (
             <NovoLoteDialog
               itensSaldo={itensSaldo}
               buscarCep={(cep) => instalacaoApi.buscarCep(cep)}
@@ -160,6 +198,16 @@ export function InstalacaoWorkspacePanel({
           )}
         </div>
       </div>
+
+      {itensSaldo.length > 0 && quantidadePendenteAlocacao === 0 && (
+        <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20">
+          <CardContent className="p-4 text-sm text-foreground">
+            Quantidade total já distribuída em lotes. Use{' '}
+            <strong>Editar endereço</strong> em cada lote para confirmar ou
+            corrigir o local de instalação.
+          </CardContent>
+        </Card>
+      )}
 
       {itensSaldo.length > 0 && quantidadePendenteAlocacao > 0 && (
         <Card className="border-border bg-card">
@@ -205,9 +253,18 @@ export function InstalacaoWorkspacePanel({
 
       {exibirKanban && (
         <div className="min-w-0 space-y-3">
-          <h4 className="text-sm font-semibold text-foreground">
-            Quadro de lotes
-          </h4>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h4 className="text-sm font-semibold text-foreground">
+              Quadro de lotes
+            </h4>
+            {podeCriarLote && (
+              <NovoLoteDialog
+                itensSaldo={itensSaldo}
+                buscarCep={(cep) => instalacaoApi.buscarCep(cep)}
+                onCriar={handleCriarLote}
+              />
+            )}
+          </div>
           <InstalacaoOsKanbanBoard
             lotes={painel.lotes}
             onLoteSelecionado={(lote) => setLoteSelecionadoId(lote.id)}
@@ -222,6 +279,14 @@ export function InstalacaoWorkspacePanel({
       {exibirDetalhe && loteSelecionado && (
         <InstalacaoLoteDetalhePanel
           lote={loteSelecionado}
+          ocorrencias={painel.ocorrencias.filter(
+            (occ) => occ.item_instalacao?.id === loteSelecionado.id,
+          )}
+          buscarCep={(cep) => instalacaoApi.buscarCep(cep)}
+          onEditarEndereco={(dados) =>
+            handleAtualizarLote(loteSelecionado.id, dados)
+          }
+          quantidadeMaximaEdicao={resolverQuantidadeMaximaEdicao(loteSelecionado)}
           onVoltar={
             instalacaoComplexa
               ? () => setLoteSelecionadoId(null)

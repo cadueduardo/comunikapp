@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ExternalLink, Loader2, Palette, User } from 'lucide-react';
+import { ExternalLink, Loader2, Palette, User, FileImage } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArteStatusTracker } from './ArteStatusTracker';
 import { PrazoArteItemEditor } from './PrazoArteItemEditor';
+import { openArteFilePreview } from '@/lib/arte-assets';
 import { useArteKanbanSocket } from '@/hooks/use-arte-kanban-socket';
+import { toast } from 'sonner';
 
 export interface ItemArteOs {
   item_id: string;
@@ -19,6 +21,15 @@ export interface ItemArteOs {
   data_prazo_arte: string | null;
   referencia_url: string | null;
   designer_atribuido?: { id: string; nome: string } | null;
+  arte_producao?: {
+    versao_id: string;
+    versao: string;
+    arquivo_id: string;
+    nome_arquivo: string;
+    nome_original: string;
+    url_arquivo: string;
+    storage_provider: string;
+  } | null;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -47,7 +58,7 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'dest
 const RESPONSABILIDADE_LABEL: Record<string, string> = {
   EMPRESA_CRIA: 'Empresa cria',
   EMPRESA_ADAPTA: 'Empresa adapta',
-  CLIENTE_FORNECE: 'Cliente fornece',
+  CLIENTE_FORNECE: 'Cliente envia arquivo',
   NAO_APLICAVEL: 'Sem arte',
 };
 
@@ -60,6 +71,11 @@ const STATUS_PENDENTES = new Set([
 ]);
 
 const ARTE_INTERNA = new Set(['EMPRESA_CRIA', 'EMPRESA_ADAPTA']);
+const ARTE_COM_WORKSPACE = new Set([
+  'EMPRESA_CRIA',
+  'EMPRESA_ADAPTA',
+  'CLIENTE_FORNECE',
+]);
 
 interface ArteResumoOsPanelProps {
   osId: string;
@@ -176,13 +192,14 @@ export function ArteResumoOsPanel({ osId }: ArteResumoOsPanelProps) {
           </div>
         </div>
         <p className="text-sm text-muted-foreground">
-          Acompanhe o andamento da arte por produto. Defina o prazo de entrega
-          quando a arte é produzida pela empresa.
+          Acompanhe o andamento da arte por produto. Use o workspace para enviar
+          ou conferir arquivos de produção.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
         {itensComArte.map((item) => {
           const interno = ARTE_INTERNA.has(item.responsabilidade_arte);
+          const comWorkspace = ARTE_COM_WORKSPACE.has(item.responsabilidade_arte);
           const workspaceUrl = `/arte/trabalho/${osId}/${item.item_id}`;
 
           return (
@@ -213,9 +230,11 @@ export function ArteResumoOsPanel({ osId }: ArteResumoOsPanelProps) {
                   </div>
                 </div>
 
-                {interno && (
+                {comWorkspace && (
                   <Button size="sm" variant="outline" asChild className="shrink-0">
-                    <Link href={workspaceUrl}>Abrir na fila</Link>
+                    <Link href={workspaceUrl}>
+                      {interno ? 'Abrir na fila' : 'Abrir workspace'}
+                    </Link>
                   </Button>
                 )}
               </div>
@@ -232,6 +251,36 @@ export function ArteResumoOsPanel({ osId }: ArteResumoOsPanelProps) {
                   dataPrazoArte={item.data_prazo_arte}
                   onAtualizado={(data) => atualizarPrazoLocal(item.item_id, data)}
                 />
+              )}
+
+              {item.arte_producao && (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      void openArteFilePreview({
+                        url_arquivo: item.arte_producao!.url_arquivo,
+                        nome_arquivo: item.arte_producao!.nome_arquivo,
+                        nome_original: item.arte_producao!.nome_original,
+                        versao_id: item.arte_producao!.versao_id,
+                        storage_provider: item.arte_producao!.storage_provider,
+                      }).catch((err) => {
+                        toast.error(
+                          err instanceof Error
+                            ? err.message
+                            : 'Erro ao abrir arte',
+                        );
+                      });
+                    }}
+                  >
+                    <FileImage className="h-4 w-4 mr-2" />
+                    Ver arte de produção
+                    {item.arte_producao.versao
+                      ? ` (${item.arte_producao.versao})`
+                      : ''}
+                  </Button>
+                </div>
               )}
             </div>
           );

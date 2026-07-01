@@ -16,7 +16,13 @@ import { FinanceiroPermissionsGuard } from '../guards/financeiro-permissions.gua
 import { CepIntegrationService } from '../services/cep-integration.service';
 import { InstalacaoPosCalculoService } from '../services/instalacao-pos-calculo.service';
 import { InstalacaoService } from '../services/instalacao.service';
+import { InstalacaoSplitFinanceiroService } from '../services/instalacao-split-financeiro.service';
 import { ItemOSInstalacaoCriacaoService } from '../services/item-os-instalacao-criacao.service';
+import { AbonarOcorrenciaDto } from '../dto/abonar-ocorrencia.dto';
+import { FilaPrecificacaoQueryDto } from '../dto/fila-precificacao-query.dto';
+import { GerarOsAditivaDto } from '../dto/gerar-os-aditiva.dto';
+import { ConfiguracaoInstalacaoService } from '../services/configuracao-instalacao.service';
+import { AtualizarOsAditivaConfigDto } from '../dto/atualizar-os-aditiva-config.dto';
 @ApiTags('Instalações')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -26,7 +32,9 @@ export class InstalacaoController {
     private readonly cepService: CepIntegrationService,
     private readonly posCalculoService: InstalacaoPosCalculoService,
     private readonly instalacaoService: InstalacaoService,
+    private readonly splitFinanceiroService: InstalacaoSplitFinanceiroService,
     private readonly itemOSInstalacaoCriacaoService: ItemOSInstalacaoCriacaoService,
+    private readonly configuracaoInstalacaoService: ConfiguracaoInstalacaoService,
   ) {}
 
   @Get('os')
@@ -245,6 +253,117 @@ export class InstalacaoController {
       osId,
       lojaId,
       usuario.id,
+    );
+  }
+
+  @Get('configuracao')
+  @UseGuards(InstalacaoGestaoPermissionsGuard)
+  @ApiOperation({ summary: 'Configuração do módulo de instalação da loja' })
+  async obterConfiguracao(@LojaId() lojaId: string) {
+    const config = await this.configuracaoInstalacaoService.getOrCreate(lojaId);
+    return {
+      exigir_sinal_producao: config.exigir_sinal_producao,
+      os_aditiva_habilitada: config.os_aditiva_habilitada,
+    };
+  }
+
+  @Patch('configuracao/os-aditiva')
+  @UseGuards(FinanceiroPermissionsGuard)
+  @ApiOperation({
+    summary: 'Habilita/desabilita Split Financeiro com OS Aditiva (INSTALACAO_OS_ADITIVA)',
+  })
+  async atualizarOsAditiva(
+    @LojaId() lojaId: string,
+    @Body() dto: AtualizarOsAditivaConfigDto,
+  ) {
+    const config =
+      await this.configuracaoInstalacaoService.atualizarOsAditivaHabilitada(
+        lojaId,
+        dto.habilitada,
+      );
+    return { os_aditiva_habilitada: config.os_aditiva_habilitada };
+  }
+
+  @Get('ocorrencias/fila-precificacao')
+  @UseGuards(InstalacaoGestaoPermissionsGuard)
+  @ApiOperation({ summary: 'Fila transversal de ocorrências para precificação' })
+  async filaPrecificacao(
+    @LojaId() lojaId: string,
+    @Query() query: FilaPrecificacaoQueryDto,
+  ) {
+    return this.splitFinanceiroService.listarFilaPrecificacao(lojaId, query);
+  }
+
+  @Get('ocorrencias/contadores')
+  @UseGuards(InstalacaoGestaoPermissionsGuard)
+  @ApiOperation({ summary: 'Contadores de ocorrências pendentes/precificadas' })
+  async contadoresOcorrencias(@LojaId() lojaId: string) {
+    return this.splitFinanceiroService.contadoresPendencias(lojaId);
+  }
+
+  @Patch('ocorrencias/:id/precificar')
+  @UseGuards(FinanceiroPermissionsGuard)
+  @ApiOperation({ summary: 'Precifica ocorrência de campo (gestor/financeiro)' })
+  async precificarOcorrencia(
+    @LojaId() lojaId: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthenticatedUser,
+    @Body() dto: PrecificarOcorrenciaDto,
+  ) {
+    return this.splitFinanceiroService.precificarOcorrencia(
+      id,
+      lojaId,
+      usuario.id,
+      dto,
+    );
+  }
+
+  @Patch('ocorrencias/:id/abonar')
+  @UseGuards(FinanceiroPermissionsGuard)
+  @ApiOperation({ summary: 'Abona cobrança de ocorrência de campo' })
+  async abonarOcorrencia(
+    @LojaId() lojaId: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthenticatedUser,
+    @Body() dto: AbonarOcorrenciaDto,
+  ) {
+    return this.splitFinanceiroService.abonarOcorrencia(
+      id,
+      lojaId,
+      usuario.id,
+      dto,
+    );
+  }
+
+  @Post('os/:osPaiId/gerar-os-aditiva')
+  @UseGuards(FinanceiroPermissionsGuard)
+  @ApiOperation({
+    summary: 'Gera OS Aditiva (OS-XXXX-A1) a partir de ocorrências precificadas',
+  })
+  async gerarOsAditiva(
+    @LojaId() lojaId: string,
+    @Param('osPaiId') osPaiId: string,
+    @CurrentUser() usuario: AuthenticatedUser,
+    @Body() dto: GerarOsAditivaDto,
+  ) {
+    return this.splitFinanceiroService.gerarOsAditiva(
+      osPaiId,
+      lojaId,
+      usuario.id,
+      dto.ocorrencia_ids,
+    );
+  }
+
+  @Get('os/:osPaiId/os-aditivas')
+  @UseGuards(InstalacaoGestaoPermissionsGuard)
+  @ApiOperation({ summary: 'Lista OS Aditivas vinculadas à OS principal' })
+  async listarOsAditivas(
+    @LojaId() lojaId: string,
+    @Param('osPaiId') osPaiId: string,
+  ) {
+    return this.splitFinanceiroService.listarOsAditivasPorOsPai(
+      osPaiId,
+      lojaId,
     );
   }
 }

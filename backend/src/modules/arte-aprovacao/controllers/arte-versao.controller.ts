@@ -21,6 +21,7 @@ import {
 import { ArteVersaoService } from '../services/arte-versao.service';
 import { CreateArteVersaoDto } from '../dto/create-arte-versao.dto';
 import { UpdateArteVersaoDto } from '../dto/update-arte-versao.dto';
+import { ConferirPreflightArteDto } from '../dto/conferir-preflight-arte.dto';
 import {
   ArteVersaoResponseDto,
   ArteVersaoListResponseDto,
@@ -171,7 +172,6 @@ export class ArteVersaoController {
     @Param('id') id: string,
     @Request() req,
   ): Promise<ArteVersaoResponseDto> {
-    const usuarioId = req.user.id;
     const lojaId = req.user.loja_id;
 
     return this.arteVersaoService.updateVersao(
@@ -181,6 +181,24 @@ export class ArteVersaoController {
         aprovado_por_cliente: true,
       },
       lojaId,
+    );
+  }
+
+  @Post(':id/conferir-preflight')
+  @ApiOperation({
+    summary:
+      'Conferir arte do cliente (preflight) e liberar para PCP sem aprovação externa',
+  })
+  async conferirPreflight(
+    @Param('id') id: string,
+    @Request() req,
+    @Body() dto: ConferirPreflightArteDto,
+  ): Promise<ArteVersaoResponseDto> {
+    return this.arteVersaoService.conferirPreflightCliente(
+      id,
+      req.user.sub ?? req.user.id,
+      req.user.loja_id,
+      dto.observacao,
     );
   }
 

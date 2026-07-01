@@ -7,9 +7,13 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
+import {
+  AtualizarUsuarioPreferenciasDto,
+  UsuarioPreferenciasJson,
+} from './dto/usuario-preferencias.dto';
 import * as bcrypt from 'bcrypt';
 import { MailService } from '../mail/mail.service';
-import { usuario_status, usuario_funcao } from '@prisma/client';
+import { usuario_status, usuario_funcao, Prisma } from '@prisma/client';
 import { randomBytes, createHash } from 'crypto';
 
 type PasswordResetAttemptState = {
@@ -382,5 +386,67 @@ export class UsuariosService {
     } catch {
       return perfisBase;
     }
+  }
+
+  async obterPreferencias(
+    usuarioId: string,
+    lojaId: string,
+  ): Promise<UsuarioPreferenciasJson> {
+    const usuario = await this.prisma.usuario.findFirst({
+      where: { id: usuarioId, loja_id: lojaId },
+      select: { preferencias: true },
+    });
+
+    if (!usuario) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    return this.parsePreferencias(usuario.preferencias);
+  }
+
+  async atualizarPreferencias(
+    usuarioId: string,
+    lojaId: string,
+    patch: AtualizarUsuarioPreferenciasDto,
+  ): Promise<UsuarioPreferenciasJson> {
+    const usuario = await this.prisma.usuario.findFirst({
+      where: { id: usuarioId, loja_id: lojaId },
+      select: { id: true, preferencias: true },
+    });
+
+    if (!usuario) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    const atual = this.parsePreferencias(usuario.preferencias);
+    const proximo: UsuarioPreferenciasJson = { ...atual };
+
+    if (patch.sidebar_menu_order !== undefined) {
+      proximo.sidebar_menu_order = patch.sidebar_menu_order;
+    }
+
+    await this.prisma.usuario.update({
+      where: { id: usuarioId },
+      data: {
+        preferencias: proximo as Prisma.InputJsonValue,
+      },
+    });
+
+    return proximo;
+  }
+
+  private parsePreferencias(raw: Prisma.JsonValue | null): UsuarioPreferenciasJson {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return {};
+    }
+
+    const obj = raw as Record<string, unknown>;
+    const order = obj.sidebar_menu_order;
+
+    return {
+      sidebar_menu_order: Array.isArray(order)
+        ? order.filter((id): id is string => typeof id === 'string')
+        : undefined,
+    };
   }
 }

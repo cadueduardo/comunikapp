@@ -19,11 +19,14 @@ import {
 import {
   computeArteResumoGrid,
   computeLiberacaoResumoGrid,
-  computeStatusOSLiberacao,
+  computeStatusOSLiberacaoFromItens,
+  comTipoItemOrcamento,
   getMotivosBloqueioPcp,
   isElegivelPcp,
+  itemRequerFabricaPcp,
   labelStatusArte,
   produtoRequerArte,
+  resolverTipoItemOrcamento,
 } from '../utils/os-liberacao-pcp.util';
 
 interface DefinirPrazoProdutoRequest {
@@ -394,6 +397,16 @@ export class OSProdutoPrazoService {
       }
     }
 
+    const tipoItem = await this.resolverTipoItemDoItemOS(item);
+    const ctxFulfillment = {
+      modo_fulfillment: item.modo_fulfillment,
+      personalizacao_modo: item.personalizacao_modo,
+      responsabilidade_arte: item.responsabilidade_arte,
+      tipo_item: tipoItem,
+      parametros_tecnicos: item.parametros_tecnicos,
+      insumos_necessarios: item.insumos_necessarios,
+    };
+
     return {
       item_id: item.id,
       produto_id: item.id, // Para ItemOS migrados, usar o mesmo ID (era original do ProdutoOrcamento)
@@ -408,6 +421,10 @@ export class OSProdutoPrazoService {
       excede_prazo_final: excedePrazoFinal,
       responsabilidade_arte: item.responsabilidade_arte,
       status_arte: item.status_arte,
+      modo_fulfillment: item.modo_fulfillment,
+      personalizacao_modo: item.personalizacao_modo,
+      tipo_item: resolverTipoItemOrcamento(ctxFulfillment),
+      requer_pcp_fabrica: itemRequerFabricaPcp(ctxFulfillment),
       data_prazo_arte: item.data_prazo_arte,
       designer_atribuido: item.designer_atribuido
         ? {
@@ -533,6 +550,21 @@ export class OSProdutoPrazoService {
       );
     }
 
+    if (
+      !itemRequerFabricaPcp({
+        modo_fulfillment: item.modo_fulfillment,
+        personalizacao_modo: item.personalizacao_modo,
+        responsabilidade_arte: item.responsabilidade_arte,
+        tipo_item: await this.resolverTipoItemDoItemOS(item),
+        parametros_tecnicos: item.parametros_tecnicos,
+        insumos_necessarios: item.insumos_necessarios,
+      })
+    ) {
+      throw new BadRequestException(
+        'Este produto é de prateleira/estoque e não é liberado para o PCP',
+      );
+    }
+
     const ctx = {
       id: item.id,
       produto_servico: item.produto_servico,
@@ -563,19 +595,15 @@ export class OSProdutoPrazoService {
       },
     });
 
-    // Verificar se é o primeiro produto liberado e atualizar status da OS
-    const produtosLiberados = await this.prisma.itemOS.count({
-      where: {
-        os_id: osId,
-        status_liberacao_pcp: 'LIBERADO',
-      },
-    });
-
-    // Sincronizar status agregado da OS
-    const totalItens = await this.prisma.itemOS.count({
+    // Sincronizar status agregado da OS (somente itens que passam pelo PCP)
+    const itensOs = await this.prisma.itemOS.findMany({
       where: { os_id: osId },
     });
-    const agregado = computeStatusOSLiberacao(totalItens, produtosLiberados);
+    const tipoPorId = await this.carregarTipoItemPorIds(itensOs.map((i) => i.id));
+    const ctxItens = itensOs.map((it) =>
+      this.montarContextoFulfillmentItem(it, tipoPorId),
+    );
+    const agregado = computeStatusOSLiberacaoFromItens(ctxItens);
     if (agregado === 'PARCIAL') {
       await this.prisma.ordemServico.update({
         where: { id: osId },
@@ -590,6 +618,12 @@ export class OSProdutoPrazoService {
         },
       });
     }
+
+    const produtosLiberados = ctxItens.filter(
+      (it) =>
+        itemRequerFabricaPcp(it) &&
+        (it.status_liberacao_pcp || '').toUpperCase() === 'LIBERADO',
+    ).length;
 
     // Criar log da liberação do produto
     await this.prisma.ordemServicoLog.create({
@@ -803,6 +837,11 @@ export class OSProdutoPrazoService {
       throw new NotFoundException('OS não encontrada');
     }
 
+    const tipoPorId = await this.carregarTipoItemPorIds(os.itens.map((i) => i.id));
+    const ctxItens = os.itens.map((item) =>
+      this.montarContextoFulfillmentItem(item, tipoPorId),
+    );
+
     const liberados: Array<{
       item_id: string;
       produto_servico: string;
@@ -813,17 +852,21 @@ export class OSProdutoPrazoService {
       produto_servico: string;
       motivos: string[];
     }> = [];
+    const expedicao: Array<{
+      item_id: string;
+      produto_servico: string;
+    }> = [];
 
-    for (const item of os.itens) {
-      const ctx = {
-        id: item.id,
-        produto_servico: item.produto_servico,
-        data_prazo_produto: item.data_prazo_produto,
-        status_liberacao_pcp: item.status_liberacao_pcp,
-        responsabilidade_arte: item.responsabilidade_arte,
-        status_arte: item.status_arte,
-        materiais_disponivel: item.materiais_disponivel,
-      };
+    for (const ctx of ctxItens) {
+      const item = os.itens.find((i) => i.id === ctx.id)!;
+      if (!itemRequerFabricaPcp(ctx)) {
+        expedicao.push({
+          item_id: ctx.id,
+          produto_servico: ctx.produto_servico,
+        });
+        continue;
+      }
+
       if (
         (item.status_liberacao_pcp || 'PENDENTE').toUpperCase() === 'LIBERADO'
       ) {
@@ -843,19 +886,29 @@ export class OSProdutoPrazoService {
       }
     }
 
+    const agregado = computeStatusOSLiberacaoFromItens(ctxItens);
+    if (
+      agregado === 'COMPLETO' &&
+      (os.status || '').toUpperCase() === 'PARCIALMENTE_LIBERADA'
+    ) {
+      await this.prisma.ordemServico.update({
+        where: { id: osId },
+        data: {
+          status: 'LIBERADA_PARA_PCP',
+          aprovacao_tecnica_status: 'APROVADA',
+        },
+      });
+    }
+
     return {
       os_id: osId,
       os_numero: os.numero,
-      status: os.status,
-      resumo: computeLiberacaoResumoGrid(
-        os.itens.map((i) => ({
-          id: i.id,
-          produto_servico: i.produto_servico,
-          status_liberacao_pcp: i.status_liberacao_pcp,
-        })),
-      ),
+      status:
+        agregado === 'COMPLETO' ? 'LIBERADA_PARA_PCP' : os.status,
+      resumo: computeLiberacaoResumoGrid(ctxItens),
       liberados,
       pendentes,
+      expedicao,
     };
   }
 
@@ -907,6 +960,68 @@ export class OSProdutoPrazoService {
         })),
       ),
       produtos,
+    };
+  }
+
+  private async resolverTipoItemDoItemOS(item: {
+    id: string;
+    parametros_tecnicos?: string | null;
+    insumos_necessarios?: string | null;
+  }): Promise<string | null> {
+    const produtoOrcamento = await this.prisma.produtoOrcamento.findUnique({
+      where: { id: item.id },
+      select: { tipo_item: true },
+    });
+    return resolverTipoItemOrcamento({
+      tipo_item: produtoOrcamento?.tipo_item ?? null,
+      parametros_tecnicos: item.parametros_tecnicos,
+      insumos_necessarios: item.insumos_necessarios,
+    });
+  }
+
+  private async carregarTipoItemPorIds(
+    itemIds: string[],
+  ): Promise<Map<string, string>> {
+    if (itemIds.length === 0) {
+      return new Map();
+    }
+    const rows = await this.prisma.produtoOrcamento.findMany({
+      where: { id: { in: itemIds } },
+      select: { id: true, tipo_item: true },
+    });
+    return new Map(rows.map((row) => [row.id, row.tipo_item]));
+  }
+
+  private montarContextoFulfillmentItem(
+    item: {
+      id: string;
+      produto_servico: string;
+      data_prazo_produto?: Date | null;
+      status_liberacao_pcp?: string | null;
+      responsabilidade_arte?: string | null;
+      status_arte?: string | null;
+      materiais_disponivel?: boolean | null;
+      modo_fulfillment?: string | null;
+      personalizacao_modo?: string | null;
+      parametros_tecnicos?: string | null;
+      insumos_necessarios?: string | null;
+    },
+    tipoPorId: Map<string, string>,
+  ) {
+    const enriquecido = comTipoItemOrcamento(item, tipoPorId);
+    return {
+      id: enriquecido.id,
+      produto_servico: enriquecido.produto_servico,
+      data_prazo_produto: enriquecido.data_prazo_produto,
+      status_liberacao_pcp: enriquecido.status_liberacao_pcp,
+      responsabilidade_arte: enriquecido.responsabilidade_arte,
+      status_arte: enriquecido.status_arte,
+      materiais_disponivel: enriquecido.materiais_disponivel,
+      modo_fulfillment: enriquecido.modo_fulfillment,
+      personalizacao_modo: enriquecido.personalizacao_modo,
+      tipo_item: enriquecido.tipo_item,
+      parametros_tecnicos: enriquecido.parametros_tecnicos,
+      insumos_necessarios: enriquecido.insumos_necessarios,
     };
   }
 }

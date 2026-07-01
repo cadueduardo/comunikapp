@@ -580,3 +580,4 @@ Liberação para PCP continua exigindo `liberado_para_pcp` na `ArteVersao` (flux
 | Data | Versão | Alteração |
 |------|--------|-----------|
 | 2026-06-26 | 0.1 | Rascunho inicial para validação |
+| 2026-06-30 | 0.1 | Sem alteração de texto — comportamento de `CLIENTE_FORNECE` e fila revisados em [03-arte-cliente-fila-preflight-e-storage-drive.md](./03-arte-cliente-fila-preflight-e-storage-drive.md) |

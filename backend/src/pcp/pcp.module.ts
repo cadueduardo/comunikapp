@@ -26,6 +26,7 @@ import { PCPRelatoriosService } from './services/pcp-relatorios.service';
 import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-estoque.service';
 import { ExpedicaoModule } from '../expedicao/expedicao.module';
 import { InstalacaoModule } from '../instalacao/instalacao.module';
+import { HomeOperacionalModule } from '../home-operacional/home-operacional.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { InstalacaoModule } from '../instalacao/instalacao.module';
     ConfiguracoesModule,
     ExpedicaoModule,
     InstalacaoModule,
+    HomeOperacionalModule,
   ],
   controllers: [
     WorkflowController,

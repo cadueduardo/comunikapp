@@ -43,12 +43,14 @@ interface InstalacaoLotesTableProps {
     dados: EnderecoLoteForm,
   ) => Promise<void>;
   onPainelAtualizado?: () => void;
+  somenteLeitura?: boolean;
 }
 
 export function InstalacaoLotesTable({
   painel,
   buscarCep,
   onAtualizarLote,
+  somenteLeitura = false,
 }: InstalacaoLotesTableProps) {
   const [loteEditando, setLoteEditando] = useState<string | null>(null);
 
@@ -69,6 +71,12 @@ export function InstalacaoLotesTable({
       <Card className="border-border bg-card">
         <CardContent className="p-6 text-sm text-muted-foreground">
           Nenhum lote de instalação vinculado a esta OS.
+          {!somenteLeitura &&
+            painel.itens_saldo?.some((item) => item.saldo_disponivel > 0) && (
+            <span className="mt-1 block">
+              Use &quot;Novo lote&quot; para alocar endereços e quantidades.
+            </span>
+          )}
         </CardContent>
       </Card>
     );
@@ -84,7 +92,9 @@ export function InstalacaoLotesTable({
               <TableHead>Qtd.</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Assinatura</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
+              {!somenteLeitura && (
+                <TableHead className="text-right">Ações</TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -122,18 +132,20 @@ export function InstalacaoLotesTable({
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={lote.status_instalacao === 'CONCLUIDO'}
-                      onClick={() => setLoteEditando(lote.id)}
-                    >
-                      <IconEdit className="mr-1 h-3.5 w-3.5" />
-                      Editar
-                    </Button>
-                  </TableCell>
+                  {!somenteLeitura && (
+                    <TableCell className="text-right">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={lote.status_instalacao === 'CONCLUIDO'}
+                        onClick={() => setLoteEditando(lote.id)}
+                      >
+                        <IconEdit className="mr-1 h-3.5 w-3.5" />
+                        Editar
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               );
             })}
@@ -159,7 +171,7 @@ export function InstalacaoLotesTable({
                 <p className="text-xs text-muted-foreground">
                   {lote.bairro} — {lote.cidade}/{lote.uf} · {lote.quantidade_alocada} un.
                 </p>
-                {lote.status_instalacao !== 'CONCLUIDO' && (
+                {!somenteLeitura && lote.status_instalacao !== 'CONCLUIDO' && (
                   <Button
                     type="button"
                     size="sm"
@@ -176,7 +188,7 @@ export function InstalacaoLotesTable({
         })}
       </div>
 
-      {loteEmEdicao && (
+      {!somenteLeitura && loteEmEdicao && (
         <Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="text-base">Editar endereço do lote</CardTitle>

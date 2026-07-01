@@ -73,6 +73,10 @@ export class ItemAprovacaoInfo {
   status_liberacao_pcp?: string | null;
   responsabilidade_arte?: string | null;
   status_arte?: string | null;
+  modo_fulfillment?: string | null;
+  personalizacao_modo?: string | null;
+  tipo_item?: string | null;
+  requer_pcp_fabrica?: boolean;
   elegivel_pcp?: boolean;
   motivos_bloqueio?: string[];
 }

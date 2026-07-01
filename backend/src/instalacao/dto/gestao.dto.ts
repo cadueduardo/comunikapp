@@ -6,8 +6,8 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUrl,
   MaxLength,
+  Matches,
   Min,
   MinLength,
   ValidateIf,
@@ -17,6 +17,7 @@ import {
   TipoOcorrencia,
   TurnoPrevisaoInstalacao,
 } from '@prisma/client';
+import { REFERENCIA_ANEXO_INSTALACAO_REGEX } from '../utils/anexo-url.util';
 
 export class CriarLoteInstalacaoDto {
   @IsString()
@@ -161,6 +162,11 @@ export class RegistrarOcorrenciaGestaoDto {
 
   @IsOptional()
   @IsArray()
-  @IsUrl({}, { each: true })
+  @IsString({ each: true })
+  @Matches(REFERENCIA_ANEXO_INSTALACAO_REGEX, {
+    each: true,
+    message:
+      'cada valor em fotos_evidencia deve ser uma URL absoluta ou referência /instalacao/anexos/{token}',
+  })
   fotos_evidencia?: string[];
 }

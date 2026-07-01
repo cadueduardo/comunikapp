@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { proxyBackend } from '../../_proxy';
+import { proxyBackend } from '@/lib/api/proxy-backend';
 
 type RouteContext = { params: Promise<{ osId: string }> };
 

@@ -24,6 +24,10 @@ interface PreviewCalculoV2Props {
   variant?: 'orcamento' | 'produto';
   showAllProducts?: boolean;
   dadosCarregados?: boolean;
+  /** Incrementar após form.reset (ex.: produtosSectionKey) para forçar recálculo. */
+  refreshKey?: number;
+  /** Snapshot dos produtos ao carregar rascunho — garante cálculo com accordion fechado. */
+  itensProdutoCarregados?: unknown[];
   /** Quando informado, o preview usa a mesma lista do formulário (evita estado duplicado após cadastro inline de insumo). */
   datasets?: PreviewCalculoDatasets;
 }
@@ -156,6 +160,8 @@ type PreviewData = {
 
 const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   dadosCarregados = true,
+  refreshKey = 0,
+  itensProdutoCarregados,
   datasets,
 }) => {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
@@ -176,14 +182,18 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       return;
     }
 
-    try {
-      setFormSnapshot(form.getValues());
-    } catch (error) {
-      console.warn('[PreviewCalculoV2] Não foi possível obter valores iniciais do formulário', error);
-    }
+    const syncSnapshot = () => {
+      try {
+        setFormSnapshot(form.getValues() as Record<string, unknown>);
+      } catch (error) {
+        console.warn('[PreviewCalculoV2] Não foi possível obter valores do formulário', error);
+      }
+    };
 
-    const subscription = form.watch((values) => {
-      setFormSnapshot(values as Record<string, unknown>);
+    syncSnapshot();
+
+    const subscription = form.watch(() => {
+      syncSnapshot();
     });
 
     return () => {
@@ -192,6 +202,23 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       }
     };
   }, [form]);
+
+  // Após reabrir rascunho / reset, garantir snapshot com todos os itens_produto.
+  useEffect(() => {
+    if (!form || !dadosCarregados) {
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try {
+          setFormSnapshot(form.getValues() as Record<string, unknown>);
+        } catch {
+          /* ignora */
+        }
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [dadosCarregados, refreshKey, form, insumos.length, maquinas.length, funcoes.length, servicos.length, itensProdutoCarregados]);
 
   // Hook para dados auxiliares (insumos, maquinas, etc.)
   // Hook para WebSocket em tempo real
@@ -409,13 +436,15 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     return montarPreviewOrcamento(formData, {
       datasets: { insumos, maquinas, funcoes, servicos, custosIndiretos },
       loja: user?.loja,
+      itensProdutoCarregados,
     }) as PreviewData | null;
   };
 
   const processarDadosReais = (): PreviewData => {
     if (form) {
       try {
-        const formData = (formSnapshot ?? form.getValues()) as Record<string, unknown>;
+        // Sempre ler estado atual do RHF (formSnapshot pode ficar defasado após reset).
+        const formData = form.getValues() as Record<string, unknown>;
         const previewFormulario = montarPreviewFormulario(formData);
         if (previewFormulario) {
           return previewFormulario;
@@ -454,6 +483,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   };
   // Usar dados reais se disponíveis, senão usar mockados
   const data: PreviewData = (() => {
+    void formSnapshot;
     console.debug('[PreviewCalculoV2] Estados', {
       form: !!form,
       dadosCarregados,

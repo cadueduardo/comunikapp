@@ -57,6 +57,8 @@ import { ArteAuthenticatedImage } from './components/ArteAuthenticatedImage';
 import { openArteFilePreview, resolveArteAuthenticatedFileUrl, fetchArteFileBlob } from '@/lib/arte-assets';
 import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
 import { enviarVersaoParaCliente } from '@/lib/arte-links-api';
+import { conferirPreflightArteCliente } from '@/lib/arte-conferir-preflight-api';
+import { ResponsabilidadeArte } from '@/lib/arte-orcamento.constants';
 import { ArteCreateVersionModal } from './components/ArteCreateVersionModal';
 import { ArteDesignerApprovalModal } from './components/ArteDesignerApprovalModal';
 import { ArteReferenciaBriefingCard } from './components/ArteReferenciaBriefingCard';
@@ -74,8 +76,11 @@ export function ArteAprovacaoTab({
   osId,
   readonly = false,
   itemIdFoco,
+  responsabilidadeArte,
   onMutacao,
 }: ArteAprovacaoTabProps) {
+  const arteCliente =
+    responsabilidadeArte === ResponsabilidadeArte.CLIENTE_FORNECE;
   // Memoizar osId para evitar re-renders desnecessários
   const memoizedOsId = useMemo(() => osId, [osId]);
   
@@ -359,7 +364,13 @@ export function ArteAprovacaoTab({
     url: string,
     filename: string,
     tipoArquivo: string,
-    arquivo?: { url_arquivo?: string; url_thumbnail?: string },
+    arquivo?: {
+      url_arquivo?: string;
+      url_thumbnail?: string;
+      nome_arquivo?: string;
+      storage_provider?: string;
+    },
+    versaoId?: string,
   ) => {
     try {
       const extensao = tipoArquivo.toLowerCase();
@@ -368,19 +379,18 @@ export function ArteAprovacaoTab({
         extensao === 'application/pdf' ||
         ['png', 'jpg', 'jpeg', 'pdf', 'gif', 'webp'].includes(extensao);
 
+      const arquivoRef = {
+        ...(arquivo ?? { url_arquivo: url }),
+        versao_id: versaoId,
+      };
+
       if (isPreviewable) {
-        await openArteFilePreview(
-          arquivo ?? { url_arquivo: url },
-          { preferThumbnail: false },
-        );
+        await openArteFilePreview(arquivoRef, { preferThumbnail: false });
         return;
       }
 
       const token = localStorage.getItem('access_token');
-      const fetchUrl = resolveArteAuthenticatedFileUrl(
-        arquivo ?? { url_arquivo: url },
-        false,
-      );
+      const fetchUrl = resolveArteAuthenticatedFileUrl(arquivoRef, false);
       const response = await fetch(fetchUrl, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -527,31 +537,42 @@ export function ArteAprovacaoTab({
 
     try {
       setProcessing(true);
-      
-      // Pegar o ID do usuário logado
-      const usuarioId = localStorage.getItem('user_id');
-      
-      // Quando o designer aprova diretamente (sem aprovação do cliente),
-      // a arte deve ser automaticamente liberada para PCP
-      await updateVersao(versaoForApproval.id, {
-        status: 'APROVADA',
-        descricao: versaoForApproval.descricao,
-        observacoes: `${versaoForApproval.observacoes || ''}\n\n[APROVAÇÃO DESIGNER DIRETA - ${new Date().toLocaleString('pt-BR')}]\nMotivo: ${motivo}`,
-        // Liberar automaticamente para PCP quando aprovado diretamente pelo designer
-        liberado_para_pcp: true,
-        liberado_em: new Date(),
-        liberado_por: usuarioId || undefined
-      });
 
-      toast.success(`Versão ${versaoForApproval.versao} aprovada e liberada para PCP com sucesso!`);
+      if (arteCliente) {
+        await conferirPreflightArteCliente(versaoForApproval.id, motivo || undefined);
+        toast.success(
+          `Arte conferida e liberada para produção (${versaoForApproval.versao})!`,
+        );
+      } else {
+        const usuarioId = localStorage.getItem('user_id');
+
+        await updateVersao(versaoForApproval.id, {
+          status: 'APROVADA',
+          descricao: versaoForApproval.descricao,
+          observacoes: `${versaoForApproval.observacoes || ''}\n\n[APROVAÇÃO DESIGNER DIRETA - ${new Date().toLocaleString('pt-BR')}]\nMotivo: ${motivo}`,
+          liberado_para_pcp: true,
+          liberado_em: new Date(),
+          liberado_por: usuarioId || undefined,
+          aprovado_por_cliente: true,
+        });
+
+        toast.success(
+          `Versão ${versaoForApproval.versao} aprovada e liberada para PCP com sucesso!`,
+        );
+      }
+
       solicitarAtualizacaoBadgesSidebar();
-      
-      // Fechar modal e limpar estado
+      await refreshVersoes(true);
+      await refreshProdutos(true);
+      onMutacao?.();
+
       setShowDesignerApprovalModal(false);
       setVersaoForApproval(undefined);
     } catch (error) {
       console.error('Erro ao aprovar versão:', error);
-      toast.error('Erro ao aprovar versão');
+      toast.error(
+        error instanceof Error ? error.message : 'Erro ao aprovar versão',
+      );
     } finally {
       setProcessing(false);
     }
@@ -816,7 +837,7 @@ export function ArteAprovacaoTab({
               </Button>
             )}
             
-            {versoesDoProduto.length > 0 && versoesDoProduto.some(v => v.status === 'RASCUNHO') && (
+            {versoesDoProduto.length > 0 && versoesDoProduto.some(v => v.status === 'RASCUNHO') && !arteCliente && (
               <>
                 <Button 
                   onClick={selecionarTodasVersoesProduto}
@@ -879,7 +900,7 @@ export function ArteAprovacaoTab({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     {/* Checkbox para seleção */}
-                    {versao.status === 'RASCUNHO' && (
+                    {versao.status === 'RASCUNHO' && !arteCliente && (
                       <Checkbox
                         checked={versoesSelecionadas.has(versao.id)}
                         onCheckedChange={() => toggleVersaoSelecionada(versao.id)}
@@ -949,7 +970,7 @@ export function ArteAprovacaoTab({
                     )}
                     
                     {/* Botão para gerar/copiar link de aprovação */}
-                    {versao.status === ArteStatus.RASCUNHO && (
+                    {versao.status === ArteStatus.RASCUNHO && !arteCliente && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -971,14 +992,22 @@ export function ArteAprovacaoTab({
                       </Button>
                     )}
 
-                    {/* Botão para aprovar arte (designer) - apenas para versões não aprovadas */}
-                    {!readonly && versao.status !== ArteStatus.APROVADA && versao.status !== ArteStatus.ENVIADA_PCP && (
+                    {!readonly &&
+                      !versao.liberado_para_pcp &&
+                      versao.status !== ArteStatus.ENVIADA_PCP &&
+                      (arteCliente
+                        ? versao.arquivos.length > 0
+                        : versao.status !== ArteStatus.APROVADA) && (
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleDesignerApprovalClick(versao)}
                         className="text-green-600 hover:text-green-700 border-green-200 hover:border-green-300"
-                        title="Aprovar Arte (Designer)"
+                        title={
+                          arteCliente
+                            ? 'Conferir preflight e liberar para produção'
+                            : 'Aprovar Arte (Designer)'
+                        }
                       >
                         <CheckCircle className="h-4 w-4" />
                       </Button>
@@ -1009,7 +1038,11 @@ export function ArteAprovacaoTab({
                         onClick={() => handleViewVersao(versao)}
                       >
                         <ArteAuthenticatedImage
-                          arquivo={versao.arquivos[0]}
+                          arquivo={{
+                            ...versao.arquivos[0],
+                            storage_provider: versao.arquivos[0].storage_provider,
+                          }}
+                          versaoId={versao.id}
                           alt={`Preview ${versao.versao}`}
                           className="w-full h-32 object-cover"
                           preferThumbnail={Boolean(versao.arquivos[0].url_thumbnail)}
@@ -1069,6 +1102,7 @@ export function ArteAprovacaoTab({
                                     arquivo.nome_original,
                                     arquivo.tipo_arquivo,
                                     arquivo,
+                                    versao.id,
                                   );
                                 }}
                                 className="ml-2 text-blue-600 hover:text-blue-800 flex-shrink-0"
@@ -1228,6 +1262,7 @@ export function ArteAprovacaoTab({
           }
           versao={versaoForApproval.versao}
           processing={processing}
+          modo={arteCliente ? 'cliente_preflight' : 'designer_override'}
         />
       )}
 

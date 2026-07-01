@@ -12,14 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, MessageSquare, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  atualizarStatusArteItem,
-  assumirItemFilaArte,
-  type FilaArteItem,
-} from '@/lib/arte-fila-api';
+import { atualizarStatusArteItem, assumirItemFilaArte, type FilaArteItem } from '@/lib/arte-fila-api';
 import { AnexoGeometriaThumb } from '@/components/shared/AnexoGeometriaThumb';
 import { AnexoGeometriaAbrirButton } from '@/components/shared/AnexoGeometriaAbrirButton';
 import { ArteWorkspaceModal } from './ArteWorkspaceModal';
+import { statusArteParaColunaKanban } from '@/lib/arte-fila-utils';
 
 export interface ArteKanbanColuna {
   id: string;
@@ -64,6 +61,7 @@ export const COLUNAS_ARTE_KANBAN: ArteKanbanColuna[] = [
 const RESPONSABILIDADE_LABEL: Record<string, string> = {
   EMPRESA_CRIA: 'Criar',
   EMPRESA_ADAPTA: 'Adaptar',
+  CLIENTE_FORNECE: 'Arquivo cliente',
 };
 
 interface ArteKanbanBoardProps {
@@ -83,16 +81,15 @@ export function ArteKanbanBoard({
   const colunasAgrupadas = useMemo(() => {
     return COLUNAS_ARTE_KANBAN.map((coluna) => ({
       ...coluna,
-      itens: itens.filter((item) => {
-        const status =
-          item.status_arte === 'LIBERADA_PCP' ? 'APROVADA' : item.status_arte;
-        return status === coluna.status;
-      }),
+      itens: itens.filter(
+        (item) => statusArteParaColunaKanban(item.status_arte) === coluna.status,
+      ),
     }));
   }, [itens]);
 
   const handleDragEnd = async (result: DropResult) => {
     if (!result.destination || movendo) return;
+    if (result.source.droppableId === result.destination.droppableId) return;
 
     const itemId = result.draggableId;
     const destStatus = result.destination.droppableId;
@@ -103,7 +100,9 @@ export function ArteKanbanBoard({
     try {
       if (
         destStatus === 'EM_CRIACAO' &&
-        item.status_arte === 'AGUARDANDO_INICIO'
+        (item.status_arte === 'AGUARDANDO_INICIO' ||
+          item.status_arte === 'AGUARDANDO_ARQUIVO_CLIENTE' ||
+          item.status_arte === 'ARQUIVO_RECEBIDO')
       ) {
         await assumirItemFilaArte(itemId);
       } else {
@@ -219,6 +218,11 @@ export function ArteKanbanBoard({
                                   {RESPONSABILIDADE_LABEL[item.responsabilidade_arte] ||
                                     item.responsabilidade_arte}
                                 </Badge>
+                                {item.status_arte === 'AGUARDANDO_ARQUIVO_CLIENTE' && (
+                                  <Badge variant="secondary" className="text-[10px]">
+                                    Aguardando arquivo
+                                  </Badge>
+                                )}
                                 {item.designer_atribuido?.nome && (
                                   <Badge variant="secondary" className="text-[10px]">
                                     {item.designer_atribuido.nome}

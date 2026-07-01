@@ -4,7 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, StatusInstalacao } from '@prisma/client';
+import { Prisma, StatusInstalacao, StatusFinanceiroOcorrencia } from '@prisma/client';
 import {
   CobrancaLogAcao,
   ParcelaStatus,
@@ -14,6 +14,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { InstalacaoRelatorioPdfService } from './instalacao-relatorio-pdf.service';
 import { InstalacaoSplitFiscalService } from './instalacao-split-fiscal.service';
 import { InstalacaoFechamentoService } from './instalacao-fechamento.service';
+import { ConfiguracaoInstalacaoService } from './configuracao-instalacao.service';
 import type { SplitFiscalResultado } from '../utils/split-fiscal.util';
 
 export interface MargemRealOsResultado {
@@ -21,6 +22,10 @@ export interface MargemRealOsResultado {
   valor_orcado: number;
   custo_orcado: number;
   custos_extras_campo: number;
+  custo_operacional_instalacao: number;
+  receita_extras_campo: number;
+  receita_os_aditivas: number;
+  receita_total: number;
   lucro_real: number;
   margem_percentual: number;
 }
@@ -69,6 +74,7 @@ export class InstalacaoPosCalculoService {
     private readonly relatorioPdfService: InstalacaoRelatorioPdfService,
     private readonly splitFiscalService: InstalacaoSplitFiscalService,
     private readonly instalacaoFechamentoService: InstalacaoFechamentoService,
+    private readonly configuracaoInstalacaoService: ConfiguracaoInstalacaoService,
   ) {}
 
   async aplicarTravaSaldoAposAprovacao(
@@ -125,27 +131,90 @@ export class InstalacaoPosCalculoService {
     }
 
     const agregadoExtras = await this.prisma.ocorrenciaInstalacao.aggregate({
-      where: { os_id: osId, loja_id: lojaId },
-      _sum: { custo_interno: true },
+      where: {
+        os_id: osId,
+        loja_id: lojaId,
+        status_financeiro: {
+          in: [
+            StatusFinanceiroOcorrencia.PRECIFICADO,
+            StatusFinanceiroOcorrencia.FATURADO,
+          ],
+        },
+      },
+      _sum: { custo_interno: true, preco_cliente: true },
     });
+
+    const receitaAditiva = await this.prisma.ordemServico.aggregate({
+      where: {
+        loja_id: lojaId,
+        os_pai_id: osId,
+        tipo_vinculo_os: 'ADITIVA_INSTALACAO',
+      },
+      _sum: { valor_orcado: true },
+    });
+
+    const custoInstalacaoOrcamento =
+      await this.calcularCustoOperacionalInstalacao(osId, lojaId);
 
     const valorOrcado = Number(
       os.valor_orcado ?? os.orcamento?.preco_final ?? 0,
     );
     const custoOrcado = Number(os.orcamento?.custo_total ?? 0);
     const custosExtras = Number(agregadoExtras._sum.custo_interno ?? 0);
-    const lucroReal = valorOrcado - custoOrcado - custosExtras;
+    const receitaExtras = Number(agregadoExtras._sum.preco_cliente ?? 0);
+    const receitaOsAditivas = Number(receitaAditiva._sum.valor_orcado ?? 0);
+    const receitaTotal = valorOrcado + receitaExtras + receitaOsAditivas;
+    const custoTotal = custoOrcado + custosExtras + custoInstalacaoOrcamento;
+    const lucroReal = receitaTotal - custoTotal;
     const margemPercentual =
-      valorOrcado > 0 ? (lucroReal / valorOrcado) * 100 : 0;
+      receitaTotal > 0 ? (lucroReal / receitaTotal) * 100 : 0;
 
     return {
       os_id: osId,
       valor_orcado: this.arredondar(valorOrcado),
       custo_orcado: this.arredondar(custoOrcado),
       custos_extras_campo: this.arredondar(custosExtras),
+      custo_operacional_instalacao: this.arredondar(custoInstalacaoOrcamento),
+      receita_extras_campo: this.arredondar(receitaExtras),
+      receita_os_aditivas: this.arredondar(receitaOsAditivas),
+      receita_total: this.arredondar(receitaTotal),
       lucro_real: this.arredondar(lucroReal),
       margem_percentual: this.arredondar(margemPercentual),
     };
+  }
+
+  private async calcularCustoOperacionalInstalacao(
+    osId: string,
+    lojaId: string,
+  ): Promise<number> {
+    const os = await this.prisma.ordemServico.findFirst({
+      where: { id: osId, loja_id: lojaId },
+      select: { orcamento_id: true },
+    });
+
+    if (!os?.orcamento_id) {
+      return 0;
+    }
+
+    const produtos = await this.prisma.produtoOrcamento.findMany({
+      where: {
+        orcamento_id: os.orcamento_id,
+        instalacao_necessaria: true,
+        ativo: true,
+      },
+      select: {
+        instalacao_custo_mao_obra: true,
+        instalacao_custo_deslocamento: true,
+      },
+    });
+
+    return produtos.reduce((acc, produto) => {
+      return (
+        acc +
+        Number(produto.instalacao_custo_mao_obra ?? 0) +
+        Number(produto.instalacao_custo_deslocamento ?? 0)
+      );
+    }, 0);
   }
 
   async obterSplitFiscalOs(osId: string, lojaId: string) {
@@ -200,6 +269,7 @@ export class InstalacaoPosCalculoService {
     }
 
     await this.validarLotesConcluidos(osId, lojaId);
+    await this.validarSemOcorrenciasFinanceirasPendentes(osId, lojaId);
 
     const cobranca = await this.prisma.cobranca.findFirst({
       where: { orcamento_id: os.orcamento_id, loja_id: lojaId },
@@ -217,12 +287,7 @@ export class InstalacaoPosCalculoService {
       lojaId,
     );
 
-    const extras = await this.prisma.ocorrenciaInstalacao.aggregate({
-      where: { os_id: osId, loja_id: lojaId },
-      _sum: { preco_cliente: true },
-    });
-
-    const valorExtras = Number(extras._sum.preco_cliente ?? 0);
+    const valorExtras = await this.calcularValorExtrasLegado(osId, lojaId);
     const ultimaOrdem = cobranca.parcelas.reduce(
       (max, parcela) => Math.max(max, parcela.ordem),
       0,
@@ -238,8 +303,9 @@ export class InstalacaoPosCalculoService {
       pdfGerado,
       registrarRelatorio: true,
       logTipoAcao: 'APROVACAO_FINANCEIRA_INSTALACAO',
-      logDescricao:
-        'Aprovação financeira pós-instalação: saldo liberado para faturamento, extras consolidados e expedição finalizada.',
+      logDescricao: valorExtras > 0.01
+        ? 'Aprovação financeira pós-instalação: saldo liberado e parcela extra de campo consolidada (fluxo legado).'
+        : 'Aprovação financeira pós-instalação: saldo liberado para faturamento e expedição finalizada. Extras de campo via OS Aditiva.',
     });
 
     this.logger.log(
@@ -297,6 +363,7 @@ export class InstalacaoPosCalculoService {
     }
 
     await this.validarLotesConcluidos(osId, lojaId);
+    await this.validarSemOcorrenciasFinanceirasPendentes(osId, lojaId);
 
     const cobranca = await this.prisma.cobranca.findFirst({
       where: { orcamento_id: os.orcamento_id, loja_id: lojaId },
@@ -314,12 +381,7 @@ export class InstalacaoPosCalculoService {
       lojaId,
     );
 
-    const extras = await this.prisma.ocorrenciaInstalacao.aggregate({
-      where: { os_id: osId, loja_id: lojaId },
-      _sum: { preco_cliente: true },
-    });
-
-    const valorExtras = Number(extras._sum.preco_cliente ?? 0);
+    const valorExtras = await this.calcularValorExtrasLegado(osId, lojaId);
 
     const ultimaOrdem = cobranca.parcelas.reduce(
       (max, parcela) => Math.max(max, parcela.ordem),
@@ -337,7 +399,9 @@ export class InstalacaoPosCalculoService {
       registrarRelatorio: true,
       logTipoAcao: 'RELATORIO_TECNICO_GERADO',
       logDescricao:
-        'Relatório técnico final emitido em PDF. Saldo liberado para faturamento e cobranças extras consolidadas.',
+        valorExtras > 0.01
+          ? 'Relatório técnico final emitido. Saldo liberado e parcela extra de campo (fluxo legado).'
+          : 'Relatório técnico final emitido em PDF. Saldo liberado para faturamento. Extras de campo via OS Aditiva.',
     });
 
     this.logger.log(
@@ -445,13 +509,68 @@ export class InstalacaoPosCalculoService {
         data: {
           cobranca_id: params.cobrancaId,
           tipo_acao: CobrancaLogAcao.EDITADA,
-          descricao: `Saldo liberado (A_FATURAR) após aprovação financeira da OS ${params.osId}. Extra de campo: R$ ${params.valorExtras.toFixed(2)}.`,
+          descricao:
+            params.valorExtras > 0.01
+              ? `Saldo liberado (A_FATURAR) após aprovação financeira da OS ${params.osId}. Extra de campo: R$ ${params.valorExtras.toFixed(2)}.`
+              : `Saldo liberado (A_FATURAR) após aprovação financeira da OS ${params.osId}.`,
           usuario_id: params.usuarioId ?? null,
         },
       });
     });
 
     return { saldoLiberada, parcelaExtraId };
+  }
+
+  private async calcularValorExtrasLegado(
+    osId: string,
+    lojaId: string,
+  ): Promise<number> {
+    const osAditivaHabilitada =
+      await this.configuracaoInstalacaoService.osAditivaHabilitada(lojaId);
+    if (osAditivaHabilitada) {
+      return 0;
+    }
+
+    const extras = await this.prisma.ocorrenciaInstalacao.aggregate({
+      where: {
+        os_id: osId,
+        loja_id: lojaId,
+        status_financeiro: StatusFinanceiroOcorrencia.PRECIFICADO,
+      },
+      _sum: { preco_cliente: true },
+    });
+
+    return Number(extras._sum.preco_cliente ?? 0);
+  }
+
+  private async validarSemOcorrenciasFinanceirasPendentes(
+    osId: string,
+    lojaId: string,
+  ): Promise<void> {
+    const osAditivaHabilitada =
+      await this.configuracaoInstalacaoService.osAditivaHabilitada(lojaId);
+    if (!osAditivaHabilitada) {
+      return;
+    }
+
+    const pendentes = await this.prisma.ocorrenciaInstalacao.count({
+      where: {
+        os_id: osId,
+        loja_id: lojaId,
+        status_financeiro: {
+          in: [
+            StatusFinanceiroOcorrencia.PENDENTE_PRECIFICACAO,
+            StatusFinanceiroOcorrencia.PRECIFICADO,
+          ],
+        },
+      },
+    });
+
+    if (pendentes > 0) {
+      throw new BadRequestException(
+        `Existem ${pendentes} ocorrência(s) de campo sem faturamento via OS Aditiva. Precifique e gere a aditiva antes de aprovar o faturamento principal.`,
+      );
+    }
   }
 
   private async validarLotesConcluidos(

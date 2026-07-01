@@ -7,6 +7,7 @@ import {
 import {
   CategoriaOcorrencia,
   Prisma,
+  StatusFinanceiroOcorrencia,
   StatusInstalacao,
   StatusInstalacaoOs,
   TipoOcorrencia,
@@ -15,6 +16,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { InstalacaoFechamentoService } from './instalacao-fechamento.service';
 import { InstalacaoAgendaSyncService } from './instalacao-agenda-sync.service';
+import { ConfiguracaoInstalacaoService } from './configuracao-instalacao.service';
 import { ConsultarAgendaQueryDto } from '../dto/consultar-agenda-query.dto';
 import { ListarOsInstalacaoQueryDto } from '../dto/listar-os-instalacao-query.dto';
 import { sanitizarTextoCampo } from '../utils/sanitizar-texto.util';
@@ -132,6 +134,7 @@ export class InstalacaoService {
     private readonly prisma: PrismaService,
     private readonly instalacaoFechamentoService: InstalacaoFechamentoService,
     private readonly instalacaoAgendaSyncService: InstalacaoAgendaSyncService,
+    private readonly configuracaoInstalacaoService: ConfiguracaoInstalacaoService,
   ) {}
 
   async listarLotesPendentesInstalador(lojaId: string) {
@@ -321,6 +324,10 @@ export class InstalacaoService {
 
   /**
    * Registra ocorrência de obra com custos financeiros calculados no backend.
+   *
+   * DEC-17 (Dúvida 3): imprevistos de campo NÃO alteram ItemOS.quantidade nem
+   * criam lotes — apenas persistem OcorrenciaInstalacao para PDF e pós-cálculo.
+   * A quantidade da ocorrência é unidade de cobrança do evento, não saldo da grade.
    */
   async registrarOcorrenciaObra(
     input: RegistrarOcorrenciaObraInput,
@@ -373,6 +380,11 @@ export class InstalacaoService {
       CATEGORIA_POR_TIPO[input.tipo] ??
       CategoriaOcorrencia.INSTALACAO;
 
+    const osAditivaHabilitada =
+      await this.configuracaoInstalacaoService.osAditivaHabilitada(
+        input.lojaId,
+      );
+
     const ocorrencia = await this.prisma.ocorrenciaInstalacao.create({
       data: {
         loja_id: input.lojaId,
@@ -381,8 +393,21 @@ export class InstalacaoService {
         tipo: input.tipo,
         categoria,
         quantidade: new Prisma.Decimal(quantidade),
-        custo_interno: new Prisma.Decimal(custoUnitario * quantidade),
-        preco_cliente: new Prisma.Decimal(precoUnitario * quantidade),
+        status_financeiro: osAditivaHabilitada
+          ? StatusFinanceiroOcorrencia.PENDENTE_PRECIFICACAO
+          : StatusFinanceiroOcorrencia.PRECIFICADO,
+        custo_interno: osAditivaHabilitada
+          ? null
+          : new Prisma.Decimal(custoUnitario * quantidade),
+        preco_cliente: osAditivaHabilitada
+          ? null
+          : new Prisma.Decimal(precoUnitario * quantidade),
+        custo_sugerido: osAditivaHabilitada
+          ? new Prisma.Decimal(custoUnitario * quantidade)
+          : null,
+        preco_sugerido: osAditivaHabilitada
+          ? new Prisma.Decimal(precoUnitario * quantidade)
+          : null,
         descricao,
         fotos_evidencia:
           input.fotosEvidencia && input.fotosEvidencia.length > 0
@@ -823,6 +848,11 @@ export class InstalacaoService {
         quantidade: true,
         custo_interno: true,
         preco_cliente: true,
+        custo_sugerido: true,
+        preco_sugerido: true,
+        status_financeiro: true,
+        versao: true,
+        os_aditiva_id: true,
         descricao: true,
         fotos_evidencia: true,
         criado_em: true,
@@ -854,8 +884,10 @@ export class InstalacaoService {
       ocorrencias: ocorrencias.map((occ) => ({
         ...occ,
         quantidade: Number(occ.quantidade),
-        custo_interno: Number(occ.custo_interno),
-        preco_cliente: Number(occ.preco_cliente),
+        custo_interno: occ.custo_interno ? Number(occ.custo_interno) : null,
+        preco_cliente: occ.preco_cliente ? Number(occ.preco_cliente) : null,
+        custo_sugerido: occ.custo_sugerido ? Number(occ.custo_sugerido) : null,
+        preco_sugerido: occ.preco_sugerido ? Number(occ.preco_sugerido) : null,
         fotos_evidencia: this.normalizarFotos(occ.fotos_evidencia),
       })),
     };
@@ -1039,7 +1071,9 @@ export class InstalacaoService {
       select: {
         id: true,
         status_instalacao: true,
-        item_os: { select: { os_id: true } },
+        quantidade_alocada: true,
+        item_os_id: true,
+        item_os: { select: { os_id: true, quantidade: true } },
       },
     });
 
@@ -1051,6 +1085,34 @@ export class InstalacaoService {
       throw new BadRequestException(
         'Lotes concluídos não podem ter o endereço alterado.',
       );
+    }
+
+    let quantidadeAlocadaAtualizada: number | undefined;
+
+    if (dados.quantidade_alocada != null) {
+      const quantidadeTotal = Math.floor(Number(lote.item_os.quantidade));
+      const saldoDisponivel = await this.calcularSaldoInstalacaoItem(
+        lote.item_os_id,
+        lojaId,
+        quantidadeTotal,
+      );
+      const tetoParaLote =
+        saldoDisponivel + Math.floor(Number(lote.quantidade_alocada));
+      const novaQuantidade = Math.floor(dados.quantidade_alocada);
+
+      if (novaQuantidade < 1) {
+        throw new BadRequestException(
+          'Quantidade alocada deve ser no mínimo 1 unidade.',
+        );
+      }
+
+      if (novaQuantidade > tetoParaLote) {
+        throw new BadRequestException(
+          'Quantidade excede o saldo disponível para alocação nesta OS.',
+        );
+      }
+
+      quantidadeAlocadaAtualizada = novaQuantidade;
     }
 
     const dataPrevisao = this.resolverDataPrevisao(dados.data_previsao);
@@ -1067,8 +1129,8 @@ export class InstalacaoService {
           bairro: dados.bairro.trim(),
           cidade: dados.cidade.trim(),
           uf: dados.uf.trim().toUpperCase().slice(0, 2),
-          ...(dados.quantidade_alocada != null
-            ? { quantidade_alocada: dados.quantidade_alocada }
+          ...(quantidadeAlocadaAtualizada != null
+            ? { quantidade_alocada: quantidadeAlocadaAtualizada }
             : {}),
           ...(dataPrevisao !== undefined
             ? { data_previsao: dataPrevisao }

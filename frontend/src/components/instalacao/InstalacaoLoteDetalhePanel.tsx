@@ -12,16 +12,25 @@ import {
   formatarDataPrevisaoLote,
   montarEnderecoResumido,
 } from '@/lib/instalacao/instalacao-lote-utils';
-import type { LotePainelOs } from '@/lib/instalacao/instalacao.types';
-import { cn } from '@/lib/utils';
 import {
   IconArrowLeft,
   IconCalendar,
+  IconClipboardList,
   IconMapPin,
   IconPhoto,
   IconSignature,
   IconUsers,
 } from '@tabler/icons-react';
+import { InstalacaoLoteOcorrenciasHistorico } from '@/components/instalacao/InstalacaoLoteOcorrenciasHistorico';
+import { InstalacaoLoteEvidenciasGaleria } from '@/components/instalacao/InstalacaoLoteEvidenciasGaleria';
+import { EditarEnderecoLoteDialog } from '@/components/instalacao/EditarEnderecoLoteDialog';
+import type {
+  EnderecoLoteForm,
+  LotePainelOs,
+  OcorrenciaGestao,
+  ResultadoBuscaCep,
+} from '@/lib/instalacao/instalacao.types';
+import { cn } from '@/lib/utils';
 
 const TONE_CLASSES = {
   default: 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-200',
@@ -34,15 +43,28 @@ const TONE_CLASSES = {
 
 interface InstalacaoLoteDetalhePanelProps {
   lote: LotePainelOs;
+  ocorrencias?: OcorrenciaGestao[];
   onVoltar?: () => void;
+  rotuloLote?: string | null;
+  buscarCep?: (cep: string) => Promise<ResultadoBuscaCep>;
+  onEditarEndereco?: (dados: EnderecoLoteForm) => Promise<void>;
+  quantidadeMaximaEdicao?: number;
 }
 
 export function InstalacaoLoteDetalhePanel({
   lote,
+  ocorrencias = [],
   onVoltar,
+  rotuloLote,
+  buscarCep,
+  onEditarEndereco,
+  quantidadeMaximaEdicao,
 }: InstalacaoLoteDetalhePanelProps) {
-  const fotos = lote.fotos_evidencia ?? [];
+  const fotosConclusao = lote.fotos_evidencia ?? [];
   const tone = STATUS_INSTALACAO_TONE[lote.status_instalacao] ?? 'default';
+  const aguardandoAssinatura =
+    lote.status_instalacao === 'EM_ANDAMENTO' ||
+    lote.status_instalacao === 'AGUARDANDO';
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -76,13 +98,23 @@ export function InstalacaoLoteDetalhePanel({
                 </p>
               )}
             </div>
-            <Badge
-              className={cn('shrink-0', TONE_CLASSES[tone])}
-              variant="outline"
-            >
-              {STATUS_INSTALACAO_LABEL[lote.status_instalacao] ??
-                lote.status_instalacao}
-            </Badge>
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <Badge
+                className={cn('shrink-0', TONE_CLASSES[tone])}
+                variant="outline"
+              >
+                {STATUS_INSTALACAO_LABEL[lote.status_instalacao] ??
+                  lote.status_instalacao}
+              </Badge>
+              {buscarCep && onEditarEndereco && (
+                <EditarEnderecoLoteDialog
+                  lote={lote}
+                  buscarCep={buscarCep}
+                  onSalvar={onEditarEndereco}
+                  quantidadeMaxima={quantidadeMaximaEdicao}
+                />
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -116,31 +148,30 @@ export function InstalacaoLoteDetalhePanel({
       <Card className="border-border bg-card">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <IconClipboardList className="h-4 w-4" />
+            Histórico de ocorrências
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <InstalacaoLoteOcorrenciasHistorico
+            ocorrencias={ocorrencias}
+            rotuloLote={rotuloLote}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-medium text-foreground">
             <IconPhoto className="h-4 w-4" />
             Evidências fotográficas
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {fotos.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma foto de campo registrada para este lote.
-            </p>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              {fotos.map((foto, index) => (
-                <div
-                  key={`${foto}-${index}`}
-                  className="aspect-square overflow-hidden rounded-md border border-border bg-muted"
-                >
-                  <AnexoInstalacaoImagem
-                    src={foto}
-                    alt={`Evidência ${index + 1}`}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+          <InstalacaoLoteEvidenciasGaleria
+            fotosConclusao={fotosConclusao}
+            ocorrencias={ocorrencias}
+          />
         </CardContent>
       </Card>
 
@@ -151,11 +182,24 @@ export function InstalacaoLoteDetalhePanel({
             Termo de assinatura
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-2">
           {!lote.assinatura_url ? (
-            <p className="text-sm text-muted-foreground">
-              Assinatura ainda não coletada neste endereço.
-            </p>
+            <>
+              <p className="text-sm text-muted-foreground">
+                Assinatura ainda não coletada neste endereço.
+              </p>
+              {aguardandoAssinatura && (
+                <p className="text-xs text-muted-foreground">
+                  A assinatura do recebedor é coletada no aplicativo de campo
+                  em{' '}
+                  <strong className="font-medium text-foreground">
+                    /instalador
+                  </strong>
+                  , ao concluir a instalação do lote (canvas de assinatura +
+                  confirmação). O gestor no desktop não assina por aqui.
+                </p>
+              )}
+            </>
           ) : (
             <div className="max-w-md overflow-hidden rounded-md border border-border bg-muted">
               <AnexoInstalacaoImagem

@@ -10,6 +10,7 @@ import {
 
 interface ArteAuthenticatedImageProps {
   arquivo: ArteArquivoRef;
+  versaoId?: string;
   alt: string;
   className?: string;
   preferThumbnail?: boolean;
@@ -19,6 +20,7 @@ interface ArteAuthenticatedImageProps {
 
 export function ArteAuthenticatedImage({
   arquivo,
+  versaoId,
   alt,
   className,
   preferThumbnail = true,
@@ -33,20 +35,25 @@ export function ArteAuthenticatedImage({
     let cancelled = false;
 
     const load = async () => {
-      try {
-        const url = resolveArteAuthenticatedFileUrl(arquivo, preferThumbnail);
-        if (!url) {
-          if (!cancelled) setFailed(true);
+      const ref = { ...arquivo, versao_id: versaoId ?? arquivo.versao_id };
+      const attempts = preferThumbnail ? [true, false] : [false];
+
+      for (const useThumb of attempts) {
+        try {
+          const url = resolveArteAuthenticatedFileUrl(ref, useThumb);
+          if (!url) continue;
+          objectUrl = await fetchArteFileBlob(url);
+          if (!cancelled) {
+            setSrc(objectUrl);
+            setFailed(false);
+          }
           return;
+        } catch {
+          /* tenta imagem completa se thumb falhar */
         }
-        objectUrl = await fetchArteFileBlob(url);
-        if (!cancelled) {
-          setSrc(objectUrl);
-          setFailed(false);
-        }
-      } catch {
-        if (!cancelled) setFailed(true);
       }
+
+      if (!cancelled) setFailed(true);
     };
 
     setSrc(null);
@@ -57,12 +64,20 @@ export function ArteAuthenticatedImage({
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [arquivo.url_arquivo, arquivo.url_thumbnail, preferThumbnail]);
+  }, [arquivo.url_arquivo, arquivo.url_thumbnail, arquivo.nome_arquivo, arquivo.storage_provider, versaoId, preferThumbnail]);
 
-  if (failed || !src) {
+  if (failed) {
     return (
       <div className={fallbackClassName}>
         <FileText className="h-8 w-8 text-gray-400" />
+      </div>
+    );
+  }
+
+  if (!src) {
+    return (
+      <div className={`${fallbackClassName} animate-pulse`}>
+        <div className="h-8 w-8 rounded bg-gray-200" />
       </div>
     );
   }

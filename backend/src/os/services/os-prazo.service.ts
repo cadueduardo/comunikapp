@@ -14,6 +14,10 @@ import {
   LogPrazoRetroativoDTO,
   StatusPrazoResponse,
 } from '../dto/os-prazo.dto';
+import {
+  carregarContextoOperacionalOs,
+  resolverStatusPrazoOperacional,
+} from '../utils/os-contexto-operacional.util';
 
 interface DefinirPrazoRequest {
   osId: string;
@@ -191,11 +195,44 @@ export class OSPrazoService {
     }
 
     if (!os.data_prazo) {
+      const ctx = await carregarContextoOperacionalOs(
+        this.prisma,
+        osId,
+        lojaId,
+      );
+      const operacional = resolverStatusPrazoOperacional(ctx, null);
+      if (operacional) {
+        return {
+          os_id: osId,
+          status: operacional.status,
+          is_retroativo: operacional.is_retroativo,
+          mensagem: operacional.mensagem,
+          dias_restantes: operacional.dias_restantes,
+        };
+      }
+
       return {
         os_id: osId,
         status: 'SEM_PRAZO',
         is_retroativo: false,
         mensagem: 'Prazo não definido',
+      };
+    }
+
+    const ctx = await carregarContextoOperacionalOs(
+      this.prisma,
+      osId,
+      lojaId,
+    );
+    const operacional = resolverStatusPrazoOperacional(ctx, os.data_prazo);
+    if (operacional) {
+      return {
+        os_id: osId,
+        data_prazo: os.data_prazo,
+        status: operacional.status,
+        dias_restantes: operacional.dias_restantes,
+        is_retroativo: operacional.is_retroativo,
+        mensagem: operacional.mensagem,
       };
     }
 

@@ -18,6 +18,7 @@ import {
   Shield,
   Grid3x3,
   Palette,
+  Plug,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { usuariosApi } from '@/lib/api-client';
@@ -259,6 +260,13 @@ export default function ConfiguracoesPage() {
       href: '/configuracoes/arte-aprovacao',
       icone: Palette,
       cor: 'bg-violet-100 text-violet-600'
+    },
+    {
+      titulo: 'Hub de Conexões',
+      descricao: 'Google Drive, WhatsApp e integrações externas',
+      href: '/configuracoes/conexoes',
+      icone: Plug,
+      cor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
     }
   ];
 

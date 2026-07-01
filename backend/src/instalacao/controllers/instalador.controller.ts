@@ -85,6 +85,7 @@ export class InstaladorController {
       categoria: dto.categoria ?? undefined,
       quantidade: dto.quantidade,
       descricao: dto.descricao,
+      fotosEvidencia: dto.fotos_evidencia,
     });
   }
 }

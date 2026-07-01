@@ -25,6 +25,85 @@ export interface MontarPreviewOrcamentoOptions {
   datasets: PreviewOrcamentoDatasets;
   loja?: PreviewOrcamentoLojaDefaults | null;
   comissaoPadrao?: number;
+  /** Snapshot dos itens ao carregar rascunho — preenche produtos com accordion fechado. */
+  itensProdutoCarregados?: unknown[];
+}
+
+const CAMPO_VAZIO = (valor: unknown): boolean =>
+  valor === undefined || valor === null || valor === '';
+
+const arrayRecursoTemDados = (arr: unknown): boolean => {
+  if (!Array.isArray(arr) || arr.length === 0) return false;
+  return arr.some((item) => {
+    const registro = item as Record<string, unknown>;
+    return Boolean(
+      registro?.insumo_id || registro?.maquina_id || registro?.funcao_id || registro?.servico_id,
+    );
+  });
+};
+
+const CAMPOS_ESCALARES_MERGE = [
+  'nome_servico',
+  'descricao',
+  'quantidade_produto',
+  'largura_produto',
+  'altura_produto',
+  'profundidade_produto',
+  'area_produto',
+  'perimetro_produto',
+  'unidade_medida_produto',
+  'tipo_item',
+  'produto_finito_id',
+  'preco_unitario_snapshot',
+  'preco_custo_snapshot',
+  'personalizacao_ativa',
+  'personalizacao_modo',
+  'personalizacao_estampa_id',
+  'personalizacao_processo_id',
+] as const;
+
+const mergeItemProdutoPreview = (
+  carregado: Record<string, unknown> | undefined,
+  formulario: Record<string, unknown> | undefined,
+): Record<string, unknown> => {
+  const base = { ...(carregado ?? {}) };
+  const atual = { ...(formulario ?? {}) };
+  const merged: Record<string, unknown> = { ...base, ...atual };
+
+  for (const key of ['materiais', 'maquinas', 'funcoes', 'servicos'] as const) {
+    if (!arrayRecursoTemDados(atual[key]) && arrayRecursoTemDados(base[key])) {
+      merged[key] = base[key];
+    }
+  }
+
+  for (const key of CAMPOS_ESCALARES_MERGE) {
+    if (CAMPO_VAZIO(atual[key]) && !CAMPO_VAZIO(base[key])) {
+      merged[key] = base[key];
+    }
+  }
+
+  if (base.catalogo_regras && !atual.catalogo_regras) {
+    merged.catalogo_regras = base.catalogo_regras;
+  }
+
+  return merged;
+};
+
+/** Mescla itens do formulário com snapshot carregado (accordion fechado não registra campos no RHF). */
+export function mergeItensProdutoParaPreview(
+  carregados: unknown[] | undefined,
+  doFormulario: unknown[] | undefined,
+): unknown[] {
+  const base = carregados ?? [];
+  const atual = doFormulario ?? [];
+  const len = Math.max(base.length, atual.length);
+  if (len === 0) return [];
+  return Array.from({ length: len }, (_, index) =>
+    mergeItemProdutoPreview(
+      base[index] as Record<string, unknown> | undefined,
+      atual[index] as Record<string, unknown> | undefined,
+    ),
+  );
 }
 
 export interface PreviewOrcamentoProduto {
@@ -210,7 +289,11 @@ export function montarPreviewOrcamento(
   formData: Record<string, unknown>,
   options: MontarPreviewOrcamentoOptions,
 ): PreviewOrcamentoResult | null {
-  const itensFormulario = Array.isArray(formData?.itens_produto) ? formData.itens_produto : [];
+  const itensFormularioRaw = Array.isArray(formData?.itens_produto) ? formData.itens_produto : [];
+  const itensFormulario =
+    options.itensProdutoCarregados && options.itensProdutoCarregados.length > 0
+      ? mergeItensProdutoParaPreview(options.itensProdutoCarregados, itensFormularioRaw)
+      : itensFormularioRaw;
   if (itensFormulario.length === 0) {
     return null;
   }

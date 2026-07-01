@@ -1,14 +1,21 @@
 import type {
+  ContadoresOcorrenciasResposta,
+  ConfiguracaoInstalacaoResposta,
   CriarLoteInstalacaoPayload,
   CriarLoteInstalacaoResposta,
+  FilaPrecificacaoResposta,
+  GerarOsAditivaResposta,
   ListarOsInstalacaoResposta,
   LoteGestao,
   MargemRealOs,
+  OcorrenciaGestaoDetalhe,
+  OsAditivaResumo,
   PainelOsInstalacao,
   RelatorioTecnicoEmitido,
   RelatorioTecnicoResposta,
   ResultadoBuscaCep,
   SplitFiscalOs,
+  StatusFinanceiroOcorrencia,
   StatusInstalacaoOs,
   StatusInstalacao,
   ConsultarAgendaResposta,
@@ -257,6 +264,109 @@ export const instalacaoApi = {
       method: 'POST',
       headers: getAuthHeadersSemContentType(),
       body: formData,
+    });
+    return tratarResposta(response);
+  },
+
+  async listarFilaPrecificacao(filtros?: {
+    status?: StatusFinanceiroOcorrencia;
+    busca?: string;
+    pagina?: number;
+    por_pagina?: number;
+  }): Promise<FilaPrecificacaoResposta> {
+    const params = new URLSearchParams();
+    if (filtros?.status) params.set('status', filtros.status);
+    if (filtros?.busca?.trim()) params.set('busca', filtros.busca.trim());
+    if (filtros?.pagina) params.set('pagina', String(filtros.pagina));
+    if (filtros?.por_pagina) {
+      params.set('por_pagina', String(filtros.por_pagina));
+    }
+    const query = params.toString();
+    const response = await fetch(
+      `/api/instalacao/ocorrencias/fila-precificacao${query ? `?${query}` : ''}`,
+      { headers: getAuthHeaders() },
+    );
+    return tratarResposta(response);
+  },
+
+  async obterContadoresOcorrencias(): Promise<ContadoresOcorrenciasResposta> {
+    const response = await fetch('/api/instalacao/ocorrencias/contadores', {
+      headers: getAuthHeaders(),
+    });
+    return tratarResposta(response);
+  },
+
+  async precificarOcorrencia(
+    id: string,
+    dados: {
+      custo_interno: number;
+      preco_cliente: number;
+      versao: number;
+      observacao_gestor?: string;
+    },
+  ): Promise<OcorrenciaGestaoDetalhe> {
+    const response = await fetch(
+      `/api/instalacao/ocorrencias/${id}/precificar`,
+      {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(dados),
+      },
+    );
+    return tratarResposta(response);
+  },
+
+  async abonarOcorrencia(
+    id: string,
+    dados: { versao: number; observacao_gestor: string },
+  ): Promise<OcorrenciaGestaoDetalhe> {
+    const response = await fetch(`/api/instalacao/ocorrencias/${id}/abonar`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(dados),
+    });
+    return tratarResposta(response);
+  },
+
+  async gerarOsAditiva(
+    osPaiId: string,
+    ocorrenciaIds?: string[],
+  ): Promise<GerarOsAditivaResposta> {
+    const response = await fetch(
+      `/api/instalacao/os/${osPaiId}/gerar-os-aditiva`,
+      {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(
+          ocorrenciaIds?.length ? { ocorrencia_ids: ocorrenciaIds } : {},
+        ),
+      },
+    );
+    return tratarResposta(response);
+  },
+
+  async listarOsAditivas(osPaiId: string): Promise<OsAditivaResumo[]> {
+    const response = await fetch(
+      `/api/instalacao/os/${osPaiId}/os-aditivas`,
+      { headers: getAuthHeaders() },
+    );
+    return tratarResposta(response);
+  },
+
+  async obterConfiguracaoInstalacao(): Promise<ConfiguracaoInstalacaoResposta> {
+    const response = await fetch('/api/instalacao/configuracao', {
+      headers: getAuthHeaders(),
+    });
+    return tratarResposta(response);
+  },
+
+  async atualizarOsAditivaHabilitada(
+    habilitada: boolean,
+  ): Promise<{ os_aditiva_habilitada: boolean }> {
+    const response = await fetch('/api/instalacao/configuracao/os-aditiva', {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ habilitada }),
     });
     return tratarResposta(response);
   },

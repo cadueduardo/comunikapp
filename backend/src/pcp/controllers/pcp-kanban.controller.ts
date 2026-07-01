@@ -101,7 +101,7 @@ export class PCPKanbanController {
     @Param('itemOsId') itemOsId: string,
     @Body() data: ConcluirEtapaDto,
   ) {
-    await this.pcpKanbanService.concluirEtapa(
+    const resultado = await this.pcpKanbanService.concluirEtapa(
       lojaId,
       itemOsId,
       data.operadorId,
@@ -109,7 +109,10 @@ export class PCPKanbanController {
       data.quantidadeProduzida,
       usuario,
     );
-    return { message: 'Etapa concluída com sucesso' };
+    return {
+      message: 'Etapa concluída com sucesso',
+      instalacao: resultado.instalacao,
+    };
   }
 
   @Post('pausar/:itemOsId')
@@ -171,6 +174,7 @@ export class PCPKanbanController {
       message: 'Status atualizado com sucesso',
       expedicao_criada: resultado.expedicao_criada,
       expedicao_cancelada: resultado.expedicao_cancelada,
+      instalacao: resultado.instalacao,
     };
   }
 

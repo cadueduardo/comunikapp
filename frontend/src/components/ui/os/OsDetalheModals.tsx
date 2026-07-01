@@ -36,6 +36,7 @@ export function OsDetalheModals({
       produto_servico: string;
       motivos: string[];
     }>;
+    expedicao: Array<{ item_id: string; produto_servico: string }>;
   } | null>(null);
   const [arte, setArte] = useState<{
     produtos: Array<{
@@ -75,6 +76,7 @@ export function OsDetalheModals({
           setLiberacao({
             liberados: data.liberados ?? [],
             pendentes: data.pendentes ?? [],
+            expedicao: data.expedicao ?? [],
           });
         } else {
           setArte({ produtos: data.produtos ?? [] });
@@ -113,7 +115,7 @@ export function OsDetalheModals({
           </DialogTitle>
           <DialogDescription>
             {tipo === 'liberacao'
-              ? 'Produtos já liberados para produção e pendentes com motivo de bloqueio.'
+              ? 'Produtos liberados para produção (PCP), pendentes de fábrica e itens de expedição/estoque.'
               : 'Status de arte de cada produto desta OS.'}
           </DialogDescription>
         </DialogHeader>
@@ -153,7 +155,7 @@ export function OsDetalheModals({
               <div>
                 <p className="font-medium text-amber-700 mb-2 flex items-center gap-1">
                   <AlertTriangle className="h-4 w-4" />
-                  Pendentes ({liberacao.pendentes.length})
+                  Pendentes PCP ({liberacao.pendentes.length})
                 </p>
                 <ul className="space-y-2">
                   {liberacao.pendentes.map((p) => (
@@ -167,6 +169,23 @@ export function OsDetalheModals({
                           <li key={i}>{m}</li>
                         ))}
                       </ul>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {liberacao.expedicao.length > 0 && (
+              <div>
+                <p className="font-medium text-muted-foreground mb-2">
+                  Expedição / estoque ({liberacao.expedicao.length})
+                </p>
+                <ul className="space-y-1">
+                  {liberacao.expedicao.map((p) => (
+                    <li
+                      key={p.item_id}
+                      className="rounded border border-muted bg-muted/30 px-2 py-1.5"
+                    >
+                      {p.produto_servico}
                     </li>
                   ))}
                 </ul>

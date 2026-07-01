@@ -44,7 +44,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   const { osId } = await context.params;
-  const { proxyBackend } = await import('../../../_proxy');
+  const { proxyBackend } = await import('@/lib/api/proxy-backend');
   return proxyBackend(request, `/instalacao/os/${osId}/relatorio-tecnico`, {
     method: 'POST',
   });

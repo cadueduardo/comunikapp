@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateArteVersaoDto } from '../dto/create-arte-versao.dto';
@@ -10,7 +11,7 @@ import { ArteVersaoResponseDto } from '../dto/arte-response.dto';
 import { ArteStatus } from '@prisma/client';
 
 import { ArteFilaTransicaoService } from './arte-fila-transicao.service';
-import { StatusArte } from '../constants/arte.enums';
+import { ResponsabilidadeArte, StatusArte } from '../constants/arte.enums';
 import { normalizeMultipartFilename } from '../../../common/utils/multipart-filename.util';
 
 @Injectable()
@@ -366,7 +367,128 @@ export class ArteVersaoService {
 
     console.log('✅ Versão atualizada com sucesso');
 
+    await this.sincronizarItemOsAposUpdateVersao(
+      versao,
+      updateDto,
+      lojaId,
+    );
+
     return this.formatVersaoResponse(versao);
+  }
+
+  /**
+   * Conferência interna (preflight) — arte fornecida pelo cliente.
+   * Não envia link ao cliente; aprova e libera para PCP em um passo.
+   */
+  async conferirPreflightCliente(
+    versaoId: string,
+    usuarioId: string,
+    lojaId: string,
+    observacao?: string,
+  ): Promise<ArteVersaoResponseDto> {
+    const versao = await this.prisma.arteVersao.findFirst({
+      where: { id: versaoId, loja_id: lojaId, deletado: false },
+      include: {
+        arquivos: { take: 1 },
+        autor: { select: { id: true, nome_completo: true } },
+      },
+    });
+
+    if (!versao) {
+      throw new NotFoundException('Versão não encontrada');
+    }
+
+    if (!versao.servico_id) {
+      throw new BadRequestException('Versão sem item da OS associado');
+    }
+
+    const item = await this.prisma.itemOS.findFirst({
+      where: {
+        id: versao.servico_id,
+        os: { loja_id: lojaId, ativo: true },
+      },
+      select: { responsabilidade_arte: true },
+    });
+
+    if (item?.responsabilidade_arte !== ResponsabilidadeArte.CLIENTE_FORNECE) {
+      throw new BadRequestException(
+        'Conferência de preflight disponível apenas para arte enviada pelo cliente',
+      );
+    }
+
+    if (!versao.arquivos?.length) {
+      throw new BadRequestException(
+        'Adicione o arquivo do cliente antes de conferir e liberar',
+      );
+    }
+
+    if (versao.liberado_para_pcp) {
+      throw new BadRequestException('Arte já liberada para produção');
+    }
+
+    const obsExtra = observacao?.trim()
+      ? `\n\n[CONFERÊNCIA ARTE CLIENTE - ${new Date().toLocaleString('pt-BR')}]\n${observacao.trim()}`
+      : `\n\n[CONFERÊNCIA ARTE CLIENTE - ${new Date().toLocaleString('pt-BR')}]`;
+
+    const versaoAtualizada = await this.prisma.arteVersao.update({
+      where: { id: versaoId },
+      data: {
+        status: ArteStatus.APROVADA,
+        data_aprovacao: new Date(),
+        aprovado_por_cliente: true,
+        liberado_para_pcp: true,
+        liberado_em: new Date(),
+        liberado_por: usuarioId,
+        observacoes: `${versao.observacoes || ''}${obsExtra}`.trim(),
+      },
+      include: this.versaoIncludeRelations(),
+    });
+
+    await this.arteFilaTransicaoService.sincronizarStatusAposVersao(
+      versao.servico_id,
+      lojaId,
+      StatusArte.LIBERADA_PCP,
+    );
+
+    return this.formatVersaoResponse(versaoAtualizada);
+  }
+
+  private async sincronizarItemOsAposUpdateVersao(
+    versao: { servico_id: string | null; status: string },
+    updateDto: UpdateArteVersaoDto,
+    lojaId: string,
+  ) {
+    if (!versao.servico_id) return;
+
+    let statusItem: string | null = null;
+    if (updateDto.liberado_para_pcp) {
+      statusItem = StatusArte.LIBERADA_PCP;
+    } else if (updateDto.status) {
+      statusItem = updateDto.status;
+    }
+
+    if (!statusItem) return;
+
+    await this.arteFilaTransicaoService.sincronizarStatusAposVersao(
+      versao.servico_id,
+      lojaId,
+      statusItem,
+    );
+  }
+
+  private versaoIncludeRelations() {
+    return {
+      autor: { select: { id: true, nome_completo: true } },
+      aprovador: { select: { id: true, nome_completo: true } },
+      liberador: { select: { id: true, nome_completo: true } },
+      arquivos: true,
+      comentarios: {
+        include: {
+          usuario: { select: { id: true, nome_completo: true } },
+        },
+        orderBy: { data_comentario: 'desc' as const },
+      },
+    };
   }
 
   /**
@@ -536,9 +658,31 @@ export class ArteVersaoService {
       throw new NotFoundException('Versão de arte não encontrada');
     }
 
-    // Verificar se a arte foi aprovada pelo cliente
-    if (!versao.aprovado_por_cliente) {
+    const itemOs = versao.servico_id
+      ? await this.prisma.itemOS.findFirst({
+          where: {
+            id: versao.servico_id,
+            os: { loja_id: lojaId, ativo: true },
+          },
+          select: { responsabilidade_arte: true },
+        })
+      : null;
+
+    const arteCliente =
+      itemOs?.responsabilidade_arte === ResponsabilidadeArte.CLIENTE_FORNECE;
+
+    if (!versao.aprovado_por_cliente && !arteCliente) {
       throw new ForbiddenException('Arte ainda não foi aprovada pelo cliente');
+    }
+
+    if (
+      arteCliente &&
+      versao.status !== ArteStatus.APROVADA &&
+      !versao.aprovado_por_cliente
+    ) {
+      throw new ForbiddenException(
+        'Conferência interna pendente antes de liberar para PCP',
+      );
     }
 
     // Verificar se já foi liberada

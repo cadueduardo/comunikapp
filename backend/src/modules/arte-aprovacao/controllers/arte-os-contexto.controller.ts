@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   BadRequestException,
   Request,
   UseGuards,
@@ -11,14 +12,20 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 import { ArteFilaService } from '../services/arte-fila.service';
+import { ArteClienteArquivoService } from '../services/arte-cliente-arquivo.service';
 import { AtualizarPrazoArteDto } from '../dto/atualizar-prazo-arte.dto';
+import { RegistrarLinkArteDto } from '../dto/registrar-link-arte.dto';
+import { SolicitarArteClienteDto } from '../dto/solicitar-arte-cliente.dto';
 
 @ApiTags('Arte & Aprovação — Contexto OS')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('arte-aprovacao/os')
 export class ArteOsContextoController {
-  constructor(private readonly arteFilaService: ArteFilaService) {}
+  constructor(
+    private readonly arteFilaService: ArteFilaService,
+    private readonly arteClienteArquivoService: ArteClienteArquivoService,
+  ) {}
 
   @Get(':osId/itens-contexto')
   @ApiOperation({
@@ -63,5 +70,47 @@ export class ArteOsContextoController {
         status_arte: data.status_arte,
       },
     };
+  }
+
+  @Post(':osId/itens/:itemId/registrar-link')
+  @ApiOperation({
+    summary: 'Registrar link externo (Drive ou URL) como arquivo do cliente',
+  })
+  async registrarLink(
+    @Request() req: any,
+    @Param('osId') osId: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: RegistrarLinkArteDto,
+  ) {
+    const lojaId = req.user.loja_id;
+    const usuarioId = req.user.sub ?? req.user.id;
+    const data = await this.arteClienteArquivoService.registrarLink(
+      lojaId,
+      osId,
+      itemId,
+      usuarioId,
+      dto,
+    );
+    return { success: true, data };
+  }
+
+  @Post(':osId/itens/:itemId/solicitar-arte')
+  @ApiOperation({
+    summary: 'Enviar e-mail manual solicitando arte ao cliente',
+  })
+  async solicitarArte(
+    @Request() req: any,
+    @Param('osId') osId: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: SolicitarArteClienteDto,
+  ) {
+    const lojaId = req.user.loja_id;
+    const data = await this.arteClienteArquivoService.solicitarArte(
+      lojaId,
+      osId,
+      itemId,
+      dto,
+    );
+    return { success: true, data };
   }
 }

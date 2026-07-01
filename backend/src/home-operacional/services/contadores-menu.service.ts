@@ -15,6 +15,7 @@ export interface ContadoresMenuOpcoes {
   expedicaoDesde?: Date;
   financeiroDesde?: Date;
   arteDesde?: Date;
+  instalacaoDesde?: Date;
 }
 
 /**
@@ -47,23 +48,27 @@ export class ContadoresMenuService {
     }
 
     try {
-      const [os, pcp, expedicao, financeiro, arte] = await Promise.all([
-        opcoes.osDesde
-          ? this.contarNovosOs(lojaId, opcoes.osDesde)
-          : Promise.resolve(0),
-        opcoes.pcpDesde
-          ? this.contarNovosPcp(lojaId, opcoes.pcpDesde)
-          : Promise.resolve(0),
-        opcoes.expedicaoDesde
-          ? this.contarNovasExpedicoes(lojaId, opcoes.expedicaoDesde)
-          : Promise.resolve(0),
-        opcoes.financeiroDesde
-          ? this.contarNovasCobrancas(lojaId, opcoes.financeiroDesde)
-          : Promise.resolve(0),
-        opcoes.arteDesde
-          ? this.arteFilaService.contarNovosDesde(lojaId, opcoes.arteDesde)
-          : Promise.resolve(0),
-      ]);
+      const [os, pcp, expedicao, financeiro, arte, instalacao] =
+        await Promise.all([
+          opcoes.osDesde
+            ? this.contarNovosOs(lojaId, opcoes.osDesde)
+            : Promise.resolve(0),
+          opcoes.pcpDesde
+            ? this.contarNovosPcp(lojaId, opcoes.pcpDesde)
+            : Promise.resolve(0),
+          opcoes.expedicaoDesde
+            ? this.contarNovasExpedicoes(lojaId, opcoes.expedicaoDesde)
+            : Promise.resolve(0),
+          opcoes.financeiroDesde
+            ? this.contarNovasCobrancas(lojaId, opcoes.financeiroDesde)
+            : Promise.resolve(0),
+          opcoes.arteDesde
+            ? this.arteFilaService.contarNovosDesde(lojaId, opcoes.arteDesde)
+            : Promise.resolve(0),
+          opcoes.instalacaoDesde
+            ? this.contarNovasInstalacoes(lojaId, opcoes.instalacaoDesde)
+            : Promise.resolve(0),
+        ]);
 
       const resultado: ContadoresMenuResponse = {
         os,
@@ -71,6 +76,7 @@ export class ContadoresMenuService {
         expedicao,
         financeiro,
         arte,
+        instalacao,
       };
 
       this.cache.gravar(chaveCache, resultado);
@@ -79,7 +85,14 @@ export class ContadoresMenuService {
       this.logger.warn(
         `Falha ao calcular contadores do menu: ${error instanceof Error ? error.message : error}`,
       );
-      return { os: 0, pcp: 0, expedicao: 0, financeiro: 0, arte: 0 };
+      return {
+        os: 0,
+        pcp: 0,
+        expedicao: 0,
+        financeiro: 0,
+        arte: 0,
+        instalacao: 0,
+      };
     }
   }
 
@@ -95,12 +108,14 @@ export class ContadoresMenuService {
       opcoes.expedicaoDesde?.toISOString() ?? '0',
       opcoes.financeiroDesde?.toISOString() ?? '0',
       opcoes.arteDesde?.toISOString() ?? '0',
+      opcoes.instalacaoDesde?.toISOString() ?? '0',
     ];
     return partes.join(':');
   }
 
   /**
-   * OS: orçamento aprovado sem OS criada, ou OS nova aguardando revisão técnica.
+   * OS: orçamento aprovado sem OS criada, OS aguardando revisão técnica,
+   * ou movimentação de arte (arquivo do cliente, aprovação ou liberação).
    */
   private async contarNovosOs(lojaId: string, desde: Date): Promise<number> {
     const orcamentosComOS = await this.prisma.ordemServico.findMany({
@@ -111,33 +126,86 @@ export class ContadoresMenuService {
       .map((o) => o.orcamento_id)
       .filter((id): id is string => !!id);
 
-    const [aprovadosSemOs, revisaoTecnica] = await Promise.all([
-      this.prisma.orcamento.count({
+    const [aprovadosSemOs, revisaoTecnica, movimentacaoArte] =
+      await Promise.all([
+        this.prisma.orcamento.count({
+          where: {
+            loja_id: lojaId,
+            status: OrcamentoStatus.APROVADO,
+            id: { notIn: idsComOS },
+            OR: [
+              { data_aprovacao: { gte: desde } },
+              {
+                data_aprovacao: null,
+                atualizado_em: { gte: desde },
+              },
+            ],
+          },
+        }),
+        this.prisma.ordemServico.count({
+          where: {
+            loja_id: lojaId,
+            ativo: true,
+            aprovacao_tecnica_status: 'PENDENTE',
+            status: { notIn: ['CANCELADA', 'FINALIZADA'] },
+            criado_em: { gte: desde },
+          },
+        }),
+        this.contarOsComMovimentacaoArte(lojaId, desde),
+      ]);
+
+    return aprovadosSemOs + revisaoTecnica + movimentacaoArte;
+  }
+
+  /** OS com arte do cliente inserida ou versão aprovada/liberada após `desde`. */
+  private async contarOsComMovimentacaoArte(
+    lojaId: string,
+    desde: Date,
+  ): Promise<number> {
+    const itensCliente = await this.prisma.itemOS.findMany({
+      where: {
+        os: { loja_id: lojaId, ativo: true },
+        responsabilidade_arte: 'CLIENTE_FORNECE',
+      },
+      select: { id: true },
+    });
+    const itemIdsCliente = itensCliente.map((i) => i.id);
+
+    const [porArquivoCliente, porVersao] = await Promise.all([
+      itemIdsCliente.length === 0
+        ? Promise.resolve([])
+        : this.prisma.arteVersao.findMany({
+            where: {
+              loja_id: lojaId,
+              deletado: false,
+              servico_id: { in: itemIdsCliente },
+              os: { loja_id: lojaId, ativo: true },
+              arquivos: { some: { data_upload: { gte: desde } } },
+            },
+            select: { os_id: true },
+            distinct: ['os_id'],
+          }),
+      this.prisma.arteVersao.findMany({
         where: {
           loja_id: lojaId,
-          status: OrcamentoStatus.APROVADO,
-          id: { notIn: idsComOS },
+          deletado: false,
+          os: { loja_id: lojaId, ativo: true },
           OR: [
             { data_aprovacao: { gte: desde } },
-            {
-              data_aprovacao: null,
-              atualizado_em: { gte: desde },
-            },
+            { liberado_em: { gte: desde } },
           ],
         },
-      }),
-      this.prisma.ordemServico.count({
-        where: {
-          loja_id: lojaId,
-          ativo: true,
-          aprovacao_tecnica_status: 'PENDENTE',
-          status: { notIn: ['CANCELADA', 'FINALIZADA'] },
-          criado_em: { gte: desde },
-        },
+        select: { os_id: true },
+        distinct: ['os_id'],
       }),
     ]);
 
-    return aprovadosSemOs + revisaoTecnica;
+    const osIds = new Set([
+      ...porArquivoCliente.map((r) => r.os_id),
+      ...porVersao.map((r) => r.os_id),
+    ]);
+
+    return osIds.size;
   }
 
   /**
@@ -182,6 +250,7 @@ export class ContadoresMenuService {
             StatusExpedicao.ENTREGUE_FINALIZADO,
             StatusExpedicao.ARQUIVADO,
             StatusExpedicao.DEVOLVIDA,
+            StatusExpedicao.AGUARDANDO_INSTALACAO,
           ],
         },
       },
@@ -205,6 +274,24 @@ export class ContadoresMenuService {
             CobrancaStatus.PARCIAL_PAGO,
             CobrancaStatus.VENCIDO,
           ],
+        },
+      },
+    });
+  }
+
+  /**
+   * Instalações: lote criado após a última visita (ex.: PCP concluído).
+   */
+  private async contarNovasInstalacoes(
+    lojaId: string,
+    desde: Date,
+  ): Promise<number> {
+    return this.prisma.itemOSInstalacao.count({
+      where: {
+        loja_id: lojaId,
+        criado_em: { gte: desde },
+        status_instalacao: {
+          in: ['AGUARDANDO', 'EM_ANDAMENTO', 'LOGISTICA_NEGATIVA'],
         },
       },
     });

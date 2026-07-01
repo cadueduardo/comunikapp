@@ -1,3 +1,10 @@
+export type StatusFinanceiroOcorrencia =
+  | 'PENDENTE_PRECIFICACAO'
+  | 'PRECIFICADO'
+  | 'FATURADO'
+  | 'ABONADO'
+  | 'CANCELADO';
+
 export type StatusInstalacaoOs =
   | 'EM_ANDAMENTO'
   | 'AGUARDANDO_RELATORIO_TECNICO'
@@ -79,8 +86,13 @@ export interface OcorrenciaInstalador {
 }
 
 export interface OcorrenciaGestao extends OcorrenciaInstalador {
-  custo_interno: number;
-  preco_cliente: number;
+  status_financeiro: StatusFinanceiroOcorrencia;
+  custo_interno: number | null;
+  preco_cliente: number | null;
+  custo_sugerido: number | null;
+  preco_sugerido: number | null;
+  versao: number;
+  os_aditiva_id: string | null;
   fotos_evidencia: string[];
   item_instalacao?: {
     id: string;
@@ -273,8 +285,90 @@ export interface MargemRealOs {
   valor_orcado: number;
   custo_orcado: number;
   custos_extras_campo: number;
+  custo_operacional_instalacao?: number;
+  receita_extras_campo?: number;
+  receita_os_aditivas?: number;
+  receita_total?: number;
   lucro_real: number;
   margem_percentual: number;
+}
+
+export interface FilaPrecificacaoItem {
+  id: string;
+  os_id: string;
+  os_numero: string;
+  cliente_nome: string | null;
+  tipo: TipoOcorrencia;
+  descricao: string;
+  quantidade: number;
+  status_financeiro: StatusFinanceiroOcorrencia;
+  custo_sugerido: number | null;
+  preco_sugerido: number | null;
+  custo_interno: number | null;
+  preco_cliente: number | null;
+  versao: number;
+  criado_em: string;
+  item_instalacao: {
+    id: string;
+    logradouro: string;
+    numero: string;
+    cidade: string;
+  } | null;
+}
+
+export interface FilaPrecificacaoResposta {
+  total: number;
+  pagina: number;
+  por_pagina: number;
+  os_aditiva_habilitada?: boolean;
+  itens: FilaPrecificacaoItem[];
+}
+
+export interface ContadoresOcorrenciasResposta {
+  pendentes: number;
+  precificados: number;
+  os_aditiva_habilitada?: boolean;
+}
+
+export interface ConfiguracaoInstalacaoResposta {
+  exigir_sinal_producao: boolean;
+  os_aditiva_habilitada: boolean;
+}
+
+export interface OcorrenciaGestaoDetalhe {
+  id: string;
+  os_id: string;
+  tipo: TipoOcorrencia;
+  descricao: string;
+  quantidade: number;
+  status_financeiro: StatusFinanceiroOcorrencia;
+  custo_sugerido: number | null;
+  preco_sugerido: number | null;
+  custo_interno: number | null;
+  preco_cliente: number | null;
+  versao: number;
+  os_aditiva_id: string | null;
+  criado_em: string;
+}
+
+export interface GerarOsAditivaResposta {
+  os_aditiva_id: string;
+  os_aditiva_numero: string;
+  os_pai_id: string;
+  orcamento_id: string;
+  cobranca_id: string;
+  valor_total: number;
+  ocorrencias_faturadas: number;
+}
+
+export interface OsAditivaResumo {
+  id: string;
+  numero: string;
+  valor_orcado: number;
+  criado_em: string;
+  cobranca_id: string | null;
+  cobranca_status: string | null;
+  ocorrencias_snapshot: unknown[];
 }
 
 export const ENDERECO_LOTE_VAZIO: EnderecoLoteForm = {

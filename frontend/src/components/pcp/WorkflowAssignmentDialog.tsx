@@ -22,6 +22,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
+import { itemRequerFabricaPcp, MODO_FULFILLMENT_LABEL } from '@/lib/os-fulfillment-utils';
 
 interface WorkflowTemplate {
   id: string;
@@ -53,6 +54,8 @@ interface ProdutoStatus {
   data_prazo_produto?: string;
   prioridade_produto?: string;
   mensagem?: string;
+  modo_fulfillment?: string | null;
+  requer_pcp_fabrica?: boolean;
   workflow_atribuido?: boolean;
 }
 
@@ -184,8 +187,10 @@ export function WorkflowAssignmentDialog({
             const liberadosDisponiveis = listaProdutos
               .filter(
                 (produto) =>
+                  itemRequerFabricaPcp(produto) &&
                   (produto.status_liberacao_pcp ?? '').toUpperCase() ===
-                    'LIBERADO' && !produto.workflow_atribuido,
+                    'LIBERADO' &&
+                  !produto.workflow_atribuido,
               )
               .map((produto) => produto.item_id)
               .filter((id): id is string => Boolean(id));
@@ -217,33 +222,31 @@ export function WorkflowAssignmentDialog({
     loadData();
   }, [open, osId]);
 
+  const isProdutoPcpLiberado = useCallback(
+    (produto: ProdutoStatus) => {
+      if (!itemRequerFabricaPcp(produto)) {
+        return false;
+      }
+      return (produto.status_liberacao_pcp ?? '').toUpperCase() === 'LIBERADO';
+    },
+    [],
+  );
+
+  const produtosPcp = useMemo(
+    () => produtos.filter(isProdutoPcpLiberado),
+    [produtos, isProdutoPcpLiberado],
+  );
+
   const liberadosDisponiveis = useMemo(
     () =>
-      produtos.filter((produto) => {
-        const status = (produto.status_liberacao_pcp ?? '').toUpperCase();
-        if (status !== 'LIBERADO') {
-          return false;
-        }
-        if (forcar) {
-          return true;
-        }
-        return !produto.workflow_atribuido;
-      }).length,
-    [produtos, forcar],
+      produtosPcp.filter((produto) => forcar || !produto.workflow_atribuido)
+        .length,
+    [produtosPcp, forcar],
   );
 
   const todosLiberadosSelecionados = useMemo(() => {
-    const liberadosIds = produtos
-      .filter((produto) => {
-        const status = (produto.status_liberacao_pcp ?? '').toUpperCase();
-        if (status !== 'LIBERADO') {
-          return false;
-        }
-        if (forcar) {
-          return true;
-        }
-        return !produto.workflow_atribuido;
-      })
+    const liberadosIds = produtosPcp
+      .filter((produto) => forcar || !produto.workflow_atribuido)
       .map((produto) => produto.item_id);
 
     if (!liberadosIds.length) {
@@ -251,7 +254,7 @@ export function WorkflowAssignmentDialog({
     }
 
     return liberadosIds.every((id) => selectedProductIds.includes(id));
-  }, [produtos, selectedProductIds, forcar]);
+  }, [produtosPcp, selectedProductIds, forcar]);
 
   const handleToggleItem = useCallback(
     (itemId: string, checked: boolean) => {
@@ -259,9 +262,10 @@ export function WorkflowAssignmentDialog({
         return;
       }
       const produto = produtos.find((item) => item.item_id === itemId);
-      const status = (produto?.status_liberacao_pcp ?? '').toUpperCase();
       const podeSelecionar =
-        status === 'LIBERADO' && (forcar || !produto?.workflow_atribuido);
+        !!produto &&
+        isProdutoPcpLiberado(produto) &&
+        (forcar || !produto.workflow_atribuido);
 
       if (!podeSelecionar) {
         return;
@@ -274,21 +278,12 @@ export function WorkflowAssignmentDialog({
         return prev.filter((id) => id !== itemId);
       });
     },
-    [produtos, forcar],
+    [produtos, forcar, isProdutoPcpLiberado],
   );
 
   const handleToggleAll = useCallback(() => {
-    const liberadosIds = produtos
-      .filter((produto) => {
-        const status = (produto.status_liberacao_pcp ?? '').toUpperCase();
-        if (status !== 'LIBERADO') {
-          return false;
-        }
-        if (forcar) {
-          return true;
-        }
-        return !produto.workflow_atribuido;
-      })
+    const liberadosIds = produtosPcp
+      .filter((produto) => forcar || !produto.workflow_atribuido)
       .map((produto) => produto.item_id)
       .filter((id): id is string => Boolean(id));
 
@@ -305,7 +300,7 @@ export function WorkflowAssignmentDialog({
         Array.from(new Set([...prev, ...liberadosIds])),
       );
     }
-  }, [produtos, todosLiberadosSelecionados, forcar]);
+  }, [produtosPcp, todosLiberadosSelecionados, forcar]);
 
   useEffect(() => {
     if (!forcar) {
@@ -450,7 +445,7 @@ export function WorkflowAssignmentDialog({
               </div>
             )}
 
-            {produtos.length > 0 && (
+            {produtosPcp.length > 0 && (
               <div className="space-y-3 rounded-lg border border-muted/60 bg-muted/10 p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
@@ -470,9 +465,8 @@ export function WorkflowAssignmentDialog({
                 </div>
 
                 <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
-                  {produtos.map((produto) => {
-                    const status = (produto.status_liberacao_pcp ?? '').toUpperCase();
-                    const isLiberado = status === 'LIBERADO';
+                  {produtosPcp.map((produto) => {
+                    const isLiberado = isProdutoPcpLiberado(produto);
                     const alreadyHasWorkflow = !!produto.workflow_atribuido;
                     const itemId = produto.item_id ?? '';
                     const checkboxDisabled =

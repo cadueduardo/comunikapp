@@ -225,6 +225,8 @@ export function PrazoOSComponent({
         return <Clock className="h-4 w-4 text-blue-500" />;
       case 'PRONTA_PRODUCAO':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'EM_PRODUCAO':
+        return <Clock className="h-4 w-4 text-teal-600" />;
       default:
         return <Clock className="h-4 w-4 text-gray-400" />;
     }
@@ -240,6 +242,8 @@ export function PrazoOSComponent({
         return 'text-blue-600';
       case 'PRONTA_PRODUCAO':
         return 'text-green-600';
+      case 'EM_PRODUCAO':
+        return 'text-teal-700';
       default:
         return 'text-gray-500';
     }

@@ -1,15 +1,19 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ArteArquivoResponseDto } from '../dto/arte-response.dto';
 import { normalizeMultipartFilename } from '../../../common/utils/multipart-filename.util';
+import { ArteStorageService } from './arte-storage.service';
+import {
+  ResponsabilidadeArte,
+  StatusArte,
+} from '../constants/arte.enums';
 
 @Injectable()
 export class ArteArquivoService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly arteStorageService: ArteStorageService,
+  ) {}
 
   /**
    * Lista todos os arquivos de uma versão
@@ -99,6 +103,7 @@ export class ArteArquivoService {
         id: versaoId,
         loja_id: lojaId,
       },
+      select: { id: true, servico_id: true, os_id: true },
     });
 
     if (!versao) {
@@ -106,7 +111,16 @@ export class ArteArquivoService {
     }
 
     // Validar tipo de arquivo
-    const tiposPermitidos = ['pdf', 'jpg', 'jpeg', 'png', 'ai', 'psd', 'eps'];
+    const tiposPermitidos = [
+      'pdf',
+      'jpg',
+      'jpeg',
+      'png',
+      'ai',
+      'psd',
+      'eps',
+      'link',
+    ];
     const extensao = arquivoData.tipo_arquivo.toLowerCase();
 
     if (!tiposPermitidos.includes(extensao)) {
@@ -115,9 +129,12 @@ export class ArteArquivoService {
       );
     }
 
-    // Validar tamanho (máximo 50MB)
+    // Validar tamanho (máximo 50MB) — links externos não têm tamanho
     const maxSize = 50 * 1024 * 1024; // 50MB em bytes
-    if (Number(arquivoData.tamanho) > maxSize) {
+    if (
+      extensao !== 'link' &&
+      Number(arquivoData.tamanho) > maxSize
+    ) {
       throw new BadRequestException(
         'Arquivo muito grande. Tamanho máximo: 50MB',
       );
@@ -141,7 +158,62 @@ export class ArteArquivoService {
 
     console.log('✅ Arquivo adicionado com sucesso:', arquivo.id);
 
+    await this.sincronizarStatusAposUploadArquivo(
+      lojaId,
+      versao.servico_id,
+      versao.os_id,
+    );
+
     return this.formatArquivoResponse(arquivo);
+  }
+
+  private async sincronizarStatusAposUploadArquivo(
+    lojaId: string,
+    itemOsId: string | null | undefined,
+    osId: string,
+  ) {
+    if (!itemOsId) return;
+
+    const item = await this.prisma.itemOS.findFirst({
+      where: {
+        id: itemOsId,
+        os_id: osId,
+        os: { loja_id: lojaId, ativo: true },
+      },
+      select: {
+        id: true,
+        responsabilidade_arte: true,
+        status_arte: true,
+      },
+    });
+
+    if (
+      !item ||
+      item.responsabilidade_arte !== ResponsabilidadeArte.CLIENTE_FORNECE
+    ) {
+      return;
+    }
+
+    if (item.status_arte === StatusArte.AGUARDANDO_ARQUIVO_CLIENTE) {
+      await this.prisma.itemOS.update({
+        where: { id: item.id },
+        data: { status_arte: StatusArte.ARQUIVO_RECEBIDO },
+      });
+    }
+  }
+
+  async findArquivoByVersaoFilename(
+    versaoId: string,
+    nomeArquivo: string,
+    lojaId: string,
+  ) {
+    return this.prisma.arteArquivo.findFirst({
+      where: {
+        versao_id: versaoId,
+        nome_arquivo: nomeArquivo,
+        loja_id: lojaId,
+      },
+    });
   }
 
   /**
@@ -162,10 +234,12 @@ export class ArteArquivoService {
       throw new NotFoundException('Arquivo não encontrado');
     }
 
-    // TODO: Aqui deveria remover o arquivo do storage também
-    // Por enquanto, apenas remove do banco de dados
+    await this.arteStorageService.deleteArteFile(
+      lojaId,
+      arquivoExistente.storage_provider,
+      arquivoExistente.storage_path,
+    );
 
-    // Remover o arquivo
     await this.prisma.arteArquivo.delete({
       where: {
         id: arquivoId,
@@ -182,9 +256,9 @@ export class ArteArquivoService {
     console.log('🔗 Gerando URL pública:', { arquivoId, lojaId });
 
     const arquivo = await this.findArquivoById(arquivoId, lojaId);
-
-    // TODO: Implementar geração de URL temporária baseada no storage provider
-    // Por enquanto, retorna a URL direta
+    if (arquivo.storage_provider === 'google_drive') {
+      return arquivo.url_arquivo;
+    }
     return arquivo.url_arquivo;
   }
 

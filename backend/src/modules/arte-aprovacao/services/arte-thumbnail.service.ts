@@ -8,6 +8,50 @@ export class ArteThumbnailService {
   private readonly logger = new Logger(ArteThumbnailService.name);
 
   /**
+   * Gera thumbnail a partir de buffer em memória (upload Drive).
+   */
+  async generateThumbnailFromBuffer(
+    buffer: Buffer,
+    options: {
+      width?: number;
+      height?: number;
+      quality?: number;
+    } = {},
+  ): Promise<Buffer | null> {
+    try {
+      const width = options.width || 300;
+      const height = options.height || 300;
+      const quality = options.quality || 80;
+
+      return await sharp(buffer)
+        .resize(width, height, {
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality })
+        .toBuffer();
+    } catch (error) {
+      this.logger.error(
+        `Erro ao gerar thumbnail do buffer: ${(error as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  isImageMime(mimeType: string): boolean {
+    return mimeType.startsWith('image/');
+  }
+
+  isImageBuffer(buffer: Buffer): boolean {
+    try {
+      const meta = sharp(buffer);
+      return Boolean(meta);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Gera thumbnail de uma imagem
    */
   async generateThumbnail(

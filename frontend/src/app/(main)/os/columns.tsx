@@ -38,6 +38,7 @@ import Link from 'next/link';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { OsDetalheModals } from '@/components/ui/os/OsDetalheModals';
+import { resolverStatusExibicaoOs } from '@/lib/os-status-exibicao';
 
 export interface OrdemServico {
   id: string;
@@ -77,6 +78,8 @@ export interface OrdemServico {
     pendentes: number;
     parcial: boolean;
   };
+  status_instalacao_os?: string | null;
+  status_expedicao?: string | null;
 }
 
 // Função para obter configuração de status
@@ -194,8 +197,8 @@ const STATUS_FLUXO_PADRAO = new Set([
 
 function StatusCell({ os }: { os: OrdemServico }) {
   const [modalOpen, setModalOpen] = useState(false);
+  const config = resolverStatusExibicaoOs(os);
   const status = (os.status || '').toUpperCase();
-  const config = getStatusConfig(status);
   const inativa = os.ativo === false;
   const clicavel = status === 'PARCIALMENTE_LIBERADA';
 

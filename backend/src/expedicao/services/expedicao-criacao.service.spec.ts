@@ -154,7 +154,7 @@ describe('ExpedicaoCriacaoService', () => {
     });
   });
 
-  it('aplica override INSTALACAO_NO_LOCAL e status AGUARDANDO_INSTALACAO quando produto exige instalação', async () => {
+  it('não cria expedição quando orçamento exige apenas instalação no local', async () => {
     prisma.ordemServico.findFirst.mockResolvedValue({
       id: 'os-2',
       loja_id: 'loja-1',
@@ -162,22 +162,32 @@ describe('ExpedicaoCriacaoService', () => {
       orcamento_id: 'orc-2',
     });
     prisma.orcamento.findFirst.mockResolvedValue({
-      entrega_modalidade: { nome: 'Retirada no balcão' },
       produtos: [{ instalacao_necessaria: true }],
     });
-    tx.expedicaoLogistica.findFirst.mockResolvedValue(null);
-    tx.expedicaoLogistica.create.mockResolvedValue({ id: 'exp-inst' });
 
-    await service.criarSeElegivel('os-2', 'loja-1');
+    const resultado = await service.criarSeElegivel('os-2', 'loja-1');
 
-    expect(tx.expedicaoLogistica.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          modalidade: ModalidadeExpedicao.INSTALACAO_NO_LOCAL,
-          status: StatusExpedicao.AGUARDANDO_INSTALACAO,
-        }),
-      }),
-    );
+    expect(resultado).toEqual({
+      criado: false,
+      motivo_skip: 'SOMENTE_INSTALACAO',
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('não cria expedição para OS aditiva de instalação', async () => {
+    prisma.ordemServico.findFirst.mockResolvedValue({
+      id: 'os-aditiva',
+      loja_id: 'loja-1',
+      tipo_os: 'COMERCIAL',
+      orcamento_id: 'orc-1',
+      pular_expedicao: true,
+      tipo_vinculo_os: 'ADITIVA_INSTALACAO',
+    });
+
+    const resultado = await service.criarSeElegivel('os-aditiva', 'loja-1');
+
+    expect(resultado).toEqual({ criado: false, motivo_skip: 'OS_ADITIVA' });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('arquiva expedição em AGUARDANDO_SEPARACAO ao reverter conclusão no PCP', async () => {

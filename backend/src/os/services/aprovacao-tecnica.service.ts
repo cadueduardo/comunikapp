@@ -17,12 +17,15 @@ import { OSService } from './os.service';
 import {
   computeArteResumoGrid,
   computeLiberacaoResumoGrid,
+  comTipoItemOrcamento,
   getMotivosBloqueioPcp,
   isArteOkParaPcp,
   isElegivelPcp,
+  itemRequerFabricaPcp,
   labelStatusArte,
   produtoRequerArte,
   resolveIdsAlvoLiberacao,
+  resolverTipoItemOrcamento,
 } from '../utils/os-liberacao-pcp.util';
 
 @Injectable()
@@ -121,13 +124,28 @@ export class AprovacaoTecnicaService {
       alertas.push('Parâmetros técnicos não preenchidos');
     }
 
-    // 4. Validar prazo viável
-    if (!os.data_prazo) {
+    // 4. Validar prazo viável (OS ou maior prazo entre os itens já definidos)
+    const itensComPrazo = await this.prisma.itemOS.findMany({
+      where: { os_id: osId },
+      select: { data_prazo_produto: true },
+    });
+    const prazosItens = itensComPrazo
+      .map((i) => i.data_prazo_produto)
+      .filter((d): d is Date => d instanceof Date);
+    const dataReferenciaPrazo =
+      os.data_prazo ??
+      (prazosItens.length > 0
+        ? new Date(Math.max(...prazosItens.map((d) => d.getTime())))
+        : null);
+
+    if (!dataReferenciaPrazo) {
       prazo_viavel = false;
       alertas.push('Data de prazo não definida');
     } else {
       const hoje = new Date();
-      const prazo = new Date(os.data_prazo);
+      hoje.setHours(0, 0, 0, 0);
+      const prazo = new Date(dataReferenciaPrazo);
+      prazo.setHours(0, 0, 0, 0);
       const diasRestantes = Math.ceil(
         (prazo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24),
       );
@@ -233,6 +251,7 @@ export class AprovacaoTecnicaService {
     const itensOS = await this.prisma.itemOS.findMany({
       where: { os_id: osId },
     });
+    const tipoPorId = await this.carregarTipoItemPorIds(itensOS.map((i) => i.id));
     const todosIds = itensOS.map((i) => i.id);
     const idsPrazos = (dto.prazos_itens ?? []).map((p) => p.item_id);
     const idsAlvo = resolveIdsAlvoLiberacao(todosIds, dto.item_ids, idsPrazos);
@@ -241,6 +260,16 @@ export class AprovacaoTecnicaService {
       eFluxoPadrao &&
       idsAlvo.length > 0 &&
       idsAlvo.length < itensOS.length;
+
+    const prazosPorItem = await this.validarEPrepararPrazosItens(
+      osId,
+      dto.prazos_itens || [],
+      eFluxoPadrao && dto.aprovado,
+      idsAlvo.length < itensOS.length ? idsAlvo : dto.item_ids,
+    );
+    const prazoPorItemId = new Map(
+      prazosPorItem.map((p) => [p.item_id, p.data_prazo_produto]),
+    );
 
     if (dto.aprovado && eFluxoPadrao) {
       for (const itemId of idsAlvo) {
@@ -253,18 +282,17 @@ export class AprovacaoTecnicaService {
         ) {
           continue;
         }
-        const motivos = getMotivosBloqueioPcp(
-          {
-            id: item.id,
-            produto_servico: item.produto_servico,
-            data_prazo_produto: item.data_prazo_produto,
-            status_liberacao_pcp: item.status_liberacao_pcp,
-            responsabilidade_arte: item.responsabilidade_arte,
-            status_arte: item.status_arte,
-            materiais_disponivel: item.materiais_disponivel,
-          },
-          os.materiais_disponivel,
-        );
+
+        const ctx = this.montarContextoLiberacaoItem(item, tipoPorId, {
+          data_prazo_produto:
+            prazoPorItemId.get(itemId) ?? item.data_prazo_produto,
+        });
+
+        if (!itemRequerFabricaPcp(ctx)) {
+          continue;
+        }
+
+        const motivos = getMotivosBloqueioPcp(ctx, os.materiais_disponivel);
         if (motivos.length > 0) {
           throw new BadRequestException(
             `Produto "${item.produto_servico}" não elegível: ${motivos.map((m) => m.mensagem).join('; ')}`,
@@ -272,13 +300,6 @@ export class AprovacaoTecnicaService {
         }
       }
     }
-
-    const prazosPorItem = await this.validarEPrepararPrazosItens(
-      osId,
-      dto.prazos_itens || [],
-      eFluxoPadrao && dto.aprovado,
-      idsAlvo.length < itensOS.length ? idsAlvo : dto.item_ids,
-    );
 
     // Atualiza prazo guarda-chuva da OS, se for o caso. Regra:
     //  - Se a OS ainda não tem data_prazo, usa o max(data_prazo_produto) dos
@@ -347,28 +368,6 @@ export class AprovacaoTecnicaService {
         usuarioId,
         idsAlvo.length < itensOS.length ? idsAlvo : undefined,
       );
-
-      const liberados = await this.prisma.itemOS.count({
-        where: { os_id: osId, status_liberacao_pcp: 'LIBERADO' },
-      });
-      const total = itensOS.length;
-      if (liberados >= total && total > 0) {
-        await this.prisma.ordemServico.update({
-          where: { id: osId },
-          data: {
-            status: 'LIBERADA_PARA_PCP',
-            aprovacao_tecnica_status: 'APROVADA',
-          },
-        });
-      } else if (liberados > 0 && liberados < total) {
-        await this.prisma.ordemServico.update({
-          where: { id: osId },
-          data: {
-            status: 'PARCIALMENTE_LIBERADA',
-            aprovacao_tecnica_status: 'PENDENTE',
-          },
-        });
-      }
     }
 
     // TODO: Enviar notificação se rejeitada
@@ -483,6 +482,10 @@ export class AprovacaoTecnicaService {
             responsabilidade_arte: true,
             status_arte: true,
             materiais_disponivel: true,
+            modo_fulfillment: true,
+            personalizacao_modo: true,
+            parametros_tecnicos: true,
+            insumos_necessarios: true,
           },
         },
       },
@@ -491,6 +494,8 @@ export class AprovacaoTecnicaService {
     if (!os) {
       throw new NotFoundException('Ordem de Serviço não encontrada');
     }
+
+    const tipoPorId = await this.carregarTipoItemPorIds(os.itens.map((i) => i.id));
 
     const validacoes = await this.validarPreAprovacao(osId);
 
@@ -505,15 +510,7 @@ export class AprovacaoTecnicaService {
       observacoes_instalacao: os.observacoes_instalacao,
       data_prazo: os.data_prazo,
       itens: os.itens.map((it) => {
-        const ctx = {
-          id: it.id,
-          produto_servico: it.produto_servico,
-          data_prazo_produto: it.data_prazo_produto,
-          status_liberacao_pcp: it.status_liberacao_pcp,
-          responsabilidade_arte: it.responsabilidade_arte,
-          status_arte: it.status_arte,
-          materiais_disponivel: it.materiais_disponivel,
-        };
+        const ctx = this.montarContextoLiberacaoItem(it, tipoPorId);
         const motivos = getMotivosBloqueioPcp(ctx, os.materiais_disponivel);
         return {
           item_id: it.id,
@@ -523,6 +520,10 @@ export class AprovacaoTecnicaService {
           status_liberacao_pcp: it.status_liberacao_pcp,
           responsabilidade_arte: it.responsabilidade_arte,
           status_arte: it.status_arte,
+          modo_fulfillment: it.modo_fulfillment,
+          personalizacao_modo: it.personalizacao_modo,
+          tipo_item: resolverTipoItemOrcamento(ctx),
+          requer_pcp_fabrica: itemRequerFabricaPcp(ctx),
           elegivel_pcp: isElegivelPcp(ctx, os.materiais_disponivel),
           motivos_bloqueio: motivos.map((m) => m.mensagem),
         };
@@ -670,5 +671,53 @@ export class AprovacaoTecnicaService {
     }
 
     return undefined;
+  }
+
+  private async carregarTipoItemPorIds(
+    itemIds: string[],
+  ): Promise<Map<string, string>> {
+    if (itemIds.length === 0) {
+      return new Map();
+    }
+    const rows = await this.prisma.produtoOrcamento.findMany({
+      where: { id: { in: itemIds } },
+      select: { id: true, tipo_item: true },
+    });
+    return new Map(rows.map((row) => [row.id, row.tipo_item]));
+  }
+
+  private montarContextoLiberacaoItem(
+    item: {
+      id: string;
+      produto_servico: string;
+      data_prazo_produto?: Date | null;
+      status_liberacao_pcp?: string | null;
+      responsabilidade_arte?: string | null;
+      status_arte?: string | null;
+      materiais_disponivel?: boolean | null;
+      modo_fulfillment?: string | null;
+      personalizacao_modo?: string | null;
+      parametros_tecnicos?: string | null;
+      insumos_necessarios?: string | null;
+    },
+    tipoPorId: Map<string, string>,
+    overrides?: { data_prazo_produto?: Date | null },
+  ) {
+    const enriquecido = comTipoItemOrcamento(item, tipoPorId);
+    return {
+      id: enriquecido.id,
+      produto_servico: enriquecido.produto_servico,
+      data_prazo_produto:
+        overrides?.data_prazo_produto ?? enriquecido.data_prazo_produto,
+      status_liberacao_pcp: enriquecido.status_liberacao_pcp,
+      responsabilidade_arte: enriquecido.responsabilidade_arte,
+      status_arte: enriquecido.status_arte,
+      materiais_disponivel: enriquecido.materiais_disponivel,
+      modo_fulfillment: enriquecido.modo_fulfillment,
+      personalizacao_modo: enriquecido.personalizacao_modo,
+      tipo_item: enriquecido.tipo_item,
+      parametros_tecnicos: enriquecido.parametros_tecnicos,
+      insumos_necessarios: enriquecido.insumos_necessarios,
+    };
   }
 }
