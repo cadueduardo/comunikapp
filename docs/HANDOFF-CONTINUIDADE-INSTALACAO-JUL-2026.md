@@ -192,6 +192,8 @@ Lookup de instalação: `ProdutoOrcamento.id` **deve** ser igual a `ItemOS.id` (
 
 Gatilhos: criar/editar lote, baixa de produção, registrar ocorrência, abrir workspace da OS.
 
+### 8.2 Trava financeira no grid de instalação (jul/2026)
+
 O grid `/instalacao` reutiliza a regra da expedição (`ExpedicaoFinanceiroService`): parcela `SALDO` em `PREVISTO`/`VENCIDO`/`PARCIAL_PAGO` ou qualquer parcela vencida bloqueia. `InstalacaoService.calcularBloqueiosFinanceiros` calcula em lote (1 query de cobranças) usando o `StatusRollupService` (provider puro, registrado direto no `InstalacaoModule` para evitar ciclo com o `FinanceiroModule`). O grid retorna `bloqueio_financeiro` + `link_financeiro` por OS; o frontend pinta a linha de âmbar e exibe cadeado com tooltip "Entrega bloqueada — pendência financeira — ver financeiro" (clique abre popover com link para o financeiro). Saldo em `AGUARDANDO_RELATORIO_TECNICO` (retenção DEC-04) **não** bloqueia — é o estado esperado do fluxo de instalação.
 
 ---
