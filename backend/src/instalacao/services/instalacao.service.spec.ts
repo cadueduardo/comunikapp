@@ -18,6 +18,13 @@ describe('InstalacaoService', () => {
     sincronizarDataOs: jest.fn(),
   };
 
+  const execucaoSyncMock = {
+    sincronizarAposMudancaLotes: jest.fn().mockResolvedValue(0),
+    promoverLoteComAtividadeCampo: jest.fn().mockResolvedValue(false),
+    rollupStatusOsEmAndamento: jest.fn().mockResolvedValue(undefined),
+    reconciliarStatusCampo: jest.fn().mockResolvedValue(undefined),
+  };
+
   const configuracaoMock = {
     osAditivaHabilitada: jest.fn().mockResolvedValue(true),
   };
@@ -45,6 +52,7 @@ describe('InstalacaoService', () => {
       agendaSyncMock as unknown as InstalacaoAgendaSyncService,
       configuracaoMock as unknown as ConfiguracaoInstalacaoService,
       new StatusRollupService(),
+      execucaoSyncMock as never,
     );
   });
 

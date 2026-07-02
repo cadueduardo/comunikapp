@@ -3,6 +3,7 @@ import { TurnoPrevisaoInstalacao } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
 import { InstalacaoAgendaSyncService } from './instalacao-agenda-sync.service';
+import { InstalacaoExecucaoSyncService } from './instalacao-execucao-sync.service';
 import { montarEnderecoInstalacaoDoProduto, enderecoInstalacaoPrecisaConfirmacao } from '../utils/endereco-instalacao.util';
 
 export interface ProcessarBaixaProducaoParams {
@@ -43,6 +44,7 @@ export class ItemOSInstalacaoCriacaoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly instalacaoAgendaSyncService: InstalacaoAgendaSyncService,
+    private readonly instalacaoExecucaoSyncService: InstalacaoExecucaoSyncService,
     private readonly homeCacheService: HomeCacheService,
   ) {}
 
@@ -55,7 +57,7 @@ export class ItemOSInstalacaoCriacaoService {
         os: { loja_id: params.lojaId },
       },
       include: {
-        os: { select: { orcamento_id: true } },
+        os: { select: { orcamento_id: true, id: true } },
       },
     });
 
@@ -138,6 +140,12 @@ export class ItemOSInstalacaoCriacaoService {
       },
     });
 
+    const osId = item.os.id;
+    await this.instalacaoExecucaoSyncService.sincronizarAposMudancaLotes(
+      params.lojaId,
+      osId,
+    );
+
     this.logger.log(
       `Lote de instalação criado (${quantidadeAlocar} un.) para item ${params.itemOsId} — lote ${lote.id}`,
     );
@@ -182,6 +190,11 @@ export class ItemOSInstalacaoCriacaoService {
         `${lotesCriados} lote(s) de instalação criado(s) para OS ${osId}`,
       );
     }
+
+    await this.instalacaoExecucaoSyncService.sincronizarAposMudancaLotes(
+      lojaId,
+      osId,
+    );
 
     return { lotes_criados: lotesCriados, resultados };
   }
@@ -297,6 +310,11 @@ export class ItemOSInstalacaoCriacaoService {
     );
 
     this.invalidarCacheBadgesMenu(params.lojaId);
+
+    await this.instalacaoExecucaoSyncService.sincronizarAposMudancaLotes(
+      params.lojaId,
+      osId,
+    );
 
     return {
       criado: true,

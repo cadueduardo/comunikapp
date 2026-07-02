@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ItemOSInstalacaoCriacaoService } from './item-os-instalacao-criacao.service';
 import { InstalacaoAgendaSyncService } from './instalacao-agenda-sync.service';
+import { InstalacaoExecucaoSyncService } from './instalacao-execucao-sync.service';
 import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
 
 describe('ItemOSInstalacaoCriacaoService', () => {
@@ -43,6 +44,12 @@ describe('ItemOSInstalacaoCriacaoService', () => {
         {
           provide: HomeCacheService,
           useValue: { invalidarPorPrefixo: jest.fn() },
+        },
+        {
+          provide: InstalacaoExecucaoSyncService,
+          useValue: {
+            sincronizarAposMudancaLotes: jest.fn().mockResolvedValue(0),
+          },
         },
       ],
     }).compile();

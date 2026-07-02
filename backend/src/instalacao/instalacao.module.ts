@@ -18,6 +18,7 @@ import { CepIntegrationService } from './services/cep-integration.service';
 import { InstalacaoService } from './services/instalacao.service';
 import { InstalacaoFechamentoService } from './services/instalacao-fechamento.service';
 import { InstalacaoAgendaSyncService } from './services/instalacao-agenda-sync.service';
+import { InstalacaoExecucaoSyncService } from './services/instalacao-execucao-sync.service';
 import { InstalacaoPosCalculoService } from './services/instalacao-pos-calculo.service';
 import { InstalacaoRelatorioPdfService } from './services/instalacao-relatorio-pdf.service';
 import { InstalacaoSplitFiscalService } from './services/instalacao-split-fiscal.service';
@@ -45,6 +46,7 @@ import { FinanceiroPermissionsGuard } from './guards/financeiro-permissions.guar
     InstalacaoService,
     InstalacaoFechamentoService,
     InstalacaoAgendaSyncService,
+    InstalacaoExecucaoSyncService,
     InstalacaoPosCalculoService,
     InstalacaoAnexoService,
     InstalacaoRelatorioPdfService,
@@ -66,6 +68,7 @@ import { FinanceiroPermissionsGuard } from './guards/financeiro-permissions.guar
     InstalacaoSplitFinanceiroService,
     InstalacaoFechamentoService,
     InstalacaoAgendaSyncService,
+    InstalacaoExecucaoSyncService,
     InstalacaoService,
   ],
 })

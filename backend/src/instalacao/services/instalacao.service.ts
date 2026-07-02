@@ -21,6 +21,7 @@ import {
 import { StatusRollupService } from '../../financeiro/services/status-rollup.service';
 import { InstalacaoFechamentoService } from './instalacao-fechamento.service';
 import { InstalacaoAgendaSyncService } from './instalacao-agenda-sync.service';
+import { InstalacaoExecucaoSyncService } from './instalacao-execucao-sync.service';
 import { ConfiguracaoInstalacaoService } from './configuracao-instalacao.service';
 import { ConsultarAgendaQueryDto } from '../dto/consultar-agenda-query.dto';
 import { ListarOsInstalacaoQueryDto } from '../dto/listar-os-instalacao-query.dto';
@@ -154,6 +155,7 @@ export class InstalacaoService {
     private readonly instalacaoAgendaSyncService: InstalacaoAgendaSyncService,
     private readonly configuracaoInstalacaoService: ConfiguracaoInstalacaoService,
     private readonly statusRollup: StatusRollupService,
+    private readonly instalacaoExecucaoSyncService: InstalacaoExecucaoSyncService,
   ) {}
 
   async listarLotesPendentesInstalador(lojaId: string) {
@@ -260,7 +262,7 @@ export class InstalacaoService {
       );
     }
 
-    return this.prisma.itemOSInstalacao.update({
+    const atualizado = await this.prisma.itemOSInstalacao.update({
       where: { id: loteId },
       data: {
         status_instalacao: StatusInstalacao.EM_ANDAMENTO,
@@ -272,6 +274,13 @@ export class InstalacaoService {
         data_execucao: true,
       },
     });
+
+    await this.instalacaoExecucaoSyncService.rollupStatusOsEmAndamento(
+      lojaId,
+      lote.item_os.os.id,
+    );
+
+    return atualizado;
   }
 
   async concluirLote(
@@ -446,6 +455,14 @@ export class InstalacaoService {
     this.logger.log(
       `Ocorrência ${ocorrencia.id} registrada (${input.tipo}) — OS ${input.osId}`,
     );
+
+    if (input.itemInstalacaoId) {
+      await this.instalacaoExecucaoSyncService.promoverLoteComAtividadeCampo(
+        input.lojaId,
+        input.itemInstalacaoId,
+        input.osId,
+      );
+    }
 
     return {
       ...ocorrencia,
@@ -914,6 +931,16 @@ export class InstalacaoService {
       throw new NotFoundException('Ordem de serviço não encontrada.');
     }
 
+    await this.instalacaoExecucaoSyncService.reconciliarStatusCampo(
+      lojaId,
+      osId,
+    );
+
+    const osAtualizada = await this.prisma.ordemServico.findFirst({
+      where: { id: osId, loja_id: lojaId },
+      select: { status_instalacao_os: true },
+    });
+
     const lotes = await this.prisma.itemOSInstalacao.findMany({
       where: {
         loja_id: lojaId,
@@ -979,7 +1006,8 @@ export class InstalacaoService {
         numero: os.numero,
         nome_servico: os.nome_servico,
         cliente_nome: os.cliente?.nome ?? null,
-        status_instalacao_os: os.status_instalacao_os,
+        status_instalacao_os:
+          osAtualizada?.status_instalacao_os ?? os.status_instalacao_os,
       },
       itens_saldo: itensSaldo,
       lotes: lotes.map((lote) => ({
@@ -1127,6 +1155,13 @@ export class InstalacaoService {
       `Lote ${loteId} — status atualizado para ${novoStatus} (gestão)`,
     );
 
+    if (novoStatus === StatusInstalacao.EM_ANDAMENTO) {
+      await this.instalacaoExecucaoSyncService.rollupStatusOsEmAndamento(
+        lojaId,
+        lote.item_os.os_id,
+      );
+    }
+
     return atualizado;
   }
 
@@ -1223,8 +1258,8 @@ export class InstalacaoService {
     const dataPrevisao = this.resolverDataPrevisao(dados.data_previsao);
     const osId = lote.item_os.os_id;
 
-    return this.prisma.$transaction(async (tx) => {
-      const loteAtualizado = await tx.itemOSInstalacao.update({
+    const loteAtualizado = await this.prisma.$transaction(async (tx) => {
+      const atualizado = await tx.itemOSInstalacao.update({
         where: { id: loteId },
         data: {
           cep: dados.cep?.replace(/\D/g, '') || null,
@@ -1273,8 +1308,15 @@ export class InstalacaoService {
         osId,
       );
 
-      return loteAtualizado;
+      return atualizado;
     });
+
+    await this.instalacaoExecucaoSyncService.sincronizarAposMudancaLotes(
+      lojaId,
+      osId,
+    );
+
+    return loteAtualizado;
   }
 
   private resolverDataPrevisao(
