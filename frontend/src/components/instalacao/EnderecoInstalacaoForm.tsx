@@ -43,6 +43,7 @@ export function EnderecoInstalacaoForm({
 }: EnderecoInstalacaoFormProps) {
   const [form, setForm] = useState<EnderecoLoteForm>(valorInicial);
   const [salvando, setSalvando] = useState(false);
+  const [erroValidacao, setErroValidacao] = useState<string | null>(null);
   const formInicialRef = useRef(JSON.stringify(valorInicial));
 
   useEffect(() => {
@@ -64,19 +65,43 @@ export function EnderecoInstalacaoForm({
     event.preventDefault();
     if (somenteLeitura) return;
 
+    const obrigatorios: Array<[keyof EnderecoLoteForm, string]> = [
+      ['logradouro', 'Logradouro'],
+      ['numero', 'Número'],
+      ['bairro', 'Bairro'],
+      ['cidade', 'Cidade'],
+      ['uf', 'UF'],
+    ];
+    const faltando = obrigatorios
+      .filter(([campo]) => !String(form[campo] ?? '').trim())
+      .map(([, rotulo]) => rotulo);
+
+    if (faltando.length > 0) {
+      setErroValidacao(
+        `Preencha os campos obrigatórios: ${faltando.join(', ')}. Sem número, informe "S/N".`,
+      );
+      return;
+    }
+    setErroValidacao(null);
+
     setSalvando(true);
     try {
       await onSalvar({
         cep: form.cep ?? '',
-        logradouro: form.logradouro ?? '',
-        numero: form.numero ?? '',
+        logradouro: form.logradouro.trim(),
+        numero: form.numero.trim(),
         complemento: form.complemento ?? '',
-        bairro: form.bairro ?? '',
-        cidade: form.cidade ?? '',
-        uf: form.uf ?? '',
+        bairro: form.bairro.trim(),
+        cidade: form.cidade.trim(),
+        uf: form.uf.trim(),
         quantidade_alocada: form.quantidade_alocada ?? 1,
       });
       formInicialRef.current = JSON.stringify(form);
+    } catch (err) {
+      // Exibe o erro inline; sem rethrow para não derrubar a árvore React.
+      setErroValidacao(
+        err instanceof Error ? err.message : 'Falha ao salvar endereço.',
+      );
     } finally {
       setSalvando(false);
     }
@@ -138,6 +163,7 @@ export function EnderecoInstalacaoForm({
           <Label htmlFor="numero-instalacao">Número</Label>
           <Input
             id="numero-instalacao"
+            placeholder="Ex.: 123 ou S/N"
             value={form.numero}
             disabled={desabilitado}
             onChange={(e) => atualizar({ numero: e.target.value })}
@@ -222,6 +248,14 @@ export function EnderecoInstalacaoForm({
           </div>
         )}
       </div>
+
+      {erroValidacao && (
+        <Alert variant="destructive" className="py-2">
+          <AlertDescription className="break-words text-xs">
+            {erroValidacao}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {!somenteLeitura && (
         <Button

@@ -21,11 +21,11 @@ import { REFERENCIA_ANEXO_INSTALACAO_REGEX } from '../utils/anexo-url.util';
 
 export class CriarLoteInstalacaoDto {
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Informe o item da OS.' })
   item_os_id: string;
 
-  @IsInt()
-  @Min(1)
+  @IsInt({ message: 'Quantidade alocada deve ser um número inteiro.' })
+  @Min(1, { message: 'Quantidade alocada deve ser no mínimo 1.' })
   quantidade_alocada: number;
 
   @IsOptional()
@@ -34,12 +34,12 @@ export class CriarLoteInstalacaoDto {
   cep?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Informe o logradouro do endereço de instalação.' })
   @MaxLength(255)
   logradouro: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Informe o número do endereço (use "S/N" se não houver).' })
   @MaxLength(32)
   numero: string;
 
@@ -49,17 +49,17 @@ export class CriarLoteInstalacaoDto {
   complemento?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Informe o bairro do endereço de instalação.' })
   @MaxLength(120)
   bairro: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Informe a cidade do endereço de instalação.' })
   @MaxLength(120)
   cidade: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Informe a UF do endereço de instalação.' })
   @MaxLength(2)
   uf: string;
 
@@ -84,12 +84,12 @@ export class AtualizarEnderecoLoteDto {
   cep?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Informe o logradouro do endereço de instalação.' })
   @MaxLength(255)
   logradouro: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Informe o número do endereço (use "S/N" se não houver).' })
   @MaxLength(32)
   numero: string;
 
@@ -99,23 +99,23 @@ export class AtualizarEnderecoLoteDto {
   complemento?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Informe o bairro do endereço de instalação.' })
   @MaxLength(120)
   bairro: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Informe a cidade do endereço de instalação.' })
   @MaxLength(120)
   cidade: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Informe a UF do endereço de instalação.' })
   @MaxLength(2)
   uf: string;
 
   @IsOptional()
-  @IsInt()
-  @Min(1)
+  @IsInt({ message: 'Quantidade alocada deve ser um número inteiro.' })
+  @Min(1, { message: 'Quantidade alocada deve ser no mínimo 1.' })
   quantidade_alocada?: number;
 
   @ValidateIf((_, valor) => valor !== null)
