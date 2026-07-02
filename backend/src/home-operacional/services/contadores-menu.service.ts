@@ -280,20 +280,48 @@ export class ContadoresMenuService {
   }
 
   /**
-   * Instalações: lote criado após a última visita (ex.: PCP concluído).
+   * Instalações: entradas novas na fila do módulo após a última visita.
+   *
+   * Espelha o critério do grid `/instalacao` (listarOsInstalacaoGestao):
+   * 1. Lote criado (baixa de produção no PCP ou rollout manual);
+   * 2. OS FINALIZADA com produto instalável ainda sem lote — caso em que o
+   *    lote automático foi pulado (ex.: endereço pendente de confirmação)
+   *    e o gestor precisa alocar manualmente.
    */
   private async contarNovasInstalacoes(
     lojaId: string,
     desde: Date,
   ): Promise<number> {
-    return this.prisma.itemOSInstalacao.count({
-      where: {
-        loja_id: lojaId,
-        criado_em: { gte: desde },
-        status_instalacao: {
-          in: ['AGUARDANDO', 'EM_ANDAMENTO', 'LOGISTICA_NEGATIVA'],
+    const [lotesNovos, osFinalizadasSemLote] = await Promise.all([
+      this.prisma.itemOSInstalacao.count({
+        where: {
+          loja_id: lojaId,
+          criado_em: { gte: desde },
+          status_instalacao: {
+            in: ['AGUARDANDO', 'EM_ANDAMENTO', 'LOGISTICA_NEGATIVA'],
+          },
         },
-      },
-    });
+      }),
+      this.prisma.ordemServico.count({
+        where: {
+          loja_id: lojaId,
+          ativo: true,
+          status: 'FINALIZADA',
+          atualizado_em: { gte: desde },
+          orcamento_id: { not: null },
+          orcamento: {
+            loja_id: lojaId,
+            produtos: { some: { instalacao_necessaria: true } },
+          },
+          itens: {
+            none: {
+              lotes_instalacao: { some: { loja_id: lojaId } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    return lotesNovos + osFinalizadasSemLote;
   }
 }

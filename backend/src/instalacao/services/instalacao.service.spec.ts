@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { CategoriaOcorrencia, TipoOcorrencia } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StatusRollupService } from '../../financeiro/services/status-rollup.service';
 import { InstalacaoService } from './instalacao.service';
 import { InstalacaoFechamentoService } from './instalacao-fechamento.service';
 import { InstalacaoAgendaSyncService } from './instalacao-agenda-sync.service';
@@ -29,6 +30,7 @@ describe('InstalacaoService', () => {
       aggregate: jest.fn(),
     },
     ordemServico: { findFirst: jest.fn(), findMany: jest.fn() },
+    cobranca: { findMany: jest.fn() },
     taxaOcorrenciaLoja: { findUnique: jest.fn() },
     ocorrenciaInstalacao: { create: jest.fn() },
     $transaction: jest.fn(),
@@ -36,11 +38,13 @@ describe('InstalacaoService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    prismaMock.cobranca.findMany.mockResolvedValue([]);
     service = new InstalacaoService(
       prismaMock as unknown as PrismaService,
       fechamentoMock as unknown as InstalacaoFechamentoService,
       agendaSyncMock as unknown as InstalacaoAgendaSyncService,
       configuracaoMock as unknown as ConfiguracaoInstalacaoService,
+      new StatusRollupService(),
     );
   });
 
@@ -498,6 +502,7 @@ describe('InstalacaoService', () => {
           nome_servico: 'Fachada',
           status_instalacao_os: 'EM_ANDAMENTO',
           data_instalacao_agendada: new Date('2026-08-15T12:00:00.000Z'),
+          orcamento_id: null,
           cliente: { nome: 'Cliente A' },
           itens: [
             {
@@ -539,6 +544,91 @@ describe('InstalacaoService', () => {
           }),
         }),
       );
+    });
+
+    it('marca bloqueio financeiro quando há parcela SALDO em aberto (regra da expedição)', async () => {
+      prismaMock.ordemServico.findMany.mockResolvedValue([
+        {
+          id: 'os-1',
+          numero: 'OS-100',
+          nome_servico: 'Fachada',
+          status_instalacao_os: 'EM_ANDAMENTO',
+          data_instalacao_agendada: null,
+          orcamento_id: 'orc-1',
+          cliente: { nome: 'Cliente A' },
+          itens: [{ quantidade: 10, lotes_instalacao: [] }],
+        },
+      ]);
+      prismaMock.cobranca.findMany.mockResolvedValue([
+        {
+          id: 'cob-1',
+          orcamento_id: 'orc-1',
+          parcelas: [
+            {
+              tipo: 'ENTRADA',
+              status: 'LIQUIDADO',
+              valor_previsto: 500,
+              valor_recebido: 500,
+              data_vencimento: new Date('2099-01-01'),
+            },
+            {
+              tipo: 'SALDO',
+              status: 'PREVISTO',
+              valor_previsto: 500,
+              valor_recebido: 0,
+              data_vencimento: new Date('2099-01-01'),
+            },
+          ],
+        },
+      ]);
+
+      const resultado = await service.listarOsInstalacaoGestao('loja-1');
+
+      expect(resultado.itens[0].bloqueio_financeiro).toBe(true);
+      expect(resultado.itens[0].link_financeiro).toContain('cobranca=cob-1');
+      expect(resultado.itens[0].link_financeiro).toContain('os=os-1');
+    });
+
+    it('não bloqueia quando o saldo está retido aguardando relatório técnico', async () => {
+      prismaMock.ordemServico.findMany.mockResolvedValue([
+        {
+          id: 'os-2',
+          numero: 'OS-200',
+          nome_servico: 'Letreiro',
+          status_instalacao_os: null,
+          data_instalacao_agendada: null,
+          orcamento_id: 'orc-2',
+          cliente: { nome: 'Cliente B' },
+          itens: [{ quantidade: 5, lotes_instalacao: [] }],
+        },
+      ]);
+      prismaMock.cobranca.findMany.mockResolvedValue([
+        {
+          id: 'cob-2',
+          orcamento_id: 'orc-2',
+          parcelas: [
+            {
+              tipo: 'ENTRADA',
+              status: 'LIQUIDADO',
+              valor_previsto: 576.53,
+              valor_recebido: 576.53,
+              data_vencimento: new Date('2026-07-02'),
+            },
+            {
+              tipo: 'SALDO',
+              status: 'AGUARDANDO_RELATORIO_TECNICO',
+              valor_previsto: 576.52,
+              valor_recebido: 0,
+              data_vencimento: new Date('2026-07-23'),
+            },
+          ],
+        },
+      ]);
+
+      const resultado = await service.listarOsInstalacaoGestao('loja-1');
+
+      expect(resultado.itens[0].bloqueio_financeiro).toBe(false);
+      expect(resultado.itens[0].link_financeiro).toBeNull();
     });
 
     it('só inclui OS sem lote quando a produção já foi finalizada', async () => {

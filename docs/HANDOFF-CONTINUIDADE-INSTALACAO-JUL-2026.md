@@ -179,9 +179,13 @@ O fluxo oficial (`modulo.md` § 2.1) exige que a OS só entre em Instalações *
 1. **Grid `/instalacao`** (`InstalacaoService.listarOsInstalacaoGestao`): OS aparece somente se tem ≥1 lote em `itens_os_instalacao` **ou** está `FINALIZADA` com produto `instalacao_necessaria`. Orçamento aprovado + OS recém-criada **não** entra mais no grid.
 2. **Lote manual** (`ItemOSInstalacaoCriacaoService.criarLoteManual`): rejeita com `AGUARDANDO_PRODUCAO` enquanto o item não tiver produção concluída (setores), lote de baixa parcial, OS `FINALIZADA` ou `status_liberacao_pcp = NAO_APLICA`.
 
-O badge do menu (contagem de lotes criados) passa a disparar apenas quando a produção realmente libera algo para instalação.
+O badge do menu (`ContadoresMenuService.contarNovasInstalacoes`) espelha o critério do grid: conta lotes criados desde a última visita **e** OS `FINALIZADA` com produto instalável ainda sem lote (caso do skip `ENDERECO_PENDENTE`, em que o gestor precisa alocar manualmente). O `PcpKanbanService` invalida o cache dos badges sempre que processa a baixa de produção, mesmo quando nenhum lote é criado.
 
 Lookup de instalação: `ProdutoOrcamento.id` **deve** ser igual a `ItemOS.id` (espelhado na geração da OS).
+
+### 8.2 Trava financeira no grid de instalação (jul/2026)
+
+O grid `/instalacao` reutiliza a regra da expedição (`ExpedicaoFinanceiroService`): parcela `SALDO` em `PREVISTO`/`VENCIDO`/`PARCIAL_PAGO` ou qualquer parcela vencida bloqueia. `InstalacaoService.calcularBloqueiosFinanceiros` calcula em lote (1 query de cobranças) usando o `StatusRollupService` (provider puro, registrado direto no `InstalacaoModule` para evitar ciclo com o `FinanceiroModule`). O grid retorna `bloqueio_financeiro` + `link_financeiro` por OS; o frontend pinta a linha de âmbar e exibe cadeado com tooltip "Entrega bloqueada — pendência financeira — ver financeiro" (clique abre popover com link para o financeiro). Saldo em `AGUARDANDO_RELATORIO_TECNICO` (retenção DEC-04) **não** bloqueia — é o estado esperado do fluxo de instalação.
 
 ---
 

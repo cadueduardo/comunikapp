@@ -26,6 +26,9 @@ export interface OsInstalacaoGridItem {
   data_instalacao_agendada: string | null;
   proxima_visita: string | null;
   progresso: OsInstalacaoGridProgresso;
+  /** Trava financeira (mesma regra da expedição). */
+  bloqueio_financeiro: boolean;
+  link_financeiro: string | null;
 }
 
 export interface ListarOsInstalacaoResposta {

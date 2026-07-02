@@ -14,6 +14,11 @@ import {
   TurnoPrevisaoInstalacao,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  ParcelaStatus,
+  ParcelaTipo,
+} from '../../financeiro/enums/cobranca-status.enum';
+import { StatusRollupService } from '../../financeiro/services/status-rollup.service';
 import { InstalacaoFechamentoService } from './instalacao-fechamento.service';
 import { InstalacaoAgendaSyncService } from './instalacao-agenda-sync.service';
 import { ConfiguracaoInstalacaoService } from './configuracao-instalacao.service';
@@ -107,6 +112,9 @@ export interface OsInstalacaoGridItem {
   data_instalacao_agendada: string | null;
   proxima_visita: string | null;
   progresso: OsInstalacaoGridProgresso;
+  /** Mesma trava financeira da expedição (parcela vencida ou SALDO em aberto). */
+  bloqueio_financeiro: boolean;
+  link_financeiro: string | null;
 }
 
 export interface ListarOsInstalacaoResposta {
@@ -126,6 +134,16 @@ const CATEGORIA_POR_TIPO: Record<TipoOcorrencia, CategoriaOcorrencia> = {
   RETRABALHO: CategoriaOcorrencia.PRODUCAO,
 };
 
+/**
+ * Mesma regra da trava financeira da expedição
+ * (`ExpedicaoFinanceiroService`): parcela SALDO nestes status bloqueia.
+ */
+const STATUS_SALDO_BLOQUEANTES = new Set<string>([
+  ParcelaStatus.PREVISTO,
+  ParcelaStatus.VENCIDO,
+  ParcelaStatus.PARCIAL_PAGO,
+]);
+
 @Injectable()
 export class InstalacaoService {
   private readonly logger = new Logger(InstalacaoService.name);
@@ -135,6 +153,7 @@ export class InstalacaoService {
     private readonly instalacaoFechamentoService: InstalacaoFechamentoService,
     private readonly instalacaoAgendaSyncService: InstalacaoAgendaSyncService,
     private readonly configuracaoInstalacaoService: ConfiguracaoInstalacaoService,
+    private readonly statusRollup: StatusRollupService,
   ) {}
 
   async listarLotesPendentesInstalador(lojaId: string) {
@@ -494,6 +513,7 @@ export class InstalacaoService {
         nome_servico: true,
         status_instalacao_os: true,
         data_instalacao_agendada: true,
+        orcamento_id: true,
         cliente: { select: { nome: true } },
         itens: {
           select: {
@@ -510,6 +530,13 @@ export class InstalacaoService {
         },
       },
     });
+
+    const bloqueiosPorOrcamento = await this.calcularBloqueiosFinanceiros(
+      lojaId,
+      ordens
+        .map((os) => os.orcamento_id)
+        .filter((id): id is string => id !== null),
+    );
 
     const inicioDia = this.inicioDiaOperacionalAgenda();
 
@@ -546,6 +573,10 @@ export class InstalacaoService {
       const proximaVisita =
         proximaVisitaLote ?? os.data_instalacao_agendada ?? null;
 
+      const cobrancaBloqueante = os.orcamento_id
+        ? (bloqueiosPorOrcamento.get(os.orcamento_id) ?? null)
+        : null;
+
       return {
         os_id: os.id,
         numero: os.numero,
@@ -561,10 +592,79 @@ export class InstalacaoService {
           alocados,
           saldo: Math.max(0, quantidadeOs - alocados),
         },
+        bloqueio_financeiro: cobrancaBloqueante !== null,
+        link_financeiro: cobrancaBloqueante
+          ? `/financeiro/recebimentos?cobranca=${cobrancaBloqueante}&os=${os.id}&ref=${encodeURIComponent(os.numero)}`
+          : null,
       };
     });
 
     return { total: itens.length, itens };
+  }
+
+  /**
+   * Trava financeira do grid de instalação — mesma regra da expedição
+   * (`ExpedicaoFinanceiroService.verificarBloqueioEntrega`):
+   * - sem cobrança vinculada → liberada;
+   * - bloqueia se houver parcela SALDO em PREVISTO/VENCIDO/PARCIAL_PAGO;
+   * - bloqueia se houver qualquer parcela vencida (após recategorização).
+   *
+   * Retorna mapa `orcamento_id → cobranca_id` apenas dos orçamentos bloqueados.
+   */
+  private async calcularBloqueiosFinanceiros(
+    lojaId: string,
+    orcamentoIds: string[],
+  ): Promise<Map<string, string>> {
+    const bloqueados = new Map<string, string>();
+    const idsUnicos = [...new Set(orcamentoIds)];
+    if (idsUnicos.length === 0) {
+      return bloqueados;
+    }
+
+    const cobrancas = await this.prisma.cobranca.findMany({
+      where: { loja_id: lojaId, orcamento_id: { in: idsUnicos } },
+      select: {
+        id: true,
+        orcamento_id: true,
+        parcelas: {
+          orderBy: { ordem: 'asc' },
+          select: {
+            tipo: true,
+            status: true,
+            valor_previsto: true,
+            valor_recebido: true,
+            data_vencimento: true,
+          },
+        },
+      },
+    });
+
+    for (const cobranca of cobrancas) {
+      const parcelasAtualizadas = this.statusRollup.recategorizarVencidas(
+        cobranca.parcelas.map((p) => ({
+          status: p.status,
+          valor_previsto: Number(p.valor_previsto),
+          valor_recebido: Number(p.valor_recebido),
+          data_vencimento: p.data_vencimento,
+        })),
+      );
+
+      const temBloqueio = cobranca.parcelas.some((parcela, indice) => {
+        const statusEfetivo =
+          parcelasAtualizadas[indice]?.status ?? parcela.status;
+        return (
+          statusEfetivo === ParcelaStatus.VENCIDO ||
+          (parcela.tipo === ParcelaTipo.SALDO &&
+            STATUS_SALDO_BLOQUEANTES.has(statusEfetivo))
+        );
+      });
+
+      if (temBloqueio) {
+        bloqueados.set(cobranca.orcamento_id, cobranca.id);
+      }
+    }
+
+    return bloqueados;
   }
 
   async listarLotesGestao(lojaId: string) {

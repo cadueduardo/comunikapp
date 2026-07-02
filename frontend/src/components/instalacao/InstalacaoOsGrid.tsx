@@ -1,8 +1,14 @@
 'use client';
 
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -26,7 +32,7 @@ import {
 } from '@/lib/instalacao/instalacao-labels';
 import type { OsInstalacaoGridItem } from '@/lib/instalacao/instalacao.types';
 import { cn } from '@/lib/utils';
-import { IconClipboardList, IconSearch } from '@tabler/icons-react';
+import { IconClipboardList, IconLock, IconSearch } from '@tabler/icons-react';
 
 const TONE_CLASSES = {
   default: 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-200',
@@ -45,6 +51,48 @@ function formatarData(iso: string | null): string {
     year: 'numeric',
     timeZone: 'America/Sao_Paulo',
   });
+}
+
+const MENSAGEM_BLOQUEIO_FINANCEIRO =
+  'Entrega bloqueada — pendência financeira — ver financeiro';
+
+/** Cadeado de bloqueio financeiro: tooltip no hover, detalhe + link no clique. */
+function CadeadoBloqueioFinanceiro({
+  linkFinanceiro,
+}: {
+  linkFinanceiro: string | null;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          title={MENSAGEM_BLOQUEIO_FINANCEIRO}
+          aria-label={MENSAGEM_BLOQUEIO_FINANCEIRO}
+          className="inline-flex shrink-0 items-center justify-center rounded p-0.5 text-amber-600 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-950/50"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <IconLock className="h-4 w-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-auto max-w-xs"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-sm text-amber-800 dark:text-amber-300">
+          Entrega bloqueada — pendência financeira.
+        </p>
+        {linkFinanceiro && (
+          <Link
+            href={linkFinanceiro}
+            className="mt-2 inline-block text-sm font-medium text-primary underline underline-offset-2"
+          >
+            Ver financeiro
+          </Link>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 function badgeStatusOs(status: OsInstalacaoGridItem['status_instalacao_os']) {
@@ -143,10 +191,24 @@ export function InstalacaoOsGrid({
                 {itens.map((item) => (
                   <TableRow
                     key={item.os_id}
-                    className="cursor-pointer hover:bg-muted/50"
+                    className={cn(
+                      'cursor-pointer',
+                      item.bloqueio_financeiro
+                        ? 'bg-amber-50/70 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/40'
+                        : 'hover:bg-muted/50',
+                    )}
                     onClick={() => onSelecionarOs(item)}
                   >
-                    <TableCell className="font-medium">{item.numero}</TableCell>
+                    <TableCell className="font-medium">
+                      <span className="inline-flex items-center gap-1.5">
+                        {item.bloqueio_financeiro && (
+                          <CadeadoBloqueioFinanceiro
+                            linkFinanceiro={item.link_financeiro}
+                          />
+                        )}
+                        {item.numero}
+                      </span>
+                    </TableCell>
                     <TableCell className="max-w-[180px] truncate">
                       {item.cliente_nome ?? '—'}
                     </TableCell>
@@ -174,13 +236,23 @@ export function InstalacaoOsGrid({
             {itens.map((item) => (
               <Card
                 key={item.os_id}
-                className="cursor-pointer border-border bg-card transition-colors hover:bg-muted/30"
+                className={cn(
+                  'cursor-pointer transition-colors',
+                  item.bloqueio_financeiro
+                    ? 'border-amber-300 bg-amber-50/60 hover:bg-amber-100/50 dark:border-amber-900 dark:bg-amber-950/20'
+                    : 'border-border bg-card hover:bg-muted/30',
+                )}
                 onClick={() => onSelecionarOs(item)}
               >
                 <CardContent className="space-y-2 p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-semibold text-foreground">
+                      <p className="flex items-center gap-1.5 font-semibold text-foreground">
+                        {item.bloqueio_financeiro && (
+                          <CadeadoBloqueioFinanceiro
+                            linkFinanceiro={item.link_financeiro}
+                          />
+                        )}
                         OS {item.numero}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">

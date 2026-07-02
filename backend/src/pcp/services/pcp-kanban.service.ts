@@ -1330,9 +1330,9 @@ export class PCPKanbanService {
         }
       }
 
-      if (resumo.lotes_criados > 0) {
-        this.homeCacheService.invalidarPorPrefixo(`${lojaId}:`);
-      }
+      // Invalida sempre: mesmo sem lote criado (ex.: endereço pendente), a OS
+      // finalizada com produto instalável entra no grid/badge de instalação.
+      this.homeCacheService.invalidarPorPrefixo(`${lojaId}:`);
 
       return resumo;
     } catch (error) {

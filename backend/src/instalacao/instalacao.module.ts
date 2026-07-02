@@ -22,6 +22,7 @@ import { InstalacaoPosCalculoService } from './services/instalacao-pos-calculo.s
 import { InstalacaoRelatorioPdfService } from './services/instalacao-relatorio-pdf.service';
 import { InstalacaoSplitFiscalService } from './services/instalacao-split-fiscal.service';
 import { InstalacaoSplitFinanceiroService } from './services/instalacao-split-financeiro.service';
+import { StatusRollupService } from '../financeiro/services/status-rollup.service';
 import { InstaladorPermissionsGuard } from './guards/instalador-permissions.guard';
 import { InstalacaoGestaoPermissionsGuard } from './guards/instalacao-gestao-permissions.guard';
 import { FinanceiroPermissionsGuard } from './guards/financeiro-permissions.guard';
@@ -49,6 +50,9 @@ import { FinanceiroPermissionsGuard } from './guards/financeiro-permissions.guar
     InstalacaoRelatorioPdfService,
     InstalacaoSplitFiscalService,
     InstalacaoSplitFinanceiroService,
+    // Provider puro (sem dependências) reutilizado do financeiro para a trava
+    // financeira do grid — evita ciclo de módulos Instalacao ↔ Financeiro.
+    StatusRollupService,
     InstaladorPermissionsGuard,
     InstalacaoGestaoPermissionsGuard,
     FinanceiroPermissionsGuard,
