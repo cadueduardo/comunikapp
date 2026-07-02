@@ -21,6 +21,7 @@ import { ItemOSInstalacaoCriacaoService } from '../services/item-os-instalacao-c
 import { AbonarOcorrenciaDto } from '../dto/abonar-ocorrencia.dto';
 import { FilaPrecificacaoQueryDto } from '../dto/fila-precificacao-query.dto';
 import { GerarOsAditivaDto } from '../dto/gerar-os-aditiva.dto';
+import { PrecificarOcorrenciaDto } from '../dto/precificar-ocorrencia.dto';
 import { ConfiguracaoInstalacaoService } from '../services/configuracao-instalacao.service';
 import { AtualizarOsAditivaConfigDto } from '../dto/atualizar-os-aditiva-config.dto';
 @ApiTags('Instalações')
@@ -117,6 +118,8 @@ export class InstalacaoController {
         SEM_ORCAMENTO: 'OS sem orçamento vinculado.',
         SEM_INSTALACAO: 'Este item não exige instalação.',
         SEM_SALDO: 'Quantidade excede o saldo disponível para alocação.',
+        AGUARDANDO_PRODUCAO:
+          'A instalação só é liberada após a baixa de produção no PCP. Conclua a produção do item antes de criar lotes.',
       };
       const mensagem =
         mensagens[resultado.motivo_skip ?? ''] ??

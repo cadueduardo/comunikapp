@@ -169,6 +169,17 @@ Documentadas em [`01-analise-implementacao-e-decisoes.md`](./modulo%20instalacao
 | `PRODUCAO_INCOMPLETA` | Setores PCP ainda não todos CONCLUIDA/CANCELADA e sem `quantidadeProduzida` |
 | `SEM_SALDO` | Quantidade já alocada em lotes |
 | `ITEM_NAO_ENCONTRADO` | `item_os_id` inválido |
+| `ENDERECO_PENDENTE` | Endereço do orçamento é placeholder — lote deve ser criado manualmente após confirmação |
+| `AGUARDANDO_PRODUCAO` | (`criarLoteManual`) Item ainda sem baixa de produção — lote manual bloqueado até o PCP concluir (ou OS FINALIZADA / item `NAO_APLICA`) |
+
+### 8.1 Gate de entrada no módulo (jul/2026 — correção definitiva)
+
+O fluxo oficial (`modulo.md` § 2.1) exige que a OS só entre em Instalações **após a baixa de produção**. Dois guardrails garantem isso:
+
+1. **Grid `/instalacao`** (`InstalacaoService.listarOsInstalacaoGestao`): OS aparece somente se tem ≥1 lote em `itens_os_instalacao` **ou** está `FINALIZADA` com produto `instalacao_necessaria`. Orçamento aprovado + OS recém-criada **não** entra mais no grid.
+2. **Lote manual** (`ItemOSInstalacaoCriacaoService.criarLoteManual`): rejeita com `AGUARDANDO_PRODUCAO` enquanto o item não tiver produção concluída (setores), lote de baixa parcial, OS `FINALIZADA` ou `status_liberacao_pcp = NAO_APLICA`.
+
+O badge do menu (contagem de lotes criados) passa a disparar apenas quando a produção realmente libera algo para instalação.
 
 Lookup de instalação: `ProdutoOrcamento.id` **deve** ser igual a `ItemOS.id` (espelhado na geração da OS).
 

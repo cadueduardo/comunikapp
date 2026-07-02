@@ -449,6 +449,10 @@ export class InstalacaoService {
           : {}),
         AND: [
           {
+            // Entrada no módulo de instalação (modulo.md § 2.1): somente após
+            // baixa de produção — lote já criado pelo PCP/gestor — ou OS com
+            // produção encerrada (FINALIZADA) aguardando alocação manual.
+            // OS recém-criada a partir de orçamento aprovado NÃO aparece aqui.
             OR: [
               {
                 itens: {
@@ -458,6 +462,7 @@ export class InstalacaoService {
                 },
               },
               {
+                status: 'FINALIZADA',
                 orcamento_id: { not: null },
                 orcamento: {
                   loja_id: lojaId,

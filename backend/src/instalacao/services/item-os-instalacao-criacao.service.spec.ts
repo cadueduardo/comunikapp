@@ -21,6 +21,7 @@ describe('ItemOSInstalacaoCriacaoService', () => {
     itemOSInstalacao: {
       aggregate: jest.fn(),
       create: jest.fn(),
+      findFirst: jest.fn(),
     },
     workflowInstanciaSetor: { findMany: jest.fn() },
     $transaction: jest.fn(async (fn: (tx: typeof txMock) => Promise<unknown>) =>
@@ -180,11 +181,13 @@ describe('ItemOSInstalacaoCriacaoService', () => {
     prismaMock.itemOS.findFirst.mockResolvedValue({
       id: 'item-1',
       quantidade: 10,
-      os: { id: 'os-1', orcamento_id: 'orc-1' },
+      status_liberacao_pcp: 'LIBERADO',
+      os: { id: 'os-1', orcamento_id: 'orc-1', status: 'FINALIZADA' },
     });
     prismaMock.produtoOrcamento.findFirst.mockResolvedValue({
       instalacao_necessaria: true,
     });
+    prismaMock.itemOSInstalacao.findFirst.mockResolvedValue(null);
     prismaMock.itemOSInstalacao.aggregate.mockResolvedValue({
       _sum: { quantidade_alocada: 0 },
     });
@@ -223,5 +226,75 @@ describe('ItemOSInstalacaoCriacaoService', () => {
       'loja-1',
       'os-1',
     );
+  });
+
+  it('criarLoteManual bloqueia OS que ainda não teve baixa de produção', async () => {
+    prismaMock.itemOS.findFirst.mockResolvedValue({
+      id: 'item-1',
+      quantidade: 20,
+      status_liberacao_pcp: 'PENDENTE',
+      os: {
+        id: 'os-1',
+        orcamento_id: 'orc-1',
+        status: 'AGUARDANDO_APROVACAO_TECNICA',
+      },
+    });
+    prismaMock.produtoOrcamento.findFirst.mockResolvedValue({
+      instalacao_necessaria: true,
+    });
+    prismaMock.itemOSInstalacao.findFirst.mockResolvedValue(null);
+    prismaMock.workflowInstanciaSetor.findMany.mockResolvedValue([]);
+
+    const resultado = await service.criarLoteManual({
+      lojaId: 'loja-1',
+      itemOsId: 'item-1',
+      quantidadeAlocada: 2,
+      endereco: {
+        logradouro: 'Rua B',
+        numero: '200',
+        bairro: 'Centro',
+        cidade: 'São Paulo',
+        uf: 'SP',
+      },
+    });
+
+    expect(resultado).toEqual({
+      criado: false,
+      motivo_skip: 'AGUARDANDO_PRODUCAO',
+    });
+    expect(txMock.itemOSInstalacao.create).not.toHaveBeenCalled();
+  });
+
+  it('criarLoteManual permite fracionar rollout quando já existe lote da baixa parcial', async () => {
+    prismaMock.itemOS.findFirst.mockResolvedValue({
+      id: 'item-1',
+      quantidade: 20,
+      status_liberacao_pcp: 'LIBERADO',
+      os: { id: 'os-1', orcamento_id: 'orc-1', status: 'EM_WORKFLOW' },
+    });
+    prismaMock.produtoOrcamento.findFirst.mockResolvedValue({
+      instalacao_necessaria: true,
+    });
+    prismaMock.itemOSInstalacao.findFirst.mockResolvedValue({ id: 'lote-1' });
+    prismaMock.itemOSInstalacao.aggregate.mockResolvedValue({
+      _sum: { quantidade_alocada: 5 },
+    });
+    txMock.itemOSInstalacao.create.mockResolvedValue({ id: 'lote-2' });
+
+    const resultado = await service.criarLoteManual({
+      lojaId: 'loja-1',
+      itemOsId: 'item-1',
+      quantidadeAlocada: 3,
+      endereco: {
+        logradouro: 'Rua C',
+        numero: '300',
+        bairro: 'Centro',
+        cidade: 'São Paulo',
+        uf: 'SP',
+      },
+    });
+
+    expect(resultado.criado).toBe(true);
+    expect(resultado.quantidade_alocada).toBe(3);
   });
 });

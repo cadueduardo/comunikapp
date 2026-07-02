@@ -540,5 +540,32 @@ describe('InstalacaoService', () => {
         }),
       );
     });
+
+    it('só inclui OS sem lote quando a produção já foi finalizada', async () => {
+      prismaMock.ordemServico.findMany.mockResolvedValue([]);
+
+      await service.listarOsInstalacaoGestao('loja-1');
+
+      const where = prismaMock.ordemServico.findMany.mock.calls[0][0].where;
+      const criteriosEntrada = where.AND[0].OR;
+
+      expect(criteriosEntrada).toEqual([
+        {
+          itens: {
+            some: {
+              lotes_instalacao: { some: { loja_id: 'loja-1' } },
+            },
+          },
+        },
+        {
+          status: 'FINALIZADA',
+          orcamento_id: { not: null },
+          orcamento: {
+            loja_id: 'loja-1',
+            produtos: { some: { instalacao_necessaria: true } },
+          },
+        },
+      ]);
+    });
   });
 });

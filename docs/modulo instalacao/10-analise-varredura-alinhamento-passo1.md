@@ -321,7 +321,7 @@ Retorno por OS com instalação:
 - `proxima_visita`: menor `data_previsao` futura
 - `data_instalacao_agendada` (campo OS sincronizado)
 
-Query: OS que tenham ≥1 item com `instalacao_necessaria` no orçamento **ou** ≥1 lote existente.
+Query (atualizada em jul/2026 — gate de fluxo): OS que tenham **≥1 lote existente** ou que estejam **`FINALIZADA`** com ≥1 item `instalacao_necessaria` no orçamento. OS recém-criada de orçamento aprovado, ainda sem baixa de produção no PCP, **não** aparece no grid (`modulo.md` § 2.1 — gatilho PCP → Instalação).
 
 #### `GET /instalacao/agenda?de=&ate=`
 

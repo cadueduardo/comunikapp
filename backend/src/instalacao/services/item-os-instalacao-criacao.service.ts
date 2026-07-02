@@ -17,7 +17,8 @@ export type MotivoSkipLoteInstalacao =
   | 'SEM_SALDO'
   | 'PRODUCAO_INCOMPLETA'
   | 'SEM_ORCAMENTO'
-  | 'ENDERECO_PENDENTE';
+  | 'ENDERECO_PENDENTE'
+  | 'AGUARDANDO_PRODUCAO';
 
 export interface ResultadoCriacaoLoteInstalacao {
   criado: boolean;
@@ -211,7 +212,7 @@ export class ItemOSInstalacaoCriacaoService {
         os: { loja_id: params.lojaId },
       },
       include: {
-        os: { select: { id: true, orcamento_id: true } },
+        os: { select: { id: true, orcamento_id: true, status: true } },
       },
     });
 
@@ -234,6 +235,19 @@ export class ItemOSInstalacaoCriacaoService {
 
     if (!produto?.instalacao_necessaria) {
       return { criado: false, motivo_skip: 'SEM_INSTALACAO' };
+    }
+
+    // Guardrail de fluxo: a OS só entra no módulo de instalação depois que a
+    // produção baixa (parcial ou total). Antes disso, nenhum lote manual.
+    const liberado = await this.itemLiberadoParaInstalacao(
+      params.lojaId,
+      params.itemOsId,
+      item.os.status,
+      item.status_liberacao_pcp,
+    );
+
+    if (!liberado) {
+      return { criado: false, motivo_skip: 'AGUARDANDO_PRODUCAO' };
     }
 
     const saldo = await this.calcularSaldoInstalacao(
@@ -290,6 +304,43 @@ export class ItemOSInstalacaoCriacaoService {
       item_instalacao_id: lote.id,
       quantidade_alocada: quantidade,
     };
+  }
+
+  /**
+   * Item está liberado para gestão de lotes no módulo de instalação?
+   *
+   * Fluxo oficial (modulo.md § 2.1): a instalação só recebe o item após a
+   * baixa de produção no PCP (parcial ou total). Casos aceitos:
+   *  1. OS já finalizada (produção encerrada por qualquer caminho);
+   *  2. Já existe lote do item (baixa parcial anterior — gestor fraciona rollout);
+   *  3. Item não passa pelo PCP (`status_liberacao_pcp = NAO_APLICA`, marcado
+   *     na aprovação técnica da OS);
+   *  4. Todos os setores de produção do item concluídos/cancelados.
+   */
+  private async itemLiberadoParaInstalacao(
+    lojaId: string,
+    itemOsId: string,
+    osStatus: string,
+    statusLiberacaoPcp: string | null,
+  ): Promise<boolean> {
+    if (String(osStatus).toUpperCase() === 'FINALIZADA') {
+      return true;
+    }
+
+    const loteExistente = await this.prisma.itemOSInstalacao.findFirst({
+      where: { item_os_id: itemOsId, loja_id: lojaId },
+      select: { id: true },
+    });
+
+    if (loteExistente) {
+      return true;
+    }
+
+    if ((statusLiberacaoPcp || '').toUpperCase() === 'NAO_APLICA') {
+      return true;
+    }
+
+    return this.itemProducaoTotalmenteConcluido({ lojaId, itemOsId });
   }
 
   private async calcularSaldoInstalacao(
