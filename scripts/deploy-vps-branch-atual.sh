@@ -269,8 +269,9 @@ apply_prisma() {
 
 build_apps() {
   log 'Executando builds de producao...'
-  run_as_app 'cd backend && npm run build'
-  run_as_app 'cd frontend && npm run build'
+  # Aumentamos o limite para 3GB (3072MB)
+  run_as_app 'cd backend && NODE_OPTIONS="--max-old-space-size=3072" npm run build'
+  run_as_app 'cd frontend && NODE_OPTIONS="--max-old-space-size=3072" npm run build'
 }
 
 audit_dependencies() {
