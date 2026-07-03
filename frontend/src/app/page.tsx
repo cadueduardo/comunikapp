@@ -131,6 +131,13 @@ export default function HomePage() {
             className="underline underline-offset-2 hover:text-neutral-300"
           >
             Política de Privacidade
+          </Link>{' '}
+          ·{' '}
+          <Link
+            href="/termos-de-servico"
+            className="underline underline-offset-2 hover:text-neutral-300"
+          >
+            Termos de Serviço
           </Link>
         </p>
       </footer>
