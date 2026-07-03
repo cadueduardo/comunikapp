@@ -13,6 +13,11 @@ import {
   OnboardingResumo,
 } from '../interfaces/onboarding.interface';
 import { ConfiguracaoArteService } from '../../modules/arte-aprovacao/services/configuracao-arte.service';
+import { LojaConexaoService } from '../../conexoes/services/loja-conexao.service';
+import {
+  LojaConexaoStatus,
+  LojaConexaoTipo,
+} from '../../conexoes/constants/conexao-tipos.enum';
 
 type AcaoStep = 'ignorar' | 'reativar';
 
@@ -31,6 +36,7 @@ export class OnboardingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configuracaoArteService: ConfiguracaoArteService,
+    private readonly lojaConexaoService: LojaConexaoService,
   ) {}
 
   async obterResumo(lojaId: string): Promise<OnboardingResumo> {
@@ -208,6 +214,7 @@ export class OnboardingService {
       aprovadosCount,
       producaoCount,
       statusArte,
+      conexaoGoogleDrive,
     ] = await Promise.all([
       this.prisma.loja.findUnique({
         where: { id: lojaId },
@@ -246,6 +253,7 @@ export class OnboardingService {
         },
       }),
       this.configuracaoArteService.obterStatus(lojaId),
+      this.lojaConexaoService.obterPorTipo(lojaId, LojaConexaoTipo.GOOGLE_DRIVE),
     ]);
 
     if (loja) {
@@ -271,6 +279,8 @@ export class OnboardingService {
       modalidadesEntregaCount > 0 && tiposInstalacaoCount > 0;
     resultado[OnboardingStepId.CONFIGURAR_ARTE_APROVACAO] =
       statusArte.configurado === true;
+    resultado[OnboardingStepId.CONECTAR_GOOGLE_DRIVE] =
+      conexaoGoogleDrive?.status === LojaConexaoStatus.CONECTADO;
     resultado[OnboardingStepId.PRIMEIRO_ORCAMENTO] = orcamentosCount > 0;
     resultado[OnboardingStepId.PRIMEIRA_APROVACAO] = aprovadosCount > 0;
     resultado[OnboardingStepId.PRIMEIRA_PRODUCAO] = producaoCount > 0;

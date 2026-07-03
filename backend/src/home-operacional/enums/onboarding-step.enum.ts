@@ -9,6 +9,7 @@ export enum OnboardingStepId {
   CONFIGURAR_PRODUCAO = 'configurar_producao',
   CONFIGURAR_ENTREGA_INSTALACAO = 'configurar_entrega_instalacao',
   CONFIGURAR_ARTE_APROVACAO = 'configurar_arte_aprovacao',
+  CONECTAR_GOOGLE_DRIVE = 'conectar_google_drive',
   MARGEM_IMPOSTO = 'margem_imposto',
   CONDICAO_PAGAMENTO = 'condicao_pagamento',
   PRIMEIRO_ORCAMENTO = 'primeiro_orcamento',

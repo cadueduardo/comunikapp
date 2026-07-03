@@ -81,8 +81,18 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
       acao_href: '/configuracoes/arte-aprovacao',
     },
     {
-      step_id: OnboardingStepId.MARGEM_IMPOSTO,
+      step_id: OnboardingStepId.CONECTAR_GOOGLE_DRIVE,
       ordem: 8,
+      obrigatoria: false,
+      titulo: 'Conectar Google Drive',
+      descricao_curta:
+        'Conecte o Google Drive da loja para organizar automaticamente os arquivos do fluxo de Arte & Aprovação.',
+      acao_label: 'Abrir Conexões',
+      acao_href: '/configuracoes/conexoes',
+    },
+    {
+      step_id: OnboardingStepId.MARGEM_IMPOSTO,
+      ordem: 9,
       obrigatoria: true,
       titulo: 'Definir margem, impostos e comissão',
       descricao_curta:
@@ -92,7 +102,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.CONDICAO_PAGAMENTO,
-      ordem: 9,
+      ordem: 10,
       obrigatoria: false,
       titulo: 'Configurar condição de pagamento padrão',
       descricao_curta:
@@ -102,7 +112,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.PRIMEIRO_ORCAMENTO,
-      ordem: 10,
+      ordem: 11,
       obrigatoria: true,
       titulo: 'Criar primeiro orçamento',
       descricao_curta: 'Coloque tudo em prática gerando uma proposta real.',
@@ -111,7 +121,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.PRIMEIRA_APROVACAO,
-      ordem: 11,
+      ordem: 12,
       obrigatoria: true,
       titulo: 'Aprovar orçamento e gerar OS',
       descricao_curta:
@@ -121,7 +131,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.PRIMEIRA_PRODUCAO,
-      ordem: 12,
+      ordem: 13,
       obrigatoria: false,
       titulo: 'Liberar OS para produção',
       descricao_curta: 'Acompanhe a produção pelo PCP.',
@@ -130,7 +140,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.PRIMEIRO_RECEBIMENTO,
-      ordem: 13,
+      ordem: 14,
       obrigatoria: false,
       titulo: 'Registrar primeiro recebimento',
       descricao_curta:
