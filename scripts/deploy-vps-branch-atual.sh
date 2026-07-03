@@ -15,6 +15,11 @@
 #   INSTALL_SYSTEM_PACKAGES=1|0
 #   RUN_AUDIT=1|0
 #   SKIP_HEALTH_CHECKS=1|0
+#   BUILD_MAX_OLD_SPACE_MB=4096
+#     Heap maximo (MB) do Node durante "npm run build" do backend/frontend.
+#     IMPORTANTE: "sudo VAR=valor bash script.sh" so repassa a variavel se o
+#     sudoers da VPS mantiver VAR (env_keep) ou "sudo -E" for usado; prefira
+#     exportar a variavel ou usar "sudo -E env BUILD_MAX_OLD_SPACE_MB=4096 bash script.sh".
 
 set -euo pipefail
 
@@ -30,6 +35,7 @@ RUN_AUDIT="${RUN_AUDIT:-1}"
 SKIP_HEALTH_CHECKS="${SKIP_HEALTH_CHECKS:-0}"
 BACKEND_SERVICE="${BACKEND_SERVICE:-comunikapp-backend}"
 FRONTEND_SERVICE="${FRONTEND_SERVICE:-comunikapp-frontend}"
+BUILD_MAX_OLD_SPACE_MB="${BUILD_MAX_OLD_SPACE_MB:-4096}"
 
 log() {
   printf '[deploy-branch-atual] %s\n' "$*"
@@ -268,10 +274,9 @@ apply_prisma() {
 }
 
 build_apps() {
-  log 'Executando builds de producao...'
-  # Aumentamos o limite para 3GB (3072MB)
-  run_as_app 'cd backend && NODE_OPTIONS="--max-old-space-size=3072" npm run build'
-  run_as_app 'cd frontend && NODE_OPTIONS="--max-old-space-size=3072" npm run build'
+  log "Executando builds de producao (heap maximo: ${BUILD_MAX_OLD_SPACE_MB}MB, ajustavel via BUILD_MAX_OLD_SPACE_MB)..."
+  run_as_app "cd backend && NODE_OPTIONS='--max-old-space-size=${BUILD_MAX_OLD_SPACE_MB}' npm run build"
+  run_as_app "cd frontend && NODE_OPTIONS='--max-old-space-size=${BUILD_MAX_OLD_SPACE_MB}' npm run build"
 }
 
 audit_dependencies() {
