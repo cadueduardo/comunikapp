@@ -7,6 +7,7 @@ import {
   ColunaFluxo,
   FluxoResponseData,
 } from '../interfaces/fluxo.interface';
+import { filtroOsElegivelFluxoPcp } from '../../pcp/utils/os-elegivel-pcp-kanban.util';
 
 /**
  * Service que monta o agregador de Fluxo de Trabalho da Home (Fase 4).
@@ -250,6 +251,7 @@ export class FluxoTrabalhoService {
       loja_id: lojaId,
       status: { in: ['PRODUCAO', 'ACABAMENTO', 'AGUARDANDO_MATERIAL', 'FILA'] },
       aprovacao_tecnica_status: 'APROVADA',
+      ...filtroOsElegivelFluxoPcp,
     };
 
     const [total, registros] = await Promise.all([

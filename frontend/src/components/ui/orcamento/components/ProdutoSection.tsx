@@ -361,15 +361,23 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
     [fieldsSignature, fields.length],
   );
   const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
+  const prevFieldsCountRef = useRef(0);
 
   useEffect(() => {
     if (somenteLeitura) return;
+    const count = fields.length;
     setOpenAccordionItems((prev) => {
       const valid = fields.map((_, index) => `item-${index}`);
-      const kept = prev.filter((id) => valid.includes(id));
-      if (kept.length > 0) return kept;
-      return valid.length > 0 ? [valid[0]] : [];
+      let next = prev.filter((id) => valid.includes(id));
+      if (count > prevFieldsCountRef.current && count > 0) {
+        const novoItemId = `item-${count - 1}`;
+        if (!next.includes(novoItemId)) {
+          next = [...next, novoItemId];
+        }
+      }
+      return next;
     });
+    prevFieldsCountRef.current = count;
   }, [fieldsSignature, somenteLeitura, fields.length]);
 
   const accordionValue = somenteLeitura ? accordionItemIds : openAccordionItems;

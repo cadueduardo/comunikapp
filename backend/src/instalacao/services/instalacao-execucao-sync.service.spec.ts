@@ -1,8 +1,13 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { InstalacaoExecucaoSyncService } from './instalacao-execucao-sync.service';
+import { InstalacaoFechamentoService } from './instalacao-fechamento.service';
 
 describe('InstalacaoExecucaoSyncService', () => {
   let service: InstalacaoExecucaoSyncService;
+
+  const fechamentoMock = {
+    reterAposInstalacaoCompleta: jest.fn().mockResolvedValue(undefined),
+  };
 
   const prismaMock = {
     ordemServico: {
@@ -15,13 +20,19 @@ describe('InstalacaoExecucaoSyncService', () => {
       aggregate: jest.fn(),
       updateMany: jest.fn(),
       count: jest.fn(),
+      findFirst: jest.fn(),
     },
+    ocorrenciaInstalacao: { findMany: jest.fn().mockResolvedValue([]) },
+    $transaction: jest.fn(async (fn: (tx: unknown) => Promise<void>) =>
+      fn(prismaMock),
+    ),
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
     service = new InstalacaoExecucaoSyncService(
       prismaMock as unknown as PrismaService,
+      fechamentoMock as unknown as InstalacaoFechamentoService,
     );
   });
 
@@ -103,7 +114,49 @@ describe('InstalacaoExecucaoSyncService', () => {
     expect(prismaMock.itemOSInstalacao.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ id: 'lote-1' }),
+        data: { status_instalacao: 'EM_ANDAMENTO' },
       }),
+    );
+  });
+
+  it('promove lote individual quando há data de previsão', async () => {
+    prismaMock.itemOSInstalacao.findFirst.mockResolvedValue({
+      status_instalacao: 'AGUARDANDO',
+      data_previsao: new Date('2026-08-10T10:00:00.000Z'),
+    });
+    prismaMock.itemOSInstalacao.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.ordemServico.findFirst.mockResolvedValue({
+      status_instalacao_os: null,
+    });
+    prismaMock.itemOSInstalacao.count.mockResolvedValue(1);
+
+    const promovido = await service.promoverLoteSeAgendado(
+      'loja-1',
+      'lote-1',
+      'os-1',
+    );
+
+    expect(promovido).toBe(true);
+    expect(prismaMock.itemOSInstalacao.updateMany).toHaveBeenCalled();
+  });
+
+  it('reconciliarRollupOs alinha status da OS e tenta retenção pós-campo', async () => {
+    prismaMock.ordemServico.findFirst.mockResolvedValue({
+      status_instalacao_os: null,
+    });
+    prismaMock.itemOSInstalacao.count.mockResolvedValue(2);
+
+    await service.reconciliarRollupOs('loja-1', 'os-1');
+
+    expect(prismaMock.ordemServico.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { status_instalacao_os: 'EM_ANDAMENTO' },
+      }),
+    );
+    expect(fechamentoMock.reterAposInstalacaoCompleta).toHaveBeenCalledWith(
+      prismaMock,
+      'loja-1',
+      'os-1',
     );
   });
 });

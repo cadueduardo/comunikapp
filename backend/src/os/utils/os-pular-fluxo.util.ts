@@ -11,7 +11,10 @@ export interface OsFlagsPularFluxo {
 export const TIPO_VINCULO_OS_ADITIVA_INSTALACAO = 'ADITIVA_INSTALACAO';
 
 export function devePularPcp(os: OsFlagsPularFluxo): boolean {
-  return os.pular_pcp === true;
+  return (
+    os.pular_pcp === true ||
+    os.tipo_vinculo_os === TIPO_VINCULO_OS_ADITIVA_INSTALACAO
+  );
 }
 
 export function devePularExpedicao(os: OsFlagsPularFluxo): boolean {

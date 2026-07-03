@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { CobrancaStatus, ParcelaStatus } from '../enums/cobranca-status.enum';
+import { dataVencimentoJaPassou } from '../utils/vencimento-data.util';
 
 export interface ParcelaParaRollup {
   status: string;
@@ -39,9 +40,7 @@ export class StatusRollupService {
       }
 
       if (p.status === ParcelaStatus.A_FATURAR) {
-        if (
-          p.data_vencimento.getTime() < agora.getTime()
-        ) {
+        if (dataVencimentoJaPassou(p.data_vencimento, agora)) {
           return { ...p, status: ParcelaStatus.VENCIDO };
         }
         return p;
@@ -50,7 +49,7 @@ export class StatusRollupService {
       if (
         (p.status === ParcelaStatus.PREVISTO ||
           p.status === ParcelaStatus.PARCIAL_PAGO) &&
-        p.data_vencimento.getTime() < agora.getTime()
+        dataVencimentoJaPassou(p.data_vencimento, agora)
       ) {
         return { ...p, status: ParcelaStatus.VENCIDO };
       }

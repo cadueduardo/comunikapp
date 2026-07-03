@@ -4,6 +4,7 @@ import { AlertasOperacionaisService } from './alertas-operacionais.service';
 import { HomeCacheService } from './home-cache.service';
 import { KPI, KpisResumo } from '../interfaces/kpi.interface';
 import { AlertasResponseData } from '../interfaces/alerta.interface';
+import { filtroOsElegivelFluxoPcp } from '../../pcp/utils/os-elegivel-pcp-kanban.util';
 
 // Status considerados "OS em producao" para o KPI - inclui todas as
 // situacoes posteriores a aprovacao tecnica e anteriores ao FINALIZADA.
@@ -147,6 +148,7 @@ export class KpiDashboardService {
         where: {
           loja_id: lojaId,
           status: { in: STATUS_OS_PRODUCAO },
+          ...filtroOsElegivelFluxoPcp,
         },
       });
     } catch (error) {

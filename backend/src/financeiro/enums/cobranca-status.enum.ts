@@ -49,6 +49,14 @@ export const PARCELA_STATUS_TERMINAIS = new Set<string>([
   ParcelaStatus.CANCELADA,
 ]);
 
+/** Parcelas que aceitam registro de recebimento no financeiro. */
+export const PARCELA_STATUS_ELEGIVEIS_RECEBIMENTO = new Set<string>([
+  ParcelaStatus.PREVISTO,
+  ParcelaStatus.PARCIAL_PAGO,
+  ParcelaStatus.VENCIDO,
+  ParcelaStatus.A_FATURAR,
+]);
+
 /** Tipos de parcela suportados no schema. */
 export enum ParcelaTipo {
   ENTRADA = 'ENTRADA',

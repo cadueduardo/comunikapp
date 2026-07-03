@@ -1,4 +1,5 @@
 import type {
+  AprovarConclusaoLoteGestaoPayload,
   ContadoresOcorrenciasResposta,
   ConfiguracaoInstalacaoResposta,
   CriarLoteInstalacaoPayload,
@@ -18,6 +19,7 @@ import type {
   StatusFinanceiroOcorrencia,
   StatusInstalacaoOs,
   StatusInstalacao,
+  TurnoPrevisaoInstalacao,
   ConsultarAgendaResposta,
   ConsultarConflitosAgendaResposta,
 } from './instalacao.types';
@@ -147,6 +149,11 @@ export const instalacaoApi = {
       cidade: string;
       uf: string;
       quantidade_alocada?: number;
+      data_previsao?: string | null;
+      turno_previsao?: TurnoPrevisaoInstalacao | null;
+      equipe_instalacao?: string | null;
+      responsavel_local?: string | null;
+      informar_equipe?: boolean;
     },
   ): Promise<unknown> {
     const response = await fetch(`/api/instalacao/lotes/${id}`, {
@@ -154,6 +161,21 @@ export const instalacaoApi = {
       headers: getAuthHeaders(),
       body: JSON.stringify(dados),
     });
+    return tratarResposta(response);
+  },
+
+  async aprovarConclusaoLoteGestao(
+    loteId: string,
+    dados: AprovarConclusaoLoteGestaoPayload,
+  ): Promise<unknown> {
+    const response = await fetch(
+      `/api/instalacao/lotes/${loteId}/aprovar-conclusao`,
+      {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(dados),
+      },
+    );
     return tratarResposta(response);
   },
 
@@ -176,6 +198,8 @@ export const instalacaoApi = {
     descricao: string;
     quantidade?: number;
     fotos_evidencia?: string[];
+    data_retorno_previsao?: string;
+    turno_retorno_previsao?: TurnoPrevisaoInstalacao;
   }): Promise<unknown> {
     const response = await fetch('/api/instalacao/ocorrencias', {
       method: 'POST',
@@ -197,6 +221,19 @@ export const instalacaoApi = {
     const response = await fetch(`/api/instalacao/os/${osId}/margem-real`, {
       headers: getAuthHeaders(),
     });
+    return tratarResposta(response);
+  },
+
+  async gerarPreviaRelatorioTecnico(
+    osId: string,
+  ): Promise<{ pdf_url: string; pdf_token: string; previa: boolean }> {
+    const response = await fetch(
+      `/api/instalacao/os/${osId}/relatorio-tecnico/previa`,
+      {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      },
+    );
     return tratarResposta(response);
   },
 
@@ -362,7 +399,7 @@ export const instalacaoApi = {
 
   async atualizarOsAditivaHabilitada(
     habilitada: boolean,
-  ): Promise<{ os_aditiva_habilitada: boolean }> {
+  ): Promise<{ os_aditiva_habilitada: boolean; ocorrencias_migradas?: number }> {
     const response = await fetch('/api/instalacao/configuracao/os-aditiva', {
       method: 'PATCH',
       headers: getAuthHeaders(),

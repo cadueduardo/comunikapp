@@ -21,16 +21,18 @@ import {
   montarEnderecoResumido,
 } from '@/lib/instalacao/instalacao-lote-utils';
 import type { LotePainelOs, StatusInstalacao } from '@/lib/instalacao/instalacao.types';
-import { IconCalendar, IconUsers } from '@tabler/icons-react';
+import { IconAlertTriangle, IconCalendar, IconUsers } from '@tabler/icons-react';
 
 interface InstalacaoOsKanbanBoardProps {
   lotes: LotePainelOs[];
+  lotesEmConflito?: ReadonlySet<string>;
   onLoteSelecionado: (lote: LotePainelOs) => void;
   onAtualizado?: () => void;
 }
 
 export function InstalacaoOsKanbanBoard({
   lotes,
+  lotesEmConflito,
   onLoteSelecionado,
   onAtualizado,
 }: InstalacaoOsKanbanBoardProps) {
@@ -137,6 +139,20 @@ export function InstalacaoOsKanbanBoard({
                                 <p className="line-clamp-2 text-sm font-medium text-foreground">
                                   {montarEnderecoResumido(lote)}
                                 </p>
+                                {lotesEmConflito?.has(lote.id) && (
+                                  <span
+                                    className="inline-flex items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive"
+                                    title="Mesma equipe agendada em mais de um lote neste dia"
+                                  >
+                                    <IconAlertTriangle className="h-3 w-3 shrink-0" />
+                                    Conflito de agenda
+                                  </span>
+                                )}
+                                {lote.aguardando_reagendamento && (
+                                  <span className="inline-flex rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-900 dark:text-amber-100">
+                                    Aguardando data
+                                  </span>
+                                )}
                                 {lote.item_os.produto_servico && (
                                   <p className="truncate text-xs text-muted-foreground">
                                     {lote.item_os.produto_servico}

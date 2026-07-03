@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import Link from 'next/link';
 import { ExternalLink, X } from 'lucide-react';
 import {
@@ -8,7 +9,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { InstalacaoWorkspacePanel } from './InstalacaoWorkspacePanel';
+import {
+  InstalacaoWorkspacePanel,
+  type InstalacaoWorkspacePanelHandle,
+} from './InstalacaoWorkspacePanel';
 
 interface InstalacaoWorkspaceModalProps {
   open: boolean;
@@ -18,6 +22,9 @@ interface InstalacaoWorkspaceModalProps {
   nomeServico: string;
   clienteNome: string | null;
   onMutacao?: () => void;
+  loteInicialId?: string | null;
+  abrirEdicaoInicial?: boolean;
+  onLoteInicialConsumido?: () => void;
 }
 
 export function InstalacaoWorkspaceModal({
@@ -28,14 +35,25 @@ export function InstalacaoWorkspaceModal({
   nomeServico,
   clienteNome,
   onMutacao,
+  loteInicialId,
+  abrirEdicaoInicial,
+  onLoteInicialConsumido,
 }: InstalacaoWorkspaceModalProps) {
   const href = `/os/${osId}?tab=instalacao`;
+  const painelRef = useRef<InstalacaoWorkspacePanelHandle>(null);
+
+  const handleFechar = () => {
+    if (painelRef.current?.voltarUmNivel()) return;
+    onClose();
+  };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+    <Dialog open={open}>
       <DialogContent
         showCloseButton={false}
         className="flex h-[94vh] w-[98vw] max-w-[1600px] flex-col overflow-hidden border-border bg-card p-0 sm:max-w-[1600px]"
+        onInteractOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={(event) => event.preventDefault()}
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4">
           <div className="min-w-0">
@@ -57,7 +75,7 @@ export function InstalacaoWorkspaceModal({
             <Button
               variant="ghost"
               size="icon"
-              onClick={onClose}
+              onClick={handleFechar}
               aria-label="Fechar workspace"
             >
               <X className="h-4 w-4" />
@@ -66,7 +84,14 @@ export function InstalacaoWorkspaceModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
-          <InstalacaoWorkspacePanel osId={osId} onMutacao={onMutacao} />
+          <InstalacaoWorkspacePanel
+            ref={painelRef}
+            osId={osId}
+            onMutacao={onMutacao}
+            loteInicialId={loteInicialId}
+            abrirEdicaoInicial={abrirEdicaoInicial}
+            onLoteInicialConsumido={onLoteInicialConsumido}
+          />
         </div>
       </DialogContent>
     </Dialog>

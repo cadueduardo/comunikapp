@@ -1,14 +1,19 @@
 'use client';
 
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AnexoInstalacaoImagem } from '@/components/instalacao/AnexoInstalacaoImagem';
+import { AprovarConclusaoLoteDialog } from '@/components/instalacao/AprovarConclusaoLoteDialog';
 import {
+  MOTIVO_SEM_ASSINATURA_LABEL,
+  ORIGEM_CONCLUSAO_LOTE_LABEL,
   STATUS_INSTALACAO_LABEL,
   STATUS_INSTALACAO_TONE,
 } from '@/lib/instalacao/instalacao-labels';
 import {
+  contarLotesAguardandoConclusaoCampo,
   formatarDataPrevisaoLote,
   montarEnderecoResumido,
 } from '@/lib/instalacao/instalacao-lote-utils';
@@ -20,14 +25,18 @@ import {
   IconPhoto,
   IconSignature,
   IconUsers,
+  IconCircleCheck,
 } from '@tabler/icons-react';
 import { InstalacaoLoteOcorrenciasHistorico } from '@/components/instalacao/InstalacaoLoteOcorrenciasHistorico';
 import { InstalacaoLoteEvidenciasGaleria } from '@/components/instalacao/InstalacaoLoteEvidenciasGaleria';
 import { EditarEnderecoLoteDialog } from '@/components/instalacao/EditarEnderecoLoteDialog';
+import { OcorrenciaRapidaDialog } from '@/components/instalacao/OcorrenciaRapidaDialog';
 import type {
   EnderecoLoteForm,
   LotePainelOs,
+  MotivoSemAssinaturaLote,
   OcorrenciaGestao,
+  PainelOsInstalacao,
   ResultadoBuscaCep,
 } from '@/lib/instalacao/instalacao.types';
 import { cn } from '@/lib/utils';
@@ -49,6 +58,24 @@ interface InstalacaoLoteDetalhePanelProps {
   buscarCep?: (cep: string) => Promise<ResultadoBuscaCep>;
   onEditarEndereco?: (dados: EnderecoLoteForm) => Promise<void>;
   quantidadeMaximaEdicao?: number;
+  onAprovarConclusao?: (dados: {
+    fotos_evidencia?: string[];
+    motivo_sem_assinatura?: MotivoSemAssinaturaLote;
+    observacao_conclusao_gestao?: string;
+    assinatura_url?: string;
+  }) => Promise<void>;
+  onUploadAnexo?: (arquivo: File) => Promise<{ url: string }>;
+  edicaoAberta?: boolean;
+  onEdicaoAbertaChange?: (aberto: boolean) => void;
+  osId?: string;
+  painelOs?: PainelOsInstalacao;
+  onRegistrarOcorrencia?: (dados: {
+    os_id: string;
+    item_instalacao_id?: string;
+    tipo: string;
+    descricao: string;
+    fotos_evidencia?: string[];
+  }) => Promise<void>;
 }
 
 export function InstalacaoLoteDetalhePanel({
@@ -59,12 +86,26 @@ export function InstalacaoLoteDetalhePanel({
   buscarCep,
   onEditarEndereco,
   quantidadeMaximaEdicao,
+  onAprovarConclusao,
+  onUploadAnexo,
+  edicaoAberta,
+  onEdicaoAbertaChange,
+  osId,
+  painelOs,
+  onRegistrarOcorrencia,
 }: InstalacaoLoteDetalhePanelProps) {
+  const [dialogAprovarAberto, setDialogAprovarAberto] = useState(false);
+  const [aprovando, setAprovando] = useState(false);
+
   const fotosConclusao = lote.fotos_evidencia ?? [];
   const tone = STATUS_INSTALACAO_TONE[lote.status_instalacao] ?? 'default';
-  const aguardandoAssinatura =
+  const aguardandoConclusaoCampo =
     lote.status_instalacao === 'EM_ANDAMENTO' ||
     lote.status_instalacao === 'AGUARDANDO';
+  const faltaAssinatura = aguardandoConclusaoCampo && !lote.assinatura_url;
+  const podeAprovarGestao =
+    Boolean(onAprovarConclusao && onUploadAnexo) && aguardandoConclusaoCampo;
+  const concluidoPorGestao = lote.origem_conclusao_lote === 'GESTAO';
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -106,12 +147,22 @@ export function InstalacaoLoteDetalhePanel({
                 {STATUS_INSTALACAO_LABEL[lote.status_instalacao] ??
                   lote.status_instalacao}
               </Badge>
+              {lote.aguardando_reagendamento && (
+                <Badge
+                  variant="outline"
+                  className="shrink-0 border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-100"
+                >
+                  Aguardando data
+                </Badge>
+              )}
               {buscarCep && onEditarEndereco && (
                 <EditarEnderecoLoteDialog
                   lote={lote}
                   buscarCep={buscarCep}
                   onSalvar={onEditarEndereco}
                   quantidadeMaxima={quantidadeMaximaEdicao}
+                  open={edicaoAberta}
+                  onOpenChange={onEdicaoAbertaChange}
                 />
               )}
             </div>
@@ -141,16 +192,42 @@ export function InstalacaoLoteDetalhePanel({
             <p className="text-sm font-medium text-foreground">
               {lote.equipe_instalacao?.trim() || 'Não definida'}
             </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {lote.informar_equipe
+                ? 'Equipe informada no app de campo'
+                : 'Ainda não informada à equipe'}
+            </p>
+          </div>
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+            <p className="text-xs text-muted-foreground">Responsável no local</p>
+            <p className="text-sm font-medium text-foreground">
+              {lote.responsavel_local?.trim() || 'Não informado'}
+            </p>
           </div>
         </CardContent>
       </Card>
 
       <Card className="border-border bg-card">
         <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <IconClipboardList className="h-4 w-4" />
-            Histórico de ocorrências
-          </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <IconClipboardList className="h-4 w-4" />
+              Histórico de ocorrências
+            </CardTitle>
+            {osId && onRegistrarOcorrencia && onUploadAnexo && (
+              <OcorrenciaRapidaDialog
+                osId={osId}
+                painel={painelOs}
+                onRegistrar={onRegistrarOcorrencia}
+                onUpload={onUploadAnexo}
+                loteIdFixo={lote.id}
+                loteRotuloFixo={montarEnderecoResumido(lote)}
+                rotuloBotao="Nova ocorrência"
+                varianteBotao="outline"
+                classNameBotao="shrink-0"
+              />
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <InstalacaoLoteOcorrenciasHistorico
@@ -175,6 +252,30 @@ export function InstalacaoLoteDetalhePanel({
         </CardContent>
       </Card>
 
+      {podeAprovarGestao && (
+        <Card className="border-emerald-500/30 bg-emerald-500/5">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1 text-sm">
+              <p className="font-medium text-foreground">
+                Conclusão por alçada da gestão
+              </p>
+              <p className="text-muted-foreground">
+                Confira ocorrências e evidências. Aprove mesmo sem assinatura
+                do instalador, registrando o motivo.
+              </p>
+            </div>
+            <Button
+              type="button"
+              className="shrink-0 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700"
+              onClick={() => setDialogAprovarAberto(true)}
+            >
+              <IconCircleCheck className="mr-2 h-4 w-4" />
+              Aprovar conclusão
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="border-border bg-card">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -188,15 +289,40 @@ export function InstalacaoLoteDetalhePanel({
               <p className="text-sm text-muted-foreground">
                 Assinatura ainda não coletada neste endereço.
               </p>
-              {aguardandoAssinatura && (
-                <p className="text-xs text-muted-foreground">
-                  A assinatura do recebedor é coletada no aplicativo de campo
-                  em{' '}
-                  <strong className="font-medium text-foreground">
-                    /instalador
-                  </strong>
-                  , ao concluir a instalação do lote (canvas de assinatura +
-                  confirmação). O gestor no desktop não assina por aqui.
+              {concluidoPorGestao && lote.motivo_sem_assinatura && (
+                <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
+                  <Badge variant="outline" className="text-xs">
+                    {ORIGEM_CONCLUSAO_LOTE_LABEL.GESTAO}
+                  </Badge>
+                  <p className="text-foreground">
+                    <span className="text-muted-foreground">Motivo: </span>
+                    {MOTIVO_SEM_ASSINATURA_LABEL[lote.motivo_sem_assinatura] ??
+                      lote.motivo_sem_assinatura}
+                  </p>
+                  {lote.observacao_conclusao_gestao && (
+                    <p className="text-muted-foreground">
+                      {lote.observacao_conclusao_gestao}
+                    </p>
+                  )}
+                  {lote.conclusao_gestao_em && (
+                    <p className="text-xs text-muted-foreground">
+                      Aprovado em{' '}
+                      {new Date(lote.conclusao_gestao_em).toLocaleString(
+                        'pt-BR',
+                      )}
+                    </p>
+                  )}
+                </div>
+              )}
+              {faltaAssinatura && (
+                <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
+                  Registrar ocorrências não conclui a instalação. No aplicativo{' '}
+                  <strong className="font-medium">/instalador</strong>, abra este
+                  endereço e use{' '}
+                  <strong className="font-medium">Concluir trabalho</strong>{' '}
+                  (fotos + assinatura do recebedor), ou use{' '}
+                  <strong className="font-medium">Aprovar conclusão</strong>{' '}
+                  acima.
                 </p>
               )}
             </>
@@ -209,8 +335,34 @@ export function InstalacaoLoteDetalhePanel({
               />
             </div>
           )}
+          {lote.origem_conclusao_lote && (
+            <p className="text-xs text-muted-foreground">
+              Conclusão via{' '}
+              {ORIGEM_CONCLUSAO_LOTE_LABEL[lote.origem_conclusao_lote] ??
+                lote.origem_conclusao_lote}
+            </p>
+          )}
         </CardContent>
       </Card>
+
+      {onAprovarConclusao && onUploadAnexo && (
+        <AprovarConclusaoLoteDialog
+          open={dialogAprovarAberto}
+          lote={lote}
+          loading={aprovando}
+          onClose={() => setDialogAprovarAberto(false)}
+          onUploadAnexo={onUploadAnexo}
+          onConfirm={async (dados) => {
+            setAprovando(true);
+            try {
+              await onAprovarConclusao(dados);
+              setDialogAprovarAberto(false);
+            } finally {
+              setAprovando(false);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

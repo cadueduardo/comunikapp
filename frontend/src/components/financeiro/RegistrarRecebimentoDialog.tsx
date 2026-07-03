@@ -25,7 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
-import { InstalacaoRelatorioTecnicoCard } from '@/components/financeiro/InstalacaoRelatorioTecnicoCard';
+import { cn } from '@/lib/utils';
 import type {
   CobrancaResumo,
   RecebimentoMetodo,
@@ -51,14 +51,33 @@ interface Props {
   modoForcado?: boolean;
 }
 
+function formatarDataParcela(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString('pt-BR');
+  } catch {
+    return '-';
+  }
+}
+
 function calcularValorSugeridoRecebimento(
   cobranca: CobrancaResumo,
   modoForcado: boolean,
 ): number {
+  if (cobranca.pode_registrar_recebimento === false) {
+    return 0;
+  }
   if (modoForcado) {
+    const recebivel = cobranca.proxima_parcela_recebivel;
+    if (recebivel) {
+      return Math.max(
+        0,
+        Number(recebivel.valor_previsto) - Number(recebivel.valor_recebido),
+      );
+    }
     return Number(cobranca.valor_saldo ?? 0);
   }
-  const proxima = cobranca.proxima_parcela;
+  const proxima =
+    cobranca.proxima_parcela_recebivel ?? cobranca.proxima_parcela;
   if (proxima) {
     return Math.max(
       0,
@@ -85,9 +104,13 @@ export function RegistrarRecebimentoDialog({
   onSuccess,
   modoForcado = false,
 }: Props) {
-  const proxima = cobranca?.proxima_parcela ?? null;
-  const saldoParcelaAberta = proxima
-    ? Number(proxima.valor_previsto) - Number(proxima.valor_recebido)
+  const proximaRecebivel =
+    cobranca?.proxima_parcela_recebivel ?? cobranca?.proxima_parcela ?? null;
+  const proximaExibicao = cobranca?.proxima_parcela ?? null;
+  const bloqueado = cobranca?.pode_registrar_recebimento === false;
+  const saldoParcelaAberta = proximaRecebivel
+    ? Number(proximaRecebivel.valor_previsto) -
+      Number(proximaRecebivel.valor_recebido)
     : Number(cobranca?.valor_saldo ?? 0);
 
   const [valor, setValor] = useState<string>('0');
@@ -111,6 +134,13 @@ export function RegistrarRecebimentoDialog({
 
   const handleSubmit = async () => {
     if (!cobranca) return;
+    if (bloqueado) {
+      toast.error(
+        cobranca.motivo_bloqueio_recebimento ??
+          'Não há parcela em aberto para receber',
+      );
+      return;
+    }
     const valorNumerico = Number.parseFloat(valor);
     if (!Number.isFinite(valorNumerico) || valorNumerico <= 0) {
       toast.error('Informe um valor válido maior que zero');
@@ -158,15 +188,43 @@ export function RegistrarRecebimentoDialog({
             <br />
             Saldo atual:{' '}
             <strong>{formatarMoeda(Number(cobranca.valor_saldo))}</strong>
-            {proxima && (
+            {proximaExibicao && (
               <>
                 <br />
-                Próxima parcela ({proxima.tipo === 'ENTRADA' ? 'entrada' : proxima.tipo === 'SALDO' ? 'saldo' : `#${proxima.ordem}`}):{' '}
+                Próxima parcela (
+                {proximaExibicao.tipo === 'ENTRADA'
+                  ? 'entrada'
+                  : proximaExibicao.tipo === 'SALDO'
+                    ? 'saldo'
+                    : `#${proximaExibicao.ordem}`}
+                ):{' '}
+                <strong>
+                  {formatarDataParcela(proximaExibicao.data_vencimento)}
+                </strong>
+                {' · '}
                 <strong>{formatarMoeda(saldoParcelaAberta)}</strong>
+                {bloqueado && (
+                  <>
+                    <br />
+                    <span className="text-amber-800">
+                      {cobranca.motivo_bloqueio_recebimento}
+                    </span>
+                  </>
+                )}
               </>
             )}
           </DialogDescription>
         </DialogHeader>
+
+        {bloqueado && (
+          <Alert className="border-amber-300 bg-amber-50">
+            <AlertTriangle className="h-4 w-4 text-amber-700" />
+            <AlertDescription className="text-amber-900 text-xs">
+              {cobranca.motivo_bloqueio_recebimento ??
+                'Não há parcela elegível para recebimento no momento.'}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {modoForcado && (
           <Alert className="border-red-300 bg-red-50">
@@ -178,7 +236,7 @@ export function RegistrarRecebimentoDialog({
           </Alert>
         )}
 
-        <div className="space-y-3">
+        <div className={cn('space-y-3', bloqueado && 'pointer-events-none opacity-50')}>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="valor">Valor</Label>
@@ -248,14 +306,6 @@ export function RegistrarRecebimentoDialog({
           )}
         </div>
 
-        {cobranca?.ordens_servico?.[0] && (
-          <InstalacaoRelatorioTecnicoCard
-            osId={cobranca.ordens_servico[0].id}
-            osNumero={cobranca.ordens_servico[0].numero}
-            onAprovado={onSuccess}
-          />
-        )}
-
         <DialogFooter>
           <Button
             type="button"
@@ -265,7 +315,7 @@ export function RegistrarRecebimentoDialog({
           >
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={submitting}>
+          <Button onClick={handleSubmit} disabled={submitting || bloqueado}>
             {submitting ? 'Registrando...' : 'Registrar recebimento'}
           </Button>
         </DialogFooter>

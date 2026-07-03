@@ -86,6 +86,8 @@ export class InstaladorController {
       quantidade: dto.quantidade,
       descricao: dto.descricao,
       fotosEvidencia: dto.fotos_evidencia,
+      dataRetornoPrevisao: dto.data_retorno_previsao,
+      turnoRetornoPrevisao: dto.turno_retorno_previsao,
     });
   }
 }

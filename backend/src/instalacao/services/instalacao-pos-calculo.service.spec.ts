@@ -53,6 +53,10 @@ describe('InstalacaoPosCalculoService', () => {
     osAditivaHabilitada: jest.fn().mockResolvedValue(true),
   };
 
+  const splitFinanceiroMock = {
+    gerarOsAditivaSeNecessario: jest.fn().mockResolvedValue(null),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     prismaMock.ocorrenciaInstalacao.count.mockResolvedValue(0);
@@ -62,6 +66,7 @@ describe('InstalacaoPosCalculoService', () => {
       splitMock as unknown as InstalacaoSplitFiscalService,
       fechamentoMock as unknown as InstalacaoFechamentoService,
       configuracaoMock as unknown as ConfiguracaoInstalacaoService,
+      splitFinanceiroMock as unknown as import('./instalacao-split-financeiro.service').InstalacaoSplitFinanceiroService,
     );
   });
 

@@ -55,13 +55,17 @@ import {
 import { ArteProducaoService } from '../../catalogo/producao/arte-producao.service';
 import { PcpBloqueioSinalService } from '../../instalacao/services/pcp-bloqueio-sinal.service';
 import { StatusLiberacaoPcp } from '../../instalacao/constants/pcp-liberacao.constants';
-import { ModoFulfillmentItem } from '@prisma/client';
+import { ModoFulfillmentItem, StatusInstalacaoOs } from '@prisma/client';
 import {
   TipoOS as TipoOSInterface,
   OrigemOS,
   PrioridadeOS,
 } from '../interfaces/os-direta-interna.interface';
-import { materiaisDisponiveisParaFluxo } from '../utils/os-pular-fluxo.util';
+import {
+  materiaisDisponiveisParaFluxo,
+  TIPO_VINCULO_OS_ADITIVA_INSTALACAO,
+} from '../utils/os-pular-fluxo.util';
+import { calcularAtencaoInstalacaoOs } from '../../instalacao/utils/instalacao-atencao.util';
 
 interface OSProdutoValidacao {
   id: string;
@@ -413,6 +417,21 @@ export class OSService {
 
       const data = ordens.map((os) => this.formatarOrdemServico(os));
       await this.enriquecerStatusExpedicaoLista(lojaId, data);
+      await this.enriquecerOsAditivaGrid(lojaId, data, ativo);
+      await this.enriquecerAtencaoInstalacaoLista(lojaId, data);
+
+      data.sort((a, b) => {
+        const pa = a.requer_atencao_instalacao ? 1 : 0;
+        const pb = b.requer_atencao_instalacao ? 1 : 0;
+        if (pa !== pb) return pb - pa;
+        const ta = a.ultima_atividade_instalacao
+          ? new Date(a.ultima_atividade_instalacao).getTime()
+          : 0;
+        const tb = b.ultima_atividade_instalacao
+          ? new Date(b.ultima_atividade_instalacao).getTime()
+          : 0;
+        return tb - ta;
+      });
 
       return {
         data,
@@ -2230,6 +2249,13 @@ export class OSService {
       inativado_em: os.inativado_em ?? undefined,
       motivo_inativacao: os.motivo_inativacao ?? undefined,
       status_instalacao_os: os.status_instalacao_os ?? null,
+      tipo_vinculo_os: os.tipo_vinculo_os ?? null,
+      os_pai_id: os.os_pai_id ?? null,
+      pular_pcp: os.pular_pcp === true,
+      pular_expedicao: os.pular_expedicao === true,
+      pular_validacao_estoque: os.pular_validacao_estoque === true,
+      valor_orcado:
+        os.valor_orcado != null ? Number(os.valor_orcado) : undefined,
       cliente: os.cliente
         ? {
             id: os.cliente.id,
@@ -2343,6 +2369,176 @@ export class OSService {
 
     for (const item of itens) {
       item.status_expedicao = porOs.get(item.id) ?? null;
+    }
+  }
+
+  private async enriquecerOsAditivaGrid(
+    lojaId: string,
+    itens: OrdemServicoData[],
+    ativo: boolean | undefined = true,
+  ): Promise<void> {
+    if (itens.length === 0) {
+      return;
+    }
+
+    for (const item of itens) {
+      item.materiais_disponivel = materiaisDisponiveisParaFluxo(item);
+    }
+
+    const paiIds = itens
+      .filter(
+        (item) => item.tipo_vinculo_os !== TIPO_VINCULO_OS_ADITIVA_INSTALACAO,
+      )
+      .map((item) => item.id);
+
+    const filhasPorPai = new Map<string, OrdemServicoData[]>();
+
+    if (paiIds.length > 0) {
+      const whereFilhas: Record<string, unknown> = {
+        loja_id: lojaId,
+        os_pai_id: { in: paiIds },
+        tipo_vinculo_os: TIPO_VINCULO_OS_ADITIVA_INSTALACAO,
+      };
+      if (ativo !== undefined) {
+        whereFilhas.ativo = ativo;
+      }
+
+      const filhasDb = await this.prisma.ordemServico.findMany({
+        where: whereFilhas,
+        orderBy: { criado_em: 'asc' },
+        include: {
+          cliente: {
+            select: { id: true, nome: true, email: true, telefone: true },
+          },
+          itens: true,
+        },
+      });
+
+      for (const filha of filhasDb) {
+        const formatada = this.formatarOrdemServico(filha);
+        formatada.materiais_disponivel =
+          materiaisDisponiveisParaFluxo(formatada);
+        const paiId = filha.os_pai_id;
+        if (!paiId) continue;
+        const lista = filhasPorPai.get(paiId) ?? [];
+        lista.push(formatada);
+        filhasPorPai.set(paiId, lista);
+      }
+    }
+
+    const paiIdsAditivas = [
+      ...new Set(
+        itens
+          .filter(
+            (item) =>
+              item.tipo_vinculo_os === TIPO_VINCULO_OS_ADITIVA_INSTALACAO &&
+              item.os_pai_id,
+          )
+          .map((item) => item.os_pai_id as string),
+      ),
+    ];
+
+    const numerosPai = new Map<string, string>();
+    if (paiIdsAditivas.length > 0) {
+      const pais = await this.prisma.ordemServico.findMany({
+        where: { loja_id: lojaId, id: { in: paiIdsAditivas } },
+        select: { id: true, numero: true },
+      });
+      for (const pai of pais) {
+        numerosPai.set(pai.id, pai.numero);
+      }
+    }
+
+    for (const item of itens) {
+      if (item.tipo_vinculo_os === TIPO_VINCULO_OS_ADITIVA_INSTALACAO) {
+        if (item.os_pai_id) {
+          item.os_pai_numero = numerosPai.get(item.os_pai_id) ?? null;
+        }
+        continue;
+      }
+
+      const filhas = filhasPorPai.get(item.id) ?? [];
+      if (filhas.length === 0) {
+        continue;
+      }
+
+      const valorTotal = filhas.reduce(
+        (acc, filha) => acc + Number(filha.valor_orcado ?? 0),
+        0,
+      );
+
+      item.aditivas_filhas = filhas;
+      item.aditivas_resumo = {
+        quantidade: filhas.length,
+        valor_total: Math.round((valorTotal + Number.EPSILON) * 100) / 100,
+      };
+    }
+  }
+
+  private async enriquecerAtencaoInstalacaoLista(
+    lojaId: string,
+    itens: OrdemServicoData[],
+  ): Promise<void> {
+    if (itens.length === 0) {
+      return;
+    }
+
+    const osIds = itens.map((item) => item.id);
+
+    const [lotes, ocorrencias, relatorios] = await Promise.all([
+      this.prisma.itemOSInstalacao.findMany({
+        where: {
+          loja_id: lojaId,
+          item_os: { os_id: { in: osIds } },
+        },
+        select: {
+          status_instalacao: true,
+          assinatura_url: true,
+          atualizado_em: true,
+          item_os: { select: { os_id: true } },
+        },
+      }),
+      this.prisma.ocorrenciaInstalacao.findMany({
+        where: { loja_id: lojaId, os_id: { in: osIds } },
+        select: {
+          os_id: true,
+          status_financeiro: true,
+          criado_em: true,
+        },
+      }),
+      this.prisma.relatorioTecnicoInstalacao.findMany({
+        where: { loja_id: lojaId, os_id: { in: osIds } },
+        select: { os_id: true },
+      }),
+    ]);
+
+    const lotesPorOs = new Map<string, typeof lotes>();
+    for (const lote of lotes) {
+      const osId = lote.item_os.os_id;
+      const lista = lotesPorOs.get(osId) ?? [];
+      lista.push(lote);
+      lotesPorOs.set(osId, lista);
+    }
+
+    const ocorrenciasPorOs = new Map<string, typeof ocorrencias>();
+    for (const occ of ocorrencias) {
+      const lista = ocorrenciasPorOs.get(occ.os_id) ?? [];
+      lista.push(occ);
+      ocorrenciasPorOs.set(occ.os_id, lista);
+    }
+
+    const relatorioPorOs = new Set(relatorios.map((rel) => rel.os_id));
+
+    for (const item of itens) {
+      const atencao = calcularAtencaoInstalacaoOs({
+        statusInstalacaoOs:
+          (item.status_instalacao_os as StatusInstalacaoOs | null) ?? null,
+        relatorioEmitido: relatorioPorOs.has(item.id),
+        lotes: lotesPorOs.get(item.id) ?? [],
+        ocorrencias: ocorrenciasPorOs.get(item.id) ?? [],
+      });
+      item.requer_atencao_instalacao = atencao.requer_atencao;
+      item.ultima_atividade_instalacao = atencao.ultima_atividade_em;
     }
   }
 

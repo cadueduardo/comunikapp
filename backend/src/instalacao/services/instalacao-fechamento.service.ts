@@ -10,6 +10,7 @@ import {
   StatusInstalacaoOs,
 } from '@prisma/client';
 import { StatusExpedicao } from '../../expedicao/enums/status-expedicao.enum';
+import { PrismaService } from '../../prisma/prisma.service';
 
 const STATUS_LOTE_ENCERRADO: StatusInstalacao[] = [
   StatusInstalacao.CONCLUIDO,
@@ -23,6 +24,8 @@ const STATUS_LOTE_ENCERRADO: StatusInstalacao[] = [
 @Injectable()
 export class InstalacaoFechamentoService {
   private readonly logger = new Logger(InstalacaoFechamentoService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Quando todos os lotes da OS estão encerrados em campo, retém a OS e a expedição
@@ -80,6 +83,88 @@ export class InstalacaoFechamentoService {
         `OS ${osId}: instalação em campo concluída — expedição retida em AGUARDANDO_FECHAMENTO (DEC-04)`,
       );
     }
+  }
+
+  /**
+   * Auto-reparo: relatório técnico já persistido, mas status da OS desatualizado
+   * (ex.: aprovação anterior sem transição ou dado legado).
+   */
+  async reconciliarStatusComRelatorioEmitido(
+    lojaId: string,
+    osIds: string[],
+  ): Promise<Set<string>> {
+    if (osIds.length === 0) {
+      return new Set();
+    }
+
+    const relatorios = await this.prisma.relatorioTecnicoInstalacao.findMany({
+      where: { loja_id: lojaId, os_id: { in: osIds } },
+      select: { os_id: true },
+    });
+
+    const corrigidos = new Set<string>();
+
+    for (const relatorio of relatorios) {
+      const corrigiu = await this.prisma.$transaction((tx) =>
+        this.concluirInstalacaoComRelatorioExistente(
+          tx,
+          lojaId,
+          relatorio.os_id,
+        ),
+      );
+      if (corrigiu) {
+        corrigidos.add(relatorio.os_id);
+      }
+    }
+
+    return corrigidos;
+  }
+
+  private async concluirInstalacaoComRelatorioExistente(
+    tx: Prisma.TransactionClient,
+    lojaId: string,
+    osId: string,
+  ): Promise<boolean> {
+    const relatorio = await tx.relatorioTecnicoInstalacao.findFirst({
+      where: { os_id: osId, loja_id: lojaId },
+      select: { id: true },
+    });
+
+    if (!relatorio) {
+      return false;
+    }
+
+    const atualizada = await tx.ordemServico.updateMany({
+      where: {
+        id: osId,
+        loja_id: lojaId,
+        status_instalacao_os: { not: StatusInstalacaoOs.CONCLUIDA },
+      },
+      data: { status_instalacao_os: StatusInstalacaoOs.CONCLUIDA },
+    });
+
+    if (atualizada.count === 0) {
+      return false;
+    }
+
+    await tx.expedicaoLogistica.updateMany({
+      where: {
+        os_id: osId,
+        loja_id: lojaId,
+        status: StatusExpedicao.AGUARDANDO_FECHAMENTO,
+      },
+      data: {
+        status: StatusExpedicao.ENTREGUE_FINALIZADO,
+        data_conclusao: new Date(),
+        atualizado_em: new Date(),
+      },
+    });
+
+    this.logger.warn(
+      `OS ${osId}: status_instalacao_os corrigido para CONCLUIDA (relatório técnico já existia)`,
+    );
+
+    return true;
   }
 
   /**

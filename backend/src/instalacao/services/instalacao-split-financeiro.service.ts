@@ -89,7 +89,14 @@ export class InstalacaoSplitFinanceiroService {
         id: ocorrenciaId,
         loja_id: lojaId,
         versao: input.versao,
-        status_financeiro: StatusFinanceiroOcorrencia.PENDENTE_PRECIFICACAO,
+        OR: [
+          { status_financeiro: StatusFinanceiroOcorrencia.PENDENTE_PRECIFICACAO },
+          {
+            status_financeiro: StatusFinanceiroOcorrencia.PRECIFICADO,
+            os_aditiva_id: null,
+            preco_cliente: { lte: new Prisma.Decimal('0.01') },
+          },
+        ],
       },
       data: {
         status_financeiro: StatusFinanceiroOcorrencia.PRECIFICADO,
@@ -107,6 +114,82 @@ export class InstalacaoSplitFinanceiroService {
     }
 
     return this.obterOcorrenciaGestao(ocorrenciaId, lojaId);
+  }
+
+  /**
+   * Ao habilitar OS Aditiva, reabre ocorrências auto-precificadas no fluxo legado
+   * (R$ 0, sem OS Aditiva) para a fila de precificação do gestor.
+   */
+  async migrarOcorrenciasLegadoAoHabilitarOsAditiva(
+    lojaId: string,
+  ): Promise<{ migradas: number }> {
+    const legadas = await this.prisma.ocorrenciaInstalacao.findMany({
+      where: {
+        loja_id: lojaId,
+        status_financeiro: StatusFinanceiroOcorrencia.PRECIFICADO,
+        os_aditiva_id: null,
+        OR: [
+          { precificado_por: null },
+          { preco_cliente: { lte: new Prisma.Decimal('0.01') } },
+        ],
+      },
+      select: {
+        id: true,
+        tipo: true,
+        quantidade: true,
+      },
+    });
+
+    if (legadas.length === 0) {
+      return { migradas: 0 };
+    }
+
+    let migradas = 0;
+
+    for (const ocorrencia of legadas) {
+      const taxa = await this.prisma.taxaOcorrenciaLoja.findUnique({
+        where: {
+          loja_id_tipo: {
+            loja_id: lojaId,
+            tipo: ocorrencia.tipo,
+          },
+        },
+        select: { custo_padrao: true, preco_padrao: true },
+      });
+
+      const quantidade = Number(ocorrencia.quantidade);
+      const custoUnitario = Number(taxa?.custo_padrao ?? 0);
+      const precoUnitario = Number(taxa?.preco_padrao ?? 0);
+
+      const resultado = await this.prisma.ocorrenciaInstalacao.updateMany({
+        where: {
+          id: ocorrencia.id,
+          loja_id: lojaId,
+          status_financeiro: StatusFinanceiroOcorrencia.PRECIFICADO,
+          os_aditiva_id: null,
+        },
+        data: {
+          status_financeiro: StatusFinanceiroOcorrencia.PENDENTE_PRECIFICACAO,
+          custo_interno: null,
+          preco_cliente: null,
+          custo_sugerido: new Prisma.Decimal(custoUnitario * quantidade),
+          preco_sugerido: new Prisma.Decimal(precoUnitario * quantidade),
+          precificado_por: null,
+          precificado_em: null,
+          versao: { increment: 1 },
+        },
+      });
+
+      migradas += resultado.count;
+    }
+
+    if (migradas > 0) {
+      this.logger.log(
+        `${migradas} ocorrência(s) legadas reabertas para precificação — loja ${lojaId}`,
+      );
+    }
+
+    return { migradas };
   }
 
   async abonarOcorrencia(
@@ -155,32 +238,14 @@ export class InstalacaoSplitFinanceiroService {
   ): Promise<GerarOsAditivaResultado> {
     await this.assertOsAditivaHabilitada(lojaId);
 
-    const osPai = await this.prisma.ordemServico.findFirst({
-      where: {
-        id: osPaiId,
-        loja_id: lojaId,
-        ativo: true,
-        tipo_vinculo_os: { not: TIPO_VINCULO_OS_ADITIVA },
-      },
-      select: {
-        id: true,
-        numero: true,
-        cliente_id: true,
-        nome_servico: true,
-      },
-    });
-
-    if (!osPai) {
-      throw new NotFoundException(
-        'Ordem de serviço principal não encontrada para esta loja.',
-      );
-    }
+    const osPai = await this.resolverOsPaiInstalacao(osPaiId, lojaId);
+    const osPaiIdResolvido = osPai.id;
 
     const resultado = await this.prisma.$transaction(async (tx) => {
       const ocorrencias = await tx.ocorrenciaInstalacao.findMany({
         where: {
           loja_id: lojaId,
-          os_id: osPaiId,
+          os_id: osPaiIdResolvido,
           status_financeiro: StatusFinanceiroOcorrencia.PRECIFICADO,
           os_aditiva_id: null,
           ...(ocorrenciaIds?.length ? { id: { in: ocorrenciaIds } } : {}),
@@ -219,7 +284,7 @@ export class InstalacaoSplitFinanceiroService {
         (await tx.ordemServico.count({
           where: {
             loja_id: lojaId,
-            os_pai_id: osPaiId,
+            os_pai_id: osPaiIdResolvido,
             tipo_vinculo_os: TIPO_VINCULO_OS_ADITIVA,
           },
         })) + 1;
@@ -263,7 +328,7 @@ export class InstalacaoSplitFinanceiroService {
           loja_id: lojaId,
           cliente_id: osPai.cliente_id,
           orcamento_id: orcamento.id,
-          os_pai_id: osPaiId,
+          os_pai_id: osPaiIdResolvido,
           tipo_vinculo_os: TIPO_VINCULO_OS_ADITIVA,
           origem_os: ORIGEM_OS_ADITIVA_INSTALACAO,
           nome_servico: `Aditivo instalação — OS ${osPai.numero}`,
@@ -350,7 +415,7 @@ export class InstalacaoSplitFinanceiroService {
       await tx.orcamentoAditivoInstalacao.create({
         data: {
           loja_id: lojaId,
-          os_pai_id: osPaiId,
+          os_pai_id: osPaiIdResolvido,
           os_aditiva_id: osAditiva.id,
           orcamento_id: orcamento.id,
           ocorrencias_snapshot: snapshot as unknown as Prisma.InputJsonValue,
@@ -383,7 +448,7 @@ export class InstalacaoSplitFinanceiroService {
 
       await tx.ordemServicoLog.create({
         data: {
-          os_id: osPaiId,
+          os_id: osPaiIdResolvido,
           tipo_acao: 'OS_ADITIVA_GERADA',
           descricao: `OS Aditiva ${numeroAditiva} gerada com ${ocorrencias.length} ocorrência(s).`,
           usuario_id: usuarioId,
@@ -399,7 +464,7 @@ export class InstalacaoSplitFinanceiroService {
       return {
         os_aditiva_id: osAditiva.id,
         os_aditiva_numero: numeroAditiva,
-        os_pai_id: osPaiId,
+        os_pai_id: osPaiIdResolvido,
         orcamento_id: orcamento.id,
         cobranca_id: cobranca.id,
         valor_total: this.arredondar(valorTotal),
@@ -408,10 +473,43 @@ export class InstalacaoSplitFinanceiroService {
     });
 
     this.logger.log(
-      `OS Aditiva ${resultado.os_aditiva_numero} gerada — pai ${osPaiId} — R$ ${resultado.valor_total.toFixed(2)}`,
+      `OS Aditiva ${resultado.os_aditiva_numero} gerada — pai ${osPaiIdResolvido} — R$ ${resultado.valor_total.toFixed(2)}`,
     );
 
     return resultado;
+  }
+
+  /**
+   * Gera OS Aditiva quando há intercorrências precificadas sem faturamento.
+   * Usado no fluxo unificado de aprovação financeira da OS principal.
+   */
+  async gerarOsAditivaSeNecessario(
+    osReferenciaId: string,
+    lojaId: string,
+    usuarioId: string | null,
+  ): Promise<GerarOsAditivaResultado | null> {
+    const habilitada =
+      await this.configuracaoInstalacaoService.osAditivaHabilitada(lojaId);
+    if (!habilitada) {
+      return null;
+    }
+
+    const osPai = await this.resolverOsPaiInstalacao(osReferenciaId, lojaId);
+    const pendentes = await this.prisma.ocorrenciaInstalacao.count({
+      where: {
+        loja_id: lojaId,
+        os_id: osPai.id,
+        status_financeiro: StatusFinanceiroOcorrencia.PRECIFICADO,
+        os_aditiva_id: null,
+        preco_cliente: { gt: new Prisma.Decimal('0.01') },
+      },
+    });
+
+    if (pendentes === 0) {
+      return null;
+    }
+
+    return this.gerarOsAditiva(osReferenciaId, lojaId, usuarioId);
   }
 
   async listarFilaPrecificacao(lojaId: string, query: FilaPrecificacaoQueryDto) {
@@ -554,11 +652,12 @@ export class InstalacaoSplitFinanceiroService {
     }
 
     await this.assertOsPai(lojaId, osPaiId);
+    const osPai = await this.resolverOsPaiInstalacao(osPaiId, lojaId);
 
     const filhas = await this.prisma.ordemServico.findMany({
       where: {
         loja_id: lojaId,
-        os_pai_id: osPaiId,
+        os_pai_id: osPai.id,
         tipo_vinculo_os: TIPO_VINCULO_OS_ADITIVA,
       },
       orderBy: { criado_em: 'asc' },
@@ -590,15 +689,58 @@ export class InstalacaoSplitFinanceiroService {
     }));
   }
 
-  private async assertOsPai(lojaId: string, osPaiId: string): Promise<void> {
+  private async resolverOsPaiInstalacao(
+    osReferenciaId: string,
+    lojaId: string,
+  ): Promise<{
+    id: string;
+    numero: string;
+    cliente_id: string;
+    nome_servico: string;
+  }> {
     const os = await this.prisma.ordemServico.findFirst({
-      where: { id: osPaiId, loja_id: lojaId, ativo: true },
-      select: { id: true },
+      where: { id: osReferenciaId, loja_id: lojaId },
+      select: {
+        id: true,
+        numero: true,
+        cliente_id: true,
+        nome_servico: true,
+        tipo_vinculo_os: true,
+        os_pai_id: true,
+      },
     });
 
     if (!os) {
-      throw new NotFoundException('Ordem de serviço não encontrada.');
+      throw new NotFoundException(
+        'Ordem de serviço principal não encontrada para esta loja.',
+      );
     }
+
+    if (os.tipo_vinculo_os === TIPO_VINCULO_OS_ADITIVA) {
+      if (!os.os_pai_id) {
+        throw new BadRequestException(
+          'OS aditiva sem vínculo com a ordem de serviço principal.',
+        );
+      }
+      return this.resolverOsPaiInstalacao(os.os_pai_id, lojaId);
+    }
+
+    if (!os.cliente_id) {
+      throw new BadRequestException(
+        'Ordem de serviço sem cliente vinculado não pode gerar OS Aditiva.',
+      );
+    }
+
+    return {
+      id: os.id,
+      numero: os.numero,
+      cliente_id: os.cliente_id,
+      nome_servico: os.nome_servico,
+    };
+  }
+
+  private async assertOsPai(lojaId: string, osPaiId: string): Promise<void> {
+    await this.resolverOsPaiInstalacao(osPaiId, lojaId);
   }
 
   private async assertOcorrenciaPrecificavel(

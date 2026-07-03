@@ -9,10 +9,13 @@ import { InstalacaoTimeline } from '@/components/instalacao/InstalacaoTimeline';
 import { NovoLoteDialog } from '@/components/instalacao/NovoLoteDialog';
 import { OcorrenciaRapidaDialog } from '@/components/instalacao/OcorrenciaRapidaDialog';
 import { instalacaoApi } from '@/lib/instalacao/instalacao-api';
+import { contarLotesAguardandoConclusaoCampo } from '@/lib/instalacao/instalacao-lote-utils';
 import type {
   EnderecoLoteForm,
   PainelOsInstalacao,
 } from '@/lib/instalacao/instalacao.types';
+import { montarPayloadAgendaLote } from '@/lib/instalacao/instalacao.types';
+import { InstalacaoRelatorioTecnicoCard } from '@/components/financeiro/InstalacaoRelatorioTecnicoCard';
 import { IconLoader2, IconRefresh, IconExternalLink } from '@tabler/icons-react';
 import Link from 'next/link';
 import { STATUS_INSTALACAO_OS_LABEL } from '@/lib/instalacao/instalacao-labels';
@@ -71,6 +74,7 @@ export function InstalacaoOsPainel({
       cidade: dados.cidade,
       uf: dados.uf,
       quantidade_alocada: dados.quantidade_alocada,
+      ...montarPayloadAgendaLote(dados),
     });
     await carregar();
   }
@@ -111,14 +115,39 @@ export function InstalacaoOsPainel({
     (acc, item) => acc + item.saldo_disponivel,
     0,
   );
+  const lotesAguardandoConclusao = contarLotesAguardandoConclusaoCampo(
+    painel.lotes,
+  );
+  const statusOs = painel.os.status_instalacao_os;
+  const temOcorrencias = painel.ocorrencias.length > 0;
+  const exibirFechamentoFinanceiro =
+    somenteLeitura &&
+    (statusOs === 'AGUARDANDO_RELATORIO_TECNICO' ||
+      statusOs === 'CONCLUIDA' ||
+      temOcorrencias);
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-6 overflow-hidden">
+      {lotesAguardandoConclusao > 0 && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
+          <strong className="font-medium">
+            {lotesAguardandoConclusao} de {painel.lotes.length} lote(s)
+          </strong>{' '}
+          ainda aguardam conclusão em campo com assinatura no{' '}
+          <Link href="/instalador" className="font-medium underline">
+            aplicativo do instalador
+          </Link>
+          . Registrar ocorrências não encerra o lote — use{' '}
+          <strong className="font-medium">Concluir trabalho</strong> em cada
+          endereço.
+        </div>
+      )}
       {somenteLeitura && (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
-            Visualização somente leitura. Para editar lotes, endereços ou
-            registrar ocorrências, use o módulo Instalação.
+            {statusOs === 'AGUARDANDO_RELATORIO_TECNICO'
+              ? 'Campo concluído. Na aba Instalação desta OS, aprove o faturamento para emitir o relatório técnico final (a prévia PDF não altera este status).'
+              : 'Visualização somente leitura. Para editar lotes, endereços ou registrar ocorrências, use o módulo Instalação.'}
           </p>
           <Button type="button" size="sm" className="shrink-0" asChild>
             <Link href={`/instalacao?os=${osId}`}>
@@ -127,6 +156,14 @@ export function InstalacaoOsPainel({
             </Link>
           </Button>
         </div>
+      )}
+
+      {exibirFechamentoFinanceiro && (
+        <InstalacaoRelatorioTecnicoCard
+          osId={osId}
+          osNumero={painel.os.numero}
+          onAprovado={() => void carregar()}
+        />
       )}
 
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

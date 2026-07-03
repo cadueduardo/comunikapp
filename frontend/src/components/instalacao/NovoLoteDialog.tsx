@@ -24,7 +24,16 @@ import type {
   ItemSaldoInstalacao,
   ResultadoBuscaCep,
 } from '@/lib/instalacao/instalacao.types';
-import { ENDERECO_LOTE_VAZIO } from '@/lib/instalacao/instalacao.types';
+import {
+  ENDERECO_LOTE_VAZIO,
+  montarPayloadAgendaLote,
+} from '@/lib/instalacao/instalacao.types';
+import {
+  INSTALACAO_DIALOG_BODY_CLASS,
+  INSTALACAO_DIALOG_FOOTER_CLASS,
+  INSTALACAO_DIALOG_FORM_CLASS,
+  INSTALACAO_DIALOG_HEADER_CLASS,
+} from '@/lib/instalacao/instalacao-modal-classes';
 import { IconLoader2, IconPlus } from '@tabler/icons-react';
 import { toast } from 'sonner';
 
@@ -95,6 +104,7 @@ export function NovoLoteDialog({
         bairro: dados.bairro,
         cidade: dados.cidade,
         uf: dados.uf,
+        ...montarPayloadAgendaLote(dados),
       });
       toast.success('Lote de instalação criado.');
       resetar();
@@ -131,12 +141,12 @@ export function NovoLoteDialog({
           if (!open) resetar();
         }}
       >
-        <DialogContent className="flex max-h-[90vh] w-[calc(100vw-1rem)] max-w-lg flex-col gap-0 overflow-hidden p-0 sm:w-full">
-          <DialogHeader className="border-b border-border px-4 py-4 sm:px-6">
+        <DialogContent className={INSTALACAO_DIALOG_FORM_CLASS}>
+          <DialogHeader className={INSTALACAO_DIALOG_HEADER_CLASS}>
             <DialogTitle className="text-left">Novo lote de instalação</DialogTitle>
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6">
+          <div className={INSTALACAO_DIALOG_BODY_CLASS}>
             {itensComSaldo.length > 1 && (
               <div className="space-y-2">
                 <Label>Produto</Label>
@@ -178,6 +188,7 @@ export function NovoLoteDialog({
                 valorInicial={valorInicialForm}
                 buscarCep={buscarCep}
                 exibirQuantidade
+                exibirAgenda
                 quantidadeMaxima={itemSelecionado.saldo_disponivel}
                 rotuloSalvar="Criar lote"
                 onSalvar={handleSalvar}
@@ -185,7 +196,7 @@ export function NovoLoteDialog({
             )}
           </div>
 
-          <DialogFooter className="border-t border-border px-4 py-4 sm:px-6">
+          <DialogFooter className={INSTALACAO_DIALOG_FOOTER_CLASS}>
             <Button
               type="button"
               variant="outline"

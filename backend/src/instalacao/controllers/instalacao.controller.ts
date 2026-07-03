@@ -23,7 +23,9 @@ import { FilaPrecificacaoQueryDto } from '../dto/fila-precificacao-query.dto';
 import { GerarOsAditivaDto } from '../dto/gerar-os-aditiva.dto';
 import { PrecificarOcorrenciaDto } from '../dto/precificar-ocorrencia.dto';
 import { ConfiguracaoInstalacaoService } from '../services/configuracao-instalacao.service';
+import { parseDataPrevisaoCampo } from '../utils/data-previsao.util';
 import { AtualizarOsAditivaConfigDto } from '../dto/atualizar-os-aditiva-config.dto';
+import { AprovarConclusaoLoteGestaoDto } from '../dto/aprovar-conclusao-lote-gestao.dto';
 @ApiTags('Instalações')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -107,9 +109,13 @@ export class InstalacaoController {
         cidade: dto.cidade,
         uf: dto.uf,
       },
-      dataPrevisao: dto.data_previsao ? new Date(dto.data_previsao) : undefined,
+      dataPrevisao: dto.data_previsao
+        ? parseDataPrevisaoCampo(dto.data_previsao)
+        : undefined,
       turnoPrevisao: dto.turno_previsao,
       equipeInstalacao: dto.equipe_instalacao,
+      responsavelLocal: dto.responsavel_local,
+      informarEquipe: dto.informar_equipe,
     });
 
     if (!resultado.criado) {
@@ -150,6 +156,26 @@ export class InstalacaoController {
     );
   }
 
+  @Patch('lotes/:id/aprovar-conclusao')
+  @UseGuards(InstalacaoGestaoPermissionsGuard)
+  @ApiOperation({
+    summary:
+      'Aprova conclusão do lote pela gestão (com motivo se sem assinatura)',
+  })
+  async aprovarConclusaoLote(
+    @LojaId() lojaId: string,
+    @Param('id') id: string,
+    @CurrentUser() usuario: AuthenticatedUser,
+    @Body() dto: AprovarConclusaoLoteGestaoDto,
+  ) {
+    return this.instalacaoService.aprovarConclusaoLoteGestao(
+      lojaId,
+      id,
+      usuario.id,
+      dto,
+    );
+  }
+
   @Patch('lotes/:id')
   @UseGuards(InstalacaoGestaoPermissionsGuard)
   @ApiOperation({ summary: 'Atualiza endereço e quantidade do lote' })
@@ -177,6 +203,8 @@ export class InstalacaoController {
       quantidade: dto.quantidade,
       descricao: dto.descricao,
       fotosEvidencia: dto.fotos_evidencia,
+      dataRetornoPrevisao: dto.data_retorno_previsao,
+      turnoRetornoPrevisao: dto.turno_retorno_previsao,
     });
   }
 
@@ -242,6 +270,27 @@ export class InstalacaoController {
     );
   }
 
+  @Post('os/:osId/relatorio-tecnico/previa')
+  @UseGuards(InstalacaoGestaoPermissionsGuard)
+  @ApiOperation({
+    summary:
+      'Gera prévia do relatório técnico (PDF) para envio ao cliente antes da aprovação',
+  })
+  async gerarPreviaRelatorioTecnico(
+    @LojaId() lojaId: string,
+    @Param('osId') osId: string,
+  ) {
+    const pdfGerado = await this.posCalculoService.gerarPreviaRelatorioPdf(
+      osId,
+      lojaId,
+    );
+    return {
+      pdf_url: pdfGerado.pdf_url,
+      pdf_token: pdfGerado.pdf_token,
+      previa: true,
+    };
+  }
+
   @Post('os/:osId/relatorio-tecnico')
   @UseGuards(InstalacaoGestaoPermissionsGuard)
   @ApiOperation({
@@ -284,7 +333,20 @@ export class InstalacaoController {
         lojaId,
         dto.habilitada,
       );
-    return { os_aditiva_habilitada: config.os_aditiva_habilitada };
+
+    let ocorrencias_migradas = 0;
+    if (dto.habilitada) {
+      const migracao =
+        await this.splitFinanceiroService.migrarOcorrenciasLegadoAoHabilitarOsAditiva(
+          lojaId,
+        );
+      ocorrencias_migradas = migracao.migradas;
+    }
+
+    return {
+      os_aditiva_habilitada: config.os_aditiva_habilitada,
+      ocorrencias_migradas,
+    };
   }
 
   @Get('ocorrencias/fila-precificacao')

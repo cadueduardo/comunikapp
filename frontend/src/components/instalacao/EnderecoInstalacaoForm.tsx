@@ -5,9 +5,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { DataPrevisaoInstalacaoPicker } from '@/components/instalacao/DataPrevisaoInstalacaoPicker';
 import { useCepInstalacao } from '@/hooks/useCepInstalacao';
 import type { EnderecoLoteForm } from '@/lib/instalacao/instalacao.types';
 import { ENDERECO_LOTE_VAZIO } from '@/lib/instalacao/instalacao.types';
+import { TURNO_PREVISAO_OPCOES } from '@/lib/instalacao/instalacao-labels';
 import { IconLoader2, IconMapPin } from '@tabler/icons-react';
 
 interface EnderecoInstalacaoFormProps {
@@ -30,6 +40,7 @@ interface EnderecoInstalacaoFormProps {
   exibirQuantidade?: boolean;
   quantidadeMaxima?: number;
   rotuloSalvar?: string;
+  exibirAgenda?: boolean;
 }
 
 export function EnderecoInstalacaoForm({
@@ -40,6 +51,7 @@ export function EnderecoInstalacaoForm({
   exibirQuantidade = false,
   quantidadeMaxima,
   rotuloSalvar = 'Salvar endereço',
+  exibirAgenda = false,
 }: EnderecoInstalacaoFormProps) {
   const [form, setForm] = useState<EnderecoLoteForm>(valorInicial);
   const [salvando, setSalvando] = useState(false);
@@ -95,6 +107,11 @@ export function EnderecoInstalacaoForm({
         cidade: form.cidade.trim(),
         uf: form.uf.trim(),
         quantidade_alocada: form.quantidade_alocada ?? 1,
+        data_previsao: form.data_previsao,
+        turno_previsao: form.turno_previsao,
+        equipe_instalacao: form.equipe_instalacao,
+        responsavel_local: form.responsavel_local,
+        informar_equipe: form.informar_equipe,
       });
       formInicialRef.current = JSON.stringify(form);
     } catch (err) {
@@ -114,7 +131,7 @@ export function EnderecoInstalacaoForm({
       onSubmit={handleSubmit}
       className="flex w-full min-w-0 flex-col gap-4 overflow-hidden"
     >
-      <div className="grid w-full min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         <div className="min-w-0 space-y-2 sm:col-span-2">
           <Label htmlFor="cep-instalacao">CEP</Label>
           <div className="relative min-w-0">
@@ -248,6 +265,94 @@ export function EnderecoInstalacaoForm({
           </div>
         )}
       </div>
+
+      {exibirAgenda && (
+        <div className="space-y-4 rounded-lg border border-border bg-muted/20 p-4 sm:p-5">
+          <p className="text-sm font-medium text-foreground">
+            Agenda da instalação
+          </p>
+          <div className="grid w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
+            <DataPrevisaoInstalacaoPicker
+              id="data-previsao-instalacao"
+              valor={form.data_previsao}
+              equipeInstalacao={form.equipe_instalacao}
+              disabled={desabilitado}
+              onChange={(data) => atualizar({ data_previsao: data })}
+            />
+            <div className="min-w-0 space-y-2">
+              <Label htmlFor="turno-previsao-instalacao">Turno</Label>
+              <Select
+                value={form.turno_previsao || 'nenhum'}
+                onValueChange={(valor) =>
+                  atualizar({
+                    turno_previsao:
+                      valor === 'nenhum'
+                        ? ''
+                        : (valor as EnderecoLoteForm['turno_previsao']),
+                  })
+                }
+                disabled={desabilitado}
+              >
+                <SelectTrigger id="turno-previsao-instalacao" className="w-full min-w-0">
+                  <SelectValue placeholder="Selecione o turno" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nenhum">Não definido</SelectItem>
+                  {TURNO_PREVISAO_OPCOES.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-0 space-y-2 md:col-span-2">
+              <Label htmlFor="equipe-instalacao">Equipe de instalação</Label>
+              <Input
+                id="equipe-instalacao"
+                placeholder="Ex.: Equipe Alpha"
+                value={form.equipe_instalacao}
+                disabled={desabilitado}
+                onChange={(e) => atualizar({ equipe_instalacao: e.target.value })}
+                className="w-full min-w-0"
+              />
+            </div>
+            <div className="min-w-0 space-y-2">
+              <Label htmlFor="responsavel-local-instalacao">
+                Responsável no local
+              </Label>
+              <Input
+                id="responsavel-local-instalacao"
+                placeholder="Quem procurar no endereço"
+                value={form.responsavel_local}
+                disabled={desabilitado}
+                onChange={(e) =>
+                  atualizar({ responsavel_local: e.target.value })
+                }
+                className="w-full min-w-0"
+              />
+            </div>
+            <div className="flex flex-col gap-3 rounded-md border border-border/60 bg-background/60 p-3 md:col-span-2 md:flex-row md:items-center md:justify-between">
+              <div className="min-w-0 space-y-0.5">
+                <Label htmlFor="informar-equipe-instalacao">
+                  Informar equipe de campo
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Quando ativo, o lote aparece no aplicativo do instalador.
+                </p>
+              </div>
+              <Switch
+                id="informar-equipe-instalacao"
+                checked={form.informar_equipe}
+                disabled={desabilitado}
+                onCheckedChange={(checked) =>
+                  atualizar({ informar_equipe: checked })
+                }
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {erroValidacao && (
         <Alert variant="destructive" className="py-2">

@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { OrcamentoStatus } from '../../orcamentos-v2/enums/orcamento-status.enum';
 import { CobrancaStatus } from '../../financeiro/enums/cobranca-status.enum';
 import { StatusExpedicao } from '../../expedicao/enums/status-expedicao.enum';
+import { filtroOsElegivelFluxoPcp } from '../../pcp/utils/os-elegivel-pcp-kanban.util';
 import { ArteFilaService } from '../../modules/arte-aprovacao/services/arte-fila.service';
 import { HomeCacheService } from './home-cache.service';
 import { ContadoresMenuResponse } from '../interfaces/contadores-menu.interface';
@@ -126,7 +127,7 @@ export class ContadoresMenuService {
       .map((o) => o.orcamento_id)
       .filter((id): id is string => !!id);
 
-    const [aprovadosSemOs, revisaoTecnica, movimentacaoArte] =
+    const [aprovadosSemOs, revisaoTecnica, movimentacaoArte, interacaoInstalacao] =
       await Promise.all([
         this.prisma.orcamento.count({
           where: {
@@ -152,9 +153,35 @@ export class ContadoresMenuService {
           },
         }),
         this.contarOsComMovimentacaoArte(lojaId, desde),
+        this.contarOsComInteracaoInstalacao(lojaId, desde),
       ]);
 
-    return aprovadosSemOs + revisaoTecnica + movimentacaoArte;
+    return aprovadosSemOs + revisaoTecnica + movimentacaoArte + interacaoInstalacao;
+  }
+
+  /** OS com ocorrência ou lote de instalação movimentado após a última visita. */
+  private async contarOsComInteracaoInstalacao(
+    lojaId: string,
+    desde: Date,
+  ): Promise<number> {
+    const [porOcorrencia, lotes] = await Promise.all([
+      this.prisma.ocorrenciaInstalacao.findMany({
+        where: { loja_id: lojaId, criado_em: { gte: desde } },
+        select: { os_id: true },
+        distinct: ['os_id'],
+      }),
+      this.prisma.itemOSInstalacao.findMany({
+        where: { loja_id: lojaId, atualizado_em: { gte: desde } },
+        select: { item_os: { select: { os_id: true } } },
+      }),
+    ]);
+
+    const osIds = new Set<string>([
+      ...porOcorrencia.map((item) => item.os_id),
+      ...lotes.map((item) => item.item_os.os_id),
+    ]);
+
+    return osIds.size;
   }
 
   /** OS com arte do cliente inserida ou versão aprovada/liberada após `desde`. */
@@ -229,6 +256,7 @@ export class ContadoresMenuService {
             'AGUARDANDO_MATERIAL',
           ],
         },
+        ...filtroOsElegivelFluxoPcp,
       },
     });
   }

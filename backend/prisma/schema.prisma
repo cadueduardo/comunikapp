@@ -2375,9 +2375,17 @@ model ItemOSInstalacao {
   data_previsao      DateTime?
   turno_previsao     TurnoPrevisaoInstalacao?
   equipe_instalacao  String?                  @db.VarChar(120)
+  responsavel_local  String?                  @db.VarChar(120)
+  informar_equipe    Boolean                  @default(false)
+  aguardando_reagendamento Boolean            @default(false)
   data_execucao      DateTime?
   fotos_evidencia    Json?
   assinatura_url     String?          @db.Text
+  origem_conclusao_lote OrigemConclusaoLote?
+  motivo_sem_assinatura MotivoSemAssinaturaLote?
+  observacao_conclusao_gestao String? @db.Text
+  conclusao_gestao_por String?
+  conclusao_gestao_em DateTime?
   criado_em          DateTime         @default(now())
   atualizado_em      DateTime         @updatedAt
 
@@ -2404,6 +2412,8 @@ model OcorrenciaInstalacao {
   preco_cliente      Decimal?                    @db.Decimal(10, 2)
   descricao          String                      @db.Text
   fotos_evidencia    Json?
+  data_retorno_previsao DateTime?
+  turno_retorno_previsao TurnoPrevisaoInstalacao?
   criado_em          DateTime                    @default(now())
 
   status_financeiro   StatusFinanceiroOcorrencia @default(PENDENTE_PRECIFICACAO)
@@ -2492,6 +2502,20 @@ enum StatusInstalacao {
   EM_ANDAMENTO
   CONCLUIDO
   LOGISTICA_NEGATIVA
+}
+
+enum OrigemConclusaoLote {
+  CAMPO
+  GESTAO
+}
+
+enum MotivoSemAssinaturaLote {
+  CLIENTE_AUSENTE
+  CLIENTE_RECUSOU_ASSINAR
+  ASSINATURA_CANAL_ALTERNATIVO
+  INSTALADOR_SEM_APP
+  EVIDENCIA_SUFICIENTE
+  OUTROS
 }
 
 enum StatusInstalacaoOs {

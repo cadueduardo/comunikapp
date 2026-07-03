@@ -89,6 +89,21 @@ export interface OrdemServicoData {
   status_instalacao_os?: string | null;
   /** Status da expedição ativa (quando existir) */
   status_expedicao?: string | null;
+  /** Vínculo hierárquico — OS aditiva de instalação */
+  tipo_vinculo_os?: string | null;
+  os_pai_id?: string | null;
+  os_pai_numero?: string | null;
+  pular_pcp?: boolean;
+  pular_expedicao?: boolean;
+  pular_validacao_estoque?: boolean;
+  /** Filhas vinculadas (grid agrupado) */
+  aditivas_filhas?: OrdemServicoData[];
+  aditivas_resumo?: {
+    quantidade: number;
+    valor_total: number;
+  };
+  requer_atencao_instalacao?: boolean;
+  ultima_atividade_instalacao?: string | null;
 }
 
 export interface ItemOSData {

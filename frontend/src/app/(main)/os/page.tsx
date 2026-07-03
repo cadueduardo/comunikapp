@@ -21,13 +21,17 @@ import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { CrudPage } from '@/components/crud/CrudPage';
-import { DataTable } from '@/components/data-table/data-table';
+import { OsGridTable } from '@/components/os/OsGridTable';
 import { apiRequest } from '@/lib/api';
 import { useUser } from '@/contexts/UserContext';
 import { OSCard } from '@/components/ui/os-card';
 import { AprovarOSModal } from '@/components/ui/os/AprovarOSModal';
-import { createColumns, type OrdemServico } from './columns';
+import { type OrdemServico } from './columns';
 import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
+import {
+  filtrarOrdensParaGrid,
+  type ModoGridOs,
+} from '@/lib/os-grid-aditiva.utils';
 import {
   Select,
   SelectContent,
@@ -47,6 +51,7 @@ export default function OSPage() {
   const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivoOS>('ativas');
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [modoGrid, setModoGrid] = useState<ModoGridOs>('agrupado');
   const [estatisticas, setEstatisticas] = useState<any>(null);
   const [aprovarTarget, setAprovarTarget] = useState<OrdemServico | null>(null);
   const [aprovarModalOpen, setAprovarModalOpen] = useState(false);
@@ -74,7 +79,7 @@ export default function OSPage() {
           : filtroAtivo === 'todas'
             ? 'all'
             : 'true';
-      const response = await apiRequest(`/os?ativo=${ativoParam}`);
+      const response = await apiRequest(`/os?ativo=${ativoParam}&limit=500`);
 
       if (response.ok) {
         const data = await response.json();
@@ -164,17 +169,18 @@ export default function OSPage() {
     }
   };
 
-  // Filtrar ordens
-  const filteredOrdens = ordens.filter(os => {
-    const matchesSearch = 
-      os.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      os.nome_servico.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (os.cliente_nome && os.cliente_nome.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesStatus = !statusFilter || os.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  const filteredOrdensTabela = filtrarOrdensParaGrid(
+    ordens,
+    searchTerm,
+    statusFilter,
+    modoGrid,
+  );
+  const filteredOrdensCards = filtrarOrdensParaGrid(
+    ordens,
+    searchTerm,
+    statusFilter,
+    'plano',
+  );
 
   const header = (
     <PageHeader
@@ -264,6 +270,21 @@ export default function OSPage() {
         </SelectContent>
       </Select>
 
+      {!isMobile && viewMode === 'table' && (
+        <Select
+          value={modoGrid}
+          onValueChange={(value) => setModoGrid(value as ModoGridOs)}
+        >
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Exibição" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="agrupado">Agrupado</SelectItem>
+            <SelectItem value="plano">Lista plana</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
+
       {!isMobile && (
         <div className="flex items-center gap-2">
           <Button
@@ -287,6 +308,9 @@ export default function OSPage() {
     </div>
   );
 
+  const listaExibicao =
+    viewMode === 'table' ? filteredOrdensTabela : filteredOrdensCards;
+
   const content = loading ? (
     <Card>
       <CardContent className="flex items-center justify-center h-32">
@@ -296,7 +320,7 @@ export default function OSPage() {
         </div>
       </CardContent>
     </Card>
-  ) : filteredOrdens.length === 0 ? (
+  ) : listaExibicao.length === 0 ? (
     <Card>
       <CardContent className="flex items-center justify-center h-32">
         <div className="text-center">
@@ -311,20 +335,19 @@ export default function OSPage() {
       </CardContent>
     </Card>
   ) : viewMode === 'table' ? (
-    <DataTable
-      columns={createColumns(
-        handleInativar,
-        handleReativar,
-        (os: OrdemServico) => {
-          setAprovarTarget(os);
-          setAprovarModalOpen(true);
-        },
-      )}
-      data={filteredOrdens}
+    <OsGridTable
+      ordens={filteredOrdensTabela}
+      modo={modoGrid}
+      onInativar={handleInativar}
+      onReativar={handleReativar}
+      onAprovar={(os: OrdemServico) => {
+        setAprovarTarget(os);
+        setAprovarModalOpen(true);
+      }}
     />
   ) : (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {filteredOrdens.map((os) => (
+      {filteredOrdensCards.map((os) => (
         <OSCard 
           key={os.id} 
           os={os} 

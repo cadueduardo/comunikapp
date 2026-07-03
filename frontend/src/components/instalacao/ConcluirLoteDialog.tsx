@@ -17,6 +17,12 @@ import {
 import { EvidenciaFotosUpload } from '@/components/instalacao/EvidenciaFotosUpload';
 import type { LoteInstaladorDetalhe } from '@/lib/instalacao/instalacao.types';
 import { normalizarFotos } from '@/lib/instalacao/instalacao.types';
+import {
+  INSTALACAO_DIALOG_BODY_CLASS,
+  INSTALACAO_DIALOG_FOOTER_CLASS,
+  INSTALACAO_DIALOG_FORM_CLASS,
+  INSTALACAO_DIALOG_HEADER_CLASS,
+} from '@/lib/instalacao/instalacao-modal-classes';
 import { IconCircleCheck, IconLoader2 } from '@tabler/icons-react';
 
 export interface ConcluirLoteDialogProps {
@@ -93,8 +99,8 @@ export function ConcluirLoteDialog({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="flex max-h-[90vh] w-[calc(100vw-1rem)] max-w-lg flex-col gap-0 overflow-hidden p-0 sm:w-full">
-        <DialogHeader className="space-y-2 border-b border-border px-4 py-4 sm:px-6">
+      <DialogContent className={INSTALACAO_DIALOG_FORM_CLASS}>
+        <DialogHeader className={`${INSTALACAO_DIALOG_HEADER_CLASS} space-y-2`}>
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
               <IconCircleCheck className="h-5 w-5" />
@@ -110,7 +116,7 @@ export function ConcluirLoteDialog({
           </div>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6">
+        <div className={`${INSTALACAO_DIALOG_BODY_CLASS} space-y-5`}>
           <div className="min-w-0 space-y-2">
             <p className="text-sm font-medium text-foreground">Fotos de evidência</p>
             <EvidenciaFotosUpload
@@ -137,7 +143,9 @@ export function ConcluirLoteDialog({
           )}
         </div>
 
-        <DialogFooter className="flex-col gap-2 border-t border-border px-4 py-4 sm:flex-row sm:px-6">
+        <DialogFooter
+          className={`${INSTALACAO_DIALOG_FOOTER_CLASS} flex-col gap-2 sm:flex-row`}
+        >
           <Button
             type="button"
             variant="outline"

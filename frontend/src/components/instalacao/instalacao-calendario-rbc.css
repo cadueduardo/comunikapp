@@ -46,6 +46,20 @@
   background: transparent;
 }
 
+.instalacao-rbc .rbc-allday-cell .rbc-event,
+.instalacao-rbc .rbc-day-slot .rbc-event {
+  min-height: 1.75rem;
+}
+
+.instalacao-rbc .rbc-time-view .rbc-allday-cell {
+  min-height: 2.5rem;
+}
+
+.instalacao-rbc .rbc-time-view .rbc-event {
+  border: none;
+  padding: 1px;
+}
+
 .instalacao-rbc .rbc-event:focus {
   outline: 2px solid var(--ring);
   outline-offset: 1px;

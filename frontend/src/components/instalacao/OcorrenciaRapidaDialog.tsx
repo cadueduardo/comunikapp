@@ -19,10 +19,23 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { DataPrevisaoInstalacaoPicker } from '@/components/instalacao/DataPrevisaoInstalacaoPicker';
 import { EvidenciaFotosUpload } from '@/components/instalacao/EvidenciaFotosUpload';
-import { TIPOS_OCORRENCIA_OPTIONS } from '@/lib/instalacao/instalacao-labels';
-import type { PainelOsInstalacao } from '@/lib/instalacao/instalacao.types';
+import {
+  TIPOS_OCORRENCIA_OPTIONS,
+  TURNO_PREVISAO_OPCOES,
+} from '@/lib/instalacao/instalacao-labels';
+import type {
+  PainelOsInstalacao,
+  TurnoPrevisaoInstalacao,
+} from '@/lib/instalacao/instalacao.types';
 import { IconLoader2, IconPlus } from '@tabler/icons-react';
+import {
+  INSTALACAO_DIALOG_BODY_CLASS,
+  INSTALACAO_DIALOG_FOOTER_CLASS,
+  INSTALACAO_DIALOG_FORM_CLASS,
+  INSTALACAO_DIALOG_HEADER_CLASS,
+} from '@/lib/instalacao/instalacao-modal-classes';
 import { cn } from '@/lib/utils';
 
 interface OcorrenciaRapidaDialogProps {
@@ -34,6 +47,8 @@ interface OcorrenciaRapidaDialogProps {
     tipo: string;
     descricao: string;
     fotos_evidencia?: string[];
+    data_retorno_previsao?: string;
+    turno_retorno_previsao?: TurnoPrevisaoInstalacao;
   }) => Promise<void>;
   onUpload: (arquivo: File) => Promise<{ url: string }>;
   /** Quando o usuário está no detalhe de um lote, o vínculo é automático. */
@@ -62,9 +77,14 @@ export function OcorrenciaRapidaDialog({
   const [loteId, setLoteId] = useState<string>('nenhum');
   const [descricao, setDescricao] = useState('');
   const [fotos, setFotos] = useState<string[]>([]);
+  const [dataRetorno, setDataRetorno] = useState('');
+  const [turnoRetorno, setTurnoRetorno] = useState<TurnoPrevisaoInstalacao | ''>(
+    '',
+  );
   const [salvando, setSalvando] = useState(false);
 
   const loteVinculado = Boolean(loteIdFixo);
+  const visitaImprodutiva = tipo === 'VISITA_IMPRODUTIVA';
 
   useEffect(() => {
     if (aberto && loteIdFixo) {
@@ -77,6 +97,8 @@ export function OcorrenciaRapidaDialog({
     setLoteId(loteIdFixo ?? 'nenhum');
     setDescricao('');
     setFotos([]);
+    setDataRetorno('');
+    setTurnoRetorno('');
   }
 
   async function handleSalvar() {
@@ -90,6 +112,12 @@ export function OcorrenciaRapidaDialog({
         tipo,
         descricao: descricao.trim(),
         fotos_evidencia: fotos.length > 0 ? fotos : undefined,
+        ...(visitaImprodutiva && dataRetorno
+          ? {
+              data_retorno_previsao: dataRetorno,
+              turno_retorno_previsao: turnoRetorno || undefined,
+            }
+          : {}),
       });
       resetar();
       setAberto(false);
@@ -112,8 +140,12 @@ export function OcorrenciaRapidaDialog({
       </Button>
 
       <Dialog open={aberto} onOpenChange={setAberto}>
-        <DialogContent className="flex max-h-[90vh] w-[calc(100vw-1rem)] max-w-md flex-col gap-0 overflow-hidden p-0 sm:w-full">
-          <DialogHeader className="border-b border-border px-4 py-4 sm:px-6">
+        <DialogContent
+          className={INSTALACAO_DIALOG_FORM_CLASS}
+          onInteractOutside={(event) => event.preventDefault()}
+          onEscapeKeyDown={(event) => event.stopPropagation()}
+        >
+          <DialogHeader className={INSTALACAO_DIALOG_HEADER_CLASS}>
             <DialogTitle className="text-left">Registrar ocorrência</DialogTitle>
             {loteVinculado && loteRotuloFixo && (
               <DialogDescription className="text-left">
@@ -122,7 +154,7 @@ export function OcorrenciaRapidaDialog({
             )}
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6">
+          <div className={INSTALACAO_DIALOG_BODY_CLASS}>
             <div className="space-y-2">
               <Label>Tipo</Label>
               <Select value={tipo} onValueChange={setTipo}>
@@ -158,6 +190,59 @@ export function OcorrenciaRapidaDialog({
               </div>
             )}
 
+            {visitaImprodutiva && (
+              <div className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                <p className="text-sm font-medium text-foreground">
+                  Reagendamento da visita
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Se já souber quando voltar, informe a data. Caso contrário, o
+                  lote permanece em andamento com a flag{' '}
+                  <strong>aguardando data</strong> para a gestão definir depois.
+                </p>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <DataPrevisaoInstalacaoPicker
+                    id="data-retorno-ocorrencia"
+                    valor={dataRetorno}
+                    disabled={salvando}
+                    rotulo="Data de retorno (opcional)"
+                    onChange={setDataRetorno}
+                  />
+                  <div className="min-w-0 space-y-2">
+                    <Label htmlFor="turno-retorno-ocorrencia">
+                      Turno (opcional)
+                    </Label>
+                    <Select
+                      value={turnoRetorno || 'nenhum'}
+                      onValueChange={(valor) =>
+                        setTurnoRetorno(
+                          valor === 'nenhum'
+                            ? ''
+                            : (valor as TurnoPrevisaoInstalacao),
+                        )
+                      }
+                      disabled={!dataRetorno}
+                    >
+                      <SelectTrigger
+                        id="turno-retorno-ocorrencia"
+                        className="w-full min-w-0"
+                      >
+                        <SelectValue placeholder="Turno" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nenhum">Não definido</SelectItem>
+                        {TURNO_PREVISAO_OPCOES.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Relato técnico</Label>
               <Textarea
@@ -181,7 +266,7 @@ export function OcorrenciaRapidaDialog({
             </div>
           </div>
 
-          <DialogFooter className="border-t border-border px-4 py-4 sm:px-6">
+          <DialogFooter className={INSTALACAO_DIALOG_FOOTER_CLASS}>
             <Button
               type="button"
               variant="outline"

@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsInt,
@@ -75,6 +76,15 @@ export class CriarLoteInstalacaoDto {
   @IsString()
   @MaxLength(120)
   equipe_instalacao?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  responsavel_local?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  informar_equipe?: boolean;
 }
 
 export class AtualizarEnderecoLoteDto {
@@ -133,6 +143,16 @@ export class AtualizarEnderecoLoteDto {
   @IsString()
   @MaxLength(120)
   equipe_instalacao?: string | null;
+
+  @ValidateIf((_, valor) => valor !== null)
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  responsavel_local?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  informar_equipe?: boolean;
 }
 
 export class RegistrarOcorrenciaGestaoDto {
@@ -169,4 +189,12 @@ export class RegistrarOcorrenciaGestaoDto {
       'cada valor em fotos_evidencia deve ser uma URL absoluta ou referência /instalacao/anexos/{token}',
   })
   fotos_evidencia?: string[];
+
+  @IsOptional()
+  @IsDateString()
+  data_retorno_previsao?: string;
+
+  @IsOptional()
+  @IsEnum(TurnoPrevisaoInstalacao)
+  turno_retorno_previsao?: TurnoPrevisaoInstalacao;
 }

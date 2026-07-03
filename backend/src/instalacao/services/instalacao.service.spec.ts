@@ -21,6 +21,7 @@ describe('InstalacaoService', () => {
   const execucaoSyncMock = {
     sincronizarAposMudancaLotes: jest.fn().mockResolvedValue(0),
     promoverLoteComAtividadeCampo: jest.fn().mockResolvedValue(false),
+    promoverLoteSeAgendado: jest.fn().mockResolvedValue(false),
     rollupStatusOsEmAndamento: jest.fn().mockResolvedValue(undefined),
     reconciliarStatusCampo: jest.fn().mockResolvedValue(undefined),
   };
@@ -46,6 +47,14 @@ describe('InstalacaoService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prismaMock.cobranca.findMany.mockResolvedValue([]);
+    fechamentoMock.reterAposInstalacaoCompleta.mockResolvedValue(undefined);
+    prismaMock.$transaction.mockImplementation(async (callback) =>
+      callback({
+        itemOSInstalacao: {
+          update: prismaMock.itemOSInstalacao.update,
+        },
+      }),
+    );
     service = new InstalacaoService(
       prismaMock as unknown as PrismaService,
       fechamentoMock as unknown as InstalacaoFechamentoService,
@@ -664,6 +673,57 @@ describe('InstalacaoService', () => {
           },
         },
       ]);
+    });
+  });
+
+  describe('aprovarConclusaoLoteGestao', () => {
+    it('exige motivo quando não há assinatura', async () => {
+      prismaMock.itemOSInstalacao.findFirst.mockResolvedValue({
+        id: 'lote-1',
+        status_instalacao: 'EM_ANDAMENTO',
+        assinatura_url: null,
+        fotos_evidencia: null,
+        item_os: { os_id: 'os-1' },
+      });
+
+      await expect(
+        service.aprovarConclusaoLoteGestao('loja-1', 'lote-1', 'user-1', {}),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('conclui lote pela gestão sem assinatura com motivo catalogado', async () => {
+      prismaMock.itemOSInstalacao.findFirst.mockResolvedValue({
+        id: 'lote-1',
+        status_instalacao: 'EM_ANDAMENTO',
+        assinatura_url: null,
+        fotos_evidencia: ['foto-1'],
+        item_os: { os_id: 'os-1' },
+      });
+      prismaMock.itemOSInstalacao.update.mockResolvedValue({
+        id: 'lote-1',
+        status_instalacao: 'CONCLUIDO',
+        origem_conclusao_lote: 'GESTAO',
+        motivo_sem_assinatura: 'INSTALADOR_SEM_APP',
+        observacao_conclusao_gestao: null,
+        assinatura_url: null,
+        fotos_evidencia: ['foto-1'],
+        data_execucao: new Date(),
+        conclusao_gestao_em: new Date(),
+      });
+
+      const resultado = await service.aprovarConclusaoLoteGestao(
+        'loja-1',
+        'lote-1',
+        'user-1',
+        { motivo_sem_assinatura: 'INSTALADOR_SEM_APP' },
+      );
+
+      expect(resultado.status_instalacao).toBe('CONCLUIDO');
+      expect(fechamentoMock.reterAposInstalacaoCompleta).toHaveBeenCalledWith(
+        expect.anything(),
+        'loja-1',
+        'os-1',
+      );
     });
   });
 });

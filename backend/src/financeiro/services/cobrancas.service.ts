@@ -15,6 +15,7 @@ import {
   CobrancaLogAcao,
   ParcelaStatus,
   ParcelaTipo,
+  PARCELA_STATUS_ELEGIVEIS_RECEBIMENTO,
   RecebimentoMetodo,
 } from '../enums/cobranca-status.enum';
 import { PcpBloqueioSinalService } from '../../instalacao/services/pcp-bloqueio-sinal.service';
@@ -230,15 +231,13 @@ export class CobrancasService {
           parcelas: {
             where: {
               status: {
-                in: [
-                  ParcelaStatus.PREVISTO,
-                  ParcelaStatus.PARCIAL_PAGO,
-                  ParcelaStatus.VENCIDO,
+                notIn: [
+                  ParcelaStatus.LIQUIDADO,
+                  ParcelaStatus.CANCELADA,
                 ],
               },
             },
             orderBy: { ordem: 'asc' },
-            take: 1,
           },
           _count: { select: { parcelas: true } },
         },
@@ -355,11 +354,7 @@ export class CobrancasService {
     } else {
       // Primeira parcela em aberto (PREVISTO, PARCIAL_PAGO ou VENCIDO).
       parcelaAlvo = cobranca.parcelas.find((p) =>
-        [
-          ParcelaStatus.PREVISTO,
-          ParcelaStatus.PARCIAL_PAGO,
-          ParcelaStatus.VENCIDO,
-        ].includes(p.status as ParcelaStatus),
+        PARCELA_STATUS_ELEGIVEIS_RECEBIMENTO.has(p.status),
       );
       if (!parcelaAlvo) {
         throw new BadRequestException('Não há parcela em aberto para receber');
@@ -807,14 +802,32 @@ export class CobrancasService {
   private resolverProximaParcelaAberta(
     parcelas: Prisma.CobrancaParcelaGetPayload<true>[],
   ): Prisma.CobrancaParcelaGetPayload<true> | undefined {
-    const abertas = new Set<string>([
-      ParcelaStatus.PREVISTO,
-      ParcelaStatus.PARCIAL_PAGO,
-      ParcelaStatus.VENCIDO,
-    ]);
+    const abertas = PARCELA_STATUS_ELEGIVEIS_RECEBIMENTO;
     return [...parcelas]
       .sort((a, b) => a.ordem - b.ordem)
       .find((parcela) => abertas.has(parcela.status));
+  }
+
+  private resolverProximaParcelaExibicao(
+    parcelas: Prisma.CobrancaParcelaGetPayload<true>[],
+  ): Prisma.CobrancaParcelaGetPayload<true> | undefined {
+    return [...parcelas]
+      .sort((a, b) => a.ordem - b.ordem)
+      .find(
+        (parcela) =>
+          parcela.status !== ParcelaStatus.LIQUIDADO &&
+          parcela.status !== ParcelaStatus.CANCELADA,
+      );
+  }
+
+  private motivoBloqueioRecebimentoParcela(status: string): string {
+    if (status === ParcelaStatus.AGUARDANDO_RELATORIO_TECNICO) {
+      return 'Saldo retido até aprovação do faturamento na aba Instalação da OS (relatório técnico).';
+    }
+    if (status === ParcelaStatus.A_FATURAR) {
+      return 'Parcela liberada para faturamento, mas ainda não elegível para recebimento neste fluxo.';
+    }
+    return 'Não há parcela em aberto para receber neste momento.';
   }
 
   private mapearResumo(
@@ -833,7 +846,8 @@ export class CobrancasService {
       };
     }>,
   ): CobrancaResumo {
-    const proxima = this.resolverProximaParcelaAberta(row.parcelas);
+    const proximaExibicao = this.resolverProximaParcelaExibicao(row.parcelas);
+    const proximaRecebivel = this.resolverProximaParcelaAberta(row.parcelas);
     return {
       id: row.id,
       orcamento_id: row.orcamento_id,
@@ -854,7 +868,17 @@ export class CobrancasService {
       data_aprovacao: row.data_aprovacao.toISOString(),
       liquidado_em: row.liquidado_em?.toISOString() ?? null,
       cancelado_em: row.cancelado_em?.toISOString() ?? null,
-      proxima_parcela: proxima ? this.mapearParcela(proxima) : null,
+      proxima_parcela: proximaExibicao
+        ? this.mapearParcela(proximaExibicao)
+        : null,
+      proxima_parcela_recebivel: proximaRecebivel
+        ? this.mapearParcela(proximaRecebivel)
+        : null,
+      pode_registrar_recebimento: Boolean(proximaRecebivel),
+      motivo_bloqueio_recebimento:
+        !proximaRecebivel && proximaExibicao
+          ? this.motivoBloqueioRecebimentoParcela(proximaExibicao.status)
+          : null,
       total_parcelas: row._count.parcelas,
       criado_em: row.criado_em.toISOString(),
     };

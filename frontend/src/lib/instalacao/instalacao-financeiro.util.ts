@@ -33,10 +33,38 @@ export function podePrecificarOcorrencia(
   return status === 'PENDENTE_PRECIFICACAO';
 }
 
-export function podeGerarOsAditiva(
-  ocorrencias: Array<Pick<OcorrenciaGestao, 'status_financeiro'>>,
+/** Ocorrência elegível para informar custo/repasse na OS Aditiva. */
+export function ocorrenciaElegivelPrecificacao(
+  ocorrencia: Pick<
+    OcorrenciaGestao,
+    'status_financeiro' | 'preco_cliente' | 'os_aditiva_id'
+  >,
+  osAditivaHabilitada: boolean,
 ): boolean {
-  return ocorrencias.some((o) => o.status_financeiro === 'PRECIFICADO');
+  if (!osAditivaHabilitada) {
+    return false;
+  }
+  if (ocorrencia.status_financeiro === 'PENDENTE_PRECIFICACAO') {
+    return true;
+  }
+  return (
+    ocorrencia.status_financeiro === 'PRECIFICADO' &&
+    ocorrencia.os_aditiva_id == null &&
+    Number(ocorrencia.preco_cliente ?? 0) <= 0.01
+  );
+}
+
+export function podeGerarOsAditiva(
+  ocorrencias: Array<
+    Pick<OcorrenciaGestao, 'status_financeiro' | 'preco_cliente' | 'os_aditiva_id'>
+  >,
+): boolean {
+  return ocorrencias.some(
+    (o) =>
+      o.status_financeiro === 'PRECIFICADO' &&
+      o.os_aditiva_id == null &&
+      Number(o.preco_cliente ?? 0) > 0.01,
+  );
 }
 
 export function temOcorrenciasPendentesPrecificacao(
@@ -48,11 +76,14 @@ export function temOcorrenciasPendentesPrecificacao(
 }
 
 export function temBloqueioAprovacaoFinanceira(
-  ocorrencias: Array<Pick<OcorrenciaGestao, 'status_financeiro'>>,
+  ocorrencias: Array<
+    Pick<
+      OcorrenciaGestao,
+      'status_financeiro' | 'preco_cliente' | 'os_aditiva_id'
+    >
+  >,
 ): boolean {
   return ocorrencias.some(
-    (o) =>
-      o.status_financeiro === 'PENDENTE_PRECIFICACAO' ||
-      o.status_financeiro === 'PRECIFICADO',
+    (o) => o.status_financeiro === 'PENDENTE_PRECIFICACAO',
   );
 }

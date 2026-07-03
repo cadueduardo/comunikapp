@@ -31,8 +31,9 @@ import {
   STATUS_INSTALACAO_OS_TONE,
 } from '@/lib/instalacao/instalacao-labels';
 import type { OsInstalacaoGridItem } from '@/lib/instalacao/instalacao.types';
+import { instalacaoApi } from '@/lib/instalacao/instalacao-api';
 import { cn } from '@/lib/utils';
-import { IconClipboardList, IconLock, IconSearch } from '@tabler/icons-react';
+import { IconClipboardList, IconLock, IconSearch, IconFileTypePdf } from '@tabler/icons-react';
 
 const TONE_CLASSES = {
   default: 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-200',
@@ -95,7 +96,8 @@ function CadeadoBloqueioFinanceiro({
   );
 }
 
-function badgeStatusOs(status: OsInstalacaoGridItem['status_instalacao_os']) {
+function badgeStatusOs(item: OsInstalacaoGridItem) {
+  const status = item.status_instalacao_os;
   if (!status) {
     return (
       <Badge variant="outline" className="whitespace-nowrap">
@@ -105,9 +107,31 @@ function badgeStatusOs(status: OsInstalacaoGridItem['status_instalacao_os']) {
   }
   const tone = STATUS_INSTALACAO_OS_TONE[status] ?? 'default';
   return (
-    <Badge className={cn('whitespace-nowrap', TONE_CLASSES[tone])}>
-      {STATUS_INSTALACAO_OS_LABEL[status] ?? status}
-    </Badge>
+    <div className="flex flex-col items-start gap-1">
+      <Badge className={cn('whitespace-nowrap', TONE_CLASSES[tone])}>
+        {STATUS_INSTALACAO_OS_LABEL[status] ?? status}
+      </Badge>
+      {item.pendente_aprovacao_financeira && (
+        <span className="text-[11px] leading-tight text-muted-foreground">
+          Campo concluído — aprovar faturamento na OS
+        </span>
+      )}
+      {item.relatorio_tecnico?.pdf_token && (
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+          onClick={(e) => {
+            e.stopPropagation();
+            void instalacaoApi.abrirRelatorioPdf(
+              item.relatorio_tecnico!.pdf_token,
+            );
+          }}
+        >
+          <IconFileTypePdf className="h-3.5 w-3.5" />
+          Ver relatório
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -195,18 +219,28 @@ export function InstalacaoOsGrid({
                       'cursor-pointer',
                       item.bloqueio_financeiro
                         ? 'bg-amber-50/70 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/40'
-                        : 'hover:bg-muted/50',
+                        : item.requer_atencao_instalacao
+                          ? 'bg-amber-50/50 hover:bg-amber-100/40 dark:bg-amber-950/15 dark:hover:bg-amber-950/30'
+                          : 'hover:bg-muted/50',
                     )}
                     onClick={() => onSelecionarOs(item)}
                   >
                     <TableCell className="font-medium">
-                      <span className="inline-flex items-center gap-1.5">
+                      <span className="inline-flex flex-wrap items-center gap-1.5">
                         {item.bloqueio_financeiro && (
                           <CadeadoBloqueioFinanceiro
                             linkFinanceiro={item.link_financeiro}
                           />
                         )}
                         {item.numero}
+                        {item.requer_atencao_instalacao && (
+                          <Badge
+                            variant="outline"
+                            className="border-amber-500/50 bg-amber-500/10 text-[10px] text-amber-900 dark:text-amber-100"
+                          >
+                            Atenção
+                          </Badge>
+                        )}
                       </span>
                     </TableCell>
                     <TableCell className="max-w-[180px] truncate">
@@ -215,7 +249,7 @@ export function InstalacaoOsGrid({
                     <TableCell className="max-w-[200px] truncate text-muted-foreground">
                       {item.nome_servico}
                     </TableCell>
-                    <TableCell>{badgeStatusOs(item.status_instalacao_os)}</TableCell>
+                    <TableCell>{badgeStatusOs(item)}</TableCell>
                     <TableCell>
                       {formatarData(
                         item.data_instalacao_agendada ?? item.proxima_visita,
@@ -240,26 +274,36 @@ export function InstalacaoOsGrid({
                   'cursor-pointer transition-colors',
                   item.bloqueio_financeiro
                     ? 'border-amber-300 bg-amber-50/60 hover:bg-amber-100/50 dark:border-amber-900 dark:bg-amber-950/20'
-                    : 'border-border bg-card hover:bg-muted/30',
+                    : item.requer_atencao_instalacao
+                      ? 'border-amber-300/80 bg-amber-50/40 hover:bg-amber-100/35 dark:border-amber-900/80 dark:bg-amber-950/15'
+                      : 'border-border bg-card hover:bg-muted/30',
                 )}
                 onClick={() => onSelecionarOs(item)}
               >
                 <CardContent className="space-y-2 p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="flex items-center gap-1.5 font-semibold text-foreground">
+                      <div className="flex flex-wrap items-center gap-1.5 font-semibold text-foreground">
                         {item.bloqueio_financeiro && (
                           <CadeadoBloqueioFinanceiro
                             linkFinanceiro={item.link_financeiro}
                           />
                         )}
                         OS {item.numero}
-                      </p>
+                        {item.requer_atencao_instalacao && (
+                          <Badge
+                            variant="outline"
+                            className="border-amber-500/50 bg-amber-500/10 text-[10px] font-normal text-amber-900 dark:text-amber-100"
+                          >
+                            Atenção
+                          </Badge>
+                        )}
+                      </div>
                       <p className="truncate text-xs text-muted-foreground">
                         {item.cliente_nome ?? 'Cliente não informado'}
                       </p>
                     </div>
-                    {badgeStatusOs(item.status_instalacao_os)}
+                    {badgeStatusOs(item)}
                   </div>
                   <p className="truncate text-sm text-muted-foreground">
                     {item.nome_servico}

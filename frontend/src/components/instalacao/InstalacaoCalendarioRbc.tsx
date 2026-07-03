@@ -25,6 +25,7 @@ import {
   agendaEventoParaCalendario,
   calcularIntervaloVisivel,
   chaveDiaBrasil,
+  chaveDiaPrevisaoAgenda,
   hojeBrasil,
   parseChaveLocalDate,
   type EventoCalendarioInstalacao,
@@ -57,13 +58,17 @@ const localizer = dateFnsLocalizer({
 function agruparConflitosPorDia(conflitos: ConflitoAgendaItem[]) {
   const mapa = new Map<string, ConflitoAgendaItem[]>();
   for (const conflito of conflitos) {
-    const chave = chaveDiaBrasil(conflito.data);
+    const chave = chaveDiaPrevisaoAgenda(conflito.data);
     const lista = mapa.get(chave) ?? [];
     lista.push(conflito);
     mapa.set(chave, lista);
   }
   return mapa;
 }
+
+const HORA_INICIO_AGENDA = new Date(1970, 0, 1, 7, 0, 0);
+const HORA_FIM_AGENDA = new Date(1970, 0, 1, 20, 0, 0);
+const HORA_SCROLL_AGENDA = new Date(1970, 0, 1, 8, 0, 0);
 
 interface InstalacaoCalendarioRbcProps {
   onEventoClick: (evento: AgendaInstalacaoEvento) => void;
@@ -199,17 +204,17 @@ export function InstalacaoCalendarioRbc({
               >
                 {tituloPeriodo}
               </CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {eventos.length} visita(s)
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                <span>{eventos.length} visita(s)</span>
                 {conflitos.length > 0 && (
                   <Badge
                     variant="outline"
-                    className="ml-2 border-destructive/40 bg-destructive/10 text-destructive"
+                    className="border-destructive/40 bg-destructive/10 text-destructive"
                   >
                     {conflitos.length} conflito(s)
                   </Badge>
                 )}
-              </p>
+              </div>
             </div>
             {carregando && (
               <IconLoader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
@@ -304,9 +309,13 @@ export function InstalacaoCalendarioRbc({
             onNavigate={(novaData) => setDate(novaData)}
             views={[Views.WEEK, Views.DAY, Views.MONTH]}
             defaultView={Views.WEEK}
+            min={HORA_INICIO_AGENDA}
+            max={HORA_FIM_AGENDA}
+            scrollToTime={HORA_SCROLL_AGENDA}
             popup
             selectable={false}
             toolbar={false}
+            showAllEvents
             style={{
               height: compacto ? 520 : 640,
             }}

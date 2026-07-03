@@ -211,6 +211,7 @@ export function InstalacaoLotesTable({
                 permitir_preenchimento_manual: boolean;
               }>}
               exibirQuantidade
+              exibirAgenda
               onSalvar={salvarEndereco}
             />
             <Button

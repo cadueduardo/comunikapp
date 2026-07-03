@@ -73,6 +73,9 @@ export interface CobrancaResumo {
   liquidado_em: string | null;
   cancelado_em: string | null;
   proxima_parcela: ParcelaResumo | null;
+  proxima_parcela_recebivel: ParcelaResumo | null;
+  pode_registrar_recebimento?: boolean;
+  motivo_bloqueio_recebimento?: string | null;
   total_parcelas: number;
   criado_em: string;
 }

@@ -30,6 +30,7 @@ import type {
 } from '../../instalacao/services/item-os-instalacao-criacao.service';
 import { obterLimiarHorasAtrasUtc } from '../../common/utils/utc-time.util';
 import { deveExibirCardConcluidoPronto24h } from '../utils/pronto-24h-kanban.util';
+import { filtroOsElegivelFluxoPcp } from '../utils/os-elegivel-pcp-kanban.util';
 
 /** Janela UTC da coluna «Pronto» (`CONCLUIDA`) no kanban geral do PCP. */
 const JANELA_HORAS_COLUNA_PRONTO = 24;
@@ -98,6 +99,7 @@ export class PCPKanbanService {
               'FINALIZADA',
             ],
           },
+          ...filtroOsElegivelFluxoPcp,
           ...this.aplicarFiltros(filtros),
         },
         include: {
@@ -1060,12 +1062,12 @@ export class PCPKanbanService {
     }
 
     if (osAnd.length === 0) {
-      return { loja_id: lojaId };
+      return { loja_id: lojaId, ...filtroOsElegivelFluxoPcp };
     }
 
     return {
       loja_id: lojaId,
-      AND: osAnd,
+      AND: [...osAnd, filtroOsElegivelFluxoPcp],
     };
   }
 

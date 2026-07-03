@@ -14,6 +14,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { InstalacaoRelatorioPdfService } from './instalacao-relatorio-pdf.service';
 import { InstalacaoSplitFiscalService } from './instalacao-split-fiscal.service';
 import { InstalacaoFechamentoService } from './instalacao-fechamento.service';
+import { InstalacaoSplitFinanceiroService } from './instalacao-split-financeiro.service';
 import { ConfiguracaoInstalacaoService } from './configuracao-instalacao.service';
 import type { SplitFiscalResultado } from '../utils/split-fiscal.util';
 
@@ -75,6 +76,7 @@ export class InstalacaoPosCalculoService {
     private readonly splitFiscalService: InstalacaoSplitFiscalService,
     private readonly instalacaoFechamentoService: InstalacaoFechamentoService,
     private readonly configuracaoInstalacaoService: ConfiguracaoInstalacaoService,
+    private readonly splitFinanceiroService: InstalacaoSplitFinanceiroService,
   ) {}
 
   async aplicarTravaSaldoAposAprovacao(
@@ -227,6 +229,23 @@ export class InstalacaoPosCalculoService {
     });
   }
 
+  async gerarPreviaRelatorioPdf(osId: string, lojaId: string) {
+    const os = await this.prisma.ordemServico.findFirst({
+      where: { id: osId, loja_id: lojaId },
+      select: { id: true },
+    });
+
+    if (!os) {
+      throw new NotFoundException(
+        'Ordem de serviço não encontrada para esta loja.',
+      );
+    }
+
+    return this.relatorioPdfService.gerarRelatorioPdf(osId, lojaId, {
+      previa: true,
+    });
+  }
+
   /**
    * Passo 1f (DEC-04): gatilho financeiro — libera saldo A_FATURAR, extras de campo
    * e conclui OS/expedição via transação atômica.
@@ -269,6 +288,14 @@ export class InstalacaoPosCalculoService {
     }
 
     await this.validarLotesConcluidos(osId, lojaId);
+    await this.validarSemOcorrenciasPendentesPrecificacao(osId, lojaId);
+
+    await this.splitFinanceiroService.gerarOsAditivaSeNecessario(
+      osId,
+      lojaId,
+      usuarioId ?? null,
+    );
+
     await this.validarSemOcorrenciasFinanceirasPendentes(osId, lojaId);
 
     const cobranca = await this.prisma.cobranca.findFirst({
@@ -543,6 +570,31 @@ export class InstalacaoPosCalculoService {
     return Number(extras._sum.preco_cliente ?? 0);
   }
 
+  private async validarSemOcorrenciasPendentesPrecificacao(
+    osId: string,
+    lojaId: string,
+  ): Promise<void> {
+    const osAditivaHabilitada =
+      await this.configuracaoInstalacaoService.osAditivaHabilitada(lojaId);
+    if (!osAditivaHabilitada) {
+      return;
+    }
+
+    const pendentes = await this.prisma.ocorrenciaInstalacao.count({
+      where: {
+        os_id: osId,
+        loja_id: lojaId,
+        status_financeiro: StatusFinanceiroOcorrencia.PENDENTE_PRECIFICACAO,
+      },
+    });
+
+    if (pendentes > 0) {
+      throw new BadRequestException(
+        `Existem ${pendentes} ocorrência(s) aguardando precificação. Conclua na aba Pendências antes de aprovar.`,
+      );
+    }
+  }
+
   private async validarSemOcorrenciasFinanceirasPendentes(
     osId: string,
     lojaId: string,
@@ -557,12 +609,17 @@ export class InstalacaoPosCalculoService {
       where: {
         os_id: osId,
         loja_id: lojaId,
-        status_financeiro: {
-          in: [
-            StatusFinanceiroOcorrencia.PENDENTE_PRECIFICACAO,
-            StatusFinanceiroOcorrencia.PRECIFICADO,
-          ],
-        },
+        OR: [
+          {
+            status_financeiro:
+              StatusFinanceiroOcorrencia.PENDENTE_PRECIFICACAO,
+          },
+          {
+            status_financeiro: StatusFinanceiroOcorrencia.PRECIFICADO,
+            os_aditiva_id: null,
+            preco_cliente: { gt: new Prisma.Decimal('0.01') },
+          },
+        ],
       },
     });
 

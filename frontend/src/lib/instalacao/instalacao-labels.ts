@@ -39,6 +39,42 @@ export const STATUS_INSTALACAO_TONE: Record<
   LOGISTICA_NEGATIVA: 'destructive',
 };
 
+export const ORIGEM_CONCLUSAO_LOTE_LABEL: Record<string, string> = {
+  CAMPO: 'Aplicativo de campo',
+  GESTAO: 'Aprovação da gestão',
+};
+
+export const MOTIVO_SEM_ASSINATURA_LABEL: Record<string, string> = {
+  CLIENTE_AUSENTE: 'Cliente ausente no local',
+  CLIENTE_RECUSOU_ASSINAR: 'Cliente recusou assinar',
+  ASSINATURA_CANAL_ALTERNATIVO:
+    'Assinatura obtida por outro canal (e-mail, WhatsApp, etc.)',
+  INSTALADOR_SEM_APP: 'Instalador não finalizou no aplicativo de campo',
+  EVIDENCIA_SUFICIENTE: 'Evidências fotográficas consideradas suficientes',
+  OUTROS: 'Outros',
+};
+
+export const MOTIVOS_SEM_ASSINATURA_OPCOES = [
+  { value: 'CLIENTE_AUSENTE', label: MOTIVO_SEM_ASSINATURA_LABEL.CLIENTE_AUSENTE },
+  {
+    value: 'CLIENTE_RECUSOU_ASSINAR',
+    label: MOTIVO_SEM_ASSINATURA_LABEL.CLIENTE_RECUSOU_ASSINAR,
+  },
+  {
+    value: 'ASSINATURA_CANAL_ALTERNATIVO',
+    label: MOTIVO_SEM_ASSINATURA_LABEL.ASSINATURA_CANAL_ALTERNATIVO,
+  },
+  {
+    value: 'INSTALADOR_SEM_APP',
+    label: MOTIVO_SEM_ASSINATURA_LABEL.INSTALADOR_SEM_APP,
+  },
+  {
+    value: 'EVIDENCIA_SUFICIENTE',
+    label: MOTIVO_SEM_ASSINATURA_LABEL.EVIDENCIA_SUFICIENTE,
+  },
+  { value: 'OUTROS', label: MOTIVO_SEM_ASSINATURA_LABEL.OUTROS },
+] as const;
+
 export const TIPO_OCORRENCIA_LABEL: Record<string, string> = {
   VISITA_IMPRODUTIVA: 'Visita improdutiva',
   MATERIAL_EXTRA: 'Material extra',
@@ -81,6 +117,12 @@ export const TURNO_PREVISAO_LABEL: Record<string, string> = {
   TARDE: 'Tarde',
   INTEIRO: 'Dia inteiro',
 };
+
+export const TURNO_PREVISAO_OPCOES = [
+  { value: 'MANHA', label: TURNO_PREVISAO_LABEL.MANHA },
+  { value: 'TARDE', label: TURNO_PREVISAO_LABEL.TARDE },
+  { value: 'INTEIRO', label: TURNO_PREVISAO_LABEL.INTEIRO },
+] as const;
 
 export const TURNO_PREVISAO_TONE: Record<
   string,

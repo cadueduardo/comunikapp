@@ -41,4 +41,23 @@ describe('StatusRollupService', () => {
 
     expect(parcelas[0].status).toBe(ParcelaStatus.VENCIDO);
   });
+
+  it('mantém PREVISTO no dia do vencimento (não vence antes do dia seguinte)', () => {
+    const vencimentoHoje = new Date('2026-06-30T03:00:00.000Z');
+    const agoraMesmoDia = new Date('2026-06-30T20:00:00.000Z');
+
+    const parcelas = service.recategorizarVencidas(
+      [
+        {
+          status: ParcelaStatus.PREVISTO,
+          valor_previsto: 1000,
+          valor_recebido: 0,
+          data_vencimento: vencimentoHoje,
+        },
+      ],
+      agoraMesmoDia,
+    );
+
+    expect(parcelas[0].status).toBe(ParcelaStatus.PREVISTO);
+  });
 });

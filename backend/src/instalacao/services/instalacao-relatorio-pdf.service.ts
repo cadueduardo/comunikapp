@@ -51,6 +51,7 @@ export class InstalacaoRelatorioPdfService {
   async gerarRelatorioPdf(
     osId: string,
     lojaId: string,
+    opcoes?: { previa?: boolean },
   ): Promise<RelatorioPdfGerado> {
     const dados = await this.carregarDados(osId, lojaId);
     const split = await this.splitFiscalService.calcularSplitFiscalOs(
@@ -99,117 +100,259 @@ export class InstalacaoRelatorioPdfService {
       }
     };
 
-    // Bloco 1 — Cabeçalho
-    escreverTitulo('Relatório Técnico de Serviços Executados');
-    escreverLinha(`Empresa: ${dados.lojaNome}`);
-    if (dados.lojaCnpj) escreverLinha(`CNPJ: ${dados.lojaCnpj}`);
-    escreverLinha(`OS: ${dados.osNumero}`);
-    escreverLinha(`Cliente: ${dados.clienteNome}`);
-    escreverLinha(`Proposta / Orçamento: ${dados.orcamentoCodigo}`);
-    escreverLinha(`Serviço: ${dados.nomeServico}`);
-    escreverLinha(`Emitido em: ${new Date().toLocaleString('pt-BR')}`);
-    cursorY -= 8;
+    const corPrimaria = rgb(0.11, 0.23, 0.42);
+    const corSecao = rgb(0.93, 0.95, 0.98);
+    const corTexto = rgb(0.12, 0.12, 0.14);
+    const corSubtitulo = rgb(0.35, 0.38, 0.42);
 
-    // Bloco 2 — Mapeamento logístico
-    escreverTitulo('2. Mapeamento logístico planejado');
-    for (const lote of dados.lotesPlanejados) {
-      escreverLinha(
-        `• ${lote.endereco} — ${lote.quantidade} un. — Status: ${lote.status}`,
-      );
+    const desenharFaixaSecao = (titulo: string) => {
+      novaPaginaSeNecessario(34);
+      page.drawRectangle({
+        x: this.margin - 6,
+        y: cursorY - 20,
+        width: this.pageSize.width - 2 * (this.margin - 6),
+        height: 24,
+        color: corSecao,
+      });
+      page.drawText(titulo.toUpperCase(), {
+        x: this.margin,
+        y: cursorY - 15,
+        size: 10,
+        font: fontBold,
+        color: corPrimaria,
+      });
+      cursorY -= 32;
+    };
+
+    const desenharLinhaDivisoria = () => {
+      page.drawLine({
+        start: { x: this.margin, y: cursorY },
+        end: { x: this.pageSize.width - this.margin, y: cursorY },
+        thickness: 0.5,
+        color: rgb(0.82, 0.84, 0.88),
+      });
+      cursorY -= 10;
+    };
+
+    // Capa
+    page.drawRectangle({
+      x: 0,
+      y: this.pageSize.height - 120,
+      width: this.pageSize.width,
+      height: 120,
+      color: corPrimaria,
+    });
+    page.drawText('RELATÓRIO DE SERVIÇOS', {
+      x: this.margin,
+      y: this.pageSize.height - 52,
+      size: 20,
+      font: fontBold,
+      color: rgb(1, 1, 1),
+    });
+    page.drawText(dados.nomeServico, {
+      x: this.margin,
+      y: this.pageSize.height - 76,
+      size: 12,
+      font,
+      color: rgb(0.9, 0.92, 0.95),
+    });
+    if (opcoes?.previa) {
+      page.drawText('PRÉVIA — sem aprovação financeira', {
+        x: this.margin,
+        y: this.pageSize.height - 96,
+        size: 9,
+        font: fontBold,
+        color: rgb(1, 0.85, 0.4),
+      });
     }
-    cursorY -= 8;
+    cursorY = this.pageSize.height - 148;
 
-    // Bloco 3 — Evidências de campo
-    escreverTitulo('3. Evidências de instalações concluídas');
+    escreverLinha(`Proposta / Orçamento: ${dados.orcamentoCodigo}`, 11);
+    escreverLinha(`OS: ${dados.osNumero}  ·  Emitido em: ${new Date().toLocaleDateString('pt-BR')}`, 10);
+    escreverLinha(`Cliente: ${dados.clienteNome}`, 10);
+    escreverLinha(`Empresa: ${dados.lojaNome}${dados.lojaCnpj ? `  ·  CNPJ: ${dados.lojaCnpj}` : ''}`, 9);
+    cursorY -= 6;
+    desenharLinhaDivisoria();
+
+    // Previsão e locais
+    desenharFaixaSecao('Previsão e locais de instalação');
+    if (dados.lotesPlanejados.length === 0) {
+      escreverLinha('Nenhum lote planejado.');
+    }
+    for (const lote of dados.lotesPlanejados) {
+      const agenda = [
+        lote.dataPrevisao,
+        lote.turno ? `(${lote.turno})` : null,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      escreverLinha(
+        `${agenda ? `${agenda} — ` : ''}${lote.endereco} — ${lote.quantidade} un.`,
+        10,
+      );
+      if (lote.responsavelLocal) {
+        escreverLinha(`Responsável no local: ${lote.responsavelLocal}`, 9);
+      }
+    }
+    cursorY -= 4;
+
+    // Instalações realizadas
+    desenharFaixaSecao('Instalações realizadas');
+    if (dados.lotesConcluidos.length === 0) {
+      escreverLinha('Nenhuma instalação concluída registrada.');
+    }
     for (const lote of dados.lotesConcluidos) {
       escreverLinha(
-        `Data: ${lote.dataExecucao} | Local: ${lote.endereco} | Qtd: ${lote.quantidade}`,
+        `• ${lote.endereco} — ${lote.quantidade} un. — ${lote.dataExecucao}`,
       );
-      escreverLinha('Recebedor: identificado por assinatura digital em campo.');
-
-      if (lote.assinaturaToken) {
-        const imagem = await this.carregarImagemInstalacao(
-          pdfDoc,
-          lojaId,
-          lote.assinaturaToken,
-          'instalacao',
-        );
-        if (imagem) {
-          cursorY = await this.desenharImagem(
-            page,
-            pdfDoc,
-            imagem,
-            cursorY,
-            180,
-            60,
-            novaPaginaSeNecessario,
-          );
-        }
-      }
-
-      for (const fotoToken of lote.fotosTokens) {
-        const imagem = await this.carregarImagemInstalacao(
-          pdfDoc,
-          lojaId,
-          fotoToken,
-          'instalacao',
-        );
-        if (imagem) {
-          cursorY = await this.desenharImagem(
-            page,
-            pdfDoc,
-            imagem,
-            cursorY,
-            220,
-            140,
-            novaPaginaSeNecessario,
-          );
-        }
-      }
-      cursorY -= 6;
     }
+    cursorY -= 4;
 
-    // Bloco 4 — Ocorrências (pendentes / não faturadas via aditiva)
-    escreverTitulo('4. Ocorrências técnicas e extras de campo');
-    if (dados.ocorrenciasAbertas.length === 0) {
-      escreverLinha('Nenhuma ocorrência pendente de faturamento na OS principal.');
+    // Serviços adicionais (ocorrências faturadas / precificadas)
+    const servicosAdicionais = dados.ocorrenciasDetalhadas.filter(
+      (occ) =>
+        occ.statusFinanceiro === 'FATURADO' ||
+        occ.statusFinanceiro === 'PRECIFICADO',
+    );
+    desenharFaixaSecao('Serviços adicionais realizados');
+    if (servicosAdicionais.length === 0 && dados.osAditivas.length === 0) {
+      escreverLinha('Nenhum serviço adicional registrado.');
     }
-    for (const occ of dados.ocorrenciasAbertas) {
+    for (const occ of servicosAdicionais) {
       escreverLinha(
-        `${occ.data} — ${occ.tipo}: ${occ.descricao} (Valor: ${formatarMoedaBrl(occ.precoCliente)})`,
+        `• ${occ.data} — ${occ.tipo}: ${occ.descricao} — ${formatarMoedaBrl(occ.precoCliente)}`,
+        9,
       );
     }
-    cursorY -= 8;
-
-    // Bloco 4b — Extras faturados em OS Aditiva
-    if (dados.osAditivas.length > 0) {
-      escreverTitulo('4.1 Extras faturados em OS Aditiva');
-      for (const aditiva of dados.osAditivas) {
-        escreverLinha(
-          `• ${aditiva.numero} — ${formatarMoedaBrl(aditiva.valorOrcado)}`,
-        );
-        for (const item of aditiva.itensResumo) {
-          escreverLinha(`   — ${item}`);
-        }
-      }
+    for (const aditiva of dados.osAditivas) {
       escreverLinha(
-        `Total em aditivas: ${formatarMoedaBrl(dados.totalAditivas)} (cobrança separada da OS principal).`,
+        `• OS ${aditiva.numero} — ${formatarMoedaBrl(aditiva.valorOrcado)} (cobrança aditiva)`,
       );
-      cursorY -= 8;
+      for (const item of aditiva.itensResumo) {
+        escreverLinha(`   — ${item}`, 9);
+      }
+    }
+    if (servicosAdicionais.length > 0) {
+      const totalExtras = servicosAdicionais.reduce(
+        (acc, item) => acc + item.precoCliente,
+        0,
+      );
+      escreverLinha(
+        `Valor total serviços adicionais: ${formatarMoedaBrl(totalExtras)}`,
+        10,
+      );
+    }
+    cursorY -= 4;
+
+    // Ocorrências (registro técnico)
+    desenharFaixaSecao('Ocorrências e registros técnicos');
+    if (dados.ocorrenciasDetalhadas.length === 0) {
+      escreverLinha('Nenhuma ocorrência registrada.');
+    }
+    for (const occ of dados.ocorrenciasDetalhadas) {
+      escreverLinha(`Dia ${occ.data} — ${occ.tipo}`, 10);
+      escreverLinha(occ.descricao, 9);
+      cursorY -= 4;
     }
 
-    // Bloco 5 — Fechamento financeiro
-    escreverTitulo('5. Fechamento financeiro e split fiscal');
-    escreverLinha(`Valor total consolidado (OS principal): ${formatarMoedaBrl(split.total_geral)}`);
+    // Financeiro
+    desenharFaixaSecao('Financeiro');
+    escreverLinha(
+      `Valor consolidado OS principal: ${formatarMoedaBrl(split.total_geral)}`,
+      10,
+    );
     if (dados.totalAditivas > 0.01) {
       escreverLinha(
-        `Extras de campo já faturados em OS Aditiva: ${formatarMoedaBrl(dados.totalAditivas)} (fora do split acima).`,
+        `Total em OS Aditiva(s): ${formatarMoedaBrl(dados.totalAditivas)} (cobrança separada).`,
+        10,
       );
     }
-    escreverLinha(split.instrucao_nfe);
-    escreverLinha(split.instrucao_nfs);
+    escreverLinha(split.instrucao_nfe, 9);
+    escreverLinha(split.instrucao_nfs, 9);
+    if (!opcoes?.previa) {
+      escreverLinha(
+        'Saldo liberado para faturamento após validação técnica deste relatório.',
+        9,
+      );
+    }
+    cursorY -= 6;
+
+    // Evidências — assinaturas por lote
+    desenharFaixaSecao('Assinaturas de recebimento em campo');
+    for (const lote of dados.lotesConcluidos) {
+      if (!lote.assinaturaToken) continue;
+      escreverLinha(`${lote.endereco} — ${lote.dataExecucao}`, 9);
+      const imagem = await this.carregarImagemInstalacao(
+        pdfDoc,
+        lojaId,
+        lote.assinaturaToken,
+        'instalacao',
+      );
+      if (imagem) {
+        cursorY = await this.desenharImagem(
+          page,
+          pdfDoc,
+          imagem,
+          cursorY,
+          200,
+          70,
+          novaPaginaSeNecessario,
+        );
+      }
+    }
+
+    // Galeria de fotos (lotes + ocorrências)
+    const fotosGaleria: { legenda: string; token: string }[] = [];
+    for (const lote of dados.lotesConcluidos) {
+      for (const token of lote.fotosTokens) {
+        fotosGaleria.push({
+          legenda: `${lote.endereco} — ${lote.dataExecucao}`,
+          token,
+        });
+      }
+    }
+    for (const occ of dados.ocorrenciasDetalhadas) {
+      for (const token of occ.fotosTokens) {
+        fotosGaleria.push({
+          legenda: `${occ.tipo} — ${occ.data}`,
+          token,
+        });
+      }
+    }
+
+    if (fotosGaleria.length > 0) {
+      desenharFaixaSecao('Fotos dos serviços executados');
+      for (const foto of fotosGaleria) {
+        escreverLinha(foto.legenda, 8);
+        const imagem = await this.carregarImagemInstalacao(
+          pdfDoc,
+          lojaId,
+          foto.token,
+          'instalacao',
+        );
+        if (imagem) {
+          cursorY = await this.desenharImagem(
+            page,
+            pdfDoc,
+            imagem,
+            cursorY,
+            240,
+            160,
+            novaPaginaSeNecessario,
+          );
+        } else {
+          escreverLinha('(imagem não disponível)', 8);
+        }
+        cursorY -= 4;
+      }
+    }
+
+    // Rodapé legal
+    novaPaginaSeNecessario(24);
+    desenharLinhaDivisoria();
     escreverLinha(
-      'Autorização: saldo de 50% liberado para faturamento após validação técnica deste relatório.',
+      `Documento gerado pelo ComunikApp — ${dados.lojaNome} — OS ${dados.osNumero}`,
+      8,
     );
 
     const buffer = await pdfDoc.save();
@@ -306,8 +449,20 @@ export class InstalacaoRelatorioPdfService {
       if (!Array.isArray(valor)) return [];
       return valor
         .filter((v): v is string => typeof v === 'string')
-        .map((url) => extrairTokenAnexoInstalacao(url))
+        .map((referencia) => {
+          const token = extrairTokenAnexoInstalacao(referencia);
+          if (token) return token;
+          const limpo = referencia.trim();
+          if (/^[0-9a-f-]{36}$/i.test(limpo)) return limpo;
+          return null;
+        })
         .filter((t): t is string => Boolean(t));
+    };
+
+    const rotuloTurno: Record<string, string> = {
+      MANHA: 'Manhã',
+      TARDE: 'Tarde',
+      INTEIRO: 'Dia inteiro',
     };
 
     return {
@@ -317,10 +472,18 @@ export class InstalacaoRelatorioPdfService {
       clienteNome: os.cliente.nome,
       orcamentoCodigo: os.orcamento?.numero ?? os.orcamento_id ?? '—',
       nomeServico: os.nome_servico,
+      dataAbertura: os.criado_em.toLocaleDateString('pt-BR'),
       lotesPlanejados: lotes.map((lote) => ({
         endereco: formatarEndereco(lote),
         quantidade: lote.quantidade_alocada,
         status: rotuloStatus[lote.status_instalacao] ?? lote.status_instalacao,
+        dataPrevisao: lote.data_previsao
+          ? lote.data_previsao.toLocaleDateString('pt-BR')
+          : null,
+        turno: lote.turno_previsao
+          ? (rotuloTurno[lote.turno_previsao] ?? lote.turno_previsao)
+          : null,
+        responsavelLocal: lote.responsavel_local ?? null,
       })),
       lotesConcluidos: lotes
         .filter((l) => l.status_instalacao === 'CONCLUIDO')
@@ -328,13 +491,21 @@ export class InstalacaoRelatorioPdfService {
           endereco: formatarEndereco(lote),
           quantidade: lote.quantidade_alocada,
           dataExecucao: lote.data_execucao
-            ? lote.data_execucao.toLocaleString('pt-BR')
+            ? lote.data_execucao.toLocaleDateString('pt-BR')
             : '—',
           assinaturaToken:
             extrairTokenAnexoInstalacao(lote.assinatura_url) ??
             extrairTokenAssinaturaExpedicao(lote.assinatura_url),
           fotosTokens: extrairFotos(lote.fotos_evidencia),
         })),
+      ocorrenciasDetalhadas: ocorrencias.map((occ) => ({
+        data: occ.criado_em.toLocaleDateString('pt-BR'),
+        tipo: rotuloOcorrencia[occ.tipo] ?? occ.tipo,
+        descricao: occ.descricao,
+        precoCliente: Number(occ.preco_cliente ?? occ.preco_sugerido ?? 0),
+        statusFinanceiro: occ.status_financeiro,
+        fotosTokens: extrairFotos(occ.fotos_evidencia),
+      })),
       ocorrenciasAbertas: ocorrencias
         .filter((occ) => occ.status_financeiro !== 'FATURADO')
         .map((occ) => ({

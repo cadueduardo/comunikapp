@@ -11,8 +11,6 @@ import { Button } from '@/components/ui/button';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import { InstalacaoOcorrenciasFilaGrid } from '@/components/instalacao/InstalacaoOcorrenciasFilaGrid';
-
 import { InstalacaoCalendario } from '@/components/instalacao/InstalacaoCalendario';
 
 import { InstalacaoOsGrid } from '@/components/instalacao/InstalacaoOsGrid';
@@ -22,6 +20,7 @@ import { InstalacaoWorkspaceModal } from '@/components/instalacao/InstalacaoWork
 import { useMediaQuery } from '@/hooks/use-media-query';
 
 import { instalacaoApi } from '@/lib/instalacao/instalacao-api';
+import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
 
 import type {
 
@@ -34,7 +33,6 @@ import type {
 } from '@/lib/instalacao/instalacao.types';
 
 import { IconLoader2, IconRefresh, IconTools } from '@tabler/icons-react';
-import { Badge } from '@/components/ui/badge';
 
 import { toast } from 'sonner';
 
@@ -63,17 +61,6 @@ export default function InstalacaoGestaoPage() {
   const podeAbrirCampo = ['ADMINISTRADOR', 'PRODUCAO'].includes(
     String(user?.funcao ?? '').toUpperCase(),
   );
-  const podeVerPendencias = ['ADMINISTRADOR', 'FINANCEIRO', 'VENDAS'].includes(
-    String(user?.funcao ?? '').toUpperCase(),
-  );
-  const podeFinanceiro = ['ADMINISTRADOR', 'FINANCEIRO'].includes(
-    String(user?.funcao ?? '').toUpperCase(),
-  );
-
-  const [pendentesCount, setPendentesCount] = useState(0);
-  const [osAditivaHabilitada, setOsAditivaHabilitada] = useState(false);
-
-  const exibirAbaPendencias = podeVerPendencias && osAditivaHabilitada;
 
   const searchParams = useSearchParams();
 
@@ -96,6 +83,11 @@ export default function InstalacaoGestaoPage() {
   const [workspaceAberto, setWorkspaceAberto] = useState(false);
 
   const [workspaceMeta, setWorkspaceMeta] = useState<WorkspaceMeta | null>(null);
+
+  const [workspaceLoteInicial, setWorkspaceLoteInicial] = useState<{
+    loteId: string;
+    abrirEdicao?: boolean;
+  } | null>(null);
 
   const reidratandoRef = useRef(false);
   const fechandoWorkspaceRef = useRef(false);
@@ -173,28 +165,8 @@ export default function InstalacaoGestaoPage() {
 
 
   const recarregarGrid = useCallback(() => {
-
     void carregar();
-
   }, [carregar]);
-
-  const carregarContadores = useCallback(async () => {
-    if (!podeVerPendencias) return;
-    try {
-      const contadores = await instalacaoApi.obterContadoresOcorrencias();
-      setPendentesCount(contadores.pendentes);
-      setOsAditivaHabilitada(contadores.os_aditiva_habilitada === true);
-    } catch {
-      setPendentesCount(0);
-      setOsAditivaHabilitada(false);
-    }
-  }, [podeVerPendencias]);
-
-  useEffect(() => {
-    void carregarContadores();
-  }, [carregarContadores]);
-
-
 
   useEffect(() => {
 
@@ -232,32 +204,6 @@ export default function InstalacaoGestaoPage() {
 
 
 
-  const abrirWorkspacePorEvento = useCallback(
-
-    (evento: AgendaInstalacaoEvento) => {
-
-      setWorkspaceMeta({
-
-        osId: evento.os_id,
-
-        numero: evento.os_numero,
-
-        nomeServico: evento.nome_servico,
-
-        clienteNome: evento.cliente_nome,
-
-      });
-
-      setWorkspaceAberto(true);
-
-      router.replace(`/instalacao?os=${evento.os_id}`, { scroll: false });
-
-    },
-
-    [router],
-
-  );
-
   const abrirWorkspacePorOsId = useCallback(
     (osId: string) => {
       const itemGrid = itens.find((item) => item.os_id === osId);
@@ -286,6 +232,17 @@ export default function InstalacaoGestaoPage() {
         });
     },
     [itens, abrirWorkspace, router],
+  );
+
+  const abrirEdicaoLotePorEvento = useCallback(
+    (evento: AgendaInstalacaoEvento) => {
+      setWorkspaceLoteInicial({
+        loteId: evento.lote_id,
+        abrirEdicao: true,
+      });
+      abrirWorkspacePorOsId(evento.os_id);
+    },
+    [abrirWorkspacePorOsId],
   );
 
   const fecharWorkspace = useCallback(() => {
@@ -357,15 +314,6 @@ export default function InstalacaoGestaoPage() {
 
 
   const totalExibido = useMemo(() => itens.length, [itens]);
-
-  const filaPendencias = exibirAbaPendencias ? (
-    <div className="min-w-0 space-y-3">
-      <InstalacaoOcorrenciasFilaGrid
-        podePrecificar={podeFinanceiro}
-        onAbrirOs={abrirWorkspacePorOsId}
-      />
-    </div>
-  ) : null;
 
   const gridOs = (
 
@@ -457,52 +405,15 @@ export default function InstalacaoGestaoPage() {
 
 
       {isDesktop ? (
-        exibirAbaPendencias ? (
-          <Tabs
-            value={abaAtiva}
-            onValueChange={setAbaAtiva}
-            className="w-full min-w-0"
-          >
-            <TabsList className="border border-border bg-muted">
-              <TabsTrigger value="lista">Ordens de serviço</TabsTrigger>
-              <TabsTrigger value="pendencias" className="gap-2">
-                Pendências
-                {pendentesCount > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="h-5 min-w-5 justify-center px-1.5 text-xs"
-                  >
-                    {pendentesCount}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="lista" className="mt-4">
-              <div className="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-                {gridOs}
-                <div className="min-w-0 lg:sticky lg:top-4">
-                  <InstalacaoCalendario
-                    compacto
-                    onEventoClick={abrirWorkspacePorEvento}
-                  />
-                </div>
-              </div>
-            </TabsContent>
-            <TabsContent value="pendencias" className="mt-4">
-              {filaPendencias}
-            </TabsContent>
-          </Tabs>
-        ) : (
-          <div className="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-            {gridOs}
-            <div className="min-w-0 lg:sticky lg:top-4">
-              <InstalacaoCalendario
-                compacto
-                onEventoClick={abrirWorkspacePorEvento}
-              />
-            </div>
+        <div className="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          {gridOs}
+          <div className="min-w-0 lg:sticky lg:top-4">
+            <InstalacaoCalendario
+              compacto
+              onEventoClick={abrirEdicaoLotePorEvento}
+            />
           </div>
-        )
+        </div>
       ) : (
 
         <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="w-full">
@@ -510,20 +421,6 @@ export default function InstalacaoGestaoPage() {
           <TabsList className="border border-border bg-muted">
 
             <TabsTrigger value="lista">Lista de OS</TabsTrigger>
-
-            {exibirAbaPendencias && (
-              <TabsTrigger value="pendencias" className="gap-2">
-                Pendências
-                {pendentesCount > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="h-5 min-w-5 justify-center px-1.5 text-xs"
-                  >
-                    {pendentesCount}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            )}
 
             <TabsTrigger value="calendario">Calendário</TabsTrigger>
 
@@ -537,17 +434,9 @@ export default function InstalacaoGestaoPage() {
 
           </TabsContent>
 
-          {exibirAbaPendencias && (
-            <TabsContent value="pendencias" className="mt-4">
-              {filaPendencias}
-            </TabsContent>
-          )}
-
-
-
           <TabsContent value="calendario" className="mt-4">
 
-            <InstalacaoCalendario onEventoClick={abrirWorkspacePorEvento} />
+            <InstalacaoCalendario onEventoClick={abrirEdicaoLotePorEvento} />
 
           </TabsContent>
 
@@ -573,9 +462,15 @@ export default function InstalacaoGestaoPage() {
 
           clienteNome={workspaceMeta.clienteNome}
 
+          loteInicialId={workspaceLoteInicial?.loteId ?? null}
+
+          abrirEdicaoInicial={workspaceLoteInicial?.abrirEdicao === true}
+
+          onLoteInicialConsumido={() => setWorkspaceLoteInicial(null)}
+
           onMutacao={() => {
             recarregarGrid();
-            void carregarContadores();
+            solicitarAtualizacaoBadgesSidebar();
           }}
 
         />

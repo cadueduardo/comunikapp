@@ -22,6 +22,26 @@ export function chaveDiaBrasil(valor: string | Date): string {
   return data.toLocaleDateString('en-CA', { timeZone: FUSO_AGENDA });
 }
 
+/**
+ * Dia civil de `data_previsao` (campo só-data, não horário).
+ * Normaliza ISO legado em meia-noite UTC para o YYYY-MM-DD pretendido.
+ */
+export function chaveDiaPrevisaoAgenda(valor: string | Date): string {
+  if (typeof valor === 'string') {
+    const trimmed = valor.trim();
+    const dateOnly = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (dateOnly) {
+      const normalizada = new Date(`${dateOnly[1]}T12:00:00.000Z`);
+      return normalizada.toLocaleDateString('en-CA', { timeZone: FUSO_AGENDA });
+    }
+  }
+  const data = typeof valor === 'string' ? new Date(valor) : valor;
+  if (Number.isNaN(data.getTime())) {
+    return '';
+  }
+  return data.toLocaleDateString('en-CA', { timeZone: FUSO_AGENDA });
+}
+
 export function hojeBrasil(): string {
   return chaveDiaBrasil(new Date());
 }
@@ -182,6 +202,57 @@ export function parseChaveLocalDate(chave: string): Date {
   return new Date(ano, mes - 1, dia, 12, 0, 0);
 }
 
+export function agruparEventosAgendaPorDia(
+  eventos: AgendaInstalacaoEvento[],
+): Map<string, AgendaInstalacaoEvento[]> {
+  const mapa = new Map<string, AgendaInstalacaoEvento[]>();
+  for (const evento of eventos) {
+    const chave = chaveDiaPrevisaoAgenda(evento.data_previsao);
+    const lista = mapa.get(chave) ?? [];
+    lista.push(evento);
+    mapa.set(chave, lista);
+  }
+  return mapa;
+}
+
+export function formatarResumoAgendamentosDia(
+  eventos: AgendaInstalacaoEvento[],
+): string {
+  return eventos
+    .map((evento) => {
+      const equipe = evento.equipe_instalacao?.trim() || 'Equipe não definida';
+      const turno = evento.turno_previsao
+        ? TURNO_PREVISAO_LABEL[evento.turno_previsao] ?? evento.turno_previsao
+        : 'Turno não definido';
+      return `OS ${evento.os_numero} — ${equipe} (${turno})`;
+    })
+    .join('\n');
+}
+
+const TURNO_PREVISAO_LABEL: Record<string, string> = {
+  MANHA: 'Manhã',
+  TARDE: 'Tarde',
+  INTEIRO: 'Dia inteiro',
+};
+
+export function obterUltimoDiaMes(chaveMes: string): string {
+  const [ano, mes] = chaveMes.split('-').map(Number);
+  const ultimo = new Date(Date.UTC(ano, mes, 0, 12, 0, 0));
+  return ultimo.toISOString().slice(0, 10);
+}
+
+export function obterMesAnterior(chaveMes: string): string {
+  const [ano, mes] = chaveMes.split('-').map(Number);
+  const data = new Date(Date.UTC(ano, mes - 2, 1, 12, 0, 0));
+  return data.toISOString().slice(0, 10);
+}
+
+export function obterProximoMes(chaveMes: string): string {
+  const [ano, mes] = chaveMes.split('-').map(Number);
+  const data = new Date(Date.UTC(ano, mes, 1, 12, 0, 0));
+  return data.toISOString().slice(0, 10);
+}
+
 export interface EventoCalendarioInstalacao {
   id: string;
   title: string;
@@ -203,21 +274,22 @@ const FAIXAS_TURNO: Record<
 export function agendaEventoParaCalendario(
   evento: AgendaInstalacaoEvento,
 ): EventoCalendarioInstalacao {
-  const chave = chaveDiaBrasil(evento.data_previsao);
+  const chave = chaveDiaPrevisaoAgenda(evento.data_previsao);
   const [ano, mes, dia] = chave.split('-').map(Number);
-  const turno = evento.turno_previsao ?? 'INTEGRO';
+  const turno = evento.turno_previsao ?? 'INTEIRO';
   const faixa = FAIXAS_TURNO[turno];
 
   const cliente = evento.cliente_nome ?? 'Cliente não informado';
   const title = `OS ${evento.os_numero} — ${cliente}`;
 
   if (faixa.diaInteiro) {
-    const data = new Date(ano, mes - 1, dia);
+    const start = new Date(ano, mes - 1, dia, 0, 0, 0, 0);
+    const end = new Date(ano, mes - 1, dia + 1, 0, 0, 0, 0);
     return {
       id: evento.lote_id,
       title,
-      start: data,
-      end: data,
+      start,
+      end,
       allDay: true,
       resource: evento,
     };
@@ -230,6 +302,36 @@ export function agendaEventoParaCalendario(
     end: new Date(ano, mes - 1, dia, faixa.fimH, 0, 0),
     allDay: false,
     resource: evento,
+  };
+}
+
+export function extrairLotesEmConflito(
+  conflitos: Array<{ lotes: Array<{ lote_id: string }> }>,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const conflito of conflitos) {
+    for (const lote of conflito.lotes) {
+      ids.add(lote.lote_id);
+    }
+  }
+  return ids;
+}
+
+export function calcularIntervaloConflitosLotes(
+  lotes: Array<{ data_previsao: string | null }>,
+): { data_inicio: string; data_fim: string } | null {
+  const chaves = lotes
+    .map((lote) => (lote.data_previsao ? chaveDiaPrevisaoAgenda(lote.data_previsao) : null))
+    .filter((chave): chave is string => Boolean(chave));
+
+  if (chaves.length === 0) {
+    return null;
+  }
+
+  const ordenadas = [...chaves].sort();
+  return {
+    data_inicio: ordenadas[0],
+    data_fim: ordenadas[ordenadas.length - 1],
   };
 }
 

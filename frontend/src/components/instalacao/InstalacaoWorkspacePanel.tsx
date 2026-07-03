@@ -1,39 +1,95 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { InstalacaoLoteDetalhePanel } from '@/components/instalacao/InstalacaoLoteDetalhePanel';
 import { InstalacaoOsKanbanBoard } from '@/components/instalacao/InstalacaoOsKanbanBoard';
 import { NovoLoteDialog } from '@/components/instalacao/NovoLoteDialog';
 import { OcorrenciaRapidaDialog } from '@/components/instalacao/OcorrenciaRapidaDialog';
 import { instalacaoApi } from '@/lib/instalacao/instalacao-api';
+import {
+  calcularIntervaloConflitosLotes,
+  extrairLotesEmConflito,
+} from '@/lib/instalacao/instalacao-calendario.utils';
 import { montarEnderecoResumido } from '@/lib/instalacao/instalacao-lote-utils';
 import type {
   LotePainelOs,
   PainelOsInstalacao,
   EnderecoLoteForm,
 } from '@/lib/instalacao/instalacao.types';
+import { montarPayloadAgendaLote } from '@/lib/instalacao/instalacao.types';
+import { INSTALACAO_LOTE_DETALHE_DIALOG_CLASS } from '@/lib/instalacao/instalacao-modal-classes';
 import { IconLoader2, IconRefresh } from '@tabler/icons-react';
 import { toast } from 'sonner';
 
 interface InstalacaoWorkspacePanelProps {
   osId: string;
   onMutacao?: () => void;
+  loteInicialId?: string | null;
+  abrirEdicaoInicial?: boolean;
+  onLoteInicialConsumido?: () => void;
+}
+
+export interface InstalacaoWorkspacePanelHandle {
+  /** Fecha edição do lote ou volta ao kanban antes de fechar o workspace. */
+  voltarUmNivel: () => boolean;
 }
 
 /**
  * Workspace de instalação (módulo /instalacao).
  * UX-06: 1 lote → detalhe direto; múltiplos lotes → Kanban interno com drill-down.
  */
-export function InstalacaoWorkspacePanel({
-  osId,
-  onMutacao,
-}: InstalacaoWorkspacePanelProps) {
+export const InstalacaoWorkspacePanel = forwardRef<
+  InstalacaoWorkspacePanelHandle,
+  InstalacaoWorkspacePanelProps
+>(function InstalacaoWorkspacePanel(
+  {
+    osId,
+    onMutacao,
+    loteInicialId,
+    abrirEdicaoInicial = false,
+    onLoteInicialConsumido,
+  },
+  ref,
+) {
   const [painel, setPainel] = useState<PainelOsInstalacao | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [lotesEmConflito, setLotesEmConflito] = useState<Set<string>>(new Set());
   const [loteSelecionadoId, setLoteSelecionadoId] = useState<string | null>(
     null,
+  );
+  const [edicaoLoteAberta, setEdicaoLoteAberta] = useState(false);
+
+  const totalLotesRef = useRef(0);
+  const instalacaoComplexaRef = useRef(false);
+
+  const fecharDetalheLote = useCallback(() => {
+    setEdicaoLoteAberta(false);
+    setLoteSelecionadoId(null);
+  }, []);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      voltarUmNivel: () => {
+        if (edicaoLoteAberta) {
+          setEdicaoLoteAberta(false);
+          return true;
+        }
+        if (loteSelecionadoId && instalacaoComplexaRef.current) {
+          fecharDetalheLote();
+          return true;
+        }
+        return false;
+      },
+    }),
+    [edicaoLoteAberta, loteSelecionadoId, fecharDetalheLote],
   );
 
   const onMutacaoRef = useRef(onMutacao);
@@ -48,6 +104,21 @@ export function InstalacaoWorkspacePanel({
     try {
       const painelData = await instalacaoApi.obterPainelOs(osId);
       setPainel(painelData);
+
+      const intervalo = calcularIntervaloConflitosLotes(painelData.lotes);
+      if (intervalo) {
+        try {
+          const conflitosResposta =
+            await instalacaoApi.consultarConflitosAgenda(intervalo);
+          setLotesEmConflito(
+            extrairLotesEmConflito(conflitosResposta.conflitos),
+          );
+        } catch {
+          setLotesEmConflito(new Set());
+        }
+      } else {
+        setLotesEmConflito(new Set());
+      }
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : 'Falha ao carregar instalação',
@@ -59,8 +130,26 @@ export function InstalacaoWorkspacePanel({
 
   useEffect(() => {
     setLoteSelecionadoId(null);
+    setEdicaoLoteAberta(false);
     void carregar();
   }, [osId, carregar]);
+
+  useEffect(() => {
+    if (!loteInicialId || carregando || !painel) return;
+    const existe = painel.lotes.some((l) => l.id === loteInicialId);
+    if (!existe) return;
+    setLoteSelecionadoId(loteInicialId);
+    if (abrirEdicaoInicial) {
+      setEdicaoLoteAberta(true);
+    }
+    onLoteInicialConsumido?.();
+  }, [
+    loteInicialId,
+    abrirEdicaoInicial,
+    carregando,
+    painel,
+    onLoteInicialConsumido,
+  ]);
 
   async function handleCriarLote(
     dados: Parameters<typeof instalacaoApi.criarLote>[0],
@@ -84,6 +173,7 @@ export function InstalacaoWorkspacePanel({
       cidade: dados.cidade,
       uf: dados.uf,
       quantidade_alocada: dados.quantidade_alocada,
+      ...montarPayloadAgendaLote(dados),
     });
     toast.success('Endereço do lote atualizado.');
     await carregar();
@@ -130,6 +220,8 @@ export function InstalacaoWorkspacePanel({
   const totalLotes = painel.lotes.length;
   const instalacaoSimples = totalLotes === 1;
   const instalacaoComplexa = totalLotes > 1;
+  totalLotesRef.current = totalLotes;
+  instalacaoComplexaRef.current = instalacaoComplexa;
 
   const loteSelecionado: LotePainelOs | null =
     loteSelecionadoId != null
@@ -138,17 +230,45 @@ export function InstalacaoWorkspacePanel({
         ? (painel.lotes[0] ?? null)
         : null;
 
-  const exibirKanban = instalacaoComplexa && !loteSelecionado;
-  const exibirDetalhe = Boolean(loteSelecionado);
+  const exibirKanban = instalacaoComplexa;
+  const exibirDetalheInline = instalacaoSimples && Boolean(loteSelecionado);
+  const exibirDetalheModal = instalacaoComplexa && Boolean(loteSelecionado);
   const podeCriarLote =
     itensSaldo.length > 0 && quantidadePendenteAlocacao > 0;
 
   function resolverQuantidadeMaximaEdicao(lote: LotePainelOs): number {
     const itemSaldo = itensSaldo.find(
-      (item) => item.item_os_id === lote.item_os.id,
+      (item) => item.item_os_id === lote.item_os_id,
     );
     return (
       (itemSaldo?.saldo_disponivel ?? 0) + (lote.quantidade_alocada ?? 0)
+    );
+  }
+
+  function renderPainelLoteDetalhe(lote: LotePainelOs) {
+    return (
+      <InstalacaoLoteDetalhePanel
+        lote={lote}
+        ocorrencias={painel.ocorrencias.filter(
+          (occ) => occ.item_instalacao?.id === lote.id,
+        )}
+        buscarCep={(cep) => instalacaoApi.buscarCep(cep)}
+        onEditarEndereco={(dados) => handleAtualizarLote(lote.id, dados)}
+        quantidadeMaximaEdicao={resolverQuantidadeMaximaEdicao(lote)}
+        onUploadAnexo={(arquivo) => instalacaoApi.uploadAnexo(arquivo)}
+        onAprovarConclusao={async (dados) => {
+          await instalacaoApi.aprovarConclusaoLoteGestao(lote.id, dados);
+          toast.success('Conclusão do lote aprovada pela gestão.');
+          await carregar();
+          notificarMutacao();
+        }}
+        onVoltar={instalacaoComplexa ? fecharDetalheLote : undefined}
+        edicaoAberta={edicaoLoteAberta}
+        onEdicaoAbertaChange={setEdicaoLoteAberta}
+        osId={osId}
+        painelOs={painel}
+        onRegistrarOcorrencia={handleRegistrarOcorrencia}
+      />
     );
   }
 
@@ -267,6 +387,7 @@ export function InstalacaoWorkspacePanel({
           </div>
           <InstalacaoOsKanbanBoard
             lotes={painel.lotes}
+            lotesEmConflito={lotesEmConflito}
             onLoteSelecionado={(lote) => setLoteSelecionadoId(lote.id)}
             onAtualizado={async () => {
               await carregar();
@@ -276,24 +397,41 @@ export function InstalacaoWorkspacePanel({
         </div>
       )}
 
-      {exibirDetalhe && loteSelecionado && (
-        <InstalacaoLoteDetalhePanel
-          lote={loteSelecionado}
-          ocorrencias={painel.ocorrencias.filter(
-            (occ) => occ.item_instalacao?.id === loteSelecionado.id,
-          )}
-          buscarCep={(cep) => instalacaoApi.buscarCep(cep)}
-          onEditarEndereco={(dados) =>
-            handleAtualizarLote(loteSelecionado.id, dados)
-          }
-          quantidadeMaximaEdicao={resolverQuantidadeMaximaEdicao(loteSelecionado)}
-          onVoltar={
-            instalacaoComplexa
-              ? () => setLoteSelecionadoId(null)
-              : undefined
-          }
-        />
+      {exibirDetalheInline && loteSelecionado && renderPainelLoteDetalhe(loteSelecionado)}
+
+      {exibirDetalheModal && loteSelecionado && (
+        <Dialog
+          open
+          onOpenChange={(aberto) => {
+            if (!aberto) fecharDetalheLote();
+          }}
+        >
+          <DialogContent
+            className={INSTALACAO_LOTE_DETALHE_DIALOG_CLASS}
+            onInteractOutside={(event) => event.preventDefault()}
+            onEscapeKeyDown={(event) => {
+              event.preventDefault();
+              if (edicaoLoteAberta) {
+                setEdicaoLoteAberta(false);
+              } else {
+                fecharDetalheLote();
+              }
+            }}
+          >
+            <div className="shrink-0 border-b border-border px-4 py-3 sm:px-6">
+              <DialogTitle className="text-left text-base font-semibold">
+                Execução do lote
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground">
+                {montarEnderecoResumido(loteSelecionado)}
+              </p>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+              {renderPainelLoteDetalhe(loteSelecionado)}
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
-}
+});

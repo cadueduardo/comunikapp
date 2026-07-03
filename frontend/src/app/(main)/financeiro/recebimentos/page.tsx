@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import {
   Banknote,
   CalendarRange,
@@ -79,6 +80,14 @@ const STATUS_OPCOES: { value: string; label: string }[] = [
   { value: 'CANCELADA', label: 'Cancelada' },
 ];
 
+const STATUS_PARCELA_LABEL: Record<string, string> = {
+  PREVISTO: 'Prevista',
+  PARCIAL_PAGO: 'Parcial pago',
+  VENCIDO: 'Vencida',
+  AGUARDANDO_RELATORIO_TECNICO: 'Aguardando instalação',
+  A_FATURAR: 'A faturar',
+};
+
 const STATUS_VARIANTE: Record<
   string,
   { label: string; classe: string }
@@ -89,6 +98,14 @@ const STATUS_VARIANTE: Record<
   LIQUIDADO: { label: 'Liquidado', classe: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
   CANCELADA: { label: 'Cancelada', classe: 'bg-zinc-100 text-zinc-600 border-zinc-200' },
 };
+
+function cobrancaPodeReceber(c: CobrancaResumo, podeOperar: boolean): boolean {
+  return (
+    podeOperar &&
+    c.pode_registrar_recebimento !== false &&
+    ['PREVISTA', 'PARCIAL_PAGO', 'VENCIDO'].includes(c.status)
+  );
+}
 
 function formatarData(iso: string | null): string {
   if (!iso) return '-';
@@ -589,6 +606,14 @@ export default function RecebimentosPage() {
                               )}{' '}
                               em aberto
                             </div>
+                            {c.proxima_parcela.status &&
+                              c.proxima_parcela.status !== 'PREVISTO' &&
+                              c.proxima_parcela.status !== 'VENCIDO' && (
+                                <div className="mt-1 text-xs text-amber-800">
+                                  {STATUS_PARCELA_LABEL[c.proxima_parcela.status] ??
+                                    c.proxima_parcela.status}
+                                </div>
+                              )}
                           </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
@@ -597,7 +622,26 @@ export default function RecebimentosPage() {
                       <TableCell className="align-top">
                         <Badge
                           variant="outline"
-                          className={STATUS_VARIANTE[c.status]?.classe ?? ''}
+                          className={cn(
+                            STATUS_VARIANTE[c.status]?.classe ?? '',
+                            cobrancaPodeReceber(c, podeOperar) &&
+                              'cursor-pointer hover:opacity-80',
+                          )}
+                          onClick={() => {
+                            if (!cobrancaPodeReceber(c, podeOperar)) {
+                              if (c.motivo_bloqueio_recebimento) {
+                                toast.info(c.motivo_bloqueio_recebimento);
+                              }
+                              return;
+                            }
+                            setRecebimentoTarget(c);
+                            setModoForcado(false);
+                          }}
+                          title={
+                            cobrancaPodeReceber(c, podeOperar)
+                              ? 'Registrar pagamento'
+                              : c.motivo_bloqueio_recebimento ?? undefined
+                          }
                         >
                           {STATUS_VARIANTE[c.status]?.label ?? c.status}
                         </Badge>
@@ -607,6 +651,13 @@ export default function RecebimentosPage() {
                           cobranca={c}
                           podeOperar={podeOperar}
                           onRegistrar={() => {
+                            if (!cobrancaPodeReceber(c, podeOperar)) {
+                              toast.error(
+                                c.motivo_bloqueio_recebimento ??
+                                  'Não há parcela em aberto para receber',
+                              );
+                              return;
+                            }
                             setRecebimentoTarget(c);
                             setModoForcado(false);
                           }}
@@ -677,8 +728,7 @@ function AcoesCobranca({
   onCancelar,
 }: AcoesProps) {
   const status = cobranca.status;
-  const podeReceber =
-    podeOperar && ['PREVISTA', 'PARCIAL_PAGO', 'VENCIDO'].includes(status);
+  const podeReceber = cobrancaPodeReceber(cobranca, podeOperar);
   const podeCancelar =
     podeOperar && ['PREVISTA', 'PARCIAL_PAGO', 'VENCIDO'].includes(status);
 
@@ -695,7 +745,10 @@ function AcoesCobranca({
           <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-600" />
           Registrar pagamento
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={onForcar} disabled={!podeReceber}>
+        <DropdownMenuItem
+          onClick={onForcar}
+          disabled={!podeReceber}
+        >
           <Zap className="h-4 w-4 mr-2 text-amber-600" />
           Forçar recebimento total
         </DropdownMenuItem>

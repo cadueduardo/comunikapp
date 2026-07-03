@@ -5,6 +5,7 @@ import {
   StatusInstalacaoOs,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { InstalacaoFechamentoService } from './instalacao-fechamento.service';
 
 /**
  * Sincroniza status operacional de lotes e rollup da OS após alocação ou
@@ -12,6 +13,7 @@ import { PrismaService } from '../../prisma/prisma.service';
  *
  * Regras:
  * - Alocação 100% concluída → todos os lotes AGUARDANDO viram EM_ANDAMENTO.
+ * - Lote com data_previsao definida → promove individualmente para EM_ANDAMENTO.
  * - Ocorrência vinculada a um lote → esse lote AGUARDANDO vira EM_ANDAMENTO.
  * - OS.status_instalacao_os passa a EM_ANDAMENTO quando há lote em campo
  *   (não sobrescreve AGUARDANDO_RELATORIO_TECNICO nem CONCLUIDA).
@@ -20,7 +22,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class InstalacaoExecucaoSyncService {
   private readonly logger = new Logger(InstalacaoExecucaoSyncService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly instalacaoFechamentoService: InstalacaoFechamentoService,
+  ) {}
 
   async reconciliarStatusCampo(
     lojaId: string,
@@ -49,6 +54,23 @@ export class InstalacaoExecucaoSyncService {
         osId,
       );
     }
+
+    await this.reconciliarRollupOs(lojaId, osId);
+  }
+
+  /**
+   * Auto-reparo: alinha status_instalacao_os com lotes e dispara retenção
+   * pós-campo quando todos os lotes já estão encerrados.
+   */
+  async reconciliarRollupOs(lojaId: string, osId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await this.rollupStatusOsEmAndamento(lojaId, osId, tx);
+      await this.instalacaoFechamentoService.reterAposInstalacaoCompleta(
+        tx,
+        lojaId,
+        osId,
+      );
+    });
   }
 
   async sincronizarAposMudancaLotes(
@@ -80,7 +102,6 @@ export class InstalacaoExecucaoSyncService {
       },
       data: {
         status_instalacao: StatusInstalacao.EM_ANDAMENTO,
-        data_execucao: new Date(),
       },
     });
 
@@ -93,6 +114,32 @@ export class InstalacaoExecucaoSyncService {
       `Lote ${loteId} promovido para EM_ANDAMENTO após atividade de campo`,
     );
     return true;
+  }
+
+  /**
+   * Promove lote AGUARDANDO quando há data de previsão (agenda definida).
+   */
+  async promoverLoteSeAgendado(
+    lojaId: string,
+    loteId: string,
+    osId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<boolean> {
+    const client = tx ?? this.prisma;
+    const lote = await client.itemOSInstalacao.findFirst({
+      where: { id: loteId, loja_id: lojaId },
+      select: { status_instalacao: true, data_previsao: true },
+    });
+
+    if (
+      !lote ||
+      lote.status_instalacao !== StatusInstalacao.AGUARDANDO ||
+      !lote.data_previsao
+    ) {
+      return false;
+    }
+
+    return this.promoverLoteComAtividadeCampo(lojaId, loteId, osId, tx);
   }
 
   async rollupStatusOsEmAndamento(
@@ -149,7 +196,6 @@ export class InstalacaoExecucaoSyncService {
     tx?: Prisma.TransactionClient,
   ): Promise<number> {
     const client = tx ?? this.prisma;
-    const agora = new Date();
 
     const resultado = await client.itemOSInstalacao.updateMany({
       where: {
@@ -159,7 +205,6 @@ export class InstalacaoExecucaoSyncService {
       },
       data: {
         status_instalacao: StatusInstalacao.EM_ANDAMENTO,
-        data_execucao: agora,
       },
     });
 

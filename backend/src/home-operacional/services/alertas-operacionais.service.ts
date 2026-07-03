@@ -6,6 +6,7 @@ import {
   AlertasResponseData,
   NivelAlerta,
 } from '../interfaces/alerta.interface';
+import { filtroOsElegivelFluxoPcp } from '../../pcp/utils/os-elegivel-pcp-kanban.util';
 
 /**
  * Limiares de tempo para os alertas. Hoje hardcoded conforme decisao de
@@ -253,6 +254,7 @@ export class AlertasOperacionaisService {
           loja_id: lojaId,
           status: { in: Array.from(STATUS_OS_LIBERADA) },
           workflow_instancia: null,
+          ...filtroOsElegivelFluxoPcp,
         },
         select: {
           id: true,
@@ -356,6 +358,7 @@ export class AlertasOperacionaisService {
           loja_id: lojaId,
           status: { in: Array.from(STATUS_OS_LIBERADA) },
           materiais_disponivel: false,
+          ...filtroOsElegivelFluxoPcp,
         },
         select: {
           id: true,

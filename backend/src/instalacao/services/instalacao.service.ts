@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import {
   CategoriaOcorrencia,
+  MotivoSemAssinaturaLote,
+  OrigemConclusaoLote,
   Prisma,
   StatusFinanceiroOcorrencia,
   StatusInstalacao,
@@ -26,6 +28,11 @@ import { ConfiguracaoInstalacaoService } from './configuracao-instalacao.service
 import { ConsultarAgendaQueryDto } from '../dto/consultar-agenda-query.dto';
 import { ListarOsInstalacaoQueryDto } from '../dto/listar-os-instalacao-query.dto';
 import { sanitizarTextoCampo } from '../utils/sanitizar-texto.util';
+import { parseDataPrevisaoCampo, chaveDiaPrevisaoAgenda } from '../utils/data-previsao.util';
+import {
+  calcularAtencaoInstalacaoOs,
+  compararPrioridadeAtencaoInstalacao,
+} from '../utils/instalacao-atencao.util';
 
 export interface RegistrarOcorrenciaObraInput {
   lojaId: string;
@@ -36,6 +43,8 @@ export interface RegistrarOcorrenciaObraInput {
   quantidade?: number;
   descricao: string;
   fotosEvidencia?: string[];
+  dataRetornoPrevisao?: string;
+  turnoRetornoPrevisao?: TurnoPrevisaoInstalacao;
 }
 
 export interface OcorrenciaObraRespostaInstalador {
@@ -116,6 +125,17 @@ export interface OsInstalacaoGridItem {
   /** Mesma trava financeira da expedição (parcela vencida ou SALDO em aberto). */
   bloqueio_financeiro: boolean;
   link_financeiro: string | null;
+  /** Relatório técnico final emitido (após aprovação financeira). */
+  relatorio_tecnico?: {
+    pdf_url: string;
+    pdf_token: string;
+    gerado_em: string;
+  } | null;
+  /** Campo concluído (todos os lotes encerrados), pendente aprovação financeira. */
+  pendente_aprovacao_financeira: boolean;
+  requer_atencao_instalacao: boolean;
+  ultima_atividade_instalacao: string | null;
+  motivos_atencao_instalacao: string[];
 }
 
 export interface ListarOsInstalacaoResposta {
@@ -162,6 +182,7 @@ export class InstalacaoService {
     return this.prisma.itemOSInstalacao.findMany({
       where: {
         loja_id: lojaId,
+        informar_equipe: true,
         status_instalacao: {
           in: [StatusInstalacao.AGUARDANDO, StatusInstalacao.EM_ANDAMENTO],
         },
@@ -180,9 +201,17 @@ export class InstalacaoService {
         quantidade_alocada: true,
         status_instalacao: true,
         data_previsao: true,
+        turno_previsao: true,
+        equipe_instalacao: true,
+        responsavel_local: true,
+        aguardando_reagendamento: true,
         data_execucao: true,
         fotos_evidencia: true,
         assinatura_url: true,
+        origem_conclusao_lote: true,
+        motivo_sem_assinatura: true,
+        observacao_conclusao_gestao: true,
+        conclusao_gestao_em: true,
         criado_em: true,
         item_os: {
           select: {
@@ -216,9 +245,18 @@ export class InstalacaoService {
         quantidade_alocada: true,
         status_instalacao: true,
         data_previsao: true,
+        turno_previsao: true,
+        equipe_instalacao: true,
+        responsavel_local: true,
+        informar_equipe: true,
+        aguardando_reagendamento: true,
         data_execucao: true,
         fotos_evidencia: true,
         assinatura_url: true,
+        origem_conclusao_lote: true,
+        motivo_sem_assinatura: true,
+        observacao_conclusao_gestao: true,
+        conclusao_gestao_em: true,
         criado_em: true,
         item_os: {
           select: {
@@ -321,6 +359,7 @@ export class InstalacaoService {
         where: { id: loteId },
         data: {
           status_instalacao: StatusInstalacao.CONCLUIDO,
+          origem_conclusao_lote: OrigemConclusaoLote.CAMPO,
           fotos_evidencia: dados.fotos_evidencia ?? undefined,
           assinatura_url: dados.assinatura_url ?? null,
           data_execucao: new Date(),
@@ -346,6 +385,129 @@ export class InstalacaoService {
         fotos_evidencia: loteAtualizado.fotos_evidencia,
         assinatura_url: loteAtualizado.assinatura_url,
         data_execucao: loteAtualizado.data_execucao,
+      };
+    });
+  }
+
+  /**
+   * Conclusão por alçada da gestão: operador confere evidências/ocorrências e
+   * encerra o lote. Sem assinatura exige motivo catalogado (+ descrição se OUTROS).
+   */
+  async aprovarConclusaoLoteGestao(
+    lojaId: string,
+    loteId: string,
+    usuarioId: string | null,
+    dados: {
+      fotos_evidencia?: string[];
+      assinatura_url?: string;
+      motivo_sem_assinatura?: MotivoSemAssinaturaLote;
+      observacao_conclusao_gestao?: string;
+    },
+  ) {
+    const lote = await this.prisma.itemOSInstalacao.findFirst({
+      where: { id: loteId, loja_id: lojaId },
+      select: {
+        id: true,
+        status_instalacao: true,
+        assinatura_url: true,
+        fotos_evidencia: true,
+        item_os: { select: { os_id: true } },
+      },
+    });
+
+    if (!lote) {
+      throw new NotFoundException('Lote de instalação não encontrado.');
+    }
+
+    if (
+      lote.status_instalacao !== StatusInstalacao.AGUARDANDO &&
+      lote.status_instalacao !== StatusInstalacao.EM_ANDAMENTO
+    ) {
+      throw new BadRequestException(
+        'Somente lotes aguardando ou em andamento podem ser aprovados pela gestão.',
+      );
+    }
+
+    const assinaturaFinal = dados.assinatura_url ?? lote.assinatura_url ?? null;
+    const temAssinatura = Boolean(assinaturaFinal);
+
+    if (!temAssinatura) {
+      if (!dados.motivo_sem_assinatura) {
+        throw new BadRequestException(
+          'Informe o motivo da conclusão sem assinatura do recebedor.',
+        );
+      }
+
+      const observacao = sanitizarTextoCampo(
+        dados.observacao_conclusao_gestao ?? '',
+        2000,
+      );
+
+      if (
+        dados.motivo_sem_assinatura === MotivoSemAssinaturaLote.OUTROS &&
+        observacao.length < 10
+      ) {
+        throw new BadRequestException(
+          'Para o motivo "Outros", descreva a justificativa (mínimo 10 caracteres).',
+        );
+      }
+    }
+
+    const observacaoGestao = sanitizarTextoCampo(
+      dados.observacao_conclusao_gestao ?? '',
+      2000,
+    );
+
+    const fotosExistentes = this.normalizarFotos(lote.fotos_evidencia);
+    const fotosNovas = dados.fotos_evidencia ?? [];
+    const fotosMescladas = [...new Set([...fotosExistentes, ...fotosNovas])];
+    const osId = lote.item_os.os_id;
+    const agora = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const loteAtualizado = await tx.itemOSInstalacao.update({
+        where: { id: loteId },
+        data: {
+          status_instalacao: StatusInstalacao.CONCLUIDO,
+          origem_conclusao_lote: OrigemConclusaoLote.GESTAO,
+          assinatura_url: assinaturaFinal,
+          fotos_evidencia:
+            fotosMescladas.length > 0 ? fotosMescladas : undefined,
+          data_execucao: agora,
+          motivo_sem_assinatura: temAssinatura
+            ? null
+            : dados.motivo_sem_assinatura,
+          observacao_conclusao_gestao:
+            observacaoGestao.length > 0 ? observacaoGestao : null,
+          conclusao_gestao_por: usuarioId,
+          conclusao_gestao_em: agora,
+        },
+        select: {
+          id: true,
+          status_instalacao: true,
+          origem_conclusao_lote: true,
+          motivo_sem_assinatura: true,
+          observacao_conclusao_gestao: true,
+          assinatura_url: true,
+          fotos_evidencia: true,
+          data_execucao: true,
+          conclusao_gestao_em: true,
+        },
+      });
+
+      await this.instalacaoFechamentoService.reterAposInstalacaoCompleta(
+        tx,
+        lojaId,
+        osId,
+      );
+
+      this.logger.log(
+        `Lote ${loteId} concluído por alçada da gestão (OS ${osId})`,
+      );
+
+      return {
+        ...loteAtualizado,
+        fotos_evidencia: this.normalizarFotos(loteAtualizado.fotos_evidencia),
       };
     });
   }
@@ -413,6 +575,11 @@ export class InstalacaoService {
         input.lojaId,
       );
 
+    const dataRetornoPrevisao =
+      input.dataRetornoPrevisao !== undefined
+        ? this.resolverDataPrevisao(input.dataRetornoPrevisao)
+        : undefined;
+
     const ocorrencia = await this.prisma.ocorrenciaInstalacao.create({
       data: {
         loja_id: input.lojaId,
@@ -441,6 +608,12 @@ export class InstalacaoService {
           input.fotosEvidencia && input.fotosEvidencia.length > 0
             ? input.fotosEvidencia
             : undefined,
+        ...(dataRetornoPrevisao !== undefined
+          ? {
+              data_retorno_previsao: dataRetornoPrevisao,
+              turno_retorno_previsao: input.turnoRetornoPrevisao ?? null,
+            }
+          : {}),
       },
       select: {
         id: true,
@@ -457,11 +630,15 @@ export class InstalacaoService {
     );
 
     if (input.itemInstalacaoId) {
-      await this.instalacaoExecucaoSyncService.promoverLoteComAtividadeCampo(
-        input.lojaId,
-        input.itemInstalacaoId,
-        input.osId,
-      );
+      if (input.tipo === TipoOcorrencia.VISITA_IMPRODUTIVA) {
+        await this.tratarVisitaImprodutiva(input, dataRetornoPrevisao);
+      } else {
+        await this.instalacaoExecucaoSyncService.promoverLoteComAtividadeCampo(
+          input.lojaId,
+          input.itemInstalacaoId,
+          input.osId,
+        );
+      }
     }
 
     return {
@@ -541,12 +718,69 @@ export class InstalacaoService {
                 status_instalacao: true,
                 quantidade_alocada: true,
                 data_previsao: true,
+                assinatura_url: true,
+                atualizado_em: true,
               },
             },
           },
         },
       },
     });
+
+    const osIds = ordens.map((os) => os.id);
+
+    await this.instalacaoFechamentoService.reconciliarStatusComRelatorioEmitido(
+      lojaId,
+      osIds,
+    );
+
+    const relatoriosPorOs = new Map(
+      (
+        await this.prisma.relatorioTecnicoInstalacao.findMany({
+          where: { loja_id: lojaId, os_id: { in: osIds } },
+          select: {
+            os_id: true,
+            pdf_url: true,
+            pdf_token: true,
+            gerado_em: true,
+          },
+        })
+      ).map((rel) => [rel.os_id, rel]),
+    );
+
+    const statusCorrigidos = await this.prisma.ordemServico.findMany({
+      where: { loja_id: lojaId, id: { in: osIds } },
+      select: { id: true, status_instalacao_os: true },
+    });
+    const statusPorOs = new Map(
+      statusCorrigidos.map((os) => [os.id, os.status_instalacao_os]),
+    );
+
+    const ocorrenciasPorOs = new Map<
+      string,
+      Array<{
+        status_financeiro: StatusFinanceiroOcorrencia;
+        criado_em: Date;
+      }>
+    >();
+    if (osIds.length > 0) {
+      const ocorrenciasLista = await this.prisma.ocorrenciaInstalacao.findMany({
+        where: { loja_id: lojaId, os_id: { in: osIds } },
+        select: {
+          os_id: true,
+          status_financeiro: true,
+          criado_em: true,
+        },
+      });
+      for (const occ of ocorrenciasLista) {
+        const lista = ocorrenciasPorOs.get(occ.os_id) ?? [];
+        lista.push({
+          status_financeiro: occ.status_financeiro,
+          criado_em: occ.criado_em,
+        });
+        ocorrenciasPorOs.set(occ.os_id, lista);
+      }
+    }
 
     const bloqueiosPorOrcamento = await this.calcularBloqueiosFinanceiros(
       lojaId,
@@ -594,12 +828,25 @@ export class InstalacaoService {
         ? (bloqueiosPorOrcamento.get(os.orcamento_id) ?? null)
         : null;
 
+      const relatorio = relatoriosPorOs.get(os.id) ?? null;
+      const statusInstalacao =
+        statusPorOs.get(os.id) ?? os.status_instalacao_os;
+      const campoConcluido =
+        total > 0 && concluidos >= total;
+      const ocorrenciasOs = ocorrenciasPorOs.get(os.id) ?? [];
+      const atencao = calcularAtencaoInstalacaoOs({
+        statusInstalacaoOs: statusInstalacao,
+        relatorioEmitido: relatorio != null,
+        lotes,
+        ocorrencias: ocorrenciasOs,
+      });
+
       return {
         os_id: os.id,
         numero: os.numero,
         cliente_nome: os.cliente?.nome ?? null,
         nome_servico: os.nome_servico,
-        status_instalacao_os: os.status_instalacao_os,
+        status_instalacao_os: statusInstalacao,
         data_instalacao_agendada:
           os.data_instalacao_agendada?.toISOString() ?? null,
         proxima_visita: proximaVisita?.toISOString() ?? null,
@@ -613,8 +860,35 @@ export class InstalacaoService {
         link_financeiro: cobrancaBloqueante
           ? `/financeiro/recebimentos?cobranca=${cobrancaBloqueante}&os=${os.id}&ref=${encodeURIComponent(os.numero)}`
           : null,
+        relatorio_tecnico: relatorio
+          ? {
+              pdf_url: relatorio.pdf_url,
+              pdf_token: relatorio.pdf_token,
+              gerado_em: relatorio.gerado_em.toISOString(),
+            }
+          : null,
+        pendente_aprovacao_financeira:
+          campoConcluido &&
+          statusInstalacao === StatusInstalacaoOs.AGUARDANDO_RELATORIO_TECNICO &&
+          relatorio === null,
+        requer_atencao_instalacao: atencao.requer_atencao,
+        ultima_atividade_instalacao: atencao.ultima_atividade_em,
+        motivos_atencao_instalacao: atencao.motivos,
       };
     });
+
+    itens.sort((a, b) =>
+      compararPrioridadeAtencaoInstalacao(
+        {
+          requer_atencao: a.requer_atencao_instalacao ?? false,
+          ultima_atividade_em: a.ultima_atividade_instalacao ?? null,
+        },
+        {
+          requer_atencao: b.requer_atencao_instalacao ?? false,
+          ultima_atividade_em: b.ultima_atividade_instalacao ?? null,
+        },
+      ),
+    );
 
     return { total: itens.length, itens };
   }
@@ -703,6 +977,10 @@ export class InstalacaoService {
         data_execucao: true,
         fotos_evidencia: true,
         assinatura_url: true,
+        origem_conclusao_lote: true,
+        motivo_sem_assinatura: true,
+        observacao_conclusao_gestao: true,
+        conclusao_gestao_em: true,
         criado_em: true,
         atualizado_em: true,
         item_os: {
@@ -872,7 +1150,7 @@ export class InstalacaoService {
         continue;
       }
 
-      const dia = this.chaveDiaAgenda(lote.data_previsao);
+      const dia = chaveDiaPrevisaoAgenda(lote.data_previsao);
       const chave = `${dia}|${equipe.toLowerCase()}`;
 
       const existente = grupos.get(chave) ?? {
@@ -936,6 +1214,11 @@ export class InstalacaoService {
       osId,
     );
 
+    await this.instalacaoFechamentoService.reconciliarStatusComRelatorioEmitido(
+      lojaId,
+      [osId],
+    );
+
     const osAtualizada = await this.prisma.ordemServico.findFirst({
       where: { id: osId, loja_id: lojaId },
       select: { status_instalacao_os: true },
@@ -961,11 +1244,19 @@ export class InstalacaoService {
         data_previsao: true,
         turno_previsao: true,
         equipe_instalacao: true,
+        responsavel_local: true,
+        informar_equipe: true,
+        aguardando_reagendamento: true,
         data_execucao: true,
         fotos_evidencia: true,
         assinatura_url: true,
+        origem_conclusao_lote: true,
+        motivo_sem_assinatura: true,
+        observacao_conclusao_gestao: true,
+        conclusao_gestao_em: true,
         criado_em: true,
         atualizado_em: true,
+        item_os_id: true,
         item_os: { select: { produto_servico: true } },
       },
     });
@@ -1204,6 +1495,8 @@ export class InstalacaoService {
       data_previsao?: string | null;
       turno_previsao?: TurnoPrevisaoInstalacao | null;
       equipe_instalacao?: string | null;
+      responsavel_local?: string | null;
+      informar_equipe?: boolean;
     },
   ) {
     const lote = await this.prisma.itemOSInstalacao.findFirst({
@@ -1283,6 +1576,14 @@ export class InstalacaoService {
                 equipe_instalacao: dados.equipe_instalacao?.trim() || null,
               }
             : {}),
+          ...(dados.responsavel_local !== undefined
+            ? {
+                responsavel_local: dados.responsavel_local?.trim() || null,
+              }
+            : {}),
+          ...(dados.informar_equipe !== undefined
+            ? { informar_equipe: dados.informar_equipe }
+            : {}),
         },
         select: {
           id: true,
@@ -1298,6 +1599,9 @@ export class InstalacaoService {
           data_previsao: true,
           turno_previsao: true,
           equipe_instalacao: true,
+          responsavel_local: true,
+          informar_equipe: true,
+          aguardando_reagendamento: true,
           atualizado_em: true,
         },
       });
@@ -1316,7 +1620,64 @@ export class InstalacaoService {
       osId,
     );
 
+    await this.instalacaoExecucaoSyncService.promoverLoteSeAgendado(
+      lojaId,
+      loteId,
+      osId,
+    );
+
     return loteAtualizado;
+  }
+
+  private async tratarVisitaImprodutiva(
+    input: RegistrarOcorrenciaObraInput,
+    dataRetornoPrevisao: Date | null | undefined,
+  ): Promise<void> {
+    if (!input.itemInstalacaoId) {
+      return;
+    }
+
+    const loteId = input.itemInstalacaoId;
+    const osId = input.osId;
+
+    if (dataRetornoPrevisao) {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.itemOSInstalacao.update({
+          where: { id: loteId, loja_id: input.lojaId },
+          data: {
+            data_previsao: dataRetornoPrevisao,
+            ...(input.turnoRetornoPrevisao
+              ? { turno_previsao: input.turnoRetornoPrevisao }
+              : {}),
+            aguardando_reagendamento: false,
+          },
+        });
+
+        await this.instalacaoAgendaSyncService.sincronizarDataOs(
+          tx,
+          input.lojaId,
+          osId,
+        );
+      });
+
+      await this.instalacaoExecucaoSyncService.promoverLoteSeAgendado(
+        input.lojaId,
+        loteId,
+        osId,
+      );
+      return;
+    }
+
+    await this.prisma.itemOSInstalacao.updateMany({
+      where: { id: loteId, loja_id: input.lojaId },
+      data: { aguardando_reagendamento: true },
+    });
+
+    await this.instalacaoExecucaoSyncService.promoverLoteComAtividadeCampo(
+      input.lojaId,
+      loteId,
+      osId,
+    );
   }
 
   private resolverDataPrevisao(
@@ -1328,11 +1689,11 @@ export class InstalacaoService {
     if (valor === null || valor === '') {
       return null;
     }
-    const data = new Date(valor);
-    if (Number.isNaN(data.getTime())) {
+    try {
+      return parseDataPrevisaoCampo(valor);
+    } catch {
       throw new BadRequestException('Data de previsão inválida.');
     }
-    return data;
   }
 
   private resolverIntervaloAgenda(
@@ -1361,12 +1722,6 @@ export class InstalacaoService {
     }
 
     return { inicio, fim };
-  }
-
-  private chaveDiaAgenda(data: Date): string {
-    return data.toLocaleDateString('en-CA', {
-      timeZone: 'America/Sao_Paulo',
-    });
   }
 
   private inicioDiaOperacionalAgenda(referencia: Date = new Date()): Date {

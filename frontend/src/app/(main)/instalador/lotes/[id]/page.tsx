@@ -114,6 +114,8 @@ export default function InstaladorLotePage() {
   const enderecoSomenteLeitura =
     lote.status_instalacao === 'CONCLUIDO' ||
     lote.status_instalacao === 'LOGISTICA_NEGATIVA';
+  const faltaConclusaoComAssinatura =
+    podeConcluir && !lote.assinatura_url;
 
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-lg flex-col gap-4 overflow-x-hidden px-3 py-4 sm:px-4">
@@ -159,6 +161,14 @@ export default function InstaladorLotePage() {
 
       {(podeIniciar || podeConcluir || podeRegistrarOcorrencia) && (
         <div className="flex w-full min-w-0 flex-col gap-2">
+          {faltaConclusaoComAssinatura && (
+            <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
+              Para encerrar este endereço, toque em{' '}
+              <strong className="font-medium">Concluir trabalho</strong> abaixo
+              (fotos opcionais + assinatura obrigatória). Registrar ocorrência
+              não finaliza a instalação.
+            </p>
+          )}
           {podeIniciar && (
             <Button
               type="button"

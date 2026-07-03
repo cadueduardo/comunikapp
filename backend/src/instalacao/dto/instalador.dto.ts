@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsDateString,
   IsEnum,
   IsNotEmpty,
   IsNumber,
@@ -10,7 +11,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
-import { CategoriaOcorrencia, TipoOcorrencia } from '@prisma/client';
+import { CategoriaOcorrencia, TipoOcorrencia, TurnoPrevisaoInstalacao } from '@prisma/client';
 import { REFERENCIA_ANEXO_INSTALACAO_REGEX, REFERENCIA_ASSINATURA_LOTE_REGEX } from '../utils/anexo-url.util';
 
 export class ConcluirLoteInstaladorDto {
@@ -68,4 +69,12 @@ export class RegistrarOcorrenciaInstaladorDto {
       'cada valor em fotos_evidencia deve ser uma URL absoluta ou referência /instalacao/anexos/{token}',
   })
   fotos_evidencia?: string[];
+
+  @IsOptional()
+  @IsDateString()
+  data_retorno_previsao?: string;
+
+  @IsOptional()
+  @IsEnum(TurnoPrevisaoInstalacao)
+  turno_retorno_previsao?: TurnoPrevisaoInstalacao;
 }

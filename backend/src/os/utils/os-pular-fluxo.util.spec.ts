@@ -9,6 +9,11 @@ describe('os-pular-fluxo.util', () => {
   it('identifica OS que deve pular PCP', () => {
     expect(devePularPcp({ pular_pcp: true })).toBe(true);
     expect(devePularPcp({ pular_pcp: false })).toBe(false);
+    expect(
+      devePularPcp({
+        tipo_vinculo_os: TIPO_VINCULO_OS_ADITIVA_INSTALACAO,
+      }),
+    ).toBe(true);
   });
 
   it('identifica OS que deve pular expedição', () => {

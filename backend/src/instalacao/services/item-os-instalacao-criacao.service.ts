@@ -218,6 +218,8 @@ export class ItemOSInstalacaoCriacaoService {
     dataPrevisao?: Date;
     turnoPrevisao?: TurnoPrevisaoInstalacao;
     equipeInstalacao?: string;
+    responsavelLocal?: string;
+    informarEquipe?: boolean;
   }): Promise<ResultadoCriacaoLoteInstalacao> {
     const item = await this.prisma.itemOS.findFirst({
       where: {
@@ -293,6 +295,8 @@ export class ItemOSInstalacaoCriacaoService {
           data_previsao: params.dataPrevisao ?? null,
           turno_previsao: params.turnoPrevisao ?? null,
           equipe_instalacao: params.equipeInstalacao?.trim() || null,
+          responsavel_local: params.responsavelLocal?.trim() || null,
+          informar_equipe: params.informarEquipe ?? false,
         },
       });
 
@@ -313,6 +317,12 @@ export class ItemOSInstalacaoCriacaoService {
 
     await this.instalacaoExecucaoSyncService.sincronizarAposMudancaLotes(
       params.lojaId,
+      osId,
+    );
+
+    await this.instalacaoExecucaoSyncService.promoverLoteSeAgendado(
+      params.lojaId,
+      lote.id,
       osId,
     );
 

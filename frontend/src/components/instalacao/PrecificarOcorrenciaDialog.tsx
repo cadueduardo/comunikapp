@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import { CustomCurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { instalacaoApi } from '@/lib/instalacao/instalacao-api';
@@ -31,18 +31,16 @@ interface PrecificarOcorrenciaDialogProps {
   podeAbonar?: boolean;
 }
 
-function parseMoeda(valor: string): number {
-  const normalizado = valor.replace(/\./g, '').replace(',', '.').trim();
-  const numero = Number(normalizado);
+function valorNumericoMoeda(valor: string): number {
+  const numero = Number.parseFloat(valor);
   return Number.isFinite(numero) ? numero : 0;
 }
 
-function formatarInputMoeda(valor: number | null | undefined): string {
-  if (valor == null || Number.isNaN(valor)) return '';
-  return valor.toLocaleString('pt-BR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+function valorInicialMoeda(valor: number | null | undefined): string {
+  if (valor == null || Number.isNaN(valor) || valor <= 0) {
+    return '';
+  }
+  return String(valor);
 }
 
 export function PrecificarOcorrenciaDialog({
@@ -61,10 +59,10 @@ export function PrecificarOcorrenciaDialog({
   useEffect(() => {
     if (!item || !aberto) return;
     setCustoInterno(
-      formatarInputMoeda(item.custo_interno ?? item.custo_sugerido),
+      valorInicialMoeda(item.custo_interno ?? item.custo_sugerido),
     );
     setPrecoCliente(
-      formatarInputMoeda(item.preco_cliente ?? item.preco_sugerido),
+      valorInicialMoeda(item.preco_cliente ?? item.preco_sugerido),
     );
     setObservacao('');
     setModoAbono(false);
@@ -72,8 +70,12 @@ export function PrecificarOcorrenciaDialog({
 
   async function handlePrecificar() {
     if (!item) return;
-    const custo = parseMoeda(custoInterno);
-    const preco = parseMoeda(precoCliente);
+    const custo = valorNumericoMoeda(custoInterno);
+    const preco = valorNumericoMoeda(precoCliente);
+    if (preco <= 0) {
+      toast.error('Informe o preço ao cliente maior que zero.');
+      return;
+    }
     if (preco < custo) {
       toast.error('O preço ao cliente não pode ser menor que o custo interno.');
       return;
@@ -167,24 +169,22 @@ export function PrecificarOcorrenciaDialog({
           {!modoAbono ? (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="custo-interno">Custo interno (R$)</Label>
-                <Input
+                <Label htmlFor="custo-interno">Custo interno</Label>
+                <CustomCurrencyInput
                   id="custo-interno"
                   value={custoInterno}
-                  onChange={(e) => setCustoInterno(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="0,00"
+                  onValueChange={setCustoInterno}
+                  placeholder="R$ 0,00"
                   className="border-border bg-card"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="preco-cliente">Preço ao cliente (R$)</Label>
-                <Input
+                <Label htmlFor="preco-cliente">Preço ao cliente</Label>
+                <CustomCurrencyInput
                   id="preco-cliente"
                   value={precoCliente}
-                  onChange={(e) => setPrecoCliente(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="0,00"
+                  onValueChange={setPrecoCliente}
+                  placeholder="R$ 0,00"
                   className="border-border bg-card"
                 />
               </div>

@@ -12,9 +12,14 @@ describe('InstalacaoFechamentoService', () => {
     expedicaoLogistica: { updateMany: jest.fn() },
   };
 
+  const prismaMock = {
+    relatorioTecnicoInstalacao: { findMany: jest.fn() },
+    $transaction: jest.fn(),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new InstalacaoFechamentoService();
+    service = new InstalacaoFechamentoService(prismaMock as never);
   });
 
   it('não altera OS nem expedição quando ainda há lotes pendentes', async () => {
@@ -95,6 +100,44 @@ describe('InstalacaoFechamentoService', () => {
     const expedicaoData =
       txMock.expedicaoLogistica.updateMany.mock.calls[0][0].data;
     expect(expedicaoData.status).not.toBe(StatusExpedicao.ENTREGUE_FINALIZADO);
+  });
+
+  describe('reconciliarStatusComRelatorioEmitido', () => {
+    it('corrige OS para CONCLUIDA quando relatório já existe', async () => {
+      const txReparo = {
+        relatorioTecnicoInstalacao: {
+          findFirst: jest.fn().mockResolvedValue({ id: 'rel-1' }),
+        },
+        ordemServico: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        expedicaoLogistica: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+      };
+
+      prismaMock.relatorioTecnicoInstalacao.findMany.mockResolvedValue([
+        { os_id: 'os-1' },
+      ]);
+      prismaMock.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) =>
+        fn(txReparo),
+      );
+
+      const corrigidos =
+        await service.reconciliarStatusComRelatorioEmitido('loja-1', [
+          'os-1',
+        ]);
+
+      expect(corrigidos).toEqual(new Set(['os-1']));
+      expect(txReparo.ordemServico.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: 'os-1',
+          loja_id: 'loja-1',
+          status_instalacao_os: { not: StatusInstalacaoOs.CONCLUIDA },
+        },
+        data: { status_instalacao_os: StatusInstalacaoOs.CONCLUIDA },
+      });
+    });
   });
 
   describe('finalizarAposRelatorioTecnico', () => {

@@ -20,7 +20,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Eye,
   Edit,
   Trash2,
   Calendar,
@@ -33,12 +32,19 @@ import {
   XCircle,
   RotateCcw,
   Palette,
+  ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { OsDetalheModals } from '@/components/ui/os/OsDetalheModals';
 import { resolverStatusExibicaoOs } from '@/lib/os-status-exibicao';
+import {
+  formatarMoedaBrl,
+  isOsAditivaInstalacao,
+  type OrdemServicoGridRow,
+} from '@/lib/os-grid-aditiva.utils';
+import { cn } from '@/lib/utils';
 
 export interface OrdemServico {
   id: string;
@@ -80,6 +86,22 @@ export interface OrdemServico {
   };
   status_instalacao_os?: string | null;
   status_expedicao?: string | null;
+  tipo_vinculo_os?: string | null;
+  os_pai_id?: string | null;
+  os_pai_numero?: string | null;
+  pular_validacao_estoque?: boolean;
+  valor_orcado?: number;
+  aditivas_filhas?: OrdemServico[];
+  aditivas_resumo?: {
+    quantidade: number;
+    valor_total: number;
+  };
+  requer_atencao_instalacao?: boolean;
+  ultima_atividade_instalacao?: string | null;
+}
+
+export interface GridColumnHelpers {
+  onToggleExpand: (id: string) => void;
 }
 
 // Função para obter configuração de status
@@ -242,6 +264,10 @@ function ArteStatusCell({ os }: { os: OrdemServico }) {
   const [modalOpen, setModalOpen] = useState(false);
   const resumo = os.arte_resumo;
 
+  if (isOsAditivaInstalacao(os)) {
+    return <span className="text-muted-foreground text-sm">—</span>;
+  }
+
   if (!resumo || resumo.status_agregado === 'NAO_APLICA') {
     return <span className="text-muted-foreground text-sm">—</span>;
   }
@@ -290,6 +316,18 @@ function AprovacaoCell({
   const tipoOs = (os.tipo_os || 'COMERCIAL').toUpperCase();
   const aprovacao = (os.aprovacao_tecnica_status || 'PENDENTE').toUpperCase();
   const statusOs = (os.status || '').toUpperCase();
+
+  if (isOsAditivaInstalacao(os)) {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-slate-50 text-slate-600 border-slate-200"
+        title="OS aditiva — cobrança sem fluxo de aprovação técnica"
+      >
+        Automática
+      </Badge>
+    );
+  }
 
   // OS interna nao usa aprovacao tecnica - usa aprovacao gerencial em outro fluxo
   if (tipoOs === 'INTERNA') {
@@ -429,19 +467,19 @@ function AcoesDropdown({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuItem asChild>
-            <Link href={`/os/${os.id}`}>
-              <Eye className="h-4 w-4 mr-2" />
-              Visualizar
+            <Link
+              href={
+                os.requer_atencao_instalacao
+                  ? `/os/${os.id}?tab=instalacao`
+                  : `/os/${os.id}`
+              }
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Editar
             </Link>
           </DropdownMenuItem>
           {!inativa && (
             <>
-              <DropdownMenuItem asChild>
-                <Link href={`/os/${os.id}/editar`}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Editar
-                </Link>
-              </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href={`/os/${os.id}/imprimir`}>
                   <Printer className="h-4 w-4 mr-2" />
@@ -511,18 +549,141 @@ function AcoesDropdown({
   );
 }
 
+function NumeroCell({
+  os,
+  gridHelpers,
+}: {
+  os: OrdemServicoGridRow;
+  gridHelpers?: GridColumnHelpers;
+}) {
+  const meta = os.__grid;
+  const numero = os.numero;
+  const isFilha = meta?.tipo === 'filha' || isOsAditivaInstalacao(os);
+
+  return (
+    <div
+      className={cn(
+        'flex flex-col gap-1 min-w-[140px]',
+        meta?.depth === 1 && 'pl-6 border-l-2 border-primary/20 ml-2',
+      )}
+    >
+      <div className="flex items-center gap-1">
+        {meta?.podeExpandir && gridHelpers ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 shrink-0"
+            onClick={(event) => {
+              event.stopPropagation();
+              gridHelpers.onToggleExpand(os.id);
+            }}
+            aria-label={meta.expandida ? 'Recolher aditivas' : 'Expandir aditivas'}
+          >
+            <ChevronRight
+              className={cn(
+                'h-4 w-4 transition-transform',
+                meta.expandida && 'rotate-90',
+              )}
+            />
+          </Button>
+        ) : (
+          <span className="w-6 shrink-0" aria-hidden />
+        )}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Link
+            href={
+              os.requer_atencao_instalacao
+                ? `/os/${os.id}?tab=instalacao`
+                : `/os/${os.id}`
+            }
+            className="font-medium hover:text-primary hover:underline"
+          >
+            #{numero}
+          </Link>
+          {os.requer_atencao_instalacao && (
+            <Badge
+              variant="outline"
+              className="text-[10px] border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-100"
+              title="Instalação requer atenção — abre na aba Instalação"
+            >
+              Instalação
+            </Badge>
+          )}
+        </div>
+      </div>
+      {isFilha && (
+        <div className="flex flex-wrap items-center gap-1 pl-7">
+          <Badge variant="outline" className="text-xs bg-violet-50 text-violet-700 border-violet-200">
+            Aditiva
+          </Badge>
+          {os.os_pai_id && os.os_pai_numero && (
+            <Link
+              href={`/os/${os.os_pai_id}`}
+              className="text-xs text-muted-foreground hover:text-primary hover:underline"
+              title="OS principal"
+            >
+              OS #{os.os_pai_numero}
+            </Link>
+          )}
+        </div>
+      )}
+      {meta?.podeExpandir && os.aditivas_resumo && (
+        <div className="pl-7">
+          <Badge
+            variant="outline"
+            className="text-xs bg-violet-50 text-violet-700 border-violet-200 cursor-pointer"
+            onClick={(event) => {
+              event.stopPropagation();
+              gridHelpers?.onToggleExpand(os.id);
+            }}
+          >
+            {os.aditivas_resumo.quantidade}{' '}
+            {os.aditivas_resumo.quantidade === 1 ? 'aditiva' : 'aditivas'}
+            {' · '}
+            {formatarMoedaBrl(os.aditivas_resumo.valor_total)}
+          </Badge>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MateriaisCell({ os }: { os: OrdemServico }) {
+  if (isOsAditivaInstalacao(os)) {
+    return (
+      <div className="flex items-center gap-2">
+        <Package className="h-4 w-4 text-muted-foreground" />
+        <Badge variant="outline" className="text-muted-foreground">
+          N/A
+        </Badge>
+      </div>
+    );
+  }
+
+  const disponivel = os.materiais_disponivel;
+  return (
+    <div className="flex items-center gap-2">
+      <Package className="h-4 w-4 text-muted-foreground" />
+      <Badge variant={disponivel ? 'default' : 'destructive'}>
+        {disponivel ? 'Disponível' : 'Faltando'}
+      </Badge>
+    </div>
+  );
+}
+
 export const createColumns = (
   onInativar: (id: string, motivo: string) => Promise<void>,
   onReativar: (id: string) => Promise<void>,
   onAprovar: (os: OrdemServico) => void,
-): ColumnDef<OrdemServico>[] => [
+  gridHelpers?: GridColumnHelpers,
+): ColumnDef<OrdemServicoGridRow>[] => [
   {
     accessorKey: 'numero',
     header: 'Número',
-    cell: ({ row }) => {
-      const numero = row.getValue('numero') as string;
-      return <div className="font-medium">#{numero}</div>;
-    },
+    cell: ({ row }) => (
+      <NumeroCell os={row.original} gridHelpers={gridHelpers} />
+    ),
   },
   {
     accessorKey: 'nome_servico',
@@ -588,17 +749,7 @@ export const createColumns = (
   {
     accessorKey: 'materiais_disponivel',
     header: 'Materiais',
-    cell: ({ row }) => {
-      const disponivel = row.getValue('materiais_disponivel') as boolean;
-      return (
-        <div className="flex items-center gap-2">
-          <Package className="h-4 w-4 text-muted-foreground" />
-          <Badge variant={disponivel ? 'default' : 'destructive'}>
-            {disponivel ? 'Disponível' : 'Faltando'}
-          </Badge>
-        </div>
-      );
-    },
+    cell: ({ row }) => <MateriaisCell os={row.original} />,
   },
   {
     id: 'aprovacao',

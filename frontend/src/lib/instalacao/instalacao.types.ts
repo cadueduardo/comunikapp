@@ -29,6 +29,14 @@ export interface OsInstalacaoGridItem {
   /** Trava financeira (mesma regra da expedição). */
   bloqueio_financeiro: boolean;
   link_financeiro: string | null;
+  relatorio_tecnico?: {
+    pdf_url: string;
+    pdf_token: string;
+    gerado_em: string;
+  } | null;
+  pendente_aprovacao_financeira?: boolean;
+  requer_atencao_instalacao?: boolean;
+  ultima_atividade_instalacao?: string | null;
 }
 
 export interface ListarOsInstalacaoResposta {
@@ -48,6 +56,16 @@ export type TipoOcorrencia =
   | 'SERVICO_ADICIONAL'
   | 'RETRABALHO';
 
+export type OrigemConclusaoLote = 'CAMPO' | 'GESTAO';
+
+export type MotivoSemAssinaturaLote =
+  | 'CLIENTE_AUSENTE'
+  | 'CLIENTE_RECUSOU_ASSINAR'
+  | 'ASSINATURA_CANAL_ALTERNATIVO'
+  | 'INSTALADOR_SEM_APP'
+  | 'EVIDENCIA_SUFICIENTE'
+  | 'OUTROS';
+
 export interface LoteInstaladorResumo {
   id: string;
   cep: string | null;
@@ -61,8 +79,17 @@ export interface LoteInstaladorResumo {
   status_instalacao: StatusInstalacao;
   data_previsao: string | null;
   data_execucao: string | null;
+  turno_previsao?: TurnoPrevisaoInstalacao | null;
+  equipe_instalacao?: string | null;
+  responsavel_local?: string | null;
+  informar_equipe?: boolean;
+  aguardando_reagendamento?: boolean;
   fotos_evidencia: string[] | null;
   assinatura_url: string | null;
+  origem_conclusao_lote?: OrigemConclusaoLote | null;
+  motivo_sem_assinatura?: MotivoSemAssinaturaLote | null;
+  observacao_conclusao_gestao?: string | null;
+  conclusao_gestao_em?: string | null;
   criado_em: string;
   item_os: {
     produto_servico: string | null;
@@ -136,6 +163,11 @@ export interface CriarLoteInstalacaoPayload {
   bairro: string;
   cidade: string;
   uf: string;
+  data_previsao?: string;
+  turno_previsao?: TurnoPrevisaoInstalacao;
+  equipe_instalacao?: string;
+  responsavel_local?: string;
+  informar_equipe?: boolean;
 }
 
 export interface CriarLoteInstalacaoResposta {
@@ -145,14 +177,25 @@ export interface CriarLoteInstalacaoResposta {
   quantidade_alocada?: number;
 }
 
-export type TurnoPrevisaoInstalacao = 'MANHA' | 'TARDE' | 'INTEGRO';
+export type TurnoPrevisaoInstalacao = 'MANHA' | 'TARDE' | 'INTEIRO';
 
 export interface LotePainelOs extends LoteInstaladorResumo {
   fotos_evidencia: string[];
   atualizado_em: string;
   turno_previsao: TurnoPrevisaoInstalacao | null;
   equipe_instalacao: string | null;
+  responsavel_local: string | null;
+  informar_equipe: boolean;
+  aguardando_reagendamento: boolean;
+  item_os_id?: string;
   item_os: { produto_servico: string | null };
+}
+
+export interface AprovarConclusaoLoteGestaoPayload {
+  fotos_evidencia?: string[];
+  assinatura_url?: string;
+  motivo_sem_assinatura?: MotivoSemAssinaturaLote;
+  observacao_conclusao_gestao?: string;
 }
 
 export interface PainelOsInstalacao {
@@ -229,6 +272,11 @@ export interface EnderecoLoteForm {
   cidade: string;
   uf: string;
   quantidade_alocada: number;
+  data_previsao: string;
+  turno_previsao: TurnoPrevisaoInstalacao | '';
+  equipe_instalacao: string;
+  responsavel_local: string;
+  informar_equipe: boolean;
 }
 
 export interface ResultadoBuscaCep {
@@ -383,7 +431,37 @@ export const ENDERECO_LOTE_VAZIO: EnderecoLoteForm = {
   cidade: '',
   uf: '',
   quantidade_alocada: 1,
+  data_previsao: '',
+  turno_previsao: '',
+  equipe_instalacao: '',
+  responsavel_local: '',
+  informar_equipe: false,
 };
+
+function formatarDataPrevisaoInput(valor: string | Date | null | undefined): string {
+  if (!valor) return '';
+  if (typeof valor === 'string') {
+    const match = valor.trim().match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) {
+      const data = new Date(`${match[1]}T12:00:00.000Z`);
+      return data.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    }
+    const data = new Date(valor);
+    if (Number.isNaN(data.getTime())) return '';
+    return data.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  }
+  return valor.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+}
+
+export function montarPayloadAgendaLote(dados: EnderecoLoteForm) {
+  return {
+    data_previsao: dados.data_previsao || undefined,
+    turno_previsao: dados.turno_previsao || undefined,
+    equipe_instalacao: dados.equipe_instalacao.trim() || undefined,
+    responsavel_local: dados.responsavel_local.trim() || undefined,
+    informar_equipe: dados.informar_equipe,
+  };
+}
 
 export function loteParaEnderecoForm(
   lote: Pick<
@@ -396,6 +474,11 @@ export function loteParaEnderecoForm(
     | 'cidade'
     | 'uf'
     | 'quantidade_alocada'
+    | 'data_previsao'
+    | 'turno_previsao'
+    | 'equipe_instalacao'
+    | 'responsavel_local'
+    | 'informar_equipe'
   >,
 ): EnderecoLoteForm {
   return {
@@ -407,6 +490,11 @@ export function loteParaEnderecoForm(
     cidade: lote.cidade ?? '',
     uf: lote.uf ?? '',
     quantidade_alocada: lote.quantidade_alocada ?? 1,
+    data_previsao: formatarDataPrevisaoInput(lote.data_previsao),
+    turno_previsao: lote.turno_previsao ?? '',
+    equipe_instalacao: lote.equipe_instalacao ?? '',
+    responsavel_local: lote.responsavel_local ?? '',
+    informar_equipe: lote.informar_equipe ?? false,
   };
 }
 
