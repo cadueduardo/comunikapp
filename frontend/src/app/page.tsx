@@ -124,7 +124,15 @@ export default function HomePage() {
       
       {/* Footer */}
       <footer className="w-full py-6 text-center text-sm text-neutral-500 relative z-10">
-        <p>© 2025 Comunikapp. Todos os direitos reservados.</p>
+        <p>
+          © 2026 Comunikapp. Todos os direitos reservados. ·{' '}
+          <Link
+            href="/politica-privacidade"
+            className="underline underline-offset-2 hover:text-neutral-300"
+          >
+            Política de Privacidade
+          </Link>
+        </p>
       </footer>
 
       <BackgroundBeams />
