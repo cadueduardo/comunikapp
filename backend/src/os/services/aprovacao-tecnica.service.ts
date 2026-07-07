@@ -395,9 +395,10 @@ export class AprovacaoTecnicaService {
   async agendarInstalacao(
     osId: string,
     dto: AgendarInstalacaoDto,
+    lojaId: string,
   ): Promise<AprovacaoTecnicaResponseDto> {
-    const os = await this.prisma.ordemServico.findUnique({
-      where: { id: osId },
+    const os = await this.prisma.ordemServico.findFirst({
+      where: { id: osId, loja_id: lojaId },
     });
 
     if (!os) {

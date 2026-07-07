@@ -29,14 +29,8 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "migrate:arte-comentarios": "ts-node src/modules/arte-aprovacao/scripts/migrate-comentarios-to-mensagens.ts",
-    "db:generate:estoque": "prisma generate --schema=prisma/estoque-schema.prisma",
-    "db:migrate:estoque": "prisma migrate dev --schema=prisma/estoque-schema.prisma",
-    "db:deploy:estoque": "prisma migrate deploy --schema=prisma/estoque-schema.prisma",
     "migrate:os-materiais": "ts-node ./scripts/migrar-os-materiais-corretos.ts",
-    "backup:os-materiais": "ts-node ./scripts/backup-os-antes-migracao.ts",
-    "corrigir:os-materiais": "ts-node ./scripts/corrigir-os-materiais-completo.ts",
-    "db:reset:estoque": "prisma migrate reset --schema=prisma/estoque-schema.prisma",
-    "db:studio:estoque": "prisma studio --schema=prisma/estoque-schema.prisma"
+    "corrigir:os-materiais": "ts-node ./scripts/corrigir-os-materiais-completo.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",

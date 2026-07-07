@@ -10,7 +10,6 @@ export class ClientesService {
   async create(createClienteDto: CreateClienteDto, lojaId: string) {
     return this.prisma.cliente.create({
       data: {
-        id: Math.random().toString(36).substr(2, 9), // Gerar ID único
         ...createClienteDto,
         atualizado_em: new Date(),
         loja: {

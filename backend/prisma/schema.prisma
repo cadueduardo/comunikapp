@@ -77,32 +77,21 @@ model Categoria {
   @@map("categorias")
 }
 
-model HistoricoCustoMaquina {
-  id          String    @id @default(cuid())
-  maquina_id  String
-  custo_hora  Decimal   @db.Decimal(10, 2)
-  data_inicio DateTime  @default(now())
-  data_fim    DateTime?
-  observacoes String?
-  criado_em   DateTime  @default(now())
-  maquina     maquina   @relation(fields: [maquina_id], references: [id], onDelete: Cascade)
+model OrcamentoLog {
+  id           String    @id @default(cuid())
+  orcamento_id String
+  tipo_acao    String
+  descricao    String    @db.Text
+  dados_extras String?   @db.LongText
+  ip_origem    String?
+  user_agent   String?
+  criado_em    DateTime  @default(now())
+  orcamento    orcamento @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
 
-  @@index([maquina_id], map: "historico_custo_maquinas_maquina_id_fkey")
-  @@map("historico_custo_maquinas")
-}
-
-model HistoricoCustoFuncao {
-  id          String    @id @default(cuid())
-  funcao_id   String
-  custo_hora  Decimal   @db.Decimal(10, 2)
-  data_inicio DateTime  @default(now())
-  data_fim    DateTime?
-  observacoes String?
-  criado_em   DateTime  @default(now())
-  funcao      funcao    @relation(fields: [funcao_id], references: [id], onDelete: Cascade)
-
-  @@index([funcao_id], map: "historico_custo_funcoes_funcao_id_fkey")
-  @@map("historico_custo_funcoes")
+  @@index([orcamento_id])
+  @@index([tipo_acao])
+  @@index([criado_em])
+  @@map("orcamento_logs")
 }
 
 model HistoricoPrecoInsumo {
@@ -134,23 +123,6 @@ model OrcamentoHistorico {
   @@index([orcamento_id])
   @@index([versao])
   @@map("orcamento_historico")
-}
-
-model OrcamentoLog {
-  id           String    @id @default(cuid())
-  orcamento_id String
-  tipo_acao    String
-  descricao    String    @db.Text
-  dados_extras String?   @db.LongText
-  ip_origem    String?
-  user_agent   String?
-  criado_em    DateTime  @default(now())
-  orcamento    orcamento @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
-
-  @@index([orcamento_id])
-  @@index([tipo_acao])
-  @@index([criado_em])
-  @@map("orcamento_logs")
 }
 
 // ============================================================================
@@ -458,19 +430,6 @@ model ServicoTemplateProduto {
   @@map("servico_template_produtos")
 }
 
-model anexomensagem {
-  id                 String             @id @default(cuid())
-  mensagem_id        String
-  nome_arquivo       String
-  url_arquivo        String
-  tipo_arquivo       String
-  tamanho            Int
-  criado_em          DateTime           @default(now())
-  mensagemnegociacao mensagemnegociacao @relation(fields: [mensagem_id], references: [id], onDelete: Cascade, map: "AnexoMensagem_mensagem_id_fkey")
-
-  @@index([mensagem_id], map: "AnexoMensagem_mensagem_id_idx")
-}
-
 model cliente {
   id                 String                 @id @default(cuid())
   criado_em          DateTime               @default(now())
@@ -564,7 +523,6 @@ model funcao {
   setor                SetorProdutivo?         @relation(fields: [setor_id], references: [id], onDelete: SetNull, map: "Funcao_setor_id_fkey")
   funcoes_template     FuncaoTemplateProduto[]
   funcaoorcamento      funcaoorcamento[]
-  historico_custos     HistoricoCustoFuncao[]
   itemFuncao           ItemFuncao[]
 
   @@index([loja_id], map: "Funcao_loja_id_idx")
@@ -645,7 +603,6 @@ model loja {
   tipomaterial              tipomaterial[]
   usuario                   usuario[]
   servico_manual            servico_manual[]
-  modo_impressao            modo_impressao[]
   modalidades_entrega       ModalidadeEntrega[]
   tipos_instalacao          TipoInstalacao[]
   ordens_servico            OrdemServico[]
@@ -685,7 +642,6 @@ model maquina {
   loja_id                             String
   setor_id                            String? // Setor ao qual a máquina pertence
   funcao                              funcao[]
-  historico_custos                    HistoricoCustoMaquina[]
   loja                                loja                     @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Maquina_loja_id_fkey")
   setor                               SetorProdutivo?          @relation(fields: [setor_id], references: [id], onDelete: SetNull, map: "Maquina_setor_id_fkey")
   maquinas_template                   MaquinaTemplateProduto[]
@@ -704,7 +660,6 @@ model maquina {
   permite_agendamento_simultaneo      Boolean                  @default(false)
   tempo_minimo_entre_servicos_min     Int?
   considerar_eficiencia_na_capacidade Boolean                  @default(true)
-  modos                               modo_impressao[]
 
   @@index([loja_id], map: "Maquina_loja_id_idx")
   @@index([loja_id, tipo], map: "Maquina_loja_id_tipo_idx")
@@ -734,7 +689,6 @@ model mensagemnegociacao {
   visualizada   Boolean         @default(false)
   anexos        String?         @db.LongText
   criado_em     DateTime        @default(now())
-  anexomensagem anexomensagem[]
   orcamento     orcamento       @relation(fields: [orcamento_id], references: [id], onDelete: Cascade, map: "MensagemNegociacao_orcamento_id_fkey")
 
   @@index([orcamento_id], map: "MensagemNegociacao_orcamento_id_idx")
@@ -756,28 +710,6 @@ model notificacao {
   @@index([loja_id], map: "Notificacao_loja_id_idx")
   @@index([orcamento_id], map: "Notificacao_orcamento_id_idx")
   @@index([visualizada], map: "Notificacao_visualizada_idx")
-}
-
-model modo_impressao {
-  id              String   @id @default(cuid())
-  criado_em       DateTime @default(now())
-  atualizado_em   DateTime
-  nome            String
-  maquina_id      String
-  loja_id         String
-  velocidade_m2_h Decimal? @db.Decimal(10, 2)
-  largura_mm      Decimal? @db.Decimal(10, 2)
-  resolucao_dpi   Int?
-  cores           String?
-  observacoes     String?  @db.Text
-
-  maquina maquina @relation(fields: [maquina_id], references: [id], onDelete: Cascade, map: "ModoImpressao_maquina_id_fkey")
-  loja    loja    @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "ModoImpressao_loja_id_fkey")
-
-  @@unique([loja_id, nome])
-  @@index([maquina_id], map: "ModoImpressao_maquina_id_idx")
-  @@index([loja_id], map: "ModoImpressao_loja_id_idx")
-  @@map("modo_impressao")
 }
 
 model ModalidadeEntrega {
@@ -1885,6 +1817,7 @@ model OrdemServico {
   @@index([loja_id, ativo])
   @@index([loja_id, retrabalho])
   @@index([cliente_id])
+  @@index([orcamento_id])
   @@index([responsavel_id])
   @@index([data_abertura])
   @@index([aprovacao_tecnica_status])
@@ -2632,6 +2565,9 @@ model ArteVersao {
   @@index([status, loja_id])
   @@index([autor_id, loja_id])
   @@index([deletado, loja_id])
+  @@index([aprovado_por])
+  @@index([liberado_por])
+  @@index([excluido_por])
   @@map("arte_versoes")
 }
 
@@ -2694,6 +2630,7 @@ model ArteLinkAprovacao {
   @@index([token_publico])
   @@index([loja_id])
   @@index([expira_em])
+  @@index([versao_id])
   @@map("arte_links_aprovacao")
 }
 
@@ -2720,6 +2657,7 @@ model ArteMensagem {
   @@index([autor_tipo, loja_id])
   @@index([lida, loja_id])
   @@index([created_at, loja_id])
+  @@index([versao_id])
   @@map("arte_mensagens")
 }
 

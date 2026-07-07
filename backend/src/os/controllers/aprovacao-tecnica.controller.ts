@@ -42,7 +42,17 @@ export class AprovacaoTecnicaController {
   async agendarInstalacao(
     @Param('id') id: string,
     @Body() dto: AgendarInstalacaoDto,
+    @Request() req: any,
   ) {
-    return this.aprovacaoTecnicaService.agendarInstalacao(id, dto);
+    const usuarioId = req.user?.id;
+    if (!usuarioId) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    return this.aprovacaoTecnicaService.agendarInstalacao(
+      id,
+      dto,
+      req.user.loja_id,
+    );
   }
 }

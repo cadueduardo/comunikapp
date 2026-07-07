@@ -1,5 +1,7 @@
 Premissas e Melhores Práticas para Memória do Agente
 
+> Para regras específicas de schema Prisma/banco de dados (índices, multi-tenant, segurança de queries, processo de migration), veja `docs/database/boas-praticas-schema-prisma.md`.
+
 Arquitetura: Módulos plugáveis, totalmente isolados, multi-tenant (dados separados por loja), podendo ser instalados/ativados sob demanda via marketplace interno.
 
 Banco de Dados: Sempre usar Prisma ORM com schemas separados, migrações modulares versionadas, variáveis de ambiente dedicadas e pool de conexão limitado para cada módulo. IMPORTANTE: Usar SEMPRE `@prisma/client` padrão ao invés de outputs customizados para evitar erros de MODULE_NOT_FOUND em runtime - outputs customizados causam problemas de path no build/dist.

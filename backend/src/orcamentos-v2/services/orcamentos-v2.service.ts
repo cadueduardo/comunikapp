@@ -3166,44 +3166,45 @@ export class OrcamentosV2Service {
       throw new NotFoundException('Orçamento não encontrado');
     }
 
-    // Verificar se já tem código de aprovação
-    if (!orcamento.codigo_aprovacao) {
-      // Gerar novo código se não existir
-      const codigoAprovacao = await this.gerarCodigoAprovacao();
+    if (!orcamento.cliente?.email) {
+      throw new BadRequestException(
+        'Orçamento não possui cliente com e-mail cadastrado para reenvio do código',
+      );
+    }
+
+    // Verificar se já tem código de aprovação; gerar se não existir
+    let codigoAprovacao = orcamento.codigo_aprovacao;
+    if (!codigoAprovacao) {
+      codigoAprovacao = await this.gerarCodigoAprovacao();
 
       await this.prisma.orcamento.update({
         where: { id },
         data: { codigo_aprovacao: codigoAprovacao },
       });
-
-      this.logger.log(`📧 Novo código de aprovação gerado: ${codigoAprovacao}`);
-      console.log(`📧 ==========================================`);
-      console.log(`📧 NOVO CÓDIGO DE APROVAÇÃO GERADO!`);
-      console.log(`📧 ==========================================`);
-      console.log(`📧 Orçamento: ${orcamento.numero}`);
-      console.log(`📧 Cliente: ${orcamento.cliente.nome}`);
-      console.log(`📧 Código: ${codigoAprovacao}`);
-      console.log(`📧 ==========================================`);
-    } else {
-      this.logger.log(
-        `📧 Código de aprovação já existe: ${orcamento.codigo_aprovacao}`,
-      );
-      console.log(`📧 ==========================================`);
-      console.log(`📧 CÓDIGO DE APROVAÇÃO EXISTENTE!`);
-      console.log(`📧 ==========================================`);
-      console.log(`📧 Orçamento: ${orcamento.numero}`);
-      console.log(`📧 Cliente: ${orcamento.cliente.nome}`);
-      console.log(`📧 Código: ${orcamento.codigo_aprovacao}`);
-      console.log(`📧 ==========================================`);
     }
 
-    // TODO: Implementar envio de email com o código
-    // Por enquanto, apenas retornar sucesso
+    const frontendUrl = process.env.FRONTEND_URL || 'https://comunikapp.com.br';
+    const linkPublico = `${frontendUrl}/orcamento-v2/${id}`;
+    const precoFinal = Number(orcamento.preco_final) || 0;
+    const nomeServico = orcamento.nome_servico || orcamento.titulo || 'Orçamento';
+
+    await this.mailService.enviarOrcamentoCliente(
+      orcamento.cliente.email,
+      orcamento.cliente.nome || 'Cliente',
+      orcamento.numero,
+      nomeServico,
+      precoFinal,
+      codigoAprovacao,
+      linkPublico,
+    );
+
+    this.logger.log(
+      `📧 Código de aprovação reenviado por e-mail para orçamento ${orcamento.numero}`,
+    );
 
     return {
       success: true,
-      message: 'Código de aprovação reenviado com sucesso',
-      codigo: orcamento.codigo_aprovacao,
+      message: 'Código de aprovação reenviado com sucesso para o e-mail cadastrado',
     };
   }
 

@@ -201,6 +201,7 @@ export class OSDiretaInternaController {
       usuarioId,
       body.aprovado,
       body.observacoes,
+      user.loja_id,
     );
 
     return OrdemServicoResponseDto.fromDomain(resultado);
@@ -226,6 +227,7 @@ export class OSDiretaInternaController {
       new Date(body.dataInstalacao),
       body.observacoes,
       usuarioId,
+      user.loja_id,
     );
 
     return OrdemServicoResponseDto.fromDomain(resultado);

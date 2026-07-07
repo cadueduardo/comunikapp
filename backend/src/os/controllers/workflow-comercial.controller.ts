@@ -51,6 +51,7 @@ export class WorkflowComercialController {
       body.novo_status,
       usuarioId,
       body.observacoes,
+      user.loja_id,
     );
   }
 
@@ -132,6 +133,7 @@ export class WorkflowComercialController {
       StatusOS.PRODUCAO,
       usuarioId,
       body.observacoes || 'Produção iniciada',
+      user.loja_id,
     );
   }
 
@@ -152,6 +154,7 @@ export class WorkflowComercialController {
       StatusOS.ACABAMENTO,
       usuarioId,
       body.observacoes || 'Produção finalizada',
+      user.loja_id,
     );
   }
 
@@ -172,6 +175,7 @@ export class WorkflowComercialController {
       StatusOS.FINALIZADA,
       usuarioId,
       body.observacoes || 'OS finalizada',
+      user.loja_id,
     );
   }
 }

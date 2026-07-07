@@ -21,5 +21,5 @@ ALTER TABLE `document_sequences`
   ADD CONSTRAINT `document_sequences_loja_id_fkey`
   FOREIGN KEY (`loja_id`) REFERENCES `loja`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
--- CreateIndex
-CREATE UNIQUE INDEX `Orcamento_loja_id_numero_key` ON `orcamento`(`loja_id`, `numero`);
+-- `Orcamento_loja_id_numero_key` ja existe desde a migration 20250712135930_add_orcamento_models
+-- (criada junto com a tabela). Recriar aqui causava "Duplicate key name" num replay do zero.

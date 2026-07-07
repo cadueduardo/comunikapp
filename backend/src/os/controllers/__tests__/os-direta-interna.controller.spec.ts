@@ -274,6 +274,7 @@ describe('OSDiretaInternaController', () => {
         'user-001',
         true,
         'Aprovado',
+        'loja-001',
       );
       expect(resultado.aprovacao_gerencial).toBe('APROVADA');
     });
@@ -305,6 +306,7 @@ describe('OSDiretaInternaController', () => {
         new Date('2025-10-15T10:00:00.000Z'),
         'Instalação agendada',
         'user-001',
+        'loja-001',
       );
       expect(resultado.data_instalacao_agendada).toEqual(
         new Date('2025-10-15T10:00:00.000Z'),

@@ -1133,10 +1133,11 @@ export class OSService {
     osId: string,
     usuarioId: string,
     aprovado: boolean,
-    observacoes?: string,
+    observacoes: string | undefined,
+    lojaId: string,
   ): Promise<OrdemServicoData> {
-    const os = await this.prisma.ordemServico.findUnique({
-      where: { id: osId },
+    const os = await this.prisma.ordemServico.findFirst({
+      where: { id: osId, loja_id: lojaId },
     });
 
     if (!os) {
@@ -1176,11 +1177,12 @@ export class OSService {
   async agendarInstalacao(
     osId: string,
     dataInstalacao: Date,
-    observacoes?: string,
-    usuarioId?: string,
+    observacoes: string | undefined,
+    usuarioId: string | undefined,
+    lojaId: string,
   ): Promise<OrdemServicoData> {
-    const os = await this.prisma.ordemServico.findUnique({
-      where: { id: osId },
+    const os = await this.prisma.ordemServico.findFirst({
+      where: { id: osId, loja_id: lojaId },
     });
 
     if (!os) {
@@ -2665,11 +2667,12 @@ export class OSService {
     osId: string,
     novoStatus: StatusOS,
     usuarioId: string,
-    observacoes?: string,
+    observacoes: string | undefined,
+    lojaId: string,
   ): Promise<OrdemServicoData> {
     try {
-      const os = await this.prisma.ordemServico.findUnique({
-        where: { id: osId },
+      const os = await this.prisma.ordemServico.findFirst({
+        where: { id: osId, loja_id: lojaId },
       });
 
       if (!os) {

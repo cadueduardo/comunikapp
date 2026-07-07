@@ -414,6 +414,7 @@ describe('OSService - OS Direta/Interna', () => {
   describe('aprovarOSGerencial', () => {
     const osId = 'os-002';
     const usuarioId = 'user-001';
+    const lojaId = 'loja-001';
 
     it('deve aprovar OS gerencial com sucesso', async () => {
       const osInterna = {
@@ -423,7 +424,7 @@ describe('OSService - OS Direta/Interna', () => {
         aprovacao_gerencial: 'PENDENTE',
       };
 
-      mockPrismaService.ordemServico.findUnique.mockResolvedValue(osInterna);
+      mockPrismaService.ordemServico.findFirst.mockResolvedValue(osInterna);
       mockPrismaService.ordemServico.update.mockResolvedValue({
         ...osInterna,
         aprovacao_gerencial: 'APROVADA',
@@ -437,6 +438,7 @@ describe('OSService - OS Direta/Interna', () => {
         usuarioId,
         true,
         'Aprovado',
+        lojaId,
       );
 
       expect(mockPrismaService.ordemServico.update).toHaveBeenCalledWith({
@@ -460,10 +462,10 @@ describe('OSService - OS Direta/Interna', () => {
         tipo_os: TipoOS.COMERCIAL,
       };
 
-      mockPrismaService.ordemServico.findUnique.mockResolvedValue(osComercial);
+      mockPrismaService.ordemServico.findFirst.mockResolvedValue(osComercial);
 
       await expect(
-        service.aprovarOSGerencial(osId, usuarioId, true),
+        service.aprovarOSGerencial(osId, usuarioId, true, undefined, lojaId),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -472,6 +474,7 @@ describe('OSService - OS Direta/Interna', () => {
     const osId = 'os-001';
     const dataInstalacao = new Date('2025-10-15');
     const usuarioId = 'user-001';
+    const lojaId = 'loja-001';
 
     it('deve agendar instalação com sucesso', async () => {
       const osComercial = {
@@ -480,7 +483,7 @@ describe('OSService - OS Direta/Interna', () => {
         tipo_os: TipoOS.COMERCIAL,
       };
 
-      mockPrismaService.ordemServico.findUnique.mockResolvedValue(osComercial);
+      mockPrismaService.ordemServico.findFirst.mockResolvedValue(osComercial);
       mockPrismaService.ordemServico.update.mockResolvedValue({
         ...osComercial,
         data_instalacao_agendada: dataInstalacao,
@@ -493,6 +496,7 @@ describe('OSService - OS Direta/Interna', () => {
         dataInstalacao,
         'Instalação agendada',
         usuarioId,
+        lojaId,
       );
 
       expect(mockPrismaService.ordemServico.update).toHaveBeenCalledWith({
@@ -515,10 +519,16 @@ describe('OSService - OS Direta/Interna', () => {
         tipo_os: TipoOS.INTERNA,
       };
 
-      mockPrismaService.ordemServico.findUnique.mockResolvedValue(osInterna);
+      mockPrismaService.ordemServico.findFirst.mockResolvedValue(osInterna);
 
       await expect(
-        service.agendarInstalacao(osId, dataInstalacao, undefined, usuarioId),
+        service.agendarInstalacao(
+          osId,
+          dataInstalacao,
+          undefined,
+          usuarioId,
+          lojaId,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
   });

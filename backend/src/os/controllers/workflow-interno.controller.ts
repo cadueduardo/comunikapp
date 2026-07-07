@@ -51,6 +51,7 @@ export class WorkflowInternoController {
       body.novo_status,
       usuarioId,
       body.observacoes,
+      user.loja_id,
     );
   }
 
@@ -100,6 +101,7 @@ export class WorkflowInternoController {
       StatusOS.PRODUCAO,
       usuarioId,
       body.observacoes || 'Produção iniciada',
+      user.loja_id,
     );
   }
 
@@ -120,6 +122,7 @@ export class WorkflowInternoController {
       StatusOS.FINALIZADA,
       usuarioId,
       body.observacoes || 'OS finalizada',
+      user.loja_id,
     );
   }
 

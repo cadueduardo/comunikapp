@@ -255,7 +255,7 @@ apply_prisma() {
   log "Aplicando Prisma (${PRISMA_APPLY})..."
 
   run_as_app "cd backend && set -a && . $(quote "$BACKEND_ENV") && set +a && echo 'SELECT 1;' | ./node_modules/.bin/prisma db execute --schema=prisma/schema.prisma --stdin"
-  run_as_app 'cd backend && ./node_modules/.bin/prisma generate'
+  run_as_app "cd backend && NODE_OPTIONS='--max-old-space-size=${BUILD_MAX_OLD_SPACE_MB}' ./node_modules/.bin/prisma generate"
 
   case "$PRISMA_APPLY" in
     migrate)
