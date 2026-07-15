@@ -47,7 +47,6 @@ try {
   process.exit(1);
 }
 
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const frontendArgs = [
   'run',
   'dev',
@@ -55,7 +54,18 @@ const frontendArgs = [
   'frontend',
   ...process.argv.slice(2),
 ];
-const frontend = spawn(npmCommand, frontendArgs, {
+const npmCliPath = process.env.npm_execpath;
+
+if (!npmCliPath) {
+  process.stderr.write(
+    '[dev:frontend] Não foi possível localizar o executável do npm.\n',
+  );
+  process.exit(1);
+}
+
+// Executa o CLI JavaScript do npm com o próprio Node. No Windows, disparar
+// npm.cmd diretamente com shell desativado pode falhar com spawn EINVAL.
+const frontend = spawn(process.execPath, [npmCliPath, ...frontendArgs], {
   cwd: process.cwd(),
   env: process.env,
   stdio: 'inherit',
