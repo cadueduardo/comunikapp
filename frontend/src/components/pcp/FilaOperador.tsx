@@ -18,6 +18,7 @@ import { ArteProducaoVdpControle } from '@/components/pcp/ArteProducaoVdpControl
 import { WorkflowCardInfo } from '@/components/pcp/WorkflowCardInfo';
 import type { ItemFila } from '@/hooks/useMeuSetor';
 import { IniciarProducaoMaquinaDialog } from '@/components/pcp/IniciarProducaoMaquinaDialog';
+import { ConcluirProducaoDialog } from '@/components/pcp/ConcluirProducaoDialog';
 
 export interface FilaOperadorProps {
   fila: ItemFila[];
@@ -33,6 +34,7 @@ export interface FilaOperadorProps {
     itemId: string,
     observacoes?: string,
     quantidadeProduzida?: number,
+    quantidadeRefugo?: number,
   ) => Promise<void>;
   onPausarProducao: (
     itemId: string,
@@ -82,6 +84,11 @@ export function FilaOperador({
   const [dialogMaquina, setDialogMaquina] = useState<{
     itemId: string;
     titulo: string;
+  } | null>(null);
+  const [dialogConcluir, setDialogConcluir] = useState<{
+    itemId: string;
+    titulo: string;
+    quantidadePadrao?: number;
   } | null>(null);
 
   async function executarAcao(
@@ -263,7 +270,11 @@ export function FilaOperador({
                     className="h-8"
                     disabled={executando}
                     onClick={() =>
-                      void executarAcao(item.id, () => onConcluirEtapa(item.id))
+                      setDialogConcluir({
+                        itemId: item.id,
+                        titulo: item.titulo,
+                        quantidadePadrao: item.quantidade,
+                      })
                     }
                   >
                     <IconCheck className="mr-1 h-3.5 w-3.5" />
@@ -337,6 +348,24 @@ export function FilaOperador({
           if (!dialogMaquina) return;
           await executarAcao(dialogMaquina.itemId, () =>
             onIniciarProducao(dialogMaquina.itemId, undefined, maquinaId),
+          );
+        }}
+      />
+
+      <ConcluirProducaoDialog
+        open={dialogConcluir != null}
+        onOpenChange={(open) => !open && setDialogConcluir(null)}
+        itemTitulo={dialogConcluir?.titulo}
+        quantidadePadrao={dialogConcluir?.quantidadePadrao}
+        onConfirm={async (observacoes, quantidadeProduzida, quantidadeRefugo) => {
+          if (!dialogConcluir) return;
+          await executarAcao(dialogConcluir.itemId, () =>
+            onConcluirEtapa(
+              dialogConcluir.itemId,
+              observacoes,
+              quantidadeProduzida,
+              quantidadeRefugo,
+            ),
           );
         }}
       />

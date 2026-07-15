@@ -127,11 +127,13 @@ describe('WorkflowAssignmentService', () => {
         {
           id: 'item-1',
           status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
           produto_servico: 'Produto 1',
         },
         {
           id: 'item-2',
           status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
           produto_servico: 'Produto 2',
         },
       ],
@@ -203,6 +205,7 @@ describe('WorkflowAssignmentService', () => {
         {
           id: 'item-1',
           status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
           produto_servico: 'Produto 1',
         },
       ],
@@ -325,6 +328,7 @@ describe('WorkflowAssignmentService', () => {
         {
           id: 'item-1',
           status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
           produto_servico: 'Produto',
         },
       ],
@@ -382,6 +386,7 @@ describe('WorkflowAssignmentService', () => {
         {
           id: 'item-1',
           status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
           produto_servico: 'Produto 1',
         },
         {
@@ -422,6 +427,7 @@ describe('WorkflowAssignmentService', () => {
         {
           id: 'item-1',
           status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
           produto_servico: 'Produto 1',
         },
       ],
@@ -457,6 +463,7 @@ describe('WorkflowAssignmentService', () => {
         {
           id: 'item-1',
           status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
           produto_servico: 'Produto 1',
         },
       ],
@@ -540,11 +547,13 @@ describe('WorkflowAssignmentService', () => {
         {
           id: 'item-1',
           status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
           produto_servico: 'Produto 1',
         },
         {
           id: 'item-2',
           status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
           produto_servico: 'Produto 2',
         },
         {
@@ -601,18 +610,21 @@ describe('WorkflowAssignmentService', () => {
           {
             id: 'item-1',
             status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
             produto_servico: 'Produto 1',
             quantidade: 10,
           },
           {
             id: 'item-2',
             status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
             produto_servico: 'Produto 2',
             quantidade: 20,
           },
           {
             id: 'item-3',
             status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
             produto_servico: 'Produto 3',
             quantidade: 15,
           },
@@ -709,11 +721,13 @@ describe('WorkflowAssignmentService', () => {
           {
             id: 'item-1',
             status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
             produto_servico: 'Produto 1',
           },
           {
             id: 'item-2',
             status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
             produto_servico: 'Produto 2',
           },
         ],
@@ -799,6 +813,7 @@ describe('WorkflowAssignmentService', () => {
           {
             id: 'item-1',
             status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
             produto_servico: 'Produto 1',
           },
         ],

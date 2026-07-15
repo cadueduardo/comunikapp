@@ -93,6 +93,16 @@ const itemProdutoSchema = z
     preco_custo_snapshot: z.string().optional(),
     estoque_catalogo: z.number().optional(),
     imagem_snapshot_url: z.string().optional(),
+    modo_fulfillment: z
+      .enum(['PICK', 'MAKE', 'HIBRIDO', 'OUTSOURCE'])
+      .optional(),
+    fornecedor_terceirizado_id: z.string().optional(),
+    terceirizacao_custo_unitario: numeroOpcional,
+    terceirizacao_custo_setup: numeroOpcional,
+    terceirizacao_custo_frete: numeroOpcional,
+    terceirizacao_custo_total: numeroOpcional,
+    terceirizacao_prazo_dias: numeroOpcional,
+    terceirizacao_observacoes: z.string().max(50000).optional(),
     nome_servico: z.string().optional(),
     quantidade_produto: numeroOpcional,
     descricao: z.string().optional(),
@@ -186,6 +196,29 @@ const itemProdutoSchema = z
     personalizacao_preco_total_linha: z.string().optional(),
   })
   .superRefine((item, ctx) => {
+    if (
+      item.modo_fulfillment === 'OUTSOURCE' ||
+      item.modo_fulfillment === 'HIBRIDO'
+    ) {
+      if (!item.fornecedor_terceirizado_id?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Selecione o parceiro terceirizado',
+          path: ['fornecedor_terceirizado_id'],
+        });
+      }
+      const custoTotal = Number(
+        String(item.terceirizacao_custo_total || '0').replace(',', '.'),
+      );
+      if (!Number.isFinite(custoTotal) || custoTotal <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Informe um custo de terceirização maior que zero',
+          path: ['terceirizacao_custo_unitario'],
+        });
+      }
+    }
+
     if (isProdutoPrateleiraItem(item)) {
       if (!item.produto_finito_id?.trim()) {
         ctx.addIssue({

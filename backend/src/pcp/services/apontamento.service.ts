@@ -11,6 +11,8 @@ import {
 } from '../interfaces/pcp.interfaces';
 import { OSPCPIntegrationService } from './os-pcp-integration.service';
 import { ValidacaoEstoqueService } from '../../orcamentos-v2/services/validacao-estoque.service';
+import { EstoqueApontamentoService } from '../../os/services/estoque-apontamento.service';
+import { TipoApontamento as OSTipoApontamento } from '../../os/interfaces/workflow-pcp.interfaces';
 
 @Injectable()
 export class ApontamentoService {
@@ -18,6 +20,7 @@ export class ApontamentoService {
     private prisma: PrismaService,
     private osPCPIntegration: OSPCPIntegrationService,
     private validacaoEstoque: ValidacaoEstoqueService,
+    private estoqueApontamentoService: EstoqueApontamentoService,
   ) {}
 
   async criarApontamento(
@@ -281,7 +284,7 @@ export class ApontamentoService {
 
   private async processarIntegracaoEstoque(
     lojaId: string,
-    apontamento: { id: string; os_id: string; tipo: string },
+    apontamento: { id: string; os_id: string; tipo: string; quantidade_produzida?: any; quantidade_refugo?: any; observacoes?: any },
   ): Promise<void> {
     const tiposComEstoque = ['INICIO', 'CONCLUSAO', 'REFUGO'];
 
@@ -299,9 +302,16 @@ export class ApontamentoService {
         return;
       }
 
-      // TODO: integração real de estoque quando estrutura de itens estiver completa
-      void this.validacaoEstoque;
-    } catch (error) {
+      const tipoMapeado = apontamento.tipo as OSTipoApontamento;
+
+      await this.estoqueApontamentoService.processarOperacaoEstoque(
+        apontamento.os_id,
+        tipoMapeado,
+        apontamento.quantidade_produzida ? Number(apontamento.quantidade_produzida) : undefined,
+        apontamento.quantidade_refugo ? Number(apontamento.quantidade_refugo) : undefined,
+        apontamento.observacoes || undefined,
+      );
+    } catch (error: any) {
       console.error(
         `Erro ao processar integração com estoque para apontamento ${apontamento.id}:`,
         error,

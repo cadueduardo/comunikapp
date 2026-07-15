@@ -4,6 +4,7 @@ import { ApontamentoService } from './apontamento.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OSPCPIntegrationService } from './os-pcp-integration.service';
 import { ValidacaoEstoqueService } from '../../orcamentos-v2/services/validacao-estoque.service';
+import { EstoqueApontamentoService } from '../../os/services/estoque-apontamento.service';
 
 describe('ApontamentoService', () => {
   let service: ApontamentoService;
@@ -37,6 +38,10 @@ describe('ApontamentoService', () => {
           useValue: { notificarApontamento: jest.fn() },
         },
         { provide: ValidacaoEstoqueService, useValue: {} },
+        {
+          provide: EstoqueApontamentoService,
+          useValue: { processarOperacaoEstoque: jest.fn() },
+        },
       ],
     }).compile();
 

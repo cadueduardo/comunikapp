@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { FornecedoresService } from './fornecedores.service';
 import { CreateFornecedoreDto } from './dto/create-fornecedore.dto';
@@ -29,8 +30,11 @@ export class FornecedoresController {
   }
 
   @Get()
-  findAll(@GetLoja() loja: loja) {
-    return this.fornecedoresService.findAll(loja);
+  findAll(
+    @GetLoja() loja: loja,
+    @Query('finalidade') finalidade?: 'INSUMO' | 'TERCEIRIZACAO',
+  ) {
+    return this.fornecedoresService.findAll(loja, finalidade);
   }
 
   @Get(':id')

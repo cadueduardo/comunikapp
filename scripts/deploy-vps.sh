@@ -14,7 +14,9 @@
 # Variaveis opcionais:
 #   BRANCH=feature/rateio-por-setor
 #   PROJECT_DIR=/srv/apps/comunikapp/releases/current
-#   PRISMA_APPLY=push|migrate|skip
+#   PRISMA_APPLY=migrate|push|skip (padrao: migrate)
+#   DB_BACKUP_DIR=/srv/apps/comunikapp/shared/backups/database
+#   DB_BACKUP_RETENTION_DAYS=14
 
 set -euo pipefail
 
@@ -24,7 +26,7 @@ BRANCH="${BRANCH:-feature/rateio-por-setor}"
 BACKEND_SERVICE="${BACKEND_SERVICE:-comunikapp-backend}"
 FRONTEND_SERVICE="${FRONTEND_SERVICE:-comunikapp-frontend}"
 BACKEND_ENV="${BACKEND_ENV:-/srv/apps/comunikapp/shared/env/backend.env}"
-PRISMA_APPLY="${PRISMA_APPLY:-push}"
+PRISMA_APPLY="${PRISMA_APPLY:-migrate}"
 
 log() {
   printf '[deploy-vps] %s\n' "$*"
@@ -93,10 +95,12 @@ run_as_app 'cd frontend && npm ci'
 log "4/7 Aplicando schema Prisma..."
 case "${PRISMA_APPLY}" in
   push)
-    run_as_app 'cd backend && npx prisma db push'
+    fail "PRISMA_APPLY=push bloqueado em producao; use migrate ou skip."
     ;;
   migrate)
-    run_as_app 'cd backend && npx prisma migrate deploy'
+    run_as_app "cd backend && set -a && . $(quote "${BACKEND_ENV}") && set +a && node scripts/mysql-backup-before-deploy.js"
+    run_as_app "cd backend && set -a && . $(quote "${BACKEND_ENV}") && set +a && node scripts/prisma-deploy-preflight.js --apply"
+    run_as_app "cd backend && set -a && . $(quote "${BACKEND_ENV}") && set +a && npx prisma migrate deploy"
     ;;
   skip)
     log "Prisma ignorado por PRISMA_APPLY=skip."

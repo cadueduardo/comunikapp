@@ -168,7 +168,7 @@ export function NovoInsumoModal({
         const token = obterToken();
         const [cats, forns] = await Promise.all([
           categoriasApi.getAll(token) as Promise<CategoriaApi[]>,
-          fornecedoresApi.getAll(token) as Promise<FornecedorApi[]>,
+          fornecedoresApi.getAll(token, 'INSUMO') as Promise<FornecedorApi[]>,
         ]);
         setCategorias(Array.isArray(cats) ? cats : []);
         setFornecedores(Array.isArray(forns) ? forns : []);

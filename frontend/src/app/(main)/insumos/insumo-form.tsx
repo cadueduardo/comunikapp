@@ -521,7 +521,7 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
         // Usar APIs centralizadas em vez de URLs hardcoded
         const [categoriasData, fornecedoresData, tiposMaterialData] = await Promise.all([
           categoriasApi.getAll(token),
-          fornecedoresApi.getAll(token),
+          fornecedoresApi.getAll(token, 'INSUMO'),
           tiposMaterialApi.getAll(token)
         ]) as [{id: string, nome: string}[], {id: string, nome: string}[], {id: string, nome: string}[]];
 

@@ -69,6 +69,7 @@ export interface ItemFila {
     nome?: string;
   } | null;
   item_os_id?: string;
+  quantidade?: number;
   modo_fulfillment?: 'PICK' | 'MAKE' | 'HIBRIDO' | null;
   arte_producao_url?: string | null;
   personalizacao_modo?: string | null;
@@ -107,6 +108,7 @@ export interface UseMeuSetorReturn {
     itemId: string,
     observacoes?: string,
     quantidadeProduzida?: number,
+    quantidadeRefugo?: number,
   ) => Promise<void>;
   pausarProducao: (
     itemId: string,
@@ -517,6 +519,7 @@ export function useMeuSetor(): UseMeuSetorReturn {
       itemId: string,
       observacoes?: string,
       quantidadeProduzida?: number,
+      quantidadeRefugo?: number,
     ) => {
       try {
         if (!operadorId) {
@@ -536,6 +539,7 @@ export function useMeuSetor(): UseMeuSetorReturn {
             operadorId,
             observacoes,
             quantidadeProduzida,
+            quantidadeRefugo,
           }),
         });
 

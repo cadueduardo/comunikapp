@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import {
   IconBuilding,
   IconBuildingWarehouse,
+  IconBuildingStore,
   IconCash,
   IconCategory,
   IconClipboardList,
@@ -20,6 +21,7 @@ export type SidebarMenuItemId =
   | 'orcamentos'
   | 'clientes'
   | 'insumos'
+  | 'fornecedores'
   | 'estoque'
   | 'modelos'
   | 'catalogo'
@@ -36,6 +38,7 @@ export const SIDEBAR_MENU_DEFAULT_ORDER: SidebarMenuItemId[] = [
   'orcamentos',
   'clientes',
   'insumos',
+  'fornecedores',
   'estoque',
   'modelos',
   'catalogo',
@@ -102,6 +105,12 @@ export function buildSidebarNavItems(
       label: 'Insumos',
       href: '/insumos',
       icon: <IconBuildingWarehouse className={iconClass} />,
+    },
+    {
+      id: 'fornecedores',
+      label: 'Fornecedores',
+      href: '/fornecedores',
+      icon: <IconBuildingStore className={iconClass} />,
     },
     {
       id: 'estoque',

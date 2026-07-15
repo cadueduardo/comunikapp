@@ -182,6 +182,12 @@ export class AprovacaoTecnicaService {
 
     // Aceita aprovacao tecnica em qualquer status NAO-terminal. Suporta tanto
     // o fluxo padrao quanto regularizacao retroativa de OS legadas.
+    if (os.status === 'AGUARDANDO_APROVACAO_FINANCEIRA') {
+      throw new BadRequestException(
+        'Esta Ordem de Serviço está retida no financeiro e não pode receber aprovação técnica.',
+      );
+    }
+
     const statusBloqueados = [
       'FINALIZADA',
       'CANCELADA',

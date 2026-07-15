@@ -696,6 +696,7 @@ export interface ProdutoPreviewCalculo {
   preco_total: number;
   horas_producao: number;
   custos_indiretos_rateados: number;
+  custo_terceirizacao?: number;
 }
 
 export interface ProdutosPreviewResultado {
@@ -707,6 +708,7 @@ export interface ProdutosPreviewResultado {
     servicos: number;
     indiretos: number;
     horas: number;
+    terceirizacao: number;
   };
   custosIndiretosResumo?: CustosIndiretosResumo;
 }
@@ -732,6 +734,7 @@ export const calcularProdutosPreview = (
   let totalServicos = 0;
   let totalIndiretos = 0;
   let totalHoras = 0;
+  let totalTerceirizacao = 0;
 
   const produtos = (itensProduto || []).map((item: any, index: number) => {
     const tipoItem = String(item?.tipo_item || 'SOB_DEMANDA').toUpperCase();
@@ -808,8 +811,20 @@ export const calcularProdutosPreview = (
     const custoMaquinas = maquinas.total;
     const custoFuncoes = funcoes.total;
     const custoServicos = servicos.total;
+    const custoTerceirizacao =
+      item?.modo_fulfillment === 'OUTSOURCE' ||
+      item?.modo_fulfillment === 'HIBRIDO'
+        ? parseNumber(item?.terceirizacao_custo_unitario) * contexto.quantidade +
+          parseNumber(item?.terceirizacao_custo_setup) +
+          parseNumber(item?.terceirizacao_custo_frete)
+        : 0;
 
-    const custoBase = custoMateriais + custoMaquinas + custoFuncoes + custoServicos;
+    const custoBase =
+      custoMateriais +
+      custoMaquinas +
+      custoFuncoes +
+      custoServicos +
+      custoTerceirizacao;
     // Só aplicar custos indiretos quando houver itens cadastrados
     const temCustosIndiretosCadastrados = Array.isArray(datasets.custosIndiretos) && datasets.custosIndiretos.length > 0;
     const custoIndiretos = temCustosIndiretosCadastrados
@@ -849,6 +864,7 @@ export const calcularProdutosPreview = (
     totalServicos += custoServicos;
     totalIndiretos += custoIndiretos;
     totalHoras += horasTotal;
+    totalTerceirizacao += custoTerceirizacao;
 
     return {
       id: `produto_${index}`,
@@ -872,6 +888,7 @@ export const calcularProdutosPreview = (
       preco_total: precoTotal,
       horas_producao: horasTotal,
       custos_indiretos_rateados: custoIndiretos,
+      custo_terceirizacao: custoTerceirizacao,
     };
   });
   const resumoIndiretos = calcularResumoCustosIndiretos(datasets.custosIndiretos, totalIndiretos, totalHoras);
@@ -885,9 +902,9 @@ export const calcularProdutosPreview = (
       servicos: totalServicos,
       indiretos: totalIndiretos,
       horas: totalHoras,
+      terceirizacao: totalTerceirizacao,
     },
     custosIndiretosResumo: resumoIndiretos,
   };
 };
-
 

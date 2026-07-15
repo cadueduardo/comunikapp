@@ -55,7 +55,12 @@ import {
 import { ArteProducaoService } from '../../catalogo/producao/arte-producao.service';
 import { PcpBloqueioSinalService } from '../../instalacao/services/pcp-bloqueio-sinal.service';
 import { StatusLiberacaoPcp } from '../../instalacao/constants/pcp-liberacao.constants';
-import { ModoFulfillmentItem, StatusInstalacaoOs } from '@prisma/client';
+import {
+  ModoFulfillmentItem,
+  StatusOrdemTerceirizacao,
+  StatusInstalacaoOs,
+  TipoFornecedor,
+} from '@prisma/client';
 import {
   TipoOS as TipoOSInterface,
   OrigemOS,
@@ -281,8 +286,8 @@ export class OSService {
       // 4. Determinar status inicial baseado no tipo de OS
       let statusInicial = StatusOS.FILA;
       if (createOSDto.tipo_os === TipoOS.COMERCIAL) {
-        // OS comercial vai direto para aprovação técnica
-        statusInicial = StatusOS.AGUARDANDO_APROVACAO_TECNICA;
+        // OS comercial agora nasce retida no financeiro antes da técnica
+        statusInicial = StatusOS.AGUARDANDO_APROVACAO_FINANCEIRA;
       } else if (createOSDto.tipo_os === TipoOS.INTERNA) {
         // OS interna vai direto para aprovação orçamentária
         statusInicial = StatusOS.AGUARDANDO_APROVACAO_ORCAMENTARIA;
@@ -361,6 +366,43 @@ export class OSService {
         // Não falha a criação da OS por erro nas validações
       }
 
+      // Promoção automática pós-criação caso a cobrança correspondente já esteja liquidada (ex: à vista pago)
+      if (statusInicial === StatusOS.AGUARDANDO_APROVACAO_FINANCEIRA) {
+        if (createOSDto.orcamento_id) {
+          const cobranca = await this.prisma.cobranca.findFirst({
+            where: {
+              loja_id: lojaId,
+              orcamento_id: createOSDto.orcamento_id,
+            },
+            select: { status: true },
+          });
+
+          if (cobranca && cobranca.status === 'LIQUIDADO') {
+            await this.prisma.ordemServico.update({
+              where: { id: os.id },
+              data: { status: StatusOS.AGUARDANDO_APROVACAO_TECNICA },
+            });
+            os.status = StatusOS.AGUARDANDO_APROVACAO_TECNICA;
+
+            await this.adicionarMovimentacao(
+              os.id,
+              TipoMovimentacaoOS.APROVACAO_ORCAMENTARIA,
+              statusInicial,
+              StatusOS.AGUARDANDO_APROVACAO_TECNICA,
+              'SISTEMA',
+              'OS promovida automaticamente para aprovação técnica (cobrança do orçamento já liquidada)',
+            );
+          }
+        } else {
+          // OS Comercial Avulsa/Direta sem orçamento de origem flui direto para a técnica
+          await this.prisma.ordemServico.update({
+            where: { id: os.id },
+            data: { status: StatusOS.AGUARDANDO_APROVACAO_TECNICA },
+          });
+          os.status = StatusOS.AGUARDANDO_APROVACAO_TECNICA;
+        }
+      }
+
       this.logger.log(`[OK] OS #${numero} criada com sucesso - ID: ${os.id}`);
       return this.formatarOrdemServico(os, {
         alertas_estoque: validacaoEstoque.alertasEstoque,
@@ -420,18 +462,7 @@ export class OSService {
       await this.enriquecerOsAditivaGrid(lojaId, data, ativo);
       await this.enriquecerAtencaoInstalacaoLista(lojaId, data);
 
-      data.sort((a, b) => {
-        const pa = a.requer_atencao_instalacao ? 1 : 0;
-        const pb = b.requer_atencao_instalacao ? 1 : 0;
-        if (pa !== pb) return pb - pa;
-        const ta = a.ultima_atividade_instalacao
-          ? new Date(a.ultima_atividade_instalacao).getTime()
-          : 0;
-        const tb = b.ultima_atividade_instalacao
-          ? new Date(b.ultima_atividade_instalacao).getTime()
-          : 0;
-        return tb - ta;
-      });
+
 
       return {
         data,
@@ -3734,6 +3765,26 @@ export class OSService {
         produtoFinito: produto.produto_finito ?? null,
         personalizacao: produto.personalizacao ?? null,
       });
+      const modoFulfillment =
+        produto.modo_fulfillment ?? propagacao.modo_fulfillment;
+      const fornecedorTerceirizado = produto.fornecedor_terceirizado ?? null;
+
+      if (
+        (modoFulfillment === ModoFulfillmentItem.OUTSOURCE ||
+          modoFulfillment === ModoFulfillmentItem.HIBRIDO) &&
+        fornecedorTerceirizado
+      ) {
+        if (fornecedorTerceirizado.loja_id !== lojaId) {
+          throw new ForbiddenException(
+            'Fornecedor terceirizado não pertence ao tenant do orçamento.',
+          );
+        }
+        if (fornecedorTerceirizado.tipo === TipoFornecedor.INSUMO) {
+          throw new BadRequestException(
+            'O fornecedor selecionado não está habilitado para terceirização.',
+          );
+        }
+      }
 
       return {
         id: produto.id,
@@ -3769,7 +3820,12 @@ export class OSService {
         status_liberacao_pcp: statusLiberacaoPcpInicial,
         prioridade_produto: 'NORMAL',
         ordem_producao: index + 1,
-        modo_fulfillment: propagacao.modo_fulfillment,
+        modo_fulfillment: modoFulfillment,
+        fornecedor_id:
+          modoFulfillment === ModoFulfillmentItem.OUTSOURCE ||
+          modoFulfillment === ModoFulfillmentItem.HIBRIDO
+            ? produto.fornecedor_terceirizado_id ?? null
+            : null,
         personalizacao_modo: propagacao.personalizacao_modo,
         estampa_id: propagacao.estampa_id,
         valores_personalizacao: propagacao.valores_personalizacao,
@@ -3805,6 +3861,14 @@ export class OSService {
                   personalizavel: true,
                   fulfillment_padrao: true,
                   loja_id: true,
+                },
+              },
+              fornecedor_terceirizado: {
+                select: {
+                  id: true,
+                  loja_id: true,
+                  tipo: true,
+                  ativo: true,
                 },
               },
               insumos: {
@@ -3872,6 +3936,35 @@ export class OSService {
       const os = await this.create(lojaId, createDto);
 
       if (itensOS.length > 0) {
+        const ordensTerceirizacao = orcamentoCompleto.produtos
+          .filter(
+            (produto: any) =>
+              (produto.modo_fulfillment === ModoFulfillmentItem.OUTSOURCE ||
+                produto.modo_fulfillment === ModoFulfillmentItem.HIBRIDO) &&
+              produto.fornecedor_terceirizado_id,
+          )
+          .map((produto: any) => {
+            const prazoDias = produto.terceirizacao_prazo_dias ?? null;
+            const dataPrevista = prazoDias
+              ? new Date(Date.now() + prazoDias * 24 * 60 * 60 * 1000)
+              : null;
+            return {
+              loja_id: lojaId,
+              item_os_id: produto.id,
+              fornecedor_id: produto.fornecedor_terceirizado_id,
+              status:
+                Number(produto.terceirizacao_custo_total ?? 0) > 0
+                  ? StatusOrdemTerceirizacao.COTADO
+                  : StatusOrdemTerceirizacao.A_COTAR,
+              custo_unitario: produto.terceirizacao_custo_unitario ?? null,
+              custo_setup: produto.terceirizacao_custo_setup ?? null,
+              custo_frete: produto.terceirizacao_custo_frete ?? null,
+              custo_total: produto.terceirizacao_custo_total ?? null,
+              prazo_dias: prazoDias,
+              data_prevista: dataPrevista,
+              observacoes: produto.terceirizacao_observacoes ?? null,
+            };
+          });
         const snapshotsAuditoria = itensOS
           .map((item) => ({
             item_os_id: item.id,
@@ -3894,6 +3987,13 @@ export class OSService {
             data: dadosItens,
             skipDuplicates: true,
           });
+
+          if (ordensTerceirizacao.length > 0) {
+            await tx.ordemTerceirizacao.createMany({
+              data: ordensTerceirizacao,
+              skipDuplicates: true,
+            });
+          }
 
           if (snapshotsAuditoria.length > 0) {
             await tx.ordemServicoLog.create({
@@ -4600,6 +4700,57 @@ export class OSService {
       select: { id: true, tipo_item: true },
     });
     return new Map(rows.map((row) => [row.id, row.tipo_item]));
+  }
+
+  async liberarFinanceiro(
+    osId: string,
+    lojaId: string,
+    usuarioId: string,
+  ): Promise<void> {
+    try {
+      this.logger.log(`Liberando OS ${osId} financeiramente pelo usuário ${usuarioId}`);
+
+      const os = await this.prisma.ordemServico.findFirst({
+        where: { id: osId, loja_id: lojaId },
+      });
+
+      if (!os) {
+        throw new NotFoundException(`Ordem de Serviço ${osId} não encontrada.`);
+      }
+
+      if (os.status !== StatusOS.AGUARDANDO_APROVACAO_FINANCEIRA) {
+        throw new BadRequestException(
+          `Ordem de Serviço não está aguardando liberação financeira (status atual: ${os.status}).`,
+        );
+      }
+
+      await this.prisma.ordemServico.update({
+        where: { id: osId },
+        data: {
+          status: StatusOS.AGUARDANDO_APROVACAO_TECNICA,
+          atualizado_em: new Date(),
+        },
+      });
+
+      await this.adicionarMovimentacao(
+        osId,
+        TipoMovimentacaoOS.APROVACAO_ORCAMENTARIA,
+        StatusOS.AGUARDANDO_APROVACAO_FINANCEIRA,
+        StatusOS.AGUARDANDO_APROVACAO_TECNICA,
+        usuarioId,
+        'Ordem de Serviço liberada manualmente para produção pelo financeiro.',
+      );
+
+      if (os.orcamento_id) {
+        await this.pcpBloqueioSinalService.desbloquearItensPorOrcamento(
+          lojaId,
+          os.orcamento_id,
+        );
+      }
+    } catch (error) {
+      this.logger.error(`Erro ao liberar OS ${osId} financeiramente:`, error);
+      throw error;
+    }
   }
 
   async healthCheck(): Promise<{ status: string; timestamp: string }> {

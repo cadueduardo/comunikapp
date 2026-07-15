@@ -1,0 +1,268 @@
+-- CreateTable: tabelas fantasma criadas historicamente sem migration (ProdutoOrcamento e itens de esforço)
+CREATE TABLE `workflows_os` (
+  `id` varchar(191) NOT NULL,
+  `loja_id` varchar(191) NOT NULL,
+  `nome` varchar(191) NOT NULL,
+  `descricao` text DEFAULT NULL,
+  `etapas` longtext NOT NULL,
+  `ativo` tinyint(1) NOT NULL DEFAULT 1,
+  `sequencial` tinyint(1) NOT NULL DEFAULT 1,
+  `criado_em` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  `atualizado_em` datetime(3) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `workflows_os_loja_id_nome_key` (`loja_id`,`nome`),
+  KEY `workflows_os_loja_id_ativo_idx` (`loja_id`,`ativo`),
+  CONSTRAINT `workflows_os_loja_id_fkey` FOREIGN KEY (`loja_id`) REFERENCES `loja` (`id`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `setores_produtivos` (
+  `id` varchar(191) NOT NULL,
+  `loja_id` varchar(191) NOT NULL,
+  `nome` varchar(191) NOT NULL,
+  `descricao` text DEFAULT NULL,
+  `cor` varchar(191) NOT NULL DEFAULT '#3B82F6',
+  `ativo` tinyint(1) NOT NULL DEFAULT 1,
+  `ordem` int(11) NOT NULL DEFAULT 0,
+  `criado_em` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  `atualizado_em` datetime(3) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `setores_produtivos_loja_id_nome_key` (`loja_id`,`nome`),
+  KEY `setores_produtivos_loja_id_ativo_idx` (`loja_id`,`ativo`),
+  KEY `setores_produtivos_ordem_idx` (`ordem`),
+  CONSTRAINT `setores_produtivos_loja_id_fkey` FOREIGN KEY (`loja_id`) REFERENCES `loja` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `workflow_setores` (
+  `id` varchar(191) NOT NULL,
+  `workflow_id` varchar(191) NOT NULL,
+  `setor_id` varchar(191) NOT NULL,
+  `ordem` int(11) NOT NULL DEFAULT 0,
+  `tempo_estimado` int(11) DEFAULT NULL,
+  `obrigatorio` tinyint(1) NOT NULL DEFAULT 1,
+  `criado_em` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `workflow_setores_workflow_id_setor_id_key` (`workflow_id`,`setor_id`),
+  KEY `workflow_setores_workflow_id_idx` (`workflow_id`),
+  KEY `workflow_setores_setor_id_idx` (`setor_id`),
+  CONSTRAINT `workflow_setores_setor_id_fkey` FOREIGN KEY (`setor_id`) REFERENCES `setores_produtivos` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `workflow_setores_workflow_id_fkey` FOREIGN KEY (`workflow_id`) REFERENCES `workflows_os` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `ordens_servico` (
+  `id` varchar(191) NOT NULL,
+  `numero` varchar(191) NOT NULL,
+  `loja_id` varchar(191) NOT NULL,
+  `cliente_id` varchar(191) NOT NULL,
+  `orcamento_id` varchar(191) DEFAULT NULL,
+  `data_abertura` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  `data_prazo` datetime(3) DEFAULT NULL,
+  `status` varchar(191) NOT NULL DEFAULT 'FILA',
+  `responsavel_id` varchar(191) DEFAULT NULL,
+  `observacoes` text DEFAULT NULL,
+  `criado_em` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  `atualizado_em` datetime(3) NOT NULL,
+  `nome_servico` varchar(191) NOT NULL,
+  `descricao` text DEFAULT NULL,
+  `quantidade` decimal(10,2) NOT NULL,
+  `parametros_tecnicos` longtext DEFAULT NULL,
+  `insumos_calculados` longtext DEFAULT NULL,
+  `materiais_disponivel` tinyint(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ordens_servico_loja_id_numero_key` (`loja_id`,`numero`),
+  KEY `ordens_servico_loja_id_status_idx` (`loja_id`,`status`),
+  KEY `ordens_servico_cliente_id_idx` (`cliente_id`),
+  KEY `ordens_servico_responsavel_id_idx` (`responsavel_id`),
+  KEY `ordens_servico_data_abertura_idx` (`data_abertura`),
+  CONSTRAINT `ordens_servico_cliente_id_fkey` FOREIGN KEY (`cliente_id`) REFERENCES `cliente` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `ordens_servico_loja_id_fkey` FOREIGN KEY (`loja_id`) REFERENCES `loja` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `ordens_servico_orcamento_id_fkey` FOREIGN KEY (`orcamento_id`) REFERENCES `orcamento` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `itens_os` (
+  `id` varchar(191) NOT NULL,
+  `os_id` varchar(191) NOT NULL,
+  `produto_servico` varchar(191) NOT NULL,
+  `quantidade` decimal(10,2) NOT NULL,
+  `parametros_tecnicos` longtext DEFAULT NULL,
+  `insumos_necessarios` longtext DEFAULT NULL,
+  `materiais_disponivel` tinyint(1) NOT NULL DEFAULT 0,
+  `observacoes` text DEFAULT NULL,
+  `criado_em` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  `data_inicio_producao` datetime(3) DEFAULT NULL,
+  `data_prazo_produto` datetime(3) DEFAULT NULL,
+  `status_liberacao_pcp` varchar(191) DEFAULT 'PENDENTE',
+  `liberado_pcp_por` varchar(191) DEFAULT NULL,
+  `liberado_pcp_em` datetime(3) DEFAULT NULL,
+  `prioridade_produto` varchar(191) DEFAULT 'NORMAL',
+  `ordem_producao` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `itens_os_os_id_idx` (`os_id`),
+  KEY `itens_os_status_liberacao_pcp_idx` (`status_liberacao_pcp`),
+  KEY `itens_os_data_inicio_producao_idx` (`data_inicio_producao`),
+  CONSTRAINT `itens_os_os_id_fkey` FOREIGN KEY (`os_id`) REFERENCES `ordens_servico` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `produtoorcamento` (
+  `id` varchar(191) NOT NULL,
+  `orcamento_id` varchar(191) NOT NULL,
+  `nome_servico` varchar(191) NOT NULL,
+  `descricao` text DEFAULT NULL,
+  `quantidade` decimal(10,3) NOT NULL,
+  `largura` decimal(10,2) DEFAULT NULL,
+  `altura` decimal(10,2) DEFAULT NULL,
+  `area_produto` decimal(10,2) DEFAULT NULL,
+  `unidade_medida` varchar(191) DEFAULT NULL,
+  `custo_total_producao` decimal(10,2) NOT NULL,
+  `preco_unitario` decimal(10,2) NOT NULL,
+  `preco_total` decimal(10,2) NOT NULL,
+  `margem_lucro` decimal(10,2) NOT NULL,
+  `impostos` decimal(10,2) NOT NULL,
+  `observacoes` text DEFAULT NULL,
+  `ativo` tinyint(1) NOT NULL DEFAULT 1,
+  `criado_em` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  `atualizado_em` datetime(3) NOT NULL,
+  `data_criacao` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  `data_atualizacao` datetime(3) NOT NULL,
+  `ordem` int(11) NOT NULL DEFAULT 0,
+  `categoria` varchar(191) DEFAULT NULL,
+  `nome` varchar(191) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `ProdutoOrcamento_orcamento_id_idx` (`orcamento_id`),
+  KEY `ProdutoOrcamento_ativo_idx` (`ativo`),
+  CONSTRAINT `ProdutoOrcamento_orcamento_id_fkey` FOREIGN KEY (`orcamento_id`) REFERENCES `orcamento` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `iteminsumo` (
+  `id` varchar(191) NOT NULL,
+  `produto_id` varchar(191) NOT NULL,
+  `insumo_id` varchar(191) NOT NULL,
+  `quantidade` decimal(10,3) NOT NULL,
+  `unidade` varchar(191) NOT NULL,
+  `preco_unitario` decimal(10,2) NOT NULL,
+  `preco_total` decimal(10,2) NOT NULL,
+  `estoque_disponivel` decimal(10,3) DEFAULT NULL,
+  `alerta_estoque` tinyint(1) NOT NULL DEFAULT 0,
+  `criado_em` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  `data_criacao` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  PRIMARY KEY (`id`),
+  KEY `ItemInsumo_produto_id_idx` (`produto_id`),
+  KEY `ItemInsumo_insumo_id_idx` (`insumo_id`),
+  CONSTRAINT `ItemInsumo_insumo_id_fkey` FOREIGN KEY (`insumo_id`) REFERENCES `insumos` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `ItemInsumo_produto_id_fkey` FOREIGN KEY (`produto_id`) REFERENCES `produtoorcamento` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `itemmaquina` (
+  `id` varchar(191) NOT NULL,
+  `produto_id` varchar(191) NOT NULL,
+  `maquina_id` varchar(191) NOT NULL,
+  `tempo_horas` decimal(10,2) NOT NULL,
+  `custo_hora` decimal(10,2) NOT NULL,
+  `custo_total` decimal(10,2) NOT NULL,
+  `criado_em` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  `data_criacao` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  PRIMARY KEY (`id`),
+  KEY `ItemMaquina_produto_id_idx` (`produto_id`),
+  KEY `ItemMaquina_maquina_id_idx` (`maquina_id`),
+  CONSTRAINT `ItemMaquina_maquina_id_fkey` FOREIGN KEY (`maquina_id`) REFERENCES `maquina` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `ItemMaquina_produto_id_fkey` FOREIGN KEY (`produto_id`) REFERENCES `produtoorcamento` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `itemfuncao` (
+  `id` varchar(191) NOT NULL,
+  `produto_id` varchar(191) NOT NULL,
+  `funcao_id` varchar(191) NOT NULL,
+  `tempo_horas` decimal(10,2) NOT NULL,
+  `custo_hora` decimal(10,2) NOT NULL,
+  `custo_total` decimal(10,2) NOT NULL,
+  `criado_em` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  `data_criacao` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  PRIMARY KEY (`id`),
+  KEY `ItemFuncao_produto_id_idx` (`produto_id`),
+  KEY `ItemFuncao_funcao_id_idx` (`funcao_id`),
+  CONSTRAINT `ItemFuncao_funcao_id_fkey` FOREIGN KEY (`funcao_id`) REFERENCES `funcao` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `ItemFuncao_produto_id_fkey` FOREIGN KEY (`produto_id`) REFERENCES `produtoorcamento` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `itemservicomanual` (
+  `id` varchar(191) NOT NULL,
+  `produto_id` varchar(191) NOT NULL,
+  `servico_id` varchar(191) NOT NULL,
+  `tempo_horas` decimal(10,2) NOT NULL,
+  `custo_hora` decimal(10,2) NOT NULL,
+  `custo_total` decimal(10,2) NOT NULL,
+  `criado_em` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  `data_criacao` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  `descricao` text DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `ItemServicoManual_produto_id_idx` (`produto_id`),
+  KEY `ItemServicoManual_servico_id_idx` (`servico_id`),
+  CONSTRAINT `ItemServicoManual_produto_id_fkey` FOREIGN KEY (`produto_id`) REFERENCES `produtoorcamento` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `ItemServicoManual_servico_id_fkey` FOREIGN KEY (`servico_id`) REFERENCES `servico_manual` (`id`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `itemcustoindireto` (
+  `id` varchar(191) NOT NULL,
+  `produto_id` varchar(191) NOT NULL,
+  `custo_id` varchar(191) NOT NULL,
+  `percentual` decimal(5,2) NOT NULL,
+  `valor_fixo` decimal(10,2) DEFAULT NULL,
+  `custo_total` decimal(10,2) NOT NULL,
+  `criado_em` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  `data_criacao` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  `descricao` text DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `ItemCustoIndireto_produto_id_idx` (`produto_id`),
+  KEY `ItemCustoIndireto_custo_id_idx` (`custo_id`),
+  CONSTRAINT `ItemCustoIndireto_custo_id_fkey` FOREIGN KEY (`custo_id`) REFERENCES `custoindireto` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `ItemCustoIndireto_produto_id_fkey` FOREIGN KEY (`produto_id`) REFERENCES `produtoorcamento` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `estoque_aproveitamentos` (
+  `id` varchar(191) NOT NULL,
+  `sobra_id` varchar(191) NOT NULL,
+  `quantidade_aproveitada` decimal(10,2) NOT NULL,
+  `projeto_destino` varchar(255) DEFAULT NULL,
+  `orcamento_destino` varchar(191) DEFAULT NULL,
+  `observacoes` text DEFAULT NULL,
+  `loja_id` varchar(191) NOT NULL,
+  `usuario_id` varchar(191) DEFAULT NULL,
+  `data_aproveitamento` datetime(3) DEFAULT current_timestamp(3),
+  `created_at` datetime(3) DEFAULT current_timestamp(3),
+  `updated_at` datetime(3) DEFAULT current_timestamp(3),
+  PRIMARY KEY (`id`),
+  KEY `idx_data_aproveitamento` (`data_aproveitamento`),
+  KEY `idx_loja_id` (`loja_id`),
+  KEY `idx_sobra_id` (`sobra_id`),
+  KEY `idx_usuario_id` (`usuario_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `estoque_sobras` (
+  `id` varchar(191) NOT NULL,
+  `estoque_id` varchar(191) NOT NULL,
+  `codigo_sobra` varchar(191) NOT NULL,
+  `descricao` text DEFAULT NULL,
+  `dimensoes` varchar(255) DEFAULT NULL,
+  `area` decimal(10,2) DEFAULT NULL,
+  `quantidade` decimal(10,2) NOT NULL,
+  `unidade_medida` varchar(50) DEFAULT NULL,
+  `material` varchar(255) DEFAULT NULL,
+  `cor` varchar(100) DEFAULT NULL,
+  `acabamento` varchar(100) DEFAULT NULL,
+  `status` enum('DISPONIVEL','APROVEITADA','DESCARTADA') DEFAULT 'DISPONIVEL',
+  `origem` varchar(255) DEFAULT NULL,
+  `data_geracao` datetime(3) DEFAULT current_timestamp(3),
+  `orcamento_origem` varchar(191) DEFAULT NULL,
+  `data_aproveitamento` datetime(3) DEFAULT NULL,
+  `quantidade_aproveitada` decimal(10,2) DEFAULT 0.00,
+  `economia_gerada` decimal(12,2) DEFAULT 0.00,
+  `loja_id` varchar(191) NOT NULL,
+  `created_at` datetime(3) DEFAULT current_timestamp(3),
+  `updated_at` datetime(3) DEFAULT current_timestamp(3),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `codigo_sobra` (`codigo_sobra`),
+  KEY `idx_codigo_sobra` (`codigo_sobra`),
+  KEY `idx_data_geracao` (`data_geracao`),
+  KEY `idx_estoque_id` (`estoque_id`),
+  KEY `idx_loja_id` (`loja_id`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -118,10 +118,17 @@ export class PcpBloqueioSinalService {
 
       const ordens = await this.prisma.ordemServico.findMany({
         where: { loja_id: lojaId, orcamento_id: orcamentoId },
-        select: { id: true },
+        select: { id: true, status: true },
       });
 
       for (const os of ordens) {
+        if (os.status === 'AGUARDANDO_APROVACAO_FINANCEIRA') {
+          await this.prisma.ordemServico.update({
+            where: { id: os.id },
+            data: { status: 'AGUARDANDO_APROVACAO_TECNICA' },
+          });
+        }
+
         await this.prisma.ordemServicoLog.create({
           data: {
             os_id: os.id,

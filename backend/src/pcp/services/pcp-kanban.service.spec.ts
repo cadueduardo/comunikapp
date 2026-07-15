@@ -6,6 +6,7 @@ import { OSPCPIntegrationService } from './os-pcp-integration.service';
 import { ExpedicaoCriacaoService } from '../../expedicao/services/expedicao-criacao.service';
 import { ItemOSInstalacaoCriacaoService } from '../../instalacao/services/item-os-instalacao-criacao.service';
 import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
+import { EstoqueApontamentoService } from '../../os/services/estoque-apontamento.service';
 
 jest.mock('../mappers/kanban.mapper', () => ({
   KanbanMapper: {
@@ -76,6 +77,10 @@ describe('PCPKanbanService', () => {
       providers: [
         PCPKanbanService,
         { provide: PrismaService, useValue: prisma },
+        {
+          provide: EstoqueApontamentoService,
+          useValue: { processarOperacaoEstoque: jest.fn() },
+        },
         {
           provide: SetoresProdutivosService,
           useValue: {

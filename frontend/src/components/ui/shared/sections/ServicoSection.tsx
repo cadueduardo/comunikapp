@@ -14,7 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { ServicoManual } from '../types/common.types';
+import { useState } from 'react';
 import { formatTimeDisplay } from '@/components/ui/time-input';
+import { formatarTempoHumano, parseTempoHumano } from '@/lib/tempo-formatador';
 
 interface ServicoSectionProps {
   variant?: 'orcamento' | 'produto';
@@ -34,6 +36,9 @@ export function ServicoSection({
   customFields,
   customActions
 }: ServicoSectionProps) {
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const [digitosLocais, setDigitosLocais] = useState<Record<number, string>>({});
+
   // Função auxiliar para converter valores de forma robusta
   const converterValor = (valor: any): number => {
     if (valor === null || valor === undefined) return 0;
@@ -156,7 +161,7 @@ export function ServicoSection({
                 const horasM2 = toNumber(servicoSelecionado.horas_por_m2);
                 const horasBase = areaTotal * horasM2;
                 horasAuto = horasBase * fatorEficiencia;
-                disclaimerTexto = `${areaTotal.toFixed(2)}m² × ${horasM2.toFixed(3)}h com ${effPercent}% eficiência = ${horasAuto.toFixed(2)}h`;
+                disclaimerTexto = `${areaTotal.toFixed(2)}m² × ${horasM2.toFixed(3)}h com ${effPercent}% eficiência = ${formatarTempoHumano(horasAuto)}`;
                 manual = false;
               }
               break;
@@ -166,7 +171,7 @@ export function ServicoSection({
                 const horasUn = toNumber(servicoSelecionado.horas_por_unidade);
                 const horasBase = qtd * horasUn;
                 horasAuto = horasBase * fatorEficiencia;
-                disclaimerTexto = `${qtd} un × ${horasUn.toFixed(3)}h com ${effPercent}% eficiência = ${horasAuto.toFixed(2)}h`;
+                disclaimerTexto = `${qtd} un × ${horasUn.toFixed(3)}h com ${effPercent}% eficiência = ${formatarTempoHumano(horasAuto)}`;
                 manual = false;
               }
               break;
@@ -210,7 +215,7 @@ export function ServicoSection({
                     horasAuto = 100;
                   }
                   
-                  disclaimerTexto = `Categoria "${categoria.nome}": ${qtd} × ${tempoMin}min + ${setupMin}min setup com ${effPercent}% eficiência = ${horasAuto.toFixed(2)}h`;
+                  disclaimerTexto = `Categoria "${categoria.nome}": ${qtd} × ${tempoMin}min + ${setupMin}min setup com ${effPercent}% eficiência = ${formatarTempoHumano(horasAuto)}`;
                   manual = false;
                 }
               }
@@ -278,16 +283,32 @@ export function ServicoSection({
                     <FormControl>
                       <Input 
                         type="text" 
-                        placeholder={isManual ? "0.00" : horasCalculadas.toFixed(2)}
-                        value={isManual ? field.value : horasCalculadas.toFixed(2)}
+                        placeholder="0h00m"
+                        value={
+                          focusedIndex === servicoIndex
+                            ? (digitosLocais[servicoIndex] ?? formatarTempoHumano(Number(field.value) || 0))
+                            : formatarTempoHumano(Number(field.value) || 0)
+                        }
                         onChange={(e) => {
-                          if (isManual) {
-                            // Permitir vírgula e ponto como separador decimal
-                            const value = e.target.value.replace(/[^0-9,.-]/g, '');
-                            field.onChange(value);
-                          }
+                          const val = e.target.value;
+                          setDigitosLocais((prev) => ({ ...prev, [servicoIndex]: val }));
+                          field.onChange(parseTempoHumano(val));
                         }}
-                        readOnly={!isManual}
+                        onFocus={() => {
+                          setFocusedIndex(servicoIndex);
+                          setDigitosLocais((prev) => ({
+                            ...prev,
+                            [servicoIndex]: formatarTempoHumano(Number(field.value) || 0),
+                          }));
+                        }}
+                        onBlur={() => {
+                          setFocusedIndex(null);
+                          setDigitosLocais((prev) => {
+                            const n = { ...prev };
+                            delete n[servicoIndex];
+                            return n;
+                          });
+                        }}
                         className={!isManual ? "bg-muted" : ""}
                       />
                     </FormControl>
@@ -317,7 +338,7 @@ export function ServicoSection({
                   <div>
                     <div>Custo: {formatCurrency(custoCalculado)} ({formatCurrency(converterValor(servicoSelecionado.custo_hora))} por hora)</div>
                     <div className="text-green-700 mt-1 font-medium">
-                      {servicoSelecionado.nome} • {horasFinais.toFixed(2)}h
+                      {servicoSelecionado.nome} • {formatarTempoHumano(horasFinais)}
                       {servicoSelecionado.tipo_calculo && (
                         <span className="ml-2 text-xs">
                           ({servicoSelecionado.tipo_calculo.replace('_', ' ').toLowerCase()})

@@ -108,6 +108,7 @@ export class PCPKanbanController {
       data.observacoes,
       data.quantidadeProduzida,
       usuario,
+      data.quantidadeRefugo,
     );
     return {
       message: 'Etapa concluída com sucesso',

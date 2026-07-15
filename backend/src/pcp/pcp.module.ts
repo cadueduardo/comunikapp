@@ -27,6 +27,8 @@ import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-est
 import { ExpedicaoModule } from '../expedicao/expedicao.module';
 import { InstalacaoModule } from '../instalacao/instalacao.module';
 import { HomeOperacionalModule } from '../home-operacional/home-operacional.module';
+import { TerceirizacaoController } from './controllers/terceirizacao.controller';
+import { TerceirizacaoService } from './services/terceirizacao.service';
 
 @Module({
   imports: [
@@ -48,6 +50,7 @@ import { HomeOperacionalModule } from '../home-operacional/home-operacional.modu
     PCPDashboardController,
     PCPCapacidadeController,
     PCPRelatoriosController,
+    TerceirizacaoController,
   ],
   providers: [
     WorkflowService,
@@ -62,6 +65,7 @@ import { HomeOperacionalModule } from '../home-operacional/home-operacional.modu
     PCPCapacidadeService,
     PCPRelatoriosService,
     ValidacaoEstoqueService,
+    TerceirizacaoService,
   ],
   exports: [
     WorkflowService,
@@ -76,6 +80,7 @@ import { HomeOperacionalModule } from '../home-operacional/home-operacional.modu
     PCPCapacidadeService,
     PCPRelatoriosService,
     ValidacaoEstoqueService,
+    TerceirizacaoService,
   ],
 })
 export class PCPModule {}

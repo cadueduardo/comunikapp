@@ -9,6 +9,8 @@
 #   APP_USER=comunikapp
 #   BRANCH=nome-do-branch
 #   PRISMA_APPLY=migrate|push|skip
+#   DB_BACKUP_DIR=/srv/apps/comunikapp/shared/backups/database
+#   DB_BACKUP_RETENTION_DAYS=14
 #   RUNTIME=auto|pm2|systemd
 #   APPLY_NGINX=1|0
 #   APPLY_FAIL2BAN=1|0
@@ -159,6 +161,8 @@ install_system_packages() {
     make \
     g++ \
     pkg-config \
+    mariadb-client \
+    gzip \
     libvips42 \
     nginx \
     certbot \
@@ -259,10 +263,12 @@ apply_prisma() {
 
   case "$PRISMA_APPLY" in
     migrate)
+      run_as_app "cd backend && set -a && . $(quote "$BACKEND_ENV") && set +a && node scripts/mysql-backup-before-deploy.js"
+      run_as_app "cd backend && set -a && . $(quote "$BACKEND_ENV") && set +a && node scripts/prisma-deploy-preflight.js --apply"
       run_as_app "cd backend && set -a && . $(quote "$BACKEND_ENV") && set +a && ./node_modules/.bin/prisma migrate deploy"
       ;;
     push)
-      run_as_app "cd backend && set -a && . $(quote "$BACKEND_ENV") && set +a && ./node_modules/.bin/prisma db push"
+      fail 'PRISMA_APPLY=push bloqueado em producao; use migrate ou skip.'
       ;;
     skip)
       log 'Prisma migrate/db push ignorado por PRISMA_APPLY=skip.'

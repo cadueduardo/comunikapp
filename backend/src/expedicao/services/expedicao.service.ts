@@ -58,6 +58,14 @@ const INCLUDE_EXPEDICAO_DETALHE = {
           cep: true,
         },
       },
+      itens: {
+        select: {
+          id: true,
+          produto_servico: true,
+          quantidade: true,
+          modo_fulfillment: true,
+        },
+      },
       orcamento: {
         select: {
           entrega_usar_endereco_cliente: true,
@@ -68,6 +76,21 @@ const INCLUDE_EXPEDICAO_DETALHE = {
           entrega_cidade: true,
           entrega_estado: true,
           entrega_cep: true,
+          produtos: {
+            select: {
+              id: true,
+              tipo_item: true,
+              instalacao_necessaria: true,
+              produto_finito_id: true,
+              produto_finito: {
+                select: {
+                  sku: true,
+                  nome: true,
+                  descricao_resumida: true,
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -468,6 +491,26 @@ export class ExpedicaoService {
         expedicao.loja_id,
       );
 
+    const orcamentoProdutos = os.orcamento?.produtos ?? [];
+    const produtosMap = new Map(orcamentoProdutos.map((p) => [p.id, p]));
+
+    const itensMapeados = (os.itens ?? [])
+      .filter((item) => {
+        const prod = produtosMap.get(item.id);
+        return !prod?.instalacao_necessaria;
+      })
+      .map((item) => {
+        const prod = produtosMap.get(item.id);
+        return {
+          id: item.id,
+          produto_servico: item.produto_servico,
+          quantidade: Number(item.quantidade),
+          tipo_item: (prod?.tipo_item as 'SOB_DEMANDA' | 'PRODUTO_FINITO') ?? 'SOB_DEMANDA',
+          sku: prod?.produto_finito?.sku ?? null,
+          modo_fulfillment: item.modo_fulfillment,
+        };
+      });
+
     return {
       id: expedicao.id,
       os_id: expedicao.os_id,
@@ -505,6 +548,7 @@ export class ExpedicaoService {
           whatsapp: cliente.whatsapp,
           email: cliente.email,
         },
+        itens: itensMapeados,
       },
       bloqueio_financeiro,
     };

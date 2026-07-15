@@ -152,10 +152,17 @@ export const categoriasApi = {
 };
 
 export const fornecedoresApi = {
-  getAll: (token: string) => ApiClient.get('/fornecedores', token),
+  getAll: (
+    token: string,
+    finalidade?: 'INSUMO' | 'TERCEIRIZACAO',
+  ) =>
+    ApiClient.get(
+      `/fornecedores${finalidade ? `?finalidade=${finalidade}` : ''}`,
+      token,
+    ),
   getById: (id: string, token: string) => ApiClient.get(`/fornecedores/${id}`, token),
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/fornecedores', data, token),
-  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/fornecedores/${id}`, data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/fornecedores/${id}`, data, token),
   delete: (id: string, token: string) => ApiClient.delete(`/fornecedores/${id}`, token),
 };
 
@@ -431,6 +438,16 @@ export const osApi = {
 };
 
 export const pcpApi = {
+  getTerceirizacoes: (token: string, status?: string) =>
+    ApiClient.get(
+      `/pcp/terceirizacao${status ? `?status=${encodeURIComponent(status)}` : ''}`,
+      token,
+    ),
+  updateTerceirizacaoStatus: (
+    id: string,
+    status: string,
+    token: string,
+  ) => ApiClient.patch(`/pcp/terceirizacao/${id}/status`, { status }, token),
   getCapacidadeSetores: (token: string, params?: Record<string, string>) => {
     const search = new URLSearchParams(params ?? {}).toString();
     return ApiClient.get(`/pcp/capacidade/setores${search ? `?${search}` : ''}`, token);

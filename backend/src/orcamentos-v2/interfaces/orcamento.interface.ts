@@ -129,6 +129,14 @@ export interface ProdutoOrcamento {
   tipo_item?: 'SOB_DEMANDA' | 'PRODUTO_FINITO';
   produto_finito_id?: string | null;
   sku_snapshot?: string | null;
+  modo_fulfillment?: 'PICK' | 'MAKE' | 'HIBRIDO' | 'OUTSOURCE' | null;
+  fornecedor_terceirizado_id?: string | null;
+  terceirizacao_custo_unitario?: number | null;
+  terceirizacao_custo_setup?: number | null;
+  terceirizacao_custo_frete?: number | null;
+  terceirizacao_custo_total?: number | null;
+  terceirizacao_prazo_dias?: number | null;
+  terceirizacao_observacoes?: string | null;
   produto_finito?: {
     id: string;
     sku: string;

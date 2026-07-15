@@ -72,6 +72,15 @@ export interface ExpedicaoDetalheCliente {
   email: string | null;
 }
 
+export interface ExpedicaoDetalheItem {
+  id: string;
+  produto_servico: string;
+  quantidade: number;
+  tipo_item: 'SOB_DEMANDA' | 'PRODUTO_FINITO';
+  sku: string | null;
+  modo_fulfillment: string | null;
+}
+
 export interface ExpedicaoDetalheOs {
   id: string;
   numero: string;
@@ -83,6 +92,7 @@ export interface ExpedicaoDetalheOs {
   retrabalho: boolean;
   cliente: ExpedicaoDetalheCliente;
   endereco_entrega: string | null;
+  itens: ExpedicaoDetalheItem[];
 }
 
 export interface ExpedicaoDetalhe {

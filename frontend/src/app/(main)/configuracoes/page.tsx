@@ -10,7 +10,6 @@ import { IdentificacaoLojaCard } from '@/components/configuracoes/IdentificacaoL
 import {
   Settings,
   Tag,
-  Truck,
   Users,
   Wrench,
   Building2,
@@ -218,13 +217,6 @@ export default function ConfiguracoesPage() {
       href: '/configuracoes/categorias',
       icone: Tag,
       cor: 'bg-blue-100 text-blue-600'
-    },
-    {
-      titulo: 'Fornecedores',
-      descricao: 'Cadastro de fornecedores',
-      href: '/configuracoes/fornecedores',
-      icone: Truck,
-      cor: 'bg-purple-100 text-purple-600'
     },
     {
       titulo: 'Funções',

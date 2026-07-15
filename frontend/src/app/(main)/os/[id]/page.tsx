@@ -359,22 +359,22 @@ export default function OSDetalhePage() {
 
             {/* Botões de ação */}
             <div className="flex items-center space-x-3">
-                  <Button
+              <Button
                 onClick={handleImprimirOS} 
-                    variant="outline"
+                variant="outline"
                 className="flex items-center space-x-2"
               >
-              <Printer className="h-4 w-4" />
+                <Printer className="h-4 w-4" />
                 <span className="hidden sm:inline">Imprimir OS</span>
-            </Button>
+              </Button>
 
-            {podeEditar && (
-              <Link href={`/os/${os.id}/editar`}>
+              {podeEditar && (
+                <Link href={`/os/${os.id}/editar`}>
                   <Button className="flex items-center space-x-2 bg-gray-900 hover:bg-gray-800">
                     <Edit className="h-4 w-4" />
                     <span className="hidden sm:inline">Editar OS</span>
-                    </Button>
-                  </Link>
+                  </Button>
+                </Link>
               )}
             </div>
               </div>

@@ -1,33 +1,34 @@
 # Análise Profunda do Sistema ComunikApp
 
-**Data do levantamento:** 2026-06-26  
-**Versão anterior:** 2026-06-02  
+**Data do levantamento:** 2026-07-09
+**Versão anterior:** 2026-06-26
 **Base analisada:** repositório local `c:\Projects\comunikapp`
 
 **Escopo:** backend NestJS, frontend Next.js, schema Prisma/MySQL, módulos, relações funcionais, integrações, fluxos operacionais e pontos de atenção.
 
-**Schema SQL completo:** [`docs/comunikapp-schema-sql-completo.sql`](./comunikapp-schema-sql-completo.sql) — DDL gerado a partir do `schema.prisma` atual (90 models, ~2.100 linhas).
+**Schema SQL completo:** [`docs/comunikapp-schema-sql-completo.sql`](./comunikapp-schema-sql-completo.sql) — DDL gerado a partir do `schema.prisma` atual (90 models, ~2.700 linhas).
 
 ---
 
-## Resumo das mudanças desde 2026-06-02
+## Resumo das mudanças desde 2026-06-26
 
 | Área | O que mudou |
 |------|-------------|
-| **Produtos finitos** | Módulo `ProdutosFinitosModule`, tabelas `produtos_finitos`, integração em orçamento via `tipo_item` / `produto_finito_id` |
-| **Expedição** | Módulo `ExpedicaoModule`, kanban, assinatura, devolução para PCP (`retrabalho`), tabela `expedicoes_logistica` |
-| **Arte & Aprovação** | Módulo autônomo em `backend/src/modules/arte-aprovacao/` com fila, kanban (`/arte`), workspace por OS, injeção no orçamento |
-| **OS — liberação PCP** | Liberação **por item** (`item_ids`), status `PARCIALMENTE_LIBERADA`, colunas Arte Status e modais de detalhe no grid |
-| **ItemOS** | Campos de arte por produto (`status_arte`, `responsabilidade_arte`, `data_prazo_arte`, designer atribuído) |
-| **Frontend** | Menu: Modelos de Orçamento + Produtos (finitos), Arte & Aprovação, Expedição; badges na sidebar |
-| **Catálogo (planejado)** | RP em `docs/catalogo de produtos/` — hub futuro; **não implementado** no código |
-| **Banco** | ~68 migrations; schema com entrega/instalação, financeiro mínimo, onboarding operacional |
+| **Instalação (Fase 2)** | Módulo `InstalacaoModule`, tabelas de lotes (`itens_os_instalacao`), ocorrências (`ocorrencias_instalacao`), pós-cálculo e fechamento. Portal do Instalador móvel (`/instalador`) com fotos e assinaturas. |
+| **Split Financeiro** | Fluxo de precificação de ocorrências pelo gestor e geração de **OS Aditiva** (filha) com orçamento sintético associado, sem poluir PCP/estoque. |
+| **Relatório & Split Fiscal** | Geração de Relatório Técnico (`RelatorioTecnicoInstalacao`) em PDF e split fiscal (separação NFe/NFSe). |
+| **Bloqueio no Grid & PCP** | Trava de liberação logística por pendências financeiras no grid de instalações. Novo status `BLOQUEADO_AGUARDANDO_SINAL` no PCP controlado por sinal de pagamento. |
+| **Catálogo & Personalização** | Hub unificado `/catalogo` com processos de decoração (`ProcessoDecoracao`), descontos de faixas de preço (Quantity Breaks), estampas (`Estampa`) com metadados para VDP, conjuntos de campos variáveis (`CampoVariavelDef`) e motor VDP (PDF print-ready dinâmico). |
+| **Fulfillment por item** | Campos de fulfillment (`FulfillmentPadrao`/`ModoFulfillmentItem`) e propagação de personalização do Orçamento V2 para `ItemOS`. |
+| **Integração Google Drive** | Hub de conexões (`LojaConexao`) via Google OAuth para criação automática de pastas e sincronização de arquivos de arte e produção. |
+| **Saneamento do Banco** | Drop de 4 tabelas órfãs (`historico_custo_maquinas`, `historico_custo_funcoes`, `anexomensagem`, `modo_impressao`). Remoção de ~46MB de schemas e clients Prisma duplicados. Correção de migrations e índices de FK. |
+| **Segurança (Auditoria)** | Correção de vulnerabilidade crítica de vazamento do código de aprovação e de IDOR multi-tenant em 4 endpoints de transição de OS. |
 
 ---
 
 ## 1. Visão Executiva
 
-O ComunikApp é uma plataforma SaaS **multi-tenant** para empresas de comunicação visual. O tenant lógico é a **loja** (`loja_id`). O sistema cobre o ciclo comercial e produtivo: cadastros, orçamento com motor de cálculo V2, aprovação, cobrança, ordem de serviço, arte, PCP, expedição, estoque e home operacional.
+O ComunikApp é uma plataforma SaaS **multi-tenant** para empresas de comunicação visual. O tenant lógico é a **loja** (`loja_id`). O sistema cobre o ciclo comercial e produtivo: cadastros, orçamento com motor de cálculo V2, aprovação, cobrança, ordem de serviço, arte, PCP, expedição, instalações físicas de campo, pós-cálculo financeiro, estoque e home operacional.
 
 ### Arquitetura
 
@@ -37,31 +38,36 @@ O ComunikApp é uma plataforma SaaS **multi-tenant** para empresas de comunicaç
 | Frontend | Next.js 15.5 App Router, React 19, Tailwind CSS 4 |
 | Tempo real | Socket.IO (cálculo V2, arte, eventos operacionais) |
 | Auth | JWT global via middleware; 2FA opcional |
-| Deploy | Nginx + PM2 (ver `deploy/`, regras em `.cursor/rules/`) |
+| Deploy | Nginx + PM2 (ver `deploy/`, heap do build ajustável via `BUILD_MAX_OLD_SPACE_MB`) |
 
 ### Fluxo de negócio central (atualizado)
 
 ```text
 Loja/usuários
-  → Cadastros (clientes, insumos, máquinas, funções, templates, produtos finitos)
-  → Orçamento V2 (motor de cálculo; itens SOB_DEMANDA ou PRODUTO_FINITO)
-  → Aprovação (interna ou link público) → Cobrança financeira
-  → OS (comercial/direta/interna; múltiplos itens)
+  → Cadastros (clientes, insumos, máquinas, funções, templates, produtos finitos, processos, estampas)
+  → Orçamento V2 (itens SOB_DEMANDA via motor ou PRODUTO_FINITO personalizável com campos/estampas)
+  → Aprovação (interna ou link público) → Cobrança financeira (trava de sinal PCP)
+  → OS (comercial/direta/interna; múltiplos itens; vínculo automático com pasta do Google Drive)
   → Arte por item (fila/kanban; link público cliente) — quando aplicável
   → Aprovação técnica / liberação PCP (total ou parcial por item)
-  → PCP (workflows, setores, kanban, apontamentos)
-  → Expedição (separação, entrega, assinatura; devolução → retrabalho)
+  → PCP (workflows, setores, kanban, apontamentos; bloqueio de sinal financeiro)
+  → Expedição (separação, entrega, assinatura; status AGUARDANDO_INSTALACAO se houver serviço em campo)
+  → Instalação por Lotes (alocação forecast, equipe, execução móvel no /instalador com assinatura/fotos)
+  │     └── Ocorrências de campo → Precificação gestor → OS Aditiva filha com Split Financeiro
+  → Conclusão da Instalação → Expedição concluída (Entregue/Finalizado)
   → Estoque (movimentações, sobras, aproveitamentos)
-  → Home operacional (KPIs, onboarding, alertas)
+  → Home operacional (KPIs, onboarding com Google Drive, alertas)
 ```
 
 ### Princípios operacionais
 
-- **Multi-tenancy:** quase todo dado filtrado por `loja_id`.
+- **Multi-tenancy:** quase todo dado filtrado por `loja_id` com validações rígidas de escopo no backend (prevenção contra IDOR).
 - **Orçamento V2 ativo;** módulo legado desabilitado no `AppModule`.
-- **OS multi-item:** cada `ItemOS` pode ter prazos, geometria, arte e liberação PCP independentes.
+- **OS multi-item:** cada `ItemOS` pode ter prazos, geometria, arte, personalização e liberação PCP independentes.
 - **Arte desacoplada da aba OS:** operação principal em `/arte` (fila + kanban).
-- **Liberação PCP:** exclusivamente via fluxo de aprovação técnica da OS (removido atalho “Liberar PCP” do módulo arte).
+- **Liberação PCP:** exclusivamente via fluxo de aprovação técnica da OS.
+- **Fulfillment flexível:** itens de prateleira podem ser despachados direto (`PICK`) ou fabricados/personalizados (`MAKE`).
+- **Isolamento de OS Aditiva:** OSs filhas de instalação herdam propriedades de faturamento mas pulam PCP, expedição e validação de estoque (`pular_pcp`, `pular_expedicao`, `pular_validacao_estoque = true`) para evitar poluição fabril.
 
 ---
 
@@ -71,7 +77,7 @@ Loja/usuários
 |-----------|----------|
 | `backend/` | API NestJS, Prisma, migrations, testes, Swagger opcional |
 | `frontend/` | Next.js App Router, componentes, hooks, proxies API |
-| `docs/` | Documentação funcional/técnica (este arquivo, RP catálogo, etc.) |
+| `docs/` | Documentação funcional/técnica (este arquivo, especificações, etc.) |
 | `deploy/` | Nginx, CORS, fail2ban |
 | `scripts/` | Automações setup/deploy |
 
@@ -82,8 +88,9 @@ Loja/usuários
 | `backend/src/app.module.ts` | Composição dos módulos ativos |
 | `backend/src/main.ts` | Bootstrap, CORS, helmet, rate limit, uploads |
 | `backend/prisma/schema.prisma` | Modelo de dados (fonte da verdade) |
-| `backend/prisma/migrations/` | Histórico incremental (68 migrations) |
-| `docs/comunikapp-schema-sql-completo.sql` | DDL completo para análise |
+| `backend/prisma/migrations/` | Histórico incremental de migrations saneado |
+| `docs/comunikapp-schema-sql-completo.sql` | DDL completo limpo para análise |
+| `docs/database/boas-praticas-schema-prisma.md` | Guia de governança de banco e migrations |
 | `frontend/src/app/(main)/layout.tsx` | Shell autenticado, sidebar, badges |
 | `frontend/src/lib/api-client.ts` | Cliente HTTP centralizado |
 
@@ -96,7 +103,7 @@ Loja/usuários
 - NestJS 11, TypeScript 5.4, Prisma 6.19.3
 - Passport JWT, `class-validator`, `ValidationPipe` global
 - `helmet`, `express-rate-limit`, `@nestjs/schedule` (job financeiro)
-- `nodemailer`, `sharp`, `dxf-parser`, `exceljs`
+- `nodemailer`, `sharp`, `dxf-parser`, `exceljs`, `pdf-lib`/`pdfkit` (geração de relatórios técnicos)
 
 ### Frontend
 
@@ -107,7 +114,7 @@ Loja/usuários
 ### Banco
 
 - MySQL via `DATABASE_URL`
-- 90 models Prisma; uso misto de Prisma tipado e SQL raw (estoque)
+- 90 models Prisma; uso misto de Prisma tipado e SQL raw (estoque). Tabelas e migrations saneadas em 2026-07.
 
 ---
 
@@ -130,6 +137,12 @@ Arquivo: `backend/src/main.ts`
 
 `JwtGlobalMiddleware` em todas as rotas. Payload inclui `sub`, `email`, `loja_id`, `funcao`, `nome_completo`.
 
+### Correções de Segurança (Auditoria 2026-07)
+
+- **IDOR mitigado nas OS:** Endpoints de transição e agendamento de OS agora exigem validação explícita de `loja_id`.
+- **Vazamento de Código de Aprovação corrigido:** Endpoint `reenviar-codigo` não devolve mais o código no payload HTTP da resposta, direcionando-o estritamente por e-mail.
+- **Geração Segura de IDs:** Removido uso de `Math.random()` substituído pelo CUID nativo do Prisma.
+
 ### Rotas públicas (principais)
 
 - Login/2FA: `/lojas/login`, `/lojas/login/2fa`
@@ -137,15 +150,16 @@ Arquivo: `backend/src/main.ts`
 - Orçamento público V2
 - Arte: links, mensagens e download com token
 - Expedição: assinatura pública (quando configurada)
-- Platform/beta, reset de senha, health estoque
+- Relatório técnico de instalação (visualização autenticada via token de PDF)
 
 ### Permissões
 
 - Modelo: `perfil_acesso`, `perfil_permissao`, `usuario_perfil`
-- `ModuleActivationGuard` consulta `loja_modulo` (tabela **fora** do schema Prisma principal — risco documentado)
+- `ModuleActivationGuard` consulta `loja_modulo` (tabela externa ao Prisma).
 - Sidebar ainda usa regras por `usuario.funcao` em alguns módulos:
   - Financeiro: `ADMINISTRADOR`, `FINANCEIRO`
   - Expedição: `ADMINISTRADOR`, `PRODUCAO`, `ESTOQUE`
+  - Instalação: `ADMINISTRADOR`, `PRODUCAO`, `ESTOQUE` (conforme permissões Sidebar)
 
 ---
 
@@ -163,7 +177,8 @@ FuncoesModule, CustosIndiretosModule, MailModule, MensagensNegociacaoModule,
 UsuariosModule, WebsocketsModule, ServicosManuaisModule, OrcamentosV2Module,
 MotorCalculoV2Module, OSModule, PCPModule, ConfiguracoesModule,
 ArteAprovacaoModule, HomeOperacionalModule, EstimativaTempoModule,
-FinanceiroModule, ExpedicaoModule, PlatformModule
+FinanceiroModule, ExpedicaoModule, InstalacaoModule, CatalogoModule,
+PlatformModule, ConexoesModule
 ```
 
 **Desabilitado:** `OrcamentosModule` (legado).
@@ -178,9 +193,10 @@ FinanceiroModule, ExpedicaoModule, PlatformModule
 | `ClientesModule` | CRM |
 | `CategoriasModule`, `FornecedoresModule`, `InsumosModule`, `TiposMaterialModule` | Catálogo de materiais |
 | `ProdutosModule` | **Modelos de orçamento** (`TemplateProduto` e itens) |
-| `ProdutosFinitosModule` | **Produtos de prateleira/revenda** (SKU, preço, estoque, galeria) |
+| `CatalogoModule` | **Hub de Catálogo** (Produtos finitos, processos de decoração, estampas, conjuntos de campos, motor VDP) |
+| `ProdutosFinitosModule` | CRUD de produtos de prateleira (vinculado ao catálogo) |
 | `MaquinasModule`, `FuncoesModule`, `ServicosManuaisModule`, `CustosIndiretosModule` | Recursos de produção e custo |
-| `OrcamentosV2Module` | Orçamentos multi-produto, chat, links públicos, aprovação |
+| `OrcamentosV2Module` | Orçamentos multi-produto, personalização, grade, chat, links públicos, aprovação |
 | `MotorCalculoV2Module` | Preview e cálculo de custos/preço |
 | `FinanceiroModule` | Cobranças, parcelas, recebimentos, job de vencimento |
 
@@ -188,10 +204,11 @@ FinanceiroModule, ExpedicaoModule, PlatformModule
 
 | Módulo | Responsabilidade |
 |--------|------------------|
-| `OSModule` | Ordens de serviço (comercial, direta, interna), aprovação técnica, liberação PCP |
+| `OSModule` | Ordens de serviço (comercial, direta, interna), aprovação técnica, liberação PCP, OS aditiva |
 | `ArteAprovacaoModule` | Versões, arquivos, links, fila, kanban, mensagens, config por loja |
-| `PCPModule` | Workflows, instâncias, kanban, apontamentos, setores |
+| `PCPModule` | Workflows, instâncias, kanban, apontamentos, setores, bloqueio por sinal financeiro |
 | `ExpedicaoModule` | Pós-produção: separação, entrega, rastreio, assinatura, devolução |
+| `InstalacaoModule` | Pós-produção: lotes de instalação, agenda, equipe, ocorrências, split financeiro |
 | `EstoqueModule` | Localizações, movimentações, lotes, transferências, sobras |
 | `EstimativaTempoModule` | Tempo de máquina, compatibilidade material×máquina |
 
@@ -199,108 +216,93 @@ FinanceiroModule, ExpedicaoModule, PlatformModule
 
 | Módulo | Responsabilidade |
 |--------|------------------|
-| `AuthModule`, `UsuariosModule` | Autenticação, perfis, 2FA |
+| `AuthModule`, `UsuariosModule` | Autenticação, perfis, 2FA, preferências |
 | `NotificacoesModule`, `MailModule`, `MensagensNegociacaoModule` | Comunicação |
 | `WebsocketsModule` | Gateway geral + namespaces especializados |
 | `ConfiguracoesModule` | Centros de trabalho, modalidades entrega, tipos instalação |
-| `HomeOperacionalModule` | Dashboard operacional, onboarding |
+| `HomeOperacionalModule` | Dashboard operacional, onboarding (Google Drive) |
 | `PlatformModule` | Convites beta, interesse plataforma |
+| `ConexoesModule` | Integrações OAuth, Google Drive API |
 
-### 6.3 ProdutosFinitosModule (novo)
+### 6.3 ProdutosFinitosModule
 
-- **Path:** `backend/src/produtos-finitos/`
 - **Tabelas:** `CategoriaProdutoFinito`, `ProdutoFinito`, `GaleriaProdutoFinito`
-- **API:** CRUD de produtos finitos, categorias, upload de imagens
-- **Orçamento:** `ProdutoOrcamento.tipo_item` = `PRODUTO_FINITO` com `produto_finito_id`; preço em snapshot (`preco_unitario`/`preco_total`), bypass do motor de cálculo
-- **Frontend:** `/produtos-finitos`
+- **Orçamento:** `ProdutoOrcamento.tipo_item` = `PRODUTO_FINITO` com `produto_finito_id`; bypass do motor de cálculo.
+- **Evolução:** Integrado ao Catálogo. Coluna `personalizavel` e `fulfillment_padrao` (ESTOQUE, PRODUCAO, HIBRIDO).
 
-### 6.4 ExpedicaoModule (novo)
+### 6.4 ExpedicaoModule
 
-- **Path:** `backend/src/expedicao/`
-- **Controller:** `expedicao`, `expedicao/assinaturas`
-- **Tabela:** `ExpedicaoLogistica` com enums `ModalidadeExpedicao`, `StatusExpedicao`
-- **Modalidades:** retirada, transportadora, frota própria, instalação no local
-- **Fluxo:** OS concluída no PCP → expedição → assinatura/recebimento → conclusão
-- **Devolução:** status `DEVOLVIDA`; OS marcada `retrabalho=true`; nova expedição permitida após retrabalho
-- **Integração:** `FinanceiroModule`, `HomeOperacionalModule`, notificações
-- **Guard:** `ExpedicaoPermissionsGuard`
-- **Frontend:** `/expedicao` (kanban); visível para funções de produção/estoque/admin
+- **Evolução de Integração com Instalação:**
+  - OS com produto que exige instalação (`instalacao_necessaria = true`) gera expedição com status **`AGUARDANDO_INSTALACAO`** (em vez de `AGUARDANDO_SEPARACAO`).
+  - Quando todos os lotes de instalação forem finalizados, a expedição é automaticamente promovida para **`ENTREGUE_FINALIZADO`**.
+  - Novo status: `AGUARDANDO_FECHAMENTO` para conciliação antes do faturamento final.
 
-### 6.5 ArteAprovacaoModule (evoluído)
-
-- **Path:** `backend/src/modules/arte-aprovacao/` (extraído/refatorado)
-- **Controllers:**
-
-| Prefixo | Função |
-|---------|--------|
-| `arte-aprovacao/versoes` | CRUD versões, status, liberação designer |
-| `arte-aprovacao/versoes/:id/arquivos` | Upload, thumbnail |
-| `arte-aprovacao/links` | Links públicos de aprovação |
-| `arte-aprovacao/mensagens` | Chat interno |
-| `arte-aprovacao/mensagens/publico` | Chat cliente (token) |
-| `arte-aprovacao/fila` | Fila de trabalho do designer |
-| `arte-aprovacao/os` | Contexto OS (itens, prazos arte) |
-| `arte-aprovacao/orcamento` | Injeção de dados arte no orçamento |
-| `arte-aprovacao/configuracao` | `ConfiguracaoArteLoja` por tenant |
-| `arte-aprovacao/notificacoes` | Alertas do módulo |
+### 6.5 ArteAprovacaoModule
 
 - **WebSocket:** namespace `/arte-aprovacao`
-- **ItemOS:** `status_arte`, `responsabilidade_arte`, `politica_cobranca_arte`, `designer_atribuido_id`, `data_prazo_arte`, fila (`arte_fila_desde`, `arte_assumido_em`)
-- **Frontend:** `/arte` (fila + kanban), `/arte/aprovacao/[token]` (público)
-- **Regra:** liberação para PCP ocorre na **aprovação técnica da OS**, não no módulo arte
+- **ItemOS:** `status_arte`, `responsabilidade_arte`, `politica_cobranca_arte`, `designer_atribuido_id`, `data_prazo_arte`, fila.
+- **Integração Drive:** Vincula `arte_drive_folder_id` ao item da OS para sincronização automática de arquivos de produção na pasta da nuvem correspondente à OS.
 
-### 6.6 OSModule — liberação parcial PCP (novo)
+### 6.6 OSModule — Liberação parcial PCP e OS Aditiva
 
-**Status OS:** inclui `PARCIALMENTE_LIBERADA` quando apenas parte dos itens foi liberada.
+- **Status OS:** inclui `PARCIALMENTE_LIBERADA` quando apenas parte dos itens foi liberada.
+- **OS Aditiva (Split Financeiro):** Permite criar OS filha vinculada a uma OS principal (`os_pai_id`) para faturar ocorrências adicionais de campo.
+  - Carrega as flags `pular_pcp = true`, `pular_expedicao = true`, `pular_validacao_estoque = true` para evitar que a OS aditiva entre no fluxo logístico ou fabril.
 
-**Campos ItemOS (liberação):**
+### 6.7 OrcamentosV2Module
 
-- `status_liberacao_pcp`: `PENDENTE`, `LIBERADO`, `EM_PRODUCAO`, `CONCLUIDO`
-- `liberado_pcp_por`, `liberado_pcp_em`
-
-**API aprovação técnica:**
-
-- `PATCH` com `item_ids?: string[]` — libera apenas itens selecionados
-- Utilitário: `backend/src/os/utils/os-liberacao-pcp.util.ts` (`resolveIdsAlvoLiberacao`, elegibilidade por item)
-- Serviços: `aprovacao-tecnica.service.ts`, `os.service.ts`
-- Controllers: `workflow-comercial.controller.ts`, `os-direta-interna.controller.ts` (ambos repassam `item_ids`)
-
-**Frontend:**
-
-- Grid OS: coluna **Arte Status**, status parcial clicável
-- `AprovarOSModal`: checkboxes por item, “Liberar restante”
-- `OsDetalheModals.tsx`: detalhe liberação e detalhe arte
-
-**Elegibilidade PCP por item:** considera arte (quando `responsabilidade_arte` exige aprovação) e status de liberação.
-
-### 6.7 OrcamentosV2Module (destaques atuais)
-
-- Multi-produto via `ProdutoOrcamento`
-- Entrega: `ModalidadeEntrega`, snapshot de endereço
-- Instalação por produto: `TipoInstalacao`, regras de cobrança, endereço snapshot
-- Geometria: largura, altura, profundidade, área, perímetro, anexo DXF
-- Arte no orçamento: campos propagados para `ItemOS` na geração da OS
-- Tipos de item: `SOB_DEMANDA` (motor) vs `PRODUTO_FINITO` (snapshot)
+- Multi-produto via `ProdutoOrcamento`.
+- Suporte a personalização complexa via `PersonalizacaoOrcamento` (vinculada a estampas, processos de decoração e campos customizáveis).
 
 ### 6.8 PCPModule
 
-- Workflows por categoria de produto
-- `WorkflowInstancia` + `WorkflowInstanciaSetor` por item/setor
-- Kanban, apontamentos, relatórios
-- Integração com status OS e badge `retrabalho` após devolução da expedição
+- Kanban, workflows, apontamentos.
+- **Bloqueio por sinal financeiro:** Implementa `PcpBloqueioSinalService` e o status `BLOQUEADO_AGUARDANDO_SINAL`. Se a loja exigir sinal financeiro e este não estiver pago, a produção do item da OS fica bloqueada no PCP.
 
 ### 6.9 FinanceiroModule
 
-- Cobrança 1:1 com orçamento aprovado
-- Parcelas, recebimentos, logs
-- Job `@Cron` para parcelas vencidas
-- Visível na sidebar para admin/financeiro
+- Cobrança 1:1 com orçamento aprovado.
+- Job `@Cron` para parcelas vencidas.
+- **Novos status de parcelas:** `AGUARDANDO_RELATORIO_TECNICO` e `A_FATURAR` (usados para retenção contratual DEC-04).
 
 ### 6.10 EstoqueModule
 
-- CRUD com SQL raw em partes (introspecção de colunas)
-- Sobras vinculadas a OS; aproveitamentos em orçamentos futuros
-- Integração com insumos (`controla_estoque`)
+- Sobras vinculadas a OS; aproveitamentos em orçamentos futuros.
+- Tabelas de localizações, lotes e sobras.
+
+### 6.11 InstalacaoModule (Fase 2 - Completo)
+
+- **Path:** `backend/src/instalacao/`
+- **Estrutura:**
+  - `instalacao.controller.ts`: CRUD de lotes de instalação, forecast, reagendamento e controle de equipe.
+  - `instalacao-anexo.controller.ts`: Upload de assinaturas e fotos de evidências de campo.
+  - `instalacao-relatorio.controller.ts`: Emissão e segurança de Relatórios Técnicos (PDF).
+  - `instalador.controller.ts`: Endpoints simplificados e performáticos para o app móvel do instalador (`/instalador`).
+- **Principais Serviços:**
+  - `instalacao.service.ts`: Gerencia o ciclo de vida dos lotes, finalização de instalações e automação de status de expedição.
+  - `item-os-instalacao-criacao.service.ts`: Hook PCP (ou transição de OS para `FINALIZADA`) que gera automaticamente lotes (`ItemOSInstalacao`) para itens com flag de instalação. Permite também criação de lotes manuais.
+  - `instalacao-pos-calculo.service.ts`: Consolida custos/preços de ocorrências. Exige fechamento financeiro dos extras antes de liberar a parcela Saldo contratual do pai.
+  - `instalacao-split-financeiro.service.ts`: Criação atômica de **OS Aditiva** e Orçamento Sintético associado para ocorrências de campo faturáveis.
+  - `instalacao-split-fiscal.service.ts`: Efetua a divisão fiscal entre serviços (NFS-e) e produtos (NF-e).
+  - `instalacao-relatorio-pdf.service.ts`: Gera o PDF do Relatório Técnico consolidado.
+  - `pcp-bloqueio-sinal.service.ts`: Bloqueio de fluxo de produção/instalação caso haja pendências financeiras de sinal inicial.
+- **Regra de Entrada:** A OS/Lotes entram em Instalação somente após a baixa de produção (setores concluídos no PCP ou OS `FINALIZADA`).
+
+### 6.12 CatalogoModule (Novo)
+
+- **Path:** `backend/src/catalogo/`
+- **Funcionalidades:**
+  - `processo-decoracao.service.ts`: Gerencia CRUD de `ProcessoDecoracao` (como serigrafia, bordado, laser) contendo setups fixos (`custo_setup`) e tabela de preços regressivos por faixas de volume (Quantity Breaks).
+  - `estampas`: CRUD de estampas vinculadas a processos, incluindo upload da imagem de arte-mestra e definição de bounding boxes/metadados para VDP.
+  - `conjuntos-campos`: CRUD de `ConjuntoCampos` e `CampoVariavelDef` para campos dinâmicos customizados (texto, número, data).
+  - `arte-producao.service.ts` & `vdp-pdf-merge.provider.ts`: Motor VDP que realiza o merge do arquivo de arte-mestra com os dados variáveis preenchidos ou enviados via planilha (CSV), gerando um PDF final pronto para impressão (`print-ready PDF`).
+
+### 6.13 ConexoesModule (Novo)
+
+- **Path:** `backend/src/conexoes/`
+- **Funcionalidades:**
+  - `google-oauth.service.ts`: Autenticação OAuth 2.0 por loja para conexões do ecossistema Google.
+  - `google-drive-storage.service.ts`: Gerenciamento e criação automatizada de estrutura de pastas para Ordens de Serviço e armazenamento de arquivos de arte, fotos e thumbnails na nuvem de forma transparente.
 
 ---
 
@@ -310,45 +312,38 @@ FinanceiroModule, ExpedicaoModule, PlatformModule
 
 Arquivo: `frontend/src/app/(main)/layout.tsx`
 
-- `UserContext` + redirect se não autenticado
-- `SidebarBadgeSync` + `useSidebarContadores` — badges em OS, Arte, PCP, Financeiro, Expedição
-- Lembrete 2FA opcional
+- `UserContext` + redirect se não autenticado.
+- `SidebarBadgeSync` + `useSidebarContadores` — badges em tempo real sincronizados na sidebar (inclui contadores para OS, Arte, PCP, Financeiro, Expedição, Instalações).
 
 ### 7.2 Navegação principal (sidebar)
 
 | Label | Rota | Observação |
 |-------|------|------------|
-| Dashboard | `/dashboard` | Home operacional |
+| Dashboard | `/dashboard` | Home operacional, alertas e onboarding |
 | Orçamentos | `/orcamentos-v2` | V2 ativo |
-| Clientes | `/clientes` | |
-| Insumos | `/insumos` | |
-| Estoque | `/estoque` | |
+| Clientes | `/clientes` | CRM |
+| Insumos | `/insumos` | Materiais |
+| Estoque | `/estoque` | Lotes, sobras, movimentações |
 | Modelos de Orçamento | `/produtos` | Templates (`TemplateProduto`) |
-| Produtos | `/produtos-finitos` | Prateleira/revenda |
+| Catálogo de produtos | `/catalogo` | Hub unificado (Finitos, Personalização, Estampas, Campos) |
 | Ordens de Serviço | `/os` | Badge contador |
-| Arte & Aprovação | `/arte` | Fila + kanban; badge |
-| Financeiro | `/financeiro/recebimentos` | Só admin/financeiro |
-| PCP | `/pcp/*` | Submenu: kanban, workflows, etapas, etc. |
-| Expedição | `/expedicao` | Só admin/produção/estoque |
-| Centros de Trabalho | `/centros-de-trabalho` | |
-| Usuários | `/usuarios` | |
-| Configurações | `/configuracoes` | Inclui arte, 2FA |
+| Arte & Aprovação | `/arte` | Fila + kanban; badge; Drive integrado |
+| Financeiro | `/financeiro/recebimentos` | Só admin/financeiro; badge |
+| PCP | `/pcp/*` | Submenu: kanban, workflows, etapas; badge |
+| Expedição | `/expedicao` | Só admin/produção/estoque; badge |
+| Instalações | `/instalacao` | Lista, Calendário e Fila de Pendências/Precificação; badge |
+| Centros de Trabalho | `/centros-de-trabalho` | Recursos |
+| Configurações | `/configuracoes` | Inclui 2FA, Conexões (Drive), Config. de Arte/Instalação |
 
 ### 7.3 Páginas OS (destaques)
 
-- `/os` — grid com status parcial, arte status, modais
-- `/os/[id]` — detalhe multi-aba (produtos, arte, PCP, histórico)
-- Aprovação técnica via modal com seleção de itens
+- `/os` — grid com status parcial de liberação PCP e status da arte.
+- `/os/[id]` — detalhe multi-aba contendo a nova aba **Instalação** (`InstalacaoOsPainel`), exibindo calendários de forecast, tabela de lotes, ocorrências e botão "Novo Lote".
 
-### 7.4 Arte
+### 7.4 Portal do Instalador (Mobile)
 
-- `/arte` — operação central (não depende só da aba OS)
-- `/arte/aprovacao/[token]` — aprovação pública cliente
-
-### 7.5 Clientes HTTP
-
-- `api-client.ts` — módulos tipados
-- `api.ts` — sessão expirada, proxies Next.js
+- **Rota:** `/instalador`
+- Interface otimizada para mobile que permite ao instalador na rua consultar sua agenda de instalações do dia, abrir rotas de endereços, relatar ocorrências rapidamente (fotos e texto) e finalizar lotes de instalação capturando assinaturas na tela do dispositivo.
 
 ---
 
@@ -356,144 +351,94 @@ Arquivo: `frontend/src/app/(main)/layout.tsx`
 
 ### 8.1 Convenções
 
-- MySQL; IDs majoritariamente `cuid()` ou `uuid()`
-- Multi-tenant: `loja_id` / `lojaId`
-- Nomenclatura mista legada (`orcamento`, `usuario`) e PascalCase (`OrdemServico`)
-- Enums Prisma para status de arte, expedição, cobrança, etc.
+- MySQL; IDs majoritariamente `cuid()` ou `uuid()`.
+- Multi-tenant por linha: campo `loja_id` em tabelas do tenant.
+- Nomenclatura mista legada e PascalCase.
 
-### 8.2 Arquivo SQL completo
+### 8.2 Saneamento e Limpeza (Auditoria 2026-07)
 
-**[`docs/comunikapp-schema-sql-completo.sql`](./comunikapp-schema-sql-completo.sql)**
-
-Gerado com:
-
-```bash
-cd backend
-npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script -o ../docs/comunikapp-schema-sql-completo.sql
-```
-
-Contém: `CREATE TABLE`, índices, FKs e enums — estado **consolidado** do schema, não o histórico de migrations.
+- **Tabelas excluídas:** `historico_custo_maquinas`, `historico_custo_funcoes`, `anexomensagem`, e `modo_impressao` foram completamente removidas do banco de dados (estavam sem uso/vazias).
+- **Consolidação do Schema:** Schema reduzido para 90 models e arquivos órfãos limpos.
+- **FK Indexes:** 6 índices FK adicionados para otimização de performance no MySQL.
 
 ### 8.3 Modelos por domínio (90 models)
 
-#### Tenant e acesso
-
-`loja`, `usuario`, `PasswordResetToken`, `ConviteCadastro`, `perfil_acesso`, `perfil_permissao`, `usuario_perfil`, `OnboardingOperacional`
+#### Tenant, acesso e conexões
+`loja`, `usuario`, `PasswordResetToken`, `ConviteCadastro`, `perfil_acesso`, `perfil_permissao`, `usuario_perfil`, `OnboardingOperacional`, `LojaConexao` (novo)
 
 #### CRM e catálogo
+`cliente`, `Insumo`, `Categoria`, `fornecedor`, `categoriaInsumo`, `tipomaterial`, `TemplateProduto`, `ItemTemplateProduto`, `MaquinaTemplateProduto`, `FuncaoTemplateProduto`, `ServicoTemplateProduto`, `maquina`, `funcao`, `servico_manual`, `custoindireto`, históricos de preço/custo
 
-`cliente`, `Insumo`, `Categoria`, `fornecedor`, `categoriaInsumo`, `tipomaterial`, `TemplateProduto`, `ItemTemplateProduto`, `MaquinaTemplateProduto`, `FuncaoTemplateProduto`, `ServicoTemplateProduto`, `maquina`, `modo_impressao`, `funcao`, `servico_manual`, `custoindireto`, históricos de preço/custo
-
-#### Produtos finitos (novo)
-
-`CategoriaProdutoFinito`, `ProdutoFinito`, `GaleriaProdutoFinito`
+#### Catálogo de produtos & Personalização (novo)
+`CategoriaProdutoFinito`, `ProdutoFinito`, `GaleriaProdutoFinito`, `ProcessoDecoracao`, `ConjuntoCampos`, `CampoVariavelDef`, `Estampa`, `ProdutoFinitoModo`, `ProdutoFinitoEstampa`, `ProdutoFinitoProcesso`, `PersonalizacaoOrcamento`
 
 #### Orçamentos
-
-`orcamento`, `ProdutoOrcamento`, `ItemInsumo`, `ItemMaquina`, `ItemFuncao`, `ItemServicoManual`, `ItemCustoIndireto`, `aprovacaoOrcamento`, `HistoricoOrcamento`, `VersaoOrcamento`, `OrcamentoHistorico`, `OrcamentoLog`, `MensagemChat`, `LinkPublico`, `AcessoLink`, `mensagemnegociacao`, `anexomensagem`, `notificacao`, `ModalidadeEntrega`, `TipoInstalacao`
+`orcamento`, `ProdutoOrcamento`, `ItemInsumo`, `ItemMaquina`, `ItemFuncao`, `ItemServicoManual`, `ItemCustoIndireto`, `aprovacaoOrcamento`, `HistoricoOrcamento`, `VersaoOrcamento`, `OrcamentoHistorico`, `OrcamentoLog`, `MensagemChat`, `LinkPublico`, `AcessoLink`, `mensagemnegociacao`, `notificacao`, `ModalidadeEntrega`, `TipoInstalacao`
 
 #### Financeiro
-
 `Cobranca`, `CobrancaParcela`, `CobrancaRecebimento`, `CobrancaLog`
 
 #### OS e produção
-
 `document_sequence`, `OrdemServico`, `ItemOS`, `MovimentacaoOS`, `ChecklistOS`, `OrdemServicoLog`, `RegraValidacao`, `ExecucaoRegra`
 
 #### PCP / workflow
-
 `WorkflowOS`, `WorkflowSetor`, `WorkflowCategoria`, `WorkflowCategoriaRegra`, `WorkflowInstancia`, `WorkflowInstanciaSetor`, `EtapaInstancia`, `ChecklistInstancia`, `Apontamento`, `SetorProdutivo`
 
-#### Expedição (novo)
-
+#### Expedição
 `ExpedicaoLogistica` (+ enums `ModalidadeExpedicao`, `StatusExpedicao`)
 
-#### Arte (expandido)
+#### Arte
+`ConfiguracaoArteLoja` (novo), `ArteVersao`, `ArteArquivo`, `ArteComentario`, `ArteLinkAprovacao`, `ArteMensagem`
 
-`ConfiguracaoArteLoja`, `ArteVersao`, `ArteArquivo`, `ArteComentario`, `ArteLinkAprovacao`, `ArteMensagem`
+#### Instalação (novo)
+`ConfiguracaoInstalacaoLoja`, `ItemOSInstalacao`, `OcorrenciaInstalacao`, `OrcamentoAditivoInstalacao`, `RelatorioTecnicoInstalacao`, `TaxaOcorrenciaLoja`
 
 #### Estoque
-
 `estoque`, `estoque_localizacoes`, `estoque_itens`, `estoque_movimentacoes`, `estoque_lotes`, `estoque_transferencias`, `estoque_sobras`, `estoque_aproveitamentos`
-
-### 8.4 Campos relevantes — OrdemServico
-
-- Tipos: `tipo_os` (COMERCIAL/INTERNA), `origem_os`, `prioridade`
-- Aprovação técnica: `aprovacao_tecnica_status`, auditoria
-- Aprovação gerencial (OS interna)
-- Instalação: `data_instalacao_agendada`
-- Comercial: valores, margem, satisfação
-- **Expedição:** `retrabalho` (boolean)
-- Soft delete: `ativo`, `inativado_em`, snapshot
-
-### 8.5 Campos relevantes — ItemOS
-
-- Geometria: largura, altura, profundidade, área, perímetro, anexo DXF
-- Prazos: `data_inicio_producao`, `data_prazo_produto`, `data_prazo_arte`
-- PCP: `status_liberacao_pcp`, `liberado_pcp_*`
-- Arte: `responsabilidade_arte`, `status_arte`, `designer_atribuido_id`, fila
-- Sobras: `sobra_acao`, `sobra_registrada_id`
-
-### 8.6 Campos relevantes — ProdutoOrcamento
-
-- `tipo_item`: `SOB_DEMANDA` | `PRODUTO_FINITO`
-- `produto_finito_id` → `ProdutoFinito`
-- Instalação completa (snapshot endereço, custos, tempo)
-- Campos de arte (propagados para ItemOS)
 
 ---
 
 ## 9. Fluxos de Negócio Integrados
 
-### 9.1 Cadastro e acesso
+### 9.1 Cadastro e onboarding
+1. Criação de loja → verificação e-mail → login.
+2. Integração do Google Drive via OAuth no onboarding operacional.
 
-1. Criação de loja → verificação e-mail → login (2FA opcional)
-2. JWT com `loja_id` → localStorage no frontend
-3. Onboarding operacional na home
+### 9.2 Catálogo & Orçamento V2
+1. O produto de prateleira é cadastrado no catálogo e definido como `personalizavel = true`.
+2. No orçamento V2, o usuário seleciona o produto, o modo de personalização (`ESTAMPA`, `IMPRINT_LIVRE` etc.) e preenche os campos variáveis (`CampoVariavelDef`) ou seleciona a estampa.
+3. Se houver dados variáveis massivos, o usuário faz o upload do CSV e o motor VDP projeta o merge do PDF print-ready.
+4. Orçamento aprovado gera OS + Cobrança comercial.
 
-### 9.2 Orçamento V2
+### 9.3 Geração de OS e Vínculo Drive
+1. OS herda os produtos e cria `ItemOS` com `valores_personalizacao` e `modo_fulfillment` (`PICK` se em estoque, `MAKE` se exigir produção/personalização).
+2. O sistema aciona o `GoogleDriveStorageService` para criar de forma síncrona uma pasta estruturada da OS no Drive e armazena o id em `ItemOS.arte_drive_folder_id`.
 
-1. `/orcamentos-v2/novo` — produtos sob demanda (motor) ou produto finito (snapshot)
-2. Preview: WebSocket `/calculo-v2` ou HTTP motor
-3. Persistência multi-produto + itens de custo
-4. Envio, negociação, aprovação interna ou pública
-5. Fechamento → OS + cobrança
+### 9.4 Liberação PCP
+1. Gestor abre a aprovação técnica e seleciona quais itens liberar.
+2. **Trava de Sinal:** Se configurada a exigência de sinal financeiro inicial e a parcela não estiver compensada, o item fica bloqueado no PCP com status `BLOQUEADO_AGUARDANDO_SINAL`.
+3. Após compensação, o status avança para `LIBERADO` e cai nos setores fabris.
 
-### 9.3 Geração de OS
+### 9.5 PCP para Expedição e Instalação (Gatilho Unificado)
+1. Conclusão da fabricação no PCP ou marcação de OS como `FINALIZADA` dispara a baixa de produção (`ItemOSInstalacaoCriacaoService.processarBaixaProducaoOs`).
+2. Se o item exige instalação (`instalacao_necessaria = true`):
+   - A expedição logística é gerada diretamente no status **`AGUARDANDO_INSTALACAO`** (impedindo que seja separada/despachada de forma independente).
+   - São criados automaticamente os lotes de instalação (`ItemOSInstalacao`) com as quantidades correspondentes. Se o endereço for placeholder, os lotes ficam pendentes de alocação manual pelo gestor.
 
-1. Herda produtos → `ItemOS` com geometria, prazos, arte
-2. Validação de estoque e regras (`RegraValidacao`)
-3. Status inicial conforme tipo (fila, pendências arte, etc.)
+### 9.6 Gestão de Instalação e Execução de Campo
+1. O gestor visualiza os lotes pendentes na fila `/instalacao` e define datas, turnos e equipes.
+2. **Trava Financeira no Grid:** Caso o cliente possua pendências de parcelas de saldo vencidas, a liberação de entrega e instalação é sinalizada como bloqueada no grid operacional (popover de aviso com link para o financeiro).
+3. O instalador abre o aplicativo móvel `/instalador`, visualiza sua rota e inicia o trabalho.
+4. Ao concluir, o instalador captura fotos como evidência e colhe a assinatura do cliente em tela.
+5. Se tudo correr bem e todos os lotes forem concluídos, o status da expedição avança automaticamente para **`ENTREGUE_FINALIZADO`**.
 
-### 9.4 Arte (fluxo atual)
-
-1. Itens com `responsabilidade_arte` ≠ `NAO_APLICAVEL` entram na fila (`/arte`)
-2. Designer assume item → cria `ArteVersao` + arquivos
-3. Link público → cliente aprova/revisa (`ArteMensagem`)
-4. `status_arte` no item atualizado
-5. **Não** libera PCP diretamente no módulo arte
-
-### 9.5 Liberação PCP (total ou parcial)
-
-1. Gestor abre aprovação técnica na OS
-2. Seleciona itens (`item_ids`) elegíveis (arte ok quando exigida)
-3. Itens liberados: `status_liberacao_pcp = LIBERADO`
-4. OS: `LIBERADA` (todos) ou `PARCIALMENTE_LIBERADA` (subset)
-5. PCP recebe itens no kanban/workflow
-6. “Liberar restante” no modal para itens pendentes
-
-### 9.6 PCP → Expedição
-
-1. Item/setor concluído no workflow
-2. OS pronta para expedição
-3. `ExpedicaoLogistica` criada (modalidade, status kanban)
-4. Assinatura/recebimento → conclusão
-5. Devolução → `DEVOLVIDA`, OS `retrabalho=true`, retorno ao PCP
-
-### 9.7 Estoque e financeiro
-
-- Movimentações por consumo/OS; sobras e aproveitamentos
-- Cobrança parcelada; recebimentos na UI financeiro
+### 9.7 Split Financeiro (Intercorrências de Campo)
+1. Se ocorrerem problemas na execução (ex: cliente ausente, falta de material, retrabalho técnico):
+   - O instalador registra uma ocorrência no app que entra na fila de pendências do gestor como `PENDENTE_PRECIFICACAO`.
+   - O gestor revisa a ocorrência, ajusta o custo operacional e precifica o valor do repasse cobrado do cliente, mudando para `PRECIFICADO`.
+   - O gestor aciona a geração de **OS Aditiva**: o sistema cria de forma atômica um orçamento sintético extra, gera uma OS filha vinculada à OS pai (`tipo_vinculo_os = ADITIVA_INSTALACAO` com flags de bypass `pular_pcp`, `pular_expedicao`, `pular_validacao_estoque = true`), cria a fatura correspondente e marca as ocorrências como `FATURADO`.
+2. Para aprovar o faturamento da OS pai (liberando a retenção contratual DEC-04), é exigido que todas as ocorrências de campo já tenham sido precificadas ou faturadas via OS Aditiva.
+3. O Relatório Técnico PDF consolida o split fiscal (discriminação entre mercadorias/serviços) e anexa o histórico de ocorrências aditivas faturadas para controle do cliente.
 
 ---
 
@@ -503,31 +448,25 @@ Contém: `CREATE TABLE`, índices, FKs e enums — estado **consolidado** do sch
 |-----------|-----|
 | `/calculo-v2` | Preview de orçamento em tempo real |
 | `/arte-aprovacao` | Mensagens e notificações de arte |
-| Gateway geral | Eventos operacionais (PCP, etc.) |
+| Gateway geral | Eventos operacionais (PCP, badging da sidebar) |
 
 ---
 
 ## 11. Arquivos, Uploads e Mídia
 
-- Uploads: `backend/uploads/` servidos em `/uploads`
-- Arte: thumbnails via `sharp`
-- Geometria: `dxf-parser` no orçamento
-- Produtos finitos: galeria de imagens
-- SVG em uploads: `Content-Disposition: attachment`
+- Uploads: `backend/uploads/` servidos em `/uploads`.
+- Integração Google Drive: centralização e espelhamento das pastas de OS, uploads de thumbnails e arquivos de produção de alta resolução diretamente no storage na nuvem.
 
 ---
 
 ## 12. Observações de Qualidade e Riscos
 
-| Risco | Detalhe |
-|-------|---------|
-| Schema legado misto | PascalCase/minúsculo, `loja_id`/`lojaId`, Prisma + raw SQL |
-| `loja_modulo` fora do Prisma | Guard de ativação pode divergir de migrations |
-| JWT em localStorage | Exposição XSS; cookies HttpOnly exigiriam refactor |
-| Serviços grandes | `OrcamentosV2Service`, `OSService` — alta complexidade |
-| Docs vs código | Vários RPs em `docs/`; validar sempre no código |
-| Liberação parcial | Dois controllers OS devem repassar `item_ids` (bug corrigido em 2026-06) |
-| Expedição | Regra “um ativo por OS” é de negócio, não UNIQUE no banco |
+| Risco | Detalhe | Mitigação |
+|-------|---------|-----------|
+| **Faturamento em duplicidade** | Ocorrências faturadas via OS aditiva e cobradas em duplicidade na cobrança principal. | Substituição total da "parcela extra" pelo fluxo de OS Aditiva com trava em `InstalacaoPosCalculoService`. |
+| **Vazamento de OS Aditiva no PCP** | OS aditiva (que não exige produção) aparecer na fábrica gerando retrabalho de controle. | Coação arquitetural via flags `pular_pcp = true` e `pular_expedicao = true` no `OSService` e hooks de fluxo. |
+| **Token OAuth Expirado (Drive)** | Perda de conexão síncrona com o Google Drive que impeça o upload ou criação de pastas de OS. | Tratamento de exceção gracefully: fallback para armazenamento local temporário `/uploads` com fila de re-sincronização. |
+| **IDOR no Financeiro/OS** | Modificações de status ou cobranças de outras lojas devido a IDs sequenciais ou falta de validação de escopo. | Auditoria rígida e mitigação de segurança (2026-07) forçando a verificação concomitante do `loja_id`. |
 
 ---
 
@@ -535,118 +474,72 @@ Contém: `CREATE TABLE`, índices, FKs e enums — estado **consolidado** do sch
 
 ```text
 loja
-  ├── usuario / auth / perfis
+  ├── usuario / auth / perfis / preferencias
   ├── cliente
   │     └── orcamento
   │           ├── produto_orcamento (SOB_DEMANDA | PRODUTO_FINITO)
-  │           │     ├── produto_finito (opcional)
+  │           │     ├── produto_finito (opcional; modos / estampas / processos)
+  │           │     ├── personalizacao_orcamento (modo, estampa, valores)
   │           │     └── itens: insumo, maquina, funcao, servico, custo_indireto
   │           ├── motor_calculo_v2
   │           ├── cobranca → parcelas → recebimentos
   │           └── ordem_servico
-  │                 ├── item_os (arte, liberação PCP, geometria)
+  │                 ├── item_os (arte, liberação PCP, geometria, valores_personalizacao, drive_folder_id)
   │                 ├── arte_versao → arquivos / links / mensagens
-  │                 ├── workflow_instancia → setores / etapas / apontamentos
-  │                 ├── expedicoes_logistica
+  │                 ├── workflow_instancia → setores / etapas / apontamentos (bloqueio de sinal financeiro)
+  │                 ├── expedicoes_logistica (status AGUARDANDO_INSTALACAO)
+  │                 ├── itens_os_instalacao (lotes; forecast, assinatura, fotos)
+  │                 │     └── ocorrencias_instalacao (visitas, materiais; precificação)
+  │                 ├── ordens_servico (filhas aditivas; split financeiro)
+  │                 ├── relatorios_tecnicos_instalacao (PDF; split fiscal)
   │                 └── sobras → aproveitamentos
-  ├── produtos_finitos / categorias / galeria
-  ├── configuracao_arte_loja
+  ├── processos_decoracao / conjuntos_campos / estampas (VDP engine)
+  ├── configuracao_arte_loja / configuracao_instalacao_loja
+  ├── loja_conexao (Google Drive OAuth)
   ├── estoque → localizações / movimentações / lotes
-  └── home_operacional / onboarding
+  └── home_operacional / onboarding (Google Drive integration)
 ```
 
 ---
 
 ## 14. Inventário de Rotas Backend (resumo)
 
-### OS e liberação
+### OS, Liberação e Aditivos
 
-- `GET/PATCH /os/*` — CRUD, status, aprovação técnica com `item_ids`
-- `GET /os/liberacao-pcp/*` — filas por status incl. `PARCIALMENTE_LIBERADA`
-- Detalhes liberação/arte por OS (endpoints de detalhe no módulo OS)
+- `GET/PATCH /os/*` — CRUD, status, aprovação técnica com `item_ids`.
+- `GET /os/liberacao-pcp/*` — filas por status.
+- `POST /instalacao/os/:osId/gerar-os-aditiva` — geração de OS aditiva a partir de ocorrências precificadas.
+- `POST /instalacao/os/:osId/aprovar-financeiro` — aprovação do faturamento principal (libera parcela saldo).
 
-### Arte
+### Instalação
 
-- `arte-aprovacao/versoes`, `fila`, `os`, `orcamento`, `configuracao`, `links`, `mensagens`
+- `GET/POST/PATCH /instalacao/lotes/*` — forecast, equipes, alocações de lotes.
+- `GET/PATCH /instalacao/ocorrencias/*` — fila de precificação de campo, precificar ocorrência, abonar.
+- `POST /instalador/ocorrencias` — registro de intercorrência pelo instalador em campo (sem valores).
+- `GET/POST /instalacao/cep/:cep` — consulta de endereço para lotes.
+- `GET/POST /instalacao/os/:osId/relatorio-tecnico` — geração de PDF do Relatório Técnico com split fiscal.
 
-### Expedição
+### Catálogo de Produtos e VDP
 
-- `expedicao/*` — kanban, transições, criação a partir da OS
-- `expedicao/assinaturas/*` — captura de assinatura
+- `GET/POST/PATCH /catalogo/personalizacao/*` — processos de decoração e faixas de preço.
+- `GET/POST/PATCH /catalogo/estampas/*` — cadastro de estampas, templates de arte-mestra.
+- `POST /catalogo/arte-producao/vdp` — geração de PDF print-ready via merge VDP.
 
-### Produtos finitos
+### Integrações (Conexões)
 
-- `produtos-finitos/*` — CRUD, categorias, imagens
-
-### Demais (inalterados em essência)
-
-- `lojas`, `usuarios`, `clientes`, `insumos`, `orcamentos-v2`, `motor-calculo-v2`, `pcp/*`, `financeiro/*`, `estoque/*`, `home-operacional/*`
-
-*Lista exaustiva de endpoints: Swagger com `ENABLE_SWAGGER=true` ou inspeção dos controllers.*
-
----
-
-## 15. Roadmap documentado (não implementado)
-
-### Hub Catálogo de Produtos
-
-Documentação em **`docs/catalogo de produtos/`**:
-
-- Hub unificado (finitos, personalização/processos, estampas, conjuntos de campos)
-- **Modelos de Orçamento** permanecem em `/produtos` (menu lateral)
-- Orçamento **preenche variáveis**; cadastro **vincula** templates/processos
-- Plano de implementação em `10-plano-implementacao.md`
-
-**Status:** planejamento apenas; código atual usa módulos separados (templates + produtos finitos).
+- `GET/POST /conexoes/*` — status e autenticação OAuth do Google Drive.
 
 ---
 
-## 16. Conclusão Técnica
+## 15. Roadmap e Evoluções Futuras
 
-O ComunikApp evoluiu de um ERP de comunicação visual com orçamento/OS/PCP para uma plataforma que cobre **produtos de prateleira**, **arte operacional em módulo dedicado**, **liberação PCP granular por item** e **expedição pós-produção** com retrabalho.
+Com a consolidação do **Módulo de Instalações** e a implementação do **Hub de Catálogo & VDP**, as prioridades de evolução técnica e funcional sugeridas para o sistema são:
 
-**Pontos fortes**
-
-- Modelo multi-item consistente (orçamento → OS → PCP → expedição)
-- Motor de cálculo V2 maduro para sob demanda
-- Arte com fila, kanban e aprovação pública
-- Financeiro mínimo integrado ao fechamento
-- Schema documentado em SQL completo para análise externa
-
-**Prioridades de evolução sugeridas**
-
-1. Implementar hub Catálogo conforme RP (ou consolidar UX atual)
-2. Unificar permissões sidebar → `perfil_permissao`
-3. Modelar `loja_modulo` no Prisma
-4. Continuar decomposição de `OSService` / `OrcamentosV2Service`
-5. Avaliar cookies HttpOnly para JWT
+1. **Importação Automatizada de Lotes:** Implementação de importação de planilhas para distribuição massiva de endereços de instalação (rollouts grandes - DEC-13).
+2. **Notificações Integradas de Campo:** Disparos automáticos via WhatsApp de lembretes de instalação para clientes e agendamentos para instaladores na rua.
+3. **Consolidação de Permissões (RBAC):** Migrar todas as regras de visualização direta baseadas em string de funções na sidebar para o modelo dinâmico de `perfil_permissao`.
+4. **Resiliência de Integração Google Drive:** Otimizar tratamento de tokens expirados e automatizar fila de re-sincronização de upload em caso de falha de conexão síncrona.
 
 ---
 
-## Apêndice A — Comandos úteis
-
-```bash
-# Regenerar SQL completo do schema
-cd backend
-npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script -o ../docs/comunikapp-schema-sql-completo.sql
-
-# Aplicar migrations em ambiente
-npx prisma migrate deploy
-
-# Gerar client após mudança no schema
-npx prisma generate
-```
-
-## Apêndice B — Referências cruzadas
-
-| Documento | Conteúdo |
-|-----------|----------|
-| [`comunikapp-schema-sql-completo.sql`](./comunikapp-schema-sql-completo.sql) | DDL MySQL completo |
-| [`catalogo de produtos/README.md`](./catalogo%20de%20produtos/README.md) | RP hub catálogo (planejado) |
-| `backend/prisma/schema.prisma` | Fonte da verdade do modelo |
-| `backend/src/app.module.ts` | Módulos ativos |
-| `.cursor/rules/deploy-cors-nginx-pm2-guardrails.mdc` | Deploy produção |
-
----
-
-*Documento gerado por análise do código e schema em 2026-06-26. Para divergências, prevalece o repositório.*
+*Documento atualizado em 2026-07-09 após auditoria de banco de dados, correção de segurança e conclusão do módulo de Instalação e Hub do Catálogo.*

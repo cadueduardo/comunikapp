@@ -15,7 +15,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { Funcao } from '../types/common.types';
+import { useState } from 'react';
 import { formatTimeDisplay } from '@/components/ui/time-input';
+import { formatarTempoHumano, parseTempoHumano } from '@/lib/tempo-formatador';
 
 interface FuncaoSectionProps {
   variant?: 'orcamento' | 'produto';
@@ -35,6 +37,9 @@ export function FuncaoSection({
   customFields,
   customActions
 }: FuncaoSectionProps) {
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const [digitosLocais, setDigitosLocais] = useState<Record<number, string>>({});
+
   // Função auxiliar para converter valores de forma robusta
   const converterValor = (valor: any): number => {
     if (valor === null || valor === undefined) return 0;
@@ -206,7 +211,7 @@ export function FuncaoSection({
                 const horasM2 = toNumber(funcaoSelecionada.horas_por_m2);
                 const horasBase = areaTotal * horasM2;
                 horasCalculadas = horasBase * fatorEficiencia + horasSetupFuncao;
-                disclaimer = `${areaTotal.toFixed(2)}m² × ${formatTimeDisplay(horasM2)} × (100 ÷ ${eficienciaPercent}%) + ${setupMin}min setup = ${horasCalculadas.toFixed(2)}h`;
+                disclaimer = `${areaTotal.toFixed(2)}m² × ${formatTimeDisplay(horasM2)} × (100 ÷ ${eficienciaPercent}%) + ${setupMin}min setup = ${formatarTempoHumano(horasCalculadas)}`;
                 isManual = false;
               }
               break;
@@ -216,7 +221,7 @@ export function FuncaoSection({
                 const horasUnidade = toNumber(funcaoSelecionada.horas_por_unidade);
                 const horasBase = quantidade * horasUnidade;
                 horasCalculadas = horasBase * fatorEficiencia + horasSetupFuncao;
-                disclaimer = `${quantidade} un × ${formatTimeDisplay(horasUnidade)} × (100 ÷ ${eficienciaPercent}%) + ${setupMin}min setup = ${horasCalculadas.toFixed(2)}h`;
+                disclaimer = `${quantidade} un × ${formatTimeDisplay(horasUnidade)} × (100 ÷ ${eficienciaPercent}%) + ${setupMin}min setup = ${formatarTempoHumano(horasCalculadas)}`;
                 isManual = false;
               }
               break;
@@ -228,7 +233,7 @@ export function FuncaoSection({
                 const horasBase = horasMaquinas * acompanhamentoDecimal;
                 horasCalculadas = horasBase * fatorEficiencia + horasSetupFuncao + setupMaquinasHoras;
                 const acompanhamentoTexto = acompanhamentoRaw > 1 ? `${acompanhamentoRaw}%` : `${(acompanhamentoDecimal * 100).toFixed(0)}%`;
-                disclaimer = `${horasMaquinas.toFixed(2)}h (máquinas) × ${acompanhamentoTexto} × (100 ÷ ${eficienciaPercent}%) + setup máquinas (${setupMaquinasHoras.toFixed(2)}h) + setup função (${horasSetupFuncao.toFixed(2)}h) = ${horasCalculadas.toFixed(2)}h`;
+                disclaimer = `${formatarTempoHumano(horasMaquinas)} (máquinas) × ${acompanhamentoTexto} × (100 ÷ ${eficienciaPercent}%) + setup máquinas (${formatarTempoHumano(setupMaquinasHoras)}) + setup função (${formatarTempoHumano(horasSetupFuncao)}) = ${formatarTempoHumano(horasCalculadas)}`;
                 isManual = false;
               } else {
                 disclaimer = 'Nenhuma máquina encontrada para acompanhar; selecione uma máquina antes desta função.';
@@ -292,15 +297,32 @@ export function FuncaoSection({
                     <FormControl>
                       <Input
                         type="text"
-                        placeholder={isManual ? '0.00' : displayValue}
-                        value={isManual ? field.value : displayValue}
+                        placeholder="0h00m"
+                        value={
+                          focusedIndex === funcaoIndex
+                            ? (digitosLocais[funcaoIndex] ?? formatarTempoHumano(Number(field.value) || 0))
+                            : formatarTempoHumano(Number(field.value) || 0)
+                        }
                         onChange={(e) => {
-                          if (isManual) {
-                            const value = e.target.value.replace(/[^0-9,.-]/g, '');
-                            field.onChange(value);
-                          }
+                          const val = e.target.value;
+                          setDigitosLocais((prev) => ({ ...prev, [funcaoIndex]: val }));
+                          field.onChange(parseTempoHumano(val));
                         }}
-                        readOnly={!isManual}
+                        onFocus={() => {
+                          setFocusedIndex(funcaoIndex);
+                          setDigitosLocais((prev) => ({
+                            ...prev,
+                            [funcaoIndex]: formatarTempoHumano(Number(field.value) || 0),
+                          }));
+                        }}
+                        onBlur={() => {
+                          setFocusedIndex(null);
+                          setDigitosLocais((prev) => {
+                            const n = { ...prev };
+                            delete n[funcaoIndex];
+                            return n;
+                          });
+                        }}
                         className={!isManual ? 'bg-muted' : ''}
                       />
                     </FormControl>
@@ -330,7 +352,7 @@ export function FuncaoSection({
                   <div>
                     <div>Custo: {formatCurrency(custoCalculado)} ({formatCurrency(converterValor(funcaoSelecionada.custo_hora))} por hora)</div>
                     <div className="text-green-700 mt-1 font-medium">
-                      {funcaoSelecionada.nome} • {horasFinais.toFixed(2)}h
+                      {funcaoSelecionada.nome} • {formatarTempoHumano(horasFinais)}
                       {funcaoSelecionada.maquina && ` • ${funcaoSelecionada.maquina.nome}`}
                     </div>
                     {disclaimer && (

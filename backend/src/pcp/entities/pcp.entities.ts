@@ -78,6 +78,7 @@ export interface OSCardKanban {
   retrabalho?: boolean;
   /** ID explícito do ItemOS (card.id pode ser instancia_setor_id em alguns contextos). */
   item_os_id?: string;
+  quantidade?: number;
   /** Catálogo — roteamento PCP vs expedição. */
   modo_fulfillment?: 'PICK' | 'MAKE' | 'HIBRIDO' | null;
   /** URL interna relativa da arte de produção VDP (download autenticado). */

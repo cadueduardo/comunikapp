@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
@@ -364,6 +364,14 @@ export function OrcamentoV2Form({
           preco_custo_snapshot: '',
           estoque_catalogo: 0,
           imagem_snapshot_url: '',
+          modo_fulfillment: 'MAKE',
+          fornecedor_terceirizado_id: '',
+          terceirizacao_custo_unitario: '',
+          terceirizacao_custo_setup: '',
+          terceirizacao_custo_frete: '',
+          terceirizacao_custo_total: '',
+          terceirizacao_prazo_dias: '',
+          terceirizacao_observacoes: '',
         }
       ],
     },
@@ -606,6 +614,21 @@ export function OrcamentoV2Form({
                 : mapArteServicosBackendParaFormulario(produto.servicos_manuais),
               ...mapArteProdutoBackendParaFormulario(produto),
               ...mapInstalacaoProdutoBackendParaFormulario(produto),
+              modo_fulfillment: produto.modo_fulfillment || 'MAKE',
+              fornecedor_terceirizado_id:
+                produto.fornecedor_terceirizado_id || '',
+              terceirizacao_custo_unitario:
+                produto.terceirizacao_custo_unitario?.toString() || '',
+              terceirizacao_custo_setup:
+                produto.terceirizacao_custo_setup?.toString() || '',
+              terceirizacao_custo_frete:
+                produto.terceirizacao_custo_frete?.toString() || '',
+              terceirizacao_custo_total:
+                produto.terceirizacao_custo_total?.toString() || '',
+              terceirizacao_prazo_dias:
+                produto.terceirizacao_prazo_dias?.toString() || '',
+              terceirizacao_observacoes:
+                produto.terceirizacao_observacoes || '',
               ...mapCamposPrateleiraFormulario(produto),
             };
           };
@@ -663,6 +686,21 @@ export function OrcamentoV2Form({
                   ),
                 ...mapArteProdutoBackendParaFormulario(produto),
                 ...mapInstalacaoProdutoBackendParaFormulario(produto),
+                modo_fulfillment: produto.modo_fulfillment || 'MAKE',
+                fornecedor_terceirizado_id:
+                  produto.fornecedor_terceirizado_id || '',
+                terceirizacao_custo_unitario:
+                  produto.terceirizacao_custo_unitario?.toString() || '',
+                terceirizacao_custo_setup:
+                  produto.terceirizacao_custo_setup?.toString() || '',
+                terceirizacao_custo_frete:
+                  produto.terceirizacao_custo_frete?.toString() || '',
+                terceirizacao_custo_total:
+                  produto.terceirizacao_custo_total?.toString() || '',
+                terceirizacao_prazo_dias:
+                  produto.terceirizacao_prazo_dias?.toString() || '',
+                terceirizacao_observacoes:
+                  produto.terceirizacao_observacoes || '',
                 ...mapCamposPrateleiraFormulario(produto),
               };
             });
@@ -707,6 +745,14 @@ export function OrcamentoV2Form({
               instalacao_tempo_estimado_min: '',
               instalacao_quantidade_pessoas: '',
               instalacao_observacoes: '',
+              modo_fulfillment: 'MAKE',
+              fornecedor_terceirizado_id: '',
+              terceirizacao_custo_unitario: '',
+              terceirizacao_custo_setup: '',
+              terceirizacao_custo_frete: '',
+              terceirizacao_custo_total: '',
+              terceirizacao_prazo_dias: '',
+              terceirizacao_observacoes: '',
             }
           ];
         })(),
@@ -1322,6 +1368,27 @@ export function OrcamentoV2Form({
           margem_lucro: margemLucroProduto,
           impostos: impostosProduto,
           ...instalacao,
+          modo_fulfillment:
+            (produtoFormulario as any).modo_fulfillment || 'MAKE',
+          fornecedor_terceirizado_id:
+            (produtoFormulario as any).fornecedor_terceirizado_id || undefined,
+          terceirizacao_custo_unitario: normalizarNumero(
+            (produtoFormulario as any).terceirizacao_custo_unitario,
+          ),
+          terceirizacao_custo_setup: normalizarNumero(
+            (produtoFormulario as any).terceirizacao_custo_setup,
+          ),
+          terceirizacao_custo_frete: normalizarNumero(
+            (produtoFormulario as any).terceirizacao_custo_frete,
+          ),
+          terceirizacao_custo_total: normalizarNumero(
+            (produtoFormulario as any).terceirizacao_custo_total,
+          ),
+          terceirizacao_prazo_dias: normalizarNumero(
+            (produtoFormulario as any).terceirizacao_prazo_dias,
+          ),
+          terceirizacao_observacoes:
+            (produtoFormulario as any).terceirizacao_observacoes || undefined,
         };
 
         if (materiais) {
@@ -2390,7 +2457,41 @@ export function OrcamentoV2Form({
       const erroItens = validarMateriaisItensProduto(formData.itens_produto);
       if (erroItens) {
         toast.error(erroItens);
+        setIsFechandoPedido(false);
         return;
+      }
+
+      // Validação da Condição de Pagamento (Fase 6)
+      if (!formData.condicao_pagamento_tipo || formData.condicao_pagamento_tipo === '') {
+        toast.error('Selecione a condição de pagamento antes de aprovar e gerar a OS');
+        setIsFechandoPedido(false);
+        return;
+      }
+
+      if (formData.condicao_pagamento_tipo === 'ENTRADA_SALDO') {
+        const pct = Number(formData.condicao_pagamento_entrada_pct);
+        if (!pct || pct <= 0 || pct >= 100 || Number.isNaN(pct)) {
+          toast.error('Informe um percentual de entrada válido (entre 1% e 99%)');
+          setIsFechandoPedido(false);
+          return;
+        }
+      }
+
+      if (formData.condicao_pagamento_tipo === 'PARCELADO') {
+        const parcelas = Number(formData.condicao_pagamento_parcelas);
+        if (!parcelas || parcelas < 2 || parcelas > 36 || Number.isNaN(parcelas)) {
+          toast.error('Informe um número de parcelas válido (entre 2 e 36)');
+          setIsFechandoPedido(false);
+          return;
+        }
+      }
+
+      if (formData.condicao_pagamento_tipo === 'PERSONALIZADO') {
+        if (!formData.condicao_pagamento_descricao || !formData.condicao_pagamento_descricao.trim()) {
+          toast.error('Escreva a descrição para a condição de pagamento personalizada');
+          setIsFechandoPedido(false);
+          return;
+        }
       }
 
       let dadosCalculados = dadosCalculadosLocais || resultadoOrcamento?.resultado;
@@ -2528,6 +2629,14 @@ export function OrcamentoV2Form({
         perimetro_produto: '',
         arquivo_geometria_url: '',
         instalacao_necessaria: false,
+        modo_fulfillment: 'PICK',
+        fornecedor_terceirizado_id: '',
+        terceirizacao_custo_unitario: '',
+        terceirizacao_custo_setup: '',
+        terceirizacao_custo_frete: '',
+        terceirizacao_custo_total: '',
+        terceirizacao_prazo_dias: '',
+        terceirizacao_observacoes: '',
       };
 
       form.setValue(

@@ -25,3 +25,11 @@ tmp/
 
 # Local exports containing production data
 docs/comunikapp.json
+
+# Local diagnostics and agent settings
+/*.log
+/.claude/settings.local.json
+/estrutura-comunikapp.zip
+/backend/db-query.js
+/backend/get-token.js
+/backend/test-endpoint.js

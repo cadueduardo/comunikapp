@@ -1,25 +1,25 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
-import { expedicaoApi } from '@/lib/expedicao/expedicao-api';
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+import { expedicaoApi } from "@/lib/expedicao/expedicao-api";
 import {
   MODALIDADE_EXPEDICAO_LABEL,
   STATUS_EXPEDICAO_LABEL,
-} from '@/lib/expedicao/expedicao-columns';
-import { formatarDataHistoricoExpedicao } from '@/lib/expedicao/expedicao-format';
-import type { ExpedicaoDetalhe } from '@/lib/expedicao/expedicao.types';
+} from "@/lib/expedicao/expedicao-columns";
+import { formatarDataHistoricoExpedicao } from "@/lib/expedicao/expedicao-format";
+import type { ExpedicaoDetalhe } from "@/lib/expedicao/expedicao.types";
 import {
   IconAlertTriangle,
   IconArchive,
@@ -32,7 +32,7 @@ import {
   IconCalendar,
   IconPackage,
   IconTemplate,
-} from '@tabler/icons-react';
+} from "@tabler/icons-react";
 
 export interface ExpedicaoDetalheSheetProps {
   expedicaoId: string | null;
@@ -61,7 +61,9 @@ function InfoRow({
         <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
           {label}
         </p>
-        <p className="mt-0.5 text-sm font-medium text-slate-900">{value}</p>
+        <p className="mt-0.5 text-sm font-medium text-slate-900 break-words whitespace-pre-wrap">
+          {value}
+        </p>
       </div>
     </div>
   );
@@ -97,7 +99,9 @@ export function ExpedicaoDetalheSheet({
       })
       .catch((err) => {
         if (ativo) {
-          setErro(err instanceof Error ? err.message : 'Erro ao carregar detalhe');
+          setErro(
+            err instanceof Error ? err.message : "Erro ao carregar detalhe",
+          );
           setDetalhe(null);
         }
       })
@@ -114,12 +118,12 @@ export function ExpedicaoDetalheSheet({
   const isBloqueado = Boolean(bloqueio?.bloqueado);
   const podeDevolver =
     detalhe &&
-    !['DEVOLVIDA', 'ENTREGUE_FINALIZADO', 'ARQUIVADO'].includes(detalhe.status);
+    !["DEVOLVIDA", "ENTREGUE_FINALIZADO", "ARQUIVADO"].includes(detalhe.status);
   const podeConcluir =
     detalhe &&
-    !['DEVOLVIDA', 'ENTREGUE_FINALIZADO', 'ARQUIVADO'].includes(detalhe.status);
+    !["DEVOLVIDA", "ENTREGUE_FINALIZADO", "ARQUIVADO"].includes(detalhe.status);
   const podeArquivar =
-    detalhe?.status === 'ENTREGUE_FINALIZADO' && Boolean(onArquivar);
+    detalhe?.status === "ENTREGUE_FINALIZADO" && Boolean(onArquivar);
   const podeTransformar =
     Boolean(detalhe?.ordem_servico.orcamento_id) &&
     Boolean(onTransformarTemplate);
@@ -132,7 +136,7 @@ export function ExpedicaoDetalheSheet({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-xl">
+      <DialogContent className="gap-0 overflow-hidden p-0 w-[95vw] max-w-[95vw] sm:w-full sm:max-w-xl rounded-lg sm:rounded-xl">
         <DialogHeader className="space-y-3 border-b px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
@@ -140,10 +144,11 @@ export function ExpedicaoDetalheSheet({
             </div>
             <div className="min-w-0 flex-1">
               <DialogTitle className="text-left text-lg font-bold">
-                Expedição — {detalhe?.ordem_servico.numero ?? '...'}
+                Expedição — {detalhe?.ordem_servico.numero ?? "..."}
               </DialogTitle>
               <p className="truncate text-sm text-muted-foreground">
-                {detalhe?.ordem_servico.nome_servico ?? 'Carregando dados logísticos'}
+                {detalhe?.ordem_servico.nome_servico ??
+                  "Carregando dados logísticos"}
               </p>
             </div>
           </div>
@@ -153,7 +158,9 @@ export function ExpedicaoDetalheSheet({
               <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
                 {statusLabel}
               </Badge>
-              <Badge variant="outline">{modalidadeLabel}</Badge>
+              {detalhe.modalidade !== "INSTALACAO_NO_LOCAL" && (
+                <Badge variant="outline">{modalidadeLabel}</Badge>
+              )}
               {detalhe.ordem_servico.retrabalho && (
                 <Badge className="bg-fuchsia-100 text-fuchsia-800 hover:bg-fuchsia-100">
                   Retrabalho
@@ -183,12 +190,13 @@ export function ExpedicaoDetalheSheet({
                     Entrega bloqueada por pendência financeira.
                     {bloqueio.link_financeiro && (
                       <>
-                        {' '}
+                        {" "}
                         <Link
                           href={bloqueio.link_financeiro}
                           className="font-medium underline"
                         >
-                          Regularizar {bloqueio.os_numero ?? 'esta OS'} no financeiro
+                          Regularizar {bloqueio.os_numero ?? "esta OS"} no
+                          financeiro
                         </Link>
                       </>
                     )}
@@ -223,7 +231,9 @@ export function ExpedicaoDetalheSheet({
                   <InfoRow
                     icon={<IconCalendar className="h-4 w-4" />}
                     label="Expedida em"
-                    value={formatarDataHistoricoExpedicao(detalhe.data_expedida)}
+                    value={formatarDataHistoricoExpedicao(
+                      detalhe.data_expedida,
+                    )}
                   />
                 )}
 
@@ -236,12 +246,70 @@ export function ExpedicaoDetalheSheet({
                 )}
               </div>
 
+              {/* Seção de Produtos para Separação */}
+              <div className="space-y-3 rounded-lg border p-4 bg-white">
+                <div className="flex items-center gap-2 font-semibold text-slate-800 text-sm">
+                  <IconPackage className="h-4 w-4 text-slate-500" />
+                  <span>Produtos para Separação</span>
+                </div>
+
+                {detalhe.ordem_servico.itens &&
+                detalhe.ordem_servico.itens.length > 0 ? (
+                  <div className="divide-y border rounded-md overflow-hidden bg-slate-50/30">
+                    {detalhe.ordem_servico.itens.map((item) => {
+                      const isFinito = item.tipo_item === "PRODUTO_FINITO";
+                      return (
+                        <div
+                          key={item.id}
+                          className="p-3 flex items-start justify-between gap-4 text-sm"
+                        >
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-slate-900 break-words whitespace-normal text-left">
+                                {item.produto_servico}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  isFinito
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px]"
+                                    : "bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px]"
+                                }
+                              >
+                                {isFinito ? "Finito" : "Personalizado"}
+                              </Badge>
+                            </div>
+                            {isFinito && item.sku && (
+                              <div className="text-xs font-mono text-muted-foreground bg-slate-100 px-1.5 py-0.5 rounded w-fit">
+                                SKU: {item.sku}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-xs text-muted-foreground block">
+                              Qtd
+                            </span>
+                            <span className="font-bold text-slate-900 text-base">
+                              {item.quantidade}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">
+                    Nenhum produto a ser separado nesta expedição.
+                  </p>
+                )}
+              </div>
+
               <div className="rounded-lg bg-violet-50 px-4 py-3">
                 <p className="mb-2 text-sm font-semibold text-slate-800">
                   Histórico de Movimentações
                 </p>
                 <p className="text-sm text-slate-700">
-                  OS enviada para expedição em{' '}
+                  OS enviada para expedição em{" "}
                   {formatarDataHistoricoExpedicao(detalhe.criado_em)}
                 </p>
                 {detalhe.ordem_servico.retrabalho && (
@@ -257,9 +325,14 @@ export function ExpedicaoDetalheSheet({
         {detalhe && !loading && (
           <>
             <Separator />
-            <DialogFooter className="flex-col gap-2 px-6 py-4 sm:flex-row sm:justify-between">
-              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
+            <DialogFooter className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:flex-wrap sm:justify-between items-center">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="w-full sm:w-auto"
+                >
                   <Link href={`/os/${detalhe.os_id}`}>
                     <IconExternalLink className="mr-1 h-4 w-4" />
                     Abrir OS
@@ -279,7 +352,7 @@ export function ExpedicaoDetalheSheet({
                 )}
               </div>
 
-              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap justify-end">
                 {podeArquivar && (
                   <Button
                     variant="outline"
@@ -298,14 +371,14 @@ export function ExpedicaoDetalheSheet({
                     size="sm"
                     disabled={isBloqueado}
                     onClick={() => onConcluir(detalhe)}
-                    className={`w-full sm:w-auto ${isBloqueado ? 'opacity-70' : ''}`}
+                    className={`w-full sm:w-auto ${isBloqueado ? "opacity-70" : ""}`}
                   >
                     {isBloqueado ? (
                       <IconLock className="mr-1 h-4 w-4" />
                     ) : (
                       <IconCircleCheck className="mr-1 h-4 w-4" />
                     )}
-                    {isBloqueado ? 'Conclusão bloqueada' : 'Concluir entrega'}
+                    {isBloqueado ? "Conclusão bloqueada" : "Concluir entrega"}
                   </Button>
                 )}
 

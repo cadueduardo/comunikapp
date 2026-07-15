@@ -26,6 +26,8 @@
     "setup": "node setup-database.js",
     "db:ensure:lotes": "ts-node ./scripts/run-sql.ts",
     "db:generate": "prisma generate",
+    "db:backup": "node scripts/mysql-backup-before-deploy.js",
+    "db:deploy:preflight": "node scripts/prisma-deploy-preflight.js",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "migrate:arte-comentarios": "ts-node src/modules/arte-aprovacao/scripts/migrate-comentarios-to-mensagens.ts",

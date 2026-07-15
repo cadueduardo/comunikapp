@@ -54,7 +54,7 @@ import {
 } from '@/components/orcamentos-v2/DxfRevisaoCard';
 import { NovoInsumoModal } from '@/components/orcamentos-v2/NovoInsumoModal';
 import { MaterialSection, MaquinaSection, FuncaoSection, ServicoSection } from '../../shared/sections';
-import { tiposInstalacaoApi } from '@/lib/api-client';
+import { fornecedoresApi, tiposInstalacaoApi } from '@/lib/api-client';
 
 interface ProdutoSectionProps {
   mode: 'novo' | 'editar' | 'template';
@@ -128,6 +128,249 @@ interface TipoInstalacaoOption {
   tempo_estimado_min?: string | number | null;
   quantidade_pessoas_padrao?: string | number | null;
   exige_agendamento?: boolean | null;
+}
+
+interface FornecedorTerceirizacaoOption {
+  id: string;
+  nome: string;
+  tipo: 'TERCEIRIZADO' | 'AMBOS';
+  ativo: boolean;
+}
+
+function numeroMonetario(valor: unknown): number {
+  const texto = String(valor ?? '').trim();
+  if (!texto) return 0;
+  const normalizado =
+    texto.includes(',') && texto.includes('.')
+      ? texto.replace(/\./g, '').replace(',', '.')
+      : texto.replace(',', '.');
+  const numero = Number(normalizado);
+  return Number.isFinite(numero) ? numero : 0;
+}
+
+function TerceirizacaoProdutoSection({
+  itemIndex,
+  fornecedores,
+}: {
+  itemIndex: number;
+  fornecedores: FornecedorTerceirizacaoOption[];
+}) {
+  const form = useFormContext();
+  const modo = String(
+    useWatch({
+      control: form.control,
+      name: `itens_produto.${itemIndex}.modo_fulfillment`,
+    }) || 'MAKE',
+  );
+  const quantidade = numeroMonetario(
+    useWatch({
+      control: form.control,
+      name: `itens_produto.${itemIndex}.quantidade_produto`,
+    }),
+  );
+  const custoUnitario = numeroMonetario(
+    useWatch({
+      control: form.control,
+      name: `itens_produto.${itemIndex}.terceirizacao_custo_unitario`,
+    }),
+  );
+  const custoSetup = numeroMonetario(
+    useWatch({
+      control: form.control,
+      name: `itens_produto.${itemIndex}.terceirizacao_custo_setup`,
+    }),
+  );
+  const custoFrete = numeroMonetario(
+    useWatch({
+      control: form.control,
+      name: `itens_produto.${itemIndex}.terceirizacao_custo_frete`,
+    }),
+  );
+  const terceirizado = modo === 'OUTSOURCE' || modo === 'HIBRIDO';
+  const custoTotal = terceirizado
+    ? custoUnitario * Math.max(quantidade, 0) + custoSetup + custoFrete
+    : 0;
+
+  useEffect(() => {
+    form.setValue(
+      `itens_produto.${itemIndex}.terceirizacao_custo_total`,
+      String(Number(custoTotal.toFixed(2))),
+      { shouldDirty: false },
+    );
+  }, [custoTotal, form, itemIndex]);
+
+  return (
+    <div className="space-y-4 border-t pt-4">
+      <div>
+        <h4 className="text-sm font-medium">Execução do produto</h4>
+        <p className="text-xs text-muted-foreground">
+          Defina se a produção será interna, terceirizada ou dividida entre a
+          empresa e um parceiro.
+        </p>
+      </div>
+      <FormField
+        control={form.control}
+        name={`itens_produto.${itemIndex}.modo_fulfillment`}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Modo de execução</FormLabel>
+            <Select
+              value={field.value || 'MAKE'}
+              onValueChange={(value) => {
+                field.onChange(value);
+                if (value === 'MAKE') {
+                  form.setValue(
+                    `itens_produto.${itemIndex}.fornecedor_terceirizado_id`,
+                    '',
+                  );
+                }
+              }}
+            >
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="MAKE">Produção interna</SelectItem>
+                <SelectItem value="OUTSOURCE">Produção terceirizada</SelectItem>
+                <SelectItem value="HIBRIDO">Produção híbrida</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormItem>
+        )}
+      />
+
+      {terceirizado && (
+        <div className="space-y-4 rounded-lg border border-purple-200 bg-purple-50/40 p-4">
+          <FormField
+            control={form.control}
+            name={`itens_produto.${itemIndex}.fornecedor_terceirizado_id`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Parceiro terceirizado *</FormLabel>
+                <Select value={field.value || ''} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o parceiro" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {fornecedores.map((fornecedor) => (
+                      <SelectItem key={fornecedor.id} value={fornecedor.id}>
+                        {fornecedor.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {fornecedores.length === 0 && (
+                  <p className="text-xs text-amber-700">
+                    Cadastre um fornecedor do tipo Terceirização ou Ambos no
+                    módulo Fornecedores.
+                  </p>
+                )}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="grid gap-4 md:grid-cols-4">
+            <FormField
+              control={form.control}
+              name={`itens_produto.${itemIndex}.terceirizacao_custo_unitario`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Custo unitário *</FormLabel>
+                  <FormControl>
+                    <CustomCurrencyInput
+                      placeholder="R$ 0,00"
+                      name={field.name}
+                      value={field.value ?? ''}
+                      onValueChange={field.onChange}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name={`itens_produto.${itemIndex}.terceirizacao_custo_setup`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Setup</FormLabel>
+                  <FormControl>
+                    <CustomCurrencyInput
+                      placeholder="R$ 0,00"
+                      name={field.name}
+                      value={field.value ?? ''}
+                      onValueChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name={`itens_produto.${itemIndex}.terceirizacao_custo_frete`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Frete</FormLabel>
+                  <FormControl>
+                    <CustomCurrencyInput
+                      placeholder="R$ 0,00"
+                      name={field.name}
+                      value={field.value ?? ''}
+                      onValueChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormItem>
+              <FormLabel>Custo total</FormLabel>
+              <Input value={formatCurrency(custoTotal)} readOnly className="bg-muted" />
+            </FormItem>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <FormField
+              control={form.control}
+              name={`itens_produto.${itemIndex}.terceirizacao_prazo_dias`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Prazo do parceiro (dias)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      value={field.value ?? ''}
+                      onChange={(event) =>
+                        field.onChange(event.target.value.replace(/[^0-9]/g, ''))
+                      }
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name={`itens_produto.${itemIndex}.terceirizacao_observacoes`}
+              render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel>Observações internas</FormLabel>
+                  <FormControl>
+                    <Textarea rows={2} {...field} value={field.value ?? ''} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 const regraCobrancaLabel: Record<string, string> = {
@@ -409,6 +652,9 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
     nomeCamada: string;
   }>({ aberto: false, itemIndex: null, nomeSugerido: '', nomeCamada: '' });
   const [tiposInstalacao, setTiposInstalacao] = useState<TipoInstalacaoOption[]>([]);
+  const [fornecedoresTerceirizacao, setFornecedoresTerceirizacao] = useState<
+    FornecedorTerceirizacaoOption[]
+  >([]);
 
   useEffect(() => {
     const token =
@@ -428,6 +674,23 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
         setTiposInstalacao(lista as TipoInstalacaoOption[]);
       })
       .catch(() => setTiposInstalacao([]));
+
+    fornecedoresApi
+      .getAll(token, 'TERCEIRIZACAO')
+      .then((data: unknown) => {
+        const lista = Array.isArray(data) ? data : [];
+        setFornecedoresTerceirizacao(
+          lista.filter(
+            (item): item is FornecedorTerceirizacaoOption =>
+              Boolean(item) &&
+              typeof item === 'object' &&
+              (item as FornecedorTerceirizacaoOption).ativo !== false &&
+              ((item as FornecedorTerceirizacaoOption).tipo === 'TERCEIRIZADO' ||
+                (item as FornecedorTerceirizacaoOption).tipo === 'AMBOS'),
+          ),
+        );
+      })
+      .catch(() => setFornecedoresTerceirizacao([]));
   }, []);
 
   const sincronizarMateriaisComSugestoes = (
@@ -630,6 +893,14 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
     preco_unitario_snapshot: '',
     estoque_catalogo: 0,
     imagem_snapshot_url: '',
+    modo_fulfillment: 'MAKE',
+    fornecedor_terceirizado_id: '',
+    terceirizacao_custo_unitario: '',
+    terceirizacao_custo_setup: '',
+    terceirizacao_custo_frete: '',
+    terceirizacao_custo_total: '',
+    terceirizacao_prazo_dias: '',
+    terceirizacao_observacoes: '',
   });
 
   const handleAddProduto = () => {
@@ -1504,6 +1775,11 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
                       variant="orcamento"
                       itemIndex={index}
                       servicos={servicos}
+                    />
+
+                    <TerceirizacaoProdutoSection
+                      itemIndex={index}
+                      fornecedores={fornecedoresTerceirizacao}
                     />
 
                     <div className="space-y-4 border-t pt-4">

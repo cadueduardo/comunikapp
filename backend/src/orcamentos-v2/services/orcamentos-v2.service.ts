@@ -128,6 +128,46 @@ export class OrcamentosV2Service {
     }
   }
 
+  private async validarFornecedoresTerceirizacao(
+    dados: any,
+    lojaId: string,
+  ): Promise<void> {
+    const produtos = Array.isArray(dados?.produtos)
+      ? dados.produtos
+      : Array.isArray(dados?.itens_produto)
+        ? dados.itens_produto
+        : [];
+    const ids: string[] = Array.from(
+      new Set<string>(
+        (produtos
+          .filter(
+            (produto: any) =>
+              produto?.modo_fulfillment === 'OUTSOURCE' ||
+              produto?.modo_fulfillment === 'HIBRIDO',
+          )
+          .map((produto: any) => produto?.fornecedor_terceirizado_id)
+          .filter((id: unknown): id is string =>
+            Boolean(typeof id === 'string' && id.trim()),
+          ) as string[]),
+      ),
+    );
+    if (ids.length === 0) return;
+
+    const validos = await this.prisma.fornecedor.count({
+      where: {
+        id: { in: ids },
+        loja_id: lojaId,
+        ativo: true,
+        tipo: { in: ['TERCEIRIZADO', 'AMBOS'] },
+      },
+    });
+    if (validos !== ids.length) {
+      throw new BadRequestException(
+        'Um ou mais parceiros de terceirização são inválidos, estão inativos ou não pertencem à loja.',
+      );
+    }
+  }
+
   /**
    * Cria novo orçamento
    */
@@ -160,6 +200,7 @@ export class OrcamentosV2Service {
       // 1. Validar dados de entrada
       await this.validacaoService.validarDadosCriacao(dados, lojaId);
       await this.validarEntregaInstalacao(dados, lojaId);
+      await this.validarFornecedoresTerceirizacao(dados, lojaId);
 
       // 2. Preparar dados para criação
       const dadosPreparados = this.transformacaoService.prepararDadosCriacao(
@@ -826,6 +867,7 @@ export class OrcamentosV2Service {
         orcamentoExistente,
       );
       await this.validarEntregaInstalacao(dados, lojaId);
+      await this.validarFornecedoresTerceirizacao(dados, lojaId);
 
       // 3. Preparar dados para atualização
       const dadosPreparados =
@@ -1637,6 +1679,13 @@ export class OrcamentosV2Service {
             nome: true,
             email: true,
             telefone: true,
+            tipo_pessoa: true,
+            documento: true,
+            razao_social: true,
+            nome_fantasia: true,
+            responsavel: true,
+            cargo_responsavel: true,
+            whatsapp: true,
           },
         },
         loja: {
@@ -1659,6 +1708,13 @@ export class OrcamentosV2Service {
             nome_servico: true,
             nome: true,
             descricao: true,
+            tipo_item: true,
+            produto_finito_id: true,
+            produto_finito: {
+              select: {
+                descricao_resumida: true,
+              },
+            },
             quantidade: true,
             largura: true,
             altura: true,
@@ -1793,7 +1849,11 @@ export class OrcamentosV2Service {
           return {
             id: produto.id,
             nome: produto.nome_servico || produto.nome,
-            descricao: produto.descricao,
+            descricao:
+              produto.tipo_item === 'PRODUTO_FINITO' &&
+              (produto.produto_finito as { descricao_resumida?: string })?.descricao_resumida
+                ? (produto.produto_finito as { descricao_resumida?: string }).descricao_resumida
+                : produto.descricao,
             quantidade: produto.quantidade,
             unidade: produto.unidade_medida,
             largura: produto.largura,
@@ -1821,6 +1881,13 @@ export class OrcamentosV2Service {
             nome: orcamento.cliente.nome,
             email: orcamento.cliente.email,
             telefone: orcamento.cliente.telefone,
+            tipo_pessoa: orcamento.cliente.tipo_pessoa,
+            documento: orcamento.cliente.documento,
+            razao_social: orcamento.cliente.razao_social,
+            nome_fantasia: orcamento.cliente.nome_fantasia,
+            responsavel: orcamento.cliente.responsavel,
+            cargo_responsavel: orcamento.cliente.cargo_responsavel,
+            whatsapp: orcamento.cliente.whatsapp,
           }
         : null,
 

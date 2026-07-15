@@ -24,6 +24,8 @@ import { OSPCPIntegrationService } from './os-pcp-integration.service';
 import { ExpedicaoCriacaoService } from '../../expedicao/services/expedicao-criacao.service';
 import { ItemOSInstalacaoCriacaoService } from '../../instalacao/services/item-os-instalacao-criacao.service';
 import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
+import { EstoqueApontamentoService } from '../../os/services/estoque-apontamento.service';
+import { TipoApontamento as OSTipoApontamento } from '../../os/interfaces/workflow-pcp.interfaces';
 import type {
   ResumoSincronizacaoInstalacaoOs,
   ResultadoCriacaoLoteInstalacao,
@@ -50,6 +52,7 @@ export class PCPKanbanService {
     private expedicaoCriacaoService: ExpedicaoCriacaoService,
     private itemOSInstalacaoCriacaoService: ItemOSInstalacaoCriacaoService,
     private homeCacheService: HomeCacheService,
+    private estoqueApontamentoService: EstoqueApontamentoService,
   ) {}
 
   /**
@@ -557,6 +560,20 @@ export class PCPKanbanService {
             observacoes,
           },
         });
+
+        if (tipoApontamento === 'INICIO') {
+          try {
+            await this.estoqueApontamentoService.processarOperacaoEstoque(
+              osId,
+              OSTipoApontamento.INICIO,
+            );
+          } catch (estoqueError) {
+            this.logger.error(
+              `Falha ao processar reserva de estoque para OS ${osId}:`,
+              estoqueError,
+            );
+          }
+        }
       }
 
       this.logger.log(`Producao iniciada com sucesso`);
@@ -576,6 +593,7 @@ export class PCPKanbanService {
     observacoes?: string,
     quantidadeProduzida?: number,
     usuario?: AuthenticatedUser,
+    quantidadeRefugo?: number,
   ): Promise<{ instalacao: ResultadoCriacaoLoteInstalacao }> {
     try {
       await this.validarOperadorDaAcao(lojaId, operadorId, usuario);
@@ -614,8 +632,43 @@ export class PCPKanbanService {
             usuario_id: operadorId,
             observacoes: observacoes,
             quantidade_produzida: quantidadeProduzida,
+            quantidade_refugo: quantidadeRefugo,
           },
         });
+
+        // Integração de estoque na conclusão
+        try {
+          await this.estoqueApontamentoService.processarOperacaoEstoque(
+            osId,
+            OSTipoApontamento.CONCLUSAO,
+            quantidadeProduzida,
+            quantidadeRefugo,
+            observacoes,
+          );
+        } catch (estoqueError) {
+          this.logger.error(
+            `Falha ao processar baixa de estoque na conclusão para OS ${osId}:`,
+            estoqueError,
+          );
+        }
+
+        // Se houver refugo, processar o apontamento de refugo no estoque
+        if (quantidadeRefugo && quantidadeRefugo > 0) {
+          try {
+            await this.estoqueApontamentoService.processarOperacaoEstoque(
+              osId,
+              OSTipoApontamento.REFUGO,
+              quantidadeProduzida,
+              quantidadeRefugo,
+              observacoes,
+            );
+          } catch (estoqueError) {
+            this.logger.error(
+              `Falha ao processar refugo de estoque para OS ${osId}:`,
+              estoqueError,
+            );
+          }
+        }
       }
 
       await this.liberarProximoGrupo(

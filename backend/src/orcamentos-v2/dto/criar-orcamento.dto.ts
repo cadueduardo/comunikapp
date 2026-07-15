@@ -7,6 +7,7 @@ import {
   IsArray,
   IsDateString,
   IsUUID,
+  IsInt,
   MinLength,
   MaxLength,
   Min,
@@ -294,6 +295,55 @@ export class ProdutoOrcamentoDto {
   @IsOptional()
   @IsString()
   produto_finito_id?: string;
+
+  @ApiPropertyOptional({
+    description: 'Destino operacional do item',
+    enum: ['PICK', 'MAKE', 'HIBRIDO', 'OUTSOURCE'],
+  })
+  @IsOptional()
+  @IsIn(['PICK', 'MAKE', 'HIBRIDO', 'OUTSOURCE'])
+  modo_fulfillment?: 'PICK' | 'MAKE' | 'HIBRIDO' | 'OUTSOURCE';
+
+  @ApiPropertyOptional({ description: 'Parceiro escolhido para terceirização' })
+  @IsOptional()
+  @IsString()
+  fornecedor_terceirizado_id?: string;
+
+  @ApiPropertyOptional({ description: 'Custo unitário cotado pelo parceiro' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  terceirizacao_custo_unitario?: number;
+
+  @ApiPropertyOptional({ description: 'Custo de preparação/setup do parceiro' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  terceirizacao_custo_setup?: number;
+
+  @ApiPropertyOptional({ description: 'Frete previsto da terceirização' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  terceirizacao_custo_frete?: number;
+
+  @ApiPropertyOptional({ description: 'Custo total terceirizado congelado no orçamento' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  terceirizacao_custo_total?: number;
+
+  @ApiPropertyOptional({ description: 'Prazo informado pelo parceiro, em dias' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  terceirizacao_prazo_dias?: number;
+
+  @ApiPropertyOptional({ description: 'Observações internas da terceirização' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50000)
+  terceirizacao_observacoes?: string;
 
   @ApiPropertyOptional({
     description: 'SKU snapshot do produto de prateleira',

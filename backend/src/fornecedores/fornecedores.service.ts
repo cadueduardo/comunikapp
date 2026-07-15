@@ -1,112 +1,154 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
+import { loja, TipoFornecedor } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateFornecedoreDto } from './dto/create-fornecedore.dto';
 import { UpdateFornecedoreDto } from './dto/update-fornecedore.dto';
-import { PrismaService } from '../prisma/prisma.service';
-import { loja } from '@prisma/client';
 
 @Injectable()
 export class FornecedoresService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async create(createFornecedoreDto: CreateFornecedoreDto, loja: loja) {
-    // Verificar se já existe um fornecedor com o mesmo nome na mesma loja
-    const fornecedorExistente = await this.prisma.fornecedor.findFirst({
-      where: {
-        nome: createFornecedoreDto.nome,
-        loja_id: loja.id,
-      },
-    });
-
-    if (fornecedorExistente) {
-      throw new BadRequestException(
-        `Já existe um fornecedor com o nome "${createFornecedoreDto.nome}" cadastrado. ` +
-          'Por favor, use um nome diferente ou edite o fornecedor existente.',
-      );
-    }
+  async create(dto: CreateFornecedoreDto, lojaAtual: loja) {
+    const nome = dto.nome.trim();
+    await this.validarNomeDuplicado(nome, lojaAtual.id);
 
     return this.prisma.fornecedor.create({
       data: {
-        nome: createFornecedoreDto.nome,
-        loja_id: loja.id,
+        ...dto,
+        nome,
+        estado: dto.estado?.toUpperCase(),
+        loja_id: lojaAtual.id,
       },
     });
   }
 
-  findAll(loja: loja) {
+  findAll(
+    lojaAtual: loja,
+    finalidade?: 'INSUMO' | 'TERCEIRIZACAO',
+  ) {
+    const tipos =
+      finalidade === 'INSUMO'
+        ? [TipoFornecedor.INSUMO, TipoFornecedor.AMBOS]
+        : finalidade === 'TERCEIRIZACAO'
+          ? [TipoFornecedor.TERCEIRIZADO, TipoFornecedor.AMBOS]
+          : undefined;
     return this.prisma.fornecedor.findMany({
-      where: { loja_id: loja.id },
-      orderBy: { nome: 'asc' },
+      where: {
+        loja_id: lojaAtual.id,
+        ...(tipos ? { tipo: { in: tipos } } : {}),
+      },
+      orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
+      include: {
+        _count: {
+          select: {
+            insumos: true,
+            itens_terceirizados: true,
+            produtos_orcados_terceirizados: true,
+          },
+        },
+      },
     });
   }
 
-  async findOne(id: string, loja: loja) {
-    const fornecedor = await this.prisma.fornecedor.findUnique({
-      where: { id },
+  async findOne(id: string, lojaAtual: loja) {
+    const fornecedor = await this.prisma.fornecedor.findFirst({
+      where: { id, loja_id: lojaAtual.id },
+      include: {
+        _count: {
+          select: {
+            insumos: true,
+            itens_terceirizados: true,
+            produtos_orcados_terceirizados: true,
+          },
+        },
+      },
     });
 
-    if (!fornecedor || fornecedor.loja_id !== loja.id) {
+    if (!fornecedor) {
       throw new NotFoundException(`Fornecedor com ID "${id}" não encontrado.`);
     }
+
     return fornecedor;
   }
 
-  async update(
-    id: string,
-    updateFornecedoreDto: UpdateFornecedoreDto,
-    loja: loja,
-  ) {
-    await this.findOne(id, loja);
+  async update(id: string, dto: UpdateFornecedoreDto, lojaAtual: loja) {
+    await this.findOne(id, lojaAtual);
 
-    // Verificar se já existe outro fornecedor com o mesmo nome na mesma loja
-    const fornecedorExistente = await this.prisma.fornecedor.findFirst({
-      where: {
-        nome: updateFornecedoreDto.nome,
-        loja_id: loja.id,
-        id: { not: id }, // Excluir o próprio fornecedor da busca
-      },
-    });
-
-    if (fornecedorExistente) {
-      throw new BadRequestException(
-        `Já existe um fornecedor com o nome "${updateFornecedoreDto.nome}" cadastrado. ` +
-          'Por favor, use um nome diferente.',
-      );
+    const nome = dto.nome?.trim();
+    if (nome) {
+      await this.validarNomeDuplicado(nome, lojaAtual.id, id);
     }
 
     return this.prisma.fornecedor.update({
       where: { id },
-      data: { nome: updateFornecedoreDto.nome },
+      data: {
+        ...dto,
+        ...(nome ? { nome } : {}),
+        ...(dto.estado ? { estado: dto.estado.toUpperCase() } : {}),
+      },
     });
   }
 
-  async remove(id: string, loja: loja) {
-    const fornecedor = await this.findOne(id, loja);
+  async remove(id: string, lojaAtual: loja) {
+    const fornecedor = await this.findOne(id, lojaAtual);
 
-    // Verifica se o fornecedor está sendo usado por insumos
-    const insumosUsando = await this.prisma.insumo.findMany({
+    const insumos = await this.prisma.insumo.findMany({
       where: { fornecedorId: id },
-      select: {
-        nome: true,
-      },
+      select: { nome: true },
     });
 
-    if (insumosUsando.length > 0) {
-      const nomesInsumos = insumosUsando
-        .map((insumo) => insumo.nome)
-        .join(', ');
+    if (insumos.length > 0) {
       throw new BadRequestException(
-        `Não é possível excluir este fornecedor pois ele está sendo usado pelos seguintes insumos: ${nomesInsumos}. ` +
-          'Remova ou altere os insumos antes de excluir o fornecedor.',
+        `Não é possível excluir este fornecedor porque ele está sendo usado pelos insumos: ${insumos.map((insumo) => insumo.nome).join(', ')}. Inative o cadastro para preservar o histórico.`,
+      );
+    }
+
+    const itensTerceirizados = await this.prisma.itemOS.count({
+      where: { fornecedor_id: id },
+    });
+
+    if (itensTerceirizados > 0) {
+      throw new BadRequestException(
+        `Não é possível excluir este fornecedor porque ele está vinculado a ${itensTerceirizados} item(ns) de ordem de serviço. Inative o cadastro para preservar o histórico.`,
+      );
+    }
+
+    const produtosOrcados = await this.prisma.produtoOrcamento.count({
+      where: { fornecedor_terceirizado_id: id },
+    });
+
+    if (produtosOrcados > 0) {
+      throw new BadRequestException(
+        `Não é possível excluir este fornecedor porque ele está vinculado a ${produtosOrcados} produto(s) de orçamento. Inative o cadastro para preservar o histórico.`,
       );
     }
 
     await this.prisma.fornecedor.delete({ where: { id } });
-    return {
-      message: `Fornecedor "${fornecedor.nome}" foi removido com sucesso.`,
-    };
+    return { message: `Fornecedor "${fornecedor.nome}" removido com sucesso.` };
+  }
+
+  private async validarNomeDuplicado(
+    nome: string,
+    lojaId: string,
+    ignorarId?: string,
+  ) {
+    const existente = await this.prisma.fornecedor.findFirst({
+      where: {
+        loja_id: lojaId,
+        nome,
+        ...(ignorarId ? { id: { not: ignorarId } } : {}),
+      },
+      select: { id: true },
+    });
+
+    if (existente) {
+      throw new BadRequestException(
+        `Já existe um fornecedor com o nome "${nome}" cadastrado.`,
+      );
+    }
   }
 }

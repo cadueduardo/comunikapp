@@ -15,6 +15,7 @@ import { ChatFlutuante } from '@/components/ui/chat-flutuante';
 import { ShareButton } from '@/components/ui/share-button';
 import { resolverTextoCondicaoPagamento } from '@/lib/condicao-pagamento-descricao';
 import { resolveAssetUrl } from '@/lib/config';
+import { formatCpf, formatCnpj } from '@/lib/cpf-cnpj';
 
 interface LinhaArtePdf {
   descricao: string;
@@ -57,12 +58,18 @@ interface OrcamentoV2 {
   // Produtos do orçamento
   produtos?: ProdutoOrcamento[];
   
-  // Dados do cliente
   cliente?: {
     id: string;
     nome: string;
     email: string;
     telefone?: string;
+    tipo_pessoa?: 'PESSOA_FISICA' | 'PESSOA_JURIDICA';
+    documento?: string;
+    razao_social?: string;
+    nome_fantasia?: string;
+    responsavel?: string;
+    cargo_responsavel?: string;
+    whatsapp?: string;
   };
   
   // Dados da loja
@@ -457,40 +464,81 @@ export default function OrcamentoV2PublicoPage() {
 
           {/* Dados do Cliente */}
           <div className="p-6 print:p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Dados do Cliente</h3>
-                <div className="space-y-2">
-                  <p className="text-gray-700">
-                    <strong>Nome:</strong> {orcamento.cliente?.nome || 'Não informado'}
-                  </p>
-                  <p className="text-gray-700">
-                    <strong>Email:</strong> {orcamento.cliente?.email || 'Não informado'}
-                  </p>
-                  {orcamento.cliente?.telefone && (
-                    <p className="text-gray-700">
-                      <strong>Telefone:</strong> {orcamento.cliente.telefone}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Contato da Empresa</h3>
-                <div className="space-y-2">
-                  {orcamento.loja?.telefone && (
-                    <p className="text-gray-700 flex items-center gap-2">
-                      <Phone className="h-4 w-4" />
-                      {orcamento.loja.telefone}
-                    </p>
-                  )}
-                  {orcamento.loja?.email && (
-                    <p className="text-gray-700 flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
-                      {orcamento.loja.email}
-                    </p>
-                  )}
-                </div>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-6 mb-6">
+              {orcamento.cliente?.tipo_pessoa === 'PESSOA_JURIDICA' ? (
+                <>
+                  {/* Coluna 1: Dados do Cliente PJ (Contato Responsável) */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Dados do Cliente</h3>
+                    <div className="space-y-1">
+                      <p className="text-gray-700">
+                        <strong>Responsável:</strong> {orcamento.cliente?.responsavel || 'Não informado'}
+                      </p>
+                      {orcamento.cliente?.telefone && (
+                        <p className="text-gray-700">
+                          <strong>Telefone:</strong> {orcamento.cliente.telefone}
+                        </p>
+                      )}
+                      <p className="text-gray-700">
+                        <strong>Email:</strong> {orcamento.cliente?.email || 'Não informado'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Coluna 2: Dados da empresa */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Dados da empresa</h3>
+                    <div className="space-y-1">
+                      <p className="text-gray-700">
+                        <strong>Razão Social:</strong> {orcamento.cliente?.razao_social || orcamento.cliente?.nome || 'Não informado'}
+                      </p>
+                      <p className="text-gray-700">
+                        <strong>CNPJ:</strong> {orcamento.cliente?.documento ? formatCnpj(orcamento.cliente.documento) : 'Não informado'}
+                      </p>
+                      <p className="text-gray-700">
+                        <strong>E-mail:</strong> {orcamento.cliente?.email || 'Não informado'}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Coluna 1: Dados do Cliente PF (Nome e Email) */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Dados do Cliente</h3>
+                    <div className="space-y-1">
+                      <p className="text-gray-700">
+                        <strong>Nome:</strong> {orcamento.cliente?.nome || 'Não informado'}
+                      </p>
+                      <p className="text-gray-700">
+                        <strong>Email:</strong> {orcamento.cliente?.email || 'Não informado'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Coluna 2: Contato do Cliente PF (WhatsApp e Telefone) */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Contato</h3>
+                    <div className="space-y-1">
+                      {orcamento.cliente?.whatsapp && (
+                        <p className="text-gray-700">
+                          <strong>WhatsApp/Celular:</strong> {orcamento.cliente.whatsapp}
+                        </p>
+                      )}
+                      {orcamento.cliente?.telefone && (
+                        <p className="text-gray-700">
+                          <strong>Telefone:</strong> {orcamento.cliente.telefone}
+                        </p>
+                      )}
+                      {!orcamento.cliente?.whatsapp && !orcamento.cliente?.telefone && (
+                        <p className="text-gray-700 text-gray-500 italic">
+                          Nenhum telefone cadastrado
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Tabela de Produtos */}
@@ -520,7 +568,7 @@ export default function OrcamentoV2PublicoPage() {
                             )}
                             {/* Dimensões se disponíveis */}
                             {(produto.largura || produto.altura) && (
-                              <div className="text-xs text-gray-500 mt-1">
+                              <div className="text-sm text-gray-600 mt-1">
                                 {produto.largura && produto.altura 
                                   ? `${produto.largura} x ${produto.altura} cm`
                                   : produto.largura 

@@ -83,6 +83,8 @@ describe('Catalogo — fluxo ponta a ponta (integração estrutural)', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
+      {} as never,
     );
   }
 

@@ -233,6 +233,17 @@ export class OSController {
     );
   }
 
+  @Post(':id/liberar-financeiro')
+  @ApiOperation({ summary: 'Liberar OS manualmente pelo financeiro' })
+  @ApiResponse({ status: 200, description: 'OS liberada com sucesso' })
+  async liberarFinanceiro(@Param('id') id: string, @Request() req: any) {
+    const user = req['user'] || req.user;
+    const lojaId = user.loja_id;
+    const userId = user.sub || user.id;
+    await this.osService.liberarFinanceiro(id, lojaId, userId);
+    return { success: true, message: 'OS liberada financeiramente com sucesso.' };
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Inativar OS (legado — use PATCH /inativar)' })
   @ApiResponse({ status: 200, description: 'OS inativada com sucesso' })

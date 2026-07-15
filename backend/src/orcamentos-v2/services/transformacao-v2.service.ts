@@ -883,6 +883,31 @@ export class TransformacaoV2Service {
       ativo: true,
       tipo_item: produto.tipo_item || 'SOB_DEMANDA',
       produto_finito_id: produto.produto_finito_id || null,
+      modo_fulfillment: produto.modo_fulfillment || null,
+      fornecedor_terceirizado_id:
+        produto.modo_fulfillment === 'OUTSOURCE' ||
+        produto.modo_fulfillment === 'HIBRIDO'
+          ? produto.fornecedor_terceirizado_id || null
+          : null,
+      terceirizacao_custo_unitario: this.normalizarNumeroOpcional(
+        produto.terceirizacao_custo_unitario,
+      ),
+      terceirizacao_custo_setup: this.normalizarNumeroOpcional(
+        produto.terceirizacao_custo_setup,
+      ),
+      terceirizacao_custo_frete: this.normalizarNumeroOpcional(
+        produto.terceirizacao_custo_frete,
+      ),
+      terceirizacao_custo_total: this.normalizarNumeroOpcional(
+        produto.terceirizacao_custo_total,
+      ),
+      terceirizacao_prazo_dias: this.normalizarInteiroOpcional(
+        produto.terceirizacao_prazo_dias,
+      ),
+      terceirizacao_observacoes: this.normalizarTextoOpcional(
+        produto.terceirizacao_observacoes,
+        50_000,
+      ),
       ...this.prepararCamposInstalacao(produto),
     };
 
@@ -1261,6 +1286,29 @@ export class TransformacaoV2Service {
         instalacao_quantidade_pessoas:
           produto.instalacao_quantidade_pessoas ?? null,
         instalacao_observacoes: produto.instalacao_observacoes ?? null,
+        modo_fulfillment: produto.modo_fulfillment ?? null,
+        fornecedor_terceirizado_id:
+          produto.fornecedor_terceirizado_id ?? null,
+        terceirizacao_custo_unitario:
+          produto.terceirizacao_custo_unitario != null
+            ? Number(produto.terceirizacao_custo_unitario)
+            : null,
+        terceirizacao_custo_setup:
+          produto.terceirizacao_custo_setup != null
+            ? Number(produto.terceirizacao_custo_setup)
+            : null,
+        terceirizacao_custo_frete:
+          produto.terceirizacao_custo_frete != null
+            ? Number(produto.terceirizacao_custo_frete)
+            : null,
+        terceirizacao_custo_total:
+          produto.terceirizacao_custo_total != null
+            ? Number(produto.terceirizacao_custo_total)
+            : null,
+        terceirizacao_prazo_dias:
+          produto.terceirizacao_prazo_dias ?? null,
+        terceirizacao_observacoes:
+          produto.terceirizacao_observacoes ?? null,
 
         tipo_item: produto.tipo_item || 'SOB_DEMANDA',
         produto_finito_id: produto.produto_finito_id ?? null,
@@ -1406,6 +1454,17 @@ export class TransformacaoV2Service {
       instalacao_quantidade_pessoas:
         produto?.instalacao_quantidade_pessoas ?? null,
       instalacao_observacoes: produto?.instalacao_observacoes ?? null,
+      modo_fulfillment: produto?.modo_fulfillment ?? null,
+      fornecedor_terceirizado_id:
+        produto?.fornecedor_terceirizado_id ?? null,
+      terceirizacao_custo_unitario:
+        produto?.terceirizacao_custo_unitario ?? null,
+      terceirizacao_custo_setup: produto?.terceirizacao_custo_setup ?? null,
+      terceirizacao_custo_frete: produto?.terceirizacao_custo_frete ?? null,
+      terceirizacao_custo_total: produto?.terceirizacao_custo_total ?? null,
+      terceirizacao_prazo_dias: produto?.terceirizacao_prazo_dias ?? null,
+      terceirizacao_observacoes:
+        produto?.terceirizacao_observacoes ?? null,
       insumos: (produto?.insumos || [])
         .filter((i: any) => i?.insumo_id)
         .map((insumo: any) => ({

@@ -75,6 +75,22 @@ export class ProdutosV2Repository {
           observacoes: rest.observacoes,
           ativo: true,
           tipo_item: rest.tipo_item || 'SOB_DEMANDA',
+          modo_fulfillment: rest.modo_fulfillment ?? null,
+          ...(rest.fornecedor_terceirizado_id
+            ? {
+                fornecedor_terceirizado: {
+                  connect: { id: rest.fornecedor_terceirizado_id },
+                },
+              }
+            : {}),
+          terceirizacao_custo_unitario:
+            rest.terceirizacao_custo_unitario ?? null,
+          terceirizacao_custo_setup: rest.terceirizacao_custo_setup ?? null,
+          terceirizacao_custo_frete: rest.terceirizacao_custo_frete ?? null,
+          terceirizacao_custo_total: rest.terceirizacao_custo_total ?? null,
+          terceirizacao_prazo_dias: rest.terceirizacao_prazo_dias ?? null,
+          terceirizacao_observacoes:
+            rest.terceirizacao_observacoes ?? null,
           ...(rest.produto_finito_id
             ? { produto_finito: { connect: { id: rest.produto_finito_id } } }
             : {}),
@@ -233,6 +249,39 @@ export class ProdutosV2Repository {
           ...(rest.impostos !== undefined ? { impostos: rest.impostos } : {}),
           ...(rest.observacoes !== undefined
             ? { observacoes: rest.observacoes }
+            : {}),
+          ...(rest.modo_fulfillment !== undefined
+            ? { modo_fulfillment: rest.modo_fulfillment }
+            : {}),
+          ...(rest.fornecedor_terceirizado_id !== undefined
+            ? {
+                fornecedor_terceirizado_id:
+                  rest.fornecedor_terceirizado_id,
+              }
+            : {}),
+          ...(rest.terceirizacao_custo_unitario !== undefined
+            ? {
+                terceirizacao_custo_unitario:
+                  rest.terceirizacao_custo_unitario,
+              }
+            : {}),
+          ...(rest.terceirizacao_custo_setup !== undefined
+            ? { terceirizacao_custo_setup: rest.terceirizacao_custo_setup }
+            : {}),
+          ...(rest.terceirizacao_custo_frete !== undefined
+            ? { terceirizacao_custo_frete: rest.terceirizacao_custo_frete }
+            : {}),
+          ...(rest.terceirizacao_custo_total !== undefined
+            ? { terceirizacao_custo_total: rest.terceirizacao_custo_total }
+            : {}),
+          ...(rest.terceirizacao_prazo_dias !== undefined
+            ? { terceirizacao_prazo_dias: rest.terceirizacao_prazo_dias }
+            : {}),
+          ...(rest.terceirizacao_observacoes !== undefined
+            ? {
+                terceirizacao_observacoes:
+                  rest.terceirizacao_observacoes,
+              }
             : {}),
           data_atualizacao: new Date(),
         },
@@ -683,6 +732,17 @@ export class ProdutosV2Repository {
       tipo_item: produto.tipo_item || 'SOB_DEMANDA',
       produto_finito_id: produto.produto_finito_id || null,
       produto_finito: produto.produto_finito || null,
+      modo_fulfillment: produto.modo_fulfillment ?? null,
+      fornecedor_terceirizado_id:
+        produto.fornecedor_terceirizado_id ?? null,
+      terceirizacao_custo_unitario:
+        produto.terceirizacao_custo_unitario ?? null,
+      terceirizacao_custo_setup: produto.terceirizacao_custo_setup ?? null,
+      terceirizacao_custo_frete: produto.terceirizacao_custo_frete ?? null,
+      terceirizacao_custo_total: produto.terceirizacao_custo_total ?? null,
+      terceirizacao_prazo_dias: produto.terceirizacao_prazo_dias ?? null,
+      terceirizacao_observacoes:
+        produto.terceirizacao_observacoes ?? null,
       insumos: produto.insumos || [],
       maquinas: produto.maquinas || [],
       funcoes: produto.funcoes || [],

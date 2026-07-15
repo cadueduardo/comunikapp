@@ -86,6 +86,15 @@ export interface BloqueioFinanceiroConflictBody {
   link_financeiro: string;
 }
 
+export interface ExpedicaoDetalheItem {
+  id: string;
+  produto_servico: string;
+  quantidade: number;
+  tipo_item: 'SOB_DEMANDA' | 'PRODUTO_FINITO';
+  sku: string | null;
+  modo_fulfillment: string | null;
+}
+
 export interface ExpedicaoDetalhe {
   id: string;
   os_id: string;
@@ -117,6 +126,7 @@ export interface ExpedicaoDetalhe {
       whatsapp: string | null;
       email: string | null;
     };
+    itens: ExpedicaoDetalheItem[];
   };
   bloqueio_financeiro: BloqueioFinanceiroExpedicao;
 }

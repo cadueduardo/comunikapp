@@ -102,7 +102,7 @@ export default function NovoItemEstoquePage() {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const data = await fornecedoresApi.getAll(token);
+      const data = await fornecedoresApi.getAll(token, 'INSUMO');
       setFornecedores(data);
     } catch (error) {
       console.error('Erro ao buscar fornecedores:', error);

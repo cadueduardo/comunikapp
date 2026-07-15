@@ -49,6 +49,7 @@ import {
   IconChartBar,
   IconRefresh,
   IconSettings,
+  IconTruckDelivery,
   IconUser,
 } from '@tabler/icons-react';
 
@@ -671,6 +672,12 @@ export default function PCPPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/pcp/terceirizacao">
+              <IconTruckDelivery className="mr-2 h-4 w-4" />
+              Terceirização
+            </Link>
+          </Button>
           <Button variant="outline" size="sm" onClick={atualizar} disabled={loading || loadingDashboard || loadingSetores || loadingCapacidade}>
             <IconRefresh className={`mr-2 h-4 w-4 ${loading || loadingSetores || loadingCapacidade ? 'animate-spin' : ''}`} />
             Atualizar
