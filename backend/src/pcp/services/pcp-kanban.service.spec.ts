@@ -44,6 +44,7 @@ describe('PCPKanbanService', () => {
       },
       workflowInstancia: {
         update: jest.fn(),
+        updateMany: jest.fn(),
         findUnique: jest.fn(),
         findFirst: jest.fn(),
       },
@@ -310,12 +311,8 @@ describe('PCPKanbanService', () => {
     expect(prisma.workflowInstanciaSetor.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
+          loja_id: 'loja-1',
           setor_id: 'setor-1',
-          workflow_instancia: {
-            os: {
-              loja_id: 'loja-1',
-            },
-          },
           status: { in: ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA'] },
         },
         orderBy: [{ criado_em: 'asc' }, { ordem: 'asc' }],
@@ -365,13 +362,9 @@ describe('PCPKanbanService', () => {
       expect(prisma.workflowInstanciaSetor.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
+            loja_id: 'loja-1',
             OR: [{ id: 'item-1' }, { item_os_id: 'item-1' }],
             status: { in: ['PENDENTE', 'PAUSADA'] },
-            workflow_instancia: {
-              os: {
-                loja_id: 'loja-1',
-              },
-            },
           },
           orderBy: [{ ordem: 'asc' }, { criado_em: 'asc' }],
         }),
@@ -423,6 +416,7 @@ describe('PCPKanbanService', () => {
         item_os_id: 'item-1',
         setor_id: 'setor-1',
         workflow_instancia_id: 'instancia-1',
+        workflow_id: 'workflow-1',
         ordem: 0,
         status: 'EM_ANDAMENTO',
       };
@@ -495,7 +489,10 @@ describe('PCPKanbanService', () => {
       // Deve liberar próximo grupo
       expect(prisma.workflowInstanciaSetor.updateMany).toHaveBeenCalledWith({
         where: {
+          loja_id: 'loja-1',
           workflow_instancia_id: 'instancia-1',
+          workflow_id: 'workflow-1',
+          item_os_id: 'item-1',
           ordem: 1,
           status: 'AGUARDANDO',
         },
@@ -512,6 +509,7 @@ describe('PCPKanbanService', () => {
         item_os_id: 'item-1',
         setor_id: 'setor-1',
         workflow_instancia_id: 'instancia-1',
+        workflow_id: 'workflow-1',
         ordem: 1,
         status: 'EM_ANDAMENTO',
       };
@@ -519,7 +517,8 @@ describe('PCPKanbanService', () => {
       prisma.workflowInstanciaSetor.findFirst
         .mockResolvedValueOnce(etapaAtual as any) // etapa atual em andamento
         .mockResolvedValueOnce(null as any) // não há pendentes no grupo atual
-        .mockResolvedValueOnce(null as any); // não há próximo grupo
+        .mockResolvedValueOnce(null as any) // não há próximo grupo do produto
+        .mockResolvedValueOnce(null as any); // não há etapa ativa na OS
 
       prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({
         ...etapaAtual,
@@ -533,19 +532,17 @@ describe('PCPKanbanService', () => {
       prisma.apontamento.create.mockResolvedValueOnce({
         id: 'apontamento-1',
       } as any);
-      prisma.workflowInstancia.findUnique.mockResolvedValueOnce({
+      prisma.workflowInstancia.findFirst.mockResolvedValueOnce({
         os_id: 'os-1',
         os: { loja_id: 'loja-1' },
       } as any);
-      prisma.workflowInstancia.update.mockResolvedValueOnce({
-        id: 'instancia-1',
-      } as any);
+      prisma.workflowInstancia.updateMany.mockResolvedValueOnce({ count: 1 });
 
       await service.concluirEtapa('loja-1', 'item-1', 'operador-1');
 
       // Deve marcar workflow como concluído
-      expect(prisma.workflowInstancia.update).toHaveBeenCalledWith({
-        where: { id: 'instancia-1' },
+      expect(prisma.workflowInstancia.updateMany).toHaveBeenCalledWith({
+        where: { id: 'instancia-1', status: { not: 'CONCLUIDO' } },
         data: {
           status: 'CONCLUIDO',
           data_fim: expect.any(Date),
@@ -561,6 +558,7 @@ describe('PCPKanbanService', () => {
         item_os_id: 'item-1',
         setor_id: 'setor-1',
         workflow_instancia_id: 'instancia-1',
+        workflow_id: 'workflow-1',
         ordem: 0,
         status: 'EM_ANDAMENTO',
       };
@@ -609,6 +607,7 @@ describe('PCPKanbanService', () => {
         id: 'etapa-item1',
         item_os_id: 'item-1',
         workflow_instancia_id: 'instancia-1',
+        workflow_id: 'workflow-1',
         ordem: 0,
         status: 'EM_ANDAMENTO',
       };
@@ -646,6 +645,7 @@ describe('PCPKanbanService', () => {
         id: 'etapa-item3',
         item_os_id: 'item-3',
         workflow_instancia_id: 'instancia-1',
+        workflow_id: 'workflow-1',
         ordem: 0,
         status: 'EM_ANDAMENTO',
       };
@@ -689,7 +689,10 @@ describe('PCPKanbanService', () => {
       // Deve liberar próximo grupo (ordem 1) porque todos da ordem 0 concluíram
       expect(prisma.workflowInstanciaSetor.updateMany).toHaveBeenCalledWith({
         where: {
+          loja_id: 'loja-1',
           workflow_instancia_id: 'instancia-1',
+          workflow_id: 'workflow-1',
+          item_os_id: 'item-3',
           ordem: 1,
           status: 'AGUARDANDO',
         },
@@ -713,6 +716,7 @@ describe('PCPKanbanService', () => {
         id: 'etapa-final',
         item_os_id: 'item-1',
         workflow_instancia_id: 'instancia-1',
+        workflow_id: 'workflow-1',
         ordem: 2, // última ordem
         status: 'EM_ANDAMENTO',
         setor_id: 'setor-final',
@@ -721,7 +725,8 @@ describe('PCPKanbanService', () => {
       prisma.workflowInstanciaSetor.findFirst
         .mockResolvedValueOnce(etapaFinal as any) // etapa atual
         .mockResolvedValueOnce(null as any) // não há mais pendentes no grupo 2
-        .mockResolvedValueOnce(null as any); // não há próximo grupo
+        .mockResolvedValueOnce(null as any) // não há próximo grupo do produto
+        .mockResolvedValueOnce(null as any); // não há etapa ativa na OS
 
       prisma.workflowInstanciaSetor.update.mockResolvedValueOnce({
         ...etapaFinal,
@@ -735,19 +740,17 @@ describe('PCPKanbanService', () => {
       prisma.apontamento.create.mockResolvedValueOnce({
         id: 'apontamento-1',
       } as any);
-      prisma.workflowInstancia.findUnique.mockResolvedValueOnce({
+      prisma.workflowInstancia.findFirst.mockResolvedValueOnce({
         os_id: 'os-1',
         os: { loja_id: 'loja-1' },
       } as any);
-      prisma.workflowInstancia.update.mockResolvedValueOnce({
-        id: 'instancia-1',
-      } as any);
+      prisma.workflowInstancia.updateMany.mockResolvedValueOnce({ count: 1 });
 
       await service.concluirEtapa('loja-1', 'item-1', 'operador-1');
 
       // Deve marcar workflow como concluído
-      expect(prisma.workflowInstancia.update).toHaveBeenCalledWith({
-        where: { id: 'instancia-1' },
+      expect(prisma.workflowInstancia.updateMany).toHaveBeenCalledWith({
+        where: { id: 'instancia-1', status: { not: 'CONCLUIDO' } },
         data: {
           status: 'CONCLUIDO',
           data_fim: expect.any(Date),
@@ -765,6 +768,7 @@ describe('PCPKanbanService', () => {
         id: 'etapa-ordem0',
         item_os_id: 'item-ordem0',
         workflow_instancia_id: 'instancia-1',
+        workflow_id: 'workflow-1',
         ordem: 0,
         status: 'EM_ANDAMENTO',
       };
@@ -808,7 +812,10 @@ describe('PCPKanbanService', () => {
       // Deve atualizar apenas itens AGUARDANDO na ordem 1 para PENDENTE
       expect(prisma.workflowInstanciaSetor.updateMany).toHaveBeenCalledWith({
         where: {
+          loja_id: 'loja-1',
           workflow_instancia_id: 'instancia-1',
+          workflow_id: 'workflow-1',
+          item_os_id: 'item-ordem0',
           ordem: 1,
           status: 'AGUARDANDO',
         },

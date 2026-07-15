@@ -169,12 +169,26 @@ Evitar a atribuição manual de processos produtivos aos itens da OS quando ela 
   - Atualmente, o [workflow-assignment.service.ts](file:///C:/Projects/comunikapp/backend/src/pcp/services/workflow-assignment.service.ts) opera no escopo da OS como um todo. A lógica será refatorada para sugerir e instanciar workflows **individualmente por `ItemOS`** (produto/serviço).
   - Isso permite que, na mesma OS, um banner impresso in-house siga o fluxo físico da loja, enquanto um letreiro de acrílico siga o fluxo virtual de terceiros.
 
+**Implementado em 2026-07:** `WorkflowInstancia` permanece como o contêiner da
+OS para preservar compatibilidade, enquanto cada registro de
+`WorkflowInstanciaSetor` passou a guardar `loja_id` e `workflow_id`. Assim, cada
+`ItemOS` pode usar um template diferente sem duplicar a instância da OS. A
+progressão das etapas é isolada por loja, item e workflow; a instância só é
+concluída quando não resta etapa ativa em nenhum produto.
+
+> Decisão de arquitetura: itens `OUTSOURCE` integrais não entram na fila física
+> do PCP. Eles continuam no Kanban de `/pcp/terceirizacao`, cuja fonte é a
+> `OrdemTerceirizacao`. O workflow fabril por item se aplica a `MAKE` e à parte
+> interna de `HIBRIDO`. Isso evita representar um fornecedor como setor físico e
+> mantém uma única fonte de verdade para o acompanhamento externo.
+
 ### 4.2 Lógica de Roteamento (Algoritmo de Decisão)
 
 Ao aprovar a OS para envio ao PCP, o sistema avalia cada item de acordo com a seguinte hierarquia de fallbacks:
 
 1. **Regra de Fulfillment (Terceirização):**
-   - Se o item possui `modo_fulfillment == OUTSOURCE` (configurado manualmente no orçamento ou herdado do produto), o sistema vincula imediatamente o **Workflow de Terceirização Padrão**.
+   - `OUTSOURCE` integral é encaminhado à `OrdemTerceirizacao` e não recebe etapas fabris.
+   - Para `HIBRIDO`, o motor aceita a regra `MODO_FULFILLMENT` e pode sugerir o workflow da parte interna.
 2. **Associação Direta no Catálogo (Template de Produto):**
    - Se o produto for baseado em um `TemplateProduto` que possua a propriedade `workflow_id_padrao` preenchida no banco, ele aplica esse template diretamente.
 3. **Motor de Regras Inteligentes (Baseado em Insumos e Metadados):**
@@ -188,6 +202,18 @@ Ao aprovar a OS para envio ao PCP, o sistema avalia cada item de acordo com a se
 - **Tela de Liberação do PCP (/os/:id/liberar):**
   - Ao clicar em "Liberar para PCP", o administrador visualiza uma prévia dos itens da OS e a indicação de qual workflow o algoritmo inteligente selecionou para cada um deles.
   - O sistema exibe um marcador visual de confiabilidade do algoritmo. Se a confiança for baixa (ex: projeto especial avulso), o sistema destaca o item permitindo que o gestor mude o workflow através de um dropdown rápido antes de confirmar a liberação final.
+
+**Implementado em 2026-07:** o diálogo global `WorkflowAssignmentDialog` consulta
+`GET /pcp/workflows/sugestoes-itens/:osId`, mostra confiança e motivo por produto
+e permite trocar o template usando o componente global de seleção. Produtos com
+produção iniciada ou concluída não podem ser reatribuídos, preservando o
+histórico operacional.
+
+**Evolução ainda prevista:** criar uma associação persistente entre
+`TemplateProduto` e seu workflow padrão. O schema atual não registra qual
+template originou cada `ProdutoOrcamento`; portanto, esse segundo fallback não
+deve ser inferido por nome, pois isso seria frágil e poderia rotear produção para
+o setor errado.
 
 ---
 

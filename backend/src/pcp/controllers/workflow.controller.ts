@@ -19,6 +19,7 @@ import {
 } from '../interfaces/pcp.interfaces';
 import {
   WorkflowAssignmentService,
+  ItemWorkflowSuggestion,
   WorkflowSuggestion,
 } from '../services/workflow-assignment.service';
 import { AssignWorkflowDto } from '../dto/workflow-assignment.dto';
@@ -55,6 +56,21 @@ export class WorkflowController {
       throw new BadRequestException('Loja não identificada no token.');
     }
     return this.workflowAssignmentService.sugerirWorkflow(osId, lojaId);
+  }
+
+  @Get('sugestoes-itens/:osId')
+  async sugerirWorkflowsPorItem(
+    @Req() req: any,
+    @Param('osId') osId: string,
+  ): Promise<ItemWorkflowSuggestion[]> {
+    const lojaId = req.user?.loja_id;
+    if (!lojaId) {
+      throw new BadRequestException('Loja não identificada no token.');
+    }
+    return this.workflowAssignmentService.sugerirWorkflowsPorItem(
+      osId,
+      lojaId,
+    );
   }
 
   @Get('os/:osId')

@@ -18,8 +18,15 @@ export interface WorkflowSuggestion {
   motivos: string[];
 }
 
+export interface ItemWorkflowSuggestion extends WorkflowSuggestion {
+  itemOsId: string;
+  origem: 'FULFILLMENT' | 'REGRAS' | 'SEM_SUGESTAO';
+  confianca: 'ALTA' | 'MEDIA' | 'BAIXA';
+}
+
 interface WorkflowContexto {
   prioridade?: string;
+  modoFulfillment?: string;
   tags: Set<string>;
   palavrasChave: Set<string>;
   tiposMaterial: Set<string>;
@@ -76,7 +83,7 @@ export class WorkflowAssignmentService {
     const { os, contexto } = await this.carregarContextoOS(osId, lojaId);
 
     const categorias = await this.prisma.workflowCategoria.findMany({
-      where: { loja_id: lojaId, ativo: true },
+      where: { loja_id: lojaId, ativo: true, workflow: { ativo: true } },
       include: { regras: true },
       orderBy: [{ prioridade: 'desc' }, { nome: 'asc' }],
     });
@@ -88,28 +95,59 @@ export class WorkflowAssignmentService {
       return null;
     }
 
-    let melhor: WorkflowSuggestion | null = null;
+    return this.selecionarMelhorWorkflow(categorias, contexto, os);
+  }
 
-    for (const categoria of categorias) {
-      const { score, motivos, rejeitada } = this.avaliarCategoria(
-        categoria,
-        contexto,
-        os,
-      );
+  async sugerirWorkflowsPorItem(
+    osId: string,
+    lojaId: string,
+  ): Promise<ItemWorkflowSuggestion[]> {
+    const { os } = await this.carregarContextoOS(osId, lojaId);
+    const categorias = await this.prisma.workflowCategoria.findMany({
+      where: { loja_id: lojaId, ativo: true, workflow: { ativo: true } },
+      include: { regras: true },
+      orderBy: [{ prioridade: 'desc' }, { nome: 'asc' }],
+    });
 
-      if (!rejeitada && score >= 0) {
-        if (!melhor || score > melhor.score) {
-          melhor = {
-            workflowId: categoria.workflow_id,
-            categoriaId: categoria.id,
-            score,
-            motivos,
-          };
-        }
-      }
-    }
+    return (os.itens ?? [])
+      .filter((item) =>
+        itemRequerFabricaPcp({
+          modo_fulfillment: item.modo_fulfillment,
+          personalizacao_modo: item.personalizacao_modo,
+          responsabilidade_arte: item.responsabilidade_arte,
+        }),
+      )
+      .map((item) => {
+        const contexto = this.extrairContexto(os, item.id);
+        const sugestao = this.selecionarMelhorWorkflow(
+          categorias,
+          contexto,
+          os,
+        );
+        const porFulfillment = sugestao?.motivos.some((motivo) =>
+          motivo.startsWith('Regra MODO_FULFILLMENT satisfeita'),
+        );
 
-    return melhor;
+        return {
+          itemOsId: item.id,
+          workflowId: sugestao?.workflowId ?? '',
+          categoriaId: sugestao?.categoriaId,
+          score: sugestao?.score ?? 0,
+          motivos: sugestao?.motivos ?? [],
+          origem: sugestao
+            ? porFulfillment
+              ? 'FULFILLMENT'
+              : 'REGRAS'
+            : 'SEM_SUGESTAO',
+          confianca: porFulfillment
+            ? 'ALTA'
+            : (sugestao?.score ?? 0) >= 10
+              ? 'ALTA'
+              : (sugestao?.score ?? 0) >= 5
+                ? 'MEDIA'
+                : 'BAIXA',
+        };
+      });
   }
 
   /**
@@ -152,6 +190,7 @@ export class WorkflowAssignmentService {
       instanciaExistente &&
       dto.workflowId &&
       instanciaExistente.workflow_id !== dto.workflowId &&
+      !dto.itemOsIds?.length &&
       !dto.forcar
     ) {
       throw new BadRequestException(
@@ -235,11 +274,41 @@ export class WorkflowAssignmentService {
       );
     }
 
+    if (instanciaExistente && dto.forcar && dto.itemOsIds?.length) {
+      const itensReatribuidos = await this.reatribuirItensNaInstancia(
+        instanciaExistente.id,
+        workflow,
+        itensSelecionados,
+        lojaId,
+      );
+
+      if (os.status === StatusOS.LIBERADA_PARA_PCP) {
+        await this.prisma.ordemServico.update({
+          where: { id: dto.osId },
+          data: {
+            status: StatusOS.EM_WORKFLOW,
+            atualizado_em: new Date(),
+          },
+        });
+      }
+
+      return {
+        workflowId,
+        categoriaId,
+        instanciaId: instanciaExistente.id,
+        mensagem:
+          itensReatribuidos === 1
+            ? 'Workflow reatribuído a 1 produto.'
+            : `Workflow reatribuído a ${itensReatribuidos} produtos.`,
+      };
+    }
+
     if (instanciaExistente && !dto.forcar) {
       const resultado = await this.adicionarItensNaInstancia(
         instanciaExistente.id,
         workflow,
         itensSelecionados,
+        lojaId,
       );
 
       if (!resultado.novosItens.length) {
@@ -290,6 +359,7 @@ export class WorkflowAssignmentService {
       this.prisma,
       dto.osId,
       workflow,
+      lojaId,
       dto.usuarioId,
       dto.forcar ?? false,
       itensSelecionados,
@@ -310,8 +380,8 @@ export class WorkflowAssignmentService {
       categoriaId,
       instanciaId: instancia.id,
       mensagem: categoriaId
-        ? 'Workflow atribu??do com base em categoria inteligente.'
-        : 'Workflow atribu??do manualmente.',
+        ? 'Workflow atribuído com base em categoria inteligente.'
+        : 'Workflow atribuído manualmente.',
     };
   }
 
@@ -343,6 +413,9 @@ export class WorkflowAssignmentService {
             status_liberacao_pcp: true,
             data_prazo_produto: true,
             quantidade: true,
+            modo_fulfillment: true,
+            personalizacao_modo: true,
+            responsabilidade_arte: true,
           },
         },
       },
@@ -356,7 +429,10 @@ export class WorkflowAssignmentService {
     return { os: os as OrdemServicoComOrcamento, contexto };
   }
 
-  private extrairContexto(os: OrdemServicoComOrcamento): WorkflowContexto {
+  private extrairContexto(
+    os: OrdemServicoComOrcamento,
+    itemOsId?: string,
+  ): WorkflowContexto {
     const tiposMaterial = new Set<string>();
     const insumoIds = new Set<string>();
     const tags = new Set<string>();
@@ -408,7 +484,11 @@ export class WorkflowAssignmentService {
     }
 
     // Produtos do orçamento (quando disponíveis)
-    const produtos = os.orcamento?.produtos ?? [];
+    const produtos = itemOsId
+      ? (os.orcamento?.produtos ?? []).filter(
+          (produto) => produto.id === itemOsId,
+        )
+      : (os.orcamento?.produtos ?? []);
     produtos.forEach((produto) => {
       if (produto.nome_servico) {
         produto.nome_servico
@@ -434,8 +514,20 @@ export class WorkflowAssignmentService {
       }
     });
 
+    const itemOS = itemOsId
+      ? (os.itens ?? []).find((item) => item.id === itemOsId)
+      : undefined;
+    if (itemOS?.produto_servico) {
+      itemOS.produto_servico
+        .split(/\s+/)
+        .map((palavra) => palavra.trim().toLowerCase())
+        .filter(Boolean)
+        .forEach((palavra) => palavrasChave.add(palavra));
+    }
+
     return {
       prioridade: os.prioridade || os.orcamento?.prioridade || undefined,
+      modoFulfillment: itemOS?.modo_fulfillment ?? undefined,
       tags,
       palavrasChave,
       tiposMaterial,
@@ -479,6 +571,35 @@ export class WorkflowAssignmentService {
     return { score, motivos, rejeitada: false };
   }
 
+  private selecionarMelhorWorkflow(
+    categorias: Prisma.WorkflowCategoriaGetPayload<{
+      include: { regras: true };
+    }>[],
+    contexto: WorkflowContexto,
+    os: Prisma.OrdemServicoGetPayload<any>,
+  ): WorkflowSuggestion | null {
+    let melhor: WorkflowSuggestion | null = null;
+
+    for (const categoria of categorias) {
+      const { score, motivos, rejeitada } = this.avaliarCategoria(
+        categoria,
+        contexto,
+        os,
+      );
+
+      if (!rejeitada && score >= 0 && (!melhor || score > melhor.score)) {
+        melhor = {
+          workflowId: categoria.workflow_id,
+          categoriaId: categoria.id,
+          score,
+          motivos,
+        };
+      }
+    }
+
+    return melhor;
+  }
+
   private avaliarRegra(
     regra: Prisma.WorkflowCategoriaRegraGetPayload<{}>,
     contexto: WorkflowContexto,
@@ -505,6 +626,9 @@ export class WorkflowAssignmentService {
           os.prioridade?.toLowerCase() === valorComparacao
         );
 
+      case 'MODO_FULFILLMENT':
+        return contexto.modoFulfillment?.toLowerCase() === valorComparacao;
+
       default:
         this.logger.debug(
           `[avaliarRegra] Tipo de regra desconhecido: ${regra.tipo}`,
@@ -519,6 +643,7 @@ export class WorkflowAssignmentService {
     workflow: Prisma.WorkflowOSGetPayload<{
       include: { workflow_setores: { orderBy: { ordem: 'asc' } } };
     }>,
+    lojaId: string,
     usuarioId?: string,
     forcar?: boolean,
     itens?: { id: string | null }[],
@@ -568,6 +693,8 @@ export class WorkflowAssignmentService {
 
           itensParaInstanciar.forEach((item) => {
             registros.push({
+              loja_id: lojaId,
+              workflow_id: workflow.id,
               workflow_instancia_id: instancia.id,
               setor_id: setor.setor_id,
               item_os_id: item.id,
@@ -597,6 +724,7 @@ export class WorkflowAssignmentService {
       include: { workflow_setores: { orderBy: { ordem: 'asc' } } };
     }>,
     itens: { id: string | null }[],
+    lojaId: string,
   ): Promise<{
     novosItens: string[];
     ignorados: string[];
@@ -614,6 +742,7 @@ export class WorkflowAssignmentService {
     const possuiEscopoGeral =
       await this.prisma.workflowInstanciaSetor.findFirst({
         where: {
+          loja_id: lojaId,
           workflow_instancia_id: instanciaId,
           item_os_id: null,
         },
@@ -627,6 +756,7 @@ export class WorkflowAssignmentService {
     const registrosExistentes =
       await this.prisma.workflowInstanciaSetor.findMany({
         where: {
+          loja_id: lojaId,
           workflow_instancia_id: instanciaId,
           item_os_id: { in: idsValidos },
         },
@@ -671,6 +801,8 @@ export class WorkflowAssignmentService {
 
       novosItens.forEach((itemId) => {
         registros.push({
+          loja_id: lojaId,
+          workflow_id: workflow.id,
           workflow_instancia_id: instanciaId,
           setor_id: setor.setor_id,
           item_os_id: itemId,
@@ -724,14 +856,102 @@ export class WorkflowAssignmentService {
     return { novosItens, ignorados };
   }
 
+  private async reatribuirItensNaInstancia(
+    instanciaId: string,
+    workflow: Prisma.WorkflowOSGetPayload<{
+      include: { workflow_setores: { orderBy: { ordem: 'asc' } } };
+    }>,
+    itens: { id: string | null }[],
+    lojaId: string,
+  ): Promise<number> {
+    const itemIds = Array.from(
+      new Set(
+        itens.map((item) => item.id).filter((id): id is string => Boolean(id)),
+      ),
+    );
+
+    if (!itemIds.length) {
+      throw new BadRequestException(
+        'Selecione ao menos um produto para reatribuir o workflow.',
+      );
+    }
+
+    const etapasIniciadas = await this.prisma.workflowInstanciaSetor.findFirst({
+      where: {
+        loja_id: lojaId,
+        workflow_instancia_id: instanciaId,
+        item_os_id: { in: itemIds },
+        status: { in: ['EM_ANDAMENTO', 'PAUSADA', 'CONCLUIDA'] },
+      },
+      select: { id: true },
+    });
+
+    if (etapasIniciadas) {
+      throw new BadRequestException(
+        'Não é possível reatribuir produtos com produção iniciada ou concluída.',
+      );
+    }
+
+    const setoresOrdenados = (workflow.workflow_setores ?? [])
+      .slice()
+      .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
+    const menorOrdem = setoresOrdenados[0]?.ordem ?? 0;
+    const agora = new Date();
+    const registros: Prisma.WorkflowInstanciaSetorCreateManyInput[] = [];
+
+    setoresOrdenados.forEach((setor, index) => {
+      const ordem = setor.ordem ?? index;
+      itemIds.forEach((itemId) => {
+        registros.push({
+          loja_id: lojaId,
+          workflow_id: workflow.id,
+          workflow_instancia_id: instanciaId,
+          setor_id: setor.setor_id,
+          item_os_id: itemId,
+          status: ordem === menorOrdem ? 'PENDENTE' : 'AGUARDANDO',
+          ordem,
+          tempo_estimado: setor.tempo_estimado ?? null,
+          criado_em: agora,
+          atualizado_em: agora,
+        });
+      });
+    });
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.workflowInstanciaSetor.deleteMany({
+        where: {
+          loja_id: lojaId,
+          workflow_instancia_id: instanciaId,
+          item_os_id: { in: itemIds },
+        },
+      });
+
+      if (registros.length) {
+        await tx.workflowInstanciaSetor.createMany({ data: registros });
+      }
+
+      await tx.workflowInstancia.update({
+        where: { id: instanciaId },
+        data: {
+          status: 'ATIVO',
+          etapa_atual: setoresOrdenados[0]?.setor_id ?? null,
+          data_fim: null,
+          atualizado_em: agora,
+        },
+      });
+    });
+
+    return itemIds.length;
+  }
+
   /**
    * Workflows legados (ex.: "Workflow Padrão" da configuração recomendada) podem
    * existir sem registros em workflow_setores. Neste caso, vincula automaticamente
    * todos os setores produtivos ativos da loja para permitir operação no PCP Completo.
    */
   private async garantirWorkflowComSetores(lojaId: string, workflowId: string) {
-    const workflow = await this.prisma.workflowOS.findUnique({
-      where: { id: workflowId },
+    const workflow = await this.prisma.workflowOS.findFirst({
+      where: { id: workflowId, loja_id: lojaId, ativo: true },
       include: {
         workflow_setores: {
           orderBy: { ordem: 'asc' },

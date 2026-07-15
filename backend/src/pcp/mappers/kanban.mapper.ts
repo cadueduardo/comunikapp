@@ -15,7 +15,9 @@ export class KanbanMapper {
     // silenciosamente o progresso/setor/operador dos cards.
     const workflowAtivo = os.workflow_instancia ?? null;
     const instanciaAtiva = this.resolverInstanciaSetorAtiva(workflowAtivo);
-    const workflowInfo = this.extrairWorkflowInfo(workflowAtivo);
+    const workflowInfo = this.extrairWorkflowInfo({
+      workflow: instanciaAtiva?.workflow ?? workflowAtivo?.workflow ?? null,
+    });
 
     return {
       id: os.id,
@@ -44,7 +46,10 @@ export class KanbanMapper {
   static mapearInstanciaParaKanban(instancia: any): OSCardKanban {
     const os =
       instancia.item_os?.os ?? instancia.workflow_instancia?.os ?? null;
-    const workflowInfo = this.extrairWorkflowInfo(instancia.workflow_instancia);
+    const workflowInfo = this.extrairWorkflowInfo({
+      workflow:
+        instancia.workflow ?? instancia.workflow_instancia?.workflow ?? null,
+    });
     const tempoPrevistoMin = Number(instancia.tempo_estimado ?? 0);
 
     return {

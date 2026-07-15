@@ -535,7 +535,7 @@ model fornecedor {
   especialidades Json?
 
   // Relacionamentos
-  loja                           loja                 @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Fornecedor_loja_id_fkey")
+  loja                           loja                     @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Fornecedor_loja_id_fkey")
   insumos                        Insumo[]
   itens_terceirizados            ItemOS[]
   produtos_orcados_terceirizados ProdutoOrcamento[]
@@ -671,6 +671,7 @@ model loja {
   processos_decoracao            ProcessoDecoracao[]
   conjuntos_campos               ConjuntoCampos[]
   estampas                       Estampa[]
+  workflow_instancias_setor      WorkflowInstanciaSetor[]
 }
 
 model maquina {
@@ -2023,10 +2024,11 @@ model WorkflowOS {
   criado_em     DateTime @default(now())
   atualizado_em DateTime @updatedAt
 
-  loja             loja                @relation(fields: [loja_id], references: [id])
+  loja             loja                     @relation(fields: [loja_id], references: [id])
   instancias       WorkflowInstancia[]
   workflow_setores WorkflowSetor[]
-  categorias       WorkflowCategoria[] @relation("WorkflowCategoriaWorkflow")
+  categorias       WorkflowCategoria[]      @relation("WorkflowCategoriaWorkflow")
+  instancias_setor WorkflowInstanciaSetor[]
 
   @@unique([loja_id, nome])
   @@index([loja_id, ativo])
@@ -2290,6 +2292,8 @@ model WorkflowCategoriaRegra {
 
 model WorkflowInstanciaSetor {
   id                    String    @id @default(cuid())
+  loja_id               String
+  workflow_id           String
   workflow_instancia_id String
   setor_id              String
   item_os_id            String? // Opcional - pode ser por OS ou por item específico
@@ -2305,11 +2309,14 @@ model WorkflowInstanciaSetor {
   atualizado_em         DateTime  @updatedAt
 
   // Relacionamentos
+  loja               loja              @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  workflow           WorkflowOS        @relation(fields: [workflow_id], references: [id], onDelete: Restrict)
   workflow_instancia WorkflowInstancia @relation(fields: [workflow_instancia_id], references: [id], onDelete: Cascade)
   setor              SetorProdutivo    @relation(fields: [setor_id], references: [id])
   item_os            ItemOS?           @relation(fields: [item_os_id], references: [id])
   operador           usuario?          @relation(fields: [operador_id], references: [id])
-
+  @@index([loja_id, status])
+  @@index([workflow_id])
   @@index([workflow_instancia_id])
   @@index([setor_id])
   @@index([item_os_id])

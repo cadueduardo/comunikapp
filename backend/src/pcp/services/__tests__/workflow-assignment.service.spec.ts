@@ -7,6 +7,7 @@ describe('WorkflowAssignmentService', () => {
   let prisma: any;
 
   beforeEach(() => {
+    const buscarWorkflow = jest.fn();
     prisma = {
       ordemServico: {
         findFirst: jest.fn(),
@@ -16,7 +17,8 @@ describe('WorkflowAssignmentService', () => {
         findMany: jest.fn(),
       },
       workflowOS: {
-        findUnique: jest.fn(),
+        findUnique: buscarWorkflow,
+        findFirst: buscarWorkflow,
       },
       workflowInstancia: {
         findUnique: jest.fn(),
@@ -65,6 +67,88 @@ describe('WorkflowAssignmentService', () => {
 
     const resultado = await service.sugerirWorkflow('os-1', 'loja-1');
     expect(resultado).toBeNull();
+  });
+
+  it('deve sugerir workflow individual por fulfillment sem misturar produtos', async () => {
+    (prisma.ordemServico.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: 'os-1',
+      loja_id: 'loja-1',
+      status: 'LIBERADA_PARA_PCP',
+      prioridade: 'NORMAL',
+      nome_servico: 'Projeto misto',
+      insumos_calculados: '[]',
+      orcamento: {
+        prioridade: 'NORMAL',
+        tags: null,
+        produtos: [
+          { id: 'item-hibrido', nome_servico: 'Fachada', insumos: [] },
+          { id: 'item-interno', nome_servico: 'Banner', insumos: [] },
+        ],
+      },
+      itens: [
+        {
+          id: 'item-hibrido',
+          produto_servico: 'Fachada',
+          status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'HIBRIDO',
+          responsabilidade_arte: 'NAO_APLICAVEL',
+        },
+        {
+          id: 'item-interno',
+          produto_servico: 'Banner',
+          status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
+          responsabilidade_arte: 'NAO_APLICAVEL',
+        },
+      ],
+    } as any);
+    (prisma.workflowCategoria.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 'categoria-hibrida',
+        workflow_id: 'workflow-hibrido',
+        prioridade: 0,
+        regras: [
+          {
+            tipo: 'MODO_FULFILLMENT',
+            valor: 'HIBRIDO',
+            obrigatoria: true,
+            prioridade: 10,
+          },
+        ],
+      },
+      {
+        id: 'categoria-banner',
+        workflow_id: 'workflow-banner',
+        prioridade: 0,
+        regras: [
+          {
+            tipo: 'PALAVRA_CHAVE',
+            valor: 'banner',
+            obrigatoria: true,
+            prioridade: 5,
+          },
+        ],
+      },
+    ] as any);
+
+    const sugestoes = await service.sugerirWorkflowsPorItem('os-1', 'loja-1');
+
+    expect(sugestoes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          itemOsId: 'item-hibrido',
+          workflowId: 'workflow-hibrido',
+          origem: 'FULFILLMENT',
+          confianca: 'ALTA',
+        }),
+        expect.objectContaining({
+          itemOsId: 'item-interno',
+          workflowId: 'workflow-banner',
+          origem: 'REGRAS',
+          confianca: 'MEDIA',
+        }),
+      ]),
+    );
   });
 
   it('deve atribuir workflow manualmente quando informado', async () => {
@@ -507,6 +591,116 @@ describe('WorkflowAssignmentService', () => {
     expect(prisma.workflowInstancia.create).toHaveBeenCalled();
     expect(resultado.workflowId).toBe('workflow-novo');
     expect(resultado.instanciaId).toBe('instancia-nova');
+  });
+
+  it('deve reatribuir apenas o produto selecionado sem apagar a instância da OS', async () => {
+    (prisma.ordemServico.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: 'os-1',
+      loja_id: 'loja-1',
+      status: 'EM_WORKFLOW',
+      prioridade: 'NORMAL',
+      insumos_calculados: '[]',
+      orcamento: null,
+      itens: [
+        {
+          id: 'item-2',
+          status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
+          produto_servico: 'Produto 2',
+        },
+      ],
+    } as any);
+    (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: 'instancia-1',
+      workflow_id: 'workflow-antigo',
+    } as any);
+    (prisma.workflowOS.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: 'workflow-novo',
+      workflow_setores: [
+        { setor_id: 'setor-1', ordem: 0, tempo_estimado: 30 },
+        { setor_id: 'setor-2', ordem: 1, tempo_estimado: 60 },
+      ],
+    } as any);
+    (prisma.workflowInstanciaSetor.findFirst as jest.Mock).mockResolvedValueOnce(
+      null,
+    );
+    (prisma.workflowInstanciaSetor.deleteMany as jest.Mock).mockResolvedValueOnce(
+      { count: 2 },
+    );
+    (prisma.workflowInstanciaSetor.createMany as jest.Mock).mockResolvedValueOnce(
+      { count: 2 },
+    );
+    (prisma.workflowInstancia.update as jest.Mock).mockResolvedValueOnce({
+      id: 'instancia-1',
+    });
+
+    const resultado = await service.atribuirWorkflow('loja-1', {
+      osId: 'os-1',
+      workflowId: 'workflow-novo',
+      itemOsIds: ['item-2'],
+      forcar: true,
+    });
+
+    expect(prisma.workflowInstancia.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.workflowInstanciaSetor.deleteMany).toHaveBeenCalledWith({
+      where: {
+        loja_id: 'loja-1',
+        workflow_instancia_id: 'instancia-1',
+        item_os_id: { in: ['item-2'] },
+      },
+    });
+    expect(prisma.workflowInstanciaSetor.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({
+          loja_id: 'loja-1',
+          workflow_id: 'workflow-novo',
+          item_os_id: 'item-2',
+        }),
+      ]),
+    });
+    expect(resultado.instanciaId).toBe('instancia-1');
+    expect(resultado.mensagem).toContain('1 produto');
+  });
+
+  it('deve bloquear reatribuição seletiva após o início da produção', async () => {
+    (prisma.ordemServico.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: 'os-1',
+      loja_id: 'loja-1',
+      status: 'EM_WORKFLOW',
+      prioridade: 'NORMAL',
+      insumos_calculados: '[]',
+      orcamento: null,
+      itens: [
+        {
+          id: 'item-1',
+          status_liberacao_pcp: 'LIBERADO',
+          modo_fulfillment: 'MAKE',
+          produto_servico: 'Produto iniciado',
+        },
+      ],
+    } as any);
+    (prisma.workflowInstancia.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: 'instancia-1',
+      workflow_id: 'workflow-antigo',
+    } as any);
+    (prisma.workflowOS.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: 'workflow-novo',
+      workflow_setores: [{ setor_id: 'setor-1', ordem: 0 }],
+    } as any);
+    (prisma.workflowInstanciaSetor.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: 'etapa-em-andamento',
+    });
+
+    await expect(
+      service.atribuirWorkflow('loja-1', {
+        osId: 'os-1',
+        workflowId: 'workflow-novo',
+        itemOsIds: ['item-1'],
+        forcar: true,
+      }),
+    ).rejects.toThrow('produção iniciada ou concluída');
+
+    expect(prisma.workflowInstanciaSetor.deleteMany).not.toHaveBeenCalled();
   });
 
   it('deve lançar erro ao tentar reatribuir workflow diferente sem forcar', async () => {

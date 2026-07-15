@@ -121,6 +121,14 @@ export class PCPKanbanService {
                 include: {
                   setor: { select: { nome: true } },
                   operador: { select: { nome: true } },
+                  workflow: {
+                    include: {
+                      workflow_setores: {
+                        orderBy: { ordem: 'asc' },
+                        include: { setor: { select: { nome: true } } },
+                      },
+                    },
+                  },
                 },
               },
             },
@@ -171,12 +179,8 @@ export class PCPKanbanService {
       const instanciasSetor = await this.prisma.workflowInstanciaSetor.findMany(
         {
           where: {
+            loja_id: lojaId,
             setor_id: setorId,
-            workflow_instancia: {
-              os: {
-                loja_id: lojaId,
-              },
-            },
             status: {
               in: ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA'],
             },
@@ -194,6 +198,14 @@ export class PCPKanbanService {
             },
             setor: true,
             operador: true,
+            workflow: {
+              include: {
+                workflow_setores: {
+                  orderBy: { ordem: 'asc' },
+                  include: { setor: { select: { nome: true } } },
+                },
+              },
+            },
             workflow_instancia: {
               include: {
                 instancias_setor: {
@@ -673,7 +685,10 @@ export class PCPKanbanService {
 
       await this.liberarProximoGrupo(
         etapaAtual.workflow_instancia_id,
+        etapaAtual.workflow_id,
+        etapaAtual.item_os_id,
         etapaAtual.ordem ?? 0,
+        lojaId,
       );
 
       let resultadoInstalacao: ResultadoCriacaoLoteInstalacao = {
@@ -777,11 +792,7 @@ export class PCPKanbanService {
     let etapaOrigem = await this.prisma.workflowInstanciaSetor.findFirst({
       where: {
         id: itemOsId,
-        workflow_instancia: {
-          os: {
-            loja_id: lojaId,
-          },
-        },
+        loja_id: lojaId,
         status: { in: ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA'] },
       },
     });
@@ -804,7 +815,9 @@ export class PCPKanbanService {
 
     const etapaDestino = await this.prisma.workflowInstanciaSetor.findFirst({
       where: {
+        loja_id: lojaId,
         workflow_instancia_id: etapaOrigem.workflow_instancia_id,
+        workflow_id: etapaOrigem.workflow_id,
         item_os_id: etapaOrigem.item_os_id,
         setor_id: data.setorDestinoId,
       },
@@ -881,15 +894,25 @@ export class PCPKanbanService {
 
   private async liberarProximoGrupo(
     workflowInstanciaId: string,
+    workflowId: string,
+    itemOsId: string | null,
     ordemAtual: number,
+    lojaId: string,
   ) {
+    const escopoItem = {
+      loja_id: lojaId,
+      workflow_instancia_id: workflowInstanciaId,
+      workflow_id: workflowId,
+      item_os_id: itemOsId,
+    };
+
     const pendentesNoGrupo = await this.prisma.workflowInstanciaSetor.findFirst(
       {
         where: {
-          workflow_instancia_id: workflowInstanciaId,
+          ...escopoItem,
           ordem: ordemAtual,
           status: {
-            in: ['PENDENTE', 'EM_ANDAMENTO'],
+            in: ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA'],
           },
         },
       },
@@ -901,7 +924,7 @@ export class PCPKanbanService {
 
     const proximoGrupo = await this.prisma.workflowInstanciaSetor.findFirst({
       where: {
-        workflow_instancia_id: workflowInstanciaId,
+        ...escopoItem,
         ordem: { gt: ordemAtual },
         status: 'AGUARDANDO',
       },
@@ -911,16 +934,45 @@ export class PCPKanbanService {
     });
 
     if (!proximoGrupo) {
-      const workflowInstancia = await this.prisma.workflowInstancia.findUnique({
-        where: { id: workflowInstanciaId },
+      const etapaAtivaRestante =
+        await this.prisma.workflowInstanciaSetor.findFirst({
+          where: {
+            loja_id: lojaId,
+            workflow_instancia_id: workflowInstanciaId,
+            status: {
+              in: ['PENDENTE', 'EM_ANDAMENTO', 'PAUSADA', 'AGUARDANDO'],
+            },
+          },
+          orderBy: { ordem: 'asc' },
+          select: { setor_id: true },
+        });
+
+      if (etapaAtivaRestante) {
+        await this.prisma.workflowInstancia.update({
+          where: { id: workflowInstanciaId },
+          data: {
+            status: 'ATIVO',
+            etapa_atual: etapaAtivaRestante.setor_id,
+            atualizado_em: new Date(),
+          },
+        });
+        return;
+      }
+
+      const workflowInstancia = await this.prisma.workflowInstancia.findFirst({
+        where: { id: workflowInstanciaId, os: { loja_id: lojaId } },
         select: {
           os_id: true,
           os: { select: { loja_id: true } },
         },
       });
 
-      await this.prisma.workflowInstancia.update({
-        where: { id: workflowInstanciaId },
+      if (!workflowInstancia) {
+        throw new BadRequestException('Instância de workflow não encontrada.');
+      }
+
+      const concluida = await this.prisma.workflowInstancia.updateMany({
+        where: { id: workflowInstanciaId, status: { not: 'CONCLUIDO' } },
         data: {
           status: 'CONCLUIDO',
           data_fim: new Date(),
@@ -929,7 +981,11 @@ export class PCPKanbanService {
         },
       });
 
-      if (workflowInstancia?.os_id && workflowInstancia.os?.loja_id) {
+      if (
+        concluida.count === 1 &&
+        workflowInstancia.os_id &&
+        workflowInstancia.os?.loja_id
+      ) {
         const lojaOs = workflowInstancia.os.loja_id;
 
         await this.osPcpIntegration.notificarStatusAlterado(
@@ -959,7 +1015,7 @@ export class PCPKanbanService {
 
     await this.prisma.workflowInstanciaSetor.updateMany({
       where: {
-        workflow_instancia_id: workflowInstanciaId,
+        ...escopoItem,
         ordem: proximoGrupo.ordem,
         status: 'AGUARDANDO',
       },
@@ -1303,12 +1359,8 @@ export class PCPKanbanService {
   ) {
     return this.prisma.workflowInstanciaSetor.findFirst({
       where: {
+        loja_id: lojaId,
         OR: [{ id: referenciaItemId }, { item_os_id: referenciaItemId }],
-        workflow_instancia: {
-          os: {
-            loja_id: lojaId,
-          },
-        },
         status,
       },
       orderBy: [{ ordem: 'asc' }, { criado_em: 'asc' }],

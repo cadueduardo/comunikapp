@@ -33,3 +33,4 @@ docs/comunikapp.json
 /backend/db-query.js
 /backend/get-token.js
 /backend/test-endpoint.js
+/backend/backups/

@@ -32,6 +32,15 @@ function findCommand(candidates) {
   return null;
 }
 
+function windowsCandidates(commandNames, commonDirectories) {
+  return [
+    ...commandNames,
+    ...commonDirectories.flatMap((directory) =>
+      commandNames.map((command) => path.join(directory, command)),
+    ),
+  ];
+}
+
 function sanitize(value) {
   return value.replace(/[^a-zA-Z0-9_-]+/g, '_');
 }
@@ -134,10 +143,24 @@ async function main() {
   const connection = parseConnection();
   const dumpCommand = findCommand(
     process.platform === 'win32'
-      ? ['mariadb-dump.exe', 'mysqldump.exe']
+      ? windowsCandidates(
+          ['mariadb-dump.exe', 'mysqldump.exe'],
+          [
+            'C:\\xampp\\mysql\\bin',
+            'C:\\Program Files\\MariaDB 11.8\\bin',
+            'C:\\Program Files\\MariaDB 11.4\\bin',
+          ],
+        )
       : ['mariadb-dump', 'mysqldump'],
   );
-  const gzipCommand = findCommand(process.platform === 'win32' ? ['gzip.exe'] : ['gzip']);
+  const gzipCommand = findCommand(
+    process.platform === 'win32'
+      ? windowsCandidates(
+          ['gzip.exe'],
+          ['C:\\Program Files\\Git\\usr\\bin'],
+        )
+      : ['gzip'],
+  );
 
   if (DRY_RUN) {
     log(`dry-run: banco=${connection.database}, host=${connection.host}:${connection.port}`);
