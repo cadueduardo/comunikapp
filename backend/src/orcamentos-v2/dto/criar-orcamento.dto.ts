@@ -309,6 +309,22 @@ export class ProdutoOrcamentoDto {
   @IsString()
   fornecedor_terceirizado_id?: string;
 
+  @ApiPropertyOptional({
+    description: 'Forma como o parceiro informou o custo',
+    enum: ['DETALHADO', 'PRECO_FECHADO'],
+  })
+  @IsOptional()
+  @IsIn(['DETALHADO', 'PRECO_FECHADO'])
+  terceirizacao_modelo_custo?: 'DETALHADO' | 'PRECO_FECHADO';
+
+  @ApiPropertyOptional({
+    description: 'Quantidade considerada na cotação de preço fechado',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.001)
+  terceirizacao_quantidade_cotada?: number;
+
   @ApiPropertyOptional({ description: 'Custo unitário cotado pelo parceiro' })
   @IsOptional()
   @IsNumber()

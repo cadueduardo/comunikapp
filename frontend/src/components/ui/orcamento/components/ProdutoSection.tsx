@@ -28,7 +28,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { CalendarClock, Plus, Package, Trash2, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  CalendarClock,
+  Package,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { ProdutoFinitoThumb } from '@/components/produtos-finitos/ProdutoFinitoThumb';
 import { ProdutoFinitoPersonalizacaoOrcamento } from '@/components/ui/orcamento/catalogo/ProdutoFinitoPersonalizacaoOrcamento';
 import { calcularPrecoLinhaPersonalizada } from '@/lib/catalogo/personalizacao-preco';
@@ -168,6 +175,18 @@ function TerceirizacaoProdutoSection({
       name: `itens_produto.${itemIndex}.quantidade_produto`,
     }),
   );
+  const modeloCusto = String(
+    useWatch({
+      control: form.control,
+      name: `itens_produto.${itemIndex}.terceirizacao_modelo_custo`,
+    }) || 'DETALHADO',
+  );
+  const quantidadeCotada = numeroMonetario(
+    useWatch({
+      control: form.control,
+      name: `itens_produto.${itemIndex}.terceirizacao_quantidade_cotada`,
+    }),
+  );
   const custoUnitario = numeroMonetario(
     useWatch({
       control: form.control,
@@ -186,18 +205,39 @@ function TerceirizacaoProdutoSection({
       name: `itens_produto.${itemIndex}.terceirizacao_custo_frete`,
     }),
   );
+  const custoTotalInformado = numeroMonetario(
+    useWatch({
+      control: form.control,
+      name: `itens_produto.${itemIndex}.terceirizacao_custo_total`,
+    }),
+  );
   const terceirizado = modo === 'OUTSOURCE' || modo === 'HIBRIDO';
+  const precoFechado = modeloCusto === 'PRECO_FECHADO';
+  const custoTotalDetalhado =
+    custoUnitario * Math.max(quantidade, 0) + custoSetup + custoFrete;
   const custoTotal = terceirizado
-    ? custoUnitario * Math.max(quantidade, 0) + custoSetup + custoFrete
+    ? precoFechado
+      ? custoTotalInformado
+      : custoTotalDetalhado
     : 0;
+  const quantidadeDaCotacao = quantidadeCotada || quantidade;
+  const custoMedioCotado =
+    precoFechado && quantidadeDaCotacao > 0
+      ? custoTotal / quantidadeDaCotacao
+      : 0;
+  const cotacaoDesatualizada =
+    precoFechado &&
+    quantidadeCotada > 0 &&
+    Math.abs(quantidade - quantidadeCotada) > 0.0001;
 
   useEffect(() => {
+    if (precoFechado) return;
     form.setValue(
       `itens_produto.${itemIndex}.terceirizacao_custo_total`,
-      String(Number(custoTotal.toFixed(2))),
+      String(Number(custoTotalDetalhado.toFixed(2))),
       { shouldDirty: false },
     );
-  }, [custoTotal, form, itemIndex]);
+  }, [custoTotalDetalhado, form, itemIndex, precoFechado]);
 
   return (
     <div className="space-y-4 border-t pt-4">
@@ -274,66 +314,180 @@ function TerceirizacaoProdutoSection({
             )}
           />
 
-          <div className="grid gap-4 md:grid-cols-4">
-            <FormField
-              control={form.control}
-              name={`itens_produto.${itemIndex}.terceirizacao_custo_unitario`}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Custo unitário *</FormLabel>
+          <FormField
+            control={form.control}
+            name={`itens_produto.${itemIndex}.terceirizacao_modelo_custo`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Forma da cotação</FormLabel>
+                <Select
+                  value={field.value || 'DETALHADO'}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    form.setValue(
+                      `itens_produto.${itemIndex}.terceirizacao_quantidade_cotada`,
+                      value === 'PRECO_FECHADO' ? String(quantidade) : '',
+                      { shouldDirty: true },
+                    );
+                  }}
+                >
                   <FormControl>
-                    <CustomCurrencyInput
-                      placeholder="R$ 0,00"
-                      name={field.name}
-                      value={field.value ?? ''}
-                      onValueChange={field.onChange}
-                      onBlur={field.onBlur}
-                      ref={field.ref}
-                    />
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name={`itens_produto.${itemIndex}.terceirizacao_custo_setup`}
-              render={({ field }) => (
+                  <SelectContent>
+                    <SelectItem value="DETALHADO">
+                      Detalhada por unidade, setup e frete
+                    </SelectItem>
+                    <SelectItem value="PRECO_FECHADO">
+                      Preço fechado para o lote
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )}
+          />
+
+          {precoFechado ? (
+            <div className="space-y-3">
+              <div className="grid gap-4 md:grid-cols-3">
+                <FormField
+                  control={form.control}
+                  name={`itens_produto.${itemIndex}.terceirizacao_custo_total`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preço fechado do parceiro *</FormLabel>
+                      <FormControl>
+                        <CustomCurrencyInput
+                          placeholder="R$ 0,00"
+                          name={field.name}
+                          value={field.value ?? ''}
+                          onValueChange={field.onChange}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormItem>
-                  <FormLabel>Setup</FormLabel>
-                  <FormControl>
-                    <CustomCurrencyInput
-                      placeholder="R$ 0,00"
-                      name={field.name}
-                      value={field.value ?? ''}
-                      onValueChange={field.onChange}
-                    />
-                  </FormControl>
+                  <FormLabel>Quantidade cotada</FormLabel>
+                  <Input
+                    value={String(quantidadeDaCotacao || '')}
+                    readOnly
+                    className="bg-muted"
+                  />
                 </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name={`itens_produto.${itemIndex}.terceirizacao_custo_frete`}
-              render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Frete</FormLabel>
-                  <FormControl>
-                    <CustomCurrencyInput
-                      placeholder="R$ 0,00"
-                      name={field.name}
-                      value={field.value ?? ''}
-                      onValueChange={field.onChange}
-                    />
-                  </FormControl>
+                  <FormLabel>Média de custo por unidade</FormLabel>
+                  <Input
+                    value={formatCurrency(custoMedioCotado)}
+                    readOnly
+                    className="bg-muted"
+                  />
                 </FormItem>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                O preço fechado será usado integralmente no custo do produto.
+                Setup e frete são considerados incluídos na cotação.
+              </p>
+              {cotacaoDesatualizada && (
+                <div className="flex flex-col gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex gap-2 text-sm">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      Esta cotação foi registrada para {quantidadeCotada}{' '}
+                      unidade(s), mas o produto está com {quantidade}. Confirme
+                      o preço com o parceiro antes de atualizar a quantidade
+                      cotada.
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() =>
+                      form.setValue(
+                        `itens_produto.${itemIndex}.terceirizacao_quantidade_cotada`,
+                        String(quantidade),
+                        { shouldDirty: true, shouldValidate: true },
+                      )
+                    }
+                  >
+                    Atualizar para {quantidade}
+                  </Button>
+                </div>
               )}
-            />
-            <FormItem>
-              <FormLabel>Custo total</FormLabel>
-              <Input value={formatCurrency(custoTotal)} readOnly className="bg-muted" />
-            </FormItem>
-          </div>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-4">
+              <FormField
+                control={form.control}
+                name={`itens_produto.${itemIndex}.terceirizacao_custo_unitario`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Custo unitário *</FormLabel>
+                    <FormControl>
+                      <CustomCurrencyInput
+                        placeholder="R$ 0,00"
+                        name={field.name}
+                        value={field.value ?? ''}
+                        onValueChange={field.onChange}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name={`itens_produto.${itemIndex}.terceirizacao_custo_setup`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Setup</FormLabel>
+                    <FormControl>
+                      <CustomCurrencyInput
+                        placeholder="R$ 0,00"
+                        name={field.name}
+                        value={field.value ?? ''}
+                        onValueChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name={`itens_produto.${itemIndex}.terceirizacao_custo_frete`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Frete</FormLabel>
+                    <FormControl>
+                      <CustomCurrencyInput
+                        placeholder="R$ 0,00"
+                        name={field.name}
+                        value={field.value ?? ''}
+                        onValueChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormItem>
+                <FormLabel>Custo total</FormLabel>
+                <Input
+                  value={formatCurrency(custoTotal)}
+                  readOnly
+                  className="bg-muted"
+                />
+              </FormItem>
+            </div>
+          )}
 
           <div className="grid gap-4 md:grid-cols-3">
             <FormField
@@ -895,6 +1049,8 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
     imagem_snapshot_url: '',
     modo_fulfillment: 'MAKE',
     fornecedor_terceirizado_id: '',
+    terceirizacao_modelo_custo: 'DETALHADO',
+    terceirizacao_quantidade_cotada: '',
     terceirizacao_custo_unitario: '',
     terceirizacao_custo_setup: '',
     terceirizacao_custo_frete: '',

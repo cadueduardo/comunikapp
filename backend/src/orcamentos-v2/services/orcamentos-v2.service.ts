@@ -153,6 +153,33 @@ export class OrcamentosV2Service {
       );
     }
 
+    const numeroSeguro = (valor: unknown): number => {
+      const numero = Number(String(valor ?? '').trim().replace(',', '.'));
+      return Number.isFinite(numero) ? numero : 0;
+    };
+    const custoInvalido = produtosTerceirizados.some((produto: any) => {
+      if (produto?.terceirizacao_modelo_custo === 'PRECO_FECHADO') {
+        return (
+          numeroSeguro(produto.terceirizacao_custo_total) <= 0 ||
+          numeroSeguro(
+            produto.terceirizacao_quantidade_cotada ?? produto.quantidade,
+          ) <= 0
+        );
+      }
+
+      const quantidade = numeroSeguro(produto?.quantidade);
+      const totalDetalhado =
+        numeroSeguro(produto?.terceirizacao_custo_unitario) * quantidade +
+        numeroSeguro(produto?.terceirizacao_custo_setup) +
+        numeroSeguro(produto?.terceirizacao_custo_frete);
+      return totalDetalhado <= 0;
+    });
+    if (custoInvalido) {
+      throw new BadRequestException(
+        'Informe um custo terceirizado válido para cada produto terceirizado ou híbrido.',
+      );
+    }
+
     const ids: string[] = Array.from(
       new Set<string>(
         produtosTerceirizados
@@ -284,6 +311,8 @@ export class OrcamentosV2Service {
               tipo_item: true,
               modo_fulfillment: true,
               fornecedor_terceirizado_id: true,
+              terceirizacao_modelo_custo: true,
+              terceirizacao_quantidade_cotada: true,
               terceirizacao_custo_unitario: true,
               terceirizacao_custo_setup: true,
               terceirizacao_custo_frete: true,
@@ -580,6 +609,8 @@ export class OrcamentosV2Service {
               tipo_item: true,
               modo_fulfillment: true,
               fornecedor_terceirizado_id: true,
+              terceirizacao_modelo_custo: true,
+              terceirizacao_quantidade_cotada: true,
               terceirizacao_custo_unitario: true,
               terceirizacao_custo_setup: true,
               terceirizacao_custo_frete: true,
@@ -968,6 +999,8 @@ export class OrcamentosV2Service {
                 tipo_item: true,
                 modo_fulfillment: true,
                 fornecedor_terceirizado_id: true,
+                terceirizacao_modelo_custo: true,
+                terceirizacao_quantidade_cotada: true,
                 terceirizacao_custo_unitario: true,
                 terceirizacao_custo_setup: true,
                 terceirizacao_custo_frete: true,
@@ -1746,6 +1779,8 @@ export class OrcamentosV2Service {
             tipo_item: true,
             modo_fulfillment: true,
             fornecedor_terceirizado_id: true,
+            terceirizacao_modelo_custo: true,
+            terceirizacao_quantidade_cotada: true,
             terceirizacao_custo_unitario: true,
             terceirizacao_custo_setup: true,
             terceirizacao_custo_frete: true,

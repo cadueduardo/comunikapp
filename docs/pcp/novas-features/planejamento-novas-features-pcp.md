@@ -121,6 +121,16 @@ Para `OUTSOURCE` e `HIBRIDO`, o orçamento exige um fornecedor classificado como
 - prazo em dias;
 - observações internas.
 
+A cotação aceita dois modelos persistidos no snapshot do produto:
+
+- `DETALHADO`: quantidade × custo unitário + setup + frete;
+- `PRECO_FECHADO`: valor total informado pelo parceiro para uma quantidade
+  cotada, sem criar uma composição fictícia de custo unitário, setup ou frete.
+
+No preço fechado, a média por unidade é apenas uma referência visual. Se a
+quantidade do produto divergir da quantidade cotada, o orçamento alerta o
+operador e conserva o total original até que a cotação seja confirmada.
+
 O custo total terceirizado participa do custo-base do produto antes da aplicação
 de margem, comissão e impostos. Na aprovação, `modo_fulfillment` e fornecedor são
 propagados para o `ItemOS`. Alterações posteriores no cadastro do fornecedor não

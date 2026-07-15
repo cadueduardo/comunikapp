@@ -131,6 +131,8 @@ export interface ProdutoOrcamento {
   sku_snapshot?: string | null;
   modo_fulfillment?: 'PICK' | 'MAKE' | 'HIBRIDO' | 'OUTSOURCE' | null;
   fornecedor_terceirizado_id?: string | null;
+  terceirizacao_modelo_custo?: 'DETALHADO' | 'PRECO_FECHADO';
+  terceirizacao_quantidade_cotada?: number | null;
   terceirizacao_custo_unitario?: number | null;
   terceirizacao_custo_setup?: number | null;
   terceirizacao_custo_frete?: number | null;

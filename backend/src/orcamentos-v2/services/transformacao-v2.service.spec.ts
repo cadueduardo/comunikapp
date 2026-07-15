@@ -141,6 +141,49 @@ describe('TransformacaoV2Service', () => {
     });
   });
 
+  it('preserva o preço fechado e a quantidade cotada no round-trip', () => {
+    const resultado = service.prepararDadosCriacao(
+      {
+        titulo: 'Orçamento com cotação fechada',
+        produtos: [
+          {
+            nome: 'Lote de banners',
+            quantidade: 25,
+            modo_fulfillment: 'OUTSOURCE',
+            fornecedor_terceirizado_id: 'fornecedor-1',
+            terceirizacao_modelo_custo: 'PRECO_FECHADO',
+            terceirizacao_quantidade_cotada: 25,
+            terceirizacao_custo_unitario: 999,
+            terceirizacao_custo_setup: 999,
+            terceirizacao_custo_frete: 999,
+            terceirizacao_custo_total: 1000,
+          },
+        ],
+      },
+      'loja-1',
+      'usuario-1',
+    );
+
+    expect(resultado.produtos.create[0]).toMatchObject({
+      terceirizacao_modelo_custo: 'PRECO_FECHADO',
+      terceirizacao_quantidade_cotada: 25,
+      terceirizacao_custo_unitario: null,
+      terceirizacao_custo_setup: null,
+      terceirizacao_custo_frete: null,
+      terceirizacao_custo_total: 1000,
+    });
+
+    const interfaceOrcamento = service.transformarParaInterface({
+      id: 'orcamento-1',
+      produtos: [resultado.produtos.create[0]],
+    });
+    expect(interfaceOrcamento.produtos[0]).toMatchObject({
+      terceirizacao_modelo_custo: 'PRECO_FECHADO',
+      terceirizacao_quantidade_cotada: 25,
+      terceirizacao_custo_total: 1000,
+    });
+  });
+
   it('limpa os dados de terceirizacao ao voltar para producao interna', () => {
     const resultado = service.prepararDadosCriacao(
       {

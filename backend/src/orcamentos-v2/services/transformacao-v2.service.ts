@@ -645,6 +645,8 @@ export class TransformacaoV2Service {
       return {
         modo_fulfillment: modo,
         fornecedor_terceirizado_id: null,
+        terceirizacao_modelo_custo: 'DETALHADO',
+        terceirizacao_quantidade_cotada: null,
         terceirizacao_custo_unitario: null,
         terceirizacao_custo_setup: null,
         terceirizacao_custo_frete: null,
@@ -658,6 +660,45 @@ export class TransformacaoV2Service {
       this.normalizarNumeroOpcional(produto.quantidade) ?? 0,
       0,
     );
+    const modeloCusto =
+      produto.terceirizacao_modelo_custo === 'PRECO_FECHADO'
+        ? 'PRECO_FECHADO'
+        : 'DETALHADO';
+    const quantidadeCotada = Math.max(
+      this.normalizarNumeroOpcional(
+        produto.terceirizacao_quantidade_cotada,
+      ) ?? quantidade,
+      0,
+    );
+
+    if (modeloCusto === 'PRECO_FECHADO') {
+      const custoTotalFechado = Math.max(
+        this.normalizarNumeroOpcional(produto.terceirizacao_custo_total) ?? 0,
+        0,
+      );
+
+      return {
+        modo_fulfillment: modo,
+        fornecedor_terceirizado_id: this.normalizarTextoOpcional(
+          produto.fornecedor_terceirizado_id,
+          191,
+        ),
+        terceirizacao_modelo_custo: modeloCusto,
+        terceirizacao_quantidade_cotada: quantidadeCotada,
+        terceirizacao_custo_unitario: null,
+        terceirizacao_custo_setup: null,
+        terceirizacao_custo_frete: null,
+        terceirizacao_custo_total: custoTotalFechado,
+        terceirizacao_prazo_dias: this.normalizarInteiroOpcional(
+          produto.terceirizacao_prazo_dias,
+        ),
+        terceirizacao_observacoes: this.normalizarTextoOpcional(
+          produto.terceirizacao_observacoes,
+          50_000,
+        ),
+      };
+    }
+
     const custoUnitario = Math.max(
       this.normalizarNumeroOpcional(produto.terceirizacao_custo_unitario) ?? 0,
       0,
@@ -685,6 +726,8 @@ export class TransformacaoV2Service {
         produto.fornecedor_terceirizado_id,
         191,
       ),
+      terceirizacao_modelo_custo: modeloCusto,
+      terceirizacao_quantidade_cotada: null,
       terceirizacao_custo_unitario: custoUnitario,
       terceirizacao_custo_setup: custoSetup,
       terceirizacao_custo_frete: custoFrete,
@@ -1328,6 +1371,12 @@ export class TransformacaoV2Service {
         modo_fulfillment: produto.modo_fulfillment ?? null,
         fornecedor_terceirizado_id:
           produto.fornecedor_terceirizado_id ?? null,
+        terceirizacao_modelo_custo:
+          produto.terceirizacao_modelo_custo ?? 'DETALHADO',
+        terceirizacao_quantidade_cotada:
+          produto.terceirizacao_quantidade_cotada != null
+            ? Number(produto.terceirizacao_quantidade_cotada)
+            : null,
         terceirizacao_custo_unitario:
           produto.terceirizacao_custo_unitario != null
             ? Number(produto.terceirizacao_custo_unitario)
@@ -1496,6 +1545,10 @@ export class TransformacaoV2Service {
       modo_fulfillment: produto?.modo_fulfillment ?? null,
       fornecedor_terceirizado_id:
         produto?.fornecedor_terceirizado_id ?? null,
+      terceirizacao_modelo_custo:
+        produto?.terceirizacao_modelo_custo ?? 'DETALHADO',
+      terceirizacao_quantidade_cotada:
+        produto?.terceirizacao_quantidade_cotada ?? null,
       terceirizacao_custo_unitario:
         produto?.terceirizacao_custo_unitario ?? null,
       terceirizacao_custo_setup: produto?.terceirizacao_custo_setup ?? null,

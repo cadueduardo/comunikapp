@@ -814,9 +814,12 @@ export const calcularProdutosPreview = (
     const custoTerceirizacao =
       item?.modo_fulfillment === 'OUTSOURCE' ||
       item?.modo_fulfillment === 'HIBRIDO'
-        ? parseNumber(item?.terceirizacao_custo_unitario) * contexto.quantidade +
-          parseNumber(item?.terceirizacao_custo_setup) +
-          parseNumber(item?.terceirizacao_custo_frete)
+        ? item?.terceirizacao_modelo_custo === 'PRECO_FECHADO'
+          ? parseNumber(item?.terceirizacao_custo_total)
+          : parseNumber(item?.terceirizacao_custo_unitario) *
+              contexto.quantidade +
+            parseNumber(item?.terceirizacao_custo_setup) +
+            parseNumber(item?.terceirizacao_custo_frete)
         : 0;
 
     const custoBase =

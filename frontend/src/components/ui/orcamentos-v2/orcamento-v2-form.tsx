@@ -366,6 +366,8 @@ export function OrcamentoV2Form({
           imagem_snapshot_url: '',
           modo_fulfillment: 'MAKE',
           fornecedor_terceirizado_id: '',
+          terceirizacao_modelo_custo: 'DETALHADO',
+          terceirizacao_quantidade_cotada: '',
           terceirizacao_custo_unitario: '',
           terceirizacao_custo_setup: '',
           terceirizacao_custo_frete: '',
@@ -617,6 +619,10 @@ export function OrcamentoV2Form({
               modo_fulfillment: produto.modo_fulfillment || 'MAKE',
               fornecedor_terceirizado_id:
                 produto.fornecedor_terceirizado_id || '',
+              terceirizacao_modelo_custo:
+                produto.terceirizacao_modelo_custo || 'DETALHADO',
+              terceirizacao_quantidade_cotada:
+                produto.terceirizacao_quantidade_cotada?.toString() || '',
               terceirizacao_custo_unitario:
                 produto.terceirizacao_custo_unitario?.toString() || '',
               terceirizacao_custo_setup:
@@ -689,6 +695,10 @@ export function OrcamentoV2Form({
                 modo_fulfillment: produto.modo_fulfillment || 'MAKE',
                 fornecedor_terceirizado_id:
                   produto.fornecedor_terceirizado_id || '',
+                terceirizacao_modelo_custo:
+                  produto.terceirizacao_modelo_custo || 'DETALHADO',
+                terceirizacao_quantidade_cotada:
+                  produto.terceirizacao_quantidade_cotada?.toString() || '',
                 terceirizacao_custo_unitario:
                   produto.terceirizacao_custo_unitario?.toString() || '',
                 terceirizacao_custo_setup:
@@ -747,6 +757,8 @@ export function OrcamentoV2Form({
               instalacao_observacoes: '',
               modo_fulfillment: 'MAKE',
               fornecedor_terceirizado_id: '',
+              terceirizacao_modelo_custo: 'DETALHADO',
+              terceirizacao_quantidade_cotada: '',
               terceirizacao_custo_unitario: '',
               terceirizacao_custo_setup: '',
               terceirizacao_custo_frete: '',
@@ -1372,6 +1384,12 @@ export function OrcamentoV2Form({
             (produtoFormulario as any).modo_fulfillment || 'MAKE',
           fornecedor_terceirizado_id:
             (produtoFormulario as any).fornecedor_terceirizado_id || undefined,
+          terceirizacao_modelo_custo:
+            (produtoFormulario as any).terceirizacao_modelo_custo ||
+            'DETALHADO',
+          terceirizacao_quantidade_cotada: normalizarNumero(
+            (produtoFormulario as any).terceirizacao_quantidade_cotada,
+          ),
           terceirizacao_custo_unitario: normalizarNumero(
             (produtoFormulario as any).terceirizacao_custo_unitario,
           ),
@@ -2631,6 +2649,8 @@ export function OrcamentoV2Form({
         instalacao_necessaria: false,
         modo_fulfillment: 'PICK',
         fornecedor_terceirizado_id: '',
+        terceirizacao_modelo_custo: 'DETALHADO',
+        terceirizacao_quantidade_cotada: '',
         terceirizacao_custo_unitario: '',
         terceirizacao_custo_setup: '',
         terceirizacao_custo_frete: '',

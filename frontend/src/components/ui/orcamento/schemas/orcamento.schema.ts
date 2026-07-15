@@ -97,6 +97,10 @@ const itemProdutoSchema = z
       .enum(['PICK', 'MAKE', 'HIBRIDO', 'OUTSOURCE'])
       .optional(),
     fornecedor_terceirizado_id: z.string().optional(),
+    terceirizacao_modelo_custo: z
+      .enum(['DETALHADO', 'PRECO_FECHADO'])
+      .optional(),
+    terceirizacao_quantidade_cotada: numeroOpcional,
     terceirizacao_custo_unitario: numeroOpcional,
     terceirizacao_custo_setup: numeroOpcional,
     terceirizacao_custo_frete: numeroOpcional,
@@ -207,14 +211,35 @@ const itemProdutoSchema = z
           path: ['fornecedor_terceirizado_id'],
         });
       }
-      const custoTotal = Number(
+      const modeloCusto = item.terceirizacao_modelo_custo || 'DETALHADO';
+      const quantidade = Number(
+        String(item.quantidade_produto || '0').replace(',', '.'),
+      );
+      const custoUnitario = Number(
+        String(item.terceirizacao_custo_unitario || '0').replace(',', '.'),
+      );
+      const custoSetup = Number(
+        String(item.terceirizacao_custo_setup || '0').replace(',', '.'),
+      );
+      const custoFrete = Number(
+        String(item.terceirizacao_custo_frete || '0').replace(',', '.'),
+      );
+      const custoTotalInformado = Number(
         String(item.terceirizacao_custo_total || '0').replace(',', '.'),
       );
+      const custoTotal =
+        modeloCusto === 'PRECO_FECHADO'
+          ? custoTotalInformado
+          : custoUnitario * quantidade + custoSetup + custoFrete;
       if (!Number.isFinite(custoTotal) || custoTotal <= 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: 'Informe um custo de terceirização maior que zero',
-          path: ['terceirizacao_custo_unitario'],
+          path: [
+            modeloCusto === 'PRECO_FECHADO'
+              ? 'terceirizacao_custo_total'
+              : 'terceirizacao_custo_unitario',
+          ],
         });
       }
     }
