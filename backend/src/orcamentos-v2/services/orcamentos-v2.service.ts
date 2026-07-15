@@ -137,18 +137,29 @@ export class OrcamentosV2Service {
       : Array.isArray(dados?.itens_produto)
         ? dados.itens_produto
         : [];
+    const produtosTerceirizados = produtos.filter(
+      (produto: any) =>
+        produto?.modo_fulfillment === 'OUTSOURCE' ||
+        produto?.modo_fulfillment === 'HIBRIDO',
+    );
+    const semFornecedor = produtosTerceirizados.some(
+      (produto: any) =>
+        typeof produto?.fornecedor_terceirizado_id !== 'string' ||
+        !produto.fornecedor_terceirizado_id.trim(),
+    );
+    if (semFornecedor) {
+      throw new BadRequestException(
+        'Selecione um parceiro ativo para cada produto terceirizado ou híbrido.',
+      );
+    }
+
     const ids: string[] = Array.from(
       new Set<string>(
-        (produtos
-          .filter(
-            (produto: any) =>
-              produto?.modo_fulfillment === 'OUTSOURCE' ||
-              produto?.modo_fulfillment === 'HIBRIDO',
-          )
+        produtosTerceirizados
           .map((produto: any) => produto?.fornecedor_terceirizado_id)
           .filter((id: unknown): id is string =>
             Boolean(typeof id === 'string' && id.trim()),
-          ) as string[]),
+          ) as string[],
       ),
     );
     if (ids.length === 0) return;
@@ -271,6 +282,14 @@ export class OrcamentosV2Service {
               ordem: true,
               categoria: true,
               tipo_item: true,
+              modo_fulfillment: true,
+              fornecedor_terceirizado_id: true,
+              terceirizacao_custo_unitario: true,
+              terceirizacao_custo_setup: true,
+              terceirizacao_custo_frete: true,
+              terceirizacao_custo_total: true,
+              terceirizacao_prazo_dias: true,
+              terceirizacao_observacoes: true,
               produto_finito_id: true,
               produto_finito: {
                 select: {
@@ -559,6 +578,14 @@ export class OrcamentosV2Service {
               ordem: true,
               categoria: true,
               tipo_item: true,
+              modo_fulfillment: true,
+              fornecedor_terceirizado_id: true,
+              terceirizacao_custo_unitario: true,
+              terceirizacao_custo_setup: true,
+              terceirizacao_custo_frete: true,
+              terceirizacao_custo_total: true,
+              terceirizacao_prazo_dias: true,
+              terceirizacao_observacoes: true,
               produto_finito_id: true,
               produto_finito: {
                 select: {
@@ -939,6 +966,14 @@ export class OrcamentosV2Service {
                 ordem: true,
                 categoria: true,
                 tipo_item: true,
+                modo_fulfillment: true,
+                fornecedor_terceirizado_id: true,
+                terceirizacao_custo_unitario: true,
+                terceirizacao_custo_setup: true,
+                terceirizacao_custo_frete: true,
+                terceirizacao_custo_total: true,
+                terceirizacao_prazo_dias: true,
+                terceirizacao_observacoes: true,
                 produto_finito_id: true,
                 produto_finito: {
                   select: {
@@ -1709,6 +1744,14 @@ export class OrcamentosV2Service {
             nome: true,
             descricao: true,
             tipo_item: true,
+            modo_fulfillment: true,
+            fornecedor_terceirizado_id: true,
+            terceirizacao_custo_unitario: true,
+            terceirizacao_custo_setup: true,
+            terceirizacao_custo_frete: true,
+            terceirizacao_custo_total: true,
+            terceirizacao_prazo_dias: true,
+            terceirizacao_observacoes: true,
             produto_finito_id: true,
             produto_finito: {
               select: {

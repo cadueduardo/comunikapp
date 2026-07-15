@@ -110,4 +110,61 @@ describe('TransformacaoV2Service', () => {
     expect(atualizacao).toMatchObject(condicaoPagamento);
     expect(interfaceOrcamento).toMatchObject(condicaoPagamento);
   });
+
+  it('recalcula o custo terceirizado no backend e ignora o total do cliente', () => {
+    const resultado = service.prepararDadosCriacao(
+      {
+        titulo: 'Orçamento terceirizado',
+        produtos: [
+          {
+            nome: 'Estrutura metálica',
+            quantidade: 3,
+            modo_fulfillment: 'OUTSOURCE',
+            fornecedor_terceirizado_id: 'fornecedor-1',
+            terceirizacao_custo_unitario: 125.5,
+            terceirizacao_custo_setup: 30,
+            terceirizacao_custo_frete: 18.5,
+            terceirizacao_custo_total: 1,
+          },
+        ],
+      },
+      'loja-1',
+      'usuario-1',
+    );
+
+    expect(resultado.produtos.create[0]).toMatchObject({
+      fornecedor_terceirizado_id: 'fornecedor-1',
+      terceirizacao_custo_unitario: 125.5,
+      terceirizacao_custo_setup: 30,
+      terceirizacao_custo_frete: 18.5,
+      terceirizacao_custo_total: 425,
+    });
+  });
+
+  it('limpa os dados de terceirizacao ao voltar para producao interna', () => {
+    const resultado = service.prepararDadosCriacao(
+      {
+        titulo: 'Orçamento interno',
+        produtos: [
+          {
+            nome: 'Fachada',
+            quantidade: 1,
+            modo_fulfillment: 'MAKE',
+            fornecedor_terceirizado_id: 'fornecedor-antigo',
+            terceirizacao_custo_unitario: 100,
+            terceirizacao_custo_total: 100,
+          },
+        ],
+      },
+      'loja-1',
+      'usuario-1',
+    );
+
+    expect(resultado.produtos.create[0]).toMatchObject({
+      modo_fulfillment: 'MAKE',
+      fornecedor_terceirizado_id: null,
+      terceirizacao_custo_unitario: null,
+      terceirizacao_custo_total: null,
+    });
+  });
 });

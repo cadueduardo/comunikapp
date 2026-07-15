@@ -3772,6 +3772,16 @@ export class OSService {
       if (
         (modoFulfillment === ModoFulfillmentItem.OUTSOURCE ||
           modoFulfillment === ModoFulfillmentItem.HIBRIDO) &&
+        !fornecedorTerceirizado
+      ) {
+        throw new BadRequestException(
+          'O item terceirizado não possui um parceiro válido vinculado.',
+        );
+      }
+
+      if (
+        (modoFulfillment === ModoFulfillmentItem.OUTSOURCE ||
+          modoFulfillment === ModoFulfillmentItem.HIBRIDO) &&
         fornecedorTerceirizado
       ) {
         if (fornecedorTerceirizado.loja_id !== lojaId) {
@@ -3782,6 +3792,11 @@ export class OSService {
         if (fornecedorTerceirizado.tipo === TipoFornecedor.INSUMO) {
           throw new BadRequestException(
             'O fornecedor selecionado não está habilitado para terceirização.',
+          );
+        }
+        if (!fornecedorTerceirizado.ativo) {
+          throw new BadRequestException(
+            'O fornecedor terceirizado selecionado está inativo.',
           );
         }
       }

@@ -40,6 +40,7 @@ export class FornecedoresService {
       where: {
         loja_id: lojaAtual.id,
         ...(tipos ? { tipo: { in: tipos } } : {}),
+        ...(finalidade ? { ativo: true } : {}),
       },
       orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
       include: {

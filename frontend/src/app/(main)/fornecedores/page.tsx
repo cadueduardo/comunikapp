@@ -28,7 +28,7 @@ export default function FornecedoresConfigPage() {
       const token = localStorage.getItem('access_token');
       if (!token) return;
       const data = await fornecedoresApi.getAll(token);
-      setFornecedores(data as Fornecedor[]);
+      setFornecedores(data);
     } catch (error) {
       console.error('Erro ao carregar fornecedores:', error);
       toast.error('Erro ao carregar fornecedores.');

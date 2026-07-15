@@ -35,7 +35,7 @@ const parseNumber = (value: NumericLike): number => {
 /**
  * Determina se um insumo deve ter sua quantidade multiplicada pela quantidade do produto
  */
-const deveAplicarMultiplicacaoMaterial = (unidade: string): boolean => {
+const deveAplicarMultiplicacaoMaterial = (unidade?: string): boolean => {
   if (!unidade) return false;
 
   const unidadeLower = unidade.toLowerCase().trim();
@@ -907,4 +907,3 @@ export const calcularProdutosPreview = (
     custosIndiretosResumo: resumoIndiretos,
   };
 };
-

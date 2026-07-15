@@ -57,7 +57,7 @@ export class ApiClient {
   }
   
   // POST request
-  static async post<T>(endpoint: string, data: Record<string, unknown> | FormData, token?: string): Promise<T> {
+  static async post<T>(endpoint: string, data: object | FormData, token?: string): Promise<T> {
     const url = buildApiUrl(endpoint);
     const headers = getAuthHeaders(token);
     const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
@@ -80,7 +80,7 @@ export class ApiClient {
   }
   
   // PUT request
-  static async put<T>(endpoint: string, data: Record<string, unknown>, token?: string): Promise<T> {
+  static async put<T>(endpoint: string, data: object, token?: string): Promise<T> {
     const url = buildApiUrl(endpoint);
     const headers = getAuthHeaders(token);
     
@@ -98,7 +98,7 @@ export class ApiClient {
   }
   
   // DELETE request
-  static async delete<T>(endpoint: string, token?: string, data?: Record<string, unknown>): Promise<T> {
+  static async delete<T>(endpoint: string, token?: string, data?: object): Promise<T> {
     const url = buildApiUrl(endpoint);
     const headers = getAuthHeaders(token);
     
@@ -124,7 +124,7 @@ export class ApiClient {
   }
   
   // PATCH request
-  static async patch<T>(endpoint: string, data: Record<string, unknown>, token?: string): Promise<T> {
+  static async patch<T>(endpoint: string, data: object, token?: string): Promise<T> {
     const url = buildApiUrl(endpoint);
     const headers = getAuthHeaders(token);
     
@@ -151,12 +151,40 @@ export const categoriasApi = {
   delete: (id: string, token: string) => ApiClient.delete(`/categorias/${id}`, token),
 };
 
+export type TipoFornecedorApi = 'INSUMO' | 'TERCEIRIZADO' | 'AMBOS';
+
+export interface FornecedorApi {
+  id: string;
+  nome: string;
+  razao_social?: string | null;
+  cnpj_cpf?: string | null;
+  tipo: TipoFornecedorApi;
+  ativo: boolean;
+  contato_nome?: string | null;
+  telefone?: string | null;
+  whatsapp?: string | null;
+  email?: string | null;
+  cep?: string | null;
+  endereco?: string | null;
+  numero?: string | null;
+  complemento?: string | null;
+  bairro?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  especialidades?: unknown;
+  _count?: {
+    insumos: number;
+    itens_terceirizados: number;
+    produtos_orcados_terceirizados?: number;
+  };
+}
+
 export const fornecedoresApi = {
   getAll: (
     token: string,
     finalidade?: 'INSUMO' | 'TERCEIRIZACAO',
   ) =>
-    ApiClient.get(
+    ApiClient.get<FornecedorApi[]>(
       `/fornecedores${finalidade ? `?finalidade=${finalidade}` : ''}`,
       token,
     ),
@@ -495,8 +523,19 @@ export const funcoesApi = {
   delete: (id: string, token: string) => ApiClient.delete(`/funcoes/${id}`, token),
 };
 
+export interface CustoIndiretoApi {
+  id: string;
+  nome: string;
+  categoria: string;
+  valor_mensal: number;
+  ativo: boolean;
+  observacoes?: string;
+  criado_em?: string;
+  atualizado_em?: string;
+}
+
 export const custosIndiretosApi = {
-  getAll: (token: string) => ApiClient.get('/custos-indiretos', token),
+  getAll: (token: string) => ApiClient.get<CustoIndiretoApi[]>('/custos-indiretos', token),
   getById: (id: string, token: string) => ApiClient.get(`/custos-indiretos/${id}`, token),
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/custos-indiretos', data, token),
   update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/custos-indiretos/${id}`, data, token),

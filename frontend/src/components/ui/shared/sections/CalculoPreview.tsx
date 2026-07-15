@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 import { Insumo, Maquina, Funcao } from '../types/common.types';
 import { calcularCustoPorUnidadeUso } from '../utils/calculo.utils';
-import { custosIndiretosApi } from '@/lib/api-client';
+import { custosIndiretosApi, type CustoIndiretoApi } from '@/lib/api-client';
 import { useUser } from '@/contexts/UserContext';
 
 interface CalculoPreviewProps {
@@ -21,14 +21,6 @@ interface CalculoPreviewProps {
   customFields?: React.ReactNode;
   customActions?: React.ReactNode;
   dadosCarregados?: boolean; // Nova propriedade para controlar timing
-}
-
-interface CustoIndireto {
-  id: string;
-  nome: string;
-  categoria: string;
-  valor_mensal: number;
-  ativo: boolean;
 }
 
 export function CalculoPreview({ 
@@ -61,7 +53,7 @@ export function CalculoPreview({
   };
   const form = useFormContext();
   const { user } = useUser();
-  const [custosIndiretos, setCustosIndiretos] = useState<CustoIndireto[]>([]);
+  const [custosIndiretos, setCustosIndiretos] = useState<CustoIndiretoApi[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Helper robusto para converter valores (string/number) em número
@@ -80,7 +72,7 @@ export function CalculoPreview({
         if (!token) return;
 
         const data = await custosIndiretosApi.getAll(token);
-        setCustosIndiretos(data.filter((custo: CustoIndireto) => custo.ativo));
+        setCustosIndiretos(data.filter((custo) => custo.ativo));
       } catch (error) {
         console.error('Erro ao buscar custos indiretos:', error);
       } finally {
@@ -174,8 +166,8 @@ export function CalculoPreview({
         const custoTotalItem = horas * custoPorHora;
         custoTotal += custoTotalItem;
         maquinasDetalhadas.push({
-          maquina_id: maquinaEncontrada.id || maquinaEncontrada.maquina?.id,
-          nome_maquina: maquinaEncontrada.nome || maquinaEncontrada.maquina?.nome,
+          maquina_id: maquinaEncontrada.id || maquinaEncontrada.maquina?.id || maquina.maquina_id,
+          nome_maquina: maquinaEncontrada.nome || maquinaEncontrada.maquina?.nome || 'Máquina não encontrada',
           tipo_maquina: maquinaEncontrada.tipo || maquinaEncontrada.maquina?.tipo || 'Geral',
           horas_utilizadas: horas,
           custo_por_hora: custoPorHora,
@@ -208,8 +200,8 @@ export function CalculoPreview({
         const custoTotalItem = horas * custoPorHora;
         custoTotal += custoTotalItem;
         funcoesDetalhadas.push({
-          funcao_id: funcaoEncontrada.id || funcaoEncontrada.funcao?.id,
-          nome_funcao: funcaoEncontrada.nome || funcaoEncontrada.funcao?.nome,
+          funcao_id: funcaoEncontrada.id || funcaoEncontrada.funcao?.id || funcao.funcao_id,
+          nome_funcao: funcaoEncontrada.nome || funcaoEncontrada.funcao?.nome || 'Função não encontrada',
           horas_trabalhadas: horas,
           custo_por_hora: custoPorHora,
           custo_total: custoTotalItem,
@@ -225,11 +217,11 @@ export function CalculoPreview({
     const maquinasUtilizadas = form.watch(`itens_produto.${produtoIndex}.maquinas`) || [];
     const funcoesUtilizadas = form.watch(`itens_produto.${produtoIndex}.funcoes`) || [];
     
-    const horasMaquinas = maquinasUtilizadas.reduce((total: number, maquina) => {
+    const horasMaquinas = maquinasUtilizadas.reduce((total: number, maquina: { horas_utilizadas?: number | string }) => {
       return total + (Number(maquina.horas_utilizadas) || 0);
     }, 0);
     
-    const horasFuncoes = funcoesUtilizadas.reduce((total: number, funcao) => {
+    const horasFuncoes = funcoesUtilizadas.reduce((total: number, funcao: { horas_trabalhadas?: number | string }) => {
       return total + (Number(funcao.horas_trabalhadas) || 0);
     }, 0);
     
@@ -1068,4 +1060,4 @@ export function CalculoPreview({
       {customActions}
     </div>
   );
-} 
+}

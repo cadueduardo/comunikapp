@@ -31,7 +31,7 @@ export const useFornecedorValidation = ({
         
         // Verificar se já existe um fornecedor com o mesmo nome
         const fornecedorExistente = fornecedores.find(
-          (f: any) => 
+          (f) =>
             f.nome.toLowerCase() === nome.toLowerCase() && 
             f.id !== fornecedorId // Excluir o próprio fornecedor na edição
         );

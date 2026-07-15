@@ -13,27 +13,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import type { FornecedorApi, TipoFornecedorApi } from '@/lib/api-client';
 
-export type TipoFornecedor = 'INSUMO' | 'TERCEIRIZADO' | 'AMBOS';
-
-export type Fornecedor = {
-  id: string;
-  nome: string;
-  razao_social?: string | null;
-  tipo: TipoFornecedor;
-  ativo: boolean;
-  contato_nome?: string | null;
-  telefone?: string | null;
-  whatsapp?: string | null;
-  email?: string | null;
-  cidade?: string | null;
-  estado?: string | null;
-  especialidades?: unknown;
-  _count?: {
-    insumos: number;
-    itens_terceirizados: number;
-  };
-};
+export type TipoFornecedor = TipoFornecedorApi;
+export type Fornecedor = FornecedorApi;
 
 export const tipoFornecedorLabel: Record<TipoFornecedor, string> = {
   INSUMO: 'Insumos',
@@ -42,9 +25,9 @@ export const tipoFornecedorLabel: Record<TipoFornecedor, string> = {
 };
 
 export const tipoFornecedorClassName: Record<TipoFornecedor, string> = {
-  INSUMO: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
-  TERCEIRIZADO: 'bg-purple-100 text-purple-800 hover:bg-purple-100',
-  AMBOS: 'bg-amber-100 text-amber-800 hover:bg-amber-100',
+  INSUMO: 'bg-blue-100 text-blue-800 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-200 dark:hover:bg-blue-950',
+  TERCEIRIZADO: 'bg-purple-100 text-purple-800 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-200 dark:hover:bg-purple-950',
+  AMBOS: 'bg-amber-100 text-amber-800 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-950',
 };
 
 export const especialidadesDoFornecedor = (valor: unknown): string[] =>

@@ -52,6 +52,12 @@ export interface Maquina {
   velocidade_ml_h?: number | string | null;
   eficiencia_percent?: number | string | null;
   setup_min?: number | string | null;
+  maquina?: {
+    id?: string;
+    nome?: string;
+    tipo?: string;
+    custo_hora?: number | string | null;
+  };
 }
 
 export interface Funcao {
@@ -68,6 +74,15 @@ export interface Funcao {
   horas_por_m2?: number | string;
   horas_por_unidade?: number | string;
   eficiencia_percent?: number | string;
+  setup_min?: number | string | null;
+  funcao?: {
+    id?: string;
+    nome?: string;
+    custo_hora?: number | string | null;
+    maquina?: {
+      nome?: string;
+    };
+  };
 }
 
 export interface ServicoManual {

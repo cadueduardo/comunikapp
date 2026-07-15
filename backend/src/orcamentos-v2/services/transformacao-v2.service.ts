@@ -637,6 +637,69 @@ export class TransformacaoV2Service {
     return numero === null ? null : Math.trunc(numero);
   }
 
+  private prepararCamposTerceirizacao(produto: any): any {
+    const modo = this.normalizarTextoOpcional(produto.modo_fulfillment, 16);
+    const terceirizado = modo === 'OUTSOURCE' || modo === 'HIBRIDO';
+
+    if (!terceirizado) {
+      return {
+        modo_fulfillment: modo,
+        fornecedor_terceirizado_id: null,
+        terceirizacao_custo_unitario: null,
+        terceirizacao_custo_setup: null,
+        terceirizacao_custo_frete: null,
+        terceirizacao_custo_total: null,
+        terceirizacao_prazo_dias: null,
+        terceirizacao_observacoes: null,
+      };
+    }
+
+    const quantidade = Math.max(
+      this.normalizarNumeroOpcional(produto.quantidade) ?? 0,
+      0,
+    );
+    const custoUnitario = Math.max(
+      this.normalizarNumeroOpcional(produto.terceirizacao_custo_unitario) ?? 0,
+      0,
+    );
+    const custoSetup = Math.max(
+      this.normalizarNumeroOpcional(produto.terceirizacao_custo_setup) ?? 0,
+      0,
+    );
+    const custoFrete = Math.max(
+      this.normalizarNumeroOpcional(produto.terceirizacao_custo_frete) ?? 0,
+      0,
+    );
+    const custoTotal =
+      Math.round(
+        (custoUnitario * quantidade +
+          custoSetup +
+          custoFrete +
+          Number.EPSILON) *
+          100,
+      ) / 100;
+
+    return {
+      modo_fulfillment: modo,
+      fornecedor_terceirizado_id: this.normalizarTextoOpcional(
+        produto.fornecedor_terceirizado_id,
+        191,
+      ),
+      terceirizacao_custo_unitario: custoUnitario,
+      terceirizacao_custo_setup: custoSetup,
+      terceirizacao_custo_frete: custoFrete,
+      // O backend é a fonte autoritativa; o total recebido do cliente é ignorado.
+      terceirizacao_custo_total: custoTotal,
+      terceirizacao_prazo_dias: this.normalizarInteiroOpcional(
+        produto.terceirizacao_prazo_dias,
+      ),
+      terceirizacao_observacoes: this.normalizarTextoOpcional(
+        produto.terceirizacao_observacoes,
+        50_000,
+      ),
+    };
+  }
+
   private normalizarBooleanOpcional(valor: any, fallback: boolean): boolean {
     if (valor === null || valor === undefined || valor === '') return fallback;
     return Boolean(valor);
@@ -883,31 +946,7 @@ export class TransformacaoV2Service {
       ativo: true,
       tipo_item: produto.tipo_item || 'SOB_DEMANDA',
       produto_finito_id: produto.produto_finito_id || null,
-      modo_fulfillment: produto.modo_fulfillment || null,
-      fornecedor_terceirizado_id:
-        produto.modo_fulfillment === 'OUTSOURCE' ||
-        produto.modo_fulfillment === 'HIBRIDO'
-          ? produto.fornecedor_terceirizado_id || null
-          : null,
-      terceirizacao_custo_unitario: this.normalizarNumeroOpcional(
-        produto.terceirizacao_custo_unitario,
-      ),
-      terceirizacao_custo_setup: this.normalizarNumeroOpcional(
-        produto.terceirizacao_custo_setup,
-      ),
-      terceirizacao_custo_frete: this.normalizarNumeroOpcional(
-        produto.terceirizacao_custo_frete,
-      ),
-      terceirizacao_custo_total: this.normalizarNumeroOpcional(
-        produto.terceirizacao_custo_total,
-      ),
-      terceirizacao_prazo_dias: this.normalizarInteiroOpcional(
-        produto.terceirizacao_prazo_dias,
-      ),
-      terceirizacao_observacoes: this.normalizarTextoOpcional(
-        produto.terceirizacao_observacoes,
-        50_000,
-      ),
+      ...this.prepararCamposTerceirizacao(produto),
       ...this.prepararCamposInstalacao(produto),
     };
 
