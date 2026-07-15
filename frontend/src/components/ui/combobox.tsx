@@ -1,9 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { Check, ChevronsUpDown, PlusCircle } from "lucide-react"
+import { Building2, Check, ChevronsUpDown, PlusCircle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Command,
@@ -24,10 +25,13 @@ interface ComboboxProps {
   value?: string;
   onChange: (value: string) => void;
   onCreate?: (inputValue: string) => void;
+  onCreateDetailed?: (inputValue: string) => void;
   placeholder?: string;
   searchPlaceholder?: string;
   emptyPlaceholder?: string;
   createPlaceholder?: string;
+  detailedCreatePlaceholder?: string;
+  detailedCreateBadge?: string;
   disabled?: boolean;
 }
 
@@ -36,10 +40,13 @@ export function Combobox({
   value,
   onChange,
   onCreate,
+  onCreateDetailed,
   placeholder = "Selecione uma opção",
   searchPlaceholder = "Buscar...",
   emptyPlaceholder = "Nenhum item encontrado.",
   createPlaceholder = "Criar",
+  detailedCreatePlaceholder = "Cadastrar com detalhes",
+  detailedCreateBadge = "Completo",
   disabled = false,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
@@ -52,9 +59,12 @@ export function Combobox({
     setOpen(false)
   }
 
-  const handleCreate = () => {
-    if (onCreate) {
-      onCreate(inputValue)
+  const handleCreate = (detailed = false) => {
+    const normalizedInput = inputValue.trim()
+    const createHandler = detailed ? onCreateDetailed : onCreate
+
+    if (createHandler && normalizedInput) {
+      createHandler(normalizedInput)
       setInputValue("")
       setOpen(false)
     }
@@ -85,13 +95,37 @@ export function Combobox({
           />
           <CommandList>
             <CommandEmpty>
-              {onCreate && inputValue ? (
-                <div
-                  className="relative flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent"
-                  onClick={handleCreate}
-                >
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  {createPlaceholder} &quot;{inputValue}&quot;
+              {(onCreate || onCreateDetailed) && inputValue.trim() ? (
+                <div className="space-y-1 px-1 text-left">
+                  {onCreate && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-auto w-full justify-start px-2 py-2 font-normal"
+                      onClick={() => handleCreate(false)}
+                    >
+                      <PlusCircle className="h-4 w-4" />
+                      <span className="truncate">
+                        {createPlaceholder} &quot;{inputValue.trim()}&quot;
+                      </span>
+                    </Button>
+                  )}
+                  {onCreateDetailed && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-auto w-full justify-start px-2 py-2 font-normal"
+                      onClick={() => handleCreate(true)}
+                    >
+                      <Building2 className="h-4 w-4" />
+                      <span className="truncate">
+                        {detailedCreatePlaceholder}
+                      </span>
+                      <Badge variant="secondary" className="ml-auto">
+                        {detailedCreateBadge}
+                      </Badge>
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="py-6 text-center text-sm">{emptyPlaceholder}</div>
@@ -119,4 +153,4 @@ export function Combobox({
       </PopoverContent>
     </Popover>
   )
-} 
+}

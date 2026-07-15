@@ -66,6 +66,7 @@ export interface FornecedorFormData extends Partial<FornecedorFormValues> {
 
 interface FornecedorFormProps {
   onSave: (values: FornecedorFormValues) => Promise<void>;
+  onCancel?: () => void;
   initialData?: FornecedorFormData;
   loading?: boolean;
 }
@@ -89,6 +90,7 @@ const normalizePayload = (values: FornecedorFormValues) =>
 
 export function FornecedorForm({
   onSave,
+  onCancel,
   initialData,
   loading = false,
 }: FornecedorFormProps) {
@@ -549,9 +551,15 @@ export function FornecedorForm({
         )}
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" asChild>
-            <Link href="/fornecedores">Cancelar</Link>
-          </Button>
+          {onCancel ? (
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancelar
+            </Button>
+          ) : (
+            <Button type="button" variant="outline" asChild>
+              <Link href="/fornecedores">Cancelar</Link>
+            </Button>
+          )}
           <Button type="submit" disabled={loading || buscandoCep}>
             {loading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

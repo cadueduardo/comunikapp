@@ -16,6 +16,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CustomCurrencyInput } from '@/components/ui/currency-input';
 import { Combobox } from '@/components/ui/combobox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { UnitSelect } from '@/components/ui/unit-select';
 import { UNIDADES_COMPRA } from '@/lib/unidades-compra';
 // Fase 11 — Opção B: unidade de uso tem lista própria (inclui M²_LATERAL para caixa aberta 3D).
@@ -32,6 +39,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { categoriasApi, fornecedoresApi, tiposMaterialApi, estoqueApi } from '@/lib/api-client';
+import {
+  FornecedorForm,
+  type FornecedorFormValues,
+} from '@/app/(main)/fornecedores/fornecedor-form';
 
 const formSchema = z.object({
   nome: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
@@ -511,6 +522,9 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
   const [categorias, setCategorias] = useState<Option[]>([]);
   const [fornecedores, setFornecedores] = useState<Option[]>([]);
   const [localizacoesEstoque, setLocalizacoesEstoque] = useState<Option[]>([]);
+  const [fornecedorCompletoOpen, setFornecedorCompletoOpen] = useState(false);
+  const [nomeNovoFornecedor, setNomeNovoFornecedor] = useState('');
+  const [salvandoFornecedor, setSalvandoFornecedor] = useState(false);
   
   useEffect(() => {
     const fetchData = async () => {
@@ -592,10 +606,61 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
         form.setValue('fornecedorId', newData.id);
       }
       
-      toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} "${name}" criada com sucesso!`);
+      const entidadeCriada = type === 'categoria' ? 'Categoria' : 'Fornecedor';
+      const participio = type === 'categoria' ? 'criada' : 'criado';
+      toast.success(`${entidadeCriada} "${name}" ${participio} com sucesso!`);
     } catch (error) {
-      toast.error(`Falha ao criar ${type}.`);
+      toast.error(
+        error instanceof Error ? error.message : `Falha ao criar ${type}.`,
+      );
       console.error(error);
+    }
+  };
+
+  const abrirCadastroCompletoFornecedor = (nome: string) => {
+    setNomeNovoFornecedor(nome.trim());
+    setFornecedorCompletoOpen(true);
+  };
+
+  const salvarFornecedorCompleto = async (values: FornecedorFormValues) => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      toast.error('Sua sessão expirou. Entre novamente para continuar.');
+      return;
+    }
+
+    if (values.tipo === 'TERCEIRIZADO') {
+      toast.error(
+        'Para vincular este cadastro ao insumo, selecione Venda de insumos ou Ambos.',
+      );
+      return;
+    }
+
+    setSalvandoFornecedor(true);
+    try {
+      const fornecedor = await fornecedoresApi.create(values, token) as {
+        id: string;
+        nome: string;
+      };
+      const novaOpcao = { value: fornecedor.id, label: fornecedor.nome };
+
+      setFornecedores((atuais) => [...atuais, novaOpcao]);
+      form.setValue('fornecedorId', fornecedor.id, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setFornecedorCompletoOpen(false);
+      setNomeNovoFornecedor('');
+      toast.success(`Fornecedor "${fornecedor.nome}" cadastrado e selecionado.`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Falha ao cadastrar o fornecedor.',
+      );
+      console.error('Erro ao cadastrar fornecedor completo:', error);
+    } finally {
+      setSalvandoFornecedor(false);
     }
   };
 
@@ -748,6 +813,9 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                         {...field} 
                         placeholder="Selecione o fornecedor"
                         onCreate={(name) => handleCreate(name, 'fornecedor')}
+                        onCreateDetailed={abrirCadastroCompletoFornecedor}
+                        createPlaceholder="Criar fornecedor rápido"
+                        detailedCreatePlaceholder="Cadastrar fornecedor completo"
                     />
                     <FormMessage />
                     </FormItem>
@@ -1411,6 +1479,30 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
             <Button type="submit" disabled={isSaving}><Save className="h-4 w-4 mr-2" />{isSaving ? 'Salvando...' : 'Salvar Insumo'}</Button>
         </div>
       </form>
+
+      <Dialog
+        open={fornecedorCompletoOpen}
+        onOpenChange={(open) => {
+          if (!salvandoFornecedor) setFornecedorCompletoOpen(open);
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Cadastrar fornecedor completo</DialogTitle>
+            <DialogDescription>
+              Complete os dados do fornecedor. Ao salvar, ele será selecionado
+              automaticamente neste insumo.
+            </DialogDescription>
+          </DialogHeader>
+          <FornecedorForm
+            key={nomeNovoFornecedor}
+            initialData={{ nome: nomeNovoFornecedor, tipo: 'INSUMO' }}
+            onSave={salvarFornecedorCompleto}
+            onCancel={() => setFornecedorCompletoOpen(false)}
+            loading={salvandoFornecedor}
+          />
+        </DialogContent>
+      </Dialog>
       
       <ConversionExamplesModal 
         isOpen={showExamplesModal}
