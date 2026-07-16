@@ -61,6 +61,14 @@ const requiredLegacyColumns = {
   usuario: ['ativo', 'nome'],
 };
 
+// O baseline 170000 deve ser validado contra a estrutura existente naquele
+// ponto do histórico, não contra o schema.prisma atual. Estas colunas surgem
+// somente na migration 194510; exigi-las antes de resolver o baseline impede
+// justamente que a migration aditiva responsável por criá-las seja executada.
+const columnsIntroducedAfterLegacyReconciliation = {
+  workflow_instancia_setor: ['loja_id', 'workflow_id'],
+};
+
 const knownChecksumRepairs = {
   '20250926130000_add_document_sequences': [
     'e99b57599741463bdffcb03268784532a6855cfc5d09484c5228df370f4e88c1',
@@ -156,6 +164,22 @@ function dmmfRequirements(tableNames) {
   return result;
 }
 
+function legacyReconciliationRequirements(tableNames) {
+  const result = dmmfRequirements(tableNames);
+  for (const [table, laterColumns] of Object.entries(
+    columnsIntroducedAfterLegacyReconciliation,
+  )) {
+    const required = result.get(table);
+    if (!required) continue;
+    const introducedLater = new Set(laterColumns);
+    result.set(
+      table,
+      required.filter((column) => !introducedLater.has(column)),
+    );
+  }
+  return result;
+}
+
 function findMissingColumns(columns, requirements) {
   const missing = [];
   for (const [table, names] of requirements) {
@@ -231,7 +255,10 @@ async function main() {
     const retiredPresent = retiredInventoryTables.filter((table) => tables.has(table));
     const explicit = new Map(Object.entries(requiredLegacyColumns));
     const missing = [
-      ...findMissingColumns(columns, dmmfRequirements(reconciliationTables)),
+      ...findMissingColumns(
+        columns,
+        legacyReconciliationRequirements(reconciliationTables),
+      ),
       ...findMissingColumns(columns, explicit),
     ];
     if (columns.get('document_sequences')?.has('tipo_documento')) {
@@ -256,6 +283,13 @@ async function main() {
   if (!process.exitCode) log('Preflight concluido; migrate deploy autorizado.');
 }
 
-main()
-  .catch((error) => block(error.message || String(error)))
-  .finally(async () => prisma.$disconnect());
+if (require.main === module) {
+  main()
+    .catch((error) => block(error.message || String(error)))
+    .finally(async () => prisma.$disconnect());
+}
+
+module.exports = {
+  findMissingColumns,
+  legacyReconciliationRequirements,
+};

@@ -36,6 +36,9 @@ esses pacotes devem estar instalados previamente.
 - Banco existente com baseline ja registrado: segue normalmente.
 - Banco existente com estruturas legadas completas, mas baseline pendente: valida
   tabelas e colunas e registra somente o baseline correspondente como aplicado.
+- A estrutura de cada baseline é validada no ponto histórico em que ele foi criado.
+  Colunas introduzidas por migrations posteriores não podem bloquear a conciliação;
+  elas continuam sendo criadas normalmente pelo `prisma migrate deploy` na ordem.
 - Estrutura parcial, coluna ausente ou tabela antiga inesperada: interrompe o deploy
   antes de executar DDL de negocio.
 - Checksums historicos conhecidos e auditados podem ser alinhados. Qualquer checksum
@@ -86,3 +89,11 @@ ultimo arquivo valido.
 
 O antigo `scripts/fix-migration-history-vps.sh` foi desativado porque marcava varias
 migrations como aplicadas sem comprovar que suas estruturas existiam.
+
+O comportamento temporal do preflight possui teste de regressão em
+`backend/scripts/prisma-deploy-preflight.test.js`. Execute com:
+
+```bash
+cd backend
+node --test scripts/prisma-deploy-preflight.test.js
+```
