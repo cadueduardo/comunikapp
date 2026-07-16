@@ -68,6 +68,7 @@ describe('OSService - Correção de Materiais', () => {
 
   const mockOSApprovalPermissionsService = {
     podeAprovarTecnica: jest.fn().mockResolvedValue({ pode: true }),
+    podeForcarLiberacaoFinanceira: jest.fn().mockResolvedValue({ pode: true }),
   };
 
   const mockOSValidacoesService = {
