@@ -62,6 +62,11 @@ detect_project_dir() {
     return
   fi
 
+  if [ -d /opt/comunikapp/.git ]; then
+    PROJECT_DIR=/opt/comunikapp
+    return
+  fi
+
   if [ -d /srv/apps/comunikapp/releases/current/.git ]; then
     PROJECT_DIR=/srv/apps/comunikapp/releases/current
     return
@@ -279,10 +284,30 @@ apply_prisma() {
   esac
 }
 
+stop_frontend_before_build() {
+  detect_runtime
+  case "$RUNTIME" in
+    pm2)
+      log 'Parando comunikapp-frontend antes do build (evita HTML/.next inconsistente com assets)...'
+      run_as_app 'pm2 stop comunikapp-frontend || true'
+      ;;
+    systemd)
+      require_root_for_system_changes
+      log "Parando ${FRONTEND_SERVICE} antes do build..."
+      systemctl stop "$FRONTEND_SERVICE" || true
+      ;;
+    *)
+      log "RUNTIME=${RUNTIME}: pulando stop do frontend antes do build."
+      ;;
+  esac
+}
+
 build_apps() {
+  stop_frontend_before_build
   log "Executando builds de producao (heap maximo: ${BUILD_MAX_OLD_SPACE_MB}MB, ajustavel via BUILD_MAX_OLD_SPACE_MB)..."
   run_as_app "cd backend && NODE_OPTIONS='--max-old-space-size=${BUILD_MAX_OLD_SPACE_MB}' npm run build"
-  run_as_app "cd frontend && NODE_OPTIONS='--max-old-space-size=${BUILD_MAX_OLD_SPACE_MB}' npm run build"
+  # Limpa .next residual e rebuild limpo do frontend (evita chunks/HTML de builds misturados).
+  run_as_app "cd frontend && rm -rf .next && NODE_OPTIONS='--max-old-space-size=${BUILD_MAX_OLD_SPACE_MB}' npm run build"
 }
 
 audit_dependencies() {
@@ -344,7 +369,7 @@ detect_runtime() {
     return
   fi
 
-  if command -v pm2 >/dev/null 2>&1 && [ "$PROJECT_DIR" = '/opt/comunikapp/app' ] && [ -f "${PROJECT_DIR}/ecosystem.config.js" ]; then
+  if command -v pm2 >/dev/null 2>&1 && [ -f "${PROJECT_DIR}/ecosystem.config.js" ]; then
     RUNTIME=pm2
   else
     RUNTIME=systemd
@@ -357,7 +382,10 @@ restart_apps() {
 
   case "$RUNTIME" in
     pm2)
-      run_as_app 'pm2 startOrReload ecosystem.config.js --update-env'
+      # delete+start evita processo Next preso com Full Route Cache / HTML de build anterior.
+      run_as_app 'pm2 delete comunikapp-frontend || true'
+      run_as_app 'pm2 delete comunikapp-backend || true'
+      run_as_app 'pm2 start ecosystem.config.js --update-env'
       run_as_app 'pm2 save'
       run_as_app 'pm2 list'
       ;;
@@ -419,6 +447,32 @@ health_checks() {
     2*|3*) log "Frontend local respondeu HTTP ${front_status}." ;;
     *) fail "Frontend local nao respondeu corretamente. HTTP ${front_status}." ;;
   esac
+
+  # Garante que o HTML de /login referencia assets que existem no .next atual
+  # (evita MIME text/plain + 404 de chunks de build anterior).
+  local login_body css_path webpack_path asset_status asset_ctype
+  login_body="$(mktemp)"
+  curl -s -o "$login_body" "http://127.0.0.1:${frontend_port}/login" || true
+  css_path="$(grep -oE '/_next/static/css/[^\"[:space:]]+\.css' "$login_body" | head -n 1 || true)"
+  webpack_path="$(grep -oE '/_next/static/chunks/webpack-[^\"[:space:]]+\.js' "$login_body" | head -n 1 || true)"
+  rm -f "$login_body"
+
+  [ -n "$css_path" ] || fail 'HTML de /login nao referenciou CSS em /_next/static/css/.'
+  [ -n "$webpack_path" ] || fail 'HTML de /login nao referenciou webpack em /_next/static/chunks/.'
+
+  for asset_path in "$css_path" "$webpack_path"; do
+    asset_status="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${frontend_port}${asset_path}" || true)"
+    asset_ctype="$(curl -s -I "http://127.0.0.1:${frontend_port}${asset_path}" | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type"{print tolower($2); exit}' || true)"
+    case "$asset_status" in
+      200) ;;
+      *) fail "Asset do login inacessivel: ${asset_path} (HTTP ${asset_status}). Rebuild/restart do frontend inconsistente." ;;
+    esac
+    case "$asset_ctype" in
+      text/css*|application/javascript*|text/javascript*) ;;
+      *) fail "Asset do login com Content-Type invalido: ${asset_path} -> '${asset_ctype}' (HTTP ${asset_status})." ;;
+    esac
+    log "Asset OK: ${asset_path} (${asset_ctype})."
+  done
 
   log "Swagger local /api/docs: HTTP ${docs_status} (esperado: nao 200)."
   log "Uploads arte local: HTTP ${uploads_status} (esperado: nao 200)."
