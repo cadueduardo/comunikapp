@@ -16,10 +16,14 @@ export const mockPcpBloqueioSinalService = {
     .fn()
     .mockResolvedValue(StatusLiberacaoPcp.PENDENTE),
   entradaJaLiquidada: jest.fn().mockResolvedValue(false),
-  desbloquearItensAposSinal: jest.fn().mockResolvedValue({
+  processarEntradaLiquidadaCobranca: jest.fn().mockResolvedValue({
     itens_desbloqueados: 0,
+    os_promovidas: 0,
     orcamento_id: null,
   }),
+  promoverOsAguardandoFinanceiroPorOrcamento: jest.fn().mockResolvedValue(0),
+  promoverOsParaAprovacaoTecnica: jest.fn().mockResolvedValue(undefined),
+  desbloquearItensPorOrcamento: jest.fn().mockResolvedValue(0),
 };
 
 export const osServiceExtraProviders = [

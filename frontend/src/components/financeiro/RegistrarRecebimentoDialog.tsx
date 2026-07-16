@@ -34,6 +34,7 @@ import { registrarRecebimento } from '@/lib/financeiro-api';
 import {
   formatarMoeda,
 } from '@/lib/financeiro/financeiro-format';
+import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
 
 interface Props {
   cobranca: CobrancaResumo | null;
@@ -163,6 +164,7 @@ export function RegistrarRecebimentoDialog({
       toast.success(
         forcado ? 'Recebimento forçado registrado' : 'Recebimento registrado',
       );
+      solicitarAtualizacaoBadgesSidebar();
       onSuccess();
       onOpenChange(false);
     } catch (e: unknown) {

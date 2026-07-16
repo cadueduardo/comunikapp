@@ -207,6 +207,7 @@ const STATUS_BLOQUEIA_APROVACAO = new Set([
   'CANCELADA',
   'REJEITADA',
   'APROVADA_TECNICA',
+  'AGUARDANDO_APROVACAO_FINANCEIRA',
 ]);
 
 // Status do fluxo padrao - usado para destacar quando a aprovacao
@@ -364,17 +365,25 @@ function AprovacaoCell({
     );
   }
 
-  // PENDENTE: bloqueia apenas em status terminais (ja decididos ou cancelados).
-  // Para os demais (inclusive PRODUCAO, ACABAMENTO etc. em dados legados),
-  // permite aprovacao retroativa - o backend mantem o status operacional.
+  // PENDENTE: bloqueia em status terminais e enquanto retida no financeiro.
+  // Demais status (inclusive PRODUCAO legado) permitem aprovacao retroativa.
   if (STATUS_BLOQUEIA_APROVACAO.has(statusOs)) {
+    const retidaFinanceiro = statusOs === 'AGUARDANDO_APROVACAO_FINANCEIRA';
     return (
       <Badge
         variant="outline"
-        className="bg-gray-50 text-gray-600 border-gray-200"
-        title="OS em status terminal - nao aprovavel"
+        className={
+          retidaFinanceiro
+            ? 'bg-amber-50 text-amber-800 border-amber-200'
+            : 'bg-gray-50 text-gray-600 border-gray-200'
+        }
+        title={
+          retidaFinanceiro
+            ? 'Aguardando liberação financeira da entrada'
+            : 'OS em status terminal - nao aprovavel'
+        }
       >
-        Pendente
+        {retidaFinanceiro ? 'Aguardando financeiro' : 'Pendente'}
       </Badge>
     );
   }
