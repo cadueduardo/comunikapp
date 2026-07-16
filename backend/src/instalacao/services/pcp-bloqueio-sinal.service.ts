@@ -4,20 +4,28 @@ import {
   ParcelaTipo,
 } from '../../financeiro/enums/cobranca-status.enum';
 import { PrismaService } from '../../prisma/prisma.service';
+import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
 import {
   StatusLiberacaoPcp,
   StatusLiberacaoPcpValor,
 } from '../constants/pcp-liberacao.constants';
 import { ConfiguracaoInstalacaoService } from './configuracao-instalacao.service';
 
+/** Log de auditoria / badge: OS liberada do financeiro para aprovação técnica. */
+export const TIPO_LOG_LIBERACAO_FINANCEIRA = 'LIBERACAO_FINANCEIRA';
+
 export interface ResultadoDesbloqueioSinal {
   itens_desbloqueados: number;
+  os_promovidas: number;
   orcamento_id: string | null;
 }
 
 /**
- * Trava e destrava itens do PCP conforme compensação do sinal (50%).
- * Não interfere no módulo de Arte & Aprovação.
+ * Trava/destrava itens do PCP conforme compensação do sinal (50%)
+ * e promove OS retidas no financeiro quando a entrada é liquidada.
+ *
+ * A promoção da OS NÃO depende de itens bloqueados no PCP: são checkpoints
+ * independentes (financeiro → técnica → só então PCP).
  */
 @Injectable()
 export class PcpBloqueioSinalService {
@@ -26,6 +34,7 @@ export class PcpBloqueioSinalService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configuracaoInstalacaoService: ConfiguracaoInstalacaoService,
+    private readonly homeCacheService: HomeCacheService,
   ) {}
 
   async resolverStatusInicialItem(
@@ -68,7 +77,9 @@ export class PcpBloqueioSinalService {
   }
 
   /**
-   * Hook financeiro: parcela ENTRADA liquidada libera itens aguardando sinal.
+   * Hook financeiro: parcela ENTRADA liquidada.
+   * 1) Promove OS retidas no financeiro → aprovação técnica (sempre).
+   * 2) Desbloqueia itens PCP aguardando sinal (se houver).
    */
   async processarEntradaLiquidadaCobranca(
     lojaId: string,
@@ -80,8 +91,13 @@ export class PcpBloqueioSinalService {
     });
 
     if (!cobranca?.orcamento_id) {
-      return { itens_desbloqueados: 0, orcamento_id: null };
+      return { itens_desbloqueados: 0, os_promovidas: 0, orcamento_id: null };
     }
+
+    const osPromovidas = await this.promoverOsAguardandoFinanceiroPorOrcamento(
+      lojaId,
+      cobranca.orcamento_id,
+    );
 
     const itensDesbloqueados = await this.desbloquearItensPorOrcamento(
       lojaId,
@@ -90,10 +106,84 @@ export class PcpBloqueioSinalService {
 
     return {
       itens_desbloqueados: itensDesbloqueados,
+      os_promovidas: osPromovidas,
       orcamento_id: cobranca.orcamento_id,
     };
   }
 
+  /**
+   * Promove OS em AGUARDANDO_APROVACAO_FINANCEIRA para AGUARDANDO_APROVACAO_TECNICA.
+   * Independente de itens PCP / exigir_sinal_producao.
+   */
+  async promoverOsAguardandoFinanceiroPorOrcamento(
+    lojaId: string,
+    orcamentoId: string,
+  ): Promise<number> {
+    const ordens = await this.prisma.ordemServico.findMany({
+      where: {
+        loja_id: lojaId,
+        orcamento_id: orcamentoId,
+        ativo: true,
+        status: 'AGUARDANDO_APROVACAO_FINANCEIRA',
+      },
+      select: { id: true },
+    });
+
+    if (ordens.length === 0) {
+      return 0;
+    }
+
+    for (const os of ordens) {
+      await this.promoverOsParaAprovacaoTecnica(
+        os.id,
+        'Entrada (sinal) liquidada no financeiro — OS liberada para aprovação técnica.',
+      );
+    }
+
+    this.homeCacheService.invalidarPorPrefixo(`${lojaId}:`);
+    this.logger.log(
+      `${ordens.length} OS promovida(s) para aprovação técnica após liquidação da entrada — orçamento ${orcamentoId}`,
+    );
+
+    return ordens.length;
+  }
+
+  /**
+   * Promoção pontual (liberação manual pelo financeiro).
+   * Passe `lojaIdParaCache` para invalidar badges do menu após a promoção.
+   */
+  async promoverOsParaAprovacaoTecnica(
+    osId: string,
+    descricao: string,
+    usuarioId?: string | null,
+    lojaIdParaCache?: string | null,
+  ): Promise<void> {
+    await this.prisma.ordemServico.update({
+      where: { id: osId },
+      data: {
+        status: 'AGUARDANDO_APROVACAO_TECNICA',
+        atualizado_em: new Date(),
+      },
+    });
+
+    await this.prisma.ordemServicoLog.create({
+      data: {
+        os_id: osId,
+        tipo_acao: TIPO_LOG_LIBERACAO_FINANCEIRA,
+        descricao,
+        usuario_id: usuarioId ?? null,
+      },
+    });
+
+    if (lojaIdParaCache) {
+      this.homeCacheService.invalidarPorPrefixo(`${lojaIdParaCache}:`);
+    }
+  }
+
+  /**
+   * Desbloqueia itens com BLOQUEADO_AGUARDANDO_SINAL → PENDENTE.
+   * Não altera o status operacional da OS.
+   */
   async desbloquearItensPorOrcamento(
     lojaId: string,
     orcamentoId: string,
@@ -117,18 +207,11 @@ export class PcpBloqueioSinalService {
       );
 
       const ordens = await this.prisma.ordemServico.findMany({
-        where: { loja_id: lojaId, orcamento_id: orcamentoId },
-        select: { id: true, status: true },
+        where: { loja_id: lojaId, orcamento_id: orcamentoId, ativo: true },
+        select: { id: true },
       });
 
       for (const os of ordens) {
-        if (os.status === 'AGUARDANDO_APROVACAO_FINANCEIRA') {
-          await this.prisma.ordemServico.update({
-            where: { id: os.id },
-            data: { status: 'AGUARDANDO_APROVACAO_TECNICA' },
-          });
-        }
-
         await this.prisma.ordemServicoLog.create({
           data: {
             os_id: os.id,

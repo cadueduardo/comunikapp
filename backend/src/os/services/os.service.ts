@@ -4739,13 +4739,12 @@ export class OSService {
         );
       }
 
-      await this.prisma.ordemServico.update({
-        where: { id: osId },
-        data: {
-          status: StatusOS.AGUARDANDO_APROVACAO_TECNICA,
-          atualizado_em: new Date(),
-        },
-      });
+      await this.pcpBloqueioSinalService.promoverOsParaAprovacaoTecnica(
+        osId,
+        'Ordem de Serviço liberada manualmente para aprovação técnica pelo financeiro.',
+        usuarioId,
+        lojaId,
+      );
 
       await this.adicionarMovimentacao(
         osId,
@@ -4753,7 +4752,7 @@ export class OSService {
         StatusOS.AGUARDANDO_APROVACAO_FINANCEIRA,
         StatusOS.AGUARDANDO_APROVACAO_TECNICA,
         usuarioId,
-        'Ordem de Serviço liberada manualmente para produção pelo financeiro.',
+        'Ordem de Serviço liberada manualmente para aprovação técnica pelo financeiro.',
       );
 
       if (os.orcamento_id) {

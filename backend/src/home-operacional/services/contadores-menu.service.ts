@@ -143,13 +143,26 @@ export class ContadoresMenuService {
             ],
           },
         }),
+        // Novas OS (criação) OU liberadas do financeiro para aprovação técnica
+        // após a última visita — o badge deve +1 de novo nessa transição.
         this.prisma.ordemServico.count({
           where: {
             loja_id: lojaId,
             ativo: true,
             aprovacao_tecnica_status: 'PENDENTE',
             status: { notIn: ['CANCELADA', 'FINALIZADA'] },
-            criado_em: { gte: desde },
+            OR: [
+              { criado_em: { gte: desde } },
+              {
+                status: 'AGUARDANDO_APROVACAO_TECNICA',
+                logs: {
+                  some: {
+                    tipo_acao: 'LIBERACAO_FINANCEIRA',
+                    criado_em: { gte: desde },
+                  },
+                },
+              },
+            ],
           },
         }),
         this.contarOsComMovimentacaoArte(lojaId, desde),

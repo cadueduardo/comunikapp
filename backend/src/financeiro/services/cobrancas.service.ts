@@ -430,6 +430,11 @@ export class CobrancasService {
             lojaId,
             cobrancaId,
           );
+        if (desbloqueio.os_promovidas > 0) {
+          this.logger.log(
+            `${desbloqueio.os_promovidas} OS promovida(s) para aprovação técnica após liquidação da entrada — orçamento ${desbloqueio.orcamento_id}`,
+          );
+        }
         if (desbloqueio.itens_desbloqueados > 0) {
           this.logger.log(
             `PCP desbloqueado para ${desbloqueio.itens_desbloqueados} item(ns) após liquidação do sinal — orçamento ${desbloqueio.orcamento_id}`,
