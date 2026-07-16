@@ -207,13 +207,13 @@ const STATUS_BLOQUEIA_APROVACAO = new Set([
   'CANCELADA',
   'REJEITADA',
   'APROVADA_TECNICA',
-  'AGUARDANDO_APROVACAO_FINANCEIRA',
 ]);
 
 // Status do fluxo padrao - usado para destacar quando a aprovacao
 // avancara o workflow vs quando sera apenas regularizacao retroativa.
 const STATUS_FLUXO_PADRAO = new Set([
   'AGUARDANDO_APROVACAO_TECNICA',
+  'AGUARDANDO_APROVACAO_FINANCEIRA',
   'FILA',
   'PARCIALMENTE_LIBERADA',
 ]);
@@ -365,31 +365,24 @@ function AprovacaoCell({
     );
   }
 
-  // PENDENTE: bloqueia em status terminais e enquanto retida no financeiro.
-  // Demais status (inclusive PRODUCAO legado) permitem aprovacao retroativa.
+  // PENDENTE: bloqueia apenas em status terminais (ja decididos ou cancelados).
+  // Para os demais (inclusive PRODUCAO, ACABAMENTO etc. em dados legados),
+  // permite aprovacao retroativa - o backend mantem o status operacional.
   if (STATUS_BLOQUEIA_APROVACAO.has(statusOs)) {
-    const retidaFinanceiro = statusOs === 'AGUARDANDO_APROVACAO_FINANCEIRA';
     return (
       <Badge
         variant="outline"
-        className={
-          retidaFinanceiro
-            ? 'bg-amber-50 text-amber-800 border-amber-200'
-            : 'bg-gray-50 text-gray-600 border-gray-200'
-        }
-        title={
-          retidaFinanceiro
-            ? 'Aguardando liberação financeira da entrada'
-            : 'OS em status terminal - nao aprovavel'
-        }
+        className="bg-gray-50 text-gray-600 border-gray-200"
+        title="OS em status terminal - nao aprovavel"
       >
-        {retidaFinanceiro ? 'Aguardando financeiro' : 'Pendente'}
+        Pendente
       </Badge>
     );
   }
 
   const eFluxoPadrao = STATUS_FLUXO_PADRAO.has(statusOs);
   const eLiberarRestante = statusOs === 'PARCIALMENTE_LIBERADA';
+  const retidaFinanceiro = statusOs === 'AGUARDANDO_APROVACAO_FINANCEIRA';
 
   if (eLiberarRestante && aprovacao === 'PENDENTE') {
     return (
@@ -411,15 +404,21 @@ function AprovacaoCell({
       size="sm"
       variant="outline"
       onClick={() => onAprovar(os)}
-      className="h-8"
+      className={
+        retidaFinanceiro
+          ? 'h-8 border-amber-300 text-amber-900 hover:bg-amber-50'
+          : 'h-8'
+      }
       title={
-        eFluxoPadrao
-          ? 'Aprovar e liberar para producao'
-          : 'OS ja avancou no operacional - aprovacao registrara a decisao sem alterar o status'
+        retidaFinanceiro
+          ? 'Aprovar com liberação forçada — entrada ainda não confirmada'
+          : eFluxoPadrao
+            ? 'Aprovar e liberar para producao'
+            : 'OS ja avancou no operacional - aprovacao registrara a decisao sem alterar o status'
       }
     >
       <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
-      Aprovar OS
+      {retidaFinanceiro ? 'Aprovar (forçar)' : 'Aprovar OS'}
     </Button>
   );
 }

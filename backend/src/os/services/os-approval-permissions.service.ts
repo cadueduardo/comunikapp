@@ -157,6 +157,55 @@ export class OSApprovalPermissionsService {
   }
 
   /**
+   * Verifica se o usuário pode forçar aprovação técnica com OS
+   * ainda retida no financeiro (entrada não liquidada).
+   */
+  async podeForcarLiberacaoFinanceira(
+    usuarioId: string,
+    lojaId: string,
+  ): Promise<{
+    pode: boolean;
+    motivo?: string;
+  }> {
+    try {
+      const usuario = await this.prisma.usuario.findFirst({
+        where: {
+          id: usuarioId,
+          loja_id: lojaId,
+          status: 'ATIVO',
+          ativo: true,
+        },
+      });
+
+      if (!usuario) {
+        return {
+          pode: false,
+          motivo: 'Usuário não encontrado ou inativo',
+        };
+      }
+
+      if (['ADMINISTRADOR', 'FINANCEIRO'].includes(usuario.funcao)) {
+        return { pode: true };
+      }
+
+      return {
+        pode: false,
+        motivo:
+          'Apenas Administrador ou Financeiro podem forçar liberação sem confirmação de pagamento',
+      };
+    } catch (error) {
+      console.error(
+        'Erro ao verificar permissão de forçar liberação financeira:',
+        error,
+      );
+      return {
+        pode: false,
+        motivo: 'Erro interno ao verificar permissões',
+      };
+    }
+  }
+
+  /**
    * Verifica se o usuário pode aprovar gerencialmente uma OS
    */
   async podeAprovarGerencial(

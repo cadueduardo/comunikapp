@@ -54,6 +54,12 @@ import {
 } from '../utils/item-os-personalizacao.util';
 import { ArteProducaoService } from '../../catalogo/producao/arte-producao.service';
 import { PcpBloqueioSinalService } from '../../instalacao/services/pcp-bloqueio-sinal.service';
+import {
+  MotivoForcarLiberacaoFinanceira,
+  TIPO_LOG_APROVACAO_TECNICA_FORCADA_FINANCEIRO,
+  montarObsForcarLiberacaoFinanceira,
+  validarPayloadForcarLiberacaoFinanceira,
+} from '../constants/forcar-liberacao-financeira.constants';
 import { StatusLiberacaoPcp } from '../../instalacao/constants/pcp-liberacao.constants';
 import {
   ModoFulfillmentItem,
@@ -2927,6 +2933,11 @@ export class OSService {
       data_prazo_produto?: Date;
     }>,
     itemIds?: string[],
+    forcarLiberacaoFinanceira?: {
+      forcar: boolean;
+      motivo?: string;
+      detalhe?: string;
+    },
   ): Promise<OrdemServicoData> {
     try {
       const os = await this.prisma.ordemServico.findUnique({
@@ -3001,10 +3012,57 @@ export class OSService {
         );
       }
 
+      const retidaFinanceiro =
+        os.status === StatusOS.AGUARDANDO_APROVACAO_FINANCEIRA;
+      let forcouLiberacaoFinanceira = false;
+      let motivoForcar: MotivoForcarLiberacaoFinanceira | null = null;
+      let detalheForcar: string | null = null;
+      let observacoesFinais = observacoes;
+
+      if (retidaFinanceiro && aprovado) {
+        const validacaoForcar = validarPayloadForcarLiberacaoFinanceira({
+          forcar: forcarLiberacaoFinanceira?.forcar === true,
+          motivo: forcarLiberacaoFinanceira?.motivo,
+          detalhe: forcarLiberacaoFinanceira?.detalhe,
+        });
+        if (!validacaoForcar.ok) {
+          throw new BadRequestException(validacaoForcar.erro);
+        }
+
+        const permissaoForcar =
+          await this.osApprovalPermissionsService.podeForcarLiberacaoFinanceira(
+            usuarioId,
+            usuario.loja_id,
+          );
+        if (!permissaoForcar.pode) {
+          throw new ForbiddenException(
+            permissaoForcar.motivo ||
+              'Usuário não tem permissão para forçar liberação financeira',
+          );
+        }
+
+        forcouLiberacaoFinanceira = true;
+        motivoForcar = validacaoForcar.motivo;
+        detalheForcar = validacaoForcar.detalhe;
+        observacoesFinais = montarObsForcarLiberacaoFinanceira(
+          validacaoForcar.motivo,
+          validacaoForcar.detalhe,
+          observacoes,
+        );
+      } else if (
+        forcarLiberacaoFinanceira?.forcar === true &&
+        !retidaFinanceiro
+      ) {
+        throw new BadRequestException(
+          'forcar_liberacao_financeira só se aplica quando a OS está aguardando liberação financeira.',
+        );
+      }
+
       const statusFluxoPadrao: string[] = [
         StatusOS.AGUARDANDO_APROVACAO_TECNICA,
         StatusOS.FILA,
         StatusOS.PARCIALMENTE_LIBERADA,
+        StatusOS.AGUARDANDO_APROVACAO_FINANCEIRA,
       ];
       const eFluxoPadrao = statusFluxoPadrao.includes(os.status);
 
@@ -3093,9 +3151,11 @@ export class OSService {
       const motivoModificacao = aprovado
         ? eLiberacaoParcial
           ? 'Liberação parcial de produtos para PCP'
-          : eFluxoPadrao
-            ? 'Aprovação técnica aprovada e OS liberada para PCP'
-            : 'Aprovação técnica aprovada (retroativa)'
+          : forcouLiberacaoFinanceira
+            ? 'Aprovação técnica forçada (pendência financeira) e OS liberada para PCP'
+            : eFluxoPadrao
+              ? 'Aprovação técnica aprovada e OS liberada para PCP'
+              : 'Aprovação técnica aprovada (retroativa)'
         : 'Aprovação técnica rejeitada';
 
       // Atualiza prazo guarda-chuva da OS se ainda não existir (usa max
@@ -3112,7 +3172,7 @@ export class OSService {
           aprovacao_tecnica_status: statusAprovacao,
           aprovacao_tecnica_por: usuarioId,
           aprovacao_tecnica_em: new Date(),
-          aprovacao_tecnica_obs: observacoes,
+          aprovacao_tecnica_obs: observacoesFinais,
           modificado_por: usuarioId,
           motivo_modificacao: motivoModificacao,
           versao: { increment: 1 },
@@ -3148,8 +3208,23 @@ export class OSService {
         os.status as StatusOS,
         novoStatus,
         usuarioId,
-        observacoes || motivoModificacao,
+        observacoesFinais || motivoModificacao,
       );
+
+      if (forcouLiberacaoFinanceira && motivoForcar) {
+        await this.registrarLogOS(
+          osId,
+          TIPO_LOG_APROVACAO_TECNICA_FORCADA_FINANCEIRO,
+          'Aprovação técnica forçada com pendência financeira (entrada não liquidada).',
+          usuarioId,
+          {
+            motivo: motivoForcar,
+            detalhe: detalheForcar,
+            status_anterior: os.status,
+            status_novo: novoStatus,
+          },
+        );
+      }
 
       // Auto-promoção para o PCP no fluxo padrão: libera os itens ainda
       // PENDENTE, notifica os eventos automáticos e tenta atribuir um
