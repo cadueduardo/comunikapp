@@ -380,7 +380,7 @@ health_checks() {
   fi
 
   local backend_port frontend_port docs_status uploads_status front_status
-  local backend_health front_body_file pm2_frontend_status
+  local backend_health front_body_file pm2_frontend_status attempt
 
   backend_port="$(env_value "$BACKEND_ENV" PORT)"
   backend_port="${backend_port:-4001}"
@@ -394,10 +394,21 @@ health_checks() {
   log "PM2 comunikapp-frontend: ${pm2_frontend_status:-desconhecido}"
   [ "$pm2_frontend_status" = 'online' ] || fail 'comunikapp-frontend nao esta online no PM2.'
 
-  backend_health="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${backend_port}/lojas/health" || true)"
+  backend_health='000'
+  for attempt in $(seq 1 30); do
+    backend_health="$(curl -s -o /dev/null -w '%{http_code}' \
+      --connect-timeout 2 --max-time 5 \
+      "http://127.0.0.1:${backend_port}/lojas/health" || true)"
+    case "$backend_health" in
+      200|401) break ;;
+    esac
+    sleep 3
+  done
+
   case "$backend_health" in
     200) log "Backend local /lojas/health: HTTP ${backend_health}." ;;
-    *) fail "Backend local nao respondeu /lojas/health. HTTP ${backend_health}." ;;
+    401) log "Backend local pronto: /lojas/health protegido respondeu HTTP ${backend_health}." ;;
+    *) fail "Backend local nao ficou pronto apos 90 segundos. Ultimo HTTP ${backend_health}." ;;
   esac
 
   docs_status="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${backend_port}/api/docs" || true)"
