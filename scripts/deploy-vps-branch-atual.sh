@@ -233,7 +233,7 @@ prepare_upload_dirs() {
 update_code() {
   run_as_app '[ -d .git ]' || fail "${PROJECT_DIR} nao parece ser um repositorio Git."
 
-  if ! run_as_app 'git diff --quiet && git diff --cached --quiet'; then
+  if [ -n "$(run_as_app 'git status --porcelain --untracked-files=all')" ]; then
     fail 'existem alteracoes locais no repositorio da VPS. Resolva antes do deploy.'
   fi
 
@@ -259,7 +259,6 @@ apply_prisma() {
   log "Aplicando Prisma (${PRISMA_APPLY})..."
 
   run_as_app "cd backend && set -a && . $(quote "$BACKEND_ENV") && set +a && echo 'SELECT 1;' | ./node_modules/.bin/prisma db execute --schema=prisma/schema.prisma --stdin"
-  run_as_app "cd backend && NODE_OPTIONS='--max-old-space-size=${BUILD_MAX_OLD_SPACE_MB}' ./node_modules/.bin/prisma generate"
 
   case "$PRISMA_APPLY" in
     migrate)
@@ -440,9 +439,9 @@ main() {
   prepare_upload_dirs
   update_code
   install_dependencies
-  apply_prisma
-  build_apps
   audit_dependencies
+  build_apps
+  apply_prisma
   prune_dependencies
   apply_nginx
   apply_fail2ban

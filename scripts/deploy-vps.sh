@@ -12,7 +12,7 @@
 #   sudo bash /srv/apps/comunikapp/releases/current/scripts/deploy-vps.sh
 #
 # Variaveis opcionais:
-#   BRANCH=feature/rateio-por-setor
+#   BRANCH=nome-do-branch (padrao: branch atualmente selecionado)
 #   PROJECT_DIR=/srv/apps/comunikapp/releases/current
 #   PRISMA_APPLY=migrate|push|skip (padrao: migrate)
 #   DB_BACKUP_DIR=/srv/apps/comunikapp/shared/backups/database
@@ -22,7 +22,7 @@ set -euo pipefail
 
 APP_USER="${APP_USER:-comunikapp}"
 PROJECT_DIR="${PROJECT_DIR:-/srv/apps/comunikapp/releases/current}"
-BRANCH="${BRANCH:-feature/rateio-por-setor}"
+BRANCH="${BRANCH:-}"
 BACKEND_SERVICE="${BACKEND_SERVICE:-comunikapp-backend}"
 FRONTEND_SERVICE="${FRONTEND_SERVICE:-comunikapp-frontend}"
 BACKEND_ENV="${BACKEND_ENV:-/srv/apps/comunikapp/shared/env/backend.env}"
@@ -56,9 +56,15 @@ run_as_app() {
 
 run_as_app '[ -d .git ]' || fail "${PROJECT_DIR} nao parece ser um repositorio Git."
 
-if ! run_as_app 'git diff --quiet && git diff --cached --quiet'; then
+if [ -n "$(run_as_app 'git status --porcelain --untracked-files=all')" ]; then
   fail "existem alteracoes locais no repositorio da VPS. Resolva antes do deploy."
 fi
+
+if [ -z "${BRANCH}" ]; then
+  BRANCH="$(run_as_app 'git branch --show-current')"
+fi
+
+[ -n "${BRANCH}" ] || fail "nao foi possivel determinar o branch atual; informe BRANCH explicitamente."
 
 if sudo grep -Eq 'JWT_SECRET="?((your-secret-key)|(your-super-secret-jwt-key-change-this-in-production)|(sua-chave-secreta-aqui))"?' "${BACKEND_ENV}"; then
   fail "JWT_SECRET esta usando placeholder inseguro em ${BACKEND_ENV}."
@@ -92,7 +98,11 @@ run_as_app 'cd backend && npm ci'
 log "3/7 Instalando dependencias do frontend com npm ci..."
 run_as_app 'cd frontend && npm ci'
 
-log "4/7 Aplicando schema Prisma..."
+log "4/7 Validando builds de producao..."
+run_as_app 'cd backend && npm run build'
+run_as_app 'cd frontend && npm run build'
+
+log "5/7 Aplicando schema Prisma..."
 case "${PRISMA_APPLY}" in
   push)
     fail "PRISMA_APPLY=push bloqueado em producao; use migrate ou skip."
@@ -109,10 +119,6 @@ case "${PRISMA_APPLY}" in
     fail "PRISMA_APPLY invalido: ${PRISMA_APPLY}. Use push, migrate ou skip."
     ;;
 esac
-
-log "5/7 Build backend e frontend..."
-run_as_app 'cd backend && npm run build'
-run_as_app 'cd frontend && npm run build'
 
 log "6/7 Removendo dependencias de desenvolvimento..."
 run_as_app 'cd backend && npm prune --omit=dev'

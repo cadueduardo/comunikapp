@@ -1,9 +1,11 @@
 # Deploy seguro de migrations em bancos legados
 
-O deploy de producao cria e valida um backup do banco, executa
-`backend/scripts/prisma-deploy-preflight.js` e somente depois chama
-`prisma migrate deploy`. O objetivo e impedir que migrations de baseline sejam
-executadas sobre tabelas que ja existem ou sobre um schema parcialmente divergente.
+O deploy de producao instala as dependencias e valida os builds antes de qualquer
+alteracao no banco. Somente com os artefatos compilados ele cria e valida um backup,
+executa `backend/scripts/prisma-deploy-preflight.js` e chama
+`prisma migrate deploy`. O objetivo e impedir tanto uma migration com build quebrado
+quanto a execucao de baselines sobre tabelas que ja existem ou sobre um schema
+parcialmente divergente.
 
 ## Backup automatico
 
@@ -46,6 +48,11 @@ esses pacotes devem estar instalados previamente.
 
 `PRISMA_APPLY=migrate` e o padrao dos scripts de VPS. `PRISMA_APPLY=push` fica
 bloqueado porque `db push` altera o banco sem registrar a mudanca no historico.
+
+Os scripts tambem bloqueiam o deploy quando `git status --porcelain` encontra
+arquivos alterados, staged ou nao rastreados. O script simplificado usa o branch
+atualmente selecionado quando `BRANCH` nao e informado; ele nao possui branch de
+feature hardcoded como fallback.
 
 ## Antes da primeira atualizacao do cliente em producao
 
