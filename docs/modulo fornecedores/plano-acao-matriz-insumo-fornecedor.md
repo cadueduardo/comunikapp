@@ -1,6 +1,6 @@
 # Plano de Ação — Matriz Insumo × Fornecedor (`InsumoFornecedor`)
 
-**Status:** Fase 0 concluída em modo somente leitura — **não executar** migrations, `--apply`, deploy ou escrita no banco sem aprovação explícita para a Fase 1
+**Status:** Fase 0 concluída; código da Fase 1 preparado e validado localmente — **migration ainda não aplicada em nenhum banco**
 **Revisão:** 2026-07-17 — plano original + integridade referencial, estoque, JSON operacional, DTOs, deploy e contrato com Compras/Financeiro
 **Origem:** `docs/modulo fornecedores/feature-fornecedores-insumos.md` + decisões de produto e validação contra o código atual
 **Objetivo:** permitir N fornecedores por insumo físico único, com preço/SKU por fornecedor e um fornecedor padrão sincronizado com o motor de cálculo existente.
@@ -259,15 +259,33 @@ O campo legado `Insumo.estoque_atual` não participa da eleição.
 
 **Objetivo:** criar `insumo_fornecedores` sem alterar a unicidade atual.
 
-- [ ] Adicionar `InsumoFornecedor`, `@@map` e relações inversas.
-- [ ] Incluir `loja_id`, relação com `loja` e índices compostos tenant-first.
-- [ ] Manter `@@unique([loja_id, nome, fornecedorId])` em `Insumo`.
-- [ ] Gerar migration SQL revisável com timestamp de 14 dígitos.
-- [ ] Executar `prisma validate` e `prisma generate`.
+- [x] Adicionar `InsumoFornecedor`, `@@map` e relações inversas.
+- [x] Incluir `loja_id`, relação com `loja` e índices compostos tenant-first.
+- [x] Manter `@@unique([loja_id, nome, fornecedorId])` em `Insumo`.
+- [x] Gerar migration SQL revisável com timestamp real de 14 dígitos.
+- [x] Executar `prisma validate` e `prisma generate`.
 - [ ] Aplicar em staging e confirmar tabela, PK, FKs e índices.
 - [ ] Confirmar que a versão antiga do app continua funcionando.
 
 **Saída:** tabela vazia disponível; nenhuma alteração de dados e nenhum unique novo.
+
+---
+
+#### Registro de preparação da Fase 1 — 2026-07-17
+
+- Branch: `codex/fornecedores-matriz-fase1`.
+- Model `InsumoFornecedor` adicionado com `loja_id` obrigatório, PK composta e relações inversas.
+- Unique legado `@@unique([loja_id, nome, fornecedorId])` preservado.
+- Migration aditiva: `20260717201405_create_insumo_fornecedores`.
+- A migration cria somente `insumo_fornecedores`; não contém DML, `DROP`, alteração de `insumos` ou mudança de constraint existente.
+- SQL comparado com a saída de referência de `prisma migrate diff`.
+- `prisma validate`: aprovado.
+- `prisma generate`: aprovado.
+- Build NestJS: aprovado.
+- Testes da matriz/dry-run/schema: 10 aprovados.
+- Nenhuma conexão de migration, aplicação em banco ou alteração de produção realizada.
+
+**Próximo gate:** aplicar primeiro em staging ou ambiente descartável, validar estrutura e compatibilidade do aplicativo antigo. Produção permanece bloqueada até essa evidência e nova autorização.
 
 ---
 

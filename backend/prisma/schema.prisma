@@ -58,6 +58,7 @@ model Insumo {
   itemorcamento           itemorcamento[]
   itemInsumo              ItemInsumo[]
   estoque                 estoque[]
+  fornecedores_associados InsumoFornecedor[]
 
   @@unique([loja_id, nome, fornecedorId])
   @@index([categoriaId], map: "insumos_categoriaId_fkey")
@@ -545,6 +546,7 @@ model fornecedor {
   itens_terceirizados            ItemOS[]
   produtos_orcados_terceirizados ProdutoOrcamento[]
   ordens_terceirizacao           OrdemTerceirizacao[]
+  insumos_associados             InsumoFornecedor[]
 
   @@unique([loja_id, nome], map: "Fornecedor_loja_id_nome_key")
   @@index([loja_id], map: "Fornecedor_loja_id_idx")
@@ -644,6 +646,7 @@ model loja {
   fornecedor                     fornecedor[]
   funcao                         funcao[]
   insumos                        Insumo[]
+  insumos_fornecedores           InsumoFornecedor[]
   maquina                        maquina[]
   notificacao                    notificacao[]
   orcamento                      orcamento[]
@@ -677,6 +680,27 @@ model loja {
   conjuntos_campos               ConjuntoCampos[]
   estampas                       Estampa[]
   workflow_instancias_setor      WorkflowInstanciaSetor[]
+}
+
+model InsumoFornecedor {
+  loja_id       String
+  insumo_id     String
+  fornecedor_id String
+  preco_custo   Decimal  @db.Decimal(10, 2)
+  codigo_ref    String?
+  padrao        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  loja       loja       @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  insumo     Insumo     @relation(fields: [insumo_id], references: [id], onDelete: Cascade)
+  fornecedor fornecedor @relation(fields: [fornecedor_id], references: [id], onDelete: Cascade)
+
+  @@id([insumo_id, fornecedor_id])
+  @@index([fornecedor_id])
+  @@index([loja_id, insumo_id])
+  @@index([loja_id, fornecedor_id])
+  @@map("insumo_fornecedores")
 }
 
 model maquina {
