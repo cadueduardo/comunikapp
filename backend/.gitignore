@@ -68,6 +68,9 @@ pids
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
+# Relatorios locais de dry-run/migracao (podem conter IDs operacionais)
+/scripts/reports/
+
 /generated/prisma
 prisma/src/generated/
 
