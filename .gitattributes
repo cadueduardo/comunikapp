@@ -4,6 +4,10 @@
 # Documentation: keep diffs stable across Windows/Linux
 *.md text eol=lf
 
+# Dependencies preserve the bytes published by their maintainers
+node_modules/** -text
+**/node_modules/** -text
+
 # Cron files: must be LF (Linux cron rejeita CRLF silenciosamente)
 deploy/cron/* text eol=lf
 
