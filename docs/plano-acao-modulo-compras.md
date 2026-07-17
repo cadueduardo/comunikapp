@@ -1,3 +1,5 @@
+> **Documento substituído:** use `docs/modulo de compras/RP-mvp-compras-suprimentos.md`. Este arquivo permanece apenas como histórico e não deve orientar implementação.
+
 # Plano de Ação - Módulo de Compras
 
 ## 📋 Visão Geral
@@ -12,7 +14,7 @@
 
 ## 🗓️ Cronograma Detalhado
 
-### **Fase 1: Estrutura Base** 
+### **Fase 1: Estrutura Base**
 **Duração:** Semana 1 (Dias 1-5)
 
 #### **Dia 1: Setup Inicial**
@@ -238,4 +240,4 @@
 **Status:** Aguardando início
 
 **Atualizações:**
-- [Data] - [Descrição da atualização] 
+- [Data] - [Descrição da atualização]

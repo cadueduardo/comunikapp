@@ -1,6 +1,9 @@
 # Shell scripts: always LF (evita erro de \r no Linux)
 *.sh text eol=lf
 
+# Documentation: keep diffs stable across Windows/Linux
+*.md text eol=lf
+
 # Cron files: must be LF (Linux cron rejeita CRLF silenciosamente)
 deploy/cron/* text eol=lf
 

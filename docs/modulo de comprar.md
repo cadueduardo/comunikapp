@@ -1,3 +1,5 @@
+> **Documento substituído:** use `docs/modulo de compras/RP-mvp-compras-suprimentos.md`. Este arquivo permanece apenas como histórico e não deve orientar implementação.
+
 # Módulo de Compras
 
 ## 📋 Descrição do PBI
