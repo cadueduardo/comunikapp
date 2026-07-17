@@ -5,6 +5,7 @@ const {
   analyzeJson,
   assertReadOnlySql,
   buildReport,
+  normalizeForJson,
   parseArgs,
   selectSurvivor,
   survivorReason,
@@ -100,5 +101,12 @@ test('buildReport usa apenas leitura e inclui loja sem colisao', async () => {
   assert.equal(report.summary.estimated_operations.inserts, 3);
   assert.equal(report.lojas[0].loja_id, 'loja-1');
   assert.equal(report.lojas[0].grupos.length, 0);
+  const serialized = JSON.stringify(report, normalizeForJson);
+  assert.equal(JSON.parse(serialized).summary.estimated_operations.inserts, 3);
   queries.forEach(assertReadOnlySql);
+});
+
+test('serializador converte BigInt sem esvaziar o documento', () => {
+  const serialized = JSON.stringify({ total: 3n }, normalizeForJson);
+  assert.deepEqual(JSON.parse(serialized), { total: 3 });
 });

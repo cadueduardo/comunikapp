@@ -196,7 +196,7 @@ function safeIdentifier(identifier) {
   return `\`${identifier}\``;
 }
 
-function normalizeForJson(value) {
+function normalizeForJson(_key, value) {
   if (typeof value === 'bigint') return Number(value);
   if (value instanceof Date) return value.toISOString();
   if (value && typeof value.toJSON === 'function') return value.toJSON();
@@ -688,6 +688,7 @@ module.exports = {
   assertReadOnlySql,
   buildReport,
   markdownSummary,
+  normalizeForJson,
   parseArgs,
   selectSurvivor,
   survivorReason,
