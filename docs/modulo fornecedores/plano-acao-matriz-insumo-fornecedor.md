@@ -1,6 +1,6 @@
 # Plano de Ação — Matriz Insumo × Fornecedor (`InsumoFornecedor`)
 
-**Status:** documentação consolidada — **não executar** migrations, `--apply`, deploy ou escrita no banco sem aprovação explícita
+**Status:** Fase 0 concluída em modo somente leitura — **não executar** migrations, `--apply`, deploy ou escrita no banco sem aprovação explícita para a Fase 1
 **Revisão:** 2026-07-17 — plano original + integridade referencial, estoque, JSON operacional, DTOs, deploy e contrato com Compras/Financeiro
 **Origem:** `docs/modulo fornecedores/feature-fornecedores-insumos.md` + decisões de produto e validação contra o código atual
 **Objetivo:** permitir N fornecedores por insumo físico único, com preço/SKU por fornecedor e um fornecedor padrão sincronizado com o motor de cálculo existente.
@@ -185,10 +185,10 @@ Regras obrigatórias:
 
 #### Preparação
 
-- [ ] Partir de branch limpa baseada no ponto estável acordado, usando o padrão do repositório para o nome da branch.
-- [ ] Criar script standalone versionado em `backend/scripts/migrate-insumo-fornecedor-matriz.mjs` ou `.ts`.
-- [ ] `--dry-run` deve ser o comportamento padrão; nenhuma query de escrita pode ocorrer nesse modo.
-- [ ] Aceitar `--loja-id=<id>` para limitar o escopo.
+- [x] Partir de branch limpa baseada no ponto estável acordado, usando o padrão do repositório para o nome da branch.
+- [x] Criar script standalone versionado em `backend/scripts/migrate-insumo-fornecedor-matriz.js`.
+- [x] `--dry-run` é o comportamento padrão; nenhuma query de escrita ocorre nesse modo.
+- [x] Aceitar `--loja-id=<id>` para limitar o escopo.
 
 #### Relatório obrigatório
 
@@ -225,11 +225,33 @@ O campo legado `Insumo.estoque_atual` não participa da eleição.
 
 #### Critério de saída
 
-- [ ] Dry-run executado no ambiente autorizado.
-- [ ] Relatórios arquivados e revisados.
-- [ ] Grupos homônimos semanticamente diferentes renomeados antes do merge.
-- [ ] Nenhuma escrita realizada.
+- [x] Dry-run executado no ambiente autorizado.
+- [x] Relatórios arquivados e revisados.
+- [x] Grupos homônimos semanticamente diferentes renomeados antes do merge — não aplicável: nenhum grupo colidente encontrado.
+- [x] Nenhuma escrita realizada.
 - [ ] Aprovação explícita para seguir à Fase 1.
+
+---
+
+#### Registro de execução da Fase 0 — 2026-07-17
+
+- Branch: `codex/fornecedores-matriz-fase0`.
+- Commit do script corrigido: `f196926e`.
+- Ambiente analisado: produção, por consultas exclusivamente `SELECT`.
+- Lojas analisadas: 4.
+- Insumos encontrados: 33.
+- Grupos colidentes segundo a collation real do MySQL: 0.
+- Insumos secundários: 0.
+- JSONs inválidos: 0.
+- Shapes JSON desconhecidos: 0.
+- Estimativa para a futura Fase 2: 33 inserts de backfill, 0 updates e 0 deletes.
+- Relatórios finais protegidos:
+  - `/srv/apps/comunikapp/shared/reports/insumo-fornecedor/insumo-fornecedor-dry-run-20260717-193617.json`;
+  - `/srv/apps/comunikapp/shared/reports/insumo-fornecedor/insumo-fornecedor-dry-run-20260717-193617.md`.
+- Permissões dos relatórios: `600`, proprietário `comunikapp`.
+- Checkout de produção permaneceu em `main`, commit `ac455608`, sem arquivos modificados.
+
+**Decisão resultante:** não há merge de duplicatas a preparar no estado atual da base. A Fase 2 ainda deve manter suas proteções para outros ambientes e para dados criados entre o dry-run e a janela de corte, mas, se a base permanecer nesse estado, sua atuação será somente o backfill das 33 linhas padrão.
 
 ---
 
