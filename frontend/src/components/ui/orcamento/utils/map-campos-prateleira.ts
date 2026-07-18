@@ -9,13 +9,33 @@ export const mapCamposPrateleiraFormulario = (produto: Record<string, unknown>) 
     | null
     | undefined;
 
-  const precoCustoCatalogo = produtoFinito?.preco_custo;
+  const parseCusto = (valor: unknown): number => {
+    if (valor === null || valor === undefined || valor === '') return 0;
+    if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+    if (typeof valor === 'string') {
+      const parsed = parseFloat(valor.replace(/[^0-9,.-]/g, '').replace(',', '.'));
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    if (typeof valor === 'object' && valor !== null && 'toString' in valor) {
+      try {
+        const parsed = parseFloat(
+          String((valor as { toString(): string }).toString()).replace(',', '.'),
+        );
+        return Number.isFinite(parsed) ? parsed : 0;
+      } catch {
+        return 0;
+      }
+    }
+    return 0;
+  };
+
   const quantidade = Number(produto.quantidade) || 1;
-  const custoTotalSalvo = Number(produto.custo_total_producao) || 0;
-  const precoCustoUnitario =
-    produto.preco_custo_snapshot ??
-    precoCustoCatalogo ??
-    (custoTotalSalvo > 0 && quantidade > 0 ? custoTotalSalvo / quantidade : '');
+  const custoTotalSalvo = parseCusto(produto.custo_total_producao);
+  const custoSnapshot = parseCusto(produto.preco_custo_snapshot);
+  const custoCatalogo = parseCusto(produtoFinito?.preco_custo);
+  const custoDerivado =
+    custoTotalSalvo > 0 && quantidade > 0 ? custoTotalSalvo / quantidade : 0;
+  const precoCustoUnitario = custoSnapshot || custoCatalogo || custoDerivado;
 
   return {
     tipo_item: String(produto.tipo_item || 'SOB_DEMANDA'),
@@ -24,7 +44,7 @@ export const mapCamposPrateleiraFormulario = (produto: Record<string, unknown>) 
     preco_unitario_snapshot: String(
       produto.preco_unitario_snapshot ?? produto.preco_unitario ?? '',
     ),
-    preco_custo_snapshot: String(precoCustoUnitario ?? ''),
+    preco_custo_snapshot: precoCustoUnitario > 0 ? String(precoCustoUnitario) : '',
     estoque_catalogo: Number(
       produto.estoque_catalogo ?? produtoFinito?.estoque_atual ?? 0,
     ),

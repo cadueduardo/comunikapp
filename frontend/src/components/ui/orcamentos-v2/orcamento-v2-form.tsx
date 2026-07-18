@@ -40,6 +40,26 @@ const calcularCustoPorUnidadeUso = (insumo: any): number => {
   return custoUnitario / fatorConversao;
 };
 
+const parseValorMonetarioProduto = (valor: unknown): number => {
+  if (valor === null || valor === undefined || valor === '') return 0;
+  if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+  if (typeof valor === 'string') {
+    const parsed = parseFloat(valor.replace(/[^0-9,.-]/g, '').replace(',', '.'));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (typeof valor === 'object' && valor !== null && 'toString' in valor) {
+    try {
+      const parsed = parseFloat(
+        String((valor as { toString(): string }).toString()).replace(',', '.'),
+      );
+      return Number.isFinite(parsed) ? parsed : 0;
+    } catch {
+      return 0;
+    }
+  }
+  return 0;
+};
+
 import { mapCamposPrateleiraFormulario } from '../orcamento/utils/map-campos-prateleira';
 import {
   mapInstalacaoProdutoBackendParaFormulario,
@@ -793,20 +813,25 @@ export function OrcamentoV2Form({
       return () => window.clearTimeout(resetTimer);
   }, [mode, initialData, form, comissaoPadraoLoja]);
 
-  // Reidratar regras de catálogo para produtos de prateleira ao reabrir rascunho.
+  // Reidratar catálogo (regras + preço de custo) para produtos de prateleira.
   useEffect(() => {
-    if (mode !== 'editar' || !dadosCarregados) return;
+    if (!dadosCarregados) return;
 
     const itens = form.getValues('itens_produto') || [];
     const pendentes = itens
       .map((item, index) => ({ item, index }))
-      .filter(
-        ({ item }) =>
-          String((item as { tipo_item?: string }).tipo_item || '').toUpperCase() ===
-            'PRODUTO_FINITO' &&
-          Boolean((item as { produto_finito_id?: string }).produto_finito_id) &&
-          !(item as { catalogo_regras?: unknown }).catalogo_regras,
-      );
+      .filter(({ item }) => {
+        const tipo = String((item as { tipo_item?: string }).tipo_item || '').toUpperCase();
+        if (tipo !== 'PRODUTO_FINITO') return false;
+        if (!(item as { produto_finito_id?: string }).produto_finito_id) return false;
+        const semRegras = !(item as { catalogo_regras?: unknown }).catalogo_regras;
+        const custoSnapshot = Number(
+          String((item as { preco_custo_snapshot?: string }).preco_custo_snapshot || '')
+            .replace(',', '.'),
+        );
+        const semCusto = !(Number.isFinite(custoSnapshot) && custoSnapshot > 0);
+        return semRegras || semCusto;
+      });
 
     if (pendentes.length === 0) return;
 
@@ -824,17 +849,38 @@ export function OrcamentoV2Form({
           const paraOrcamento = (await produtosFinitosApi.getParaOrcamento(
             produtoFinitoId,
             token,
-          )) as { personalizacao?: CatalogoRegrasOrcamento };
-          if (!paraOrcamento?.personalizacao) continue;
+          )) as {
+            personalizacao?: CatalogoRegrasOrcamento;
+            preco_custo?: number | string | null;
+          };
 
-          form.setValue(
-            `itens_produto.${index}.catalogo_regras`,
-            {
-              ...paraOrcamento.personalizacao,
-              grade_atributos_def: paraOrcamento.personalizacao.grade_atributos_def ?? [],
-            },
-            { shouldDirty: false },
+          if (
+            paraOrcamento?.personalizacao &&
+            !(item as { catalogo_regras?: unknown }).catalogo_regras
+          ) {
+            form.setValue(
+              `itens_produto.${index}.catalogo_regras`,
+              {
+                ...paraOrcamento.personalizacao,
+                grade_atributos_def:
+                  paraOrcamento.personalizacao.grade_atributos_def ?? [],
+              },
+              { shouldDirty: false },
+            );
+          }
+
+          const custoAtual = Number(
+            String((item as { preco_custo_snapshot?: string }).preco_custo_snapshot || '')
+              .replace(',', '.'),
           );
+          const custoCatalogo = parseValorMonetarioProduto(paraOrcamento?.preco_custo);
+          if (!(Number.isFinite(custoAtual) && custoAtual > 0) && custoCatalogo > 0) {
+            form.setValue(
+              `itens_produto.${index}.preco_custo_snapshot`,
+              String(custoCatalogo),
+              { shouldDirty: false, shouldValidate: true },
+            );
+          }
         } catch {
           // Silencioso: preview ainda funciona com snapshots de preço persistidos.
         }
@@ -2586,24 +2632,6 @@ export function OrcamentoV2Form({
   const handleAdicionarProdutoPrateleira = (itemIndex: number) => {
     setSelectedProdutoIndex(itemIndex);
     setShowProdutoPrateleiraModal(true);
-  };
-
-  const parseValorMonetarioProduto = (valor: unknown): number => {
-    if (valor === null || valor === undefined || valor === '') return 0;
-    if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
-    if (typeof valor === 'string') {
-      const parsed = parseFloat(valor.replace(/[^0-9,.-]/g, '').replace(',', '.'));
-      return Number.isFinite(parsed) ? parsed : 0;
-    }
-    if (typeof valor === 'object' && valor !== null && 'toString' in valor) {
-      try {
-        const parsed = parseFloat(String((valor as { toString(): string }).toString()).replace(',', '.'));
-        return Number.isFinite(parsed) ? parsed : 0;
-      } catch {
-        return 0;
-      }
-    }
-    return 0;
   };
 
   const handleProdutoPrateleiraSelected = async (produto: {

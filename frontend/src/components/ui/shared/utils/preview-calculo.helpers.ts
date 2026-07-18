@@ -758,7 +758,12 @@ export const calcularProdutosPreview = (
         quantidade,
         precoUnitario,
       );
-      const precoCustoUnitario = parseNumber(item?.preco_custo_snapshot);
+      // Snapshot do orçamento → custo do catálogo embutido → deriva de custo_total salvo.
+      const custoSalvoTotal = parseNumber(item?.custo_total_producao);
+      const precoCustoUnitario =
+        parseNumber(item?.preco_custo_snapshot) ||
+        parseNumber(item?.produto_finito?.preco_custo) ||
+        (custoSalvoTotal > 0 ? custoSalvoTotal / quantidade : 0);
       let custoTotalProducao = precoCustoUnitario * quantidade;
 
       if (item?.personalizacao_ativa && item?.personalizacao_modo) {
