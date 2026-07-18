@@ -32,6 +32,7 @@
     "db:insumo-fornecedor:backfill": "node scripts/apply-insumo-fornecedor-backfill.js --dry-run",
     "test:insumo-fornecedor:dry-run": "node --test scripts/migrate-insumo-fornecedor-matriz.test.js scripts/insumo-fornecedor-schema.test.js",
     "test:insumo-fornecedor:backfill": "node --test scripts/apply-insumo-fornecedor-backfill.test.js",
+    "test:insumo-fornecedor:crud": "node --test scripts/insumo-fornecedor-crud.test.js",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "migrate:arte-comentarios": "ts-node src/modules/arte-aprovacao/scripts/migrate-comentarios-to-mensagens.ts",

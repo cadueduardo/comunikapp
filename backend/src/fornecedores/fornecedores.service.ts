@@ -26,10 +26,7 @@ export class FornecedoresService {
     });
   }
 
-  findAll(
-    lojaAtual: loja,
-    finalidade?: 'INSUMO' | 'TERCEIRIZACAO',
-  ) {
+  findAll(lojaAtual: loja, finalidade?: 'INSUMO' | 'TERCEIRIZACAO') {
     const tipos =
       finalidade === 'INSUMO'
         ? [TipoFornecedor.INSUMO, TipoFornecedor.AMBOS]
@@ -47,6 +44,7 @@ export class FornecedoresService {
         _count: {
           select: {
             insumos: true,
+            insumos_associados: true,
             itens_terceirizados: true,
             produtos_orcados_terceirizados: true,
           },
@@ -62,6 +60,7 @@ export class FornecedoresService {
         _count: {
           select: {
             insumos: true,
+            insumos_associados: true,
             itens_terceirizados: true,
             produtos_orcados_terceirizados: true,
           },
@@ -84,18 +83,48 @@ export class FornecedoresService {
       await this.validarNomeDuplicado(nome, lojaAtual.id, id);
     }
 
-    return this.prisma.fornecedor.update({
-      where: { id },
-      data: {
-        ...dto,
-        ...(nome ? { nome } : {}),
-        ...(dto.estado ? { estado: dto.estado.toUpperCase() } : {}),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      if (dto.ativo === false || dto.tipo === TipoFornecedor.TERCEIRIZADO) {
+        const vinculos = await tx.insumoFornecedor.count({
+          where: { fornecedor_id: id, loja_id: lojaAtual.id },
+        });
+        if (vinculos > 0) {
+          throw new BadRequestException(
+            `Não é possível inativar ou tornar este fornecedor exclusivamente terceirizado: existem ${vinculos} vínculo(s) na matriz de insumos. Reatribua esses insumos antes.`,
+          );
+        }
+      }
+
+      return tx.fornecedor.update({
+        where: { id },
+        data: {
+          ...dto,
+          ...(nome ? { nome } : {}),
+          ...(dto.estado ? { estado: dto.estado.toUpperCase() } : {}),
+        },
+      });
     });
   }
 
   async remove(id: string, lojaAtual: loja) {
     const fornecedor = await this.findOne(id, lojaAtual);
+
+    const vinculosMatriz = await this.prisma.insumoFornecedor.findMany({
+      where: { fornecedor_id: id, loja_id: lojaAtual.id },
+      select: { insumo: { select: { nome: true } } },
+      take: 6,
+      orderBy: { insumo_id: 'asc' },
+    });
+    if (vinculosMatriz.length > 0) {
+      const nomes = vinculosMatriz
+        .slice(0, 5)
+        .map((vinculo) => vinculo.insumo.nome)
+        .join(', ');
+      const complemento = vinculosMatriz.length > 5 ? ' e outros insumos' : '';
+      throw new BadRequestException(
+        `Não é possível excluir este fornecedor porque ele está associado na matriz de: ${nomes}${complemento}. Remova as associações antes.`,
+      );
+    }
 
     const insumos = await this.prisma.insumo.findMany({
       where: { fornecedorId: id },

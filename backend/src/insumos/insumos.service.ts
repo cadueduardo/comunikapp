@@ -8,7 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInsumoDto } from './dto/create-insumo.dto';
 import { UpdateInsumoDto } from './dto/update-insumo.dto';
-import { loja } from '@prisma/client';
+import { loja, TipoFornecedor } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
 import { SimularChapaDto } from '../common/calculo-chapa/simular-chapa.dto';
 import {
@@ -17,6 +17,7 @@ import {
   resolverMedidasComerciaisInsumo,
 } from '../common/calculo-chapa/calculo-chapa.util';
 import { MetodoCobrancaChapa } from '../common/calculo-chapa/calculo-chapa.types';
+import { VincularFornecedoresEnvelopeDto } from './dto/vincular-fornecedores.dto';
 
 @Injectable()
 export class InsumosService {
@@ -655,21 +656,18 @@ export class InsumosService {
       tipo_material_id: createInsumoDto.tipo_material_id,
     });
 
-    // Verificar unicidade por fornecedor (apenas se fornecedor foi informado)
-    if (createInsumoDto.fornecedorId && createInsumoDto.fornecedorId !== '') {
-      const existingInsumo = await this.prisma.insumo.findFirst({
-        where: {
-          loja_id: loja.id,
-          nome: createInsumoDto.nome,
-          fornecedorId: createInsumoDto.fornecedorId,
-        },
-      });
+    const existingInsumo = await this.prisma.insumo.findFirst({
+      where: {
+        loja_id: loja.id,
+        nome: createInsumoDto.nome,
+      },
+      select: { id: true },
+    });
 
-      if (existingInsumo) {
-        throw new ConflictException(
-          `Já existe um insumo com o nome "${createInsumoDto.nome}" para este fornecedor.`,
-        );
-      }
+    if (existingInsumo) {
+      throw new ConflictException(
+        `Já existe um insumo com o nome "${createInsumoDto.nome}" nesta loja.`,
+      );
     }
 
     // Verificar se categoria e fornecedor pertencem à mesma loja
@@ -709,7 +707,12 @@ export class InsumosService {
 
     if (createInsumoDto.fornecedorId && createInsumoDto.fornecedorId !== '') {
       const fornecedor = await this.prisma.fornecedor.findFirst({
-        where: { id: createInsumoDto.fornecedorId, loja_id: loja.id },
+        where: {
+          id: createInsumoDto.fornecedorId,
+          loja_id: loja.id,
+          ativo: true,
+          tipo: { in: [TipoFornecedor.INSUMO, TipoFornecedor.AMBOS] },
+        },
       });
 
       console.log('🔍 Verificação de fornecedor:', {
@@ -725,7 +728,7 @@ export class InsumosService {
           loja_id: loja.id,
         });
         throw new BadRequestException(
-          `Fornecedor não encontrado (ID: ${createInsumoDto.fornecedorId}). Por favor, selecione um fornecedor válido.`,
+          `Fornecedor não encontrado, inativo ou incompatível com insumos (ID: ${createInsumoDto.fornecedorId}).`,
         );
       }
     } else {
@@ -808,6 +811,17 @@ export class InsumosService {
             categoria: true,
             fornecedor: true,
             tipoMaterial: true,
+          },
+        });
+
+        await tx.insumoFornecedor.create({
+          data: {
+            loja_id: loja.id,
+            insumo_id: insumoCriado.id,
+            fornecedor_id: fornecedorId,
+            preco_custo: createInsumoDto.custo_unitario,
+            codigo_ref: null,
+            padrao: true,
           },
         });
 
@@ -962,6 +976,10 @@ export class InsumosService {
         categoria: true,
         fornecedor: true,
         tipoMaterial: true,
+        fornecedores_associados: {
+          include: { fornecedor: true },
+          orderBy: [{ padrao: 'desc' }, { fornecedor_id: 'asc' }],
+        },
       },
     });
 
@@ -993,6 +1011,12 @@ export class InsumosService {
       largura: insumo.largura ? Number(insumo.largura) : null,
       altura: insumo.altura ? Number(insumo.altura) : null,
       gramatura: insumo.gramatura ? Number(insumo.gramatura) : null,
+      fornecedores_associados: insumo.fornecedores_associados.map(
+        (vinculo) => ({
+          ...vinculo,
+          preco_custo: Number(vinculo.preco_custo),
+        }),
+      ),
       estoque_controlado: Boolean(estoqueItem),
       controlar_estoque: Boolean(estoqueItem),
       estoque_item_id: estoqueItem?.id ?? null,
@@ -1053,7 +1077,6 @@ export class InsumosService {
 
   private async gerarNomeCopiaInsumo(
     nomeBase: string,
-    fornecedorId: string,
     lojaId: string,
   ): Promise<string> {
     const base = nomeBase.trim() || 'Insumo';
@@ -1065,7 +1088,6 @@ export class InsumosService {
         where: {
           loja_id: lojaId,
           nome: candidato,
-          fornecedorId,
         },
         select: { id: true },
       })
@@ -1095,11 +1117,7 @@ export class InsumosService {
       }
     }
 
-    const nomeCopia = await this.gerarNomeCopiaInsumo(
-      original.nome,
-      original.fornecedorId,
-      loja.id,
-    );
+    const nomeCopia = await this.gerarNomeCopiaInsumo(original.nome, loja.id);
 
     const dto: CreateInsumoDto = {
       nome: nomeCopia,
@@ -1234,14 +1252,13 @@ export class InsumosService {
         where: {
           loja_id: loja.id,
           nome: updateInsumoDto.nome,
-          fornecedorId: existingInsumo.fornecedorId,
           id: { not: id },
         },
       });
 
       if (existingInsumoWithSameName) {
         throw new ConflictException(
-          `Já existe um insumo com o nome "${updateInsumoDto.nome}" para este fornecedor.`,
+          `Já existe um insumo com o nome "${updateInsumoDto.nome}" nesta loja.`,
         );
       }
     }
@@ -1369,6 +1386,100 @@ export class InsumosService {
     }
 
     return resultado;
+  }
+
+  async vincularFornecedores(
+    id: string,
+    dto: VincularFornecedoresEnvelopeDto,
+    loja: loja,
+  ) {
+    const fornecedores = dto.fornecedores.map((item) => ({
+      fornecedor_id: item.fornecedor_id.trim(),
+      preco_custo: Number(item.preco_custo),
+      codigo_ref: item.codigo_ref?.trim() || null,
+      padrao: item.padrao,
+    }));
+
+    const ids = fornecedores.map((item) => item.fornecedor_id);
+    if (new Set(ids).size !== ids.length) {
+      throw new BadRequestException(
+        'O mesmo fornecedor não pode aparecer mais de uma vez na matriz.',
+      );
+    }
+
+    const padroes = fornecedores.filter((item) => item.padrao);
+    if (padroes.length !== 1) {
+      throw new BadRequestException(
+        'A matriz deve possuir exatamente um fornecedor padrão.',
+      );
+    }
+
+    return this.prisma.$transaction(
+      async (tx) => {
+        const insumo = await tx.insumo.findFirst({
+          where: { id, loja_id: loja.id },
+          select: { id: true },
+        });
+        if (!insumo) {
+          throw new NotFoundException(`Insumo com ID "${id}" não encontrado.`);
+        }
+
+        const fornecedoresValidos = await tx.fornecedor.findMany({
+          where: {
+            id: { in: ids },
+            loja_id: loja.id,
+            ativo: true,
+            tipo: { in: [TipoFornecedor.INSUMO, TipoFornecedor.AMBOS] },
+          },
+          select: { id: true },
+        });
+        if (fornecedoresValidos.length !== ids.length) {
+          throw new BadRequestException(
+            'A matriz contém fornecedor inexistente, inativo, de outra loja ou incompatível com insumos.',
+          );
+        }
+
+        await tx.insumoFornecedor.deleteMany({
+          where: { insumo_id: id, loja_id: loja.id },
+        });
+        await tx.insumoFornecedor.createMany({
+          data: fornecedores.map((item) => ({
+            loja_id: loja.id,
+            insumo_id: id,
+            fornecedor_id: item.fornecedor_id,
+            preco_custo: item.preco_custo,
+            codigo_ref: item.codigo_ref,
+            padrao: item.padrao,
+          })),
+        });
+
+        const padrao = padroes[0];
+        await tx.insumo.update({
+          where: { id },
+          data: {
+            fornecedorId: padrao.fornecedor_id,
+            custo_unitario: padrao.preco_custo,
+          },
+        });
+
+        const matriz = await tx.insumoFornecedor.findMany({
+          where: { insumo_id: id, loja_id: loja.id },
+          include: { fornecedor: true },
+          orderBy: [{ padrao: 'desc' }, { fornecedor_id: 'asc' }],
+        });
+
+        return {
+          insumo_id: id,
+          fornecedorId: padrao.fornecedor_id,
+          custo_unitario: padrao.preco_custo,
+          fornecedores: matriz.map((vinculo) => ({
+            ...vinculo,
+            preco_custo: Number(vinculo.preco_custo),
+          })),
+        };
+      },
+      { timeout: 30_000 },
+    );
   }
 
   async remove(id: string, loja: loja) {

@@ -6,6 +6,10 @@ import React from 'react';
 import { toast } from 'sonner';
 import { InsumoForm, InsumoFormValues } from '../../insumo-form';
 import { insumosApi } from '@/lib/api-client';
+import {
+  MatrizFornecedoresCard,
+  type MatrizFornecedorApi,
+} from './matriz-fornecedores-card';
 
 // A interface Insumo é importada de columns, mas representa a resposta da API
 import { Insumo as InsumoData } from '../../columns'; 
@@ -49,11 +53,6 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
         return;
       }
       
-      // Lógica de conversão corrigida
-      const custo = typeof data.custo_unitario === 'string' 
-        ? parseFloat(data.custo_unitario) 
-        : data.custo_unitario;
-
       const toNonNegativeNumber = (value: unknown): number | undefined => {
         if (value === '' || value === null || value === undefined) return undefined;
         const parsed = Number(value);
@@ -61,9 +60,12 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
         return parsed < 0 ? 0 : parsed;
       };
 
+      const editableData: Record<string, unknown> = { ...data };
+      delete editableData.fornecedorId;
+      delete editableData.custo_unitario;
+
       await insumosApi.update(id, {
-          ...data,
-          custo_unitario: custo,
+          ...editableData,
           estoque_minimo: toNonNegativeNumber(data.estoque_minimo),
           estoque_quantidade_inicial: toNonNegativeNumber(data.estoque_quantidade_inicial),
           estoque_maximo: toNonNegativeNumber(data.estoque_maximo),
@@ -72,7 +74,11 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
       toast.success('Insumo atualizado com sucesso!');
       router.push('/insumos');
     } catch (err) {
-      toast.error('Ocorreu um erro ao conectar com o servidor.');
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : 'Ocorreu um erro ao conectar com o servidor.',
+      );
       console.error(err);
     }
   };
@@ -157,7 +163,32 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
           Altere os detalhes do insumo abaixo.
         </p>
       </div>
-      <InsumoForm onSave={handleSave} initialData={formInitialData} />
+      <div className="space-y-6">
+        <InsumoForm
+          onSave={handleSave}
+          initialData={formInitialData}
+          lockFornecedorCusto
+        />
+        <MatrizFornecedoresCard
+          insumoId={id}
+          initialRows={
+            (insumo.fornecedores_associados ?? []) as MatrizFornecedorApi[]
+          }
+          onSaved={(result) => {
+            const padrao = result.fornecedores.find((item) => item.padrao);
+            setInsumo((current) =>
+              current
+                ? {
+                    ...current,
+                    fornecedor: padrao?.fornecedor ?? current.fornecedor,
+                    custo_unitario: result.custo_unitario,
+                    fornecedores_associados: result.fornecedores,
+                  }
+                : current,
+            );
+          }}
+        />
+      </div>
     </div>
   );
 } 

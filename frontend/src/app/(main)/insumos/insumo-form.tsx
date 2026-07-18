@@ -109,6 +109,7 @@ interface InsumoFormProps {
   initialData?: Partial<InsumoFormValues>;
   onSave: (data: InsumoFormValues) => void;
   isSaving?: boolean;
+  lockFornecedorCusto?: boolean;
 }
 
 const unidadesDeMedida = UNIDADES_COMPRA;
@@ -137,7 +138,12 @@ interface Option {
   label: string;
 }
 
-export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
+export function InsumoForm({
+  onSave,
+  initialData,
+  isSaving,
+  lockFornecedorCusto = false,
+}: InsumoFormProps) {
   const [showExamplesModal, setShowExamplesModal] = useState(false);
   const [tiposMaterial, setTiposMaterial] = useState<Option[]>([]);
   
@@ -800,6 +806,7 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                             onValueChange={field.onChange} 
                             value={field.value} 
                             placeholder="R$ 10,50"
+                            disabled={lockFornecedorCusto}
                         />
                     </FormControl>
                     <FormMessage />
@@ -816,7 +823,13 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                         onCreateDetailed={abrirCadastroCompletoFornecedor}
                         createPlaceholder="Criar fornecedor rápido"
                         detailedCreatePlaceholder="Cadastrar fornecedor completo"
+                        disabled={lockFornecedorCusto}
                     />
+                    {lockFornecedorCusto && (
+                      <p className="text-xs text-muted-foreground">
+                        Altere o fornecedor e o custo padrão na matriz abaixo.
+                      </p>
+                    )}
                     <FormMessage />
                     </FormItem>
                 )} />

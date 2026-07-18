@@ -174,6 +174,7 @@ export interface FornecedorApi {
   especialidades?: unknown;
   _count?: {
     insumos: number;
+    insumos_associados?: number;
     itens_terceirizados: number;
     produtos_orcados_terceirizados?: number;
   };
@@ -240,6 +241,18 @@ export const insumosApi = {
   simularChapa: (id: string, data: Record<string, unknown>, token: string) => ApiClient.post(`/insumos/${id}/simular-chapa`, data, token),
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/insumos', data, token),
   update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/insumos/${id}`, data, token),
+  vincularFornecedores: (
+    id: string,
+    data: {
+      fornecedores: Array<{
+        fornecedor_id: string;
+        preco_custo: number;
+        codigo_ref?: string;
+        padrao: boolean;
+      }>;
+    },
+    token: string,
+  ) => ApiClient.patch(`/insumos/${id}/fornecedores`, data, token),
   delete: (id: string, token: string) => ApiClient.delete(`/insumos/${id}`, token),
   importar: (file: File, token: string) => {
     const formData = new FormData();

@@ -19,6 +19,7 @@ import { GetLoja } from '../auth/decorators';
 import { loja } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SimularChapaDto } from '../common/calculo-chapa/simular-chapa.dto';
+import { VincularFornecedoresEnvelopeDto } from './dto/vincular-fornecedores.dto';
 
 @Controller('insumos')
 @UseGuards(JwtAuthGuard)
@@ -84,6 +85,15 @@ export class InsumosController {
     @GetLoja() loja: loja,
   ) {
     return this.insumosService.update(id, updateInsumoDto, loja);
+  }
+
+  @Patch(':id/fornecedores')
+  vincularFornecedores(
+    @Param('id') id: string,
+    @Body() dto: VincularFornecedoresEnvelopeDto,
+    @GetLoja() loja: loja,
+  ) {
+    return this.insumosService.vincularFornecedores(id, dto, loja);
   }
 
   @Delete(':id')

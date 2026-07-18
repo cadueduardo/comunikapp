@@ -55,6 +55,18 @@ export type Insumo = {
     id: string;
     nome: string;
   };
+  fornecedores_associados?: Array<{
+    loja_id: string;
+    insumo_id: string;
+    fornecedor_id: string;
+    preco_custo: number | string;
+    codigo_ref?: string | null;
+    padrao: boolean;
+    fornecedor?: {
+      id: string;
+      nome: string;
+    };
+  }>;
 };
 
 const formatCurrency = (value: number) => {
