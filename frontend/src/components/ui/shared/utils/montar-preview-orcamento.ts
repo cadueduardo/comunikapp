@@ -56,6 +56,7 @@ const CAMPOS_ESCALARES_MERGE = [
   'produto_finito_id',
   'preco_unitario_snapshot',
   'preco_custo_snapshot',
+  'custo_total_producao',
   'personalizacao_ativa',
   'personalizacao_modo',
   'personalizacao_estampa_id',
@@ -84,6 +85,13 @@ const mergeItemProdutoPreview = (
 
   if (base.catalogo_regras && !atual.catalogo_regras) {
     merged.catalogo_regras = base.catalogo_regras;
+  }
+
+  // Catálogo embutido: preferir o que tiver preço de custo preenchido.
+  const basePf = base.produto_finito as { preco_custo?: unknown } | undefined;
+  const atualPf = atual.produto_finito as { preco_custo?: unknown } | undefined;
+  if (!atualPf?.preco_custo && basePf?.preco_custo) {
+    merged.produto_finito = base.produto_finito;
   }
 
   return merged;

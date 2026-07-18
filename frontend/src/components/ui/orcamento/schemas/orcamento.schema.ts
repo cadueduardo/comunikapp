@@ -91,6 +91,19 @@ const itemProdutoSchema = z
     sku_snapshot: z.string().optional(),
     preco_unitario_snapshot: z.string().optional(),
     preco_custo_snapshot: z.string().optional(),
+    /** Fallback gerencial do preview (não vai para a proposta do cliente). */
+    custo_total_producao: z.union([z.number(), z.string()]).optional(),
+    produto_finito: z
+      .object({
+        sku: z.string().optional(),
+        estoque_atual: z.number().optional(),
+        preco_custo: z.union([z.number(), z.string()]).optional().nullable(),
+        imagens: z
+          .array(z.object({ url_imagem: z.string().optional() }).passthrough())
+          .optional(),
+      })
+      .passthrough()
+      .optional(),
     estoque_catalogo: z.number().optional(),
     imagem_snapshot_url: z.string().optional(),
     modo_fulfillment: z

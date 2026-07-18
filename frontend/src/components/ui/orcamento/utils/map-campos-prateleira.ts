@@ -29,7 +29,8 @@ export const mapCamposPrateleiraFormulario = (produto: Record<string, unknown>) 
     return 0;
   };
 
-  const quantidade = Number(produto.quantidade) || 1;
+  const quantidade =
+    Number(produto.quantidade ?? produto.quantidade_produto) || 1;
   const custoTotalSalvo = parseCusto(produto.custo_total_producao);
   const custoSnapshot = parseCusto(produto.preco_custo_snapshot);
   const custoCatalogo = parseCusto(produtoFinito?.preco_custo);
@@ -45,6 +46,28 @@ export const mapCamposPrateleiraFormulario = (produto: Record<string, unknown>) 
       produto.preco_unitario_snapshot ?? produto.preco_unitario ?? '',
     ),
     preco_custo_snapshot: precoCustoUnitario > 0 ? String(precoCustoUnitario) : '',
+    // Mantidos no form para o preview ter fallback mesmo se o snapshot falhar.
+    custo_total_producao:
+      custoTotalSalvo > 0
+        ? custoTotalSalvo
+        : precoCustoUnitario > 0
+          ? precoCustoUnitario * quantidade
+          : 0,
+    produto_finito: produtoFinito
+      ? {
+          sku: produtoFinito.sku,
+          estoque_atual: produtoFinito.estoque_atual,
+          preco_custo:
+            custoCatalogo > 0
+              ? custoCatalogo
+              : precoCustoUnitario > 0
+                ? precoCustoUnitario
+                : produtoFinito.preco_custo,
+          imagens: produtoFinito.imagens,
+        }
+      : precoCustoUnitario > 0
+        ? { preco_custo: precoCustoUnitario }
+        : undefined,
     estoque_catalogo: Number(
       produto.estoque_catalogo ?? produtoFinito?.estoque_atual ?? 0,
     ),

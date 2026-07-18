@@ -1627,6 +1627,21 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
                         </div>
                         </div>
                       </div>
+                      {/* Campos ocultos para o RHF/preview não perderem o custo de catálogo. */}
+                      <FormField
+                        control={form.control}
+                        name={`itens_produto.${index}.preco_custo_snapshot`}
+                        render={({ field }) => (
+                          <input type="hidden" {...field} value={field.value ?? ''} />
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`itens_produto.${index}.preco_unitario_snapshot`}
+                        render={({ field }) => (
+                          <input type="hidden" {...field} value={field.value ?? ''} />
+                        )}
+                      />
                       <FormField
                         control={form.control}
                         name={`itens_produto.${index}.quantidade_produto`}

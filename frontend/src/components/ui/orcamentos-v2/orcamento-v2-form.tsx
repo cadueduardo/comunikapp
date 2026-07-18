@@ -875,11 +875,50 @@ export function OrcamentoV2Form({
           );
           const custoCatalogo = parseValorMonetarioProduto(paraOrcamento?.preco_custo);
           if (!(Number.isFinite(custoAtual) && custoAtual > 0) && custoCatalogo > 0) {
+            const qtd = Math.max(
+              Number(
+                String(
+                  (item as { quantidade_produto?: string }).quantidade_produto || '1',
+                ).replace(',', '.'),
+              ) || 1,
+              1,
+            );
             form.setValue(
               `itens_produto.${index}.preco_custo_snapshot`,
               String(custoCatalogo),
               { shouldDirty: false, shouldValidate: true },
             );
+            form.setValue(
+              `itens_produto.${index}.custo_total_producao`,
+              custoCatalogo * qtd,
+              { shouldDirty: false },
+            );
+            form.setValue(
+              `itens_produto.${index}.produto_finito`,
+              {
+                ...((item as { produto_finito?: Record<string, unknown> }).produto_finito ||
+                  {}),
+                preco_custo: custoCatalogo,
+              },
+              { shouldDirty: false },
+            );
+
+            setItensProdutoCarregados((prev) => {
+              if (!Array.isArray(prev) || !prev[index]) return prev;
+              const clone = [...prev];
+              clone[index] = {
+                ...clone[index],
+                preco_custo_snapshot: String(custoCatalogo),
+                custo_total_producao: custoCatalogo * qtd,
+                produto_finito: {
+                  ...((clone[index] as { produto_finito?: Record<string, unknown> })
+                    .produto_finito || {}),
+                  preco_custo: custoCatalogo,
+                },
+              } as FormValues['itens_produto'][number];
+              return clone;
+            });
+            setProdutosSectionKey((k) => k + 1);
           }
         } catch {
           // Silencioso: preview ainda funciona com snapshots de preço persistidos.
