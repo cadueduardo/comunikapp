@@ -1,6 +1,6 @@
 # Plano de Ação — Matriz Insumo × Fornecedor (`InsumoFornecedor`)
 
-**Status:** Fases 0–3 implementadas e validadas em cópia descartável fiel da produção — **nenhuma migration/backfill aplicado em produção**
+**Status:** Fases 0–5 implementadas; banco e CRUD validados de ponta a ponta em cópia descartável fiel da produção — **nenhuma migration/backfill aplicado em produção**
 **Revisão:** 2026-07-18 — plano original + integridade referencial, estoque, JSON operacional, DTOs, deploy e contrato com Compras/Financeiro
 **Origem:** `docs/modulo fornecedores/feature-fornecedores-insumos.md` + decisões de produto e validação contra o código atual
 **Objetivo:** permitir N fornecedores por insumo físico único, com preço/SKU por fornecedor e um fornecedor padrão sincronizado com o motor de cálculo existente.
@@ -541,18 +541,20 @@ Em `fornecedores.service.ts`:
 
 #### 4.5 Testes backend mínimos
 
-- [ ] zero ou dois padrões → `400`;
-- [ ] payload vazio → `400`;
-- [ ] fornecedor duplicado → `400`;
-- [ ] fornecedor de outra loja → `400`;
-- [ ] fornecedor inativo → `400`;
-- [ ] fornecedor `TERCEIRIZADO` → `400`;
-- [ ] replace sincroniza pai e matriz;
-- [ ] falha no replace faz rollback integral;
-- [ ] create/import/duplicar criam exatamente uma linha padrão;
-- [ ] update geral rejeita custo/fornecedor;
-- [ ] update/remove de fornecedor associado são bloqueados;
-- [ ] GET retorna associações esperadas.
+- [x] zero ou dois padrões → `400`;
+- [x] payload vazio → `400`;
+- [x] fornecedor duplicado → `400`;
+- [x] fornecedor de outra loja → `400`;
+- [x] fornecedor inativo → `400`;
+- [x] fornecedor `TERCEIRIZADO` → `400`;
+- [x] replace sincroniza pai e matriz;
+- [x] falha no replace faz rollback integral;
+- [x] create/duplicar criam exatamente uma linha padrão;
+- [ ] importação cria exatamente uma linha padrão;
+- [x] update geral rejeita custo/fornecedor;
+- [x] update de fornecedor associado é bloqueado;
+- [x] remove de fornecedor associado é bloqueado;
+- [x] GET retorna associações esperadas.
 
 ---
 
@@ -590,6 +592,17 @@ O frontend atual usa `ApiClient` com base `/api`/rewrite. Não criar route handl
 #### 5.3 Cadastro novo
 
 O create mantém o seletor de fornecedor e custo inicial. A matriz completa pode ser gerenciada depois da criação, na edição, sem duplicar duas fontes de verdade no mesmo submit.
+
+#### Registro de validação integrada das Fases 4–5 — 2026-07-18
+
+- Branch: `codex/fornecedores-matriz-crud`.
+- Builds de produção do backend e frontend: aprovados.
+- Testes de contrato do CRUD: 5 aprovados.
+- Sequência repetida desde backup limpo em base descartável: Fase 1 → backfill de 33 insumos → Fase 3 → serviços do CRUD.
+- O teste integrado confirmou 12 cenários backend: leitura da matriz; replace com dois fornecedores; troca do padrão; sincronização de `fornecedorId`/`custo_unitario`; rejeição de zero/dois padrões, payload vazio, fornecedor repetido, de outra loja, inativo e `TERCEIRIZADO`; rollback lógico do replace inválido; guards de inativação/exclusão; rejeição de custo/fornecedor no update geral; create e matriz inicial na duplicação.
+- A interface foi implementada com componentes globais, sem `style` inline, com campos padrão somente leitura e salvamento independente.
+- A base descartável foi eliminada após a coleta das evidências; produção permaneceu sem migrations ou backfill.
+- Foram identificados quatro insumos legados cuja categoria pertence a outra loja. O achado é anterior à matriz, não foi corrigido automaticamente e deve ser tratado de forma explícita antes do smoke completo de duplicação/importação.
 
 ---
 
@@ -718,7 +731,8 @@ Essas regras não alteram schema, migrations, fases ou critérios de aceite dest
 ## 12. Situação atual e próximo gate
 
 1. Fase 0 concluída e auditada em produção, somente leitura.
-2. Fase 1 implementada e validada em cópia descartável fiel à produção.
-3. A migration aditiva ainda não foi aplicada em produção.
-4. O próximo trabalho é a implementação isolada da Fase 2, incluindo testes de merge/backfill e repetição do dry-run.
-5. Qualquer `--apply`, Fase 3 ou deploy de banco em produção continua condicionado a backup verificado, relatório revisado e janela controlada.
+2. Fases 1–3 implementadas e validadas em sequência sobre cópia descartável fiel à produção.
+3. Fases 4–5 implementadas e validadas por build, contratos estáticos e execução integrada contra a cópia migrada.
+4. Nenhuma migration, backfill ou versão da matriz foi aplicada em produção.
+5. O próximo gate é concluir os testes backend ainda pendentes, tratar explicitamente os quatro vínculos legados de categoria entre lojas e executar o smoke manual da interface em ambiente controlado.
+6. O deploy de produção continua condicionado a novo backup verificado, janela controlada, sequência Fase 1 → backfill → Fase 3 → backend → frontend e validação final dos invariantes.
