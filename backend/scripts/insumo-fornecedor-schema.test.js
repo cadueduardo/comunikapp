@@ -13,16 +13,26 @@ const migrationPath = path.join(
   migrationName,
   'migration.sql',
 );
+const finalMigrationName = '20260718143847_update_insumo_unique';
+const finalMigrationPath = path.join(
+  backendRoot,
+  'prisma',
+  'migrations',
+  finalMigrationName,
+  'migration.sql',
+);
 
 const schema = fs.readFileSync(schemaPath, 'utf8');
 const migration = fs.readFileSync(migrationPath, 'utf8');
+const finalMigration = fs.readFileSync(finalMigrationPath, 'utf8');
 
 test('migration usa timestamp real de 14 digitos e nome descritivo', () => {
   assert.match(migrationName, /^\d{14}_create_insumo_fornecedores$/);
 });
 
-test('schema mantem unique legado e declara matriz multi-tenant', () => {
-  assert.match(schema, /@@unique\(\[loja_id, nome, fornecedorId\]\)/);
+test('schema usa unique final e declara matriz multi-tenant', () => {
+  assert.match(schema, /@@unique\(\[loja_id, nome\]\)/);
+  assert.doesNotMatch(schema, /@@unique\(\[loja_id, nome, fornecedorId\]\)/);
   assert.match(schema, /model InsumoFornecedor \{/);
   assert.match(schema, /@@id\(\[insumo_id, fornecedor_id\]\)/);
   assert.match(schema, /@@index\(\[loja_id, insumo_id\]\)/);
@@ -31,6 +41,23 @@ test('schema mantem unique legado e declara matriz multi-tenant', () => {
   assert.match(schema, /fornecedores_associados InsumoFornecedor\[\]/);
   assert.match(schema, /insumos_associados\s+InsumoFornecedor\[\]/);
   assert.match(schema, /insumos_fornecedores\s+InsumoFornecedor\[\]/);
+});
+
+test('migration da Fase 3 troca somente o unique de insumos', () => {
+  assert.match(finalMigrationName, /^\d{14}_update_insumo_unique$/);
+  assert.match(
+    finalMigration,
+    /DROP INDEX `insumos_loja_id_nome_fornecedorId_key` ON `insumos`/,
+  );
+  assert.match(
+    finalMigration,
+    /CREATE UNIQUE INDEX `insumos_loja_id_nome_key`[\s\S]*\(`loja_id`, `nome`\)/,
+  );
+  assert.doesNotMatch(
+    finalMigration,
+    /^\s*(INSERT|UPDATE|DELETE|TRUNCATE|RENAME)\b/im,
+  );
+  assert.doesNotMatch(finalMigration, /DROP TABLE/i);
 });
 
 test('migration da Fase 1 e estritamente aditiva', () => {

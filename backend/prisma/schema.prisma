@@ -60,7 +60,7 @@ model Insumo {
   estoque                 estoque[]
   fornecedores_associados InsumoFornecedor[]
 
-  @@unique([loja_id, nome, fornecedorId])
+  @@unique([loja_id, nome])
   @@index([categoriaId], map: "insumos_categoriaId_fkey")
   @@index([fornecedorId], map: "insumos_fornecedorId_fkey")
   @@index([tipoMaterialId], map: "insumos_tipoMaterialId_fkey")
