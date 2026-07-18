@@ -1,7 +1,7 @@
 # Plano de Ação — Matriz Insumo × Fornecedor (`InsumoFornecedor`)
 
-**Status:** Fase 0 concluída; código da Fase 1 preparado e validado localmente — **migration ainda não aplicada em nenhum banco**
-**Revisão:** 2026-07-17 — plano original + integridade referencial, estoque, JSON operacional, DTOs, deploy e contrato com Compras/Financeiro
+**Status:** Fase 0 concluída; Fase 1 preparada e validada em cópia descartável fiel da produção — **migration ainda não aplicada em produção**
+**Revisão:** 2026-07-18 — plano original + integridade referencial, estoque, JSON operacional, DTOs, deploy e contrato com Compras/Financeiro
 **Origem:** `docs/modulo fornecedores/feature-fornecedores-insumos.md` + decisões de produto e validação contra o código atual
 **Objetivo:** permitir N fornecedores por insumo físico único, com preço/SKU por fornecedor e um fornecedor padrão sincronizado com o motor de cálculo existente.
 
@@ -264,8 +264,8 @@ O campo legado `Insumo.estoque_atual` não participa da eleição.
 - [x] Manter `@@unique([loja_id, nome, fornecedorId])` em `Insumo`.
 - [x] Gerar migration SQL revisável com timestamp real de 14 dígitos.
 - [x] Executar `prisma validate` e `prisma generate`.
-- [ ] Aplicar em staging e confirmar tabela, PK, FKs e índices.
-- [ ] Confirmar que a versão antiga do app continua funcionando.
+- [x] Aplicar em ambiente descartável fiel à produção e confirmar tabela, PK, FKs e índices.
+- [x] Confirmar que a versão antiga do app continua funcionando.
 
 **Saída:** tabela vazia disponível; nenhuma alteração de dados e nenhum unique novo.
 
@@ -285,7 +285,20 @@ O campo legado `Insumo.estoque_atual` não participa da eleição.
 - Testes da matriz/dry-run/schema: 10 aprovados.
 - Nenhuma conexão de migration, aplicação em banco ou alteração de produção realizada.
 
-**Próximo gate:** aplicar primeiro em staging ou ambiente descartável, validar estrutura e compatibilidade do aplicativo antigo. Produção permanece bloqueada até essa evidência e nova autorização.
+#### Registro de validação isolada da Fase 1 — 2026-07-18
+
+- Fonte: backup consistente de produção concluído em `2026-07-17 21:16:36 +02:00`.
+- A cópia descartável foi comparada com a produção antes do teste; hashes de dados e estrutura foram idênticos.
+- O dump foi restaurado com reescrita explícita do `CREATE DATABASE`/`USE`, impedindo redirecionamento para a base real.
+- O Prisma reconheceu 92 migrations e aplicou exclusivamente `20260717201405_create_insumo_fornecedores`.
+- Tabela, colunas, PK composta, três FKs e índices foram validados.
+- O unique legado de `insumos` permaneceu presente.
+- A tabela aditiva nasceu vazia.
+- O Prisma Client da versão antiga leu normalmente 7 lojas, 33 insumos e 16 fornecedores.
+- A base temporária e seus privilégios foram removidos ao final.
+- A base de produção não recebeu a migration da Fase 1 e permaneceu no schema de `main`.
+
+**Próximo gate:** implementar e testar a Fase 2 em branch própria. Produção permanece bloqueada até revisão do `--apply`, novo dry-run e janela controlada.
 
 ---
 
@@ -663,11 +676,10 @@ Essas regras não alteram schema, migrations, fases ou critérios de aceite dest
 
 ---
 
-## 12. Próximo passo autorizado somente após confirmação
+## 12. Situação atual e próximo gate
 
-1. Criar uma branch limpa a partir do ponto estável acordado.
-2. Implementar exclusivamente a Fase 0 e seus testes.
-3. Executar o dry-run no ambiente autorizado e apresentar os relatórios.
-4. Aguardar aprovação explícita antes da Fase 1 ou de qualquer escrita.
-
-Este documento não autoriza por si só branch, migration, `--apply`, deploy ou alteração no banco.
+1. Fase 0 concluída e auditada em produção, somente leitura.
+2. Fase 1 implementada e validada em cópia descartável fiel à produção.
+3. A migration aditiva ainda não foi aplicada em produção.
+4. O próximo trabalho é a implementação isolada da Fase 2, incluindo testes de merge/backfill e repetição do dry-run.
+5. Qualquer `--apply`, Fase 3 ou deploy de banco em produção continua condicionado a backup verificado, relatório revisado e janela controlada.
