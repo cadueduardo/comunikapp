@@ -583,6 +583,11 @@ export function OrcamentoV2Form({
                     return {
                       item_insumo_id: ins.id,
                       insumo_id: ins.insumo_id,
+                      fornecedor_previsto_id: ins.fornecedor_previsto_id || undefined,
+                      fornecedor_nome_snapshot: ins.fornecedor_nome_snapshot || undefined,
+                      codigo_ref_snapshot: ins.codigo_ref_snapshot || undefined,
+                      preco_compra_snapshot: ins.preco_compra_snapshot?.toString() || undefined,
+                      preco_unitario_previsto: ins.preco_unitario?.toString() || undefined,
                       quantidade: ajustarQuantidadeMaterialParaFormulario(
                         ins.quantidade,
                         ins.unidade || ins.unidade_consumo,
@@ -991,12 +996,20 @@ export function OrcamentoV2Form({
       const itens = produto.materiais
         .filter((material) => material?.insumo_id)
         .map((material) => ({
+          item_insumo_id: material.item_insumo_id,
           insumo_id: material.insumo_id,
+          fornecedor_previsto_id: material.fornecedor_previsto_id,
+          fornecedor_nome_snapshot: material.fornecedor_nome_snapshot,
+          codigo_ref_snapshot: material.codigo_ref_snapshot,
+          preco_compra_snapshot:
+            material.preco_compra_snapshot === undefined
+              ? undefined
+              : fixDecimal(normalizarNumero(material.preco_compra_snapshot)),
           quantidade: fixDecimal(normalizarNumero(material.quantidade), 3),
-          unidade: (material as any)?.unidade || undefined,
-          preco_unitario: 0,
+          unidade: material.unidade || undefined,
+          preco_unitario: fixDecimal(normalizarNumero(material.preco_unitario_previsto)),
           preco_total: 0,
-          material_do_cliente: Boolean((material as any)?.material_do_cliente),
+          material_do_cliente: Boolean(material.material_do_cliente),
         }))
         .filter((material) => material.quantidade > 0);
 
@@ -1207,6 +1220,9 @@ export function OrcamentoV2Form({
             ? previewProduto.materiais
                 .filter((material: any) => material?.insumo_id)
                 .map((material: any) => {
+                  const materialFormulario = produtoFormulario.materiais?.find(
+                    (item) => item?.insumo_id === material.insumo_id,
+                  );
                   const quantidadeMaterial = fixDecimal(material.quantidade ?? 0, 3);
                   const precoUnitario = fixDecimal(material.custo_unitario ?? 0);
                   const precoTotalMaterial = fixDecimal(
@@ -1214,22 +1230,25 @@ export function OrcamentoV2Form({
                   );
                   const unidadeMaterial =
                     material.unidade_consumo ||
-                    (
-                      produtoFormulario.materiais?.find(
-                        (item) => item?.insumo_id === material.insumo_id,
-                      ) as { unidade?: string } | undefined
-                    )?.unidade;
-                  const materialDoCliente = produtoFormulario.materiais?.find(
-                    (item) => item?.insumo_id === material.insumo_id,
-                  )?.material_do_cliente;
+                    materialFormulario?.unidade;
 
                   return {
+                    item_insumo_id: materialFormulario?.item_insumo_id,
                     insumo_id: material.insumo_id,
+                    fornecedor_previsto_id: materialFormulario?.fornecedor_previsto_id,
+                    fornecedor_nome_snapshot: materialFormulario?.fornecedor_nome_snapshot,
+                    codigo_ref_snapshot: materialFormulario?.codigo_ref_snapshot,
+                    preco_compra_snapshot:
+                      materialFormulario?.preco_compra_snapshot === undefined
+                        ? undefined
+                        : fixDecimal(
+                            normalizarNumero(materialFormulario.preco_compra_snapshot),
+                          ),
                     quantidade: quantidadeMaterial,
                     unidade: unidadeMaterial,
                     preco_unitario: precoUnitario,
                     preco_total: precoTotalMaterial,
-                    material_do_cliente: Boolean(materialDoCliente),
+                    material_do_cliente: Boolean(materialFormulario?.material_do_cliente),
                   };
                 })
             : undefined,

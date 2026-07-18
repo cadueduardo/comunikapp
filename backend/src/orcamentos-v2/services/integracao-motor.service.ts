@@ -585,6 +585,10 @@ export class IntegracaoMotorService {
           custo_unitario: parseFloat(
             insumo.custo_unitario ?? insumo.preco_unitario ?? '0',
           ),
+          fornecedor_previsto_id:
+            insumo.fornecedor_previsto_id ?? null,
+          fornecedor_nome_snapshot:
+            insumo.fornecedor_nome_snapshot ?? null,
         })),
 
         // Máquinas - Prisma usa tempo_horas; motor espera horas_utilizadas

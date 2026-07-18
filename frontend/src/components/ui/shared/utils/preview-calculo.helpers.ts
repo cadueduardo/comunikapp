@@ -6,7 +6,11 @@ import {
 import { calcularCustoDecoracao } from '@/lib/catalogo/personalizacao-preco';
 import type { CatalogoRegrasOrcamento } from '@/lib/catalogo/personalizacao-orcamento.types';
 import { Insumo, Maquina, Funcao, ServicoManual } from '../types/common.types';
-import { calcularCustoPorUnidadeUso, calcularArea, insumoQuantidadeJaIncluiProduto } from './calculo.utils';
+import {
+  calcularArea,
+  insumoQuantidadeJaIncluiProduto,
+  resolverCustoUnitarioMaterial,
+} from './calculo.utils';
 
 type NumericLike = number | string | null | undefined;
 
@@ -205,7 +209,12 @@ export interface MaterialPreview {
 }
 
 const calcularMateriais = (
-  materiais: Array<{ insumo_id: string; quantidade?: NumericLike; material_do_cliente?: boolean }>,
+  materiais: Array<{
+    insumo_id: string;
+    quantidade?: NumericLike;
+    material_do_cliente?: boolean;
+    preco_unitario_previsto?: NumericLike;
+  }>,
   insumos: Insumo[],
   quantidadeProduto?: number, // Nova parâmetro para quantidade do produto
 ): { itens: MaterialPreview[]; total: number } => {
@@ -242,7 +251,9 @@ const calcularMateriais = (
       : quantidadeOriginal;
 
     // Material do cliente: custo zerado no orçamento
-    const custoUnitario = materialDoCliente ? 0 : (insumo ? calcularCustoPorUnidadeUso(insumo) : 0);
+    const custoUnitario = materialDoCliente
+      ? 0
+      : resolverCustoUnitarioMaterial(insumo, material);
     const custoTotal = materialDoCliente ? 0 : quantidadeFinal * custoUnitario;
 
     // Log para debug de materiais personalizados

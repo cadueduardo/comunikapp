@@ -174,6 +174,10 @@ export interface ItemInsumo {
   unidade: string;
   preco_unitario: number;
   preco_total: number;
+  fornecedor_previsto_id?: string | null;
+  fornecedor_nome_snapshot?: string | null;
+  codigo_ref_snapshot?: string | null;
+  preco_compra_snapshot?: number | null;
   estoque_disponivel?: number;
   alerta_estoque?: boolean;
 }

@@ -494,3 +494,12 @@ export function calcularCustoPorUnidadeUso(insumo: Insumo): number {
 
   return 0;
 }
+
+export function resolverCustoUnitarioMaterial(
+  insumo: Insumo | null | undefined,
+  material?: { preco_unitario_previsto?: unknown } | null,
+): number {
+  const previsto = Number(material?.preco_unitario_previsto);
+  if (Number.isFinite(previsto) && previsto >= 0) return previsto;
+  return insumo ? calcularCustoPorUnidadeUso(insumo) : 0;
+}

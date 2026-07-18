@@ -778,6 +778,13 @@ export class ProdutosV2Repository {
       unidade: item.unidade,
       preco_unitario: Number(item.preco_unitario),
       preco_total: Number(item.preco_total),
+      fornecedor_previsto_id: item.fornecedor_previsto_id ?? null,
+      fornecedor_nome_snapshot: item.fornecedor_nome_snapshot ?? null,
+      codigo_ref_snapshot: item.codigo_ref_snapshot ?? null,
+      preco_compra_snapshot:
+        item.preco_compra_snapshot != null
+          ? Number(item.preco_compra_snapshot)
+          : null,
       estoque_disponivel: item.estoque_disponivel
         ? Number(item.estoque_disponivel)
         : undefined,

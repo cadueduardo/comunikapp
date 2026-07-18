@@ -5,6 +5,7 @@ import {
   Body,
   Patch,
   Param,
+  Query,
   Delete,
   UseGuards,
   UploadedFile,
@@ -57,6 +58,19 @@ export class InsumosController {
   @Post(':id/duplicar')
   duplicar(@Param('id') id: string, @GetLoja() loja: loja) {
     return this.insumosService.duplicar(id, loja);
+  }
+
+  @Get(':id/fornecedores/opcoes-orcamento')
+  getOpcoesFornecedoresOrcamento(
+    @Param('id') id: string,
+    @GetLoja() loja: loja,
+    @Query('selecionado') fornecedorSelecionadoId?: string,
+  ) {
+    return this.insumosService.getOpcoesFornecedoresOrcamento(
+      id,
+      loja,
+      fornecedorSelecionadoId,
+    );
   }
 
   @Get(':id')

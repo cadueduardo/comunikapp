@@ -706,7 +706,7 @@ Para reduzir indisponibilidade, o backend compatível pode ser preparado antes, 
 
 ## 10. Escopo explicitamente fora desta entrega
 
-- seleção de fornecedor alternativo na linha de orçamento;
+- seleção de fornecedor alternativo na linha de orçamento (implementada posteriormente em entrega própria, sem alterar o escopo ou as tabelas da matriz);
 - histórico de preço específico por `InsumoFornecedor`;
 - integração XML/fiscal por `codigo_ref`;
 - alteração do comportamento OUTSOURCE/BOM;
@@ -727,6 +727,9 @@ O plano da matriz permanece fechado e não recebe tabelas ou responsabilidades f
 6. Compra para estoque e compra direta para OS são destinos diferentes. A matriz não decide apropriação financeira.
 7. O merge desta entrega preserva preços dos itens de orçamento e snapshots de OS encerradas, como já definido.
 8. Nenhum vínculo da matriz será “deduplicado” por heurística. A PK composta impede repetição exata; conflitos ambíguos interrompem o processo e são relatados.
+9. A integração de orçamento consulta somente vínculos ativos `INSUMO|AMBOS`, usa o padrão como fonte inicial e apresenta no máximo três opções rápidas.
+10. O orçamento grava a escolha e os valores como snapshots em `ItemInsumo`; a matriz permanece cadastro atual e não é histórico comercial.
+11. A comparação rápida foi implementada separadamente na branch `codex/orcamentos-fornecedor-previsto`, sem deploy e sem acrescentar responsabilidade financeira a este módulo.
 
 Documentos consumidores:
 

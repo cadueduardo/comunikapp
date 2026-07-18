@@ -125,14 +125,22 @@ const itemProdutoSchema = z
     materiais: z
       .array(
         z.object({
+          item_insumo_id: z.string().optional(),
           insumo_id: z.string().optional(),
           quantidade: z.string().optional(),
+          unidade: z.string().optional(),
           material_do_cliente: z.boolean().optional(),
+          fornecedor_previsto_id: z.string().optional(),
+          fornecedor_nome_snapshot: z.string().optional(),
+          codigo_ref_snapshot: z.string().optional(),
+          preco_compra_snapshot: numeroOpcional,
+          preco_unitario_previsto: numeroOpcional,
           usa_medida_propria: z.boolean().optional(),
           largura_material: numeroOpcional,
           altura_material: numeroOpcional,
           profundidade_material: numeroOpcional,
           unidade_medida_material: z.enum(['mm', 'cm', 'm']).optional(),
+          calculo_chapa: z.record(z.string(), z.unknown()).nullable().optional(),
         }),
       )
       .optional(),

@@ -236,6 +236,19 @@ export const platformApi = {
 export const insumosApi = {
   getAll: (token: string) => ApiClient.get('/insumos', token),
   getById: (id: string, token: string) => ApiClient.get(`/insumos/${id}`, token),
+  getOpcoesFornecedoresOrcamento: (
+    id: string,
+    token: string,
+    fornecedorSelecionadoId?: string,
+  ) =>
+    ApiClient.get(
+      `/insumos/${id}/fornecedores/opcoes-orcamento${
+        fornecedorSelecionadoId
+          ? `?selecionado=${encodeURIComponent(fornecedorSelecionadoId)}`
+          : ''
+      }`,
+      token,
+    ),
   duplicar: (id: string, token: string) => duplicarInsumo(id, token),
   getCalculoChapa: (id: string, token: string) => ApiClient.get(`/insumos/${id}/calculo-chapa`, token),
   simularChapa: (id: string, data: Record<string, unknown>, token: string) => ApiClient.post(`/insumos/${id}/simular-chapa`, data, token),

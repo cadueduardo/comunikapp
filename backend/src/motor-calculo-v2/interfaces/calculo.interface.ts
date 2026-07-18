@@ -32,6 +32,8 @@ export interface InsumoCalculo {
   quantidade: number;
   categoria: string;
   fornecedor: string;
+  fornecedor_previsto_id?: string | null;
+  fornecedor_nome_snapshot?: string | null;
   estoque_disponivel: number;
 }
 

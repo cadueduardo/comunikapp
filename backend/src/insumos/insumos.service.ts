@@ -18,6 +18,7 @@ import {
 } from '../common/calculo-chapa/calculo-chapa.util';
 import { MetodoCobrancaChapa } from '../common/calculo-chapa/calculo-chapa.types';
 import { VincularFornecedoresEnvelopeDto } from './dto/vincular-fornecedores.dto';
+import { calcularCustoUnitarioUso } from '../common/custos/custo-unitario-insumo.util';
 
 @Injectable()
 export class InsumosService {
@@ -967,6 +968,75 @@ export class InsumosService {
 
       return resultado;
     });
+  }
+
+  async getOpcoesFornecedoresOrcamento(
+    id: string,
+    loja: loja,
+    fornecedorSelecionadoId?: string,
+  ) {
+    const insumo = await this.prisma.insumo.findFirst({
+      where: { id, loja_id: loja.id, ativo: true },
+      include: {
+        fornecedores_associados: {
+          where: {
+            loja_id: loja.id,
+            fornecedor: {
+              ativo: true,
+              tipo: { in: [TipoFornecedor.INSUMO, TipoFornecedor.AMBOS] },
+            },
+          },
+          include: { fornecedor: true },
+          orderBy: [
+            { padrao: 'desc' },
+            { preco_custo: 'asc' },
+            { fornecedor_id: 'asc' },
+          ],
+        },
+      },
+    });
+
+    if (!insumo) {
+      throw new NotFoundException(`Insumo com ID "${id}" não encontrado.`);
+    }
+
+    const associacoes = insumo.fornecedores_associados;
+    const top = associacoes.slice(0, 3);
+    const selecionado = fornecedorSelecionadoId
+      ? associacoes.find(
+          (item) => item.fornecedor_id === fornecedorSelecionadoId,
+        )
+      : undefined;
+    if (
+      selecionado &&
+      !top.some((item) => item.fornecedor_id === selecionado.fornecedor_id)
+    ) {
+      if (top.length === 3) top[2] = selecionado;
+      else top.push(selecionado);
+    }
+
+    const menorPreco = associacoes.reduce(
+      (menor, item) => Math.min(menor, Number(item.preco_custo)),
+      Number.POSITIVE_INFINITY,
+    );
+
+    return {
+      insumo_id: insumo.id,
+      total_opcoes: associacoes.length,
+      opcoes: top.map((item) => ({
+        fornecedor_id: item.fornecedor_id,
+        fornecedor_nome: item.fornecedor.nome,
+        preco_compra: Number(item.preco_custo),
+        preco_unitario_uso: calcularCustoUnitarioUso(
+          insumo,
+          item.preco_custo,
+        ),
+        codigo_ref: item.codigo_ref,
+        padrao: item.padrao,
+        menor_preco: Number(item.preco_custo) === menorPreco,
+        atualizado_em: item.updatedAt,
+      })),
+    };
   }
 
   async findOne(id: string, loja: loja) {

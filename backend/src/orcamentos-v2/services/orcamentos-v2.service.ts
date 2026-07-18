@@ -42,6 +42,8 @@ import {
 import { MetodoCobrancaChapa } from '../../common/calculo-chapa/calculo-chapa.types';
 import { distribuirPrecoFinal } from '../utils/distribuicao-preco.util';
 import { resolverPrecosPdfComArte } from '../utils/pdf-arte-linha.util';
+import { TipoFornecedor } from '@prisma/client';
+import { calcularCustoUnitarioUso } from '../../common/custos/custo-unitario-insumo.util';
 
 /**
  * Serviço Principal de Orçamentos V2
@@ -206,6 +208,108 @@ export class OrcamentosV2Service {
     }
   }
 
+  private async aplicarFornecedoresPrevistosMateriais(
+    dados: any,
+    lojaId: string,
+  ): Promise<void> {
+    const produtos = Array.isArray(dados?.produtos)
+      ? dados.produtos
+      : Array.isArray(dados?.itens_produto)
+        ? dados.itens_produto
+        : [];
+    const materiais = produtos.flatMap((produto: any) =>
+      Array.isArray(produto?.insumos)
+        ? produto.insumos
+        : Array.isArray(produto?.materiais)
+          ? produto.materiais
+          : [],
+    );
+    const materiaisComInsumo = materiais.filter(
+      (material: any) =>
+        typeof material?.insumo_id === 'string' &&
+        material.insumo_id.trim().length > 0,
+    );
+    if (materiaisComInsumo.length === 0) return;
+
+    const insumoIds = Array.from(
+      new Set<string>(
+        materiaisComInsumo.map((material: any) => material.insumo_id),
+      ),
+    );
+    const insumos = await this.prisma.insumo.findMany({
+      where: {
+        id: { in: insumoIds },
+        loja_id: lojaId,
+        ativo: true,
+      },
+      include: {
+        fornecedores_associados: {
+          where: {
+            loja_id: lojaId,
+            fornecedor: {
+              ativo: true,
+              tipo: { in: [TipoFornecedor.INSUMO, TipoFornecedor.AMBOS] },
+            },
+          },
+          include: { fornecedor: true },
+        },
+      },
+    });
+    const porId = new Map(insumos.map((insumo) => [insumo.id, insumo]));
+
+    for (const material of materiaisComInsumo) {
+      const insumo = porId.get(material.insumo_id);
+      if (!insumo) {
+        throw new BadRequestException(
+          'Material inválido, inativo ou pertencente a outra loja.',
+        );
+      }
+
+      if (material.material_do_cliente) {
+        material.fornecedor_previsto_id = null;
+        material.fornecedor_nome_snapshot = null;
+        material.codigo_ref_snapshot = null;
+        material.preco_compra_snapshot = null;
+        material.preco_unitario = 0;
+        material.preco_total = 0;
+        continue;
+      }
+
+      const fornecedorSolicitado =
+        typeof material.fornecedor_previsto_id === 'string'
+          ? material.fornecedor_previsto_id.trim()
+          : '';
+      const associacao = fornecedorSolicitado
+        ? insumo.fornecedores_associados.find(
+            (item) => item.fornecedor_id === fornecedorSolicitado,
+          )
+        : insumo.fornecedores_associados.find((item) => item.padrao);
+
+      if (!associacao) {
+        throw new BadRequestException(
+          fornecedorSolicitado
+            ? 'O fornecedor previsto não é uma opção ativa deste material.'
+            : 'O material não possui fornecedor padrão ativo para o orçamento.',
+        );
+      }
+
+      const precoCompra = Number(associacao.preco_custo);
+      const precoUnitario = Number(
+        calcularCustoUnitarioUso(insumo, precoCompra).toFixed(2),
+      );
+      const quantidade = Number(material.quantidade ?? 0);
+
+      material.fornecedor_previsto_id = associacao.fornecedor_id;
+      material.fornecedor_nome_snapshot = associacao.fornecedor.nome;
+      material.codigo_ref_snapshot = associacao.codigo_ref;
+      material.preco_compra_snapshot = precoCompra;
+      material.preco_unitario = precoUnitario;
+      material.preco_total = Number(
+        (Math.max(quantidade, 0) * precoUnitario).toFixed(2),
+      );
+    }
+  }
+
   /**
    * Cria novo orçamento
    */
@@ -235,6 +339,8 @@ export class OrcamentosV2Service {
     this.logger.log(`📝 Criando novo orçamento para loja ${lojaId}`);
 
     try {
+      await this.aplicarFornecedoresPrevistosMateriais(dados, lojaId);
+
       // 1. Validar dados de entrada
       await this.validacaoService.validarDadosCriacao(dados, lojaId);
       await this.validarEntregaInstalacao(dados, lojaId);
@@ -918,6 +1024,8 @@ export class OrcamentosV2Service {
           'Orçamento aprovado não pode ser alterado. Somente visualização permitida.',
         );
       }
+
+      await this.aplicarFornecedoresPrevistosMateriais(dados, lojaId);
 
       // 2. Validar dados de atualização
       await this.validacaoService.validarDadosAtualizacao(
