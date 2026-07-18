@@ -789,6 +789,7 @@ export const calcularProdutosPreview = (
       return {
         id: `produto_${index}`,
         tipo_item: 'PRODUTO_FINITO' as const,
+        produto_finito_id: String(item?.produto_finito_id || ''),
         nome_servico: item?.nome_servico || `Produto ${index + 1}`,
         descricao: truncarDescricaoResumida(item?.descricao || ''),
         quantidade,

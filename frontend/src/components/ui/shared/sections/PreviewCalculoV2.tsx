@@ -92,6 +92,7 @@ type PreviewProduto = {
   descricao: string;
   quantidade: number;
   tipo_item?: 'SOB_DEMANDA' | 'PRODUTO_FINITO';
+  produto_finito_id?: string;
   dimensoes: Record<string, unknown>;
   materiais: PreviewMaterial[];
   maquinas: PreviewMaquina[];
@@ -249,75 +250,76 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     return () => cancelAnimationFrame(frame);
   }, [dadosCarregados, refreshKey, form, insumos.length, maquinas.length, funcoes.length, servicos.length, itensProdutoCarregados]);
 
-  // Busca preço de custo no catálogo quando o item de prateleira chegou sem snapshot.
+  // Busca preço de custo no catálogo para itens de prateleira.
+  // Importante: NÃO depender de formSnapshot (mudava a cada tecla e cancelava o fetch
+  // marcando o id como "já buscado", travando o custo para sempre).
   useEffect(() => {
     if (!form || !dadosCarregados) return;
-
-    const itens = (form.getValues('itens_produto') as unknown[]) || [];
-    const pendentes: string[] = [];
-
-    for (const item of itens) {
-      const registro = item as Record<string, unknown>;
-      const tipo = String(registro?.tipo_item || '').toUpperCase();
-      if (tipo !== 'PRODUTO_FINITO') continue;
-      const id = String(registro?.produto_finito_id || '').trim();
-      if (!id || custosBuscadosRef.current.has(id)) continue;
-
-      const jaTemCusto =
-        parseCustoPreview(registro?.preco_custo_snapshot) > 0 ||
-        parseCustoPreview((registro?.produto_finito as { preco_custo?: unknown })?.preco_custo) >
-          0 ||
-        parseCustoPreview(registro?.custo_total_producao) > 0;
-      if (jaTemCusto) {
-        const unitario =
-          parseCustoPreview(registro?.preco_custo_snapshot) ||
-          parseCustoPreview((registro?.produto_finito as { preco_custo?: unknown })?.preco_custo) ||
-          (() => {
-            const total = parseCustoPreview(registro?.custo_total_producao);
-            const qtd = Math.max(parseCustoPreview(registro?.quantidade_produto) || 1, 1);
-            return total > 0 ? total / qtd : 0;
-          })();
-        if (unitario > 0) {
-          custosBuscadosRef.current.add(id);
-          setCustosCatalogo((prev) =>
-            prev[id] > 0 ? prev : { ...prev, [id]: unitario },
-          );
-        }
-        continue;
-      }
-
-      pendentes.push(id);
-    }
-
-    if (pendentes.length === 0) return;
 
     const token = localStorage.getItem('access_token');
     if (!token) return;
 
     let cancelado = false;
-    void (async () => {
-      for (const id of pendentes) {
+
+    const sincronizarCustos = async () => {
+      const itens = (form.getValues('itens_produto') as unknown[]) || [];
+
+      for (const item of itens) {
         if (cancelado) return;
+        const registro = item as Record<string, unknown>;
+        const tipo = String(registro?.tipo_item || '').toUpperCase();
+        if (tipo !== 'PRODUTO_FINITO') continue;
+
+        const id = String(registro?.produto_finito_id || '').trim();
+        if (!id) continue;
+
+        const unitarioLocal =
+          parseCustoPreview(registro?.preco_custo_snapshot) ||
+          parseCustoPreview(
+            (registro?.produto_finito as { preco_custo?: unknown } | undefined)?.preco_custo,
+          ) ||
+          (() => {
+            const total = parseCustoPreview(registro?.custo_total_producao);
+            const qtd = Math.max(parseCustoPreview(registro?.quantidade_produto) || 1, 1);
+            return total > 0 ? total / qtd : 0;
+          })();
+
+        if (unitarioLocal > 0) {
+          setCustosCatalogo((prev) =>
+            prev[id] === unitarioLocal ? prev : { ...prev, [id]: unitarioLocal },
+          );
+          continue;
+        }
+
+        if (custosBuscadosRef.current.has(id)) continue;
         custosBuscadosRef.current.add(id);
+
         try {
           const produto = (await produtosFinitosApi.getParaOrcamento(id, token)) as {
             preco_custo?: unknown;
           };
           const custo = parseCustoPreview(produto?.preco_custo);
-          if (custo > 0 && !cancelado) {
+          if (cancelado) {
+            custosBuscadosRef.current.delete(id);
+            return;
+          }
+          if (custo > 0) {
             setCustosCatalogo((prev) => ({ ...prev, [id]: custo }));
+          } else {
+            custosBuscadosRef.current.delete(id);
           }
         } catch {
           custosBuscadosRef.current.delete(id);
         }
       }
-    })();
+    };
+
+    void sincronizarCustos();
 
     return () => {
       cancelado = true;
     };
-    // formSnapshot/refreshKey: reavalia após reset do formulário
-  }, [form, dadosCarregados, refreshKey, formSnapshot]);
+  }, [form, dadosCarregados, refreshKey]);
 
   // Hook para dados auxiliares (insumos, maquinas, etc.)
   // Hook para WebSocket em tempo real
@@ -913,6 +915,28 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                 </div>
 
                 {produto.tipo_item === 'PRODUTO_FINITO' ? (
+                  (() => {
+                    const finitoId = String(produto.produto_finito_id || '').trim();
+                    const custoUnitarioEfetivo =
+                      parseCustoPreview(produto.preco_custo_unitario) ||
+                      (finitoId ? custosCatalogo[finitoId] || 0 : 0) ||
+                      parseCustoPreview(produto.custo_total_producao) /
+                        Math.max(produto.quantidade, 1);
+                    const custoTotalEfetivo = custoUnitarioEfetivo * Math.max(produto.quantidade, 1);
+                    const precoVendaTotal = parseCustoPreview(
+                      produto.preco_venda_total ?? produto.preco_total,
+                    );
+                    const margemEfetiva =
+                      custoTotalEfetivo > 0 && precoVendaTotal > 0
+                        ? precoVendaTotal - custoTotalEfetivo
+                        : parseCustoPreview(produto.margem_lucro_produto);
+                    const margemPct =
+                      custoTotalEfetivo > 0 && precoVendaTotal > 0
+                        ? (margemEfetiva / precoVendaTotal) * 100
+                        : parseCustoPreview(produto.margem_bruta_percentual);
+                    const custoVisivel = custoUnitarioEfetivo > 0;
+
+                    return (
                   <div className="mb-3 space-y-2">
                     <div className="flex justify-between items-center text-sm font-semibold">
                       <span>Preço ao cliente</span>
@@ -936,33 +960,26 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                       <p className="text-[11px] font-medium text-gray-700">
                         Gestão interna — não altera a proposta
                       </p>
-                      {produto.custo_informado ? (
+                      {custoVisivel ? (
                         <>
                           <div className="flex justify-between items-center text-xs text-gray-600">
                             <span>Custo interno</span>
                             <span>
-                              R$ {formatarValor(produto.custo_total_producao)} (
+                              R$ {formatarValor(custoTotalEfetivo)} (
                               {formatarNumero(produto.quantidade)} unid)
                             </span>
                           </div>
                           <div className="flex justify-between items-center text-xs text-gray-600">
                             <span>Custo unitário</span>
                             <span>
-                              R${' '}
-                              {formatarValor(
-                                produto.preco_custo_unitario ??
-                                  produto.custo_total_producao / Math.max(produto.quantidade, 1),
-                              )}
-                              /un
+                              R$ {formatarValor(custoUnitarioEfetivo)}/un
                             </span>
                           </div>
                           <div className="flex justify-between items-center text-xs font-medium text-green-700">
                             <span>Margem bruta (ganho real)</span>
                             <span>
-                              R$ {formatarValor(produto.margem_lucro_produto)}
-                              {produto.margem_bruta_percentual != null
-                                ? ` (${formatarNumero(produto.margem_bruta_percentual)}%)`
-                                : ''}
+                              R$ {formatarValor(margemEfetiva)}
+                              {margemPct > 0 ? ` (${formatarNumero(margemPct)}%)` : ''}
                             </span>
                           </div>
                         </>
@@ -974,6 +991,8 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                       )}
                     </div>
                   </div>
+                    );
+                  })()
                 ) : (
                   <>
                     {/* Custo Total de Produção com quantidade - linha separada */}
