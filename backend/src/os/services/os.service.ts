@@ -3025,7 +3025,7 @@ export class OSService {
           motivo: forcarLiberacaoFinanceira?.motivo,
           detalhe: forcarLiberacaoFinanceira?.detalhe,
         });
-        if (!validacaoForcar.ok) {
+        if (validacaoForcar.ok === false) {
           throw new BadRequestException(validacaoForcar.erro);
         }
 

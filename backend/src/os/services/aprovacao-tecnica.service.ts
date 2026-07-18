@@ -203,7 +203,7 @@ export class AprovacaoTecnicaService {
         motivo: dto.motivo_forcar_financeiro,
         detalhe: dto.motivo_forcar_detalhe,
       });
-      if (!validacaoForcar.ok) {
+      if (validacaoForcar.ok === false) {
         throw new BadRequestException(validacaoForcar.erro);
       }
 
