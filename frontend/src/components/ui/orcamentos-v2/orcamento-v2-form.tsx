@@ -2588,6 +2588,24 @@ export function OrcamentoV2Form({
     setShowProdutoPrateleiraModal(true);
   };
 
+  const parseValorMonetarioProduto = (valor: unknown): number => {
+    if (valor === null || valor === undefined || valor === '') return 0;
+    if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+    if (typeof valor === 'string') {
+      const parsed = parseFloat(valor.replace(/[^0-9,.-]/g, '').replace(',', '.'));
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    if (typeof valor === 'object' && valor !== null && 'toString' in valor) {
+      try {
+        const parsed = parseFloat(String((valor as { toString(): string }).toString()).replace(',', '.'));
+        return Number.isFinite(parsed) ? parsed : 0;
+      } catch {
+        return 0;
+      }
+    }
+    return 0;
+  };
+
   const handleProdutoPrateleiraSelected = async (produto: {
     id: string;
     nome: string;
@@ -2595,7 +2613,7 @@ export function OrcamentoV2Form({
     descricao?: string | null;
     descricao_resumida?: string | null;
     preco_unitario?: number;
-    preco_custo?: number | null;
+    preco_custo?: number | string | null;
     estoque_atual: number;
     imagens?: Array<{ id: string; url_imagem: string; ordem: number }>;
   }) => {
@@ -2605,18 +2623,26 @@ export function OrcamentoV2Form({
 
       const token = localStorage.getItem('access_token');
       let catalogoRegras: CatalogoRegrasOrcamento | undefined;
+      let precoCustoDoCatalogo: number | null = null;
       if (token) {
         try {
           const paraOrcamento = (await produtosFinitosApi.getParaOrcamento(
             produto.id,
             token,
-          )) as { personalizacao?: CatalogoRegrasOrcamento };
+          )) as {
+            personalizacao?: CatalogoRegrasOrcamento;
+            preco_custo?: number | string | null;
+          };
           if (paraOrcamento?.personalizacao) {
             catalogoRegras = {
               ...paraOrcamento.personalizacao,
               grade_atributos_def:
                 paraOrcamento.personalizacao.grade_atributos_def ?? [],
             };
+          }
+          const custoCatalogo = parseValorMonetarioProduto(paraOrcamento?.preco_custo);
+          if (custoCatalogo > 0) {
+            precoCustoDoCatalogo = custoCatalogo;
           }
         } catch {
           toast.warning(
@@ -2626,8 +2652,9 @@ export function OrcamentoV2Form({
       }
 
       const quantidade = 1;
-      const precoUnitario = Number(produto.preco_unitario || 0);
-      const precoCustoUnitario = Number(produto.preco_custo || 0);
+      const precoUnitario = parseValorMonetarioProduto(produto.preco_unitario);
+      const precoCustoUnitario =
+        precoCustoDoCatalogo ?? parseValorMonetarioProduto(produto.preco_custo);
       const imagemUrl = produto.imagens?.[0]?.url_imagem || '';
       const descricaoResumida = resolverDescricaoResumidaProdutoFinito(produto);
       const descricaoDetalhada = resolverDescricaoDetalhadaProdutoFinito(produto);

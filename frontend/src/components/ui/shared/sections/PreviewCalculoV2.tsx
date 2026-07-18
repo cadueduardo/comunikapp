@@ -81,9 +81,12 @@ type PreviewProduto = {
   custos_indiretos_rateados: number;
   preco_unitario?: number;
   preco_total?: number;
+  preco_custo_unitario?: number;
+  custo_informado?: boolean;
   preco_venda_total?: number | string;
   preco_venda_unitario?: number | string;
   margem_lucro_produto?: number;
+  margem_bruta_percentual?: number;
   impostos_produto?: number;
   comissao_produto?: number;
   instalacao_necessaria?: boolean;
@@ -111,6 +114,8 @@ type PreviewData = {
     total_custo_mao_obra: number;
     total_custo_indireto: number;
     total_custo_producao: number;
+    total_custo_prateleira?: number;
+    total_custo_gerencial?: number;
     total_margem_lucro: number;
     total_impostos: number;
     preco_final: number;
@@ -697,8 +702,19 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Custo de Produção</span>
-                <span>R$ {formatarValor(data.resumo.total_custo_producao)}</span>
+                <span>
+                  R${' '}
+                  {formatarValor(
+                    data.resumo.total_custo_gerencial ?? data.resumo.total_custo_producao,
+                  )}
+                </span>
               </div>
+              {(data.resumo.total_custo_prateleira ?? 0) > 0 && (
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Inclui custo de prateleira (informativo)</span>
+                  <span>R$ {formatarValor(data.resumo.total_custo_prateleira)}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-gray-600">Margem de Lucro ({data.resumo.margem_lucro_percentual}%)</span>
                 <span className="text-green-600">+R$ {formatarValor(data.resumo.total_margem_lucro)}</span>
@@ -752,33 +768,109 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                 {/* Dimensões + descrição - linha separada, fonte menor */}
                 <div className="mb-2">
                   <p className="text-xs text-gray-500">
-                    {formatarDimensoes(produto.dimensoes)} - {produto.descricao}
+                    {produto.tipo_item === 'PRODUTO_FINITO'
+                      ? produto.descricao
+                      : `${formatarDimensoes(produto.dimensoes)} - ${produto.descricao}`}
                   </p>
                 </div>
 
-                {/* Custo Total de Produção com quantidade - linha separada */}
-                <div className="mb-1">
-                  <div className="flex justify-between items-center text-sm font-semibold">
-                    <span>Custo Total de Produção</span>
-                    <span>R$ {formatarValor(produto.custo_total_producao)} ({formatarNumero(produto.quantidade)}/unid)</span>
+                {produto.tipo_item === 'PRODUTO_FINITO' ? (
+                  <div className="mb-3 space-y-2">
+                    <div className="flex justify-between items-center text-sm font-semibold">
+                      <span>Preço ao cliente</span>
+                      <span>
+                        R$ {formatarValor(produto.preco_venda_total ?? produto.preco_total)} (
+                        {formatarNumero(produto.quantidade)} unid)
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-gray-600">
+                      <span>Preço unitário de venda</span>
+                      <span>
+                        R${' '}
+                        {formatarValor(
+                          produto.preco_venda_unitario ??
+                            Number(produto.preco_venda_total || 0) / Math.max(produto.quantidade, 1),
+                        )}
+                        /un
+                      </span>
+                    </div>
+                    <div className="rounded-md border border-dashed border-gray-200 bg-gray-50/80 p-2 space-y-1.5">
+                      <p className="text-[11px] font-medium text-gray-700">
+                        Gestão interna — não altera a proposta
+                      </p>
+                      {produto.custo_informado ? (
+                        <>
+                          <div className="flex justify-between items-center text-xs text-gray-600">
+                            <span>Custo interno</span>
+                            <span>
+                              R$ {formatarValor(produto.custo_total_producao)} (
+                              {formatarNumero(produto.quantidade)} unid)
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs text-gray-600">
+                            <span>Custo unitário</span>
+                            <span>
+                              R${' '}
+                              {formatarValor(
+                                produto.preco_custo_unitario ??
+                                  produto.custo_total_producao / Math.max(produto.quantidade, 1),
+                              )}
+                              /un
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs font-medium text-green-700">
+                            <span>Margem bruta (ganho real)</span>
+                            <span>
+                              R$ {formatarValor(produto.margem_lucro_produto)}
+                              {produto.margem_bruta_percentual != null
+                                ? ` (${formatarNumero(produto.margem_bruta_percentual)}%)`
+                                : ''}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-xs text-amber-700">
+                          Custo não informado no cadastro do produto. Preencha o preço de custo
+                          para ver a margem real.
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    {/* Custo Total de Produção com quantidade - linha separada */}
+                    <div className="mb-1">
+                      <div className="flex justify-between items-center text-sm font-semibold">
+                        <span>Custo Total de Produção</span>
+                        <span>
+                          R$ {formatarValor(produto.custo_total_producao)} (
+                          {formatarNumero(produto.quantidade)}/unid)
+                        </span>
+                      </div>
+                    </div>
 
-                {/* Custo unitário de produção - linha separada */}
-                <div className="mb-3">
-                  <div className="flex justify-between items-center text-xs text-gray-600">
-                    <span>Custo unitário de produção</span>
-                    <span>R$ {formatarValor(produto.custo_total_producao / produto.quantidade)}</span>
-                  </div>
-                </div>
+                    {/* Custo unitário de produção - linha separada */}
+                    <div className="mb-3">
+                      <div className="flex justify-between items-center text-xs text-gray-600">
+                        <span>Custo unitário de produção</span>
+                        <span>
+                          R${' '}
+                          {formatarValor(
+                            produto.custo_total_producao / Math.max(produto.quantidade, 1),
+                          )}
+                        </span>
+                      </div>
+                    </div>
 
-                {/* Informações de produção */}
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Horas de Produção</span>
-                    <span>{formatarNumero(produto.horas_producao)}h</span>
-                  </div>
-                </div>
+                    {/* Informações de produção */}
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Horas de Produção</span>
+                        <span>{formatarNumero(produto.horas_producao)}h</span>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {produto.instalacao_necessaria && (
                   <div className="mt-3 rounded-md border border-gray-100 bg-gray-50 p-2 text-xs">
@@ -833,6 +925,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                   </div>
                 )}
 
+                {produto.tipo_item !== 'PRODUTO_FINITO' && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -843,8 +936,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                   Ver Detalhes de Custo
                   {expandedItems[produto.id] ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
                 </Button>
+                )}
 
-                {expandedItems[produto.id] && (
+                {produto.tipo_item !== 'PRODUTO_FINITO' && expandedItems[produto.id] && (
                   <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
                     {/* Materiais */}
                     <div>
