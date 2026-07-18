@@ -89,6 +89,14 @@ test('backend cria e substitui matriz dentro de transacoes tenant-aware', () => 
   );
 });
 
+test('importacao e duplicacao reutilizam o create que cria a matriz inicial', () => {
+  const createCalls = service.match(/return this\.create\(dto, loja\)|await this\.create\(dto, loja\)/g) ?? [];
+  assert.ok(
+    createCalls.length >= 2,
+    'importacao e duplicacao devem passar pelo create centralizado',
+  );
+});
+
 test('guards de fornecedor consideram qualquer vinculo da matriz', () => {
   assert.match(
     supplierService,

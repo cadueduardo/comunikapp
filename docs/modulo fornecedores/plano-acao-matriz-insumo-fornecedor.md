@@ -549,8 +549,7 @@ Em `fornecedores.service.ts`:
 - [x] fornecedor `TERCEIRIZADO` → `400`;
 - [x] replace sincroniza pai e matriz;
 - [x] falha no replace faz rollback integral;
-- [x] create/duplicar criam exatamente uma linha padrão;
-- [ ] importação cria exatamente uma linha padrão;
+- [x] create/importação/duplicar criam exatamente uma linha padrão;
 - [x] update geral rejeita custo/fornecedor;
 - [x] update de fornecedor associado é bloqueado;
 - [x] remove de fornecedor associado é bloqueado;
@@ -597,7 +596,7 @@ O create mantém o seletor de fornecedor e custo inicial. A matriz completa pode
 
 - Branch: `codex/fornecedores-matriz-crud`.
 - Builds de produção do backend e frontend: aprovados.
-- Testes de contrato do CRUD: 5 aprovados.
+- Testes de contrato do CRUD: 6 aprovados.
 - Sequência repetida desde backup limpo em base descartável: Fase 1 → backfill de 33 insumos → Fase 3 → serviços do CRUD.
 - O teste integrado confirmou 12 cenários backend: leitura da matriz; replace com dois fornecedores; troca do padrão; sincronização de `fornecedorId`/`custo_unitario`; rejeição de zero/dois padrões, payload vazio, fornecedor repetido, de outra loja, inativo e `TERCEIRIZADO`; rollback lógico do replace inválido; guards de inativação/exclusão; rejeição de custo/fornecedor no update geral; create e matriz inicial na duplicação.
 - A interface foi implementada com componentes globais, sem `style` inline, com campos padrão somente leitura e salvamento independente.
