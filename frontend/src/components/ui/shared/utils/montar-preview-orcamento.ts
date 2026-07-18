@@ -32,6 +32,17 @@ export interface MontarPreviewOrcamentoOptions {
 const CAMPO_VAZIO = (valor: unknown): boolean =>
   valor === undefined || valor === null || valor === '';
 
+/** 0 / "0" / "" contam como vazio para campos de custo (0 sobrescrevia o custo real no merge). */
+const CUSTO_VAZIO = (valor: unknown): boolean => {
+  if (CAMPO_VAZIO(valor)) return true;
+  if (typeof valor === 'number') return !Number.isFinite(valor) || valor <= 0;
+  if (typeof valor === 'string') {
+    const n = Number(valor.replace(',', '.'));
+    return !Number.isFinite(n) || n <= 0;
+  }
+  return false;
+};
+
 const arrayRecursoTemDados = (arr: unknown): boolean => {
   if (!Array.isArray(arr) || arr.length === 0) return false;
   return arr.some((item) => {
@@ -63,6 +74,11 @@ const CAMPOS_ESCALARES_MERGE = [
   'personalizacao_processo_id',
 ] as const;
 
+const CAMPOS_CUSTO_MERGE = new Set([
+  'preco_custo_snapshot',
+  'custo_total_producao',
+]);
+
 const mergeItemProdutoPreview = (
   carregado: Record<string, unknown> | undefined,
   formulario: Record<string, unknown> | undefined,
@@ -78,7 +94,13 @@ const mergeItemProdutoPreview = (
   }
 
   for (const key of CAMPOS_ESCALARES_MERGE) {
-    if (CAMPO_VAZIO(atual[key]) && !CAMPO_VAZIO(base[key])) {
+    const atualVazio = CAMPOS_CUSTO_MERGE.has(key)
+      ? CUSTO_VAZIO(atual[key])
+      : CAMPO_VAZIO(atual[key]);
+    const baseVazio = CAMPOS_CUSTO_MERGE.has(key)
+      ? CUSTO_VAZIO(base[key])
+      : CAMPO_VAZIO(base[key]);
+    if (atualVazio && !baseVazio) {
       merged[key] = base[key];
     }
   }
@@ -90,8 +112,12 @@ const mergeItemProdutoPreview = (
   // Catálogo embutido: preferir o que tiver preço de custo preenchido.
   const basePf = base.produto_finito as { preco_custo?: unknown } | undefined;
   const atualPf = atual.produto_finito as { preco_custo?: unknown } | undefined;
-  if (!atualPf?.preco_custo && basePf?.preco_custo) {
-    merged.produto_finito = base.produto_finito;
+  if (CUSTO_VAZIO(atualPf?.preco_custo) && !CUSTO_VAZIO(basePf?.preco_custo)) {
+    merged.produto_finito = {
+      ...(atualPf || {}),
+      ...(basePf || {}),
+      preco_custo: basePf?.preco_custo,
+    };
   }
 
   return merged;

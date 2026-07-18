@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,27 @@ import { useOrcamentoData } from '../../orcamento/hooks/useOrcamentoData';
 import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
 import { useUser } from '@/contexts/UserContext';
 import { Cliente, Insumo, Maquina, Funcao, ServicoManual } from '../types/common.types';
+import { produtosFinitosApi } from '@/lib/api-client';
+
+const parseCustoPreview = (valor: unknown): number => {
+  if (valor === null || valor === undefined || valor === '') return 0;
+  if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+  if (typeof valor === 'string') {
+    const parsed = parseFloat(valor.replace(/[^0-9,.-]/g, '').replace(',', '.'));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (typeof valor === 'object' && valor !== null && 'toString' in valor) {
+    try {
+      const parsed = parseFloat(
+        String((valor as { toString(): string }).toString()).replace(',', '.'),
+      );
+      return Number.isFinite(parsed) ? parsed : 0;
+    } catch {
+      return 0;
+    }
+  }
+  return 0;
+};
 
 interface PreviewCalculoDatasets {
   insumos: Insumo[];
@@ -172,6 +193,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [showIndirectCosts, setShowIndirectCosts] = useState(false);
   const [formSnapshot, setFormSnapshot] = useState<Record<string, unknown> | null>(null);
+  /** Cache produto_finito_id → preço de custo do catálogo (fonte de verdade para o preview). */
+  const [custosCatalogo, setCustosCatalogo] = useState<Record<string, number>>({});
+  const custosBuscadosRef = useRef<Set<string>>(new Set());
   const form = useFormContext<Record<string, unknown>>();
   const { user } = useUser();
 
@@ -224,6 +248,76 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     });
     return () => cancelAnimationFrame(frame);
   }, [dadosCarregados, refreshKey, form, insumos.length, maquinas.length, funcoes.length, servicos.length, itensProdutoCarregados]);
+
+  // Busca preço de custo no catálogo quando o item de prateleira chegou sem snapshot.
+  useEffect(() => {
+    if (!form || !dadosCarregados) return;
+
+    const itens = (form.getValues('itens_produto') as unknown[]) || [];
+    const pendentes: string[] = [];
+
+    for (const item of itens) {
+      const registro = item as Record<string, unknown>;
+      const tipo = String(registro?.tipo_item || '').toUpperCase();
+      if (tipo !== 'PRODUTO_FINITO') continue;
+      const id = String(registro?.produto_finito_id || '').trim();
+      if (!id || custosBuscadosRef.current.has(id)) continue;
+
+      const jaTemCusto =
+        parseCustoPreview(registro?.preco_custo_snapshot) > 0 ||
+        parseCustoPreview((registro?.produto_finito as { preco_custo?: unknown })?.preco_custo) >
+          0 ||
+        parseCustoPreview(registro?.custo_total_producao) > 0;
+      if (jaTemCusto) {
+        const unitario =
+          parseCustoPreview(registro?.preco_custo_snapshot) ||
+          parseCustoPreview((registro?.produto_finito as { preco_custo?: unknown })?.preco_custo) ||
+          (() => {
+            const total = parseCustoPreview(registro?.custo_total_producao);
+            const qtd = Math.max(parseCustoPreview(registro?.quantidade_produto) || 1, 1);
+            return total > 0 ? total / qtd : 0;
+          })();
+        if (unitario > 0) {
+          custosBuscadosRef.current.add(id);
+          setCustosCatalogo((prev) =>
+            prev[id] > 0 ? prev : { ...prev, [id]: unitario },
+          );
+        }
+        continue;
+      }
+
+      pendentes.push(id);
+    }
+
+    if (pendentes.length === 0) return;
+
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    let cancelado = false;
+    void (async () => {
+      for (const id of pendentes) {
+        if (cancelado) return;
+        custosBuscadosRef.current.add(id);
+        try {
+          const produto = (await produtosFinitosApi.getParaOrcamento(id, token)) as {
+            preco_custo?: unknown;
+          };
+          const custo = parseCustoPreview(produto?.preco_custo);
+          if (custo > 0 && !cancelado) {
+            setCustosCatalogo((prev) => ({ ...prev, [id]: custo }));
+          }
+        } catch {
+          custosBuscadosRef.current.delete(id);
+        }
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+    // formSnapshot/refreshKey: reavalia após reset do formulário
+  }, [form, dadosCarregados, refreshKey, formSnapshot]);
 
   // Hook para dados auxiliares (insumos, maquinas, etc.)
   // Hook para WebSocket em tempo real
@@ -437,11 +531,54 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     return '0';
   };
 
+  const injetarCustosCatalogoNosItens = (
+    formData: Record<string, unknown>,
+  ): Record<string, unknown> => {
+    const itens = Array.isArray(formData.itens_produto)
+      ? (formData.itens_produto as Record<string, unknown>[])
+      : [];
+    if (itens.length === 0 || Object.keys(custosCatalogo).length === 0) {
+      return formData;
+    }
+
+    const itensComCusto = itens.map((item) => {
+      const tipo = String(item?.tipo_item || '').toUpperCase();
+      if (tipo !== 'PRODUTO_FINITO') return item;
+      const id = String(item?.produto_finito_id || '').trim();
+      const custoCatalogo = id ? custosCatalogo[id] : 0;
+      if (!(custoCatalogo > 0)) return item;
+
+      const qtd = Math.max(parseCustoPreview(item?.quantidade_produto) || 1, 1);
+      const snapshotAtual = parseCustoPreview(item?.preco_custo_snapshot);
+      const totalAtual = parseCustoPreview(item?.custo_total_producao);
+      const pf = (item?.produto_finito as Record<string, unknown> | undefined) || {};
+
+      return {
+        ...item,
+        preco_custo_snapshot:
+          snapshotAtual > 0 ? String(snapshotAtual) : String(custoCatalogo),
+        custo_total_producao: totalAtual > 0 ? totalAtual : custoCatalogo * qtd,
+        produto_finito: {
+          ...pf,
+          preco_custo:
+            parseCustoPreview(pf.preco_custo) > 0 ? pf.preco_custo : custoCatalogo,
+        },
+      };
+    });
+
+    return { ...formData, itens_produto: itensComCusto };
+  };
+
   const montarPreviewFormulario = (formData: Record<string, unknown>): PreviewData | null => {
-    return montarPreviewOrcamento(formData, {
+    const formDataComCusto = injetarCustosCatalogoNosItens(formData);
+    const carregadosComCusto = Array.isArray(itensProdutoCarregados)
+      ? ((injetarCustosCatalogoNosItens({ itens_produto: itensProdutoCarregados })
+          .itens_produto as unknown[]) ?? itensProdutoCarregados)
+      : itensProdutoCarregados;
+    return montarPreviewOrcamento(formDataComCusto, {
       datasets: { insumos, maquinas, funcoes, servicos, custosIndiretos },
       loja: user?.loja,
-      itensProdutoCarregados,
+      itensProdutoCarregados: carregadosComCusto,
     }) as PreviewData | null;
   };
 
@@ -489,6 +626,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   // Usar dados reais se disponíveis, senão usar mockados
   const data: PreviewData = (() => {
     void formSnapshot;
+    void custosCatalogo;
     console.debug('[PreviewCalculoV2] Estados', {
       form: !!form,
       dadosCarregados,
