@@ -1,6 +1,6 @@
 # Plano de Ação — Matriz Insumo × Fornecedor (`InsumoFornecedor`)
 
-**Status:** Fase 0 concluída; Fase 1 preparada e validada em cópia descartável fiel da produção — **migration ainda não aplicada em produção**
+**Status:** Fase 0 concluída; Fase 1 e backfill sem colisões da Fase 2 validados em cópia descartável fiel da produção — **nenhuma migration/backfill aplicado em produção**
 **Revisão:** 2026-07-18 — plano original + integridade referencial, estoque, JSON operacional, DTOs, deploy e contrato com Compras/Financeiro
 **Origem:** `docs/modulo fornecedores/feature-fornecedores-insumos.md` + decisões de produto e validação contra o código atual
 **Objetivo:** permitir N fornecedores por insumo físico único, com preço/SKU por fornecedor e um fornecedor padrão sincronizado com o motor de cálculo existente.
@@ -305,6 +305,33 @@ O campo legado `Insumo.estoque_atual` não participa da eleição.
 ### Fase 2 — Merge aplicado e backfill
 
 **Objetivo:** eliminar duplicatas, preencher a matriz e validar invariantes antes da constraint final.
+
+#### Caminho seguro adotado para o estado atual
+
+O dry-run de produção encontrou zero grupos duplicados. Por isso, a primeira
+entrega da Fase 2 é deliberadamente um aplicador de backfill sem merge:
+
+- não altera IDs de insumo, estoque ou JSON;
+- não exclui nem deduplica qualquer registro;
+- bloqueia integralmente se surgir um grupo duplicado;
+- bloqueia fornecedor ausente, de outra loja, inativo ou incompatível;
+- exige confirmação literal e backup `.sql.gz` íntegro para `--apply`;
+- usa lock nomeado, transação, `FOR UPDATE` e validação de invariantes antes do commit;
+- é idempotente quanto ao estado e aos timestamps.
+
+Se um ambiente futuro apresentar duplicatas, ele exige tratamento específico
+revisado; o aplicador não tenta decidir ou fundir dados automaticamente.
+
+#### Registro de validação isolada do backfill — 2026-07-18
+
+- Branch: `codex/fornecedores-matriz-fase2`.
+- Base descartável criada a partir do mesmo backup consistente usado na validação da Fase 1.
+- Dry-run: 33 insumos sem matriz, zero duplicatas e zero fornecedores incompatíveis.
+- Primeiro `--apply`: 33 vínculos padrão criados.
+- Pós-validação: 33 insumos com matriz, exatamente um padrão por insumo e zero divergências pai × matriz.
+- Reaplicação: estado e timestamps permaneceram idênticos; hash completo antes/depois sem alteração.
+- A base e os privilégios temporários foram removidos ao final.
+- Produção permaneceu sem a tabela/migration e sem o backfill.
 
 #### 2.1 Transação e escopo
 

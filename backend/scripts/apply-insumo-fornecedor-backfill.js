@@ -329,7 +329,11 @@ async function applyBackfill(prisma, options) {
 
         await validateInvariants(tx, options);
         const after = await inspect(tx, options);
-        return { affected_rows: toNumber(result), before, after };
+        return {
+          driver_reported_rows: toNumber(result),
+          before,
+          after,
+        };
       },
       { timeout: 60_000 },
     );

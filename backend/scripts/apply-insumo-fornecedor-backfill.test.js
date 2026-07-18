@@ -69,7 +69,7 @@ test('relatorio nao inclui caminho completo do backup', () => {
       backup: '/segredo/backups/comunikapp.sql.gz',
       lojaId: null,
     },
-    { affected_rows: 2 },
+    { driver_reported_rows: 2 },
   );
   assert.equal(report.backup, 'comunikapp.sql.gz');
   assert.equal(report.database, 'comunikapp_stage');
