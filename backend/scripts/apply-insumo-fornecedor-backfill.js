@@ -278,18 +278,17 @@ async function applyBackfill(prisma, options) {
         const before = await inspect(tx, options);
         assertCanApply(before);
 
-        if (options.lojaId) {
-          await tx.$executeRawUnsafe(
-            `UPDATE insumo_fornecedores
-                SET padrao = 0
-              WHERE loja_id = ?`,
-            options.lojaId,
-          );
-        } else {
-          await tx.$executeRawUnsafe(
-            'UPDATE insumo_fornecedores SET padrao = 0',
-          );
-        }
+        const alternateScope = options.lojaId ? 'AND i.loja_id = ?' : '';
+        await tx.$executeRawUnsafe(
+          `UPDATE insumo_fornecedores m
+             JOIN insumos i ON i.id = m.insumo_id
+              SET m.padrao = 0,
+                  m.updatedAt = NOW(3)
+            WHERE m.padrao = 1
+              AND m.fornecedor_id <> i.fornecedorId
+              ${alternateScope}`,
+          ...scopeParams(options.lojaId),
+        );
 
         const storeFilter = options.lojaId ? 'WHERE i.loja_id = ?' : '';
         const result = await tx.$executeRawUnsafe(
@@ -315,10 +314,16 @@ async function applyBackfill(prisma, options) {
            FROM insumos i
            ${storeFilter}
            ON DUPLICATE KEY UPDATE
+             updatedAt = IF(
+               loja_id <> VALUES(loja_id)
+               OR preco_custo <> VALUES(preco_custo)
+               OR padrao <> TRUE,
+               NOW(3),
+               updatedAt
+             ),
              loja_id = VALUES(loja_id),
              preco_custo = VALUES(preco_custo),
-             padrao = TRUE,
-             updatedAt = NOW(3)`,
+             padrao = TRUE`,
           ...scopeParams(options.lojaId),
         );
 
