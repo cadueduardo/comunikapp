@@ -315,11 +315,11 @@ async function applyBackfill(prisma, options) {
            ${storeFilter}
            ON DUPLICATE KEY UPDATE
              updatedAt = IF(
-               loja_id <> VALUES(loja_id)
-               OR preco_custo <> VALUES(preco_custo)
-               OR padrao <> TRUE,
+               insumo_fornecedores.loja_id <> VALUES(loja_id)
+               OR insumo_fornecedores.preco_custo <> VALUES(preco_custo)
+               OR insumo_fornecedores.padrao <> TRUE,
                NOW(3),
-               updatedAt
+               insumo_fornecedores.updatedAt
              ),
              loja_id = VALUES(loja_id),
              preco_custo = VALUES(preco_custo),
