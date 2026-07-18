@@ -83,12 +83,37 @@ function validateBackup(backupPath) {
   if (!stat?.isFile() || stat.size === 0) {
     throw new Error('Backup ausente ou vazio.');
   }
-  const gzip = spawnSync('gzip', ['-t', backupPath], {
+  const gzipCommand = findGzipCommand();
+  if (!gzipCommand) {
+    throw new Error(
+      'gzip nao encontrado para validar o backup. Instale o gzip ou Git for Windows.',
+    );
+  }
+  const gzip = spawnSync(gzipCommand, ['-t', backupPath], {
     encoding: 'utf8',
   });
-  if (gzip.status !== 0) {
-    throw new Error(`Backup gzip invalido: ${(gzip.stderr || '').trim()}`);
+  if (gzip.error || gzip.status !== 0) {
+    const detail = gzip.error?.message || (gzip.stderr || '').trim();
+    throw new Error(`Backup gzip invalido: ${detail}`);
   }
+}
+
+function findGzipCommand() {
+  const candidates =
+    process.platform === 'win32'
+      ? [
+          'gzip.exe',
+          'C:\\Program Files\\Git\\usr\\bin\\gzip.exe',
+          'C:\\Program Files (x86)\\Git\\usr\\bin\\gzip.exe',
+        ]
+      : ['gzip'];
+
+  return (
+    candidates.find((candidate) => {
+      const result = spawnSync(candidate, ['--version'], { stdio: 'ignore' });
+      return !result.error && result.status === 0;
+    }) ?? null
+  );
 }
 
 function databaseName(databaseUrl) {
@@ -415,5 +440,7 @@ module.exports = {
   assertCanApply,
   buildReport,
   databaseName,
+  findGzipCommand,
   parseArgs,
+  validateBackup,
 };

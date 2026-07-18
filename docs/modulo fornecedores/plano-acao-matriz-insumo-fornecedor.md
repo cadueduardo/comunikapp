@@ -603,6 +603,16 @@ O create mantém o seletor de fornecedor e custo inicial. A matriz completa pode
 - A base descartável foi eliminada após a coleta das evidências; produção permaneceu sem migrations ou backfill.
 - Foram identificados quatro insumos legados cuja categoria pertence a outra loja. O achado é anterior à matriz, não foi corrigido automaticamente e deve ser tratado de forma explícita antes do smoke completo de duplicação/importação.
 
+#### Registro de preparação do ambiente local — 2026-07-18
+
+- Banco local confirmado: MySQL `localhost/comunikapp`; produção não foi acessada ou alterada nesta preparação.
+- Backup consistente e gzip validado antes das alterações locais.
+- Ordem aplicada manualmente: migration aditiva da Fase 1 → dry-run → backfill de 9 insumos → validação dos invariantes → migration final da Fase 3.
+- Pós-validação: zero duplicatas, zero fornecedores inválidos, zero insumos sem matriz e zero divergências entre pai e padrão.
+- Histórico Prisma local atualizado: 93 migrations aplicadas e schema em dia.
+- O backfill passou a localizar `gzip` também no Git for Windows, mantendo compatibilidade com Linux; teste automatizado incluído.
+- Smoke da consulta que originou o `P2021`: 7 fornecedores retornados e 9 vínculos da matriz contabilizados sem erro.
+
 ---
 
 ### Fase 6 — Não regressão

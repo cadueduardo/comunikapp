@@ -6,6 +6,7 @@ const {
   assertCanApply,
   buildReport,
   databaseName,
+  findGzipCommand,
   parseArgs,
 } = require('./apply-insumo-fornecedor-backfill');
 
@@ -25,6 +26,10 @@ test('apply exige confirmacao exata antes de validar backup', () => {
     () => parseArgs(['--apply', `--confirmation=${CONFIRMATION}`]),
     /--backup/,
   );
+});
+
+test('resolvedor encontra gzip no ambiente suportado', () => {
+  assert.ok(findGzipCommand(), 'gzip deve estar disponivel para validar backup');
 });
 
 test('nome do banco e derivado da URL e validado', () => {
