@@ -53,6 +53,13 @@ test('migration da Fase 3 troca somente o unique de insumos', () => {
     finalMigration,
     /CREATE UNIQUE INDEX `insumos_loja_id_nome_key`[\s\S]*\(`loja_id`, `nome`\)/,
   );
+  assert.ok(
+    finalMigration.indexOf('CREATE UNIQUE INDEX `insumos_loja_id_nome_key`') <
+      finalMigration.indexOf(
+        'DROP INDEX `insumos_loja_id_nome_fornecedorId_key`',
+      ),
+    'o novo indice deve existir antes de remover o indice usado pela FK',
+  );
   assert.doesNotMatch(
     finalMigration,
     /^\s*(INSERT|UPDATE|DELETE|TRUNCATE|RENAME)\b/im,
