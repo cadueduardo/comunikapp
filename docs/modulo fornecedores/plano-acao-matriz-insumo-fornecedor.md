@@ -1,6 +1,6 @@
 # Plano de Ação — Matriz Insumo × Fornecedor (`InsumoFornecedor`)
 
-**Status:** Fase 0 concluída; Fase 1 e backfill sem colisões da Fase 2 validados em cópia descartável fiel da produção — **nenhuma migration/backfill aplicado em produção**
+**Status:** Fases 0–3 implementadas e validadas em cópia descartável fiel da produção — **nenhuma migration/backfill aplicado em produção**
 **Revisão:** 2026-07-18 — plano original + integridade referencial, estoque, JSON operacional, DTOs, deploy e contrato com Compras/Financeiro
 **Origem:** `docs/modulo fornecedores/feature-fornecedores-insumos.md` + decisões de produto e validação contra o código atual
 **Objetivo:** permitir N fornecedores por insumo físico único, com preço/SKU por fornecedor e um fornecedor padrão sincronizado com o motor de cálculo existente.
@@ -425,14 +425,26 @@ O relatório do `--apply` deve registrar, no mínimo:
 
 ### Fase 3 — Constraint final
 
-- [ ] Confirmar novamente zero duplicatas.
-- [ ] Remover `@@unique([loja_id, nome, fornecedorId])`.
-- [ ] Adicionar `@@unique([loja_id, nome])`.
-- [ ] Manter `fornecedorId` obrigatório.
-- [ ] Gerar a migration somente após a Fase 2 aprovada no ambiente.
-- [ ] Aplicar em staging e executar smoke antes de produção.
+- [x] Confirmar novamente zero duplicatas.
+- [x] Remover `@@unique([loja_id, nome, fornecedorId])`.
+- [x] Adicionar `@@unique([loja_id, nome])`.
+- [x] Manter `fornecedorId` obrigatório.
+- [x] Gerar a migration somente após a Fase 2 aprovada no ambiente.
+- [x] Aplicar em ambiente descartável fiel à produção e executar smoke estrutural.
 
 **Saída:** dois insumos com o mesmo nome na mesma loja não podem ser criados; múltiplos fornecedores existem somente pela matriz.
+
+#### Registro de validação isolada da Fase 3 — 2026-07-18
+
+- Branch: `codex/fornecedores-matriz-fase3`.
+- Sequência validada desde backup limpo: Fase 1 → backfill Fase 2 → migration Fase 3.
+- A primeira tentativa revelou que o índice legado sustentava temporariamente a FK de `loja_id`; a migration foi corrigida para criar o novo índice antes de remover o antigo.
+- Prisma reconheceu 93 migrations e aplicou exclusivamente a migration final nessa etapa.
+- Índice final confirmado: unique `insumos_loja_id_nome_key (loja_id, nome)`.
+- Índice legado removido.
+- As seis FKs que referenciam `insumos` permaneceram presentes.
+- `CHECK TABLE` de `insumos` e `insumo_fornecedores`: `OK`.
+- A base temporária foi descartada; produção permaneceu sem as migrations da matriz.
 
 ---
 
