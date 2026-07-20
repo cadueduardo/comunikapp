@@ -117,4 +117,6 @@ test('componente usa design system e nao possui style inline', () => {
   assert.match(matrixComponent, /from '@\/components\/ui\/button'/);
   assert.match(matrixComponent, /insumosApi\.vincularFornecedores/);
   assert.doesNotMatch(matrixComponent, /\sstyle=\{/);
+  assert.doesNotMatch(matrixComponent, /Salvar matriz/);
+  assert.match(matrixComponent, /persistMatrix|gravadas automaticamente/);
 });

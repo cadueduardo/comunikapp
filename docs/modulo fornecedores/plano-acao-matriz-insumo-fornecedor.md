@@ -32,7 +32,7 @@ Estas decisões não devem ser reabertas durante a implementação sem alinhamen
 5. O endpoint da matriz é a única fonte de alteração de custo e fornecedor padrão após a criação do insumo.
 6. O create continua exigindo `fornecedorId` e `custo_unitario` e cria a primeira linha padrão na mesma transação.
 7. A importação e a duplicação reutilizam o create e também devem criar a linha padrão.
-8. A edição geral exibe custo e fornecedor padrão como somente leitura; a matriz possui salvamento independente.
+8. A edição geral exibe custo e fornecedor padrão como somente leitura; a matriz grava pelo endpoint próprio (independente do “Salvar Insumo”), com persistência automática na UI (sem botão “Salvar matriz”).
 9. É bloqueado inativar, excluir ou mudar para `TERCEIRIZADO` qualquer fornecedor que possua qualquer vínculo em `InsumoFornecedor`.
 10. O sobrevivente de duplicatas é escolhido, nesta ordem: ativo; maior estoque físico; mais antigo; menor ID.
 11. O merge de `estoque_itens` é feito por localização física e preserva seus registros filhos.
@@ -571,7 +571,7 @@ Na tela `insumos/editar/[id]`:
   - código de referência/SKU;
   - radio padrão;
   - adicionar/remover linha;
-  - botão próprio “Salvar matriz” com loading independente;
+  - persistência automática da matriz (add/remove/padrão/fornecedor e blur de preço/SKU), sem botão “Salvar matriz”;
 - impedir zero linhas, fornecedores repetidos e quantidade de padrões diferente de um;
 - não permitir remover a última linha;
 - atualizar os campos informativos após salvar/trocar o padrão;
@@ -599,7 +599,7 @@ O create mantém o seletor de fornecedor e custo inicial. A matriz completa pode
 - Testes de contrato do CRUD: 6 aprovados.
 - Sequência repetida desde backup limpo em base descartável: Fase 1 → backfill de 33 insumos → Fase 3 → serviços do CRUD.
 - O teste integrado confirmou 12 cenários backend: leitura da matriz; replace com dois fornecedores; troca do padrão; sincronização de `fornecedorId`/`custo_unitario`; rejeição de zero/dois padrões, payload vazio, fornecedor repetido, de outra loja, inativo e `TERCEIRIZADO`; rollback lógico do replace inválido; guards de inativação/exclusão; rejeição de custo/fornecedor no update geral; create e matriz inicial na duplicação.
-- A interface foi implementada com componentes globais, sem `style` inline, com campos padrão somente leitura e salvamento independente.
+- A interface foi implementada com componentes globais, sem `style` inline, com campos padrão somente leitura e endpoint próprio da matriz; a UX passou a auto-persistir (sem botão “Salvar matriz”), mantendo “Salvar Insumo” só para o restante do formulário.
 - A base descartável foi eliminada após a coleta das evidências; produção permaneceu sem migrations ou backfill.
 - Foram identificados quatro insumos legados cuja categoria pertence a outra loja. O achado é anterior à matriz, não foi corrigido automaticamente e deve ser tratado de forma explícita antes do smoke completo de duplicação/importação.
 
@@ -699,7 +699,7 @@ Para reduzir indisponibilidade, o backend compatível pode ser preparado antes, 
 - [ ] Create, importação e duplicação criam a matriz inicial.
 - [ ] Update geral não aceita custo/fornecedor.
 - [ ] Guards impedem invalidar fornecedor associado.
-- [ ] UI usa campos informativos somente leitura e salvamento independente.
+- [ ] UI usa campos informativos somente leitura; matriz auto-persiste no endpoint próprio (sem “Salvar matriz”).
 - [ ] Testes e smoke de orçamento, OS, PCP, estoque e fornecedores estão verdes.
 
 ---
@@ -757,7 +757,7 @@ Essas regras não alteram schema, migrations, fases ou critérios de aceite dest
 ### Checklist de smoke local (ambiente controlado)
 
 - [ ] `npm run dev` saudável; `GET /api/fornecedores` sem `P2021`.
-- [ ] Editar insumo: custo/fornecedor padrão somente leitura; card da matriz salva de forma independente.
+- [ ] Editar insumo: custo/fornecedor padrão somente leitura; matriz auto-persiste (sem “Salvar matriz”).
 - [ ] Matriz: adicionar 2º fornecedor, trocar padrão, recusar zero linhas / dois padrões.
 - [ ] Duplicar insumo: nasce com matriz inicial (um padrão).
 - [ ] Orçamento V2: material com 2+ fornecedores mostra “Fonte do custo” e comparação (até 3).

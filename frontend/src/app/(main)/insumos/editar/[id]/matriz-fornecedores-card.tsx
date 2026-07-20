@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { Plus, Save, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,6 +64,30 @@ const toRows = (rows: MatrizFornecedorApi[]): MatrizRow[] =>
     codigo_ref: row.codigo_ref ?? '',
   }));
 
+function validateMatrix(
+  rows: MatrizRow[],
+  padraoKey: string | undefined,
+): string | null {
+  if (!padraoKey || !rows.some((row) => row.key === padraoKey)) {
+    return 'Selecione exatamente um fornecedor padrão.';
+  }
+  if (rows.some((row) => !row.fornecedor_id)) {
+    return 'Selecione o fornecedor em todas as linhas.';
+  }
+  const supplierIds = rows.map((row) => row.fornecedor_id);
+  if (new Set(supplierIds).size !== rows.length) {
+    return 'O mesmo fornecedor não pode aparecer mais de uma vez.';
+  }
+  const invalidPrice = rows.some((row) => {
+    const price = Number(row.preco_custo);
+    return !Number.isFinite(price) || price <= 0;
+  });
+  if (invalidPrice) {
+    return 'Informe um preço de custo maior que zero em todas as linhas.';
+  }
+  return null;
+}
+
 export function MatrizFornecedoresCard({
   insumoId,
   initialRows,
@@ -74,6 +98,17 @@ export function MatrizFornecedoresCard({
   const [fornecedores, setFornecedores] = useState<FornecedorApi[]>([]);
   const [loadingFornecedores, setLoadingFornecedores] = useState(true);
   const [saving, setSaving] = useState(false);
+  const persistSeq = useRef(0);
+  const rowsRef = useRef(rows);
+  const padraoKeyRef = useRef(padraoKey);
+
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
+
+  useEffect(() => {
+    padraoKeyRef.current = padraoKey;
+  }, [padraoKey]);
 
   useEffect(() => {
     const nextRows = toRows(initialRows);
@@ -106,6 +141,73 @@ export function MatrizFornecedoresCard({
     [rows],
   );
 
+  const persistMatrix = async (
+    nextRows: MatrizRow[],
+    nextPadraoKey: string | undefined,
+    options?: { requireComplete?: boolean; successMessage?: string },
+  ) => {
+    const requireComplete = options?.requireComplete ?? true;
+    const validationError = validateMatrix(nextRows, nextPadraoKey);
+    if (validationError) {
+      if (requireComplete) {
+        toast.error(validationError);
+      }
+      return false;
+    }
+
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      toast.error('Sessão expirada. Faça login novamente.');
+      return false;
+    }
+
+    const seq = ++persistSeq.current;
+    setSaving(true);
+    try {
+      const result = (await insumosApi.vincularFornecedores(
+        insumoId,
+        {
+          fornecedores: nextRows.map((row) => ({
+            fornecedor_id: row.fornecedor_id,
+            preco_custo: Number(row.preco_custo),
+            ...(row.codigo_ref.trim()
+              ? { codigo_ref: row.codigo_ref.trim() }
+              : {}),
+            padrao: row.key === nextPadraoKey,
+          })),
+        },
+        token,
+      )) as {
+        fornecedorId: string;
+        custo_unitario: number;
+        fornecedores: MatrizFornecedorApi[];
+      };
+
+      if (seq !== persistSeq.current) {
+        return true;
+      }
+
+      onSaved(result);
+      toast.success(
+        options?.successMessage ?? 'Matriz de fornecedores atualizada.',
+      );
+      return true;
+    } catch (error) {
+      if (seq === persistSeq.current) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível salvar a matriz.',
+        );
+      }
+      return false;
+    } finally {
+      if (seq === persistSeq.current) {
+        setSaving(false);
+      }
+    }
+  };
+
   const updateRow = (key: string, values: Partial<MatrizRow>) => {
     setRows((current) =>
       current.map((row) => (row.key === key ? { ...row, ...values } : row)),
@@ -129,6 +231,7 @@ export function MatrizFornecedoresCard({
         codigo_ref: '',
       },
     ]);
+    toast.message('Informe o preço de custo da nova linha para gravar.');
   };
 
   const removeRow = (key: string) => {
@@ -137,69 +240,35 @@ export function MatrizFornecedoresCard({
       return;
     }
     const nextRows = rows.filter((row) => row.key !== key);
+    const nextPadraoKey =
+      padraoKey === key ? nextRows[0]?.key : padraoKey;
     setRows(nextRows);
-    if (padraoKey === key) setPadraoKey(nextRows[0].key);
+    setPadraoKey(nextPadraoKey);
+    void persistMatrix(nextRows, nextPadraoKey, {
+      successMessage: 'Fornecedor removido da matriz.',
+    });
   };
 
-  const save = async () => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      toast.error('Sessão expirada. Faça login novamente.');
-      return;
-    }
-    if (!padraoKey || !rows.some((row) => row.key === padraoKey)) {
-      toast.error('Selecione exatamente um fornecedor padrão.');
-      return;
-    }
-    if (rows.some((row) => !row.fornecedor_id)) {
-      toast.error('Selecione o fornecedor em todas as linhas.');
-      return;
-    }
-    if (usedSupplierIds.size !== rows.length) {
-      toast.error('O mesmo fornecedor não pode aparecer mais de uma vez.');
-      return;
-    }
+  const changeFornecedor = (key: string, fornecedorId: string) => {
+    const nextRows = rows.map((row) =>
+      row.key === key ? { ...row, fornecedor_id: fornecedorId } : row,
+    );
+    setRows(nextRows);
+    void persistMatrix(nextRows, padraoKey, { requireComplete: true });
+  };
 
-    const invalidPrice = rows.some((row) => {
-      const price = Number(row.preco_custo);
-      return !Number.isFinite(price) || price <= 0;
+  const changePadrao = (key: string) => {
+    setPadraoKey(key);
+    void persistMatrix(rows, key, {
+      successMessage: 'Fornecedor padrão atualizado.',
     });
-    if (invalidPrice) {
-      toast.error('Informe um preço de custo maior que zero em todas as linhas.');
-      return;
-    }
+  };
 
-    setSaving(true);
-    try {
-      const result = (await insumosApi.vincularFornecedores(
-        insumoId,
-        {
-          fornecedores: rows.map((row) => ({
-            fornecedor_id: row.fornecedor_id,
-            preco_custo: Number(row.preco_custo),
-            ...(row.codigo_ref.trim()
-              ? { codigo_ref: row.codigo_ref.trim() }
-              : {}),
-            padrao: row.key === padraoKey,
-          })),
-        },
-        token,
-      )) as {
-        fornecedorId: string;
-        custo_unitario: number;
-        fornecedores: MatrizFornecedorApi[];
-      };
-      onSaved(result);
-      toast.success('Matriz de fornecedores atualizada.');
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível salvar a matriz.',
-      );
-    } finally {
-      setSaving(false);
-    }
+  const commitFieldEdits = () => {
+    // Soft: linha nova incompleta não dispara toast; grava só quando válida.
+    void persistMatrix(rowsRef.current, padraoKeyRef.current, {
+      requireComplete: false,
+    });
   };
 
   return (
@@ -208,7 +277,10 @@ export function MatrizFornecedoresCard({
         <CardTitle>Matriz de Fornecedores e Custos</CardTitle>
         <p className="text-sm font-normal text-muted-foreground">
           O fornecedor marcado como padrão alimenta os novos cálculos. Os demais
-          ficam disponíveis como alternativas de compra.
+          ficam disponíveis como alternativas de compra. Alterações da matriz são
+          gravadas automaticamente; use &quot;Salvar Insumo&quot; só para o restante
+          do formulário.
+          {saving ? ' Salvando…' : ''}
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -222,9 +294,7 @@ export function MatrizFornecedoresCard({
                 <Label htmlFor={`fornecedor-${row.key}`}>Fornecedor</Label>
                 <Select
                   value={row.fornecedor_id}
-                  onValueChange={(value) =>
-                    updateRow(row.key, { fornecedor_id: value })
-                  }
+                  onValueChange={(value) => changeFornecedor(row.key, value)}
                   disabled={loadingFornecedores || saving}
                 >
                   <SelectTrigger id={`fornecedor-${row.key}`}>
@@ -255,6 +325,7 @@ export function MatrizFornecedoresCard({
                   onValueChange={(value) =>
                     updateRow(row.key, { preco_custo: value })
                   }
+                  onBlur={commitFieldEdits}
                   disabled={saving}
                 />
               </div>
@@ -268,6 +339,7 @@ export function MatrizFornecedoresCard({
                   onChange={(event) =>
                     updateRow(row.key, { codigo_ref: event.target.value })
                   }
+                  onBlur={commitFieldEdits}
                   disabled={saving}
                 />
               </div>
@@ -277,7 +349,7 @@ export function MatrizFornecedoresCard({
                   type="radio"
                   name="fornecedor-padrao"
                   checked={padraoKey === row.key}
-                  onChange={() => setPadraoKey(row.key)}
+                  onChange={() => changePadrao(row.key)}
                   disabled={saving}
                   className="h-4 w-4"
                 />
@@ -308,10 +380,6 @@ export function MatrizFornecedoresCard({
           >
             <Plus className="mr-2 h-4 w-4" />
             Adicionar fornecedor
-          </Button>
-          <Button type="button" onClick={save} disabled={saving}>
-            <Save className="mr-2 h-4 w-4" />
-            {saving ? 'Salvando matriz...' : 'Salvar matriz'}
           </Button>
         </div>
       </CardContent>
