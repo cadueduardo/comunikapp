@@ -1469,24 +1469,6 @@ export function InsumoForm({
            </CardContent>
          </Card>
 
-         <Card>
-           <CardContent className="pt-6 space-y-4">
-            <div className="flex items-center space-x-2">
-                <FormField control={form.control} name="ativo" render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                        <FormControl>
-                            <input
-                                type="checkbox"
-                                checked={field.value}
-                                onChange={field.onChange}
-                                className="h-4 w-4 rounded border-gray-300"
-                            />
-                        </FormControl>
-                        <FormLabel className="text-sm font-normal">Insumo Ativo</FormLabel>
-                    </FormItem>
-                )} />
-            </div>
-
            </CardContent>
          </Card>
 

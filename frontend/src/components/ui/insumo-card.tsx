@@ -12,10 +12,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Package, DollarSign, Tag } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface InsumoCardProps {
   insumo: Insumo;
-  onDelete: (id: string, nome: string) => void;
+  onInactivate: (id: string, nome: string) => void;
+  onReactivate?: (id: string, nome: string) => void;
   onDuplicate?: (id: string) => void;
 }
 
@@ -26,7 +28,14 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export function InsumoCard({ insumo, onDelete, onDuplicate }: InsumoCardProps) {
+export function InsumoCard({
+  insumo,
+  onInactivate,
+  onReactivate,
+  onDuplicate,
+}: InsumoCardProps) {
+  const router = useRouter();
+  const isAtivo = Boolean(insumo.ativo);
   const formatUnidadeCompra = () => {
     return `1 ${insumo.unidade_compra}`;
   };
@@ -109,7 +118,18 @@ export function InsumoCard({ insumo, onDelete, onDuplicate }: InsumoCardProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
+    <div
+      className="bg-white rounded-lg border border-gray-200 p-4 space-y-3 cursor-pointer hover:bg-muted/30"
+      onClick={() => router.push(`/insumos/editar/${insumo.id}`)}
+      role="link"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          router.push(`/insumos/editar/${insumo.id}`);
+        }
+      }}
+    >
       {/* Header com nome e ações */}
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
@@ -119,12 +139,16 @@ export function InsumoCard({ insumo, onDelete, onDuplicate }: InsumoCardProps) {
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
+            <Button
+              variant="ghost"
+              className="h-8 w-8 p-0"
+              onClick={(event) => event.stopPropagation()}
+            >
               <span className="sr-only">Abrir menu</span>
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
             <DropdownMenuLabel>Ações</DropdownMenuLabel>
             <DropdownMenuItem asChild>
               <Link href={`/insumos/editar/${insumo.id}`}>Editar</Link>
@@ -135,9 +159,21 @@ export function InsumoCard({ insumo, onDelete, onDuplicate }: InsumoCardProps) {
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onDelete(insumo.id, insumo.nome)}>
-              Excluir
-            </DropdownMenuItem>
+            {isAtivo ? (
+              <DropdownMenuItem
+                onClick={() => onInactivate(insumo.id, insumo.nome)}
+              >
+                Inativar
+              </DropdownMenuItem>
+            ) : (
+              onReactivate && (
+                <DropdownMenuItem
+                  onClick={() => onReactivate(insumo.id, insumo.nome)}
+                >
+                  Reativar
+                </DropdownMenuItem>
+              )
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

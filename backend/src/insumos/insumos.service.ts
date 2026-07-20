@@ -1574,34 +1574,42 @@ export class InsumosService {
   async remove(id: string, loja: loja) {
     const existingInsumo = await this.findOne(id, loja);
 
-    // Verifica se o insumo está sendo usado em orçamentos
-    const itensOrcamento = await this.prisma.itemorcamento.findMany({
-      where: { insumo_id: id },
-      include: {
-        orcamento: true,
-      },
-    });
-
-    if (itensOrcamento.length > 0) {
-      const orcamentosUsando = itensOrcamento
-        .map(
-          (item) =>
-            `Orçamento #${item.orcamento.numero} - ${item.orcamento.nome_servico}`,
-        )
-        .join(', ');
-
-      throw new BadRequestException(
-        `Não é possível excluir este insumo pois ele está sendo usado nos seguintes orçamentos: ${orcamentosUsando}. ` +
-          'Remova o insumo dos orçamentos antes de excluí-lo.',
-      );
+    if (!existingInsumo.ativo) {
+      return {
+        message: `Insumo "${existingInsumo.nome}" já está inativo.`,
+        ativo: false,
+      };
     }
 
-    await this.prisma.insumo.delete({
+    await this.prisma.insumo.update({
       where: { id },
+      data: { ativo: false },
     });
 
     return {
-      message: `Insumo "${existingInsumo.nome}" foi removido com sucesso.`,
+      message: `Insumo "${existingInsumo.nome}" foi inativado com sucesso.`,
+      ativo: false,
+    };
+  }
+
+  async reativar(id: string, loja: loja) {
+    const existingInsumo = await this.findOne(id, loja);
+
+    if (existingInsumo.ativo) {
+      return {
+        message: `Insumo "${existingInsumo.nome}" já está ativo.`,
+        ativo: true,
+      };
+    }
+
+    await this.prisma.insumo.update({
+      where: { id },
+      data: { ativo: true },
+    });
+
+    return {
+      message: `Insumo "${existingInsumo.nome}" foi reativado com sucesso.`,
+      ativo: true,
     };
   }
 

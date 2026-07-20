@@ -267,6 +267,8 @@ export const insumosApi = {
     token: string,
   ) => ApiClient.patch(`/insumos/${id}/fornecedores`, data, token),
   delete: (id: string, token: string) => ApiClient.delete(`/insumos/${id}`, token),
+  reativar: (id: string, token: string) =>
+    ApiClient.post(`/insumos/${id}/reativar`, {}, token),
   importar: (file: File, token: string) => {
     const formData = new FormData();
     formData.append('file', file);

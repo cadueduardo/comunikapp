@@ -114,4 +114,9 @@ export class InsumosController {
   remove(@Param('id') id: string, @GetLoja() loja: loja) {
     return this.insumosService.remove(id, loja);
   }
+
+  @Post(':id/reativar')
+  reativar(@Param('id') id: string, @GetLoja() loja: loja) {
+    return this.insumosService.reativar(id, loja);
+  }
 }
