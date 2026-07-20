@@ -113,8 +113,8 @@ interface InsumoFormProps {
   lockFornecedorCusto?: boolean;
   /** Conteúdo renderizado antes de Voltar/Salvar Insumo (ex.: matriz de fornecedores). */
   afterFields?: React.ReactNode;
-  /** Em edição, exclui o próprio registro das sugestões de nome. */
-  excludeInsumoId?: string;
+  /** Sugestões de nome só no cadastro novo (não na edição). */
+  sugerirNomesCadastrados?: boolean;
 }
 
 const unidadesDeMedida = UNIDADES_COMPRA;
@@ -149,7 +149,7 @@ export function InsumoForm({
   isSaving,
   lockFornecedorCusto = false,
   afterFields,
-  excludeInsumoId,
+  sugerirNomesCadastrados = false,
 }: InsumoFormProps) {
   const [showExamplesModal, setShowExamplesModal] = useState(false);
   const [tiposMaterial, setTiposMaterial] = useState<Option[]>([]);
@@ -786,11 +786,20 @@ export function InsumoForm({
                 <FormField control={form.control} name="nome" render={({ field }) => (
                     <FormItem>
                     <FormLabel>Nome do Insumo *</FormLabel>
-                    <FormControl><Input placeholder="Ex: Lona XPTO 440g" {...field} /></FormControl>
-                    <NomeInsumoSugestoes
-                      nome={field.value ?? ''}
-                      excludeId={excludeInsumoId}
-                    />
+                    <div className="relative">
+                      <FormControl>
+                        <Input
+                          placeholder="Ex: Lona XPTO 440g"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          {...field}
+                        />
+                      </FormControl>
+                      {sugerirNomesCadastrados ? (
+                        <NomeInsumoSugestoes nome={field.value ?? ''} />
+                      ) : null}
+                    </div>
                     <FormMessage />
                     </FormItem>
                 )} />

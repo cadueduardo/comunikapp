@@ -168,7 +168,6 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
           onSave={handleSave}
           initialData={formInitialData}
           lockFornecedorCusto
-          excludeInsumoId={id}
           afterFields={
             <MatrizFornecedoresCard
               insumoId={id}

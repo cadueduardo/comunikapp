@@ -51,7 +51,7 @@ export default function NovoInsumoPage() {
           Preencha os detalhes do novo insumo abaixo.
         </p>
       </div>
-      <InsumoForm onSave={handleSave} />
+      <InsumoForm onSave={handleSave} sugerirNomesCadastrados />
     </div>
   );
 } 

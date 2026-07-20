@@ -17,27 +17,26 @@ export type InsumoNomeSugestao = {
 
 interface NomeInsumoSugestoesProps {
   nome: string;
-  excludeId?: string;
 }
 
-export function NomeInsumoSugestoes({
-  nome,
-  excludeId,
-}: NomeInsumoSugestoesProps) {
+export function NomeInsumoSugestoes({ nome }: NomeInsumoSugestoesProps) {
   const router = useRouter();
   const [sugestoes, setSugestoes] = useState<InsumoNomeSugestao[]>([]);
   const [loading, setLoading] = useState(false);
   const [reativandoId, setReativandoId] = useState<string | null>(null);
+  const [aberto, setAberto] = useState(false);
 
   useEffect(() => {
     const termo = nome.trim();
     if (termo.length < 2) {
       setSugestoes([]);
       setLoading(false);
+      setAberto(false);
       return;
     }
 
     let cancelled = false;
+    setAberto(true);
     const timer = window.setTimeout(async () => {
       const token = localStorage.getItem('access_token');
       if (!token) return;
@@ -45,7 +44,6 @@ export function NomeInsumoSugestoes({
       try {
         const data = (await insumosApi.buscarPorNome(token, termo, {
           limit: 8,
-          excludeId,
         })) as InsumoNomeSugestao[];
         if (!cancelled) setSugestoes(Array.isArray(data) ? data : []);
       } catch (error) {
@@ -62,9 +60,13 @@ export function NomeInsumoSugestoes({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [nome, excludeId]);
+  }, [nome]);
 
-  if (nome.trim().length < 2) {
+  if (!aberto || nome.trim().length < 2) {
+    return null;
+  }
+
+  if (!loading && sugestoes.length === 0) {
     return null;
   }
 
@@ -90,44 +92,47 @@ export function NomeInsumoSugestoes({
     }
   };
 
-  if (!loading && sugestoes.length === 0) {
-    return null;
-  }
-
   return (
-    <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-      <p className="text-xs font-medium text-muted-foreground">
-        {loading ? 'Buscando insumos cadastrados…' : 'Insumos cadastrados'}
+    <div
+      className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-auto rounded-md border bg-popover p-2 text-popover-foreground shadow-md"
+      role="listbox"
+      aria-label="Insumos cadastrados"
+    >
+      <p className="px-2 py-1 text-xs font-medium text-muted-foreground">
+        {loading ? 'Buscando…' : 'Insumos cadastrados'}
       </p>
 
       {matchExato && (
-        <p className="text-xs text-amber-700 dark:text-amber-400">
-          Já existe um insumo com este nome exato
-          {!matchExato.ativo ? ' (inativo)' : ''}. O cadastro novo será
-          bloqueado; abra o existente ou reative-o.
+        <p className="px-2 pb-2 text-xs text-amber-700 dark:text-amber-400">
+          Nome idêntico já existe
+          {!matchExato.ativo ? ' (inativo)' : ''}. Abra o cadastro ou reative —
+          um novo com o mesmo nome será bloqueado.
         </p>
       )}
 
-      <ul className="space-y-2">
+      <ul className="space-y-1">
         {sugestoes.map((item) => (
           <li
             key={item.id}
-            className="flex flex-col gap-2 rounded-md border bg-background p-2 sm:flex-row sm:items-center sm:justify-between"
+            className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-accent"
           >
-            <div className="min-w-0 space-y-0.5">
+            <button
+              type="button"
+              className="min-w-0 flex-1 text-left"
+              onClick={() => router.push(`/insumos/editar/${item.id}`)}
+            >
               <p className="truncate text-sm font-medium">{item.nome}</p>
               <p className="truncate text-xs text-muted-foreground">
                 {item.categoria?.nome ?? 'Sem categoria'}
                 {item.fornecedor?.nome ? ` · ${item.fornecedor.nome}` : ''}
                 {' · '}
                 {item.ativo ? 'Ativo' : 'Inativo'}
-                {item.match_exato ? ' · nome idêntico' : ''}
               </p>
-            </div>
-            <div className="flex shrink-0 gap-2">
+            </button>
+            <div className="flex shrink-0 gap-1">
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={() => router.push(`/insumos/editar/${item.id}`)}
               >
@@ -136,11 +141,12 @@ export function NomeInsumoSugestoes({
               {!item.ativo && (
                 <Button
                   type="button"
+                  variant="secondary"
                   size="sm"
                   disabled={reativandoId === item.id}
                   onClick={() => handleReativar(item)}
                 >
-                  {reativandoId === item.id ? 'Reativando…' : 'Reativar'}
+                  {reativandoId === item.id ? '…' : 'Reativar'}
                 </Button>
               )}
             </div>

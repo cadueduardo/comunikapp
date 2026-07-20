@@ -40,9 +40,9 @@ test('sugestoes sao leves e marcam match exato', () => {
   assert.match(service, /take: safeLimit/);
 });
 
-test('ui de sugestoes nao impede cadastro similar', () => {
+test('ui de sugestoes e flutuante e so no cadastro novo', () => {
   assert.match(sugestoesUi, /Insumos cadastrados/);
+  assert.match(sugestoesUi, /absolute left-0 right-0 top-full z-50/);
   assert.match(sugestoesUi, /Abrir/);
   assert.match(sugestoesUi, /Reativar/);
-  assert.doesNotMatch(sugestoesUi, /disabled=\{true\}/);
 });
