@@ -1477,9 +1477,6 @@ export function InsumoForm({
            </CardContent>
          </Card>
 
-           </CardContent>
-         </Card>
-
         {afterFields}
 
         <div className="flex justify-end gap-2">
