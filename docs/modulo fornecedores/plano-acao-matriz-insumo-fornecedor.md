@@ -746,5 +746,21 @@ Essas regras não alteram schema, migrations, fases ou critérios de aceite dest
 2. Fases 1–3 implementadas e validadas em sequência sobre cópia descartável fiel à produção.
 3. Fases 4–5 implementadas e validadas por build, contratos estáticos e execução integrada contra a cópia migrada.
 4. Nenhuma migration, backfill ou versão da matriz foi aplicada em produção.
-5. O próximo gate é concluir os testes backend ainda pendentes, tratar explicitamente os quatro vínculos legados de categoria entre lojas e executar o smoke manual da interface em ambiente controlado.
-6. O deploy de produção continua condicionado a novo backup verificado, janela controlada, sequência Fase 1 → backfill → Fase 3 → backend → frontend e validação final dos invariantes.
+5. Gate local (2026-07-20), branch `codex/orcamentos-fornecedor-previsto` (contém a matriz + fornecedor previsto):
+   - Testes de contrato da matriz/fornecedor previsto: 27 + 3 novos = verdes.
+   - Inventário local de `Insumo.categoriaId` cross-loja: **0 ocorrências** (os quatro casos existem na cópia de produção, não no banco local atual).
+   - Script `backend/scripts/fix-insumo-categoria-cross-loja.js` preparado em dry-run por padrão; apply só com `--confirmation=CORRIGIR_CATEGORIA_CROSS_LOJA` e somente remapeamento unívoco por nome.
+   - `InsumosService.update` passou a rejeitar `categoriaId` de outra loja (create já rejeitava).
+6. Smoke manual da UI em ambiente local controlado (checklist abaixo) ainda é o próximo passo operacional antes de qualquer deploy.
+7. O deploy de produção continua condicionado a novo backup verificado, janela controlada, sequência Fase 1 → backfill → Fase 3 → backend → frontend, correção dos quatro vínculos de categoria (script acima, após dry-run no ambiente real) e validação final dos invariantes.
+
+### Checklist de smoke local (ambiente controlado)
+
+- [ ] `npm run dev` saudável; `GET /api/fornecedores` sem `P2021`.
+- [ ] Editar insumo: custo/fornecedor padrão somente leitura; card da matriz salva de forma independente.
+- [ ] Matriz: adicionar 2º fornecedor, trocar padrão, recusar zero linhas / dois padrões.
+- [ ] Duplicar insumo: nasce com matriz inicial (um padrão).
+- [ ] Orçamento V2: material com 2+ fornecedores mostra “Fonte do custo” e comparação (até 3).
+- [ ] Troca de fornecedor previsto altera só a linha e a prévia; padrão global do insumo não muda.
+- [ ] Após salvar rascunho e reabrir, fotografia do fornecedor previsto permanece.
+- [ ] Dry-run: `node backend/scripts/fix-insumo-categoria-cross-loja.js` reporta `total: 0` no local.

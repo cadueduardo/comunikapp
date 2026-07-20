@@ -1346,6 +1346,25 @@ export class InsumosService {
       ...dataWithoutExtraFields
     } = updateInsumoDto;
 
+    if (
+      dataWithoutExtraFields.categoriaId !== undefined &&
+      dataWithoutExtraFields.categoriaId !== null &&
+      dataWithoutExtraFields.categoriaId !== ''
+    ) {
+      const categoria = await this.prisma.categoria.findFirst({
+        where: {
+          id: dataWithoutExtraFields.categoriaId,
+          loja_id: loja.id,
+        },
+        select: { id: true },
+      });
+      if (!categoria) {
+        throw new BadRequestException(
+          `Categoria não encontrada na loja do insumo (ID: ${dataWithoutExtraFields.categoriaId}).`,
+        );
+      }
+    }
+
     console.log('🔍 InsumosService.update - Dados recebidos:', {
       logica_consumo: updateInsumoDto.logica_consumo,
       tipo_material_id: tipo_material_id,
