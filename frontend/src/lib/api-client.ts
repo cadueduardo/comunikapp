@@ -235,6 +235,17 @@ export const platformApi = {
 
 export const insumosApi = {
   getAll: (token: string) => ApiClient.get('/insumos', token),
+  buscarPorNome: (
+    token: string,
+    q: string,
+    options?: { limit?: number; excludeId?: string },
+  ) => {
+    const params = new URLSearchParams();
+    params.set('q', q);
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.excludeId) params.set('excludeId', options.excludeId);
+    return ApiClient.get(`/insumos/busca?${params.toString()}`, token);
+  },
   getById: (id: string, token: string) => ApiClient.get(`/insumos/${id}`, token),
   getOpcoesFornecedoresOrcamento: (
     id: string,

@@ -884,6 +884,47 @@ export class InsumosService {
     };
   }
 
+  async buscarSugestoesPorNome(
+    loja: loja,
+    q: string,
+    limit = 8,
+    excludeId?: string,
+  ) {
+    const termo = (q ?? '').trim();
+    if (termo.length < 2) {
+      return [];
+    }
+
+    const safeLimit = Math.min(Math.max(Math.trunc(limit) || 8, 1), 20);
+
+    const rows = await this.prisma.insumo.findMany({
+      where: {
+        loja_id: loja.id,
+        nome: { contains: termo },
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
+      select: {
+        id: true,
+        nome: true,
+        ativo: true,
+        categoria: { select: { id: true, nome: true } },
+        fornecedor: { select: { id: true, nome: true } },
+      },
+      orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
+      take: safeLimit,
+    });
+
+    const termoNorm = termo.toLocaleLowerCase('pt-BR');
+    return rows.map((row) => ({
+      id: row.id,
+      nome: row.nome,
+      ativo: row.ativo,
+      categoria: row.categoria,
+      fornecedor: row.fornecedor,
+      match_exato: row.nome.trim().toLocaleLowerCase('pt-BR') === termoNorm,
+    }));
+  }
+
   async findAll(loja: loja) {
     const insumos = await this.prisma.insumo.findMany({
       where: { loja_id: loja.id },

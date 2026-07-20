@@ -39,6 +39,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { categoriasApi, fornecedoresApi, tiposMaterialApi, estoqueApi } from '@/lib/api-client';
+import { NomeInsumoSugestoes } from './nome-insumo-sugestoes';
 import {
   FornecedorForm,
   type FornecedorFormValues,
@@ -112,6 +113,8 @@ interface InsumoFormProps {
   lockFornecedorCusto?: boolean;
   /** Conteúdo renderizado antes de Voltar/Salvar Insumo (ex.: matriz de fornecedores). */
   afterFields?: React.ReactNode;
+  /** Em edição, exclui o próprio registro das sugestões de nome. */
+  excludeInsumoId?: string;
 }
 
 const unidadesDeMedida = UNIDADES_COMPRA;
@@ -146,6 +149,7 @@ export function InsumoForm({
   isSaving,
   lockFornecedorCusto = false,
   afterFields,
+  excludeInsumoId,
 }: InsumoFormProps) {
   const [showExamplesModal, setShowExamplesModal] = useState(false);
   const [tiposMaterial, setTiposMaterial] = useState<Option[]>([]);
@@ -783,6 +787,10 @@ export function InsumoForm({
                     <FormItem>
                     <FormLabel>Nome do Insumo *</FormLabel>
                     <FormControl><Input placeholder="Ex: Lona XPTO 440g" {...field} /></FormControl>
+                    <NomeInsumoSugestoes
+                      nome={field.value ?? ''}
+                      excludeId={excludeInsumoId}
+                    />
                     <FormMessage />
                     </FormItem>
                 )} />

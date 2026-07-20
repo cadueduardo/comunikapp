@@ -55,6 +55,22 @@ export class InsumosController {
     return this.insumosService.findAll(loja);
   }
 
+  @Get('busca')
+  buscarPorNome(
+    @GetLoja() loja: loja,
+    @Query('q') q?: string,
+    @Query('limit') limit?: string,
+    @Query('excludeId') excludeId?: string,
+  ) {
+    const parsedLimit = limit ? Number(limit) : 8;
+    return this.insumosService.buscarSugestoesPorNome(
+      loja,
+      q ?? '',
+      Number.isFinite(parsedLimit) ? parsedLimit : 8,
+      excludeId,
+    );
+  }
+
   @Post(':id/duplicar')
   duplicar(@Param('id') id: string, @GetLoja() loja: loja) {
     return this.insumosService.duplicar(id, loja);
