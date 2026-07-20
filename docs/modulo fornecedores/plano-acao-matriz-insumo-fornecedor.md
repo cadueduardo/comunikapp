@@ -757,7 +757,7 @@ Essas regras não alteram schema, migrations, fases ou critérios de aceite dest
 ### Checklist de smoke local (ambiente controlado)
 
 - [ ] `npm run dev` saudável; `GET /api/fornecedores` sem `P2021`.
-- [ ] Editar insumo: custo/fornecedor padrão somente leitura; matriz auto-persiste (sem “Salvar matriz”).
+- [ ] Editar insumo: custo/fornecedor padrão somente leitura; matriz auto-persiste (sem “Salvar matriz”); **Salvar Insumo** permanece no final da tela.
 - [ ] Matriz: adicionar 2º fornecedor, trocar padrão, recusar zero linhas / dois padrões.
 - [ ] Duplicar insumo: nasce com matriz inicial (um padrão).
 - [ ] Orçamento V2: material com 2+ fornecedores mostra “Fonte do custo” e comparação (até 3).

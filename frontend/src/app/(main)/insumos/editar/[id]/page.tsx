@@ -168,25 +168,27 @@ export default function EditarInsumoPage({ params }: { params: Promise<{ id: str
           onSave={handleSave}
           initialData={formInitialData}
           lockFornecedorCusto
-        />
-        <MatrizFornecedoresCard
-          insumoId={id}
-          initialRows={
-            (insumo.fornecedores_associados ?? []) as MatrizFornecedorApi[]
+          afterFields={
+            <MatrizFornecedoresCard
+              insumoId={id}
+              initialRows={
+                (insumo.fornecedores_associados ?? []) as MatrizFornecedorApi[]
+              }
+              onSaved={(result) => {
+                const padrao = result.fornecedores.find((item) => item.padrao);
+                setInsumo((current) =>
+                  current
+                    ? {
+                        ...current,
+                        fornecedor: padrao?.fornecedor ?? current.fornecedor,
+                        custo_unitario: result.custo_unitario,
+                        fornecedores_associados: result.fornecedores,
+                      }
+                    : current,
+                );
+              }}
+            />
           }
-          onSaved={(result) => {
-            const padrao = result.fornecedores.find((item) => item.padrao);
-            setInsumo((current) =>
-              current
-                ? {
-                    ...current,
-                    fornecedor: padrao?.fornecedor ?? current.fornecedor,
-                    custo_unitario: result.custo_unitario,
-                    fornecedores_associados: result.fornecedores,
-                  }
-                : current,
-            );
-          }}
         />
       </div>
     </div>

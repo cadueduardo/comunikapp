@@ -110,6 +110,8 @@ interface InsumoFormProps {
   onSave: (data: InsumoFormValues) => void;
   isSaving?: boolean;
   lockFornecedorCusto?: boolean;
+  /** Conteúdo renderizado antes de Voltar/Salvar Insumo (ex.: matriz de fornecedores). */
+  afterFields?: React.ReactNode;
 }
 
 const unidadesDeMedida = UNIDADES_COMPRA;
@@ -143,6 +145,7 @@ export function InsumoForm({
   initialData,
   isSaving,
   lockFornecedorCusto = false,
+  afterFields,
 }: InsumoFormProps) {
   const [showExamplesModal, setShowExamplesModal] = useState(false);
   const [tiposMaterial, setTiposMaterial] = useState<Option[]>([]);
@@ -1486,7 +1489,9 @@ export function InsumoForm({
 
            </CardContent>
          </Card>
-        
+
+        {afterFields}
+
         <div className="flex justify-end gap-2">
             <Link href="/insumos"><Button type="button" variant="outline"><ArrowLeft className="h-4 w-4 mr-2" />Voltar</Button></Link>
             <Button type="submit" disabled={isSaving}><Save className="h-4 w-4 mr-2" />{isSaving ? 'Salvando...' : 'Salvar Insumo'}</Button>

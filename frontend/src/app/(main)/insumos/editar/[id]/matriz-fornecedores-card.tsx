@@ -277,9 +277,8 @@ export function MatrizFornecedoresCard({
         <CardTitle>Matriz de Fornecedores e Custos</CardTitle>
         <p className="text-sm font-normal text-muted-foreground">
           O fornecedor marcado como padrão alimenta os novos cálculos. Os demais
-          ficam disponíveis como alternativas de compra. Alterações da matriz são
-          gravadas automaticamente; use &quot;Salvar Insumo&quot; só para o restante
-          do formulário.
+          ficam disponíveis como alternativas de compra. Alterações desta matriz
+          são gravadas automaticamente.
           {saving ? ' Salvando…' : ''}
         </p>
       </CardHeader>
