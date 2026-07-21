@@ -177,10 +177,7 @@ export class FechamentoFinanceiroOsService {
       versaoAtual: fechamento.versao,
     });
 
-    if (!transicao.ok) {
-      if (transicao.codigo === 'MOTIVO_OBRIGATORIO') {
-        throw new BadRequestException(transicao.mensagem);
-      }
+    if (transicao.ok === false) {
       throw new BadRequestException(transicao.mensagem);
     }
 
