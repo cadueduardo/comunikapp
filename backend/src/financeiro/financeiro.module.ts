@@ -9,9 +9,10 @@ import { ParcelasBuilderService } from './services/parcelas-builder.service';
 import { StatusRollupService } from './services/status-rollup.service';
 import { CobrancaVencimentoService } from './services/cobranca-vencimento.service';
 import { VencimentoCobrancasJob } from './jobs/vencimento-cobrancas.job';
+import { ContasPagarModule } from './contas-pagar/contas-pagar.module';
 
 /**
- * Modulo do financeiro minimo (Fase 6).
+ * Modulo do financeiro minimo (Fase 6) + Contas a Pagar (Compras MVP Fase 4).
  *
  * Exporta `CobrancasService` para que o modulo de Orcamentos V2 possa criar
  * a cobranca automaticamente apos aprovar um orcamento, e
@@ -22,10 +23,17 @@ import { VencimentoCobrancasJob } from './jobs/vencimento-cobrancas.job';
  * de vencimento diario (Fase 6.E) - nao ha dependencia circular pois o
  * HomeOperacionalModule nao importa o FinanceiroModule.
  *
- * As 5 sub-fases (6.A a 6.E) compartilham este modulo.
+ * `ContasPagarModule` registra rotas em `/financeiro/contas-pagar` e
+ * `/financeiro/pagamentos` (obrigacoes a fornecedores).
  */
 @Module({
-  imports: [PrismaModule, AuthModule, HomeOperacionalModule, InstalacaoModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    HomeOperacionalModule,
+    InstalacaoModule,
+    ContasPagarModule,
+  ],
   controllers: [FinanceiroController],
   providers: [
     CobrancasService,
@@ -39,6 +47,7 @@ import { VencimentoCobrancasJob } from './jobs/vencimento-cobrancas.job';
     CobrancaVencimentoService,
     ParcelasBuilderService,
     StatusRollupService,
+    ContasPagarModule,
   ],
 })
 export class FinanceiroModule {}

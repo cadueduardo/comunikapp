@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ClipboardList, ShoppingCart } from 'lucide-react';
+import { Banknote, ClipboardList, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -15,7 +15,7 @@ export default function ComprasHomePage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -55,6 +55,25 @@ export default function ComprasHomePage() {
               </Button>
               <Button asChild variant="outline">
                 <Link href="/compras/pedidos/novo">Novo</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Banknote className="h-5 w-5" />
+              Contas a pagar
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Obrigações com fornecedores, parcelas e pagamentos.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild>
+                <Link href="/financeiro/contas-pagar">Ver listagem</Link>
               </Button>
             </div>
           </CardContent>

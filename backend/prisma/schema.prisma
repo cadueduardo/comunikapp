@@ -551,6 +551,7 @@ model fornecedor {
   insumos_associados             InsumoFornecedor[]
   itens_insumo_previstos         ItemInsumo[]              @relation("ItemInsumoFornecedorPrevisto")
   pedidos_compra                 PedidoCompra[]
+  contas_pagar                   ContaPagar[]
 
   @@unique([loja_id, nome], map: "Fornecedor_loja_id_nome_key")
   @@index([loja_id], map: "Fornecedor_loja_id_idx")
@@ -656,6 +657,10 @@ model loja {
   compras_historico              CompraHistorico[]
   recebimentos_compra            RecebimentoCompra[]
   aceites_servico                AceiteServico[]
+  contas_pagar                   ContaPagar[]
+  contas_pagar_parcelas          ContaPagarParcela[]
+  pagamentos_fornecedor          PagamentoFornecedor[]
+  pagamentos_fornecedor_apropriacoes PagamentoFornecedorApropriacao[]
   maquina                        maquina[]
   notificacao                    notificacao[]
   orcamento                      orcamento[]
@@ -766,6 +771,7 @@ enum DestinoApropriacaoCompra {
   ITEM_OS
   ESTOQUE
   CENTRO_CUSTO
+  ADMINISTRATIVO
 }
 
 model SolicitacaoCompra {
@@ -854,6 +860,7 @@ model PedidoCompra {
   itens              PedidoCompraItem[]
   recebimentos       RecebimentoCompra[]
   aceites            AceiteServico[]
+  contas_pagar       ContaPagar[]
 
   @@unique([loja_id, numero])
   @@index([loja_id, status])
@@ -915,6 +922,7 @@ model PedidoCompraItemApropriacao {
   pedido_item PedidoCompraItem @relation(fields: [pedido_item_id], references: [id], onDelete: Cascade)
   os          OrdemServico?    @relation(fields: [os_id], references: [id], onDelete: SetNull)
   item_os     ItemOS?          @relation("PedidoCompraApropriacaoItemOS", fields: [item_os_id], references: [id], onDelete: SetNull)
+  pagamentos_apropriacoes PagamentoFornecedorApropriacao[]
 
   @@index([loja_id])
   @@index([pedido_item_id])
@@ -1059,6 +1067,133 @@ model AceiteServicoItem {
   @@index([aceite_id])
   @@index([pedido_item_id])
   @@map("aceite_servico_itens")
+}
+
+enum StatusContaPagar {
+  PREVISTA
+  ABERTA
+  PARCIAL_PAGO
+  PAGA
+  VENCIDA
+  CANCELADA
+}
+
+enum StatusParcelaContaPagar {
+  PREVISTO
+  PARCIAL_PAGO
+  PAGO
+  VENCIDO
+  CANCELADA
+}
+
+model ContaPagar {
+  id                String           @id @default(cuid())
+  loja_id           String
+  fornecedor_id     String
+  pedido_id         String?
+  tipo_documento    String
+  numero_documento  String
+  data_emissao      DateTime
+  data_competencia  DateTime?
+  valor_total       Decimal          @db.Decimal(12, 2)
+  valor_pago        Decimal          @default(0) @db.Decimal(12, 2)
+  status            StatusContaPagar @default(PREVISTA)
+  observacao        String?          @db.Text
+  chave_idempotente String?
+  criado_em         DateTime         @default(now())
+  atualizado_em     DateTime         @updatedAt
+
+  loja        loja                 @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  fornecedor  fornecedor           @relation(fields: [fornecedor_id], references: [id], onDelete: Restrict)
+  pedido      PedidoCompra?        @relation(fields: [pedido_id], references: [id], onDelete: SetNull)
+  parcelas    ContaPagarParcela[]
+  pagamentos  PagamentoFornecedor[]
+
+  @@unique([loja_id, fornecedor_id, tipo_documento, numero_documento])
+  @@unique([loja_id, chave_idempotente])
+  @@index([loja_id, status])
+  @@index([fornecedor_id])
+  @@index([pedido_id])
+  @@map("contas_pagar")
+}
+
+model ContaPagarParcela {
+  id               String                   @id @default(cuid())
+  loja_id          String
+  conta_pagar_id   String
+  numero_parcela   Int
+  valor_previsto   Decimal                  @db.Decimal(12, 2)
+  valor_pago       Decimal                  @default(0) @db.Decimal(12, 2)
+  data_vencimento  DateTime
+  status           StatusParcelaContaPagar  @default(PREVISTO)
+  criado_em        DateTime                 @default(now())
+  atualizado_em    DateTime                 @updatedAt
+
+  loja       loja                  @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  conta      ContaPagar            @relation(fields: [conta_pagar_id], references: [id], onDelete: Cascade)
+  pagamentos PagamentoFornecedor[]
+
+  @@unique([conta_pagar_id, numero_parcela])
+  @@index([loja_id])
+  @@index([conta_pagar_id])
+  @@map("contas_pagar_parcelas")
+}
+
+model PagamentoFornecedor {
+  id                String    @id @default(cuid())
+  loja_id           String
+  conta_pagar_id    String
+  parcela_id        String?
+  valor             Decimal   @db.Decimal(12, 2)
+  data_pagamento    DateTime
+  metodo            String
+  referencia        String?
+  usuario_id        String
+  estornado         Boolean   @default(false)
+  estornado_em      DateTime?
+  estornado_por     String?
+  motivo_estorno    String?   @db.Text
+  chave_idempotente String?
+  criado_em         DateTime  @default(now())
+
+  loja         loja                             @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  conta        ContaPagar                       @relation(fields: [conta_pagar_id], references: [id], onDelete: Restrict)
+  parcela      ContaPagarParcela?               @relation(fields: [parcela_id], references: [id], onDelete: SetNull)
+  usuario      usuario                          @relation("PagamentoFornecedorUsuario", fields: [usuario_id], references: [id], onDelete: Restrict)
+  apropriacoes PagamentoFornecedorApropriacao[]
+
+  @@unique([loja_id, chave_idempotente])
+  @@index([loja_id])
+  @@index([conta_pagar_id])
+  @@index([parcela_id])
+  @@index([usuario_id])
+  @@map("pagamentos_fornecedor")
+}
+
+model PagamentoFornecedorApropriacao {
+  id                          String                    @id @default(cuid())
+  loja_id                     String
+  pagamento_id                String
+  destino_tipo                DestinoApropriacaoCompra
+  os_id                       String?
+  item_os_id                  String?
+  centro_custo                String?
+  pedido_item_apropriacao_id  String?
+  valor                       Decimal                   @db.Decimal(12, 2)
+  criado_em                   DateTime                  @default(now())
+
+  loja                     loja                          @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  pagamento                PagamentoFornecedor           @relation(fields: [pagamento_id], references: [id], onDelete: Cascade)
+  os                       OrdemServico?                 @relation(fields: [os_id], references: [id], onDelete: SetNull)
+  item_os                  ItemOS?                       @relation("PagamentoApropriacaoItemOS", fields: [item_os_id], references: [id], onDelete: SetNull)
+  pedido_item_apropriacao  PedidoCompraItemApropriacao?  @relation(fields: [pedido_item_apropriacao_id], references: [id], onDelete: SetNull)
+
+  @@index([loja_id])
+  @@index([pagamento_id])
+  @@index([os_id])
+  @@index([item_os_id])
+  @@index([pedido_item_apropriacao_id])
+  @@map("pagamentos_fornecedor_apropriacoes")
 }
 
 model maquina {
@@ -1795,6 +1930,7 @@ model usuario {
   compras_historico               CompraHistorico[]   @relation("CompraHistoricoUsuario")
   recebimentos_responsavel        RecebimentoCompra[] @relation("RecebimentoCompraResponsavel")
   aceites_responsavel             AceiteServico[]     @relation("AceiteServicoResponsavel")
+  pagamentos_fornecedor           PagamentoFornecedor[] @relation("PagamentoFornecedorUsuario")
 
   @@index([loja_id], map: "Usuario_loja_id_idx")
 }
@@ -2275,6 +2411,7 @@ model OrdemServico {
 
   // Relacionamentos Compras (MVP Fase 1)
   apropriacoes_compra PedidoCompraItemApropriacao[]
+  pagamentos_fornecedor_apropriacoes PagamentoFornecedorApropriacao[]
 
   @@unique([loja_id, numero])
   @@index([loja_id, status])
@@ -2374,6 +2511,7 @@ model ItemOS {
   ordem_terceirizacao OrdemTerceirizacao?
   solicitacao_compra_itens SolicitacaoCompraItem[]
   apropriacoes_compra      PedidoCompraItemApropriacao[] @relation("PedidoCompraApropriacaoItemOS")
+  pagamentos_fornecedor_apropriacoes PagamentoFornecedorApropriacao[] @relation("PagamentoApropriacaoItemOS")
 
   @@index([os_id])
   @@index([status_liberacao_pcp])

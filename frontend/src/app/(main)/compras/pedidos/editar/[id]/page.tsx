@@ -25,6 +25,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import {
   comprasApi,
+  contasPagarApi,
   fornecedoresApi,
   type FornecedorApi,
   type PedidoCompraApi,
@@ -191,6 +192,34 @@ export default function EditarPedidoPage({
                 <Link href={`/compras/pedidos/${pedido.id}/aceites/novo`}>
                   Aceitar serviço
                 </Link>
+              </Button>
+              <Button
+                disabled={busy}
+                variant="outline"
+                onClick={() => {
+                  void (async () => {
+                    setBusy(true);
+                    try {
+                      const conta = await contasPagarApi.createFromPedido(
+                        id,
+                        tokenOrThrow(),
+                      );
+                      toast.success('Conta a pagar gerada.');
+                      router.push(`/financeiro/contas-pagar/${conta.id}`);
+                    } catch (error) {
+                      console.error(error);
+                      toast.error(
+                        error instanceof Error
+                          ? error.message
+                          : 'Falha ao gerar conta a pagar.',
+                      );
+                    } finally {
+                      setBusy(false);
+                    }
+                  })();
+                }}
+              >
+                Gerar conta a pagar
               </Button>
             </>
           )}

@@ -866,10 +866,12 @@ Detalhamento: `docs/modulo de compras/fase-0-descoberta-contratos.md` (2026-07-2
 
 ### Fase 4 — Contas a pagar
 
-- [ ] Conta, parcelas e pagamentos.
-- [ ] Apropriações.
-- [ ] Estorno.
-- [ ] Permissões financeiras.
+- [x] Conta, parcelas e pagamentos.
+- [x] Apropriações.
+- [x] Estorno.
+- [x] Permissões financeiras.
+- [x] UI mínima (`/financeiro/contas-pagar` + gerar a partir do pedido).
+- [x] Smoke E2E: `backend/scripts/compras-e2e-fluxo-completo.mjs`.
 
 ### Fase 5 — Pós-cálculo
 

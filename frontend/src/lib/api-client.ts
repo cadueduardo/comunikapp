@@ -464,6 +464,127 @@ export const comprasApi = {
     ),
 };
 
+export type StatusContaPagarApi =
+  | 'PREVISTA'
+  | 'ABERTA'
+  | 'PARCIAL_PAGO'
+  | 'PAGA'
+  | 'VENCIDA'
+  | 'CANCELADA';
+
+export type StatusParcelaContaPagarApi =
+  | 'PREVISTO'
+  | 'PARCIAL_PAGO'
+  | 'PAGO'
+  | 'VENCIDO'
+  | 'CANCELADA';
+
+export type MetodoPagamentoFornecedorApi =
+  | 'PIX'
+  | 'TED'
+  | 'BOLETO'
+  | 'DINHEIRO'
+  | 'CARTAO'
+  | 'OUTRO';
+
+export interface ContaPagarParcelaApi {
+  id: string;
+  numero_parcela: number;
+  valor_previsto: number | string;
+  valor_pago: number | string;
+  data_vencimento: string;
+  status: StatusParcelaContaPagarApi;
+}
+
+export interface PagamentoFornecedorApi {
+  id: string;
+  valor: number | string;
+  data_pagamento: string;
+  metodo: MetodoPagamentoFornecedorApi | string;
+  referencia?: string | null;
+  estornado: boolean;
+  estornado_em?: string | null;
+  motivo_estorno?: string | null;
+  criado_em: string;
+}
+
+export interface ContaPagarApi {
+  id: string;
+  fornecedor_id: string;
+  pedido_id?: string | null;
+  tipo_documento: string;
+  numero_documento: string;
+  data_emissao: string;
+  valor_total: number | string;
+  valor_pago: number | string;
+  status: StatusContaPagarApi;
+  observacao?: string | null;
+  parcelas?: ContaPagarParcelaApi[];
+  pagamentos?: PagamentoFornecedorApi[];
+  fornecedor?: { id: string; nome: string; razao_social?: string | null };
+  pedido?: { id: string; numero: string; total?: number | string; status?: string };
+}
+
+export interface ContasPagarListParams {
+  status?: string;
+  fornecedor_id?: string;
+  pedido_id?: string;
+}
+
+export const contasPagarApi = {
+  list: (token: string, params?: ContasPagarListParams) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.fornecedor_id) qs.set('fornecedor_id', params.fornecedor_id);
+    if (params?.pedido_id) qs.set('pedido_id', params.pedido_id);
+    const query = qs.toString();
+    return ApiClient.get<ContaPagarApi[]>(
+      `/financeiro/contas-pagar${query ? `?${query}` : ''}`,
+      token,
+    );
+  },
+  get: (id: string, token: string) =>
+    ApiClient.get<ContaPagarApi>(`/financeiro/contas-pagar/${id}`, token),
+  createFromPedido: (pedidoId: string, token: string) =>
+    ApiClient.post<ContaPagarApi>(
+      `/financeiro/contas-pagar/from-pedido/${pedidoId}`,
+      {},
+      token,
+    ),
+  registrarPagamento: (
+    contaId: string,
+    data: {
+      valor: number;
+      data_pagamento: string;
+      metodo: MetodoPagamentoFornecedorApi;
+      referencia?: string;
+      parcela_id?: string;
+    },
+    token: string,
+  ) =>
+    ApiClient.post<PagamentoFornecedorApi>(
+      `/financeiro/contas-pagar/${contaId}/pagamentos`,
+      data,
+      token,
+    ),
+  cancelar: (contaId: string, data: { motivo: string }, token: string) =>
+    ApiClient.post<ContaPagarApi>(
+      `/financeiro/contas-pagar/${contaId}/cancelar`,
+      data,
+      token,
+    ),
+  estornarPagamento: (
+    pagamentoId: string,
+    data: { motivo: string },
+    token: string,
+  ) =>
+    ApiClient.post<PagamentoFornecedorApi>(
+      `/financeiro/pagamentos/${pagamentoId}/estornar`,
+      data,
+      token,
+    ),
+};
+
 export const notificacoesApi = {
   getAll: (token: string, limit?: number, offset?: number) => {
     const params = new URLSearchParams();
