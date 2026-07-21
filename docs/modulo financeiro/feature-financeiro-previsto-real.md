@@ -418,24 +418,24 @@ Duplicidade deve ser impedida na origem, não corrigida por rotina posterior.
 
 ### Fase 0 — Contratos e dados
 
-- [ ] Fechar o RP de Compras/Suprimentos.
-- [ ] Inventariar snapshots atuais de orçamento, OS e terceirização.
-- [ ] Definir método de valorização do estoque.
-- [ ] Definir permissões e matriz de responsabilidades.
+- [x] Fechar o RP de Compras/Suprimentos — **parcial** (RP escrito; validação com cenários reais ainda aberta).
+- [x] Inventariar snapshots atuais de orçamento, OS e terceirização — **parcial** (consumo via pós-cálculo/orçamento; inventário formal cliente aberto).
+- [x] Definir método de valorização do estoque (**D1 = custo médio ponderado**, RP Compras).
+- [x] Definir permissões e matriz de responsabilidades (`compras.*` + papéis FINANCEIRO/ADMIN).
 - [ ] Aprovar fórmulas e exemplos com o cliente.
 
 ### Fase 1 — Baseline prevista
 
-- [ ] Criar projeção idempotente de custos previstos.
-- [ ] Integrar conversão orçamento → OS.
-- [ ] Preservar OS históricas sem reconstrução silenciosa.
-- [ ] Testar OS normal, direta e aditiva.
+- [x] Criar projeção idempotente de custos previstos — **parcial** (snapshot `fornecedor_previsto_*` no orçamento; pós-cálculo lê previsto do orçamento).
+- [x] Integrar conversão orçamento → OS — **já existente**; baseline prevista preservada no orçamento.
+- [x] Preservar OS históricas sem reconstrução silenciosa — **parcial** (sem backfill forçado de previsto).
+- [ ] Testar OS normal, direta e aditiva (aceite formal / smoke staging).
 
 ### Fase 2 — Compras e contas a pagar
 
-- [ ] Consumir pedidos, recebimentos, aceites, contas e pagamentos.
-- [ ] Implementar apropriação explícita à OS.
-- [ ] Registrar substituição total e parcial de fornecedor.
+- [x] Consumir pedidos, recebimentos, aceites, contas e pagamentos (MVP Compras Fases 1–4).
+- [x] Implementar apropriação explícita à OS.
+- [x] Registrar substituição total e parcial de fornecedor.
 
 ### Fase 3 — API analítica
 
@@ -454,13 +454,15 @@ Duplicidade deve ser impedida na origem, não corrigida por rotina posterior.
 
 ### Fase 5 — Validação e produção
 
-Referência cruzada: `docs/modulo de compras/fase-6-auditoria-owasp-producao.md` (OWASP + isolamento tenant Compras/Financeiro).
+Referência cruzada:  
+- `docs/modulo de compras/fase-6-auditoria-owasp-producao.md`  
+- `docs/modulo de compras/fase-6-runbook-staging.md` (ordem de backup → migrate → smoke)
 
-- [ ] Testes unitários, integração e e2e.
-- [x] Testes de isolamento entre lojas — **parcial** (`compras-financeiro-tenant-isolation.test.js`: pedido, pós-cálculo OS, fechamento OS).
+- [x] Testes unitários, integração e e2e — **parcial** (scripts Node + E2E Compras; cobertura 80% e CI formal abertos).
+- [x] Testes de isolamento entre lojas — **parcial** (`compras-financeiro-tenant-isolation.test.js`).
 - [ ] Testes de idempotência e concorrência.
-- [ ] `prisma validate`, revisão SQL e migrations aditivas.
-- [x] Backup, staging, smoke e rollout monitorado — **parcial** (checklist + scripts smoke/OWASP; execução operacional pendente).
+- [x] `prisma validate`, revisão SQL e migrations aditivas — **parcial** (migrations no repo; validate no gate de staging).
+- [x] Backup, staging, smoke e rollout monitorado — **parcial** (runbook + scripts; execução no ambiente ainda pendente).
 
 ---
 

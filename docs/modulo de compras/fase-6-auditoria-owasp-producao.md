@@ -18,6 +18,7 @@ A fatia de produção entrega **evidências no código**, **checagens estáticas
 | Smoke carga listagens | `backend/scripts/compras-listagens-smoke-carga.mjs` |
 | Smoke E2E fluxo completo | `backend/scripts/compras-e2e-fluxo-completo.mjs` |
 | Backup pré-deploy | `backend/scripts/mysql-backup-before-deploy.js` |
+| **Runbook staging (comandos na ordem)** | `docs/modulo de compras/fase-6-runbook-staging.md` |
 
 ---
 
@@ -149,10 +150,14 @@ Variáveis: `DATABASE_URL`, opcional `DB_BACKUP_DIR`, `DB_BACKUP_RETENTION_DAYS`
 
 ### 10.2 Staging
 
+Runbook completo (ordem canônica, CORS, smoke, matriz, piloto):  
+`docs/modulo de compras/fase-6-runbook-staging.md`.
+
 - [ ] Aplicar migrations aditivas em staging (`npm run db:deploy:preflight` antes).
 - [ ] Validar CORS com `Origin` real (ver regra deploy Nginx).
 - [ ] Executar smoke E2E: `node scripts/compras-e2e-fluxo-completo.mjs` com `COMPRAS_E2E_API_URL` apontando para staging.
 - [ ] Executar auditoria OWASP: `node scripts/compras-financeiro-owasp-audit.mjs` (exit 0).
+- [ ] Seguir §8 do runbook (“staging aprovado”) antes de marcar Fase 6 no RP.
 
 ### 10.3 Smoke pós-deploy
 

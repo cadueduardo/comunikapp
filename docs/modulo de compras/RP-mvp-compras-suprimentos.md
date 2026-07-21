@@ -884,12 +884,13 @@ Detalhamento: `docs/modulo de compras/fase-0-descoberta-contratos.md` (2026-07-2
 
 ### Fase 6 — Produção
 
-Detalhamento: `docs/modulo de compras/fase-6-auditoria-owasp-producao.md` (2026-07-21).
+Detalhamento: `docs/modulo de compras/fase-6-auditoria-owasp-producao.md` (2026-07-21).  
+Runbook operacional: `docs/modulo de compras/fase-6-runbook-staging.md`.
 
 - [x] Auditoria OWASP (doc + script `compras-financeiro-owasp-audit.mjs`) — A01/A05/A06 fechados na fatia de endurecimento; A07/A09 parciais.
 - [x] Testes de carga das listagens (script `compras-listagens-smoke-carga.mjs`) — **parcial local** (dry-run sem credenciais; carga real requer staging).
-- [ ] Backup e staging (operacional — script `mysql-backup-before-deploy.js` disponível).
-- [ ] Rollout por feature flag/permissão.
+- [ ] Backup e staging (operacional — runbook `fase-6-runbook-staging.md`; script `mysql-backup-before-deploy.js`).
+- [ ] Rollout por feature flag/permissão (piloto — §6 do runbook).
 - [x] Smoke e monitoramento (checklist no doc fase-6 + testes isolamento tenant).
 - [x] Endurecimento A01/A05/A07: permissão nas leituras + throttle pagamento/export + `npm audit` zerado.
 
