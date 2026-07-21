@@ -30,8 +30,8 @@ export async function montarItensSolicitacao(
   prisma: PrismaService,
   itens: SolicitacaoItemDto[],
   lojaId: string,
-): Promise<Prisma.SolicitacaoCompraItemCreateWithoutSolicitacaoInput[]> {
-  const result: Prisma.SolicitacaoCompraItemCreateWithoutSolicitacaoInput[] =
+): Promise<Prisma.SolicitacaoCompraItemUncheckedCreateWithoutSolicitacaoInput[]> {
+  const result: Prisma.SolicitacaoCompraItemUncheckedCreateWithoutSolicitacaoInput[] =
     [];
 
   for (const item of itens) {
@@ -52,6 +52,7 @@ export async function montarItensSolicitacao(
       }
     }
 
+    // Unchecked*: FKs escalares — nested create do Prisma não aceita insumo_id no tipo "checked".
     result.push({
       loja_id: lojaId,
       tipo: item.tipo,

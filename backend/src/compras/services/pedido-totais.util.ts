@@ -10,7 +10,7 @@ export function calcularTotaisPedido(
   dto: CreatePedidoDto,
   lojaId: string,
 ): {
-  itens: Prisma.PedidoCompraItemCreateWithoutPedidoInput[];
+  itens: Prisma.PedidoCompraItemUncheckedCreateWithoutPedidoInput[];
   subtotal: Prisma.Decimal;
   desconto: Prisma.Decimal;
   frete: Prisma.Decimal;
@@ -20,7 +20,7 @@ export function calcularTotaisPedido(
   const freteCabecalho = dto.frete ?? 0;
 
   let somaLinhas = 0;
-  const itens: Prisma.PedidoCompraItemCreateWithoutPedidoInput[] = [];
+  const itens: Prisma.PedidoCompraItemUncheckedCreateWithoutPedidoInput[] = [];
 
   for (const item of dto.itens) {
     const quantidade = item.quantidade;
@@ -38,6 +38,7 @@ export function calcularTotaisPedido(
 
     somaLinhas += linhaBase;
 
+    // Unchecked*: FKs escalares (insumo_id etc.) — evita connect aninhado no nested create.
     itens.push({
       loja_id: lojaId,
       tipo: item.tipo,

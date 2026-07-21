@@ -113,7 +113,9 @@ sudo -u comunikapp -H bash -lc '
   echo "SELECT 1;" | ./node_modules/.bin/prisma db execute \
     --schema=prisma/schema.prisma --stdin
 
-  ./node_modules/.bin/prisma generate
+  # migrate deploy NÃO roda generate. O `npm run build` dispara
+  # `prebuild → prisma generate` uma única vez (evita OOM por generate duplicado;
+  # ver docs/database/boas-praticas-schema-prisma.md).
   ./node_modules/.bin/prisma migrate deploy
   npm run build
 
