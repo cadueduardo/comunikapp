@@ -1,27 +1,26 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { use, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import {
+  FornecedorForm,
+  type FornecedorFormValues,
+} from '@/app/(main)/fornecedores/fornecedor-form';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Combobox } from '@/components/ui/combobox';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import {
   comprasApi,
@@ -29,6 +28,7 @@ import {
   fornecedoresApi,
   type FornecedorApi,
   type PedidoCompraApi,
+  type TipoFornecedorApi,
 } from '@/lib/api-client';
 import { statusPedidoLabel } from '../../columns';
 import {
@@ -36,6 +36,29 @@ import {
   PedidoFormData,
   PedidoFormValues,
 } from '../../pedido-form';
+
+/** Espelha `assertTipoFornecedorCompativel` do backend. */
+function tiposFornecedorPermitidos(
+  itens: Array<{ tipo?: string }> | undefined,
+): TipoFornecedorApi[] {
+  const tipos = new Set((itens ?? []).map((i) => String(i.tipo ?? '')));
+  const hasMaterial = tipos.has('MATERIAL');
+  const hasServico = tipos.has('SERVICO');
+
+  if (hasMaterial && hasServico) return ['AMBOS'];
+  if (hasMaterial) return ['INSUMO', 'AMBOS'];
+  if (hasServico) return ['TERCEIRIZADO', 'AMBOS'];
+  return ['INSUMO', 'TERCEIRIZADO', 'AMBOS'];
+}
+
+function tipoPadraoNovoFornecedor(
+  permitidos: TipoFornecedorApi[],
+): TipoFornecedorApi {
+  if (permitidos.includes('AMBOS') && permitidos.length === 1) return 'AMBOS';
+  if (permitidos.includes('TERCEIRIZADO')) return 'TERCEIRIZADO';
+  if (permitidos.includes('INSUMO')) return 'INSUMO';
+  return 'AMBOS';
+}
 
 export default function EditarPedidoPage({
   params,
@@ -54,6 +77,20 @@ export default function EditarPedidoPage({
   const [substMotivo, setSubstMotivo] = useState('');
   const [substFornecedorId, setSubstFornecedorId] = useState('');
   const [fornecedores, setFornecedores] = useState<FornecedorApi[]>([]);
+  const [fornecedorFormOpen, setFornecedorFormOpen] = useState(false);
+  const [nomeNovoFornecedor, setNomeNovoFornecedor] = useState('');
+  const [salvandoFornecedor, setSalvandoFornecedor] = useState(false);
+
+  const carregarFornecedores = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+    try {
+      const data = await fornecedoresApi.getAll(token);
+      setFornecedores(data.filter((f) => f.ativo !== false));
+    } catch {
+      /* lista opcional no modal */
+    }
+  };
 
   const carregar = async () => {
     try {
@@ -74,13 +111,64 @@ export default function EditarPedidoPage({
   }, [id]);
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (!token) return;
-    void fornecedoresApi
-      .getAll(token)
-      .then((data) => setFornecedores(data.filter((f) => f.ativo !== false)))
-      .catch(() => undefined);
+    void carregarFornecedores();
   }, []);
+
+  const tiposPermitidos = useMemo(
+    () => tiposFornecedorPermitidos(pedido?.itens),
+    [pedido?.itens],
+  );
+
+  const fornecedoresSubstituicao = useMemo(
+    () =>
+      fornecedores.filter(
+        (f) =>
+          f.id !== pedido?.fornecedor_id && tiposPermitidos.includes(f.tipo),
+      ),
+    [fornecedores, pedido?.fornecedor_id, tiposPermitidos],
+  );
+
+  const tipoNovoFornecedor = tipoPadraoNovoFornecedor(tiposPermitidos);
+
+  const abrirCadastroFornecedor = (nome: string) => {
+    setNomeNovoFornecedor(nome.trim());
+    setFornecedorFormOpen(true);
+  };
+
+  const salvarFornecedorCompleto = async (values: FornecedorFormValues) => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      toast.error('Sessão expirada.');
+      return;
+    }
+    if (!tiposPermitidos.includes(values.tipo)) {
+      toast.error(
+        `Para este pedido, o fornecedor precisa ser do tipo: ${tiposPermitidos.join(' ou ')}.`,
+      );
+      return;
+    }
+
+    setSalvandoFornecedor(true);
+    try {
+      const criado = (await fornecedoresApi.create(
+        values,
+        token,
+      )) as FornecedorApi;
+      await carregarFornecedores();
+      setSubstFornecedorId(criado.id);
+      setFornecedorFormOpen(false);
+      setNomeNovoFornecedor('');
+      toast.success(`Fornecedor "${criado.nome}" cadastrado e selecionado.`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Falha ao cadastrar o fornecedor.',
+      );
+    } finally {
+      setSalvandoFornecedor(false);
+    }
+  };
 
   const editavel = pedido?.status === 'RASCUNHO';
 
@@ -362,7 +450,16 @@ export default function EditarPedidoPage({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={substOpen} onOpenChange={setSubstOpen}>
+      <Dialog
+        open={substOpen}
+        onOpenChange={(open) => {
+          setSubstOpen(open);
+          if (!open) {
+            setSubstFornecedorId('');
+            setSubstMotivo('');
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Substituir fornecedor</DialogTitle>
@@ -372,25 +469,29 @@ export default function EditarPedidoPage({
               O pedido atual será cancelado e um novo rascunho será criado com
               o fornecedor substituto (histórico preservado).
             </p>
+            <p className="text-xs text-muted-foreground">
+              Lista filtrada pelos tipos compatíveis com os itens deste pedido:{' '}
+              <span className="font-medium text-foreground">
+                {tiposPermitidos.join(', ')}
+              </span>
+              .
+            </p>
             <div className="space-y-2">
               <Label>Novo fornecedor</Label>
-              <Select
+              <Combobox
+                options={fornecedoresSubstituicao.map((f) => ({
+                  value: f.id,
+                  label: `${f.nome}${f.tipo ? ` (${f.tipo})` : ''}`,
+                }))}
                 value={substFornecedorId}
-                onValueChange={setSubstFornecedorId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {fornecedores
-                    .filter((f) => f.id !== pedido.fornecedor_id)
-                    .map((f) => (
-                      <SelectItem key={f.id} value={f.id}>
-                        {f.nome}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+                onChange={setSubstFornecedorId}
+                placeholder="Selecione ou busque…"
+                searchPlaceholder="Buscar fornecedor…"
+                emptyPlaceholder="Nenhum fornecedor compatível."
+                onCreateDetailed={abrirCadastroFornecedor}
+                detailedCreatePlaceholder="Cadastrar fornecedor completo"
+                createPlaceholder="Criar fornecedor"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="motivo-subst">Motivo</Label>
@@ -442,6 +543,33 @@ export default function EditarPedidoPage({
               Confirmar substituição
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={fornecedorFormOpen}
+        onOpenChange={(open) => {
+          if (!salvandoFornecedor) setFornecedorFormOpen(open);
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Cadastrar fornecedor</DialogTitle>
+            <DialogDescription>
+              Mesmo formulário do cadastro de fornecedores. Ao salvar, ele será
+              selecionado nesta substituição.
+            </DialogDescription>
+          </DialogHeader>
+          <FornecedorForm
+            key={`${nomeNovoFornecedor}-${tipoNovoFornecedor}`}
+            initialData={{
+              nome: nomeNovoFornecedor,
+              tipo: tipoNovoFornecedor,
+            }}
+            onSave={salvarFornecedorCompleto}
+            onCancel={() => setFornecedorFormOpen(false)}
+            loading={salvandoFornecedor}
+          />
         </DialogContent>
       </Dialog>
     </div>
