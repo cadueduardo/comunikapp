@@ -1,24 +1,23 @@
 'use client';
 
+import { ClipboardList, Grid3X3, List, Plus } from 'lucide-react';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { DataTable } from '@/components/data-table/data-table';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { comprasApi, type SolicitacaoCompraApi } from '@/lib/api-client';
+import { Card, CardContent } from '@/components/ui/card';
+import { SolicitacaoCompraCard } from '@/components/ui/solicitacao-compra-card';
+import { useIsMobile } from '@/hooks/use-media-query';
+import { comprasApi } from '@/lib/api-client';
+import { createColumns, SolicitacaoCompra } from './columns';
 
 export default function SolicitacoesListPage() {
-  const [itens, setItens] = useState<SolicitacaoCompraApi[]>([]);
+  const [itens, setItens] = useState<SolicitacaoCompra[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const isMobile = useIsMobile();
+  const columns = useMemo(() => createColumns(), []);
 
   const carregar = useCallback(async () => {
     try {
@@ -41,59 +40,74 @@ export default function SolicitacoesListPage() {
   }, [carregar]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Solicitações de compra</h1>
           <p className="mt-1 text-muted-foreground">
             Necessidades internas antes do pedido ao fornecedor.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/compras/solicitacoes/nova">
-            <Plus className="mr-2 h-4 w-4" />
-            Nova solicitação
-          </Link>
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {!isMobile && (
+            <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className="h-8 px-3"
+              >
+                <List className="mr-1 h-4 w-4" />
+                Tabela
+              </Button>
+              <Button
+                variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('cards')}
+                className="h-8 px-3"
+              >
+                <Grid3X3 className="mr-1 h-4 w-4" />
+                Cards
+              </Button>
+            </div>
+          )}
+          <Button asChild>
+            <Link href="/compras/solicitacoes/nova">
+              <Plus className="mr-2 h-4 w-4" />
+              Nova solicitação
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground">Carregando…</p>
+        <p className="text-muted-foreground">Carregando solicitações...</p>
       ) : itens.length === 0 ? (
-        <p className="text-muted-foreground">Nenhuma solicitação cadastrada.</p>
-      ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Número</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Prioridade</TableHead>
-                <TableHead>Origem</TableHead>
-                <TableHead>Itens</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {itens.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.numero}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{item.status}</Badge>
-                  </TableCell>
-                  <TableCell>{item.prioridade}</TableCell>
-                  <TableCell>{item.origem_tipo}</TableCell>
-                  <TableCell>{item.itens?.length ?? 0}</TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/compras/solicitacoes/${item.id}`}>Abrir</Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <ClipboardList className="mb-4 h-10 w-10 text-muted-foreground" />
+            <h2 className="text-lg font-semibold">
+              Nenhuma solicitação cadastrada
+            </h2>
+            <p className="mb-5 mt-1 max-w-md text-sm text-muted-foreground">
+              Registre a primeira necessidade de compra para iniciar o fluxo.
+            </p>
+            <Button asChild>
+              <Link href="/compras/solicitacoes/nova">
+                <Plus className="mr-2 h-4 w-4" />
+                Nova solicitação
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : isMobile || viewMode === 'cards' ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {itens.map((item) => (
+            <SolicitacaoCompraCard key={item.id} solicitacao={item} />
+          ))}
         </div>
+      ) : (
+        <DataTable columns={columns} data={itens} />
       )}
     </div>
   );

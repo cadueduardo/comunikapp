@@ -1,14 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { ClipboardList, FileText, ShoppingCart } from 'lucide-react';
+import { ClipboardList, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function ComprasHomePage() {
   return (
-    <div className="space-y-8">
-      <div>
+    <div>
+      <div className="mb-8">
         <h1 className="text-3xl font-bold">Compras</h1>
         <p className="mt-1 text-muted-foreground">
           Solicitações e pedidos de compra, suprimentos e despesas externas.
@@ -25,14 +25,14 @@ export default function ComprasHomePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Registre a necessidade, envie para aprovação e acompanhe o status.
+              Necessidades internas, aprovação e conversão em pedidos.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button asChild>
-                <Link href="/compras/solicitacoes">Ver solicitações</Link>
+                <Link href="/compras/solicitacoes">Ver listagem</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/compras/solicitacoes/nova">Nova solicitação</Link>
+                <Link href="/compras/solicitacoes/nova">Nova</Link>
               </Button>
             </div>
           </CardContent>
@@ -47,24 +47,19 @@ export default function ComprasHomePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Formalize fornecedor, preços e condições do pedido de compra.
+              Pedidos formais com fornecedor, preços e status.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button asChild>
-                <Link href="/compras/pedidos">Ver pedidos</Link>
+                <Link href="/compras/pedidos">Ver listagem</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/compras/pedidos/novo">Novo pedido</Link>
+                <Link href="/compras/pedidos/novo">Novo</Link>
               </Button>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <FileText className="h-4 w-4" />
-        MVP Fase 1: rascunho, listagem, detalhe e aprovação básica.
-      </p>
     </div>
   );
 }

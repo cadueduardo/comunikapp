@@ -1,24 +1,23 @@
 'use client';
 
+import { Grid3X3, List, Plus, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
+import { DataTable } from '@/components/data-table/data-table';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { comprasApi, type PedidoCompraApi } from '@/lib/api-client';
+import { Card, CardContent } from '@/components/ui/card';
+import { PedidoCompraCard } from '@/components/ui/pedido-compra-card';
+import { useIsMobile } from '@/hooks/use-media-query';
+import { comprasApi } from '@/lib/api-client';
+import { createColumns, PedidoCompra } from './columns';
 
 export default function PedidosListPage() {
-  const [itens, setItens] = useState<PedidoCompraApi[]>([]);
+  const [itens, setItens] = useState<PedidoCompra[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const isMobile = useIsMobile();
+  const columns = useMemo(() => createColumns(), []);
 
   const carregar = useCallback(async () => {
     try {
@@ -41,64 +40,72 @@ export default function PedidosListPage() {
   }, [carregar]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Pedidos de compra</h1>
           <p className="mt-1 text-muted-foreground">
             Documentos formais com fornecedor e preços negociados.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/compras/pedidos/novo">
-            <Plus className="mr-2 h-4 w-4" />
-            Novo pedido
-          </Link>
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {!isMobile && (
+            <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className="h-8 px-3"
+              >
+                <List className="mr-1 h-4 w-4" />
+                Tabela
+              </Button>
+              <Button
+                variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('cards')}
+                className="h-8 px-3"
+              >
+                <Grid3X3 className="mr-1 h-4 w-4" />
+                Cards
+              </Button>
+            </div>
+          )}
+          <Button asChild>
+            <Link href="/compras/pedidos/novo">
+              <Plus className="mr-2 h-4 w-4" />
+              Novo pedido
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground">Carregando…</p>
+        <p className="text-muted-foreground">Carregando pedidos...</p>
       ) : itens.length === 0 ? (
-        <p className="text-muted-foreground">Nenhum pedido cadastrado.</p>
-      ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Número</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Fornecedor</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {itens.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.numero}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{item.status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {item.fornecedor?.nome ?? item.fornecedor_id}
-                  </TableCell>
-                  <TableCell>
-                    {Number(item.total).toLocaleString('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL',
-                    })}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/compras/pedidos/${item.id}`}>Abrir</Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <ShoppingCart className="mb-4 h-10 w-10 text-muted-foreground" />
+            <h2 className="text-lg font-semibold">Nenhum pedido cadastrado</h2>
+            <p className="mb-5 mt-1 max-w-md text-sm text-muted-foreground">
+              Crie o primeiro pedido vinculando um fornecedor e os itens.
+            </p>
+            <Button asChild>
+              <Link href="/compras/pedidos/novo">
+                <Plus className="mr-2 h-4 w-4" />
+                Novo pedido
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : isMobile || viewMode === 'cards' ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {itens.map((item) => (
+            <PedidoCompraCard key={item.id} pedido={item} />
+          ))}
         </div>
+      ) : (
+        <DataTable columns={columns} data={itens} />
       )}
     </div>
   );

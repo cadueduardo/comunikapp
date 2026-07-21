@@ -586,10 +586,10 @@ Ações de estado usam endpoints de comando, não `PATCH status` genérico.
 /compras
 /compras/solicitacoes
 /compras/solicitacoes/nova
-/compras/solicitacoes/[id]
+/compras/solicitacoes/editar/[id]
 /compras/pedidos
 /compras/pedidos/novo
-/compras/pedidos/[id]
+/compras/pedidos/editar/[id]
 /compras/recebimentos
 /financeiro/contas-pagar
 ```
