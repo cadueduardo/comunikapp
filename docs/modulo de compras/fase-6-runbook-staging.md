@@ -278,11 +278,27 @@ Gate **local** (não substitui staging/VPS). API: `http://127.0.0.1:4000`, DB `c
 | E2E Compras | **18/18** — SC-2026-002 · PC-2026-003 · conta PC-PC-2026-003 |
 | Smoke carga listagens | OK — p95 ~33–59 ms (N=20, conc=5) |
 
-Ainda **pendente** para marcar Fase 6 “Backup e staging” no RP:
-
-- [ ] Backup real + migrate + restart em **staging/VPS**  
-- [ ] CORS com Origin público  
-- [ ] Rollout por perfil piloto  
-- [ ] Smoke UI manual / light-dark  
-
 Smoke carga: agora aceita fallback `JWT_SECRET` (mesmo padrão do E2E) quando `ACCESS_TOKEN` não é passado.
+
+---
+
+## 11. Registro de execução — VPS produção (2026-07-21)
+
+Host: `admin@147.93.190.212` (`vmi3319136`). App: `/opt/comunikapp/app`. Runtime: PM2 (portas 4001/3001).
+
+| Passo | Resultado |
+|---|---|
+| Backup pré-deploy | `/opt/comunikapp/app/backend/backups/database/comunikapp-20260721T190940Z.sql.gz` |
+| Backup no migrate | `/srv/apps/comunikapp/shared/backups/database/comunikapp-20260721T191534Z.sql.gz` |
+| Branch / commit | `feat/mvp-compras-fase-0` @ `03f009ea` |
+| Migrations aplicadas | `20260721081827` … `20260721110100` (5 Compras/fechamento) — schema **100/100 up to date** |
+| Deploy script | `deploy-vps-branch-atual.sh` exit 0 (~6 min) |
+| PM2 | backend + frontend **online** (`pm2 save`) |
+| Health local | backend `/` → **401** (esperado); frontend → **200**; `/compras/pedidos` sem JWT → **401** |
+| CORS OPTIONS | `https://api.comunikapp.com.br/lojas/login` → **204** com headers Allow-* |
+
+Ainda **pendente**:
+
+- [ ] Rollout por perfil piloto (`compras.*`)  
+- [ ] Smoke UI manual em produção / light-dark  
+- [ ] Merge da branch em `main` (VPS está na feature branch de propósito)  
