@@ -888,10 +888,10 @@ Detalhamento: `docs/modulo de compras/fase-6-auditoria-owasp-producao.md` (2026-
 Runbook operacional: `docs/modulo de compras/fase-6-runbook-staging.md`.
 
 - [x] Auditoria OWASP (doc + script `compras-financeiro-owasp-audit.mjs`) — A01/A05/A06 fechados na fatia de endurecimento; A07/A09 parciais.
-- [x] Testes de carga das listagens (script `compras-listagens-smoke-carga.mjs`) — **parcial local** (dry-run sem credenciais; carga real requer staging).
-- [ ] Backup e staging (operacional — runbook `fase-6-runbook-staging.md`; script `mysql-backup-before-deploy.js`).
+- [x] Testes de carga das listagens (script `compras-listagens-smoke-carga.mjs`) — local OK 2026-07-21 (p95 listagens &lt; 60 ms); staging HTTP ainda pendente.
+- [ ] Backup e staging (operacional — runbook `fase-6-runbook-staging.md`; script `mysql-backup-before-deploy.js`). Gate **local** registrado no §10 do runbook; VPS/staging ainda aberto.
 - [ ] Rollout por feature flag/permissão (piloto — §6 do runbook).
-- [x] Smoke e monitoramento (checklist no doc fase-6 + testes isolamento tenant).
+- [x] Smoke e monitoramento (checklist no doc fase-6 + testes isolamento tenant + **E2E local 18/18** em 2026-07-21).
 - [x] Endurecimento A01/A05/A07: permissão nas leituras + throttle pagamento/export + `npm audit` zerado.
 
 Cada fase deve ser implantável de forma aditiva e compatível com a versão anterior.

@@ -259,3 +259,30 @@ Até lá, manter:
 3. Saída `prisma migrate status`  
 4. Exit codes dos smokes  
 5. Screenshots ou IDs dos documentos E2E  
+
+---
+
+## 10. Registro de execução — ambiente local (2026-07-21)
+
+Gate **local** (não substitui staging/VPS). API: `http://127.0.0.1:4000`, DB `comunikapp@localhost:3306`.
+
+| Passo | Resultado |
+|---|---|
+| OWASP estático | exit 0 (0 críticos) |
+| Isolamento tenant | 10/10 |
+| assertPodeQualquer | 3/3 |
+| `npm audit --audit-level=high` | 0 vulnerabilities |
+| `prisma validate` | schema válido |
+| `prisma migrate status` | 100 migrations, up to date |
+| Backup dry-run | ok (`mysqldump` + `gzip` encontrados) |
+| E2E Compras | **18/18** — SC-2026-002 · PC-2026-003 · conta PC-PC-2026-003 |
+| Smoke carga listagens | OK — p95 ~33–59 ms (N=20, conc=5) |
+
+Ainda **pendente** para marcar Fase 6 “Backup e staging” no RP:
+
+- [ ] Backup real + migrate + restart em **staging/VPS**  
+- [ ] CORS com Origin público  
+- [ ] Rollout por perfil piloto  
+- [ ] Smoke UI manual / light-dark  
+
+Smoke carga: agora aceita fallback `JWT_SECRET` (mesmo padrão do E2E) quando `ACCESS_TOKEN` não é passado.
