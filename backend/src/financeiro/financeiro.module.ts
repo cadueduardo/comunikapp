@@ -28,7 +28,8 @@ import { PosCalculoModule } from './pos-calculo/pos-calculo.module';
  * `ContasPagarModule` registra rotas em `/financeiro/contas-pagar` e
  * `/financeiro/pagamentos` (obrigacoes a fornecedores).
  *
- * `PosCalculoModule` expoe GET `/financeiro/os/:osId/pos-calculo`.
+ * `PosCalculoModule` expoe GET `/financeiro/os/:osId/pos-calculo` e
+ * fechamento/reabertura financeiro da OS.
  */
 @Module({
   imports: [
