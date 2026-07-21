@@ -884,11 +884,13 @@ Detalhamento: `docs/modulo de compras/fase-0-descoberta-contratos.md` (2026-07-2
 
 ### Fase 6 — Produção
 
-- [ ] Auditoria OWASP.
-- [ ] Testes de carga das listagens.
-- [ ] Backup e staging.
+Detalhamento: `docs/modulo de compras/fase-6-auditoria-owasp-producao.md` (2026-07-21).
+
+- [x] Auditoria OWASP (doc + script `compras-financeiro-owasp-audit.mjs`) — **parcial** (gaps A01/A05/A07 documentados).
+- [x] Testes de carga das listagens (script `compras-listagens-smoke-carga.mjs`) — **parcial local** (dry-run sem credenciais; carga real requer staging).
+- [ ] Backup e staging (operacional — script `mysql-backup-before-deploy.js` disponível).
 - [ ] Rollout por feature flag/permissão.
-- [ ] Smoke e monitoramento.
+- [x] Smoke e monitoramento (checklist no doc fase-6 + testes isolamento tenant).
 
 Cada fase deve ser implantável de forma aditiva e compatível com a versão anterior.
 

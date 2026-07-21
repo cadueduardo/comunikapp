@@ -454,11 +454,13 @@ Duplicidade deve ser impedida na origem, não corrigida por rotina posterior.
 
 ### Fase 5 — Validação e produção
 
+Referência cruzada: `docs/modulo de compras/fase-6-auditoria-owasp-producao.md` (OWASP + isolamento tenant Compras/Financeiro).
+
 - [ ] Testes unitários, integração e e2e.
-- [ ] Testes de isolamento entre lojas.
+- [x] Testes de isolamento entre lojas — **parcial** (`compras-financeiro-tenant-isolation.test.js`: pedido, pós-cálculo OS, fechamento OS).
 - [ ] Testes de idempotência e concorrência.
 - [ ] `prisma validate`, revisão SQL e migrations aditivas.
-- [ ] Backup, staging, smoke e rollout monitorado.
+- [x] Backup, staging, smoke e rollout monitorado — **parcial** (checklist + scripts smoke/OWASP; execução operacional pendente).
 
 ---
 
