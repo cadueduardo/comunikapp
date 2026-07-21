@@ -4,6 +4,7 @@ import {
   Prisma,
   StatusAceiteServico,
   StatusContaPagar,
+  StatusFechamentoFinanceiroOS,
   StatusPedidoCompra,
   StatusRecebimentoCompra,
   TipoItemCompra,
@@ -154,15 +155,17 @@ export class PosCalculoService {
       limitacoes,
     });
 
+    const statusFechamento = await this.obterStatusFechamento(osId, lojaAtual.id);
+
     return {
       os_id: os.id,
       os_numero: os.numero,
-      status_fechamento: 'PENDENTE',
+      status_fechamento: statusFechamento,
       ...totais,
       meta: {
         moeda: 'BRL',
         visao_margem: 'caixa',
-        status_fechamento: 'PENDENTE',
+        status_fechamento: statusFechamento,
         custo_previsto_fonte: fonte,
         limitacoes: limitacoes.length > 0 ? limitacoes : undefined,
       },
@@ -170,6 +173,25 @@ export class PosCalculoService {
       trocas_fornecedor: [],
       pendencias,
     };
+  }
+
+  private async obterStatusFechamento(
+    osId: string,
+    lojaId: string,
+  ): Promise<StatusFechamentoFinanceiroOS> {
+    const fechamento = await this.prisma.fechamentoFinanceiroOS.findUnique({
+      where: {
+        loja_id_os_id: {
+          loja_id: lojaId,
+          os_id: osId,
+        },
+      },
+      select: { status: true },
+    });
+
+    return (
+      fechamento?.status ?? StatusFechamentoFinanceiroOS.PENDENTE
+    );
   }
 
   private calcularReceita(os: {

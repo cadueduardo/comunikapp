@@ -443,13 +443,13 @@ Duplicidade deve ser impedida na origem, não corrigida por rotina posterior.
 - [x] Agregação por categoria (MATERIAL/SERVICO/DESPESA) — parcial: previsto estimado do orçamento; real de apropriações de compra.
 - [x] Pendências e alertas de desvio (total e por categoria; severidade alerta/critico).
 - [ ] Agregação por item e fornecedor.
-- [ ] Fechamento/reabertura com auditoria.
+- [x] Fechamento/reabertura com auditoria.
 
 ### Fase 4 — Interface
 
-- [ ] Aba na OS.
-- [ ] Indicadores e tabela responsiva.
-- [ ] Histórico e justificativas.
+- [x] Aba na OS (`?tab=financeiro` + painel pós-cálculo/fechamento).
+- [x] Indicadores e tabela responsiva (painel compartilhado).
+- [ ] Histórico e justificativas (UI de histórico de fechamento).
 - [ ] Testes light/dark, acessibilidade e responsividade.
 
 ### Fase 5 — Validação e produção

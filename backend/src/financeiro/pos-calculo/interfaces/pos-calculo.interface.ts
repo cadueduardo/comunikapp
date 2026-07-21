@@ -2,6 +2,7 @@ import type {
   PosCalculoCategoriaLinha,
   PosCalculoTotaisSaida,
 } from '../utils/pos-calculo-aggregation.util';
+import type { StatusFechamentoFinanceiroOS } from '@prisma/client';
 
 export interface PosCalculoPendencia {
   tipo: string;
@@ -12,7 +13,7 @@ export interface PosCalculoPendencia {
 export interface PosCalculoMeta {
   moeda: string;
   visao_margem: 'caixa';
-  status_fechamento: 'PENDENTE';
+  status_fechamento: StatusFechamentoFinanceiroOS;
   custo_previsto_fonte?: string;
   limitacoes?: string[];
 }
@@ -20,7 +21,7 @@ export interface PosCalculoMeta {
 export interface PosCalculoResponse extends PosCalculoTotaisSaida {
   os_id: string;
   os_numero?: string;
-  status_fechamento: 'PENDENTE';
+  status_fechamento: StatusFechamentoFinanceiroOS;
   meta: PosCalculoMeta;
   categorias: PosCalculoCategoriaLinha[];
   trocas_fornecedor: [];

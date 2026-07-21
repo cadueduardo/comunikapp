@@ -14,6 +14,9 @@ const FUNCOES_FINANCEIRO = new Set<string>([
 /**
  * Leitura analítica do pós-cálculo: ADMIN bypass, FINANCEIRO ou
  * `compras.auditoria.visualizar`.
+ *
+ * Fechamento/reabertura financeiro (`assertPodeFechar`): mesmo critério de
+ * visualização — ADMINISTRADOR, FINANCEIRO ou `compras.auditoria.visualizar`.
  */
 @Injectable()
 export class PosCalculoPermissionsService {
@@ -34,6 +37,11 @@ export class PosCalculoPermissionsService {
           `"${COMPRAS_PERMISSOES.AUDITORIA_VISUALIZAR}".`,
       );
     }
+  }
+
+  /** Mesmo critério de `assertPodeVisualizar` (fechar/reabertura/histórico). */
+  async assertPodeFechar(usuarioId: string, lojaId: string): Promise<void> {
+    return this.assertPodeVisualizar(usuarioId, lojaId);
   }
 
   async podeVisualizar(usuarioId: string, lojaId: string): Promise<boolean> {

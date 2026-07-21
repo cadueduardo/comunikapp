@@ -5,13 +5,11 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
-  Edit,
-  Printer,
   ClipboardList,
   Package,
   Settings,
-  ChevronDown,
   MapPin,
+  Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -22,6 +20,7 @@ import { PrazoOSComponent } from "@/components/os/PrazoOSComponent";
 import { ListaProdutosComPrazo } from "@/components/os/ListaProdutosComPrazo";
 import { ResumoOSSidebar } from "@/components/os/ResumoOSSidebar";
 import { OSMateriaisPanel } from "@/components/os/OSMateriaisPanel";
+import { OsPosCalculoPanel } from "@/components/os/OsPosCalculoPanel";
 import { InstalacaoOsPainel } from "@/components/instalacao/InstalacaoOsPainel";
 import { useOsStatus } from "@/hooks/use-os-status";
 
@@ -29,7 +28,7 @@ interface OSDetalhada extends OrdemServico {
   // Mantendo apenas as interfaces essenciais
 }
 
-type TabType = 'resumo' | 'materiais' | 'instalacao' | 'analise-inteligente';
+type TabType = 'resumo' | 'materiais' | 'instalacao' | 'financeiro' | 'analise-inteligente';
 
 // Função para renderizar a aba Resumo
 function renderResumoTab(os: OSDetalhada, isResumoCollapsed: boolean, setIsResumoCollapsed: React.Dispatch<React.SetStateAction<boolean>>, statusDinamico: string) {
@@ -120,7 +119,7 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed, statusDi
   // Obter aba ativa da URL ou usar 'resumo' como padrão
   const getActiveTabFromURL = (): TabType => {
     const tab = searchParams.get('tab') as TabType;
-    return tab && ['resumo', 'materiais', 'instalacao', 'analise-inteligente'].includes(tab) 
+    return tab && ['resumo', 'materiais', 'instalacao', 'financeiro', 'analise-inteligente'].includes(tab) 
       ? tab 
       : 'resumo';
   };
@@ -147,6 +146,7 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed, statusDi
     { id: 'resumo' as TabType, label: 'Resumo', icon: Package },
     { id: 'materiais' as TabType, label: 'Materiais', icon: Package },
     { id: 'instalacao' as TabType, label: 'Instalação', icon: MapPin },
+    { id: 'financeiro' as TabType, label: 'Financeiro', icon: Wallet },
     { id: 'analise-inteligente' as TabType, label: 'Análise Inteligente', icon: Settings },
   ];
 
@@ -207,6 +207,12 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed, statusDi
         {activeTab === 'instalacao' && (
           <div className="w-full min-w-0 overflow-x-hidden">
             <InstalacaoOsPainel osId={os.id} modo="consulta" />
+          </div>
+        )}
+
+        {activeTab === 'financeiro' && (
+          <div className="w-full min-w-0">
+            <OsPosCalculoPanel osId={os.id} />
           </div>
         )}
         

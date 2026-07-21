@@ -597,6 +597,12 @@ export interface PosCalculoCategoriaApi {
   desvio_comprometido: number;
 }
 
+export type StatusFechamentoFinanceiroOsApi =
+  | 'PENDENTE'
+  | 'EM_CONCILIACAO'
+  | 'FECHADO'
+  | 'REABERTO';
+
 export interface PosCalculoPendenciaApi {
   tipo: string;
   descricao: string;
@@ -606,7 +612,7 @@ export interface PosCalculoPendenciaApi {
 export interface PosCalculoResponse {
   os_id: string;
   os_numero?: string;
-  status_fechamento: 'PENDENTE';
+  status_fechamento: StatusFechamentoFinanceiroOsApi;
   receita: {
     prevista: number;
     faturada: number;
@@ -632,14 +638,47 @@ export interface PosCalculoResponse {
     limitacoes?: string[];
   };
   categorias: PosCalculoCategoriaApi[];
-  trocas_fornecedor: [];
+  trocas_fornecedor: unknown[];
   pendencias: PosCalculoPendenciaApi[];
+}
+
+export interface FecharFechamentoResultadoApi {
+  os_id: string;
+  fechamento: {
+    id: string;
+    os_id: string;
+    status: StatusFechamentoFinanceiroOsApi;
+    versao: number;
+  };
+  avisos: string[];
+  ja_estava_fechado: boolean;
 }
 
 export const posCalculoApi = {
   obterPorOs: (osId: string, token: string) =>
     ApiClient.get<PosCalculoResponse>(
       `/financeiro/os/${encodeURIComponent(osId)}/pos-calculo`,
+      token,
+    ),
+  fechar: (osId: string, token: string, data?: { observacao?: string }) =>
+    ApiClient.post<FecharFechamentoResultadoApi>(
+      `/financeiro/os/${encodeURIComponent(osId)}/fechamento`,
+      data ?? {},
+      token,
+    ),
+  reabrir: (
+    osId: string,
+    data: { motivo: string },
+    token: string,
+  ) =>
+    ApiClient.post<{ os_id: string }>(
+      `/financeiro/os/${encodeURIComponent(osId)}/reabertura`,
+      data,
+      token,
+    ),
+  historico: (osId: string, token: string) =>
+    ApiClient.get<Record<string, unknown>>(
+      `/financeiro/os/${encodeURIComponent(osId)}/historico`,
       token,
     ),
 };

@@ -6,7 +6,8 @@ export type CompraEntidadeTipo =
   | 'SOLICITACAO_COMPRA'
   | 'PEDIDO_COMPRA'
   | 'RECEBIMENTO_COMPRA'
-  | 'ACEITE_SERVICO';
+  | 'ACEITE_SERVICO'
+  | 'FECHAMENTO_FINANCEIRO_OS';
 
 export interface RegistrarHistoricoParams {
   lojaId: string;

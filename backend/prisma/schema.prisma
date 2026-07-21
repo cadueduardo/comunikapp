@@ -655,6 +655,7 @@ model loja {
   solicitacoes_compra            SolicitacaoCompra[]
   pedidos_compra                 PedidoCompra[]
   compras_historico              CompraHistorico[]
+  fechamentos_financeiros_os     FechamentoFinanceiroOS[]
   recebimentos_compra            RecebimentoCompra[]
   aceites_servico                AceiteServico[]
   contas_pagar                   ContaPagar[]
@@ -952,6 +953,41 @@ model CompraHistorico {
   @@index([loja_id, criado_em])
   @@index([usuario_id])
   @@map("compras_historico")
+}
+
+enum StatusFechamentoFinanceiroOS {
+  PENDENTE
+  EM_CONCILIACAO
+  FECHADO
+  REABERTO
+}
+
+model FechamentoFinanceiroOS {
+  id                String                         @id @default(cuid())
+  loja_id           String
+  os_id             String                         @unique
+  status            StatusFechamentoFinanceiroOS   @default(PENDENTE)
+  fechado_em        DateTime?
+  fechado_por       String?
+  reaberto_em       DateTime?
+  reaberto_por      String?
+  motivo_reabertura String?                        @db.Text
+  versao            Int                            @default(1)
+  criado_em         DateTime                       @default(now())
+  atualizado_em     DateTime                       @updatedAt
+
+  loja           loja         @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  ordem_servico  OrdemServico @relation(fields: [os_id], references: [id], onDelete: Restrict)
+  usuario_fechou   usuario?   @relation("FechamentoFinanceiroFechadoPor", fields: [fechado_por], references: [id], onDelete: SetNull)
+  usuario_reabriu  usuario?   @relation("FechamentoFinanceiroReabertoPor", fields: [reaberto_por], references: [id], onDelete: SetNull)
+
+  @@unique([loja_id, os_id])
+  @@index([loja_id])
+  @@index([os_id])
+  @@index([status])
+  @@index([fechado_por])
+  @@index([reaberto_por])
+  @@map("fechamentos_financeiros_os")
 }
 
 enum StatusRecebimentoCompra {
@@ -1931,6 +1967,8 @@ model usuario {
   recebimentos_responsavel        RecebimentoCompra[] @relation("RecebimentoCompraResponsavel")
   aceites_responsavel             AceiteServico[]     @relation("AceiteServicoResponsavel")
   pagamentos_fornecedor           PagamentoFornecedor[] @relation("PagamentoFornecedorUsuario")
+  fechamentos_financeiros_fechou  FechamentoFinanceiroOS[] @relation("FechamentoFinanceiroFechadoPor")
+  fechamentos_financeiros_reabriu FechamentoFinanceiroOS[] @relation("FechamentoFinanceiroReabertoPor")
 
   @@index([loja_id], map: "Usuario_loja_id_idx")
 }
@@ -2412,6 +2450,7 @@ model OrdemServico {
   // Relacionamentos Compras (MVP Fase 1)
   apropriacoes_compra PedidoCompraItemApropriacao[]
   pagamentos_fornecedor_apropriacoes PagamentoFornecedorApropriacao[]
+  fechamento_financeiro              FechamentoFinanceiroOS?
 
   @@unique([loja_id, numero])
   @@index([loja_id, status])
