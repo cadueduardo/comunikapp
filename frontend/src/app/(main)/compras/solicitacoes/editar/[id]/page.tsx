@@ -6,12 +6,12 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { comprasApi, type SolicitacaoCompraApi } from '@/lib/api-client';
-import { statusSolicitacaoLabel } from '../columns';
+import { statusSolicitacaoLabel } from '../../columns';
 import {
   SolicitacaoForm,
   SolicitacaoFormData,
   SolicitacaoFormValues,
-} from '../solicitacao-form';
+} from '../../solicitacao-form';
 
 export default function EditarSolicitacaoPage({
   params,
