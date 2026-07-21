@@ -177,6 +177,23 @@ export default function EditarPedidoPage({
               Visualizar / imprimir
             </Link>
           </Button>
+          {(pedido.status === 'ENVIADO' ||
+            pedido.status === 'PARCIAL' ||
+            pedido.status === 'APROVADO' ||
+            pedido.status === 'ATENDIDO') && (
+            <>
+              <Button asChild variant="outline">
+                <Link href={`/compras/pedidos/${pedido.id}/recebimentos/novo`}>
+                  Receber material
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href={`/compras/pedidos/${pedido.id}/aceites/novo`}>
+                  Aceitar serviço
+                </Link>
+              </Button>
+            </>
+          )}
           {pedido.status === 'RASCUNHO' && (
             <Button
               disabled={busy}

@@ -2,7 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
-export type CompraEntidadeTipo = 'SOLICITACAO_COMPRA' | 'PEDIDO_COMPRA';
+export type CompraEntidadeTipo =
+  | 'SOLICITACAO_COMPRA'
+  | 'PEDIDO_COMPRA'
+  | 'RECEBIMENTO_COMPRA'
+  | 'ACEITE_SERVICO';
 
 export interface RegistrarHistoricoParams {
   lojaId: string;

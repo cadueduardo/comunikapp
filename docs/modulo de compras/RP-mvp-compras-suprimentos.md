@@ -858,10 +858,11 @@ Detalhamento: `docs/modulo de compras/fase-0-descoberta-contratos.md` (2026-07-2
 
 ### Fase 3 — Recebimento e aceite
 
-- [ ] Recebimento material parcial.
-- [ ] Entrada idempotente no estoque.
-- [ ] Aceite de serviço parcial/final.
-- [ ] Estornos auditáveis.
+- [x] Recebimento material parcial.
+- [x] Entrada idempotente no estoque (custo médio D1).
+- [x] Aceite de serviço parcial/final.
+- [x] Estornos auditáveis (CONFIRMADO → ESTORNADO).
+- [x] UI mínima (novo recebimento / novo aceite a partir do pedido).
 
 ### Fase 4 — Contas a pagar
 

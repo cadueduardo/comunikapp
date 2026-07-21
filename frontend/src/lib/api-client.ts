@@ -242,6 +242,8 @@ export interface PedidoCompraItemApi {
   unidade_snapshot: string;
   preco_unitario: number | string;
   total: number | string;
+  quantidade_recebida?: number | string;
+  quantidade_aceita?: number | string;
 }
 
 export interface PedidoCompraApi {
@@ -252,6 +254,38 @@ export interface PedidoCompraApi {
   total: number | string;
   fornecedor?: { id: string; nome: string };
   itens?: PedidoCompraItemApi[];
+}
+
+export interface RecebimentoCompraApi {
+  id: string;
+  numero: string;
+  status: string;
+  pedido_id: string;
+  observacao?: string | null;
+  itens?: Array<{
+    id: string;
+    pedido_item_id: string;
+    quantidade_recebida: number | string;
+    quantidade_aceita: number | string;
+    quantidade_recusada?: number | string;
+    localizacao_id?: string | null;
+  }>;
+}
+
+export interface AceiteServicoApi {
+  id: string;
+  numero: string;
+  status: string;
+  pedido_id: string;
+  aceite_final?: boolean;
+  observacao?: string | null;
+  itens?: Array<{
+    id: string;
+    pedido_item_id: string;
+    quantidade_aceita?: number | string | null;
+    percentual_aceito?: number | string | null;
+    valor_aceito?: number | string | null;
+  }>;
 }
 
 export const comprasApi = {
@@ -359,6 +393,72 @@ export const comprasApi = {
   ) =>
     ApiClient.post<PedidoCompraApi>(
       `/compras/pedidos/${id}/substituir-fornecedor`,
+      data,
+      token,
+    ),
+  listRecebimentos: (pedidoId: string, token: string) =>
+    ApiClient.get<RecebimentoCompraApi[]>(
+      `/compras/pedidos/${pedidoId}/recebimentos`,
+      token,
+    ),
+  getRecebimento: (id: string, token: string) =>
+    ApiClient.get<RecebimentoCompraApi>(`/compras/recebimentos/${id}`, token),
+  createRecebimento: (
+    pedidoId: string,
+    data: Record<string, unknown>,
+    token: string,
+  ) =>
+    ApiClient.post<RecebimentoCompraApi>(
+      `/compras/pedidos/${pedidoId}/recebimentos`,
+      data,
+      token,
+    ),
+  confirmarRecebimento: (id: string, token: string) =>
+    ApiClient.post<RecebimentoCompraApi>(
+      `/compras/recebimentos/${id}/confirmar`,
+      {},
+      token,
+    ),
+  cancelarRecebimento: (
+    id: string,
+    data: Record<string, unknown>,
+    token: string,
+  ) =>
+    ApiClient.post<RecebimentoCompraApi>(
+      `/compras/recebimentos/${id}/cancelar`,
+      data,
+      token,
+    ),
+  listAceites: (pedidoId: string, token: string) =>
+    ApiClient.get<AceiteServicoApi[]>(
+      `/compras/pedidos/${pedidoId}/aceites-servico`,
+      token,
+    ),
+  getAceite: (id: string, token: string) =>
+    ApiClient.get<AceiteServicoApi>(`/compras/aceites-servico/${id}`, token),
+  createAceite: (
+    pedidoId: string,
+    data: Record<string, unknown>,
+    token: string,
+  ) =>
+    ApiClient.post<AceiteServicoApi>(
+      `/compras/pedidos/${pedidoId}/aceites-servico`,
+      data,
+      token,
+    ),
+  confirmarAceite: (id: string, token: string) =>
+    ApiClient.post<AceiteServicoApi>(
+      `/compras/aceites-servico/${id}/confirmar`,
+      {},
+      token,
+    ),
+  cancelarAceite: (
+    id: string,
+    data: Record<string, unknown>,
+    token: string,
+  ) =>
+    ApiClient.post<AceiteServicoApi>(
+      `/compras/aceites-servico/${id}/cancelar`,
       data,
       token,
     ),

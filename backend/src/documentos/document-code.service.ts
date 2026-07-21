@@ -8,6 +8,8 @@ const DOCUMENTO_OS_INTERNA = 'OSI';
 const DOCUMENTO_NOTA_FISCAL = 'NF';
 const DOCUMENTO_SOLICITACAO_COMPRA = 'SC';
 const DOCUMENTO_PEDIDO_COMPRA = 'PC';
+const DOCUMENTO_RECEBIMENTO_COMPRA = 'RC';
+const DOCUMENTO_ACEITE_SERVICO = 'AS';
 const PADRAO_NUMERO = 3;
 
 interface GerarCodigoParams {
@@ -107,6 +109,28 @@ export class DocumentCodeService {
   ): Promise<string> {
     return this.gerarCodigo({
       tipoDocumento: DOCUMENTO_PEDIDO_COMPRA,
+      lojaId,
+      ano,
+    });
+  }
+
+  async gerarCodigoRecebimentoCompra(
+    lojaId: string,
+    ano?: number,
+  ): Promise<string> {
+    return this.gerarCodigo({
+      tipoDocumento: DOCUMENTO_RECEBIMENTO_COMPRA,
+      lojaId,
+      ano,
+    });
+  }
+
+  async gerarCodigoAceiteServico(
+    lojaId: string,
+    ano?: number,
+  ): Promise<string> {
+    return this.gerarCodigo({
+      tipoDocumento: DOCUMENTO_ACEITE_SERVICO,
       lojaId,
       ano,
     });

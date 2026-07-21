@@ -654,6 +654,8 @@ model loja {
   solicitacoes_compra            SolicitacaoCompra[]
   pedidos_compra                 PedidoCompra[]
   compras_historico              CompraHistorico[]
+  recebimentos_compra            RecebimentoCompra[]
+  aceites_servico                AceiteServico[]
   maquina                        maquina[]
   notificacao                    notificacao[]
   orcamento                      orcamento[]
@@ -850,6 +852,8 @@ model PedidoCompra {
   pedido_substituido PedidoCompra?   @relation("PedidoCompraSubstituicao", fields: [pedido_substituido_id], references: [id], onDelete: SetNull)
   pedidos_substitutos PedidoCompra[] @relation("PedidoCompraSubstituicao")
   itens              PedidoCompraItem[]
+  recebimentos       RecebimentoCompra[]
+  aceites            AceiteServico[]
 
   @@unique([loja_id, numero])
   @@index([loja_id, status])
@@ -884,6 +888,8 @@ model PedidoCompraItem {
   insumo              Insumo?                      @relation(fields: [insumo_id], references: [id], onDelete: Restrict)
   ordem_terceirizacao OrdemTerceirizacao?          @relation("PedidoCompraItemOrdemTerceirizacao", fields: [ordem_terceirizacao_id], references: [id], onDelete: SetNull)
   apropriacoes        PedidoCompraItemApropriacao[]
+  recebimento_itens   RecebimentoCompraItem[]
+  aceite_itens        AceiteServicoItem[]
 
   @@index([loja_id])
   @@index([pedido_id])
@@ -938,6 +944,121 @@ model CompraHistorico {
   @@index([loja_id, criado_em])
   @@index([usuario_id])
   @@map("compras_historico")
+}
+
+enum StatusRecebimentoCompra {
+  RASCUNHO
+  CONFIRMADO
+  CANCELADO
+  ESTORNADO
+}
+
+enum StatusAceiteServico {
+  RASCUNHO
+  CONFIRMADO
+  CANCELADO
+  ESTORNADO
+}
+
+model RecebimentoCompra {
+  id                   String                  @id @default(cuid())
+  loja_id              String
+  pedido_id            String
+  numero               String
+  status               StatusRecebimentoCompra @default(RASCUNHO)
+  data_recebimento     DateTime                @default(now())
+  responsavel_id       String
+  observacao           String?                 @db.Text
+  chave_idempotente    String?
+  movimento_estoque_ok Boolean                 @default(false)
+  criado_em            DateTime                @default(now())
+  atualizado_em        DateTime                @updatedAt
+
+  loja         loja                    @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  pedido       PedidoCompra            @relation(fields: [pedido_id], references: [id], onDelete: Restrict)
+  responsavel  usuario                 @relation("RecebimentoCompraResponsavel", fields: [responsavel_id], references: [id], onDelete: Restrict)
+  itens        RecebimentoCompraItem[]
+
+  @@unique([loja_id, numero])
+  @@unique([loja_id, chave_idempotente])
+  @@index([loja_id, status])
+  @@index([pedido_id])
+  @@index([responsavel_id])
+  @@map("recebimentos_compra")
+}
+
+model RecebimentoCompraItem {
+  id                   String   @id @default(cuid())
+  loja_id              String
+  recebimento_id       String
+  pedido_item_id       String
+  quantidade_recebida  Decimal  @db.Decimal(12, 3)
+  quantidade_aceita    Decimal  @db.Decimal(12, 3)
+  quantidade_recusada  Decimal  @db.Decimal(12, 3)
+  localizacao_id       String?
+  estoque_item_id      String?
+  lote_codigo          String?
+  observacao           String?
+  movimento_ref        String?
+  criado_em            DateTime @default(now())
+
+  recebimento  RecebimentoCompra @relation(fields: [recebimento_id], references: [id], onDelete: Cascade)
+  pedido_item  PedidoCompraItem  @relation(fields: [pedido_item_id], references: [id], onDelete: Restrict)
+
+  @@index([loja_id])
+  @@index([recebimento_id])
+  @@index([pedido_item_id])
+  @@index([localizacao_id])
+  @@index([estoque_item_id])
+  @@map("recebimento_compra_itens")
+}
+
+model AceiteServico {
+  id                String             @id @default(cuid())
+  loja_id           String
+  pedido_id         String
+  numero            String
+  status            StatusAceiteServico @default(RASCUNHO)
+  periodo_inicio    DateTime?
+  periodo_fim       DateTime?
+  responsavel_id    String
+  aceite_final      Boolean            @default(false)
+  observacao        String?            @db.Text
+  chave_idempotente String?
+  criado_em         DateTime           @default(now())
+  atualizado_em     DateTime           @updatedAt
+
+  loja        loja                @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  pedido      PedidoCompra        @relation(fields: [pedido_id], references: [id], onDelete: Restrict)
+  responsavel usuario             @relation("AceiteServicoResponsavel", fields: [responsavel_id], references: [id], onDelete: Restrict)
+  itens       AceiteServicoItem[]
+
+  @@unique([loja_id, numero])
+  @@unique([loja_id, chave_idempotente])
+  @@index([loja_id, status])
+  @@index([pedido_id])
+  @@index([responsavel_id])
+  @@map("aceites_servico")
+}
+
+model AceiteServicoItem {
+  id                String   @id @default(cuid())
+  loja_id           String
+  aceite_id         String
+  pedido_item_id    String
+  quantidade_aceita Decimal? @db.Decimal(12, 3)
+  percentual_aceito Decimal? @db.Decimal(5, 2)
+  valor_aceito      Decimal? @db.Decimal(12, 2)
+  observacao        String?
+  criado_em         DateTime @default(now())
+
+  aceite      AceiteServico   @relation(fields: [aceite_id], references: [id], onDelete: Cascade)
+  pedido_item PedidoCompraItem @relation(fields: [pedido_item_id], references: [id], onDelete: Restrict)
+
+  @@index([loja_id])
+  @@index([aceite_id])
+  @@index([pedido_item_id])
+  @@map("aceite_servico_itens")
 }
 
 model maquina {
@@ -1672,6 +1793,8 @@ model usuario {
   // Relacionamentos Compras (MVP Fase 1)
   solicitacoes_compra_solicitante SolicitacaoCompra[] @relation("SolicitacaoCompraSolicitante")
   compras_historico               CompraHistorico[]   @relation("CompraHistoricoUsuario")
+  recebimentos_responsavel        RecebimentoCompra[] @relation("RecebimentoCompraResponsavel")
+  aceites_responsavel             AceiteServico[]     @relation("AceiteServicoResponsavel")
 
   @@index([loja_id], map: "Usuario_loja_id_idx")
 }
