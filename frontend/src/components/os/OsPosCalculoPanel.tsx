@@ -31,7 +31,9 @@ import {
 } from '@/components/ui/table';
 import {
   posCalculoApi,
+  type HistoricoFechamentoEventoApi,
   type PosCalculoResponse,
+  type PosCalculoTrocaFornecedorApi,
   type StatusFechamentoFinanceiroOsApi,
 } from '@/lib/api-client';
 
@@ -39,6 +41,34 @@ function classeDesvio(valor: number): string | undefined {
   if (valor > 0) return 'text-destructive';
   if (valor < 0) return 'text-emerald-600 dark:text-emerald-400';
   return undefined;
+}
+
+function formatarDataHora(valor?: string | null): string {
+  if (!valor) return '—';
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return valor;
+  return data.toLocaleString('pt-BR');
+}
+
+function labelTipoTroca(tipo: PosCalculoTrocaFornecedorApi['tipo']): string {
+  if (tipo === 'SUBSTITUICAO_PEDIDO') return 'Substituição de pedido';
+  if (tipo === 'DESVIO_PREVISTO') return 'Desvio previsto × efetivo';
+  return tipo;
+}
+
+function labelAcaoHistorico(acao: string): string {
+  if (acao === 'FECHAR') return 'Fechamento';
+  if (acao === 'REABRIR') return 'Reabertura';
+  return acao;
+}
+
+function extrairTextoDados(
+  dados: HistoricoFechamentoEventoApi['dados'],
+  chave: 'motivo' | 'observacao',
+): string | null {
+  if (!dados || typeof dados !== 'object') return null;
+  const valor = dados[chave];
+  return typeof valor === 'string' && valor.trim() ? valor.trim() : null;
 }
 
 function badgeSeveridade(
@@ -116,6 +146,9 @@ export function OsPosCalculoPanel({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [resultado, setResultado] = useState<PosCalculoResponse | null>(null);
+  const [historico, setHistorico] = useState<HistoricoFechamentoEventoApi[]>(
+    [],
+  );
   const [reabrirOpen, setReabrirOpen] = useState(false);
   const [motivoReabertura, setMotivoReabertura] = useState('');
 
@@ -127,8 +160,12 @@ export function OsPosCalculoPanel({
       return;
     }
     try {
-      const data = await posCalculoApi.obterPorOs(osId, token);
+      const [data, hist] = await Promise.all([
+        posCalculoApi.obterPorOs(osId, token),
+        posCalculoApi.historico(osId, token).catch(() => null),
+      ]);
       setResultado(data);
+      setHistorico(hist?.historico ?? []);
     } catch (error) {
       console.error(error);
       toast.error(
@@ -137,6 +174,7 @@ export function OsPosCalculoPanel({
           : 'Erro ao carregar pós-cálculo da OS.',
       );
       setResultado(null);
+      setHistorico([]);
     } finally {
       setLoading(false);
     }
@@ -387,6 +425,51 @@ export function OsPosCalculoPanel({
         </Card>
       ) : null}
 
+      {resultado.trocas_fornecedor.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Trocas de fornecedor</CardTitle>
+            <CardDescription>
+              Substituições auditadas e desvios entre previsto e efetivo
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3 text-sm">
+              {resultado.trocas_fornecedor.map((troca, i) => (
+                <li
+                  key={`${troca.tipo}-${troca.pedido_id ?? i}-${troca.em ?? i}`}
+                  className="rounded-md border bg-muted/40 px-3 py-2"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">{labelTipoTroca(troca.tipo)}</Badge>
+                    {troca.pedido_numero ? (
+                      <span className="text-muted-foreground">
+                        Pedido {troca.pedido_numero}
+                      </span>
+                    ) : null}
+                    <span className="text-xs text-muted-foreground">
+                      {formatarDataHora(troca.em)}
+                    </span>
+                  </div>
+                  <p className="mt-1">
+                    <span className="text-muted-foreground">Previsto: </span>
+                    {troca.fornecedor_previsto_nome ?? '—'}
+                    <span className="mx-2 text-muted-foreground">→</span>
+                    <span className="text-muted-foreground">Efetivo: </span>
+                    {troca.fornecedor_efetivo_nome ?? '—'}
+                  </p>
+                  {troca.motivo ? (
+                    <p className="mt-1 text-muted-foreground">
+                      Motivo: {troca.motivo}
+                    </p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {resultado.pendencias.length > 0 ? (
         <Card>
           <CardHeader>
@@ -410,6 +493,84 @@ export function OsPosCalculoPanel({
           </CardContent>
         </Card>
       ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            Histórico de fechamento
+          </CardTitle>
+          <CardDescription>
+            Fechamentos, reaberturas e justificativas
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {historico.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhum evento de fechamento registrado ainda.
+            </p>
+          ) : (
+            <ul className="space-y-3 text-sm">
+              {historico.map((evento) => {
+                const motivo = extrairTextoDados(evento.dados, 'motivo');
+                const observacao = extrairTextoDados(
+                  evento.dados,
+                  'observacao',
+                );
+                return (
+                  <li
+                    key={evento.id}
+                    className="rounded-md border bg-muted/40 px-3 py-2"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge
+                        variant={
+                          evento.acao === 'REABRIR' ? 'secondary' : 'default'
+                        }
+                      >
+                        {labelAcaoHistorico(evento.acao)}
+                      </Badge>
+                      {evento.status_anterior || evento.status_novo ? (
+                        <span className="text-xs text-muted-foreground">
+                          {evento.status_anterior
+                            ? labelStatusFechamento(
+                                evento.status_anterior as StatusFechamentoFinanceiroOsApi,
+                              )
+                            : '—'}
+                          {' → '}
+                          {evento.status_novo
+                            ? labelStatusFechamento(
+                                evento.status_novo as StatusFechamentoFinanceiroOsApi,
+                              )
+                            : '—'}
+                        </span>
+                      ) : null}
+                      <span className="text-xs text-muted-foreground">
+                        {formatarDataHora(evento.criado_em)}
+                      </span>
+                    </div>
+                    {evento.usuario?.nome_completo ? (
+                      <p className="mt-1 text-muted-foreground">
+                        Por {evento.usuario.nome_completo}
+                      </p>
+                    ) : null}
+                    {motivo ? (
+                      <p className="mt-1">
+                        <span className="font-medium">Motivo: </span>
+                        {motivo}
+                      </p>
+                    ) : null}
+                    {observacao ? (
+                      <p className="mt-1 text-muted-foreground">
+                        Observação: {observacao}
+                      </p>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       {resultado.meta.limitacoes?.length ? (
         <Card>

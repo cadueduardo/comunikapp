@@ -609,6 +609,22 @@ export interface PosCalculoPendenciaApi {
   severidade?: 'info' | 'alerta' | 'critico';
 }
 
+export type PosCalculoTrocaFornecedorTipoApi =
+  | 'SUBSTITUICAO_PEDIDO'
+  | 'DESVIO_PREVISTO';
+
+export interface PosCalculoTrocaFornecedorApi {
+  tipo: PosCalculoTrocaFornecedorTipoApi;
+  pedido_id?: string;
+  pedido_numero?: string;
+  fornecedor_previsto_id?: string;
+  fornecedor_previsto_nome?: string;
+  fornecedor_efetivo_id?: string;
+  fornecedor_efetivo_nome?: string;
+  motivo?: string;
+  em?: string;
+}
+
 export interface PosCalculoResponse {
   os_id: string;
   os_numero?: string;
@@ -638,7 +654,7 @@ export interface PosCalculoResponse {
     limitacoes?: string[];
   };
   categorias: PosCalculoCategoriaApi[];
-  trocas_fornecedor: unknown[];
+  trocas_fornecedor: PosCalculoTrocaFornecedorApi[];
   pendencias: PosCalculoPendenciaApi[];
 }
 
@@ -652,6 +668,40 @@ export interface FecharFechamentoResultadoApi {
   };
   avisos: string[];
   ja_estava_fechado: boolean;
+}
+
+export interface FechamentoFinanceiroSnapshotApi {
+  id: string;
+  os_id: string;
+  status: StatusFechamentoFinanceiroOsApi;
+  fechado_em: string | null;
+  fechado_por: string | null;
+  reaberto_em: string | null;
+  reaberto_por: string | null;
+  motivo_reabertura: string | null;
+  versao: number;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export interface HistoricoFechamentoEventoApi {
+  id: string;
+  acao: string;
+  status_anterior: string | null;
+  status_novo: string | null;
+  dados: Record<string, unknown> | null;
+  criado_em: string;
+  usuario?: {
+    id: string;
+    nome_completo: string | null;
+    email: string | null;
+  } | null;
+}
+
+export interface HistoricoFechamentoResultadoApi {
+  os_id: string;
+  fechamento_atual: FechamentoFinanceiroSnapshotApi | null;
+  historico: HistoricoFechamentoEventoApi[];
 }
 
 export const posCalculoApi = {
@@ -677,7 +727,7 @@ export const posCalculoApi = {
       token,
     ),
   historico: (osId: string, token: string) =>
-    ApiClient.get<Record<string, unknown>>(
+    ApiClient.get<HistoricoFechamentoResultadoApi>(
       `/financeiro/os/${encodeURIComponent(osId)}/historico`,
       token,
     ),

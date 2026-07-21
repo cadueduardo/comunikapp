@@ -11,7 +11,10 @@ import {
   loja,
 } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
-import type { PosCalculoResponse } from '../interfaces/pos-calculo.interface';
+import type {
+  PosCalculoResponse,
+  PosCalculoTrocaFornecedor,
+} from '../interfaces/pos-calculo.interface';
 import {
   acumularBucketCategoria,
   calcularIncorridoProporcional,
@@ -23,6 +26,16 @@ import {
   roundMoney2,
   type TipoCategoriaPosCalculo,
 } from '../utils/pos-calculo-aggregation.util';
+import {
+  combinarTrocasFornecedor,
+  extrairDadosSubstituicao,
+  isAcaoSubstituicaoFornecedor,
+  montarDesviosPrevistos,
+  montarTrocasSubstituicaoHistorico,
+  type DesvioPrevistoEntrada,
+  type HistoricoSubstituicaoEntrada,
+  type PedidoFornecedorMeta,
+} from '../utils/pos-calculo-trocas-fornecedor.util';
 import { PosCalculoPermissionsService } from './pos-calculo-permissions.service';
 
 const STATUS_PEDIDO_COMPROMETIDO: StatusPedidoCompra[] = [
@@ -86,8 +99,11 @@ export class PosCalculoService {
               select: {
                 insumos: {
                   select: {
+                    insumo_id: true,
                     preco_total: true,
                     material_do_cliente: true,
+                    fornecedor_previsto_id: true,
+                    fornecedor_nome_snapshot: true,
                   },
                 },
                 maquinas: { select: { custo_total: true } },
@@ -157,6 +173,12 @@ export class PosCalculoService {
 
     const statusFechamento = await this.obterStatusFechamento(osId, lojaAtual.id);
 
+    const trocasFornecedor = await this.montarTrocasFornecedor(
+      osId,
+      lojaAtual.id,
+      os,
+    );
+
     return {
       os_id: os.id,
       os_numero: os.numero,
@@ -170,9 +192,278 @@ export class PosCalculoService {
         limitacoes: limitacoes.length > 0 ? limitacoes : undefined,
       },
       categorias,
-      trocas_fornecedor: [],
+      trocas_fornecedor: trocasFornecedor,
       pendencias,
     };
+  }
+
+  private async montarTrocasFornecedor(
+    osId: string,
+    lojaId: string,
+    os: {
+      orcamento: {
+        produtos: Array<{
+          insumos: Array<{
+            insumo_id: string;
+            fornecedor_previsto_id: string | null;
+            fornecedor_nome_snapshot: string | null;
+            material_do_cliente: boolean;
+          }>;
+        }>;
+      } | null;
+    },
+  ): Promise<PosCalculoTrocaFornecedor[]> {
+    const apropriacoes = await this.prisma.pedidoCompraItemApropriacao.findMany(
+      {
+        where: {
+          loja_id: lojaId,
+          ...FILTRO_APROPRIACAO_OS(osId),
+        },
+        select: {
+          pedido_item: {
+            select: { pedido_id: true },
+          },
+        },
+      },
+    );
+
+    const pedidoIdsOs = [
+      ...new Set(apropriacoes.map((a) => a.pedido_item.pedido_id)),
+    ];
+
+    if (pedidoIdsOs.length === 0) {
+      return [];
+    }
+
+    let historicos = await this.prisma.compraHistorico.findMany({
+      where: {
+        loja_id: lojaId,
+        entidade_tipo: 'PEDIDO_COMPRA',
+        entidade_id: { in: pedidoIdsOs },
+        acao: {
+          in: ['SUBSTITUIR_FORNECEDOR', 'CANCELAR_POR_SUBSTITUICAO'],
+        },
+      },
+      select: {
+        entidade_id: true,
+        acao: true,
+        criado_em: true,
+        dados: true,
+      },
+      orderBy: { criado_em: 'asc' },
+    });
+
+    const idsRelacionados = new Set<string>();
+    for (const historico of historicos) {
+      const dados = extrairDadosSubstituicao(historico.dados);
+      if (dados.pedidoSubstitutoId) {
+        idsRelacionados.add(dados.pedidoSubstitutoId);
+      }
+      if (dados.pedidoSubstituidoId) {
+        idsRelacionados.add(dados.pedidoSubstituidoId);
+      }
+    }
+
+    const idsExtras = [...idsRelacionados].filter(
+      (id) => !pedidoIdsOs.includes(id),
+    );
+    if (idsExtras.length > 0) {
+      const historicosExtras = await this.prisma.compraHistorico.findMany({
+        where: {
+          loja_id: lojaId,
+          entidade_tipo: 'PEDIDO_COMPRA',
+          entidade_id: { in: idsExtras },
+          acao: {
+            in: ['SUBSTITUIR_FORNECEDOR', 'CANCELAR_POR_SUBSTITUICAO'],
+          },
+        },
+        select: {
+          entidade_id: true,
+          acao: true,
+          criado_em: true,
+          dados: true,
+        },
+        orderBy: { criado_em: 'asc' },
+      });
+      historicos = [...historicos, ...historicosExtras];
+    }
+
+    const todosPedidoIds = [
+      ...new Set([...pedidoIdsOs, ...idsRelacionados]),
+    ];
+
+    const pedidosDb = await this.prisma.pedidoCompra.findMany({
+      where: {
+        loja_id: lojaId,
+        id: { in: todosPedidoIds },
+      },
+      select: {
+        id: true,
+        numero: true,
+        fornecedor_id: true,
+        fornecedor: { select: { id: true, nome: true } },
+      },
+    });
+
+    const pedidos = new Map<string, PedidoFornecedorMeta>(
+      pedidosDb.map((pedido) => [
+        pedido.id,
+        {
+          id: pedido.id,
+          numero: pedido.numero,
+          fornecedorId: pedido.fornecedor_id,
+          fornecedorNome: pedido.fornecedor.nome,
+        },
+      ]),
+    );
+
+    const fornecedorIds = new Set<string>();
+    for (const pedido of pedidosDb) {
+      fornecedorIds.add(pedido.fornecedor_id);
+    }
+    for (const historico of historicos) {
+      if (!isAcaoSubstituicaoFornecedor(historico.acao)) {
+        continue;
+      }
+      const dados = extrairDadosSubstituicao(historico.dados);
+      if (dados.fornecedorAnteriorId) {
+        fornecedorIds.add(dados.fornecedorAnteriorId);
+      }
+      if (dados.fornecedorId) {
+        fornecedorIds.add(dados.fornecedorId);
+      }
+    }
+
+    const fornecedoresDb = await this.prisma.fornecedor.findMany({
+      where: {
+        loja_id: lojaId,
+        id: { in: [...fornecedorIds] },
+      },
+      select: { id: true, nome: true },
+    });
+
+    const fornecedores = new Map<string, string>(
+      fornecedoresDb.map((fornecedor) => [fornecedor.id, fornecedor.nome]),
+    );
+
+    const entradasHistorico: HistoricoSubstituicaoEntrada[] = historicos.map(
+      (historico) => ({
+        entidadeId: historico.entidade_id,
+        acao: historico.acao,
+        criadoEm: historico.criado_em,
+        dados: historico.dados,
+      }),
+    );
+
+    const substituicoes = montarTrocasSubstituicaoHistorico(
+      entradasHistorico,
+      pedidos,
+      fornecedores,
+    );
+
+    const pedidosComSubstituicao = new Set(
+      substituicoes
+        .map((troca) => troca.pedido_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+
+    const desviosEntrada = await this.montarEntradasDesvioPrevisto(
+      osId,
+      lojaId,
+      os,
+    );
+    const desvios = montarDesviosPrevistos(
+      desviosEntrada,
+      pedidosComSubstituicao,
+    );
+
+    return combinarTrocasFornecedor(substituicoes, desvios);
+  }
+
+  private async montarEntradasDesvioPrevisto(
+    osId: string,
+    lojaId: string,
+    os: {
+      orcamento: {
+        produtos: Array<{
+          insumos: Array<{
+            insumo_id: string;
+            fornecedor_previsto_id: string | null;
+            fornecedor_nome_snapshot: string | null;
+            material_do_cliente: boolean;
+          }>;
+        }>;
+      } | null;
+    },
+  ): Promise<DesvioPrevistoEntrada[]> {
+    if (!os.orcamento) {
+      return [];
+    }
+
+    const previstoPorInsumo = new Map<
+      string,
+      { id: string; nome?: string }
+    >();
+
+    for (const produto of os.orcamento.produtos) {
+      for (const insumo of produto.insumos) {
+        if (insumo.material_do_cliente || !insumo.fornecedor_previsto_id) {
+          continue;
+        }
+        previstoPorInsumo.set(insumo.insumo_id, {
+          id: insumo.fornecedor_previsto_id,
+          nome: insumo.fornecedor_nome_snapshot ?? undefined,
+        });
+      }
+    }
+
+    if (previstoPorInsumo.size === 0) {
+      return [];
+    }
+
+    const itens = await this.prisma.pedidoCompraItem.findMany({
+      where: {
+        loja_id: lojaId,
+        insumo_id: { in: [...previstoPorInsumo.keys()] },
+        apropriacoes: { some: FILTRO_APROPRIACAO_OS(osId) },
+        pedido: { status: { in: STATUS_PEDIDO_COMPROMETIDO } },
+      },
+      select: {
+        insumo_id: true,
+        pedido: {
+          select: {
+            id: true,
+            numero: true,
+            fornecedor_id: true,
+            fornecedor: { select: { nome: true } },
+          },
+        },
+      },
+    });
+
+    const entradas: DesvioPrevistoEntrada[] = [];
+
+    for (const item of itens) {
+      if (!item.insumo_id) {
+        continue;
+      }
+
+      const previsto = previstoPorInsumo.get(item.insumo_id);
+      if (!previsto) {
+        continue;
+      }
+
+      entradas.push({
+        pedidoId: item.pedido.id,
+        pedidoNumero: item.pedido.numero,
+        fornecedorEfetivoId: item.pedido.fornecedor_id,
+        fornecedorEfetivoNome: item.pedido.fornecedor.nome,
+        fornecedorPrevistoId: previsto.id,
+        fornecedorPrevistoNome: previsto.nome,
+      });
+    }
+
+    return entradas;
   }
 
   private async obterStatusFechamento(

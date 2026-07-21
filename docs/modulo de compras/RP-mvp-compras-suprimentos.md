@@ -879,8 +879,8 @@ Detalhamento: `docs/modulo de compras/fase-0-descoberta-contratos.md` (2026-07-2
 - [x] UI mínima em `/financeiro/pos-calculo`.
 - [x] Agregação por categoria (MATERIAL/SERVICO/DESPESA) e alertas de desvio (total e por categoria).
 - [x] Fechamento financeiro (API + aba Financeiro na OS).
-- [ ] Histórico de fechamento na UI.
-- [ ] Agregação por item/fornecedor (trocas).
+- [x] Histórico de fechamento na UI.
+- [x] Agregação por item/fornecedor (trocas parcial: substituições auditadas + desvio previsto × efetivo).
 
 ### Fase 6 — Produção
 

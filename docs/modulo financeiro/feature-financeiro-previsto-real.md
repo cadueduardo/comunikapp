@@ -442,14 +442,14 @@ Duplicidade deve ser impedida na origem, não corrigida por rotina posterior.
 - [x] GET `/financeiro/os/:osId/pos-calculo` — agregação read-only por OS (receita, custos, margens).
 - [x] Agregação por categoria (MATERIAL/SERVICO/DESPESA) — parcial: previsto estimado do orçamento; real de apropriações de compra.
 - [x] Pendências e alertas de desvio (total e por categoria; severidade alerta/critico).
-- [ ] Agregação por item e fornecedor.
+- [x] Agregação por item e fornecedor (trocas parcial: substituições auditadas + desvio previsto × efetivo).
 - [x] Fechamento/reabertura com auditoria.
 
 ### Fase 4 — Interface
 
 - [x] Aba na OS (`?tab=financeiro` + painel pós-cálculo/fechamento).
 - [x] Indicadores e tabela responsiva (painel compartilhado).
-- [ ] Histórico e justificativas (UI de histórico de fechamento).
+- [x] Histórico e justificativas (UI de histórico de fechamento na aba Financeiro).
 - [ ] Testes light/dark, acessibilidade e responsividade.
 
 ### Fase 5 — Validação e produção
