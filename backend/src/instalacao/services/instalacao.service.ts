@@ -698,8 +698,9 @@ export class InstalacaoService {
         ],
       },
       orderBy: [
-        { data_instalacao_agendada: 'asc' },
-        { data_abertura: 'desc' },
+        // Mais novas primeiro (gestão operacional — OS recentes no topo).
+        { criado_em: 'desc' },
+        { numero: 'desc' },
       ],
       select: {
         id: true,
