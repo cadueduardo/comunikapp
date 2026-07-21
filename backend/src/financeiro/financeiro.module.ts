@@ -10,6 +10,7 @@ import { StatusRollupService } from './services/status-rollup.service';
 import { CobrancaVencimentoService } from './services/cobranca-vencimento.service';
 import { VencimentoCobrancasJob } from './jobs/vencimento-cobrancas.job';
 import { ContasPagarModule } from './contas-pagar/contas-pagar.module';
+import { PosCalculoModule } from './pos-calculo/pos-calculo.module';
 
 /**
  * Modulo do financeiro minimo (Fase 6) + Contas a Pagar (Compras MVP Fase 4).
@@ -25,6 +26,8 @@ import { ContasPagarModule } from './contas-pagar/contas-pagar.module';
  *
  * `ContasPagarModule` registra rotas em `/financeiro/contas-pagar` e
  * `/financeiro/pagamentos` (obrigacoes a fornecedores).
+ *
+ * `PosCalculoModule` expoe GET `/financeiro/os/:osId/pos-calculo`.
  */
 @Module({
   imports: [
@@ -33,6 +36,7 @@ import { ContasPagarModule } from './contas-pagar/contas-pagar.module';
     HomeOperacionalModule,
     InstalacaoModule,
     ContasPagarModule,
+    PosCalculoModule,
   ],
   controllers: [FinanceiroController],
   providers: [
@@ -48,6 +52,7 @@ import { ContasPagarModule } from './contas-pagar/contas-pagar.module';
     ParcelasBuilderService,
     StatusRollupService,
     ContasPagarModule,
+    PosCalculoModule,
   ],
 })
 export class FinanceiroModule {}

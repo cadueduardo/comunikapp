@@ -585,6 +585,53 @@ export const contasPagarApi = {
     ),
 };
 
+export interface PosCalculoPendenciaApi {
+  tipo: string;
+  descricao: string;
+  severidade?: 'info' | 'alerta' | 'critico';
+}
+
+export interface PosCalculoResponse {
+  os_id: string;
+  os_numero?: string;
+  status_fechamento: 'PENDENTE';
+  receita: {
+    prevista: number;
+    faturada: number;
+    recebida: number;
+  };
+  custos: {
+    previsto: number;
+    comprometido: number;
+    incorrido: number;
+    faturado: number;
+    pago: number;
+    a_pagar: number;
+  };
+  desvio_pago: number;
+  desvio_comprometido: number;
+  margem_prevista: number;
+  margem_caixa: number;
+  meta: {
+    moeda: string;
+    visao_margem: string;
+    status_fechamento: string;
+    custo_previsto_fonte?: string;
+    limitacoes?: string[];
+  };
+  categorias: [];
+  trocas_fornecedor: [];
+  pendencias: PosCalculoPendenciaApi[];
+}
+
+export const posCalculoApi = {
+  obterPorOs: (osId: string, token: string) =>
+    ApiClient.get<PosCalculoResponse>(
+      `/financeiro/os/${encodeURIComponent(osId)}/pos-calculo`,
+      token,
+    ),
+};
+
 export const notificacoesApi = {
   getAll: (token: string, limit?: number, offset?: number) => {
     const params = new URLSearchParams();

@@ -875,8 +875,9 @@ Detalhamento: `docs/modulo de compras/fase-0-descoberta-contratos.md` (2026-07-2
 
 ### Fase 5 — Pós-cálculo
 
-- [ ] Integração com previsto × real.
-- [ ] Alertas de desvio.
+- [x] GET `/financeiro/os/:osId/pos-calculo` (read-only, previsto × real).
+- [x] UI mínima em `/financeiro/pos-calculo`.
+- [ ] Alertas de desvio (detalhados por categoria).
 - [ ] Fechamento financeiro.
 
 ### Fase 6 — Produção

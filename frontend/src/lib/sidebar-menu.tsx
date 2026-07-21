@@ -159,7 +159,7 @@ export function buildSidebarNavItems(
     items.push({
       id: 'financeiro',
       label: 'Financeiro',
-      href: '/financeiro/recebimentos',
+      href: '/financeiro',
       badgeCount: contadores.financeiro,
       icon: <IconCash className={iconClass} />,
     });

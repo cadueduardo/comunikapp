@@ -15,6 +15,10 @@ import { ContasPagarPermissionsService } from './services/contas-pagar-permissio
     PagamentosFornecedorService,
     ContasPagarPermissionsService,
   ],
-  exports: [ContasPagarService, PagamentosFornecedorService],
+  exports: [
+    ContasPagarService,
+    PagamentosFornecedorService,
+    ContasPagarPermissionsService,
+  ],
 })
 export class ContasPagarModule {}
