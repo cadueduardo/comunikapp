@@ -30,12 +30,12 @@ import {
   type FornecedorApi,
   type PedidoCompraApi,
 } from '@/lib/api-client';
-import { statusPedidoLabel } from '../columns';
+import { statusPedidoLabel } from '../../columns';
 import {
   PedidoForm,
   PedidoFormData,
   PedidoFormValues,
-} from '../pedido-form';
+} from '../../pedido-form';
 
 export default function EditarPedidoPage({
   params,
