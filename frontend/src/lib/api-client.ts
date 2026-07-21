@@ -195,6 +195,112 @@ export const fornecedoresApi = {
   delete: (id: string, token: string) => ApiClient.delete(`/fornecedores/${id}`, token),
 };
 
+export type StatusSolicitacaoCompraApi =
+  | 'RASCUNHO'
+  | 'SOLICITADA'
+  | 'APROVADA'
+  | 'CONVERTIDA'
+  | 'REJEITADA'
+  | 'DEVOLVIDA'
+  | 'CANCELADA';
+
+export type StatusPedidoCompraApi =
+  | 'RASCUNHO'
+  | 'EM_APROVACAO'
+  | 'APROVADO'
+  | 'REJEITADO'
+  | 'ENVIADO'
+  | 'PARCIAL'
+  | 'ATENDIDO'
+  | 'CONCLUIDO'
+  | 'CANCELADO';
+
+export interface SolicitacaoCompraItemApi {
+  id: string;
+  tipo: string;
+  descricao: string;
+  quantidade: number | string;
+  unidade: string;
+  insumo_id?: string | null;
+}
+
+export interface SolicitacaoCompraApi {
+  id: string;
+  numero: string;
+  status: StatusSolicitacaoCompraApi;
+  prioridade: string;
+  origem_tipo: string;
+  justificativa?: string | null;
+  itens?: SolicitacaoCompraItemApi[];
+}
+
+export interface PedidoCompraItemApi {
+  id: string;
+  tipo: string;
+  descricao_snapshot: string;
+  quantidade: number | string;
+  unidade_snapshot: string;
+  preco_unitario: number | string;
+  total: number | string;
+}
+
+export interface PedidoCompraApi {
+  id: string;
+  numero: string;
+  status: StatusPedidoCompraApi;
+  fornecedor_id: string;
+  total: number | string;
+  fornecedor?: { id: string; nome: string };
+  itens?: PedidoCompraItemApi[];
+}
+
+export const comprasApi = {
+  listSolicitacoes: (token: string) =>
+    ApiClient.get<SolicitacaoCompraApi[]>('/compras/solicitacoes', token),
+  getSolicitacao: (id: string, token: string) =>
+    ApiClient.get<SolicitacaoCompraApi>(`/compras/solicitacoes/${id}`, token),
+  createSolicitacao: (data: Record<string, unknown>, token: string) =>
+    ApiClient.post<SolicitacaoCompraApi>('/compras/solicitacoes', data, token),
+  updateSolicitacao: (id: string, data: Record<string, unknown>, token: string) =>
+    ApiClient.patch<SolicitacaoCompraApi>(
+      `/compras/solicitacoes/${id}`,
+      data,
+      token,
+    ),
+  enviarSolicitacao: (id: string, token: string) =>
+    ApiClient.post<SolicitacaoCompraApi>(
+      `/compras/solicitacoes/${id}/enviar`,
+      {},
+      token,
+    ),
+  aprovarSolicitacao: (id: string, token: string) =>
+    ApiClient.post<SolicitacaoCompraApi>(
+      `/compras/solicitacoes/${id}/aprovar`,
+      {},
+      token,
+    ),
+  rejeitarSolicitacao: (
+    id: string,
+    data: Record<string, unknown>,
+    token: string,
+  ) =>
+    ApiClient.post<SolicitacaoCompraApi>(
+      `/compras/solicitacoes/${id}/rejeitar`,
+      data,
+      token,
+    ),
+  listPedidos: (token: string) =>
+    ApiClient.get<PedidoCompraApi[]>('/compras/pedidos', token),
+  getPedido: (id: string, token: string) =>
+    ApiClient.get<PedidoCompraApi>(`/compras/pedidos/${id}`, token),
+  createPedido: (data: Record<string, unknown>, token: string) =>
+    ApiClient.post<PedidoCompraApi>('/compras/pedidos', data, token),
+  updatePedido: (id: string, data: Record<string, unknown>, token: string) =>
+    ApiClient.patch<PedidoCompraApi>(`/compras/pedidos/${id}`, data, token),
+  aprovarPedido: (id: string, token: string) =>
+    ApiClient.post<PedidoCompraApi>(`/compras/pedidos/${id}/aprovar`, {}, token),
+};
+
 export const notificacoesApi = {
   getAll: (token: string, limit?: number, offset?: number) => {
     const params = new URLSearchParams();

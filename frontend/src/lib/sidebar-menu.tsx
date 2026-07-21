@@ -11,6 +11,7 @@ import {
   IconMapPin,
   IconPackage,
   IconPalette,
+  IconShoppingCart,
   IconTools,
   IconTruckDelivery,
   IconUsers,
@@ -22,6 +23,7 @@ export type SidebarMenuItemId =
   | 'clientes'
   | 'insumos'
   | 'fornecedores'
+  | 'compras'
   | 'estoque'
   | 'modelos'
   | 'catalogo'
@@ -39,6 +41,7 @@ export const SIDEBAR_MENU_DEFAULT_ORDER: SidebarMenuItemId[] = [
   'clientes',
   'insumos',
   'fornecedores',
+  'compras',
   'estoque',
   'modelos',
   'catalogo',
@@ -111,6 +114,12 @@ export function buildSidebarNavItems(
       label: 'Fornecedores',
       href: '/fornecedores',
       icon: <IconBuildingStore className={iconClass} />,
+    },
+    {
+      id: 'compras',
+      label: 'Compras',
+      href: '/compras',
+      icon: <IconShoppingCart className={iconClass} />,
     },
     {
       id: 'estoque',

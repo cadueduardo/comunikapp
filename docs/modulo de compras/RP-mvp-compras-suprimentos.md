@@ -837,17 +837,17 @@ Detalhamento: `docs/modulo de compras/fase-0-descoberta-contratos.md` (2026-07-2
 
 - [x] Inventariar permissões, numeração, estoque e anexos existentes.
 - [ ] Validar o RP com cenários reais.
-- [ ] Fechar método de valorização de estoque.
-- [ ] Definir política de aprovação inicial.
+- [x] Fechar método de valorização de estoque (**D1 = custo médio ponderado**).
+- [x] Definir política de aprovação inicial (**D2 = permissão + autoaprovação se já pode aprovar**).
 - [x] Mapear dados legados; nenhuma escrita.
 
 ### Fase 1 — Fundação aditiva
 
-- [ ] Enums e tabelas de solicitação/pedido/histórico.
-- [ ] Migrations aditivas.
-- [ ] API de rascunho/listagem/detalhe.
-- [ ] Permissões.
-- [ ] UI CRUD usando componentes globais.
+- [x] Enums e tabelas de solicitação/pedido/histórico.
+- [x] Migrations aditivas (`20260721081827_create_compras_mvp_fase1`).
+- [x] API de rascunho/listagem/detalhe (+ enviar/aprovar/rejeitar básicos).
+- [x] Permissões (`compras.*` via `perfil_permissao`; ADMINISTRADOR bypass; D2 autoaprovação no enviar).
+- [x] UI CRUD mínima (`/compras`, solicitações e pedidos).
 
 ### Fase 2 — Aprovação e fornecedor
 

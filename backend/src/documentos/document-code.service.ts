@@ -6,6 +6,8 @@ const DOCUMENTO_ORCAMENTO = 'ORC';
 const DOCUMENTO_OS = 'OS';
 const DOCUMENTO_OS_INTERNA = 'OSI';
 const DOCUMENTO_NOTA_FISCAL = 'NF';
+const DOCUMENTO_SOLICITACAO_COMPRA = 'SC';
+const DOCUMENTO_PEDIDO_COMPRA = 'PC';
 const PADRAO_NUMERO = 3;
 
 interface GerarCodigoParams {
@@ -83,6 +85,28 @@ export class DocumentCodeService {
   async gerarCodigoNotaFiscal(lojaId: string, ano?: number): Promise<string> {
     return this.gerarCodigo({
       tipoDocumento: DOCUMENTO_NOTA_FISCAL,
+      lojaId,
+      ano,
+    });
+  }
+
+  async gerarCodigoSolicitacaoCompra(
+    lojaId: string,
+    ano?: number,
+  ): Promise<string> {
+    return this.gerarCodigo({
+      tipoDocumento: DOCUMENTO_SOLICITACAO_COMPRA,
+      lojaId,
+      ano,
+    });
+  }
+
+  async gerarCodigoPedidoCompra(
+    lojaId: string,
+    ano?: number,
+  ): Promise<string> {
+    return this.gerarCodigo({
+      tipoDocumento: DOCUMENTO_PEDIDO_COMPRA,
       lojaId,
       ano,
     });

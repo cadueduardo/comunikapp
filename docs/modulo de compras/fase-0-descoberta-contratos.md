@@ -1,6 +1,6 @@
 # Fase 0 — Descoberta e contratos (MVP Compras)
 
-**Status:** inventário concluído; decisões de produto pendentes de confirmação  
+**Status:** inventário concluído; D1/D2 fechados (2026-07-21)  
 **Branch:** `feat/mvp-compras-fase-0`  
 **Data:** 2026-07-21  
 **RP:** `docs/modulo de compras/RP-mvp-compras-suprimentos.md`
@@ -47,27 +47,23 @@
 
 ---
 
-## 2. Decisões a confirmar (bloqueiam Fase 1)
+## 2. Decisões fechadas (2026-07-21)
 
-### D1 — Valorização de estoque no recebimento
+### D1 — Valorização de estoque no recebimento = **A (custo médio ponderado)**
 
-| Opção | Efeito |
-|---|---|
-| **A — Custo médio ponderado** (recomendado) | Na entrada, recalcular `estoque_itens.precoUnitario` (e opcionalmente espelhar em `Insumo.custo_unitario` se política da loja permitir) |
-| **B — Último custo** | Entrada sobrescreve `precoUnitario` com o preço do recebimento |
-| **C — Sem valorização no MVP** | Entrada só quantidade; custo permanece o cadastro do insumo |
+Na entrada confirmada de material, recalcular `estoque_itens.precoUnitario` por média ponderada:
 
-PEPS/lote com custo fica **fora** do MVP (alinha com §16 do RP).
+```text
+novo = ((qtd_atual * preco_atual) + (qtd_entrada * preco_recebimento)) / (qtd_atual + qtd_entrada)
+```
 
-### D2 — Política de aprovação inicial
+Espelhamento em `Insumo.custo_unitario` fica opcional por política da loja (default: **não** alterar o cadastro do insumo no MVP; só o saldo/localização). PEPS/lote com custo permanece fora do MVP.
 
-| Opção | Efeito |
-|---|---|
-| **A — Por permissão** (recomendado) | Quem tem `compras.solicitacao.aprovar` / `compras.pedido.aprovar` aprova; sem faixas de valor |
-| **B — Autoaprovação se solicitante já tem `aprovar`** | Reduz fricção operacional |
-| **C — Alçadas por valor** | Fora do MVP (§16); não reutilizar alçada hardcoded de OS interna |
+### D2 — Política de aprovação inicial = **A + B**
 
-Recomendação composta: **D2 = A + B**.
+- Aprovação exige permissão `compras.solicitacao.aprovar` / `compras.pedido.aprovar` (ADMINISTRADOR bypass).
+- Se o solicitante/criador já possui a permissão de aprovar, a transição pode autoaprovar na mesma operação (registrando a permissão usada no histórico).
+- Sem faixas de valor / alçadas no MVP.
 
 ---
 
@@ -76,12 +72,11 @@ Recomendação composta: **D2 = A + B**.
 - [x] Inventariar permissões, numeração, estoque e anexos existentes.
 - [x] Mapear dados legados; nenhuma escrita.
 - [ ] Validar o RP com cenários reais (smoke operacional com o time).
-- [ ] Fechar método de valorização de estoque (**D1**).
-- [ ] Definir política de aprovação inicial (**D2**).
+- [x] Fechar método de valorização de estoque (**D1 = A**).
+- [x] Definir política de aprovação inicial (**D2 = A+B**).
 
 ---
 
-## 4. Próximo passo após confirmação
+## 4. Próximo passo
 
-1. Atualizar o RP com D1/D2 fechados.
-2. Abrir Fase 1: enums + tabelas solicitação/pedido/histórico + migrations aditivas + API rascunho + UI CRUD mínima.
+Fase 1: enums + tabelas solicitação/pedido/histórico + migrations aditivas + API rascunho/listagem/detalhe + UI CRUD mínima.

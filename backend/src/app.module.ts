@@ -8,6 +8,7 @@ import { LojasModule } from './lojas/lojas.module';
 import { ClientesModule } from './clientes/clientes.module';
 import { CategoriasModule } from './categorias/categorias.module';
 import { FornecedoresModule } from './fornecedores/fornecedores.module';
+import { ComprasModule } from './compras/compras.module';
 import { InsumosModule } from './insumos/insumos.module';
 import { NotificacoesModule } from './notificacoes/notificacoes.module';
 import { FuncoesModule } from './funcoes/funcoes.module';
@@ -59,6 +60,7 @@ import { ConexoesModule } from './conexoes/conexoes.module';
     ClientesModule,
     CategoriasModule,
     FornecedoresModule,
+    ComprasModule,
     InsumosModule,
     // OrcamentosModule, // LEGADO - desabilitado
     NotificacoesModule,
