@@ -833,11 +833,13 @@ DoD:
 
 ### Fase 0 — Descoberta e contratos
 
-- [ ] Inventariar permissões, numeração, estoque e anexos existentes.
+Detalhamento: `docs/modulo de compras/fase-0-descoberta-contratos.md` (2026-07-21).
+
+- [x] Inventariar permissões, numeração, estoque e anexos existentes.
 - [ ] Validar o RP com cenários reais.
 - [ ] Fechar método de valorização de estoque.
 - [ ] Definir política de aprovação inicial.
-- [ ] Mapear dados legados; nenhuma escrita.
+- [x] Mapear dados legados; nenhuma escrita.
 
 ### Fase 1 — Fundação aditiva
 
