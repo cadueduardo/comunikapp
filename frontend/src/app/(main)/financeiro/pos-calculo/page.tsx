@@ -15,6 +15,40 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { posCalculoApi, PosCalculoResponse } from '@/lib/api-client';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+
+function classeDesvio(valor: number): string | undefined {
+  if (valor > 0) return 'text-destructive';
+  if (valor < 0) return 'text-emerald-600 dark:text-emerald-400';
+  return undefined;
+}
+
+function badgeSeveridade(
+  severidade?: PosCalculoResponse['pendencias'][number]['severidade'],
+) {
+  if (severidade === 'critico') {
+    return <Badge variant="destructive">Crítico</Badge>;
+  }
+  if (severidade === 'alerta') {
+    return (
+      <Badge variant="secondary" className="border-amber-500/50 text-amber-700 dark:text-amber-400">
+        Alerta
+      </Badge>
+    );
+  }
+  if (severidade === 'info') {
+    return <Badge variant="outline">Info</Badge>;
+  }
+  return null;
+}
 
 function formatarMoeda(valor: number): string {
   return valor.toLocaleString('pt-BR', {
@@ -232,6 +266,92 @@ export default function PosCalculoPage() {
             </CardContent>
           </Card>
 
+          {resultado.categorias.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Por categoria</CardTitle>
+                <CardDescription>
+                  Material, serviço e despesa — previsto × real
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead className="text-right">Previsto</TableHead>
+                        <TableHead className="text-right">Comprometido</TableHead>
+                        <TableHead className="text-right">Incorrido</TableHead>
+                        <TableHead className="text-right">Faturado</TableHead>
+                        <TableHead className="text-right">Pago</TableHead>
+                        <TableHead className="text-right">Desvio pago</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {resultado.categorias.map((cat) => (
+                        <TableRow key={cat.categoria}>
+                          <TableCell className="font-medium">{cat.label}</TableCell>
+                          <TableCell className="text-right">
+                            {formatarMoeda(cat.previsto)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatarMoeda(cat.comprometido)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatarMoeda(cat.incorrido)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatarMoeda(cat.faturado)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatarMoeda(cat.pago)}
+                          </TableCell>
+                          <TableCell
+                            className={`text-right font-medium ${classeDesvio(cat.desvio_pago) ?? ''}`}
+                          >
+                            {formatarMoeda(cat.desvio_pago)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="grid gap-3 md:hidden">
+                  {resultado.categorias.map((cat) => (
+                    <div
+                      key={cat.categoria}
+                      className="rounded-lg border bg-card p-3 space-y-2"
+                    >
+                      <p className="font-medium">{cat.label}</p>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Previsto</p>
+                          <p>{formatarMoeda(cat.previsto)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Pago</p>
+                          <p>{formatarMoeda(cat.pago)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Comprometido</p>
+                          <p>{formatarMoeda(cat.comprometido)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Desvio pago</p>
+                          <p className={classeDesvio(cat.desvio_pago)}>
+                            {formatarMoeda(cat.desvio_pago)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
           {resultado.pendencias.length > 0 ? (
             <Card>
               <CardHeader>
@@ -242,10 +362,13 @@ export default function PosCalculoPage() {
                   {resultado.pendencias.map((p, i) => (
                     <li
                       key={`${p.tipo}-${i}`}
-                      className="rounded-md border bg-muted/40 px-3 py-2"
+                      className="flex flex-col gap-2 rounded-md border bg-muted/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                     >
-                      <span className="font-medium">{p.tipo}: </span>
-                      {p.descricao}
+                      <div>
+                        <span className="font-medium">{p.tipo}: </span>
+                        {p.descricao}
+                      </div>
+                      {badgeSeveridade(p.severidade)}
                     </li>
                   ))}
                 </ul>

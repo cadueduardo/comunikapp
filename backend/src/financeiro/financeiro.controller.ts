@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentLojaId, CurrentUser } from '../auth/decorators';
 import { AuthenticatedUser } from '../auth/auth.service';
 import { CobrancasService } from './services/cobrancas.service';
+import { FinanceiroDashboardService } from './services/financeiro-dashboard.service';
 import { RegistrarRecebimentoDto } from './dto/registrar-recebimento.dto';
 import { CancelarCobrancaDto } from './dto/cancelar-cobranca.dto';
 
@@ -32,7 +33,15 @@ import { CancelarCobrancaDto } from './dto/cancelar-cobranca.dto';
 @Controller('financeiro')
 @UseGuards(JwtAuthGuard)
 export class FinanceiroController {
-  constructor(private readonly cobrancasService: CobrancasService) {}
+  constructor(
+    private readonly cobrancasService: CobrancasService,
+    private readonly dashboardService: FinanceiroDashboardService,
+  ) {}
+
+  @Get('dashboard')
+  async dashboard(@CurrentLojaId() lojaId: string) {
+    return this.dashboardService.obterKpis(lojaId);
+  }
 
   @Get('cobrancas')
   async listarCobrancas(

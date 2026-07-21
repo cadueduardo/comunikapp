@@ -1,4 +1,7 @@
-import type { PosCalculoTotaisSaida } from '../utils/pos-calculo-aggregation.util';
+import type {
+  PosCalculoCategoriaLinha,
+  PosCalculoTotaisSaida,
+} from '../utils/pos-calculo-aggregation.util';
 
 export interface PosCalculoPendencia {
   tipo: string;
@@ -19,7 +22,7 @@ export interface PosCalculoResponse extends PosCalculoTotaisSaida {
   os_numero?: string;
   status_fechamento: 'PENDENTE';
   meta: PosCalculoMeta;
-  categorias: [];
+  categorias: PosCalculoCategoriaLinha[];
   trocas_fornecedor: [];
   pendencias: PosCalculoPendencia[];
 }

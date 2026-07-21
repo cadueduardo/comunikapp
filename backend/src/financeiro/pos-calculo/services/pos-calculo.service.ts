@@ -6,17 +6,21 @@ import {
   StatusContaPagar,
   StatusPedidoCompra,
   StatusRecebimentoCompra,
+  TipoItemCompra,
   loja,
 } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
-import type {
-  PosCalculoPendencia,
-  PosCalculoResponse,
-} from '../interfaces/pos-calculo.interface';
+import type { PosCalculoResponse } from '../interfaces/pos-calculo.interface';
 import {
+  acumularBucketCategoria,
   calcularIncorridoProporcional,
+  calcularPrevistoPorTipoItem,
+  criarBucketsCategoria,
+  montarLinhasCategorias,
+  montarPendenciasPosCalculo,
   montarTotaisPosCalculo,
   roundMoney2,
+  type TipoCategoriaPosCalculo,
 } from '../utils/pos-calculo-aggregation.util';
 import { PosCalculoPermissionsService } from './pos-calculo-permissions.service';
 
@@ -137,7 +141,18 @@ export class PosCalculoService {
       custoPago: pago,
     });
 
-    const pendencias = this.montarPendencias(totais, limitacoes);
+    const { categorias, limitacoesCategorias } = await this.calcularCategorias(
+      osId,
+      lojaAtual.id,
+      os,
+    );
+    limitacoes.push(...limitacoesCategorias);
+
+    const pendencias = montarPendenciasPosCalculo({
+      totais,
+      categorias,
+      limitacoes,
+    });
 
     return {
       os_id: os.id,
@@ -151,7 +166,7 @@ export class PosCalculoService {
         custo_previsto_fonte: fonte,
         limitacoes: limitacoes.length > 0 ? limitacoes : undefined,
       },
-      categorias: [],
+      categorias,
       trocas_fornecedor: [],
       pendencias,
     };
@@ -399,36 +414,249 @@ export class PosCalculoService {
     return roundMoney2(Number(resultado._sum.valor ?? 0));
   }
 
-  private montarPendencias(
-    totais: ReturnType<typeof montarTotaisPosCalculo>,
-    limitacoes: string[],
-  ): PosCalculoPendencia[] {
-    const pendencias: PosCalculoPendencia[] = [];
+  private async calcularCategorias(
+    osId: string,
+    lojaId: string,
+    os: {
+      orcamento: {
+        produtos: Array<{
+          insumos: Array<{
+            preco_total: Prisma.Decimal;
+            material_do_cliente: boolean;
+          }>;
+          maquinas: Array<{ custo_total: Prisma.Decimal }>;
+          funcoes: Array<{ custo_total: Prisma.Decimal }>;
+          servicos_manuais: Array<{ custo_total: Prisma.Decimal }>;
+          custos_indiretos: Array<{ custo_total: Prisma.Decimal }>;
+          terceirizacao_custo_total: Prisma.Decimal | null;
+        }>;
+      } | null;
+    },
+  ): Promise<{
+    categorias: ReturnType<typeof montarLinhasCategorias>;
+    limitacoesCategorias: string[];
+  }> {
+    const limitacoesCategorias: string[] = [];
+    const previstoPorTipo = os.orcamento
+      ? calcularPrevistoPorTipoItem(
+          os.orcamento.produtos.map((produto) => ({
+            insumos: produto.insumos.map((i) => ({
+              preco_total: Number(i.preco_total),
+              material_do_cliente: i.material_do_cliente,
+            })),
+            maquinas: produto.maquinas.map((m) => ({
+              custo_total: Number(m.custo_total),
+            })),
+            funcoes: produto.funcoes.map((f) => ({
+              custo_total: Number(f.custo_total),
+            })),
+            servicos_manuais: produto.servicos_manuais.map((s) => ({
+              custo_total: Number(s.custo_total),
+            })),
+            custos_indiretos: produto.custos_indiretos.map((c) => ({
+              custo_total: Number(c.custo_total),
+            })),
+            terceirizacao_custo_total: produto.terceirizacao_custo_total
+              ? Number(produto.terceirizacao_custo_total)
+              : null,
+          })),
+        )
+      : { MATERIAL: 0, SERVICO: 0, DESPESA: 0 };
 
-    if (totais.custos.a_pagar > 0) {
-      pendencias.push({
-        tipo: 'CONTA_A_PAGAR',
-        descricao: `Saldo a pagar apropriado à OS: R$ ${totais.custos.a_pagar.toFixed(2)}.`,
-        severidade: 'alerta',
-      });
+    const previstoTotalPorTipo =
+      previstoPorTipo.MATERIAL +
+      previstoPorTipo.SERVICO +
+      previstoPorTipo.DESPESA;
+
+    if (!os.orcamento) {
+      limitacoesCategorias.push(
+        'Previsto por categoria indisponível (OS sem orçamento); categorias preenchidas apenas com fatos de compra.',
+      );
+    } else if (previstoTotalPorTipo <= 0) {
+      limitacoesCategorias.push(
+        'Previsto por categoria = 0: orçamento sem linhas de custo mapeáveis; categorias preenchidas a partir de comprometido/incorrido/pago.',
+      );
+    } else {
+      limitacoesCategorias.push(
+        'Previsto por categoria: estimativa do orçamento (MO/máquina/indiretos agrupados em DESPESA; pode divergir do tipo do pedido de compra).',
+      );
     }
 
-    if (totais.desvio_pago > 0) {
-      pendencias.push({
-        tipo: 'DESVIO_CUSTO',
-        descricao: `Custo pago acima do previsto em R$ ${totais.desvio_pago.toFixed(2)}.`,
-        severidade: 'alerta',
-      });
+    const buckets = criarBucketsCategoria(previstoPorTipo);
+
+    const itens = await this.prisma.pedidoCompraItem.findMany({
+      where: {
+        loja_id: lojaId,
+        apropriacoes: { some: FILTRO_APROPRIACAO_OS(osId) },
+      },
+      select: {
+        tipo: true,
+        quantidade: true,
+        total: true,
+        apropriacoes: {
+          select: {
+            os_id: true,
+            item_os_id: true,
+            valor_previsto: true,
+            item_os: { select: { os_id: true } },
+          },
+        },
+        pedido: {
+          select: {
+            status: true,
+            contas_pagar: { select: { status: true } },
+          },
+        },
+        recebimento_itens: {
+          where: {
+            recebimento: { status: StatusRecebimentoCompra.CONFIRMADO },
+          },
+          select: {
+            quantidade_aceita: true,
+          },
+        },
+        aceite_itens: {
+          where: {
+            aceite: { status: StatusAceiteServico.CONFIRMADO },
+          },
+          select: {
+            valor_aceito: true,
+            quantidade_aceita: true,
+          },
+        },
+      },
+    });
+
+    for (const item of itens) {
+      const categoria = this.normalizarTipoCategoria(item.tipo);
+      const valorTotalApropriado = item.apropriacoes.reduce(
+        (acc, a) => acc + Number(a.valor_previsto),
+        0,
+      );
+      const valorOsApropriado = item.apropriacoes
+        .filter((a) => a.os_id === osId || a.item_os?.os_id === osId)
+        .reduce((acc, a) => acc + Number(a.valor_previsto), 0);
+
+      if (valorOsApropriado <= 0) {
+        continue;
+      }
+
+      if (STATUS_PEDIDO_COMPROMETIDO.includes(item.pedido.status)) {
+        acumularBucketCategoria(
+          buckets,
+          categoria,
+          'comprometido',
+          valorOsApropriado,
+        );
+      }
+
+      const temContaAtiva = item.pedido.contas_pagar.some(
+        (conta) => conta.status !== StatusContaPagar.CANCELADA,
+      );
+      if (temContaAtiva) {
+        acumularBucketCategoria(
+          buckets,
+          categoria,
+          'faturado',
+          valorOsApropriado,
+        );
+      }
+
+      for (const ri of item.recebimento_itens) {
+        acumularBucketCategoria(
+          buckets,
+          categoria,
+          'incorrido',
+          calcularIncorridoProporcional({
+            quantidadePedido: Number(item.quantidade),
+            quantidadeAceita: Number(ri.quantidade_aceita),
+            valorItem: Number(item.total),
+            valorOsApropriado,
+            valorTotalApropriado,
+          }),
+        );
+      }
+
+      for (const ai of item.aceite_itens) {
+        const valorAceiteItem =
+          ai.valor_aceito != null
+            ? Number(ai.valor_aceito)
+            : calcularIncorridoProporcional({
+                quantidadePedido: Number(item.quantidade),
+                quantidadeAceita: Number(ai.quantidade_aceita ?? 0),
+                valorItem: Number(item.total),
+                valorOsApropriado: valorTotalApropriado,
+                valorTotalApropriado,
+              });
+
+        const proporcao =
+          valorTotalApropriado > 0
+            ? valorOsApropriado / valorTotalApropriado
+            : 1;
+        acumularBucketCategoria(
+          buckets,
+          categoria,
+          'incorrido',
+          roundMoney2(valorAceiteItem * proporcao),
+        );
+      }
     }
 
-    if (limitacoes.some((l) => l.includes('baseline indisponível'))) {
-      pendencias.push({
-        tipo: 'BASELINE_AUSENTE',
-        descricao: 'OS sem baseline de custo previsto confiável.',
-        severidade: 'info',
-      });
+    const pagamentos = await this.prisma.pagamentoFornecedorApropriacao.findMany(
+      {
+        where: {
+          loja_id: lojaId,
+          ...FILTRO_PAGAMENTO_APROPRIACAO_OS(osId),
+          pagamento: { estornado: false },
+        },
+        select: {
+          valor: true,
+          pedido_item_apropriacao: {
+            select: {
+              pedido_item: { select: { tipo: true } },
+            },
+          },
+        },
+      },
+    );
+
+    let pagamentosSemTipo = 0;
+    for (const pagamento of pagamentos) {
+      const valor = Number(pagamento.valor);
+      const tipoItem = pagamento.pedido_item_apropriacao?.pedido_item?.tipo;
+      if (!tipoItem) {
+        pagamentosSemTipo += valor;
+        continue;
+      }
+      acumularBucketCategoria(
+        buckets,
+        this.normalizarTipoCategoria(tipoItem),
+        'pago',
+        valor,
+      );
     }
 
-    return pendencias;
+    if (pagamentosSemTipo > 0) {
+      limitacoesCategorias.push(
+        `Pagamentos sem tipo de item rastreável (R$ ${roundMoney2(pagamentosSemTipo).toFixed(2)}) não entram no breakdown por categoria.`,
+      );
+    }
+
+    return {
+      categorias: montarLinhasCategorias(buckets),
+      limitacoesCategorias,
+    };
+  }
+
+  private normalizarTipoCategoria(
+    tipo: TipoItemCompra,
+  ): TipoCategoriaPosCalculo {
+    if (tipo === TipoItemCompra.MATERIAL) {
+      return 'MATERIAL';
+    }
+    if (tipo === TipoItemCompra.SERVICO) {
+      return 'SERVICO';
+    }
+    return 'DESPESA';
   }
 }

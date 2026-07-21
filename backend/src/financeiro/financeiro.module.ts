@@ -5,6 +5,7 @@ import { HomeOperacionalModule } from '../home-operacional/home-operacional.modu
 import { InstalacaoModule } from '../instalacao/instalacao.module';
 import { FinanceiroController } from './financeiro.controller';
 import { CobrancasService } from './services/cobrancas.service';
+import { FinanceiroDashboardService } from './services/financeiro-dashboard.service';
 import { ParcelasBuilderService } from './services/parcelas-builder.service';
 import { StatusRollupService } from './services/status-rollup.service';
 import { CobrancaVencimentoService } from './services/cobranca-vencimento.service';
@@ -41,6 +42,7 @@ import { PosCalculoModule } from './pos-calculo/pos-calculo.module';
   controllers: [FinanceiroController],
   providers: [
     CobrancasService,
+    FinanceiroDashboardService,
     ParcelasBuilderService,
     StatusRollupService,
     CobrancaVencimentoService,

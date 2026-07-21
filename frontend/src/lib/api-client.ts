@@ -585,6 +585,18 @@ export const contasPagarApi = {
     ),
 };
 
+export interface PosCalculoCategoriaApi {
+  categoria: 'MATERIAL' | 'SERVICO' | 'DESPESA';
+  label: string;
+  previsto: number;
+  comprometido: number;
+  incorrido: number;
+  faturado: number;
+  pago: number;
+  desvio_pago: number;
+  desvio_comprometido: number;
+}
+
 export interface PosCalculoPendenciaApi {
   tipo: string;
   descricao: string;
@@ -619,7 +631,7 @@ export interface PosCalculoResponse {
     custo_previsto_fonte?: string;
     limitacoes?: string[];
   };
-  categorias: [];
+  categorias: PosCalculoCategoriaApi[];
   trocas_fornecedor: [];
   pendencias: PosCalculoPendenciaApi[];
 }

@@ -877,7 +877,7 @@ Detalhamento: `docs/modulo de compras/fase-0-descoberta-contratos.md` (2026-07-2
 
 - [x] GET `/financeiro/os/:osId/pos-calculo` (read-only, previsto × real).
 - [x] UI mínima em `/financeiro/pos-calculo`.
-- [ ] Alertas de desvio (detalhados por categoria).
+- [x] Agregação por categoria (MATERIAL/SERVICO/DESPESA) e alertas de desvio (total e por categoria).
 - [ ] Fechamento financeiro.
 
 ### Fase 6 — Produção

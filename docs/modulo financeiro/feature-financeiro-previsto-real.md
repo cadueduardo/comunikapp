@@ -439,9 +439,10 @@ Duplicidade deve ser impedida na origem, não corrigida por rotina posterior.
 
 ### Fase 3 — API analítica
 
-- [x] GET `/financeiro/os/:osId/pos-calculo` — agregação read-only por OS (receita, custos, margens; arrays vazios para categorias/trocas).
-- [ ] Agregação por item, categoria e fornecedor.
-- [ ] Pendências e alertas de desvio (detalhados).
+- [x] GET `/financeiro/os/:osId/pos-calculo` — agregação read-only por OS (receita, custos, margens).
+- [x] Agregação por categoria (MATERIAL/SERVICO/DESPESA) — parcial: previsto estimado do orçamento; real de apropriações de compra.
+- [x] Pendências e alertas de desvio (total e por categoria; severidade alerta/critico).
+- [ ] Agregação por item e fornecedor.
 - [ ] Fechamento/reabertura com auditoria.
 
 ### Fase 4 — Interface

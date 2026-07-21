@@ -3,6 +3,7 @@
 import { Banknote, Grid3X3, List } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { DataTable } from '@/components/data-table/data-table';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,8 @@ import { contasPagarApi } from '@/lib/api-client';
 import { createColumns, ContaPagar } from './columns';
 
 export default function ContasPagarListPage() {
+  const searchParams = useSearchParams();
+  const statusFiltro = searchParams.get('status') ?? undefined;
   const [itens, setItens] = useState<ContaPagar[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
@@ -23,7 +26,9 @@ export default function ContasPagarListPage() {
     try {
       const token = localStorage.getItem('access_token');
       if (!token) return;
-      const data = await contasPagarApi.list(token);
+      const data = await contasPagarApi.list(token, {
+        status: statusFiltro,
+      });
       setItens(data);
     } catch (error) {
       console.error(error);
@@ -35,7 +40,7 @@ export default function ContasPagarListPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [statusFiltro]);
 
   useEffect(() => {
     void carregar();
@@ -74,7 +79,7 @@ export default function ContasPagarListPage() {
             </div>
           )}
           <Button asChild variant="outline">
-            <Link href="/compras">Voltar para Compras</Link>
+            <Link href="/financeiro">Voltar</Link>
           </Button>
         </div>
       </div>

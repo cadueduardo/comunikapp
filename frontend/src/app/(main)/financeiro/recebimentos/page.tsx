@@ -303,7 +303,7 @@ export default function RecebimentosPage() {
       <div className="space-y-6">
         <PageHeader
           title="Auditoria de recebimentos"
-          backHref="/dashboard"
+          backHref="/financeiro"
           icon={<Banknote className="h-8 w-8" />}
           subtitle="Acompanhe cobranças e recebimentos por cliente"
         />
@@ -320,7 +320,7 @@ export default function RecebimentosPage() {
     <div className="space-y-6">
       <PageHeader
         title="Auditoria de recebimentos"
-        backHref="/dashboard"
+        backHref="/financeiro"
         icon={<Banknote className="h-8 w-8" />}
         subtitle="Acompanhe cobranças e recebimentos por cliente"
         actions={
