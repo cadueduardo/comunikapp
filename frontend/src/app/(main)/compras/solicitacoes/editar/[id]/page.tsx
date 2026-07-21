@@ -149,6 +149,23 @@ export default function EditarSolicitacaoPage({
               </Button>
               <Button
                 disabled={busy}
+                variant="outline"
+                onClick={() =>
+                  void acao(
+                    (sid, token) =>
+                      comprasApi.devolverSolicitacao(
+                        sid,
+                        { motivo: 'Devolvida para ajuste' },
+                        token,
+                      ),
+                    'Solicitação devolvida.',
+                  )
+                }
+              >
+                Devolver
+              </Button>
+              <Button
+                disabled={busy}
                 variant="destructive"
                 onClick={() =>
                   void acao(
@@ -161,6 +178,28 @@ export default function EditarSolicitacaoPage({
                 Rejeitar
               </Button>
             </>
+          )}
+          {(solicitacao.status === 'RASCUNHO' ||
+            solicitacao.status === 'SOLICITADA' ||
+            solicitacao.status === 'APROVADA' ||
+            solicitacao.status === 'DEVOLVIDA') && (
+            <Button
+              disabled={busy}
+              variant="destructive"
+              onClick={() =>
+                void acao(
+                  (sid, token) =>
+                    comprasApi.cancelarSolicitacao(
+                      sid,
+                      { motivo: 'Cancelada pelo usuário' },
+                      token,
+                    ),
+                  'Solicitação cancelada.',
+                )
+              }
+            >
+              Cancelar
+            </Button>
           )}
           <Button
             variant="outline"

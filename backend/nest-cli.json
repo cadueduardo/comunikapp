@@ -8,6 +8,10 @@
       {
         "include": "src/generated/**/*",
         "outDir": "dist/src"
+      },
+      {
+        "include": "compras/policies/**/*.js",
+        "watchAssets": true
       }
     ]
   }

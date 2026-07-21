@@ -3,11 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  StatusPedidoCompra,
-  TipoItemCompra,
-  loja,
-} from '@prisma/client';
+import { StatusPedidoCompra, loja } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DocumentCodeService } from '../../documentos/document-code.service';
 import { CreatePedidoDto } from '../dto/create-pedido.dto';
@@ -19,9 +15,23 @@ import {
   ComprasPermissionsService,
 } from './compras-permissions.service';
 import {
+  assertTipoFornecedorCompativel,
+  carregarFornecedorAtivo,
+  MatrizValidacaoResultado,
+  validarItensPedido,
+  validarMatrizInsumoFornecedor,
+} from './pedido-matriz.util';
+import {
   calcularTotaisPedido,
   rethrowUniqueConflict,
 } from './pedido-totais.util';
+
+const PEDIDO_INCLUDE = {
+  itens: true,
+  fornecedor: {
+    select: { id: true, nome: true, ativo: true, tipo: true },
+  },
+} as const;
 
 @Injectable()
 export class PedidosService {
@@ -39,8 +49,21 @@ export class PedidosService {
       COMPRAS_PERMISSOES.PEDIDO_CRIAR,
     );
 
-    await this.assertFornecedorAtivo(dto.fornecedor_id, lojaAtual.id);
-    this.validarItens(dto.itens);
+    validarItensPedido(dto.itens);
+    const fornecedor = await carregarFornecedorAtivo(
+      this.prisma,
+      dto.fornecedor_id,
+      lojaAtual.id,
+    );
+    assertTipoFornecedorCompativel(fornecedor.tipo, dto.itens);
+
+    const matriz = await validarMatrizInsumoFornecedor(
+      this.prisma,
+      lojaAtual.id,
+      dto.fornecedor_id,
+      dto.itens,
+      dto.fornecedor_fora_matriz_justificativa,
+    );
 
     const { itens, subtotal, total, desconto, frete } = calcularTotaisPedido(
       dto,
@@ -72,12 +95,7 @@ export class PedidosService {
             create: itens,
           },
         },
-        include: {
-          itens: true,
-          fornecedor: {
-            select: { id: true, nome: true, ativo: true },
-          },
-        },
+        include: PEDIDO_INCLUDE,
       });
 
       await this.historicoService.registrar({
@@ -93,6 +111,7 @@ export class PedidosService {
           fornecedor_id: criado.fornecedor_id,
           total: Number(criado.total),
           itens: criado.itens.length,
+          ...this.dadosMatrizHistorico(matriz),
         },
       });
 
@@ -110,24 +129,14 @@ export class PedidosService {
     return this.prisma.pedidoCompra.findMany({
       where: { loja_id: lojaAtual.id },
       orderBy: { criado_em: 'desc' },
-      include: {
-        itens: true,
-        fornecedor: {
-          select: { id: true, nome: true, ativo: true },
-        },
-      },
+      include: PEDIDO_INCLUDE,
     });
   }
 
   async findOne(id: string, lojaAtual: loja) {
     const pedido = await this.prisma.pedidoCompra.findFirst({
       where: { id, loja_id: lojaAtual.id },
-      include: {
-        itens: true,
-        fornecedor: {
-          select: { id: true, nome: true, ativo: true },
-        },
-      },
+      include: PEDIDO_INCLUDE,
     });
 
     if (!pedido) {
@@ -137,6 +146,32 @@ export class PedidosService {
     }
 
     return pedido;
+  }
+
+  async visualizacao(id: string, lojaAtual: loja) {
+    const pedido = await this.prisma.pedidoCompra.findFirst({
+      where: { id, loja_id: lojaAtual.id },
+      include: {
+        itens: true,
+        fornecedor: true,
+      },
+    });
+
+    if (!pedido) {
+      throw new NotFoundException(
+        `Pedido de compra com ID "${id}" não encontrado.`,
+      );
+    }
+
+    return {
+      loja: {
+        id: lojaAtual.id,
+        nome: lojaAtual.nome,
+      },
+      pedido,
+      fornecedor: pedido.fornecedor,
+      itens: pedido.itens,
+    };
   }
 
   async update(
@@ -160,9 +195,11 @@ export class PedidosService {
     }
 
     const fornecedorId = dto.fornecedor_id ?? atual.fornecedor_id;
-    if (dto.fornecedor_id) {
-      await this.assertFornecedorAtivo(dto.fornecedor_id, lojaAtual.id);
-    }
+    const fornecedor = await carregarFornecedorAtivo(
+      this.prisma,
+      fornecedorId,
+      lojaAtual.id,
+    );
 
     const itensDto: PedidoItemDto[] =
       dto.itens ??
@@ -180,7 +217,16 @@ export class PedidosService {
         frete_rateado: Number(item.frete_rateado),
       }));
 
-    this.validarItens(itensDto);
+    validarItensPedido(itensDto);
+    assertTipoFornecedorCompativel(fornecedor.tipo, itensDto);
+
+    const matriz = await validarMatrizInsumoFornecedor(
+      this.prisma,
+      lojaAtual.id,
+      fornecedorId,
+      itensDto,
+      dto.fornecedor_fora_matriz_justificativa,
+    );
 
     const baseDto: CreatePedidoDto = {
       fornecedor_id: fornecedorId,
@@ -200,6 +246,7 @@ export class PedidosService {
     );
 
     try {
+      // Tenant já confirmado via findOne(loja_id); update por id após findFirst.
       const atualizado = await this.prisma.$transaction(async (tx) => {
         await tx.pedidoCompraItem.deleteMany({
           where: { pedido_id: id, loja_id: lojaAtual.id },
@@ -233,12 +280,7 @@ export class PedidosService {
               create: itens,
             },
           },
-          include: {
-            itens: true,
-            fornecedor: {
-              select: { id: true, nome: true, ativo: true },
-            },
-          },
+          include: PEDIDO_INCLUDE,
         });
       });
 
@@ -253,6 +295,7 @@ export class PedidosService {
         dados: {
           campos: Object.keys(dto),
           total: Number(total),
+          ...this.dadosMatrizHistorico(matriz),
         },
       });
 
@@ -261,53 +304,6 @@ export class PedidosService {
       rethrowUniqueConflict(error, 'Conflito ao atualizar o pedido.');
       throw error;
     }
-  }
-
-  async aprovar(id: string, lojaAtual: loja, usuarioId: string) {
-    await this.permissions.assertPode(
-      usuarioId,
-      lojaAtual.id,
-      COMPRAS_PERMISSOES.PEDIDO_APROVAR,
-    );
-
-    const atual = await this.findOne(id, lojaAtual);
-
-    if (
-      atual.status !== StatusPedidoCompra.RASCUNHO &&
-      atual.status !== StatusPedidoCompra.EM_APROVACAO
-    ) {
-      throw new BadRequestException(
-        'Somente pedidos em RASCUNHO ou EM_APROVACAO podem ser aprovados.',
-      );
-    }
-
-    const atualizado = await this.prisma.pedidoCompra.update({
-      where: { id },
-      data: {
-        status: StatusPedidoCompra.APROVADO,
-        aprovado_por: usuarioId,
-        aprovado_em: new Date(),
-      },
-      include: {
-        itens: true,
-        fornecedor: {
-          select: { id: true, nome: true, ativo: true },
-        },
-      },
-    });
-
-    await this.historicoService.registrar({
-      lojaId: lojaAtual.id,
-      entidadeTipo: 'PEDIDO_COMPRA',
-      entidadeId: id,
-      acao: 'APROVAR',
-      statusAnterior: atual.status,
-      statusNovo: StatusPedidoCompra.APROVADO,
-      usuarioId,
-      dados: { permissao: COMPRAS_PERMISSOES.PEDIDO_APROVAR },
-    });
-
-    return atualizado;
   }
 
   async historico(id: string, lojaAtual: loja) {
@@ -319,43 +315,14 @@ export class PedidosService {
     );
   }
 
-  private async assertFornecedorAtivo(fornecedorId: string, lojaId: string) {
-    const fornecedor = await this.prisma.fornecedor.findFirst({
-      where: { id: fornecedorId, loja_id: lojaId },
-      select: { id: true, ativo: true },
-    });
-
-    if (!fornecedor) {
-      throw new BadRequestException(
-        `Fornecedor "${fornecedorId}" não encontrado nesta loja.`,
-      );
+  private dadosMatrizHistorico(matriz: MatrizValidacaoResultado) {
+    if (!matriz.foraDaMatriz) {
+      return {};
     }
-
-    if (!fornecedor.ativo) {
-      throw new BadRequestException(
-        'O fornecedor precisa estar ativo para emitir o pedido.',
-      );
-    }
-  }
-
-  private validarItens(itens: PedidoItemDto[]) {
-    if (!itens?.length) {
-      throw new BadRequestException('Informe ao menos um item no pedido.');
-    }
-
-    for (const item of itens) {
-      if (item.tipo === TipoItemCompra.MATERIAL && !item.insumo_id) {
-        throw new BadRequestException('Itens MATERIAL exigem insumo_id.');
-      }
-      if (
-        (item.tipo === TipoItemCompra.SERVICO ||
-          item.tipo === TipoItemCompra.DESPESA) &&
-        !item.descricao_snapshot?.trim()
-      ) {
-        throw new BadRequestException(
-          'Itens SERVICO/DESPESA exigem descricao_snapshot.',
-        );
-      }
-    }
+    return {
+      fornecedor_fora_matriz: true,
+      insumos_fora_matriz: matriz.insumosFora,
+      fornecedor_fora_matriz_justificativa: matriz.justificativa,
+    };
   }
 }

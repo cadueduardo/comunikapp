@@ -289,16 +289,79 @@ export const comprasApi = {
       data,
       token,
     ),
+  devolverSolicitacao: (
+    id: string,
+    data: Record<string, unknown>,
+    token: string,
+  ) =>
+    ApiClient.post<SolicitacaoCompraApi>(
+      `/compras/solicitacoes/${id}/devolver`,
+      data,
+      token,
+    ),
+  cancelarSolicitacao: (
+    id: string,
+    data: Record<string, unknown>,
+    token: string,
+  ) =>
+    ApiClient.post<SolicitacaoCompraApi>(
+      `/compras/solicitacoes/${id}/cancelar`,
+      data,
+      token,
+    ),
   listPedidos: (token: string) =>
     ApiClient.get<PedidoCompraApi[]>('/compras/pedidos', token),
   getPedido: (id: string, token: string) =>
     ApiClient.get<PedidoCompraApi>(`/compras/pedidos/${id}`, token),
+  getPedidoVisualizacao: (id: string, token: string) =>
+    ApiClient.get<Record<string, unknown>>(
+      `/compras/pedidos/${id}/visualizacao`,
+      token,
+    ),
   createPedido: (data: Record<string, unknown>, token: string) =>
     ApiClient.post<PedidoCompraApi>('/compras/pedidos', data, token),
   updatePedido: (id: string, data: Record<string, unknown>, token: string) =>
     ApiClient.patch<PedidoCompraApi>(`/compras/pedidos/${id}`, data, token),
+  enviarAprovacaoPedido: (id: string, token: string) =>
+    ApiClient.post<PedidoCompraApi>(
+      `/compras/pedidos/${id}/enviar-aprovacao`,
+      {},
+      token,
+    ),
   aprovarPedido: (id: string, token: string) =>
     ApiClient.post<PedidoCompraApi>(`/compras/pedidos/${id}/aprovar`, {}, token),
+  rejeitarPedido: (
+    id: string,
+    data: Record<string, unknown>,
+    token: string,
+  ) =>
+    ApiClient.post<PedidoCompraApi>(
+      `/compras/pedidos/${id}/rejeitar`,
+      data,
+      token,
+    ),
+  enviarPedido: (id: string, token: string) =>
+    ApiClient.post<PedidoCompraApi>(`/compras/pedidos/${id}/enviar`, {}, token),
+  cancelarPedido: (
+    id: string,
+    data: Record<string, unknown>,
+    token: string,
+  ) =>
+    ApiClient.post<PedidoCompraApi>(
+      `/compras/pedidos/${id}/cancelar`,
+      data,
+      token,
+    ),
+  substituirFornecedorPedido: (
+    id: string,
+    data: Record<string, unknown>,
+    token: string,
+  ) =>
+    ApiClient.post<PedidoCompraApi>(
+      `/compras/pedidos/${id}/substituir-fornecedor`,
+      data,
+      token,
+    ),
 };
 
 export const notificacoesApi = {

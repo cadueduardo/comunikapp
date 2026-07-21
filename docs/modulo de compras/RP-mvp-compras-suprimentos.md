@@ -851,10 +851,10 @@ Detalhamento: `docs/modulo de compras/fase-0-descoberta-contratos.md` (2026-07-2
 
 ### Fase 2 — Aprovação e fornecedor
 
-- [ ] Máquina de estados.
-- [ ] Integração com matriz.
-- [ ] Pedido PDF/visualização.
-- [ ] Troca auditável de fornecedor.
+- [x] Máquina de estados (policy central + endpoints de transição).
+- [x] Integração com matriz (`InsumoFornecedor` + justificativa fora da matriz).
+- [x] Pedido visualização/impressão (`/compras/pedidos/:id/visualizar`).
+- [x] Troca auditável de fornecedor (`substituir-fornecedor`).
 
 ### Fase 3 — Recebimento e aceite
 

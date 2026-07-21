@@ -40,6 +40,7 @@ const itemSchema = z.object({
 export const pedidoFormSchema = z.object({
   fornecedor_id: z.string().min(1, 'Selecione o fornecedor.'),
   observacoes: z.string().optional(),
+  fornecedor_fora_matriz_justificativa: z.string().optional(),
   itens: z.array(itemSchema).min(1, 'Informe ao menos um item.'),
 });
 
@@ -70,6 +71,8 @@ export function PedidoForm({
     defaultValues: {
       fornecedor_id: initialData?.fornecedor_id ?? '',
       observacoes: initialData?.observacoes ?? '',
+      fornecedor_fora_matriz_justificativa:
+        initialData?.fornecedor_fora_matriz_justificativa ?? '',
       itens: initialData?.itens?.length
         ? initialData.itens
         : [
@@ -105,6 +108,8 @@ export function PedidoForm({
     await onSave({
       ...values,
       observacoes: values.observacoes?.trim() || undefined,
+      fornecedor_fora_matriz_justificativa:
+        values.fornecedor_fora_matriz_justificativa?.trim() || undefined,
       itens: values.itens.map((item) => ({
         ...item,
         descricao_snapshot: item.descricao_snapshot.trim(),
@@ -158,6 +163,26 @@ export function PedidoForm({
                   <FormLabel>Observações</FormLabel>
                   <FormControl>
                     <Textarea rows={3} disabled={readOnly} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="fornecedor_fora_matriz_justificativa"
+              render={({ field }) => (
+                <FormItem className="sm:col-span-2">
+                  <FormLabel>
+                    Justificativa (fornecedor fora da matriz)
+                  </FormLabel>
+                  <FormControl>
+                    <Textarea
+                      rows={2}
+                      disabled={readOnly}
+                      placeholder="Obrigatório se algum material não estiver na matriz do fornecedor"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

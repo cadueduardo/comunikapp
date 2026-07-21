@@ -49,6 +49,12 @@ export class CreatePedidoDto {
   @MaxLength(4000)
   observacoes?: string;
 
+  /** Obrigatória quando algum MATERIAL+insumo não está na matriz do fornecedor. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  fornecedor_fora_matriz_justificativa?: string;
+
   @IsArray({ message: 'itens deve ser uma lista' })
   @ArrayMinSize(1, { message: 'Informe ao menos um item no pedido' })
   @ValidateNested({ each: true })

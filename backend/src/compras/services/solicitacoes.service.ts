@@ -8,11 +8,16 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { DocumentCodeService } from '../../documentos/document-code.service';
 import { CreateSolicitacaoDto } from '../dto/create-solicitacao.dto';
 import { UpdateSolicitacaoDto } from '../dto/update-solicitacao.dto';
+import {
+  assertTransicaoSolicitacao,
+  statusAlvoSolicitacao,
+} from '../policies/compras-estados.policy';
 import { ComprasHistoricoService } from './compras-historico.service';
 import {
   COMPRAS_PERMISSOES,
   ComprasPermissionsService,
 } from './compras-permissions.service';
+import { updateSolicitacaoTenantSafe } from './pedido-matriz.util';
 import { rethrowUniqueConflict } from './pedido-totais.util';
 import {
   montarItensSolicitacao,
@@ -157,6 +162,7 @@ export class SolicitacoesService {
       : null;
 
     try {
+      // Tenant já confirmado via findOne(loja_id); update por id após findFirst.
       const atualizada = await this.prisma.$transaction(async (tx) => {
         if (itensData) {
           await tx.solicitacaoCompraItem.deleteMany({
@@ -226,15 +232,7 @@ export class SolicitacoesService {
     );
 
     const atual = await this.findOne(id, lojaAtual);
-
-    if (
-      atual.status !== StatusSolicitacaoCompra.RASCUNHO &&
-      atual.status !== StatusSolicitacaoCompra.DEVOLVIDA
-    ) {
-      throw new BadRequestException(
-        'Somente solicitações em RASCUNHO ou DEVOLVIDA podem ser enviadas.',
-      );
-    }
+    assertTransicaoSolicitacao('enviar', atual.status);
 
     if (!atual.itens.length) {
       throw new BadRequestException(
@@ -247,21 +245,25 @@ export class SolicitacoesService {
       lojaAtual.id,
     );
 
-    const statusNovo = podeAprovar
-      ? StatusSolicitacaoCompra.APROVADA
-      : StatusSolicitacaoCompra.SOLICITADA;
+    // enviar → SOLICITADA; caller pode auto-aprovar (D2).
+    let statusNovo = statusAlvoSolicitacao('enviar');
+    let acaoHistorico: string = 'ENVIAR';
 
-    const atualizada = await this.prisma.solicitacaoCompra.update({
-      where: { id },
-      data: { status: statusNovo },
-      include: { itens: true },
+    if (podeAprovar) {
+      assertTransicaoSolicitacao('aprovar', statusNovo);
+      statusNovo = statusAlvoSolicitacao('aprovar');
+      acaoHistorico = 'ENVIAR_AUTO_APROVAR';
+    }
+
+    await updateSolicitacaoTenantSafe(this.prisma, id, lojaAtual.id, {
+      status: statusNovo,
     });
 
     await this.historicoService.registrar({
       lojaId: lojaAtual.id,
       entidadeTipo: 'SOLICITACAO_COMPRA',
       entidadeId: id,
-      acao: podeAprovar ? 'ENVIAR_AUTO_APROVAR' : 'ENVIAR',
+      acao: acaoHistorico,
       statusAnterior: atual.status,
       statusNovo,
       usuarioId,
@@ -273,7 +275,7 @@ export class SolicitacoesService {
         : undefined,
     });
 
-    return atualizada;
+    return this.findOne(id, lojaAtual);
   }
 
   async aprovar(id: string, lojaAtual: loja, usuarioId: string) {
@@ -284,17 +286,11 @@ export class SolicitacoesService {
     );
 
     const atual = await this.findOne(id, lojaAtual);
+    assertTransicaoSolicitacao('aprovar', atual.status);
 
-    if (atual.status !== StatusSolicitacaoCompra.SOLICITADA) {
-      throw new BadRequestException(
-        'Somente solicitações em SOLICITADA podem ser aprovadas.',
-      );
-    }
-
-    const atualizada = await this.prisma.solicitacaoCompra.update({
-      where: { id },
-      data: { status: StatusSolicitacaoCompra.APROVADA },
-      include: { itens: true },
+    const statusNovo = statusAlvoSolicitacao('aprovar');
+    await updateSolicitacaoTenantSafe(this.prisma, id, lojaAtual.id, {
+      status: statusNovo,
     });
 
     await this.historicoService.registrar({
@@ -303,12 +299,12 @@ export class SolicitacoesService {
       entidadeId: id,
       acao: 'APROVAR',
       statusAnterior: atual.status,
-      statusNovo: StatusSolicitacaoCompra.APROVADA,
+      statusNovo,
       usuarioId,
       dados: { permissao: COMPRAS_PERMISSOES.SOLICITACAO_APROVAR },
     });
 
-    return atualizada;
+    return this.findOne(id, lojaAtual);
   }
 
   async rejeitar(
@@ -324,17 +320,11 @@ export class SolicitacoesService {
     );
 
     const atual = await this.findOne(id, lojaAtual);
+    assertTransicaoSolicitacao('rejeitar', atual.status);
 
-    if (atual.status !== StatusSolicitacaoCompra.SOLICITADA) {
-      throw new BadRequestException(
-        'Somente solicitações em SOLICITADA podem ser rejeitadas.',
-      );
-    }
-
-    const atualizada = await this.prisma.solicitacaoCompra.update({
-      where: { id },
-      data: { status: StatusSolicitacaoCompra.REJEITADA },
-      include: { itens: true },
+    const statusNovo = statusAlvoSolicitacao('rejeitar');
+    await updateSolicitacaoTenantSafe(this.prisma, id, lojaAtual.id, {
+      status: statusNovo,
     });
 
     await this.historicoService.registrar({
@@ -343,7 +333,7 @@ export class SolicitacoesService {
       entidadeId: id,
       acao: 'REJEITAR',
       statusAnterior: atual.status,
-      statusNovo: StatusSolicitacaoCompra.REJEITADA,
+      statusNovo,
       usuarioId,
       dados: {
         permissao: COMPRAS_PERMISSOES.SOLICITACAO_APROVAR,
@@ -351,7 +341,88 @@ export class SolicitacoesService {
       },
     });
 
-    return atualizada;
+    return this.findOne(id, lojaAtual);
+  }
+
+  async devolver(
+    id: string,
+    lojaAtual: loja,
+    usuarioId: string,
+    motivo?: string,
+  ) {
+    await this.permissions.assertPode(
+      usuarioId,
+      lojaAtual.id,
+      COMPRAS_PERMISSOES.SOLICITACAO_APROVAR,
+    );
+
+    const atual = await this.findOne(id, lojaAtual);
+    assertTransicaoSolicitacao('devolver', atual.status);
+
+    const statusNovo = statusAlvoSolicitacao('devolver');
+    await updateSolicitacaoTenantSafe(this.prisma, id, lojaAtual.id, {
+      status: statusNovo,
+    });
+
+    await this.historicoService.registrar({
+      lojaId: lojaAtual.id,
+      entidadeTipo: 'SOLICITACAO_COMPRA',
+      entidadeId: id,
+      acao: 'DEVOLVER',
+      statusAnterior: atual.status,
+      statusNovo,
+      usuarioId,
+      dados: {
+        permissao: COMPRAS_PERMISSOES.SOLICITACAO_APROVAR,
+        ...(motivo ? { motivo } : {}),
+      },
+    });
+
+    return this.findOne(id, lojaAtual);
+  }
+
+  async cancelar(
+    id: string,
+    lojaAtual: loja,
+    usuarioId: string,
+    motivo: string,
+  ) {
+    await this.permissions.assertPode(
+      usuarioId,
+      lojaAtual.id,
+      COMPRAS_PERMISSOES.SOLICITACAO_CRIAR,
+    );
+
+    const motivoTrim = motivo?.trim();
+    if (!motivoTrim) {
+      throw new BadRequestException(
+        'motivo é obrigatório para cancelar a solicitação.',
+      );
+    }
+
+    const atual = await this.findOne(id, lojaAtual);
+    assertTransicaoSolicitacao('cancelar', atual.status);
+
+    const statusNovo = statusAlvoSolicitacao('cancelar');
+    await updateSolicitacaoTenantSafe(this.prisma, id, lojaAtual.id, {
+      status: statusNovo,
+    });
+
+    await this.historicoService.registrar({
+      lojaId: lojaAtual.id,
+      entidadeTipo: 'SOLICITACAO_COMPRA',
+      entidadeId: id,
+      acao: 'CANCELAR',
+      statusAnterior: atual.status,
+      statusNovo,
+      usuarioId,
+      dados: {
+        motivo: motivoTrim,
+        permissao: COMPRAS_PERMISSOES.SOLICITACAO_CRIAR,
+      },
+    });
+
+    return this.findOne(id, lojaAtual);
   }
 
   async historico(id: string, lojaAtual: loja) {

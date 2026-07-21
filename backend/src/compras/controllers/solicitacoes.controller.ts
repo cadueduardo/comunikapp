@@ -15,6 +15,8 @@ import { SolicitacoesService } from '../services/solicitacoes.service';
 import { CreateSolicitacaoDto } from '../dto/create-solicitacao.dto';
 import { UpdateSolicitacaoDto } from '../dto/update-solicitacao.dto';
 import { RejeitarSolicitacaoDto } from '../dto/rejeitar-solicitacao.dto';
+import { DevolverSolicitacaoDto } from '../dto/devolver-solicitacao.dto';
+import { CancelarSolicitacaoDto } from '../dto/cancelar-solicitacao.dto';
 
 @Controller('compras/solicitacoes')
 @UseGuards(JwtAuthGuard)
@@ -81,6 +83,36 @@ export class SolicitacoesController {
     @CurrentUser() usuario: AuthenticatedUser,
   ) {
     return this.solicitacoesService.rejeitar(
+      id,
+      lojaAtual,
+      usuario.id,
+      dto.motivo,
+    );
+  }
+
+  @Post(':id/devolver')
+  devolver(
+    @Param('id') id: string,
+    @Body() dto: DevolverSolicitacaoDto,
+    @GetLoja() lojaAtual: loja,
+    @CurrentUser() usuario: AuthenticatedUser,
+  ) {
+    return this.solicitacoesService.devolver(
+      id,
+      lojaAtual,
+      usuario.id,
+      dto.motivo,
+    );
+  }
+
+  @Post(':id/cancelar')
+  cancelar(
+    @Param('id') id: string,
+    @Body() dto: CancelarSolicitacaoDto,
+    @GetLoja() lojaAtual: loja,
+    @CurrentUser() usuario: AuthenticatedUser,
+  ) {
+    return this.solicitacoesService.cancelar(
       id,
       lojaAtual,
       usuario.id,

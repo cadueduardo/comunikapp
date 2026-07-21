@@ -6,6 +6,8 @@ import { SolicitacoesController } from './controllers/solicitacoes.controller';
 import { PedidosController } from './controllers/pedidos.controller';
 import { SolicitacoesService } from './services/solicitacoes.service';
 import { PedidosService } from './services/pedidos.service';
+import { PedidosWorkflowService } from './services/pedidos-workflow.service';
+import { PedidosSubstituicaoService } from './services/pedidos-substituicao.service';
 import { ComprasHistoricoService } from './services/compras-historico.service';
 import { ComprasPermissionsService } from './services/compras-permissions.service';
 
@@ -15,12 +17,16 @@ import { ComprasPermissionsService } from './services/compras-permissions.servic
   providers: [
     SolicitacoesService,
     PedidosService,
+    PedidosWorkflowService,
+    PedidosSubstituicaoService,
     ComprasHistoricoService,
     ComprasPermissionsService,
   ],
   exports: [
     SolicitacoesService,
     PedidosService,
+    PedidosWorkflowService,
+    PedidosSubstituicaoService,
     ComprasHistoricoService,
     ComprasPermissionsService,
   ],
