@@ -55,6 +55,18 @@ export type Insumo = {
     id: string;
     nome: string;
   };
+  fornecedores_associados?: Array<{
+    loja_id: string;
+    insumo_id: string;
+    fornecedor_id: string;
+    preco_custo: number | string;
+    codigo_ref?: string | null;
+    padrao: boolean;
+    fornecedor?: {
+      id: string;
+      nome: string;
+    };
+  }>;
 };
 
 const formatCurrency = (value: number) => {
@@ -65,7 +77,8 @@ const formatCurrency = (value: number) => {
 };
 
 export const createColumns = (
-  onDelete: (id: string, nome: string) => void,
+  onInactivate: (id: string, nome: string) => void,
+  onReactivate?: (id: string, nome: string) => void,
   onDuplicate?: (id: string) => void,
 ): ColumnDef<Insumo>[] => [
   {
@@ -74,7 +87,10 @@ export const createColumns = (
       return (
         <Button
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          onClick={(event) => {
+            event.stopPropagation();
+            column.toggleSorting(column.getIsSorted() === 'asc');
+          }}
         >
           Nome
           <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -224,6 +240,7 @@ export const createColumns = (
     id: 'actions',
     cell: ({ row }) => {
       const insumo = row.original;
+      const isAtivo = Boolean(insumo.ativo);
       return (
         <div className="text-right">
           <DropdownMenu>
@@ -244,13 +261,25 @@ export const createColumns = (
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onDelete(insumo.id, insumo.nome)}>
-                Excluir
-              </DropdownMenuItem>
+              {isAtivo ? (
+                <DropdownMenuItem
+                  onClick={() => onInactivate(insumo.id, insumo.nome)}
+                >
+                  Inativar
+                </DropdownMenuItem>
+              ) : (
+                onReactivate && (
+                  <DropdownMenuItem
+                    onClick={() => onReactivate(insumo.id, insumo.nome)}
+                  >
+                    Reativar
+                  </DropdownMenuItem>
+                )
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       );
     },
   },
-]; 
+];

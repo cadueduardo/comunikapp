@@ -1014,6 +1014,15 @@ export class TransformacaoV2Service {
               unidade: insumo.unidade || insumo.unidade_consumo || 'un',
               preco_unitario: precoUnitario,
               preco_total: precoTotal,
+              fornecedor_previsto_id:
+                insumo.fornecedor_previsto_id || null,
+              fornecedor_nome_snapshot:
+                insumo.fornecedor_nome_snapshot || null,
+              codigo_ref_snapshot: insumo.codigo_ref_snapshot || null,
+              preco_compra_snapshot:
+                insumo.preco_compra_snapshot != null
+                  ? toNumber(insumo.preco_compra_snapshot)
+                  : null,
               material_do_cliente: Boolean(insumo.material_do_cliente),
               usa_medida_propria: Boolean(insumo.usa_medida_propria),
               largura_material: insumo.usa_medida_propria
@@ -1229,6 +1238,15 @@ export class TransformacaoV2Service {
           preco_unitario: toNumber(
             insumo.preco_unitario ?? insumo.custo_unitario,
           ),
+          fornecedor_previsto_id:
+            insumo.fornecedor_previsto_id ?? null,
+          fornecedor_nome_snapshot:
+            insumo.fornecedor_nome_snapshot ?? null,
+          codigo_ref_snapshot: insumo.codigo_ref_snapshot ?? null,
+          preco_compra_snapshot:
+            insumo.preco_compra_snapshot != null
+              ? toNumber(insumo.preco_compra_snapshot)
+              : null,
         })) || [],
 
       maquinas:
@@ -1421,6 +1439,13 @@ export class TransformacaoV2Service {
             unidade: insumo.unidade,
             preco_unitario: insumo.preco_unitario || 0,
             preco_total: insumo.preco_total || 0,
+            fornecedor_previsto_id:
+              insumo.fornecedor_previsto_id ?? null,
+            fornecedor_nome_snapshot:
+              insumo.fornecedor_nome_snapshot ?? null,
+            codigo_ref_snapshot: insumo.codigo_ref_snapshot ?? null,
+            preco_compra_snapshot:
+              insumo.preco_compra_snapshot ?? null,
             material_do_cliente: Boolean(insumo.material_do_cliente),
             usa_medida_propria: Boolean(insumo.usa_medida_propria),
             largura_material: insumo.largura_material ?? null,
@@ -1565,6 +1590,13 @@ export class TransformacaoV2Service {
           unidade: insumo.unidade || unidade,
           preco_unitario: insumo.preco_unitario,
           preco_total: insumo.preco_total,
+          fornecedor_previsto_id:
+            insumo.fornecedor_previsto_id ?? null,
+          fornecedor_nome_snapshot:
+            insumo.fornecedor_nome_snapshot ?? null,
+          codigo_ref_snapshot: insumo.codigo_ref_snapshot ?? null,
+          preco_compra_snapshot:
+            insumo.preco_compra_snapshot ?? null,
           material_do_cliente: Boolean(insumo.material_do_cliente),
           usa_medida_propria: Boolean(insumo.usa_medida_propria),
           largura_material: insumo.largura_material ?? null,

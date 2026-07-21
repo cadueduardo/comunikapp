@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,27 @@ import { useOrcamentoData } from '../../orcamento/hooks/useOrcamentoData';
 import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
 import { useUser } from '@/contexts/UserContext';
 import { Cliente, Insumo, Maquina, Funcao, ServicoManual } from '../types/common.types';
+import { produtosFinitosApi } from '@/lib/api-client';
+
+const parseCustoPreview = (valor: unknown): number => {
+  if (valor === null || valor === undefined || valor === '') return 0;
+  if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+  if (typeof valor === 'string') {
+    const parsed = parseFloat(valor.replace(/[^0-9,.-]/g, '').replace(',', '.'));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (typeof valor === 'object' && valor !== null && 'toString' in valor) {
+    try {
+      const parsed = parseFloat(
+        String((valor as { toString(): string }).toString()).replace(',', '.'),
+      );
+      return Number.isFinite(parsed) ? parsed : 0;
+    } catch {
+      return 0;
+    }
+  }
+  return 0;
+};
 
 interface PreviewCalculoDatasets {
   insumos: Insumo[];
@@ -71,6 +92,7 @@ type PreviewProduto = {
   descricao: string;
   quantidade: number;
   tipo_item?: 'SOB_DEMANDA' | 'PRODUTO_FINITO';
+  produto_finito_id?: string;
   dimensoes: Record<string, unknown>;
   materiais: PreviewMaterial[];
   maquinas: PreviewMaquina[];
@@ -81,9 +103,12 @@ type PreviewProduto = {
   custos_indiretos_rateados: number;
   preco_unitario?: number;
   preco_total?: number;
+  preco_custo_unitario?: number;
+  custo_informado?: boolean;
   preco_venda_total?: number | string;
   preco_venda_unitario?: number | string;
   margem_lucro_produto?: number;
+  margem_bruta_percentual?: number;
   impostos_produto?: number;
   comissao_produto?: number;
   instalacao_necessaria?: boolean;
@@ -111,6 +136,8 @@ type PreviewData = {
     total_custo_mao_obra: number;
     total_custo_indireto: number;
     total_custo_producao: number;
+    total_custo_prateleira?: number;
+    total_custo_gerencial?: number;
     total_margem_lucro: number;
     total_impostos: number;
     preco_final: number;
@@ -167,6 +194,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [showIndirectCosts, setShowIndirectCosts] = useState(false);
   const [formSnapshot, setFormSnapshot] = useState<Record<string, unknown> | null>(null);
+  /** Cache produto_finito_id → preço de custo do catálogo (fonte de verdade para o preview). */
+  const [custosCatalogo, setCustosCatalogo] = useState<Record<string, number>>({});
+  const custosBuscadosRef = useRef<Set<string>>(new Set());
   const form = useFormContext<Record<string, unknown>>();
   const { user } = useUser();
 
@@ -219,6 +249,77 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     });
     return () => cancelAnimationFrame(frame);
   }, [dadosCarregados, refreshKey, form, insumos.length, maquinas.length, funcoes.length, servicos.length, itensProdutoCarregados]);
+
+  // Busca preço de custo no catálogo para itens de prateleira.
+  // Importante: NÃO depender de formSnapshot (mudava a cada tecla e cancelava o fetch
+  // marcando o id como "já buscado", travando o custo para sempre).
+  useEffect(() => {
+    if (!form || !dadosCarregados) return;
+
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    let cancelado = false;
+
+    const sincronizarCustos = async () => {
+      const itens = (form.getValues('itens_produto') as unknown[]) || [];
+
+      for (const item of itens) {
+        if (cancelado) return;
+        const registro = item as Record<string, unknown>;
+        const tipo = String(registro?.tipo_item || '').toUpperCase();
+        if (tipo !== 'PRODUTO_FINITO') continue;
+
+        const id = String(registro?.produto_finito_id || '').trim();
+        if (!id) continue;
+
+        const unitarioLocal =
+          parseCustoPreview(registro?.preco_custo_snapshot) ||
+          parseCustoPreview(
+            (registro?.produto_finito as { preco_custo?: unknown } | undefined)?.preco_custo,
+          ) ||
+          (() => {
+            const total = parseCustoPreview(registro?.custo_total_producao);
+            const qtd = Math.max(parseCustoPreview(registro?.quantidade_produto) || 1, 1);
+            return total > 0 ? total / qtd : 0;
+          })();
+
+        if (unitarioLocal > 0) {
+          setCustosCatalogo((prev) =>
+            prev[id] === unitarioLocal ? prev : { ...prev, [id]: unitarioLocal },
+          );
+          continue;
+        }
+
+        if (custosBuscadosRef.current.has(id)) continue;
+        custosBuscadosRef.current.add(id);
+
+        try {
+          const produto = (await produtosFinitosApi.getParaOrcamento(id, token)) as {
+            preco_custo?: unknown;
+          };
+          const custo = parseCustoPreview(produto?.preco_custo);
+          if (cancelado) {
+            custosBuscadosRef.current.delete(id);
+            return;
+          }
+          if (custo > 0) {
+            setCustosCatalogo((prev) => ({ ...prev, [id]: custo }));
+          } else {
+            custosBuscadosRef.current.delete(id);
+          }
+        } catch {
+          custosBuscadosRef.current.delete(id);
+        }
+      }
+    };
+
+    void sincronizarCustos();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [form, dadosCarregados, refreshKey]);
 
   // Hook para dados auxiliares (insumos, maquinas, etc.)
   // Hook para WebSocket em tempo real
@@ -432,11 +533,54 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     return '0';
   };
 
+  const injetarCustosCatalogoNosItens = (
+    formData: Record<string, unknown>,
+  ): Record<string, unknown> => {
+    const itens = Array.isArray(formData.itens_produto)
+      ? (formData.itens_produto as Record<string, unknown>[])
+      : [];
+    if (itens.length === 0 || Object.keys(custosCatalogo).length === 0) {
+      return formData;
+    }
+
+    const itensComCusto = itens.map((item) => {
+      const tipo = String(item?.tipo_item || '').toUpperCase();
+      if (tipo !== 'PRODUTO_FINITO') return item;
+      const id = String(item?.produto_finito_id || '').trim();
+      const custoCatalogo = id ? custosCatalogo[id] : 0;
+      if (!(custoCatalogo > 0)) return item;
+
+      const qtd = Math.max(parseCustoPreview(item?.quantidade_produto) || 1, 1);
+      const snapshotAtual = parseCustoPreview(item?.preco_custo_snapshot);
+      const totalAtual = parseCustoPreview(item?.custo_total_producao);
+      const pf = (item?.produto_finito as Record<string, unknown> | undefined) || {};
+
+      return {
+        ...item,
+        preco_custo_snapshot:
+          snapshotAtual > 0 ? String(snapshotAtual) : String(custoCatalogo),
+        custo_total_producao: totalAtual > 0 ? totalAtual : custoCatalogo * qtd,
+        produto_finito: {
+          ...pf,
+          preco_custo:
+            parseCustoPreview(pf.preco_custo) > 0 ? pf.preco_custo : custoCatalogo,
+        },
+      };
+    });
+
+    return { ...formData, itens_produto: itensComCusto };
+  };
+
   const montarPreviewFormulario = (formData: Record<string, unknown>): PreviewData | null => {
-    return montarPreviewOrcamento(formData, {
+    const formDataComCusto = injetarCustosCatalogoNosItens(formData);
+    const carregadosComCusto = Array.isArray(itensProdutoCarregados)
+      ? ((injetarCustosCatalogoNosItens({ itens_produto: itensProdutoCarregados })
+          .itens_produto as unknown[]) ?? itensProdutoCarregados)
+      : itensProdutoCarregados;
+    return montarPreviewOrcamento(formDataComCusto, {
       datasets: { insumos, maquinas, funcoes, servicos, custosIndiretos },
       loja: user?.loja,
-      itensProdutoCarregados,
+      itensProdutoCarregados: carregadosComCusto,
     }) as PreviewData | null;
   };
 
@@ -484,6 +628,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   // Usar dados reais se disponíveis, senão usar mockados
   const data: PreviewData = (() => {
     void formSnapshot;
+    void custosCatalogo;
     console.debug('[PreviewCalculoV2] Estados', {
       form: !!form,
       dadosCarregados,
@@ -697,8 +842,19 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Custo de Produção</span>
-                <span>R$ {formatarValor(data.resumo.total_custo_producao)}</span>
+                <span>
+                  R${' '}
+                  {formatarValor(
+                    data.resumo.total_custo_gerencial ?? data.resumo.total_custo_producao,
+                  )}
+                </span>
               </div>
+              {(data.resumo.total_custo_prateleira ?? 0) > 0 && (
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Inclui custo de prateleira (informativo)</span>
+                  <span>R$ {formatarValor(data.resumo.total_custo_prateleira)}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-gray-600">Margem de Lucro ({data.resumo.margem_lucro_percentual}%)</span>
                 <span className="text-green-600">+R$ {formatarValor(data.resumo.total_margem_lucro)}</span>
@@ -752,33 +908,126 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                 {/* Dimensões + descrição - linha separada, fonte menor */}
                 <div className="mb-2">
                   <p className="text-xs text-gray-500">
-                    {formatarDimensoes(produto.dimensoes)} - {produto.descricao}
+                    {produto.tipo_item === 'PRODUTO_FINITO'
+                      ? produto.descricao
+                      : `${formatarDimensoes(produto.dimensoes)} - ${produto.descricao}`}
                   </p>
                 </div>
 
-                {/* Custo Total de Produção com quantidade - linha separada */}
-                <div className="mb-1">
-                  <div className="flex justify-between items-center text-sm font-semibold">
-                    <span>Custo Total de Produção</span>
-                    <span>R$ {formatarValor(produto.custo_total_producao)} ({formatarNumero(produto.quantidade)}/unid)</span>
-                  </div>
-                </div>
+                {produto.tipo_item === 'PRODUTO_FINITO' ? (
+                  (() => {
+                    const finitoId = String(produto.produto_finito_id || '').trim();
+                    const custoUnitarioEfetivo =
+                      parseCustoPreview(produto.preco_custo_unitario) ||
+                      (finitoId ? custosCatalogo[finitoId] || 0 : 0) ||
+                      parseCustoPreview(produto.custo_total_producao) /
+                        Math.max(produto.quantidade, 1);
+                    const custoTotalEfetivo = custoUnitarioEfetivo * Math.max(produto.quantidade, 1);
+                    const precoVendaTotal = parseCustoPreview(
+                      produto.preco_venda_total ?? produto.preco_total,
+                    );
+                    const margemEfetiva =
+                      custoTotalEfetivo > 0 && precoVendaTotal > 0
+                        ? precoVendaTotal - custoTotalEfetivo
+                        : parseCustoPreview(produto.margem_lucro_produto);
+                    const margemPct =
+                      custoTotalEfetivo > 0 && precoVendaTotal > 0
+                        ? (margemEfetiva / precoVendaTotal) * 100
+                        : parseCustoPreview(produto.margem_bruta_percentual);
+                    const custoVisivel = custoUnitarioEfetivo > 0;
 
-                {/* Custo unitário de produção - linha separada */}
-                <div className="mb-3">
-                  <div className="flex justify-between items-center text-xs text-gray-600">
-                    <span>Custo unitário de produção</span>
-                    <span>R$ {formatarValor(produto.custo_total_producao / produto.quantidade)}</span>
+                    return (
+                  <div className="mb-3 space-y-2">
+                    <div className="flex justify-between items-center text-sm font-semibold">
+                      <span>Preço ao cliente</span>
+                      <span>
+                        R$ {formatarValor(produto.preco_venda_total ?? produto.preco_total)} (
+                        {formatarNumero(produto.quantidade)} unid)
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-gray-600">
+                      <span>Preço unitário de venda</span>
+                      <span>
+                        R${' '}
+                        {formatarValor(
+                          produto.preco_venda_unitario ??
+                            Number(produto.preco_venda_total || 0) / Math.max(produto.quantidade, 1),
+                        )}
+                        /un
+                      </span>
+                    </div>
+                    <div className="rounded-md border border-dashed border-gray-200 bg-gray-50/80 p-2 space-y-1.5">
+                      <p className="text-[11px] font-medium text-gray-700">
+                        Gestão interna — não altera a proposta
+                      </p>
+                      {custoVisivel ? (
+                        <>
+                          <div className="flex justify-between items-center text-xs text-gray-600">
+                            <span>Custo interno</span>
+                            <span>
+                              R$ {formatarValor(custoTotalEfetivo)} (
+                              {formatarNumero(produto.quantidade)} unid)
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs text-gray-600">
+                            <span>Custo unitário</span>
+                            <span>
+                              R$ {formatarValor(custoUnitarioEfetivo)}/un
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs font-medium text-green-700">
+                            <span>Margem bruta (ganho real)</span>
+                            <span>
+                              R$ {formatarValor(margemEfetiva)}
+                              {margemPct > 0 ? ` (${formatarNumero(margemPct)}%)` : ''}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-xs text-amber-700">
+                          Custo não informado no cadastro do produto. Preencha o preço de custo
+                          para ver a margem real.
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
+                    );
+                  })()
+                ) : (
+                  <>
+                    {/* Custo Total de Produção com quantidade - linha separada */}
+                    <div className="mb-1">
+                      <div className="flex justify-between items-center text-sm font-semibold">
+                        <span>Custo Total de Produção</span>
+                        <span>
+                          R$ {formatarValor(produto.custo_total_producao)} (
+                          {formatarNumero(produto.quantidade)}/unid)
+                        </span>
+                      </div>
+                    </div>
 
-                {/* Informações de produção */}
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Horas de Produção</span>
-                    <span>{formatarNumero(produto.horas_producao)}h</span>
-                  </div>
-                </div>
+                    {/* Custo unitário de produção - linha separada */}
+                    <div className="mb-3">
+                      <div className="flex justify-between items-center text-xs text-gray-600">
+                        <span>Custo unitário de produção</span>
+                        <span>
+                          R${' '}
+                          {formatarValor(
+                            produto.custo_total_producao / Math.max(produto.quantidade, 1),
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Informações de produção */}
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Horas de Produção</span>
+                        <span>{formatarNumero(produto.horas_producao)}h</span>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {produto.instalacao_necessaria && (
                   <div className="mt-3 rounded-md border border-gray-100 bg-gray-50 p-2 text-xs">
@@ -833,6 +1082,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                   </div>
                 )}
 
+                {produto.tipo_item !== 'PRODUTO_FINITO' && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -843,8 +1093,9 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
                   Ver Detalhes de Custo
                   {expandedItems[produto.id] ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
                 </Button>
+                )}
 
-                {expandedItems[produto.id] && (
+                {produto.tipo_item !== 'PRODUTO_FINITO' && expandedItems[produto.id] && (
                   <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
                     {/* Materiais */}
                     <div>

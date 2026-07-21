@@ -174,6 +174,7 @@ export interface FornecedorApi {
   especialidades?: unknown;
   _count?: {
     insumos: number;
+    insumos_associados?: number;
     itens_terceirizados: number;
     produtos_orcados_terceirizados?: number;
   };
@@ -234,13 +235,51 @@ export const platformApi = {
 
 export const insumosApi = {
   getAll: (token: string) => ApiClient.get('/insumos', token),
+  buscarPorNome: (
+    token: string,
+    q: string,
+    options?: { limit?: number; excludeId?: string },
+  ) => {
+    const params = new URLSearchParams();
+    params.set('q', q);
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.excludeId) params.set('excludeId', options.excludeId);
+    return ApiClient.get(`/insumos/busca?${params.toString()}`, token);
+  },
   getById: (id: string, token: string) => ApiClient.get(`/insumos/${id}`, token),
+  getOpcoesFornecedoresOrcamento: (
+    id: string,
+    token: string,
+    fornecedorSelecionadoId?: string,
+  ) =>
+    ApiClient.get(
+      `/insumos/${id}/fornecedores/opcoes-orcamento${
+        fornecedorSelecionadoId
+          ? `?selecionado=${encodeURIComponent(fornecedorSelecionadoId)}`
+          : ''
+      }`,
+      token,
+    ),
   duplicar: (id: string, token: string) => duplicarInsumo(id, token),
   getCalculoChapa: (id: string, token: string) => ApiClient.get(`/insumos/${id}/calculo-chapa`, token),
   simularChapa: (id: string, data: Record<string, unknown>, token: string) => ApiClient.post(`/insumos/${id}/simular-chapa`, data, token),
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/insumos', data, token),
   update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/insumos/${id}`, data, token),
+  vincularFornecedores: (
+    id: string,
+    data: {
+      fornecedores: Array<{
+        fornecedor_id: string;
+        preco_custo: number;
+        codigo_ref?: string;
+        padrao: boolean;
+      }>;
+    },
+    token: string,
+  ) => ApiClient.patch(`/insumos/${id}/fornecedores`, data, token),
   delete: (id: string, token: string) => ApiClient.delete(`/insumos/${id}`, token),
+  reativar: (id: string, token: string) =>
+    ApiClient.post(`/insumos/${id}/reativar`, {}, token),
   importar: (file: File, token: string) => {
     const formData = new FormData();
     formData.append('file', file);

@@ -58,8 +58,9 @@ model Insumo {
   itemorcamento           itemorcamento[]
   itemInsumo              ItemInsumo[]
   estoque                 estoque[]
+  fornecedores_associados InsumoFornecedor[]
 
-  @@unique([loja_id, nome, fornecedorId])
+  @@unique([loja_id, nome])
   @@index([categoriaId], map: "insumos_categoriaId_fkey")
   @@index([fornecedorId], map: "insumos_fornecedorId_fkey")
   @@index([tipoMaterialId], map: "insumos_tipoMaterialId_fkey")
@@ -545,6 +546,8 @@ model fornecedor {
   itens_terceirizados            ItemOS[]
   produtos_orcados_terceirizados ProdutoOrcamento[]
   ordens_terceirizacao           OrdemTerceirizacao[]
+  insumos_associados             InsumoFornecedor[]
+  itens_insumo_previstos         ItemInsumo[]              @relation("ItemInsumoFornecedorPrevisto")
 
   @@unique([loja_id, nome], map: "Fornecedor_loja_id_nome_key")
   @@index([loja_id], map: "Fornecedor_loja_id_idx")
@@ -644,6 +647,7 @@ model loja {
   fornecedor                     fornecedor[]
   funcao                         funcao[]
   insumos                        Insumo[]
+  insumos_fornecedores           InsumoFornecedor[]
   maquina                        maquina[]
   notificacao                    notificacao[]
   orcamento                      orcamento[]
@@ -677,6 +681,27 @@ model loja {
   conjuntos_campos               ConjuntoCampos[]
   estampas                       Estampa[]
   workflow_instancias_setor      WorkflowInstanciaSetor[]
+}
+
+model InsumoFornecedor {
+  loja_id       String
+  insumo_id     String
+  fornecedor_id String
+  preco_custo   Decimal  @db.Decimal(10, 2)
+  codigo_ref    String?
+  padrao        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  loja       loja       @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  insumo     Insumo     @relation(fields: [insumo_id], references: [id], onDelete: Cascade)
+  fornecedor fornecedor @relation(fields: [fornecedor_id], references: [id], onDelete: Cascade)
+
+  @@id([insumo_id, fornecedor_id])
+  @@index([fornecedor_id])
+  @@index([loja_id, insumo_id])
+  @@index([loja_id, fornecedor_id])
+  @@map("insumo_fornecedores")
 }
 
 model maquina {
@@ -1071,15 +1096,21 @@ model ItemInsumo {
   estoque_disponivel      Decimal? @db.Decimal(10, 3)
   alerta_estoque          Boolean  @default(false)
   calculo_chapa           String?  @db.LongText
+  fornecedor_previsto_id  String?
+  fornecedor_nome_snapshot String? @db.VarChar(191)
+  codigo_ref_snapshot     String?  @db.VarChar(191)
+  preco_compra_snapshot   Decimal? @db.Decimal(10, 2)
   criado_em               DateTime @default(now())
   data_criacao            DateTime @default(now())
 
   // Relacionamentos
-  produto ProdutoOrcamento @relation(fields: [produto_id], references: [id], onDelete: Cascade)
-  insumo  Insumo           @relation(fields: [insumo_id], references: [id])
+  produto             ProdutoOrcamento @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  insumo              Insumo           @relation(fields: [insumo_id], references: [id])
+  fornecedor_previsto fornecedor?      @relation("ItemInsumoFornecedorPrevisto", fields: [fornecedor_previsto_id], references: [id], onDelete: SetNull, map: "ItemInsumo_fornecedor_previsto_id_fkey")
 
   @@index([produto_id])
   @@index([insumo_id])
+  @@index([fornecedor_previsto_id], map: "ItemInsumo_fornecedor_previsto_id_idx")
 }
 
 model ItemMaquina {

@@ -2,13 +2,16 @@ import {
   IsArray,
   IsBoolean,
   IsDateString,
+  IsEnum,
   IsOptional,
   IsString,
   MaxLength,
   ValidateNested,
   ArrayNotEmpty,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { MotivoForcarLiberacaoFinanceira } from '../constants/forcar-liberacao-financeira.constants';
 
 /**
  * Prazo individual de um item da OS, enviado pelo modal de aprovacao.
@@ -53,6 +56,24 @@ export class AprovarTecnicaDto {
   @ArrayNotEmpty()
   @IsString({ each: true })
   item_ids?: string[];
+
+  /**
+   * Override: aprovar tecnicamente mesmo com OS em
+   * AGUARDANDO_APROVACAO_FINANCEIRA (entrada não liquidada).
+   */
+  @IsOptional()
+  @IsBoolean()
+  forcar_liberacao_financeira?: boolean;
+
+  @ValidateIf((o) => o.forcar_liberacao_financeira === true && o.aprovado)
+  @IsEnum(MotivoForcarLiberacaoFinanceira)
+  motivo_forcar_financeiro?: MotivoForcarLiberacaoFinanceira;
+
+  /** Obrigatório (mín. 10 no service) quando motivo = OUTRO; opcional nos demais. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  motivo_forcar_detalhe?: string;
 }
 
 export class AgendarInstalacaoDto {

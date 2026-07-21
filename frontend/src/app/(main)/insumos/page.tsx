@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Grid3X3, List, Upload } from 'lucide-react';
@@ -13,15 +13,25 @@ import { InsumoCard } from '@/components/ui/insumo-card';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { insumosApi, duplicarInsumo } from '@/lib/api-client';
 import { BulkImportDialog } from '@/components/crud/BulkImportDialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+type StatusFilter = 'ativos' | 'inativos' | 'todos';
 
 export default function InsumosPage() {
   const router = useRouter();
   const [data, setData] = useState<Insumo[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ativos');
   const isMobile = useIsMobile();
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [deleteDialog, setDeleteDialog] = useState<{
+  const [inactivateDialog, setInactivateDialog] = useState<{
     open: boolean;
     insumoId: string | null;
     insumoNome: string;
@@ -40,12 +50,20 @@ export default function InsumosPage() {
         setData(data);
       }
     } catch (error) {
-      toast.error("Ocorreu um erro ao buscar insumos.");
-      console.error("Ocorreu um erro ao buscar insumos:", error);
+      toast.error('Ocorreu um erro ao buscar insumos.');
+      console.error('Ocorreu um erro ao buscar insumos:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const filteredData = useMemo(() => {
+    if (statusFilter === 'todos') return data;
+    if (statusFilter === 'ativos') {
+      return data.filter((item) => Boolean(item.ativo));
+    }
+    return data.filter((item) => !Boolean(item.ativo));
+  }, [data, statusFilter]);
 
   const handleDownloadTemplate = async () => {
     const token = localStorage.getItem('access_token');
@@ -67,17 +85,37 @@ export default function InsumosPage() {
     return result;
   };
 
-  const handleDelete = async (id: string) => {
+  const handleInactivate = async (id: string) => {
     try {
       const token = localStorage.getItem('access_token');
       if (token) {
         await insumosApi.delete(id, token);
-        toast.success('Insumo excluído com sucesso!');
+        toast.success('Insumo inativado com sucesso!');
         fetchInsumos();
       }
     } catch (error) {
-      console.error('Erro ao excluir insumo:', error);
-      toast.error('Erro ao excluir insumo');
+      console.error('Erro ao inativar insumo:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Erro ao inativar insumo',
+      );
+    }
+  };
+
+  const handleReactivate = async (id: string, nome: string) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        toast.error('Você precisa estar autenticado.');
+        return;
+      }
+      await insumosApi.reativar(id, token);
+      toast.success(`Insumo "${nome}" reativado.`);
+      fetchInsumos();
+    } catch (error) {
+      console.error('Erro ao reativar insumo:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Erro ao reativar insumo',
+      );
     }
   };
 
@@ -101,26 +139,26 @@ export default function InsumosPage() {
     }
   };
 
-  const openDeleteDialog = (id: string, nome: string) => {
-    setDeleteDialog({
+  const openInactivateDialog = (id: string, nome: string) => {
+    setInactivateDialog({
       open: true,
       insumoId: id,
       insumoNome: nome,
     });
   };
 
-  const closeDeleteDialog = () => {
-    setDeleteDialog({
+  const closeInactivateDialog = () => {
+    setInactivateDialog({
       open: false,
       insumoId: null,
       insumoNome: '',
     });
   };
 
-  const confirmDelete = async () => {
-    if (deleteDialog.insumoId) {
-      await handleDelete(deleteDialog.insumoId);
-      closeDeleteDialog();
+  const confirmInactivate = async () => {
+    if (inactivateDialog.insumoId) {
+      await handleInactivate(inactivateDialog.insumoId);
+      closeInactivateDialog();
     }
   };
 
@@ -130,13 +168,27 @@ export default function InsumosPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Gerenciar Insumos</h1>
-          <p className="text-gray-600">Adicione, edite ou remova os insumos do seu negócio.</p>
+          <p className="text-gray-600">
+            Adicione, edite ou inative os insumos do seu negócio.
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Switch de visualização apenas no desktop */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+          >
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ativos">Ativos</SelectItem>
+              <SelectItem value="inativos">Inativos</SelectItem>
+              <SelectItem value="todos">Todos</SelectItem>
+            </SelectContent>
+          </Select>
           {!isMobile && (
             <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
               <Button
@@ -176,35 +228,42 @@ export default function InsumosPage() {
         <p>Carregando insumos...</p>
       ) : (
         <>
-          {/* Mobile sempre cards, desktop baseado no viewMode */}
-          {(isMobile || viewMode === 'cards') ? (
+          {isMobile || viewMode === 'cards' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {data.map((insumo) => (
+              {filteredData.map((insumo) => (
                 <InsumoCard
                   key={insumo.id}
                   insumo={insumo}
-                  onDelete={openDeleteDialog}
+                  onInactivate={openInactivateDialog}
+                  onReactivate={handleReactivate}
                   onDuplicate={handleDuplicate}
                 />
               ))}
             </div>
           ) : (
             <DataTable
-              columns={createColumns(openDeleteDialog, handleDuplicate)}
-              data={data}
+              columns={createColumns(
+                openInactivateDialog,
+                handleReactivate,
+                handleDuplicate,
+              )}
+              data={filteredData}
+              onRowClick={(insumo) =>
+                router.push(`/insumos/editar/${insumo.id}`)
+              }
             />
           )}
         </>
       )}
 
       <ConfirmDialog
-        open={deleteDialog.open}
-        title="Excluir Insumo"
-        description={`Tem certeza que deseja excluir o insumo "${deleteDialog.insumoNome}"? Esta ação não pode ser desfeita.`}
-        confirmText="Excluir"
+        open={inactivateDialog.open}
+        title="Inativar Insumo"
+        description={`Tem certeza que deseja inativar o insumo "${inactivateDialog.insumoNome}"? Ele deixa de aparecer nas listas ativas, mas o histórico é preservado.`}
+        confirmText="Inativar"
         cancelText="Cancelar"
-        onConfirm={confirmDelete}
-        onCancel={closeDeleteDialog}
+        onConfirm={confirmInactivate}
+        onCancel={closeInactivateDialog}
       />
 
       <BulkImportDialog
@@ -217,4 +276,4 @@ export default function InsumosPage() {
       />
     </div>
   );
-} 
+}

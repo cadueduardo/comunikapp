@@ -40,6 +40,26 @@ const calcularCustoPorUnidadeUso = (insumo: any): number => {
   return custoUnitario / fatorConversao;
 };
 
+const parseValorMonetarioProduto = (valor: unknown): number => {
+  if (valor === null || valor === undefined || valor === '') return 0;
+  if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+  if (typeof valor === 'string') {
+    const parsed = parseFloat(valor.replace(/[^0-9,.-]/g, '').replace(',', '.'));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (typeof valor === 'object' && valor !== null && 'toString' in valor) {
+    try {
+      const parsed = parseFloat(
+        String((valor as { toString(): string }).toString()).replace(',', '.'),
+      );
+      return Number.isFinite(parsed) ? parsed : 0;
+    } catch {
+      return 0;
+    }
+  }
+  return 0;
+};
+
 import { mapCamposPrateleiraFormulario } from '../orcamento/utils/map-campos-prateleira';
 import {
   mapInstalacaoProdutoBackendParaFormulario,
@@ -583,6 +603,11 @@ export function OrcamentoV2Form({
                     return {
                       item_insumo_id: ins.id,
                       insumo_id: ins.insumo_id,
+                      fornecedor_previsto_id: ins.fornecedor_previsto_id || undefined,
+                      fornecedor_nome_snapshot: ins.fornecedor_nome_snapshot || undefined,
+                      codigo_ref_snapshot: ins.codigo_ref_snapshot || undefined,
+                      preco_compra_snapshot: ins.preco_compra_snapshot?.toString() || undefined,
+                      preco_unitario_previsto: ins.preco_unitario?.toString() || undefined,
                       quantidade: ajustarQuantidadeMaterialParaFormulario(
                         ins.quantidade,
                         ins.unidade || ins.unidade_consumo,
@@ -788,20 +813,25 @@ export function OrcamentoV2Form({
       return () => window.clearTimeout(resetTimer);
   }, [mode, initialData, form, comissaoPadraoLoja]);
 
-  // Reidratar regras de catálogo para produtos de prateleira ao reabrir rascunho.
+  // Reidratar catálogo (regras + preço de custo) para produtos de prateleira.
   useEffect(() => {
-    if (mode !== 'editar' || !dadosCarregados) return;
+    if (!dadosCarregados) return;
 
     const itens = form.getValues('itens_produto') || [];
     const pendentes = itens
       .map((item, index) => ({ item, index }))
-      .filter(
-        ({ item }) =>
-          String((item as { tipo_item?: string }).tipo_item || '').toUpperCase() ===
-            'PRODUTO_FINITO' &&
-          Boolean((item as { produto_finito_id?: string }).produto_finito_id) &&
-          !(item as { catalogo_regras?: unknown }).catalogo_regras,
-      );
+      .filter(({ item }) => {
+        const tipo = String((item as { tipo_item?: string }).tipo_item || '').toUpperCase();
+        if (tipo !== 'PRODUTO_FINITO') return false;
+        if (!(item as { produto_finito_id?: string }).produto_finito_id) return false;
+        const semRegras = !(item as { catalogo_regras?: unknown }).catalogo_regras;
+        const custoSnapshot = Number(
+          String((item as { preco_custo_snapshot?: string }).preco_custo_snapshot || '')
+            .replace(',', '.'),
+        );
+        const semCusto = !(Number.isFinite(custoSnapshot) && custoSnapshot > 0);
+        return semRegras || semCusto;
+      });
 
     if (pendentes.length === 0) return;
 
@@ -819,17 +849,77 @@ export function OrcamentoV2Form({
           const paraOrcamento = (await produtosFinitosApi.getParaOrcamento(
             produtoFinitoId,
             token,
-          )) as { personalizacao?: CatalogoRegrasOrcamento };
-          if (!paraOrcamento?.personalizacao) continue;
+          )) as {
+            personalizacao?: CatalogoRegrasOrcamento;
+            preco_custo?: number | string | null;
+          };
 
-          form.setValue(
-            `itens_produto.${index}.catalogo_regras`,
-            {
-              ...paraOrcamento.personalizacao,
-              grade_atributos_def: paraOrcamento.personalizacao.grade_atributos_def ?? [],
-            },
-            { shouldDirty: false },
+          if (
+            paraOrcamento?.personalizacao &&
+            !(item as { catalogo_regras?: unknown }).catalogo_regras
+          ) {
+            form.setValue(
+              `itens_produto.${index}.catalogo_regras`,
+              {
+                ...paraOrcamento.personalizacao,
+                grade_atributos_def:
+                  paraOrcamento.personalizacao.grade_atributos_def ?? [],
+              },
+              { shouldDirty: false },
+            );
+          }
+
+          const custoAtual = Number(
+            String((item as { preco_custo_snapshot?: string }).preco_custo_snapshot || '')
+              .replace(',', '.'),
           );
+          const custoCatalogo = parseValorMonetarioProduto(paraOrcamento?.preco_custo);
+          if (!(Number.isFinite(custoAtual) && custoAtual > 0) && custoCatalogo > 0) {
+            const qtd = Math.max(
+              Number(
+                String(
+                  (item as { quantidade_produto?: string }).quantidade_produto || '1',
+                ).replace(',', '.'),
+              ) || 1,
+              1,
+            );
+            form.setValue(
+              `itens_produto.${index}.preco_custo_snapshot`,
+              String(custoCatalogo),
+              { shouldDirty: false, shouldValidate: true },
+            );
+            form.setValue(
+              `itens_produto.${index}.custo_total_producao`,
+              custoCatalogo * qtd,
+              { shouldDirty: false },
+            );
+            form.setValue(
+              `itens_produto.${index}.produto_finito`,
+              {
+                ...((item as { produto_finito?: Record<string, unknown> }).produto_finito ||
+                  {}),
+                preco_custo: custoCatalogo,
+              },
+              { shouldDirty: false },
+            );
+
+            setItensProdutoCarregados((prev) => {
+              if (!Array.isArray(prev) || !prev[index]) return prev;
+              const clone = [...prev];
+              clone[index] = {
+                ...clone[index],
+                preco_custo_snapshot: String(custoCatalogo),
+                custo_total_producao: custoCatalogo * qtd,
+                produto_finito: {
+                  ...((clone[index] as { produto_finito?: Record<string, unknown> })
+                    .produto_finito || {}),
+                  preco_custo: custoCatalogo,
+                },
+              } as FormValues['itens_produto'][number];
+              return clone;
+            });
+            setProdutosSectionKey((k) => k + 1);
+          }
         } catch {
           // Silencioso: preview ainda funciona com snapshots de preço persistidos.
         }
@@ -991,12 +1081,20 @@ export function OrcamentoV2Form({
       const itens = produto.materiais
         .filter((material) => material?.insumo_id)
         .map((material) => ({
+          item_insumo_id: material.item_insumo_id,
           insumo_id: material.insumo_id,
+          fornecedor_previsto_id: material.fornecedor_previsto_id,
+          fornecedor_nome_snapshot: material.fornecedor_nome_snapshot,
+          codigo_ref_snapshot: material.codigo_ref_snapshot,
+          preco_compra_snapshot:
+            material.preco_compra_snapshot === undefined
+              ? undefined
+              : fixDecimal(normalizarNumero(material.preco_compra_snapshot)),
           quantidade: fixDecimal(normalizarNumero(material.quantidade), 3),
-          unidade: (material as any)?.unidade || undefined,
-          preco_unitario: 0,
+          unidade: material.unidade || undefined,
+          preco_unitario: fixDecimal(normalizarNumero(material.preco_unitario_previsto)),
           preco_total: 0,
-          material_do_cliente: Boolean((material as any)?.material_do_cliente),
+          material_do_cliente: Boolean(material.material_do_cliente),
         }))
         .filter((material) => material.quantidade > 0);
 
@@ -1207,6 +1305,9 @@ export function OrcamentoV2Form({
             ? previewProduto.materiais
                 .filter((material: any) => material?.insumo_id)
                 .map((material: any) => {
+                  const materialFormulario = produtoFormulario.materiais?.find(
+                    (item) => item?.insumo_id === material.insumo_id,
+                  );
                   const quantidadeMaterial = fixDecimal(material.quantidade ?? 0, 3);
                   const precoUnitario = fixDecimal(material.custo_unitario ?? 0);
                   const precoTotalMaterial = fixDecimal(
@@ -1214,22 +1315,25 @@ export function OrcamentoV2Form({
                   );
                   const unidadeMaterial =
                     material.unidade_consumo ||
-                    (
-                      produtoFormulario.materiais?.find(
-                        (item) => item?.insumo_id === material.insumo_id,
-                      ) as { unidade?: string } | undefined
-                    )?.unidade;
-                  const materialDoCliente = produtoFormulario.materiais?.find(
-                    (item) => item?.insumo_id === material.insumo_id,
-                  )?.material_do_cliente;
+                    materialFormulario?.unidade;
 
                   return {
+                    item_insumo_id: materialFormulario?.item_insumo_id,
                     insumo_id: material.insumo_id,
+                    fornecedor_previsto_id: materialFormulario?.fornecedor_previsto_id,
+                    fornecedor_nome_snapshot: materialFormulario?.fornecedor_nome_snapshot,
+                    codigo_ref_snapshot: materialFormulario?.codigo_ref_snapshot,
+                    preco_compra_snapshot:
+                      materialFormulario?.preco_compra_snapshot === undefined
+                        ? undefined
+                        : fixDecimal(
+                            normalizarNumero(materialFormulario.preco_compra_snapshot),
+                          ),
                     quantidade: quantidadeMaterial,
                     unidade: unidadeMaterial,
                     preco_unitario: precoUnitario,
                     preco_total: precoTotalMaterial,
-                    material_do_cliente: Boolean(materialDoCliente),
+                    material_do_cliente: Boolean(materialFormulario?.material_do_cliente),
                   };
                 })
             : undefined,
@@ -2576,7 +2680,7 @@ export function OrcamentoV2Form({
     descricao?: string | null;
     descricao_resumida?: string | null;
     preco_unitario?: number;
-    preco_custo?: number | null;
+    preco_custo?: number | string | null;
     estoque_atual: number;
     imagens?: Array<{ id: string; url_imagem: string; ordem: number }>;
   }) => {
@@ -2586,18 +2690,26 @@ export function OrcamentoV2Form({
 
       const token = localStorage.getItem('access_token');
       let catalogoRegras: CatalogoRegrasOrcamento | undefined;
+      let precoCustoDoCatalogo: number | null = null;
       if (token) {
         try {
           const paraOrcamento = (await produtosFinitosApi.getParaOrcamento(
             produto.id,
             token,
-          )) as { personalizacao?: CatalogoRegrasOrcamento };
+          )) as {
+            personalizacao?: CatalogoRegrasOrcamento;
+            preco_custo?: number | string | null;
+          };
           if (paraOrcamento?.personalizacao) {
             catalogoRegras = {
               ...paraOrcamento.personalizacao,
               grade_atributos_def:
                 paraOrcamento.personalizacao.grade_atributos_def ?? [],
             };
+          }
+          const custoCatalogo = parseValorMonetarioProduto(paraOrcamento?.preco_custo);
+          if (custoCatalogo > 0) {
+            precoCustoDoCatalogo = custoCatalogo;
           }
         } catch {
           toast.warning(
@@ -2607,8 +2719,9 @@ export function OrcamentoV2Form({
       }
 
       const quantidade = 1;
-      const precoUnitario = Number(produto.preco_unitario || 0);
-      const precoCustoUnitario = Number(produto.preco_custo || 0);
+      const precoUnitario = parseValorMonetarioProduto(produto.preco_unitario);
+      const precoCustoUnitario =
+        precoCustoDoCatalogo ?? parseValorMonetarioProduto(produto.preco_custo);
       const imagemUrl = produto.imagens?.[0]?.url_imagem || '';
       const descricaoResumida = resolverDescricaoResumidaProdutoFinito(produto);
       const descricaoDetalhada = resolverDescricaoDetalhadaProdutoFinito(produto);

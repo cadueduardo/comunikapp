@@ -14,6 +14,13 @@ import {
 } from '../dto/aprovacao-tecnica.dto';
 import { ValidacaoEstoqueService } from '../../orcamentos-v2/services/validacao-estoque.service';
 import { OSService } from './os.service';
+import { OSApprovalPermissionsService } from './os-approval-permissions.service';
+import {
+  MotivoForcarLiberacaoFinanceira,
+  TIPO_LOG_APROVACAO_TECNICA_FORCADA_FINANCEIRO,
+  montarObsForcarLiberacaoFinanceira,
+  validarPayloadForcarLiberacaoFinanceira,
+} from '../constants/forcar-liberacao-financeira.constants';
 import {
   computeArteResumoGrid,
   computeLiberacaoResumoGrid,
@@ -37,6 +44,7 @@ export class AprovacaoTecnicaService {
     // mesmo modulo e podem se referenciar mutuamente em runtime futuro).
     @Inject(forwardRef(() => OSService))
     private osService: OSService,
+    private osApprovalPermissionsService: OSApprovalPermissionsService,
   ) {}
 
   async validarPreAprovacao(osId: string): Promise<{
@@ -182,9 +190,46 @@ export class AprovacaoTecnicaService {
 
     // Aceita aprovacao tecnica em qualquer status NAO-terminal. Suporta tanto
     // o fluxo padrao quanto regularizacao retroativa de OS legadas.
-    if (os.status === 'AGUARDANDO_APROVACAO_FINANCEIRA') {
+    // AGUARDANDO_APROVACAO_FINANCEIRA exige override explícito com motivo.
+    const retidaFinanceiro = os.status === 'AGUARDANDO_APROVACAO_FINANCEIRA';
+    let forcouLiberacaoFinanceira = false;
+    let motivoForcar: MotivoForcarLiberacaoFinanceira | null = null;
+    let detalheForcar: string | null = null;
+    let observacoesFinais = dto.observacoes;
+
+    if (retidaFinanceiro && dto.aprovado) {
+      const validacaoForcar = validarPayloadForcarLiberacaoFinanceira({
+        forcar: dto.forcar_liberacao_financeira === true,
+        motivo: dto.motivo_forcar_financeiro,
+        detalhe: dto.motivo_forcar_detalhe,
+      });
+      if (validacaoForcar.ok === false) {
+        throw new BadRequestException(validacaoForcar.erro);
+      }
+
+      const permissaoForcar =
+        await this.osApprovalPermissionsService.podeForcarLiberacaoFinanceira(
+          usuarioId,
+          os.loja_id,
+        );
+      if (!permissaoForcar.pode) {
+        throw new ForbiddenException(
+          permissaoForcar.motivo ||
+            'Usuário não tem permissão para forçar liberação financeira',
+        );
+      }
+
+      forcouLiberacaoFinanceira = true;
+      motivoForcar = validacaoForcar.motivo;
+      detalheForcar = validacaoForcar.detalhe;
+      observacoesFinais = montarObsForcarLiberacaoFinanceira(
+        validacaoForcar.motivo,
+        validacaoForcar.detalhe,
+        dto.observacoes,
+      );
+    } else if (dto.forcar_liberacao_financeira === true && !retidaFinanceiro) {
       throw new BadRequestException(
-        'Esta Ordem de Serviço está retida no financeiro e não pode receber aprovação técnica.',
+        'forcar_liberacao_financeira só se aplica quando a OS está aguardando liberação financeira.',
       );
     }
 
@@ -251,6 +296,7 @@ export class AprovacaoTecnicaService {
       'AGUARDANDO_APROVACAO_TECNICA',
       'FILA',
       'PARCIALMENTE_LIBERADA',
+      'AGUARDANDO_APROVACAO_FINANCEIRA',
     ];
     const eFluxoPadrao = statusFluxoPadrao.includes(os.status);
 
@@ -338,10 +384,34 @@ export class AprovacaoTecnicaService {
         aprovacao_tecnica_status: aprovacaoStatus,
         aprovacao_tecnica_por: usuarioId,
         aprovacao_tecnica_em: new Date(),
-        aprovacao_tecnica_obs: dto.observacoes,
+        aprovacao_tecnica_obs: observacoesFinais,
+        ...(forcouLiberacaoFinanceira
+          ? {
+              motivo_modificacao:
+                'Aprovação técnica forçada (pendência financeira) e OS liberada para PCP',
+            }
+          : {}),
         ...(dataPrazoOS !== undefined ? { data_prazo: dataPrazoOS } : {}),
       },
     });
+
+    if (forcouLiberacaoFinanceira && motivoForcar) {
+      await this.prisma.ordemServicoLog.create({
+        data: {
+          os_id: osId,
+          tipo_acao: TIPO_LOG_APROVACAO_TECNICA_FORCADA_FINANCEIRO,
+          descricao:
+            'Aprovação técnica forçada com pendência financeira (entrada não liquidada).',
+          usuario_id: usuarioId,
+          dados_extras: JSON.stringify({
+            motivo: motivoForcar,
+            detalhe: detalheForcar,
+            status_anterior: os.status,
+            status_novo: statusNovo,
+          }),
+        },
+      });
+    }
 
     // Persiste prazos por item em batch (após atualizar a OS para garantir
     // que o estado da OS reflete o que foi aprovado).

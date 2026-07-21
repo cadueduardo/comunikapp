@@ -31,6 +31,19 @@ import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
 import { getMotivosBloqueioPcpFrontend, isArteOkParaPcp, produtoRequerArte } from '@/lib/arte-produto-utils';
 import { itemRequerFabricaPcp, labelModoFulfillmentItem } from '@/lib/os-fulfillment-utils';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useUser } from '@/contexts/UserContext';
+import {
+  MOTIVOS_FORCAR_LIBERACAO_FINANCEIRA,
+  type MotivoForcarLiberacaoFinanceiraValor,
+} from '@/lib/os-forcar-liberacao-financeira';
 
 // Formata Date em 'YYYY-MM-DD' no fuso local (input type=date espera esse
 // formato). NÃO usa toISOString() porque ela converte para UTC e pode pular
@@ -65,6 +78,7 @@ interface AprovarOSModalProps {
 // Qualquer outro status permitido vira aprovação retroativa.
 const STATUS_FLUXO_PADRAO = new Set([
   'AGUARDANDO_APROVACAO_TECNICA',
+  'AGUARDANDO_APROVACAO_FINANCEIRA',
   'FILA',
   'PARCIALMENTE_LIBERADA',
 ]);
@@ -154,10 +168,17 @@ export function AprovarOSModal({
   onOpenChange,
   onAprovado,
 }: AprovarOSModalProps) {
+  const { user } = useUser();
   const statusUpper = (osStatus || '').toUpperCase();
+  const eForcarFinanceiro = statusUpper === 'AGUARDANDO_APROVACAO_FINANCEIRA';
   const eAprovacaoRetroativa =
-    !!statusUpper && !STATUS_FLUXO_PADRAO.has(statusUpper);
+    !!statusUpper &&
+    !STATUS_FLUXO_PADRAO.has(statusUpper) &&
+    !eForcarFinanceiro;
   const eLiberarRestante = statusUpper === 'PARCIALMENTE_LIBERADA';
+  const podeForcarFinanceiro = ['ADMINISTRADOR', 'FINANCEIRO'].includes(
+    (user?.funcao || '').toUpperCase(),
+  );
   const [carregando, setCarregando] = useState(false);
   const [aprovando, setAprovando] = useState(false);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
@@ -166,6 +187,11 @@ export function AprovarOSModal({
   );
   const [itensInfo, setItensInfo] = useState<ItemAprovacaoInfo[]>([]);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [confirmarForcar, setConfirmarForcar] = useState(false);
+  const [motivoForcar, setMotivoForcar] = useState<
+    MotivoForcarLiberacaoFinanceiraValor | ''
+  >('');
+  const [detalheForcar, setDetalheForcar] = useState('');
 
   // Prazos por serviço (1 par início/fim por ItemOS). Pré-preenchido a partir
   // do response GET /aprovacao-tecnica/status.
@@ -189,6 +215,9 @@ export function AprovarOSModal({
       setPrazoOS(null);
       setPrazoMaeInicio('');
       setPrazoMaeFim('');
+      setConfirmarForcar(false);
+      setMotivoForcar('');
+      setDetalheForcar('');
       return;
     }
 
@@ -475,6 +504,34 @@ export function AprovarOSModal({
   const handleAprovar = async () => {
     if (!osId) return;
 
+    if (eForcarFinanceiro) {
+      if (!podeForcarFinanceiro) {
+        toast.error(
+          'Apenas Administrador ou Financeiro podem forçar liberação sem pagamento confirmado.',
+        );
+        return;
+      }
+      if (!confirmarForcar) {
+        toast.error(
+          'Confirme que está ciente da liberação forçada com pendência financeira.',
+        );
+        return;
+      }
+      if (!motivoForcar) {
+        toast.error('Selecione o motivo da liberação forçada.');
+        return;
+      }
+      if (
+        motivoForcar === 'OUTRO' &&
+        detalheForcar.trim().length < 10
+      ) {
+        toast.error(
+          'Descreva o motivo (mínimo 10 caracteres) ao escolher "Outro".',
+        );
+        return;
+      }
+    }
+
     const idsExpedicao = itensPendentes
       .filter((it) => {
         const info = itensInfo.find((i) => i.item_id === it.item_id);
@@ -516,11 +573,13 @@ export function AprovarOSModal({
           aprovado: true,
           observacoes: eLiberarRestante
             ? 'Liberação restante via grid de OS'
-            : eAprovacaoRetroativa
-              ? 'Aprovada via grid de OS (retroativa)'
-              : multiProduto
-                ? 'Liberação parcial via grid de OS'
-                : 'Aprovada via grid de OS',
+            : eForcarFinanceiro
+              ? 'Aprovação forçada via grid de OS (pendência financeira)'
+              : eAprovacaoRetroativa
+                ? 'Aprovada via grid de OS (retroativa)'
+                : multiProduto
+                  ? 'Liberação parcial via grid de OS'
+                  : 'Aprovada via grid de OS',
           prazos_itens: itensAlvoPrazo.map((it) => ({
             item_id: it.item_id,
             ...(it.data_inicio
@@ -530,6 +589,15 @@ export function AprovarOSModal({
           })),
           ...(multiProduto && !eAprovacaoRetroativa
             ? { item_ids: Array.from(alvoIds) }
+            : {}),
+          ...(eForcarFinanceiro
+            ? {
+                forcar_liberacao_financeira: true,
+                motivo_forcar_financeiro: motivoForcar,
+                ...(detalheForcar.trim()
+                  ? { motivo_forcar_detalhe: detalheForcar.trim() }
+                  : {}),
+              }
             : {}),
         }),
       });
@@ -544,9 +612,11 @@ export function AprovarOSModal({
       toast.success(
         eLiberarRestante
           ? `Produtos restantes liberados${osNumero ? ` — OS #${osNumero}` : ''}`
-          : multiProduto
-            ? `${alvoIds.length} produto(s) liberado(s)${osNumero ? ` — OS #${osNumero}` : ''}`
-            : `OS ${osNumero ? `#${osNumero} ` : ''}aprovada com sucesso`,
+          : eForcarFinanceiro
+            ? `OS ${osNumero ? `#${osNumero} ` : ''}aprovada com liberação forçada`
+            : multiProduto
+              ? `${alvoIds.length} produto(s) liberado(s)${osNumero ? ` — OS #${osNumero}` : ''}`
+              : `OS ${osNumero ? `#${osNumero} ` : ''}aprovada com sucesso`,
       );
       solicitarAtualizacaoBadgesSidebar();
       onAprovado?.();
@@ -647,15 +717,104 @@ export function AprovarOSModal({
           <DialogDescription>
             {eLiberarRestante
               ? 'Selecione os produtos elegíveis que ainda não foram liberados para o PCP.'
-              : eAprovacaoRetroativa
-                ? 'Esta OS já avançou no operacional. Aprovar agora registra a decisão retroativamente, sem alterar o status atual.'
-                : multiProduto
-                  ? 'Selecione os produtos a liberar para produção. Cada um precisa de prazo e elegibilidade (arte, materiais).'
-                  : 'Esta ação aprova tecnicamente a OS e libera o avanço para produção. Confira os critérios abaixo antes de prosseguir.'}
+              : eForcarFinanceiro
+                ? 'Esta OS ainda aguarda liberação financeira. Para aprovar agora é necessário forçar a liberação com motivo.'
+                : eAprovacaoRetroativa
+                  ? 'Esta OS já avançou no operacional. Aprovar agora registra a decisão retroativamente, sem alterar o status atual.'
+                  : multiProduto
+                    ? 'Selecione os produtos a liberar para produção. Cada um precisa de prazo e elegibilidade (arte, materiais).'
+                    : 'Esta ação aprova tecnicamente a OS e libera o avanço para produção. Confira os critérios abaixo antes de prosseguir.'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 py-2">
+          {eForcarFinanceiro && (
+            <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50/80 p-3">
+              <div className="flex items-start gap-2 text-sm text-amber-950">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                <div>
+                  <p className="font-medium">
+                    Liberação forçada — pendência financeira
+                  </p>
+                  <p className="mt-0.5 text-xs">
+                    A entrada ainda não foi confirmada no financeiro. Só
+                    continue se houver autorização explícita; a ação fica
+                    registrada na auditoria da OS.
+                  </p>
+                </div>
+              </div>
+
+              {!podeForcarFinanceiro ? (
+                <p className="text-xs font-medium text-destructive">
+                  Seu perfil não pode forçar esta liberação. Peça a um
+                  Administrador ou Financeiro.
+                </p>
+              ) : (
+                <>
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="confirmar-forcar-financeiro"
+                      checked={confirmarForcar}
+                      onCheckedChange={(v) => setConfirmarForcar(v === true)}
+                      disabled={aprovando}
+                    />
+                    <Label
+                      htmlFor="confirmar-forcar-financeiro"
+                      className="cursor-pointer text-sm font-medium leading-tight text-amber-950"
+                    >
+                      Estou ciente e autorizo a liberação forçada sem
+                      confirmação de pagamento
+                    </Label>
+                  </div>
+
+                  {confirmarForcar && (
+                    <div className="space-y-2">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Motivo *</Label>
+                        <Select
+                          value={motivoForcar || undefined}
+                          onValueChange={(v) =>
+                            setMotivoForcar(
+                              v as MotivoForcarLiberacaoFinanceiraValor,
+                            )
+                          }
+                          disabled={aprovando}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o motivo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MOTIVOS_FORCAR_LIBERACAO_FINANCEIRA.map((m) => (
+                              <SelectItem key={m.valor} value={m.valor}>
+                                {m.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="detalhe-forcar" className="text-xs">
+                          {motivoForcar === 'OUTRO'
+                            ? 'Descreva o motivo * (mín. 10 caracteres)'
+                            : 'Detalhe adicional (opcional)'}
+                        </Label>
+                        <Textarea
+                          id="detalhe-forcar"
+                          value={detalheForcar}
+                          onChange={(e) => setDetalheForcar(e.target.value)}
+                          rows={3}
+                          maxLength={500}
+                          placeholder="Ex.: Cliente pagou via PIX e enviou comprovante por WhatsApp..."
+                          disabled={aprovando}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           {eAprovacaoRetroativa && osStatus && (
             <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 mt-0.5 text-blue-600" />
@@ -985,6 +1144,12 @@ export function AprovarOSModal({
               aprovando ||
               carregando ||
               dadosIncompletos ||
+              (eForcarFinanceiro &&
+                (!podeForcarFinanceiro ||
+                  !confirmarForcar ||
+                  !motivoForcar ||
+                  (motivoForcar === 'OUTRO' &&
+                    detalheForcar.trim().length < 10))) ||
               (!eAprovacaoRetroativa &&
                 (multiProduto
                   ? idsSelecionados.length === 0 ||
@@ -1004,11 +1169,13 @@ export function AprovarOSModal({
                 <ShieldCheck className="h-4 w-4 mr-2" />
                 {eLiberarRestante
                   ? 'Liberar restante'
-                  : multiProduto && !eAprovacaoRetroativa
-                    ? `Liberar selecionados (${idsSelecionados.length})`
-                    : totalAlertas > 0
-                      ? 'Aprovar mesmo assim'
-                      : 'Aprovar OS'}
+                  : eForcarFinanceiro
+                    ? 'Forçar liberação e aprovar'
+                    : multiProduto && !eAprovacaoRetroativa
+                      ? `Liberar selecionados (${idsSelecionados.length})`
+                      : totalAlertas > 0
+                        ? 'Aprovar mesmo assim'
+                        : 'Aprovar OS'}
               </>
             )}
           </Button>

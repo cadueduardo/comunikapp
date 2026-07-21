@@ -194,10 +194,18 @@ export class InputIntegrationService {
             // Enriquecer dados do insumo
             insumo.nome = insumoBanco.nome;
             insumo.unidade = insumoBanco.unidade_uso;
-            insumo.preco_unitario = Number(insumoBanco.custo_unitario);
+            const possuiPrecoPrevisto =
+              Boolean(insumo.fornecedor_previsto_id) &&
+              Number.isFinite(Number(insumo.preco_unitario)) &&
+              Number(insumo.preco_unitario) >= 0;
+            if (!possuiPrecoPrevisto) {
+              insumo.preco_unitario = Number(insumoBanco.custo_unitario);
+            }
             insumo.categoria = insumoBanco.categoria?.nome || 'Sem categoria';
             insumo.fornecedor =
-              insumoBanco.fornecedor?.nome || 'Sem fornecedor';
+              insumo.fornecedor_nome_snapshot ||
+              insumoBanco.fornecedor?.nome ||
+              'Sem fornecedor';
             insumo.estoque_disponivel = 0; // TODO: Integrar com estoque
           } else {
             this.logger.warn(`⚠️ Insumo não encontrado: ${insumo.id}`);

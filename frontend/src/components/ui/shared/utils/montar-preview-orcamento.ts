@@ -32,6 +32,17 @@ export interface MontarPreviewOrcamentoOptions {
 const CAMPO_VAZIO = (valor: unknown): boolean =>
   valor === undefined || valor === null || valor === '';
 
+/** 0 / "0" / "" contam como vazio para campos de custo (0 sobrescrevia o custo real no merge). */
+const CUSTO_VAZIO = (valor: unknown): boolean => {
+  if (CAMPO_VAZIO(valor)) return true;
+  if (typeof valor === 'number') return !Number.isFinite(valor) || valor <= 0;
+  if (typeof valor === 'string') {
+    const n = Number(valor.replace(',', '.'));
+    return !Number.isFinite(n) || n <= 0;
+  }
+  return false;
+};
+
 const arrayRecursoTemDados = (arr: unknown): boolean => {
   if (!Array.isArray(arr) || arr.length === 0) return false;
   return arr.some((item) => {
@@ -56,11 +67,17 @@ const CAMPOS_ESCALARES_MERGE = [
   'produto_finito_id',
   'preco_unitario_snapshot',
   'preco_custo_snapshot',
+  'custo_total_producao',
   'personalizacao_ativa',
   'personalizacao_modo',
   'personalizacao_estampa_id',
   'personalizacao_processo_id',
 ] as const;
+
+const CAMPOS_CUSTO_MERGE = new Set([
+  'preco_custo_snapshot',
+  'custo_total_producao',
+]);
 
 const mergeItemProdutoPreview = (
   carregado: Record<string, unknown> | undefined,
@@ -77,13 +94,30 @@ const mergeItemProdutoPreview = (
   }
 
   for (const key of CAMPOS_ESCALARES_MERGE) {
-    if (CAMPO_VAZIO(atual[key]) && !CAMPO_VAZIO(base[key])) {
+    const atualVazio = CAMPOS_CUSTO_MERGE.has(key)
+      ? CUSTO_VAZIO(atual[key])
+      : CAMPO_VAZIO(atual[key]);
+    const baseVazio = CAMPOS_CUSTO_MERGE.has(key)
+      ? CUSTO_VAZIO(base[key])
+      : CAMPO_VAZIO(base[key]);
+    if (atualVazio && !baseVazio) {
       merged[key] = base[key];
     }
   }
 
   if (base.catalogo_regras && !atual.catalogo_regras) {
     merged.catalogo_regras = base.catalogo_regras;
+  }
+
+  // Catálogo embutido: preferir o que tiver preço de custo preenchido.
+  const basePf = base.produto_finito as { preco_custo?: unknown } | undefined;
+  const atualPf = atual.produto_finito as { preco_custo?: unknown } | undefined;
+  if (CUSTO_VAZIO(atualPf?.preco_custo) && !CUSTO_VAZIO(basePf?.preco_custo)) {
+    merged.produto_finito = {
+      ...(atualPf || {}),
+      ...(basePf || {}),
+      preco_custo: basePf?.preco_custo,
+    };
   }
 
   return merged;
@@ -123,9 +157,11 @@ export interface PreviewOrcamentoProduto {
   preco_unitario?: number;
   preco_total?: number;
   preco_custo_unitario?: number;
+  custo_informado?: boolean;
   preco_venda_total?: number | string;
   preco_venda_unitario?: number | string;
   margem_lucro_produto?: number;
+  margem_bruta_percentual?: number;
   impostos_produto?: number;
   comissao_produto?: number;
   instalacao_necessaria?: boolean;
@@ -153,6 +189,10 @@ export interface PreviewOrcamentoResult {
     total_custo_mao_obra: number;
     total_custo_indireto: number;
     total_custo_producao: number;
+    /** Custo de catálogo dos produtos finitos (informativo; não entra na fórmula de markup). */
+    total_custo_prateleira?: number;
+    /** Custo total para gestão (produção + prateleira). Não altera o preço ao cliente. */
+    total_custo_gerencial?: number;
     total_margem_lucro: number;
     total_impostos: number;
     preco_final: number;
@@ -437,8 +477,13 @@ export function montarPreviewOrcamento(
     totalCustoIndireto -
     custoPrateleiraNoMaterial;
 
+  // Custo usado na fórmula de preço do sob demanda (sem prateleira).
   const totalCustoProducao =
     totalCustoProducaoBase + totalCustoInstalacao + entrega.custo_estimado;
+  // Custo gerencial: inclui custo de catálogo do produto finito (não onera o preço ao cliente).
+  const totalCustoGerencial = roundMoney(
+    totalCustoProducao + custoPrateleiraNoMaterial,
+  );
 
   const percentualMargemDecimal = margemPercentual / 100;
   const percentualImpostosDecimal = impostosPercentual / 100;
@@ -484,9 +529,9 @@ export function montarPreviewOrcamento(
     precoFinal = precoFinalPersistido;
   }
 
-  const margemPlanejadaValor = roundMoney(precoFinalCalculado - totalCustoProducao);
+  const margemPlanejadaValor = roundMoney(precoFinalCalculado - totalCustoGerencial);
   const margemManualValor = temValorFinalManual
-    ? roundMoney(valorFinalManual - totalCustoProducao)
+    ? roundMoney(valorFinalManual - totalCustoGerencial)
     : undefined;
   const margemManualPercentual =
     temValorFinalManual && valorFinalManual > 0 && margemManualValor !== undefined
@@ -510,14 +555,22 @@ export function montarPreviewOrcamento(
       const precoVendaUnitario = roundMoney(precoVendaTotal / Math.max(produto.quantidade, 1));
       const custoTotal = roundMoney(Number(produto.custo_total_producao) || 0);
       const custoUnitario = roundMoney(custoTotal / Math.max(produto.quantidade, 1));
-      const margemBruta =
-        precoVendaTotal > 0 && custoTotal > 0 ? roundMoney(precoVendaTotal - custoTotal) : 0;
+      const custoInformado = custoTotal > 0;
+      const margemBruta = custoInformado
+        ? roundMoney(precoVendaTotal - custoTotal)
+        : 0;
+      const margemBrutaPercentual =
+        custoInformado && precoVendaTotal > 0
+          ? roundMoney((margemBruta / precoVendaTotal) * 100)
+          : 0;
       return {
         ...produto,
         preco_venda_unitario: precoVendaUnitario,
         preco_venda_total: precoVendaTotal,
         preco_custo_unitario: custoUnitario,
+        custo_informado: custoInformado,
         margem_lucro_produto: margemBruta,
+        margem_bruta_percentual: margemBrutaPercentual,
         impostos_produto: 0,
         comissao_produto: 0,
       };
@@ -555,13 +608,15 @@ export function montarPreviewOrcamento(
       total_custo_mao_obra: totalCustoFuncoes + totalCustoServicos,
       total_custo_indireto: totalCustoIndireto,
       total_custo_producao: totalCustoProducao,
+      total_custo_prateleira: custoPrateleiraNoMaterial,
+      total_custo_gerencial: totalCustoGerencial,
       total_margem_lucro: totalMargemLucro,
       total_impostos: totalImpostos,
       preco_final: precoFinal,
       preco_final_calculado: temValorFinalManual ? precoFinalCalculado : undefined,
       valor_final_manual: temValorFinalManual ? valorFinalManual : undefined,
       preco_final_manual: temValorFinalManual,
-      preco_abaixo_custo: temValorFinalManual && valorFinalManual < totalCustoProducao,
+      preco_abaixo_custo: temValorFinalManual && valorFinalManual < totalCustoGerencial,
       margem_planejada_valor: temValorFinalManual ? margemPlanejadaValor : undefined,
       margem_manual_valor: margemManualValor,
       margem_manual_percentual: margemManualPercentual,

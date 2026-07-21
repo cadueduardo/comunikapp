@@ -1,9 +1,9 @@
-import { PartialType } from '@nestjs/mapped-types';
+import { OmitType, PartialType } from '@nestjs/mapped-types';
 import { CreateInsumoDto } from './create-insumo.dto';
-import { IsOptional, IsString } from 'class-validator';
 
-export class UpdateInsumoDto extends PartialType(CreateInsumoDto) {
-  @IsOptional()
-  @IsString()
-  motivo_alteracao_preco?: string;
-}
+class EditableInsumoDto extends OmitType(CreateInsumoDto, [
+  'fornecedorId',
+  'custo_unitario',
+] as const) {}
+
+export class UpdateInsumoDto extends PartialType(EditableInsumoDto) {}

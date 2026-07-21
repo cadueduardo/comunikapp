@@ -19,7 +19,6 @@ import { formatCurrency } from '@/lib/utils';
 import { Insumo } from '../types/common.types';
 import {
   getCampoQuantidade,
-  calcularCustoPorUnidadeUso,
   calcularArea,
   calcularVolume,
   calcularAreaLateral,
@@ -31,9 +30,11 @@ import {
   gerarTextoExplicacaoConsumoGeometrico,
   insumoTemQuantidadeCalculadaAutomaticamente,
   labelUnidadeCustoInsumo,
+  resolverCustoUnitarioMaterial,
 } from '../utils/calculo.utils';
 import { NovoInsumoModal } from '@/components/orcamentos-v2/NovoInsumoModal';
 import { CalculoChapaMaterialPanel } from '@/components/orcamentos-v2/CalculoChapaMaterialPanel';
+import { FornecedorPrevistoMaterial } from '@/components/orcamentos-v2/FornecedorPrevistoMaterial';
 
 interface MaterialSectionProps {
   variant?: 'orcamento' | 'produto';
@@ -303,6 +304,18 @@ export function MaterialSection({
       `itens_produto.${itemIndex}.materiais.${materialIndex}.insumo_id`,
       insumoId,
     );
+    for (const campo of [
+      'fornecedor_previsto_id',
+      'fornecedor_nome_snapshot',
+      'codigo_ref_snapshot',
+      'preco_compra_snapshot',
+      'preco_unitario_previsto',
+    ]) {
+      form.setValue(
+        `itens_produto.${itemIndex}.materiais.${materialIndex}.${campo}`,
+        '',
+      );
+    }
 
     const insumo =
       insumos.find((item) => item.id === insumoId) ??
@@ -406,10 +419,18 @@ export function MaterialSection({
         material_do_cliente?: boolean;
         item_insumo_id?: string;
         calculo_chapa?: Record<string, unknown> | null;
+        fornecedor_previsto_id?: string;
+        fornecedor_nome_snapshot?: string;
+        codigo_ref_snapshot?: string;
+        preco_compra_snapshot?: number | string;
+        preco_unitario_previsto?: number | string;
       }, materialIndex: number) => {
         const insumoSelecionado = insumos.find(insumo => insumo.id === material.insumo_id);
         const campoQuantidade = getCampoQuantidade(insumoSelecionado);
-        const custoPorUnidade = insumoSelecionado ? calcularCustoPorUnidadeUso(insumoSelecionado) : 0;
+        const custoPorUnidade = resolverCustoUnitarioMaterial(
+          insumoSelecionado,
+          material,
+        );
         const quantidade = Number(String(material.quantidade).replace(',', '.')) || 0;
         const materialDoCliente = Boolean(material.material_do_cliente);
         // Calcular custo considerando se a quantidade já inclui a multiplicação pelo produto
@@ -893,9 +914,28 @@ export function MaterialSection({
               </div>
             )}
 
+            {variant === 'orcamento' &&
+              insumoSelecionado &&
+              !materialDoCliente && (
+                <FornecedorPrevistoMaterial
+                  insumoId={insumoSelecionado.id}
+                  itemIndex={itemIndex}
+                  materialIndex={materialIndex}
+                  unidadeCompra={insumoSelecionado.unidade_compra}
+                  unidadeUso={labelUnidadeCustoInsumo(insumoSelecionado)}
+                />
+              )}
+
             {variant === 'orcamento' && insumoSelecionado && (
               <CalculoChapaMaterialPanel
-                insumo={insumoSelecionado as Insumo}
+                insumo={
+                  {
+                    ...insumoSelecionado,
+                    custo_unitario:
+                      Number(material.preco_compra_snapshot) ||
+                      insumoSelecionado.custo_unitario,
+                  } as Insumo
+                }
                 larguraPeca={larguraProduto}
                 alturaPeca={alturaProduto}
                 quantidadePeca={quantidadeProduto}

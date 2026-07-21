@@ -73,6 +73,7 @@ describe('OSService - Validações Condicionais', () => {
 
   const mockOSApprovalPermissionsService = {
     podeAprovarTecnica: jest.fn().mockResolvedValue({ pode: true }),
+    podeForcarLiberacaoFinanceira: jest.fn().mockResolvedValue({ pode: true }),
   };
 
   const mockOSValidacoesService = {

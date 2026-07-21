@@ -213,6 +213,7 @@ const STATUS_BLOQUEIA_APROVACAO = new Set([
 // avancara o workflow vs quando sera apenas regularizacao retroativa.
 const STATUS_FLUXO_PADRAO = new Set([
   'AGUARDANDO_APROVACAO_TECNICA',
+  'AGUARDANDO_APROVACAO_FINANCEIRA',
   'FILA',
   'PARCIALMENTE_LIBERADA',
 ]);
@@ -381,6 +382,7 @@ function AprovacaoCell({
 
   const eFluxoPadrao = STATUS_FLUXO_PADRAO.has(statusOs);
   const eLiberarRestante = statusOs === 'PARCIALMENTE_LIBERADA';
+  const retidaFinanceiro = statusOs === 'AGUARDANDO_APROVACAO_FINANCEIRA';
 
   if (eLiberarRestante && aprovacao === 'PENDENTE') {
     return (
@@ -402,15 +404,21 @@ function AprovacaoCell({
       size="sm"
       variant="outline"
       onClick={() => onAprovar(os)}
-      className="h-8"
+      className={
+        retidaFinanceiro
+          ? 'h-8 border-amber-300 text-amber-900 hover:bg-amber-50'
+          : 'h-8'
+      }
       title={
-        eFluxoPadrao
-          ? 'Aprovar e liberar para producao'
-          : 'OS ja avancou no operacional - aprovacao registrara a decisao sem alterar o status'
+        retidaFinanceiro
+          ? 'Aprovar com liberação forçada — entrada ainda não confirmada'
+          : eFluxoPadrao
+            ? 'Aprovar e liberar para producao'
+            : 'OS ja avancou no operacional - aprovacao registrara a decisao sem alterar o status'
       }
     >
       <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
-      Aprovar OS
+      {retidaFinanceiro ? 'Aprovar (forçar)' : 'Aprovar OS'}
     </Button>
   );
 }

@@ -39,6 +39,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { categoriasApi, fornecedoresApi, tiposMaterialApi, estoqueApi } from '@/lib/api-client';
+import { NomeInsumoSugestoes } from './nome-insumo-sugestoes';
 import {
   FornecedorForm,
   type FornecedorFormValues,
@@ -109,6 +110,11 @@ interface InsumoFormProps {
   initialData?: Partial<InsumoFormValues>;
   onSave: (data: InsumoFormValues) => void;
   isSaving?: boolean;
+  lockFornecedorCusto?: boolean;
+  /** Conteúdo renderizado antes de Voltar/Salvar Insumo (ex.: matriz de fornecedores). */
+  afterFields?: React.ReactNode;
+  /** Sugestões de nome só no cadastro novo (não na edição). */
+  sugerirNomesCadastrados?: boolean;
 }
 
 const unidadesDeMedida = UNIDADES_COMPRA;
@@ -137,7 +143,14 @@ interface Option {
   label: string;
 }
 
-export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
+export function InsumoForm({
+  onSave,
+  initialData,
+  isSaving,
+  lockFornecedorCusto = false,
+  afterFields,
+  sugerirNomesCadastrados = false,
+}: InsumoFormProps) {
   const [showExamplesModal, setShowExamplesModal] = useState(false);
   const [tiposMaterial, setTiposMaterial] = useState<Option[]>([]);
   
@@ -773,7 +786,20 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                 <FormField control={form.control} name="nome" render={({ field }) => (
                     <FormItem>
                     <FormLabel>Nome do Insumo *</FormLabel>
-                    <FormControl><Input placeholder="Ex: Lona XPTO 440g" {...field} /></FormControl>
+                    <div className="relative">
+                      <FormControl>
+                        <Input
+                          placeholder="Ex: Lona XPTO 440g"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          {...field}
+                        />
+                      </FormControl>
+                      {sugerirNomesCadastrados ? (
+                        <NomeInsumoSugestoes nome={field.value ?? ''} />
+                      ) : null}
+                    </div>
                     <FormMessage />
                     </FormItem>
                 )} />
@@ -800,6 +826,7 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                             onValueChange={field.onChange} 
                             value={field.value} 
                             placeholder="R$ 10,50"
+                            disabled={lockFornecedorCusto}
                         />
                     </FormControl>
                     <FormMessage />
@@ -816,7 +843,13 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
                         onCreateDetailed={abrirCadastroCompletoFornecedor}
                         createPlaceholder="Criar fornecedor rápido"
                         detailedCreatePlaceholder="Cadastrar fornecedor completo"
+                        disabled={lockFornecedorCusto}
                     />
+                    {lockFornecedorCusto && (
+                      <p className="text-xs text-muted-foreground">
+                        Altere o fornecedor e o custo padrão na matriz abaixo.
+                      </p>
+                    )}
                     <FormMessage />
                     </FormItem>
                 )} />
@@ -1453,27 +1486,8 @@ export function InsumoForm({ onSave, initialData, isSaving }: InsumoFormProps) {
            </CardContent>
          </Card>
 
-         <Card>
-           <CardContent className="pt-6 space-y-4">
-            <div className="flex items-center space-x-2">
-                <FormField control={form.control} name="ativo" render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                        <FormControl>
-                            <input
-                                type="checkbox"
-                                checked={field.value}
-                                onChange={field.onChange}
-                                className="h-4 w-4 rounded border-gray-300"
-                            />
-                        </FormControl>
-                        <FormLabel className="text-sm font-normal">Insumo Ativo</FormLabel>
-                    </FormItem>
-                )} />
-            </div>
+        {afterFields}
 
-           </CardContent>
-         </Card>
-        
         <div className="flex justify-end gap-2">
             <Link href="/insumos"><Button type="button" variant="outline"><ArrowLeft className="h-4 w-4 mr-2" />Voltar</Button></Link>
             <Button type="submit" disabled={isSaving}><Save className="h-4 w-4 mr-2" />{isSaving ? 'Salvando...' : 'Salvar Insumo'}</Button>

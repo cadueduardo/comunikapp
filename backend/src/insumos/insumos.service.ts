@@ -8,7 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInsumoDto } from './dto/create-insumo.dto';
 import { UpdateInsumoDto } from './dto/update-insumo.dto';
-import { loja } from '@prisma/client';
+import { loja, TipoFornecedor } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
 import { SimularChapaDto } from '../common/calculo-chapa/simular-chapa.dto';
 import {
@@ -17,6 +17,8 @@ import {
   resolverMedidasComerciaisInsumo,
 } from '../common/calculo-chapa/calculo-chapa.util';
 import { MetodoCobrancaChapa } from '../common/calculo-chapa/calculo-chapa.types';
+import { VincularFornecedoresEnvelopeDto } from './dto/vincular-fornecedores.dto';
+import { calcularCustoUnitarioUso } from '../common/custos/custo-unitario-insumo.util';
 
 @Injectable()
 export class InsumosService {
@@ -655,21 +657,18 @@ export class InsumosService {
       tipo_material_id: createInsumoDto.tipo_material_id,
     });
 
-    // Verificar unicidade por fornecedor (apenas se fornecedor foi informado)
-    if (createInsumoDto.fornecedorId && createInsumoDto.fornecedorId !== '') {
-      const existingInsumo = await this.prisma.insumo.findFirst({
-        where: {
-          loja_id: loja.id,
-          nome: createInsumoDto.nome,
-          fornecedorId: createInsumoDto.fornecedorId,
-        },
-      });
+    const existingInsumo = await this.prisma.insumo.findFirst({
+      where: {
+        loja_id: loja.id,
+        nome: createInsumoDto.nome,
+      },
+      select: { id: true },
+    });
 
-      if (existingInsumo) {
-        throw new ConflictException(
-          `Já existe um insumo com o nome "${createInsumoDto.nome}" para este fornecedor.`,
-        );
-      }
+    if (existingInsumo) {
+      throw new ConflictException(
+        `Já existe um insumo com o nome "${createInsumoDto.nome}" nesta loja.`,
+      );
     }
 
     // Verificar se categoria e fornecedor pertencem à mesma loja
@@ -709,7 +708,12 @@ export class InsumosService {
 
     if (createInsumoDto.fornecedorId && createInsumoDto.fornecedorId !== '') {
       const fornecedor = await this.prisma.fornecedor.findFirst({
-        where: { id: createInsumoDto.fornecedorId, loja_id: loja.id },
+        where: {
+          id: createInsumoDto.fornecedorId,
+          loja_id: loja.id,
+          ativo: true,
+          tipo: { in: [TipoFornecedor.INSUMO, TipoFornecedor.AMBOS] },
+        },
       });
 
       console.log('🔍 Verificação de fornecedor:', {
@@ -725,7 +729,7 @@ export class InsumosService {
           loja_id: loja.id,
         });
         throw new BadRequestException(
-          `Fornecedor não encontrado (ID: ${createInsumoDto.fornecedorId}). Por favor, selecione um fornecedor válido.`,
+          `Fornecedor não encontrado, inativo ou incompatível com insumos (ID: ${createInsumoDto.fornecedorId}).`,
         );
       }
     } else {
@@ -811,6 +815,17 @@ export class InsumosService {
           },
         });
 
+        await tx.insumoFornecedor.create({
+          data: {
+            loja_id: loja.id,
+            insumo_id: insumoCriado.id,
+            fornecedor_id: fornecedorId,
+            preco_custo: createInsumoDto.custo_unitario,
+            codigo_ref: null,
+            padrao: true,
+          },
+        });
+
         const itemCriado = await this.sincronizarInsumoComEstoque(
           tx,
           insumoCriado,
@@ -867,6 +882,47 @@ export class InsumosService {
       estoque_controlado: Boolean(estoqueItem),
       estoque_item_id: estoqueItem?.id ?? null,
     };
+  }
+
+  async buscarSugestoesPorNome(
+    loja: loja,
+    q: string,
+    limit = 8,
+    excludeId?: string,
+  ) {
+    const termo = (q ?? '').trim();
+    if (termo.length < 2) {
+      return [];
+    }
+
+    const safeLimit = Math.min(Math.max(Math.trunc(limit) || 8, 1), 20);
+
+    const rows = await this.prisma.insumo.findMany({
+      where: {
+        loja_id: loja.id,
+        nome: { contains: termo },
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
+      select: {
+        id: true,
+        nome: true,
+        ativo: true,
+        categoria: { select: { id: true, nome: true } },
+        fornecedor: { select: { id: true, nome: true } },
+      },
+      orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
+      take: safeLimit,
+    });
+
+    const termoNorm = termo.toLocaleLowerCase('pt-BR');
+    return rows.map((row) => ({
+      id: row.id,
+      nome: row.nome,
+      ativo: row.ativo,
+      categoria: row.categoria,
+      fornecedor: row.fornecedor,
+      match_exato: row.nome.trim().toLocaleLowerCase('pt-BR') === termoNorm,
+    }));
   }
 
   async findAll(loja: loja) {
@@ -955,6 +1011,75 @@ export class InsumosService {
     });
   }
 
+  async getOpcoesFornecedoresOrcamento(
+    id: string,
+    loja: loja,
+    fornecedorSelecionadoId?: string,
+  ) {
+    const insumo = await this.prisma.insumo.findFirst({
+      where: { id, loja_id: loja.id, ativo: true },
+      include: {
+        fornecedores_associados: {
+          where: {
+            loja_id: loja.id,
+            fornecedor: {
+              ativo: true,
+              tipo: { in: [TipoFornecedor.INSUMO, TipoFornecedor.AMBOS] },
+            },
+          },
+          include: { fornecedor: true },
+          orderBy: [
+            { padrao: 'desc' },
+            { preco_custo: 'asc' },
+            { fornecedor_id: 'asc' },
+          ],
+        },
+      },
+    });
+
+    if (!insumo) {
+      throw new NotFoundException(`Insumo com ID "${id}" não encontrado.`);
+    }
+
+    const associacoes = insumo.fornecedores_associados;
+    const top = associacoes.slice(0, 3);
+    const selecionado = fornecedorSelecionadoId
+      ? associacoes.find(
+          (item) => item.fornecedor_id === fornecedorSelecionadoId,
+        )
+      : undefined;
+    if (
+      selecionado &&
+      !top.some((item) => item.fornecedor_id === selecionado.fornecedor_id)
+    ) {
+      if (top.length === 3) top[2] = selecionado;
+      else top.push(selecionado);
+    }
+
+    const menorPreco = associacoes.reduce(
+      (menor, item) => Math.min(menor, Number(item.preco_custo)),
+      Number.POSITIVE_INFINITY,
+    );
+
+    return {
+      insumo_id: insumo.id,
+      total_opcoes: associacoes.length,
+      opcoes: top.map((item) => ({
+        fornecedor_id: item.fornecedor_id,
+        fornecedor_nome: item.fornecedor.nome,
+        preco_compra: Number(item.preco_custo),
+        preco_unitario_uso: calcularCustoUnitarioUso(
+          insumo,
+          item.preco_custo,
+        ),
+        codigo_ref: item.codigo_ref,
+        padrao: item.padrao,
+        menor_preco: Number(item.preco_custo) === menorPreco,
+        atualizado_em: item.updatedAt,
+      })),
+    };
+  }
+
   async findOne(id: string, loja: loja) {
     const insumo = await this.prisma.insumo.findUnique({
       where: { id },
@@ -962,6 +1087,10 @@ export class InsumosService {
         categoria: true,
         fornecedor: true,
         tipoMaterial: true,
+        fornecedores_associados: {
+          include: { fornecedor: true },
+          orderBy: [{ padrao: 'desc' }, { fornecedor_id: 'asc' }],
+        },
       },
     });
 
@@ -993,6 +1122,12 @@ export class InsumosService {
       largura: insumo.largura ? Number(insumo.largura) : null,
       altura: insumo.altura ? Number(insumo.altura) : null,
       gramatura: insumo.gramatura ? Number(insumo.gramatura) : null,
+      fornecedores_associados: insumo.fornecedores_associados.map(
+        (vinculo) => ({
+          ...vinculo,
+          preco_custo: Number(vinculo.preco_custo),
+        }),
+      ),
       estoque_controlado: Boolean(estoqueItem),
       controlar_estoque: Boolean(estoqueItem),
       estoque_item_id: estoqueItem?.id ?? null,
@@ -1053,7 +1188,6 @@ export class InsumosService {
 
   private async gerarNomeCopiaInsumo(
     nomeBase: string,
-    fornecedorId: string,
     lojaId: string,
   ): Promise<string> {
     const base = nomeBase.trim() || 'Insumo';
@@ -1065,7 +1199,6 @@ export class InsumosService {
         where: {
           loja_id: lojaId,
           nome: candidato,
-          fornecedorId,
         },
         select: { id: true },
       })
@@ -1095,11 +1228,7 @@ export class InsumosService {
       }
     }
 
-    const nomeCopia = await this.gerarNomeCopiaInsumo(
-      original.nome,
-      original.fornecedorId,
-      loja.id,
-    );
+    const nomeCopia = await this.gerarNomeCopiaInsumo(original.nome, loja.id);
 
     const dto: CreateInsumoDto = {
       nome: nomeCopia,
@@ -1234,14 +1363,13 @@ export class InsumosService {
         where: {
           loja_id: loja.id,
           nome: updateInsumoDto.nome,
-          fornecedorId: existingInsumo.fornecedorId,
           id: { not: id },
         },
       });
 
       if (existingInsumoWithSameName) {
         throw new ConflictException(
-          `Já existe um insumo com o nome "${updateInsumoDto.nome}" para este fornecedor.`,
+          `Já existe um insumo com o nome "${updateInsumoDto.nome}" nesta loja.`,
         );
       }
     }
@@ -1258,6 +1386,25 @@ export class InsumosService {
       estoque_observacoes,
       ...dataWithoutExtraFields
     } = updateInsumoDto;
+
+    if (
+      dataWithoutExtraFields.categoriaId !== undefined &&
+      dataWithoutExtraFields.categoriaId !== null &&
+      dataWithoutExtraFields.categoriaId !== ''
+    ) {
+      const categoria = await this.prisma.categoria.findFirst({
+        where: {
+          id: dataWithoutExtraFields.categoriaId,
+          loja_id: loja.id,
+        },
+        select: { id: true },
+      });
+      if (!categoria) {
+        throw new BadRequestException(
+          `Categoria não encontrada na loja do insumo (ID: ${dataWithoutExtraFields.categoriaId}).`,
+        );
+      }
+    }
 
     console.log('🔍 InsumosService.update - Dados recebidos:', {
       logica_consumo: updateInsumoDto.logica_consumo,
@@ -1371,37 +1518,139 @@ export class InsumosService {
     return resultado;
   }
 
-  async remove(id: string, loja: loja) {
-    const existingInsumo = await this.findOne(id, loja);
+  async vincularFornecedores(
+    id: string,
+    dto: VincularFornecedoresEnvelopeDto,
+    loja: loja,
+  ) {
+    const fornecedores = dto.fornecedores.map((item) => ({
+      fornecedor_id: item.fornecedor_id.trim(),
+      preco_custo: Number(item.preco_custo),
+      codigo_ref: item.codigo_ref?.trim() || null,
+      padrao: item.padrao,
+    }));
 
-    // Verifica se o insumo está sendo usado em orçamentos
-    const itensOrcamento = await this.prisma.itemorcamento.findMany({
-      where: { insumo_id: id },
-      include: {
-        orcamento: true,
-      },
-    });
-
-    if (itensOrcamento.length > 0) {
-      const orcamentosUsando = itensOrcamento
-        .map(
-          (item) =>
-            `Orçamento #${item.orcamento.numero} - ${item.orcamento.nome_servico}`,
-        )
-        .join(', ');
-
+    const ids = fornecedores.map((item) => item.fornecedor_id);
+    if (new Set(ids).size !== ids.length) {
       throw new BadRequestException(
-        `Não é possível excluir este insumo pois ele está sendo usado nos seguintes orçamentos: ${orcamentosUsando}. ` +
-          'Remova o insumo dos orçamentos antes de excluí-lo.',
+        'O mesmo fornecedor não pode aparecer mais de uma vez na matriz.',
       );
     }
 
-    await this.prisma.insumo.delete({
+    const padroes = fornecedores.filter((item) => item.padrao);
+    if (padroes.length !== 1) {
+      throw new BadRequestException(
+        'A matriz deve possuir exatamente um fornecedor padrão.',
+      );
+    }
+
+    return this.prisma.$transaction(
+      async (tx) => {
+        const insumo = await tx.insumo.findFirst({
+          where: { id, loja_id: loja.id },
+          select: { id: true },
+        });
+        if (!insumo) {
+          throw new NotFoundException(`Insumo com ID "${id}" não encontrado.`);
+        }
+
+        const fornecedoresValidos = await tx.fornecedor.findMany({
+          where: {
+            id: { in: ids },
+            loja_id: loja.id,
+            ativo: true,
+            tipo: { in: [TipoFornecedor.INSUMO, TipoFornecedor.AMBOS] },
+          },
+          select: { id: true },
+        });
+        if (fornecedoresValidos.length !== ids.length) {
+          throw new BadRequestException(
+            'A matriz contém fornecedor inexistente, inativo, de outra loja ou incompatível com insumos.',
+          );
+        }
+
+        await tx.insumoFornecedor.deleteMany({
+          where: { insumo_id: id, loja_id: loja.id },
+        });
+        await tx.insumoFornecedor.createMany({
+          data: fornecedores.map((item) => ({
+            loja_id: loja.id,
+            insumo_id: id,
+            fornecedor_id: item.fornecedor_id,
+            preco_custo: item.preco_custo,
+            codigo_ref: item.codigo_ref,
+            padrao: item.padrao,
+          })),
+        });
+
+        const padrao = padroes[0];
+        await tx.insumo.update({
+          where: { id },
+          data: {
+            fornecedorId: padrao.fornecedor_id,
+            custo_unitario: padrao.preco_custo,
+          },
+        });
+
+        const matriz = await tx.insumoFornecedor.findMany({
+          where: { insumo_id: id, loja_id: loja.id },
+          include: { fornecedor: true },
+          orderBy: [{ padrao: 'desc' }, { fornecedor_id: 'asc' }],
+        });
+
+        return {
+          insumo_id: id,
+          fornecedorId: padrao.fornecedor_id,
+          custo_unitario: padrao.preco_custo,
+          fornecedores: matriz.map((vinculo) => ({
+            ...vinculo,
+            preco_custo: Number(vinculo.preco_custo),
+          })),
+        };
+      },
+      { timeout: 30_000 },
+    );
+  }
+
+  async remove(id: string, loja: loja) {
+    const existingInsumo = await this.findOne(id, loja);
+
+    if (!existingInsumo.ativo) {
+      return {
+        message: `Insumo "${existingInsumo.nome}" já está inativo.`,
+        ativo: false,
+      };
+    }
+
+    await this.prisma.insumo.update({
       where: { id },
+      data: { ativo: false },
     });
 
     return {
-      message: `Insumo "${existingInsumo.nome}" foi removido com sucesso.`,
+      message: `Insumo "${existingInsumo.nome}" foi inativado com sucesso.`,
+      ativo: false,
+    };
+  }
+
+  async reativar(id: string, loja: loja) {
+    const existingInsumo = await this.findOne(id, loja);
+
+    if (existingInsumo.ativo) {
+      return {
+        message: `Insumo "${existingInsumo.nome}" já está ativo.`,
+        ativo: true,
+      };
+    }
+
+    await this.prisma.insumo.update({
+      where: { id },
+      data: { ativo: true },
+    });
+
+    return {
+      message: `Insumo "${existingInsumo.nome}" foi reativado com sucesso.`,
+      ativo: true,
     };
   }
 

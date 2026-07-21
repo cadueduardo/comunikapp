@@ -1,7 +1,7 @@
 # Plano de Ação — Financeiro Previsto × Real e Pós-Cálculo de OS
 
-**Status:** especificação funcional e técnica consolidada — não executar migrations, deploy ou escrita no banco sem aprovação explícita
-**Revisão:** 2026-07-17
+**Status:** especificação consolidada; baseline de fornecedor/custo previsto do material implementada e aplicada somente no ambiente local; Compras e realizado permanecem planejados
+**Revisão:** 2026-07-18
 **Dor validada:** comparar o custo previsto no orçamento com o valor efetivamente pago para concluir cada Ordem de Serviço
 **Dependências:** matriz Insumo × Fornecedor, MVP de Compras/Suprimentos, Estoque, Terceirização, Contas a Receber e Ordens de Serviço
 **Documento relacionado:** `docs/modulo de compras/RP-mvp-compras-suprimentos.md`
@@ -47,6 +47,22 @@ Exemplo:
 10. O fechamento operacional da OS e o fechamento financeiro são estados diferentes.
 11. Deve ser possível lançar múltiplas compras, recebimentos, aceites, contas e pagamentos para a mesma OS.
 12. Toda origem automática precisa de chave idempotente; reprocessamento não pode duplicar baseline, provisão, apropriação ou pagamento.
+
+### 2.1 Baseline do fornecedor previsto no orçamento — implementação local
+
+A primeira parte executável deste plano está implementada na branch `codex/orcamentos-fornecedor-previsto`, sem deploy:
+
+- ao selecionar um insumo, o fornecedor padrão da matriz continua sendo a fonte inicial do custo;
+- a linha exibe uma comparação recolhível com no máximo três opções: o padrão e até duas alternativas ativas de menor preço;
+- a interface não classifica “custo-benefício”, pois prazo, qualidade e desempenho ainda não possuem dados objetivos;
+- a escolha afeta somente aquela linha do orçamento e não altera o padrão global do insumo;
+- o backend valida loja, atividade, finalidade e vínculo da matriz e recalcula o preço; valores enviados pelo navegador não são fonte de verdade;
+- `ItemInsumo` guarda `fornecedor_previsto_id`, nome, código de referência e preço de compra como fotografia comercial;
+- a FK usa `ON DELETE SET NULL`, preservando os demais snapshots quando um cadastro for removido;
+- itens históricos não recebem fornecedor inferido retroativamente;
+- orçamento aprovado permanece imutável.
+
+A migration aditiva `20260718165000_add_fornecedor_previsto_item_insumo` foi aplicada somente ao banco local após backup validado. Essa entrega define o lado **Previsto** do material. O fornecedor contratado, substituições, recebimentos, contas e pagamentos continuam pertencendo ao MVP de Compras e formarão os fatos **Comprometido**, **Incorrido/Faturado** e **Pago/Real**.
 
 ---
 

@@ -5,6 +5,7 @@ import {
   Body,
   Patch,
   Param,
+  Query,
   Delete,
   UseGuards,
   UploadedFile,
@@ -19,6 +20,7 @@ import { GetLoja } from '../auth/decorators';
 import { loja } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SimularChapaDto } from '../common/calculo-chapa/simular-chapa.dto';
+import { VincularFornecedoresEnvelopeDto } from './dto/vincular-fornecedores.dto';
 
 @Controller('insumos')
 @UseGuards(JwtAuthGuard)
@@ -53,9 +55,38 @@ export class InsumosController {
     return this.insumosService.findAll(loja);
   }
 
+  @Get('busca')
+  buscarPorNome(
+    @GetLoja() loja: loja,
+    @Query('q') q?: string,
+    @Query('limit') limit?: string,
+    @Query('excludeId') excludeId?: string,
+  ) {
+    const parsedLimit = limit ? Number(limit) : 8;
+    return this.insumosService.buscarSugestoesPorNome(
+      loja,
+      q ?? '',
+      Number.isFinite(parsedLimit) ? parsedLimit : 8,
+      excludeId,
+    );
+  }
+
   @Post(':id/duplicar')
   duplicar(@Param('id') id: string, @GetLoja() loja: loja) {
     return this.insumosService.duplicar(id, loja);
+  }
+
+  @Get(':id/fornecedores/opcoes-orcamento')
+  getOpcoesFornecedoresOrcamento(
+    @Param('id') id: string,
+    @GetLoja() loja: loja,
+    @Query('selecionado') fornecedorSelecionadoId?: string,
+  ) {
+    return this.insumosService.getOpcoesFornecedoresOrcamento(
+      id,
+      loja,
+      fornecedorSelecionadoId,
+    );
   }
 
   @Get(':id')
@@ -86,8 +117,22 @@ export class InsumosController {
     return this.insumosService.update(id, updateInsumoDto, loja);
   }
 
+  @Patch(':id/fornecedores')
+  vincularFornecedores(
+    @Param('id') id: string,
+    @Body() dto: VincularFornecedoresEnvelopeDto,
+    @GetLoja() loja: loja,
+  ) {
+    return this.insumosService.vincularFornecedores(id, dto, loja);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string, @GetLoja() loja: loja) {
     return this.insumosService.remove(id, loja);
+  }
+
+  @Post(':id/reativar')
+  reativar(@Param('id') id: string, @GetLoja() loja: loja) {
+    return this.insumosService.reativar(id, loja);
   }
 }

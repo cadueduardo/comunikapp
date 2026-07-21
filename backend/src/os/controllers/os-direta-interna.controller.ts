@@ -146,6 +146,9 @@ export class OSDiretaInternaController {
         data_prazo_produto?: string;
       }>;
       item_ids?: string[];
+      forcar_liberacao_financeira?: boolean;
+      motivo_forcar_financeiro?: string;
+      motivo_forcar_detalhe?: string;
     },
     @Request() req: any,
   ) {
@@ -176,6 +179,13 @@ export class OSDiretaInternaController {
       body.observacoes,
       prazosItens,
       body.item_ids,
+      body.forcar_liberacao_financeira
+        ? {
+            forcar: true,
+            motivo: body.motivo_forcar_financeiro,
+            detalhe: body.motivo_forcar_detalhe,
+          }
+        : undefined,
     );
 
     return OrdemServicoResponseDto.fromDomain(resultado);

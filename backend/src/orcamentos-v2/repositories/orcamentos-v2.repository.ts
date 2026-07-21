@@ -49,6 +49,19 @@ export class OrcamentosV2Repository {
               funcoes: true,
               servicos_manuais: true,
               custos_indiretos: true,
+              produto_finito: {
+                select: {
+                  id: true,
+                  sku: true,
+                  preco_custo: true,
+                  estoque_atual: true,
+                  imagens: {
+                    orderBy: { ordem: 'asc' as const },
+                    take: 1,
+                    select: { id: true, url_imagem: true, ordem: true },
+                  },
+                },
+              },
             },
           },
           versoes: true,
@@ -86,6 +99,19 @@ export class OrcamentosV2Repository {
               funcoes: true,
               servicos_manuais: true,
               custos_indiretos: true,
+              produto_finito: {
+                select: {
+                  id: true,
+                  sku: true,
+                  preco_custo: true,
+                  estoque_atual: true,
+                  imagens: {
+                    orderBy: { ordem: 'asc' as const },
+                    take: 1,
+                    select: { id: true, url_imagem: true, ordem: true },
+                  },
+                },
+              },
             },
           },
           versoes: true,
@@ -162,6 +188,19 @@ export class OrcamentosV2Repository {
                 funcoes: true,
                 servicos_manuais: true,
                 custos_indiretos: true,
+                produto_finito: {
+                  select: {
+                    id: true,
+                    sku: true,
+                    preco_custo: true,
+                    estoque_atual: true,
+                    imagens: {
+                      orderBy: { ordem: 'asc' as const },
+                      take: 1,
+                      select: { id: true, url_imagem: true, ordem: true },
+                    },
+                  },
+                },
               },
             },
           },
@@ -227,6 +266,19 @@ export class OrcamentosV2Repository {
               funcoes: true,
               servicos_manuais: true,
               custos_indiretos: true,
+              produto_finito: {
+                select: {
+                  id: true,
+                  sku: true,
+                  preco_custo: true,
+                  estoque_atual: true,
+                  imagens: {
+                    orderBy: { ordem: 'asc' as const },
+                    take: 1,
+                    select: { id: true, url_imagem: true, ordem: true },
+                  },
+                },
+              },
             },
           },
           versoes: true,
@@ -296,6 +348,19 @@ export class OrcamentosV2Repository {
               funcoes: true,
               servicos_manuais: true,
               custos_indiretos: true,
+              produto_finito: {
+                select: {
+                  id: true,
+                  sku: true,
+                  preco_custo: true,
+                  estoque_atual: true,
+                  imagens: {
+                    orderBy: { ordem: 'asc' as const },
+                    take: 1,
+                    select: { id: true, url_imagem: true, ordem: true },
+                  },
+                },
+              },
             },
           },
           versoes: true,
@@ -348,6 +413,19 @@ export class OrcamentosV2Repository {
               funcoes: true,
               servicos_manuais: true,
               custos_indiretos: true,
+              produto_finito: {
+                select: {
+                  id: true,
+                  sku: true,
+                  preco_custo: true,
+                  estoque_atual: true,
+                  imagens: {
+                    orderBy: { ordem: 'asc' as const },
+                    take: 1,
+                    select: { id: true, url_imagem: true, ordem: true },
+                  },
+                },
+              },
             },
           },
         },
@@ -391,6 +469,19 @@ export class OrcamentosV2Repository {
               funcoes: true,
               servicos_manuais: true,
               custos_indiretos: true,
+              produto_finito: {
+                select: {
+                  id: true,
+                  sku: true,
+                  preco_custo: true,
+                  estoque_atual: true,
+                  imagens: {
+                    orderBy: { ordem: 'asc' as const },
+                    take: 1,
+                    select: { id: true, url_imagem: true, ordem: true },
+                  },
+                },
+              },
             },
           },
         },

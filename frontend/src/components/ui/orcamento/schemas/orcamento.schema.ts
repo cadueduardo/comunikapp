@@ -91,6 +91,19 @@ const itemProdutoSchema = z
     sku_snapshot: z.string().optional(),
     preco_unitario_snapshot: z.string().optional(),
     preco_custo_snapshot: z.string().optional(),
+    /** Fallback gerencial do preview (não vai para a proposta do cliente). */
+    custo_total_producao: z.union([z.number(), z.string()]).optional(),
+    produto_finito: z
+      .object({
+        sku: z.string().optional(),
+        estoque_atual: z.number().optional(),
+        preco_custo: z.union([z.number(), z.string()]).optional().nullable(),
+        imagens: z
+          .array(z.object({ url_imagem: z.string().optional() }).passthrough())
+          .optional(),
+      })
+      .passthrough()
+      .optional(),
     estoque_catalogo: z.number().optional(),
     imagem_snapshot_url: z.string().optional(),
     modo_fulfillment: z
@@ -125,14 +138,22 @@ const itemProdutoSchema = z
     materiais: z
       .array(
         z.object({
+          item_insumo_id: z.string().optional(),
           insumo_id: z.string().optional(),
           quantidade: z.string().optional(),
+          unidade: z.string().optional(),
           material_do_cliente: z.boolean().optional(),
+          fornecedor_previsto_id: z.string().optional(),
+          fornecedor_nome_snapshot: z.string().optional(),
+          codigo_ref_snapshot: z.string().optional(),
+          preco_compra_snapshot: numeroOpcional,
+          preco_unitario_previsto: numeroOpcional,
           usa_medida_propria: z.boolean().optional(),
           largura_material: numeroOpcional,
           altura_material: numeroOpcional,
           profundidade_material: numeroOpcional,
           unidade_medida_material: z.enum(['mm', 'cm', 'm']).optional(),
+          calculo_chapa: z.record(z.string(), z.unknown()).nullable().optional(),
         }),
       )
       .optional(),
