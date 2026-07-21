@@ -1,10 +1,11 @@
 # Plano de Ação — Financeiro Previsto × Real e Pós-Cálculo de OS
 
-**Status:** especificação consolidada; baseline de fornecedor/custo previsto do material implementada e aplicada somente no ambiente local; Compras e realizado permanecem planejados
-**Revisão:** 2026-07-18
+**Status:** MVP Compras + pós-cálculo implementados na branch `feat/mvp-compras-fase-0` (local/código); staging/produção e aceite formal ainda pendentes. Baseline de fornecedor previsto no orçamento permanece só no ambiente local até o gate de deploy.
+**Revisão:** 2026-07-21
 **Dor validada:** comparar o custo previsto no orçamento com o valor efetivamente pago para concluir cada Ordem de Serviço
 **Dependências:** matriz Insumo × Fornecedor, MVP de Compras/Suprimentos, Estoque, Terceirização, Contas a Receber e Ordens de Serviço
 **Documento relacionado:** `docs/modulo de compras/RP-mvp-compras-suprimentos.md`
+**Runbook staging:** `docs/modulo de compras/fase-6-runbook-staging.md`
 
 ---
 
