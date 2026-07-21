@@ -39,23 +39,38 @@ export class PedidosController {
   }
 
   @Get()
-  findAll(@GetLoja() lojaAtual: loja) {
-    return this.pedidosService.findAll(lojaAtual);
+  findAll(
+    @GetLoja() lojaAtual: loja,
+    @CurrentUser() usuario: AuthenticatedUser,
+  ) {
+    return this.pedidosService.findAll(lojaAtual, usuario.id);
   }
 
   @Get(':id/historico')
-  historico(@Param('id') id: string, @GetLoja() lojaAtual: loja) {
-    return this.pedidosService.historico(id, lojaAtual);
+  historico(
+    @Param('id') id: string,
+    @GetLoja() lojaAtual: loja,
+    @CurrentUser() usuario: AuthenticatedUser,
+  ) {
+    return this.pedidosService.historico(id, lojaAtual, usuario.id);
   }
 
   @Get(':id/visualizacao')
-  visualizacao(@Param('id') id: string, @GetLoja() lojaAtual: loja) {
-    return this.pedidosService.visualizacao(id, lojaAtual);
+  visualizacao(
+    @Param('id') id: string,
+    @GetLoja() lojaAtual: loja,
+    @CurrentUser() usuario: AuthenticatedUser,
+  ) {
+    return this.pedidosService.visualizacao(id, lojaAtual, usuario.id);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @GetLoja() lojaAtual: loja) {
-    return this.pedidosService.findOne(id, lojaAtual);
+  findOne(
+    @Param('id') id: string,
+    @GetLoja() lojaAtual: loja,
+    @CurrentUser() usuario: AuthenticatedUser,
+  ) {
+    return this.pedidosService.findOne(id, lojaAtual, usuario.id);
   }
 
   @Patch(':id')

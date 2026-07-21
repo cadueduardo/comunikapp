@@ -15,6 +15,7 @@ import {
 import { ComprasHistoricoService } from './compras-historico.service';
 import {
   COMPRAS_PERMISSOES,
+  COMPRAS_PERMISSOES_LEITURA_SOLICITACAO,
   ComprasPermissionsService,
 } from './compras-permissions.service';
 import { updateSolicitacaoTenantSafe } from './pedido-matriz.util';
@@ -105,7 +106,13 @@ export class SolicitacoesService {
     }
   }
 
-  async findAll(lojaAtual: loja) {
+  async findAll(lojaAtual: loja, usuarioId: string) {
+    await this.permissions.assertPodeQualquer(
+      usuarioId,
+      lojaAtual.id,
+      COMPRAS_PERMISSOES_LEITURA_SOLICITACAO,
+      'listar solicitações de compra',
+    );
     return this.prisma.solicitacaoCompra.findMany({
       where: { loja_id: lojaAtual.id },
       orderBy: { criado_em: 'desc' },
@@ -118,7 +125,15 @@ export class SolicitacoesService {
     });
   }
 
-  async findOne(id: string, lojaAtual: loja) {
+  async findOne(id: string, lojaAtual: loja, usuarioId?: string) {
+    if (usuarioId) {
+      await this.permissions.assertPodeQualquer(
+        usuarioId,
+        lojaAtual.id,
+        COMPRAS_PERMISSOES_LEITURA_SOLICITACAO,
+        'consultar solicitações de compra',
+      );
+    }
     const solicitacao = await this.prisma.solicitacaoCompra.findFirst({
       where: { id, loja_id: lojaAtual.id },
       include: {
@@ -425,7 +440,13 @@ export class SolicitacoesService {
     return this.findOne(id, lojaAtual);
   }
 
-  async historico(id: string, lojaAtual: loja) {
+  async historico(id: string, lojaAtual: loja, usuarioId: string) {
+    await this.permissions.assertPodeQualquer(
+      usuarioId,
+      lojaAtual.id,
+      COMPRAS_PERMISSOES_LEITURA_SOLICITACAO,
+      'consultar histórico de solicitações',
+    );
     await this.findOne(id, lojaAtual);
     return this.historicoService.listarPorEntidade(
       lojaAtual.id,

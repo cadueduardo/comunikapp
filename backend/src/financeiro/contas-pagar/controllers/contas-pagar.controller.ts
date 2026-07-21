@@ -52,20 +52,29 @@ export class ContasPagarController {
   @Get()
   list(
     @GetLoja() lojaAtual: loja,
+    @CurrentUser() usuario: AuthenticatedUser,
     @Query('status') status?: string,
     @Query('fornecedor_id') fornecedor_id?: string,
     @Query('pedido_id') pedido_id?: string,
   ) {
-    return this.contasPagarService.list(lojaAtual, {
-      status,
-      fornecedor_id,
-      pedido_id,
-    });
+    return this.contasPagarService.list(
+      lojaAtual,
+      {
+        status,
+        fornecedor_id,
+        pedido_id,
+      },
+      usuario.id,
+    );
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @GetLoja() lojaAtual: loja) {
-    return this.contasPagarService.findOne(id, lojaAtual);
+  findOne(
+    @Param('id') id: string,
+    @GetLoja() lojaAtual: loja,
+    @CurrentUser() usuario: AuthenticatedUser,
+  ) {
+    return this.contasPagarService.findOne(id, lojaAtual, usuario.id);
   }
 
   @Post(':id/pagamentos')

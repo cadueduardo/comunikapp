@@ -17,6 +17,7 @@ import {
 import { ComprasHistoricoService } from './compras-historico.service';
 import {
   COMPRAS_PERMISSOES,
+  COMPRAS_PERMISSOES_LEITURA_RECEBIMENTO,
   ComprasPermissionsService,
 } from './compras-permissions.service';
 import { rethrowUniqueConflict } from './pedido-totais.util';
@@ -154,7 +155,17 @@ export class RecebimentosService {
     }
   }
 
-  async listByPedido(pedidoId: string, lojaAtual: loja) {
+  async listByPedido(
+    pedidoId: string,
+    lojaAtual: loja,
+    usuarioId: string,
+  ) {
+    await this.permissions.assertPodeQualquer(
+      usuarioId,
+      lojaAtual.id,
+      COMPRAS_PERMISSOES_LEITURA_RECEBIMENTO,
+      'listar recebimentos',
+    );
     const pedido = await this.prisma.pedidoCompra.findFirst({
       where: { id: pedidoId, loja_id: lojaAtual.id },
       select: { id: true },
@@ -169,7 +180,15 @@ export class RecebimentosService {
     });
   }
 
-  async findOne(id: string, lojaAtual: loja) {
+  async findOne(id: string, lojaAtual: loja, usuarioId?: string) {
+    if (usuarioId) {
+      await this.permissions.assertPodeQualquer(
+        usuarioId,
+        lojaAtual.id,
+        COMPRAS_PERMISSOES_LEITURA_RECEBIMENTO,
+        'consultar recebimentos',
+      );
+    }
     const recebimento = await this.prisma.recebimentoCompra.findFirst({
       where: { id, loja_id: lojaAtual.id },
       include: RECEBIMENTO_INCLUDE,

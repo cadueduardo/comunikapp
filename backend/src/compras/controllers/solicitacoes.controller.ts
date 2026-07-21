@@ -33,18 +33,29 @@ export class SolicitacoesController {
   }
 
   @Get()
-  findAll(@GetLoja() lojaAtual: loja) {
-    return this.solicitacoesService.findAll(lojaAtual);
+  findAll(
+    @GetLoja() lojaAtual: loja,
+    @CurrentUser() usuario: AuthenticatedUser,
+  ) {
+    return this.solicitacoesService.findAll(lojaAtual, usuario.id);
   }
 
   @Get(':id/historico')
-  historico(@Param('id') id: string, @GetLoja() lojaAtual: loja) {
-    return this.solicitacoesService.historico(id, lojaAtual);
+  historico(
+    @Param('id') id: string,
+    @GetLoja() lojaAtual: loja,
+    @CurrentUser() usuario: AuthenticatedUser,
+  ) {
+    return this.solicitacoesService.historico(id, lojaAtual, usuario.id);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @GetLoja() lojaAtual: loja) {
-    return this.solicitacoesService.findOne(id, lojaAtual);
+  findOne(
+    @Param('id') id: string,
+    @GetLoja() lojaAtual: loja,
+    @CurrentUser() usuario: AuthenticatedUser,
+  ) {
+    return this.solicitacoesService.findOne(id, lojaAtual, usuario.id);
   }
 
   @Patch(':id')

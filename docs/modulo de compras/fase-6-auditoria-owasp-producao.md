@@ -27,13 +27,13 @@ Legenda de status: **OK** = controle presente e verificável; **PARCIAL** = cont
 
 | ID | Controle esperado (RP) | Evidência no código | Status | Ação se GAP/PARCIAL |
 |---|---|---|---|---|
-| **A01** Broken Access Control | JWT em toda rota; permissão por comando; `loja_id` do token; queries tenant-scoped; testes IDOR | Controllers: `@UseGuards(JwtAuthGuard)` + `@GetLoja()` / `@CurrentLojaId()` em `compras/controllers/*.controller.ts`, `financeiro/**/**.controller.ts`. Services filtram `loja_id` (ex.: `pedidos.service.ts` `findOne`, `pos-calculo.service.ts` `obterPorOs`, `contas-pagar.service.ts` `findOne`). Permissões finas via `ComprasPermissionsService.assertPode`, `ContasPagarPermissionsService`, `PosCalculoPermissionsService`. Teste: `compras-financeiro-tenant-isolation.test.js` | **PARCIAL** | Leituras (`findAll`, `list`, `historico`) não exigem permissão granular — qualquer usuário autenticado da loja acessa. **Ação:** restringir listagens sensíveis com `compras.auditoria.visualizar` ou perfil equivalente antes do rollout amplo. |
+| **A01** Broken Access Control | JWT em toda rota; permissão por comando; `loja_id` do token; queries tenant-scoped; testes IDOR | Controllers com `JwtAuthGuard`. Leituras SC/PC/recebimento/aceite/contas exigem `assertPodeQualquer` / `assertPodeVisualizar` (`COMPRAS_PERMISSOES_LEITURA_*`). Mutações com `assertPode`. Teste IDOR: `compras-financeiro-tenant-isolation.test.js` | **OK** | Manter perfis com pelo menos uma permissão operacional do módulo; ADMIN/FINANCEIRO cobrem contas/pós-cálculo. |
 | **A02** Cryptographic Failures | TLS; sem segredo em log/repo; storage privado | TLS via Nginx/proxy em produção (ver `deploy-cors-nginx-pm2-guardrails`). JWT em `JWT_SECRET` (.env, não versionado). Sem campos bancários completos nos DTOs de pagamento MVP. | **OK** | Manter `.env` fora do git; revisar logs antes do deploy. |
 | **A03** Injection | DTO whitelist; Prisma parametrizado; raw SQL parametrizado | `main.ts`: `ValidationPipe` global (`whitelist`, `forbidNonWhitelisted`). DTOs em `compras/dto/`, `financeiro/**/dto/` com `class-validator`. Sem `$queryRawUnsafe` nos módulos (script confirma). | **OK** | Manter proibição de raw SQL concatenado; allowlist em filtros de ordenação quando adicionados. |
 | **A04** Insecure Design | Máquina de estados; idempotência; snapshots; transações | Policies em `compras-estados-policy` (testes em `compras-estados-policy.test.js`). Chaves idempotentes em contas/pagamentos. Histórico imutável (`compras-historico.service.ts`). Fechamento OS com transição auditável. | **OK** | Expandir testes e2e antes de rollout 100%. |
-| **A05** Security Misconfiguration | CORS/headers; Swagger protegido; limites body | `main.ts`: `helmet`, CORS allowlist, Swagger só com `ENABLE_SWAGGER=true`. Rate limit global em produção (1000 req/15 min). Uploads estáticos com `dotfiles: deny`. | **PARCIAL** | Rate limit não é específico para export CSV / pagamento. **Ação:** throttling dedicado em `POST .../pagamentos`, `GET .../export.csv` (follow-up). |
-| **A06** Vulnerable Components | lockfile; auditoria dependências | `backend/package-lock.json` versionado. Rodar `npm audit` no CI/deploy. | **PARCIAL** | Automatizar `npm audit --audit-level=high` no pipeline de deploy. |
-| **A07** Authentication Failures | JwtAuthGuard; rate limit ações sensíveis | `JwtAuthGuard` em todos os controllers do escopo. Rate limit global prod em `main.ts`. Permissões validadas nos services de mutação. | **PARCIAL** | Sem reautenticação para estorno/pagamento alto valor (futuro). Sem rate limit por rota sensível. |
+| **A05** Security Misconfiguration | CORS/headers; Swagger protegido; limites body | `main.ts`: `helmet`, CORS, Swagger condicional. Rate limit global prod + **throttle dedicado** em pagamento/estorno/export CSV (60/15min prod, 300/15min dev). | **OK** | Revisar limiares após smoke em staging. |
+| **A06** Vulnerable Components | lockfile; auditoria dependências | `package-lock.json` versionado; `npm audit fix` + override `brace-expansion@1` → `1.1.16` (2026-07-21: **0 high**). | **OK** | Rodar `npm audit --audit-level=high` no pipeline de deploy. |
+| **A07** Authentication Failures | JwtAuthGuard; rate limit ações sensíveis | `JwtAuthGuard` + throttle dedicado nas rotas sensíveis financeiras. | **PARCIAL** | Sem reautenticação para estorno/pagamento de alto valor (fora do MVP). |
 | **A08** Data Integrity Failures | histórico imutável; backend fonte de totais | Totais recalculados no backend (`pedido-totais.util.ts`). Estornos preservam histórico. Fechamento OS grava snapshot/histórico. | **OK** | — |
 | **A09** Logging Failures | auditoria transições; sem token/senha em log | `ComprasHistoricoService` registra transições. `FinanceiroController` captura IP/UA em recebimentos. Logs prod reduzidos (`error,warn,log`). | **PARCIAL** | Correlation ID não padronizado nos módulos novos. **Ação:** propagar `x-request-id` em middleware (follow-up). |
 | **A10** SSRF | não baixar URL do client; storage direto | MVP Compras/Financeiro **não** implementa download por URL externa. Sem `fetch(dto.url)` nos módulos. Export CSV gerado server-side. | **OK** | Ao adicionar anexos/comprovantes, usar upload direto + storage privado (nunca URL arbitrária). |
@@ -79,8 +79,7 @@ node --test scripts/compras-financeiro-tenant-isolation.test.js
 | Camada | Implementação | Observação |
 |---|---|---|
 | Global (prod) | `express-rate-limit` em `main.ts` — 1000 req / 15 min | Protege superfície geral |
-| Por rota sensível | — | **GAP documentado** — export CSV, pagamento, aprovação sem limite dedicado |
-| Follow-up | Throttler Nest ou rate limit Nginx por path | Priorizar `POST /financeiro/contas-pagar/:id/pagamentos`, `GET /financeiro/cobrancas/export.csv` |
+| Por rota sensível | Pagamento, estorno, export CSV — 60/15min (prod) / 300/15min (dev) | Regex de path em `main.ts` |
 
 ---
 
@@ -226,23 +225,12 @@ node scripts/compras-e2e-fluxo-completo.mjs
 
 ## 12. Gaps conhecidos (resumo)
 
-1. **A01 PARCIAL** — listagens/leituras sem permissão fina por ação.
-2. **A05/A07 PARCIAL** — rate limit global, sem throttling por rota sensível.
-3. **A09 PARCIAL** — correlation ID não padronizado.
-4. **A06 PARCIAL** — `npm audit` não automatizado no pipeline desta fatia.
-5. **Operacional** — backup/staging/rollout dependem de execução manual (fora do escopo desta entrega).
+1. **A07 PARCIAL** — sem reautenticação para estorno/pagamento de alto valor (fora do MVP).
+2. **A09 PARCIAL** — correlation ID não padronizado.
+3. **Operacional** — backup/staging/rollout dependem de execução manual.
 
 ### Snapshot `npm audit` (backend, 2026-07-21)
 
-Rodado com `npm audit --audit-level=high --omit=dev`. Achados high relevantes (não aplicados nesta fatia — exigir revisão controlada):
-
-| Pacote | Nota |
-|---|---|
-| `axios` | várias advisories high; `npm audit fix` disponível |
-| `body-parser` | DoS com `limit` inválido |
-| `brace-expansion` | DoS |
-| `js-yaml` (via `@nestjs/swagger`) | DoS por merge-key |
-
-**Ação pré-staging:** revisar e aplicar `npm audit fix` (ou bumps pinados) em branch dedicada, com smoke E2E antes de merge.
+- Após `npm audit fix` + override `brace-expansion@1` → `1.1.16`: **0 vulnerabilities** (`npm audit --audit-level=high`).
 
 Estes gaps **não bloqueiam** o script OWASP (exit 0) desde que todos os controllers mantenham JWT guard.

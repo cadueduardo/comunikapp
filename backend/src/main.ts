@@ -91,6 +91,52 @@ async function bootstrap() {
     );
   }
 
+  // Rate limit dedicado (A05/A07): pagamento, estorno e export CSV.
+  const sensitiveMax = isProd ? 60 : 300;
+  const sensitiveLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: sensitiveMax,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      statusCode: 429,
+      message:
+        'Muitas tentativas nesta operação sensível. Aguarde alguns minutos e tente novamente.',
+    },
+    skip: (req: any) => req.method === 'OPTIONS',
+    validate: { xForwardedForHeader: false },
+  }) as any;
+
+  const isRotaSensivelFinanceiro = (method: string, path: string): boolean => {
+    if (
+      method === 'POST' &&
+      /\/financeiro\/contas-pagar\/[^/]+\/pagamentos\/?$/.test(path)
+    ) {
+      return true;
+    }
+    if (
+      method === 'POST' &&
+      /\/financeiro\/pagamentos\/[^/]+\/estornar\/?$/.test(path)
+    ) {
+      return true;
+    }
+    if (
+      method === 'GET' &&
+      /\/financeiro\/cobrancas\/export\.csv\/?$/.test(path)
+    ) {
+      return true;
+    }
+    return false;
+  };
+
+  app.use((req: any, res: any, next: any) => {
+    const path = String(req.path || req.url || '').split('?')[0];
+    if (isRotaSensivelFinanceiro(String(req.method || ''), path)) {
+      return sensitiveLimiter(req, res, next);
+    }
+    return next();
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

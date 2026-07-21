@@ -40,8 +40,13 @@ export class PedidoRecebimentosController {
   list(
     @Param('pedidoId') pedidoId: string,
     @GetLoja() lojaAtual: loja,
+    @CurrentUser() usuario: AuthenticatedUser,
   ) {
-    return this.recebimentosService.listByPedido(pedidoId, lojaAtual);
+    return this.recebimentosService.listByPedido(
+      pedidoId,
+      lojaAtual,
+      usuario.id,
+    );
   }
 }
 
@@ -51,8 +56,12 @@ export class RecebimentosController {
   constructor(private readonly recebimentosService: RecebimentosService) {}
 
   @Get(':id')
-  findOne(@Param('id') id: string, @GetLoja() lojaAtual: loja) {
-    return this.recebimentosService.findOne(id, lojaAtual);
+  findOne(
+    @Param('id') id: string,
+    @GetLoja() lojaAtual: loja,
+    @CurrentUser() usuario: AuthenticatedUser,
+  ) {
+    return this.recebimentosService.findOne(id, lojaAtual, usuario.id);
   }
 
   @Post(':id/confirmar')

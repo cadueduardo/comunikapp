@@ -12,6 +12,7 @@ import { PedidoItemDto } from '../dto/pedido-item.dto';
 import { ComprasHistoricoService } from './compras-historico.service';
 import {
   COMPRAS_PERMISSOES,
+  COMPRAS_PERMISSOES_LEITURA_PEDIDO,
   ComprasPermissionsService,
 } from './compras-permissions.service';
 import {
@@ -125,7 +126,13 @@ export class PedidosService {
     }
   }
 
-  async findAll(lojaAtual: loja) {
+  async findAll(lojaAtual: loja, usuarioId: string) {
+    await this.permissions.assertPodeQualquer(
+      usuarioId,
+      lojaAtual.id,
+      COMPRAS_PERMISSOES_LEITURA_PEDIDO,
+      'listar pedidos de compra',
+    );
     return this.prisma.pedidoCompra.findMany({
       where: { loja_id: lojaAtual.id },
       orderBy: { criado_em: 'desc' },
@@ -133,7 +140,15 @@ export class PedidosService {
     });
   }
 
-  async findOne(id: string, lojaAtual: loja) {
+  async findOne(id: string, lojaAtual: loja, usuarioId?: string) {
+    if (usuarioId) {
+      await this.permissions.assertPodeQualquer(
+        usuarioId,
+        lojaAtual.id,
+        COMPRAS_PERMISSOES_LEITURA_PEDIDO,
+        'consultar pedidos de compra',
+      );
+    }
     const pedido = await this.prisma.pedidoCompra.findFirst({
       where: { id, loja_id: lojaAtual.id },
       include: PEDIDO_INCLUDE,
@@ -148,7 +163,13 @@ export class PedidosService {
     return pedido;
   }
 
-  async visualizacao(id: string, lojaAtual: loja) {
+  async visualizacao(id: string, lojaAtual: loja, usuarioId: string) {
+    await this.permissions.assertPodeQualquer(
+      usuarioId,
+      lojaAtual.id,
+      COMPRAS_PERMISSOES_LEITURA_PEDIDO,
+      'consultar pedidos de compra',
+    );
     const pedido = await this.prisma.pedidoCompra.findFirst({
       where: { id, loja_id: lojaAtual.id },
       include: {
@@ -306,7 +327,13 @@ export class PedidosService {
     }
   }
 
-  async historico(id: string, lojaAtual: loja) {
+  async historico(id: string, lojaAtual: loja, usuarioId: string) {
+    await this.permissions.assertPodeQualquer(
+      usuarioId,
+      lojaAtual.id,
+      COMPRAS_PERMISSOES_LEITURA_PEDIDO,
+      'consultar histórico de pedidos',
+    );
     await this.findOne(id, lojaAtual);
     return this.historicoService.listarPorEntidade(
       lojaAtual.id,

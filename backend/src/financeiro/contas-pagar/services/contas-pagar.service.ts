@@ -223,7 +223,10 @@ export class ContasPagarService {
       fornecedor_id?: string;
       pedido_id?: string;
     },
+    usuarioId: string,
   ) {
+    await this.permissions.assertPodeVisualizar(usuarioId, lojaAtual.id);
+
     const where: Prisma.ContaPagarWhereInput = {
       loja_id: lojaAtual.id,
     };
@@ -251,7 +254,10 @@ export class ContasPagarService {
     });
   }
 
-  async findOne(id: string, lojaAtual: loja) {
+  async findOne(id: string, lojaAtual: loja, usuarioId?: string) {
+    if (usuarioId) {
+      await this.permissions.assertPodeVisualizar(usuarioId, lojaAtual.id);
+    }
     const conta = await this.prisma.contaPagar.findFirst({
       where: { id, loja_id: lojaAtual.id },
       include: {

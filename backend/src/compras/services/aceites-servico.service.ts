@@ -17,6 +17,7 @@ import {
 import { ComprasHistoricoService } from './compras-historico.service';
 import {
   COMPRAS_PERMISSOES,
+  COMPRAS_PERMISSOES_LEITURA_ACEITE,
   ComprasPermissionsService,
 } from './compras-permissions.service';
 import { rethrowUniqueConflict } from './pedido-totais.util';
@@ -154,7 +155,17 @@ export class AceitesServicoService {
     }
   }
 
-  async listByPedido(pedidoId: string, lojaAtual: loja) {
+  async listByPedido(
+    pedidoId: string,
+    lojaAtual: loja,
+    usuarioId: string,
+  ) {
+    await this.permissions.assertPodeQualquer(
+      usuarioId,
+      lojaAtual.id,
+      COMPRAS_PERMISSOES_LEITURA_ACEITE,
+      'listar aceites de serviço',
+    );
     const pedido = await this.prisma.pedidoCompra.findFirst({
       where: { id: pedidoId, loja_id: lojaAtual.id },
       select: { id: true },
@@ -169,7 +180,15 @@ export class AceitesServicoService {
     });
   }
 
-  async findOne(id: string, lojaAtual: loja) {
+  async findOne(id: string, lojaAtual: loja, usuarioId?: string) {
+    if (usuarioId) {
+      await this.permissions.assertPodeQualquer(
+        usuarioId,
+        lojaAtual.id,
+        COMPRAS_PERMISSOES_LEITURA_ACEITE,
+        'consultar aceites de serviço',
+      );
+    }
     const aceite = await this.prisma.aceiteServico.findFirst({
       where: { id, loja_id: lojaAtual.id },
       include: ACEITE_INCLUDE,

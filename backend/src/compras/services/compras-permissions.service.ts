@@ -18,6 +18,49 @@ export const COMPRAS_PERMISSOES = {
   AUDITORIA_VISUALIZAR: 'compras.auditoria.visualizar',
 } as const;
 
+/** Qualquer permissão operacional de solicitação (ou auditoria). */
+export const COMPRAS_PERMISSOES_LEITURA_SOLICITACAO: readonly string[] = [
+  COMPRAS_PERMISSOES.SOLICITACAO_CRIAR,
+  COMPRAS_PERMISSOES.SOLICITACAO_APROVAR,
+  COMPRAS_PERMISSOES.PEDIDO_CRIAR,
+  COMPRAS_PERMISSOES.AUDITORIA_VISUALIZAR,
+];
+
+/** Qualquer permissão operacional de pedido (ou auditoria). */
+export const COMPRAS_PERMISSOES_LEITURA_PEDIDO: readonly string[] = [
+  COMPRAS_PERMISSOES.PEDIDO_CRIAR,
+  COMPRAS_PERMISSOES.PEDIDO_APROVAR,
+  COMPRAS_PERMISSOES.PEDIDO_ENVIAR,
+  COMPRAS_PERMISSOES.PEDIDO_CANCELAR,
+  COMPRAS_PERMISSOES.PEDIDO_SUBSTITUIR_FORNECEDOR,
+  COMPRAS_PERMISSOES.RECEBIMENTO_REGISTRAR,
+  COMPRAS_PERMISSOES.SERVICO_ACEITAR,
+  COMPRAS_PERMISSOES.CONTA_PAGAR_CRIAR,
+  COMPRAS_PERMISSOES.AUDITORIA_VISUALIZAR,
+];
+
+export const COMPRAS_PERMISSOES_LEITURA_RECEBIMENTO: readonly string[] = [
+  COMPRAS_PERMISSOES.RECEBIMENTO_REGISTRAR,
+  COMPRAS_PERMISSOES.PEDIDO_CRIAR,
+  COMPRAS_PERMISSOES.PEDIDO_APROVAR,
+  COMPRAS_PERMISSOES.AUDITORIA_VISUALIZAR,
+];
+
+export const COMPRAS_PERMISSOES_LEITURA_ACEITE: readonly string[] = [
+  COMPRAS_PERMISSOES.SERVICO_ACEITAR,
+  COMPRAS_PERMISSOES.PEDIDO_CRIAR,
+  COMPRAS_PERMISSOES.PEDIDO_APROVAR,
+  COMPRAS_PERMISSOES.AUDITORIA_VISUALIZAR,
+];
+
+/** Contas a pagar / pagamentos (leitura). */
+export const COMPRAS_PERMISSOES_LEITURA_CONTA_PAGAR: readonly string[] = [
+  COMPRAS_PERMISSOES.CONTA_PAGAR_CRIAR,
+  COMPRAS_PERMISSOES.PAGAMENTO_REGISTRAR,
+  COMPRAS_PERMISSOES.PAGAMENTO_ESTORNAR,
+  COMPRAS_PERMISSOES.AUDITORIA_VISUALIZAR,
+];
+
 @Injectable()
 export class ComprasPermissionsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -103,6 +146,30 @@ export class ComprasPermissionsService {
         `Você não tem permissão para executar "${acaoCompleta}".`,
       );
     }
+  }
+
+  /**
+   * Exige pelo menos uma das ações (OR). ADMINISTRADOR continua bypass via `pode`.
+   */
+  async assertPodeQualquer(
+    usuarioId: string,
+    lojaId: string,
+    acoes: readonly string[],
+    rotulo = 'consultar este recurso de compras',
+  ): Promise<void> {
+    if (!acoes.length) {
+      throw new ForbiddenException(
+        `Você não tem permissão para ${rotulo}.`,
+      );
+    }
+    for (const acao of acoes) {
+      if (await this.pode(usuarioId, lojaId, acao)) {
+        return;
+      }
+    }
+    throw new ForbiddenException(
+      `Você não tem permissão para ${rotulo}.`,
+    );
   }
 
   async podeAprovarSolicitacao(

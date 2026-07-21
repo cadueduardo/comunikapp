@@ -35,8 +35,13 @@ export class PedidoAceitesServicoController {
   list(
     @Param('pedidoId') pedidoId: string,
     @GetLoja() lojaAtual: loja,
+    @CurrentUser() usuario: AuthenticatedUser,
   ) {
-    return this.aceitesService.listByPedido(pedidoId, lojaAtual);
+    return this.aceitesService.listByPedido(
+      pedidoId,
+      lojaAtual,
+      usuario.id,
+    );
   }
 }
 
@@ -46,8 +51,12 @@ export class AceitesServicoController {
   constructor(private readonly aceitesService: AceitesServicoService) {}
 
   @Get(':id')
-  findOne(@Param('id') id: string, @GetLoja() lojaAtual: loja) {
-    return this.aceitesService.findOne(id, lojaAtual);
+  findOne(
+    @Param('id') id: string,
+    @GetLoja() lojaAtual: loja,
+    @CurrentUser() usuario: AuthenticatedUser,
+  ) {
+    return this.aceitesService.findOne(id, lojaAtual, usuario.id);
   }
 
   @Post(':id/confirmar')
