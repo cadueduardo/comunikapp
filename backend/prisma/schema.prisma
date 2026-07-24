@@ -548,6 +548,8 @@ model fornecedor {
   itens_terceirizados            ItemOS[]
   produtos_orcados_terceirizados ProdutoOrcamento[]
   ordens_terceirizacao           OrdemTerceirizacao[]
+  produtos_orcados_instalacao    ProdutoOrcamento[]       @relation("ProdutoOrcamentoFornecedorInstalacao")
+  lotes_instalacao_terceirizados ItemOSInstalacao[]       @relation("ItemOSInstalacaoFornecedor")
   insumos_associados             InsumoFornecedor[]
   itens_insumo_previstos         ItemInsumo[]              @relation("ItemInsumoFornecedorPrevisto")
   pedidos_compra                 PedidoCompra[]
@@ -1334,6 +1336,7 @@ model ModalidadeEntrega {
 
   loja       loja        @relation(fields: [loja_id], references: [id], onDelete: Cascade)
   orcamentos orcamento[]
+  produtos   ProdutoOrcamento[] @relation("ProdutoOrcamentoModalidadeEntrega")
 
   @@unique([loja_id, nome])
   @@index([loja_id])
@@ -1543,6 +1546,16 @@ model ProdutoOrcamento {
   instalacao_tempo_estimado_min    Int?
   instalacao_quantidade_pessoas    Int?
   instalacao_observacoes           String?  @db.Text
+  instalacao_executor_tipo         String   @default("EQUIPE_INTERNA") @db.VarChar(32)
+  instalacao_fornecedor_id         String?
+  instalacao_incluida_cotacao      Boolean  @default(false)
+  instalacao_distribuicao          String   @default("A_DEFINIR") @db.VarChar(24)
+  logistica_modo                    String   @default("RETIRADA_CLIENTE") @db.VarChar(32)
+  entrega_produto_modalidade_id     String?
+  entrega_produto_prazo_dias        Int?
+  entrega_produto_valor_cobrado     Decimal? @db.Decimal(12, 2)
+  entrega_produto_custo_estimado    Decimal? @db.Decimal(12, 2)
+  entrega_produto_observacoes       String?  @db.Text
 
   // Geometria avancada (Fase 2 - Home operacional)
   // Ver docs/fase-0-home-operacional/04-campos-geometria.md
@@ -1590,6 +1603,8 @@ model ProdutoOrcamento {
   instalacao_tipo         TipoInstalacao?          @relation(fields: [instalacao_tipo_id], references: [id])
   produto_finito          ProdutoFinito?           @relation(fields: [produto_finito_id], references: [id], onDelete: SetNull)
   fornecedor_terceirizado fornecedor?              @relation(fields: [fornecedor_terceirizado_id], references: [id], onDelete: SetNull, map: "ProdutoOrcamento_fornecedor_terceirizado_id_fkey")
+  fornecedor_instalacao   fornecedor?              @relation("ProdutoOrcamentoFornecedorInstalacao", fields: [instalacao_fornecedor_id], references: [id], onDelete: SetNull)
+  entrega_produto_modalidade ModalidadeEntrega?    @relation("ProdutoOrcamentoModalidadeEntrega", fields: [entrega_produto_modalidade_id], references: [id], onDelete: SetNull)
   personalizacao          PersonalizacaoOrcamento?
   insumos                 ItemInsumo[]
   maquinas                ItemMaquina[]
@@ -1605,6 +1620,8 @@ model ProdutoOrcamento {
   @@index([tipo_item])
   @@index([modo_fulfillment])
   @@index([fornecedor_terceirizado_id])
+  @@index([instalacao_fornecedor_id])
+  @@index([entrega_produto_modalidade_id])
 }
 
 model ItemInsumo {
@@ -3003,6 +3020,9 @@ model ItemOSInstalacao {
   origem_conclusao_lote       OrigemConclusaoLote?
   motivo_sem_assinatura       MotivoSemAssinaturaLote?
   observacao_conclusao_gestao String?                  @db.Text
+  executor_tipo               String                   @default("EQUIPE_INTERNA") @db.VarChar(32)
+  fornecedor_instalador_id    String?
+  custo_incluido_cotacao      Boolean                  @default(false)
   conclusao_gestao_por        String?
   conclusao_gestao_em         DateTime?
   criado_em                   DateTime                 @default(now())
@@ -3010,11 +3030,13 @@ model ItemOSInstalacao {
 
   loja        loja                   @relation(fields: [loja_id], references: [id], onDelete: Cascade)
   item_os     ItemOS                 @relation(fields: [item_os_id], references: [id], onDelete: Cascade)
+  fornecedor_instalador fornecedor?  @relation("ItemOSInstalacaoFornecedor", fields: [fornecedor_instalador_id], references: [id], onDelete: SetNull)
   ocorrencias OcorrenciaInstalacao[]
 
   @@index([loja_id])
   @@index([loja_id, status_instalacao])
   @@index([item_os_id])
+  @@index([fornecedor_instalador_id])
   @@index([status_instalacao])
   @@map("itens_os_instalacao")
 }

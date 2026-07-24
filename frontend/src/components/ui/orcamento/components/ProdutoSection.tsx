@@ -61,7 +61,11 @@ import {
 } from '@/components/orcamentos-v2/DxfRevisaoCard';
 import { NovoInsumoModal } from '@/components/orcamentos-v2/NovoInsumoModal';
 import { MaterialSection, MaquinaSection, FuncaoSection, ServicoSection } from '../../shared/sections';
-import { fornecedoresApi, tiposInstalacaoApi } from '@/lib/api-client';
+import {
+  fornecedoresApi,
+  modalidadesEntregaApi,
+  tiposInstalacaoApi,
+} from '@/lib/api-client';
 
 interface ProdutoSectionProps {
   mode: 'novo' | 'editar' | 'template';
@@ -142,6 +146,14 @@ interface FornecedorTerceirizacaoOption {
   nome: string;
   tipo: 'TERCEIRIZADO' | 'AMBOS';
   ativo: boolean;
+}
+
+interface ModalidadeEntregaProdutoOption {
+  id: string;
+  nome: string;
+  valor_padrao?: string | number | null;
+  custo_padrao?: string | number | null;
+  prazo_padrao_dias?: string | number | null;
 }
 
 function numeroMonetario(valor: unknown): number {
@@ -232,15 +244,22 @@ function TerceirizacaoProdutoSection({
 
   useEffect(() => {
     if (precoFechado) return;
+    const proximoCustoTotal = String(Number(custoTotalDetalhado.toFixed(2)));
+    const custoTotalAtual = String(
+      form.getValues(
+        `itens_produto.${itemIndex}.terceirizacao_custo_total`,
+      ) ?? '',
+    );
+    if (custoTotalAtual === proximoCustoTotal) return;
     form.setValue(
       `itens_produto.${itemIndex}.terceirizacao_custo_total`,
-      String(Number(custoTotalDetalhado.toFixed(2))),
+      proximoCustoTotal,
       { shouldDirty: false },
     );
   }, [custoTotalDetalhado, form, itemIndex, precoFechado]);
 
   return (
-    <div className="space-y-4 border-t pt-4">
+    <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
       <div>
         <h4 className="text-sm font-medium">Execução do produto</h4>
         <p className="text-xs text-muted-foreground">
@@ -253,15 +272,20 @@ function TerceirizacaoProdutoSection({
         name={`itens_produto.${itemIndex}.modo_fulfillment`}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Modo de execução</FormLabel>
+            <FormLabel>Como este produto será produzido?</FormLabel>
             <Select
               value={field.value || 'MAKE'}
               onValueChange={(value) => {
                 field.onChange(value);
-                if (value === 'MAKE') {
+                if (
+                  value === 'MAKE' &&
+                  form.getValues(
+                    `itens_produto.${itemIndex}.instalacao_executor_tipo`,
+                  ) === 'PARCEIRO_PRODUCAO'
+                ) {
                   form.setValue(
-                    `itens_produto.${itemIndex}.fornecedor_terceirizado_id`,
-                    '',
+                    `itens_produto.${itemIndex}.instalacao_executor_tipo`,
+                    'OUTRO_PARCEIRO',
                   );
                 }
               }}
@@ -272,9 +296,9 @@ function TerceirizacaoProdutoSection({
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value="MAKE">Produção interna</SelectItem>
-                <SelectItem value="OUTSOURCE">Produção terceirizada</SelectItem>
-                <SelectItem value="HIBRIDO">Produção híbrida</SelectItem>
+                <SelectItem value="MAKE">Internamente</SelectItem>
+                <SelectItem value="OUTSOURCE">Totalmente por parceiro</SelectItem>
+                <SelectItem value="HIBRIDO">Parte interna e parte terceirizada</SelectItem>
               </SelectContent>
             </Select>
           </FormItem>
@@ -283,13 +307,34 @@ function TerceirizacaoProdutoSection({
 
       {terceirizado && (
         <div className="space-y-4 rounded-lg border border-purple-200 bg-purple-50/40 p-4">
+          <p className="text-sm text-purple-900">
+            {modo === 'OUTSOURCE'
+              ? 'O custo do parceiro substituirá materiais, máquinas e serviços internos no cálculo deste produto.'
+              : 'O custo do parceiro será somado às etapas e aos recursos executados internamente.'}
+          </p>
           <FormField
             control={form.control}
             name={`itens_produto.${itemIndex}.fornecedor_terceirizado_id`}
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Parceiro terceirizado *</FormLabel>
-                <Select value={field.value || ''} onValueChange={field.onChange}>
+                <Select
+                  value={field.value || ''}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    if (
+                      form.getValues(
+                        `itens_produto.${itemIndex}.instalacao_executor_tipo`,
+                      ) === 'PARCEIRO_PRODUCAO'
+                    ) {
+                      form.setValue(
+                        `itens_produto.${itemIndex}.instalacao_fornecedor_id`,
+                        value,
+                        { shouldValidate: true },
+                      );
+                    }
+                  }}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o parceiro" />
@@ -809,6 +854,9 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
   const [fornecedoresTerceirizacao, setFornecedoresTerceirizacao] = useState<
     FornecedorTerceirizacaoOption[]
   >([]);
+  const [modalidadesEntrega, setModalidadesEntrega] = useState<
+    ModalidadeEntregaProdutoOption[]
+  >([]);
 
   useEffect(() => {
     const token =
@@ -845,6 +893,18 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
         );
       })
       .catch(() => setFornecedoresTerceirizacao([]));
+
+    modalidadesEntregaApi
+      .getAll(token, true)
+      .then((data: unknown) => {
+        const lista = Array.isArray(data)
+          ? data
+          : Array.isArray((data as { data?: unknown })?.data)
+            ? (data as { data: ModalidadeEntregaProdutoOption[] }).data
+            : [];
+        setModalidadesEntrega(lista as ModalidadeEntregaProdutoOption[]);
+      })
+      .catch(() => setModalidadesEntrega([]));
   }, []);
 
   const sincronizarMateriaisComSugestoes = (
@@ -1041,6 +1101,16 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
     instalacao_tempo_estimado_min: '',
     instalacao_quantidade_pessoas: '',
     instalacao_observacoes: '',
+    instalacao_executor_tipo: 'EQUIPE_INTERNA',
+    instalacao_fornecedor_id: '',
+    instalacao_incluida_cotacao: false,
+    instalacao_distribuicao: 'A_DEFINIR',
+    logistica_modo: 'RETIRADA_CLIENTE',
+    entrega_produto_modalidade_id: '',
+    entrega_produto_prazo_dias: '',
+    entrega_produto_valor_cobrado: '',
+    entrega_produto_custo_estimado: '',
+    entrega_produto_observacoes: '',
     tipo_item: 'SOB_DEMANDA',
     produto_finito_id: '',
     sku_snapshot: '',
@@ -1394,6 +1464,17 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
       setValorSeMudou('instalacao_quantidade_pessoas', String(tipo.quantidade_pessoas_padrao));
     }
 
+    if (
+      form.getValues(
+        `itens_produto.${itemIndex}.instalacao_incluida_cotacao`,
+      )
+    ) {
+      setValorSeMudou('instalacao_preco_cobrado', '0');
+      setValorSeMudou('instalacao_custo_mao_obra', '0');
+      setValorSeMudou('instalacao_custo_deslocamento', '0');
+      return;
+    }
+
     if (regra === 'MANUAL') return;
 
     const base = calcularBaseInstalacao(itemIndex, regra);
@@ -1508,6 +1589,8 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
           const item = (itensProdutoWatch?.[index] ?? {}) as Record<string, unknown>;
           const tipoItem = String(item.tipo_item || 'SOB_DEMANDA');
           const isPrateleira = tipoItem === 'PRODUTO_FINITO';
+          const modoFulfillment = String(item.modo_fulfillment || 'MAKE');
+          const possuiProducaoInterna = modoFulfillment !== 'OUTSOURCE';
           const estoqueCatalogo = Number(item.estoque_catalogo || 0);
           const quantidadeItem = Math.floor(
             Number(String(item.quantidade_produto || '1').replace(',', '.')) || 1,
@@ -1811,7 +1894,14 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
+                      />
+
+                  {!isPrateleira && (
+                    <TerceirizacaoProdutoSection
+                      itemIndex={index}
+                      fornecedores={fornecedoresTerceirizacao}
+                    />
+                  )}
 
                   {/* Medidas do Produto */}
                   <div className="space-y-4">
@@ -1932,42 +2022,213 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
 
                   {/* Seções de Materiais, Máquinas e Funções */}
                   <div className="space-y-6">
-                    {/* Materiais Utilizados */}
-                    <MaterialSection
-                      variant="orcamento"
-                      itemIndex={index}
-                      orcamentoId={orcamentoId}
-                      insumos={insumos}
-                      onInsumoCriado={onInsumoCriado}
-                    />
+                    {possuiProducaoInterna ? (
+                      <>
+                        {/* Materiais Utilizados */}
+                        <MaterialSection
+                          variant="orcamento"
+                          itemIndex={index}
+                          orcamentoId={orcamentoId}
+                          insumos={insumos}
+                          onInsumoCriado={onInsumoCriado}
+                        />
 
-                    {/* Máquinas Utilizadas */}
-                    <MaquinaSection
-                      variant="orcamento"
-                      itemIndex={index}
-                      maquinas={maquinas}
-                    />
+                        {/* Máquinas Utilizadas */}
+                        <MaquinaSection
+                          variant="orcamento"
+                          itemIndex={index}
+                          maquinas={maquinas}
+                        />
 
-                    {/* Funções Utilizadas */}
-                    <FuncaoSection
-                      variant="orcamento"
-                      itemIndex={index}
-                      funcoes={funcoes}
-                    />
+                        {/* Funções Utilizadas */}
+                        <FuncaoSection
+                          variant="orcamento"
+                          itemIndex={index}
+                          funcoes={funcoes}
+                        />
 
-                    {/* Serviços Manuais */}
-                    <ServicoSection
-                      variant="orcamento"
-                      itemIndex={index}
-                      servicos={servicos}
-                    />
-
-                    <TerceirizacaoProdutoSection
-                      itemIndex={index}
-                      fornecedores={fornecedoresTerceirizacao}
-                    />
+                        {/* Serviços Manuais */}
+                        <ServicoSection
+                          variant="orcamento"
+                          itemIndex={index}
+                          servicos={servicos}
+                        />
+                      </>
+                    ) : (
+                      <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
+                        Materiais, máquinas, funções e serviços internos não entram
+                        neste produto porque a produção foi definida como totalmente
+                        terceirizada.
+                      </div>
+                    )}
 
                     <div className="space-y-4 border-t pt-4">
+                      <div>
+                        <h4 className="text-sm font-medium">
+                          Entrega e instalação
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
+                          Defina uma única vez como este produto chegará ao local.
+                        </p>
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name={`itens_produto.${index}.logistica_modo`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Como o produto chegará ao cliente?</FormLabel>
+                            <Select
+                              value={field.value || 'RETIRADA_CLIENTE'}
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                if (
+                                  value === 'EQUIPE_INSTALACAO' ||
+                                  value === 'ENTREGA_ANTES_INSTALACAO'
+                                ) {
+                                  form.setValue(
+                                    `itens_produto.${index}.instalacao_necessaria`,
+                                    true,
+                                  );
+                                }
+                              }}
+                            >
+                              <FormControl>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="RETIRADA_CLIENTE">
+                                  Retirada pelo cliente
+                                </SelectItem>
+                                <SelectItem value="ENTREGA_EMPRESA">
+                                  Entrega pela empresa, sem instalação
+                                </SelectItem>
+                                <SelectItem value="EQUIPE_INSTALACAO">
+                                  Levado pela equipe que fará a instalação
+                                </SelectItem>
+                                <SelectItem value="ENTREGA_ANTES_INSTALACAO">
+                                  Entregue antes e instalado depois
+                                </SelectItem>
+                                <SelectItem value="PARCEIRO_DIRETO">
+                                  Envio direto pelo parceiro
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormItem>
+                        )}
+                      />
+
+                      {[
+                        'ENTREGA_EMPRESA',
+                        'ENTREGA_ANTES_INSTALACAO',
+                        'PARCEIRO_DIRETO',
+                      ].includes(
+                        String(
+                          form.watch(`itens_produto.${index}.logistica_modo`),
+                        ),
+                      ) && (
+                        <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
+                          <div className="grid gap-4 md:grid-cols-4">
+                            <FormField
+                              control={form.control}
+                              name={`itens_produto.${index}.entrega_produto_modalidade_id`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Modalidade</FormLabel>
+                                  <Select
+                                    value={field.value || ''}
+                                    onValueChange={(value) => {
+                                      field.onChange(value);
+                                      const modalidade = modalidadesEntrega.find(
+                                        (item) => item.id === value,
+                                      );
+                                      if (!modalidade) return;
+                                      form.setValue(
+                                        `itens_produto.${index}.entrega_produto_valor_cobrado`,
+                                        modalidade.valor_padrao != null
+                                          ? String(modalidade.valor_padrao)
+                                          : '',
+                                      );
+                                      form.setValue(
+                                        `itens_produto.${index}.entrega_produto_custo_estimado`,
+                                        modalidade.custo_padrao != null
+                                          ? String(modalidade.custo_padrao)
+                                          : '',
+                                      );
+                                      form.setValue(
+                                        `itens_produto.${index}.entrega_produto_prazo_dias`,
+                                        modalidade.prazo_padrao_dias != null
+                                          ? String(modalidade.prazo_padrao_dias)
+                                          : '',
+                                      );
+                                    }}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Selecione" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {modalidadesEntrega.map((modalidade) => (
+                                        <SelectItem
+                                          key={modalidade.id}
+                                          value={modalidade.id}
+                                        >
+                                          {modalidade.nome}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </FormItem>
+                              )}
+                            />
+                            {[
+                              ['entrega_produto_valor_cobrado', 'Valor cobrado'],
+                              ['entrega_produto_custo_estimado', 'Custo estimado'],
+                              ['entrega_produto_prazo_dias', 'Prazo (dias)'],
+                            ].map(([campo, label]) => (
+                              <FormField
+                                key={campo}
+                                control={form.control}
+                                name={`itens_produto.${index}.${campo}`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>{label}</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        {...field}
+                                        value={field.value ?? ''}
+                                        onChange={(event) =>
+                                          field.onChange(
+                                            event.target.value.replace(
+                                              campo.includes('prazo')
+                                                ? /[^0-9]/g
+                                                : /[^0-9,.-]/g,
+                                              '',
+                                            ),
+                                          )
+                                        }
+                                      />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                            ))}
+                          </div>
+                          <FormField
+                            control={form.control}
+                            name={`itens_produto.${index}.entrega_produto_observacoes`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Observações da entrega</FormLabel>
+                                <FormControl>
+                                  <Textarea rows={2} {...field} value={field.value ?? ''} />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between gap-4">
                         <div>
                           <h4 className="text-sm font-medium">Instalação</h4>
@@ -1991,6 +2252,206 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
 
                       {Boolean(form.watch(`itens_produto.${index}.instalacao_necessaria`)) && (
                         <div className="space-y-4">
+                          <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
+                            <div>
+                              <h5 className="text-sm font-medium">
+                                Acordo comercial da instalação
+                              </h5>
+                              <p className="text-xs text-muted-foreground">
+                                Registre quem assumiu comercialmente o serviço. Endereços,
+                                agenda e executor definitivo serão definidos por lote no
+                                módulo de Instalação.
+                              </p>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <FormField
+                                control={form.control}
+                                name={`itens_produto.${index}.instalacao_executor_tipo`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Responsabilidade prevista</FormLabel>
+                                    <Select
+                                      value={field.value || 'EQUIPE_INTERNA'}
+                                      onValueChange={(value) => {
+                                        field.onChange(value);
+                                        if (value === 'EQUIPE_INTERNA') {
+                                          form.setValue(
+                                            `itens_produto.${index}.instalacao_fornecedor_id`,
+                                            '',
+                                          );
+                                          form.setValue(
+                                            `itens_produto.${index}.instalacao_incluida_cotacao`,
+                                            false,
+                                          );
+                                        } else if (value === 'PARCEIRO_PRODUCAO') {
+                                          form.setValue(
+                                            `itens_produto.${index}.instalacao_fornecedor_id`,
+                                            String(
+                                              form.getValues(
+                                                `itens_produto.${index}.fornecedor_terceirizado_id`,
+                                              ) || '',
+                                            ),
+                                            { shouldValidate: true },
+                                          );
+                                        } else {
+                                          form.setValue(
+                                            `itens_produto.${index}.instalacao_fornecedor_id`,
+                                            '',
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="EQUIPE_INTERNA">
+                                          Equipe própria
+                                        </SelectItem>
+                                        <SelectItem
+                                          value="PARCEIRO_PRODUCAO"
+                                          disabled={
+                                            !form.watch(
+                                              `itens_produto.${index}.fornecedor_terceirizado_id`,
+                                            )
+                                          }
+                                        >
+                                          Mesmo parceiro da produção
+                                        </SelectItem>
+                                        <SelectItem value="OUTRO_PARCEIRO">
+                                          Outro parceiro instalador
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
+                              {form.watch(
+                                `itens_produto.${index}.instalacao_executor_tipo`,
+                              ) !== 'EQUIPE_INTERNA' && (
+                                <FormField
+                                  control={form.control}
+                                  name={`itens_produto.${index}.instalacao_fornecedor_id`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Parceiro instalador</FormLabel>
+                                      <Select
+                                        value={field.value || ''}
+                                        onValueChange={field.onChange}
+                                        disabled={
+                                          form.watch(
+                                            `itens_produto.${index}.instalacao_executor_tipo`,
+                                          ) === 'PARCEIRO_PRODUCAO'
+                                        }
+                                      >
+                                        <FormControl>
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Selecione o parceiro" />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          {fornecedoresTerceirizacao.map((fornecedor) => (
+                                            <SelectItem
+                                              key={fornecedor.id}
+                                              value={fornecedor.id}
+                                            >
+                                              {fornecedor.nome}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              )}
+                            </div>
+
+                            <FormField
+                              control={form.control}
+                              name={`itens_produto.${index}.instalacao_distribuicao`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Distribuição prevista</FormLabel>
+                                  <Select
+                                    value={field.value || 'A_DEFINIR'}
+                                    onValueChange={field.onChange}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="ENDERECO_UNICO">
+                                        Um único endereço
+                                      </SelectItem>
+                                      <SelectItem value="MULTIPLOS_ENDERECOS">
+                                        Múltiplos endereços
+                                      </SelectItem>
+                                      <SelectItem value="A_DEFINIR">
+                                        Endereços a definir
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <p className="text-xs text-muted-foreground">
+                                    Esta informação dimensiona o serviço; a distribuição das
+                                    unidades será feita depois, nos lotes de instalação.
+                                  </p>
+                                </FormItem>
+                              )}
+                            />
+
+                            {form.watch(
+                              `itens_produto.${index}.instalacao_executor_tipo`,
+                            ) !== 'EQUIPE_INTERNA' && (
+                              <FormField
+                                control={form.control}
+                                name={`itens_produto.${index}.instalacao_incluida_cotacao`}
+                                render={({ field }) => (
+                                  <FormItem className="flex items-center justify-between gap-4 rounded border bg-background p-3">
+                                    <div>
+                                      <FormLabel className="m-0">
+                                        Instalação incluída na cotação do parceiro
+                                      </FormLabel>
+                                      <p className="text-xs text-muted-foreground">
+                                        Evita somar novamente mão de obra, deslocamento
+                                        e preço da instalação.
+                                      </p>
+                                    </div>
+                                    <FormControl>
+                                      <Switch
+                                        checked={Boolean(field.value)}
+                                        onCheckedChange={(checked) => {
+                                          field.onChange(checked);
+                                          if (checked) {
+                                            form.setValue(
+                                              `itens_produto.${index}.instalacao_preco_cobrado`,
+                                              '0',
+                                            );
+                                            form.setValue(
+                                              `itens_produto.${index}.instalacao_custo_mao_obra`,
+                                              '0',
+                                            );
+                                            form.setValue(
+                                              `itens_produto.${index}.instalacao_custo_deslocamento`,
+                                              '0',
+                                            );
+                                          }
+                                        }}
+                                      />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                            )}
+                          </div>
+
                           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <FormField
                               control={form.control}
@@ -2045,6 +2506,11 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
                                       onValueChange={field.onChange}
                                       onBlur={field.onBlur}
                                       ref={field.ref}
+                                      disabled={Boolean(
+                                        form.watch(
+                                          `itens_produto.${index}.instalacao_incluida_cotacao`,
+                                        ),
+                                      )}
                                     />
                                   </FormControl>
                                 </FormItem>
@@ -2065,6 +2531,11 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
                                       onValueChange={field.onChange}
                                       onBlur={field.onBlur}
                                       ref={field.ref}
+                                      disabled={Boolean(
+                                        form.watch(
+                                          `itens_produto.${index}.instalacao_incluida_cotacao`,
+                                        ),
+                                      )}
                                     />
                                   </FormControl>
                                 </FormItem>
@@ -2085,6 +2556,11 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
                                       onValueChange={field.onChange}
                                       onBlur={field.onBlur}
                                       ref={field.ref}
+                                      disabled={Boolean(
+                                        form.watch(
+                                          `itens_produto.${index}.instalacao_incluida_cotacao`,
+                                        ),
+                                      )}
                                     />
                                   </FormControl>
                                 </FormItem>
@@ -2126,134 +2602,9 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
                             <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                               <CalendarClock className="mt-0.5 h-4 w-4 flex-shrink-0" />
                               <span>
-                                Este tipo de instalação exige agendamento. Confirme a data com o cliente antes de aprovar a produção; a OS poderá receber a data de instalação no fluxo operacional.
+                                Este tipo exige agendamento. A data, o turno e a equipe serão
+                                definidos para cada lote no módulo de Instalação.
                               </span>
-                            </div>
-                          )}
-
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <FormField
-                              control={form.control}
-                              name={`itens_produto.${index}.instalacao_usar_endereco_entrega`}
-                              render={({ field }) => (
-                                <FormItem className="flex items-center gap-3 rounded border p-3">
-                                  <FormControl>
-                                    <Switch checked={field.value !== false} onCheckedChange={field.onChange} />
-                                  </FormControl>
-                                  <FormLabel className="m-0">Usar endereço da entrega</FormLabel>
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name={`itens_produto.${index}.instalacao_tempo_estimado_min`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Tempo estimado (min)</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="text"
-                                      {...field}
-                                      value={field.value ?? ''}
-                                      onChange={(e) => field.onChange(e.target.value.replace(/[^0-9]/g, ''))}
-                                    />
-                                  </FormControl>
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name={`itens_produto.${index}.instalacao_quantidade_pessoas`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Pessoas</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="text"
-                                      {...field}
-                                      value={field.value ?? ''}
-                                      onChange={(e) => field.onChange(e.target.value.replace(/[^0-9]/g, ''))}
-                                    />
-                                  </FormControl>
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-
-                          {form.watch(`itens_produto.${index}.instalacao_usar_endereco_entrega`) === false && (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              <FormField
-                                control={form.control}
-                                name={`itens_produto.${index}.instalacao_cep`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>CEP</FormLabel>
-                                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={form.control}
-                                name={`itens_produto.${index}.instalacao_logradouro`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Endereço</FormLabel>
-                                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={form.control}
-                                name={`itens_produto.${index}.instalacao_numero`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Número</FormLabel>
-                                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={form.control}
-                                name={`itens_produto.${index}.instalacao_complemento`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Complemento</FormLabel>
-                                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={form.control}
-                                name={`itens_produto.${index}.instalacao_bairro`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Bairro</FormLabel>
-                                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={form.control}
-                                name={`itens_produto.${index}.instalacao_cidade`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Cidade</FormLabel>
-                                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={form.control}
-                                name={`itens_produto.${index}.instalacao_estado`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>UF</FormLabel>
-                                    <FormControl><Input maxLength={2} {...field} value={field.value ?? ''} /></FormControl>
-                                  </FormItem>
-                                )}
-                              />
                             </div>
                           )}
 
@@ -2262,7 +2613,7 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
                             name={`itens_produto.${index}.instalacao_observacoes`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Observações da instalação</FormLabel>
+                                <FormLabel>Observações comerciais da instalação</FormLabel>
                                 <FormControl>
                                   <Textarea rows={2} {...field} value={field.value ?? ''} />
                                 </FormControl>

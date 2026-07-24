@@ -407,6 +407,9 @@ export function montarPreviewOrcamento(
       instalacao_bairro: parseTextoOpcional(itemFormulario?.instalacao_bairro),
       instalacao_cidade: parseTextoOpcional(itemFormulario?.instalacao_cidade),
       instalacao_estado: parseTextoOpcional(itemFormulario?.instalacao_estado),
+      entrega_produto_valor_cobrado: parseNumeroPreview(
+        itemFormulario?.entrega_produto_valor_cobrado,
+      ),
     };
   });
 
@@ -466,20 +469,34 @@ export function montarPreviewOrcamento(
   const totalCustoMaquinaria = totais.maquinas;
   const totalCustoServicos = totais.servicos;
   const totalCustoFuncoes = totais.funcoes;
+  const totalCustoTerceirizacao = totais.terceirizacao;
+  const totalCustoEntregaProdutos = totais.entrega;
+  const totalPrecoEntregaProdutos = itensFormulario.reduce(
+    (total, item) =>
+      total +
+      parseNumeroPreview(
+        (item as Record<string, unknown>)?.entrega_produto_valor_cobrado,
+      ),
+    0,
+  );
   const totalCustoIndireto = resumoIndiretos.totalRateado ?? totais.indiretos;
   const totalHoras = totais.horas;
 
   const totalCustoProducaoBase =
     totalCustoMaterial +
     totalCustoMaquinaria +
-    totalCustoFuncoes +
-    totalCustoServicos +
-    totalCustoIndireto -
+     totalCustoFuncoes +
+     totalCustoServicos +
+     totalCustoTerceirizacao +
+     totalCustoIndireto -
     custoPrateleiraNoMaterial;
 
   // Custo usado na fórmula de preço do sob demanda (sem prateleira).
   const totalCustoProducao =
-    totalCustoProducaoBase + totalCustoInstalacao + entrega.custo_estimado;
+    totalCustoProducaoBase +
+    totalCustoEntregaProdutos +
+    totalCustoInstalacao +
+    entrega.custo_estimado;
   // Custo gerencial: inclui custo de catálogo do produto finito (não onera o preço ao cliente).
   const totalCustoGerencial = roundMoney(
     totalCustoProducao + custoPrateleiraNoMaterial,
@@ -504,7 +521,11 @@ export function montarPreviewOrcamento(
   }
 
   const precoFinalCalculado = roundMoney(
-    precoFinal + totalPrecoInstalacao + entrega.valor_cobrado + totalPrecoPrateleira,
+    precoFinal +
+      totalPrecoInstalacao +
+      totalPrecoEntregaProdutos +
+      entrega.valor_cobrado +
+      totalPrecoPrateleira,
   );
   precoFinal = precoFinalCalculado;
 
@@ -576,7 +597,8 @@ export function montarPreviewOrcamento(
       };
     }
 
-    const custoBaseProduto = produto.custo_total_producao;
+    const custoBaseProduto =
+      produto.custo_total_producao - (produto.custo_entrega ?? 0);
     const precoVendaProduto =
       tipoMargemLucro === 'markup'
         ? divisor > 0
@@ -585,7 +607,9 @@ export function montarPreviewOrcamento(
         : divisor > 0
           ? custoBaseProduto / divisor
           : custoBaseProduto;
-    const precoVendaArredondado = roundMoney(precoVendaProduto);
+    const precoVendaProdutoComEntrega =
+      precoVendaProduto + produto.entrega_produto_valor_cobrado;
+    const precoVendaArredondado = roundMoney(precoVendaProdutoComEntrega);
     const margemLucroProduto = roundMoney(precoVendaArredondado * percentualMargemDecimal);
     const impostosProduto = roundMoney(precoVendaArredondado * percentualImpostosDecimal);
     const comissaoProduto = roundMoney(precoVendaArredondado * percentualComissaoDecimal);

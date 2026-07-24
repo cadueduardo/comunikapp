@@ -57,6 +57,7 @@ export const validarMateriaisItensProduto = (
   itens:
     | Array<{
         tipo_item?: string;
+        modo_fulfillment?: string;
         nome_servico?: string;
         materiais?: Array<{ insumo_id?: string }>;
       }>
@@ -72,6 +73,9 @@ export const validarMateriaisItensProduto = (
     }
     if (isItemAguardandoConfiguracao(itens[i])) {
       return `O produto ${i + 1} ainda não foi configurado. Carregue um modelo, adicione um produto de prateleira ou preencha manualmente.`;
+    }
+    if (itens[i].modo_fulfillment === 'OUTSOURCE') {
+      continue;
     }
     const temMaterial = (itens[i].materiais || []).some((material) =>
       Boolean(material?.insumo_id?.trim()),
@@ -208,6 +212,28 @@ const itemProdutoSchema = z
     instalacao_tempo_estimado_min: numeroOpcional,
     instalacao_quantidade_pessoas: numeroOpcional,
     instalacao_observacoes: z.string().max(50000).optional(),
+    instalacao_executor_tipo: z
+      .enum(['EQUIPE_INTERNA', 'PARCEIRO_PRODUCAO', 'OUTRO_PARCEIRO'])
+      .optional(),
+    instalacao_fornecedor_id: z.string().optional(),
+    instalacao_incluida_cotacao: z.boolean().optional(),
+    instalacao_distribuicao: z
+      .enum(['ENDERECO_UNICO', 'MULTIPLOS_ENDERECOS', 'A_DEFINIR'])
+      .optional(),
+    logistica_modo: z
+      .enum([
+        'RETIRADA_CLIENTE',
+        'ENTREGA_EMPRESA',
+        'EQUIPE_INSTALACAO',
+        'ENTREGA_ANTES_INSTALACAO',
+        'PARCEIRO_DIRETO',
+      ])
+      .optional(),
+    entrega_produto_modalidade_id: z.string().optional(),
+    entrega_produto_prazo_dias: numeroOpcional,
+    entrega_produto_valor_cobrado: numeroOpcional,
+    entrega_produto_custo_estimado: numeroOpcional,
+    entrega_produto_observacoes: z.string().max(50000).optional(),
 
     catalogo_regras: catalogoRegrasSchema.optional(),
     personalizacao_ativa: z.boolean().optional(),
@@ -386,6 +412,18 @@ const itemProdutoSchema = z
       });
     }
 
+    if (
+      item.instalacao_necessaria &&
+      item.instalacao_executor_tipo !== 'EQUIPE_INTERNA' &&
+      !item.instalacao_fornecedor_id?.trim()
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Selecione o parceiro responsável pela instalação',
+        path: ['instalacao_fornecedor_id'],
+      });
+    }
+
     const materiaisValidos = (item.materiais || []).filter(
       (material) =>
         material?.insumo_id?.trim() &&
@@ -393,7 +431,10 @@ const itemProdutoSchema = z
         Number(material.quantidade.replace(',', '.')) > 0,
     );
 
-    if (materiaisValidos.length === 0) {
+    if (
+      item.modo_fulfillment !== 'OUTSOURCE' &&
+      materiaisValidos.length === 0
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Adicione pelo menos um material',

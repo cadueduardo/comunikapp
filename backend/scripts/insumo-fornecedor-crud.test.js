@@ -69,7 +69,7 @@ test('update geral omite fornecedor e custo', () => {
 test('backend cria e substitui matriz dentro de transacoes tenant-aware', () => {
   assert.match(
     service,
-    /tx\.insumoFornecedor\.create\([\s\S]*loja_id: loja\.id[\s\S]*padrao: true/,
+    /tx\.insumoFornecedor\.createMany\([\s\S]*matrizFornecedores\.map[\s\S]*loja_id: loja\.id[\s\S]*padrao: item\.padrao/,
   );
   assert.match(
     service,

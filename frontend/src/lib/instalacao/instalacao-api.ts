@@ -154,6 +154,9 @@ export const instalacaoApi = {
       equipe_instalacao?: string | null;
       responsavel_local?: string | null;
       informar_equipe?: boolean;
+      executor_tipo?: 'EQUIPE_INTERNA' | 'PARCEIRO';
+      fornecedor_instalador_id?: string | null;
+      custo_incluido_cotacao?: boolean;
     },
   ): Promise<unknown> {
     const response = await fetch(`/api/instalacao/lotes/${id}`, {

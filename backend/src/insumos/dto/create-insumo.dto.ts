@@ -9,11 +9,25 @@ import {
   IsPositive,
   IsEnum,
   IsIn,
+  IsArray,
+  ArrayMinSize,
+  ArrayMaxSize,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { LogicaConsumoInsumo } from '@prisma/client';
 import { MetodoCobrancaChapa } from '../../common/calculo-chapa/calculo-chapa.types';
+import { VincularFornecedorItemDto } from './vincular-fornecedores.dto';
 
 export class CreateInsumoDto {
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => VincularFornecedorItemDto)
+  fornecedores?: VincularFornecedorItemDto[];
+
   @IsString()
   @IsNotEmpty()
   nome: string;

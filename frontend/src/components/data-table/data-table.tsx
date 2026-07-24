@@ -25,12 +25,14 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   onRowClick?: (row: TData) => void;
+  getRowClassName?: (row: TData) => string | undefined;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
   onRowClick,
+  getRowClassName,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
@@ -77,11 +79,11 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && 'selected'}
-                  className={
+                  className={`${
                     onRowClick
                       ? 'cursor-pointer hover:bg-muted/50'
                       : 'hover:bg-muted/50'
-                  }
+                  } ${getRowClassName?.(row.original) ?? ''}`}
                   onClick={() => onRowClick?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (

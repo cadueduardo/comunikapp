@@ -4,6 +4,7 @@ import {
   IsDateString,
   IsEnum,
   IsInt,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -85,6 +86,18 @@ export class CriarLoteInstalacaoDto {
   @IsOptional()
   @IsBoolean()
   informar_equipe?: boolean;
+
+  @IsOptional()
+  @IsIn(['EQUIPE_INTERNA', 'PARCEIRO'])
+  executor_tipo?: 'EQUIPE_INTERNA' | 'PARCEIRO';
+
+  @IsOptional()
+  @IsString()
+  fornecedor_instalador_id?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  custo_incluido_cotacao?: boolean;
 }
 
 export class AtualizarEnderecoLoteDto {
@@ -153,6 +166,18 @@ export class AtualizarEnderecoLoteDto {
   @IsOptional()
   @IsBoolean()
   informar_equipe?: boolean;
+
+  @IsOptional()
+  @IsIn(['EQUIPE_INTERNA', 'PARCEIRO'])
+  executor_tipo?: 'EQUIPE_INTERNA' | 'PARCEIRO';
+
+  @IsOptional()
+  @IsString()
+  fornecedor_instalador_id?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  custo_incluido_cotacao?: boolean;
 }
 
 export class RegistrarOcorrenciaGestaoDto {

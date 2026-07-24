@@ -28,7 +28,7 @@ import { Textarea } from '@/components/ui/textarea';
 const itemSchema = z.object({
   tipo: z.enum(['DESPESA', 'SERVICO', 'MATERIAL']),
   descricao: z.string().trim().min(1, 'Informe a descrição.'),
-  quantidade: z.coerce.number().positive('Quantidade deve ser positiva.'),
+  quantidade: z.coerce.number<number>().positive('Quantidade deve ser positiva.'),
   unidade: z.string().trim().min(1, 'Informe a unidade.'),
   insumo_id: z.string().optional(),
 });
@@ -48,7 +48,8 @@ export const solicitacaoFormSchema = z.object({
   itens: z.array(itemSchema).min(1, 'Informe ao menos um item.'),
 });
 
-export type SolicitacaoFormValues = z.infer<typeof solicitacaoFormSchema>;
+type SolicitacaoFormInput = z.input<typeof solicitacaoFormSchema>;
+export type SolicitacaoFormValues = z.output<typeof solicitacaoFormSchema>;
 
 export interface SolicitacaoFormData extends Partial<SolicitacaoFormValues> {
   prioridade: SolicitacaoFormValues['prioridade'];
@@ -69,7 +70,7 @@ export function SolicitacaoForm({
   loading = false,
   readOnly = false,
 }: SolicitacaoFormProps) {
-  const form = useForm<SolicitacaoFormValues>({
+  const form = useForm<SolicitacaoFormInput, unknown, SolicitacaoFormValues>({
     resolver: zodResolver(solicitacaoFormSchema),
     defaultValues: {
       prioridade: initialData?.prioridade ?? 'NORMAL',

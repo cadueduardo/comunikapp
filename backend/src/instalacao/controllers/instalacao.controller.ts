@@ -116,6 +116,9 @@ export class InstalacaoController {
       equipeInstalacao: dto.equipe_instalacao,
       responsavelLocal: dto.responsavel_local,
       informarEquipe: dto.informar_equipe,
+      executorTipo: dto.executor_tipo,
+      fornecedorInstaladorId: dto.fornecedor_instalador_id,
+      custoIncluidoCotacao: dto.custo_incluido_cotacao,
     });
 
     if (!resultado.criado) {
@@ -124,6 +127,8 @@ export class InstalacaoController {
         SEM_ORCAMENTO: 'OS sem orçamento vinculado.',
         SEM_INSTALACAO: 'Este item não exige instalação.',
         SEM_SALDO: 'Quantidade excede o saldo disponível para alocação.',
+        FORNECEDOR_INVALIDO:
+          'Selecione um parceiro instalador ativo desta empresa.',
         AGUARDANDO_PRODUCAO:
           'A instalação só é liberada após a baixa de produção no PCP. Conclua a produção do item antes de criar lotes.',
       };

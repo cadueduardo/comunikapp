@@ -249,6 +249,10 @@ export class InstalacaoService {
         equipe_instalacao: true,
         responsavel_local: true,
         informar_equipe: true,
+        executor_tipo: true,
+        fornecedor_instalador_id: true,
+        custo_incluido_cotacao: true,
+        fornecedor_instalador: { select: { id: true, nome: true } },
         aguardando_reagendamento: true,
         data_execucao: true,
         fotos_evidencia: true,
@@ -676,6 +680,14 @@ export class InstalacaoService {
               },
               {
                 status: 'FINALIZADA',
+                orcamento_id: { not: null },
+                orcamento: {
+                  loja_id: lojaId,
+                  produtos: { some: { instalacao_necessaria: true } },
+                },
+              },
+              {
+                status_instalacao_os: StatusInstalacaoOs.EM_ANDAMENTO,
                 orcamento_id: { not: null },
                 orcamento: {
                   loja_id: lojaId,
@@ -1342,6 +1354,9 @@ export class InstalacaoService {
       quantidade_total: number;
       quantidade_alocada: number;
       saldo_disponivel: number;
+      executor_tipo_sugerido: 'EQUIPE_INTERNA' | 'PARCEIRO';
+      fornecedor_instalador_id_sugerido: string | null;
+      custo_incluido_cotacao_sugerido: boolean;
     }> = [];
 
     for (const item of itens) {
@@ -1352,7 +1367,12 @@ export class InstalacaoService {
           orcamento: { loja_id: lojaId },
           instalacao_necessaria: true,
         },
-        select: { id: true },
+        select: {
+          id: true,
+          instalacao_executor_tipo: true,
+          instalacao_fornecedor_id: true,
+          instalacao_incluida_cotacao: true,
+        },
       });
 
       if (!produto) {
@@ -1372,6 +1392,15 @@ export class InstalacaoService {
         quantidade_total: quantidadeTotal,
         quantidade_alocada: quantidadeTotal - saldoDisponivel,
         saldo_disponivel: saldoDisponivel,
+        executor_tipo_sugerido:
+          produto.instalacao_executor_tipo === 'PARCEIRO_PRODUCAO' ||
+          produto.instalacao_executor_tipo === 'OUTRO_PARCEIRO'
+            ? 'PARCEIRO'
+            : 'EQUIPE_INTERNA',
+        fornecedor_instalador_id_sugerido:
+          produto.instalacao_fornecedor_id ?? null,
+        custo_incluido_cotacao_sugerido:
+          produto.instalacao_incluida_cotacao ?? false,
       });
     }
 
@@ -1498,6 +1527,9 @@ export class InstalacaoService {
       equipe_instalacao?: string | null;
       responsavel_local?: string | null;
       informar_equipe?: boolean;
+      executor_tipo?: 'EQUIPE_INTERNA' | 'PARCEIRO';
+      fornecedor_instalador_id?: string | null;
+      custo_incluido_cotacao?: boolean;
     },
   ) {
     const lote = await this.prisma.itemOSInstalacao.findFirst({
@@ -1552,6 +1584,28 @@ export class InstalacaoService {
     const dataPrevisao = this.resolverDataPrevisao(dados.data_previsao);
     const osId = lote.item_os.os_id;
 
+    if (dados.executor_tipo === 'PARCEIRO') {
+      if (!dados.fornecedor_instalador_id) {
+        throw new BadRequestException(
+          'Selecione o parceiro responsável por este lote.',
+        );
+      }
+      const fornecedor = await this.prisma.fornecedor.findFirst({
+        where: {
+          id: dados.fornecedor_instalador_id,
+          loja_id: lojaId,
+          ativo: true,
+          tipo: { in: ['TERCEIRIZADO', 'AMBOS'] },
+        },
+        select: { id: true },
+      });
+      if (!fornecedor) {
+        throw new BadRequestException(
+          'Parceiro instalador inválido ou inativo.',
+        );
+      }
+    }
+
     const loteAtualizado = await this.prisma.$transaction(async (tx) => {
       const atualizado = await tx.itemOSInstalacao.update({
         where: { id: loteId },
@@ -1585,6 +1639,20 @@ export class InstalacaoService {
           ...(dados.informar_equipe !== undefined
             ? { informar_equipe: dados.informar_equipe }
             : {}),
+          ...(dados.executor_tipo !== undefined
+            ? {
+                executor_tipo: dados.executor_tipo,
+                fornecedor_instalador_id:
+                  dados.executor_tipo === 'EQUIPE_INTERNA'
+                    ? null
+                    : dados.fornecedor_instalador_id ?? null,
+              }
+            : dados.fornecedor_instalador_id !== undefined
+              ? { fornecedor_instalador_id: dados.fornecedor_instalador_id }
+              : {}),
+          ...(dados.custo_incluido_cotacao !== undefined
+            ? { custo_incluido_cotacao: dados.custo_incluido_cotacao }
+            : {}),
         },
         select: {
           id: true,
@@ -1602,6 +1670,10 @@ export class InstalacaoService {
           equipe_instalacao: true,
           responsavel_local: true,
           informar_equipe: true,
+          executor_tipo: true,
+          fornecedor_instalador_id: true,
+          custo_incluido_cotacao: true,
+          fornecedor_instalador: { select: { id: true, nome: true } },
           aguardando_reagendamento: true,
           atualizado_em: true,
         },

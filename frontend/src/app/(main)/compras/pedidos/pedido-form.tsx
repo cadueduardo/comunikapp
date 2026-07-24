@@ -31,9 +31,11 @@ import { fornecedoresApi, type FornecedorApi } from '@/lib/api-client';
 const itemSchema = z.object({
   tipo: z.enum(['DESPESA', 'SERVICO', 'MATERIAL']),
   descricao_snapshot: z.string().trim().min(1, 'Informe a descrição.'),
-  quantidade: z.coerce.number().positive('Quantidade deve ser positiva.'),
+  quantidade: z.coerce.number<number>().positive('Quantidade deve ser positiva.'),
   unidade_snapshot: z.string().trim().min(1, 'Informe a unidade.'),
-  preco_unitario: z.coerce.number().min(0, 'Preço não pode ser negativo.'),
+  preco_unitario: z.coerce
+    .number<number>()
+    .min(0, 'Preço não pode ser negativo.'),
   insumo_id: z.string().optional(),
 });
 
@@ -44,7 +46,8 @@ export const pedidoFormSchema = z.object({
   itens: z.array(itemSchema).min(1, 'Informe ao menos um item.'),
 });
 
-export type PedidoFormValues = z.infer<typeof pedidoFormSchema>;
+type PedidoFormInput = z.input<typeof pedidoFormSchema>;
+export type PedidoFormValues = z.output<typeof pedidoFormSchema>;
 
 export interface PedidoFormData extends Partial<PedidoFormValues> {
   fornecedor_id: string;
@@ -66,7 +69,7 @@ export function PedidoForm({
 }: PedidoFormProps) {
   const [fornecedores, setFornecedores] = useState<FornecedorApi[]>([]);
 
-  const form = useForm<PedidoFormValues>({
+  const form = useForm<PedidoFormInput, unknown, PedidoFormValues>({
     resolver: zodResolver(pedidoFormSchema),
     defaultValues: {
       fornecedor_id: initialData?.fornecedor_id ?? '',

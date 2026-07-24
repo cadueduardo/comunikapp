@@ -99,6 +99,85 @@ export class OrcamentosV2Service {
       }
     }
 
+    const produtos = Array.isArray(dados?.produtos) ? dados.produtos : [];
+    const modalidadesProdutoIds: string[] = Array.from(
+      new Set<string>(
+        produtos
+          .map((produto: any) =>
+            typeof produto?.entrega_produto_modalidade_id === 'string'
+              ? produto.entrega_produto_modalidade_id.trim()
+              : '',
+          )
+          .filter(Boolean),
+      ),
+    );
+    if (modalidadesProdutoIds.length > 0) {
+      const modalidadesProduto = await this.prisma.modalidadeEntrega.findMany({
+        where: {
+          id: { in: modalidadesProdutoIds },
+          loja_id: lojaId,
+          ativo: true,
+        },
+        select: { id: true },
+      });
+      const idsValidos = new Set(modalidadesProduto.map((item) => item.id));
+      if (modalidadesProdutoIds.some((id) => !idsValidos.has(id))) {
+        throw new BadRequestException(
+          'Uma ou mais modalidades de entrega dos produtos são inválidas.',
+        );
+      }
+    }
+    const instalacoesTerceirizadas = produtos
+      .filter(
+        (produto: any) =>
+          Boolean(produto?.instalacao_necessaria) &&
+          produto?.instalacao_executor_tipo !== 'EQUIPE_INTERNA',
+      )
+      .map((produto: any) => ({
+        executor: produto?.instalacao_executor_tipo,
+        fornecedorId:
+          typeof produto?.instalacao_fornecedor_id === 'string' &&
+          produto.instalacao_fornecedor_id.trim()
+            ? produto.instalacao_fornecedor_id.trim()
+            : produto?.instalacao_executor_tipo === 'PARCEIRO_PRODUCAO' &&
+                typeof produto?.fornecedor_terceirizado_id === 'string'
+              ? produto.fornecedor_terceirizado_id.trim()
+              : '',
+      }));
+
+    if (instalacoesTerceirizadas.some((item) => !item.fornecedorId)) {
+      throw new BadRequestException(
+        'Selecione o parceiro responsável por cada instalação terceirizada.',
+      );
+    }
+
+    const fornecedorInstalacaoIds: string[] = Array.from(
+      new Set<string>(
+        instalacoesTerceirizadas.map((item) => String(item.fornecedorId)),
+      ),
+    );
+    if (fornecedorInstalacaoIds.length > 0) {
+      const fornecedoresInstalacao = await this.prisma.fornecedor.findMany({
+        where: {
+          id: { in: fornecedorInstalacaoIds },
+          loja_id: lojaId,
+          ativo: true,
+          tipo: {
+            in: [TipoFornecedor.TERCEIRIZADO, TipoFornecedor.AMBOS],
+          },
+        },
+        select: { id: true },
+      });
+      const idsValidos = new Set(
+        fornecedoresInstalacao.map((fornecedor) => fornecedor.id),
+      );
+      if (fornecedorInstalacaoIds.some((id) => !idsValidos.has(id))) {
+        throw new BadRequestException(
+          'Um ou mais parceiros de instalação são inválidos ou estão inativos.',
+        );
+      }
+    }
+
     const tipoIds = Array.from(
       new Set(
         (Array.isArray(dados?.produtos) ? dados.produtos : [])
@@ -411,6 +490,16 @@ export class OrcamentosV2Service {
               instalacao_tempo_estimado_min: true,
               instalacao_quantidade_pessoas: true,
               instalacao_observacoes: true,
+              instalacao_executor_tipo: true,
+              instalacao_fornecedor_id: true,
+              instalacao_incluida_cotacao: true,
+              instalacao_distribuicao: true,
+              logistica_modo: true,
+              entrega_produto_modalidade_id: true,
+              entrega_produto_prazo_dias: true,
+              entrega_produto_valor_cobrado: true,
+              entrega_produto_custo_estimado: true,
+              entrega_produto_observacoes: true,
               ativo: true,
               ordem: true,
               categoria: true,
@@ -709,6 +798,16 @@ export class OrcamentosV2Service {
               instalacao_tempo_estimado_min: true,
               instalacao_quantidade_pessoas: true,
               instalacao_observacoes: true,
+              instalacao_executor_tipo: true,
+              instalacao_fornecedor_id: true,
+              instalacao_incluida_cotacao: true,
+              instalacao_distribuicao: true,
+              logistica_modo: true,
+              entrega_produto_modalidade_id: true,
+              entrega_produto_prazo_dias: true,
+              entrega_produto_valor_cobrado: true,
+              entrega_produto_custo_estimado: true,
+              entrega_produto_observacoes: true,
               ativo: true,
               ordem: true,
               categoria: true,
@@ -1101,6 +1200,16 @@ export class OrcamentosV2Service {
                 instalacao_tempo_estimado_min: true,
                 instalacao_quantidade_pessoas: true,
                 instalacao_observacoes: true,
+                instalacao_executor_tipo: true,
+                instalacao_fornecedor_id: true,
+                instalacao_incluida_cotacao: true,
+                instalacao_distribuicao: true,
+                logistica_modo: true,
+                entrega_produto_modalidade_id: true,
+                entrega_produto_prazo_dias: true,
+                entrega_produto_valor_cobrado: true,
+                entrega_produto_custo_estimado: true,
+                entrega_produto_observacoes: true,
                 ativo: true,
                 ordem: true,
                 categoria: true,

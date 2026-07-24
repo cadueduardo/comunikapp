@@ -824,6 +824,19 @@ export class TransformacaoV2Service {
   }
 
   private prepararCamposInstalacao(produto: any): any {
+    const executorTipo =
+      this.normalizarTextoOpcional(produto.instalacao_executor_tipo, 32) ??
+      'EQUIPE_INTERNA';
+    const fornecedorInstalacao =
+      executorTipo === 'PARCEIRO_PRODUCAO'
+        ? this.normalizarTextoOpcional(
+            produto.instalacao_fornecedor_id ??
+              produto.fornecedor_terceirizado_id,
+            191,
+          )
+        : executorTipo === 'OUTRO_PARCEIRO'
+          ? this.normalizarTextoOpcional(produto.instalacao_fornecedor_id, 191)
+          : null;
     return {
       instalacao_necessaria: this.normalizarBooleanOpcional(
         produto.instalacao_necessaria,
@@ -890,6 +903,35 @@ export class TransformacaoV2Service {
       ),
       instalacao_observacoes: this.normalizarTextoOpcional(
         produto.instalacao_observacoes,
+        50_000,
+      ),
+      instalacao_executor_tipo: executorTipo,
+      instalacao_fornecedor_id: fornecedorInstalacao,
+      instalacao_incluida_cotacao: this.normalizarBooleanOpcional(
+        produto.instalacao_incluida_cotacao,
+        false,
+      ),
+      instalacao_distribuicao:
+        this.normalizarTextoOpcional(produto.instalacao_distribuicao, 24) ??
+        'A_DEFINIR',
+      logistica_modo:
+        this.normalizarTextoOpcional(produto.logistica_modo, 32) ??
+        'RETIRADA_CLIENTE',
+      entrega_produto_modalidade_id: this.normalizarTextoOpcional(
+        produto.entrega_produto_modalidade_id,
+        191,
+      ),
+      entrega_produto_prazo_dias: this.normalizarInteiroOpcional(
+        produto.entrega_produto_prazo_dias,
+      ),
+      entrega_produto_valor_cobrado: this.normalizarNumeroOpcional(
+        produto.entrega_produto_valor_cobrado,
+      ),
+      entrega_produto_custo_estimado: this.normalizarNumeroOpcional(
+        produto.entrega_produto_custo_estimado,
+      ),
+      entrega_produto_observacoes: this.normalizarTextoOpcional(
+        produto.entrega_produto_observacoes,
         50_000,
       ),
     };
@@ -1386,6 +1428,28 @@ export class TransformacaoV2Service {
         instalacao_quantidade_pessoas:
           produto.instalacao_quantidade_pessoas ?? null,
         instalacao_observacoes: produto.instalacao_observacoes ?? null,
+        instalacao_executor_tipo:
+          produto.instalacao_executor_tipo ?? 'EQUIPE_INTERNA',
+        instalacao_fornecedor_id: produto.instalacao_fornecedor_id ?? null,
+        instalacao_incluida_cotacao:
+          produto.instalacao_incluida_cotacao ?? false,
+        instalacao_distribuicao:
+          produto.instalacao_distribuicao ?? 'A_DEFINIR',
+        logistica_modo: produto.logistica_modo ?? 'RETIRADA_CLIENTE',
+        entrega_produto_modalidade_id:
+          produto.entrega_produto_modalidade_id ?? null,
+        entrega_produto_prazo_dias:
+          produto.entrega_produto_prazo_dias ?? null,
+        entrega_produto_valor_cobrado:
+          produto.entrega_produto_valor_cobrado != null
+            ? Number(produto.entrega_produto_valor_cobrado)
+            : null,
+        entrega_produto_custo_estimado:
+          produto.entrega_produto_custo_estimado != null
+            ? Number(produto.entrega_produto_custo_estimado)
+            : null,
+        entrega_produto_observacoes:
+          produto.entrega_produto_observacoes ?? null,
         modo_fulfillment: produto.modo_fulfillment ?? null,
         fornecedor_terceirizado_id:
           produto.fornecedor_terceirizado_id ?? null,
@@ -1567,6 +1631,24 @@ export class TransformacaoV2Service {
       instalacao_quantidade_pessoas:
         produto?.instalacao_quantidade_pessoas ?? null,
       instalacao_observacoes: produto?.instalacao_observacoes ?? null,
+      instalacao_executor_tipo:
+        produto?.instalacao_executor_tipo ?? 'EQUIPE_INTERNA',
+      instalacao_fornecedor_id: produto?.instalacao_fornecedor_id ?? null,
+      instalacao_incluida_cotacao:
+        produto?.instalacao_incluida_cotacao ?? false,
+      instalacao_distribuicao:
+        produto?.instalacao_distribuicao ?? 'A_DEFINIR',
+      logistica_modo: produto?.logistica_modo ?? 'RETIRADA_CLIENTE',
+      entrega_produto_modalidade_id:
+        produto?.entrega_produto_modalidade_id ?? null,
+      entrega_produto_prazo_dias:
+        produto?.entrega_produto_prazo_dias ?? null,
+      entrega_produto_valor_cobrado:
+        produto?.entrega_produto_valor_cobrado ?? null,
+      entrega_produto_custo_estimado:
+        produto?.entrega_produto_custo_estimado ?? null,
+      entrega_produto_observacoes:
+        produto?.entrega_produto_observacoes ?? null,
       modo_fulfillment: produto?.modo_fulfillment ?? null,
       fornecedor_terceirizado_id:
         produto?.fornecedor_terceirizado_id ?? null,

@@ -83,6 +83,10 @@ export interface LoteInstaladorResumo {
   equipe_instalacao?: string | null;
   responsavel_local?: string | null;
   informar_equipe?: boolean;
+  executor_tipo?: 'EQUIPE_INTERNA' | 'PARCEIRO';
+  fornecedor_instalador_id?: string | null;
+  custo_incluido_cotacao?: boolean;
+  fornecedor_instalador?: { id: string; nome: string } | null;
   aguardando_reagendamento?: boolean;
   fotos_evidencia: string[] | null;
   assinatura_url: string | null;
@@ -151,6 +155,9 @@ export interface ItemSaldoInstalacao {
   quantidade_total: number;
   quantidade_alocada: number;
   saldo_disponivel: number;
+  executor_tipo_sugerido: 'EQUIPE_INTERNA' | 'PARCEIRO';
+  fornecedor_instalador_id_sugerido: string | null;
+  custo_incluido_cotacao_sugerido: boolean;
 }
 
 export interface CriarLoteInstalacaoPayload {
@@ -168,6 +175,9 @@ export interface CriarLoteInstalacaoPayload {
   equipe_instalacao?: string;
   responsavel_local?: string;
   informar_equipe?: boolean;
+  executor_tipo?: 'EQUIPE_INTERNA' | 'PARCEIRO';
+  fornecedor_instalador_id?: string;
+  custo_incluido_cotacao?: boolean;
 }
 
 export interface CriarLoteInstalacaoResposta {
@@ -186,6 +196,9 @@ export interface LotePainelOs extends LoteInstaladorResumo {
   equipe_instalacao: string | null;
   responsavel_local: string | null;
   informar_equipe: boolean;
+  executor_tipo: 'EQUIPE_INTERNA' | 'PARCEIRO';
+  fornecedor_instalador_id: string;
+  custo_incluido_cotacao: boolean;
   aguardando_reagendamento: boolean;
   item_os_id?: string;
   item_os: { produto_servico: string | null };
@@ -436,6 +449,9 @@ export const ENDERECO_LOTE_VAZIO: EnderecoLoteForm = {
   equipe_instalacao: '',
   responsavel_local: '',
   informar_equipe: false,
+  executor_tipo: 'EQUIPE_INTERNA',
+  fornecedor_instalador_id: '',
+  custo_incluido_cotacao: false,
 };
 
 function formatarDataPrevisaoInput(valor: string | Date | null | undefined): string {
@@ -460,6 +476,12 @@ export function montarPayloadAgendaLote(dados: EnderecoLoteForm) {
     equipe_instalacao: dados.equipe_instalacao.trim() || undefined,
     responsavel_local: dados.responsavel_local.trim() || undefined,
     informar_equipe: dados.informar_equipe,
+    executor_tipo: dados.executor_tipo,
+    fornecedor_instalador_id:
+      dados.executor_tipo === 'PARCEIRO'
+        ? dados.fornecedor_instalador_id || undefined
+        : undefined,
+    custo_incluido_cotacao: dados.custo_incluido_cotacao,
   };
 }
 
@@ -479,6 +501,9 @@ export function loteParaEnderecoForm(
     | 'equipe_instalacao'
     | 'responsavel_local'
     | 'informar_equipe'
+    | 'executor_tipo'
+    | 'fornecedor_instalador_id'
+    | 'custo_incluido_cotacao'
   >,
 ): EnderecoLoteForm {
   return {
@@ -495,6 +520,10 @@ export function loteParaEnderecoForm(
     equipe_instalacao: lote.equipe_instalacao ?? '',
     responsavel_local: lote.responsavel_local ?? '',
     informar_equipe: lote.informar_equipe ?? false,
+    executor_tipo:
+      lote.executor_tipo === 'PARCEIRO' ? 'PARCEIRO' : 'EQUIPE_INTERNA',
+    fornecedor_instalador_id: lote.fornecedor_instalador_id ?? '',
+    custo_incluido_cotacao: lote.custo_incluido_cotacao ?? false,
   };
 }
 

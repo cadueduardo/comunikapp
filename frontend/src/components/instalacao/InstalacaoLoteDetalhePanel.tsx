@@ -185,6 +185,21 @@ export function InstalacaoLoteDetalhePanel({
             </p>
           </div>
           <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+            <p className="text-xs text-muted-foreground">Executor do lote</p>
+            <p className="text-sm font-medium text-foreground">
+              {lote.executor_tipo === 'PARCEIRO'
+                ? lote.fornecedor_instalador?.nome || 'Parceiro não definido'
+                : lote.equipe_instalacao?.trim() || 'Equipe interna não definida'}
+            </p>
+            {lote.executor_tipo === 'PARCEIRO' && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {lote.custo_incluido_cotacao
+                  ? 'Incluído na contratação original'
+                  : 'Contratação operacional do lote'}
+              </p>
+            )}
+          </div>
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
             <p className="flex items-center gap-1 text-xs text-muted-foreground">
               <IconUsers className="h-3.5 w-3.5" />
               Equipe alocada

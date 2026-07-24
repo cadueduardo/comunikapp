@@ -13,6 +13,7 @@ import {
   Min,
   Max,
   ValidateNested,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -360,6 +361,84 @@ export class ProdutoOrcamentoDto {
   @IsString()
   @MaxLength(50000)
   terceirizacao_observacoes?: string;
+
+  @ApiPropertyOptional({
+    description: 'Responsável pela instalação do produto',
+    enum: ['EQUIPE_INTERNA', 'PARCEIRO_PRODUCAO', 'OUTRO_PARCEIRO'],
+  })
+  @IsOptional()
+  @IsIn(['EQUIPE_INTERNA', 'PARCEIRO_PRODUCAO', 'OUTRO_PARCEIRO'])
+  instalacao_executor_tipo?:
+    | 'EQUIPE_INTERNA'
+    | 'PARCEIRO_PRODUCAO'
+    | 'OUTRO_PARCEIRO';
+
+  @ApiPropertyOptional({ description: 'Parceiro responsável pela instalação' })
+  @IsOptional()
+  @IsString()
+  instalacao_fornecedor_id?: string;
+
+  @ApiPropertyOptional({
+    description: 'Indica que a instalação já está incluída na cotação do parceiro',
+  })
+  @IsOptional()
+  @IsBoolean()
+  instalacao_incluida_cotacao?: boolean;
+
+  @ApiPropertyOptional({
+    enum: ['ENDERECO_UNICO', 'MULTIPLOS_ENDERECOS', 'A_DEFINIR'],
+    description: 'Previsão comercial de distribuição da instalação; os lotes são definidos no módulo de Instalação',
+  })
+  @IsOptional()
+  @IsIn(['ENDERECO_UNICO', 'MULTIPLOS_ENDERECOS', 'A_DEFINIR'])
+  instalacao_distribuicao?:
+    | 'ENDERECO_UNICO'
+    | 'MULTIPLOS_ENDERECOS'
+    | 'A_DEFINIR';
+
+  @ApiPropertyOptional({
+    description: 'Como o produto chegará ao cliente',
+    enum: [
+      'RETIRADA_CLIENTE',
+      'ENTREGA_EMPRESA',
+      'EQUIPE_INSTALACAO',
+      'ENTREGA_ANTES_INSTALACAO',
+      'PARCEIRO_DIRETO',
+    ],
+  })
+  @IsOptional()
+  @IsIn([
+    'RETIRADA_CLIENTE',
+    'ENTREGA_EMPRESA',
+    'EQUIPE_INSTALACAO',
+    'ENTREGA_ANTES_INSTALACAO',
+    'PARCEIRO_DIRETO',
+  ])
+  logistica_modo?: string;
+
+  @IsOptional()
+  @IsString()
+  entrega_produto_modalidade_id?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  entrega_produto_prazo_dias?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  entrega_produto_valor_cobrado?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  entrega_produto_custo_estimado?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50000)
+  entrega_produto_observacoes?: string;
 
   @ApiPropertyOptional({
     description: 'SKU snapshot do produto de prateleira',

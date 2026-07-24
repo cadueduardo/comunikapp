@@ -19,6 +19,8 @@ export type MotivoSkipLoteInstalacao =
   | 'PRODUCAO_INCOMPLETA'
   | 'SEM_ORCAMENTO'
   | 'ENDERECO_PENDENTE'
+  | 'AGUARDANDO_DISTRIBUICAO'
+  | 'FORNECEDOR_INVALIDO'
   | 'AGUARDANDO_PRODUCAO';
 
 export interface ResultadoCriacaoLoteInstalacao {
@@ -85,6 +87,10 @@ export class ItemOSInstalacaoCriacaoService {
         instalacao_cidade: true,
         instalacao_estado: true,
         instalacao_endereco_snapshot: true,
+        instalacao_executor_tipo: true,
+        instalacao_fornecedor_id: true,
+        instalacao_incluida_cotacao: true,
+        instalacao_distribuicao: true,
       },
     });
 
@@ -119,9 +125,15 @@ export class ItemOSInstalacaoCriacaoService {
       return { criado: false, motivo_skip: 'SEM_SALDO' };
     }
 
+    if (produto.instalacao_distribuicao !== 'ENDERECO_UNICO') {
+      await this.marcarDemandaInstalacao(params.lojaId, item.os.id);
+      return { criado: false, motivo_skip: 'AGUARDANDO_DISTRIBUICAO' };
+    }
+
     const endereco = montarEnderecoInstalacaoDoProduto(produto);
 
     if (enderecoInstalacaoPrecisaConfirmacao(endereco)) {
+      await this.marcarDemandaInstalacao(params.lojaId, item.os.id);
       return { criado: false, motivo_skip: 'ENDERECO_PENDENTE' };
     }
 
@@ -137,6 +149,15 @@ export class ItemOSInstalacaoCriacaoService {
         cidade: endereco.cidade,
         uf: endereco.uf,
         quantidade_alocada: quantidadeAlocar,
+        executor_tipo:
+          produto.instalacao_executor_tipo === 'PARCEIRO_PRODUCAO' ||
+          produto.instalacao_executor_tipo === 'OUTRO_PARCEIRO'
+            ? 'PARCEIRO'
+            : 'EQUIPE_INTERNA',
+        fornecedor_instalador_id:
+          produto.instalacao_fornecedor_id ?? null,
+        custo_incluido_cotacao:
+          produto.instalacao_incluida_cotacao ?? false,
       },
     });
 
@@ -220,6 +241,9 @@ export class ItemOSInstalacaoCriacaoService {
     equipeInstalacao?: string;
     responsavelLocal?: string;
     informarEquipe?: boolean;
+    executorTipo?: 'EQUIPE_INTERNA' | 'PARCEIRO';
+    fornecedorInstaladorId?: string;
+    custoIncluidoCotacao?: boolean;
   }): Promise<ResultadoCriacaoLoteInstalacao> {
     const item = await this.prisma.itemOS.findFirst({
       where: {
@@ -245,7 +269,12 @@ export class ItemOSInstalacaoCriacaoService {
         orcamento_id: item.os.orcamento_id,
         orcamento: { loja_id: params.lojaId },
       },
-      select: { instalacao_necessaria: true },
+      select: {
+        instalacao_necessaria: true,
+        instalacao_executor_tipo: true,
+        instalacao_fornecedor_id: true,
+        instalacao_incluida_cotacao: true,
+      },
     });
 
     if (!produto?.instalacao_necessaria) {
@@ -278,6 +307,37 @@ export class ItemOSInstalacaoCriacaoService {
     }
 
     const osId = item.os.id;
+    const executorTipo =
+      params.executorTipo ??
+      (produto.instalacao_executor_tipo === 'PARCEIRO_PRODUCAO' ||
+      produto.instalacao_executor_tipo === 'OUTRO_PARCEIRO'
+        ? 'PARCEIRO'
+        : 'EQUIPE_INTERNA');
+    const fornecedorInstaladorId =
+      executorTipo === 'EQUIPE_INTERNA'
+        ? null
+        : params.fornecedorInstaladorId ??
+          produto.instalacao_fornecedor_id ??
+          null;
+
+    if (executorTipo === 'PARCEIRO' && !fornecedorInstaladorId) {
+      return { criado: false, motivo_skip: 'FORNECEDOR_INVALIDO' };
+    }
+
+    if (fornecedorInstaladorId) {
+      const fornecedor = await this.prisma.fornecedor.findFirst({
+        where: {
+          id: fornecedorInstaladorId,
+          loja_id: params.lojaId,
+          ativo: true,
+          tipo: { in: ['TERCEIRIZADO', 'AMBOS'] },
+        },
+        select: { id: true },
+      });
+      if (!fornecedor) {
+        return { criado: false, motivo_skip: 'FORNECEDOR_INVALIDO' };
+      }
+    }
 
     const lote = await this.prisma.$transaction(async (tx) => {
       const criado = await tx.itemOSInstalacao.create({
@@ -297,6 +357,12 @@ export class ItemOSInstalacaoCriacaoService {
           equipe_instalacao: params.equipeInstalacao?.trim() || null,
           responsavel_local: params.responsavelLocal?.trim() || null,
           informar_equipe: params.informarEquipe ?? false,
+          executor_tipo: executorTipo,
+          fornecedor_instalador_id: fornecedorInstaladorId,
+          custo_incluido_cotacao:
+            params.custoIncluidoCotacao ??
+            produto.instalacao_incluida_cotacao ??
+            false,
         },
       });
 
@@ -410,5 +476,16 @@ export class ItemOSInstalacaoCriacaoService {
 
   private invalidarCacheBadgesMenu(lojaId: string): void {
     this.homeCacheService.invalidarPorPrefixo(`${lojaId}:`);
+  }
+
+  private async marcarDemandaInstalacao(
+    lojaId: string,
+    osId: string,
+  ): Promise<void> {
+    await this.prisma.ordemServico.updateMany({
+      where: { id: osId, loja_id: lojaId },
+      data: { status_instalacao_os: 'EM_ANDAMENTO' },
+    });
+    this.invalidarCacheBadgesMenu(lojaId);
   }
 }

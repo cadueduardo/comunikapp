@@ -166,6 +166,20 @@ export interface ProdutoOrcamento {
   instalacao_tempo_estimado_min?: number | null;
   instalacao_quantidade_pessoas?: number | null;
   instalacao_observacoes?: string | null;
+  instalacao_executor_tipo?:
+    | 'EQUIPE_INTERNA'
+    | 'PARCEIRO_PRODUCAO'
+    | 'OUTRO_PARCEIRO'
+    | null;
+  instalacao_fornecedor_id?: string | null;
+  instalacao_incluida_cotacao?: boolean;
+  instalacao_distribuicao?: 'ENDERECO_UNICO' | 'MULTIPLOS_ENDERECOS' | 'A_DEFINIR' | null;
+  logistica_modo?: string | null;
+  entrega_produto_modalidade_id?: string | null;
+  entrega_produto_prazo_dias?: number | null;
+  entrega_produto_valor_cobrado?: number | null;
+  entrega_produto_custo_estimado?: number | null;
+  entrega_produto_observacoes?: string | null;
 }
 
 export interface ItemInsumo {

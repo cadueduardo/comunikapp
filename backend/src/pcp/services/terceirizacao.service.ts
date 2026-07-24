@@ -6,6 +6,7 @@ import {
 import { StatusOrdemTerceirizacao } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AtualizarStatusTerceirizacaoDto } from '../dto/atualizar-status-terceirizacao.dto';
+import { ItemOSInstalacaoCriacaoService } from '../../instalacao/services/item-os-instalacao-criacao.service';
 
 const PROXIMOS_STATUS: Record<
   StatusOrdemTerceirizacao,
@@ -42,7 +43,10 @@ const PROXIMOS_STATUS: Record<
 
 @Injectable()
 export class TerceirizacaoService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly itemOSInstalacaoCriacaoService: ItemOSInstalacaoCriacaoService,
+  ) {}
 
   listar(lojaId: string, status?: StatusOrdemTerceirizacao) {
     return this.prisma.ordemTerceirizacao.findMany({
@@ -95,7 +99,7 @@ export class TerceirizacaoService {
     }
 
     const agora = new Date();
-    return this.prisma.ordemTerceirizacao.update({
+    const atualizada = await this.prisma.ordemTerceirizacao.update({
       where: { id },
       data: {
         status: dto.status,
@@ -120,5 +124,15 @@ export class TerceirizacaoService {
       },
       include: { fornecedor: true, item_os: true },
     });
+
+    if (dto.status === StatusOrdemTerceirizacao.PRONTO) {
+      await this.itemOSInstalacaoCriacaoService.processarBaixaProducao({
+        lojaId,
+        itemOsId: ordem.item_os_id,
+        quantidadeProduzida: Number(atualizada.item_os?.quantidade ?? 0),
+      });
+    }
+
+    return atualizada;
   }
 }

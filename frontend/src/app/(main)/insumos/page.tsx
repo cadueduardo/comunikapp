@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Grid3X3, List, Upload } from 'lucide-react';
 import Link from 'next/link';
@@ -12,7 +12,10 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { InsumoCard } from '@/components/ui/insumo-card';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { insumosApi, duplicarInsumo } from '@/lib/api-client';
-import { BulkImportDialog } from '@/components/crud/BulkImportDialog';
+import {
+  BulkImportDialog,
+  type BulkImportResult,
+} from '@/components/crud/BulkImportDialog';
 import {
   Select,
   SelectContent,
@@ -20,17 +23,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  MatrizFornecedoresCard,
+  type MatrizFornecedorApi,
+} from './editar/[id]/matriz-fornecedores-card';
 
 type StatusFilter = 'ativos' | 'inativos' | 'todos';
 
 export default function InsumosPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const criadoId = searchParams.get('criado');
   const [data, setData] = useState<Insumo[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ativos');
   const isMobile = useIsMobile();
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [matrizInsumo, setMatrizInsumo] = useState<Insumo | null>(null);
   const [inactivateDialog, setInactivateDialog] = useState<{
     open: boolean;
     insumoId: string | null;
@@ -46,7 +63,7 @@ export default function InsumosPage() {
     try {
       const token = localStorage.getItem('access_token');
       if (token) {
-        const data = await insumosApi.getAll(token);
+        const data = (await insumosApi.getAll(token)) as Insumo[];
         setData(data);
       }
     } catch (error) {
@@ -79,7 +96,7 @@ export default function InsumosPage() {
     if (!token) {
       throw new Error('Você precisa estar autenticado para importar.');
     }
-    const result = await insumosApi.importar(file, token);
+    const result = (await insumosApi.importar(file, token)) as BulkImportResult;
     toast.success('Importação finalizada. Verifique os resultados.');
     await fetchInsumos();
     return result;
@@ -246,8 +263,14 @@ export default function InsumosPage() {
                 openInactivateDialog,
                 handleReactivate,
                 handleDuplicate,
+                setMatrizInsumo,
               )}
               data={filteredData}
+              getRowClassName={(insumo) =>
+                insumo.id === criadoId
+                  ? 'bg-emerald-50 ring-1 ring-inset ring-emerald-400 dark:bg-emerald-950/30'
+                  : undefined
+              }
               onRowClick={(insumo) =>
                 router.push(`/insumos/editar/${insumo.id}`)
               }
@@ -265,6 +288,53 @@ export default function InsumosPage() {
         onConfirm={confirmInactivate}
         onCancel={closeInactivateDialog}
       />
+
+      <Dialog
+        open={Boolean(matrizInsumo)}
+        onOpenChange={(open) => !open && setMatrizInsumo(null)}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Fornecedores de {matrizInsumo?.nome}</DialogTitle>
+            <DialogDescription>
+              Inclua uma alternativa, atualize preços ou altere o fornecedor padrão sem abrir o cadastro completo.
+            </DialogDescription>
+          </DialogHeader>
+          {matrizInsumo && (
+            <MatrizFornecedoresCard
+              insumoId={matrizInsumo.id}
+              initialRows={
+                (matrizInsumo.fornecedores_associados ?? []) as MatrizFornecedorApi[]
+              }
+              onSaved={(result) => {
+                const padrao = result.fornecedores.find((item) => item.padrao);
+                setData((current) =>
+                  current.map((item) =>
+                    item.id === matrizInsumo.id
+                      ? {
+                          ...item,
+                          fornecedor: padrao?.fornecedor ?? item.fornecedor,
+                          custo_unitario: result.custo_unitario,
+                          fornecedores_associados: result.fornecedores,
+                        }
+                      : item,
+                  ),
+                );
+                setMatrizInsumo((current) =>
+                  current
+                    ? {
+                        ...current,
+                        fornecedor: padrao?.fornecedor ?? current.fornecedor,
+                        custo_unitario: result.custo_unitario,
+                        fornecedores_associados: result.fornecedores,
+                      }
+                    : null,
+                );
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <BulkImportDialog
         open={importDialogOpen}

@@ -706,24 +706,57 @@ export class InsumosService {
       );
     }
 
+    const matrizFornecedores = createInsumoDto.fornecedores?.map((item) => ({
+        fornecedor_id: item.fornecedor_id.trim(),
+        preco_custo: Number(item.preco_custo),
+        codigo_ref: item.codigo_ref?.trim() || null,
+        padrao: item.padrao,
+      })) ?? [
+        {
+          fornecedor_id: createInsumoDto.fornecedorId,
+          preco_custo: Number(createInsumoDto.custo_unitario),
+          codigo_ref: null,
+          padrao: true,
+        },
+      ];
+    const idsFornecedores = matrizFornecedores.map(
+      (item) => item.fornecedor_id,
+    );
+    const fornecedoresPadrao = matrizFornecedores.filter((item) => item.padrao);
+
+    if (new Set(idsFornecedores).size !== idsFornecedores.length) {
+      throw new BadRequestException(
+        'O mesmo fornecedor não pode aparecer mais de uma vez na matriz.',
+      );
+    }
+    if (fornecedoresPadrao.length !== 1) {
+      throw new BadRequestException(
+        'A matriz deve possuir exatamente um fornecedor padrão.',
+      );
+    }
+
+    const fornecedorPadrao = fornecedoresPadrao[0];
+    createInsumoDto.fornecedorId = fornecedorPadrao.fornecedor_id;
+    createInsumoDto.custo_unitario = fornecedorPadrao.preco_custo;
+
     if (createInsumoDto.fornecedorId && createInsumoDto.fornecedorId !== '') {
-      const fornecedor = await this.prisma.fornecedor.findFirst({
+      const fornecedoresValidos = await this.prisma.fornecedor.findMany({
         where: {
-          id: createInsumoDto.fornecedorId,
+          id: { in: idsFornecedores },
           loja_id: loja.id,
           ativo: true,
           tipo: { in: [TipoFornecedor.INSUMO, TipoFornecedor.AMBOS] },
         },
+        select: { id: true },
       });
 
       console.log('🔍 Verificação de fornecedor:', {
         fornecedorId: createInsumoDto.fornecedorId,
         loja_id: loja.id,
-        encontrado: !!fornecedor,
-        fornecedor: fornecedor,
+        encontrados: fornecedoresValidos.length,
       });
 
-      if (!fornecedor) {
+      if (fornecedoresValidos.length !== idsFornecedores.length) {
         console.error('❌ Fornecedor não encontrado:', {
           fornecedorId: createInsumoDto.fornecedorId,
           loja_id: loja.id,
@@ -743,6 +776,7 @@ export class InsumosService {
       tipo_material_id,
       categoriaId,
       fornecedorId,
+      fornecedores: _fornecedores,
       controlar_estoque,
       estoque_localizacao_id,
       estoque_quantidade_inicial,
@@ -752,6 +786,7 @@ export class InsumosService {
       estoque_observacoes,
       ...dataWithoutExtraFields
     } = createInsumoDto;
+    void _fornecedores;
 
     // Converter parametros_consumo para string JSON se for objeto
     const quantidadeCalculada = this.calcularQuantidadeTotal({
@@ -815,15 +850,15 @@ export class InsumosService {
           },
         });
 
-        await tx.insumoFornecedor.create({
-          data: {
+        await tx.insumoFornecedor.createMany({
+          data: matrizFornecedores.map((item) => ({
             loja_id: loja.id,
             insumo_id: insumoCriado.id,
-            fornecedor_id: fornecedorId,
-            preco_custo: createInsumoDto.custo_unitario,
-            codigo_ref: null,
-            padrao: true,
-          },
+            fornecedor_id: item.fornecedor_id,
+            preco_custo: item.preco_custo,
+            codigo_ref: item.codigo_ref,
+            padrao: item.padrao,
+          })),
         });
 
         const itemCriado = await this.sincronizarInsumoComEstoque(
@@ -932,10 +967,12 @@ export class InsumosService {
         categoria: true,
         fornecedor: true,
         tipoMaterial: true,
+        fornecedores_associados: {
+          include: { fornecedor: true },
+          orderBy: [{ padrao: 'desc' }, { preco_custo: 'asc' }],
+        },
       },
-      orderBy: {
-        nome: 'asc',
-      },
+      orderBy: [{ criado_em: 'desc' }, { nome: 'asc' }],
     });
 
     // Converter valores Decimal para números e processar campos personalizados
@@ -945,6 +982,12 @@ export class InsumosService {
         custo_unitario: Number(insumo.custo_unitario),
         quantidade_compra: Number(insumo.quantidade_compra),
         fator_conversao: Number(insumo.fator_conversao),
+        fornecedores_associados: insumo.fornecedores_associados.map(
+          (vinculo) => ({
+            ...vinculo,
+            preco_custo: Number(vinculo.preco_custo),
+          }),
+        ),
         largura: insumo.largura ? Number(insumo.largura) : null,
         altura: insumo.altura ? Number(insumo.altura) : null,
         gramatura: insumo.gramatura ? Number(insumo.gramatura) : null,

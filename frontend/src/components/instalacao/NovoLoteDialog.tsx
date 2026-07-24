@@ -78,8 +78,19 @@ export function NovoLoteDialog({
     () => ({
       ...ENDERECO_LOTE_VAZIO,
       quantidade_alocada: itemSelecionado?.saldo_disponivel ?? 1,
+      executor_tipo:
+        itemSelecionado?.executor_tipo_sugerido ?? 'EQUIPE_INTERNA',
+      fornecedor_instalador_id:
+        itemSelecionado?.fornecedor_instalador_id_sugerido ?? '',
+      custo_incluido_cotacao:
+        itemSelecionado?.custo_incluido_cotacao_sugerido ?? false,
     }),
-    [itemSelecionado?.saldo_disponivel],
+    [
+      itemSelecionado?.saldo_disponivel,
+      itemSelecionado?.executor_tipo_sugerido,
+      itemSelecionado?.fornecedor_instalador_id_sugerido,
+      itemSelecionado?.custo_incluido_cotacao_sugerido,
+    ],
   );
 
   function resetar() {

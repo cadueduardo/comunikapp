@@ -58,6 +58,12 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
   };
 
   const usarEnderecoCliente = form.watch('entrega_usar_endereco_cliente') !== false;
+  const produtos = (form.watch('itens_produto') || []) as Array<
+    Record<string, unknown>
+  >;
+  const possuiLogisticaPorProduto = produtos.some((produto) =>
+    Boolean(produto?.logistica_modo),
+  );
   const padraoLojaLegend =
     user?.loja?.tipo_margem_lucro === 'markup'
       ? 'Padrão da loja: Markup (por fora)'
@@ -292,6 +298,47 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
           {/* Bloco estruturado de Condicao de Pagamento (Fase 6) */}
           <CondicaoPagamentoFieldset mode={mode} />
 
+          {possuiLogisticaPorProduto ? (
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-700">
+                  Resumo da logística
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  A logística é definida em cada produto para evitar instruções
+                  contraditórias.
+                </p>
+              </div>
+              <div className="space-y-2">
+                {produtos.map((produto, index) => {
+                  const labels: Record<string, string> = {
+                    RETIRADA_CLIENTE: 'Retirada pelo cliente',
+                    ENTREGA_EMPRESA: 'Entrega pela empresa',
+                    EQUIPE_INSTALACAO: 'Levado pela equipe de instalação',
+                    ENTREGA_ANTES_INSTALACAO:
+                      'Entrega antes e instalação posterior',
+                    PARCEIRO_DIRETO: 'Envio direto pelo parceiro',
+                  };
+                  const modo = String(
+                    produto.logistica_modo || 'RETIRADA_CLIENTE',
+                  );
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between rounded border px-3 py-2 text-sm"
+                    >
+                      <span className="font-medium">
+                        {String(produto.nome_servico || `Produto ${index + 1}`)}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {labels[modo] || modo}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
           <div className="space-y-4 border-t pt-4">
             <h3 className="text-sm font-medium text-gray-700">Entrega</h3>
 
@@ -500,6 +547,7 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
               )}
             />
           </div>
+          )}
         </div>
       </CardContent>
     </Card>

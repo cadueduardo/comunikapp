@@ -8,9 +8,12 @@ describe('TerceirizacaoService', () => {
     findFirst: jest.fn(),
     update: jest.fn(),
   };
+  const itemOSInstalacaoCriacaoService = {
+    processarBaixaProducao: jest.fn(),
+  };
   const service = new TerceirizacaoService({
     ordemTerceirizacao,
-  } as any);
+  } as any, itemOSInstalacaoCriacaoService as any);
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -62,5 +65,33 @@ describe('TerceirizacaoService', () => {
         }),
       }),
     );
+  });
+
+  it('envia produto terceirizado pronto ao fluxo de instalação', async () => {
+    ordemTerceirizacao.findFirst.mockResolvedValue({
+      id: 'ordem-1',
+      item_os_id: 'item-1',
+      loja_id: 'loja-1',
+      status: StatusOrdemTerceirizacao.EM_PRODUCAO,
+    });
+    ordemTerceirizacao.update.mockResolvedValue({
+      id: 'ordem-1',
+      item_os: { id: 'item-1', quantidade: 8 },
+    });
+    itemOSInstalacaoCriacaoService.processarBaixaProducao.mockResolvedValue({
+      criado: true,
+    });
+
+    await service.atualizarStatus('loja-1', 'ordem-1', {
+      status: StatusOrdemTerceirizacao.PRONTO,
+    });
+
+    expect(
+      itemOSInstalacaoCriacaoService.processarBaixaProducao,
+    ).toHaveBeenCalledWith({
+      lojaId: 'loja-1',
+      itemOsId: 'item-1',
+      quantidadeProduzida: 8,
+    });
   });
 });

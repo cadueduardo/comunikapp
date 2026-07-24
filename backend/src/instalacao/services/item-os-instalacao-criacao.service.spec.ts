@@ -25,6 +25,8 @@ describe('ItemOSInstalacaoCriacaoService', () => {
       findFirst: jest.fn(),
     },
     workflowInstanciaSetor: { findMany: jest.fn() },
+    ordemServico: { updateMany: jest.fn() },
+    fornecedor: { findFirst: jest.fn() },
     $transaction: jest.fn(async (fn: (tx: typeof txMock) => Promise<unknown>) =>
       fn(txMock),
     ),
@@ -49,6 +51,7 @@ describe('ItemOSInstalacaoCriacaoService', () => {
           provide: InstalacaoExecucaoSyncService,
           useValue: {
             sincronizarAposMudancaLotes: jest.fn().mockResolvedValue(0),
+            promoverLoteSeAgendado: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],
@@ -85,6 +88,7 @@ describe('ItemOSInstalacaoCriacaoService', () => {
     });
     prismaMock.produtoOrcamento.findFirst.mockResolvedValue({
       instalacao_necessaria: true,
+      instalacao_distribuicao: 'ENDERECO_UNICO',
     });
     prismaMock.itemOSInstalacao.aggregate.mockResolvedValue({
       _sum: { quantidade_alocada: 0 },
@@ -105,6 +109,37 @@ describe('ItemOSInstalacaoCriacaoService', () => {
     expect(prismaMock.itemOSInstalacao.create).not.toHaveBeenCalled();
   });
 
+  it('encaminha múltiplos endereços para distribuição manual no módulo', async () => {
+    prismaMock.itemOS.findFirst.mockResolvedValue({
+      id: 'item-1',
+      quantidade: 10,
+      os: { id: 'os-1', orcamento_id: 'orc-1' },
+    });
+    prismaMock.produtoOrcamento.findFirst.mockResolvedValue({
+      instalacao_necessaria: true,
+      instalacao_distribuicao: 'MULTIPLOS_ENDERECOS',
+    });
+    prismaMock.itemOSInstalacao.aggregate.mockResolvedValue({
+      _sum: { quantidade_alocada: 0 },
+    });
+
+    const resultado = await service.processarBaixaProducao({
+      lojaId: 'loja-1',
+      itemOsId: 'item-1',
+      quantidadeProduzida: 10,
+    });
+
+    expect(resultado).toEqual({
+      criado: false,
+      motivo_skip: 'AGUARDANDO_DISTRIBUICAO',
+    });
+    expect(prismaMock.ordemServico.updateMany).toHaveBeenCalledWith({
+      where: { id: 'os-1', loja_id: 'loja-1' },
+      data: { status_instalacao_os: 'EM_ANDAMENTO' },
+    });
+    expect(prismaMock.itemOSInstalacao.create).not.toHaveBeenCalled();
+  });
+
   it('cria lote com baixa parcial informada', async () => {
     prismaMock.itemOS.findFirst.mockResolvedValue({
       id: 'item-1',
@@ -116,8 +151,12 @@ describe('ItemOSInstalacaoCriacaoService', () => {
       instalacao_logradouro: 'Rua A',
       instalacao_numero: '100',
       instalacao_bairro: 'Centro',
-      instalacao_cidade: 'São Paulo',
       instalacao_estado: 'SP',
+      instalacao_cidade: 'São Paulo',
+      instalacao_executor_tipo: 'PARCEIRO_PRODUCAO',
+      instalacao_fornecedor_id: 'fornecedor-1',
+      instalacao_incluida_cotacao: true,
+      instalacao_distribuicao: 'ENDERECO_UNICO',
     });
     prismaMock.itemOSInstalacao.aggregate.mockResolvedValue({
       _sum: { quantidade_alocada: 0 },
@@ -137,6 +176,9 @@ describe('ItemOSInstalacaoCriacaoService', () => {
         data: expect.objectContaining({
           quantidade_alocada: 3,
           loja_id: 'loja-1',
+          executor_tipo: 'PARCEIRO',
+          fornecedor_instalador_id: 'fornecedor-1',
+          custo_incluido_cotacao: true,
         }),
       }),
     );
@@ -167,6 +209,7 @@ describe('ItemOSInstalacaoCriacaoService', () => {
         instalacao_bairro: 'Centro',
         instalacao_cidade: 'SP',
         instalacao_estado: 'SP',
+        instalacao_distribuicao: 'ENDERECO_UNICO',
       });
     prismaMock.itemOSInstalacao.aggregate.mockResolvedValue({
       _sum: { quantidade_alocada: 0 },

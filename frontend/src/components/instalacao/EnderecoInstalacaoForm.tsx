@@ -19,6 +19,10 @@ import type { EnderecoLoteForm } from '@/lib/instalacao/instalacao.types';
 import { ENDERECO_LOTE_VAZIO } from '@/lib/instalacao/instalacao.types';
 import { TURNO_PREVISAO_OPCOES } from '@/lib/instalacao/instalacao-labels';
 import { IconLoader2, IconMapPin } from '@tabler/icons-react';
+import {
+  fornecedoresApi,
+  type FornecedorApi,
+} from '@/lib/api-client';
 
 interface EnderecoInstalacaoFormProps {
   valorInicial: EnderecoLoteForm;
@@ -56,6 +60,7 @@ export function EnderecoInstalacaoForm({
   const [form, setForm] = useState<EnderecoLoteForm>(valorInicial);
   const [salvando, setSalvando] = useState(false);
   const [erroValidacao, setErroValidacao] = useState<string | null>(null);
+  const [fornecedores, setFornecedores] = useState<FornecedorApi[]>([]);
   const formInicialRef = useRef(JSON.stringify(valorInicial));
 
   useEffect(() => {
@@ -65,6 +70,26 @@ export function EnderecoInstalacaoForm({
       formInicialRef.current = serializado;
     }
   }, [valorInicial]);
+
+  useEffect(() => {
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('access_token')
+        : null;
+    if (!token || !exibirAgenda) return;
+    fornecedoresApi
+      .getAll(token, 'TERCEIRIZACAO')
+      .then((lista) =>
+        setFornecedores(
+          lista.filter(
+            (item) =>
+              item.ativo !== false &&
+              (item.tipo === 'TERCEIRIZADO' || item.tipo === 'AMBOS'),
+          ),
+        ),
+      )
+      .catch(() => setFornecedores([]));
+  }, [exibirAgenda]);
 
   const { buscandoCep, modoManual, erroCep, handleCepChange } =
     useCepInstalacao({ buscarCep });
@@ -94,6 +119,13 @@ export function EnderecoInstalacaoForm({
       );
       return;
     }
+    if (
+      form.executor_tipo === 'PARCEIRO' &&
+      !form.fornecedor_instalador_id
+    ) {
+      setErroValidacao('Selecione o parceiro responsável por este lote.');
+      return;
+    }
     setErroValidacao(null);
 
     setSalvando(true);
@@ -112,6 +144,9 @@ export function EnderecoInstalacaoForm({
         equipe_instalacao: form.equipe_instalacao,
         responsavel_local: form.responsavel_local,
         informar_equipe: form.informar_equipe,
+        executor_tipo: form.executor_tipo,
+        fornecedor_instalador_id: form.fornecedor_instalador_id,
+        custo_incluido_cotacao: form.custo_incluido_cotacao,
       });
       formInicialRef.current = JSON.stringify(form);
     } catch (err) {
@@ -272,6 +307,76 @@ export function EnderecoInstalacaoForm({
             Agenda da instalação
           </p>
           <div className="grid w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="min-w-0 space-y-2">
+              <Label htmlFor="executor-instalacao">Executor deste lote</Label>
+              <Select
+                value={form.executor_tipo}
+                onValueChange={(valor) =>
+                  atualizar({
+                    executor_tipo: valor as EnderecoLoteForm['executor_tipo'],
+                    fornecedor_instalador_id:
+                      valor === 'EQUIPE_INTERNA'
+                        ? ''
+                        : form.fornecedor_instalador_id,
+                  })
+                }
+                disabled={desabilitado}
+              >
+                <SelectTrigger id="executor-instalacao">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EQUIPE_INTERNA">Equipe interna</SelectItem>
+                  <SelectItem value="PARCEIRO">Parceiro instalador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {form.executor_tipo === 'PARCEIRO' && (
+              <div className="min-w-0 space-y-2">
+                <Label htmlFor="parceiro-instalacao">Parceiro responsável</Label>
+                <Select
+                  value={form.fornecedor_instalador_id || undefined}
+                  onValueChange={(valor) =>
+                    atualizar({ fornecedor_instalador_id: valor })
+                  }
+                  disabled={desabilitado}
+                >
+                  <SelectTrigger id="parceiro-instalacao">
+                    <SelectValue placeholder="Selecione o parceiro" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {fornecedores.map((fornecedor) => (
+                      <SelectItem key={fornecedor.id} value={fornecedor.id}>
+                        {fornecedor.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {form.executor_tipo === 'PARCEIRO' && (
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-background/60 p-3 md:col-span-2">
+                <div>
+                  <Label htmlFor="custo-incluido-cotacao">
+                    Custo incluído na contratação original
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Indica que este lote não gera uma nova contratação de instalação.
+                  </p>
+                </div>
+                <Switch
+                  id="custo-incluido-cotacao"
+                  checked={form.custo_incluido_cotacao}
+                  disabled={desabilitado}
+                  onCheckedChange={(checked) =>
+                    atualizar({ custo_incluido_cotacao: checked })
+                  }
+                />
+              </div>
+            )}
+
             <DataPrevisaoInstalacaoPicker
               id="data-previsao-instalacao"
               valor={form.data_previsao}

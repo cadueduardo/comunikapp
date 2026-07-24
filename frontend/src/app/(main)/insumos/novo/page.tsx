@@ -4,9 +4,16 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { InsumoForm, InsumoFormValues } from '../insumo-form';
 import { insumosApi } from '@/lib/api-client';
+import {
+  MatrizFornecedoresDraft,
+  type MatrizFornecedorDraft,
+} from '../matriz-fornecedores-draft';
+import { useState } from 'react';
 
 export default function NovoInsumoPage() {
   const router = useRouter();
+  const [fornecedoresAlternativos, setFornecedoresAlternativos] =
+    useState<MatrizFornecedorDraft[]>([]);
 
   const handleSave = async (data: InsumoFormValues) => {
     try {
@@ -27,16 +34,43 @@ export default function NovoInsumoPage() {
         return parsed < 0 ? 0 : parsed;
       };
 
-      await insumosApi.create({
+      const matrizAlternativa = fornecedoresAlternativos.map((item) => ({
+        fornecedor_id: item.fornecedor_id,
+        preco_custo: Number(item.preco_custo),
+        ...(item.codigo_ref.trim() ? { codigo_ref: item.codigo_ref.trim() } : {}),
+        padrao: false,
+      }));
+      if (
+        matrizAlternativa.some(
+          (item) => !item.fornecedor_id || !Number.isFinite(item.preco_custo) || item.preco_custo <= 0,
+        )
+      ) {
+        toast.error('Complete fornecedor e preço em todas as alternativas.');
+        return;
+      }
+      if (matrizAlternativa.some((item) => item.fornecedor_id === data.fornecedorId)) {
+        toast.error('O fornecedor padrão não pode ser repetido nas alternativas.');
+        return;
+      }
+
+      const created = await insumosApi.create({
         ...data,
         custo_unitario: custo,
+        fornecedores: [
+          {
+            fornecedor_id: data.fornecedorId,
+            preco_custo: custo,
+            padrao: true,
+          },
+          ...matrizAlternativa,
+        ],
         estoque_minimo: toNonNegativeNumber(data.estoque_minimo),
         estoque_quantidade_inicial: toNonNegativeNumber(data.estoque_quantidade_inicial),
         estoque_maximo: toNonNegativeNumber(data.estoque_maximo),
-      }, token);
+      }, token) as { id?: string };
       
       toast.success('Insumo criado com sucesso!');
-      router.push('/insumos');
+      router.push(`/insumos?criado=${encodeURIComponent(created.id ?? '')}`);
     } catch (error) {
       toast.error('Ocorreu um erro ao conectar com o servidor.');
       console.error(error);
@@ -51,7 +85,16 @@ export default function NovoInsumoPage() {
           Preencha os detalhes do novo insumo abaixo.
         </p>
       </div>
-      <InsumoForm onSave={handleSave} sugerirNomesCadastrados />
+      <InsumoForm
+        onSave={handleSave}
+        sugerirNomesCadastrados
+        afterFields={
+          <MatrizFornecedoresDraft
+            rows={fornecedoresAlternativos}
+            onChange={setFornecedoresAlternativos}
+          />
+        }
+      />
     </div>
   );
 } 

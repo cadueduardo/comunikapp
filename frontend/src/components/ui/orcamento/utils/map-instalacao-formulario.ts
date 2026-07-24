@@ -54,6 +54,33 @@ export function mapInstalacaoProdutoBackendParaFormulario(
         ? String(produto.instalacao_quantidade_pessoas)
         : '',
     instalacao_observacoes: String(produto.instalacao_observacoes ?? ''),
+    instalacao_executor_tipo: String(
+      produto.instalacao_executor_tipo ?? 'EQUIPE_INTERNA',
+    ),
+    instalacao_fornecedor_id: String(produto.instalacao_fornecedor_id ?? ''),
+    instalacao_incluida_cotacao: Boolean(
+      produto.instalacao_incluida_cotacao,
+    ),
+    instalacao_distribuicao: String(
+      produto.instalacao_distribuicao ?? 'A_DEFINIR',
+    ),
+    logistica_modo: String(produto.logistica_modo ?? 'RETIRADA_CLIENTE'),
+    entrega_produto_modalidade_id: String(
+      produto.entrega_produto_modalidade_id ?? '',
+    ),
+    entrega_produto_prazo_dias:
+      produto.entrega_produto_prazo_dias != null
+        ? String(produto.entrega_produto_prazo_dias)
+        : '',
+    entrega_produto_valor_cobrado: formatarValorMoedaParaFormulario(
+      produto.entrega_produto_valor_cobrado,
+    ),
+    entrega_produto_custo_estimado: formatarValorMoedaParaFormulario(
+      produto.entrega_produto_custo_estimado,
+    ),
+    entrega_produto_observacoes: String(
+      produto.entrega_produto_observacoes ?? '',
+    ),
   };
 }
 
@@ -67,6 +94,10 @@ export function mapInstalacaoProdutoFormularioParaBackend(
   fixDecimal: FixDecimal,
 ): Record<string, unknown> {
   const instalacaoNecessaria = Boolean(produto.instalacao_necessaria);
+  const incluidaNaCotacao =
+    instalacaoNecessaria &&
+    produto.instalacao_executor_tipo !== 'EQUIPE_INTERNA' &&
+    Boolean(produto.instalacao_incluida_cotacao);
   return {
     instalacao_necessaria: instalacaoNecessaria,
     instalacao_tipo_id: produto.instalacao_tipo_id || undefined,
@@ -84,13 +115,13 @@ export function mapInstalacaoProdutoFormularioParaBackend(
     instalacao_bairro: produto.instalacao_bairro || undefined,
     instalacao_cidade: produto.instalacao_cidade || undefined,
     instalacao_estado: produto.instalacao_estado || undefined,
-    instalacao_preco_cobrado: instalacaoNecessaria
+    instalacao_preco_cobrado: instalacaoNecessaria && !incluidaNaCotacao
       ? fixDecimal(normalizarNumero(produto.instalacao_preco_cobrado))
       : 0,
-    instalacao_custo_mao_obra: instalacaoNecessaria
+    instalacao_custo_mao_obra: instalacaoNecessaria && !incluidaNaCotacao
       ? fixDecimal(normalizarNumero(produto.instalacao_custo_mao_obra))
       : 0,
-    instalacao_custo_deslocamento: instalacaoNecessaria
+    instalacao_custo_deslocamento: instalacaoNecessaria && !incluidaNaCotacao
       ? fixDecimal(normalizarNumero(produto.instalacao_custo_deslocamento))
       : 0,
     instalacao_tempo_estimado_min: instalacaoNecessaria
@@ -100,5 +131,27 @@ export function mapInstalacaoProdutoFormularioParaBackend(
       ? normalizarNumero(produto.instalacao_quantidade_pessoas) || undefined
       : undefined,
     instalacao_observacoes: produto.instalacao_observacoes || undefined,
+    instalacao_executor_tipo:
+      produto.instalacao_executor_tipo || 'EQUIPE_INTERNA',
+    instalacao_fornecedor_id:
+      produto.instalacao_executor_tipo === 'EQUIPE_INTERNA'
+        ? undefined
+        : produto.instalacao_fornecedor_id || undefined,
+    instalacao_incluida_cotacao: incluidaNaCotacao,
+    instalacao_distribuicao:
+      produto.instalacao_distribuicao || 'A_DEFINIR',
+    logistica_modo: produto.logistica_modo || 'RETIRADA_CLIENTE',
+    entrega_produto_modalidade_id:
+      produto.entrega_produto_modalidade_id || undefined,
+    entrega_produto_prazo_dias:
+      normalizarNumero(produto.entrega_produto_prazo_dias) || undefined,
+    entrega_produto_valor_cobrado: fixDecimal(
+      normalizarNumero(produto.entrega_produto_valor_cobrado),
+    ),
+    entrega_produto_custo_estimado: fixDecimal(
+      normalizarNumero(produto.entrega_produto_custo_estimado),
+    ),
+    entrega_produto_observacoes:
+      produto.entrega_produto_observacoes || undefined,
   };
 }

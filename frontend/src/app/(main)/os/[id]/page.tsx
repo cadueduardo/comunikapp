@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ClipboardList,
   Package,
+  Printer,
   Settings,
   MapPin,
   Wallet,

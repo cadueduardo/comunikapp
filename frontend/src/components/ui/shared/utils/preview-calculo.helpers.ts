@@ -708,6 +708,7 @@ export interface ProdutoPreviewCalculo {
   horas_producao: number;
   custos_indiretos_rateados: number;
   custo_terceirizacao?: number;
+  custo_entrega?: number;
 }
 
 export interface ProdutosPreviewResultado {
@@ -720,6 +721,7 @@ export interface ProdutosPreviewResultado {
     indiretos: number;
     horas: number;
     terceirizacao: number;
+    entrega: number;
   };
   custosIndiretosResumo?: CustosIndiretosResumo;
 }
@@ -746,6 +748,7 @@ export const calcularProdutosPreview = (
   let totalIndiretos = 0;
   let totalHoras = 0;
   let totalTerceirizacao = 0;
+  let totalEntrega = 0;
 
   const produtos = (itensProduto || []).map((item: any, index: number) => {
     const tipoItem = String(item?.tipo_item || 'SOB_DEMANDA').toUpperCase();
@@ -828,9 +831,11 @@ export const calcularProdutosPreview = (
     const custoMaquinas = maquinas.total;
     const custoFuncoes = funcoes.total;
     const custoServicos = servicos.total;
+    const modoFulfillment = String(item?.modo_fulfillment || 'MAKE');
+    const totalmenteTerceirizado = modoFulfillment === 'OUTSOURCE';
     const custoTerceirizacao =
-      item?.modo_fulfillment === 'OUTSOURCE' ||
-      item?.modo_fulfillment === 'HIBRIDO'
+      modoFulfillment === 'OUTSOURCE' ||
+      modoFulfillment === 'HIBRIDO'
         ? item?.terceirizacao_modelo_custo === 'PRECO_FECHADO'
           ? parseNumber(item?.terceirizacao_custo_total)
           : parseNumber(item?.terceirizacao_custo_unitario) *
@@ -838,20 +843,21 @@ export const calcularProdutosPreview = (
             parseNumber(item?.terceirizacao_custo_setup) +
             parseNumber(item?.terceirizacao_custo_frete)
         : 0;
+    const custoEntrega = parseNumber(item?.entrega_produto_custo_estimado);
+    const valorCobradoEntrega = parseNumber(item?.entrega_produto_valor_cobrado);
 
-    const custoBase =
-      custoMateriais +
-      custoMaquinas +
-      custoFuncoes +
-      custoServicos +
-      custoTerceirizacao;
+    const custoInterno =
+      custoMateriais + custoMaquinas + custoFuncoes + custoServicos;
+    const custoBaseSemEntrega = totalmenteTerceirizado
+      ? custoTerceirizacao
+      : custoInterno + custoTerceirizacao;
     // Só aplicar custos indiretos quando houver itens cadastrados
     const temCustosIndiretosCadastrados = Array.isArray(datasets.custosIndiretos) && datasets.custosIndiretos.length > 0;
     const custoIndiretos = temCustosIndiretosCadastrados
-      ? custoBase * (custosIndiretosPercentual / 100)
+      ? custoBaseSemEntrega * (custosIndiretosPercentual / 100)
       : 0;
 
-    const custoTotalProducao = custoBase + custoIndiretos;
+    const custoTotalProducao = custoBaseSemEntrega + custoIndiretos + custoEntrega;
 
     const percentualMargemDecimal = margemPercentual / 100;
     const percentualImpostosDecimal = impostosPercentual / 100;
@@ -861,12 +867,14 @@ export const calcularProdutosPreview = (
     if (tipoMargemLucro === 'markup') {
       const divisorMarkup = 1 - percentualImpostosDecimal - percentualComissaoDecimal;
       precoTotal = divisorMarkup > 0
-        ? (custoTotalProducao * (1 + percentualMargemDecimal)) / divisorMarkup
-        : custoTotalProducao * (1 + percentualMargemDecimal);
+        ? ((custoBaseSemEntrega + custoIndiretos) * (1 + percentualMargemDecimal)) / divisorMarkup
+        : (custoBaseSemEntrega + custoIndiretos) * (1 + percentualMargemDecimal);
     } else {
       const divisor = 1 - percentualImpostosDecimal - percentualComissaoDecimal - percentualMargemDecimal;
-      precoTotal = divisor > 0 ? custoTotalProducao / divisor : custoTotalProducao;
+      const custoPrecificavel = custoBaseSemEntrega + custoIndiretos;
+      precoTotal = divisor > 0 ? custoPrecificavel / divisor : custoPrecificavel;
     }
+    precoTotal += valorCobradoEntrega;
     
     // Calcular valores para exibição
     const impostosValor = precoTotal * percentualImpostosDecimal;
@@ -876,15 +884,20 @@ export const calcularProdutosPreview = (
     const quantidadeSegura = contexto.quantidade > 0 ? contexto.quantidade : 1;
     const precoUnitario = precoTotal / quantidadeSegura;
 
-    const horasTotal = maquinas.horas + funcoes.horas + servicos.horas;
+    const horasTotal = totalmenteTerceirizado
+      ? 0
+      : maquinas.horas + funcoes.horas + servicos.horas;
 
-    totalMateriais += custoMateriais;
-    totalMaquinas += custoMaquinas;
-    totalFuncoes += custoFuncoes;
-    totalServicos += custoServicos;
+    if (!totalmenteTerceirizado) {
+      totalMateriais += custoMateriais;
+      totalMaquinas += custoMaquinas;
+      totalFuncoes += custoFuncoes;
+      totalServicos += custoServicos;
+    }
     totalIndiretos += custoIndiretos;
     totalHoras += horasTotal;
     totalTerceirizacao += custoTerceirizacao;
+    totalEntrega += custoEntrega;
 
     return {
       id: `produto_${index}`,
@@ -909,6 +922,7 @@ export const calcularProdutosPreview = (
       horas_producao: horasTotal,
       custos_indiretos_rateados: custoIndiretos,
       custo_terceirizacao: custoTerceirizacao,
+      custo_entrega: custoEntrega,
     };
   });
   const resumoIndiretos = calcularResumoCustosIndiretos(datasets.custosIndiretos, totalIndiretos, totalHoras);
@@ -923,6 +937,7 @@ export const calcularProdutosPreview = (
       indiretos: totalIndiretos,
       horas: totalHoras,
       terceirizacao: totalTerceirizacao,
+      entrega: totalEntrega,
     },
     custosIndiretosResumo: resumoIndiretos,
   };

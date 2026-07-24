@@ -37,7 +37,7 @@ export type Insumo = {
   logica_consumo?: string | null;
   tipo_material_id?: string | null;
   tipoMaterialId?: string | null;
-  parametros_consumo?: any | null;
+  parametros_consumo?: unknown | null;
   controlar_estoque?: boolean | null;
   estoque_controlado?: boolean | null;
   estoque_item_id?: string | null;
@@ -80,6 +80,7 @@ export const createColumns = (
   onInactivate: (id: string, nome: string) => void,
   onReactivate?: (id: string, nome: string) => void,
   onDuplicate?: (id: string) => void,
+  onManageSuppliers?: (insumo: Insumo) => void,
 ): ColumnDef<Insumo>[] => [
   {
     accessorKey: 'nome',
@@ -218,6 +219,28 @@ export const createColumns = (
   {
     accessorKey: 'fornecedor.nome',
     header: 'Fornecedor',
+    cell: ({ row }) => {
+      const insumo = row.original;
+      const matriz = insumo.fornecedores_associados ?? [];
+      const padrao = matriz.find((item) => item.padrao)?.fornecedor;
+      const adicionais = Math.max(matriz.length - 1, 0);
+      return (
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 rounded px-1 py-0.5 hover:bg-muted hover:underline"
+          onClick={(event) => {
+            event.stopPropagation();
+            onManageSuppliers?.(insumo);
+          }}
+          title="Abrir matriz de fornecedores"
+        >
+          <span>{padrao?.nome ?? insumo.fornecedor.nome}</span>
+          {adicionais > 0 && (
+            <span className="text-xs font-medium text-primary">+{adicionais}</span>
+          )}
+        </button>
+      );
+    },
   },
   {
     accessorKey: 'ativo',

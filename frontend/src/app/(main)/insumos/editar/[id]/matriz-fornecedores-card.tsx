@@ -272,7 +272,7 @@ export function MatrizFornecedoresCard({
   };
 
   return (
-    <Card>
+    <Card id="matriz-fornecedores" className="scroll-mt-6">
       <CardHeader>
         <CardTitle>Matriz de Fornecedores e Custos</CardTitle>
         <p className="text-sm font-normal text-muted-foreground">

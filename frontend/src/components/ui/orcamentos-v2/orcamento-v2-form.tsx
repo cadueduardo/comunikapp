@@ -377,6 +377,16 @@ export function OrcamentoV2Form({
           instalacao_tempo_estimado_min: '',
           instalacao_quantidade_pessoas: '',
           instalacao_observacoes: '',
+          instalacao_executor_tipo: 'EQUIPE_INTERNA',
+          instalacao_fornecedor_id: '',
+          instalacao_incluida_cotacao: false,
+          instalacao_distribuicao: 'A_DEFINIR',
+          logistica_modo: 'RETIRADA_CLIENTE',
+          entrega_produto_modalidade_id: '',
+          entrega_produto_prazo_dias: '',
+          entrega_produto_valor_cobrado: '',
+          entrega_produto_custo_estimado: '',
+          entrega_produto_observacoes: '',
           tipo_item: 'SOB_DEMANDA',
           produto_finito_id: '',
           sku_snapshot: '',
@@ -780,6 +790,16 @@ export function OrcamentoV2Form({
               instalacao_tempo_estimado_min: '',
               instalacao_quantidade_pessoas: '',
               instalacao_observacoes: '',
+              instalacao_executor_tipo: 'EQUIPE_INTERNA',
+              instalacao_fornecedor_id: '',
+              instalacao_incluida_cotacao: false,
+              instalacao_distribuicao: 'A_DEFINIR',
+              logistica_modo: 'RETIRADA_CLIENTE',
+              entrega_produto_modalidade_id: '',
+              entrega_produto_prazo_dias: '',
+              entrega_produto_valor_cobrado: '',
+              entrega_produto_custo_estimado: '',
+              entrega_produto_observacoes: '',
               modo_fulfillment: 'MAKE',
               fornecedor_terceirizado_id: '',
               terceirizacao_modelo_custo: 'DETALHADO',
@@ -1168,7 +1188,26 @@ export function OrcamentoV2Form({
         fixDecimal,
       );
 
-    const montarEntregaOrcamento = () => ({
+    const usaLogisticaPorProduto = data.itens_produto?.some(
+      (produto) => Boolean(produto.logistica_modo),
+    );
+
+    const montarEntregaOrcamento = () => usaLogisticaPorProduto ? {
+      entrega_modalidade_id: undefined,
+      entrega_usar_endereco_cliente: true,
+      entrega_endereco_snapshot: undefined,
+      entrega_cep: undefined,
+      entrega_logradouro: undefined,
+      entrega_numero: undefined,
+      entrega_complemento: undefined,
+      entrega_bairro: undefined,
+      entrega_cidade: undefined,
+      entrega_estado: undefined,
+      entrega_prazo_dias: undefined,
+      entrega_valor_cobrado: 0,
+      entrega_custo_estimado: 0,
+      entrega_observacoes: undefined,
+    } : ({
       entrega_modalidade_id: data.entrega_modalidade_id || undefined,
       entrega_usar_endereco_cliente: data.entrega_usar_endereco_cliente !== false,
       entrega_endereco_snapshot: data.entrega_endereco_snapshot || undefined,
@@ -1410,6 +1449,46 @@ export function OrcamentoV2Form({
         const custoMaquinasProduto = somarCampo(maquinas, 'custo_total');
         const custoFuncoesProduto = somarCampo(funcoes, 'custo_total');
         const custoServicosProduto = somarCampo(servicos, 'custo_total');
+        const modoFulfillment = String(
+          (produtoFormulario as any).modo_fulfillment || 'MAKE',
+        );
+        const custoTerceirizacaoProduto = (() => {
+          if (modoFulfillment !== 'OUTSOURCE' && modoFulfillment !== 'HIBRIDO') {
+            return 0;
+          }
+          const modelo =
+            (produtoFormulario as any).terceirizacao_modelo_custo || 'DETALHADO';
+          if (modelo === 'PRECO_FECHADO') {
+            return fixDecimal(
+              normalizarNumero(
+                (produtoFormulario as any).terceirizacao_custo_total,
+              ),
+            );
+          }
+          return fixDecimal(
+            normalizarNumero(
+              (produtoFormulario as any).terceirizacao_custo_unitario,
+            ) *
+              quantidade +
+              normalizarNumero(
+                (produtoFormulario as any).terceirizacao_custo_setup,
+              ) +
+              normalizarNumero(
+                (produtoFormulario as any).terceirizacao_custo_frete,
+              ),
+          );
+        })();
+        const custoInternoProduto = fixDecimal(
+          custoMateriaisProduto +
+            custoMaquinasProduto +
+            custoFuncoesProduto +
+            custoServicosProduto,
+        );
+        const custoEntregaProduto = fixDecimal(
+          normalizarNumero(
+            (produtoFormulario as any).entrega_produto_custo_estimado,
+          ),
+        );
 
         const instalacao = montarInstalacaoProduto(produtoFormulario);
         const custoInstalacaoProduto = fixDecimal(
@@ -1421,8 +1500,13 @@ export function OrcamentoV2Form({
         );
 
         const custoTotalProducaoBase = fixDecimal(
-          previewProduto?.custo_total_producao ??
-            custoMateriaisProduto + custoMaquinasProduto + custoFuncoesProduto + custoServicosProduto,
+          modoFulfillment === 'OUTSOURCE'
+            ? custoTerceirizacaoProduto + custoEntregaProduto
+            : modoFulfillment === 'HIBRIDO'
+              ? custoInternoProduto +
+                custoTerceirizacaoProduto +
+                custoEntregaProduto
+              : custoInternoProduto + custoEntregaProduto,
         );
         const custoTotalProducao = fixDecimal(
           custoTotalProducaoBase + custoInstalacaoProduto,
@@ -1484,8 +1568,7 @@ export function OrcamentoV2Form({
           margem_lucro: margemLucroProduto,
           impostos: impostosProduto,
           ...instalacao,
-          modo_fulfillment:
-            (produtoFormulario as any).modo_fulfillment || 'MAKE',
+          modo_fulfillment: modoFulfillment,
           fornecedor_terceirizado_id:
             (produtoFormulario as any).fornecedor_terceirizado_id || undefined,
           terceirizacao_modelo_custo:
@@ -1572,15 +1655,7 @@ export function OrcamentoV2Form({
           0,
         ),
       );
-      const precoInstalacoes = fixDecimal(
-        produtosTransformadosPreview.reduce(
-          (total, produto) =>
-            total + Number(produto.instalacao_preco_cobrado || 0),
-          0,
-        ),
-      );
       const entrega = montarEntregaOrcamento();
-      const entregaValor = Number(entrega.entrega_valor_cobrado || 0);
       const entregaCusto = Number(entrega.entrega_custo_estimado || 0);
       const custoMaoObraProducao = fixDecimal(custoMaquinas + custoFuncoes + custoServicos);
       const custoMaoObra = fixDecimal(custoMaoObraProducao + custoInstalacoes);
@@ -1941,7 +2016,49 @@ export function OrcamentoV2Form({
         return total + (normalizarNumero(funcao.tempo_horas ?? funcao.horas_trabalhadas) * custoHora);
       }, 0) || 0;
 
-      const custoBaseProduto = custoMaterialProduto + custoMaquinaProduto + custoFuncaoProduto;
+      const custoServicoProduto = produto.servicos_manuais?.reduce(
+        (total: number, servico: any) => {
+          const servicoEncontrado = servicos.find(
+            (item) => item.id === servico.servico_id,
+          );
+          const custoHora = servicoEncontrado
+            ? Number(servicoEncontrado.custo_hora || 0)
+            : normalizarNumero(servico.custo_hora);
+          return (
+            total +
+            normalizarNumero(
+              servico.tempo_horas ?? servico.horas_trabalhadas,
+            ) *
+              custoHora
+          );
+        },
+        0,
+      ) || 0;
+      const modoFulfillment = String(produto.modo_fulfillment || 'MAKE');
+      const custoTerceirizacaoProduto =
+        modoFulfillment === 'OUTSOURCE' || modoFulfillment === 'HIBRIDO'
+          ? produto.terceirizacao_modelo_custo === 'PRECO_FECHADO'
+            ? normalizarNumero(produto.terceirizacao_custo_total)
+            : normalizarNumero(produto.terceirizacao_custo_unitario) *
+                quantidade +
+              normalizarNumero(produto.terceirizacao_custo_setup) +
+              normalizarNumero(produto.terceirizacao_custo_frete)
+          : 0;
+      const custoInternoProduto =
+        custoMaterialProduto +
+        custoMaquinaProduto +
+        custoFuncaoProduto +
+        custoServicoProduto;
+      const custoBaseProduto =
+        modoFulfillment === 'OUTSOURCE'
+          ? custoTerceirizacaoProduto +
+            normalizarNumero(produto.entrega_produto_custo_estimado)
+          : modoFulfillment === 'HIBRIDO'
+            ? custoInternoProduto +
+              custoTerceirizacaoProduto +
+              normalizarNumero(produto.entrega_produto_custo_estimado)
+            : custoInternoProduto +
+              normalizarNumero(produto.entrega_produto_custo_estimado);
       const custoIndiretoProduto = custoBaseProduto * (custosIndiretosPercentual / 100);
       const custoTotalProduto = custoBaseProduto + custoIndiretoProduto;
 
@@ -1950,7 +2067,9 @@ export function OrcamentoV2Form({
         custoTotalProduto,
         custoMaterialProduto,
         custoMaquinaProduto,
-        custoFuncaoProduto
+        custoFuncaoProduto,
+        custoServicoProduto,
+        custoTerceirizacaoProduto,
       };
     });
 
