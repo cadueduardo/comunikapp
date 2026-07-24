@@ -2,7 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { MessageCircleWarning, Loader2, Mail, Phone } from 'lucide-react';
+import {
+  Loader2,
+  Mail,
+  MessageCircleWarning,
+  Phone,
+  X,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@/contexts/UserContext';
 import { platformApi } from '@/lib/api-client';
@@ -14,9 +20,16 @@ import {
   buildBetaFeedbackWhatsAppUrl,
   isBetaFeedbackEnabled,
 } from '@/lib/beta-feedback-config';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -25,12 +38,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
+import { cn } from '@/lib/utils';
 
 function getPageContext(pathname: string) {
   const paginaUrl =
@@ -110,7 +118,9 @@ export function BetaFeedbackButton() {
       setOpen(false);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : 'Não foi possível enviar o feedback.',
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível enviar o feedback.',
       );
     } finally {
       setLoading(false);
@@ -125,7 +135,11 @@ export function BetaFeedbackButton() {
     }
 
     const message = buildBetaFeedbackWhatsAppMessage(feedbackPayload);
-    window.open(buildBetaFeedbackWhatsAppUrl(message), '_blank', 'noopener,noreferrer');
+    window.open(
+      buildBetaFeedbackWhatsAppUrl(message),
+      '_blank',
+      'noopener,noreferrer',
+    );
   };
 
   const openMailto = () => {
@@ -140,7 +154,7 @@ export function BetaFeedbackButton() {
 
   return (
     <>
-      <div className="fixed bottom-20 right-6 z-50 print:hidden md:bottom-6">
+      <div className="fixed bottom-20 right-4 z-50 print:hidden md:bottom-6 md:right-6">
         <Button
           type="button"
           onClick={() => setOpen(true)}
@@ -153,18 +167,46 @@ export function BetaFeedbackButton() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Beta · Feedback</DialogTitle>
-            <DialogDescription>
-              Encontrou algo estranho? Conte o que aconteceu. A pagina atual sera
-              enviada automaticamente para facilitar a investigacao.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent
+          showCloseButton={false}
+          className={cn(
+            'flex max-h-[min(92dvh,920px)] w-full flex-col gap-0 overflow-hidden p-0',
+            // Mobile: sheet inferior, sem estourar a viewport
+            'top-auto bottom-0 left-0 right-0 max-w-none translate-x-0 translate-y-0',
+            'rounded-t-2xl rounded-b-none border-x-0 border-b-0',
+            'data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom',
+            'data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100',
+            // Desktop: modal centralizado
+            'sm:top-[50%] sm:bottom-auto sm:left-[50%] sm:right-auto sm:max-w-lg',
+            'sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border',
+            'sm:data-[state=open]:slide-in-from-top-0 sm:data-[state=closed]:slide-out-to-top-0',
+            'sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:zoom-out-95',
+          )}
+        >
+          <div className="flex shrink-0 items-start gap-2 border-b px-4 py-3 pr-3">
+            <DialogHeader className="flex-1 space-y-1 text-left">
+              <DialogTitle>Beta · Feedback</DialogTitle>
+              <DialogDescription className="text-left">
+                Encontrou algo estranho? Conte o que aconteceu. A página atual
+                será enviada automaticamente.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="mt-0.5 h-9 w-9 shrink-0"
+                aria-label="Fechar"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </DialogClose>
+          </div>
 
-          <div className="space-y-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4">
             <div className="rounded-lg border bg-muted/40 p-3 text-sm">
-              <p className="font-medium">Pagina atual</p>
+              <p className="font-medium">Página atual</p>
               <p className="mt-1 break-all text-muted-foreground">
                 {pageContext.pagina_url || pageContext.pagina_path}
               </p>
@@ -176,26 +218,28 @@ export function BetaFeedbackButton() {
                 id="beta-feedback-descricao"
                 value={descricao}
                 onChange={(event) => setDescricao(event.target.value)}
-                placeholder="Ex.: ao salvar o orcamento apareceu erro 500..."
+                placeholder="Ex.: ao salvar o orçamento apareceu erro 500..."
                 rows={4}
+                className="max-h-40 resize-y"
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="beta-feedback-expectativa">
-                O que voce esperava? (opcional)
+                O que você esperava? (opcional)
               </Label>
               <Textarea
                 id="beta-feedback-expectativa"
                 value={expectativa}
                 onChange={(event) => setExpectativa(event.target.value)}
-                placeholder="Ex.: o orcamento deveria salvar e voltar para a lista."
+                placeholder="Ex.: o orçamento deveria salvar e voltar para a lista."
                 rows={3}
+                className="max-h-32 resize-y"
               />
             </div>
 
             <Accordion type="single" collapsible>
-              <AccordionItem value="detalhes" className="border rounded-lg px-3">
+              <AccordionItem value="detalhes" className="rounded-lg border px-3">
                 <AccordionTrigger className="py-3 hover:no-underline">
                   Detalhes enviados automaticamente
                 </AccordionTrigger>
@@ -205,7 +249,7 @@ export function BetaFeedbackButton() {
                     {pageContext.pagina_path}
                   </p>
                   <p>
-                    <strong className="text-foreground">Usuario:</strong>{' '}
+                    <strong className="text-foreground">Usuário:</strong>{' '}
                     {user?.nome_completo || 'N/A'} ({user?.email || 'N/A'})
                   </p>
                   <p>
@@ -213,7 +257,7 @@ export function BetaFeedbackButton() {
                     {user?.loja?.nome || 'N/A'}
                   </p>
                   <p>
-                    <strong className="text-foreground">Versao:</strong>{' '}
+                    <strong className="text-foreground">Versão:</strong>{' '}
                     {pageContext.versao_plataforma}
                   </p>
                 </AccordionContent>
@@ -223,9 +267,9 @@ export function BetaFeedbackButton() {
             <div className="rounded-lg border p-3 text-sm">
               <p className="font-medium">Prefere enviar manualmente?</p>
               <p className="mt-1 text-muted-foreground">
-                Voce tambem pode falar direto conosco:
+                Você também pode falar direto conosco:
               </p>
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <div className="mt-3 flex flex-col gap-2">
                 <Button type="button" variant="outline" size="sm" asChild>
                   <a href={`mailto:${BETA_FEEDBACK_CONFIG.email}`}>
                     <Mail className="mr-2 h-4 w-4" />
@@ -246,26 +290,19 @@ export function BetaFeedbackButton() {
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:justify-between">
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={openMailto}
-                disabled={loading}
-              >
-                Enviar por e-mail
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={openWhatsApp}
-                disabled={loading}
-              >
-                Enviar por WhatsApp
-              </Button>
-            </div>
-            <Button type="button" onClick={handleSubmit} disabled={loading}>
+          <DialogFooter
+            className={cn(
+              'shrink-0 gap-2 border-t bg-background px-4 py-3',
+              'pb-[max(0.75rem,env(safe-area-inset-bottom))]',
+              'flex-col sm:flex-col',
+            )}
+          >
+            <Button
+              type="button"
+              className="w-full"
+              onClick={handleSubmit}
+              disabled={loading}
+            >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -275,6 +312,31 @@ export function BetaFeedbackButton() {
                 'Enviar reporte'
               )}
             </Button>
+            <div className="flex w-full flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={openMailto}
+                disabled={loading}
+              >
+                Enviar por e-mail
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={openWhatsApp}
+                disabled={loading}
+              >
+                Enviar por WhatsApp
+              </Button>
+            </div>
+            <DialogClose asChild>
+              <Button type="button" variant="ghost" className="w-full sm:hidden">
+                Fechar
+              </Button>
+            </DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>
