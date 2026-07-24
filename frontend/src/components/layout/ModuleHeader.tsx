@@ -30,7 +30,7 @@ type ModuleHeaderProps = {
 /**
  * Header de módulo.
  * Desktop: título estático + botão "Seções" (submenu).
- * Mobile: título estático; seções ficam no ModuleBottomNav (layout do módulo).
+ * Mobile: título estático; seções via rodapé "Navegar em …" (ModuleBottomNav).
  */
 export function ModuleHeader({
   nav,

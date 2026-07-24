@@ -15,8 +15,8 @@ type ModuleLayoutShellProps = {
 };
 
 /**
- * Shell do módulo: reserva espaço no mobile para o footer de seções
- * e monta o ModuleBottomNav. Use no layout.tsx de cada módulo.
+ * Shell do módulo: reserva espaço no mobile para o rodapé
+ * "Navegar em …" e monta o ModuleBottomNav. Use no layout.tsx de cada módulo.
  */
 export function ModuleLayoutShell({
   nav,
