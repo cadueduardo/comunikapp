@@ -1625,9 +1625,9 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
 
           return (
           <AccordionItem key={field.id} value={`item-${index}`}>
-            <Card>
+            <Card flatOnMobile>
               <AccordionTrigger
-                className={`px-6 !py-0${somenteLeitura ? ' pointer-events-none cursor-default [&>svg]:opacity-40' : ''}`}
+                className={`px-6 max-md:px-0 !py-0${somenteLeitura ? ' pointer-events-none cursor-default [&>svg]:opacity-40' : ''}`}
               >
                 <div className="flex items-center justify-between w-full pr-4">
                   <div className="flex items-center space-x-4">

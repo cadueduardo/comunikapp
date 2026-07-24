@@ -28,7 +28,7 @@ export function TipoPrioridadeSection({ modo }: TipoPrioridadeSectionProps) {
   }
 
   return (
-    <Card>
+    <Card flatOnMobile>
       <CardHeader>
         <CardTitle>Tipo e Prioridade</CardTitle>
       </CardHeader>

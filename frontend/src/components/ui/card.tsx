@@ -2,12 +2,19 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Card({ className, ...props }: React.ComponentProps<"div">) {
+type CardProps = React.ComponentProps<"div"> & {
+  /** No mobile: sem borda/sombra/raio — seção flat com mais largura útil. */
+  flatOnMobile?: boolean
+}
+
+function Card({ className, flatOnMobile = false, ...props }: CardProps) {
   return (
     <div
       data-slot="card"
       className={cn(
         "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+        flatOnMobile &&
+          "max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:py-0 max-md:shadow-none max-md:gap-3 max-md:[&_[data-slot=card-header]]:px-0 max-md:[&_[data-slot=card-content]]:px-0 max-md:[&_[data-slot=card-footer]]:px-0",
         className
       )}
       {...props}

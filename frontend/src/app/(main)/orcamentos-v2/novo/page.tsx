@@ -485,7 +485,7 @@ export default function NovoOrcamentoV2Page() {
 
   return (
     <div className="min-h-screen">
-      <div className="w-full p-4 lg:p-6">
+      <div className="w-full p-3 sm:p-4 lg:p-6">
         {/* Área do Título - isolada */}
         <div className="mb-6">
           <div className="flex items-center space-x-4">

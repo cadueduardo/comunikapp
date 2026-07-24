@@ -3049,7 +3049,7 @@ export function OrcamentoV2Form({
             <div className="flex flex-col lg:flex-row gap-6">
               {/* Formulário principal */}
               <div className="flex-1">
-                <div className="w-full bg-white rounded-lg shadow-sm border p-6 space-y-6">
+                <div className="w-full bg-white rounded-lg shadow-sm border p-6 space-y-6 max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-3 max-md:shadow-none max-md:space-y-4">
                   {isAprovado && (
                     <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm font-medium">
                       Orçamento aprovado — somente visualização. Nenhuma alteração é permitida.
@@ -3299,7 +3299,7 @@ export function OrcamentoV2Form({
             </>
           ) : (
             /* Layout sem Preview - Formulário completo */
-            <div className="w-full bg-white rounded-lg shadow-sm border p-6 space-y-6">
+            <div className="w-full bg-white rounded-lg shadow-sm border p-6 space-y-6 max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-3 max-md:shadow-none max-md:space-y-4">
               {isAprovado && (
                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm font-medium">
                   Orçamento aprovado — somente visualização. Nenhuma alteração é permitida.

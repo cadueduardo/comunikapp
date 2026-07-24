@@ -31,7 +31,7 @@ export function ClienteSection({ clientes, mode }: ClienteSectionProps) {
     if (clienteId) {
       const cliente = clientes.find(c => c.id === clienteId);
       return (
-        <Card>
+        <Card flatOnMobile>
           <CardHeader>
             <CardTitle>Cliente</CardTitle>
           </CardHeader>
@@ -48,7 +48,7 @@ export function ClienteSection({ clientes, mode }: ClienteSectionProps) {
 
   // Em modo novo ou rascunho sem cliente, permitir seleção
   return (
-    <Card>
+    <Card flatOnMobile>
       <CardHeader>
         <CardTitle>Cliente</CardTitle>
       </CardHeader>

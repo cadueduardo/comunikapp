@@ -20,7 +20,7 @@ export function ModeloOrcamentoSection({
   }
 
   return (
-    <Card>
+    <Card flatOnMobile>
       <CardHeader>
         <CardTitle className="text-base">Modelo de orçamento</CardTitle>
         <CardDescription>

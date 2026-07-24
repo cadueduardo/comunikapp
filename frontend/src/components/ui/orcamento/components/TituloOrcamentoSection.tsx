@@ -17,7 +17,7 @@ export function TituloOrcamentoSection({ modo }: TituloOrcamentoSectionProps) {
   const isEdicao = modo === 'editar';
 
   return (
-    <Card>
+    <Card flatOnMobile>
       <CardHeader>
         <CardTitle>Título do Orçamento</CardTitle>
       </CardHeader>
