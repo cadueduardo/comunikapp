@@ -29,13 +29,13 @@ type ModuleHeaderProps = {
 
 /**
  * Header de módulo.
- * Desktop: uma linha — título · módulo | Seções | ações (sem subtítulo).
- * Mobile: título + subtítulo; seções no rodapé (ModuleBottomNav).
+ * Desktop e mobile: título compacto (sem subtítulo) para ganhar área útil.
+ * Desktop: + botão Seções. Mobile: seções no rodapé (ModuleBottomNav).
  */
 export function ModuleHeader({
   nav,
   title,
-  subtitle,
+  subtitle: _subtitle,
   icon,
   actions,
   backHref,
@@ -62,22 +62,14 @@ export function ModuleHeader({
 
   return (
     <>
-      {/* Mobile — layout atual (rodapé cuida da navegação) */}
-      <div className="flex flex-col gap-4 md:hidden">
-        <div className="flex min-w-0 items-start gap-3">
-          {backButton ? <div className="mt-1">{backButton}</div> : null}
-          <div className="min-w-0">
-            <p className="px-2 text-sm font-medium text-muted-foreground">
-              {nav.label}
-            </p>
-            <h1 className="flex items-center gap-2 px-2 text-2xl font-bold tracking-tight text-foreground">
-              {icon}
-              <span className="min-w-0 break-words">{displayTitle}</span>
-            </h1>
-            {subtitle ? (
-              <p className="mt-1 px-2 text-muted-foreground">{subtitle}</p>
-            ) : null}
-          </div>
+      {/* Mobile — compacto, sem subtítulo */}
+      <div className="flex flex-col gap-3 md:hidden">
+        <div className="flex min-w-0 items-center gap-3">
+          {backButton}
+          <h1 className="flex min-w-0 items-center gap-2 text-2xl font-bold tracking-tight text-foreground">
+            {icon}
+            <span className="min-w-0 break-words">{displayTitle}</span>
+          </h1>
         </div>
         {actions ? (
           <div className="flex flex-shrink-0 flex-wrap gap-2">{actions}</div>
