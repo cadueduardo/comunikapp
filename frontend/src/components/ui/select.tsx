@@ -76,52 +76,54 @@ const SelectContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
 >(({ className, children, position = 'popper', ...props }, ref) => (
   <SelectPrimitive.Portal>
-    {/* Overlay só no mobile; Content monta apenas quando aberto. */}
-    <div
-      className="fixed inset-0 z-50 bg-black/40 md:hidden"
-      aria-hidden
-    />
-    <SelectPrimitive.Content
-      ref={ref}
-      className={cn(
-        'relative z-[51] max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
-        'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
-        position === 'popper' &&
-          'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
-        // Mobile bottom sheet
-        'max-md:!fixed max-md:!inset-x-0 max-md:!bottom-0 max-md:!top-auto max-md:!left-0 max-md:!right-0',
-        'max-md:!z-[51] max-md:!max-h-[min(75dvh,32rem)] max-md:!w-full max-md:!min-w-full',
-        'max-md:!translate-x-0 max-md:!translate-y-0 max-md:rounded-t-2xl max-md:rounded-b-none',
-        'max-md:border-x-0 max-md:border-b-0 max-md:pb-[env(safe-area-inset-bottom)]',
-        'max-md:data-[state=open]:slide-in-from-bottom max-md:data-[state=closed]:slide-out-to-bottom',
-        'max-md:data-[state=open]:zoom-in-100 max-md:data-[state=closed]:zoom-out-100',
-        'max-md:data-[side=bottom]:translate-y-0 max-md:data-[side=top]:translate-y-0',
-        className,
-      )}
-      position={position}
-      {...props}
-    >
+    {/* Portal do Radix exige um único filho (Children.only). */}
+    <div className="contents">
       <div
-        className="flex justify-center pb-1 pt-2 md:hidden"
+        className="fixed inset-0 z-50 bg-black/40 md:hidden"
         aria-hidden
-      >
-        <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
-      </div>
-      <SelectScrollUpButton className="max-md:hidden" />
-      <SelectPrimitive.Viewport
+      />
+      <SelectPrimitive.Content
+        ref={ref}
         className={cn(
-          'p-1',
+          'relative z-[51] max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md',
+          'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+          'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
           position === 'popper' &&
-            'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]',
-          // Mobile: altura livre + scroll interno
-          'max-md:!h-auto max-md:max-h-[min(65dvh,28rem)] max-md:w-full max-md:min-w-full max-md:overflow-y-auto max-md:overscroll-contain max-md:p-2',
+            'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
+          // Mobile bottom sheet
+          'max-md:!fixed max-md:!inset-x-0 max-md:!bottom-0 max-md:!top-auto max-md:!left-0 max-md:!right-0',
+          'max-md:!z-[51] max-md:!max-h-[min(75dvh,32rem)] max-md:!w-full max-md:!min-w-full',
+          'max-md:!translate-x-0 max-md:!translate-y-0 max-md:rounded-t-2xl max-md:rounded-b-none',
+          'max-md:border-x-0 max-md:border-b-0 max-md:pb-[env(safe-area-inset-bottom)]',
+          'max-md:data-[state=open]:slide-in-from-bottom max-md:data-[state=closed]:slide-out-to-bottom',
+          'max-md:data-[state=open]:zoom-in-100 max-md:data-[state=closed]:zoom-out-100',
+          'max-md:data-[side=bottom]:translate-y-0 max-md:data-[side=top]:translate-y-0',
+          className,
         )}
+        position={position}
+        {...props}
       >
-        {children}
-      </SelectPrimitive.Viewport>
-      <SelectScrollDownButton className="max-md:hidden" />
-    </SelectPrimitive.Content>
+        <div
+          className="flex justify-center pb-1 pt-2 md:hidden"
+          aria-hidden
+        >
+          <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+        </div>
+        <SelectScrollUpButton className="max-md:hidden" />
+        <SelectPrimitive.Viewport
+          className={cn(
+            'p-1',
+            position === 'popper' &&
+              'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]',
+            // Mobile: altura livre + scroll interno
+            'max-md:!h-auto max-md:max-h-[min(65dvh,28rem)] max-md:w-full max-md:min-w-full max-md:overflow-y-auto max-md:overscroll-contain max-md:p-2',
+          )}
+        >
+          {children}
+        </SelectPrimitive.Viewport>
+        <SelectScrollDownButton className="max-md:hidden" />
+      </SelectPrimitive.Content>
+    </div>
   </SelectPrimitive.Portal>
 ));
 SelectContent.displayName = SelectPrimitive.Content.displayName;
