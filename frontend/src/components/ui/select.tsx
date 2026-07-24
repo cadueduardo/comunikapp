@@ -1,11 +1,17 @@
 'use client';
 
 import * as React from 'react';
-import { createPortal } from 'react-dom';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+
+/** Remove overlays órfãos de tentativas anteriores (tela preta). */
+if (typeof document !== 'undefined') {
+  document
+    .querySelectorAll('[data-select-mobile-backdrop]')
+    .forEach((el) => el.remove());
+}
 
 const Select = SelectPrimitive.Root;
 
@@ -69,34 +75,8 @@ SelectScrollDownButton.displayName =
   SelectPrimitive.ScrollDownButton.displayName;
 
 /**
- * Backdrop mobile montado via createPortal no body.
- * Sobe/desce junto com o Content (não é irmão no Portal do Radix).
- */
-function SelectMobileBackdrop() {
-  const [ready, setReady] = React.useState(false);
-
-  React.useEffect(() => {
-    setReady(true);
-    return () => setReady(false);
-  }, []);
-
-  if (!ready || typeof document === 'undefined') {
-    return null;
-  }
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 bg-black/40 md:hidden"
-      aria-hidden
-      data-select-mobile-backdrop=""
-    />,
-    document.body,
-  );
-}
-
-/**
  * Desktop: dropdown popper padrão.
- * Mobile (< md): bottom sheet com lista scrollável — evita estourar a viewport.
+ * Mobile: mesma âncora do trigger, com altura máxima e scroll (sem overlay fullscreen).
  */
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
@@ -106,41 +86,29 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        'relative z-[51] max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md',
+        'relative z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md',
+        'max-h-[min(24rem,70vh)] max-md:max-h-[min(20rem,50dvh)]',
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
         'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
         position === 'popper' &&
           'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
-        // Mobile bottom sheet
-        'max-md:!fixed max-md:!inset-x-0 max-md:!bottom-0 max-md:!top-auto max-md:!left-0 max-md:!right-0',
-        'max-md:!z-[51] max-md:!max-h-[min(75dvh,32rem)] max-md:!w-full max-md:!min-w-full',
-        'max-md:!translate-x-0 max-md:!translate-y-0 max-md:rounded-t-2xl max-md:rounded-b-none',
-        'max-md:border-x-0 max-md:border-b-0 max-md:pb-[env(safe-area-inset-bottom)]',
-        'max-md:shadow-[0_-8px_30px_rgba(0,0,0,0.18)]',
-        'max-md:data-[state=open]:slide-in-from-bottom max-md:data-[state=closed]:slide-out-to-bottom',
-        'max-md:data-[state=open]:zoom-in-100 max-md:data-[state=closed]:zoom-out-100',
-        'max-md:data-[side=bottom]:translate-y-0 max-md:data-[side=top]:translate-y-0',
         className,
       )}
       position={position}
       {...props}
     >
-      <SelectMobileBackdrop />
-      <div className="flex justify-center pb-1 pt-2 md:hidden" aria-hidden>
-        <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
-      </div>
-      <SelectScrollUpButton className="max-md:hidden" />
+      <SelectScrollUpButton />
       <SelectPrimitive.Viewport
         className={cn(
-          'p-1',
+          'p-1 overflow-y-auto overscroll-contain',
+          'max-h-[min(22rem,66vh)] max-md:max-h-[min(18rem,46dvh)]',
           position === 'popper' &&
-            'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]',
-          'max-md:!h-auto max-md:max-h-[min(65dvh,28rem)] max-md:w-full max-md:min-w-full max-md:overflow-y-auto max-md:overscroll-contain max-md:p-2',
+            'w-full min-w-[var(--radix-select-trigger-width)]',
         )}
       >
         {children}
       </SelectPrimitive.Viewport>
-      <SelectScrollDownButton className="max-md:hidden" />
+      <SelectScrollDownButton />
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
 ));
@@ -166,7 +134,7 @@ const SelectItem = React.forwardRef<
     ref={ref}
     className={cn(
       'relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-      'max-md:min-h-11 max-md:rounded-md max-md:py-3',
+      'max-md:min-h-11 max-md:py-3',
       className,
     )}
     {...props}
