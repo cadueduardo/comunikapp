@@ -216,9 +216,9 @@
 }
 
 /*
- * Backdrop do Select em mobile (bottom sheet).
- * Usa classe no body — sem nó React no Portal (evita tela preta órfã).
- * pointer-events: none para o clique “fora” fechar o Select via Radix.
+ * Backdrop + posição do Select em mobile (bottom sheet).
+ * Classe no body — sem nó React no Portal (evita tela preta órfã).
+ * CSS reforça left/right/width para listas curtas não flutuarem no meio.
  */
 @media (max-width: 767px) {
   body.select-mobile-sheet-open::before {
@@ -228,5 +228,21 @@
     z-index: 50;
     background: rgb(0 0 0 / 0.4);
     pointer-events: none;
+  }
+
+  body.select-mobile-sheet-open [data-mobile-select-sheet] {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    transform: none !important;
+    translate: none !important;
+    width: 100% !important;
+    max-width: 100dvw !important;
+    min-width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
   }
 }

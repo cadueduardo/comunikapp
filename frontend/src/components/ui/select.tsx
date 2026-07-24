@@ -4,7 +4,6 @@ import * as React from 'react';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 
-import { useMediaQuery } from '@/hooks/use-media-query';
 import { cn } from '@/lib/utils';
 
 const MOBILE_SHEET_BODY_CLASS = 'select-mobile-sheet-open';
@@ -26,6 +25,29 @@ function releaseMobileSheetBackdrop() {
   if (mobileSheetOpenCount === 0) {
     document.body.classList.remove(MOBILE_SHEET_BODY_CLASS);
   }
+}
+
+function subscribeMobile(onStoreChange: () => void) {
+  const mq = window.matchMedia(MOBILE_QUERY);
+  mq.addEventListener('change', onStoreChange);
+  return () => mq.removeEventListener('change', onStoreChange);
+}
+
+function getMobileSnapshot() {
+  return window.matchMedia(MOBILE_QUERY).matches;
+}
+
+function getMobileServerSnapshot() {
+  return false;
+}
+
+/** Snapshot síncrono no client — evita sheet “flutuando” no 1º paint. */
+function useIsMobileSelect() {
+  return React.useSyncExternalStore(
+    subscribeMobile,
+    getMobileSnapshot,
+    getMobileServerSnapshot,
+  );
 }
 
 type SelectProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>;
@@ -146,7 +168,7 @@ SelectScrollDownButton.displayName =
 
 /**
  * Desktop: dropdown popper.
- * Mobile: bottom sheet estilo Android (lista full-width na base da tela).
+ * Mobile: sempre bottom sheet full-width (texto curto ou longo).
  */
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
@@ -165,98 +187,112 @@ const SelectContent = React.forwardRef<
     },
     ref,
   ) => {
-  const isMobile = useMediaQuery(MOBILE_QUERY);
-  const contentRef = React.useRef<HTMLDivElement | null>(null);
+    const isMobile = useIsMobileSelect();
+    const contentRef = React.useRef<HTMLDivElement | null>(null);
 
-  const setRefs = React.useCallback(
-    (node: HTMLDivElement | null) => {
-      contentRef.current = node;
-      if (typeof ref === 'function') {
-        ref(node);
-      } else if (ref) {
-        ref.current = node;
-      }
-    },
-    [ref],
-  );
+    const setRefs = React.useCallback(
+      (node: HTMLDivElement | null) => {
+        contentRef.current = node;
+        if (typeof ref === 'function') {
+          ref(node);
+        } else if (ref) {
+          ref.current = node;
+        }
+      },
+      [ref],
+    );
 
-  // Radix aplica top/left/transform inline — no mobile forçamos sheet na base.
-  React.useLayoutEffect(() => {
-    if (!isMobile) return;
-    const el = contentRef.current;
-    if (!el) return;
+    // Sempre consulta matchMedia (não depende só do state) e re-aplica se o Radix mudar o style.
+    React.useLayoutEffect(() => {
+      const el = contentRef.current;
+      if (!el) return;
 
-    const pinToBottom = () => {
-      el.style.setProperty('position', 'fixed', 'important');
-      el.style.setProperty('top', 'auto', 'important');
-      el.style.setProperty('bottom', '0px', 'important');
-      el.style.setProperty('left', '0px', 'important');
-      el.style.setProperty('right', '0px', 'important');
-      el.style.setProperty('transform', 'none', 'important');
-      el.style.setProperty('width', '100%', 'important');
-      el.style.setProperty('max-width', '100vw', 'important');
-      el.style.setProperty('min-width', '100%', 'important');
-      el.style.setProperty('max-height', 'min(75dvh, 32rem)', 'important');
-    };
+      const mq = window.matchMedia(MOBILE_QUERY);
 
-    pinToBottom();
-    const observer = new MutationObserver(pinToBottom);
-    observer.observe(el, {
-      attributes: true,
-      attributeFilter: ['style'],
-    });
-    return () => observer.disconnect();
-  }, [isMobile]);
+      const pinToBottom = () => {
+        if (!mq.matches) return;
+        el.style.setProperty('position', 'fixed', 'important');
+        el.style.setProperty('top', 'auto', 'important');
+        el.style.setProperty('bottom', '0px', 'important');
+        el.style.setProperty('left', '0px', 'important');
+        el.style.setProperty('right', '0px', 'important');
+        el.style.setProperty('transform', 'none', 'important');
+        el.style.setProperty('translate', 'none', 'important');
+        el.style.setProperty('width', '100%', 'important');
+        el.style.setProperty('max-width', '100dvw', 'important');
+        el.style.setProperty('min-width', '100%', 'important');
+        el.style.setProperty('max-height', 'min(75dvh, 32rem)', 'important');
+        el.style.setProperty('box-sizing', 'border-box', 'important');
+        el.style.setProperty('margin', '0px', 'important');
+      };
 
-  return (
-    <SelectPrimitive.Portal>
-      <SelectPrimitive.Content
-        ref={setRefs}
-        className={cn(
-          'relative z-[51] min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md',
-          'max-h-[min(24rem,70vh)]',
-          'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-          'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
-          'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
-          !isMobile &&
-            position === 'popper' &&
-            'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
-          // Mobile sheet visual
-          isMobile &&
-            'rounded-t-2xl rounded-b-none border-x-0 border-b-0 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(0,0,0,0.18)] data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom data-[state=open]:zoom-in-100',
-          className,
-        )}
-        position={position}
-        side={isMobile ? 'bottom' : side}
-        align={isMobile ? 'center' : align}
-        avoidCollisions={isMobile ? false : avoidCollisions}
-        sideOffset={isMobile ? 0 : sideOffset}
-        {...props}
-      >
-        {isMobile ? (
-          <div className="flex justify-center pb-1 pt-3" aria-hidden>
-            <div className="h-1 w-10 rounded-full bg-muted-foreground/35" />
-          </div>
-        ) : null}
-        <SelectScrollUpButton />
-        <SelectPrimitive.Viewport
+      pinToBottom();
+      const observer = new MutationObserver(pinToBottom);
+      observer.observe(el, {
+        attributes: true,
+        attributeFilter: ['style'],
+      });
+      mq.addEventListener('change', pinToBottom);
+      return () => {
+        observer.disconnect();
+        mq.removeEventListener('change', pinToBottom);
+      };
+    }, []);
+
+    return (
+      <SelectPrimitive.Portal>
+        <SelectPrimitive.Content
+          ref={setRefs}
+          data-mobile-select-sheet=""
           className={cn(
-            'p-1 overflow-y-auto overscroll-contain',
-            'max-h-[min(22rem,66vh)]',
-            isMobile &&
-              '!h-auto max-h-[min(65dvh,28rem)] w-full min-w-full p-2',
+            'relative z-[51] min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md',
+            'max-h-[min(24rem,70vh)]',
+            'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+            'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+            'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
             !isMobile &&
               position === 'popper' &&
-              'w-full min-w-[var(--radix-select-trigger-width)]',
+              'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
+            // Mobile sheet — classes CSS (reforço; pin também no layout effect + globals)
+            'max-md:box-border max-md:w-full max-md:max-w-[100dvw] max-md:min-w-full max-md:overflow-x-hidden',
+            'max-md:rounded-t-2xl max-md:rounded-b-none max-md:border-x-0 max-md:border-b-0',
+            'max-md:pb-[env(safe-area-inset-bottom)] max-md:shadow-[0_-8px_30px_rgba(0,0,0,0.18)]',
+            'max-md:data-[state=open]:slide-in-from-bottom max-md:data-[state=closed]:slide-out-to-bottom',
+            'max-md:data-[state=open]:zoom-in-100 max-md:data-[side=bottom]:translate-y-0',
+            className,
           )}
+          position={position}
+          side={isMobile ? 'bottom' : side}
+          align={isMobile ? 'center' : align}
+          avoidCollisions={isMobile ? false : avoidCollisions}
+          sideOffset={isMobile ? 0 : sideOffset}
+          {...props}
         >
-          {children}
-        </SelectPrimitive.Viewport>
-        <SelectScrollDownButton />
-      </SelectPrimitive.Content>
-    </SelectPrimitive.Portal>
-  );
-},
+          <div
+            className="hidden justify-center pb-1 pt-3 max-md:flex"
+            aria-hidden
+          >
+            <div className="h-1 w-10 rounded-full bg-muted-foreground/35" />
+          </div>
+          <SelectScrollUpButton />
+          <SelectPrimitive.Viewport
+            className={cn(
+              'overflow-y-auto overscroll-contain p-1',
+              'max-h-[min(22rem,66vh)]',
+              'max-md:box-border max-md:!h-auto max-md:max-h-[min(65dvh,28rem)]',
+              'max-md:w-full max-md:min-w-0 max-md:max-w-full max-md:px-3 max-md:pb-3 max-md:pt-1',
+              !isMobile &&
+                position === 'popper' &&
+                'w-full min-w-[var(--radix-select-trigger-width)]',
+            )}
+          >
+            {children}
+          </SelectPrimitive.Viewport>
+          <SelectScrollDownButton />
+        </SelectPrimitive.Content>
+      </SelectPrimitive.Portal>
+    );
+  },
 );
 SelectContent.displayName = SelectPrimitive.Content.displayName;
 
@@ -266,7 +302,10 @@ const SelectLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Label
     ref={ref}
-    className={cn('py-1.5 pl-8 pr-2 text-sm font-semibold', className)}
+    className={cn(
+      'py-1.5 pl-8 pr-2 text-sm font-semibold max-md:px-1 max-md:pl-1',
+      className,
+    )}
     {...props}
   />
 ));
@@ -280,18 +319,22 @@ const SelectItem = React.forwardRef<
     ref={ref}
     className={cn(
       'relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-      'max-md:min-h-12 max-md:rounded-md max-md:py-3.5',
+      'max-md:box-border max-md:min-h-12 max-md:max-w-full max-md:items-start max-md:rounded-md max-md:py-3 max-md:pl-10 max-md:pr-3',
       className,
     )}
     {...props}
   >
-    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+    <span className="absolute left-2 top-1/2 flex h-3.5 w-3.5 -translate-y-1/2 items-center justify-center max-md:top-3.5 max-md:translate-y-0">
       <SelectPrimitive.ItemIndicator>
         <Check className="h-4 w-4" />
       </SelectPrimitive.ItemIndicator>
     </span>
 
-    <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+    <SelectPrimitive.ItemText asChild>
+      <span className="block min-w-0 flex-1 whitespace-normal break-words text-left max-md:leading-snug">
+        {children}
+      </span>
+    </SelectPrimitive.ItemText>
   </SelectPrimitive.Item>
 ));
 SelectItem.displayName = SelectPrimitive.Item.displayName;
