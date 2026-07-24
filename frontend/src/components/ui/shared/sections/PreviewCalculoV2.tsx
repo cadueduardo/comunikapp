@@ -343,7 +343,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
     connectionStatus,
     isConnected,
     resultadoOrcamento
-  } = useCalculoWebSocket();
+  } = useCalculoWebSocket({ autoConnect: false });
 
   // Dados mockados como fallback (mantendo estrutura original)
   const mockData: PreviewData = {

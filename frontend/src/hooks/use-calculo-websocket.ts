@@ -35,6 +35,8 @@ const resolveSocketBaseUrl = () => {
 interface UseCalculoWebSocketOptions {
   lojaId?: string;
   usuarioId?: string;
+  /** Se false, não abre socket (preview usa cálculo local). Default: true. */
+  autoConnect?: boolean;
 }
 
 export interface CalculoWebSocketHook {
@@ -51,10 +53,12 @@ export interface CalculoWebSocketHook {
  */
 let sharedSocket: Socket | null = null;
 let sharedRefCount = 0;
+let sharedConnecting = false;
 
 export const useCalculoWebSocket = (
   options: UseCalculoWebSocketOptions = {},
 ): CalculoWebSocketHook => {
+  const autoConnect = options.autoConnect !== false;
   const [connectionStatus, setConnectionStatus] = useState<
     'connecting' | 'connected' | 'disconnected' | 'error'
   >('disconnected');
@@ -62,13 +66,23 @@ export const useCalculoWebSocket = (
   const [resultadoProduto, setResultadoProduto] = useState<unknown>(null);
   const [resultadoOrcamento, setResultadoOrcamento] = useState<unknown>(null);
 
-  const isConnectingRef = useRef(false);
   const hasConnectedRef = useRef(false);
   const shouldReconnectRef = useRef(true);
   const identifiersRef = useRef<{ lojaId?: string; usuarioId?: string }>({
     lojaId: options.lojaId,
     usuarioId: options.usuarioId,
   });
+
+  const setStatusSafe = useCallback(
+    (next: 'connecting' | 'connected' | 'disconnected' | 'error') => {
+      setConnectionStatus((prev) => (prev === next ? prev : next));
+      setIsConnected((prev) => {
+        const want = next === 'connected';
+        return prev === want ? prev : want;
+      });
+    },
+    [],
+  );
 
   const resolveIdentifiers = useCallback(() => {
     const lojaId =
@@ -99,14 +113,16 @@ export const useCalculoWebSocket = (
       sharedSocket = null;
     }
 
-    setConnectionStatus('disconnected');
-    setIsConnected(false);
-    isConnectingRef.current = false;
+    setStatusSafe('disconnected');
+    sharedConnecting = false;
     hasConnectedRef.current = false;
-  }, []);
+  }, [setStatusSafe]);
 
   const connect = useCallback(() => {
-    if (isConnectingRef.current) {
+    if (sharedConnecting || sharedSocket?.connected) {
+      if (sharedSocket?.connected) {
+        setStatusSafe('connected');
+      }
       return;
     }
 
@@ -119,43 +135,38 @@ export const useCalculoWebSocket = (
         : null);
 
     if (!token) {
-      setConnectionStatus('disconnected');
+      setStatusSafe('disconnected');
       return;
     }
 
     const { lojaId, usuarioId } = resolveIdentifiers();
 
     if (!lojaId || !usuarioId) {
-      setConnectionStatus('disconnected');
-      return;
-    }
-
-    if (sharedSocket?.connected) {
-      setConnectionStatus('connected');
-      setIsConnected(true);
+      setStatusSafe('disconnected');
       return;
     }
 
     const baseUrl = resolveSocketBaseUrl();
     if (!baseUrl) {
-      setConnectionStatus('disconnected');
+      setStatusSafe('disconnected');
       return;
     }
 
-    isConnectingRef.current = true;
-    setConnectionStatus('connecting');
+    sharedConnecting = true;
+    setStatusSafe('connecting');
     shouldReconnectRef.current = true;
 
     // Polling primeiro: mais estável em Safari/mobile e redes com proxy.
     // extraHeaders NÃO funciona no browser — usar auth.
+    // reconnection limitado: evita spam de "xhr poll error" no overlay do Next.
     const socket = io(`${baseUrl}/calculo-v2`, {
       transports: ['polling', 'websocket'],
       upgrade: true,
-      timeout: 12000,
+      timeout: 8000,
       forceNew: false,
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
+      reconnectionAttempts: 1,
+      reconnectionDelay: 2500,
       auth: { token },
       query: {
         token,
@@ -167,16 +178,14 @@ export const useCalculoWebSocket = (
     sharedSocket = socket;
 
     socket.on('connect', () => {
-      setConnectionStatus('connected');
-      setIsConnected(true);
-      isConnectingRef.current = false;
+      setStatusSafe('connected');
+      sharedConnecting = false;
       hasConnectedRef.current = true;
     });
 
     socket.on('status', (message: { conectado?: boolean }) => {
       if (message?.conectado) {
-        setConnectionStatus('connected');
-        setIsConnected(true);
+        setStatusSafe('connected');
       }
     });
 
@@ -186,31 +195,41 @@ export const useCalculoWebSocket = (
     });
 
     socket.on('erro', () => {
-      setConnectionStatus('error');
+      setStatusSafe('error');
     });
 
     socket.on('disconnect', () => {
-      setConnectionStatus('disconnected');
-      setIsConnected(false);
-      isConnectingRef.current = false;
+      setStatusSafe('disconnected');
+      sharedConnecting = false;
       hasConnectedRef.current = false;
       // Mantém último resultado — preview local continua válido.
     });
 
     socket.on('connect_error', () => {
-      setConnectionStatus('error');
-      isConnectingRef.current = false;
+      setStatusSafe('error');
+      sharedConnecting = false;
+      // Para tentativas extras — cálculo local segue no preview.
+      try {
+        socket.io.opts.reconnection = false;
+      } catch {
+        /* ignore */
+      }
     });
 
     socket.on('erro-autenticacao', () => {
-      setConnectionStatus('error');
-      isConnectingRef.current = false;
+      setStatusSafe('error');
+      sharedConnecting = false;
       shouldReconnectRef.current = false;
+      try {
+        socket.io.opts.reconnection = false;
+      } catch {
+        /* ignore */
+      }
     });
-  }, [resolveIdentifiers]);
+  }, [resolveIdentifiers, setStatusSafe]);
 
   useEffect(() => {
-    if (WEBSOCKET_DISABLED) {
+    if (WEBSOCKET_DISABLED || !autoConnect) {
       return () => undefined;
     }
 
@@ -220,13 +239,13 @@ export const useCalculoWebSocket = (
     if (lojaId && usuarioId) {
       connect();
     } else {
-      setConnectionStatus('disconnected');
+      setStatusSafe('disconnected');
     }
 
     return () => {
       disconnect();
     };
-  }, [connect, disconnect, resolveIdentifiers]);
+  }, [autoConnect, connect, disconnect, resolveIdentifiers, setStatusSafe]);
 
   const executarCalculo = useCallback(
     (data: unknown) => {

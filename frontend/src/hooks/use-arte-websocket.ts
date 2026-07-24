@@ -25,8 +25,6 @@ const resolveSocketBaseUrl = () => {
   return configuredUrl;
 };
 
-const SOCKET_BASE_URL = resolveSocketBaseUrl();
-
 interface UseArteWebSocketOptions {
   versaoId?: string;
   token?: string; // Para cliente público
@@ -106,15 +104,22 @@ export const useArteWebSocket = (
     setConnectionStatus('connecting');
     shouldReconnectRef.current = true;
 
-    const socket = io(`${SOCKET_BASE_URL}/arte-aprovacao`, {
+    const baseUrl = resolveSocketBaseUrl();
+    if (!baseUrl) {
+      setConnectionStatus('disconnected');
+      isConnectingRef.current = false;
+      return;
+    }
+
+    const socket = io(`${baseUrl}/arte-aprovacao`, {
       // Polling primeiro: mais estável em mobile/Safari
       transports: ['polling', 'websocket'],
       upgrade: true,
-      timeout: 12000,
+      timeout: 8000,
       forceNew: false,
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
+      reconnectionAttempts: 1,
+      reconnectionDelay: 2500,
       auth: {
         token: token,
       },
@@ -131,7 +136,6 @@ export const useArteWebSocket = (
       setIsConnected(true);
       isConnectingRef.current = false;
       hasConnectedRef.current = true;
-      console.log('🎨 Arte WebSocket conectado');
     });
 
     socket.on('disconnect', () => {
@@ -142,42 +146,24 @@ export const useArteWebSocket = (
       setUsuariosTyping([]);
       isConnectingRef.current = false;
       hasConnectedRef.current = false;
-
-      if (shouldReconnectRef.current) {
-        setTimeout(() => {
-          if (!hasConnectedRef.current && shouldReconnectRef.current) {
-            connect();
-          }
-        }, 5000);
-      }
     });
 
     socket.on('connect_error', (error) => {
       setConnectionStatus('error');
       isConnectingRef.current = false;
-      console.error('❌ Erro de conexão Arte WebSocket:', error);
-      
-      // Se for erro de namespace inválido, não tentar reconectar (é erro de configuração)
-      const errorMessage = error?.message || '';
-      if (errorMessage.includes('Invalid namespace')) {
-        console.error('❌ Namespace inválido - verificar configuração do WebSocket');
-        shouldReconnectRef.current = false;
-        return;
+      shouldReconnectRef.current = false;
+      try {
+        socket.io.opts.reconnection = false;
+      } catch {
+        /* ignore */
       }
-      
-      if (shouldReconnectRef.current) {
-        setTimeout(() => {
-          if (!hasConnectedRef.current && shouldReconnectRef.current) {
-            connect();
-          }
-        }, 3000);
-      }
+      // Sem console.error: no mobile o Next overlay trata "xhr poll error" como Issue.
+      void error;
     });
 
     // Eventos específicos do arte
     socket.on('nova_mensagem_arte', (data) => {
       const normalized = normalizeArteMensagemSocketPayload(data);
-      console.log('📨 Nova mensagem recebida:', normalized);
       setNovaMensagem(normalized);
       
       // Limpar mensagem após um tempo para permitir nova notificação
@@ -187,7 +173,6 @@ export const useArteWebSocket = (
     });
 
     socket.on('mensagem_marcada_lida', (data) => {
-      console.log('👁️ Mensagem marcada como lida:', data);
       setMensagensLidas(prev => [...prev, data.mensagemId]);
     });
 
@@ -205,28 +190,24 @@ export const useArteWebSocket = (
       });
     });
 
-    socket.on('user_joined_arte', (data) => {
-      console.log('👤 Usuário entrou na sala:', data);
+    socket.on('user_joined_arte', () => {
+      /* sala join — silencioso */
     });
 
     socket.on('user_left_arte', (data) => {
-      console.log('👋 Usuário saiu da sala:', data);
-      // Remover usuário da lista de typing se estiver
       setUsuariosTyping(prev => prev.filter(u => u.clientId !== data.clientId));
     });
 
     socket.on('contador_atualizado', (data) => {
-      console.log('🔢 Contador atualizado:', data);
       setContadorAtualizado(data);
       setTimeout(() => setContadorAtualizado(null), 100);
     });
 
-    socket.on('pong_arte', (data) => {
-      console.log('🏓 Pong recebido:', data);
+    socket.on('pong_arte', () => {
+      /* heartbeat */
     });
 
-    socket.on('error', (error) => {
-      console.error('❌ Erro no Arte WebSocket:', error);
+    socket.on('error', () => {
       setConnectionStatus('error');
     });
 

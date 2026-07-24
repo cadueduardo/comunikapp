@@ -1950,7 +1950,10 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Unidade comercial</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value ? String(field.value) : undefined}
+                            >
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Selecione a unidade comercial" />

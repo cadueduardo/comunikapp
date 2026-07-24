@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Calculator, CheckCircle2, Save, LayoutTemplate } from 'lucide-react';
 import { orcamentosApi, produtosApi, produtosFinitosApi } from '@/lib/api-client';
+import { useMediaQuery } from '@/hooks/use-media-query';
 import { createFormSchema, FormValues, validarMateriaisItensProduto } from '../orcamento/schemas/orcamento.schema';
 import { useOrcamentoData } from '../orcamento/hooks/useOrcamentoData';
 import {
@@ -241,6 +242,7 @@ export function OrcamentoV2Form({
   );
   // Forçar hot reload - versão atualizada
   const router = useRouter();
+  const isDesktopPreview = useMediaQuery('(min-width: 1024px)');
   const [loading] = useState(false);
   const [isEnviando, setIsEnviando] = useState(false);
   const [isAtualizando, setIsAtualizando] = useState(false);
@@ -3255,41 +3257,45 @@ export function OrcamentoV2Form({
                 </div>
               </div>
 
-              {/* Sidebar com preview — desktop */}
-              <div className="hidden w-full lg:block lg:w-3/10 lg:flex-shrink-0">
-                <div className="sticky top-6 space-y-3">
-                  <PreviewCalculoV2
-                    dadosCarregados={dadosCarregados}
-                    refreshKey={produtosSectionKey}
-                    itensProdutoCarregados={itensProdutoCarregados}
-                    datasets={{
-                      insumos,
-                      maquinas,
-                      funcoes,
-                      servicos,
-                      custosIndiretos,
-                    }}
-                    layout="sidebar"
-                  />
+              {/* Sidebar com preview — desktop (só monta em lg+) */}
+              {isDesktopPreview ? (
+                <div className="w-full lg:w-3/10 lg:flex-shrink-0">
+                  <div className="sticky top-6 space-y-3">
+                    <PreviewCalculoV2
+                      dadosCarregados={dadosCarregados}
+                      refreshKey={produtosSectionKey}
+                      itensProdutoCarregados={itensProdutoCarregados}
+                      datasets={{
+                        insumos,
+                        maquinas,
+                        funcoes,
+                        servicos,
+                        custosIndiretos,
+                      }}
+                      layout="sidebar"
+                    />
+                  </div>
                 </div>
+              ) : null}
+            </div>
+            {/* Mobile: total fixo + preview em sheet (só monta abaixo de lg) */}
+            {!isDesktopPreview ? (
+              <div>
+                <PreviewCalculoV2
+                  dadosCarregados={dadosCarregados}
+                  refreshKey={produtosSectionKey}
+                  itensProdutoCarregados={itensProdutoCarregados}
+                  datasets={{
+                    insumos,
+                    maquinas,
+                    funcoes,
+                    servicos,
+                    custosIndiretos,
+                  }}
+                  layout="mobile-dock"
+                />
               </div>
-            </div>
-            {/* Mobile: total fixo + preview em sheet */}
-            <div className="lg:hidden">
-              <PreviewCalculoV2
-                dadosCarregados={dadosCarregados}
-                refreshKey={produtosSectionKey}
-                itensProdutoCarregados={itensProdutoCarregados}
-                datasets={{
-                  insumos,
-                  maquinas,
-                  funcoes,
-                  servicos,
-                  custosIndiretos,
-                }}
-                layout="mobile-dock"
-              />
-            </div>
+            ) : null}
             </>
           ) : (
             /* Layout sem Preview - Formulário completo */

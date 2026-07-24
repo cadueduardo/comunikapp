@@ -59,7 +59,10 @@ export function ClienteSection({ clientes, mode }: ClienteSectionProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Selecione o Cliente</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
+              <Select
+                onValueChange={field.onChange}
+                value={field.value ? String(field.value) : undefined}
+              >
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Escolha um cliente" />
