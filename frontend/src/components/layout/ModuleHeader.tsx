@@ -46,10 +46,16 @@ export function ModuleHeader({
   const displayTitle = title ?? active?.label ?? nav.label;
 
   const backButton = backHref ? (
-    <Button asChild variant="outline" size="sm" className="shrink-0">
+    <Button
+      asChild
+      variant="outline"
+      size="icon"
+      className="h-9 w-9 shrink-0"
+      aria-label={backLabel}
+      title={backLabel}
+    >
       <Link href={backHref}>
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        {backLabel}
+        <ArrowLeft className="h-4 w-4" />
       </Link>
     </Button>
   ) : null;

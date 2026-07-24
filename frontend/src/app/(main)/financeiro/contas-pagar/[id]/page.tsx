@@ -1,6 +1,7 @@
 'use client';
 
 import { use, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 import { ModuleHeader } from '@/components/layout/ModuleHeader';

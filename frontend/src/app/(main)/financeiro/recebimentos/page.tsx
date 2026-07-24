@@ -307,6 +307,7 @@ export default function RecebimentosPage() {
           title="Auditoria de recebimentos"
           icon={<Banknote className="h-7 w-7 sm:h-8 sm:w-8" />}
           subtitle="Acompanhe cobranças e recebimentos por cliente"
+          backHref="/financeiro"
         />
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
@@ -324,6 +325,7 @@ export default function RecebimentosPage() {
         title="Auditoria de recebimentos"
         icon={<Banknote className="h-7 w-7 sm:h-8 sm:w-8" />}
         subtitle="Acompanhe cobranças e recebimentos por cliente"
+        backHref="/financeiro"
         actions={
           <div className="flex flex-wrap gap-2">
             <Button onClick={handleRefresh} disabled={refreshing} variant="outline">

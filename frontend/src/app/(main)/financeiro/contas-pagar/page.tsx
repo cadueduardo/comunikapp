@@ -56,6 +56,7 @@ export default function ContasPagarListPage() {
           title="Contas a pagar"
           subtitle="Obrigações financeiras com fornecedores e pagamentos registrados."
           icon={<Banknote className="h-7 w-7 sm:h-8 sm:w-8" />}
+          backHref="/financeiro"
           actions={
             !isMobile ? (
               <div className="flex items-center gap-1 rounded-lg bg-muted p-1">

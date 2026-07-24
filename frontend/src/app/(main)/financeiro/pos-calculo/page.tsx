@@ -38,6 +38,7 @@ export default function PosCalculoPage() {
         title="Pós-cálculo (OS)"
         subtitle="Previsto × real por ordem de serviço — receitas, custos, margens e fechamento financeiro."
         icon={<Calculator className="h-7 w-7 sm:h-8 sm:w-8" />}
+        backHref="/financeiro"
       />
 
       <Card>
