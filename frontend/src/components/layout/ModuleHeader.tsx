@@ -29,8 +29,8 @@ type ModuleHeaderProps = {
 
 /**
  * Header de módulo.
- * Desktop: título estático + botão "Seções" (submenu).
- * Mobile: título estático; seções via rodapé "Navegar em …" (ModuleBottomNav).
+ * Desktop: uma linha — título · módulo | Seções | ações (sem subtítulo).
+ * Mobile: título + subtítulo; seções no rodapé (ModuleBottomNav).
  */
 export function ModuleHeader({
   nav,
@@ -45,40 +45,59 @@ export function ModuleHeader({
   const active = resolveActiveModuleNavItem(nav.items, pathname, nav.homeHref);
   const displayTitle = title ?? active?.label ?? nav.label;
 
+  const backButton = backHref ? (
+    <Button asChild variant="outline" size="sm" className="shrink-0">
+      <Link href={backHref}>
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        {backLabel}
+      </Link>
+    </Button>
+  ) : null;
+
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="flex min-w-0 items-start gap-3">
-        {backHref ? (
-          <Button asChild variant="outline" size="sm" className="mt-1 shrink-0">
-            <Link href={backHref}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {backLabel}
-            </Link>
-          </Button>
-        ) : null}
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 px-2">
-            <p className="text-sm font-medium text-muted-foreground">
+    <>
+      {/* Mobile — layout atual (rodapé cuida da navegação) */}
+      <div className="flex flex-col gap-4 md:hidden">
+        <div className="flex min-w-0 items-start gap-3">
+          {backButton ? <div className="mt-1">{backButton}</div> : null}
+          <div className="min-w-0">
+            <p className="px-2 text-sm font-medium text-muted-foreground">
               {nav.label}
             </p>
-            <ModuleSubmenu
-              nav={nav}
-              activeHref={active?.href}
-              className="hidden md:inline-flex"
-            />
+            <h1 className="flex items-center gap-2 px-2 text-2xl font-bold tracking-tight text-foreground">
+              {icon}
+              <span className="min-w-0 break-words">{displayTitle}</span>
+            </h1>
+            {subtitle ? (
+              <p className="mt-1 px-2 text-muted-foreground">{subtitle}</p>
+            ) : null}
           </div>
-          <h1 className="flex items-center gap-2 px-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+        </div>
+        {actions ? (
+          <div className="flex flex-shrink-0 flex-wrap gap-2">{actions}</div>
+        ) : null}
+      </div>
+
+      {/* Desktop — uma linha compacta */}
+      <div className="hidden items-center justify-between gap-4 md:flex">
+        <div className="flex min-w-0 items-center gap-3">
+          {backButton}
+          <h1 className="flex min-w-0 items-center gap-2 text-2xl font-bold tracking-tight text-foreground">
             {icon}
-            <span className="min-w-0 break-words">{displayTitle}</span>
+            <span className="truncate">{displayTitle}</span>
+            <span className="font-normal text-muted-foreground" aria-hidden>
+              ·
+            </span>
+            <span className="truncate text-base font-medium text-muted-foreground">
+              {nav.label}
+            </span>
           </h1>
-          {subtitle ? (
-            <p className="mt-1 px-2 text-muted-foreground">{subtitle}</p>
-          ) : null}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <ModuleSubmenu nav={nav} activeHref={active?.href} />
+          {actions}
         </div>
       </div>
-      {actions ? (
-        <div className="flex flex-shrink-0 flex-wrap gap-2">{actions}</div>
-      ) : null}
-    </div>
+    </>
   );
 }
